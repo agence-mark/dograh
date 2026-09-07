@@ -39,8 +39,13 @@ import {
   type Organization,
   selectOrganization,
 } from "@/lib/organizationMembership";
+import { cn } from "@/lib/utils";
 
-export function SidebarOrganizationSwitcher() {
+export function SidebarOrganizationSwitcher({
+  className,
+}: {
+  className?: string;
+}) {
   const { provider, user, loading } = useAuth();
 
   // The auth interceptor that attaches the bearer token is only registered
@@ -50,10 +55,14 @@ export function SidebarOrganizationSwitcher() {
     return null;
   }
 
-  return <SidebarOrganizationSwitcherContent />;
+  return <SidebarOrganizationSwitcherContent className={className} />;
 }
 
-function SidebarOrganizationSwitcherContent() {
+function SidebarOrganizationSwitcherContent({
+  className,
+}: {
+  className?: string;
+}) {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const hasFetched = useRef(false);
@@ -102,7 +111,7 @@ function SidebarOrganizationSwitcherContent() {
   }
 
   return (
-    <div className="relative">
+    <div className={cn("relative", className)}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

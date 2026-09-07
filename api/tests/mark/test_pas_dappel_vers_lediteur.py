@@ -1,18 +1,27 @@
-"""[.mark] Non-regression test for the ENABLE_DOGRAH_MANAGED_SERVICES switch.
+"""[.mark] Non-regression test for the ENABLE_DOGRAH_MANAGED_PROVISIONING switch.
 
 The question this file answers, and it answers only this one:
 
-    When Dograh-managed services are switched off, does an authenticated
-    request still reach out to the vendor's servers?
+    When managed provisioning is switched off, does an authenticated request
+    still provision the organization against the vendor's servers?
+
+⛔ Read that scope literally. This file does NOT prove that nothing ever
+reaches ``services.dograh.com``, and it must not be quoted as if it did.
+Other endpoints still call MPS when a user opens the screen that needs them —
+billing usage (``routes/organization_usage.py``), service keys
+(``routes/service_keys.py``), the voice list (``routes/user.py``), workflow
+import (``routes/workflow.py``), recording transcription, knowledge-base
+processing. Those are user-initiated. What this switch removes is the call
+NOBODY asked for, on every authenticated request, forever.
 
 Why it exists
 -------------
-The .mark deployment sells "everything runs on your own accounts, nothing
-leaves the installation" (BYOK on every provider: telephony, reasoning,
-speech-to-text, text-to-speech). Upstream, ``ensure_organization_bootstrapped``
-runs on every authenticated request and, until it succeeds, calls
-``services.dograh.com`` to mint a model-service key and to provision managed
-SIP. That makes the sentence false.
+The .mark deployment sells "everything runs on your own accounts" (BYOK on
+every provider: telephony, reasoning, speech-to-text, text-to-speech).
+Upstream, ``ensure_organization_bootstrapped`` runs on every authenticated
+request and, until it succeeds, calls ``services.dograh.com`` to mint a
+model-service key and to provision managed SIP. That happens whether or not
+the operator ever intends to use a managed service.
 
 The failure mode this guards against is silent. If upstream moves the
 provisioning call somewhere else, our lines survive, nothing conflicts, the
@@ -94,7 +103,7 @@ def unprovisioned_organization(monkeypatch):
 async def test_switched_off_nothing_leaves_the_installation(
     monkeypatch, attempted_requests, unprovisioned_organization
 ):
-    """THE test. Switched off, bootstrap must not touch the network at all.
+    """THE test. Switched off, provisioning must not touch the network at all.
 
     ``raising=False`` is load-bearing, not laziness: it keeps this test measuring
     *behaviour* rather than the presence of a symbol. On code where the patch is
@@ -103,7 +112,7 @@ async def test_switched_off_nothing_leaves_the_installation(
     that says nothing about what left the machine.
     """
     monkeypatch.setattr(
-        bootstrap, "ENABLE_DOGRAH_MANAGED_SERVICES", False, raising=False
+        bootstrap, "ENABLE_DOGRAH_MANAGED_PROVISIONING", False, raising=False
     )
 
     await bootstrap.ensure_organization_bootstrapped(
@@ -126,7 +135,7 @@ async def test_switched_off_the_caller_is_not_asked_to_retry(
     lease would have every later request re-enter bootstrap forever.
     """
     monkeypatch.setattr(
-        bootstrap, "ENABLE_DOGRAH_MANAGED_SERVICES", False, raising=False
+        bootstrap, "ENABLE_DOGRAH_MANAGED_PROVISIONING", False, raising=False
     )
 
     assert (
@@ -153,7 +162,7 @@ async def test_switched_on_upstream_behaviour_is_unchanged(
     spy.
     """
     monkeypatch.setattr(
-        bootstrap, "ENABLE_DOGRAH_MANAGED_SERVICES", True, raising=False
+        bootstrap, "ENABLE_DOGRAH_MANAGED_PROVISIONING", True, raising=False
     )
 
     await bootstrap.ensure_organization_bootstrapped(
@@ -172,10 +181,10 @@ def test_the_switch_defaults_to_upstream_behaviour(monkeypatch):
 
     from api import constants
 
-    monkeypatch.delenv("ENABLE_DOGRAH_MANAGED_SERVICES", raising=False)
+    monkeypatch.delenv("ENABLE_DOGRAH_MANAGED_PROVISIONING", raising=False)
     reloaded = importlib.reload(constants)
     try:
-        assert reloaded.ENABLE_DOGRAH_MANAGED_SERVICES is True
+        assert reloaded.ENABLE_DOGRAH_MANAGED_PROVISIONING is True
     finally:
         importlib.reload(constants)
 
@@ -186,12 +195,12 @@ def test_the_switch_reads_the_environment(monkeypatch):
 
     from api import constants
 
-    monkeypatch.setenv("ENABLE_DOGRAH_MANAGED_SERVICES", "false")
+    monkeypatch.setenv("ENABLE_DOGRAH_MANAGED_PROVISIONING", "false")
     reloaded = importlib.reload(constants)
     try:
-        assert reloaded.ENABLE_DOGRAH_MANAGED_SERVICES is False
+        assert reloaded.ENABLE_DOGRAH_MANAGED_PROVISIONING is False
     finally:
-        monkeypatch.delenv("ENABLE_DOGRAH_MANAGED_SERVICES", raising=False)
+        monkeypatch.delenv("ENABLE_DOGRAH_MANAGED_PROVISIONING", raising=False)
         importlib.reload(constants)
 
 
@@ -202,7 +211,7 @@ def test_the_only_switch_that_exists_is_ours():
     patch becomes redundant and should leave the fork rather than be carried
     (rule 8 of the fork registry). This test is the reminder to check.
     """
-    assert hasattr(bootstrap, "ENABLE_DOGRAH_MANAGED_SERVICES"), (
+    assert hasattr(bootstrap, "ENABLE_DOGRAH_MANAGED_PROVISIONING"), (
         "The switch is gone from api/services/organization_bootstrap.py. Either "
         "an upstream merge dropped the .mark patch — in which case the "
         "installation is calling services.dograh.com again — or upstream now "

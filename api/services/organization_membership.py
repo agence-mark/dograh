@@ -22,10 +22,40 @@ Scope of the door, deliberately narrow:
   pass something a human can read.
 """
 
+from typing import Annotated
+
+from fastapi import Header, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from api.db import db_client
 from api.db.models import UserModel
+
+
+async def reject_api_key_auth(
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+) -> None:
+    """Refuse API-key authentication on the membership routes.
+
+    ``get_user`` accepts an API key *in preference to* the bearer token, and an
+    API key is scoped to one organization — it forces
+    ``selected_organization_id`` to the key's own organization. These routes
+    reason about the *user*, who owns every organization they created, so
+    without this an organization-scoped key would read the whole list and move
+    the account's current organization. That is the exact isolation these
+    routes exist to make possible, so the key is refused rather than
+    reinterpreted.
+
+    Sessions belong to people here; API keys are for machine calls against one
+    organization, and those have no business switching it.
+    """
+    if x_api_key:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Organization membership cannot be managed with an API key. "
+                "An API key is scoped to a single organization."
+            ),
+        )
 
 
 class OrganizationProviderIdTakenError(Exception):
@@ -90,8 +120,19 @@ async def create_organization_for_user(
 ) -> OrganizationSummary:
     """Create an organization and make the caller a member of it.
 
-    Refuses a taken identifier rather than joining the organization behind it.
+    Refuses a taken identifier rather than joining the organization behind it,
+    and does so twice over.
+
+    The read below is not an optimisation: it means a taken identifier never
+    reaches ``get_or_create_organization_by_provider_id`` at all. That function
+    already receives ``user_id`` — today only to own the default API key — so a
+    plausible upstream change could have it link the caller as well, which no
+    conflict and no diff review would catch. The was-created check stays as the
+    second gate for the concurrent case, where the read cannot help.
     """
+    if await db_client.get_organization_by_provider_id(provider_id) is not None:
+        raise OrganizationProviderIdTakenError(provider_id)
+
     organization, was_created = await db_client.get_or_create_organization_by_provider_id(
         org_provider_id=provider_id, user_id=user.id
     )

@@ -19,7 +19,7 @@ from loguru import logger
 from api.constants import (
     AUTH_PROVIDER,
     DEPLOYMENT_MODE,
-    ENABLE_DOGRAH_MANAGED_SERVICES,
+    ENABLE_DOGRAH_MANAGED_PROVISIONING,
 )
 from api.db import db_client
 from api.db.organization_configuration_client import LEASE_COMPLETED
@@ -70,7 +70,7 @@ async def ensure_organization_bootstrapped(
     # managed services off there is nothing left to provision, and False would
     # read as "not provisioned yet" and have the lease re-enter bootstrap on
     # every subsequent request forever.
-    if not ENABLE_DOGRAH_MANAGED_SERVICES:
+    if not ENABLE_DOGRAH_MANAGED_PROVISIONING:
         return True
 
     if await _is_bootstrap_complete(organization_id):

@@ -387,13 +387,15 @@ export function AppSidebar() {
 
         {/* [.mark] Same slot, the OSS switcher. Stack owns teams on its side;
             under local auth the organizations are ours to create and move
-            between. The component renders nothing until it has more than the
-            single organization signup created, so an untouched install looks
-            exactly as it did. */}
+            between. It shows as soon as there is one organization — which is
+            every install — because creating the second one goes through it. It
+            renders null when the list is empty or the backend has no
+            membership routes, and the wrapper goes with it so an unpatched
+            deployment gains no stray margin. */}
         {provider === "local" && (
-          <div className={cn("mt-3 notranslate", isCollapsed && "hidden")} translate="no">
-            <SidebarOrganizationSwitcher />
-          </div>
+          <SidebarOrganizationSwitcher
+            className={cn("mt-3 notranslate", isCollapsed && "hidden")}
+          />
         )}
       </SidebarHeader>
 

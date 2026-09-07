@@ -77,18 +77,24 @@ STACK_AUTH_PROJECT_ID = os.getenv("STACK_AUTH_PROJECT_ID")
 STACK_PUBLISHABLE_CLIENT_KEY = os.getenv("STACK_PUBLISHABLE_CLIENT_KEY")
 DOGRAH_MPS_SECRET_KEY = os.getenv("DOGRAH_MPS_SECRET_KEY", None)
 MPS_API_URL = os.getenv("MPS_API_URL", "https://services.dograh.com")
-# [.mark] Whether this installation may reach out to Dograh's own services
-# (MPS_API_URL) to provision an organization: a managed model-service key and
-# managed Cloudonix SIP. Self-hosters who bring their own provider keys and
-# their own carrier want neither, and today they get both — organization
-# bootstrap runs on every authenticated request until it succeeds, so a
-# deployment that never intends to use managed services calls out forever.
+# [.mark] Whether an organization may be PROVISIONED against Dograh's own
+# services (MPS_API_URL): a managed model-service key and managed Cloudonix
+# SIP. Self-hosters who bring their own provider keys and their own carrier
+# want neither, and today they get both — organization bootstrap runs on every
+# authenticated request until it succeeds, so a deployment that never intends
+# to use managed services calls out forever, unprompted.
+#
+# Scope, deliberately narrow and worth stating: this covers PROVISIONING only.
+# It is not a global "never talk to the vendor" switch, and must not be sold as
+# one. Other endpoints still reach MPS when a user opens the screen that needs
+# them (billing usage, service keys, the voice list, workflow import, recording
+# transcription, knowledge-base processing). Those are user-initiated; this one
+# was not, which is why it is the one that gets a switch.
 #
 # Defaults to true, so an operator who sets nothing keeps Dograh's behaviour
-# unchanged. Set it to "false" to keep the deployment self-contained.
-# See agence-mark/socle-agent-vocal, forks/REGISTRE.md.
-ENABLE_DOGRAH_MANAGED_SERVICES = (
-    os.getenv("ENABLE_DOGRAH_MANAGED_SERVICES", "true").lower() == "true"
+# unchanged. See agence-mark/socle-agent-vocal, forks/REGISTRE.md.
+ENABLE_DOGRAH_MANAGED_PROVISIONING = (
+    os.getenv("ENABLE_DOGRAH_MANAGED_PROVISIONING", "true").lower() == "true"
 )
 DOGRAH_DEVOPS_SECRET = os.getenv("DOGRAH_DEVOPS_SECRET") or None
 

@@ -93,6 +93,7 @@ from api.services.organization_membership import (
     SelectOrganizationRequest,
     create_organization_for_user,
     list_organizations_for_user,
+    reject_api_key_auth,
     select_organization_for_user,
 )
 from api.services.organization_preferences import (
@@ -243,11 +244,15 @@ async def get_current_organization_context(user: UserModel = Depends(get_user)):
 # the literal "selected" segment can never be read as an id. OSS-only: under
 # Stack Auth the identity provider owns teams, so require_local_auth answers
 # 404 there rather than accepting a write the next request would undo.
+#
+# reject_api_key_auth is load-bearing, not defensive dressing: get_user accepts
+# an API key IN PREFERENCE to the bearer token, and an API key is scoped to one
+# organization while these routes reason about the user, who owns them all.
 # See api/services/organization_membership.py for the reasoning.
 @router.get(
     "",
     response_model=OrganizationListResponse,
-    dependencies=[Depends(require_local_auth)],
+    dependencies=[Depends(require_local_auth), Depends(reject_api_key_auth)],
 )
 async def list_organizations(user: UserModel = Depends(get_user)):
     """List the organizations the caller belongs to, flagging the current one."""
@@ -257,7 +262,7 @@ async def list_organizations(user: UserModel = Depends(get_user)):
 @router.post(
     "",
     response_model=OrganizationSummary,
-    dependencies=[Depends(require_local_auth)],
+    dependencies=[Depends(require_local_auth), Depends(reject_api_key_auth)],
 )
 async def create_organization(
     request: OrganizationCreateRequest, user: UserModel = Depends(get_user)
@@ -277,7 +282,7 @@ async def create_organization(
 @router.put(
     "/selected",
     response_model=OrganizationSummary,
-    dependencies=[Depends(require_local_auth)],
+    dependencies=[Depends(require_local_auth), Depends(reject_api_key_auth)],
 )
 async def select_organization(
     request: SelectOrganizationRequest, user: UserModel = Depends(get_user)

@@ -42,6 +42,22 @@ class OrganizationClient(BaseDBClient):
             )
             return list(result.scalars().all())
 
+    # [.mark] Added for user-owned organization management: the create route
+    # must be able to tell that an identifier is taken WITHOUT going through
+    # get_or_create_organization_by_provider_id, which would hand the caller's
+    # user_id to a function that could one day link them to it.
+    async def get_organization_by_provider_id(
+        self, org_provider_id: str
+    ) -> Optional[OrganizationModel]:
+        """Get an organization by its provider_id, or None."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(OrganizationModel).where(
+                    OrganizationModel.provider_id == org_provider_id
+                )
+            )
+            return result.scalars().first()
+
     # [.mark] Added for user-owned organization management: the membership
     # routes need the other side of get_organization_users(). The relationship
     # UserModel.organizations already models it, but reading it outside a

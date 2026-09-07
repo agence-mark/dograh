@@ -100,8 +100,13 @@ def membership(monkeypatch):
     return SimpleNamespace(owned=owned, selected=selected, joined=joined)
 
 
-def _stub_creation(monkeypatch, *, organization, was_created):
+def _stub_creation(monkeypatch, *, organization, was_created, existing=None):
     """Point organization creation at a fixed answer, if the service exists.
+
+    ``existing`` is what a lookup by provider_id finds — None when the
+    identifier is free. It is stubbed separately from the get-or-create because
+    the route deliberately consults it FIRST, and a test that only stubbed the
+    get-or-create would not notice if that lookup disappeared.
 
     Tolerant of the module being absent for the same reason the fixture is: on
     unpatched code the test must fail on the route's answer, not on an import.
@@ -110,6 +115,11 @@ def _stub_creation(monkeypatch, *, organization, was_created):
         from api.services import organization_membership as service
     except ImportError:
         return
+    monkeypatch.setattr(
+        service.db_client,
+        "get_organization_by_provider_id",
+        AsyncMock(return_value=existing),
+    )
     monkeypatch.setattr(
         service.db_client,
         "get_or_create_organization_by_provider_id",
@@ -214,7 +224,10 @@ def test_claiming_an_existing_identifier_does_not_join_its_organization(
     identifier. The route must refuse instead.
     """
     _stub_creation(
-        monkeypatch, organization=SOMEONE_ELSES_ORGANIZATION, was_created=False
+        monkeypatch,
+        organization=SOMEONE_ELSES_ORGANIZATION,
+        was_created=False,
+        existing=SOMEONE_ELSES_ORGANIZATION,
     )
 
     response = _make_client(monkeypatch).post(
@@ -226,6 +239,70 @@ def test_claiming_an_existing_identifier_does_not_join_its_organization(
         "Claiming a taken identifier let the caller into another organization"
     )
     assert membership.selected == []
+
+
+def test_a_taken_identifier_never_reaches_the_upstream_creator(
+    monkeypatch, membership
+):
+    """The second lock, and the one that survives an upstream change.
+
+    ``get_or_create_organization_by_provider_id`` already receives ``user_id``
+    — today only to own the default API key. If upstream ever had it link that
+    user as well, a route that called it before checking would hand the caller
+    membership of someone else's organization, with no conflict and nothing in
+    a diff to see. So a taken identifier must not reach it at all.
+    """
+    from api.services import organization_membership as service
+
+    _stub_creation(
+        monkeypatch,
+        organization=SOMEONE_ELSES_ORGANIZATION,
+        was_created=False,
+        existing=SOMEONE_ELSES_ORGANIZATION,
+    )
+
+    response = _make_client(monkeypatch).post(
+        "/organizations", json={"provider_id": "client-de-pierre"}
+    )
+
+    assert response.status_code == 409
+    service.db_client.get_or_create_organization_by_provider_id.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "method,path,payload",
+    [
+        ("get", "/organizations", None),
+        ("post", "/organizations", {"provider_id": "client-sinea"}),
+        ("put", "/organizations/selected", {"organization_id": 2}),
+    ],
+)
+def test_an_api_key_cannot_manage_membership(
+    monkeypatch, membership, method, path, payload
+):
+    """Tenant isolation again, by the door nobody looks at.
+
+    ``get_user`` accepts ``X-API-Key`` IN PREFERENCE to the bearer token, and
+    an API key is scoped to one organization. These routes reason about the
+    user, who owns every organization they created — so a key issued for one
+    customer would otherwise list every other customer, and move the account's
+    current organization out from under its owner.
+    """
+    _stub_creation(
+        monkeypatch, organization=SimpleNamespace(id=3, provider_id="x"),
+        was_created=True,
+    )
+    client = _make_client(monkeypatch)
+
+    response = getattr(client, method)(
+        path,
+        headers={"X-API-Key": "dg_live_whatever"},
+        **({"json": payload} if payload is not None else {}),
+    )
+
+    assert response.status_code == 403
+    assert membership.selected == []
+    assert membership.joined == []
 
 
 def test_an_identifier_is_required_and_not_blank(monkeypatch, membership):
