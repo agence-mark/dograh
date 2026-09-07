@@ -27,8 +27,12 @@ RUN python -m venv "$VIRTUAL_ENV"
 # ("other mount types are not supported"). Un COPY fait le meme travail,
 # en Docker standard. Voir agence-mark/socle-agent-vocal, forks/REGISTRE.md.
 COPY api/requirements.txt /tmp/req.txt
+# [.mark] Montage de cache de construction RETIRE : le constructeur de Railway
+# exige un id prefixe par l'identifiant du SERVICE Railway, valeur propre a une
+# installation, qui rendrait cette recette non reproductible chez un autre.
+# Sans cache, la recette est du Docker standard. Cout : constructions plus
+# lentes, aucun effet a l'execution. Voir socle, forks/REGISTRE.md.
 RUN \
-    --mount=type=cache,id=uv,target=/root/.cache/uv \
     uv pip install -r /tmp/req.txt
 
 # Layer 2: pipecat deps. Cache invalidates when pipecat source changes.
@@ -44,7 +48,6 @@ RUN \
 # en Docker standard. Voir agence-mark/socle-agent-vocal, forks/REGISTRE.md.
 COPY pipecat /tmp/pipecat
 RUN \
-    --mount=type=cache,id=uv,target=/root/.cache/uv \
     uv pip install '/tmp/pipecat[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest]' \
  && uv pip uninstall opencv-python \
  && uv pip install opencv-python-headless \

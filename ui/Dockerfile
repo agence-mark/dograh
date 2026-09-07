@@ -12,7 +12,12 @@ RUN apk add --no-cache python3 make g++ libc6-compat
 COPY ui/package*.json ./
 
 # Clean install with proper handling of native modules
-RUN --mount=type=cache,id=npm,target=/root/.npm npm ci
+# [.mark] Le montage de cache de construction a ete RETIRE : le constructeur
+# de Railway exige un id prefixe par l'identifiant du SERVICE Railway, valeur
+# propre a une installation, qui rendrait cette recette non reproductible chez
+# un autre. Sans cache, la recette est du Docker standard. Cout : des
+# constructions plus lentes, aucun effet a l'execution.
+RUN npm ci
 
 # Stage 2: Builder
 FROM node:22-alpine AS builder
