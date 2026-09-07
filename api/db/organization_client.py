@@ -42,6 +42,27 @@ class OrganizationClient(BaseDBClient):
             )
             return list(result.scalars().all())
 
+    # [.mark] Added for user-owned organization management: the membership
+    # routes need the other side of get_organization_users(). The relationship
+    # UserModel.organizations already models it, but reading it outside a
+    # session would lazy-load, so the query belongs here.
+    async def list_organizations_for_user(
+        self, user_id: int
+    ) -> list[OrganizationModel]:
+        """Get every organization a user belongs to (many-to-many)."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(OrganizationModel)
+                .join(
+                    organization_users_association,
+                    organization_users_association.c.organization_id
+                    == OrganizationModel.id,
+                )
+                .where(organization_users_association.c.user_id == user_id)
+                .order_by(OrganizationModel.id)
+            )
+            return list(result.scalars().all())
+
     async def get_or_create_organization_by_provider_id(
         self, org_provider_id: str, user_id: int
     ) -> tuple[OrganizationModel, bool]:
