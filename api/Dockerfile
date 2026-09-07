@@ -23,7 +23,11 @@ ENV VIRTUAL_ENV=/opt/venv \
 RUN python -m venv "$VIRTUAL_ENV"
 
 # Layer 1: API deps. Cache invalidates only when requirements.txt changes.
-RUN --mount=type=bind,source=api/requirements.txt,target=/tmp/req.txt \
+# [.mark] `--mount=type=bind` est refuse par le constructeur de Railway
+# ("other mount types are not supported"). Un COPY fait le meme travail,
+# en Docker standard. Voir agence-mark/socle-agent-vocal, forks/REGISTRE.md.
+COPY api/requirements.txt /tmp/req.txt
+RUN \
     --mount=type=cache,target=/root/.cache/uv \
     uv pip install -r /tmp/req.txt
 
@@ -35,7 +39,11 @@ RUN --mount=type=bind,source=api/requirements.txt,target=/tmp/req.txt \
 #   2. Pre-download NLTK's punkt_tab tokenizer so pipecat's text processing
 #      doesn't hit the network on first agent run. NLTK auto-finds it under
 #      sys.prefix/nltk_data, so it travels with the venv on COPY.
-RUN --mount=type=bind,source=pipecat,target=/tmp/pipecat,rw \
+# [.mark] `--mount=type=bind` est refuse par le constructeur de Railway
+# ("other mount types are not supported"). Un COPY fait le meme travail,
+# en Docker standard. Voir agence-mark/socle-agent-vocal, forks/REGISTRE.md.
+COPY pipecat /tmp/pipecat
+RUN \
     --mount=type=cache,target=/root/.cache/uv \
     uv pip install '/tmp/pipecat[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest]' \
  && uv pip uninstall opencv-python \
