@@ -27,6 +27,7 @@ import { usePathname, useRouter } from "next/navigation";
 import React from "react";
 
 import { BrandLogo } from "@/components/BrandLogo";
+import { SidebarOrganizationSwitcher } from "@/components/layout/SidebarOrganizationSwitcher";
 import { SidebarTeamSwitcher } from "@/components/layout/SidebarTeamSwitcher";
 import ThemeToggle from "@/components/ThemeSwitcher";
 import { Button } from "@/components/ui/button";
@@ -381,6 +382,17 @@ export function AppSidebar() {
         {provider === "stack" && (
           <div className={cn("mt-3 notranslate", isCollapsed && "hidden")} translate="no">
             <SidebarTeamSwitcher />
+          </div>
+        )}
+
+        {/* [.mark] Same slot, the OSS switcher. Stack owns teams on its side;
+            under local auth the organizations are ours to create and move
+            between. The component renders nothing until it has more than the
+            single organization signup created, so an untouched install looks
+            exactly as it did. */}
+        {provider === "local" && (
+          <div className={cn("mt-3 notranslate", isCollapsed && "hidden")} translate="no">
+            <SidebarOrganizationSwitcher />
           </div>
         )}
       </SidebarHeader>
