@@ -28,7 +28,7 @@ RUN python -m venv "$VIRTUAL_ENV"
 # en Docker standard. Voir agence-mark/socle-agent-vocal, forks/REGISTRE.md.
 COPY api/requirements.txt /tmp/req.txt
 RUN \
-    --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=cache,id=uv,target=/root/.cache/uv \
     uv pip install -r /tmp/req.txt
 
 # Layer 2: pipecat deps. Cache invalidates when pipecat source changes.
@@ -44,7 +44,7 @@ RUN \
 # en Docker standard. Voir agence-mark/socle-agent-vocal, forks/REGISTRE.md.
 COPY pipecat /tmp/pipecat
 RUN \
-    --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=cache,id=uv,target=/root/.cache/uv \
     uv pip install '/tmp/pipecat[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest]' \
  && uv pip uninstall opencv-python \
  && uv pip install opencv-python-headless \
