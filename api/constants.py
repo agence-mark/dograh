@@ -77,6 +77,19 @@ STACK_AUTH_PROJECT_ID = os.getenv("STACK_AUTH_PROJECT_ID")
 STACK_PUBLISHABLE_CLIENT_KEY = os.getenv("STACK_PUBLISHABLE_CLIENT_KEY")
 DOGRAH_MPS_SECRET_KEY = os.getenv("DOGRAH_MPS_SECRET_KEY", None)
 MPS_API_URL = os.getenv("MPS_API_URL", "https://services.dograh.com")
+# [.mark] Whether this installation may reach out to Dograh's own services
+# (MPS_API_URL) to provision an organization: a managed model-service key and
+# managed Cloudonix SIP. Self-hosters who bring their own provider keys and
+# their own carrier want neither, and today they get both — organization
+# bootstrap runs on every authenticated request until it succeeds, so a
+# deployment that never intends to use managed services calls out forever.
+#
+# Defaults to true, so an operator who sets nothing keeps Dograh's behaviour
+# unchanged. Set it to "false" to keep the deployment self-contained.
+# See agence-mark/socle-agent-vocal, forks/REGISTRE.md.
+ENABLE_DOGRAH_MANAGED_SERVICES = (
+    os.getenv("ENABLE_DOGRAH_MANAGED_SERVICES", "true").lower() == "true"
+)
 DOGRAH_DEVOPS_SECRET = os.getenv("DOGRAH_DEVOPS_SECRET") or None
 
 # Storage Configuration

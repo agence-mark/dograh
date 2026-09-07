@@ -16,7 +16,11 @@ from datetime import timedelta
 
 from loguru import logger
 
-from api.constants import AUTH_PROVIDER, DEPLOYMENT_MODE
+from api.constants import (
+    AUTH_PROVIDER,
+    DEPLOYMENT_MODE,
+    ENABLE_DOGRAH_MANAGED_SERVICES,
+)
 from api.db import db_client
 from api.db.organization_configuration_client import LEASE_COMPLETED
 from api.enums import OrganizationConfigurationKey
@@ -61,6 +65,14 @@ async def ensure_organization_bootstrapped(
     Never raises. A provisioning failure must not fail authentication — the
     caller is a legitimately authenticated user either way.
     """
+    # [.mark] Guarded here rather than at the call sites so the switch covers
+    # every caller, including ones added later. Returns True, not False: with
+    # managed services off there is nothing left to provision, and False would
+    # read as "not provisioned yet" and have the lease re-enter bootstrap on
+    # every subsequent request forever.
+    if not ENABLE_DOGRAH_MANAGED_SERVICES:
+        return True
+
     if await _is_bootstrap_complete(organization_id):
         return True
 
