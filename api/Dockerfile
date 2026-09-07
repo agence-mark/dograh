@@ -46,9 +46,15 @@ RUN \
 # [.mark] `--mount=type=bind` est refuse par le constructeur de Railway
 # ("other mount types are not supported"). Un COPY fait le meme travail,
 # en Docker standard. Voir agence-mark/socle-agent-vocal, forks/REGISTRE.md.
-COPY pipecat /tmp/pipecat
+# [.mark] Le COPY du sous-module a ete supprime : RAILWAY NE CLONE PAS LES
+# SOUS-MODULES, le dossier `pipecat` arrive VIDE et l'installation echoue avec
+# "does not appear to be a Python project". Pipecat est donc installe depuis son
+# depot, AU COMMIT EXACT du sous-module.
+# ⛔ HYGIENE : ce commit doit rester IDENTIQUE a celui de .gitmodules. Deux
+# ancrages qui divergent = on lit une version et on en construit une autre.
+# Le jour du fork de Pipecat (question 53), seule l'URL ci-dessous change.
 RUN \
-    uv pip install '/tmp/pipecat[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest]' \
+    uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest] @ git+https://github.com/dograh-hq/pipecat.git@496607395f0df106cf5c352a3d219ff459940157' \
  && uv pip uninstall opencv-python \
  && uv pip install opencv-python-headless \
  && python -c "import nltk; nltk.download('punkt_tab', download_dir='/opt/venv/nltk_data', quiet=True)"
