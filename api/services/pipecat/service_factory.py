@@ -72,6 +72,8 @@ from pipecat.services.inworld.tts import InworldTTSService, InworldTTSSettings
 from pipecat.services.lmnt.tts import LmntTTSService, LmntTTSSettings
 from pipecat.services.minimax.llm import MiniMaxLLMService
 from pipecat.services.minimax.tts import MiniMaxTTSSettings
+from pipecat.services.mistral.llm import MistralLLMService, MistralLLMSettings
+from pipecat.services.mistral.tts import MistralTTSService, MistralTTSSettings
 from pipecat.services.openai._constants import OPENAI_SAMPLE_RATE
 from pipecat.services.openai.base_llm import OpenAILLMSettings
 from pipecat.services.openai.llm import OpenAILLMService
@@ -573,6 +575,21 @@ def create_tts_service(
             skip_aggregator_types=["recording_router", "recording"],
             silence_time_s=1.0,
         )
+    elif user_config.tts.provider == ServiceProviders.MISTRAL.value:
+        return MistralTTSService(
+            api_key=user_config.tts.api_key,
+            # Voxtral emits 24 kHz PCM and resamples internally to whatever
+            # rate is asked for. Telephony transports run at 8 kHz, so the
+            # transport rate must be passed explicitly.
+            sample_rate=audio_config.transport_out_sample_rate,
+            settings=MistralTTSSettings(
+                model=user_config.tts.model,
+                voice=user_config.tts.voice,
+            ),
+            text_filters=[xml_function_tag_filter],
+            skip_aggregator_types=["recording_router", "recording"],
+            silence_time_s=1.0,
+        )
     elif user_config.tts.provider == ServiceProviders.OPENAI.value:
         kwargs = {}
         base_url = getattr(user_config.tts, "base_url", None)
@@ -981,6 +998,21 @@ def create_llm_service_from_provider(
         return OpenAILLMService(
             api_key=api_key,
             settings=OpenAILLMSettings(model=model, temperature=0.1),
+            **kwargs,
+        )
+    elif provider == ServiceProviders.MISTRAL.value:
+        # Deliberately NOT routed through OpenAILLMService with a base_url:
+        # MistralLLMService overrides run_function_calls to filter tool calls
+        # that already have results. Mistral detects tool calls from the whole
+        # message history rather than the stream, so without that override
+        # every function call would execute twice.
+        kwargs = {}
+        if base_url:
+            _validate_runtime_service_url(base_url, "base_url")
+            kwargs["base_url"] = base_url
+        return MistralLLMService(
+            api_key=api_key,
+            settings=MistralLLMSettings(model=model, temperature=0.1),
             **kwargs,
         )
     elif provider == ServiceProviders.GROQ.value:

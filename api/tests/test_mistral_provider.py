@@ -11,7 +11,8 @@ message history instead of the stream. Routing Mistral through
 calls would then execute twice.
 """
 
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from pydantic import TypeAdapter
@@ -28,6 +29,15 @@ from api.services.configuration.registry import (
 )
 
 MISTRAL_EU_BASE_URL = "https://api.eu.mistral.ai/v1"
+
+
+def _audio_config():
+    # Telephony rate: this is the case that matters for the product.
+    return SimpleNamespace(
+        transport_out_sample_rate=8000,
+        transport_in_sample_rate=8000,
+    )
+
 
 FRENCH_VOICES = [
     "fr_marie_neutral",
@@ -144,19 +154,24 @@ def test_llm_factory_builds_mistral_service_not_openai():
     )
 
 
-def test_tts_factory_builds_mistral_service():
-    from pipecat.services.mistral.tts import MistralTTSService
-
+def test_tts_factory_builds_mistral_service_at_the_transport_rate():
+    """Voxtral emits 24 kHz. Telephony runs at 8 kHz, so the factory must pass
+    the transport rate through, exactly like the LMNT branch does."""
     from api.services.pipecat.service_factory import create_tts_service
 
-    user_config = MagicMock()
-    user_config.tts = MistralTTSConfiguration(
-        api_key="mistral-key", voice="fr_marie_neutral"
+    user_config = SimpleNamespace(
+        tts=MistralTTSConfiguration(api_key="mistral-key", voice="fr_marie_neutral")
     )
 
-    service = create_tts_service(user_config)
+    with patch("api.services.pipecat.service_factory.MistralTTSService") as mock_service:
+        create_tts_service(user_config, _audio_config())
 
-    assert isinstance(service, MistralTTSService)
+    assert mock_service.call_count == 1
+    kwargs = mock_service.call_args.kwargs
+    assert kwargs["api_key"] == "mistral-key"
+    assert kwargs["sample_rate"] == 8000
+    assert kwargs["settings"].voice == "fr_marie_neutral"
+    assert kwargs["settings"].model == "voxtral-mini-tts-latest"
 
 
 # --------------------------------------------------------------------------- #
