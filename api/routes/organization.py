@@ -54,6 +54,7 @@ from api.schemas.telephony_phone_number import (
 from api.services.auth.depends import (
     get_user,
     get_user_with_selected_organization,
+    require_local_auth,
 )
 from api.services.configuration.ai_model_configuration import (
     check_for_masked_keys_in_ai_model_configuration_v2,
@@ -82,6 +83,18 @@ from api.services.mps_service_key_client import mps_service_key_client
 from api.services.organization_context import (
     OrganizationContextResponse,
     get_organization_context,
+)
+from api.services.organization_membership import (
+    OrganizationCreateRequest,
+    OrganizationListResponse,
+    OrganizationNotAccessibleError,
+    OrganizationProviderIdTakenError,
+    OrganizationSummary,
+    SelectOrganizationRequest,
+    create_organization_for_user,
+    list_organizations_for_user,
+    reject_api_key_auth,
+    select_organization_for_user,
 )
 from api.services.organization_preferences import (
     external_pbx_integrations_enabled,
@@ -225,6 +238,64 @@ class ModelConfigurationPricingResponse(BaseModel):
 async def get_current_organization_context(user: UserModel = Depends(get_user)):
     """Return organization-scoped configuration signals owned by Dograh."""
     return await get_organization_context(user)
+
+
+# [.mark] Membership routes. Declared before the parameterised paths below so
+# the literal "selected" segment can never be read as an id. OSS-only: under
+# Stack Auth the identity provider owns teams, so require_local_auth answers
+# 404 there rather than accepting a write the next request would undo.
+#
+# reject_api_key_auth is load-bearing, not defensive dressing: get_user accepts
+# an API key IN PREFERENCE to the bearer token, and an API key is scoped to one
+# organization while these routes reason about the user, who owns them all.
+# See api/services/organization_membership.py for the reasoning.
+@router.get(
+    "",
+    response_model=OrganizationListResponse,
+    dependencies=[Depends(require_local_auth), Depends(reject_api_key_auth)],
+)
+async def list_organizations(user: UserModel = Depends(get_user)):
+    """List the organizations the caller belongs to, flagging the current one."""
+    return await list_organizations_for_user(user)
+
+
+@router.post(
+    "",
+    response_model=OrganizationSummary,
+    dependencies=[Depends(require_local_auth), Depends(reject_api_key_auth)],
+)
+async def create_organization(
+    request: OrganizationCreateRequest, user: UserModel = Depends(get_user)
+):
+    """Create an organization and make the caller a member of it."""
+    try:
+        return await create_organization_for_user(
+            user, provider_id=request.provider_id, select=request.select
+        )
+    except OrganizationProviderIdTakenError:
+        raise HTTPException(
+            status_code=409,
+            detail="An organization with this provider_id already exists",
+        )
+
+
+@router.put(
+    "/selected",
+    response_model=OrganizationSummary,
+    dependencies=[Depends(require_local_auth), Depends(reject_api_key_auth)],
+)
+async def select_organization(
+    request: SelectOrganizationRequest, user: UserModel = Depends(get_user)
+):
+    """Move the caller's current organization to one they belong to."""
+    try:
+        return await select_organization_for_user(
+            user, organization_id=request.organization_id
+        )
+    except OrganizationNotAccessibleError:
+        # 404, not 403: whether that organization exists at all is not the
+        # caller's business.
+        raise HTTPException(status_code=404, detail="Organization not found")
 
 
 @router.get(
