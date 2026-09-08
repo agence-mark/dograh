@@ -1,30 +1,3 @@
-"""Deepgram model catalogue and compliance endpoints."""
-
-# Compliance constants, hardcoded on purpose.
-#
-# .mark sells EU processing of the caller's raw audio, and non-participation in
-# Deepgram's Model Improvement Program, as CONDITIONS of the offer rather than
-# as options. Exposing them as editable configuration would hand the promise to
-# someone able to undo it, so they are not part of any configuration schema.
-#
-# Deepgram serves /v1/listen, /v2/listen and /v1/speak on the European endpoint
-# with the same API keys, so this costs nothing; the only exclusion is the
-# Whisper models, which are not offered here anyway.
-#
-# The three values are NOT interchangeable, and that is the point: each
-# connector takes a different shape of address.
-#   * DEEPGRAM_EU_STT_BASE_URL -- a host. DeepgramSTTService derives both the
-#     wss:// and https:// forms from it.
-#   * DEEPGRAM_EU_FLUX_URL -- the complete WebSocket URL, path included, because
-#     DeepgramFluxSTTService only appends the query string to it.
-#   * DEEPGRAM_EU_TTS_BASE_URL -- a base with no path; DeepgramTTSService
-#     appends "/v1/speak" itself.
-# Passing one where another belongs yields a connector that still talks to the
-# default American endpoint, silently.
-DEEPGRAM_EU_STT_BASE_URL = "https://api.eu.deepgram.com"
-DEEPGRAM_EU_FLUX_URL = "wss://api.eu.deepgram.com/v2/listen"
-DEEPGRAM_EU_TTS_BASE_URL = "wss://api.eu.deepgram.com"
-
 DEEPGRAM_FLUX_MODELS = ("flux-general-en", "flux-general-multi")
 DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES = (
     "de",
