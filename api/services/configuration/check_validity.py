@@ -12,7 +12,11 @@ from groq import Groq
 from api.schemas.ai_model_configuration import (
     EffectiveAIModelConfiguration,
 )
-from api.services.configuration.registry import ServiceConfig, ServiceProviders
+from api.services.configuration.registry import (
+    MISTRAL_EU_BASE_URL,
+    ServiceConfig,
+    ServiceProviders,
+)
 from api.services.mps_service_key_client import mps_service_key_client
 from api.utils.url_security import validate_user_configured_service_url
 
@@ -38,6 +42,7 @@ class UserConfigurationValidator:
         self._validator_map = {
             ServiceProviders.OPENAI.value: self._check_openai_api_key,
             ServiceProviders.ATLASCLOUD.value: self._check_openai_api_key,
+            ServiceProviders.MISTRAL.value: self._check_mistral_api_key,
             ServiceProviders.DEEPGRAM.value: self._check_deepgram_api_key,
             ServiceProviders.GROQ.value: self._check_groq_api_key,
             ServiceProviders.OPENROUTER.value: self._check_openrouter_api_key,
@@ -236,9 +241,55 @@ class UserConfigurationValidator:
             ServiceProviders.OPENAI.value,
             ServiceProviders.ATLASCLOUD.value,
             ServiceProviders.OPENAI_REALTIME.value,
+            ServiceProviders.MISTRAL.value,
         ):
             return validator(provider, api_key, service_config)
         return validator(provider, api_key)
+
+    def _check_mistral_api_key(
+        self,
+        provider: str,
+        api_key: str,
+        service_config: Optional[ServiceConfig] = None,
+    ) -> bool:
+        """Validate a Mistral key against Mistral's OpenAI-compatible endpoint.
+
+        Falling through to ``_check_openai_api_key`` would validate against
+        api.openai.com whenever the configuration carries no ``base_url``, and
+        reject a perfectly valid Mistral key. The EU endpoint is the fallback
+        here for the same reason it is the configuration default.
+        """
+        base_url = getattr(service_config, "base_url", None) if service_config else None
+        client = openai.OpenAI(
+            api_key=api_key, base_url=base_url or MISTRAL_EU_BASE_URL
+        )
+        try:
+            client.models.list()
+            return True
+        except openai.AuthenticationError:
+            raise ValueError(
+                "Invalid Mistral API key. The key was rejected by the Mistral API. "
+                "Please check that your API key is correct and has not been revoked. "
+                "You can verify your keys at https://console.mistral.ai/api-keys."
+            )
+        except openai.APIConnectionError:
+            raise ValueError(
+                "Could not connect to the Mistral API. Please check your network "
+                "connection and try again."
+            )
+        except openai.APIError:
+            # Rate limits and permission errors land here. They are actionable
+            # by whoever owns the key, so they must not be flattened into the
+            # generic "try again later" below.
+            raise ValueError(
+                "The Mistral API returned an error while validating the API key. "
+                "Please check that the key has the required permissions and that "
+                "the account is in good standing, then try again."
+            )
+        except Exception:
+            raise ValueError(
+                "Failed to validate the Mistral API key. Please try again later."
+            )
 
     def _check_openai_api_key(
         self, model: str, api_key: str, service_config: Optional[ServiceConfig] = None

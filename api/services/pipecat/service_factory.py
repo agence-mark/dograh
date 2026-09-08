@@ -22,6 +22,10 @@ from api.services.pipecat.gemini_json_schema_adapter import (
     DograhGeminiJSONSchemaAdapter,
 )
 from api.services.pipecat.minimax_tts import MiniMaxOwnedSessionTTSService
+from api.services.pipecat.mistral_tts import (
+    MistralRegionalTTSService,
+    resolve_mistral_endpoint,
+)
 from api.utils.url_security import validate_user_configured_service_url
 from pipecat.services.assemblyai.stt import AssemblyAISTTService, AssemblyAISTTSettings
 from pipecat.services.aws.llm import AWSBedrockLLMService, AWSBedrockLLMSettings
@@ -72,6 +76,8 @@ from pipecat.services.inworld.tts import InworldTTSService, InworldTTSSettings
 from pipecat.services.lmnt.tts import LmntTTSService, LmntTTSSettings
 from pipecat.services.minimax.llm import MiniMaxLLMService
 from pipecat.services.minimax.tts import MiniMaxTTSSettings
+from pipecat.services.mistral.llm import MistralLLMService, MistralLLMSettings
+from pipecat.services.mistral.tts import MistralTTSSettings
 from pipecat.services.openai._constants import OPENAI_SAMPLE_RATE
 from pipecat.services.openai.base_llm import OpenAILLMSettings
 from pipecat.services.openai.llm import OpenAILLMService
@@ -573,6 +579,30 @@ def create_tts_service(
             skip_aggregator_types=["recording_router", "recording"],
             silence_time_s=1.0,
         )
+    elif user_config.tts.provider == ServiceProviders.MISTRAL.value:
+        base_url = getattr(user_config.tts, "base_url", None)
+        if base_url:
+            _validate_runtime_service_url(base_url, "base_url")
+        mistral_server, mistral_server_url = resolve_mistral_endpoint(base_url)
+        return MistralRegionalTTSService(
+            api_key=user_config.tts.api_key,
+            # Pipecat's own wrapper never forwards an endpoint, so the SDK would
+            # fall back to the global one whatever the organisation configured.
+            server=mistral_server,
+            server_url=mistral_server_url,
+            # Voxtral emits 24 kHz PCM and resamples internally to whatever
+            # rate is asked for. Telephony transports run at 8 kHz, so the
+            # transport rate must be passed explicitly.
+            sample_rate=audio_config.transport_out_sample_rate,
+            settings=MistralTTSSettings(
+                model=getattr(user_config.tts, "model", None)
+                or "voxtral-mini-tts-latest",
+                voice=getattr(user_config.tts, "voice", None) or "fr_marie_neutral",
+            ),
+            text_filters=[xml_function_tag_filter],
+            skip_aggregator_types=["recording_router", "recording"],
+            silence_time_s=1.0,
+        )
     elif user_config.tts.provider == ServiceProviders.OPENAI.value:
         kwargs = {}
         base_url = getattr(user_config.tts, "base_url", None)
@@ -983,6 +1013,21 @@ def create_llm_service_from_provider(
             settings=OpenAILLMSettings(model=model, temperature=0.1),
             **kwargs,
         )
+    elif provider == ServiceProviders.MISTRAL.value:
+        # Deliberately NOT routed through OpenAILLMService with a base_url:
+        # MistralLLMService overrides run_function_calls to filter tool calls
+        # that already have results. Mistral detects tool calls from the whole
+        # message history rather than the stream, so without that override
+        # every function call would execute twice.
+        kwargs = {}
+        if base_url:
+            _validate_runtime_service_url(base_url, "base_url")
+            kwargs["base_url"] = base_url
+        return MistralLLMService(
+            api_key=api_key,
+            settings=MistralLLMSettings(model=model, temperature=0.1),
+            **kwargs,
+        )
     elif provider == ServiceProviders.GROQ.value:
         return GroqLLMService(
             api_key=api_key,
@@ -1299,6 +1344,8 @@ def create_llm_service(
         ServiceProviders.OPENAI.value,
         ServiceProviders.ATLASCLOUD.value,
     ):
+        kwargs["base_url"] = user_config.llm.base_url
+    elif provider == ServiceProviders.MISTRAL.value:
         kwargs["base_url"] = user_config.llm.base_url
     elif provider == ServiceProviders.OPENROUTER.value:
         kwargs["base_url"] = user_config.llm.base_url

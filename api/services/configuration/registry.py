@@ -98,6 +98,7 @@ class ServiceProviders(str, Enum):
     SMALLEST = "smallest"
     XAI = "xai"
     LMNT = "lmnt"
+    MISTRAL = "mistral"
 
 
 class BaseServiceConfiguration(BaseModel):
@@ -131,6 +132,7 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.SMALLEST,
         ServiceProviders.XAI,
         ServiceProviders.LMNT,
+        ServiceProviders.MISTRAL,
     ]
     api_key: str | list[str]
 
@@ -298,6 +300,11 @@ ATLASCLOUD_PROVIDER_MODEL_CONFIG = provider_model_config(
 )
 GOOGLE_PROVIDER_MODEL_CONFIG = provider_model_config("Google")
 GROQ_PROVIDER_MODEL_CONFIG = provider_model_config("Groq")
+MISTRAL_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "Mistral",
+    description="Mistral AI chat and Voxtral text-to-speech.",
+    provider_docs_url="https://docs.mistral.ai/",
+)
 OPENROUTER_PROVIDER_MODEL_CONFIG = provider_model_config("Open Router")
 AZURE_OPENAI_PROVIDER_MODEL_CONFIG = provider_model_config("Azure OpenAI")
 DOGRAH_PROVIDER_MODEL_CONFIG = provider_model_config("Dograh")
@@ -369,6 +376,18 @@ ATLASCLOUD_MODELS = [
     "deepseek-ai/deepseek-v4-pro",
 ]
 
+# Mistral serves the exact same catalogue on api.mistral.ai and
+# api.eu.mistral.ai, so the European endpoint is the safe default: it costs
+# nothing and keeps data residency true for anyone who never edits the field.
+MISTRAL_EU_BASE_URL = "https://api.eu.mistral.ai/v1"
+
+MISTRAL_MODELS = [
+    "mistral-medium-latest",
+    "mistral-large-latest",
+    "mistral-small-latest",
+    "magistral-medium-latest",
+]
+
 GROQ_MODELS = [
     "llama-3.3-70b-versatile",
     "deepseek-r1-distill-llama-70b",
@@ -410,6 +429,21 @@ class OpenAILLMService(BaseLLMConfiguration):
     base_url: str = Field(
         default="https://api.openai.com/v1",
         description="Override only if using an OpenAI-compatible API (e.g. local LLM, proxy).",
+    )
+
+
+@register_llm
+class MistralLLMConfiguration(BaseLLMConfiguration):
+    model_config = MISTRAL_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.MISTRAL] = ServiceProviders.MISTRAL
+    model: str = Field(
+        default="mistral-medium-latest",
+        description="Mistral chat model to use.",
+        json_schema_extra={"examples": MISTRAL_MODELS, "allow_custom_input": True},
+    )
+    base_url: str = Field(
+        default=MISTRAL_EU_BASE_URL,
+        description="Mistral API endpoint. Defaults to the EU endpoint.",
     )
 
 
@@ -908,6 +942,7 @@ LLMConfig = Annotated[
     Union[
         OpenAILLMService,
         AtlasCloudLLMService,
+        MistralLLMConfiguration,
         GoogleVertexLLMConfiguration,
         GroqLLMService,
         OpenRouterLLMConfiguration,
@@ -959,6 +994,39 @@ class DeepgramTTSConfiguration(BaseServiceConfiguration):
         else:
             # Default fallback
             return "aura-2"
+
+
+MISTRAL_TTS_MODELS = ["voxtral-mini-tts-latest", "voxtral-mini-tts-2603"]
+
+# Voxtral currently ships a single French identity, "Marie", in six emotions.
+MISTRAL_TTS_VOICES = [
+    "fr_marie_neutral",
+    "fr_marie_happy",
+    "fr_marie_curious",
+    "fr_marie_excited",
+    "fr_marie_sad",
+    "fr_marie_angry",
+]
+
+
+@register_tts
+class MistralTTSConfiguration(BaseTTSConfiguration):
+    model_config = MISTRAL_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.MISTRAL] = ServiceProviders.MISTRAL
+    model: str = Field(
+        default="voxtral-mini-tts-latest",
+        description="Voxtral TTS model to use.",
+        json_schema_extra={"examples": MISTRAL_TTS_MODELS, "allow_custom_input": True},
+    )
+    voice: str = Field(
+        default="fr_marie_neutral",
+        description="Voxtral voice identifier.",
+        json_schema_extra={"examples": MISTRAL_TTS_VOICES, "allow_custom_input": True},
+    )
+    base_url: str = Field(
+        default=MISTRAL_EU_BASE_URL,
+        description="Mistral API endpoint. Defaults to the EU endpoint.",
+    )
 
 
 ELEVENLABS_TTS_MODELS = ["eleven_flash_v2_5"]
@@ -1462,6 +1530,7 @@ class LmntTTSConfiguration(BaseTTSConfiguration):
 TTSConfig = Annotated[
     Union[
         DeepgramTTSConfiguration,
+        MistralTTSConfiguration,
         GoogleTTSConfiguration,
         OpenAITTSService,
         ElevenlabsTTSConfiguration,

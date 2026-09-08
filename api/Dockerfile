@@ -54,7 +54,7 @@ RUN \
 # ancrages qui divergent = on lit une version et on en construit une autre.
 # Le jour du fork de Pipecat (question 53), seule l'URL ci-dessous change.
 RUN \
-    uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest] @ git+https://github.com/dograh-hq/pipecat.git@496607395f0df106cf5c352a3d219ff459940157' \
+    uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral] @ git+https://github.com/dograh-hq/pipecat.git@496607395f0df106cf5c352a3d219ff459940157' \
  && uv pip uninstall opencv-python \
  && uv pip install opencv-python-headless \
  && python -c "import nltk; nltk.download('punkt_tab', download_dir='/opt/venv/nltk_data', quiet=True)"

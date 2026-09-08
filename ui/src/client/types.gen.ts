@@ -522,6 +522,8 @@ export type ByokPipelineAiModelConfiguration = {
     } & OpenAillmService) | ({
         provider: 'atlascloud';
     } & AtlasCloudLlmService) | ({
+        provider: 'mistral';
+    } & MistralLlmConfiguration) | ({
         provider: 'google_vertex';
     } & GoogleVertexLlmConfiguration) | ({
         provider: 'groq';
@@ -550,6 +552,8 @@ export type ByokPipelineAiModelConfiguration = {
     tts: ({
         provider: 'deepgram';
     } & DeepgramTtsConfiguration) | ({
+        provider: 'mistral';
+    } & MistralTtsConfiguration) | ({
         provider: 'google';
     } & GoogleTtsConfiguration) | ({
         provider: 'openai';
@@ -654,6 +658,8 @@ export type ByokRealtimeAiModelConfiguration = {
     } & OpenAillmService) | ({
         provider: 'atlascloud';
     } & AtlasCloudLlmService) | ({
+        provider: 'mistral';
+    } & MistralLlmConfiguration) | ({
         provider: 'google_vertex';
     } & GoogleVertexLlmConfiguration) | ({
         provider: 'groq';
@@ -3920,6 +3926,68 @@ export type MiniMaxTtsConfiguration = {
 };
 
 /**
+ * Mistral
+ *
+ * Mistral AI chat and Voxtral text-to-speech.
+ */
+export type MistralLlmConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'mistral';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Mistral chat model to use.
+     */
+    model?: string;
+    /**
+     * Base Url
+     *
+     * Mistral API endpoint. Defaults to the EU endpoint.
+     */
+    base_url?: string;
+};
+
+/**
+ * Mistral
+ *
+ * Mistral AI chat and Voxtral text-to-speech.
+ */
+export type MistralTtsConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'mistral';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Voxtral TTS model to use.
+     */
+    model?: string;
+    /**
+     * Voice
+     *
+     * Voxtral voice identifier.
+     */
+    voice?: string;
+    /**
+     * Base Url
+     *
+     * Mistral API endpoint. Defaults to the EU endpoint.
+     */
+    base_url?: string;
+};
+
+/**
  * ModelConfigurationMetricPrice
  */
 export type ModelConfigurationMetricPrice = {
@@ -4377,6 +4445,30 @@ export type OrganizationContextResponse = {
 };
 
 /**
+ * OrganizationCreateRequest
+ */
+export type OrganizationCreateRequest = {
+    /**
+     * Provider Id
+     */
+    provider_id: string;
+    /**
+     * Select
+     */
+    select?: boolean;
+};
+
+/**
+ * OrganizationListResponse
+ */
+export type OrganizationListResponse = {
+    /**
+     * Organizations
+     */
+    organizations: Array<OrganizationSummary>;
+};
+
+/**
  * OrganizationModelServicesContext
  */
 export type OrganizationModelServicesContext = {
@@ -4426,6 +4518,24 @@ export type OrganizationPreferences = {
     disposition_mapping?: {
         [key: string]: string;
     };
+};
+
+/**
+ * OrganizationSummary
+ */
+export type OrganizationSummary = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Provider Id
+     */
+    provider_id: string;
+    /**
+     * Is Selected
+     */
+    is_selected: boolean;
 };
 
 /**
@@ -5498,6 +5608,16 @@ export type ScheduleConfigResponse = {
      * Slots
      */
     slots: Array<TimeSlotResponse>;
+};
+
+/**
+ * SelectOrganizationRequest
+ */
+export type SelectOrganizationRequest = {
+    /**
+     * Organization Id
+     */
+    organization_id: number;
 };
 
 /**
@@ -11583,6 +11703,123 @@ export type GetCurrentOrganizationContextApiV1OrganizationsContextGetResponses =
 };
 
 export type GetCurrentOrganizationContextApiV1OrganizationsContextGetResponse = GetCurrentOrganizationContextApiV1OrganizationsContextGetResponses[keyof GetCurrentOrganizationContextApiV1OrganizationsContextGetResponses];
+
+export type ListOrganizationsApiV1OrganizationsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations';
+};
+
+export type ListOrganizationsApiV1OrganizationsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListOrganizationsApiV1OrganizationsGetError = ListOrganizationsApiV1OrganizationsGetErrors[keyof ListOrganizationsApiV1OrganizationsGetErrors];
+
+export type ListOrganizationsApiV1OrganizationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: OrganizationListResponse;
+};
+
+export type ListOrganizationsApiV1OrganizationsGetResponse = ListOrganizationsApiV1OrganizationsGetResponses[keyof ListOrganizationsApiV1OrganizationsGetResponses];
+
+export type CreateOrganizationApiV1OrganizationsPostData = {
+    body: OrganizationCreateRequest;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations';
+};
+
+export type CreateOrganizationApiV1OrganizationsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateOrganizationApiV1OrganizationsPostError = CreateOrganizationApiV1OrganizationsPostErrors[keyof CreateOrganizationApiV1OrganizationsPostErrors];
+
+export type CreateOrganizationApiV1OrganizationsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: OrganizationSummary;
+};
+
+export type CreateOrganizationApiV1OrganizationsPostResponse = CreateOrganizationApiV1OrganizationsPostResponses[keyof CreateOrganizationApiV1OrganizationsPostResponses];
+
+export type SelectOrganizationApiV1OrganizationsSelectedPutData = {
+    body: SelectOrganizationRequest;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/selected';
+};
+
+export type SelectOrganizationApiV1OrganizationsSelectedPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SelectOrganizationApiV1OrganizationsSelectedPutError = SelectOrganizationApiV1OrganizationsSelectedPutErrors[keyof SelectOrganizationApiV1OrganizationsSelectedPutErrors];
+
+export type SelectOrganizationApiV1OrganizationsSelectedPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: OrganizationSummary;
+};
+
+export type SelectOrganizationApiV1OrganizationsSelectedPutResponse = SelectOrganizationApiV1OrganizationsSelectedPutResponses[keyof SelectOrganizationApiV1OrganizationsSelectedPutResponses];
 
 export type GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGetData = {
     body?: never;
