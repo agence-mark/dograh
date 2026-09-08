@@ -12,8 +12,11 @@ as options. Exposing them as editable configuration would hand the promise to
 someone able to undo it.
 
 Deepgram serves /v1/listen, /v2/listen and /v1/speak on the European endpoint
-with the same API keys, so this costs nothing; the only exclusion is the
-Whisper models, which are not offered here anyway. The management API is NOT
+with the same API keys, so the endpoint choice itself costs nothing; the only
+exclusion is the Whisper models, which are not offered here anyway. The
+opt-out below is a different matter: refusing the Model Improvement Program
+forfeits a discount, so it does change the bill. That is accepted -- it is a
+condition of the offer, not a cost optimisation. The management API is NOT
 served there -- see ``check_validity._check_deepgram_api_key``, which stays on
 the global endpoint deliberately.
 

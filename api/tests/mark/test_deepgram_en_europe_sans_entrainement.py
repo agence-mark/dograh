@@ -49,6 +49,12 @@ from api.services.pipecat.deepgram_endpoints import (
 )
 from api.services.pipecat.service_factory import create_stt_service, create_tts_service
 
+# ⛔ This literal is the point. The "passed" tests below compare against the
+# imported constants, which makes them tautological if a constant is mutated;
+# the "honoured" tests below compare against THIS literal, which is what keeps
+# the two layers independent. Replacing EU_HOST by the imported constant in the
+# honoured tests would make the whole file tautological, and it would do so
+# silently: every test would stay green while the audio moved to America.
 EU_HOST = "api.eu.deepgram.com"
 
 
@@ -148,7 +154,7 @@ def test_classic_stt_client_really_targets_the_eu_host():
     # get_environment() is what the SDK calls on itself to resolve a route.
     environment = service._client._client_wrapper.get_environment()
     assert environment.base == f"https://{EU_HOST}"
-    assert f"{environment.production}/v1/listen" == f"wss://{EU_HOST}/v1/listen"
+    assert environment.production == f"wss://{EU_HOST}"
 
 
 def test_classic_stt_sends_the_opt_out_in_its_request():
