@@ -18,6 +18,11 @@ from api.services.configuration.options import (
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
 )
 from api.services.configuration.registry import ServiceProviders
+from api.services.pipecat.deepgram_endpoints import (
+    DEEPGRAM_EU_FLUX_URL,
+    DEEPGRAM_EU_STT_BASE_URL,
+    DEEPGRAM_EU_TTS_BASE_URL,
+)
 from api.services.pipecat.gemini_json_schema_adapter import (
     DograhGeminiJSONSchemaAdapter,
 )
@@ -286,6 +291,10 @@ def create_stt_service(
 
             return DeepgramFluxSTTService(
                 api_key=user_config.stt.api_key,
+                # Flux takes the complete WebSocket URL, path included, unlike
+                # the classic connector which takes a host and derives the rest.
+                url=DEEPGRAM_EU_FLUX_URL,
+                mip_opt_out=True,
                 settings=DeepgramFluxSTTSettings(**settings_kwargs),
                 should_interrupt=False,  # Let UserAggregator take care of sending InterruptionFrame
                 sample_rate=audio_config.transport_in_sample_rate,
@@ -296,6 +305,8 @@ def create_stt_service(
         language = getattr(user_config.stt, "language", None) or "multi"
         return DeepgramSTTService(
             api_key=user_config.stt.api_key,
+            base_url=DEEPGRAM_EU_STT_BASE_URL,
+            mip_opt_out=True,
             settings=DeepgramSTTSettings(
                 language=language,
                 profanity_filter=False,
@@ -574,6 +585,8 @@ def create_tts_service(
     if user_config.tts.provider == ServiceProviders.DEEPGRAM.value:
         return DeepgramTTSService(
             api_key=user_config.tts.api_key,
+            base_url=DEEPGRAM_EU_TTS_BASE_URL,
+            mip_opt_out=True,
             settings=DeepgramTTSSettings(voice=user_config.tts.voice),
             text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
