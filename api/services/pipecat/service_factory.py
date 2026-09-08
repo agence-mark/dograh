@@ -14,13 +14,15 @@ from api.errors.failure import (
     log_failure,
 )
 from api.services.configuration.options import (
-    DEEPGRAM_EU_FLUX_URL,
-    DEEPGRAM_EU_STT_BASE_URL,
-    DEEPGRAM_EU_TTS_BASE_URL,
     DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
 )
 from api.services.configuration.registry import ServiceProviders
+from api.services.pipecat.deepgram_endpoints import (
+    DEEPGRAM_EU_FLUX_URL,
+    DEEPGRAM_EU_STT_BASE_URL,
+    DEEPGRAM_EU_TTS_BASE_URL,
+)
 from api.services.pipecat.gemini_json_schema_adapter import (
     DograhGeminiJSONSchemaAdapter,
 )
