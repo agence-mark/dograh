@@ -3,6 +3,9 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
 
 import aiohttp
+from fastapi import HTTPException
+from loguru import logger
+
 from api.constants import MPS_API_URL
 from api.errors.failure import (
     ErrorSource,
@@ -21,12 +24,9 @@ from api.services.pipecat.gemini_json_schema_adapter import (
 from api.services.pipecat.minimax_tts import MiniMaxOwnedSessionTTSService
 from api.services.pipecat.mistral_tts import (
     MistralRegionalTTSService,
-    resolve_mistral_server,
+    resolve_mistral_endpoint,
 )
 from api.utils.url_security import validate_user_configured_service_url
-from fastapi import HTTPException
-from loguru import logger
-
 from pipecat.services.assemblyai.stt import AssemblyAISTTService, AssemblyAISTTSettings
 from pipecat.services.aws.llm import AWSBedrockLLMService, AWSBedrockLLMSettings
 from pipecat.services.azure.llm import AzureLLMService, AzureLLMSettings
@@ -583,11 +583,13 @@ def create_tts_service(
         base_url = getattr(user_config.tts, "base_url", None)
         if base_url:
             _validate_runtime_service_url(base_url, "base_url")
+        mistral_server, mistral_server_url = resolve_mistral_endpoint(base_url)
         return MistralRegionalTTSService(
             api_key=user_config.tts.api_key,
-            # Pipecat's own wrapper never forwards a region, so the SDK would
-            # fall back to the global endpoint whatever the organisation set.
-            server=resolve_mistral_server(base_url),
+            # Pipecat's own wrapper never forwards an endpoint, so the SDK would
+            # fall back to the global one whatever the organisation configured.
+            server=mistral_server,
+            server_url=mistral_server_url,
             # Voxtral emits 24 kHz PCM and resamples internally to whatever
             # rate is asked for. Telephony transports run at 8 kHz, so the
             # transport rate must be passed explicitly.
@@ -1139,7 +1141,6 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.openai_realtime import (
             DograhOpenAIRealtimeLLMService,
         )
-
         from pipecat.services.openai.realtime.events import (
             AudioConfiguration,
             AudioInput,
@@ -1177,7 +1178,6 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.grok_realtime import (
             DograhGrokRealtimeLLMService,
         )
-
         from pipecat.services.xai.realtime.events import (
             AudioConfiguration,
             AudioInput,
@@ -1269,7 +1269,6 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.azure_realtime import (
             DograhAzureRealtimeLLMService,
         )
-
         from pipecat.services.openai.realtime.events import (
             AudioConfiguration,
             AudioInput,

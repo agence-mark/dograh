@@ -3,6 +3,8 @@ from collections.abc import Iterable
 from enum import Enum, auto
 from typing import Annotated, Dict, Literal, Type, TypeVar, Union
 
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+
 from api.services.configuration.options import (
     AZURE_EMBEDDING_MODELS,
     AZURE_MODELS,
@@ -52,7 +54,6 @@ from api.services.configuration.options import (
     SPEECHMATICS_STT_LANGUAGES,
 )
 from api.services.configuration.options.google import GOOGLE_VERTEX_MODELS
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 
 class ServiceType(Enum):

@@ -19,40 +19,660 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
- * Login
- */
-export const loginApiV1AuthLoginPost = <ThrowOnError extends boolean = false>(options: Options<LoginApiV1AuthLoginPostData, ThrowOnError>): RequestResult<LoginApiV1AuthLoginPostResponses, LoginApiV1AuthLoginPostErrors, ThrowOnError> => (options.client ?? client).post<LoginApiV1AuthLoginPostResponses, LoginApiV1AuthLoginPostErrors, ThrowOnError>({
-    url: '/api/v1/auth/login',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Current User
- */
-export const getCurrentUserApiV1AuthMeGet = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentUserApiV1AuthMeGetData, ThrowOnError>): RequestResult<GetCurrentUserApiV1AuthMeGetResponses, GetCurrentUserApiV1AuthMeGetErrors, ThrowOnError> => (options?.client ?? client).get<GetCurrentUserApiV1AuthMeGetResponses, GetCurrentUserApiV1AuthMeGetErrors, ThrowOnError>({ url: '/api/v1/auth/me', ...options });
-
-/**
- * Signup
- */
-export const signupApiV1AuthSignupPost = <ThrowOnError extends boolean = false>(options: Options<SignupApiV1AuthSignupPostData, ThrowOnError>): RequestResult<SignupApiV1AuthSignupPostResponses, SignupApiV1AuthSignupPostErrors, ThrowOnError> => (options.client ?? client).post<SignupApiV1AuthSignupPostResponses, SignupApiV1AuthSignupPostErrors, ThrowOnError>({
-    url: '/api/v1/auth/signup',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Campaigns
+ * Initiate Call
  *
- * Get campaigns for user's organization
+ * Initiate a call using the configured telephony provider from web browser. This is
+ * supposed to be a test call method for the draft version of the agent.
  */
-export const getCampaignsApiV1CampaignGet = <ThrowOnError extends boolean = false>(options?: Options<GetCampaignsApiV1CampaignGetData, ThrowOnError>): RequestResult<GetCampaignsApiV1CampaignGetResponses, GetCampaignsApiV1CampaignGetErrors, ThrowOnError> => (options?.client ?? client).get<GetCampaignsApiV1CampaignGetResponses, GetCampaignsApiV1CampaignGetErrors, ThrowOnError>({ url: '/api/v1/campaign/', ...options });
+export const initiateCallApiV1TelephonyInitiateCallPost = <ThrowOnError extends boolean = false>(options: Options<InitiateCallApiV1TelephonyInitiateCallPostData, ThrowOnError>): RequestResult<InitiateCallApiV1TelephonyInitiateCallPostResponses, InitiateCallApiV1TelephonyInitiateCallPostErrors, ThrowOnError> => (options.client ?? client).post<InitiateCallApiV1TelephonyInitiateCallPostResponses, InitiateCallApiV1TelephonyInitiateCallPostErrors, ThrowOnError>({
+    url: '/api/v1/telephony/initiate-call',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Handle Inbound Run
+ *
+ * Workflow-agnostic inbound dispatcher.
+ *
+ * All providers can point a single webhook at this endpoint instead of one
+ * URL per workflow. The dispatcher resolves the org from the webhook's
+ * account_id and the workflow from the called number's
+ * ``inbound_workflow_id``. This is what ``configure_inbound`` writes into
+ * each provider's resource so per-workflow webhook bookkeeping disappears.
+ *
+ * Provider-specific signature/timestamp headers are not enumerated here —
+ * each provider's ``verify_inbound_signature`` reads its own headers from
+ * the dict, so adding a new provider doesn't require changes to this route.
+ */
+export const handleInboundRunApiV1TelephonyInboundRunPost = <ThrowOnError extends boolean = false>(options?: Options<HandleInboundRunApiV1TelephonyInboundRunPostData, ThrowOnError>): RequestResult<HandleInboundRunApiV1TelephonyInboundRunPostResponses, HandleInboundRunApiV1TelephonyInboundRunPostErrors, ThrowOnError> => (options?.client ?? client).post<HandleInboundRunApiV1TelephonyInboundRunPostResponses, HandleInboundRunApiV1TelephonyInboundRunPostErrors, ThrowOnError>({ url: '/api/v1/telephony/inbound/run', ...options });
+
+/**
+ * Handle Inbound Fallback
+ *
+ * Fallback endpoint that returns audio message when calls cannot be processed.
+ */
+export const handleInboundFallbackApiV1TelephonyInboundFallbackPost = <ThrowOnError extends boolean = false>(options?: Options<HandleInboundFallbackApiV1TelephonyInboundFallbackPostData, ThrowOnError>): RequestResult<HandleInboundFallbackApiV1TelephonyInboundFallbackPostResponses, HandleInboundFallbackApiV1TelephonyInboundFallbackPostErrors, ThrowOnError> => (options?.client ?? client).post<HandleInboundFallbackApiV1TelephonyInboundFallbackPostResponses, HandleInboundFallbackApiV1TelephonyInboundFallbackPostErrors, ThrowOnError>({ url: '/api/v1/telephony/inbound/fallback', ...options });
+
+/**
+ * Handle Inbound Telephony
+ *
+ * [LEGACY] Per-workflow inbound webhook.
+ *
+ * Superseded by ``POST /inbound/run``, which resolves the workflow from
+ * the called number's ``inbound_workflow_id`` and lets a single webhook
+ * URL serve every workflow in the org. New integrations should point
+ * their provider at ``/inbound/run``; this route is kept only for
+ * existing provider configurations that still encode ``workflow_id``
+ * in the URL.
+ *
+ * @deprecated
+ */
+export const handleInboundTelephonyApiV1TelephonyInboundWorkflowIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostData, ThrowOnError>): RequestResult<HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostResponses, HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostResponses, HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/inbound/{workflow_id}', ...options });
+
+/**
+ * Complete Transfer Function Call
+ *
+ * Webhook endpoint to complete the function call with transfer result.
+ *
+ * Called by Twilio's StatusCallback when the transfer call status changes.
+ */
+export const completeTransferFunctionCallApiV1TelephonyTransferResultTransferIdPost = <ThrowOnError extends boolean = false>(options: Options<CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostData, ThrowOnError>): RequestResult<CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostResponses, CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostErrors, ThrowOnError> => (options.client ?? client).post<CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostResponses, CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/transfer-result/{transfer_id}', ...options });
+
+/**
+ * Handle Cloudonix Transfer Result
+ *
+ * Drive transfer completion from the destination leg's session status.
+ *
+ * ``CloudonixProvider.transfer_call`` sets this URL as the outbound call
+ * object's ``callback``. Cloudonix POSTs session-status notifications here;
+ * a ``connected`` status means the destination answered (publish
+ * DESTINATION_ANSWERED so the shared handler forks the caller into the
+ * conference), while terminal non-answer statuses publish TRANSFER_FAILED.
+ * Intermediate statuses (ringing/processing) are acked without publishing.
+ */
+export const handleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPostData, ThrowOnError>): RequestResult<HandleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPostResponses, HandleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPostResponses, HandleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/cloudonix/transfer-result/{transfer_id}', ...options });
+
+/**
+ * Handle Cloudonix Status Callback
+ *
+ * Handle Cloudonix-specific status callbacks.
+ *
+ * Cloudonix sends call status updates to the callback URL specified during call initiation.
+ */
+export const handleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostResponses, HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostResponses, HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/cloudonix/status-callback/{workflow_run_id}', ...options });
+
+/**
+ * Handle Cloudonix Cdr
+ *
+ * Handle Cloudonix CDR (Call Detail Record) webhooks.
+ *
+ * Cloudonix sends CDR records when calls complete. The CDR contains:
+ * - domain: Used to identify the organization
+ * - call_id: Used to find the workflow run
+ * - disposition: Call termination status (ANSWER, BUSY, CANCEL, FAILED, CONGESTION, NOANSWER)
+ * - duration/billsec: Call duration information
+ */
+export const handleCloudonixCdrApiV1TelephonyCloudonixCdrPost = <ThrowOnError extends boolean = false>(options?: Options<HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostData, ThrowOnError>): RequestResult<HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostResponses, HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostErrors, ThrowOnError> => (options?.client ?? client).post<HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostResponses, HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostErrors, ThrowOnError>({ url: '/api/v1/telephony/cloudonix/cdr', ...options });
+
+/**
+ * Handle Plivo Hangup Callback
+ *
+ * Handle Plivo hangup callbacks.
+ */
+export const handlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPostResponses, HandlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPostResponses, HandlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/plivo/hangup-callback/{workflow_run_id}', ...options });
+
+/**
+ * Handle Plivo Ring Callback
+ *
+ * Handle Plivo ring callbacks.
+ */
+export const handlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPostResponses, HandlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPostResponses, HandlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/plivo/ring-callback/{workflow_run_id}', ...options });
+
+/**
+ * Handle Telnyx Events
+ *
+ * Handle Telnyx Call Control webhook events.
+ *
+ * Telnyx sends all call lifecycle events (call.initiated, call.answered,
+ * call.hangup, streaming.started, streaming.stopped) as JSON POST requests.
+ */
+export const handleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPostResponses, HandleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPostResponses, HandleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/telnyx/events/{workflow_run_id}', ...options });
+
+/**
+ * Handle Telnyx Transfer Result
+ *
+ * Handle Telnyx Call Control events for the transfer destination leg.
+ *
+ * The destination leg is dialed by :meth:`TelnyxProvider.transfer_call` with
+ * this URL as ``webhook_url``. Telnyx sends every event for that leg here.
+ * Outcomes:
+ *
+ * - ``call.answered``: seed a conference with the destination's live
+ * ``call_control_id``, stamp ``conference_id`` onto the TransferContext,
+ * and publish ``DESTINATION_ANSWERED`` so ``transfer_call_handler`` can
+ * end the pipeline. ``TelnyxConferenceStrategy`` then joins the caller
+ * into this conference at pipeline teardown.
+ * - ``call.hangup`` pre-answer (no ``conference_id`` on the context):
+ * publish ``TRANSFER_FAILED`` so the LLM can recover.
+ * - ``call.hangup`` post-answer (``conference_id`` set): the destination
+ * left a bridged conference; hang up the caller's leg to tear down the
+ * empty bridge (Telnyx's create_conference doesn't accept
+ * ``end_conference_on_exit`` on the seed leg).
+ *
+ * Event references:
+ * - call.answered: https://developers.telnyx.com/api-reference/callbacks/call-answered
+ * - call.hangup:   https://developers.telnyx.com/api-reference/callbacks/call-hangup
+ */
+export const handleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPostData, ThrowOnError>): RequestResult<HandleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPostResponses, HandleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPostResponses, HandleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/telnyx/transfer-result/{transfer_id}', ...options });
+
+/**
+ * Handle Twilio Status Callback
+ *
+ * Handle Twilio-specific status callbacks.
+ */
+export const handleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostResponses, HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostResponses, HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/twilio/status-callback/{workflow_run_id}', ...options });
+
+/**
+ * Handle Vobiz Hangup Callback
+ *
+ * Handle Vobiz hangup callback (sent when call ends).
+ *
+ * Vobiz sends callbacks to hangup_url when the call terminates.
+ * This includes call duration, status, and billing information.
+ */
+export const handleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostResponses, HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostResponses, HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/vobiz/hangup-callback/{workflow_run_id}', ...options });
+
+/**
+ * Handle Vobiz Ring Callback
+ *
+ * Handle Vobiz ring callback (sent when call starts ringing).
+ *
+ * Vobiz can send callbacks to ring_url when the call starts ringing.
+ * This is optional and used for tracking ringing status.
+ */
+export const handleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostResponses, HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostResponses, HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/vobiz/ring-callback/{workflow_run_id}', ...options });
+
+/**
+ * Handle Vobiz Hangup Callback By Workflow
+ *
+ * Handle Vobiz hangup callback with workflow_id - finds workflow run by call_id.
+ */
+export const handleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostData, ThrowOnError>): RequestResult<HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostResponses, HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostResponses, HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/vobiz/hangup-callback/workflow/{workflow_id}', ...options });
+
+/**
+ * Handle Vonage Events
+ *
+ * Handle Vonage-specific event webhooks.
+ *
+ * Vonage sends all call events to a single endpoint.
+ * Events include: started, ringing, answered, complete, failed, etc.
+ */
+export const handleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPostResponses, HandleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPostResponses, HandleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/vonage/events/{workflow_run_id}', ...options });
+
+/**
+ * Handle Vonage Events Without Run
+ *
+ * Handle application-level events by resolving the run from call UUID.
+ */
+export const handleVonageEventsWithoutRunApiV1TelephonyVonageEventsPost = <ThrowOnError extends boolean = false>(options?: Options<HandleVonageEventsWithoutRunApiV1TelephonyVonageEventsPostData, ThrowOnError>): RequestResult<HandleVonageEventsWithoutRunApiV1TelephonyVonageEventsPostResponses, HandleVonageEventsWithoutRunApiV1TelephonyVonageEventsPostErrors, ThrowOnError> => (options?.client ?? client).post<HandleVonageEventsWithoutRunApiV1TelephonyVonageEventsPostResponses, HandleVonageEventsWithoutRunApiV1TelephonyVonageEventsPostErrors, ThrowOnError>({ url: '/api/v1/telephony/vonage/events', ...options });
+
+/**
+ * Impersonate
+ *
+ * Impersonate a user as a super-admin.
+ * Internally, Stack Auth requires the **provider user ID** (a UUID-ish string)
+ * to create an impersonation session.
+ */
+export const impersonateApiV1SuperuserImpersonatePost = <ThrowOnError extends boolean = false>(options: Options<ImpersonateApiV1SuperuserImpersonatePostData, ThrowOnError>): RequestResult<ImpersonateApiV1SuperuserImpersonatePostResponses, ImpersonateApiV1SuperuserImpersonatePostErrors, ThrowOnError> => (options.client ?? client).post<ImpersonateApiV1SuperuserImpersonatePostResponses, ImpersonateApiV1SuperuserImpersonatePostErrors, ThrowOnError>({
+    url: '/api/v1/superuser/impersonate',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Workflow Runs
+ *
+ * Get paginated list of all workflow runs with organization information.
+ * Requires superuser privileges.
+ *
+ * Filters should be provided as a JSON-encoded array of filter criteria.
+ * Example: [{"field": "id", "type": "number", "value": {"value": 680}}]
+ */
+export const getWorkflowRunsApiV1SuperuserWorkflowRunsGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowRunsApiV1SuperuserWorkflowRunsGetData, ThrowOnError>): RequestResult<GetWorkflowRunsApiV1SuperuserWorkflowRunsGetResponses, GetWorkflowRunsApiV1SuperuserWorkflowRunsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowRunsApiV1SuperuserWorkflowRunsGetResponses, GetWorkflowRunsApiV1SuperuserWorkflowRunsGetErrors, ThrowOnError>({ url: '/api/v1/superuser/workflow-runs', ...options });
+
+/**
+ * Validate Workflow
+ *
+ * Validate all nodes in a workflow to ensure they have required fields.
+ *
+ * Args:
+ * workflow_id: The ID of the workflow to validate
+ * user: The authenticated user
+ *
+ * Returns:
+ * Object indicating if workflow is valid and any invalid nodes/edges
+ */
+export const validateWorkflowApiV1WorkflowWorkflowIdValidatePost = <ThrowOnError extends boolean = false>(options: Options<ValidateWorkflowApiV1WorkflowWorkflowIdValidatePostData, ThrowOnError>): RequestResult<ValidateWorkflowApiV1WorkflowWorkflowIdValidatePostResponses, ValidateWorkflowApiV1WorkflowWorkflowIdValidatePostErrors, ThrowOnError> => (options.client ?? client).post<ValidateWorkflowApiV1WorkflowWorkflowIdValidatePostResponses, ValidateWorkflowApiV1WorkflowWorkflowIdValidatePostErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/validate', ...options });
+
+/**
+ * Create Workflow
+ *
+ * Create a new workflow from the client
+ *
+ * Args:
+ * request: The create workflow request
+ * user: The user to create the workflow for
+ */
+export const createWorkflowApiV1WorkflowCreateDefinitionPost = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowApiV1WorkflowCreateDefinitionPostData, ThrowOnError>): RequestResult<CreateWorkflowApiV1WorkflowCreateDefinitionPostResponses, CreateWorkflowApiV1WorkflowCreateDefinitionPostErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowApiV1WorkflowCreateDefinitionPostResponses, CreateWorkflowApiV1WorkflowCreateDefinitionPostErrors, ThrowOnError>({
+    url: '/api/v1/workflow/create/definition',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Create Workflow From Template
+ *
+ * Create a new workflow from a natural language template request.
+ *
+ * This endpoint:
+ * 1. Uses mps_service_key_client to call MPS workflow API
+ * 2. Passes organization ID (authenticated mode) or created_by (OSS mode)
+ * 3. Creates the workflow in the database
+ *
+ * Args:
+ * request: The template creation request with call_type, use_case, and activity_description
+ * user: The authenticated user
+ *
+ * Returns:
+ * The created workflow
+ *
+ * Raises:
+ * HTTPException: If MPS API call fails
+ */
+export const createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostData, ThrowOnError>): RequestResult<CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostResponses, CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostResponses, CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostErrors, ThrowOnError>({
+    url: '/api/v1/workflow/create/template',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Workflow Count
+ *
+ * Get workflow counts for the authenticated user's organization.
+ *
+ * This is a lightweight endpoint for checking if the user has workflows,
+ * useful for redirect logic without fetching full workflow data.
+ */
+export const getWorkflowCountApiV1WorkflowCountGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowCountApiV1WorkflowCountGetData, ThrowOnError>): RequestResult<GetWorkflowCountApiV1WorkflowCountGetResponses, GetWorkflowCountApiV1WorkflowCountGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowCountApiV1WorkflowCountGetResponses, GetWorkflowCountApiV1WorkflowCountGetErrors, ThrowOnError>({ url: '/api/v1/workflow/count', ...options });
+
+/**
+ * Get Workflows
+ *
+ * Get all workflows for the authenticated user's organization.
+ *
+ * Returns a lightweight response with only essential fields for listing.
+ * Use GET /workflow/fetch/{workflow_id} to get full workflow details.
+ */
+export const getWorkflowsApiV1WorkflowFetchGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowsApiV1WorkflowFetchGetData, ThrowOnError>): RequestResult<GetWorkflowsApiV1WorkflowFetchGetResponses, GetWorkflowsApiV1WorkflowFetchGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowsApiV1WorkflowFetchGetResponses, GetWorkflowsApiV1WorkflowFetchGetErrors, ThrowOnError>({ url: '/api/v1/workflow/fetch', ...options });
+
+/**
+ * Get Workflow
+ *
+ * Get a single workflow by ID.
+ *
+ * If a draft version exists, returns the draft content for editing.
+ * Otherwise returns the published version's content.
+ */
+export const getWorkflowApiV1WorkflowFetchWorkflowIdGet = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowApiV1WorkflowFetchWorkflowIdGetData, ThrowOnError>): RequestResult<GetWorkflowApiV1WorkflowFetchWorkflowIdGetResponses, GetWorkflowApiV1WorkflowFetchWorkflowIdGetErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowApiV1WorkflowFetchWorkflowIdGetResponses, GetWorkflowApiV1WorkflowFetchWorkflowIdGetErrors, ThrowOnError>({ url: '/api/v1/workflow/fetch/{workflow_id}', ...options });
+
+/**
+ * Get Workflow Versions
+ *
+ * List versions for a workflow, newest first.
+ *
+ * Pass `limit`/`offset` to page through long histories. With no `limit`,
+ * returns every version (legacy behavior).
+ */
+export const getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetData, ThrowOnError>): RequestResult<GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetResponses, GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetResponses, GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/versions', ...options });
+
+/**
+ * Publish Workflow
+ *
+ * Publish the current draft version of a workflow.
+ *
+ * Drafts are allowed to be incomplete (so the editor can save mid-edit),
+ * but a published version is what runtime executes — so this is the gate
+ * where the full DTO + graph + trigger-conflict checks must pass.
+ */
+export const publishWorkflowApiV1WorkflowWorkflowIdPublishPost = <ThrowOnError extends boolean = false>(options: Options<PublishWorkflowApiV1WorkflowWorkflowIdPublishPostData, ThrowOnError>): RequestResult<PublishWorkflowApiV1WorkflowWorkflowIdPublishPostResponses, PublishWorkflowApiV1WorkflowWorkflowIdPublishPostErrors, ThrowOnError> => (options.client ?? client).post<PublishWorkflowApiV1WorkflowWorkflowIdPublishPostResponses, PublishWorkflowApiV1WorkflowWorkflowIdPublishPostErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/publish', ...options });
+
+/**
+ * Create Workflow Draft
+ *
+ * Create a draft version from the current published version.
+ *
+ * If a draft already exists, returns the existing draft.
+ */
+export const createWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPost = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPostData, ThrowOnError>): RequestResult<CreateWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPostResponses, CreateWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPostErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPostResponses, CreateWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPostErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/create-draft', ...options });
+
+/**
+ * Get Workflows Summary
+ *
+ * Get minimal workflow information (id and name only) for all workflows
+ */
+export const getWorkflowsSummaryApiV1WorkflowSummaryGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowsSummaryApiV1WorkflowSummaryGetData, ThrowOnError>): RequestResult<GetWorkflowsSummaryApiV1WorkflowSummaryGetResponses, GetWorkflowsSummaryApiV1WorkflowSummaryGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowsSummaryApiV1WorkflowSummaryGetResponses, GetWorkflowsSummaryApiV1WorkflowSummaryGetErrors, ThrowOnError>({ url: '/api/v1/workflow/summary', ...options });
+
+/**
+ * Update Workflow Status
+ *
+ * Update the status of a workflow (e.g., archive/unarchive).
+ *
+ * Args:
+ * workflow_id: The ID of the workflow to update
+ * request: The status update request
+ *
+ * Returns:
+ * The updated workflow
+ */
+export const updateWorkflowStatusApiV1WorkflowWorkflowIdStatusPut = <ThrowOnError extends boolean = false>(options: Options<UpdateWorkflowStatusApiV1WorkflowWorkflowIdStatusPutData, ThrowOnError>): RequestResult<UpdateWorkflowStatusApiV1WorkflowWorkflowIdStatusPutResponses, UpdateWorkflowStatusApiV1WorkflowWorkflowIdStatusPutErrors, ThrowOnError> => (options.client ?? client).put<UpdateWorkflowStatusApiV1WorkflowWorkflowIdStatusPutResponses, UpdateWorkflowStatusApiV1WorkflowWorkflowIdStatusPutErrors, ThrowOnError>({
+    url: '/api/v1/workflow/{workflow_id}/status',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Move Workflow To Folder
+ *
+ * Move a workflow into a folder, or to "Uncategorized" (folder_id=null).
+ *
+ * Validates that the target folder belongs to the caller's organization —
+ * the FK alone proves the folder exists, not that the caller may use it.
+ */
+export const moveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPut = <ThrowOnError extends boolean = false>(options: Options<MoveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPutData, ThrowOnError>): RequestResult<MoveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPutResponses, MoveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPutErrors, ThrowOnError> => (options.client ?? client).put<MoveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPutResponses, MoveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPutErrors, ThrowOnError>({
+    url: '/api/v1/workflow/{workflow_id}/folder',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Update Workflow
+ *
+ * Update an existing workflow.
+ *
+ * Args:
+ * workflow_id: The ID of the workflow to update
+ * request: The update request containing the new name and workflow definition
+ *
+ * Returns:
+ * The updated workflow
+ *
+ * Raises:
+ * HTTPException: If the workflow is not found or if there's a database error
+ */
+export const updateWorkflowApiV1WorkflowWorkflowIdPut = <ThrowOnError extends boolean = false>(options: Options<UpdateWorkflowApiV1WorkflowWorkflowIdPutData, ThrowOnError>): RequestResult<UpdateWorkflowApiV1WorkflowWorkflowIdPutResponses, UpdateWorkflowApiV1WorkflowWorkflowIdPutErrors, ThrowOnError> => (options.client ?? client).put<UpdateWorkflowApiV1WorkflowWorkflowIdPutResponses, UpdateWorkflowApiV1WorkflowWorkflowIdPutErrors, ThrowOnError>({
+    url: '/api/v1/workflow/{workflow_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Duplicate Workflow Endpoint
+ *
+ * Duplicate a workflow including its definition, configuration, recordings, and triggers.
+ */
+export const duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost = <ThrowOnError extends boolean = false>(options: Options<DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostData, ThrowOnError>): RequestResult<DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostResponses, DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostErrors, ThrowOnError> => (options.client ?? client).post<DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostResponses, DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/duplicate', ...options });
+
+/**
+ * Get Workflow Runs
+ *
+ * Get workflow runs with optional filtering and sorting.
+ *
+ * Filters should be provided as a JSON-encoded array of filter criteria.
+ * Example: [{"attribute": "dateRange", "value": {"from": "2024-01-01", "to": "2024-01-31"}}]
+ */
+export const getWorkflowRunsApiV1WorkflowWorkflowIdRunsGet = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetData, ThrowOnError>): RequestResult<GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetResponses, GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetResponses, GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/runs', ...options });
+
+/**
+ * Create Workflow Run
+ *
+ * Create a new workflow run when the user decides to execute the workflow via chat or voice
+ *
+ * Args:
+ * workflow_id: The ID of the workflow to run
+ * request: The create workflow run request
+ * user: The user to create the workflow run for
+ */
+export const createWorkflowRunApiV1WorkflowWorkflowIdRunsPost = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowRunApiV1WorkflowWorkflowIdRunsPostData, ThrowOnError>): RequestResult<CreateWorkflowRunApiV1WorkflowWorkflowIdRunsPostResponses, CreateWorkflowRunApiV1WorkflowWorkflowIdRunsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowRunApiV1WorkflowWorkflowIdRunsPostResponses, CreateWorkflowRunApiV1WorkflowWorkflowIdRunsPostErrors, ThrowOnError>({
+    url: '/api/v1/workflow/{workflow_id}/runs',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Workflow Run
+ */
+export const getWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGet = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetData, ThrowOnError>): RequestResult<GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetResponses, GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetResponses, GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/runs/{run_id}', ...options });
+
+/**
+ * Download Workflow Report
+ *
+ * Download a CSV report of completed runs for a workflow.
+ */
+export const downloadWorkflowReportApiV1WorkflowWorkflowIdReportGet = <ThrowOnError extends boolean = false>(options: Options<DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetData, ThrowOnError>): RequestResult<DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetResponses, DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetErrors, ThrowOnError> => (options.client ?? client).get<DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetResponses, DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/report', ...options });
+
+/**
+ * Get Workflow Templates
+ *
+ * Get all available workflow templates.
+ *
+ * Returns:
+ * List of workflow templates
+ */
+export const getWorkflowTemplatesApiV1WorkflowTemplatesGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowTemplatesApiV1WorkflowTemplatesGetData, ThrowOnError>): RequestResult<GetWorkflowTemplatesApiV1WorkflowTemplatesGetResponses, GetWorkflowTemplatesApiV1WorkflowTemplatesGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowTemplatesApiV1WorkflowTemplatesGetResponses, GetWorkflowTemplatesApiV1WorkflowTemplatesGetErrors, ThrowOnError>({ url: '/api/v1/workflow/templates', ...options });
+
+/**
+ * Duplicate Workflow Template
+ *
+ * Duplicate a workflow template to create a new workflow for the user.
+ *
+ * Args:
+ * request: The duplicate template request
+ * user: The authenticated user
+ *
+ * Returns:
+ * The newly created workflow
+ */
+export const duplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePost = <ThrowOnError extends boolean = false>(options: Options<DuplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePostData, ThrowOnError>): RequestResult<DuplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePostResponses, DuplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePostErrors, ThrowOnError> => (options.client ?? client).post<DuplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePostResponses, DuplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePostErrors, ThrowOnError>({
+    url: '/api/v1/workflow/templates/duplicate',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get a presigned URL to upload a custom ambient noise audio file
+ *
+ * Generate a presigned PUT URL for uploading a custom ambient noise file.
+ */
+export const getAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPost = <ThrowOnError extends boolean = false>(options: Options<GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostData, ThrowOnError>): RequestResult<GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostResponses, GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostErrors, ThrowOnError> => (options.client ?? client).post<GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostResponses, GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostErrors, ThrowOnError>({
+    url: '/api/v1/workflow/ambient-noise/upload-url',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Create Text Chat Session
+ */
+export const createTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPost = <ThrowOnError extends boolean = false>(options: Options<CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostData, ThrowOnError>): RequestResult<CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostResponses, CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostResponses, CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostErrors, ThrowOnError>({
+    url: '/api/v1/workflow/{workflow_id}/text-chat/sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Text Chat Session
+ */
+export const getTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGet = <ThrowOnError extends boolean = false>(options: Options<GetTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGetData, ThrowOnError>): RequestResult<GetTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGetResponses, GetTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGetErrors, ThrowOnError> => (options.client ?? client).get<GetTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGetResponses, GetTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGetErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/text-chat/sessions/{run_id}', ...options });
+
+/**
+ * Append Text Chat Message
+ */
+export const appendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPost = <ThrowOnError extends boolean = false>(options: Options<AppendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPostData, ThrowOnError>): RequestResult<AppendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPostResponses, AppendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPostErrors, ThrowOnError> => (options.client ?? client).post<AppendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPostResponses, AppendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPostErrors, ThrowOnError>({
+    url: '/api/v1/workflow/{workflow_id}/text-chat/sessions/{run_id}/messages',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * End Text Chat Session
+ */
+export const endTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPost = <ThrowOnError extends boolean = false>(options: Options<EndTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPostData, ThrowOnError>): RequestResult<EndTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPostResponses, EndTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPostErrors, ThrowOnError> => (options.client ?? client).post<EndTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPostResponses, EndTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPostErrors, ThrowOnError>({
+    url: '/api/v1/workflow/{workflow_id}/text-chat/sessions/{run_id}/end',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Rewind Text Chat Session
+ */
+export const rewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPost = <ThrowOnError extends boolean = false>(options: Options<RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostData, ThrowOnError>): RequestResult<RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostResponses, RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostErrors, ThrowOnError> => (options.client ?? client).post<RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostResponses, RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostErrors, ThrowOnError>({
+    url: '/api/v1/workflow/{workflow_id}/text-chat/sessions/{run_id}/rewind',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Default Configurations
+ */
+export const getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet = <ThrowOnError extends boolean = false>(options?: Options<GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData, ThrowOnError>): RequestResult<GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetResponses, GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetResponses, GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetErrors, ThrowOnError>({ url: '/api/v1/user/configurations/defaults', ...options });
+
+/**
+ * Get Auth User
+ */
+export const getAuthUserApiV1UserAuthUserGet = <ThrowOnError extends boolean = false>(options?: Options<GetAuthUserApiV1UserAuthUserGetData, ThrowOnError>): RequestResult<GetAuthUserApiV1UserAuthUserGetResponses, GetAuthUserApiV1UserAuthUserGetErrors, ThrowOnError> => (options?.client ?? client).get<GetAuthUserApiV1UserAuthUserGetResponses, GetAuthUserApiV1UserAuthUserGetErrors, ThrowOnError>({ url: '/api/v1/user/auth/user', ...options });
+
+/**
+ * Get User Configurations
+ */
+export const getUserConfigurationsApiV1UserConfigurationsUserGet = <ThrowOnError extends boolean = false>(options?: Options<GetUserConfigurationsApiV1UserConfigurationsUserGetData, ThrowOnError>): RequestResult<GetUserConfigurationsApiV1UserConfigurationsUserGetResponses, GetUserConfigurationsApiV1UserConfigurationsUserGetErrors, ThrowOnError> => (options?.client ?? client).get<GetUserConfigurationsApiV1UserConfigurationsUserGetResponses, GetUserConfigurationsApiV1UserConfigurationsUserGetErrors, ThrowOnError>({ url: '/api/v1/user/configurations/user', ...options });
+
+/**
+ * Update User Configurations
+ */
+export const updateUserConfigurationsApiV1UserConfigurationsUserPut = <ThrowOnError extends boolean = false>(options: Options<UpdateUserConfigurationsApiV1UserConfigurationsUserPutData, ThrowOnError>): RequestResult<UpdateUserConfigurationsApiV1UserConfigurationsUserPutResponses, UpdateUserConfigurationsApiV1UserConfigurationsUserPutErrors, ThrowOnError> => (options.client ?? client).put<UpdateUserConfigurationsApiV1UserConfigurationsUserPutResponses, UpdateUserConfigurationsApiV1UserConfigurationsUserPutErrors, ThrowOnError>({
+    url: '/api/v1/user/configurations/user',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get User Onboarding State
+ */
+export const getUserOnboardingStateApiV1UserOnboardingStateGet = <ThrowOnError extends boolean = false>(options?: Options<GetUserOnboardingStateApiV1UserOnboardingStateGetData, ThrowOnError>): RequestResult<GetUserOnboardingStateApiV1UserOnboardingStateGetResponses, GetUserOnboardingStateApiV1UserOnboardingStateGetErrors, ThrowOnError> => (options?.client ?? client).get<GetUserOnboardingStateApiV1UserOnboardingStateGetResponses, GetUserOnboardingStateApiV1UserOnboardingStateGetErrors, ThrowOnError>({ url: '/api/v1/user/onboarding-state', ...options });
+
+/**
+ * Update User Onboarding State
+ */
+export const updateUserOnboardingStateApiV1UserOnboardingStatePut = <ThrowOnError extends boolean = false>(options: Options<UpdateUserOnboardingStateApiV1UserOnboardingStatePutData, ThrowOnError>): RequestResult<UpdateUserOnboardingStateApiV1UserOnboardingStatePutResponses, UpdateUserOnboardingStateApiV1UserOnboardingStatePutErrors, ThrowOnError> => (options.client ?? client).put<UpdateUserOnboardingStateApiV1UserOnboardingStatePutResponses, UpdateUserOnboardingStateApiV1UserOnboardingStatePutErrors, ThrowOnError>({
+    url: '/api/v1/user/onboarding-state',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Validate User Configurations
+ */
+export const validateUserConfigurationsApiV1UserConfigurationsUserValidateGet = <ThrowOnError extends boolean = false>(options?: Options<ValidateUserConfigurationsApiV1UserConfigurationsUserValidateGetData, ThrowOnError>): RequestResult<ValidateUserConfigurationsApiV1UserConfigurationsUserValidateGetResponses, ValidateUserConfigurationsApiV1UserConfigurationsUserValidateGetErrors, ThrowOnError> => (options?.client ?? client).get<ValidateUserConfigurationsApiV1UserConfigurationsUserValidateGetResponses, ValidateUserConfigurationsApiV1UserConfigurationsUserValidateGetErrors, ThrowOnError>({ url: '/api/v1/user/configurations/user/validate', ...options });
+
+/**
+ * Get Api Keys
+ *
+ * Get all API keys for the user's selected organization.
+ */
+export const getApiKeysApiV1UserApiKeysGet = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeysApiV1UserApiKeysGetData, ThrowOnError>): RequestResult<GetApiKeysApiV1UserApiKeysGetResponses, GetApiKeysApiV1UserApiKeysGetErrors, ThrowOnError> => (options?.client ?? client).get<GetApiKeysApiV1UserApiKeysGetResponses, GetApiKeysApiV1UserApiKeysGetErrors, ThrowOnError>({ url: '/api/v1/user/api-keys', ...options });
+
+/**
+ * Create Api Key
+ *
+ * Create a new API key for the user's selected organization.
+ */
+export const createApiKeyApiV1UserApiKeysPost = <ThrowOnError extends boolean = false>(options: Options<CreateApiKeyApiV1UserApiKeysPostData, ThrowOnError>): RequestResult<CreateApiKeyApiV1UserApiKeysPostResponses, CreateApiKeyApiV1UserApiKeysPostErrors, ThrowOnError> => (options.client ?? client).post<CreateApiKeyApiV1UserApiKeysPostResponses, CreateApiKeyApiV1UserApiKeysPostErrors, ThrowOnError>({
+    url: '/api/v1/user/api-keys',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Archive Api Key
+ *
+ * Archive an API key (soft delete).
+ */
+export const archiveApiKeyApiV1UserApiKeysApiKeyIdDelete = <ThrowOnError extends boolean = false>(options: Options<ArchiveApiKeyApiV1UserApiKeysApiKeyIdDeleteData, ThrowOnError>): RequestResult<ArchiveApiKeyApiV1UserApiKeysApiKeyIdDeleteResponses, ArchiveApiKeyApiV1UserApiKeysApiKeyIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<ArchiveApiKeyApiV1UserApiKeysApiKeyIdDeleteResponses, ArchiveApiKeyApiV1UserApiKeysApiKeyIdDeleteErrors, ThrowOnError>({ url: '/api/v1/user/api-keys/{api_key_id}', ...options });
+
+/**
+ * Reactivate Api Key
+ *
+ * Reactivate an archived API key.
+ */
+export const reactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePut = <ThrowOnError extends boolean = false>(options: Options<ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutData, ThrowOnError>): RequestResult<ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutResponses, ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutErrors, ThrowOnError> => (options.client ?? client).put<ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutResponses, ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutErrors, ThrowOnError>({ url: '/api/v1/user/api-keys/{api_key_id}/reactivate', ...options });
+
+/**
+ * Get Voices
+ *
+ * Get available voices for a TTS provider.
+ */
+export const getVoicesApiV1UserConfigurationsVoicesProviderGet = <ThrowOnError extends boolean = false>(options: Options<GetVoicesApiV1UserConfigurationsVoicesProviderGetData, ThrowOnError>): RequestResult<GetVoicesApiV1UserConfigurationsVoicesProviderGetResponses, GetVoicesApiV1UserConfigurationsVoicesProviderGetErrors, ThrowOnError> => (options.client ?? client).get<GetVoicesApiV1UserConfigurationsVoicesProviderGetResponses, GetVoicesApiV1UserConfigurationsVoicesProviderGetErrors, ThrowOnError>({ url: '/api/v1/user/configurations/voices/{provider}', ...options });
 
 /**
  * Create Campaign
@@ -67,6 +687,13 @@ export const createCampaignApiV1CampaignCreatePost = <ThrowOnError extends boole
         ...options.headers
     }
 });
+
+/**
+ * Get Campaigns
+ *
+ * Get campaigns for user's organization
+ */
+export const getCampaignsApiV1CampaignGet = <ThrowOnError extends boolean = false>(options?: Options<GetCampaignsApiV1CampaignGetData, ThrowOnError>): RequestResult<GetCampaignsApiV1CampaignGetResponses, GetCampaignsApiV1CampaignGetErrors, ThrowOnError> => (options?.client ?? client).get<GetCampaignsApiV1CampaignGetResponses, GetCampaignsApiV1CampaignGetErrors, ThrowOnError>({ url: '/api/v1/campaign/', ...options });
 
 /**
  * Get Campaign
@@ -90,6 +717,13 @@ export const updateCampaignApiV1CampaignCampaignIdPatch = <ThrowOnError extends 
 });
 
 /**
+ * Start Campaign
+ *
+ * Start campaign execution
+ */
+export const startCampaignApiV1CampaignCampaignIdStartPost = <ThrowOnError extends boolean = false>(options: Options<StartCampaignApiV1CampaignCampaignIdStartPostData, ThrowOnError>): RequestResult<StartCampaignApiV1CampaignCampaignIdStartPostResponses, StartCampaignApiV1CampaignCampaignIdStartPostErrors, ThrowOnError> => (options.client ?? client).post<StartCampaignApiV1CampaignCampaignIdStartPostResponses, StartCampaignApiV1CampaignCampaignIdStartPostErrors, ThrowOnError>({ url: '/api/v1/campaign/{campaign_id}/start', ...options });
+
+/**
  * Pause Campaign
  *
  * Pause campaign execution
@@ -97,11 +731,11 @@ export const updateCampaignApiV1CampaignCampaignIdPatch = <ThrowOnError extends 
 export const pauseCampaignApiV1CampaignCampaignIdPausePost = <ThrowOnError extends boolean = false>(options: Options<PauseCampaignApiV1CampaignCampaignIdPausePostData, ThrowOnError>): RequestResult<PauseCampaignApiV1CampaignCampaignIdPausePostResponses, PauseCampaignApiV1CampaignCampaignIdPausePostErrors, ThrowOnError> => (options.client ?? client).post<PauseCampaignApiV1CampaignCampaignIdPausePostResponses, PauseCampaignApiV1CampaignCampaignIdPausePostErrors, ThrowOnError>({ url: '/api/v1/campaign/{campaign_id}/pause', ...options });
 
 /**
- * Get Campaign Progress
+ * Get Campaign Runs
  *
- * Get current campaign progress and statistics
+ * Get campaign workflow runs with pagination, filters and sorting
  */
-export const getCampaignProgressApiV1CampaignCampaignIdProgressGet = <ThrowOnError extends boolean = false>(options: Options<GetCampaignProgressApiV1CampaignCampaignIdProgressGetData, ThrowOnError>): RequestResult<GetCampaignProgressApiV1CampaignCampaignIdProgressGetResponses, GetCampaignProgressApiV1CampaignCampaignIdProgressGetErrors, ThrowOnError> => (options.client ?? client).get<GetCampaignProgressApiV1CampaignCampaignIdProgressGetResponses, GetCampaignProgressApiV1CampaignCampaignIdProgressGetErrors, ThrowOnError>({ url: '/api/v1/campaign/{campaign_id}/progress', ...options });
+export const getCampaignRunsApiV1CampaignCampaignIdRunsGet = <ThrowOnError extends boolean = false>(options: Options<GetCampaignRunsApiV1CampaignCampaignIdRunsGetData, ThrowOnError>): RequestResult<GetCampaignRunsApiV1CampaignCampaignIdRunsGetResponses, GetCampaignRunsApiV1CampaignCampaignIdRunsGetErrors, ThrowOnError> => (options.client ?? client).get<GetCampaignRunsApiV1CampaignCampaignIdRunsGetResponses, GetCampaignRunsApiV1CampaignCampaignIdRunsGetErrors, ThrowOnError>({ url: '/api/v1/campaign/{campaign_id}/runs', ...options });
 
 /**
  * Redial Campaign
@@ -123,13 +757,6 @@ export const redialCampaignApiV1CampaignCampaignIdRedialPost = <ThrowOnError ext
 });
 
 /**
- * Download Campaign Report
- *
- * Download a CSV report of completed campaign runs.
- */
-export const downloadCampaignReportApiV1CampaignCampaignIdReportGet = <ThrowOnError extends boolean = false>(options: Options<DownloadCampaignReportApiV1CampaignCampaignIdReportGetData, ThrowOnError>): RequestResult<DownloadCampaignReportApiV1CampaignCampaignIdReportGetResponses, DownloadCampaignReportApiV1CampaignCampaignIdReportGetErrors, ThrowOnError> => (options.client ?? client).get<DownloadCampaignReportApiV1CampaignCampaignIdReportGetResponses, DownloadCampaignReportApiV1CampaignCampaignIdReportGetErrors, ThrowOnError>({ url: '/api/v1/campaign/{campaign_id}/report', ...options });
-
-/**
  * Resume Campaign
  *
  * Resume a paused campaign
@@ -137,11 +764,11 @@ export const downloadCampaignReportApiV1CampaignCampaignIdReportGet = <ThrowOnEr
 export const resumeCampaignApiV1CampaignCampaignIdResumePost = <ThrowOnError extends boolean = false>(options: Options<ResumeCampaignApiV1CampaignCampaignIdResumePostData, ThrowOnError>): RequestResult<ResumeCampaignApiV1CampaignCampaignIdResumePostResponses, ResumeCampaignApiV1CampaignCampaignIdResumePostErrors, ThrowOnError> => (options.client ?? client).post<ResumeCampaignApiV1CampaignCampaignIdResumePostResponses, ResumeCampaignApiV1CampaignCampaignIdResumePostErrors, ThrowOnError>({ url: '/api/v1/campaign/{campaign_id}/resume', ...options });
 
 /**
- * Get Campaign Runs
+ * Get Campaign Progress
  *
- * Get campaign workflow runs with pagination, filters and sorting
+ * Get current campaign progress and statistics
  */
-export const getCampaignRunsApiV1CampaignCampaignIdRunsGet = <ThrowOnError extends boolean = false>(options: Options<GetCampaignRunsApiV1CampaignCampaignIdRunsGetData, ThrowOnError>): RequestResult<GetCampaignRunsApiV1CampaignCampaignIdRunsGetResponses, GetCampaignRunsApiV1CampaignCampaignIdRunsGetErrors, ThrowOnError> => (options.client ?? client).get<GetCampaignRunsApiV1CampaignCampaignIdRunsGetResponses, GetCampaignRunsApiV1CampaignCampaignIdRunsGetErrors, ThrowOnError>({ url: '/api/v1/campaign/{campaign_id}/runs', ...options });
+export const getCampaignProgressApiV1CampaignCampaignIdProgressGet = <ThrowOnError extends boolean = false>(options: Options<GetCampaignProgressApiV1CampaignCampaignIdProgressGetData, ThrowOnError>): RequestResult<GetCampaignProgressApiV1CampaignCampaignIdProgressGetResponses, GetCampaignProgressApiV1CampaignCampaignIdProgressGetErrors, ThrowOnError> => (options.client ?? client).get<GetCampaignProgressApiV1CampaignCampaignIdProgressGetResponses, GetCampaignProgressApiV1CampaignCampaignIdProgressGetErrors, ThrowOnError>({ url: '/api/v1/campaign/{campaign_id}/progress', ...options });
 
 /**
  * Get Campaign Source Download Url
@@ -152,11 +779,11 @@ export const getCampaignRunsApiV1CampaignCampaignIdRunsGet = <ThrowOnError exten
 export const getCampaignSourceDownloadUrlApiV1CampaignCampaignIdSourceDownloadUrlGet = <ThrowOnError extends boolean = false>(options: Options<GetCampaignSourceDownloadUrlApiV1CampaignCampaignIdSourceDownloadUrlGetData, ThrowOnError>): RequestResult<GetCampaignSourceDownloadUrlApiV1CampaignCampaignIdSourceDownloadUrlGetResponses, GetCampaignSourceDownloadUrlApiV1CampaignCampaignIdSourceDownloadUrlGetErrors, ThrowOnError> => (options.client ?? client).get<GetCampaignSourceDownloadUrlApiV1CampaignCampaignIdSourceDownloadUrlGetResponses, GetCampaignSourceDownloadUrlApiV1CampaignCampaignIdSourceDownloadUrlGetErrors, ThrowOnError>({ url: '/api/v1/campaign/{campaign_id}/source-download-url', ...options });
 
 /**
- * Start Campaign
+ * Download Campaign Report
  *
- * Start campaign execution
+ * Download a CSV report of completed campaign runs.
  */
-export const startCampaignApiV1CampaignCampaignIdStartPost = <ThrowOnError extends boolean = false>(options: Options<StartCampaignApiV1CampaignCampaignIdStartPostData, ThrowOnError>): RequestResult<StartCampaignApiV1CampaignCampaignIdStartPostResponses, StartCampaignApiV1CampaignCampaignIdStartPostErrors, ThrowOnError> => (options.client ?? client).post<StartCampaignApiV1CampaignCampaignIdStartPostResponses, StartCampaignApiV1CampaignCampaignIdStartPostErrors, ThrowOnError>({ url: '/api/v1/campaign/{campaign_id}/start', ...options });
+export const downloadCampaignReportApiV1CampaignCampaignIdReportGet = <ThrowOnError extends boolean = false>(options: Options<DownloadCampaignReportApiV1CampaignCampaignIdReportGetData, ThrowOnError>): RequestResult<DownloadCampaignReportApiV1CampaignCampaignIdReportGetResponses, DownloadCampaignReportApiV1CampaignCampaignIdReportGetErrors, ThrowOnError> => (options.client ?? client).get<DownloadCampaignReportApiV1CampaignCampaignIdReportGetResponses, DownloadCampaignReportApiV1CampaignCampaignIdReportGetErrors, ThrowOnError>({ url: '/api/v1/campaign/{campaign_id}/report', ...options });
 
 /**
  * List Credentials
@@ -234,1063 +861,6 @@ export const updateCredentialApiV1CredentialsCredentialUuidPut = <ThrowOnError e
         ...options.headers
     }
 });
-
-/**
- * List Folders
- *
- * List all folders in the authenticated user's organization.
- */
-export const listFoldersApiV1FolderGet = <ThrowOnError extends boolean = false>(options?: Options<ListFoldersApiV1FolderGetData, ThrowOnError>): RequestResult<ListFoldersApiV1FolderGetResponses, ListFoldersApiV1FolderGetErrors, ThrowOnError> => (options?.client ?? client).get<ListFoldersApiV1FolderGetResponses, ListFoldersApiV1FolderGetErrors, ThrowOnError>({ url: '/api/v1/folder/', ...options });
-
-/**
- * Create Folder
- *
- * Create a new folder in the authenticated user's organization.
- */
-export const createFolderApiV1FolderPost = <ThrowOnError extends boolean = false>(options: Options<CreateFolderApiV1FolderPostData, ThrowOnError>): RequestResult<CreateFolderApiV1FolderPostResponses, CreateFolderApiV1FolderPostErrors, ThrowOnError> => (options.client ?? client).post<CreateFolderApiV1FolderPostResponses, CreateFolderApiV1FolderPostErrors, ThrowOnError>({
-    url: '/api/v1/folder/',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Delete Folder
- *
- * Delete a folder. Member agents are moved to "Uncategorized", not deleted.
- */
-export const deleteFolderApiV1FolderFolderIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteFolderApiV1FolderFolderIdDeleteData, ThrowOnError>): RequestResult<DeleteFolderApiV1FolderFolderIdDeleteResponses, DeleteFolderApiV1FolderFolderIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteFolderApiV1FolderFolderIdDeleteResponses, DeleteFolderApiV1FolderFolderIdDeleteErrors, ThrowOnError>({ url: '/api/v1/folder/{folder_id}', ...options });
-
-/**
- * Rename Folder
- *
- * Rename a folder owned by the authenticated user's organization.
- */
-export const renameFolderApiV1FolderFolderIdPut = <ThrowOnError extends boolean = false>(options: Options<RenameFolderApiV1FolderFolderIdPutData, ThrowOnError>): RequestResult<RenameFolderApiV1FolderFolderIdPutResponses, RenameFolderApiV1FolderFolderIdPutErrors, ThrowOnError> => (options.client ?? client).put<RenameFolderApiV1FolderFolderIdPutResponses, RenameFolderApiV1FolderFolderIdPutErrors, ThrowOnError>({
-    url: '/api/v1/folder/{folder_id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Health
- */
-export const healthApiV1HealthGet = <ThrowOnError extends boolean = false>(options?: Options<HealthApiV1HealthGetData, ThrowOnError>): RequestResult<HealthApiV1HealthGetResponses, HealthApiV1HealthGetErrors, ThrowOnError> => (options?.client ?? client).get<HealthApiV1HealthGetResponses, HealthApiV1HealthGetErrors, ThrowOnError>({ url: '/api/v1/health', ...options });
-
-/**
- * Active Calls
- *
- * In-flight call count for THIS worker — the drain signal for deploys.
- *
- * A deploy orchestrator polls this per worker and waits for zero before
- * sending SIGTERM, because uvicorn force-closes live call WebSockets (close
- * code 1012) on SIGTERM and would cut calls mid-conversation otherwise. The
- * count is per-process: one uvicorn per VM port (scripts/rolling_update.sh)
- * or per Kubernetes pod (preStop hook). See api/services/observability/active_calls.py.
- */
-export const activeCallsApiV1HealthActiveCallsGet = <ThrowOnError extends boolean = false>(options?: Options<ActiveCallsApiV1HealthActiveCallsGetData, ThrowOnError>): RequestResult<ActiveCallsApiV1HealthActiveCallsGetResponses, ActiveCallsApiV1HealthActiveCallsGetErrors, ThrowOnError> => (options?.client ?? client).get<ActiveCallsApiV1HealthActiveCallsGetResponses, ActiveCallsApiV1HealthActiveCallsGetErrors, ThrowOnError>({ url: '/api/v1/health/active-calls', ...options });
-
-/**
- * Autoscale Metric
- *
- * Fleet-wide autoscaling signal for KEDA: total active calls + warm buffer.
- *
- * Unlike /health/active-calls (a per-worker drain signal), this is the whole
- * fleet's active-call count read from Redis, so a single scrape drives the
- * ScaledObject. ``buffer`` (query param, in calls) is the warm headroom: KEDA
- * divides value by the per-pod target K, giving desiredPods =
- * ceil((calls + buffer) / K). All scaling policy — K, buffer, min/max — lives
- * in the ScaledObject; this endpoint is pure signal.
- *
- * When the fleet count cannot be read (Redis down) this responds 503, NOT 0:
- * a failed scrape makes KEDA's HPA hold the current replica count, while a
- * successful scrape of 0 would instruct it to scale toward minReplicas.
- */
-export const autoscaleMetricApiV1HealthAutoscaleMetricGet = <ThrowOnError extends boolean = false>(options?: Options<AutoscaleMetricApiV1HealthAutoscaleMetricGetData, ThrowOnError>): RequestResult<AutoscaleMetricApiV1HealthAutoscaleMetricGetResponses, AutoscaleMetricApiV1HealthAutoscaleMetricGetErrors, ThrowOnError> => (options?.client ?? client).get<AutoscaleMetricApiV1HealthAutoscaleMetricGetResponses, AutoscaleMetricApiV1HealthAutoscaleMetricGetErrors, ThrowOnError>({ url: '/api/v1/health/autoscale-metric', ...options });
-
-/**
- * List documents
- *
- * List all documents for the user's organization.
- *
- * Access Control:
- * * Users can only see documents from their organization.
- */
-export const listDocumentsApiV1KnowledgeBaseDocumentsGet = <ThrowOnError extends boolean = false>(options?: Options<ListDocumentsApiV1KnowledgeBaseDocumentsGetData, ThrowOnError>): RequestResult<ListDocumentsApiV1KnowledgeBaseDocumentsGetResponses, ListDocumentsApiV1KnowledgeBaseDocumentsGetErrors, ThrowOnError> => (options?.client ?? client).get<ListDocumentsApiV1KnowledgeBaseDocumentsGetResponses, ListDocumentsApiV1KnowledgeBaseDocumentsGetErrors, ThrowOnError>({ url: '/api/v1/knowledge-base/documents', ...options });
-
-/**
- * Delete document
- *
- * Soft delete a document and its chunks.
- *
- * Access Control:
- * * Users can only delete documents from their organization.
- */
-export const deleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteData, ThrowOnError>): RequestResult<DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteResponses, DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteResponses, DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteErrors, ThrowOnError>({ url: '/api/v1/knowledge-base/documents/{document_uuid}', ...options });
-
-/**
- * Get document details
- *
- * Get details of a specific document.
- *
- * Access Control:
- * * Users can only access documents from their organization.
- */
-export const getDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGet = <ThrowOnError extends boolean = false>(options: Options<GetDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGetData, ThrowOnError>): RequestResult<GetDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGetResponses, GetDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGetErrors, ThrowOnError> => (options.client ?? client).get<GetDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGetResponses, GetDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGetErrors, ThrowOnError>({ url: '/api/v1/knowledge-base/documents/{document_uuid}', ...options });
-
-/**
- * Trigger document processing
- *
- * Trigger asynchronous processing of an uploaded document.
- *
- * This endpoint should be called after successfully uploading a file to the presigned URL.
- * It will:
- * 1. Create a document record in the database with the specified UUID
- * 2. Enqueue a background task to process the document (chunking and embedding)
- *
- * The document status will be updated from 'pending' -> 'processing' -> 'completed' or 'failed'.
- *
- * Embedding:
- * Uses OpenAI text-embedding-3-small (1536-dimensional embeddings, requires API key configured in Model Configurations).
- *
- * Access Control:
- * * Users can only process documents in their organization.
- */
-export const processDocumentApiV1KnowledgeBaseProcessDocumentPost = <ThrowOnError extends boolean = false>(options: Options<ProcessDocumentApiV1KnowledgeBaseProcessDocumentPostData, ThrowOnError>): RequestResult<ProcessDocumentApiV1KnowledgeBaseProcessDocumentPostResponses, ProcessDocumentApiV1KnowledgeBaseProcessDocumentPostErrors, ThrowOnError> => (options.client ?? client).post<ProcessDocumentApiV1KnowledgeBaseProcessDocumentPostResponses, ProcessDocumentApiV1KnowledgeBaseProcessDocumentPostErrors, ThrowOnError>({
-    url: '/api/v1/knowledge-base/process-document',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Search for similar chunks
- *
- * Search for document chunks similar to the query.
- *
- * This endpoint uses vector similarity search to find relevant chunks.
- * Results are returned without threshold filtering - apply similarity
- * thresholds at the application layer after optional reranking.
- *
- * Access Control:
- * * Users can only search documents from their organization.
- */
-export const searchChunksApiV1KnowledgeBaseSearchPost = <ThrowOnError extends boolean = false>(options: Options<SearchChunksApiV1KnowledgeBaseSearchPostData, ThrowOnError>): RequestResult<SearchChunksApiV1KnowledgeBaseSearchPostResponses, SearchChunksApiV1KnowledgeBaseSearchPostErrors, ThrowOnError> => (options.client ?? client).post<SearchChunksApiV1KnowledgeBaseSearchPostResponses, SearchChunksApiV1KnowledgeBaseSearchPostErrors, ThrowOnError>({
-    url: '/api/v1/knowledge-base/search',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get presigned URL for document upload
- *
- * Generate a presigned PUT URL for uploading a document.
- *
- * This endpoint:
- * 1. Generates a unique document UUID for organizing the S3 key
- * 2. Generates a presigned S3/MinIO URL for uploading the file
- * 3. Returns the upload URL and document metadata
- *
- * After uploading to the returned URL, call /process-document to create
- * the document record and trigger processing.
- *
- * Access Control:
- * * All authenticated users can upload documents scoped to their organization.
- */
-export const getUploadUrlApiV1KnowledgeBaseUploadUrlPost = <ThrowOnError extends boolean = false>(options: Options<GetUploadUrlApiV1KnowledgeBaseUploadUrlPostData, ThrowOnError>): RequestResult<GetUploadUrlApiV1KnowledgeBaseUploadUrlPostResponses, GetUploadUrlApiV1KnowledgeBaseUploadUrlPostErrors, ThrowOnError> => (options.client ?? client).post<GetUploadUrlApiV1KnowledgeBaseUploadUrlPostResponses, GetUploadUrlApiV1KnowledgeBaseUploadUrlPostErrors, ThrowOnError>({
-    url: '/api/v1/knowledge-base/upload-url',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * List Node Types
- *
- * List every registered NodeSpec.
- *
- * SDK clients should pin to `spec_version` and warn if the server reports
- * a higher version than what they were generated against.
- */
-export const listNodeTypesApiV1NodeTypesGet = <ThrowOnError extends boolean = false>(options?: Options<ListNodeTypesApiV1NodeTypesGetData, ThrowOnError>): RequestResult<ListNodeTypesApiV1NodeTypesGetResponses, ListNodeTypesApiV1NodeTypesGetErrors, ThrowOnError> => (options?.client ?? client).get<ListNodeTypesApiV1NodeTypesGetResponses, ListNodeTypesApiV1NodeTypesGetErrors, ThrowOnError>({ url: '/api/v1/node-types', ...options });
-
-/**
- * Get Node Type
- */
-export const getNodeTypeApiV1NodeTypesNameGet = <ThrowOnError extends boolean = false>(options: Options<GetNodeTypeApiV1NodeTypesNameGetData, ThrowOnError>): RequestResult<GetNodeTypeApiV1NodeTypesNameGetResponses, GetNodeTypeApiV1NodeTypesNameGetErrors, ThrowOnError> => (options.client ?? client).get<GetNodeTypeApiV1NodeTypesNameGetResponses, GetNodeTypeApiV1NodeTypesNameGetErrors, ThrowOnError>({ url: '/api/v1/node-types/{name}', ...options });
-
-/**
- * List Organizations
- *
- * List the organizations the caller belongs to, flagging the current one.
- */
-export const listOrganizationsApiV1OrganizationsGet = <ThrowOnError extends boolean = false>(options?: Options<ListOrganizationsApiV1OrganizationsGetData, ThrowOnError>): RequestResult<ListOrganizationsApiV1OrganizationsGetResponses, ListOrganizationsApiV1OrganizationsGetErrors, ThrowOnError> => (options?.client ?? client).get<ListOrganizationsApiV1OrganizationsGetResponses, ListOrganizationsApiV1OrganizationsGetErrors, ThrowOnError>({ url: '/api/v1/organizations', ...options });
-
-/**
- * Create Organization
- *
- * Create an organization and make the caller a member of it.
- */
-export const createOrganizationApiV1OrganizationsPost = <ThrowOnError extends boolean = false>(options: Options<CreateOrganizationApiV1OrganizationsPostData, ThrowOnError>): RequestResult<CreateOrganizationApiV1OrganizationsPostResponses, CreateOrganizationApiV1OrganizationsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateOrganizationApiV1OrganizationsPostResponses, CreateOrganizationApiV1OrganizationsPostErrors, ThrowOnError>({
-    url: '/api/v1/organizations',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Billing Credits
- *
- * Return per-key MPS credits (OSS) or the org's paginated billing ledger.
- */
-export const getBillingCreditsApiV1OrganizationsBillingCreditsGet = <ThrowOnError extends boolean = false>(options?: Options<GetBillingCreditsApiV1OrganizationsBillingCreditsGetData, ThrowOnError>): RequestResult<GetBillingCreditsApiV1OrganizationsBillingCreditsGetResponses, GetBillingCreditsApiV1OrganizationsBillingCreditsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetBillingCreditsApiV1OrganizationsBillingCreditsGetResponses, GetBillingCreditsApiV1OrganizationsBillingCreditsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/billing/credits', ...options });
-
-/**
- * Get Campaign Defaults
- *
- * Get campaign limits for the user's organization.
- *
- * Returns the organization's concurrent call limit and default retry configuration.
- */
-export const getCampaignDefaultsApiV1OrganizationsCampaignDefaultsGet = <ThrowOnError extends boolean = false>(options?: Options<GetCampaignDefaultsApiV1OrganizationsCampaignDefaultsGetData, ThrowOnError>): RequestResult<GetCampaignDefaultsApiV1OrganizationsCampaignDefaultsGetResponses, GetCampaignDefaultsApiV1OrganizationsCampaignDefaultsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetCampaignDefaultsApiV1OrganizationsCampaignDefaultsGetResponses, GetCampaignDefaultsApiV1OrganizationsCampaignDefaultsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/campaign-defaults', ...options });
-
-/**
- * Get Current Organization Context
- *
- * Return organization-scoped configuration signals owned by Dograh.
- */
-export const getCurrentOrganizationContextApiV1OrganizationsContextGet = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentOrganizationContextApiV1OrganizationsContextGetData, ThrowOnError>): RequestResult<GetCurrentOrganizationContextApiV1OrganizationsContextGetResponses, GetCurrentOrganizationContextApiV1OrganizationsContextGetErrors, ThrowOnError> => (options?.client ?? client).get<GetCurrentOrganizationContextApiV1OrganizationsContextGetResponses, GetCurrentOrganizationContextApiV1OrganizationsContextGetErrors, ThrowOnError>({ url: '/api/v1/organizations/context', ...options });
-
-/**
- * Get Disposition Codes
- *
- * Serve the disposition catalog so clients never hardcode the list.
- *
- * Built-in codes come from the enums that write the field; custom codes are
- * whatever this organization's finished runs have actually recorded, so an
- * org with a disposition mapping still gets a usable filter.
- */
-export const getDispositionCodesApiV1OrganizationsDispositionCodesGet = <ThrowOnError extends boolean = false>(options?: Options<GetDispositionCodesApiV1OrganizationsDispositionCodesGetData, ThrowOnError>): RequestResult<GetDispositionCodesApiV1OrganizationsDispositionCodesGetResponses, GetDispositionCodesApiV1OrganizationsDispositionCodesGetErrors, ThrowOnError> => (options?.client ?? client).get<GetDispositionCodesApiV1OrganizationsDispositionCodesGetResponses, GetDispositionCodesApiV1OrganizationsDispositionCodesGetErrors, ThrowOnError>({ url: '/api/v1/organizations/disposition-codes', ...options });
-
-/**
- * Delete Langfuse Credentials
- *
- * Delete Langfuse credentials for the user's organization.
- */
-export const deleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDelete = <ThrowOnError extends boolean = false>(options?: Options<DeleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDeleteData, ThrowOnError>): RequestResult<DeleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDeleteResponses, DeleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDeleteErrors, ThrowOnError> => (options?.client ?? client).delete<DeleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDeleteResponses, DeleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDeleteErrors, ThrowOnError>({ url: '/api/v1/organizations/langfuse-credentials', ...options });
-
-/**
- * Get Langfuse Credentials
- *
- * Get Langfuse credentials for the user's organization with masked sensitive fields.
- */
-export const getLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGet = <ThrowOnError extends boolean = false>(options?: Options<GetLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGetData, ThrowOnError>): RequestResult<GetLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGetResponses, GetLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGetResponses, GetLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/langfuse-credentials', ...options });
-
-/**
- * Save Langfuse Credentials
- *
- * Save Langfuse credentials for the user's organization.
- */
-export const saveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPost = <ThrowOnError extends boolean = false>(options: Options<SaveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPostData, ThrowOnError>): RequestResult<SaveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPostResponses, SaveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPostErrors, ThrowOnError> => (options.client ?? client).post<SaveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPostResponses, SaveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPostErrors, ThrowOnError>({
-    url: '/api/v1/organizations/langfuse-credentials',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Model Configuration V2
- */
-export const getModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Get = <ThrowOnError extends boolean = false>(options?: Options<GetModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2GetData, ThrowOnError>): RequestResult<GetModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2GetResponses, GetModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2GetErrors, ThrowOnError> => (options?.client ?? client).get<GetModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2GetResponses, GetModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2GetErrors, ThrowOnError>({ url: '/api/v1/organizations/model-configurations/v2', ...options });
-
-/**
- * Save Model Configuration V2
- */
-export const saveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Put = <ThrowOnError extends boolean = false>(options: Options<SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutData, ThrowOnError>): RequestResult<SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutResponses, SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutErrors, ThrowOnError> => (options.client ?? client).put<SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutResponses, SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutErrors, ThrowOnError>({
-    url: '/api/v1/organizations/model-configurations/v2',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Model Configuration V2 Defaults
- */
-export const getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet = <ThrowOnError extends boolean = false>(options?: Options<GetModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGetData, ThrowOnError>): RequestResult<GetModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGetResponses, GetModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGetResponses, GetModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/model-configurations/v2/defaults', ...options });
-
-/**
- * Migrate Model Configuration V2
- */
-export const migrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePost = <ThrowOnError extends boolean = false>(options?: Options<MigrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePostData, ThrowOnError>): RequestResult<MigrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePostResponses, MigrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePostErrors, ThrowOnError> => (options?.client ?? client).post<MigrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePostResponses, MigrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePostErrors, ThrowOnError>({ url: '/api/v1/organizations/model-configurations/v2/migrate', ...options });
-
-/**
- * Preview Model Configuration V2 Migration
- */
-export const previewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGet = <ThrowOnError extends boolean = false>(options?: Options<PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGetData, ThrowOnError>): RequestResult<PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGetResponses, PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGetErrors, ThrowOnError> => (options?.client ?? client).get<PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGetResponses, PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGetErrors, ThrowOnError>({ url: '/api/v1/organizations/model-configurations/v2/migration-preview', ...options });
-
-/**
- * Get Model Configuration Pricing
- *
- * Return the hosted organization prices shown in Model Configurations.
- */
-export const getModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGet = <ThrowOnError extends boolean = false>(options?: Options<GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetData, ThrowOnError>): RequestResult<GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetResponses, GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetErrors, ThrowOnError> => (options?.client ?? client).get<GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetResponses, GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetErrors, ThrowOnError>({ url: '/api/v1/organizations/model-configurations/v2/pricing', ...options });
-
-/**
- * Get Preferences
- */
-export const getPreferencesApiV1OrganizationsPreferencesGet = <ThrowOnError extends boolean = false>(options?: Options<GetPreferencesApiV1OrganizationsPreferencesGetData, ThrowOnError>): RequestResult<GetPreferencesApiV1OrganizationsPreferencesGetResponses, GetPreferencesApiV1OrganizationsPreferencesGetErrors, ThrowOnError> => (options?.client ?? client).get<GetPreferencesApiV1OrganizationsPreferencesGetResponses, GetPreferencesApiV1OrganizationsPreferencesGetErrors, ThrowOnError>({ url: '/api/v1/organizations/preferences', ...options });
-
-/**
- * Save Preferences
- */
-export const savePreferencesApiV1OrganizationsPreferencesPut = <ThrowOnError extends boolean = false>(options: Options<SavePreferencesApiV1OrganizationsPreferencesPutData, ThrowOnError>): RequestResult<SavePreferencesApiV1OrganizationsPreferencesPutResponses, SavePreferencesApiV1OrganizationsPreferencesPutErrors, ThrowOnError> => (options.client ?? client).put<SavePreferencesApiV1OrganizationsPreferencesPutResponses, SavePreferencesApiV1OrganizationsPreferencesPutErrors, ThrowOnError>({
-    url: '/api/v1/organizations/preferences',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Daily Report
- *
- * Get daily report for the specified date and timezone.
- * If workflow_id is provided, filters results to that specific workflow.
- * If workflow_id is None, includes all workflows for the organization.
- */
-export const getDailyReportApiV1OrganizationsReportsDailyGet = <ThrowOnError extends boolean = false>(options: Options<GetDailyReportApiV1OrganizationsReportsDailyGetData, ThrowOnError>): RequestResult<GetDailyReportApiV1OrganizationsReportsDailyGetResponses, GetDailyReportApiV1OrganizationsReportsDailyGetErrors, ThrowOnError> => (options.client ?? client).get<GetDailyReportApiV1OrganizationsReportsDailyGetResponses, GetDailyReportApiV1OrganizationsReportsDailyGetErrors, ThrowOnError>({ url: '/api/v1/organizations/reports/daily', ...options });
-
-/**
- * Get Daily Runs Detail
- *
- * Get detailed workflow runs for the specified date.
- * Used for CSV export functionality.
- */
-export const getDailyRunsDetailApiV1OrganizationsReportsDailyRunsGet = <ThrowOnError extends boolean = false>(options: Options<GetDailyRunsDetailApiV1OrganizationsReportsDailyRunsGetData, ThrowOnError>): RequestResult<GetDailyRunsDetailApiV1OrganizationsReportsDailyRunsGetResponses, GetDailyRunsDetailApiV1OrganizationsReportsDailyRunsGetErrors, ThrowOnError> => (options.client ?? client).get<GetDailyRunsDetailApiV1OrganizationsReportsDailyRunsGetResponses, GetDailyRunsDetailApiV1OrganizationsReportsDailyRunsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/reports/daily/runs', ...options });
-
-/**
- * Get Workflow Options
- *
- * Get all workflows for the user's organization.
- * Used to populate the workflow selector dropdown in the reports page.
- */
-export const getWorkflowOptionsApiV1OrganizationsReportsWorkflowsGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowOptionsApiV1OrganizationsReportsWorkflowsGetData, ThrowOnError>): RequestResult<GetWorkflowOptionsApiV1OrganizationsReportsWorkflowsGetResponses, GetWorkflowOptionsApiV1OrganizationsReportsWorkflowsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowOptionsApiV1OrganizationsReportsWorkflowsGetResponses, GetWorkflowOptionsApiV1OrganizationsReportsWorkflowsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/reports/workflows', ...options });
-
-/**
- * Select Organization
- *
- * Move the caller's current organization to one they belong to.
- */
-export const selectOrganizationApiV1OrganizationsSelectedPut = <ThrowOnError extends boolean = false>(options: Options<SelectOrganizationApiV1OrganizationsSelectedPutData, ThrowOnError>): RequestResult<SelectOrganizationApiV1OrganizationsSelectedPutResponses, SelectOrganizationApiV1OrganizationsSelectedPutErrors, ThrowOnError> => (options.client ?? client).put<SelectOrganizationApiV1OrganizationsSelectedPutResponses, SelectOrganizationApiV1OrganizationsSelectedPutErrors, ThrowOnError>({
-    url: '/api/v1/organizations/selected',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Telephony Config Warnings
- *
- * Return aggregated warning counts for the current org's telephony configs.
- *
- * Surfaces provider configs missing webhook-verification credentials.
- */
-export const getTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGet = <ThrowOnError extends boolean = false>(options?: Options<GetTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGetData, ThrowOnError>): RequestResult<GetTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGetResponses, GetTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGetResponses, GetTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-config-warnings', ...options });
-
-/**
- * List Telephony Configurations
- *
- * List the org's telephony configurations with phone-number counts.
- */
-export const listTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGet = <ThrowOnError extends boolean = false>(options?: Options<ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetData, ThrowOnError>): RequestResult<ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetResponses, ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetErrors, ThrowOnError> => (options?.client ?? client).get<ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetResponses, ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs', ...options });
-
-/**
- * Create Telephony Configuration
- *
- * Create a new telephony configuration for the org.
- */
-export const createTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPost = <ThrowOnError extends boolean = false>(options: Options<CreateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPostData, ThrowOnError>): RequestResult<CreateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPostResponses, CreateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPostResponses, CreateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPostErrors, ThrowOnError>({
-    url: '/api/v1/organizations/telephony-configs',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Delete Telephony Configuration
- */
-export const deleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDeleteData, ThrowOnError>): RequestResult<DeleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDeleteResponses, DeleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDeleteResponses, DeleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDeleteErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}', ...options });
-
-/**
- * Get Telephony Configuration By Id
- */
-export const getTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGet = <ThrowOnError extends boolean = false>(options: Options<GetTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGetData, ThrowOnError>): RequestResult<GetTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGetResponses, GetTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGetErrors, ThrowOnError> => (options.client ?? client).get<GetTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGetResponses, GetTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}', ...options });
-
-/**
- * Update Telephony Configuration
- */
-export const updateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPut = <ThrowOnError extends boolean = false>(options: Options<UpdateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPutData, ThrowOnError>): RequestResult<UpdateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPutResponses, UpdateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPutErrors, ThrowOnError> => (options.client ?? client).put<UpdateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPutResponses, UpdateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPutErrors, ThrowOnError>({
-    url: '/api/v1/organizations/telephony-configs/{config_id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * List Phone Numbers
- */
-export const listPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGet = <ThrowOnError extends boolean = false>(options: Options<ListPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGetData, ThrowOnError>): RequestResult<ListPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGetResponses, ListPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGetErrors, ThrowOnError> => (options.client ?? client).get<ListPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGetResponses, ListPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers', ...options });
-
-/**
- * Create Phone Number
- */
-export const createPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPost = <ThrowOnError extends boolean = false>(options: Options<CreatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPostData, ThrowOnError>): RequestResult<CreatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPostResponses, CreatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPostErrors, ThrowOnError> => (options.client ?? client).post<CreatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPostResponses, CreatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPostErrors, ThrowOnError>({
-    url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Delete Phone Number
- */
-export const deletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDeleteData, ThrowOnError>): RequestResult<DeletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDeleteResponses, DeletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDeleteResponses, DeletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDeleteErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers/{phone_number_id}', ...options });
-
-/**
- * Get Phone Number
- */
-export const getPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGet = <ThrowOnError extends boolean = false>(options: Options<GetPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGetData, ThrowOnError>): RequestResult<GetPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGetResponses, GetPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGetErrors, ThrowOnError> => (options.client ?? client).get<GetPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGetResponses, GetPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers/{phone_number_id}', ...options });
-
-/**
- * Update Phone Number
- */
-export const updatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPut = <ThrowOnError extends boolean = false>(options: Options<UpdatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPutData, ThrowOnError>): RequestResult<UpdatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPutResponses, UpdatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPutErrors, ThrowOnError> => (options.client ?? client).put<UpdatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPutResponses, UpdatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPutErrors, ThrowOnError>({
-    url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers/{phone_number_id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Set Default Caller Id
- */
-export const setDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPost = <ThrowOnError extends boolean = false>(options: Options<SetDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPostData, ThrowOnError>): RequestResult<SetDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPostResponses, SetDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPostErrors, ThrowOnError> => (options.client ?? client).post<SetDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPostResponses, SetDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPostErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers/{phone_number_id}/set-default-caller', ...options });
-
-/**
- * Reactivate Telephony Configuration
- *
- * Clear the inactive flag so connection workers pick the config up again.
- *
- * A config is deactivated automatically when it keeps failing to connect, and
- * workers never re-enable it on their own. This endpoint is the only way back,
- * so the customer fixes their PBX and then explicitly retries.
- */
-export const reactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePost = <ThrowOnError extends boolean = false>(options: Options<ReactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePostData, ThrowOnError>): RequestResult<ReactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePostResponses, ReactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePostErrors, ThrowOnError> => (options.client ?? client).post<ReactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePostResponses, ReactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePostErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/reactivate', ...options });
-
-/**
- * Set Default Outbound
- */
-export const setDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPost = <ThrowOnError extends boolean = false>(options: Options<SetDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPostData, ThrowOnError>): RequestResult<SetDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPostResponses, SetDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPostErrors, ThrowOnError> => (options.client ?? client).post<SetDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPostResponses, SetDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPostErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/set-default-outbound', ...options });
-
-/**
- * List Telephony Trunks
- */
-export const listTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGet = <ThrowOnError extends boolean = false>(options: Options<ListTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGetData, ThrowOnError>): RequestResult<ListTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGetResponses, ListTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGetErrors, ThrowOnError> => (options.client ?? client).get<ListTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGetResponses, ListTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/trunks', ...options });
-
-/**
- * Create Telephony Trunk
- */
-export const createTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPost = <ThrowOnError extends boolean = false>(options: Options<CreateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPostData, ThrowOnError>): RequestResult<CreateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPostResponses, CreateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPostResponses, CreateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPostErrors, ThrowOnError>({
-    url: '/api/v1/organizations/telephony-configs/{config_id}/trunks',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Delete Telephony Trunk
- */
-export const deleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDeleteData, ThrowOnError>): RequestResult<DeleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDeleteResponses, DeleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDeleteResponses, DeleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDeleteErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/trunks/{trunk_id}', ...options });
-
-/**
- * Update Telephony Trunk
- */
-export const updateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPut = <ThrowOnError extends boolean = false>(options: Options<UpdateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPutData, ThrowOnError>): RequestResult<UpdateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPutResponses, UpdateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPutErrors, ThrowOnError> => (options.client ?? client).put<UpdateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPutResponses, UpdateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPutErrors, ThrowOnError>({
-    url: '/api/v1/organizations/telephony-configs/{config_id}/trunks/{trunk_id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Telephony Providers Metadata
- *
- * Return the list of available telephony providers and their form schemas.
- *
- * The UI uses this to render the configuration form generically instead of
- * hard-coding fields per provider. Adding a new provider only requires
- * declaring its ui_metadata in providers/<name>/__init__.py.
- */
-export const getTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGet = <ThrowOnError extends boolean = false>(options?: Options<GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGetData, ThrowOnError>): RequestResult<GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGetResponses, GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGetErrors, ThrowOnError> => (options?.client ?? client).get<GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGetResponses, GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-providers/metadata', ...options });
-
-/**
- * Get Current Period Usage
- *
- * Get current reporting-period usage for the user's organization.
- */
-export const getCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGet = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGetData, ThrowOnError>): RequestResult<GetCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGetResponses, GetCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGetErrors, ThrowOnError> => (options?.client ?? client).get<GetCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGetResponses, GetCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGetErrors, ThrowOnError>({ url: '/api/v1/organizations/usage/current-period', ...options });
-
-/**
- * Get Daily Usage Breakdown
- *
- * Get daily usage breakdown for the last N days. Only available for organizations with pricing.
- */
-export const getDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGet = <ThrowOnError extends boolean = false>(options?: Options<GetDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGetData, ThrowOnError>): RequestResult<GetDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGetResponses, GetDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGetErrors, ThrowOnError> => (options?.client ?? client).get<GetDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGetResponses, GetDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGetErrors, ThrowOnError>({ url: '/api/v1/organizations/usage/daily-breakdown', ...options });
-
-/**
- * Create Mps Credit Purchase Url
- *
- * Create a checkout URL for purchasing organization credits.
- */
-export const createMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPost = <ThrowOnError extends boolean = false>(options?: Options<CreateMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPostData, ThrowOnError>): RequestResult<CreateMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPostResponses, CreateMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPostErrors, ThrowOnError> => (options?.client ?? client).post<CreateMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPostResponses, CreateMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPostErrors, ThrowOnError>({ url: '/api/v1/organizations/usage/mps-credits/purchase-url', ...options });
-
-/**
- * Get Usage History
- *
- * Get paginated workflow runs with usage for the organization.
- */
-export const getUsageHistoryApiV1OrganizationsUsageRunsGet = <ThrowOnError extends boolean = false>(options?: Options<GetUsageHistoryApiV1OrganizationsUsageRunsGetData, ThrowOnError>): RequestResult<GetUsageHistoryApiV1OrganizationsUsageRunsGetResponses, GetUsageHistoryApiV1OrganizationsUsageRunsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetUsageHistoryApiV1OrganizationsUsageRunsGetResponses, GetUsageHistoryApiV1OrganizationsUsageRunsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/usage/runs', ...options });
-
-/**
- * Download Usage Runs Report
- *
- * Download a CSV of runs matching the same filters as `/usage/runs`.
- */
-export const downloadUsageRunsReportApiV1OrganizationsUsageRunsReportGet = <ThrowOnError extends boolean = false>(options?: Options<DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetData, ThrowOnError>): RequestResult<DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetResponses, DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetErrors, ThrowOnError> => (options?.client ?? client).get<DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetResponses, DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetErrors, ThrowOnError>({ url: '/api/v1/organizations/usage/runs/report', ...options });
-
-/**
- * Initiate Call Test By Workflow Uuid
- *
- * Initiate a phone call against the latest draft of the workflow by UUID.
- */
-export const initiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPost = <ThrowOnError extends boolean = false>(options: Options<InitiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPostData, ThrowOnError>): RequestResult<InitiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPostResponses, InitiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPostErrors, ThrowOnError> => (options.client ?? client).post<InitiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPostResponses, InitiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPostErrors, ThrowOnError>({
-    url: '/api/v1/public/agent/test/workflow/{workflow_uuid}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Initiate Call Test
- *
- * Initiate a phone call against the latest draft of the agent.
- *
- * Useful for verifying changes before publishing. Falls back to the
- * published definition when no draft exists.
- */
-export const initiateCallTestApiV1PublicAgentTestUuidPost = <ThrowOnError extends boolean = false>(options: Options<InitiateCallTestApiV1PublicAgentTestUuidPostData, ThrowOnError>): RequestResult<InitiateCallTestApiV1PublicAgentTestUuidPostResponses, InitiateCallTestApiV1PublicAgentTestUuidPostErrors, ThrowOnError> => (options.client ?? client).post<InitiateCallTestApiV1PublicAgentTestUuidPostResponses, InitiateCallTestApiV1PublicAgentTestUuidPostErrors, ThrowOnError>({
-    url: '/api/v1/public/agent/test/{uuid}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Initiate Call By Workflow Uuid
- *
- * Initiate a phone call against the published workflow identified by UUID.
- */
-export const initiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPost = <ThrowOnError extends boolean = false>(options: Options<InitiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPostData, ThrowOnError>): RequestResult<InitiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPostResponses, InitiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPostErrors, ThrowOnError> => (options.client ?? client).post<InitiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPostResponses, InitiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPostErrors, ThrowOnError>({
-    url: '/api/v1/public/agent/workflow/{workflow_uuid}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Initiate Call
- *
- * Initiate a phone call against the published agent.
- *
- * Executes the workflow's currently released definition.
- */
-export const initiateCallApiV1PublicAgentUuidPost = <ThrowOnError extends boolean = false>(options: Options<InitiateCallApiV1PublicAgentUuidPostData, ThrowOnError>): RequestResult<InitiateCallApiV1PublicAgentUuidPostResponses, InitiateCallApiV1PublicAgentUuidPostErrors, ThrowOnError> => (options.client ?? client).post<InitiateCallApiV1PublicAgentUuidPostResponses, InitiateCallApiV1PublicAgentUuidPostErrors, ThrowOnError>({
-    url: '/api/v1/public/agent/{uuid}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Download Workflow Artifact
- *
- * Download a workflow recording or transcript via public access token.
- *
- * This endpoint:
- * 1. Validates the public access token
- * 2. Looks up the corresponding workflow run
- * 3. Generates a signed URL for the requested artifact
- * 4. Redirects to the signed URL
- *
- * Args:
- * token: The public access token (UUID format)
- * artifact_type: Type of artifact - "recording", "transcript",
- * "user_recording", or "bot_recording"
- * inline: If true, sets Content-Disposition to inline for browser preview
- *
- * Returns:
- * RedirectResponse to the signed URL (302 redirect)
- *
- * Raises:
- * HTTPException 400: If artifact type is unsupported
- * HTTPException 404: If token is invalid or artifact not found
- */
-export const downloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGet = <ThrowOnError extends boolean = false>(options: Options<DownloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGetData, ThrowOnError>): RequestResult<DownloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGetResponses, DownloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGetErrors, ThrowOnError> => (options.client ?? client).get<DownloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGetResponses, DownloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGetErrors, ThrowOnError>({ url: '/api/v1/public/download/workflow/{token}/{artifact_type}', ...options });
-
-/**
- * Get Public Chat Session
- *
- * Current transcript for an embed chat session (used for 409 resync).
- */
-export const getPublicChatSessionApiV1PublicEmbedChatSessionTokenGet = <ThrowOnError extends boolean = false>(options: Options<GetPublicChatSessionApiV1PublicEmbedChatSessionTokenGetData, ThrowOnError>): RequestResult<GetPublicChatSessionApiV1PublicEmbedChatSessionTokenGetResponses, GetPublicChatSessionApiV1PublicEmbedChatSessionTokenGetErrors, ThrowOnError> => (options.client ?? client).get<GetPublicChatSessionApiV1PublicEmbedChatSessionTokenGetResponses, GetPublicChatSessionApiV1PublicEmbedChatSessionTokenGetErrors, ThrowOnError>({ url: '/api/v1/public/embed/chat/{session_token}', ...options });
-
-/**
- * Options Public Chat Session
- *
- * Fallback OPTIONS handler; browser preflights hit PublicEmbedCORSMiddleware.
- */
-export const optionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptions = <ThrowOnError extends boolean = false>(options: Options<OptionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptionsData, ThrowOnError>): RequestResult<OptionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptionsResponses, OptionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptionsErrors, ThrowOnError> => (options.client ?? client).options<OptionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptionsResponses, OptionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/chat/{session_token}', ...options });
-
-/**
- * Options Public Chat End
- *
- * Fallback OPTIONS handler; browser preflights hit PublicEmbedCORSMiddleware.
- */
-export const optionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptions = <ThrowOnError extends boolean = false>(options: Options<OptionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptionsData, ThrowOnError>): RequestResult<OptionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptionsResponses, OptionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptionsErrors, ThrowOnError> => (options.client ?? client).options<OptionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptionsResponses, OptionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/chat/{session_token}/end', ...options });
-
-/**
- * End Public Chat Session
- */
-export const endPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPost = <ThrowOnError extends boolean = false>(options: Options<EndPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPostData, ThrowOnError>): RequestResult<EndPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPostResponses, EndPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPostErrors, ThrowOnError> => (options.client ?? client).post<EndPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPostResponses, EndPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPostErrors, ThrowOnError>({
-    url: '/api/v1/public/embed/chat/{session_token}/end',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Options Public Chat Messages
- *
- * Fallback OPTIONS handler; browser preflights hit PublicEmbedCORSMiddleware.
- */
-export const optionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptions = <ThrowOnError extends boolean = false>(options: Options<OptionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptionsData, ThrowOnError>): RequestResult<OptionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptionsResponses, OptionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptionsErrors, ThrowOnError> => (options.client ?? client).options<OptionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptionsResponses, OptionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/chat/{session_token}/messages', ...options });
-
-/**
- * Post Public Chat Message
- */
-export const postPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPost = <ThrowOnError extends boolean = false>(options: Options<PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostData, ThrowOnError>): RequestResult<PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostResponses, PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostErrors, ThrowOnError> => (options.client ?? client).post<PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostResponses, PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostErrors, ThrowOnError>({
-    url: '/api/v1/public/embed/chat/{session_token}/messages',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Embed Config
- *
- * Get embed configuration without creating a session.
- *
- * This endpoint is used to fetch widget configuration for display purposes
- * without actually starting a call session.
- */
-export const getEmbedConfigApiV1PublicEmbedConfigTokenGet = <ThrowOnError extends boolean = false>(options: Options<GetEmbedConfigApiV1PublicEmbedConfigTokenGetData, ThrowOnError>): RequestResult<GetEmbedConfigApiV1PublicEmbedConfigTokenGetResponses, GetEmbedConfigApiV1PublicEmbedConfigTokenGetErrors, ThrowOnError> => (options.client ?? client).get<GetEmbedConfigApiV1PublicEmbedConfigTokenGetResponses, GetEmbedConfigApiV1PublicEmbedConfigTokenGetErrors, ThrowOnError>({ url: '/api/v1/public/embed/config/{token}', ...options });
-
-/**
- * Options Embed Config
- *
- * Fallback OPTIONS handler for the embed config endpoint.
- *
- * Browser preflights include Access-Control-Request-Method and are handled by
- * PublicEmbedCORSMiddleware before global CORS. This keeps non-conformant
- * OPTIONS requests on the same validation path.
- */
-export const optionsEmbedConfigApiV1PublicEmbedConfigTokenOptions = <ThrowOnError extends boolean = false>(options: Options<OptionsEmbedConfigApiV1PublicEmbedConfigTokenOptionsData, ThrowOnError>): RequestResult<OptionsEmbedConfigApiV1PublicEmbedConfigTokenOptionsResponses, OptionsEmbedConfigApiV1PublicEmbedConfigTokenOptionsErrors, ThrowOnError> => (options.client ?? client).options<OptionsEmbedConfigApiV1PublicEmbedConfigTokenOptionsResponses, OptionsEmbedConfigApiV1PublicEmbedConfigTokenOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/config/{token}', ...options });
-
-/**
- * Options Init
- *
- * Fallback OPTIONS handler for init endpoint.
- */
-export const optionsInitApiV1PublicEmbedInitOptions = <ThrowOnError extends boolean = false>(options?: Options<OptionsInitApiV1PublicEmbedInitOptionsData, ThrowOnError>): RequestResult<OptionsInitApiV1PublicEmbedInitOptionsResponses, OptionsInitApiV1PublicEmbedInitOptionsErrors, ThrowOnError> => (options?.client ?? client).options<OptionsInitApiV1PublicEmbedInitOptionsResponses, OptionsInitApiV1PublicEmbedInitOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/init', ...options });
-
-/**
- * Initialize Embed Session
- *
- * Initialize an embed session with token validation and domain checking.
- *
- * This endpoint:
- * 1. Validates the embed token
- * 2. Checks domain whitelist
- * 3. Creates a workflow run
- * 4. Generates a temporary session token
- * 5. Returns configuration for the widget
- */
-export const initializeEmbedSessionApiV1PublicEmbedInitPost = <ThrowOnError extends boolean = false>(options: Options<InitializeEmbedSessionApiV1PublicEmbedInitPostData, ThrowOnError>): RequestResult<InitializeEmbedSessionApiV1PublicEmbedInitPostResponses, InitializeEmbedSessionApiV1PublicEmbedInitPostErrors, ThrowOnError> => (options.client ?? client).post<InitializeEmbedSessionApiV1PublicEmbedInitPostResponses, InitializeEmbedSessionApiV1PublicEmbedInitPostErrors, ThrowOnError>({
-    url: '/api/v1/public/embed/init',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Public Turn Credentials
- *
- * Get TURN credentials for an embed session.
- *
- * This endpoint allows embedded widgets to obtain TURN server credentials
- * for WebRTC connections without requiring authentication.
- *
- * Args:
- * session_token: The session token from embed initialization
- *
- * Returns:
- * TurnCredentialsResponse with username, password, ttl, and TURN URIs
- */
-export const getPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGet = <ThrowOnError extends boolean = false>(options: Options<GetPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGetData, ThrowOnError>): RequestResult<GetPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGetResponses, GetPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGetErrors, ThrowOnError> => (options.client ?? client).get<GetPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGetResponses, GetPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGetErrors, ThrowOnError>({ url: '/api/v1/public/embed/turn-credentials/{session_token}', ...options });
-
-/**
- * Options Turn Credentials
- *
- * Fallback OPTIONS handler for TURN credentials endpoint.
- */
-export const optionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptions = <ThrowOnError extends boolean = false>(options: Options<OptionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptionsData, ThrowOnError>): RequestResult<OptionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptionsResponses, OptionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptionsErrors, ThrowOnError> => (options.client ?? client).options<OptionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptionsResponses, OptionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/turn-credentials/{session_token}', ...options });
-
-/**
- * Get file metadata for debugging
- *
- * Get file metadata including creation timestamp for debugging.
- *
- * Access Control:
- * * Superusers can request any key.
- * * Regular users can only request resources belonging to **their** workflow runs.
- */
-export const getFileMetadataApiV1S3FileMetadataGet = <ThrowOnError extends boolean = false>(options: Options<GetFileMetadataApiV1S3FileMetadataGetData, ThrowOnError>): RequestResult<GetFileMetadataApiV1S3FileMetadataGetResponses, GetFileMetadataApiV1S3FileMetadataGetErrors, ThrowOnError> => (options.client ?? client).get<GetFileMetadataApiV1S3FileMetadataGetResponses, GetFileMetadataApiV1S3FileMetadataGetErrors, ThrowOnError>({ url: '/api/v1/s3/file-metadata', ...options });
-
-/**
- * Generate a presigned URL for direct CSV upload
- *
- * Generate a presigned PUT URL for direct CSV file upload to S3/MinIO.
- *
- * This endpoint enables browser-to-storage uploads without passing through the backend
- *
- * Access Control:
- * * All authenticated users can upload CSV files scoped to their organization.
- * * Files are stored with organization-scoped keys for multi-tenancy.
- *
- * Returns:
- * * upload_url: Presigned URL (valid for 15 minutes) for PUT request
- * * file_key: Unique storage key to use as source_id in campaign creation
- * * expires_in: URL expiration time in seconds
- */
-export const getPresignedUploadUrlApiV1S3PresignedUploadUrlPost = <ThrowOnError extends boolean = false>(options: Options<GetPresignedUploadUrlApiV1S3PresignedUploadUrlPostData, ThrowOnError>): RequestResult<GetPresignedUploadUrlApiV1S3PresignedUploadUrlPostResponses, GetPresignedUploadUrlApiV1S3PresignedUploadUrlPostErrors, ThrowOnError> => (options.client ?? client).post<GetPresignedUploadUrlApiV1S3PresignedUploadUrlPostResponses, GetPresignedUploadUrlApiV1S3PresignedUploadUrlPostErrors, ThrowOnError>({
-    url: '/api/v1/s3/presigned-upload-url',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Generate a signed S3 URL
- *
- * Return a short-lived signed URL for a file stored on S3 / MinIO.
- *
- * Access Control:
- * * Known org-scoped keys (for example ``campaigns/{org_id}/...`` and
- * ``recordings/{org_id}/{recording_id}/...``) are authorized by matching the
- * org_id against the requesting user's organization.
- * * Legacy keys (``recordings/{run_id}.wav``, ``transcripts/{run_id}.txt``)
- * are authorized via the workflow run they belong to.
- * * Superusers can request any key.
- */
-export const getSignedUrlApiV1S3SignedUrlGet = <ThrowOnError extends boolean = false>(options: Options<GetSignedUrlApiV1S3SignedUrlGetData, ThrowOnError>): RequestResult<GetSignedUrlApiV1S3SignedUrlGetResponses, GetSignedUrlApiV1S3SignedUrlGetErrors, ThrowOnError> => (options.client ?? client).get<GetSignedUrlApiV1S3SignedUrlGetResponses, GetSignedUrlApiV1S3SignedUrlGetErrors, ThrowOnError>({ url: '/api/v1/s3/signed-url', ...options });
-
-/**
- * Impersonate
- *
- * Impersonate a user as a super-admin.
- * Internally, Stack Auth requires the **provider user ID** (a UUID-ish string)
- * to create an impersonation session.
- */
-export const impersonateApiV1SuperuserImpersonatePost = <ThrowOnError extends boolean = false>(options: Options<ImpersonateApiV1SuperuserImpersonatePostData, ThrowOnError>): RequestResult<ImpersonateApiV1SuperuserImpersonatePostResponses, ImpersonateApiV1SuperuserImpersonatePostErrors, ThrowOnError> => (options.client ?? client).post<ImpersonateApiV1SuperuserImpersonatePostResponses, ImpersonateApiV1SuperuserImpersonatePostErrors, ThrowOnError>({
-    url: '/api/v1/superuser/impersonate',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Workflow Runs
- *
- * Get paginated list of all workflow runs with organization information.
- * Requires superuser privileges.
- *
- * Filters should be provided as a JSON-encoded array of filter criteria.
- * Example: [{"field": "id", "type": "number", "value": {"value": 680}}]
- */
-export const getWorkflowRunsApiV1SuperuserWorkflowRunsGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowRunsApiV1SuperuserWorkflowRunsGetData, ThrowOnError>): RequestResult<GetWorkflowRunsApiV1SuperuserWorkflowRunsGetResponses, GetWorkflowRunsApiV1SuperuserWorkflowRunsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowRunsApiV1SuperuserWorkflowRunsGetResponses, GetWorkflowRunsApiV1SuperuserWorkflowRunsGetErrors, ThrowOnError>({ url: '/api/v1/superuser/workflow-runs', ...options });
-
-/**
- * Handle Cloudonix Cdr
- *
- * Handle Cloudonix CDR (Call Detail Record) webhooks.
- *
- * Cloudonix sends CDR records when calls complete. The CDR contains:
- * - domain: Used to identify the organization
- * - call_id: Used to find the workflow run
- * - disposition: Call termination status (ANSWER, BUSY, CANCEL, FAILED, CONGESTION, NOANSWER)
- * - duration/billsec: Call duration information
- */
-export const handleCloudonixCdrApiV1TelephonyCloudonixCdrPost = <ThrowOnError extends boolean = false>(options?: Options<HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostData, ThrowOnError>): RequestResult<HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostResponses, HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostErrors, ThrowOnError> => (options?.client ?? client).post<HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostResponses, HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostErrors, ThrowOnError>({ url: '/api/v1/telephony/cloudonix/cdr', ...options });
-
-/**
- * Handle Cloudonix Status Callback
- *
- * Handle Cloudonix-specific status callbacks.
- *
- * Cloudonix sends call status updates to the callback URL specified during call initiation.
- */
-export const handleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostResponses, HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostResponses, HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/cloudonix/status-callback/{workflow_run_id}', ...options });
-
-/**
- * Handle Cloudonix Transfer Result
- *
- * Drive transfer completion from the destination leg's session status.
- *
- * ``CloudonixProvider.transfer_call`` sets this URL as the outbound call
- * object's ``callback``. Cloudonix POSTs session-status notifications here;
- * a ``connected`` status means the destination answered (publish
- * DESTINATION_ANSWERED so the shared handler forks the caller into the
- * conference), while terminal non-answer statuses publish TRANSFER_FAILED.
- * Intermediate statuses (ringing/processing) are acked without publishing.
- */
-export const handleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPostData, ThrowOnError>): RequestResult<HandleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPostResponses, HandleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPostResponses, HandleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/cloudonix/transfer-result/{transfer_id}', ...options });
-
-/**
- * Handle Inbound Fallback
- *
- * Fallback endpoint that returns audio message when calls cannot be processed.
- */
-export const handleInboundFallbackApiV1TelephonyInboundFallbackPost = <ThrowOnError extends boolean = false>(options?: Options<HandleInboundFallbackApiV1TelephonyInboundFallbackPostData, ThrowOnError>): RequestResult<HandleInboundFallbackApiV1TelephonyInboundFallbackPostResponses, HandleInboundFallbackApiV1TelephonyInboundFallbackPostErrors, ThrowOnError> => (options?.client ?? client).post<HandleInboundFallbackApiV1TelephonyInboundFallbackPostResponses, HandleInboundFallbackApiV1TelephonyInboundFallbackPostErrors, ThrowOnError>({ url: '/api/v1/telephony/inbound/fallback', ...options });
-
-/**
- * Handle Inbound Run
- *
- * Workflow-agnostic inbound dispatcher.
- *
- * All providers can point a single webhook at this endpoint instead of one
- * URL per workflow. The dispatcher resolves the org from the webhook's
- * account_id and the workflow from the called number's
- * ``inbound_workflow_id``. This is what ``configure_inbound`` writes into
- * each provider's resource so per-workflow webhook bookkeeping disappears.
- *
- * Provider-specific signature/timestamp headers are not enumerated here —
- * each provider's ``verify_inbound_signature`` reads its own headers from
- * the dict, so adding a new provider doesn't require changes to this route.
- */
-export const handleInboundRunApiV1TelephonyInboundRunPost = <ThrowOnError extends boolean = false>(options?: Options<HandleInboundRunApiV1TelephonyInboundRunPostData, ThrowOnError>): RequestResult<HandleInboundRunApiV1TelephonyInboundRunPostResponses, HandleInboundRunApiV1TelephonyInboundRunPostErrors, ThrowOnError> => (options?.client ?? client).post<HandleInboundRunApiV1TelephonyInboundRunPostResponses, HandleInboundRunApiV1TelephonyInboundRunPostErrors, ThrowOnError>({ url: '/api/v1/telephony/inbound/run', ...options });
-
-/**
- * Handle Inbound Telephony
- *
- * [LEGACY] Per-workflow inbound webhook.
- *
- * Superseded by ``POST /inbound/run``, which resolves the workflow from
- * the called number's ``inbound_workflow_id`` and lets a single webhook
- * URL serve every workflow in the org. New integrations should point
- * their provider at ``/inbound/run``; this route is kept only for
- * existing provider configurations that still encode ``workflow_id``
- * in the URL.
- *
- * @deprecated
- */
-export const handleInboundTelephonyApiV1TelephonyInboundWorkflowIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostData, ThrowOnError>): RequestResult<HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostResponses, HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostResponses, HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/inbound/{workflow_id}', ...options });
-
-/**
- * Initiate Call
- *
- * Initiate a call using the configured telephony provider from web browser. This is
- * supposed to be a test call method for the draft version of the agent.
- */
-export const initiateCallApiV1TelephonyInitiateCallPost = <ThrowOnError extends boolean = false>(options: Options<InitiateCallApiV1TelephonyInitiateCallPostData, ThrowOnError>): RequestResult<InitiateCallApiV1TelephonyInitiateCallPostResponses, InitiateCallApiV1TelephonyInitiateCallPostErrors, ThrowOnError> => (options.client ?? client).post<InitiateCallApiV1TelephonyInitiateCallPostResponses, InitiateCallApiV1TelephonyInitiateCallPostErrors, ThrowOnError>({
-    url: '/api/v1/telephony/initiate-call',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Handle Plivo Hangup Callback
- *
- * Handle Plivo hangup callbacks.
- */
-export const handlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPostResponses, HandlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPostResponses, HandlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/plivo/hangup-callback/{workflow_run_id}', ...options });
-
-/**
- * Handle Plivo Ring Callback
- *
- * Handle Plivo ring callbacks.
- */
-export const handlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPostResponses, HandlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPostResponses, HandlePlivoRingCallbackApiV1TelephonyPlivoRingCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/plivo/ring-callback/{workflow_run_id}', ...options });
-
-/**
- * Handle Telnyx Events
- *
- * Handle Telnyx Call Control webhook events.
- *
- * Telnyx sends all call lifecycle events (call.initiated, call.answered,
- * call.hangup, streaming.started, streaming.stopped) as JSON POST requests.
- */
-export const handleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPostResponses, HandleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPostResponses, HandleTelnyxEventsApiV1TelephonyTelnyxEventsWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/telnyx/events/{workflow_run_id}', ...options });
-
-/**
- * Handle Telnyx Transfer Result
- *
- * Handle Telnyx Call Control events for the transfer destination leg.
- *
- * The destination leg is dialed by :meth:`TelnyxProvider.transfer_call` with
- * this URL as ``webhook_url``. Telnyx sends every event for that leg here.
- * Outcomes:
- *
- * - ``call.answered``: seed a conference with the destination's live
- * ``call_control_id``, stamp ``conference_id`` onto the TransferContext,
- * and publish ``DESTINATION_ANSWERED`` so ``transfer_call_handler`` can
- * end the pipeline. ``TelnyxConferenceStrategy`` then joins the caller
- * into this conference at pipeline teardown.
- * - ``call.hangup`` pre-answer (no ``conference_id`` on the context):
- * publish ``TRANSFER_FAILED`` so the LLM can recover.
- * - ``call.hangup`` post-answer (``conference_id`` set): the destination
- * left a bridged conference; hang up the caller's leg to tear down the
- * empty bridge (Telnyx's create_conference doesn't accept
- * ``end_conference_on_exit`` on the seed leg).
- *
- * Event references:
- * - call.answered: https://developers.telnyx.com/api-reference/callbacks/call-answered
- * - call.hangup:   https://developers.telnyx.com/api-reference/callbacks/call-hangup
- */
-export const handleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPostData, ThrowOnError>): RequestResult<HandleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPostResponses, HandleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPostResponses, HandleTelnyxTransferResultApiV1TelephonyTelnyxTransferResultTransferIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/telnyx/transfer-result/{transfer_id}', ...options });
-
-/**
- * Complete Transfer Function Call
- *
- * Webhook endpoint to complete the function call with transfer result.
- *
- * Called by Twilio's StatusCallback when the transfer call status changes.
- */
-export const completeTransferFunctionCallApiV1TelephonyTransferResultTransferIdPost = <ThrowOnError extends boolean = false>(options: Options<CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostData, ThrowOnError>): RequestResult<CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostResponses, CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostErrors, ThrowOnError> => (options.client ?? client).post<CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostResponses, CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/transfer-result/{transfer_id}', ...options });
-
-/**
- * Handle Twilio Status Callback
- *
- * Handle Twilio-specific status callbacks.
- */
-export const handleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostResponses, HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostResponses, HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/twilio/status-callback/{workflow_run_id}', ...options });
-
-/**
- * Handle Vobiz Hangup Callback By Workflow
- *
- * Handle Vobiz hangup callback with workflow_id - finds workflow run by call_id.
- */
-export const handleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostData, ThrowOnError>): RequestResult<HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostResponses, HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostResponses, HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/vobiz/hangup-callback/workflow/{workflow_id}', ...options });
-
-/**
- * Handle Vobiz Hangup Callback
- *
- * Handle Vobiz hangup callback (sent when call ends).
- *
- * Vobiz sends callbacks to hangup_url when the call terminates.
- * This includes call duration, status, and billing information.
- */
-export const handleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostResponses, HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostResponses, HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/vobiz/hangup-callback/{workflow_run_id}', ...options });
-
-/**
- * Handle Vobiz Ring Callback
- *
- * Handle Vobiz ring callback (sent when call starts ringing).
- *
- * Vobiz can send callbacks to ring_url when the call starts ringing.
- * This is optional and used for tracking ringing status.
- */
-export const handleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostResponses, HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostResponses, HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/vobiz/ring-callback/{workflow_run_id}', ...options });
-
-/**
- * Handle Vonage Events Without Run
- *
- * Handle application-level events by resolving the run from call UUID.
- */
-export const handleVonageEventsWithoutRunApiV1TelephonyVonageEventsPost = <ThrowOnError extends boolean = false>(options?: Options<HandleVonageEventsWithoutRunApiV1TelephonyVonageEventsPostData, ThrowOnError>): RequestResult<HandleVonageEventsWithoutRunApiV1TelephonyVonageEventsPostResponses, HandleVonageEventsWithoutRunApiV1TelephonyVonageEventsPostErrors, ThrowOnError> => (options?.client ?? client).post<HandleVonageEventsWithoutRunApiV1TelephonyVonageEventsPostResponses, HandleVonageEventsWithoutRunApiV1TelephonyVonageEventsPostErrors, ThrowOnError>({ url: '/api/v1/telephony/vonage/events', ...options });
-
-/**
- * Handle Vonage Events
- *
- * Handle Vonage-specific event webhooks.
- *
- * Vonage sends all call events to a single endpoint.
- * Events include: started, ringing, answered, complete, failed, etc.
- */
-export const handleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPost = <ThrowOnError extends boolean = false>(options: Options<HandleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPostData, ThrowOnError>): RequestResult<HandleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPostResponses, HandleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPostErrors, ThrowOnError> => (options.client ?? client).post<HandleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPostResponses, HandleVonageEventsApiV1TelephonyVonageEventsWorkflowRunIdPostErrors, ThrowOnError>({ url: '/api/v1/telephony/vonage/events/{workflow_run_id}', ...options });
 
 /**
  * List Tools
@@ -1410,104 +980,352 @@ export const testToolApiV1ToolsToolUuidTestPost = <ThrowOnError extends boolean 
 export const unarchiveToolApiV1ToolsToolUuidUnarchivePost = <ThrowOnError extends boolean = false>(options: Options<UnarchiveToolApiV1ToolsToolUuidUnarchivePostData, ThrowOnError>): RequestResult<UnarchiveToolApiV1ToolsToolUuidUnarchivePostResponses, UnarchiveToolApiV1ToolsToolUuidUnarchivePostErrors, ThrowOnError> => (options.client ?? client).post<UnarchiveToolApiV1ToolsToolUuidUnarchivePostResponses, UnarchiveToolApiV1ToolsToolUuidUnarchivePostErrors, ThrowOnError>({ url: '/api/v1/tools/{tool_uuid}/unarchive', ...options });
 
 /**
- * Get Turn Credentials
+ * Get Current Organization Context
  *
- * Get time-limited TURN credentials for WebRTC connections.
+ * Return organization-scoped configuration signals owned by Dograh.
+ */
+export const getCurrentOrganizationContextApiV1OrganizationsContextGet = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentOrganizationContextApiV1OrganizationsContextGetData, ThrowOnError>): RequestResult<GetCurrentOrganizationContextApiV1OrganizationsContextGetResponses, GetCurrentOrganizationContextApiV1OrganizationsContextGetErrors, ThrowOnError> => (options?.client ?? client).get<GetCurrentOrganizationContextApiV1OrganizationsContextGetResponses, GetCurrentOrganizationContextApiV1OrganizationsContextGetErrors, ThrowOnError>({ url: '/api/v1/organizations/context', ...options });
+
+/**
+ * List Organizations
  *
- * This endpoint generates ephemeral TURN credentials that are:
- * - Valid for the configured TTL (default: 24 hours)
- * - Cryptographically bound to the user via HMAC
- * - Compatible with coturn's use-auth-secret mode
+ * List the organizations the caller belongs to, flagging the current one.
+ */
+export const listOrganizationsApiV1OrganizationsGet = <ThrowOnError extends boolean = false>(options?: Options<ListOrganizationsApiV1OrganizationsGetData, ThrowOnError>): RequestResult<ListOrganizationsApiV1OrganizationsGetResponses, ListOrganizationsApiV1OrganizationsGetErrors, ThrowOnError> => (options?.client ?? client).get<ListOrganizationsApiV1OrganizationsGetResponses, ListOrganizationsApiV1OrganizationsGetErrors, ThrowOnError>({ url: '/api/v1/organizations', ...options });
+
+/**
+ * Create Organization
+ *
+ * Create an organization and make the caller a member of it.
+ */
+export const createOrganizationApiV1OrganizationsPost = <ThrowOnError extends boolean = false>(options: Options<CreateOrganizationApiV1OrganizationsPostData, ThrowOnError>): RequestResult<CreateOrganizationApiV1OrganizationsPostResponses, CreateOrganizationApiV1OrganizationsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateOrganizationApiV1OrganizationsPostResponses, CreateOrganizationApiV1OrganizationsPostErrors, ThrowOnError>({
+    url: '/api/v1/organizations',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Select Organization
+ *
+ * Move the caller's current organization to one they belong to.
+ */
+export const selectOrganizationApiV1OrganizationsSelectedPut = <ThrowOnError extends boolean = false>(options: Options<SelectOrganizationApiV1OrganizationsSelectedPutData, ThrowOnError>): RequestResult<SelectOrganizationApiV1OrganizationsSelectedPutResponses, SelectOrganizationApiV1OrganizationsSelectedPutErrors, ThrowOnError> => (options.client ?? client).put<SelectOrganizationApiV1OrganizationsSelectedPutResponses, SelectOrganizationApiV1OrganizationsSelectedPutErrors, ThrowOnError>({
+    url: '/api/v1/organizations/selected',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Telephony Providers Metadata
+ *
+ * Return the list of available telephony providers and their form schemas.
+ *
+ * The UI uses this to render the configuration form generically instead of
+ * hard-coding fields per provider. Adding a new provider only requires
+ * declaring its ui_metadata in providers/<name>/__init__.py.
+ */
+export const getTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGet = <ThrowOnError extends boolean = false>(options?: Options<GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGetData, ThrowOnError>): RequestResult<GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGetResponses, GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGetErrors, ThrowOnError> => (options?.client ?? client).get<GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGetResponses, GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-providers/metadata', ...options });
+
+/**
+ * Get Telephony Config Warnings
+ *
+ * Return aggregated warning counts for the current org's telephony configs.
+ *
+ * Surfaces provider configs missing webhook-verification credentials.
+ */
+export const getTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGet = <ThrowOnError extends boolean = false>(options?: Options<GetTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGetData, ThrowOnError>): RequestResult<GetTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGetResponses, GetTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGetResponses, GetTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-config-warnings', ...options });
+
+/**
+ * Get Model Configuration V2 Defaults
+ */
+export const getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet = <ThrowOnError extends boolean = false>(options?: Options<GetModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGetData, ThrowOnError>): RequestResult<GetModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGetResponses, GetModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGetResponses, GetModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/model-configurations/v2/defaults', ...options });
+
+/**
+ * Get Model Configuration V2
+ */
+export const getModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Get = <ThrowOnError extends boolean = false>(options?: Options<GetModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2GetData, ThrowOnError>): RequestResult<GetModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2GetResponses, GetModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2GetErrors, ThrowOnError> => (options?.client ?? client).get<GetModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2GetResponses, GetModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2GetErrors, ThrowOnError>({ url: '/api/v1/organizations/model-configurations/v2', ...options });
+
+/**
+ * Save Model Configuration V2
+ */
+export const saveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Put = <ThrowOnError extends boolean = false>(options: Options<SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutData, ThrowOnError>): RequestResult<SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutResponses, SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutErrors, ThrowOnError> => (options.client ?? client).put<SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutResponses, SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutErrors, ThrowOnError>({
+    url: '/api/v1/organizations/model-configurations/v2',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Model Configuration Pricing
+ *
+ * Return the hosted organization prices shown in Model Configurations.
+ */
+export const getModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGet = <ThrowOnError extends boolean = false>(options?: Options<GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetData, ThrowOnError>): RequestResult<GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetResponses, GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetErrors, ThrowOnError> => (options?.client ?? client).get<GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetResponses, GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetErrors, ThrowOnError>({ url: '/api/v1/organizations/model-configurations/v2/pricing', ...options });
+
+/**
+ * Preview Model Configuration V2 Migration
+ */
+export const previewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGet = <ThrowOnError extends boolean = false>(options?: Options<PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGetData, ThrowOnError>): RequestResult<PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGetResponses, PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGetErrors, ThrowOnError> => (options?.client ?? client).get<PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGetResponses, PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGetErrors, ThrowOnError>({ url: '/api/v1/organizations/model-configurations/v2/migration-preview', ...options });
+
+/**
+ * Migrate Model Configuration V2
+ */
+export const migrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePost = <ThrowOnError extends boolean = false>(options?: Options<MigrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePostData, ThrowOnError>): RequestResult<MigrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePostResponses, MigrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePostErrors, ThrowOnError> => (options?.client ?? client).post<MigrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePostResponses, MigrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2MigratePostErrors, ThrowOnError>({ url: '/api/v1/organizations/model-configurations/v2/migrate', ...options });
+
+/**
+ * Get Disposition Codes
+ *
+ * Serve the disposition catalog so clients never hardcode the list.
+ *
+ * Built-in codes come from the enums that write the field; custom codes are
+ * whatever this organization's finished runs have actually recorded, so an
+ * org with a disposition mapping still gets a usable filter.
+ */
+export const getDispositionCodesApiV1OrganizationsDispositionCodesGet = <ThrowOnError extends boolean = false>(options?: Options<GetDispositionCodesApiV1OrganizationsDispositionCodesGetData, ThrowOnError>): RequestResult<GetDispositionCodesApiV1OrganizationsDispositionCodesGetResponses, GetDispositionCodesApiV1OrganizationsDispositionCodesGetErrors, ThrowOnError> => (options?.client ?? client).get<GetDispositionCodesApiV1OrganizationsDispositionCodesGetResponses, GetDispositionCodesApiV1OrganizationsDispositionCodesGetErrors, ThrowOnError>({ url: '/api/v1/organizations/disposition-codes', ...options });
+
+/**
+ * Get Preferences
+ */
+export const getPreferencesApiV1OrganizationsPreferencesGet = <ThrowOnError extends boolean = false>(options?: Options<GetPreferencesApiV1OrganizationsPreferencesGetData, ThrowOnError>): RequestResult<GetPreferencesApiV1OrganizationsPreferencesGetResponses, GetPreferencesApiV1OrganizationsPreferencesGetErrors, ThrowOnError> => (options?.client ?? client).get<GetPreferencesApiV1OrganizationsPreferencesGetResponses, GetPreferencesApiV1OrganizationsPreferencesGetErrors, ThrowOnError>({ url: '/api/v1/organizations/preferences', ...options });
+
+/**
+ * Save Preferences
+ */
+export const savePreferencesApiV1OrganizationsPreferencesPut = <ThrowOnError extends boolean = false>(options: Options<SavePreferencesApiV1OrganizationsPreferencesPutData, ThrowOnError>): RequestResult<SavePreferencesApiV1OrganizationsPreferencesPutResponses, SavePreferencesApiV1OrganizationsPreferencesPutErrors, ThrowOnError> => (options.client ?? client).put<SavePreferencesApiV1OrganizationsPreferencesPutResponses, SavePreferencesApiV1OrganizationsPreferencesPutErrors, ThrowOnError>({
+    url: '/api/v1/organizations/preferences',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Telephony Configurations
+ *
+ * List the org's telephony configurations with phone-number counts.
+ */
+export const listTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGet = <ThrowOnError extends boolean = false>(options?: Options<ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetData, ThrowOnError>): RequestResult<ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetResponses, ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetErrors, ThrowOnError> => (options?.client ?? client).get<ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetResponses, ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs', ...options });
+
+/**
+ * Create Telephony Configuration
+ *
+ * Create a new telephony configuration for the org.
+ */
+export const createTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPost = <ThrowOnError extends boolean = false>(options: Options<CreateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPostData, ThrowOnError>): RequestResult<CreateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPostResponses, CreateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPostResponses, CreateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPostErrors, ThrowOnError>({
+    url: '/api/v1/organizations/telephony-configs',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Telephony Configuration
+ */
+export const deleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDeleteData, ThrowOnError>): RequestResult<DeleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDeleteResponses, DeleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDeleteResponses, DeleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDeleteErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}', ...options });
+
+/**
+ * Get Telephony Configuration By Id
+ */
+export const getTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGet = <ThrowOnError extends boolean = false>(options: Options<GetTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGetData, ThrowOnError>): RequestResult<GetTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGetResponses, GetTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGetErrors, ThrowOnError> => (options.client ?? client).get<GetTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGetResponses, GetTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfigIdGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}', ...options });
+
+/**
+ * Update Telephony Configuration
+ */
+export const updateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPut = <ThrowOnError extends boolean = false>(options: Options<UpdateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPutData, ThrowOnError>): RequestResult<UpdateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPutResponses, UpdateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPutErrors, ThrowOnError> => (options.client ?? client).put<UpdateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPutResponses, UpdateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPutErrors, ThrowOnError>({
+    url: '/api/v1/organizations/telephony-configs/{config_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Set Default Outbound
+ */
+export const setDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPost = <ThrowOnError extends boolean = false>(options: Options<SetDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPostData, ThrowOnError>): RequestResult<SetDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPostResponses, SetDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPostErrors, ThrowOnError> => (options.client ?? client).post<SetDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPostResponses, SetDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefaultOutboundPostErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/set-default-outbound', ...options });
+
+/**
+ * Reactivate Telephony Configuration
+ *
+ * Clear the inactive flag so connection workers pick the config up again.
+ *
+ * A config is deactivated automatically when it keeps failing to connect, and
+ * workers never re-enable it on their own. This endpoint is the only way back,
+ * so the customer fixes their PBX and then explicitly retries.
+ */
+export const reactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePost = <ThrowOnError extends boolean = false>(options: Options<ReactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePostData, ThrowOnError>): RequestResult<ReactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePostResponses, ReactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePostErrors, ThrowOnError> => (options.client ?? client).post<ReactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePostResponses, ReactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdReactivatePostErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/reactivate', ...options });
+
+/**
+ * List Telephony Trunks
+ */
+export const listTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGet = <ThrowOnError extends boolean = false>(options: Options<ListTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGetData, ThrowOnError>): RequestResult<ListTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGetResponses, ListTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGetErrors, ThrowOnError> => (options.client ?? client).get<ListTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGetResponses, ListTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/trunks', ...options });
+
+/**
+ * Create Telephony Trunk
+ */
+export const createTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPost = <ThrowOnError extends boolean = false>(options: Options<CreateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPostData, ThrowOnError>): RequestResult<CreateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPostResponses, CreateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPostResponses, CreateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPostErrors, ThrowOnError>({
+    url: '/api/v1/organizations/telephony-configs/{config_id}/trunks',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Telephony Trunk
+ */
+export const deleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDeleteData, ThrowOnError>): RequestResult<DeleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDeleteResponses, DeleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDeleteResponses, DeleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdDeleteErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/trunks/{trunk_id}', ...options });
+
+/**
+ * Update Telephony Trunk
+ */
+export const updateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPut = <ThrowOnError extends boolean = false>(options: Options<UpdateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPutData, ThrowOnError>): RequestResult<UpdateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPutResponses, UpdateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPutErrors, ThrowOnError> => (options.client ?? client).put<UpdateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPutResponses, UpdateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksTrunkIdPutErrors, ThrowOnError>({
+    url: '/api/v1/organizations/telephony-configs/{config_id}/trunks/{trunk_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Phone Numbers
+ */
+export const listPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGet = <ThrowOnError extends boolean = false>(options: Options<ListPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGetData, ThrowOnError>): RequestResult<ListPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGetResponses, ListPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGetErrors, ThrowOnError> => (options.client ?? client).get<ListPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGetResponses, ListPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers', ...options });
+
+/**
+ * Create Phone Number
+ */
+export const createPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPost = <ThrowOnError extends boolean = false>(options: Options<CreatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPostData, ThrowOnError>): RequestResult<CreatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPostResponses, CreatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPostErrors, ThrowOnError> => (options.client ?? client).post<CreatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPostResponses, CreatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPostErrors, ThrowOnError>({
+    url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Phone Number
+ */
+export const deletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDeleteData, ThrowOnError>): RequestResult<DeletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDeleteResponses, DeletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDeleteResponses, DeletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDeleteErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers/{phone_number_id}', ...options });
+
+/**
+ * Get Phone Number
+ */
+export const getPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGet = <ThrowOnError extends boolean = false>(options: Options<GetPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGetData, ThrowOnError>): RequestResult<GetPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGetResponses, GetPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGetErrors, ThrowOnError> => (options.client ?? client).get<GetPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGetResponses, GetPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdGetErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers/{phone_number_id}', ...options });
+
+/**
+ * Update Phone Number
+ */
+export const updatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPut = <ThrowOnError extends boolean = false>(options: Options<UpdatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPutData, ThrowOnError>): RequestResult<UpdatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPutResponses, UpdatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPutErrors, ThrowOnError> => (options.client ?? client).put<UpdatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPutResponses, UpdatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdPutErrors, ThrowOnError>({
+    url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers/{phone_number_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Set Default Caller Id
+ */
+export const setDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPost = <ThrowOnError extends boolean = false>(options: Options<SetDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPostData, ThrowOnError>): RequestResult<SetDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPostResponses, SetDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPostErrors, ThrowOnError> => (options.client ?? client).post<SetDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPostResponses, SetDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdSetDefaultCallerPostErrors, ThrowOnError>({ url: '/api/v1/organizations/telephony-configs/{config_id}/phone-numbers/{phone_number_id}/set-default-caller', ...options });
+
+/**
+ * Delete Langfuse Credentials
+ *
+ * Delete Langfuse credentials for the user's organization.
+ */
+export const deleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDelete = <ThrowOnError extends boolean = false>(options?: Options<DeleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDeleteData, ThrowOnError>): RequestResult<DeleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDeleteResponses, DeleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDeleteErrors, ThrowOnError> => (options?.client ?? client).delete<DeleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDeleteResponses, DeleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDeleteErrors, ThrowOnError>({ url: '/api/v1/organizations/langfuse-credentials', ...options });
+
+/**
+ * Get Langfuse Credentials
+ *
+ * Get Langfuse credentials for the user's organization with masked sensitive fields.
+ */
+export const getLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGet = <ThrowOnError extends boolean = false>(options?: Options<GetLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGetData, ThrowOnError>): RequestResult<GetLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGetResponses, GetLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGetResponses, GetLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/langfuse-credentials', ...options });
+
+/**
+ * Save Langfuse Credentials
+ *
+ * Save Langfuse credentials for the user's organization.
+ */
+export const saveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPost = <ThrowOnError extends boolean = false>(options: Options<SaveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPostData, ThrowOnError>): RequestResult<SaveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPostResponses, SaveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPostErrors, ThrowOnError> => (options.client ?? client).post<SaveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPostResponses, SaveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPostErrors, ThrowOnError>({
+    url: '/api/v1/organizations/langfuse-credentials',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Campaign Defaults
+ *
+ * Get campaign limits for the user's organization.
+ *
+ * Returns the organization's concurrent call limit and default retry configuration.
+ */
+export const getCampaignDefaultsApiV1OrganizationsCampaignDefaultsGet = <ThrowOnError extends boolean = false>(options?: Options<GetCampaignDefaultsApiV1OrganizationsCampaignDefaultsGetData, ThrowOnError>): RequestResult<GetCampaignDefaultsApiV1OrganizationsCampaignDefaultsGetResponses, GetCampaignDefaultsApiV1OrganizationsCampaignDefaultsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetCampaignDefaultsApiV1OrganizationsCampaignDefaultsGetResponses, GetCampaignDefaultsApiV1OrganizationsCampaignDefaultsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/campaign-defaults', ...options });
+
+/**
+ * Generate a signed S3 URL
+ *
+ * Return a short-lived signed URL for a file stored on S3 / MinIO.
+ *
+ * Access Control:
+ * * Known org-scoped keys (for example ``campaigns/{org_id}/...`` and
+ * ``recordings/{org_id}/{recording_id}/...``) are authorized by matching the
+ * org_id against the requesting user's organization.
+ * * Legacy keys (``recordings/{run_id}.wav``, ``transcripts/{run_id}.txt``)
+ * are authorized via the workflow run they belong to.
+ * * Superusers can request any key.
+ */
+export const getSignedUrlApiV1S3SignedUrlGet = <ThrowOnError extends boolean = false>(options: Options<GetSignedUrlApiV1S3SignedUrlGetData, ThrowOnError>): RequestResult<GetSignedUrlApiV1S3SignedUrlGetResponses, GetSignedUrlApiV1S3SignedUrlGetErrors, ThrowOnError> => (options.client ?? client).get<GetSignedUrlApiV1S3SignedUrlGetResponses, GetSignedUrlApiV1S3SignedUrlGetErrors, ThrowOnError>({ url: '/api/v1/s3/signed-url', ...options });
+
+/**
+ * Get file metadata for debugging
+ *
+ * Get file metadata including creation timestamp for debugging.
+ *
+ * Access Control:
+ * * Superusers can request any key.
+ * * Regular users can only request resources belonging to **their** workflow runs.
+ */
+export const getFileMetadataApiV1S3FileMetadataGet = <ThrowOnError extends boolean = false>(options: Options<GetFileMetadataApiV1S3FileMetadataGetData, ThrowOnError>): RequestResult<GetFileMetadataApiV1S3FileMetadataGetResponses, GetFileMetadataApiV1S3FileMetadataGetErrors, ThrowOnError> => (options.client ?? client).get<GetFileMetadataApiV1S3FileMetadataGetResponses, GetFileMetadataApiV1S3FileMetadataGetErrors, ThrowOnError>({ url: '/api/v1/s3/file-metadata', ...options });
+
+/**
+ * Generate a presigned URL for direct CSV upload
+ *
+ * Generate a presigned PUT URL for direct CSV file upload to S3/MinIO.
+ *
+ * This endpoint enables browser-to-storage uploads without passing through the backend
+ *
+ * Access Control:
+ * * All authenticated users can upload CSV files scoped to their organization.
+ * * Files are stored with organization-scoped keys for multi-tenancy.
  *
  * Returns:
- * TurnCredentialsResponse with username, password, ttl, and TURN URIs
+ * * upload_url: Presigned URL (valid for 15 minutes) for PUT request
+ * * file_key: Unique storage key to use as source_id in campaign creation
+ * * expires_in: URL expiration time in seconds
  */
-export const getTurnCredentialsApiV1TurnCredentialsGet = <ThrowOnError extends boolean = false>(options?: Options<GetTurnCredentialsApiV1TurnCredentialsGetData, ThrowOnError>): RequestResult<GetTurnCredentialsApiV1TurnCredentialsGetResponses, GetTurnCredentialsApiV1TurnCredentialsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetTurnCredentialsApiV1TurnCredentialsGetResponses, GetTurnCredentialsApiV1TurnCredentialsGetErrors, ThrowOnError>({ url: '/api/v1/turn/credentials', ...options });
-
-/**
- * Get Api Keys
- *
- * Get all API keys for the user's selected organization.
- */
-export const getApiKeysApiV1UserApiKeysGet = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeysApiV1UserApiKeysGetData, ThrowOnError>): RequestResult<GetApiKeysApiV1UserApiKeysGetResponses, GetApiKeysApiV1UserApiKeysGetErrors, ThrowOnError> => (options?.client ?? client).get<GetApiKeysApiV1UserApiKeysGetResponses, GetApiKeysApiV1UserApiKeysGetErrors, ThrowOnError>({ url: '/api/v1/user/api-keys', ...options });
-
-/**
- * Create Api Key
- *
- * Create a new API key for the user's selected organization.
- */
-export const createApiKeyApiV1UserApiKeysPost = <ThrowOnError extends boolean = false>(options: Options<CreateApiKeyApiV1UserApiKeysPostData, ThrowOnError>): RequestResult<CreateApiKeyApiV1UserApiKeysPostResponses, CreateApiKeyApiV1UserApiKeysPostErrors, ThrowOnError> => (options.client ?? client).post<CreateApiKeyApiV1UserApiKeysPostResponses, CreateApiKeyApiV1UserApiKeysPostErrors, ThrowOnError>({
-    url: '/api/v1/user/api-keys',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Archive Api Key
- *
- * Archive an API key (soft delete).
- */
-export const archiveApiKeyApiV1UserApiKeysApiKeyIdDelete = <ThrowOnError extends boolean = false>(options: Options<ArchiveApiKeyApiV1UserApiKeysApiKeyIdDeleteData, ThrowOnError>): RequestResult<ArchiveApiKeyApiV1UserApiKeysApiKeyIdDeleteResponses, ArchiveApiKeyApiV1UserApiKeysApiKeyIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<ArchiveApiKeyApiV1UserApiKeysApiKeyIdDeleteResponses, ArchiveApiKeyApiV1UserApiKeysApiKeyIdDeleteErrors, ThrowOnError>({ url: '/api/v1/user/api-keys/{api_key_id}', ...options });
-
-/**
- * Reactivate Api Key
- *
- * Reactivate an archived API key.
- */
-export const reactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePut = <ThrowOnError extends boolean = false>(options: Options<ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutData, ThrowOnError>): RequestResult<ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutResponses, ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutErrors, ThrowOnError> => (options.client ?? client).put<ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutResponses, ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutErrors, ThrowOnError>({ url: '/api/v1/user/api-keys/{api_key_id}/reactivate', ...options });
-
-/**
- * Get Auth User
- */
-export const getAuthUserApiV1UserAuthUserGet = <ThrowOnError extends boolean = false>(options?: Options<GetAuthUserApiV1UserAuthUserGetData, ThrowOnError>): RequestResult<GetAuthUserApiV1UserAuthUserGetResponses, GetAuthUserApiV1UserAuthUserGetErrors, ThrowOnError> => (options?.client ?? client).get<GetAuthUserApiV1UserAuthUserGetResponses, GetAuthUserApiV1UserAuthUserGetErrors, ThrowOnError>({ url: '/api/v1/user/auth/user', ...options });
-
-/**
- * Get Default Configurations
- */
-export const getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet = <ThrowOnError extends boolean = false>(options?: Options<GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData, ThrowOnError>): RequestResult<GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetResponses, GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetResponses, GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetErrors, ThrowOnError>({ url: '/api/v1/user/configurations/defaults', ...options });
-
-/**
- * Get User Configurations
- */
-export const getUserConfigurationsApiV1UserConfigurationsUserGet = <ThrowOnError extends boolean = false>(options?: Options<GetUserConfigurationsApiV1UserConfigurationsUserGetData, ThrowOnError>): RequestResult<GetUserConfigurationsApiV1UserConfigurationsUserGetResponses, GetUserConfigurationsApiV1UserConfigurationsUserGetErrors, ThrowOnError> => (options?.client ?? client).get<GetUserConfigurationsApiV1UserConfigurationsUserGetResponses, GetUserConfigurationsApiV1UserConfigurationsUserGetErrors, ThrowOnError>({ url: '/api/v1/user/configurations/user', ...options });
-
-/**
- * Update User Configurations
- */
-export const updateUserConfigurationsApiV1UserConfigurationsUserPut = <ThrowOnError extends boolean = false>(options: Options<UpdateUserConfigurationsApiV1UserConfigurationsUserPutData, ThrowOnError>): RequestResult<UpdateUserConfigurationsApiV1UserConfigurationsUserPutResponses, UpdateUserConfigurationsApiV1UserConfigurationsUserPutErrors, ThrowOnError> => (options.client ?? client).put<UpdateUserConfigurationsApiV1UserConfigurationsUserPutResponses, UpdateUserConfigurationsApiV1UserConfigurationsUserPutErrors, ThrowOnError>({
-    url: '/api/v1/user/configurations/user',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Validate User Configurations
- */
-export const validateUserConfigurationsApiV1UserConfigurationsUserValidateGet = <ThrowOnError extends boolean = false>(options?: Options<ValidateUserConfigurationsApiV1UserConfigurationsUserValidateGetData, ThrowOnError>): RequestResult<ValidateUserConfigurationsApiV1UserConfigurationsUserValidateGetResponses, ValidateUserConfigurationsApiV1UserConfigurationsUserValidateGetErrors, ThrowOnError> => (options?.client ?? client).get<ValidateUserConfigurationsApiV1UserConfigurationsUserValidateGetResponses, ValidateUserConfigurationsApiV1UserConfigurationsUserValidateGetErrors, ThrowOnError>({ url: '/api/v1/user/configurations/user/validate', ...options });
-
-/**
- * Get Voices
- *
- * Get available voices for a TTS provider.
- */
-export const getVoicesApiV1UserConfigurationsVoicesProviderGet = <ThrowOnError extends boolean = false>(options: Options<GetVoicesApiV1UserConfigurationsVoicesProviderGetData, ThrowOnError>): RequestResult<GetVoicesApiV1UserConfigurationsVoicesProviderGetResponses, GetVoicesApiV1UserConfigurationsVoicesProviderGetErrors, ThrowOnError> => (options.client ?? client).get<GetVoicesApiV1UserConfigurationsVoicesProviderGetResponses, GetVoicesApiV1UserConfigurationsVoicesProviderGetErrors, ThrowOnError>({ url: '/api/v1/user/configurations/voices/{provider}', ...options });
-
-/**
- * Get User Onboarding State
- */
-export const getUserOnboardingStateApiV1UserOnboardingStateGet = <ThrowOnError extends boolean = false>(options?: Options<GetUserOnboardingStateApiV1UserOnboardingStateGetData, ThrowOnError>): RequestResult<GetUserOnboardingStateApiV1UserOnboardingStateGetResponses, GetUserOnboardingStateApiV1UserOnboardingStateGetErrors, ThrowOnError> => (options?.client ?? client).get<GetUserOnboardingStateApiV1UserOnboardingStateGetResponses, GetUserOnboardingStateApiV1UserOnboardingStateGetErrors, ThrowOnError>({ url: '/api/v1/user/onboarding-state', ...options });
-
-/**
- * Update User Onboarding State
- */
-export const updateUserOnboardingStateApiV1UserOnboardingStatePut = <ThrowOnError extends boolean = false>(options: Options<UpdateUserOnboardingStateApiV1UserOnboardingStatePutData, ThrowOnError>): RequestResult<UpdateUserOnboardingStateApiV1UserOnboardingStatePutResponses, UpdateUserOnboardingStateApiV1UserOnboardingStatePutErrors, ThrowOnError> => (options.client ?? client).put<UpdateUserOnboardingStateApiV1UserOnboardingStatePutResponses, UpdateUserOnboardingStateApiV1UserOnboardingStatePutErrors, ThrowOnError>({
-    url: '/api/v1/user/onboarding-state',
+export const getPresignedUploadUrlApiV1S3PresignedUploadUrlPost = <ThrowOnError extends boolean = false>(options: Options<GetPresignedUploadUrlApiV1S3PresignedUploadUrlPostData, ThrowOnError>): RequestResult<GetPresignedUploadUrlApiV1S3PresignedUploadUrlPostResponses, GetPresignedUploadUrlApiV1S3PresignedUploadUrlPostErrors, ThrowOnError> => (options.client ?? client).post<GetPresignedUploadUrlApiV1S3PresignedUploadUrlPostResponses, GetPresignedUploadUrlApiV1S3PresignedUploadUrlPostErrors, ThrowOnError>({
+    url: '/api/v1/s3/presigned-upload-url',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -1555,244 +1373,297 @@ export const archiveServiceKeyApiV1UserServiceKeysServiceKeyIdDelete = <ThrowOnE
 export const reactivateServiceKeyApiV1UserServiceKeysServiceKeyIdReactivatePut = <ThrowOnError extends boolean = false>(options: Options<ReactivateServiceKeyApiV1UserServiceKeysServiceKeyIdReactivatePutData, ThrowOnError>): RequestResult<ReactivateServiceKeyApiV1UserServiceKeysServiceKeyIdReactivatePutResponses, ReactivateServiceKeyApiV1UserServiceKeysServiceKeyIdReactivatePutErrors, ThrowOnError> => (options.client ?? client).put<ReactivateServiceKeyApiV1UserServiceKeysServiceKeyIdReactivatePutResponses, ReactivateServiceKeyApiV1UserServiceKeysServiceKeyIdReactivatePutErrors, ThrowOnError>({ url: '/api/v1/user/service-keys/{service_key_id}/reactivate', ...options });
 
 /**
- * List recordings
+ * Get Current Period Usage
  *
- * List recordings for the organization, optionally filtered.
+ * Get current reporting-period usage for the user's organization.
  */
-export const listRecordingsApiV1WorkflowRecordingsGet = <ThrowOnError extends boolean = false>(options?: Options<ListRecordingsApiV1WorkflowRecordingsGetData, ThrowOnError>): RequestResult<ListRecordingsApiV1WorkflowRecordingsGetResponses, ListRecordingsApiV1WorkflowRecordingsGetErrors, ThrowOnError> => (options?.client ?? client).get<ListRecordingsApiV1WorkflowRecordingsGetResponses, ListRecordingsApiV1WorkflowRecordingsGetErrors, ThrowOnError>({ url: '/api/v1/workflow-recordings/', ...options });
+export const getCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGet = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGetData, ThrowOnError>): RequestResult<GetCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGetResponses, GetCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGetErrors, ThrowOnError> => (options?.client ?? client).get<GetCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGetResponses, GetCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGetErrors, ThrowOnError>({ url: '/api/v1/organizations/usage/current-period', ...options });
 
 /**
- * Create recording records after upload
+ * Get Billing Credits
  *
- * Create one or more recording records after audio files have been uploaded.
+ * Return per-key MPS credits (OSS) or the org's paginated billing ledger.
  */
-export const createRecordingsApiV1WorkflowRecordingsPost = <ThrowOnError extends boolean = false>(options: Options<CreateRecordingsApiV1WorkflowRecordingsPostData, ThrowOnError>): RequestResult<CreateRecordingsApiV1WorkflowRecordingsPostResponses, CreateRecordingsApiV1WorkflowRecordingsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateRecordingsApiV1WorkflowRecordingsPostResponses, CreateRecordingsApiV1WorkflowRecordingsPostErrors, ThrowOnError>({
-    url: '/api/v1/workflow-recordings/',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
+export const getBillingCreditsApiV1OrganizationsBillingCreditsGet = <ThrowOnError extends boolean = false>(options?: Options<GetBillingCreditsApiV1OrganizationsBillingCreditsGetData, ThrowOnError>): RequestResult<GetBillingCreditsApiV1OrganizationsBillingCreditsGetResponses, GetBillingCreditsApiV1OrganizationsBillingCreditsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetBillingCreditsApiV1OrganizationsBillingCreditsGetResponses, GetBillingCreditsApiV1OrganizationsBillingCreditsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/billing/credits', ...options });
 
 /**
- * Transcribe an audio file
+ * Create Mps Credit Purchase Url
  *
- * Transcribe an uploaded audio file using MPS STT.
+ * Create a checkout URL for purchasing organization credits.
  */
-export const transcribeAudioApiV1WorkflowRecordingsTranscribePost = <ThrowOnError extends boolean = false>(options: Options<TranscribeAudioApiV1WorkflowRecordingsTranscribePostData, ThrowOnError>): RequestResult<TranscribeAudioApiV1WorkflowRecordingsTranscribePostResponses, TranscribeAudioApiV1WorkflowRecordingsTranscribePostErrors, ThrowOnError> => (options.client ?? client).post<TranscribeAudioApiV1WorkflowRecordingsTranscribePostResponses, TranscribeAudioApiV1WorkflowRecordingsTranscribePostErrors, ThrowOnError>({
-    ...formDataBodySerializer,
-    url: '/api/v1/workflow-recordings/transcribe',
-    ...options,
-    headers: {
-        'Content-Type': null,
-        ...options.headers
-    }
-});
+export const createMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPost = <ThrowOnError extends boolean = false>(options?: Options<CreateMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPostData, ThrowOnError>): RequestResult<CreateMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPostResponses, CreateMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPostErrors, ThrowOnError> => (options?.client ?? client).post<CreateMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPostResponses, CreateMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseUrlPostErrors, ThrowOnError>({ url: '/api/v1/organizations/usage/mps-credits/purchase-url', ...options });
 
 /**
- * Get presigned URLs for recording uploads
+ * Get Usage History
  *
- * Generate presigned PUT URLs for uploading one or more audio recordings.
+ * Get paginated workflow runs with usage for the organization.
  */
-export const getUploadUrlsApiV1WorkflowRecordingsUploadUrlPost = <ThrowOnError extends boolean = false>(options: Options<GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostData, ThrowOnError>): RequestResult<GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostResponses, GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostErrors, ThrowOnError> => (options.client ?? client).post<GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostResponses, GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostErrors, ThrowOnError>({
-    url: '/api/v1/workflow-recordings/upload-url',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
+export const getUsageHistoryApiV1OrganizationsUsageRunsGet = <ThrowOnError extends boolean = false>(options?: Options<GetUsageHistoryApiV1OrganizationsUsageRunsGetData, ThrowOnError>): RequestResult<GetUsageHistoryApiV1OrganizationsUsageRunsGetResponses, GetUsageHistoryApiV1OrganizationsUsageRunsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetUsageHistoryApiV1OrganizationsUsageRunsGetResponses, GetUsageHistoryApiV1OrganizationsUsageRunsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/usage/runs', ...options });
 
 /**
- * Update a recording's Recording ID
+ * Download Usage Runs Report
  *
- * Update the recording_id (descriptive name) of a recording.
+ * Download a CSV of runs matching the same filters as `/usage/runs`.
  */
-export const updateRecordingApiV1WorkflowRecordingsIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateRecordingApiV1WorkflowRecordingsIdPatchData, ThrowOnError>): RequestResult<UpdateRecordingApiV1WorkflowRecordingsIdPatchResponses, UpdateRecordingApiV1WorkflowRecordingsIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateRecordingApiV1WorkflowRecordingsIdPatchResponses, UpdateRecordingApiV1WorkflowRecordingsIdPatchErrors, ThrowOnError>({
-    url: '/api/v1/workflow-recordings/{id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
+export const downloadUsageRunsReportApiV1OrganizationsUsageRunsReportGet = <ThrowOnError extends boolean = false>(options?: Options<DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetData, ThrowOnError>): RequestResult<DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetResponses, DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetErrors, ThrowOnError> => (options?.client ?? client).get<DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetResponses, DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetErrors, ThrowOnError>({ url: '/api/v1/organizations/usage/runs/report', ...options });
 
 /**
- * Delete a recording
+ * Get Daily Usage Breakdown
  *
- * Soft delete a recording.
+ * Get daily usage breakdown for the last N days. Only available for organizations with pricing.
  */
-export const deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteRecordingApiV1WorkflowRecordingsRecordingIdDeleteData, ThrowOnError>): RequestResult<DeleteRecordingApiV1WorkflowRecordingsRecordingIdDeleteResponses, DeleteRecordingApiV1WorkflowRecordingsRecordingIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteRecordingApiV1WorkflowRecordingsRecordingIdDeleteResponses, DeleteRecordingApiV1WorkflowRecordingsRecordingIdDeleteErrors, ThrowOnError>({ url: '/api/v1/workflow-recordings/{recording_id}', ...options });
+export const getDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGet = <ThrowOnError extends boolean = false>(options?: Options<GetDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGetData, ThrowOnError>): RequestResult<GetDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGetResponses, GetDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGetErrors, ThrowOnError> => (options?.client ?? client).get<GetDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGetResponses, GetDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGetErrors, ThrowOnError>({ url: '/api/v1/organizations/usage/daily-breakdown', ...options });
 
 /**
- * Get a presigned URL to upload a custom ambient noise audio file
+ * Get Daily Report
  *
- * Generate a presigned PUT URL for uploading a custom ambient noise file.
+ * Get daily report for the specified date and timezone.
+ * If workflow_id is provided, filters results to that specific workflow.
+ * If workflow_id is None, includes all workflows for the organization.
  */
-export const getAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPost = <ThrowOnError extends boolean = false>(options: Options<GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostData, ThrowOnError>): RequestResult<GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostResponses, GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostErrors, ThrowOnError> => (options.client ?? client).post<GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostResponses, GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostErrors, ThrowOnError>({
-    url: '/api/v1/workflow/ambient-noise/upload-url',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
+export const getDailyReportApiV1OrganizationsReportsDailyGet = <ThrowOnError extends boolean = false>(options: Options<GetDailyReportApiV1OrganizationsReportsDailyGetData, ThrowOnError>): RequestResult<GetDailyReportApiV1OrganizationsReportsDailyGetResponses, GetDailyReportApiV1OrganizationsReportsDailyGetErrors, ThrowOnError> => (options.client ?? client).get<GetDailyReportApiV1OrganizationsReportsDailyGetResponses, GetDailyReportApiV1OrganizationsReportsDailyGetErrors, ThrowOnError>({ url: '/api/v1/organizations/reports/daily', ...options });
 
 /**
- * Get Workflow Count
+ * Get Workflow Options
  *
- * Get workflow counts for the authenticated user's organization.
- *
- * This is a lightweight endpoint for checking if the user has workflows,
- * useful for redirect logic without fetching full workflow data.
+ * Get all workflows for the user's organization.
+ * Used to populate the workflow selector dropdown in the reports page.
  */
-export const getWorkflowCountApiV1WorkflowCountGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowCountApiV1WorkflowCountGetData, ThrowOnError>): RequestResult<GetWorkflowCountApiV1WorkflowCountGetResponses, GetWorkflowCountApiV1WorkflowCountGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowCountApiV1WorkflowCountGetResponses, GetWorkflowCountApiV1WorkflowCountGetErrors, ThrowOnError>({ url: '/api/v1/workflow/count', ...options });
+export const getWorkflowOptionsApiV1OrganizationsReportsWorkflowsGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowOptionsApiV1OrganizationsReportsWorkflowsGetData, ThrowOnError>): RequestResult<GetWorkflowOptionsApiV1OrganizationsReportsWorkflowsGetResponses, GetWorkflowOptionsApiV1OrganizationsReportsWorkflowsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowOptionsApiV1OrganizationsReportsWorkflowsGetResponses, GetWorkflowOptionsApiV1OrganizationsReportsWorkflowsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/reports/workflows', ...options });
 
 /**
- * Create Workflow
+ * Get Daily Runs Detail
  *
- * Create a new workflow from the client
- *
- * Args:
- * request: The create workflow request
- * user: The user to create the workflow for
+ * Get detailed workflow runs for the specified date.
+ * Used for CSV export functionality.
  */
-export const createWorkflowApiV1WorkflowCreateDefinitionPost = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowApiV1WorkflowCreateDefinitionPostData, ThrowOnError>): RequestResult<CreateWorkflowApiV1WorkflowCreateDefinitionPostResponses, CreateWorkflowApiV1WorkflowCreateDefinitionPostErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowApiV1WorkflowCreateDefinitionPostResponses, CreateWorkflowApiV1WorkflowCreateDefinitionPostErrors, ThrowOnError>({
-    url: '/api/v1/workflow/create/definition',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
+export const getDailyRunsDetailApiV1OrganizationsReportsDailyRunsGet = <ThrowOnError extends boolean = false>(options: Options<GetDailyRunsDetailApiV1OrganizationsReportsDailyRunsGetData, ThrowOnError>): RequestResult<GetDailyRunsDetailApiV1OrganizationsReportsDailyRunsGetResponses, GetDailyRunsDetailApiV1OrganizationsReportsDailyRunsGetErrors, ThrowOnError> => (options.client ?? client).get<GetDailyRunsDetailApiV1OrganizationsReportsDailyRunsGetResponses, GetDailyRunsDetailApiV1OrganizationsReportsDailyRunsGetErrors, ThrowOnError>({ url: '/api/v1/organizations/reports/daily/runs', ...options });
 
 /**
- * Create Workflow From Template
+ * Get Turn Credentials
  *
- * Create a new workflow from a natural language template request.
+ * Get time-limited TURN credentials for WebRTC connections.
+ *
+ * This endpoint generates ephemeral TURN credentials that are:
+ * - Valid for the configured TTL (default: 24 hours)
+ * - Cryptographically bound to the user via HMAC
+ * - Compatible with coturn's use-auth-secret mode
+ *
+ * Returns:
+ * TurnCredentialsResponse with username, password, ttl, and TURN URIs
+ */
+export const getTurnCredentialsApiV1TurnCredentialsGet = <ThrowOnError extends boolean = false>(options?: Options<GetTurnCredentialsApiV1TurnCredentialsGetData, ThrowOnError>): RequestResult<GetTurnCredentialsApiV1TurnCredentialsGetResponses, GetTurnCredentialsApiV1TurnCredentialsGetErrors, ThrowOnError> => (options?.client ?? client).get<GetTurnCredentialsApiV1TurnCredentialsGetResponses, GetTurnCredentialsApiV1TurnCredentialsGetErrors, ThrowOnError>({ url: '/api/v1/turn/credentials', ...options });
+
+/**
+ * Options Init
+ *
+ * Fallback OPTIONS handler for init endpoint.
+ */
+export const optionsInitApiV1PublicEmbedInitOptions = <ThrowOnError extends boolean = false>(options?: Options<OptionsInitApiV1PublicEmbedInitOptionsData, ThrowOnError>): RequestResult<OptionsInitApiV1PublicEmbedInitOptionsResponses, OptionsInitApiV1PublicEmbedInitOptionsErrors, ThrowOnError> => (options?.client ?? client).options<OptionsInitApiV1PublicEmbedInitOptionsResponses, OptionsInitApiV1PublicEmbedInitOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/init', ...options });
+
+/**
+ * Initialize Embed Session
+ *
+ * Initialize an embed session with token validation and domain checking.
  *
  * This endpoint:
- * 1. Uses mps_service_key_client to call MPS workflow API
- * 2. Passes organization ID (authenticated mode) or created_by (OSS mode)
- * 3. Creates the workflow in the database
+ * 1. Validates the embed token
+ * 2. Checks domain whitelist
+ * 3. Creates a workflow run
+ * 4. Generates a temporary session token
+ * 5. Returns configuration for the widget
+ */
+export const initializeEmbedSessionApiV1PublicEmbedInitPost = <ThrowOnError extends boolean = false>(options: Options<InitializeEmbedSessionApiV1PublicEmbedInitPostData, ThrowOnError>): RequestResult<InitializeEmbedSessionApiV1PublicEmbedInitPostResponses, InitializeEmbedSessionApiV1PublicEmbedInitPostErrors, ThrowOnError> => (options.client ?? client).post<InitializeEmbedSessionApiV1PublicEmbedInitPostResponses, InitializeEmbedSessionApiV1PublicEmbedInitPostErrors, ThrowOnError>({
+    url: '/api/v1/public/embed/init',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Embed Config
+ *
+ * Get embed configuration without creating a session.
+ *
+ * This endpoint is used to fetch widget configuration for display purposes
+ * without actually starting a call session.
+ */
+export const getEmbedConfigApiV1PublicEmbedConfigTokenGet = <ThrowOnError extends boolean = false>(options: Options<GetEmbedConfigApiV1PublicEmbedConfigTokenGetData, ThrowOnError>): RequestResult<GetEmbedConfigApiV1PublicEmbedConfigTokenGetResponses, GetEmbedConfigApiV1PublicEmbedConfigTokenGetErrors, ThrowOnError> => (options.client ?? client).get<GetEmbedConfigApiV1PublicEmbedConfigTokenGetResponses, GetEmbedConfigApiV1PublicEmbedConfigTokenGetErrors, ThrowOnError>({ url: '/api/v1/public/embed/config/{token}', ...options });
+
+/**
+ * Options Embed Config
+ *
+ * Fallback OPTIONS handler for the embed config endpoint.
+ *
+ * Browser preflights include Access-Control-Request-Method and are handled by
+ * PublicEmbedCORSMiddleware before global CORS. This keeps non-conformant
+ * OPTIONS requests on the same validation path.
+ */
+export const optionsEmbedConfigApiV1PublicEmbedConfigTokenOptions = <ThrowOnError extends boolean = false>(options: Options<OptionsEmbedConfigApiV1PublicEmbedConfigTokenOptionsData, ThrowOnError>): RequestResult<OptionsEmbedConfigApiV1PublicEmbedConfigTokenOptionsResponses, OptionsEmbedConfigApiV1PublicEmbedConfigTokenOptionsErrors, ThrowOnError> => (options.client ?? client).options<OptionsEmbedConfigApiV1PublicEmbedConfigTokenOptionsResponses, OptionsEmbedConfigApiV1PublicEmbedConfigTokenOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/config/{token}', ...options });
+
+/**
+ * Get Public Turn Credentials
+ *
+ * Get TURN credentials for an embed session.
+ *
+ * This endpoint allows embedded widgets to obtain TURN server credentials
+ * for WebRTC connections without requiring authentication.
  *
  * Args:
- * request: The template creation request with call_type, use_case, and activity_description
- * user: The authenticated user
+ * session_token: The session token from embed initialization
  *
  * Returns:
- * The created workflow
+ * TurnCredentialsResponse with username, password, ttl, and TURN URIs
+ */
+export const getPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGet = <ThrowOnError extends boolean = false>(options: Options<GetPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGetData, ThrowOnError>): RequestResult<GetPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGetResponses, GetPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGetErrors, ThrowOnError> => (options.client ?? client).get<GetPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGetResponses, GetPublicTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenGetErrors, ThrowOnError>({ url: '/api/v1/public/embed/turn-credentials/{session_token}', ...options });
+
+/**
+ * Options Turn Credentials
+ *
+ * Fallback OPTIONS handler for TURN credentials endpoint.
+ */
+export const optionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptions = <ThrowOnError extends boolean = false>(options: Options<OptionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptionsData, ThrowOnError>): RequestResult<OptionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptionsResponses, OptionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptionsErrors, ThrowOnError> => (options.client ?? client).options<OptionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptionsResponses, OptionsTurnCredentialsApiV1PublicEmbedTurnCredentialsSessionTokenOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/turn-credentials/{session_token}', ...options });
+
+/**
+ * Get Public Chat Session
+ *
+ * Current transcript for an embed chat session (used for 409 resync).
+ */
+export const getPublicChatSessionApiV1PublicEmbedChatSessionTokenGet = <ThrowOnError extends boolean = false>(options: Options<GetPublicChatSessionApiV1PublicEmbedChatSessionTokenGetData, ThrowOnError>): RequestResult<GetPublicChatSessionApiV1PublicEmbedChatSessionTokenGetResponses, GetPublicChatSessionApiV1PublicEmbedChatSessionTokenGetErrors, ThrowOnError> => (options.client ?? client).get<GetPublicChatSessionApiV1PublicEmbedChatSessionTokenGetResponses, GetPublicChatSessionApiV1PublicEmbedChatSessionTokenGetErrors, ThrowOnError>({ url: '/api/v1/public/embed/chat/{session_token}', ...options });
+
+/**
+ * Options Public Chat Session
+ *
+ * Fallback OPTIONS handler; browser preflights hit PublicEmbedCORSMiddleware.
+ */
+export const optionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptions = <ThrowOnError extends boolean = false>(options: Options<OptionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptionsData, ThrowOnError>): RequestResult<OptionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptionsResponses, OptionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptionsErrors, ThrowOnError> => (options.client ?? client).options<OptionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptionsResponses, OptionsPublicChatSessionApiV1PublicEmbedChatSessionTokenOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/chat/{session_token}', ...options });
+
+/**
+ * Options Public Chat End
+ *
+ * Fallback OPTIONS handler; browser preflights hit PublicEmbedCORSMiddleware.
+ */
+export const optionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptions = <ThrowOnError extends boolean = false>(options: Options<OptionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptionsData, ThrowOnError>): RequestResult<OptionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptionsResponses, OptionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptionsErrors, ThrowOnError> => (options.client ?? client).options<OptionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptionsResponses, OptionsPublicChatEndApiV1PublicEmbedChatSessionTokenEndOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/chat/{session_token}/end', ...options });
+
+/**
+ * End Public Chat Session
+ */
+export const endPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPost = <ThrowOnError extends boolean = false>(options: Options<EndPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPostData, ThrowOnError>): RequestResult<EndPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPostResponses, EndPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPostErrors, ThrowOnError> => (options.client ?? client).post<EndPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPostResponses, EndPublicChatSessionApiV1PublicEmbedChatSessionTokenEndPostErrors, ThrowOnError>({
+    url: '/api/v1/public/embed/chat/{session_token}/end',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Options Public Chat Messages
+ *
+ * Fallback OPTIONS handler; browser preflights hit PublicEmbedCORSMiddleware.
+ */
+export const optionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptions = <ThrowOnError extends boolean = false>(options: Options<OptionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptionsData, ThrowOnError>): RequestResult<OptionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptionsResponses, OptionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptionsErrors, ThrowOnError> => (options.client ?? client).options<OptionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptionsResponses, OptionsPublicChatMessagesApiV1PublicEmbedChatSessionTokenMessagesOptionsErrors, ThrowOnError>({ url: '/api/v1/public/embed/chat/{session_token}/messages', ...options });
+
+/**
+ * Post Public Chat Message
+ */
+export const postPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPost = <ThrowOnError extends boolean = false>(options: Options<PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostData, ThrowOnError>): RequestResult<PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostResponses, PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostErrors, ThrowOnError> => (options.client ?? client).post<PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostResponses, PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostErrors, ThrowOnError>({
+    url: '/api/v1/public/embed/chat/{session_token}/messages',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Initiate Call
+ *
+ * Initiate a phone call against the published agent.
+ *
+ * Executes the workflow's currently released definition.
+ */
+export const initiateCallApiV1PublicAgentUuidPost = <ThrowOnError extends boolean = false>(options: Options<InitiateCallApiV1PublicAgentUuidPostData, ThrowOnError>): RequestResult<InitiateCallApiV1PublicAgentUuidPostResponses, InitiateCallApiV1PublicAgentUuidPostErrors, ThrowOnError> => (options.client ?? client).post<InitiateCallApiV1PublicAgentUuidPostResponses, InitiateCallApiV1PublicAgentUuidPostErrors, ThrowOnError>({
+    url: '/api/v1/public/agent/{uuid}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Initiate Call Test
+ *
+ * Initiate a phone call against the latest draft of the agent.
+ *
+ * Useful for verifying changes before publishing. Falls back to the
+ * published definition when no draft exists.
+ */
+export const initiateCallTestApiV1PublicAgentTestUuidPost = <ThrowOnError extends boolean = false>(options: Options<InitiateCallTestApiV1PublicAgentTestUuidPostData, ThrowOnError>): RequestResult<InitiateCallTestApiV1PublicAgentTestUuidPostResponses, InitiateCallTestApiV1PublicAgentTestUuidPostErrors, ThrowOnError> => (options.client ?? client).post<InitiateCallTestApiV1PublicAgentTestUuidPostResponses, InitiateCallTestApiV1PublicAgentTestUuidPostErrors, ThrowOnError>({
+    url: '/api/v1/public/agent/test/{uuid}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Initiate Call By Workflow Uuid
+ *
+ * Initiate a phone call against the published workflow identified by UUID.
+ */
+export const initiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPost = <ThrowOnError extends boolean = false>(options: Options<InitiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPostData, ThrowOnError>): RequestResult<InitiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPostResponses, InitiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPostErrors, ThrowOnError> => (options.client ?? client).post<InitiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPostResponses, InitiateCallByWorkflowUuidApiV1PublicAgentWorkflowWorkflowUuidPostErrors, ThrowOnError>({
+    url: '/api/v1/public/agent/workflow/{workflow_uuid}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Initiate Call Test By Workflow Uuid
+ *
+ * Initiate a phone call against the latest draft of the workflow by UUID.
+ */
+export const initiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPost = <ThrowOnError extends boolean = false>(options: Options<InitiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPostData, ThrowOnError>): RequestResult<InitiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPostResponses, InitiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPostErrors, ThrowOnError> => (options.client ?? client).post<InitiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPostResponses, InitiateCallTestByWorkflowUuidApiV1PublicAgentTestWorkflowWorkflowUuidPostErrors, ThrowOnError>({
+    url: '/api/v1/public/agent/test/workflow/{workflow_uuid}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Download Workflow Artifact
+ *
+ * Download a workflow recording or transcript via public access token.
+ *
+ * This endpoint:
+ * 1. Validates the public access token
+ * 2. Looks up the corresponding workflow run
+ * 3. Generates a signed URL for the requested artifact
+ * 4. Redirects to the signed URL
+ *
+ * Args:
+ * token: The public access token (UUID format)
+ * artifact_type: Type of artifact - "recording", "transcript",
+ * "user_recording", or "bot_recording"
+ * inline: If true, sets Content-Disposition to inline for browser preview
+ *
+ * Returns:
+ * RedirectResponse to the signed URL (302 redirect)
  *
  * Raises:
- * HTTPException: If MPS API call fails
+ * HTTPException 400: If artifact type is unsupported
+ * HTTPException 404: If token is invalid or artifact not found
  */
-export const createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostData, ThrowOnError>): RequestResult<CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostResponses, CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostResponses, CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostErrors, ThrowOnError>({
-    url: '/api/v1/workflow/create/template',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Workflows
- *
- * Get all workflows for the authenticated user's organization.
- *
- * Returns a lightweight response with only essential fields for listing.
- * Use GET /workflow/fetch/{workflow_id} to get full workflow details.
- */
-export const getWorkflowsApiV1WorkflowFetchGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowsApiV1WorkflowFetchGetData, ThrowOnError>): RequestResult<GetWorkflowsApiV1WorkflowFetchGetResponses, GetWorkflowsApiV1WorkflowFetchGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowsApiV1WorkflowFetchGetResponses, GetWorkflowsApiV1WorkflowFetchGetErrors, ThrowOnError>({ url: '/api/v1/workflow/fetch', ...options });
-
-/**
- * Get Workflow
- *
- * Get a single workflow by ID.
- *
- * If a draft version exists, returns the draft content for editing.
- * Otherwise returns the published version's content.
- */
-export const getWorkflowApiV1WorkflowFetchWorkflowIdGet = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowApiV1WorkflowFetchWorkflowIdGetData, ThrowOnError>): RequestResult<GetWorkflowApiV1WorkflowFetchWorkflowIdGetResponses, GetWorkflowApiV1WorkflowFetchWorkflowIdGetErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowApiV1WorkflowFetchWorkflowIdGetResponses, GetWorkflowApiV1WorkflowFetchWorkflowIdGetErrors, ThrowOnError>({ url: '/api/v1/workflow/fetch/{workflow_id}', ...options });
-
-/**
- * Get Workflows Summary
- *
- * Get minimal workflow information (id and name only) for all workflows
- */
-export const getWorkflowsSummaryApiV1WorkflowSummaryGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowsSummaryApiV1WorkflowSummaryGetData, ThrowOnError>): RequestResult<GetWorkflowsSummaryApiV1WorkflowSummaryGetResponses, GetWorkflowsSummaryApiV1WorkflowSummaryGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowsSummaryApiV1WorkflowSummaryGetResponses, GetWorkflowsSummaryApiV1WorkflowSummaryGetErrors, ThrowOnError>({ url: '/api/v1/workflow/summary', ...options });
-
-/**
- * Get Workflow Templates
- *
- * Get all available workflow templates.
- *
- * Returns:
- * List of workflow templates
- */
-export const getWorkflowTemplatesApiV1WorkflowTemplatesGet = <ThrowOnError extends boolean = false>(options?: Options<GetWorkflowTemplatesApiV1WorkflowTemplatesGetData, ThrowOnError>): RequestResult<GetWorkflowTemplatesApiV1WorkflowTemplatesGetResponses, GetWorkflowTemplatesApiV1WorkflowTemplatesGetErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkflowTemplatesApiV1WorkflowTemplatesGetResponses, GetWorkflowTemplatesApiV1WorkflowTemplatesGetErrors, ThrowOnError>({ url: '/api/v1/workflow/templates', ...options });
-
-/**
- * Duplicate Workflow Template
- *
- * Duplicate a workflow template to create a new workflow for the user.
- *
- * Args:
- * request: The duplicate template request
- * user: The authenticated user
- *
- * Returns:
- * The newly created workflow
- */
-export const duplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePost = <ThrowOnError extends boolean = false>(options: Options<DuplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePostData, ThrowOnError>): RequestResult<DuplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePostResponses, DuplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePostErrors, ThrowOnError> => (options.client ?? client).post<DuplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePostResponses, DuplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePostErrors, ThrowOnError>({
-    url: '/api/v1/workflow/templates/duplicate',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Update Workflow
- *
- * Update an existing workflow.
- *
- * Args:
- * workflow_id: The ID of the workflow to update
- * request: The update request containing the new name and workflow definition
- *
- * Returns:
- * The updated workflow
- *
- * Raises:
- * HTTPException: If the workflow is not found or if there's a database error
- */
-export const updateWorkflowApiV1WorkflowWorkflowIdPut = <ThrowOnError extends boolean = false>(options: Options<UpdateWorkflowApiV1WorkflowWorkflowIdPutData, ThrowOnError>): RequestResult<UpdateWorkflowApiV1WorkflowWorkflowIdPutResponses, UpdateWorkflowApiV1WorkflowWorkflowIdPutErrors, ThrowOnError> => (options.client ?? client).put<UpdateWorkflowApiV1WorkflowWorkflowIdPutResponses, UpdateWorkflowApiV1WorkflowWorkflowIdPutErrors, ThrowOnError>({
-    url: '/api/v1/workflow/{workflow_id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Create Workflow Draft
- *
- * Create a draft version from the current published version.
- *
- * If a draft already exists, returns the existing draft.
- */
-export const createWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPost = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPostData, ThrowOnError>): RequestResult<CreateWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPostResponses, CreateWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPostErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPostResponses, CreateWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPostErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/create-draft', ...options });
-
-/**
- * Duplicate Workflow Endpoint
- *
- * Duplicate a workflow including its definition, configuration, recordings, and triggers.
- */
-export const duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost = <ThrowOnError extends boolean = false>(options: Options<DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostData, ThrowOnError>): RequestResult<DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostResponses, DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostErrors, ThrowOnError> => (options.client ?? client).post<DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostResponses, DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/duplicate', ...options });
+export const downloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGet = <ThrowOnError extends boolean = false>(options: Options<DownloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGetData, ThrowOnError>): RequestResult<DownloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGetResponses, DownloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGetErrors, ThrowOnError> => (options.client ?? client).get<DownloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGetResponses, DownloadWorkflowArtifactApiV1PublicDownloadWorkflowTokenArtifactTypeGetErrors, ThrowOnError>({ url: '/api/v1/public/download/workflow/{token}/{artifact_type}', ...options });
 
 /**
  * Deactivate Embed Token
@@ -1824,15 +1695,23 @@ export const createOrUpdateEmbedTokenApiV1WorkflowWorkflowIdEmbedTokenPost = <Th
 });
 
 /**
- * Move Workflow To Folder
+ * Get presigned URL for document upload
  *
- * Move a workflow into a folder, or to "Uncategorized" (folder_id=null).
+ * Generate a presigned PUT URL for uploading a document.
  *
- * Validates that the target folder belongs to the caller's organization —
- * the FK alone proves the folder exists, not that the caller may use it.
+ * This endpoint:
+ * 1. Generates a unique document UUID for organizing the S3 key
+ * 2. Generates a presigned S3/MinIO URL for uploading the file
+ * 3. Returns the upload URL and document metadata
+ *
+ * After uploading to the returned URL, call /process-document to create
+ * the document record and trigger processing.
+ *
+ * Access Control:
+ * * All authenticated users can upload documents scoped to their organization.
  */
-export const moveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPut = <ThrowOnError extends boolean = false>(options: Options<MoveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPutData, ThrowOnError>): RequestResult<MoveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPutResponses, MoveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPutErrors, ThrowOnError> => (options.client ?? client).put<MoveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPutResponses, MoveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPutErrors, ThrowOnError>({
-    url: '/api/v1/workflow/{workflow_id}/folder',
+export const getUploadUrlApiV1KnowledgeBaseUploadUrlPost = <ThrowOnError extends boolean = false>(options: Options<GetUploadUrlApiV1KnowledgeBaseUploadUrlPostData, ThrowOnError>): RequestResult<GetUploadUrlApiV1KnowledgeBaseUploadUrlPostResponses, GetUploadUrlApiV1KnowledgeBaseUploadUrlPostErrors, ThrowOnError> => (options.client ?? client).post<GetUploadUrlApiV1KnowledgeBaseUploadUrlPostResponses, GetUploadUrlApiV1KnowledgeBaseUploadUrlPostErrors, ThrowOnError>({
+    url: '/api/v1/knowledge-base/upload-url',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -1841,45 +1720,25 @@ export const moveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPut = <ThrowOnErro
 });
 
 /**
- * Publish Workflow
+ * Trigger document processing
  *
- * Publish the current draft version of a workflow.
+ * Trigger asynchronous processing of an uploaded document.
  *
- * Drafts are allowed to be incomplete (so the editor can save mid-edit),
- * but a published version is what runtime executes — so this is the gate
- * where the full DTO + graph + trigger-conflict checks must pass.
+ * This endpoint should be called after successfully uploading a file to the presigned URL.
+ * It will:
+ * 1. Create a document record in the database with the specified UUID
+ * 2. Enqueue a background task to process the document (chunking and embedding)
+ *
+ * The document status will be updated from 'pending' -> 'processing' -> 'completed' or 'failed'.
+ *
+ * Embedding:
+ * Uses OpenAI text-embedding-3-small (1536-dimensional embeddings, requires API key configured in Model Configurations).
+ *
+ * Access Control:
+ * * Users can only process documents in their organization.
  */
-export const publishWorkflowApiV1WorkflowWorkflowIdPublishPost = <ThrowOnError extends boolean = false>(options: Options<PublishWorkflowApiV1WorkflowWorkflowIdPublishPostData, ThrowOnError>): RequestResult<PublishWorkflowApiV1WorkflowWorkflowIdPublishPostResponses, PublishWorkflowApiV1WorkflowWorkflowIdPublishPostErrors, ThrowOnError> => (options.client ?? client).post<PublishWorkflowApiV1WorkflowWorkflowIdPublishPostResponses, PublishWorkflowApiV1WorkflowWorkflowIdPublishPostErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/publish', ...options });
-
-/**
- * Download Workflow Report
- *
- * Download a CSV report of completed runs for a workflow.
- */
-export const downloadWorkflowReportApiV1WorkflowWorkflowIdReportGet = <ThrowOnError extends boolean = false>(options: Options<DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetData, ThrowOnError>): RequestResult<DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetResponses, DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetErrors, ThrowOnError> => (options.client ?? client).get<DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetResponses, DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/report', ...options });
-
-/**
- * Get Workflow Runs
- *
- * Get workflow runs with optional filtering and sorting.
- *
- * Filters should be provided as a JSON-encoded array of filter criteria.
- * Example: [{"attribute": "dateRange", "value": {"from": "2024-01-01", "to": "2024-01-31"}}]
- */
-export const getWorkflowRunsApiV1WorkflowWorkflowIdRunsGet = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetData, ThrowOnError>): RequestResult<GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetResponses, GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetResponses, GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/runs', ...options });
-
-/**
- * Create Workflow Run
- *
- * Create a new workflow run when the user decides to execute the workflow via chat or voice
- *
- * Args:
- * workflow_id: The ID of the workflow to run
- * request: The create workflow run request
- * user: The user to create the workflow run for
- */
-export const createWorkflowRunApiV1WorkflowWorkflowIdRunsPost = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowRunApiV1WorkflowWorkflowIdRunsPostData, ThrowOnError>): RequestResult<CreateWorkflowRunApiV1WorkflowWorkflowIdRunsPostResponses, CreateWorkflowRunApiV1WorkflowWorkflowIdRunsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowRunApiV1WorkflowWorkflowIdRunsPostResponses, CreateWorkflowRunApiV1WorkflowWorkflowIdRunsPostErrors, ThrowOnError>({
-    url: '/api/v1/workflow/{workflow_id}/runs',
+export const processDocumentApiV1KnowledgeBaseProcessDocumentPost = <ThrowOnError extends boolean = false>(options: Options<ProcessDocumentApiV1KnowledgeBaseProcessDocumentPostData, ThrowOnError>): RequestResult<ProcessDocumentApiV1KnowledgeBaseProcessDocumentPostResponses, ProcessDocumentApiV1KnowledgeBaseProcessDocumentPostErrors, ThrowOnError> => (options.client ?? client).post<ProcessDocumentApiV1KnowledgeBaseProcessDocumentPostResponses, ProcessDocumentApiV1KnowledgeBaseProcessDocumentPostErrors, ThrowOnError>({
+    url: '/api/v1/knowledge-base/process-document',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -1888,24 +1747,49 @@ export const createWorkflowRunApiV1WorkflowWorkflowIdRunsPost = <ThrowOnError ex
 });
 
 /**
- * Get Workflow Run
+ * List documents
+ *
+ * List all documents for the user's organization.
+ *
+ * Access Control:
+ * * Users can only see documents from their organization.
  */
-export const getWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGet = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetData, ThrowOnError>): RequestResult<GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetResponses, GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetResponses, GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/runs/{run_id}', ...options });
+export const listDocumentsApiV1KnowledgeBaseDocumentsGet = <ThrowOnError extends boolean = false>(options?: Options<ListDocumentsApiV1KnowledgeBaseDocumentsGetData, ThrowOnError>): RequestResult<ListDocumentsApiV1KnowledgeBaseDocumentsGetResponses, ListDocumentsApiV1KnowledgeBaseDocumentsGetErrors, ThrowOnError> => (options?.client ?? client).get<ListDocumentsApiV1KnowledgeBaseDocumentsGetResponses, ListDocumentsApiV1KnowledgeBaseDocumentsGetErrors, ThrowOnError>({ url: '/api/v1/knowledge-base/documents', ...options });
 
 /**
- * Update Workflow Status
+ * Delete document
  *
- * Update the status of a workflow (e.g., archive/unarchive).
+ * Soft delete a document and its chunks.
  *
- * Args:
- * workflow_id: The ID of the workflow to update
- * request: The status update request
- *
- * Returns:
- * The updated workflow
+ * Access Control:
+ * * Users can only delete documents from their organization.
  */
-export const updateWorkflowStatusApiV1WorkflowWorkflowIdStatusPut = <ThrowOnError extends boolean = false>(options: Options<UpdateWorkflowStatusApiV1WorkflowWorkflowIdStatusPutData, ThrowOnError>): RequestResult<UpdateWorkflowStatusApiV1WorkflowWorkflowIdStatusPutResponses, UpdateWorkflowStatusApiV1WorkflowWorkflowIdStatusPutErrors, ThrowOnError> => (options.client ?? client).put<UpdateWorkflowStatusApiV1WorkflowWorkflowIdStatusPutResponses, UpdateWorkflowStatusApiV1WorkflowWorkflowIdStatusPutErrors, ThrowOnError>({
-    url: '/api/v1/workflow/{workflow_id}/status',
+export const deleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteData, ThrowOnError>): RequestResult<DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteResponses, DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteResponses, DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteErrors, ThrowOnError>({ url: '/api/v1/knowledge-base/documents/{document_uuid}', ...options });
+
+/**
+ * Get document details
+ *
+ * Get details of a specific document.
+ *
+ * Access Control:
+ * * Users can only access documents from their organization.
+ */
+export const getDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGet = <ThrowOnError extends boolean = false>(options: Options<GetDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGetData, ThrowOnError>): RequestResult<GetDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGetResponses, GetDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGetErrors, ThrowOnError> => (options.client ?? client).get<GetDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGetResponses, GetDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGetErrors, ThrowOnError>({ url: '/api/v1/knowledge-base/documents/{document_uuid}', ...options });
+
+/**
+ * Search for similar chunks
+ *
+ * Search for document chunks similar to the query.
+ *
+ * This endpoint uses vector similarity search to find relevant chunks.
+ * Results are returned without threshold filtering - apply similarity
+ * thresholds at the application layer after optional reranking.
+ *
+ * Access Control:
+ * * Users can only search documents from their organization.
+ */
+export const searchChunksApiV1KnowledgeBaseSearchPost = <ThrowOnError extends boolean = false>(options: Options<SearchChunksApiV1KnowledgeBaseSearchPostData, ThrowOnError>): RequestResult<SearchChunksApiV1KnowledgeBaseSearchPostResponses, SearchChunksApiV1KnowledgeBaseSearchPostErrors, ThrowOnError> => (options.client ?? client).post<SearchChunksApiV1KnowledgeBaseSearchPostResponses, SearchChunksApiV1KnowledgeBaseSearchPostErrors, ThrowOnError>({
+    url: '/api/v1/knowledge-base/search',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -1914,10 +1798,12 @@ export const updateWorkflowStatusApiV1WorkflowWorkflowIdStatusPut = <ThrowOnErro
 });
 
 /**
- * Create Text Chat Session
+ * Get presigned URLs for recording uploads
+ *
+ * Generate presigned PUT URLs for uploading one or more audio recordings.
  */
-export const createTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPost = <ThrowOnError extends boolean = false>(options: Options<CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostData, ThrowOnError>): RequestResult<CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostResponses, CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostResponses, CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostErrors, ThrowOnError>({
-    url: '/api/v1/workflow/{workflow_id}/text-chat/sessions',
+export const getUploadUrlsApiV1WorkflowRecordingsUploadUrlPost = <ThrowOnError extends boolean = false>(options: Options<GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostData, ThrowOnError>): RequestResult<GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostResponses, GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostErrors, ThrowOnError> => (options.client ?? client).post<GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostResponses, GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostErrors, ThrowOnError>({
+    url: '/api/v1/workflow-recordings/upload-url',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -1926,15 +1812,19 @@ export const createTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPost = 
 });
 
 /**
- * Get Text Chat Session
+ * List recordings
+ *
+ * List recordings for the organization, optionally filtered.
  */
-export const getTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGet = <ThrowOnError extends boolean = false>(options: Options<GetTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGetData, ThrowOnError>): RequestResult<GetTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGetResponses, GetTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGetErrors, ThrowOnError> => (options.client ?? client).get<GetTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGetResponses, GetTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGetErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/text-chat/sessions/{run_id}', ...options });
+export const listRecordingsApiV1WorkflowRecordingsGet = <ThrowOnError extends boolean = false>(options?: Options<ListRecordingsApiV1WorkflowRecordingsGetData, ThrowOnError>): RequestResult<ListRecordingsApiV1WorkflowRecordingsGetResponses, ListRecordingsApiV1WorkflowRecordingsGetErrors, ThrowOnError> => (options?.client ?? client).get<ListRecordingsApiV1WorkflowRecordingsGetResponses, ListRecordingsApiV1WorkflowRecordingsGetErrors, ThrowOnError>({ url: '/api/v1/workflow-recordings/', ...options });
 
 /**
- * End Text Chat Session
+ * Create recording records after upload
+ *
+ * Create one or more recording records after audio files have been uploaded.
  */
-export const endTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPost = <ThrowOnError extends boolean = false>(options: Options<EndTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPostData, ThrowOnError>): RequestResult<EndTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPostResponses, EndTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPostErrors, ThrowOnError> => (options.client ?? client).post<EndTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPostResponses, EndTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPostErrors, ThrowOnError>({
-    url: '/api/v1/workflow/{workflow_id}/text-chat/sessions/{run_id}/end',
+export const createRecordingsApiV1WorkflowRecordingsPost = <ThrowOnError extends boolean = false>(options: Options<CreateRecordingsApiV1WorkflowRecordingsPostData, ThrowOnError>): RequestResult<CreateRecordingsApiV1WorkflowRecordingsPostResponses, CreateRecordingsApiV1WorkflowRecordingsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateRecordingsApiV1WorkflowRecordingsPostResponses, CreateRecordingsApiV1WorkflowRecordingsPostErrors, ThrowOnError>({
+    url: '/api/v1/workflow-recordings/',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -1943,10 +1833,19 @@ export const endTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPo
 });
 
 /**
- * Append Text Chat Message
+ * Delete a recording
+ *
+ * Soft delete a recording.
  */
-export const appendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPost = <ThrowOnError extends boolean = false>(options: Options<AppendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPostData, ThrowOnError>): RequestResult<AppendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPostResponses, AppendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPostErrors, ThrowOnError> => (options.client ?? client).post<AppendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPostResponses, AppendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPostErrors, ThrowOnError>({
-    url: '/api/v1/workflow/{workflow_id}/text-chat/sessions/{run_id}/messages',
+export const deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteRecordingApiV1WorkflowRecordingsRecordingIdDeleteData, ThrowOnError>): RequestResult<DeleteRecordingApiV1WorkflowRecordingsRecordingIdDeleteResponses, DeleteRecordingApiV1WorkflowRecordingsRecordingIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteRecordingApiV1WorkflowRecordingsRecordingIdDeleteResponses, DeleteRecordingApiV1WorkflowRecordingsRecordingIdDeleteErrors, ThrowOnError>({ url: '/api/v1/workflow-recordings/{recording_id}', ...options });
+
+/**
+ * Update a recording's Recording ID
+ *
+ * Update the recording_id (descriptive name) of a recording.
+ */
+export const updateRecordingApiV1WorkflowRecordingsIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateRecordingApiV1WorkflowRecordingsIdPatchData, ThrowOnError>): RequestResult<UpdateRecordingApiV1WorkflowRecordingsIdPatchResponses, UpdateRecordingApiV1WorkflowRecordingsIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateRecordingApiV1WorkflowRecordingsIdPatchResponses, UpdateRecordingApiV1WorkflowRecordingsIdPatchErrors, ThrowOnError>({
+    url: '/api/v1/workflow-recordings/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -1955,10 +1854,34 @@ export const appendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMe
 });
 
 /**
- * Rewind Text Chat Session
+ * Transcribe an audio file
+ *
+ * Transcribe an uploaded audio file using MPS STT.
  */
-export const rewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPost = <ThrowOnError extends boolean = false>(options: Options<RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostData, ThrowOnError>): RequestResult<RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostResponses, RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostErrors, ThrowOnError> => (options.client ?? client).post<RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostResponses, RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostErrors, ThrowOnError>({
-    url: '/api/v1/workflow/{workflow_id}/text-chat/sessions/{run_id}/rewind',
+export const transcribeAudioApiV1WorkflowRecordingsTranscribePost = <ThrowOnError extends boolean = false>(options: Options<TranscribeAudioApiV1WorkflowRecordingsTranscribePostData, ThrowOnError>): RequestResult<TranscribeAudioApiV1WorkflowRecordingsTranscribePostResponses, TranscribeAudioApiV1WorkflowRecordingsTranscribePostErrors, ThrowOnError> => (options.client ?? client).post<TranscribeAudioApiV1WorkflowRecordingsTranscribePostResponses, TranscribeAudioApiV1WorkflowRecordingsTranscribePostErrors, ThrowOnError>({
+    ...formDataBodySerializer,
+    url: '/api/v1/workflow-recordings/transcribe',
+    ...options,
+    headers: {
+        'Content-Type': null,
+        ...options.headers
+    }
+});
+
+/**
+ * List Folders
+ *
+ * List all folders in the authenticated user's organization.
+ */
+export const listFoldersApiV1FolderGet = <ThrowOnError extends boolean = false>(options?: Options<ListFoldersApiV1FolderGetData, ThrowOnError>): RequestResult<ListFoldersApiV1FolderGetResponses, ListFoldersApiV1FolderGetErrors, ThrowOnError> => (options?.client ?? client).get<ListFoldersApiV1FolderGetResponses, ListFoldersApiV1FolderGetErrors, ThrowOnError>({ url: '/api/v1/folder/', ...options });
+
+/**
+ * Create Folder
+ *
+ * Create a new folder in the authenticated user's organization.
+ */
+export const createFolderApiV1FolderPost = <ThrowOnError extends boolean = false>(options: Options<CreateFolderApiV1FolderPostData, ThrowOnError>): RequestResult<CreateFolderApiV1FolderPostResponses, CreateFolderApiV1FolderPostErrors, ThrowOnError> => (options.client ?? client).post<CreateFolderApiV1FolderPostResponses, CreateFolderApiV1FolderPostErrors, ThrowOnError>({
+    url: '/api/v1/folder/',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -1967,25 +1890,102 @@ export const rewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRe
 });
 
 /**
- * Validate Workflow
+ * Delete Folder
  *
- * Validate all nodes in a workflow to ensure they have required fields.
- *
- * Args:
- * workflow_id: The ID of the workflow to validate
- * user: The authenticated user
- *
- * Returns:
- * Object indicating if workflow is valid and any invalid nodes/edges
+ * Delete a folder. Member agents are moved to "Uncategorized", not deleted.
  */
-export const validateWorkflowApiV1WorkflowWorkflowIdValidatePost = <ThrowOnError extends boolean = false>(options: Options<ValidateWorkflowApiV1WorkflowWorkflowIdValidatePostData, ThrowOnError>): RequestResult<ValidateWorkflowApiV1WorkflowWorkflowIdValidatePostResponses, ValidateWorkflowApiV1WorkflowWorkflowIdValidatePostErrors, ThrowOnError> => (options.client ?? client).post<ValidateWorkflowApiV1WorkflowWorkflowIdValidatePostResponses, ValidateWorkflowApiV1WorkflowWorkflowIdValidatePostErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/validate', ...options });
+export const deleteFolderApiV1FolderFolderIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteFolderApiV1FolderFolderIdDeleteData, ThrowOnError>): RequestResult<DeleteFolderApiV1FolderFolderIdDeleteResponses, DeleteFolderApiV1FolderFolderIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteFolderApiV1FolderFolderIdDeleteResponses, DeleteFolderApiV1FolderFolderIdDeleteErrors, ThrowOnError>({ url: '/api/v1/folder/{folder_id}', ...options });
 
 /**
- * Get Workflow Versions
+ * Rename Folder
  *
- * List versions for a workflow, newest first.
- *
- * Pass `limit`/`offset` to page through long histories. With no `limit`,
- * returns every version (legacy behavior).
+ * Rename a folder owned by the authenticated user's organization.
  */
-export const getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetData, ThrowOnError>): RequestResult<GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetResponses, GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetResponses, GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetErrors, ThrowOnError>({ url: '/api/v1/workflow/{workflow_id}/versions', ...options });
+export const renameFolderApiV1FolderFolderIdPut = <ThrowOnError extends boolean = false>(options: Options<RenameFolderApiV1FolderFolderIdPutData, ThrowOnError>): RequestResult<RenameFolderApiV1FolderFolderIdPutResponses, RenameFolderApiV1FolderFolderIdPutErrors, ThrowOnError> => (options.client ?? client).put<RenameFolderApiV1FolderFolderIdPutResponses, RenameFolderApiV1FolderFolderIdPutErrors, ThrowOnError>({
+    url: '/api/v1/folder/{folder_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Signup
+ */
+export const signupApiV1AuthSignupPost = <ThrowOnError extends boolean = false>(options: Options<SignupApiV1AuthSignupPostData, ThrowOnError>): RequestResult<SignupApiV1AuthSignupPostResponses, SignupApiV1AuthSignupPostErrors, ThrowOnError> => (options.client ?? client).post<SignupApiV1AuthSignupPostResponses, SignupApiV1AuthSignupPostErrors, ThrowOnError>({
+    url: '/api/v1/auth/signup',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Login
+ */
+export const loginApiV1AuthLoginPost = <ThrowOnError extends boolean = false>(options: Options<LoginApiV1AuthLoginPostData, ThrowOnError>): RequestResult<LoginApiV1AuthLoginPostResponses, LoginApiV1AuthLoginPostErrors, ThrowOnError> => (options.client ?? client).post<LoginApiV1AuthLoginPostResponses, LoginApiV1AuthLoginPostErrors, ThrowOnError>({
+    url: '/api/v1/auth/login',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Current User
+ */
+export const getCurrentUserApiV1AuthMeGet = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentUserApiV1AuthMeGetData, ThrowOnError>): RequestResult<GetCurrentUserApiV1AuthMeGetResponses, GetCurrentUserApiV1AuthMeGetErrors, ThrowOnError> => (options?.client ?? client).get<GetCurrentUserApiV1AuthMeGetResponses, GetCurrentUserApiV1AuthMeGetErrors, ThrowOnError>({ url: '/api/v1/auth/me', ...options });
+
+/**
+ * List Node Types
+ *
+ * List every registered NodeSpec.
+ *
+ * SDK clients should pin to `spec_version` and warn if the server reports
+ * a higher version than what they were generated against.
+ */
+export const listNodeTypesApiV1NodeTypesGet = <ThrowOnError extends boolean = false>(options?: Options<ListNodeTypesApiV1NodeTypesGetData, ThrowOnError>): RequestResult<ListNodeTypesApiV1NodeTypesGetResponses, ListNodeTypesApiV1NodeTypesGetErrors, ThrowOnError> => (options?.client ?? client).get<ListNodeTypesApiV1NodeTypesGetResponses, ListNodeTypesApiV1NodeTypesGetErrors, ThrowOnError>({ url: '/api/v1/node-types', ...options });
+
+/**
+ * Get Node Type
+ */
+export const getNodeTypeApiV1NodeTypesNameGet = <ThrowOnError extends boolean = false>(options: Options<GetNodeTypeApiV1NodeTypesNameGetData, ThrowOnError>): RequestResult<GetNodeTypeApiV1NodeTypesNameGetResponses, GetNodeTypeApiV1NodeTypesNameGetErrors, ThrowOnError> => (options.client ?? client).get<GetNodeTypeApiV1NodeTypesNameGetResponses, GetNodeTypeApiV1NodeTypesNameGetErrors, ThrowOnError>({ url: '/api/v1/node-types/{name}', ...options });
+
+/**
+ * Health
+ */
+export const healthApiV1HealthGet = <ThrowOnError extends boolean = false>(options?: Options<HealthApiV1HealthGetData, ThrowOnError>): RequestResult<HealthApiV1HealthGetResponses, HealthApiV1HealthGetErrors, ThrowOnError> => (options?.client ?? client).get<HealthApiV1HealthGetResponses, HealthApiV1HealthGetErrors, ThrowOnError>({ url: '/api/v1/health', ...options });
+
+/**
+ * Active Calls
+ *
+ * In-flight call count for THIS worker — the drain signal for deploys.
+ *
+ * A deploy orchestrator polls this per worker and waits for zero before
+ * sending SIGTERM, because uvicorn force-closes live call WebSockets (close
+ * code 1012) on SIGTERM and would cut calls mid-conversation otherwise. The
+ * count is per-process: one uvicorn per VM port (scripts/rolling_update.sh)
+ * or per Kubernetes pod (preStop hook). See api/services/observability/active_calls.py.
+ */
+export const activeCallsApiV1HealthActiveCallsGet = <ThrowOnError extends boolean = false>(options?: Options<ActiveCallsApiV1HealthActiveCallsGetData, ThrowOnError>): RequestResult<ActiveCallsApiV1HealthActiveCallsGetResponses, ActiveCallsApiV1HealthActiveCallsGetErrors, ThrowOnError> => (options?.client ?? client).get<ActiveCallsApiV1HealthActiveCallsGetResponses, ActiveCallsApiV1HealthActiveCallsGetErrors, ThrowOnError>({ url: '/api/v1/health/active-calls', ...options });
+
+/**
+ * Autoscale Metric
+ *
+ * Fleet-wide autoscaling signal for KEDA: total active calls + warm buffer.
+ *
+ * Unlike /health/active-calls (a per-worker drain signal), this is the whole
+ * fleet's active-call count read from Redis, so a single scrape drives the
+ * ScaledObject. ``buffer`` (query param, in calls) is the warm headroom: KEDA
+ * divides value by the per-pod target K, giving desiredPods =
+ * ceil((calls + buffer) / K). All scaling policy — K, buffer, min/max — lives
+ * in the ScaledObject; this endpoint is pure signal.
+ *
+ * When the fleet count cannot be read (Redis down) this responds 503, NOT 0:
+ * a failed scrape makes KEDA's HPA hold the current replica count, while a
+ * successful scrape of 0 would instruct it to scale toward minReplicas.
+ */
+export const autoscaleMetricApiV1HealthAutoscaleMetricGet = <ThrowOnError extends boolean = false>(options?: Options<AutoscaleMetricApiV1HealthAutoscaleMetricGetData, ThrowOnError>): RequestResult<AutoscaleMetricApiV1HealthAutoscaleMetricGetResponses, AutoscaleMetricApiV1HealthAutoscaleMetricGetErrors, ThrowOnError> => (options?.client ?? client).get<AutoscaleMetricApiV1HealthAutoscaleMetricGetResponses, AutoscaleMetricApiV1HealthAutoscaleMetricGetErrors, ThrowOnError>({ url: '/api/v1/health/autoscale-metric', ...options });

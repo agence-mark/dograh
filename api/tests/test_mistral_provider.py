@@ -208,6 +208,26 @@ def test_tts_factory_targets_the_european_region():
 # --------------------------------------------------------------------------- #
 
 
+def test_tts_factory_honours_a_private_endpoint_rather_than_dropping_it():
+    """An unknown host is a private gateway or a region added after this code was
+    written. Falling back to the SDK default would be the same
+    configured-then-ignored failure as dropping base_url, and the worst possible
+    one for data residency."""
+    from api.services.pipecat.service_factory import create_tts_service
+
+    user_config = SimpleNamespace(
+        tts=MistralTTSConfiguration(
+            api_key="mistral-key",
+            base_url="https://mistral.interne.client.fr/v1",
+        )
+    )
+
+    service = create_tts_service(user_config, _audio_config())
+
+    base_url, _ = service._client.sdk_configuration.get_server_details()
+    assert base_url == "https://mistral.interne.client.fr"
+
+
 def test_mistral_api_key_validation_uses_the_configured_endpoint(monkeypatch):
     captured = {}
 
@@ -236,9 +256,11 @@ def test_mistral_api_key_validation_uses_the_configured_endpoint(monkeypatch):
     }
 
 
-def test_mistral_tts_api_key_validation_falls_back_to_european_endpoint(monkeypatch):
-    """The TTS config has no base_url field, so validation must not fall back
-    to api.openai.com, which would reject a perfectly valid Mistral key."""
+def test_mistral_api_key_validation_falls_back_to_eu_without_a_base_url(monkeypatch):
+    """A configuration carrying no base_url at all must not be validated against
+    api.openai.com, which would reject a perfectly valid Mistral key. Both
+    Mistral configurations now default to the EU endpoint, so this exercises the
+    fallback with a bare object rather than one of them."""
     captured = {}
 
     class FakeModels:
@@ -252,11 +274,10 @@ def test_mistral_tts_api_key_validation_falls_back_to_european_endpoint(monkeypa
 
     monkeypatch.setattr(check_validity.openai, "OpenAI", FakeOpenAI)
 
-    config = MistralTTSConfiguration(api_key="mistral-key")
     is_valid = UserConfigurationValidator()._check_api_key(
         ServiceProviders.MISTRAL.value,
         "mistral-key",
-        config,
+        SimpleNamespace(provider=ServiceProviders.MISTRAL.value, api_key="mistral-key"),
     )
 
     assert is_valid is True
