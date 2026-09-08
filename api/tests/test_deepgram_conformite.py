@@ -22,8 +22,6 @@ shapes and only one of them is used by any given call.
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import pytest
-
 from api.services.configuration.registry import ServiceProviders
 from api.services.pipecat.audio_config import AudioConfig
 from api.services.pipecat.service_factory import (
