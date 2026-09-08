@@ -12,7 +12,6 @@ calls would then execute twice.
 """
 
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 from pydantic import TypeAdapter
@@ -60,9 +59,10 @@ def test_mistral_is_registered_for_llm_and_tts():
     assert ServiceProviders.MISTRAL.value == "mistral"
     assert ServiceProviders.MISTRAL.value in REGISTRY[ServiceType.LLM]
     assert ServiceProviders.MISTRAL.value in REGISTRY[ServiceType.TTS]
-    # The STT service exists in pipecat but is deliberately out of scope:
-    # the Deepgram/Mistral trade-off was settled on a latency measurement.
-    assert ServiceProviders.MISTRAL.value not in REGISTRY[ServiceType.STT]
+    # MistralSTTService exists in pipecat too, but wiring it is deliberately out
+    # of scope here: the Deepgram/Mistral trade-off was settled on a latency
+    # measurement. Left as a note rather than an assertion, so that adding STT
+    # later does not require deleting a test.
 
 
 # --------------------------------------------------------------------------- #
@@ -130,48 +130,77 @@ def test_mistral_discriminator_parses_every_french_voice(voice):
 
 
 def test_llm_factory_builds_mistral_service_not_openai():
-    """The test that guards against the duplicate function-call bug.
+    """Guards against the duplicate function-call bug.
 
-    Routing Mistral through OpenAILLMService would pass a naive smoke test and
-    silently execute every tool call twice.
+    This goes through create_llm_service, the entry point the runtime actually
+    calls (run_pipeline, text_chat_runner), not the lower-level helper: routing
+    a provider correctly there but not here is exactly how a green test hides a
+    broken product.
+
+    Note what this asserts and what it does not: it proves the factory hands
+    back MistralLLMService, whose upstream run_function_calls filters tool calls
+    that already carry a result. The filtering behaviour itself is upstream code
+    and is not re-tested here.
     """
     from pipecat.services.mistral.llm import MistralLLMService
 
-    from api.services.pipecat.service_factory import create_llm_service_from_provider
+    from api.services.pipecat.service_factory import create_llm_service
 
-    service = create_llm_service_from_provider(
-        provider=ServiceProviders.MISTRAL.value,
-        api_key="mistral-key",
-        model="mistral-medium-latest",
-        base_url=MISTRAL_EU_BASE_URL,
+    user_config = SimpleNamespace(
+        llm=MistralLLMConfiguration(api_key="mistral-key"),
     )
+
+    service = create_llm_service(user_config)
 
     assert isinstance(service, MistralLLMService)
-    # The whole point: the override must be Mistral's, not OpenAI's.
-    assert (
-        type(service).run_function_calls is not
-        type(service).__mro__[1].run_function_calls
+
+
+def test_llm_factory_forwards_the_configured_endpoint():
+    """The European default is half the point of the patch, so it has to survive
+    the trip through create_llm_service rather than be dropped on the way."""
+    from api.services.pipecat.service_factory import create_llm_service
+
+    user_config = SimpleNamespace(
+        llm=MistralLLMConfiguration(api_key="mistral-key"),
     )
+
+    service = create_llm_service(user_config)
+
+    assert str(service._client.base_url).rstrip("/") == MISTRAL_EU_BASE_URL
 
 
 def test_tts_factory_builds_mistral_service_at_the_transport_rate():
     """Voxtral emits 24 kHz. Telephony runs at 8 kHz, so the factory must pass
     the transport rate through, exactly like the LMNT branch does."""
+    from pipecat.services.mistral.tts import MistralTTSService
+
     from api.services.pipecat.service_factory import create_tts_service
 
     user_config = SimpleNamespace(
         tts=MistralTTSConfiguration(api_key="mistral-key", voice="fr_marie_neutral")
     )
 
-    with patch("api.services.pipecat.service_factory.MistralTTSService") as mock_service:
-        create_tts_service(user_config, _audio_config())
+    service = create_tts_service(user_config, _audio_config())
 
-    assert mock_service.call_count == 1
-    kwargs = mock_service.call_args.kwargs
-    assert kwargs["api_key"] == "mistral-key"
-    assert kwargs["sample_rate"] == 8000
-    assert kwargs["settings"].voice == "fr_marie_neutral"
-    assert kwargs["settings"].model == "voxtral-mini-tts-latest"
+    assert isinstance(service, MistralTTSService)
+    assert service._init_sample_rate == 8000
+    assert service._settings.voice == "fr_marie_neutral"
+    assert service._settings.model == "voxtral-mini-tts-latest"
+
+
+def test_tts_factory_targets_the_european_region():
+    """Pipecat's wrapper never forwards a region, so the SDK would fall back to
+    the global endpoint and every synthesised sentence would leave through it."""
+    from api.services.pipecat.service_factory import create_tts_service
+
+    user_config = SimpleNamespace(
+        tts=MistralTTSConfiguration(api_key="mistral-key", voice="fr_marie_neutral")
+    )
+
+    service = create_tts_service(user_config, _audio_config())
+
+    base_url, _ = service._client.sdk_configuration.get_server_details()
+    assert base_url.rstrip("/") == "https://api.eu.mistral.ai"
 
 
 # --------------------------------------------------------------------------- #

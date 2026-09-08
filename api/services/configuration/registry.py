@@ -3,8 +3,6 @@ from collections.abc import Iterable
 from enum import Enum, auto
 from typing import Annotated, Dict, Literal, Type, TypeVar, Union
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
-
 from api.services.configuration.options import (
     AZURE_EMBEDDING_MODELS,
     AZURE_MODELS,
@@ -54,6 +52,7 @@ from api.services.configuration.options import (
     SPEECHMATICS_STT_LANGUAGES,
 )
 from api.services.configuration.options.google import GOOGLE_VERTEX_MODELS
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 
 class ServiceType(Enum):
@@ -1022,6 +1021,10 @@ class MistralTTSConfiguration(BaseTTSConfiguration):
         default="fr_marie_neutral",
         description="Voxtral voice identifier.",
         json_schema_extra={"examples": MISTRAL_TTS_VOICES, "allow_custom_input": True},
+    )
+    base_url: str = Field(
+        default=MISTRAL_EU_BASE_URL,
+        description="Mistral API endpoint. Defaults to the EU endpoint.",
     )
 
 

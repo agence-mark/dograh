@@ -3,9 +3,6 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
 
 import aiohttp
-from fastapi import HTTPException
-from loguru import logger
-
 from api.constants import MPS_API_URL
 from api.errors.failure import (
     ErrorSource,
@@ -22,7 +19,14 @@ from api.services.pipecat.gemini_json_schema_adapter import (
     DograhGeminiJSONSchemaAdapter,
 )
 from api.services.pipecat.minimax_tts import MiniMaxOwnedSessionTTSService
+from api.services.pipecat.mistral_tts import (
+    MistralRegionalTTSService,
+    resolve_mistral_server,
+)
 from api.utils.url_security import validate_user_configured_service_url
+from fastapi import HTTPException
+from loguru import logger
+
 from pipecat.services.assemblyai.stt import AssemblyAISTTService, AssemblyAISTTSettings
 from pipecat.services.aws.llm import AWSBedrockLLMService, AWSBedrockLLMSettings
 from pipecat.services.azure.llm import AzureLLMService, AzureLLMSettings
@@ -73,7 +77,7 @@ from pipecat.services.lmnt.tts import LmntTTSService, LmntTTSSettings
 from pipecat.services.minimax.llm import MiniMaxLLMService
 from pipecat.services.minimax.tts import MiniMaxTTSSettings
 from pipecat.services.mistral.llm import MistralLLMService, MistralLLMSettings
-from pipecat.services.mistral.tts import MistralTTSService, MistralTTSSettings
+from pipecat.services.mistral.tts import MistralTTSSettings
 from pipecat.services.openai._constants import OPENAI_SAMPLE_RATE
 from pipecat.services.openai.base_llm import OpenAILLMSettings
 from pipecat.services.openai.llm import OpenAILLMService
@@ -576,15 +580,22 @@ def create_tts_service(
             silence_time_s=1.0,
         )
     elif user_config.tts.provider == ServiceProviders.MISTRAL.value:
-        return MistralTTSService(
+        base_url = getattr(user_config.tts, "base_url", None)
+        if base_url:
+            _validate_runtime_service_url(base_url, "base_url")
+        return MistralRegionalTTSService(
             api_key=user_config.tts.api_key,
+            # Pipecat's own wrapper never forwards a region, so the SDK would
+            # fall back to the global endpoint whatever the organisation set.
+            server=resolve_mistral_server(base_url),
             # Voxtral emits 24 kHz PCM and resamples internally to whatever
             # rate is asked for. Telephony transports run at 8 kHz, so the
             # transport rate must be passed explicitly.
             sample_rate=audio_config.transport_out_sample_rate,
             settings=MistralTTSSettings(
-                model=user_config.tts.model,
-                voice=user_config.tts.voice,
+                model=getattr(user_config.tts, "model", None)
+                or "voxtral-mini-tts-latest",
+                voice=getattr(user_config.tts, "voice", None) or "fr_marie_neutral",
             ),
             text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
@@ -1128,6 +1139,7 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.openai_realtime import (
             DograhOpenAIRealtimeLLMService,
         )
+
         from pipecat.services.openai.realtime.events import (
             AudioConfiguration,
             AudioInput,
@@ -1165,6 +1177,7 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.grok_realtime import (
             DograhGrokRealtimeLLMService,
         )
+
         from pipecat.services.xai.realtime.events import (
             AudioConfiguration,
             AudioInput,
@@ -1256,6 +1269,7 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.azure_realtime import (
             DograhAzureRealtimeLLMService,
         )
+
         from pipecat.services.openai.realtime.events import (
             AudioConfiguration,
             AudioInput,
@@ -1331,6 +1345,8 @@ def create_llm_service(
         ServiceProviders.OPENAI.value,
         ServiceProviders.ATLASCLOUD.value,
     ):
+        kwargs["base_url"] = user_config.llm.base_url
+    elif provider == ServiceProviders.MISTRAL.value:
         kwargs["base_url"] = user_config.llm.base_url
     elif provider == ServiceProviders.OPENROUTER.value:
         kwargs["base_url"] = user_config.llm.base_url

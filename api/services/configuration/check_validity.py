@@ -247,16 +247,22 @@ class UserConfigurationValidator:
         return validator(provider, api_key)
 
     def _check_mistral_api_key(
-        self, provider: str, api_key: str, service_config: Optional[ServiceConfig] = None
+        self,
+        provider: str,
+        api_key: str,
+        service_config: Optional[ServiceConfig] = None,
     ) -> bool:
         """Validate a Mistral key against Mistral's OpenAI-compatible endpoint.
 
-        The TTS configuration has no ``base_url`` field (the Mistral SDK does
-        not take one), so falling through to ``_check_openai_api_key`` would
-        validate against api.openai.com and reject a perfectly valid key.
+        Falling through to ``_check_openai_api_key`` would validate against
+        api.openai.com whenever the configuration carries no ``base_url``, and
+        reject a perfectly valid Mistral key. The EU endpoint is the fallback
+        here for the same reason it is the configuration default.
         """
         base_url = getattr(service_config, "base_url", None) if service_config else None
-        client = openai.OpenAI(api_key=api_key, base_url=base_url or MISTRAL_EU_BASE_URL)
+        client = openai.OpenAI(
+            api_key=api_key, base_url=base_url or MISTRAL_EU_BASE_URL
+        )
         try:
             client.models.list()
             return True
@@ -270,6 +276,15 @@ class UserConfigurationValidator:
             raise ValueError(
                 "Could not connect to the Mistral API. Please check your network "
                 "connection and try again."
+            )
+        except openai.APIError:
+            # Rate limits and permission errors land here. They are actionable
+            # by whoever owns the key, so they must not be flattened into the
+            # generic "try again later" below.
+            raise ValueError(
+                "The Mistral API returned an error while validating the API key. "
+                "Please check that the key has the required permissions and that "
+                "the account is in good standing, then try again."
             )
         except Exception:
             raise ValueError(
