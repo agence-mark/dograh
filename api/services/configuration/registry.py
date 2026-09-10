@@ -445,6 +445,72 @@ class MistralLLMConfiguration(BaseLLMConfiguration):
         default=MISTRAL_EU_BASE_URL,
         description="Mistral API endpoint. Defaults to the EU endpoint.",
     )
+    # The six sampling settings Mistral's request builder actually sends.
+    # ⛔ `top_k` and the system instruction are deliberately left out: pipecat's
+    # Mistral service does not put them in the request, and a setting shown on
+    # screen that changes nothing is worse than no setting at all.
+    # Bounds come from Mistral's OpenAPI schema (ChatCompletionRequest at
+    # https://docs.mistral.ai/openapi.yaml, read 2026-09-10), not from OpenAI's:
+    # Mistral stops temperature at 1.5 and excludes 0 from top_p.
+    temperature: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.5,
+        description=(
+            "How much randomness goes into each word. Low keeps answers "
+            "predictable and on-script; high makes them varied and less "
+            "reliable. Mistral recommends 0.0 to 0.7. Defaults to 0.1, the "
+            "value that was hardcoded before this field existed."
+        ),
+    )
+    seed: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Fixes the draw: two identical calls give back the same "
+            "conversation. A laboratory tool for comparing two settings, not a "
+            "production one. Left empty, each call is drawn afresh."
+        ),
+    )
+    max_tokens: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Longest answer the model may produce, in tokens (a token is "
+            "roughly three quarters of a word). An answer half as long comes "
+            "back about twice as fast, which is heard on the phone. Left "
+            "empty, the model stops when it has finished."
+        ),
+    )
+    top_p: float | None = Field(
+        default=None,
+        gt=0.0,
+        le=1.0,
+        description=(
+            "Restricts the draw to the most likely words: 0.1 keeps only the "
+            "top 10% of the probability mass. Acts on the same phenomenon as "
+            "temperature, so Mistral advises changing one or the other, not "
+            "both. Above 0 and up to 1."
+        ),
+    )
+    frequency_penalty: float | None = Field(
+        default=None,
+        ge=-2.0,
+        le=2.0,
+        description=(
+            "Discourages repeating a word already used often in the answer. "
+            "From -2 to 2; positive values reduce repetition."
+        ),
+    )
+    presence_penalty: float | None = Field(
+        default=None,
+        ge=-2.0,
+        le=2.0,
+        description=(
+            "Pushes the model towards subjects it has not brought up yet. "
+            "From -2 to 2; positive values widen the range of topics."
+        ),
+    )
 
 
 @register_llm
