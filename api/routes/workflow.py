@@ -28,6 +28,7 @@ from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.sdk_expose import sdk_expose
 from api.services.auth.depends import get_user
 from api.services.configuration.ai_model_configuration import (
+    DELIBERATE_PER_SERVICE_OVERRIDE_KEY,
     WORKFLOW_MODEL_CONFIGURATION_V2_OVERRIDE_KEY,
     check_for_masked_keys_in_ai_model_configuration_v2,
     compile_ai_model_configuration_v2,
@@ -1201,6 +1202,9 @@ async def update_workflow(
                 ),
             }
             workflow_configurations.pop("model_overrides", None)
+            # [.mark] A marker left behind would freeze the migration for an
+            # agent that no longer carries a per-service override at all.
+            workflow_configurations.pop(DELIBERATE_PER_SERVICE_OVERRIDE_KEY, None)
         elif workflow_configurations and workflow_configurations.get("model_overrides"):
             existing_workflow = await db_client.get_workflow(
                 workflow_id, organization_id=user.selected_organization_id
@@ -1223,6 +1227,20 @@ async def update_workflow(
                 organization_id=user.selected_organization_id,
             )
             effective_config = resolved_config.effective
+            # [.mark] A per-service override placed on purpose stays a
+            # per-service override. Without this, saving the agent converts it
+            # into a frozen copy of the client's configuration on the way in —
+            # the agent then inherits nothing, which is the exact failure this
+            # override exists to avoid. Same marker, same rule as the migration
+            # in ai_model_configuration.py; an override with no marker keeps
+            # upstream's behaviour untouched.
+            deliberate_per_service = (
+                workflow_configurations.get(DELIBERATE_PER_SERVICE_OVERRIDE_KEY) is True
+            )
+            convert_to_v2 = (
+                resolved_config.source == "organization_v2"
+                and not deliberate_per_service
+            )
             try:
                 enriched_overrides = enrich_overrides_with_api_keys(
                     workflow_configurations["model_overrides"],
@@ -1231,7 +1249,7 @@ async def update_workflow(
                 effective = resolve_effective_config(
                     effective_config, enriched_overrides
                 )
-                if resolved_config.source == "organization_v2":
+                if convert_to_v2:
                     v2_override = convert_legacy_ai_model_configuration_to_v2(effective)
                     await UserConfigurationValidator().validate(
                         compile_ai_model_configuration_v2(v2_override),
@@ -1239,6 +1257,8 @@ async def update_workflow(
                         created_by=user.provider_id,
                     )
                 else:
+                    # The merged result is what will actually run, so it is what
+                    # gets validated — including for a deliberate override.
                     await UserConfigurationValidator().validate(
                         effective,
                         organization_id=user.selected_organization_id,
@@ -1246,7 +1266,7 @@ async def update_workflow(
                     )
             except ValueError as e:
                 raise HTTPException(status_code=422, detail=str(e))
-            if resolved_config.source == "organization_v2":
+            if convert_to_v2:
                 workflow_configurations = {
                     **workflow_configurations,
                     WORKFLOW_MODEL_CONFIGURATION_V2_OVERRIDE_KEY: v2_override.model_dump(
@@ -1255,6 +1275,7 @@ async def update_workflow(
                     ),
                 }
                 workflow_configurations.pop("model_overrides", None)
+                workflow_configurations.pop(DELIBERATE_PER_SERVICE_OVERRIDE_KEY, None)
             else:
                 workflow_configurations = {
                     **workflow_configurations,

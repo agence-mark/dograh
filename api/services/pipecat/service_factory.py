@@ -17,7 +17,10 @@ from api.services.configuration.options import (
     DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
 )
-from api.services.configuration.registry import ServiceProviders
+from api.services.configuration.registry import (
+    MISTRAL_SAMPLING_FIELDS,
+    ServiceProviders,
+)
 from api.services.pipecat.deepgram_endpoints import (
     DEEPGRAM_EU_FLUX_URL,
     DEEPGRAM_EU_STT_BASE_URL,
@@ -975,6 +978,58 @@ def _migrate_deprecated_google_model(model: str) -> str:
     return model
 
 
+def collect_sampling_settings(llm_config, fields: tuple[str, ...]) -> dict:
+    """Collect the sampling settings that are declared AND filled in.
+
+    One collection point rather than one parameter per setting: upstream adds
+    three lines and one more argument to this shared function for every field,
+    which is fine for one and unwieldy for six.
+
+    ⛔ A field left empty is left OUT of the returned dict, never passed as
+    None. That is what keeps the default request byte-for-byte identical to the
+    one sent before these fields existed, here and for every other provider.
+    """
+    if llm_config is None:
+        return {}
+    settings = {}
+    for field in fields:
+        value = getattr(llm_config, field, None)
+        if value is not None:
+            settings[field] = value
+    return settings
+
+
+def stamp_sampling_settings(runtime_configuration: dict, llm_config) -> dict:
+    """Record the sampling settings this run was actually played with.
+
+    Providers and models are already stamped on every run; the sampling
+    settings were not, so a recorded call could not say what temperature or
+    seed produced it. Without that, a bench result is an anecdote: it cannot be
+    replayed, and nothing catches a setting that changed between two runs.
+
+    This also closes an asymmetry in where settings live. A setting held on the
+    agent is versioned with it; the same setting held on the organization is
+    overwritten in place with no history at all. Stamped on the run, it is
+    traceable either way.
+    """
+    # ⚠️ Read on every provider, not only Mistral: MiniMax and Sarvam declare a
+    # temperature of their own, and it is genuinely the one they run with, so
+    # stamping it is correct. What would be wrong is claiming the stamp is
+    # exhaustive:
+    #   · a provider that declares nothing is stamped with nothing rather than
+    #     with an empty record — an empty record would read as "played with no
+    #     settings", which is false: OpenAI still receives the 0.1 hardcoded
+    #     in this file;
+    #   · ⛔ a REALTIME call is not stamped at all. Both callers hand over
+    #     `user_config.llm`, and the realtime configurations (which carry their
+    #     own temperature) live under `user_config.realtime`. Two realtime calls
+    #     played at two temperatures stay indistinguishable after the fact.
+    sampling = collect_sampling_settings(llm_config, MISTRAL_SAMPLING_FIELDS)
+    if sampling:
+        runtime_configuration["llm_sampling"] = sampling
+    return runtime_configuration
+
+
 @_report_service_factory_failures(ErrorSource.LLM, provider_argument=0)
 def create_llm_service_from_provider(
     provider: str,
@@ -993,6 +1048,7 @@ def create_llm_service_from_provider(
     temperature: float | None = None,
     bill_to: str | None = None,
     usage_context: str | None = None,
+    sampling: dict | None = None,
 ):
     """Create an LLM service from explicit provider/model/api_key.
 
@@ -1002,6 +1058,9 @@ def create_llm_service_from_provider(
         usage_context: Optional tag describing what the LLM instance is used for
             (e.g. "voicemail_detection"). Sent as request metadata by the Dograh
             provider; ignored by other providers.
+        sampling: Sampling settings collected from the configuration
+            (temperature, seed, max_tokens...). Empty or absent means the
+            request keeps the values hardcoded below, unchanged.
     """
     logger.info(f"Creating LLM service: provider={provider}, model={model}")
     if provider in (
@@ -1036,9 +1095,12 @@ def create_llm_service_from_provider(
         if base_url:
             _validate_runtime_service_url(base_url, "base_url")
             kwargs["base_url"] = base_url
+        # 0.1 stays the default temperature; a configured value replaces it.
+        # Any other setting only appears here once someone has filled it in.
+        mistral_settings = {"temperature": 0.1, **(sampling or {})}
         return MistralLLMService(
             api_key=api_key,
-            settings=MistralLLMSettings(model=model, temperature=0.1),
+            settings=MistralLLMSettings(model=model, **mistral_settings),
             **kwargs,
         )
     elif provider == ServiceProviders.GROQ.value:
@@ -1360,6 +1422,9 @@ def create_llm_service(
         kwargs["base_url"] = user_config.llm.base_url
     elif provider == ServiceProviders.MISTRAL.value:
         kwargs["base_url"] = user_config.llm.base_url
+        kwargs["sampling"] = collect_sampling_settings(
+            user_config.llm, MISTRAL_SAMPLING_FIELDS
+        )
     elif provider == ServiceProviders.OPENROUTER.value:
         kwargs["base_url"] = user_config.llm.base_url
     elif provider == ServiceProviders.AZURE.value:

@@ -38,6 +38,10 @@ cd api && python -m pytest tests/mark -q
 | `test_multi_organisation.py` | Une même personne peut détenir plusieurs organisations et basculer de l'une à l'autre | n° 59 |
 | `test_deepgram_en_europe_sans_entrainement.py` | L'audio de l'appelant part sur `api.eu.deepgram.com` et refuse le programme d'amélioration des modèles, **sur les trois chemins Deepgram** (STT classique, STT Flux, TTS) | n° 78 |
 | `test_mistral_provider.py` | Mistral reste un fournisseur **de plein droit** (raisonnement et voix Voxtral) et non un `openai` détourné : sans sa propre classe, le filtre anti-double-exécution des appels d'outils disparaît et **un SMS partirait deux fois**. Protège aussi l'adresse `api.eu.mistral.ai` par défaut | n° 74 |
+| `test_reglages_mistral_exposes.py` | Les six réglages d'échantillonnage de Mistral sont **déclarés** (donc affichés à l'écran, qui se fabrique depuis le schéma) et **transmis** jusqu'à la requête, graine comprise. Protège aussi l'inverse : sans réglage renseigné, la requête reste celle d'avant, pour Mistral comme pour les treize autres fournisseurs | n° 96, 104, 107, 108 |
+| `test_configuration_estampillee_sur_lappel.py` | Chaque exécution enregistre les réglages d'échantillonnage **avec lesquels elle a été jouée**, sur les **deux** chemins : l'appel téléphonique et le banc au clavier. Sans ça, deux essais joués à deux températures sont indiscernables après coup | n° 104 |
+| `test_surcharge_par_service_sur_client_v2.py` | Un agent remplace **un seul service** et hérite du reste de son client, **y compris quand le client change de modèle**. Protège aussi le marqueur sans lequel l'enregistrement de la configuration du client convertit la surcharge en copie figée, en silence | n° 59 |
+| `test_surcharge_par_service_survit_a_lenregistrement.py` | La route qui **enregistre** une surcharge par service ne la convertit pas en copie figée au passage. ⛔ **Le fichier voisin ne protégeait pas ça** : il s'arrêtait à la fonction, et la route porte sa propre conversion — neuf tests verts sur une fonctionnalité qui ne survivait pas à son propre enregistrement | n° 59 |
 
 ## Comment se lit le rouge
 
@@ -64,6 +68,11 @@ Un seul patch perdu peut donc faire croire que toute la suite est cassée. Pour 
 python -m pytest tests/mark -q --continue-on-collection-errors
 ```
 
-**La mesure de référence, au 10/09/2026 :** 47 tests, tous verts avec les patchs.
-Sans les patchs de `registry.py`, `check_validity.py` et `service_factory.py` :
-**1 erreur de collecte (les 19 de Mistral), 7 échecs (Deepgram), 21 verts.**
+**La mesure de référence, au 10/09/2026 au SOIR : 105 tests, tous verts avec les patchs.**
+⚠️ **Elle a changé dans la journée** : elle valait 47 avant le chantier d'exposition des réglages.
+C'est ce nombre-là que la procédure de montée de version prend comme base — **une mesure de
+référence périmée fait passer une perte de patch pour un changement de compte.**
+
+**Le rouge de référence, mesuré le matin sur les 47 :** sans les patchs de `registry.py`,
+`check_validity.py` et `service_factory.py` : **1 erreur de collecte (les 19 de Mistral),
+7 échecs (Deepgram), 21 verts.**

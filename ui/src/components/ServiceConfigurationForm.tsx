@@ -23,7 +23,9 @@ export type ServiceSegment = "llm" | "tts" | "stt" | "embeddings" | "realtime";
 
 interface SchemaProperty {
     type?: string;
-    default?: string | number | boolean;
+    // An optional field (`x | None` in Pydantic) carries `default: null`, which
+    // is not a value to put in an input — see the reset() below.
+    default?: string | number | boolean | null;
     anyOf?: SchemaProperty[];
     minimum?: number;
     maximum?: number;
@@ -146,9 +148,25 @@ function getSchemaDropdownOptions(
     return dropdownOptions;
 }
 
+// An optional field carries `default: null` in the schema, and a stored one
+// comes back as null too. Handing null to an input makes React drop it to
+// uncontrolled; "" is what an empty field looks like in the DOM.
+function emptyIfNull(value: unknown): string | number | boolean {
+    return value === null || value === undefined ? "" : (value as string | number | boolean);
+}
+
+function isNumeric(schema: SchemaProperty | undefined): boolean {
+    return schema?.type === "number" || schema?.type === "integer";
+}
+
 function getNumberSchema(schema: SchemaProperty | undefined): SchemaProperty | undefined {
-    if (schema?.type === "number") return schema;
-    return schema?.anyOf?.find(option => option.type === "number");
+    // "integer" counts too: an optional whole number (max_tokens, seed) is
+    // typed `integer | null` by Pydantic. Without it the field falls back to a
+    // text input, which loses the min/max hints AND the empty-string-to-
+    // undefined conversion below — an untouched optional field would then be
+    // submitted as "" and rejected by the API.
+    if (isNumeric(schema)) return schema;
+    return schema?.anyOf?.find(option => isNumeric(option));
 }
 
 export function ServiceConfigurationForm({
@@ -317,7 +335,7 @@ export function ServiceConfigurationForm({
                                 }
                             }
                         } else if (field !== "provider") {
-                            defaultValues[`${service}_${field}`] = value as string | number | boolean;
+                            defaultValues[`${service}_${field}`] = emptyIfNull(value);
                         }
                     });
                     selectedProviders[service] = src.provider as string;
@@ -326,7 +344,7 @@ export function ServiceConfigurationForm({
                         Object.entries(properties).forEach(([field, schema]) => {
                             const key = `${service}_${field}`;
                             if (field !== "provider" && field !== "api_key" && schema.default !== undefined && !(key in defaultValues)) {
-                                defaultValues[key] = schema.default;
+                                defaultValues[key] = emptyIfNull(schema.default);
                             }
                         });
                     }
@@ -335,7 +353,7 @@ export function ServiceConfigurationForm({
                     if (properties) {
                         Object.entries(properties).forEach(([field, schema]) => {
                             if (field !== "provider" && schema.default !== undefined) {
-                                defaultValues[`${service}_${field}`] = schema.default;
+                                defaultValues[`${service}_${field}`] = emptyIfNull(schema.default);
                             }
                         });
                     }
@@ -440,7 +458,7 @@ export function ServiceConfigurationForm({
             const providerSchema = schemas[service][providerName];
             Object.entries(providerSchema.properties).forEach(([field, schema]: [string, SchemaProperty]) => {
                 if (field !== "provider" && schema.default !== undefined) {
-                    preservedValues[`${service}_${field}`] = schema.default;
+                    preservedValues[`${service}_${field}`] = emptyIfNull(schema.default);
                 }
             });
         }
@@ -467,10 +485,27 @@ export function ServiceConfigurationForm({
         if (keys.length > 0) {
             config.api_key = mode === 'override' ? keys[0] : keys;
         }
+        const properties = schemas?.[service]?.[serviceProviders[service]]?.properties;
         Object.entries(data).forEach(([property, value]) => {
             if (!property.startsWith(`${service}_`)) return;
             const field = property.slice(service.length + 1);
             if (field === "api_key" || field === "provider") return;
+            // An optional numeric field left empty comes back as undefined
+            // (setValueAs below). Sending the key anyway would post `null` where
+            // the schema expects a number or nothing at all.
+            if (value === undefined) return;
+            // Same rule for an optional field of any other type: a schema
+            // default of null means "not set", so an empty input is left out
+            // rather than posted as "". Required fields keep going through, so
+            // a missing one is still refused by the API rather than silently
+            // replaced by a default.
+            // ⚠️ In override mode, "left out" means INHERITED from the
+            // organisation, not "set to empty" — the same way an empty numeric
+            // field already behaved. Forcing an empty value where the client
+            // has one is no longer possible from the override screen; it stays
+            // possible from the organisation screen, which replaces the whole
+            // service block.
+            if (value === "" && properties?.[field]?.default === null) return;
             config[field] = value as string | number;
         });
         return config;

@@ -40,7 +40,10 @@ from api.services.pipecat.pipeline_metrics_aggregator import (
 )
 from api.services.pipecat.pre_call_fetch import execute_pre_call_fetch
 from api.services.pipecat.recording_audio_cache import create_recording_audio_fetcher
-from api.services.pipecat.service_factory import create_llm_service
+from api.services.pipecat.service_factory import (
+    create_llm_service,
+    stamp_sampling_settings,
+)
 from api.services.pipecat.tracing_config import (
     build_remote_parent_context,
     get_trace_url,
@@ -508,6 +511,10 @@ async def execute_text_chat_pending_turn(
         "llm_provider": user_config.llm.provider,
         "llm_model": user_config.llm.model,
     }
+    # The keyboard bench runs through here, not through run_pipeline. Stamping
+    # only the phone path would leave every bench result unable to say what it
+    # was played with -- which is the whole reason the stamp exists.
+    stamp_sampling_settings(runtime_configuration, user_config.llm)
     initial_context = {
         **base_initial_context,
         "runtime_configuration": runtime_configuration,

@@ -26,6 +26,7 @@ import {
 } from "@/components/AIModelConfigurationV2Editor";
 import { FlowEdge, FlowNode } from "@/components/flow/types";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
+import { PerServiceModelOverride } from "@/components/mark/PerServiceModelOverride";
 import SpinLoader from "@/components/SpinLoader";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -1551,6 +1552,16 @@ function WorkflowModelOverridesSection({
                                 <p className="text-sm text-muted-foreground">
                                     Using organization model configuration.
                                 </p>
+                                {/* [.mark] The middle ground: inherit the client's
+                                    configuration and replace one service only. */}
+                                <div className="mt-4">
+                                    <PerServiceModelOverride
+                                        workflowConfigurations={workflowConfigurations}
+                                        workflowName={workflowName}
+                                        onSave={onSave}
+                                        publishReminder={PUBLISH_WORKFLOW_REMINDER}
+                                    />
+                                </div>
                                 {hasSavedModelOverride && (
                                     <Button
                                         type="button"

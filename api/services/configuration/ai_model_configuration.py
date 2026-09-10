@@ -211,12 +211,28 @@ async def migrate_workflow_model_configurations_to_v2(
     )
 
 
+# [.mark] Marker written by the agent screen next to a per-service override
+# that was chosen on purpose, as opposed to one inherited from the legacy
+# format. The migration below leaves marked overrides alone.
+#
+# 🚨 Why this exists: this migration runs on EVERY save of the organization
+# configuration, not once. Without the marker, a per-service override was
+# converted into a frozen copy and deleted the next time anyone touched the
+# client's configuration -- and from then on the agent inherited nothing.
+# Silently, with no trace on any screen. We rely on inheriting from the client,
+# so a per-service override has to survive the client being edited.
+DELIBERATE_PER_SERVICE_OVERRIDE_KEY = "mark_per_service_override"
+
+
 def migrate_workflow_configuration_model_override_to_v2(
     workflow_configurations: dict | None,
     base_config: EffectiveAIModelConfiguration,
 ) -> tuple[dict, bool]:
     if not isinstance(workflow_configurations, dict):
         return {}, False
+
+    if workflow_configurations.get(DELIBERATE_PER_SERVICE_OVERRIDE_KEY) is True:
+        return copy.deepcopy(workflow_configurations), False
 
     migrated = copy.deepcopy(workflow_configurations)
     model_overrides = migrated.get("model_overrides")
