@@ -19,7 +19,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
@@ -81,6 +81,13 @@ function afficher(config: WorkflowConfigurations, onSave = vi.fn().mockResolvedV
     );
     return onSave;
 }
+
+// Restored here rather than at the end of the test that changes it: an
+// assertion failing mid-test would otherwise leave the shared value behind and
+// make the next tests fail for a reason that is not theirs.
+afterEach(() => {
+    chargeUtile.valeur = { tts: { provider: "mistral", voice: "fr_marie_neutral" } };
+});
 
 describe("[.mark] per-service override", () => {
     it("stays closed until the switch is turned on", () => {
@@ -200,7 +207,6 @@ describe("[.mark] per-service override", () => {
 
         await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
         expect(onSave).not.toHaveBeenCalled();
-        chargeUtile.valeur = { tts: { provider: "mistral", voice: "fr_marie_neutral" } };
     });
 
     it("is actually mounted on the agent settings screen", () => {

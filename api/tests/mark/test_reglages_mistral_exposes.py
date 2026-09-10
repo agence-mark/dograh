@@ -349,3 +349,59 @@ def test_le_point_de_collecte_ne_ramasse_que_ce_qui_part():
             f"'{champ}' is collected but never appears in Mistral's request "
             f"builder: it would be a setting on screen that changes nothing."
         )
+
+
+# --------------------------------------------------------------------------- #
+# 6. The screen test's copy of this schema cannot drift away from it
+# --------------------------------------------------------------------------- #
+
+
+def test_la_copie_du_schema_cote_ecran_dit_la_meme_chose():
+    """The screen test carries a literal copy of what the API serves.
+
+    That copy is deliberate — it is the contract between Python and the screen,
+    and it must break loudly when one side moves. But nothing compared the two,
+    and it had already drifted the day it was written: the bound moved from 0
+    to 1 here and stayed at 0 over there. So the comparison is made here, from
+    the side that owns the truth.
+    """
+    import re
+    from pathlib import Path
+
+    copie = (
+        Path(__file__).resolve().parents[3]
+        / "ui"
+        / "src"
+        / "components"
+        / "ServiceConfigurationForm.reglages-mark.test.tsx"
+    )
+    assert copie.exists(), f"the screen test is gone: {copie}"
+    texte = copie.read_text(encoding="utf-8")
+
+    proprietes = MistralLLMConfiguration.model_json_schema()["properties"]
+
+    for champ in LES_SIX:
+        declare = proprietes[champ]
+        # The bounds live either on the property itself (temperature) or on the
+        # non-null branch of its anyOf (the five optional ones).
+        bornes = declare if "anyOf" not in declare else next(
+            branche for branche in declare["anyOf"] if branche.get("type") != "null"
+        )
+
+        # The field's block in the TypeScript literal, from its name to the
+        # closing brace at the same indentation.
+        motif = re.escape(champ) + r":\s*\{(.+?)\n        \},"
+        bloc = re.search(motif, texte, re.DOTALL)
+        assert bloc, f"'{champ}' is missing from the screen test's copy of the schema"
+        copie_du_champ = bloc.group(1)
+
+        for cle in ("minimum", "maximum", "exclusiveMinimum"):
+            if cle in bornes:
+                attendu = bornes[cle]
+                # 1.5 is written "1.5" on both sides; 1 is written "1".
+                rendu = str(int(attendu)) if float(attendu) == int(attendu) else str(attendu)
+                assert f"{cle}: {rendu}" in copie_du_champ, (
+                    f"'{champ}': the screen test says something else than "
+                    f"{cle}={rendu}. Realign the copy in "
+                    f"ServiceConfigurationForm.reglages-mark.test.tsx."
+                )

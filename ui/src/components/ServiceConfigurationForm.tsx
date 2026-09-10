@@ -496,9 +496,15 @@ export function ServiceConfigurationForm({
             if (value === undefined) return;
             // Same rule for an optional field of any other type: a schema
             // default of null means "not set", so an empty input is left out
-            // rather than posted as "". Required fields keep going through,
-            // so a missing one is still refused by the API rather than
-            // silently replaced by a default.
+            // rather than posted as "". Required fields keep going through, so
+            // a missing one is still refused by the API rather than silently
+            // replaced by a default.
+            // ⚠️ In override mode, "left out" means INHERITED from the
+            // organisation, not "set to empty" — the same way an empty numeric
+            // field already behaved. Forcing an empty value where the client
+            // has one is no longer possible from the override screen; it stays
+            // possible from the organisation screen, which replaces the whole
+            // service block.
             if (value === "" && properties?.[field]?.default === null) return;
             config[field] = value as string | number;
         });

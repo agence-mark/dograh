@@ -62,9 +62,10 @@ const schemaMistral = {
             description: "Fixes the draw: two identical calls give back the same conversation.",
         },
         max_tokens: {
-            anyOf: [{ type: "integer", minimum: 0 }, { type: "null" }],
+            anyOf: [{ type: "integer", minimum: 1 }, { type: "null" }],
             default: null,
-            description: "Longest answer the model may produce, in tokens.",
+            description:
+                "Longest answer the model may produce, in tokens. WARNING: this ceiling also applies to the out-of-band call that fills in the call report.",
         },
         top_p: {
             anyOf: [{ type: "number", exclusiveMinimum: 0, maximum: 1 }, { type: "null" }],
@@ -92,6 +93,34 @@ const defauts: ServiceConfigurationDefaults = {
     default_providers: { llm: "mistral" },
 };
 
+// A witness provider, NOT a copy of anything in Python. Mistral has no optional
+// TEXT field, so the rule "an optional field left empty is not posted" cannot be
+// exercised on it: its optional fields are all numeric, and a numeric one is
+// already caught one line earlier by setValueAs. This stands in for the real
+// cases upstream has (bill_to on HuggingFace, credentials and location on
+// Vertex) and would otherwise go untested.
+const schemaTemoin = {
+    title: "Témoin",
+    properties: {
+        provider: { type: "string", default: "temoin" },
+        api_key: { type: "string" },
+        model: { type: "string", default: "modele-temoin", description: "Modèle." },
+        note_libre: {
+            anyOf: [{ type: "string" }, { type: "null" }],
+            default: null,
+            description: "Optional text field, left empty by default.",
+        },
+    },
+} as unknown as ServiceConfigurationDefaults["llm"][string];
+
+const defautsTemoin: ServiceConfigurationDefaults = {
+    llm: { temoin: schemaTemoin },
+    tts: {},
+    stt: {},
+    embeddings: {},
+    default_providers: { llm: "temoin" },
+};
+
 const LES_SIX: { champ: string; libelle: string; extrait: string }[] = [
     { champ: "temperature", libelle: "temperature", extrait: "randomness" },
     { champ: "seed", libelle: "seed", extrait: "Fixes the draw" },
@@ -101,12 +130,12 @@ const LES_SIX: { champ: string; libelle: string; extrait: string }[] = [
     { champ: "presence_penalty", libelle: "presence penalty", extrait: "subjects it has not brought up" },
 ];
 
-function afficher(onSave = vi.fn()) {
+function afficher(onSave = vi.fn(), jeuDeDefauts: ServiceConfigurationDefaults = defauts) {
     render(
         <ServiceConfigurationForm
             mode="global"
             onSave={onSave}
-            configurationDefaults={defauts}
+            configurationDefaults={jeuDeDefauts}
             forceRealtime={false}
         />,
     );
@@ -190,12 +219,8 @@ describe("[.mark] the six Mistral settings on screen", () => {
         expect(envoye.llm.temperature).toBe(0.1);
     });
 
-    it("leaves an optional text field out too, not just the numeric ones", async () => {
-        // `base_url` is a required field with a real default, so it goes
-        // through; a field whose schema default is null is the one that must
-        // stay out. Without this rule, an untouched optional text field of
-        // another provider (credentials, bill_to, location...) would be posted
-        // as "" where it used to be absent.
+    it("keeps sending a field that has a real default", async () => {
+        // The counterpart of the rule below: filtering must not go too far.
         const onSave = afficher();
 
         await waitFor(() => expect(screen.getAllByText("temperature").length).toBeGreaterThan(0));
@@ -206,5 +231,24 @@ describe("[.mark] the six Mistral settings on screen", () => {
 
         const envoye = onSave.mock.calls[0][0] as { llm: Record<string, unknown> };
         expect(envoye.llm.base_url).toBe("https://api.eu.mistral.ai/v1");
+    });
+
+    it("leaves an optional TEXT field out too, not just the numeric ones", async () => {
+        // ⛔ Exercised on the witness provider on purpose: a numeric field left
+        // empty is already caught by setValueAs one line earlier, so testing
+        // this rule on Mistral would pass with the rule removed.
+        const onSave = afficher(vi.fn(), defautsTemoin);
+
+        await waitFor(() => expect(screen.getAllByText("note libre").length).toBeGreaterThan(0));
+
+        fireEvent.click(screen.getByRole("button", { name: /save configuration/i }));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+        const envoye = onSave.mock.calls[0][0] as { llm: Record<string, unknown> };
+        // Absent, so the schema default (null) applies — in override mode that
+        // means "inherit from the organisation", which is the point.
+        expect("note_libre" in envoye.llm).toBe(false);
+        expect(envoye.llm.model).toBe("modele-temoin");
     });
 });
