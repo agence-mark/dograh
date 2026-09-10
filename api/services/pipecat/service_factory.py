@@ -978,7 +978,7 @@ def _migrate_deprecated_google_model(model: str) -> str:
     return model
 
 
-def _collect_sampling_settings(llm_config, fields: tuple[str, ...]) -> dict:
+def collect_sampling_settings(llm_config, fields: tuple[str, ...]) -> dict:
     """Collect the sampling settings that are declared AND filled in.
 
     One collection point rather than one parameter per setting: upstream adds
@@ -997,6 +997,25 @@ def _collect_sampling_settings(llm_config, fields: tuple[str, ...]) -> dict:
         if value is not None:
             settings[field] = value
     return settings
+
+
+def stamp_sampling_settings(runtime_configuration: dict, llm_config) -> dict:
+    """Record the sampling settings this run was actually played with.
+
+    Providers and models are already stamped on every run; the sampling
+    settings were not, so a recorded call could not say what temperature or
+    seed produced it. Without that, a bench result is an anecdote: it cannot be
+    replayed, and nothing catches a setting that changed between two runs.
+
+    This also closes an asymmetry in where settings live. A setting held on the
+    agent is versioned with it; the same setting held on the organization is
+    overwritten in place with no history at all. Stamped on the run, it is
+    traceable either way.
+    """
+    sampling = collect_sampling_settings(llm_config, MISTRAL_SAMPLING_FIELDS)
+    if sampling:
+        runtime_configuration["llm_sampling"] = sampling
+    return runtime_configuration
 
 
 @_report_service_factory_failures(ErrorSource.LLM, provider_argument=0)
@@ -1391,7 +1410,7 @@ def create_llm_service(
         kwargs["base_url"] = user_config.llm.base_url
     elif provider == ServiceProviders.MISTRAL.value:
         kwargs["base_url"] = user_config.llm.base_url
-        kwargs["sampling"] = _collect_sampling_settings(
+        kwargs["sampling"] = collect_sampling_settings(
             user_config.llm, MISTRAL_SAMPLING_FIELDS
         )
     elif provider == ServiceProviders.OPENROUTER.value:

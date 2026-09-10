@@ -63,6 +63,7 @@ from api.services.pipecat.service_factory import (
     create_realtime_llm_service,
     create_stt_service,
     create_tts_service,
+    stamp_sampling_settings,
     stt_uses_external_turns,
 )
 from api.services.pipecat.termination_funnel_processor import (
@@ -741,6 +742,7 @@ async def _run_pipeline_impl(
             "llm_provider": user_config.llm.provider,
             "llm_model": user_config.llm.model,
         }
+    stamp_sampling_settings(runtime_configuration, user_config.llm)
     merged_call_context_vars = {
         **merged_call_context_vars,
         "runtime_configuration": runtime_configuration,
