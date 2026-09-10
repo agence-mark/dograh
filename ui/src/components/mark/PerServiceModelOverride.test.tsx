@@ -25,7 +25,13 @@ import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { PerServiceModelOverride } from "./PerServiceModelOverride";
 
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+// What the stand-in form hands back when the submit button is pressed. Set to
+// an empty object to play "the switch is on but no service is enabled".
+const chargeUtile = vi.hoisted(() => ({
+    valeur: { tts: { provider: "mistral", voice: "fr_marie_neutral" } } as Record<string, unknown>,
+}));
+vi.mock("sonner", () => ({ toast: toastMock }));
 
 vi.mock("@/context/UserConfigContext", () => ({
     useUserConfig: () => ({ userConfig: null, refreshConfig: vi.fn() }),
@@ -53,7 +59,7 @@ vi.mock("@/components/ServiceConfigurationForm", () => ({
     }) => (
         <button
             type="button"
-            onClick={() => onSave({ model_overrides: { tts: { provider: "mistral", voice: "fr_marie_neutral" } } })}
+            onClick={() => onSave({ model_overrides: chargeUtile.valeur })}
         >
             {submitLabel}
         </button>
@@ -181,6 +187,20 @@ describe("[.mark] per-service override", () => {
         // A marker left behind would freeze the migration for an agent that no
         // longer overrides anything.
         expect("mark_per_service_override" in onSave.mock.calls[0][0]).toBe(false);
+    });
+
+    it("refuses to save when no service is enabled, instead of deleting in silence", async () => {
+        // The form returns an empty payload when nothing is enabled. Saving it
+        // would drop the override while announcing a successful save.
+        chargeUtile.valeur = {};
+        const onSave = afficher(configurations());
+
+        fireEvent.click(screen.getByRole("switch"));
+        fireEvent.click(screen.getByText("Save Per-Service Override"));
+
+        await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
+        expect(onSave).not.toHaveBeenCalled();
+        chargeUtile.valeur = { tts: { provider: "mistral", voice: "fr_marie_neutral" } };
     });
 
     it("is actually mounted on the agent settings screen", () => {

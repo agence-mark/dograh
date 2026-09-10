@@ -83,12 +83,18 @@ export function PerServiceModelOverride({
     const [isRemoving, setIsRemoving] = useState(false);
 
     const saveOverrides = async (config: Record<string, unknown>) => {
-        const next = withoutAnyOverride(workflowConfigurations);
         const modelOverrides = config.model_overrides as ModelOverrides | undefined;
-        if (modelOverrides) {
-            next.model_overrides = modelOverrides;
-            next[DELIBERATE_OVERRIDE_KEY] = true;
+        // ⛔ Saving with no service enabled would delete the override while
+        // announcing "saved". Deleting is a deliberate act: it has its own
+        // button below.
+        if (!modelOverrides || Object.keys(modelOverrides).length === 0) {
+            toast.error("Enable at least one service, or use the remove button below.");
+            return;
         }
+
+        const next = withoutAnyOverride(workflowConfigurations);
+        next.model_overrides = modelOverrides;
+        next[DELIBERATE_OVERRIDE_KEY] = true;
         await onSave(next, workflowName);
         toast.success(`Per-service override saved. ${publishReminder}`);
     };

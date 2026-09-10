@@ -189,4 +189,22 @@ describe("[.mark] the six Mistral settings on screen", () => {
         }
         expect(envoye.llm.temperature).toBe(0.1);
     });
+
+    it("leaves an optional text field out too, not just the numeric ones", async () => {
+        // `base_url` is a required field with a real default, so it goes
+        // through; a field whose schema default is null is the one that must
+        // stay out. Without this rule, an untouched optional text field of
+        // another provider (credentials, bill_to, location...) would be posted
+        // as "" where it used to be absent.
+        const onSave = afficher();
+
+        await waitFor(() => expect(screen.getAllByText("temperature").length).toBeGreaterThan(0));
+
+        fireEvent.click(screen.getByRole("button", { name: /save configuration/i }));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+        const envoye = onSave.mock.calls[0][0] as { llm: Record<string, unknown> };
+        expect(envoye.llm.base_url).toBe("https://api.eu.mistral.ai/v1");
+    });
 });

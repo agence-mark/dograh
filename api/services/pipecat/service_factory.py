@@ -1012,6 +1012,13 @@ def stamp_sampling_settings(runtime_configuration: dict, llm_config) -> dict:
     overwritten in place with no history at all. Stamped on the run, it is
     traceable either way.
     """
+    # ⚠️ Read on every provider, not only Mistral: MiniMax, Sarvam and the two
+    # Google realtime configurations declare a temperature of their own, and it
+    # is genuinely the one they run with. Stamping it is correct; what would be
+    # wrong is claiming the stamp is exhaustive. A provider that declares
+    # nothing is stamped with nothing rather than with an empty record, because
+    # an empty record would read as "played with no settings", which is false —
+    # OpenAI still receives the 0.1 hardcoded in this file.
     sampling = collect_sampling_settings(llm_config, MISTRAL_SAMPLING_FIELDS)
     if sampling:
         runtime_configuration["llm_sampling"] = sampling

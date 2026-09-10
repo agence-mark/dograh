@@ -474,12 +474,16 @@ class MistralLLMConfiguration(BaseLLMConfiguration):
     )
     max_tokens: int | None = Field(
         default=None,
-        ge=0,
+        # Mistral's own schema allows 0, but 0 is a mute agent and pipecat
+        # bounds its own parameter at 1. Refused here rather than mid-call.
+        ge=1,
         description=(
             "Longest answer the model may produce, in tokens (a token is "
             "roughly three quarters of a word). An answer half as long comes "
-            "back about twice as fast, which is heard on the phone. Left "
-            "empty, the model stops when it has finished."
+            "back about twice as fast, which is heard on the phone. WARNING: "
+            "this ceiling also applies to the out-of-band call that fills in "
+            "the call report, so a low value can truncate it and leave fields "
+            "empty. Left empty, the model stops when it has finished."
         ),
     )
     top_p: float | None = Field(

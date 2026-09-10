@@ -485,6 +485,7 @@ export function ServiceConfigurationForm({
         if (keys.length > 0) {
             config.api_key = mode === 'override' ? keys[0] : keys;
         }
+        const properties = schemas?.[service]?.[serviceProviders[service]]?.properties;
         Object.entries(data).forEach(([property, value]) => {
             if (!property.startsWith(`${service}_`)) return;
             const field = property.slice(service.length + 1);
@@ -493,6 +494,12 @@ export function ServiceConfigurationForm({
             // (setValueAs below). Sending the key anyway would post `null` where
             // the schema expects a number or nothing at all.
             if (value === undefined) return;
+            // Same rule for an optional field of any other type: a schema
+            // default of null means "not set", so an empty input is left out
+            // rather than posted as "". Required fields keep going through,
+            // so a missing one is still refused by the API rather than
+            // silently replaced by a default.
+            if (value === "" && properties?.[field]?.default === null) return;
             config[field] = value as string | number;
         });
         return config;

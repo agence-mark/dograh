@@ -316,6 +316,19 @@ def test_le_point_de_collecte_dit_la_meme_chose_que_la_declaration():
     for champ in MISTRAL_SAMPLING_FIELDS:
         assert champ in declares
 
+    # ⛔ And the other direction, which is the one that fails silently: a
+    # seventh field declared on the configuration but forgotten in the tuple
+    # would be shown on screen, saved, and never sent. Anything declared that
+    # is not plumbing (provider, model, endpoint, credentials) has to be here.
+    PLOMBERIE = {"provider", "api_key", "model", "base_url"}
+    declares_hors_plomberie = set(declares) - PLOMBERIE
+    oublies = declares_hors_plomberie - set(MISTRAL_SAMPLING_FIELDS)
+    assert not oublies, (
+        f"declared on MistralLLMConfiguration but absent from "
+        f"MISTRAL_SAMPLING_FIELDS: {sorted(oublies)}. Such a field appears on "
+        f"screen, is saved, and is never sent."
+    )
+
 
 def test_le_point_de_collecte_ne_ramasse_que_ce_qui_part():
     """Every collected name must be one Mistral's request builder sends.
