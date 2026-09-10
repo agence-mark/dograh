@@ -44,6 +44,18 @@ export interface PerServiceModelOverrideProps {
 }
 
 /**
+ * Marker read by the API's migration (DELIBERATE_PER_SERVICE_OVERRIDE_KEY in
+ * api/services/configuration/ai_model_configuration.py).
+ *
+ * 🚨 Saving the organization's model configuration runs a migration over every
+ * agent, which turns each per-service override into a frozen complete copy and
+ * deletes it — on EVERY save, not once. Without this marker, an override set
+ * here would be silently converted the next time the client's configuration is
+ * touched, and the agent would stop inheriting anything.
+ */
+const DELIBERATE_OVERRIDE_KEY = "mark_per_service_override";
+
+/**
  * Drop both override formats.
  *
  * Deliberately a local copy of the page's own helper rather than an import of
@@ -55,6 +67,7 @@ function withoutAnyOverride(configurations: WorkflowConfigurations): WorkflowCon
     const next = { ...configurations };
     delete next.model_overrides;
     delete next.model_configuration_v2_override;
+    delete next[DELIBERATE_OVERRIDE_KEY];
     return next;
 }
 
@@ -74,6 +87,7 @@ export function PerServiceModelOverride({
         const modelOverrides = config.model_overrides as ModelOverrides | undefined;
         if (modelOverrides) {
             next.model_overrides = modelOverrides;
+            next[DELIBERATE_OVERRIDE_KEY] = true;
         }
         await onSave(next, workflowName);
         toast.success(`Per-service override saved. ${publishReminder}`);

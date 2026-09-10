@@ -151,6 +151,38 @@ describe("[.mark] per-service override", () => {
         expect("model_overrides" in onSave.mock.calls[0][0]).toBe(false);
     });
 
+    it("marks the override as deliberate, so the next client save spares it", async () => {
+        const onSave = afficher(configurations());
+
+        fireEvent.click(screen.getByRole("switch"));
+        fireEvent.click(screen.getByText("Save Per-Service Override"));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+        // 🚨 Without this key, saving the client's model configuration converts
+        // this override into a frozen copy and deletes it — silently, and on
+        // every save, not once.
+        expect(onSave.mock.calls[0][0].mark_per_service_override).toBe(true);
+    });
+
+    it("takes the marker away with the override", async () => {
+        const onSave = afficher(
+            configurations({
+                model_overrides: { tts: { provider: "mistral" } },
+                mark_per_service_override: true,
+            }),
+        );
+
+        fireEvent.click(screen.getByRole("switch"));
+        fireEvent.click(screen.getByText("Remove the saved per-service override"));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+        // A marker left behind would freeze the migration for an agent that no
+        // longer overrides anything.
+        expect("mark_per_service_override" in onSave.mock.calls[0][0]).toBe(false);
+    });
+
     it("is actually mounted on the agent settings screen", () => {
         // ⚠️ Read honestly: this reads their page rather than rendering it
         // (it needs auth, routing and three fetches). It catches the failure
