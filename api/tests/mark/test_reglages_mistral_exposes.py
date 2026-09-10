@@ -47,6 +47,7 @@ from openai import NotGiven as OpenAINotGiven
 from pydantic import TypeAdapter, ValidationError
 
 from api.services.configuration.registry import (
+    MISTRAL_SAMPLING_FIELDS,
     LLMConfig,
     MistralLLMConfiguration,
 )
@@ -296,3 +297,42 @@ def test_les_autres_fournisseurs_ne_bougent_pas():
     assert _non_transmis(params["top_p"])
     assert _non_transmis(params["max_tokens"])
     assert _non_transmis(params["seed"])
+
+
+# --------------------------------------------------------------------------- #
+# 5. The collection point cannot drift away from the declaration
+# --------------------------------------------------------------------------- #
+
+
+def test_le_point_de_collecte_dit_la_meme_chose_que_la_declaration():
+    """Two lists of field names is two chances to be right and one to be wrong.
+
+    A field declared on the configuration but missing from the collection tuple
+    is shown on screen, saved, and never sent -- and nothing complains.
+    """
+    assert MISTRAL_SAMPLING_FIELDS == LES_SIX
+
+    declares = MistralLLMConfiguration.model_json_schema()["properties"]
+    for champ in MISTRAL_SAMPLING_FIELDS:
+        assert champ in declares
+
+
+def test_le_point_de_collecte_ne_ramasse_que_ce_qui_part():
+    """Every collected name must be one Mistral's request builder sends.
+
+    Collecting a setting the builder ignores would put it on screen with no
+    effect, which is precisely what the top_k decision refused.
+    """
+    import inspect
+
+    from pipecat.services.mistral.llm import MistralLLMService
+
+    source = inspect.getsource(MistralLLMService.build_chat_completion_params)
+
+    for champ in MISTRAL_SAMPLING_FIELDS:
+        # `seed` travels under Mistral's own name.
+        attendu = "random_seed" if champ == "seed" else champ
+        assert attendu in source, (
+            f"'{champ}' is collected but never appears in Mistral's request "
+            f"builder: it would be a setting on screen that changes nothing."
+        )

@@ -17,7 +17,10 @@ from api.services.configuration.options import (
     DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
 )
-from api.services.configuration.registry import ServiceProviders
+from api.services.configuration.registry import (
+    MISTRAL_SAMPLING_FIELDS,
+    ServiceProviders,
+)
 from api.services.pipecat.deepgram_endpoints import (
     DEEPGRAM_EU_FLUX_URL,
     DEEPGRAM_EU_STT_BASE_URL,
@@ -975,6 +978,27 @@ def _migrate_deprecated_google_model(model: str) -> str:
     return model
 
 
+def _collect_sampling_settings(llm_config, fields: tuple[str, ...]) -> dict:
+    """Collect the sampling settings that are declared AND filled in.
+
+    One collection point rather than one parameter per setting: upstream adds
+    three lines and one more argument to this shared function for every field,
+    which is fine for one and unwieldy for six.
+
+    ⛔ A field left empty is left OUT of the returned dict, never passed as
+    None. That is what keeps the default request byte-for-byte identical to the
+    one sent before these fields existed, here and for every other provider.
+    """
+    if llm_config is None:
+        return {}
+    settings = {}
+    for field in fields:
+        value = getattr(llm_config, field, None)
+        if value is not None:
+            settings[field] = value
+    return settings
+
+
 @_report_service_factory_failures(ErrorSource.LLM, provider_argument=0)
 def create_llm_service_from_provider(
     provider: str,
@@ -993,6 +1017,7 @@ def create_llm_service_from_provider(
     temperature: float | None = None,
     bill_to: str | None = None,
     usage_context: str | None = None,
+    sampling: dict | None = None,
 ):
     """Create an LLM service from explicit provider/model/api_key.
 
@@ -1002,6 +1027,9 @@ def create_llm_service_from_provider(
         usage_context: Optional tag describing what the LLM instance is used for
             (e.g. "voicemail_detection"). Sent as request metadata by the Dograh
             provider; ignored by other providers.
+        sampling: Sampling settings collected from the configuration
+            (temperature, seed, max_tokens...). Empty or absent means the
+            request keeps the values hardcoded below, unchanged.
     """
     logger.info(f"Creating LLM service: provider={provider}, model={model}")
     if provider in (
@@ -1036,9 +1064,12 @@ def create_llm_service_from_provider(
         if base_url:
             _validate_runtime_service_url(base_url, "base_url")
             kwargs["base_url"] = base_url
+        # 0.1 stays the default temperature; a configured value replaces it.
+        # Any other setting only appears here once someone has filled it in.
+        mistral_settings = {"temperature": 0.1, **(sampling or {})}
         return MistralLLMService(
             api_key=api_key,
-            settings=MistralLLMSettings(model=model, temperature=0.1),
+            settings=MistralLLMSettings(model=model, **mistral_settings),
             **kwargs,
         )
     elif provider == ServiceProviders.GROQ.value:
@@ -1360,6 +1391,9 @@ def create_llm_service(
         kwargs["base_url"] = user_config.llm.base_url
     elif provider == ServiceProviders.MISTRAL.value:
         kwargs["base_url"] = user_config.llm.base_url
+        kwargs["sampling"] = _collect_sampling_settings(
+            user_config.llm, MISTRAL_SAMPLING_FIELDS
+        )
     elif provider == ServiceProviders.OPENROUTER.value:
         kwargs["base_url"] = user_config.llm.base_url
     elif provider == ServiceProviders.AZURE.value:

@@ -513,6 +513,20 @@ class MistralLLMConfiguration(BaseLLMConfiguration):
     )
 
 
+# The single collection point the service factory reads, rather than one branch
+# per setting. ⛔ A name added here must be BOTH a field declared above AND a
+# key that pipecat's Mistral request builder sends: a setting collected but not
+# sent is configured-then-ignored, the failure this whole patch removes.
+MISTRAL_SAMPLING_FIELDS: tuple[str, ...] = (
+    "temperature",
+    "seed",
+    "max_tokens",
+    "top_p",
+    "frequency_penalty",
+    "presence_penalty",
+)
+
+
 @register_llm
 class AtlasCloudLLMService(BaseLLMConfiguration):
     model_config = ATLASCLOUD_PROVIDER_MODEL_CONFIG
