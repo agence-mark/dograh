@@ -115,9 +115,15 @@ async def get_effective_ai_model_configuration_for_workflow(
         # answering at all. Same shape as `_parse_organization_ai_model_
         # configuration_v2` above, which logs and falls back rather than break.
         # Raised by the second review of 2026-09-11.
-        logger.warning(
+        # ⛔ `error`, not `warning`: the run goes on, but it goes on with a
+        # DIFFERENT model than the agent was pinned to, and nothing on any
+        # screen says so. The realistic trigger is not stale data, it is a
+        # bound tightened later — that day, existing overrides stop applying in
+        # silence. Raised by the third review of 2026-09-11.
+        logger.error(
             f"Invalid model_overrides for organization {organization_id}: {exc}. "
-            f"Falling back to the organization configuration for this run."
+            f"This run falls back to the organization configuration, so the "
+            f"agent plays with its client's model instead of its own."
         )
         return resolve_effective_config(resolved_config.effective, None)
 

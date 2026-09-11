@@ -446,6 +446,73 @@ def test_les_mots_a_renforcer_NE_partent_PAS_sur_nova_3():
     assert "keywords" not in requete
 
 
+@pytest.mark.parametrize("modele", ["nova-3-general", "nova-3-phonecall", "nova-3"])
+def test_la_famille_nova_3_ENTIERE_est_fermee_aux_mots_a_renforcer(modele):
+    """⛔ Par PRÉFIXE, donc un modèle nova-3 qu'on n'a pas énuméré est couvert.
+
+    Énumérer les trois noms connus rouvrirait, côté nova-3, exactement le trou
+    que l'exclusion ferme côté nova-2 (troisième relecture du 11/09).
+    """
+    requete = _requete_classique(model=modele, keywords=["veranda"])
+
+    assert "keywords" not in requete
+
+
+def test_lecran_et_la_requete_masquent_sur_LA_MEME_regle():
+    """🔑 Deux règles différentes seraient pires qu'une règle trop large.
+
+    Un champ affiché dont la valeur ne part jamais est plus trompeur qu'un
+    champ dont la valeur part et se fait ignorer : le premier se manipule en
+    croyant agir. Le masquage de l'écran et le filtre de la fabrique lisent
+    donc la MÊME liste, avec la MÊME comparaison par préfixe.
+    """
+    from api.services.configuration.options import DEEPGRAM_KEYTERM_MODELS
+    from api.services.pipecat.service_factory import _le_modele_utilise_le_keyterm
+
+    ecran = DeepgramSTTConfiguration.model_json_schema()["properties"]["keywords"]
+    assert tuple(ecran["hidden_for_models"]) == tuple(DEEPGRAM_KEYTERM_MODELS)
+
+    # Et la fabrique applique bien la comparaison par préfixe sur cette liste.
+    for prefixe in DEEPGRAM_KEYTERM_MODELS:
+        assert _le_modele_utilise_le_keyterm(prefixe)
+        assert _le_modele_utilise_le_keyterm(f"{prefixe}-inconnu")
+    assert not _le_modele_utilise_le_keyterm("nova-2-finance")
+
+
+def test_lestampille_ne_porte_pas_des_indications_de_langue_jamais_recues():
+    """Le même défaut que `keywords`, sur le champ voisin.
+
+    🔴 Mesuré par la troisième relecture du 11/09 : sur `flux-general-en`,
+    l'estampille enregistrait `language_hints` alors que la requête ne les
+    porte pas — seul le modèle multilingue les lit. Un client qui bascule du
+    multilingue vers l'anglais garde la valeur enregistrée, l'écran cesse de
+    l'afficher, et une fiche d'appel relue plus tard **attribue à l'appel des
+    indications qu'il n'a jamais reçues**.
+    """
+    from api.services.pipecat.service_factory import stamp_transcription_settings
+
+    config = DeepgramSTTConfiguration(
+        api_key="deepgram-key", model="flux-general-en", language_hints=["fr", "es"]
+    )
+    stampe = stamp_transcription_settings({}, config)
+    requete = _service(model="flux-general-en", language="en")._build_query_string()
+
+    assert "language_hints" not in stampe.get("stt_settings", {})
+    assert "language_hint" not in requete
+
+
+def test_lestampille_porte_les_indications_sur_le_modele_qui_les_lit():
+    """La contrepartie : sur le multilingue, elles comptent et sont estampillées."""
+    from api.services.pipecat.service_factory import stamp_transcription_settings
+
+    config = DeepgramSTTConfiguration(
+        api_key="deepgram-key", model="flux-general-multi", language_hints=["fr", "es"]
+    )
+    stampe = stamp_transcription_settings({}, config)
+
+    assert stampe["stt_settings"]["language_hints"] == ["fr", "es"]
+
+
 def test_lestampille_dit_ce_que_la_requete_porte_vraiment():
     """🔴 A stamp assembled apart from the request drifts from it.
 

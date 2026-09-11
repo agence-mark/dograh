@@ -34,6 +34,7 @@ migration leaves marked overrides alone. Their own migration path, for the
 legacy overrides it was built for, is unchanged.
 """
 
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -294,16 +295,43 @@ def test_une_surcharge_deja_en_base_ne_casse_NI_un_appel_NI_un_enregistrement():
         migrate_workflow_configuration_model_override_to_v2,
     )
 
+    import api.services.configuration.ai_model_configuration as amc
+
     client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
     invalide = {"llm": {"provider": "mistral", "temperature": 99.0}}
 
-    # La migration laisse la surcharge en l'état plutôt que de lever.
+    # ① La migration laisse la surcharge en l'état plutôt que de lever.
     migre, change = migrate_workflow_configuration_model_override_to_v2(
         {"model_overrides": invalide}, client
     )
 
     assert change is False
     assert migre["model_overrides"] == invalide
+
+    # ② Et l'appel démarre quand même, avec la configuration du client.
+    # ⛔ Cette moitié-là manquait : le nom du test l'annonçait, le corps ne
+    # l'exerçait pas (troisième relecture du 11/09). Un test qui ne couvre que
+    # la moitié de ce qu'il nomme est un test dont on surestime la portée.
+    class _Resolu:
+        effective = client
+
+    async def _faux_resolu(organization_id):
+        return _Resolu()
+
+    vrai = amc.get_resolved_ai_model_configuration
+    amc.get_resolved_ai_model_configuration = _faux_resolu
+    try:
+        effective = asyncio.run(
+            amc.get_effective_ai_model_configuration_for_workflow(
+                organization_id=1,
+                workflow_configurations={"model_overrides": invalide},
+            )
+        )
+    finally:
+        amc.get_resolved_ai_model_configuration = vrai
+
+    # La surcharge est ignorée, le client s'applique : l'appel peut démarrer.
+    assert effective.llm.temperature == 0.2
 
 
 def test_la_conformite_survit_a_une_surcharge_qui_tente_de_la_defaire():

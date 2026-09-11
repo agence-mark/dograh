@@ -114,9 +114,11 @@ DEEPGRAM_LANGUAGES = (
 # 🔑 ONE list, used by the screen to hide the field AND by the factory to drop
 # it from the request. Two lists would be two chances to diverge, and the
 # screen would stop describing what goes out.
+# ⛔ Chaque entrée se compare EN PRÉFIXE, écran et fabrique compris : "nova-3"
+# couvre donc toute la famille, `nova-3-phonecall` inclus. Énumérer les trois
+# noms connus rouvrirait, côté nova-3, exactement le trou que l'exclusion ferme
+# côté nova-2. Troisième relecture du 11/09.
 DEEPGRAM_KEYTERM_MODELS = (
     "nova-3",
-    "nova-3-general",
-    "nova-3-medical",
     *DEEPGRAM_FLUX_MODELS,
 )

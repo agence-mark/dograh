@@ -1856,9 +1856,12 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     # ------------------------------------------------------------------ #
     # The five settings of the Flux connector (/v2/listen).
     #
-    # ⛔ Another service, another class, another set: none of the fourteen
-    # above applies here, and none of these five applies there. That is why
-    # each side carries its own model list.
+    # ⛔ Another service, another class, another set. ⚠️ With ONE exception,
+    # written here rather than ignored: `numerals` is declared by BOTH
+    # connectors. It is not exposed on Flux -- the field above is hidden there
+    # -- so a client on Flux cannot reach it. That is a gap, not a claim that
+    # the setting does not exist (question n° 119, opened by the third review
+    # of 2026-09-11). Each side carries its own model list for the rest.
     #
     # Ranges read on https://developers.deepgram.com/docs/flux/configuration
     # on 2026-09-11. 🔑 The defaults are OURS, not Deepgram's: the factory
@@ -2036,8 +2039,9 @@ DEEPGRAM_STT_FIELDS: tuple[str, ...] = (
 
 
 # The single collection point for the Flux connector. ⛔ Separate from the one
-# above on purpose: the two connectors share no setting at all, and a name in
-# the wrong tuple would be collected on a path that ignores it.
+# above on purpose: a name in the wrong tuple would be collected on a path that
+# ignores it. ⚠️ The two connectors share exactly ONE setting, `numerals`,
+# which is collected on the classic path only -- see the note on the field.
 DEEPGRAM_FLUX_FIELDS: tuple[str, ...] = (
     "eot_threshold",
     "eager_eot_threshold",

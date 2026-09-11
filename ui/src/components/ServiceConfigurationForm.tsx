@@ -690,8 +690,12 @@ export function ServiceConfigurationForm({
             // 🔑 Hiding is a screen decision, not a data decision: the value
             // stays in the form and is still saved, so switching back to the
             // model that accepts it does not silently reset it.
+            // [.mark] Compared BY PREFIX, so one entry closes a whole model
+            // family ("nova-3" covers nova-3-phonecall). ⛔ The factory applies
+            // the same rule to the same list: a different rule on either side
+            // would show a field whose value never goes out.
             const caches = actualSchema?.hidden_for_models;
-            if (caches && currentModel && caches.includes(currentModel)) return false;
+            if (caches && currentModel && caches.some(p => currentModel.startsWith(p))) return false;
             const models = actualSchema?.models;
             if (!models || models.length === 0) return true;
             if (!currentModel) return true;

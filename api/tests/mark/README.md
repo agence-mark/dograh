@@ -70,9 +70,9 @@ Un seul patch perdu peut donc faire croire que toute la suite est cassée. Pour 
 python -m pytest tests/mark -q --continue-on-collection-errors
 ```
 
-**La mesure de référence, au 11/09/2026 : 217 tests, tous verts avec les patchs.**
+**La mesure de référence, au 11/09/2026 au SOIR : 234 tests, tous verts avec les patchs.**
 ⚠️ **Elle change à chaque chantier** : 47 avant l'exposition des réglages Mistral, 105 le 10/09 au
-soir, **113 après la réparation de la graine**, 217 après l'exposition des réglages de la
+soir, **113 après la réparation de la graine**, 234 après l'exposition des réglages de la
 transcription. C'est ce nombre-là que la procédure de montée de version prend comme base —
 **une mesure de référence périmée fait passer une perte de patch pour un changement de compte.**
 

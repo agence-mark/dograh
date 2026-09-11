@@ -172,6 +172,10 @@ def _report_service_factory_failures(
     return decorator
 
 
+# The only Flux model that reads language hints; anywhere else the connector
+# logs a warning and drops them.
+DEEPGRAM_FLUX_MULTILINGUAL_MODEL = "flux-general-multi"
+
 DEEPGRAM_FLUX_LANGUAGE_HINTS = {
     "de": Language.DE,
     "en": Language.EN,
@@ -201,9 +205,42 @@ def _reglages_classiques(stt_config) -> dict:
     describing each other. Both points raised by the reviews of 2026-09-11.
     """
     reglages = collect_declared_settings(stt_config, DEEPGRAM_STT_FIELDS)
-    modele = getattr(stt_config, "model", None)
-    if "keywords" in reglages and modele in DEEPGRAM_KEYTERM_MODELS:
+    if "keywords" in reglages and _le_modele_utilise_le_keyterm(
+        getattr(stt_config, "model", None)
+    ):
         del reglages["keywords"]
+    return reglages
+
+
+def _le_modele_utilise_le_keyterm(modele: str | None) -> bool:
+    """True when Deepgram replaced `keywords` by keyterm prompting on it.
+
+    🔑 By PREFIX, and on the SAME list the screen hides on. Two points, both
+    raised on 2026-09-11: enumerating the three known nova-3 names would leave
+    a future `nova-3-phonecall` out (the hole the exclusion closes on the
+    nova-2 side), and using a different rule here than on screen would show a
+    field whose value never goes out — worse than sending one that is ignored.
+
+    ⛔ An unknown model is NOT filtered: we send what the client asked for
+    rather than drop it in silence on a model we know nothing about.
+    """
+    if not modele:
+        return False
+    return any(modele.startswith(prefixe) for prefixe in DEEPGRAM_KEYTERM_MODELS)
+
+
+def _reglages_flux(stt_config) -> dict:
+    """The Flux settings, minus the ones this MODEL ignores.
+
+    ⛔ `language_hints` is only read by the multilingual model: on
+    `flux-general-en` the connector logs a warning and drops them. Keeping them
+    here would make the stamp claim a run carried hints it never received --
+    the same defect as `keywords`, on the neighbouring field. Raised by the
+    third review of 2026-09-11.
+    """
+    reglages = collect_declared_settings(stt_config, DEEPGRAM_FLUX_FIELDS)
+    if getattr(stt_config, "model", None) != DEEPGRAM_FLUX_MULTILINGUAL_MODEL:
+        reglages.pop("language_hints", None)
     return reglages
 
 
@@ -355,7 +392,7 @@ def create_stt_service(
             # commit about a pipecat version bump. They are now declared on the
             # configuration with those same values as defaults, so this reads
             # the same request out of a field instead of out of a literal.
-            reglages = collect_declared_settings(user_config.stt, DEEPGRAM_FLUX_FIELDS)
+            reglages = _reglages_flux(user_config.stt)
             # ⛔ The connector wants Language enums, not the codes the screen
             # stores, so this one is converted rather than forwarded.
             indications = reglages.pop("language_hints", None)
@@ -366,7 +403,7 @@ def create_stt_service(
                 "keyterm": keyterms or [],
                 **reglages,
             }
-            if user_config.stt.model == "flux-general-multi":
+            if user_config.stt.model == DEEPGRAM_FLUX_MULTILINGUAL_MODEL:
                 language = getattr(user_config.stt, "language", None)
                 # A configured list wins; left empty, the hint is derived from
                 # the chosen language, which is what happened before.
@@ -1163,7 +1200,7 @@ def stamp_transcription_settings(runtime_configuration: dict, stt_config) -> dic
     # below; it has to be true of this function too. Raised by the second
     # review of 2026-09-11.
     if getattr(stt_config, "model", None) in DEEPGRAM_FLUX_MODELS:
-        reglages = collect_declared_settings(stt_config, DEEPGRAM_FLUX_FIELDS)
+        reglages = _reglages_flux(stt_config)
     else:
         reglages = _reglages_classiques(stt_config)
     if reglages:
