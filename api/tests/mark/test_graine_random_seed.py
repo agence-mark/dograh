@@ -142,3 +142,56 @@ def test_toute_graine_valide_part_y_compris_zero(graine):
         f"seed {graine} never reaches the request: extra_body={corps!r}. A setting "
         f"the screen accepts and the request drops is a setting we believe we hold."
     )
+
+
+# --------------------------------------------------------------------------- #
+# The configuration every client actually runs: no seed at all
+# --------------------------------------------------------------------------- #
+#
+# 🚨 Found by the independent review on 2026-09-11, and it is the more serious
+# half of this file. Every test above fills a seed in. Nobody in production
+# does: the field is a laboratory tool, left empty everywhere. So the tests
+# proved the new rule and said nothing about the state that rule travels
+# through -- the same blind spot as the day before, moved one notch along.
+
+
+def test_sans_graine_la_requete_ne_porte_aucune_graine():
+    """No seed configured must mean no seed in the request, not an empty one.
+
+    'Absent' is not written ``None`` here: an unset setting holds a sentinel.
+    Testing against ``None`` therefore lets the absent case through and posts
+    the sentinel as if it were a value.
+    """
+    corps = _parametres(temperature=0.1).get("extra_body") or {}
+    assert "random_seed" not in corps, (
+        f"a request with no seed configured still carries one: extra_body={corps!r}. "
+        f"Every client runs this configuration."
+    )
+
+
+def test_ce_qui_part_est_toujours_serialisable():
+    """Whatever ends up in the body must survive being turned into JSON.
+
+    This is the general net, and it is deliberately not about the seed. A
+    sentinel that reaches the body raises ``TypeError: Object of type _NotGiven
+    is not JSON serializable`` -- a TypeError inside the completion, non-fatal,
+    agent mute. Exactly the failure of 2026-09-11, reached by another road.
+    """
+    import json
+
+    for nom, reglages in (
+        ("aucun réglage", {}),
+        ("température seule", {"temperature": 0.1}),
+        ("graine seule", {"seed": 1}),
+        ("graine à zéro", {"seed": 0}),
+    ):
+        corps = _parametres(**reglages).get("extra_body") or {}
+        try:
+            json.dumps(corps)
+        except (
+            TypeError
+        ) as exc:  # pragma: no cover - the point is that it does not happen
+            raise AssertionError(
+                f"{nom}: what would be sent cannot be serialised ({exc}). "
+                f"extra_body={corps!r}"
+            ) from exc

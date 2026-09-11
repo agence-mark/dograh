@@ -345,9 +345,16 @@ def test_le_point_de_collecte_ne_ramasse_que_ce_qui_part():
     """
     import inspect
 
-    from pipecat.services.mistral.llm import MistralLLMService
-
-    source = inspect.getsource(MistralLLMService.build_chat_completion_params)
+    # 🔑 The class the factory actually returns, and every class it inherits
+    # from -- not a class named here. Naming one let this test read code that
+    # was no longer on the path: the override lives in a subclass now, and
+    # this test would have stayed green while it stopped sending a setting.
+    service = _service()
+    source = "".join(
+        inspect.getsource(classe.build_chat_completion_params)
+        for classe in type(service).__mro__
+        if "build_chat_completion_params" in vars(classe)
+    )
 
     for champ in MISTRAL_SAMPLING_FIELDS:
         # `seed` travels under Mistral's own name.
@@ -391,8 +398,12 @@ def test_la_copie_du_schema_cote_ecran_dit_la_meme_chose():
         declare = proprietes[champ]
         # The bounds live either on the property itself (temperature) or on the
         # non-null branch of its anyOf (the five optional ones).
-        bornes = declare if "anyOf" not in declare else next(
-            branche for branche in declare["anyOf"] if branche.get("type") != "null"
+        bornes = (
+            declare
+            if "anyOf" not in declare
+            else next(
+                branche for branche in declare["anyOf"] if branche.get("type") != "null"
+            )
         )
 
         # The field's block in the TypeScript literal, from its name to the
@@ -406,7 +417,11 @@ def test_la_copie_du_schema_cote_ecran_dit_la_meme_chose():
             if cle in bornes:
                 attendu = bornes[cle]
                 # 1.5 is written "1.5" on both sides; 1 is written "1".
-                rendu = str(int(attendu)) if float(attendu) == int(attendu) else str(attendu)
+                rendu = (
+                    str(int(attendu))
+                    if float(attendu) == int(attendu)
+                    else str(attendu)
+                )
                 assert f"{cle}: {rendu}" in copie_du_champ, (
                     f"'{champ}': the screen test says something else than "
                     f"{cle}={rendu}. Realign the copy in "

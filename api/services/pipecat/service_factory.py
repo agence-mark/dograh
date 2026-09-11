@@ -84,6 +84,7 @@ from pipecat.services.inworld.tts import InworldTTSService, InworldTTSSettings
 from pipecat.services.lmnt.tts import LmntTTSService, LmntTTSSettings
 from pipecat.services.minimax.llm import MiniMaxLLMService
 from pipecat.services.minimax.tts import MiniMaxTTSSettings
+from pipecat.adapters.services.open_ai_adapter import OpenAILLMInvocationParams
 from pipecat.services.mistral.llm import MistralLLMService, MistralLLMSettings
 from pipecat.services.mistral.tts import MistralTTSSettings
 from pipecat.services.openai._constants import OPENAI_SAMPLE_RATE
@@ -270,14 +271,22 @@ class DograhMistralLLMService(MistralLLMService):
     keep passing either way.
     """
 
-    def build_chat_completion_params(self, params_from_context) -> dict:
+    def build_chat_completion_params(
+        self, params_from_context: OpenAILLMInvocationParams
+    ) -> dict:
         params = super().build_chat_completion_params(params_from_context)
-        # Upstream puts it at the top level, where the SDK refuses it.
-        params.pop("random_seed", None)
-        if self._settings.seed is not None:
-            extra_body = dict(params.get("extra_body") or {})
-            extra_body["random_seed"] = self._settings.seed
-            params["extra_body"] = extra_body
+        # Move whatever upstream put at the top level, where the SDK refuses
+        # it. Taking the value rather than re-deriving it keeps a seed that
+        # came in through ``extra`` instead of dropping it.
+        graine = params.pop("random_seed", None)
+        if graine is None and isinstance(self._settings.seed, int):
+            # Upstream skips a seed of 0 -- falsy, though the schema allows it.
+            graine = self._settings.seed
+        if graine is not None:
+            params["extra_body"] = {
+                **(params.get("extra_body") or {}),
+                "random_seed": graine,
+            }
         return params
 
 
