@@ -350,11 +350,18 @@ def test_le_point_de_collecte_ne_ramasse_que_ce_qui_part():
     # was no longer on the path: the override lives in a subclass now, and
     # this test would have stayed green while it stopped sending a setting.
     service = _service()
-    source = "".join(
-        inspect.getsource(classe.build_chat_completion_params)
-        for classe in type(service).__mro__
-        if "build_chat_completion_params" in vars(classe)
-    )
+    morceaux = []
+    for classe in type(service).__mro__:
+        if "build_chat_completion_params" not in vars(classe):
+            continue
+        morceau = inspect.getsource(classe.build_chat_completion_params)
+        morceaux.append(morceau)
+        if "super().build_chat_completion_params" not in morceau:
+            # This one builds the dict from scratch, so whatever the classes
+            # below it declare is dead code for this provider. Reading further
+            # would let their strings answer for settings that never leave.
+            break
+    source = "".join(morceaux)
 
     for champ in MISTRAL_SAMPLING_FIELDS:
         # `seed` travels under Mistral's own name.

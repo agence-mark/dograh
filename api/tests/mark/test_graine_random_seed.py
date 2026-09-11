@@ -49,24 +49,26 @@ CONTEXTE = {
 def _parametres(**reglages) -> dict:
     """Build the request parameters exactly as a live call would.
 
-    🔑 Deliberately through the factory rather than by instantiating a class
-    by hand: what matters is the service the engine actually gets, not the one
-    the test picked. Naming the class here would let the factory drift back to
-    an uncorrected one with every test still green -- which is the shape of
-    failure this file exists to catch.
+    🔑 Through ``create_llm_service``, the entry point the engine itself calls,
+    not the lower-level helper. Two things have to hold for a setting to work:
+    the right class, and the wiring that collects the settings and hands them
+    to it. Calling the helper with a ready-made ``sampling`` proves the first
+    and assumes the second -- delete the four lines that build ``sampling``
+    and every test here would stay green while the seed stopped travelling.
     """
-    from api.services.configuration.registry import ServiceProviders
-    from api.services.pipecat.service_factory import (
-        create_llm_service_from_provider,
-    )
+    from types import SimpleNamespace
 
-    service = create_llm_service_from_provider(
-        ServiceProviders.MISTRAL.value,
-        "mistral-large-2512",
-        "cle-de-test-jamais-envoyee",
-        sampling=dict(reglages),
+    from api.services.configuration.registry import MistralLLMConfiguration
+    from api.services.pipecat.service_factory import create_llm_service
+
+    user_config = SimpleNamespace(
+        llm=MistralLLMConfiguration(
+            api_key="cle-de-test-jamais-envoyee",
+            model="mistral-large-2512",
+            **reglages,
+        )
     )
-    return service.build_chat_completion_params(CONTEXTE)
+    return create_llm_service(user_config).build_chat_completion_params(CONTEXTE)
 
 
 def _acceptes_par_le_client() -> set[str]:
@@ -170,7 +172,7 @@ def test_sans_graine_la_requete_ne_porte_aucune_graine():
 
 
 def test_ce_qui_part_est_toujours_serialisable():
-    """Whatever ends up in the body must survive being turned into JSON.
+    """Whatever we put in ``extra_body`` must survive being turned into JSON.
 
     This is the general net, and it is deliberately not about the seed. A
     sentinel that reaches the body raises ``TypeError: Object of type _NotGiven

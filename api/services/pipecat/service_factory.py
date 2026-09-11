@@ -35,6 +35,7 @@ from api.services.pipecat.mistral_tts import (
     resolve_mistral_endpoint,
 )
 from api.utils.url_security import validate_user_configured_service_url
+from pipecat.adapters.services.open_ai_adapter import OpenAILLMInvocationParams
 from pipecat.services.assemblyai.stt import AssemblyAISTTService, AssemblyAISTTSettings
 from pipecat.services.aws.llm import AWSBedrockLLMService, AWSBedrockLLMSettings
 from pipecat.services.azure.llm import AzureLLMService, AzureLLMSettings
@@ -84,7 +85,6 @@ from pipecat.services.inworld.tts import InworldTTSService, InworldTTSSettings
 from pipecat.services.lmnt.tts import LmntTTSService, LmntTTSSettings
 from pipecat.services.minimax.llm import MiniMaxLLMService
 from pipecat.services.minimax.tts import MiniMaxTTSSettings
-from pipecat.adapters.services.open_ai_adapter import OpenAILLMInvocationParams
 from pipecat.services.mistral.llm import MistralLLMService, MistralLLMSettings
 from pipecat.services.mistral.tts import MistralTTSSettings
 from pipecat.services.openai._constants import OPENAI_SAMPLE_RATE
