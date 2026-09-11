@@ -1114,6 +1114,37 @@ def stamp_sampling_settings(runtime_configuration: dict, llm_config) -> dict:
     return runtime_configuration
 
 
+def stamp_transcription_settings(runtime_configuration: dict, stt_config) -> dict:
+    """Record the transcription settings this run was actually played with.
+
+    Same reason as the sampling settings above: a setting held on the
+    organization is overwritten in place with no history at all, so a call
+    recorded yesterday cannot say which ``endpointing`` produced it. And
+    ``endpointing`` is the setting that decides when the agent takes the floor,
+    which is the first thing anyone listening to a recording will question.
+
+    ⚠️ Stamped where it informs, and nowhere else. The keyboard bench
+    (``text_chat_runner``) does not transcribe anything, so stamping a
+    transcription there would record settings that played no part in the run --
+    a stamp that lies is worse than no stamp.
+
+    ⛔ Which family is stamped follows the MODEL, exactly as the factory
+    chooses which connector to build. Stamping both would claim the run was
+    played with five Flux thresholds it never saw.
+    """
+    if stt_config is None:
+        return runtime_configuration
+    champs = (
+        DEEPGRAM_FLUX_FIELDS
+        if getattr(stt_config, "model", None) in DEEPGRAM_FLUX_MODELS
+        else DEEPGRAM_STT_FIELDS
+    )
+    reglages = collect_declared_settings(stt_config, champs)
+    if reglages:
+        runtime_configuration["stt_settings"] = reglages
+    return runtime_configuration
+
+
 @_report_service_factory_failures(ErrorSource.LLM, provider_argument=0)
 def create_llm_service_from_provider(
     provider: str,

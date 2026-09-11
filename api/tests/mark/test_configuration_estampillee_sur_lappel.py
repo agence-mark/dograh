@@ -96,6 +96,85 @@ def test_un_fournisseur_sans_reglage_declare_nest_pas_estampille_a_vide():
     assert "llm_sampling" not in stampe
 
 
+def test_lessai_porte_aussi_les_reglages_de_transcription():
+    """``endpointing` decides when the agent takes the floor, so it is the
+    first thing anyone questions when listening back to a recording."""
+    from api.services.configuration.registry import DeepgramSTTConfiguration
+    from api.services.pipecat.service_factory import stamp_transcription_settings
+
+    stampe = stamp_transcription_settings(
+        _configuration_de_base(),
+        DeepgramSTTConfiguration(
+            api_key="cle", model="nova-3-general", endpointing=450, smart_format=True
+        ),
+    )
+
+    assert stampe["stt_settings"]["endpointing"] == 450
+    assert stampe["stt_settings"]["smart_format"] is True
+
+
+def test_le_modele_decide_de_la_famille_estampillee():
+    """⛔ Stamping both families would claim the run was played with five Flux
+    thresholds it never saw. The model decides, exactly as the factory decides
+    which connector to build."""
+    from api.services.configuration.registry import DeepgramSTTConfiguration
+    from api.services.pipecat.service_factory import stamp_transcription_settings
+
+    classique = stamp_transcription_settings(
+        _configuration_de_base(),
+        DeepgramSTTConfiguration(api_key="cle", model="nova-3-general"),
+    )["stt_settings"]
+    flux = stamp_transcription_settings(
+        _configuration_de_base(),
+        DeepgramSTTConfiguration(api_key="cle", model="flux-general-multi"),
+    )["stt_settings"]
+
+    assert "endpointing" in classique
+    assert "eot_threshold" not in classique
+    assert "eot_threshold" in flux
+    assert "endpointing" not in flux
+
+
+def test_le_chemin_telephonique_estampille_bien_la_transcription():
+    """⛔ The function working proves nothing about the function being CALLED.
+
+    Written after noticing the gap: removing the call from ``run_pipeline``
+    left every other test in this file green. A stamp nobody invokes is a stamp
+    that does not exist, and the recordings would simply carry no transcription
+    settings — silently, exactly like before this chantier.
+
+    ⚠️ Read honestly: this reads the runner's source rather than running it,
+    because running it needs the full stack. It catches the failure that
+    actually threatens us — the call being dropped by a refactor.
+    """
+    from api.services.pipecat import run_pipeline
+
+    source = inspect.getsource(run_pipeline)
+
+    assert "stamp_transcription_settings(runtime_configuration" in source, (
+        "run_pipeline no longer stamps the transcription settings: a recorded "
+        "call could not say which endpointing produced it."
+    )
+
+
+def test_le_banc_au_clavier_nestampille_PAS_la_transcription():
+    """⚠️ Stated rather than pretended.
+
+    The keyboard bench does not transcribe anything, so a transcription stamp
+    there would record settings that played no part in the run. A stamp that
+    lies is worse than no stamp — it would be read later as evidence.
+    """
+    from api.services.workflow import text_chat_runner
+
+    source = inspect.getsource(text_chat_runner)
+
+    assert "stamp_transcription_settings" not in source, (
+        "the keyboard bench stamps transcription settings, which it never "
+        "used: a recorded run would claim a configuration it was not played "
+        "with."
+    )
+
+
 def test_les_deux_chemins_estampillent():
     """The phone call and the keyboard bench are two separate code paths.
 
