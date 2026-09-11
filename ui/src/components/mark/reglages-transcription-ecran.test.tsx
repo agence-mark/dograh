@@ -41,6 +41,7 @@ vi.stubGlobal(
 );
 
 const MODELES_CLASSIQUES = ["nova-3-general", "nova-3-medical"];
+const MODELES_FLUX = ["flux-general-en", "flux-general-multi"];
 const MODELES_KEYWORDS = [
     "nova-2",
     "nova-2-general",
@@ -148,6 +149,37 @@ const schemaDeepgram = {
             default: null,
             models: MODELES_CLASSIQUES,
             description: "Labels the transcript by speaker. WARNING: Deepgram marks this parameter deprecated in favour of diarize_model, which the connector does not carry; it still works and routes to the v1 diarizer. On a telephone call the agent and the caller are already on separate channels, so there is little to gain.",
+        },
+        eot_threshold: {
+            anyOf: [{ type: "number", minimum: 0.5, maximum: 1 }, { type: "null" }],
+            default: 0.7,
+            models: MODELES_FLUX,
+            description: "Confidence Flux needs before it declares the turn finished. Low means turns end sooner, so the agent answers faster and cuts in more often; high means it waits for a complete sentence. From 0.5 to 1. Deepgram's default is 0.7, which is also the value that was hardcoded before this field existed.",
+        },
+        eager_eot_threshold: {
+            anyOf: [{ type: "number", minimum: 0.3, maximum: 0.9 }, { type: "null" }],
+            default: 0.5,
+            models: MODELES_FLUX,
+            description: "Confidence at which Flux announces the turn is probably about to end, so the answer can be prepared before the caller has actually stopped. From 0.3 to 0.9, and it must stay at or below the threshold above. Deepgram leaves it off by default; 0.5 is the value that was hardcoded before this field existed.",
+        },
+        eot_timeout_ms: {
+            anyOf: [{ type: "integer", minimum: 500, maximum: 60000 }, { type: "null" }],
+            default: 3000,
+            models: MODELES_FLUX,
+            description: "Silence, in milliseconds, after which Flux finishes the turn whatever its confidence. From 500 to 60000. Deepgram's default is 5000; 3000 is the value that was hardcoded before this field existed.",
+        },
+        language_hints: {
+            anyOf: [{ type: "array", items: { type: "string" } }, { type: "null" }],
+            default: null,
+            models: ["flux-general-multi"],
+            examples: ["de", "en", "es", "fr"],
+            description: "Languages to bias multilingual detection towards. Only the multilingual Flux model reads them. Left empty, the hint is derived from the language chosen above, which is what happens today; filled in, it replaces that derivation.",
+        },
+        min_confidence: {
+            anyOf: [{ type: "number", minimum: 0, maximum: 1 }, { type: "null" }],
+            default: null,
+            models: MODELES_FLUX,
+            description: "Below this confidence, a finished turn is DROPPED and never reaches the agent, which then hears nothing at all. WARNING: this one is not sent to Deepgram; it is a filter applied on our side to what Deepgram returns. Left empty, nothing is dropped, which is today's behaviour.",
         },
         detect_entities: {
             anyOf: [{ type: "boolean" }, { type: "null" }],
@@ -315,6 +347,72 @@ describe("[.mark] the Deepgram transcription settings on screen", () => {
 
         expect(estAffiche("keywords")).toBe(true);
         expect(estAffiche("endpointing")).toBe(false);
+    });
+
+    it.each(["eot_threshold", "eager_eot_threshold", "eot_timeout_ms", "min_confidence"])(
+        "shows %s as a number when a Flux model is chosen",
+        async champ => {
+            afficher("flux-general-multi");
+            await attendreLEcran("eot_threshold");
+
+            const saisie = bloc(champ).querySelector("input") as HTMLInputElement;
+            expect(saisie.type).toBe("number");
+            const bornes = (schemaDeepgram.properties[champ].anyOf as Record<string, unknown>[])[0];
+            expect(saisie.min).toBe(String(bornes.minimum));
+            expect(saisie.max).toBe(String(bornes.maximum));
+            expect(bloc(champ).textContent).toContain(
+                schemaDeepgram.properties[champ].description as string,
+            );
+        },
+    );
+
+    it("starts the three Flux thresholds on the values that run today", async () => {
+        afficher("flux-general-multi");
+        await attendreLEcran("eot_threshold");
+
+        const valeur = (champ: string) =>
+            (bloc(champ).querySelector("input") as HTMLInputElement).value;
+        expect(valeur("eot_threshold")).toBe("0.7");
+        expect(valeur("eager_eot_threshold")).toBe("0.5");
+        expect(valeur("eot_timeout_ms")).toBe("3000");
+    });
+
+    it("shows language hints on the multilingual model only", async () => {
+        afficher("flux-general-multi");
+        await attendreLEcran("eot_threshold");
+
+        expect(estAffiche("language_hints")).toBe(true);
+    });
+
+    it("hides language hints on the English Flux model", async () => {
+        // Deepgram only reads the hints on flux-general-multi; anywhere else
+        // the connector logs a warning and drops them.
+        afficher("flux-general-en");
+        await attendreLEcran("eot_threshold");
+
+        expect(estAffiche("language_hints")).toBe(false);
+    });
+
+    it("keeps the two families apart", async () => {
+        // 🔴 The whole point of the model list: fourteen settings belong to
+        // the classic connector, five to Flux, and neither set applies to the
+        // other. Showing both at once would put twelve dead controls on
+        // screen whichever model is chosen.
+        afficher("flux-general-multi");
+        await attendreLEcran("eot_threshold");
+
+        for (const champ of [...NOMBRES, ...INTERRUPTEURS, ...LISTES]) {
+            expect(estAffiche(champ), `${champ} is shown on a Flux model`).toBe(false);
+        }
+    });
+
+    it("hides the Flux thresholds on a nova-3 model", async () => {
+        afficher("nova-3-general");
+        await attendreLEcran();
+
+        for (const champ of ["eot_threshold", "eager_eot_threshold", "eot_timeout_ms", "language_hints", "min_confidence"]) {
+            expect(estAffiche(champ), `${champ} is shown on nova-3`).toBe(false);
+        }
     });
 
     it("does not offer the agent's Dictionary a second time", async () => {

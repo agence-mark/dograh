@@ -3,7 +3,14 @@ from collections.abc import Iterable
 from enum import Enum, auto
 from typing import Annotated, Dict, Literal, Type, TypeVar, Union
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from api.services.configuration.options import (
     AZURE_EMBEDDING_MODELS,
@@ -20,6 +27,7 @@ from api.services.configuration.options import (
     CARTESIA_STT_LANGUAGES,
     CARTESIA_STT_MODELS,
     DEEPGRAM_CLASSIC_STT_MODELS,
+    DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES,
     DEEPGRAM_KEYWORDS_MODELS,
@@ -1827,6 +1835,104 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
         ),
     )
 
+    # ------------------------------------------------------------------ #
+    # The five settings of the Flux connector (/v2/listen).
+    #
+    # ⛔ Another service, another class, another set: none of the fourteen
+    # above applies here, and none of these five applies there. That is why
+    # each side carries its own model list.
+    #
+    # Ranges read on https://developers.deepgram.com/docs/flux/configuration
+    # on 2026-09-11. 🔑 The defaults are OURS, not Deepgram's: the factory
+    # hardcoded 0.7 / 0.5 / 3000 before this field existed, and Deepgram's own
+    # default for the timeout is 5000. Declaring them keeps today's behaviour.
+    # ------------------------------------------------------------------ #
+    eot_threshold: float | None = Field(
+        default=0.7,
+        ge=0.5,
+        le=1.0,
+        json_schema_extra={"models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Confidence Flux needs before it declares the turn finished. Low "
+            "means turns end sooner, so the agent answers faster and cuts in "
+            "more often; high means it waits for a complete sentence. From 0.5 "
+            "to 1. Deepgram's default is 0.7, which is also the value that was "
+            "hardcoded before this field existed."
+        ),
+    )
+    eager_eot_threshold: float | None = Field(
+        default=0.5,
+        ge=0.3,
+        le=0.9,
+        json_schema_extra={"models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Confidence at which Flux announces the turn is probably about to "
+            "end, so the answer can be prepared before the caller has actually "
+            "stopped. From 0.3 to 0.9, and it must stay at or below the "
+            "threshold above. Deepgram leaves it off by default; 0.5 is the "
+            "value that was hardcoded before this field existed."
+        ),
+    )
+    eot_timeout_ms: int | None = Field(
+        default=3000,
+        ge=500,
+        le=60000,
+        json_schema_extra={"models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Silence, in milliseconds, after which Flux finishes the turn "
+            "whatever its confidence. From 500 to 60000. Deepgram's default is "
+            "5000; 3000 is the value that was hardcoded before this field "
+            "existed."
+        ),
+    )
+    language_hints: list[str] | None = Field(
+        default=None,
+        json_schema_extra={
+            "models": ("flux-general-multi",),
+            "examples": DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES,
+        },
+        description=(
+            "Languages to bias multilingual detection towards. Only the "
+            "multilingual Flux model reads them. Left empty, the hint is "
+            "derived from the language chosen above, which is what happens "
+            "today; filled in, it replaces that derivation."
+        ),
+    )
+    min_confidence: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Below this confidence, a finished turn is DROPPED and never "
+            "reaches the agent, which then hears nothing at all. WARNING: this "
+            "one is not sent to Deepgram; it is a filter applied on our side to "
+            "what Deepgram returns. Left empty, nothing is dropped, which is "
+            "today's behaviour."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _le_seuil_anticipe_reste_sous_le_seuil_final(self):
+        """Flux refuses an eager threshold above the final one.
+
+        Source: https://developers.deepgram.com/docs/flux/configuration, read
+        2026-09-11 — "eager_eot_threshold must be <= eot_threshold". Refused at
+        the door rather than by Deepgram, mid-call, on a live line.
+
+        ⛔ Only checked when both are set: leaving one empty is a valid way of
+        saying "keep the connector's own value".
+        """
+        if self.eager_eot_threshold is None or self.eot_threshold is None:
+            return self
+        if self.eager_eot_threshold > self.eot_threshold:
+            raise ValueError(
+                "eager_eot_threshold must stay at or below eot_threshold "
+                f"(got {self.eager_eot_threshold} > {self.eot_threshold}); "
+                "Flux refuses the pair otherwise."
+            )
+        return self
+
 
 # The single collection point the service factory reads for the classic
 # Deepgram connector, rather than one branch per setting. ⛔ A name added here
@@ -1839,6 +1945,17 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
 #
 # The order is the connector's own declaration order, so the two lists can be
 # read side by side.
+# The single collection point for the Flux connector. ⛔ Separate from the one
+# above on purpose: the two connectors share no setting at all, and a name in
+# the wrong tuple would be collected on a path that ignores it.
+DEEPGRAM_FLUX_FIELDS: tuple[str, ...] = (
+    "eot_threshold",
+    "eager_eot_threshold",
+    "eot_timeout_ms",
+    "language_hints",
+    "min_confidence",
+)
+
 DEEPGRAM_STT_FIELDS: tuple[str, ...] = (
     "detect_entities",
     "diarize",

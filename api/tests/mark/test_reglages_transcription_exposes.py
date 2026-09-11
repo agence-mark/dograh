@@ -54,11 +54,13 @@ intended failure -- a rouge that names what is missing.
 from types import SimpleNamespace
 
 import pytest
+from pydantic import TypeAdapter, ValidationError
 
 from api.services.configuration import registry as registre
 from api.services.configuration.registry import (
     DeepgramSTTConfiguration,
     ServiceProviders,
+    STTConfig,
 )
 from api.services.pipecat.audio_config import AudioConfig
 from api.services.pipecat.service_factory import create_stt_service
@@ -270,6 +272,100 @@ def test_les_autres_reglages_sont_absents_par_defaut(champ):
     config = DeepgramSTTConfiguration(api_key="deepgram-key")
 
     assert getattr(config, champ) is None
+
+
+# --------------------------------------------------------------------------- #
+# 1 bis. Bounded -- the bounds come from Deepgram's own documentation
+# --------------------------------------------------------------------------- #
+
+# Source: developers.deepgram.com, read page by page on 2026-09-11.
+# ⛔ Not guessed, and not copied from another provider: Flux's ranges are its
+# own (the eager threshold stops at 0.9, the final one starts at 0.5).
+HORS_BORNES = [
+    ("endpointing", -1),
+    ("endpointing", 60001),
+    ("utterance_end_ms", 999),  # Deepgram's minimum is 1000
+    ("utterance_end_ms", 5001),  # and its maximum 5000
+    ("eot_threshold", 0.49),
+    ("eot_threshold", 1.01),
+    ("eager_eot_threshold", 0.29),
+    ("eager_eot_threshold", 0.91),
+    ("eot_timeout_ms", 499),
+    ("eot_timeout_ms", 60001),
+    ("min_confidence", -0.01),
+    ("min_confidence", 1.01),
+]
+
+DANS_LES_BORNES = [
+    ("endpointing", 0),
+    ("endpointing", 60000),
+    ("utterance_end_ms", 1000),
+    ("utterance_end_ms", 5000),
+    ("eot_threshold", 0.5),
+    ("eot_threshold", 1.0),
+    ("eager_eot_threshold", 0.3),
+    ("eot_timeout_ms", 500),
+    ("eot_timeout_ms", 60000),
+    ("min_confidence", 0.0),
+    ("min_confidence", 1.0),
+]
+
+
+@pytest.mark.parametrize("champ,valeur", HORS_BORNES)
+def test_une_valeur_hors_bornes_est_refusee(champ, valeur):
+    """Refused at the door rather than by Deepgram, mid-call, on a live line."""
+    with pytest.raises(ValidationError):
+        DeepgramSTTConfiguration(api_key="deepgram-key", **{champ: valeur})
+
+
+@pytest.mark.parametrize("champ,valeur", DANS_LES_BORNES)
+def test_une_valeur_aux_bornes_est_acceptee(champ, valeur):
+    """The bounds Deepgram accepts must be reachable from the screen."""
+    config = DeepgramSTTConfiguration(api_key="deepgram-key", **{champ: valeur})
+
+    assert getattr(config, champ) == valeur
+
+
+def test_le_seuil_anticipe_ne_peut_pas_depasser_le_seuil_final():
+    """Flux refuses the pair, so the screen refuses it first.
+
+    Source: developers.deepgram.com/docs/flux/configuration, read 2026-09-11 --
+    "eager_eot_threshold must be <= eot_threshold". Each value is inside its
+    own range here; only the pair is wrong, which is exactly the mistake no
+    per-field bound can catch.
+    """
+    with pytest.raises(ValidationError):
+        DeepgramSTTConfiguration(
+            api_key="deepgram-key", eot_threshold=0.6, eager_eot_threshold=0.8
+        )
+
+
+def test_les_deux_seuils_egaux_sont_acceptes():
+    """At or below, so equal is allowed -- a bound, not a strict inequality."""
+    config = DeepgramSTTConfiguration(
+        api_key="deepgram-key", eot_threshold=0.7, eager_eot_threshold=0.7
+    )
+
+    assert config.eager_eot_threshold == 0.7
+
+
+def test_le_discriminateur_accepte_ce_que_lecran_enverra():
+    """The screen POSTs a plain dict; it is parsed through the union."""
+    config = TypeAdapter(STTConfig).validate_python(
+        {
+            "provider": "deepgram",
+            "api_key": "deepgram-key",
+            "model": "nova-3-general",
+            "language": "fr",
+            "endpointing": 450,
+            "smart_format": True,
+            "replace": ["poil:poele"],
+        }
+    )
+
+    assert isinstance(config, DeepgramSTTConfiguration)
+    assert config.endpointing == 450
+    assert config.replace == ["poil:poele"]
 
 
 # --------------------------------------------------------------------------- #
