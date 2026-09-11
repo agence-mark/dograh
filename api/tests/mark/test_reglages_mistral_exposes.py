@@ -228,10 +228,11 @@ def test_les_six_reglages_arrivent_dans_la_requete():
     assert params["top_p"] == 0.9
     assert params["frequency_penalty"] == 0.4
     assert params["presence_penalty"] == 0.2
-    # Mistral's own name for the seed. Upstream maps it; we only check it made
-    # the trip, because a seed that never leaves is the exact bug that made
-    # the test bench non-reproducible.
-    assert params["random_seed"] == 424242
+    # Mistral's own name for the seed, and it travels in ``extra_body``: at the
+    # top level OpenAI's client refuses the keyword and the whole request dies
+    # before it is sent, agent mute (2026-09-11). See
+    # ``test_graine_random_seed.py``, which owns that rule.
+    assert params["extra_body"]["random_seed"] == 424242
 
 
 def test_la_temperature_configuree_remplace_le_zero_un_ecrit_en_dur():
@@ -270,7 +271,7 @@ def test_un_reglage_seul_nentraine_pas_les_autres():
     """
     params = _params(seed=7)
 
-    assert params["random_seed"] == 7
+    assert params["extra_body"]["random_seed"] == 7
     assert params["temperature"] == TEMPERATURE_ACTUELLE
     assert _non_transmis(params["max_tokens"])
     assert _non_transmis(params["top_p"])
@@ -335,12 +336,32 @@ def test_le_point_de_collecte_ne_ramasse_que_ce_qui_part():
 
     Collecting a setting the builder ignores would put it on screen with no
     effect, which is precisely what the top_k decision refused.
+
+    🚨 READ WHAT THIS PROVES, AND WHAT IT DOES NOT. It reads source code. It
+    was green on 2026-09-10 while a filled-in seed made the agent mute: the
+    string was in the builder, and the request still died on the way out.
+    Reading code is not running it. What the settings actually do to a request
+    lives in ``test_graine_random_seed.py``, which builds one and checks it.
     """
     import inspect
 
-    from pipecat.services.mistral.llm import MistralLLMService
-
-    source = inspect.getsource(MistralLLMService.build_chat_completion_params)
+    # 🔑 The class the factory actually returns, and every class it inherits
+    # from -- not a class named here. Naming one let this test read code that
+    # was no longer on the path: the override lives in a subclass now, and
+    # this test would have stayed green while it stopped sending a setting.
+    service = _service()
+    morceaux = []
+    for classe in type(service).__mro__:
+        if "build_chat_completion_params" not in vars(classe):
+            continue
+        morceau = inspect.getsource(classe.build_chat_completion_params)
+        morceaux.append(morceau)
+        if "super().build_chat_completion_params" not in morceau:
+            # This one builds the dict from scratch, so whatever the classes
+            # below it declare is dead code for this provider. Reading further
+            # would let their strings answer for settings that never leave.
+            break
+    source = "".join(morceaux)
 
     for champ in MISTRAL_SAMPLING_FIELDS:
         # `seed` travels under Mistral's own name.
@@ -384,8 +405,12 @@ def test_la_copie_du_schema_cote_ecran_dit_la_meme_chose():
         declare = proprietes[champ]
         # The bounds live either on the property itself (temperature) or on the
         # non-null branch of its anyOf (the five optional ones).
-        bornes = declare if "anyOf" not in declare else next(
-            branche for branche in declare["anyOf"] if branche.get("type") != "null"
+        bornes = (
+            declare
+            if "anyOf" not in declare
+            else next(
+                branche for branche in declare["anyOf"] if branche.get("type") != "null"
+            )
         )
 
         # The field's block in the TypeScript literal, from its name to the
@@ -399,7 +424,11 @@ def test_la_copie_du_schema_cote_ecran_dit_la_meme_chose():
             if cle in bornes:
                 attendu = bornes[cle]
                 # 1.5 is written "1.5" on both sides; 1 is written "1".
-                rendu = str(int(attendu)) if float(attendu) == int(attendu) else str(attendu)
+                rendu = (
+                    str(int(attendu))
+                    if float(attendu) == int(attendu)
+                    else str(attendu)
+                )
                 assert f"{cle}: {rendu}" in copie_du_champ, (
                     f"'{champ}': the screen test says something else than "
                     f"{cle}={rendu}. Realign the copy in "

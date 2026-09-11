@@ -35,6 +35,7 @@ from api.services.pipecat.mistral_tts import (
     resolve_mistral_endpoint,
 )
 from api.utils.url_security import validate_user_configured_service_url
+from pipecat.adapters.services.open_ai_adapter import OpenAILLMInvocationParams
 from pipecat.services.assemblyai.stt import AssemblyAISTTService, AssemblyAISTTSettings
 from pipecat.services.aws.llm import AWSBedrockLLMService, AWSBedrockLLMSettings
 from pipecat.services.azure.llm import AzureLLMService, AzureLLMSettings
@@ -241,6 +242,52 @@ def stt_uses_external_turns(user_config) -> bool:
     if user_config.stt.provider == ServiceProviders.CARTESIA.value:
         return user_config.stt.model == "ink-2"
     return False
+
+
+class DograhMistralLLMService(MistralLLMService):
+    """Send Mistral's ``random_seed`` in a way OpenAI's client will carry.
+
+    ⛔ Why this class exists rather than a fix upstream: the seed never left
+    the machine. Mistral reads ``random_seed`` and upstream names it correctly,
+    but the call goes out through OpenAI's client library, which raises
+    TypeError on any keyword outside its own signature -- before any network
+    call. The resulting error is NOT fatal, so nothing surfaced: the agent
+    stayed up and answered nothing at all (measured 2026-09-11, runs 112-115,
+    zero tokens).
+
+    ``extra_body`` is the SDK's own channel for provider-specific fields: it is
+    passed through into the request body untouched. Mistral accepts
+    ``random_seed`` there and refuses OpenAI's ``seed`` outright (HTTP 422,
+    ``extra_forbidden``, verified 2026-09-11), so the name has to stay theirs.
+
+    ⚠️ Second defect fixed in the same place: upstream only sent the parameter
+    when it was truthy, so a seed of 0 was dropped in silence while the screen
+    accepted it (``ge=0``). A bench pinned to seed 0 would have drawn afresh
+    every time with nothing to say so.
+
+    🔑 This is a stopgap over a genuine upstream defect, not a divergence we
+    want: the fix is going upstream (Evan, 2026-09-11). Drop this class once it
+    lands there -- the test that covers it goes through the factory, so it will
+    keep passing either way.
+    """
+
+    def build_chat_completion_params(
+        self, params_from_context: OpenAILLMInvocationParams
+    ) -> dict:
+        params = super().build_chat_completion_params(params_from_context)
+        # Move whatever upstream put at the top level, where the SDK refuses
+        # it. Taking the value rather than re-deriving it keeps a seed that
+        # came in through ``extra`` instead of dropping it.
+        graine = params.pop("random_seed", None)
+        if graine is None and isinstance(self._settings.seed, int):
+            # Upstream skips a seed of 0 -- falsy, though the schema allows it.
+            graine = self._settings.seed
+        if graine is not None:
+            params["extra_body"] = {
+                **(params.get("extra_body") or {}),
+                "random_seed": graine,
+            }
+        return params
 
 
 class DograhGoogleLLMService(GoogleLLMService):
@@ -1098,7 +1145,7 @@ def create_llm_service_from_provider(
         # 0.1 stays the default temperature; a configured value replaces it.
         # Any other setting only appears here once someone has filled it in.
         mistral_settings = {"temperature": 0.1, **(sampling or {})}
-        return MistralLLMService(
+        return DograhMistralLLMService(
             api_key=api_key,
             settings=MistralLLMSettings(model=model, **mistral_settings),
             **kwargs,
