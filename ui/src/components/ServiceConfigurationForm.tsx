@@ -41,6 +41,8 @@ interface SchemaProperty {
     format?: string;
     multiline?: boolean;
     docs_url?: string;
+    // [.mark] The models that accept this setting. Absent = every model.
+    models?: string[];
 }
 
 export interface ProviderSchema {
@@ -600,9 +602,26 @@ export function ServiceConfigurationForm({
         const currentProvider = serviceProviders[service];
         const providerSchema = schemas?.[service]?.[currentProvider];
         if (!providerSchema) return [];
-        return Object.keys(providerSchema.properties).filter(
-            field => field !== "provider" && field !== "api_key"
-        );
+        const currentModel = watch(`${service}_model`) as string | undefined;
+        return Object.keys(providerSchema.properties).filter(field => {
+            if (field === "provider" || field === "api_key") return false;
+            const schema = providerSchema.properties[field];
+            const actualSchema = schema?.$ref && providerSchema.$defs
+                ? providerSchema.$defs[schema.$ref.split('/').pop() || '']
+                : schema;
+            // [.mark] A field can name the models that accept it. Absent means
+            // every model, so no existing field changes behaviour.
+            // ⛔ A setting shown, filled in, sent and ignored by the model is
+            // what we ruled out for top_k. `model_options` filters the VALUES
+            // of a dropdown; it cannot hide a field.
+            // 🔑 Hiding is a screen decision, not a data decision: the value
+            // stays in the form and is still saved, so switching back to the
+            // model that accepts it does not silently reset it.
+            const models = actualSchema?.models;
+            if (!models || models.length === 0) return true;
+            if (!currentModel) return true;
+            return models.includes(currentModel);
+        });
     };
 
     const renderServiceFields = (service: ServiceSegment) => {
