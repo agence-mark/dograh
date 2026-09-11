@@ -532,8 +532,8 @@ export function ServiceConfigurationForm({
         if (keys.length > 0) {
             config.api_key = mode === 'override' ? keys[0] : keys;
         }
-        const schemasParFournisseur = () => schemas?.[service]?.[serviceProviders[service]];
-        const properties = schemasParFournisseur()?.properties;
+        const schemaDuFournisseur = () => schemas?.[service]?.[serviceProviders[service]];
+        const properties = schemaDuFournisseur()?.properties;
 
         // [.mark] An override must carry only what it CHANGES.
         //
@@ -558,13 +558,19 @@ export function ServiceConfigurationForm({
         // [.mark] The rendering resolves $ref before reading a field's flags,
         // so the save has to resolve it too. A read-only field declared behind
         // a $ref was drawn disabled and posted anyway.
+        //
+        // ⛔ MERGED, not replaced. Pydantic writes a field's own keywords
+        // (description, readonly, models…) NEXT TO the $ref, not inside the
+        // definition it points at — so replacing would lose exactly the flag
+        // this function exists to read. Raised by the second review of
+        // 2026-09-11; no configuration field carries a $ref today, which is
+        // why nothing showed it.
         const schemaResolu = (field: string): SchemaProperty | undefined => {
             const brut = properties?.[field];
-            if (brut?.$ref) {
-                const schemas = schemasParFournisseur();
-                return schemas?.$defs?.[brut.$ref.split('/').pop() || ''] ?? brut;
-            }
-            return brut;
+            if (!brut?.$ref) return brut;
+            const definition =
+                schemaDuFournisseur()?.$defs?.[brut.$ref.split('/').pop() || ''];
+            return definition ? { ...definition, ...brut } : brut;
         };
 
         const valeurHeritee = (field: string): unknown => {

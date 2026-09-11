@@ -100,20 +100,23 @@ DEEPGRAM_LANGUAGES = (
     "zh-TW",
 )
 
-# Models that accept ``keywords``. ⛔ Nova-3 is NOT among them: Deepgram
-# replaced keyword boosting with keyterm prompting there, and passing
-# ``keywords`` to a nova-3 model does nothing at all (verified on
-# https://developers.deepgram.com/docs/keywords, 2026-09-11). The setting is
-# still declared, so it appears the day a client is pinned to an older model
-# through the custom-model box -- and stays off the screen the rest of the
-# time.
-DEEPGRAM_KEYWORDS_MODELS = (
-    "nova-2",
-    "nova-2-general",
-    "nova-2-medical",
-    "nova-2-phonecall",
-    "nova-2-conversationalai",
-    "nova",
-    "enhanced",
-    "base",
+# Models where ``keywords`` has been REPLACED by keyterm prompting, so sending
+# it does nothing at all (verified on
+# https://developers.deepgram.com/docs/keywords, 2026-09-11).
+#
+# ⛔ An EXCLUSION, not a white list of the models that accept it. The model
+# field takes free input, and Deepgram has dozens of older models
+# (`nova-2-finance`, `nova-2-drivethru`…): a white list would silently drop the
+# setting for every model nobody thought to enumerate. Raised by the second
+# review of 2026-09-11, which had already made the same point about the
+# thirteen classic settings.
+#
+# 🔑 ONE list, used by the screen to hide the field AND by the factory to drop
+# it from the request. Two lists would be two chances to diverge, and the
+# screen would stop describing what goes out.
+DEEPGRAM_KEYTERM_MODELS = (
+    "nova-3",
+    "nova-3-general",
+    "nova-3-medical",
+    *DEEPGRAM_FLUX_MODELS,
 )

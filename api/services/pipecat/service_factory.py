@@ -16,7 +16,7 @@ from api.errors.failure import (
 from api.services.configuration.options import (
     DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
-    DEEPGRAM_KEYWORDS_MODELS,
+    DEEPGRAM_KEYTERM_MODELS,
 )
 from api.services.configuration.registry import (
     DEEPGRAM_FLUX_FIELDS,
@@ -187,18 +187,22 @@ DEEPGRAM_FLUX_LANGUAGE_HINTS = {
 
 
 def _reglages_classiques(stt_config) -> dict:
-    """The classic Deepgram settings this MODEL accepts, filled in.
+    """The classic Deepgram settings, minus the ones this MODEL replaced.
 
     ⛔ The model gate is not only a screen decision. `keywords` is hidden from
     the screen on nova-3, where Deepgram replaced it with keyterm prompting —
-    but a client who was pinned to nova-2, filled it in, then moved to nova-3
-    would keep sending it on every call. At best it is ignored; a 400 would
-    break every call. Raised by the review of 2026-09-11; filtering costs one
-    line and removes the question.
+    but a client who was pinned to an older model, filled it in, then moved to
+    nova-3 would keep sending it on every call. At best it is ignored; a 400
+    would break every call.
+
+    🔑 An EXCLUSION, and the SAME list the screen hides on. A white list of the
+    models that accept it would drop the setting for every older model nobody
+    thought to enumerate (`nova-2-finance`…), and screen and request would stop
+    describing each other. Both points raised by the reviews of 2026-09-11.
     """
     reglages = collect_declared_settings(stt_config, DEEPGRAM_STT_FIELDS)
     modele = getattr(stt_config, "model", None)
-    if "keywords" in reglages and modele not in DEEPGRAM_KEYWORDS_MODELS:
+    if "keywords" in reglages and modele in DEEPGRAM_KEYTERM_MODELS:
         del reglages["keywords"]
     return reglages
 
@@ -1152,12 +1156,16 @@ def stamp_transcription_settings(runtime_configuration: dict, stt_config) -> dic
     """
     if stt_config is None:
         return runtime_configuration
-    champs = (
-        DEEPGRAM_FLUX_FIELDS
-        if getattr(stt_config, "model", None) in DEEPGRAM_FLUX_MODELS
-        else DEEPGRAM_STT_FIELDS
-    )
-    reglages = collect_declared_settings(stt_config, champs)
+    # 🔑 Built by the SAME function that builds the request, not by a parallel
+    # collection. A stamp assembled apart drifts from what went out: measured
+    # on 2026-09-11, it carried `keywords` on nova-3 while the request did not.
+    # ⛔ "A stamp that lies is worse than no stamp" is written three lines
+    # below; it has to be true of this function too. Raised by the second
+    # review of 2026-09-11.
+    if getattr(stt_config, "model", None) in DEEPGRAM_FLUX_MODELS:
+        reglages = collect_declared_settings(stt_config, DEEPGRAM_FLUX_FIELDS)
+    else:
+        reglages = _reglages_classiques(stt_config)
     if reglages:
         runtime_configuration["stt_settings"] = reglages
     return runtime_configuration

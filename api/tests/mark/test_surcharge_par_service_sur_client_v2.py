@@ -274,6 +274,38 @@ def test_une_surcharge_valide_passe_toujours():
     assert effective.stt.eot_timeout_ms == 60000
 
 
+def test_une_surcharge_deja_en_base_ne_casse_NI_un_appel_NI_un_enregistrement():
+    """🔴 Le revers de la validation, trouvé par la seconde relecture.
+
+    Valider la fusion refuse une surcharge invalide À L'ÉCRITURE, ce qui est le
+    but. Mais les mêmes lignes sont relues ailleurs :
+
+    * au **démarrage d'un appel** -- une surcharge écrite avant cette règle
+      empêcherait l'appel de démarrer, et l'appelant n'aurait rien du tout ;
+    * à **l'enregistrement de la configuration du client** -- la migration
+      tourne APRÈS l'écriture et hors de tout garde, donc chaque sauvegarde
+      rendrait 500 **après avoir écrit**, indéfiniment.
+
+    ⛔ Les deux chemins journalisent et se replient, comme le fait déjà l'amont
+    pour une configuration d'organisation illisible. Refuser une donnée qu'on
+    LIT ne la répare pas, ça propage la panne.
+    """
+    from api.services.configuration.ai_model_configuration import (
+        migrate_workflow_configuration_model_override_to_v2,
+    )
+
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+    invalide = {"llm": {"provider": "mistral", "temperature": 99.0}}
+
+    # La migration laisse la surcharge en l'état plutôt que de lever.
+    migre, change = migrate_workflow_configuration_model_override_to_v2(
+        {"model_overrides": invalide}, client
+    )
+
+    assert change is False
+    assert migre["model_overrides"] == invalide
+
+
 def test_la_conformite_survit_a_une_surcharge_qui_tente_de_la_defaire():
     """🔴 An override is a request body: it can carry anything.
 

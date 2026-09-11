@@ -29,7 +29,7 @@ from api.services.configuration.options import (
     DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES,
-    DEEPGRAM_KEYWORDS_MODELS,
+    DEEPGRAM_KEYTERM_MODELS,
     DEEPGRAM_LANGUAGES,
     DEEPGRAM_STT_MODELS,
     ELEVENLABS_STT_LANGUAGES,
@@ -1749,7 +1749,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
     keywords: list[str] | None = Field(
         default=None,
-        json_schema_extra={"models": DEEPGRAM_KEYWORDS_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_KEYTERM_MODELS},
         description=(
             "Words to boost, written 'word' or 'word:intensifier'. NOT "
             "supported from nova-3 onwards, where Deepgram replaced it with "

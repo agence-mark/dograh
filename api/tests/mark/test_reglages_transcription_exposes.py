@@ -418,9 +418,16 @@ def test_les_quatorze_reglages_arrivent_dans_la_requete():
     assert requete["utterance_end_ms"] == "1200"
 
 
-def test_les_mots_a_renforcer_partent_sur_un_modele_qui_les_accepte():
-    """The fourteenth setting, on the models Deepgram still reads it on."""
-    requete = _requete_classique(model="nova-2", keywords=["veranda", "poele"])
+@pytest.mark.parametrize("modele", ["nova-2", "nova-2-finance", "enhanced"])
+def test_les_mots_a_renforcer_partent_sur_un_modele_qui_les_accepte(modele):
+    """The fourteenth setting, on the models Deepgram still reads it on.
+
+    ⛔ `nova-2-finance` is in the list on purpose. The first version of this
+    filter was a WHITE LIST of eight model names, and it dropped the setting in
+    silence for every older Deepgram model nobody had thought to enumerate --
+    and Deepgram has dozens. Raised by the second review of 2026-09-11.
+    """
+    requete = _requete_classique(model=modele, keywords=["veranda", "poele"])
 
     assert requete["keywords"] == ["veranda", "poele"]
 
@@ -436,6 +443,27 @@ def test_les_mots_a_renforcer_NE_partent_PAS_sur_nova_3():
     """
     requete = _requete_classique(keywords=["veranda"])
 
+    assert "keywords" not in requete
+
+
+def test_lestampille_dit_ce_que_la_requete_porte_vraiment():
+    """🔴 A stamp assembled apart from the request drifts from it.
+
+    Measured by the second review of 2026-09-11: the stamp carried `keywords`
+    on nova-3 while the request did not, because it collected the declared
+    fields directly instead of going through the function that builds the
+    request. A stamp that lies is worse than no stamp -- it is read back later
+    as evidence.
+    """
+    from api.services.pipecat.service_factory import stamp_transcription_settings
+
+    config = DeepgramSTTConfiguration(
+        api_key="deepgram-key", model="nova-3-general", keywords=["veranda"]
+    )
+    stampe = stamp_transcription_settings({}, config)
+    requete = _requete_classique(keywords=["veranda"])
+
+    assert "keywords" not in stampe.get("stt_settings", {})
     assert "keywords" not in requete
 
 
@@ -700,8 +728,13 @@ def test_la_copie_du_schema_de_transcription_dit_la_meme_chose(champ):
     # eight spaces, so it would have gone red at the first reformatting of the
     # .tsx — for a reason with nothing to do with the contract it protects
     # (review of 2026-09-11).
+    # ⛔ Anchored at the start of a line, so `eot_threshold` cannot match INSIDE
+    # `eager_eot_threshold` and compare the bounds of one field against the copy
+    # of another. Today only the order of the file prevents it, which is exactly
+    # the kind of accident a reordering would bring back. Raised by the second
+    # review of 2026-09-11.
     bloc = re.search(
-        re.escape(champ) + r":\s*\{(.*?)\n\s*\},",
+        r"(?m)^\s*" + re.escape(champ) + r":\s*\{(.*?)\n\s*\},",
         texte,
         re.DOTALL,
     )

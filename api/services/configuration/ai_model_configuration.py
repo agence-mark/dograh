@@ -99,10 +99,27 @@ async def get_effective_ai_model_configuration_for_workflow(
     resolved_config = await get_resolved_ai_model_configuration(
         organization_id=organization_id,
     )
-    return resolve_effective_config(
-        resolved_config.effective,
-        workflow_configurations.get("model_overrides"),
-    )
+    overrides = workflow_configurations.get("model_overrides")
+    try:
+        return resolve_effective_config(resolved_config.effective, overrides)
+    except ValidationError as exc:
+        # [.mark] READING a stored override must never stop a call.
+        #
+        # 🔴 Since 2026-09-11 the merge is validated, which is what refuses an
+        # invalid override at SAVE time. But an override written before that,
+        # or written straight into the database, would now raise here — at the
+        # start of a call — and the caller would simply get nothing.
+        #
+        # ⛔ Falling back to the client's own configuration, without the
+        # override: the agent answers with its client's settings instead of not
+        # answering at all. Same shape as `_parse_organization_ai_model_
+        # configuration_v2` above, which logs and falls back rather than break.
+        # Raised by the second review of 2026-09-11.
+        logger.warning(
+            f"Invalid model_overrides for organization {organization_id}: {exc}. "
+            f"Falling back to the organization configuration for this run."
+        )
+        return resolve_effective_config(resolved_config.effective, None)
 
 
 async def get_organization_ai_model_configuration_v2(
@@ -244,7 +261,24 @@ def migrate_workflow_configuration_model_override_to_v2(
         return migrated, False
 
     if not existing_v2_override:
-        effective = resolve_effective_config(base_config, model_overrides)
+        try:
+            effective = resolve_effective_config(base_config, model_overrides)
+        except ValidationError as exc:
+            # [.mark] This migration runs AFTER the client's configuration has
+            # already been written (routes/organization.py), and outside any
+            # try. An override stored before the merge was validated would
+            # therefore turn every save of that client's configuration into a
+            # 500 — after the write, so the save would look broken while having
+            # succeeded, on every attempt.
+            #
+            # ⛔ The override is left exactly as it is: migrating it is a
+            # convenience, refusing to save the client's configuration is not.
+            # Raised by the second review of 2026-09-11.
+            logger.warning(
+                f"Legacy model_overrides cannot be migrated because they no "
+                f"longer validate: {exc}. Left untouched."
+            )
+            return copy.deepcopy(workflow_configurations), False
         v2_override = convert_legacy_ai_model_configuration_to_v2(effective)
         migrated[WORKFLOW_MODEL_CONFIGURATION_V2_OVERRIDE_KEY] = v2_override.model_dump(
             mode="json", exclude_none=True
