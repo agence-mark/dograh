@@ -3,7 +3,14 @@ from collections.abc import Iterable
 from enum import Enum, auto
 from typing import Annotated, Dict, Literal, Type, TypeVar, Union
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from api.services.configuration.options import (
     AZURE_EMBEDDING_MODELS,
@@ -19,8 +26,10 @@ from api.services.configuration.options import (
     CARTESIA_INK_WHISPER_STT_LANGUAGES,
     CARTESIA_STT_LANGUAGES,
     CARTESIA_STT_MODELS,
+    DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES,
+    DEEPGRAM_KEYTERM_MODELS,
     DEEPGRAM_LANGUAGES,
     DEEPGRAM_STT_MODELS,
     ELEVENLABS_STT_LANGUAGES,
@@ -1637,6 +1646,14 @@ TTSConfig = Annotated[
 ###################################################### STT ########################################################################
 
 
+# ⛔ A MIRROR of api/services/pipecat/deepgram_endpoints.py, not a second
+# source: the factory reads the endpoints module, this one only says out loud
+# what that module imposes. A test compares the two, because a mirror that
+# drifted would break nothing at all and simply announce a region the audio
+# does not go to.
+_DEEPGRAM_REGION_IMPOSEE = "api.eu.deepgram.com"
+
+
 @register_stt
 class DeepgramSTTConfiguration(BaseSTTConfiguration):
     model_config = DEEPGRAM_PROVIDER_MODEL_CONFIG
@@ -1663,6 +1680,375 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
             },
         },
     )
+
+    # ------------------------------------------------------------------ #
+    # The fourteen settings of the classic connector (/v1/listen).
+    #
+    # ⛔ `keyterm` is deliberately NOT declared: it is fed by the agent's
+    # Dictionary and overwritten on every call, so a field here would be
+    # filled in, saved, and ignored — a second live control for the same
+    # thing, right next to the Dictionary (decision of Evan, 2026-09-11).
+    #
+    # Bounds and per-model support were read page by page on
+    # developers.deepgram.com on 2026-09-11. ⛔ They are not guessed, and not
+    # copied from another provider.
+    #
+    # 🔑 The defaults reproduce what runs today: `endpointing` at 100 and
+    # `profanity_filter` off were literals in the factory; `interim_results`
+    # and `punctuate` run ON by way of the connector's own default, so they are
+    # declared as True rather than unset — a switch shown OFF for a setting
+    # that runs ON is a screen that lies, and switching it twice would post
+    # `false` while looking like a return to the initial state. The ten others
+    # are left unset, which leaves the connector's default in place.
+    # Declaring changes nothing, it makes the setting visible.
+    #
+    # ⛔ The model gate is an EXCLUSION (`hidden_for_models`), not a white
+    # list. The model field takes free input, so a white list built from the
+    # two entries of the dropdown would hide thirteen settings from a client
+    # pinned to `nova-2-phonecall` -- `endpointing` included, which is the
+    # whole point of this chantier. These settings belong to every Deepgram
+    # model that is not Flux.
+    # ------------------------------------------------------------------ #
+    endpointing: int | None = Field(
+        default=100,
+        ge=0,
+        le=60000,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Silence, in milliseconds, after which Deepgram declares the "
+            "speech finished. This is the setting that decides when the agent "
+            "takes the floor, so it caps the responsiveness of the whole "
+            "chain: too low and the agent cuts the caller off, too high and it "
+            "leaves a blank. Deepgram's own default is 10 ms; 100 ms is the "
+            "value that was hardcoded before this field existed. Deepgram also "
+            "accepts 'false' to switch endpointing off entirely, which this "
+            "field does not offer."
+        ),
+    )
+    utterance_end_ms: int | None = Field(
+        default=None,
+        ge=1000,
+        le=5000,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Silence, in milliseconds, after which Deepgram emits an "
+            "end-of-utterance event. From 1000 to 5000. WARNING: requires "
+            "interim results to be on; without them Deepgram sends nothing. "
+            "Left empty, no such event is requested, which is today's "
+            "behaviour."
+        ),
+    )
+    interim_results: bool | None = Field(
+        default=True,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Sends partial transcriptions as the caller speaks, instead of "
+            "only the finished sentence. On today by way of the connector's "
+            "own default, and required by the end-of-utterance setting above."
+        ),
+    )
+    keywords: list[str] | None = Field(
+        default=None,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_KEYTERM_MODELS},
+        description=(
+            "Words to boost, written 'word' or 'word:intensifier'. NOT "
+            "supported from nova-3 onwards, where Deepgram replaced it with "
+            "keyterm prompting — which is what the agent's Dictionary already "
+            "feeds. Only shown when an older model is selected."
+        ),
+    )
+    punctuate: bool | None = Field(
+        default=True,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Adds punctuation and capitalisation to the transcript. On today "
+            "by way of the connector's own default. Required for dictation "
+            "below to have any effect."
+        ),
+    )
+    smart_format: bool | None = Field(
+        default=None,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Formats dates, times, phone numbers and amounts for readability. "
+            "Includes the numerals setting below. Off today by way of the "
+            "connector's own default."
+        ),
+    )
+    numerals: bool | None = Field(
+        default=None,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Writes spoken numbers as digits ('twenty three' becomes '23'). "
+            "Off today by way of the connector's own default."
+        ),
+    )
+    dictation: bool | None = Field(
+        default=None,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Turns spoken punctuation commands into characters ('comma' "
+            "becomes ','). WARNING: English only, and has no effect unless "
+            "punctuation is on. Off today by way of the connector's own "
+            "default."
+        ),
+    )
+    profanity_filter: bool | None = Field(
+        default=False,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Replaces or removes coarse language in the transcript. Off is the "
+            "value that was hardcoded before this field existed: what the "
+            "caller said reaches the agent as they said it."
+        ),
+    )
+    redact: list[str] | None = Field(
+        default=None,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Removes sensitive information from the transcript before it "
+            "reaches us. Categories such as pci, pii, phi, numbers, "
+            "aggressive_numbers, or an individual entity type. WARNING: "
+            "outside English, only numbers are redacted. Left empty, nothing "
+            "is redacted, which is today's behaviour."
+        ),
+    )
+    replace: list[str] | None = Field(
+        default=None,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Replacement rules, written 'term heard:term written'. Useful for "
+            "a trade word the model mishears consistently. One rule per entry; "
+            "the colon separates the two halves."
+        ),
+    )
+    search: list[str] | None = Field(
+        default=None,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Terms Deepgram reports the position and confidence of, without "
+            "changing the transcript. WARNING: nothing in the agent reads "
+            "those results today, so this is an observation aid, not a "
+            "behaviour."
+        ),
+    )
+    diarize: bool | None = Field(
+        default=None,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Labels the transcript by speaker. WARNING: Deepgram marks this "
+            "parameter deprecated in favour of diarize_model, which the "
+            "connector does not carry; it still works and routes to the v1 "
+            "diarizer. On a telephone call the agent and the caller are "
+            "already on separate channels, so there is little to gain."
+        ),
+    )
+    detect_entities: bool | None = Field(
+        default=None,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Marks names, dates, amounts and the like in the transcript. "
+            "WARNING: nothing in the agent reads those markers today. Off by "
+            "way of the connector's own default."
+        ),
+    )
+
+    # ------------------------------------------------------------------ #
+    # The five settings of the Flux connector (/v2/listen).
+    #
+    # ⛔ Another service, another class, another set. ⚠️ With ONE exception,
+    # written here rather than ignored: `numerals` is declared by BOTH
+    # connectors. It is not exposed on Flux -- the field above is hidden there
+    # -- so a client on Flux cannot reach it. That is a gap, not a claim that
+    # the setting does not exist (question n° 119, opened by the third review
+    # of 2026-09-11). Each side carries its own model list for the rest.
+    #
+    # Ranges read on https://developers.deepgram.com/docs/flux/configuration
+    # on 2026-09-11. 🔑 The defaults are OURS, not Deepgram's: the factory
+    # hardcoded 0.7 / 0.5 / 3000 before this field existed, and Deepgram's own
+    # default for the timeout is 5000. Declaring them keeps today's behaviour.
+    # ------------------------------------------------------------------ #
+    eot_threshold: float | None = Field(
+        default=0.7,
+        ge=0.5,
+        le=1.0,
+        json_schema_extra={"models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Confidence Flux needs before it declares the turn finished. Low "
+            "means turns end sooner, so the agent answers faster and cuts in "
+            "more often; high means it waits for a complete sentence. From 0.5 "
+            "to 1. Deepgram's default is 0.7, which is also the value that was "
+            "hardcoded before this field existed."
+        ),
+    )
+    eager_eot_threshold: float | None = Field(
+        default=0.5,
+        ge=0.3,
+        le=0.9,
+        json_schema_extra={"models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Confidence at which Flux announces the turn is probably about to "
+            "end, so the answer can be prepared before the caller has actually "
+            "stopped. From 0.3 to 0.9, and it must stay at or below the "
+            "threshold above. Deepgram leaves it off by default; 0.5 is the "
+            "value that was hardcoded before this field existed."
+        ),
+    )
+    eot_timeout_ms: int | None = Field(
+        default=3000,
+        ge=500,
+        le=60000,
+        json_schema_extra={"models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Silence, in milliseconds, after which Flux finishes the turn "
+            "whatever its confidence. From 500 to 60000. Deepgram's default is "
+            "5000; 3000 is the value that was hardcoded before this field "
+            "existed."
+        ),
+    )
+    language_hints: list[str] | None = Field(
+        default=None,
+        json_schema_extra={
+            "models": ("flux-general-multi",),
+            "examples": DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES,
+        },
+        description=(
+            "Languages to bias multilingual detection towards. Only the "
+            "multilingual Flux model reads them. Left empty, the hint is "
+            "derived from the language chosen above, which is what happens "
+            "today; filled in, it replaces that derivation."
+        ),
+    )
+    min_confidence: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"models": DEEPGRAM_FLUX_MODELS},
+        description=(
+            "Below this confidence, a finished turn is DROPPED and never "
+            "reaches the agent, which then hears nothing at all. WARNING: this "
+            "one is not sent to Deepgram; it is a filter applied on our side to "
+            "what Deepgram returns. Left empty, nothing is dropped, which is "
+            "today's behaviour."
+        ),
+    )
+
+    # ------------------------------------------------------------------ #
+    # The two compliance values, shown but not editable.
+    #
+    # 🔴 The lock is in the factory, not here and not on screen. A greyed-out
+    # field is not a lock: it stays reachable through the API. These two fields
+    # exist so the pair (what we control, what we do not) can be read in one
+    # place — Evan, 2026-09-11: "knowing what we master and what we do not, and
+    # knowing whether one day we will have to unlock them".
+    #
+    # ⛔ They are never collected and never sent: the factory imposes the EU
+    # endpoint and the training opt-out whatever a configuration says. The
+    # values below are a MIRROR of api/services/pipecat/deepgram_endpoints.py,
+    # and a test compares the two so the mirror cannot lie.
+    # ------------------------------------------------------------------ #
+    region: str = Field(
+        default=_DEEPGRAM_REGION_IMPOSEE,
+        json_schema_extra={"readonly": True},
+        description=(
+            "The Deepgram region the caller's audio is processed in. Locked on "
+            "Europe: processing inside the EU is a condition of the offer, not "
+            "an option, so it is imposed in code and cannot be changed from "
+            "here or through the API."
+        ),
+    )
+    mip_opt_out: bool = Field(
+        default=True,
+        json_schema_extra={"readonly": True},
+        description=(
+            "Refusal to take part in Deepgram's Model Improvement Program, so "
+            "no call is used to train their models. Locked on: it is a "
+            "condition of the offer, not an option. Refusing forfeits a "
+            "discount, and that is accepted."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _la_conformite_ne_se_configure_pas(self):
+        """Whatever arrives, the two compliance fields say what the code does.
+
+        🔴 Raised by the review of 2026-09-11. The factory already imposes the
+        EU endpoint and the training opt-out, so a configuration asking for
+        America changes nothing on the wire -- but the SCREEN reads the STORED
+        value, not the constant. A stored ``api.deepgram.com`` would be shown
+        as the region the caller's audio goes to, which would be false.
+
+        ⛔ Silently realigned rather than refused: these are not a choice, so
+        refusing would turn a value nobody is allowed to act on into a save
+        that fails.
+        """
+        if self.region != _DEEPGRAM_REGION_IMPOSEE:
+            object.__setattr__(self, "region", _DEEPGRAM_REGION_IMPOSEE)
+        if self.mip_opt_out is not True:
+            object.__setattr__(self, "mip_opt_out", True)
+        return self
+
+    @model_validator(mode="after")
+    def _le_seuil_anticipe_reste_sous_le_seuil_final(self):
+        """Flux refuses an eager threshold above the final one.
+
+        Source: https://developers.deepgram.com/docs/flux/configuration, read
+        2026-09-11 — "eager_eot_threshold must be <= eot_threshold". Refused at
+        the door rather than by Deepgram, mid-call, on a live line.
+
+        ⛔ Only checked when both are set: leaving one empty is a valid way of
+        saying "keep the connector's own value".
+        """
+        if self.eager_eot_threshold is None or self.eot_threshold is None:
+            return self
+        if self.eager_eot_threshold > self.eot_threshold:
+            raise ValueError(
+                "eager_eot_threshold must stay at or below eot_threshold "
+                f"(got {self.eager_eot_threshold} > {self.eot_threshold}); "
+                "Flux refuses the pair otherwise."
+            )
+        return self
+
+
+# The single collection point the service factory reads for the CLASSIC
+# Deepgram connector, rather than one branch per setting. ⛔ A name added here
+# must be BOTH a field declared above AND a parameter the connector forwards: a
+# setting collected but not sent is configured-then-ignored.
+#
+# ⛔ `keyterm` is NOT here. It is fed by the agent's Dictionary on every call,
+# and collecting it would let the client's value fight the agent's — a fight
+# the client would lose silently.
+#
+# The order is the connector's own declaration order.
+DEEPGRAM_STT_FIELDS: tuple[str, ...] = (
+    "detect_entities",
+    "diarize",
+    "dictation",
+    "endpointing",
+    "interim_results",
+    "keywords",
+    "numerals",
+    "profanity_filter",
+    "punctuate",
+    "redact",
+    "replace",
+    "search",
+    "smart_format",
+    "utterance_end_ms",
+)
+
+
+# The single collection point for the Flux connector. ⛔ Separate from the one
+# above on purpose: a name in the wrong tuple would be collected on a path that
+# ignores it. ⚠️ The two connectors share exactly ONE setting, `numerals`,
+# which is collected on the classic path only -- see the note on the field.
+DEEPGRAM_FLUX_FIELDS: tuple[str, ...] = (
+    "eot_threshold",
+    "eager_eot_threshold",
+    "eot_timeout_ms",
+    "language_hints",
+    "min_confidence",
+)
 
 
 @register_stt

@@ -16,8 +16,11 @@ from api.errors.failure import (
 from api.services.configuration.options import (
     DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
+    DEEPGRAM_KEYTERM_MODELS,
 )
 from api.services.configuration.registry import (
+    DEEPGRAM_FLUX_FIELDS,
+    DEEPGRAM_STT_FIELDS,
     MISTRAL_SAMPLING_FIELDS,
     ServiceProviders,
 )
@@ -169,6 +172,10 @@ def _report_service_factory_failures(
     return decorator
 
 
+# The only Flux model that reads language hints; anywhere else the connector
+# logs a warning and drops them.
+DEEPGRAM_FLUX_MULTILINGUAL_MODEL = "flux-general-multi"
+
 DEEPGRAM_FLUX_LANGUAGE_HINTS = {
     "de": Language.DE,
     "en": Language.EN,
@@ -181,6 +188,60 @@ DEEPGRAM_FLUX_LANGUAGE_HINTS = {
     "pt": Language.PT,
     "ru": Language.RU,
 }
+
+
+def _reglages_classiques(stt_config) -> dict:
+    """The classic Deepgram settings, minus the ones this MODEL replaced.
+
+    ⛔ The model gate is not only a screen decision. `keywords` is hidden from
+    the screen on nova-3, where Deepgram replaced it with keyterm prompting —
+    but a client who was pinned to an older model, filled it in, then moved to
+    nova-3 would keep sending it on every call. At best it is ignored; a 400
+    would break every call.
+
+    🔑 An EXCLUSION, and the SAME list the screen hides on. A white list of the
+    models that accept it would drop the setting for every older model nobody
+    thought to enumerate (`nova-2-finance`…), and screen and request would stop
+    describing each other. Both points raised by the reviews of 2026-09-11.
+    """
+    reglages = collect_declared_settings(stt_config, DEEPGRAM_STT_FIELDS)
+    if "keywords" in reglages and _le_modele_utilise_le_keyterm(
+        getattr(stt_config, "model", None)
+    ):
+        del reglages["keywords"]
+    return reglages
+
+
+def _le_modele_utilise_le_keyterm(modele: str | None) -> bool:
+    """True when Deepgram replaced `keywords` by keyterm prompting on it.
+
+    🔑 By PREFIX, and on the SAME list the screen hides on. Two points, both
+    raised on 2026-09-11: enumerating the three known nova-3 names would leave
+    a future `nova-3-phonecall` out (the hole the exclusion closes on the
+    nova-2 side), and using a different rule here than on screen would show a
+    field whose value never goes out — worse than sending one that is ignored.
+
+    ⛔ An unknown model is NOT filtered: we send what the client asked for
+    rather than drop it in silence on a model we know nothing about.
+    """
+    if not modele:
+        return False
+    return any(modele.startswith(prefixe) for prefixe in DEEPGRAM_KEYTERM_MODELS)
+
+
+def _reglages_flux(stt_config) -> dict:
+    """The Flux settings, minus the ones this MODEL ignores.
+
+    ⛔ `language_hints` is only read by the multilingual model: on
+    `flux-general-en` the connector logs a warning and drops them. Keeping them
+    here would make the stamp claim a run carried hints it never received --
+    the same defect as `keywords`, on the neighbouring field. Raised by the
+    third review of 2026-09-11.
+    """
+    reglages = collect_declared_settings(stt_config, DEEPGRAM_FLUX_FIELDS)
+    if getattr(stt_config, "model", None) != DEEPGRAM_FLUX_MULTILINGUAL_MODEL:
+        reglages.pop("language_hints", None)
+    return reglages
 
 
 def dograh_stt_uses_flux_language(language: str | None) -> bool:
@@ -326,18 +387,36 @@ def create_stt_service(
     )
     if user_config.stt.provider == ServiceProviders.DEEPGRAM.value:
         if user_config.stt.model in DEEPGRAM_FLUX_MODELS:
+            # [.mark] The three thresholds used to be literals here (3000, 0.7,
+            # 0.5), chosen by nobody: they arrived on 2026-01-23 inside a
+            # commit about a pipecat version bump. They are now declared on the
+            # configuration with those same values as defaults, so this reads
+            # the same request out of a field instead of out of a literal.
+            reglages = _reglages_flux(user_config.stt)
+            # ⛔ The connector wants Language enums, not the codes the screen
+            # stores, so this one is converted rather than forwarded.
+            indications = reglages.pop("language_hints", None)
             settings_kwargs = {
                 "model": user_config.stt.model,
-                "eot_timeout_ms": 3000,
-                "eot_threshold": 0.7,
-                "eager_eot_threshold": 0.5,
+                # ⛔ Fed by the agent's Dictionary, never by the client's
+                # configuration: it is rewritten on every call.
                 "keyterm": keyterms or [],
+                **reglages,
             }
-            if user_config.stt.model == "flux-general-multi":
+            if user_config.stt.model == DEEPGRAM_FLUX_MULTILINGUAL_MODEL:
                 language = getattr(user_config.stt, "language", None)
-                language_hint = DEEPGRAM_FLUX_LANGUAGE_HINTS.get(language)
-                if language_hint:
-                    settings_kwargs["language_hints"] = [language_hint]
+                # A configured list wins; left empty, the hint is derived from
+                # the chosen language, which is what happened before.
+                hints = [
+                    DEEPGRAM_FLUX_LANGUAGE_HINTS[code]
+                    for code in (indications or [])
+                    if code in DEEPGRAM_FLUX_LANGUAGE_HINTS
+                ]
+                if not hints:
+                    language_hint = DEEPGRAM_FLUX_LANGUAGE_HINTS.get(language)
+                    hints = [language_hint] if language_hint else []
+                if hints:
+                    settings_kwargs["language_hints"] = hints
 
             return DeepgramFluxSTTService(
                 api_key=user_config.stt.api_key,
@@ -353,16 +432,22 @@ def create_stt_service(
         # Other models than flux
         # Use language from user config, defaulting to "multi" for multilingual support
         language = getattr(user_config.stt, "language", None) or "multi"
+        # [.mark] `endpointing=100` and `profanity_filter=False` used to be
+        # literals here, chosen by nobody: they arrived on 2025-11-21 inside a
+        # commit about embedded website domains. They are now declared on the
+        # configuration with those same values as defaults, so an empty screen
+        # produces the request it produced before, field by field.
         return DeepgramSTTService(
             api_key=user_config.stt.api_key,
             base_url=DEEPGRAM_EU_STT_BASE_URL,
             mip_opt_out=True,
             settings=DeepgramSTTSettings(
                 language=language,
-                profanity_filter=False,
-                endpointing=100,
                 model=user_config.stt.model,
+                # ⛔ Fed by the agent's Dictionary, never by the client's
+                # configuration: it is rewritten on every call.
                 keyterm=keyterms or [],
+                **_reglages_classiques(user_config.stt),
             ),
             should_interrupt=False,  # Let UserAggregator take care of sending InterruptionFrame
             sample_rate=audio_config.transport_in_sample_rate,
@@ -1025,25 +1110,36 @@ def _migrate_deprecated_google_model(model: str) -> str:
     return model
 
 
-def collect_sampling_settings(llm_config, fields: tuple[str, ...]) -> dict:
-    """Collect the sampling settings that are declared AND filled in.
+def collect_declared_settings(service_config, fields: tuple[str, ...]) -> dict:
+    """Collect the settings that are declared AND filled in.
 
     One collection point rather than one parameter per setting: upstream adds
     three lines and one more argument to this shared function for every field,
-    which is fine for one and unwieldy for six.
+    which is fine for one and unwieldy for nineteen.
 
     ⛔ A field left empty is left OUT of the returned dict, never passed as
     None. That is what keeps the default request byte-for-byte identical to the
     one sent before these fields existed, here and for every other provider.
+
+    🔑 The guard reads the CONFIGURATION, where "not set" is ``None``, and not
+    the connector's settings object, where "not set" is a ``NOT_GIVEN``
+    sentinel that ``is not None`` would happily let through. Handing that
+    sentinel to a connector is how a setting ends up in a request as the string
+    "not_given".
     """
-    if llm_config is None:
+    if service_config is None:
         return {}
     settings = {}
     for field in fields:
-        value = getattr(llm_config, field, None)
+        value = getattr(service_config, field, None)
         if value is not None:
             settings[field] = value
     return settings
+
+
+# Kept under its old name for the Mistral call sites, which read as "sampling"
+# at their end. Same function: the collection rule is not provider-specific.
+collect_sampling_settings = collect_declared_settings
 
 
 def stamp_sampling_settings(runtime_configuration: dict, llm_config) -> dict:
@@ -1074,6 +1170,41 @@ def stamp_sampling_settings(runtime_configuration: dict, llm_config) -> dict:
     sampling = collect_sampling_settings(llm_config, MISTRAL_SAMPLING_FIELDS)
     if sampling:
         runtime_configuration["llm_sampling"] = sampling
+    return runtime_configuration
+
+
+def stamp_transcription_settings(runtime_configuration: dict, stt_config) -> dict:
+    """Record the transcription settings this run was actually played with.
+
+    Same reason as the sampling settings above: a setting held on the
+    organization is overwritten in place with no history at all, so a call
+    recorded yesterday cannot say which ``endpointing`` produced it. And
+    ``endpointing`` is the setting that decides when the agent takes the floor,
+    which is the first thing anyone listening to a recording will question.
+
+    ⚠️ Stamped where it informs, and nowhere else. The keyboard bench
+    (``text_chat_runner``) does not transcribe anything, so stamping a
+    transcription there would record settings that played no part in the run --
+    a stamp that lies is worse than no stamp.
+
+    ⛔ Which family is stamped follows the MODEL, exactly as the factory
+    chooses which connector to build. Stamping both would claim the run was
+    played with five Flux thresholds it never saw.
+    """
+    if stt_config is None:
+        return runtime_configuration
+    # 🔑 Built by the SAME function that builds the request, not by a parallel
+    # collection. A stamp assembled apart drifts from what went out: measured
+    # on 2026-09-11, it carried `keywords` on nova-3 while the request did not.
+    # ⛔ "A stamp that lies is worse than no stamp" is written three lines
+    # below; it has to be true of this function too. Raised by the second
+    # review of 2026-09-11.
+    if getattr(stt_config, "model", None) in DEEPGRAM_FLUX_MODELS:
+        reglages = _reglages_flux(stt_config)
+    else:
+        reglages = _reglages_classiques(stt_config)
+    if reglages:
+        runtime_configuration["stt_settings"] = reglages
     return runtime_configuration
 
 

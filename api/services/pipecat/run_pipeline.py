@@ -64,6 +64,7 @@ from api.services.pipecat.service_factory import (
     create_stt_service,
     create_tts_service,
     stamp_sampling_settings,
+    stamp_transcription_settings,
     stt_uses_external_turns,
 )
 from api.services.pipecat.termination_funnel_processor import (
@@ -743,6 +744,13 @@ async def _run_pipeline_impl(
             "llm_model": user_config.llm.model,
         }
     stamp_sampling_settings(runtime_configuration, user_config.llm)
+    if not is_realtime:
+        # ⚠️ The guard is about REALTIME, not about the keyboard bench: a
+        # speech-to-speech call has no separate transcription service, so
+        # `user_config.stt` says nothing about how it was played.
+        # The keyboard bench is excluded elsewhere -- it lives in
+        # `text_chat_runner`, which simply never calls this.
+        stamp_transcription_settings(runtime_configuration, user_config.stt)
     merged_call_context_vars = {
         **merged_call_context_vars,
         "runtime_configuration": runtime_configuration,

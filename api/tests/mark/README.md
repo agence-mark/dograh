@@ -42,6 +42,7 @@ cd api && python -m pytest tests/mark -q
 | `test_graine_random_seed.py` | La graine **arrive jusqu'à Mistral au lieu de rendre l'agent muet** : elle voyage dans `extra_body`, que la bibliothèque cliente transmet, et non à la racine des paramètres où cette bibliothèque **refuse le mot-clé et rejette la requête avant l'envoi** — erreur non fatale, donc agent debout et silencieux. Protège aussi **la graine à 0** (ignorée en silence alors que l'écran l'accepte), et surtout **la configuration SANS graine, celle de tous les clients** : rien ne doit s'ajouter à sa requête, sentinelle compris | n° 112 |
 | `test_configuration_estampillee_sur_lappel.py` | Chaque exécution enregistre les réglages d'échantillonnage **avec lesquels elle a été jouée**, sur les **deux** chemins : l'appel téléphonique et le banc au clavier. Sans ça, deux essais joués à deux températures sont indiscernables après coup | n° 104 |
 | `test_surcharge_par_service_sur_client_v2.py` | Un agent remplace **un seul service** et hérite du reste de son client, **y compris quand le client change de modèle**. Protège aussi le marqueur sans lequel l'enregistrement de la configuration du client convertit la surcharge en copie figée, en silence | n° 59 |
+| `test_reglages_transcription_exposes.py` | Les **19 réglages de la transcription** — 14 pour le connecteur Deepgram classique, 5 pour Flux — sont **déclarés** (donc affichés, l'écran se fabriquant depuis le schéma), **bornés sur la documentation de Deepgram**, et **transmis** jusqu'aux paramètres de connexion. Protège surtout l'inverse : **sans aucun réglage rempli, la requête est exactement celle d'avant le chantier**, comparée à un littéral mesuré. Protège aussi que `keyterm` **n'est pas** déclaré (il appartient au Dictionnaire de l'agent) et que la copie du schéma côté écran ne dérive pas | n° 115 |
 | `test_surcharge_par_service_survit_a_lenregistrement.py` | La route qui **enregistre** une surcharge par service ne la convertit pas en copie figée au passage. ⛔ **Le fichier voisin ne protégeait pas ça** : il s'arrêtait à la fonction, et la route porte sa propre conversion — neuf tests verts sur une fonctionnalité qui ne survivait pas à son propre enregistrement | n° 59 |
 
 ## Comment se lit le rouge
@@ -69,10 +70,11 @@ Un seul patch perdu peut donc faire croire que toute la suite est cassée. Pour 
 python -m pytest tests/mark -q --continue-on-collection-errors
 ```
 
-**La mesure de référence, au 10/09/2026 au SOIR : 105 tests, tous verts avec les patchs.**
-⚠️ **Elle a changé dans la journée** : elle valait 47 avant le chantier d'exposition des réglages.
-C'est ce nombre-là que la procédure de montée de version prend comme base — **une mesure de
-référence périmée fait passer une perte de patch pour un changement de compte.**
+**La mesure de référence, au 11/09/2026 au SOIR : 234 tests, tous verts avec les patchs.**
+⚠️ **Elle change à chaque chantier** : 47 avant l'exposition des réglages Mistral, 105 le 10/09 au
+soir, **113 après la réparation de la graine**, 234 après l'exposition des réglages de la
+transcription. C'est ce nombre-là que la procédure de montée de version prend comme base —
+**une mesure de référence périmée fait passer une perte de patch pour un changement de compte.**
 
 **Le rouge de référence, mesuré le matin sur les 47 :** sans les patchs de `registry.py`,
 `check_validity.py` et `service_factory.py` : **1 erreur de collecte (les 19 de Mistral),

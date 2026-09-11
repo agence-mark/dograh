@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet } from '@/client/sdk.gen';
+import { ChampEtiquettes } from "@/components/mark/ChampEtiquettes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,7 +26,9 @@ interface SchemaProperty {
     type?: string;
     // An optional field (`x | None` in Pydantic) carries `default: null`, which
     // is not a value to put in an input — see the reset() below.
-    default?: string | number | boolean | null;
+    // [.mark] string[] : une liste peut porter un defaut (ex. [] ou une liste
+    // de termes), et il doit arriver au champ a etiquettes tel quel.
+    default?: string | number | boolean | string[] | null;
     anyOf?: SchemaProperty[];
     minimum?: number;
     maximum?: number;
@@ -38,6 +41,17 @@ interface SchemaProperty {
     format?: string;
     multiline?: boolean;
     docs_url?: string;
+    // [.mark] The models that accept this setting. Absent = every model.
+    models?: string[];
+    // [.mark] The models that do NOT accept it — everything else does.
+    // ⛔ The two are not interchangeable: a white list stops at the models
+    // the dropdown happens to offer, and the model field takes free input.
+    // A setting that belongs to every model EXCEPT one family has to be
+    // written as an exclusion, or a client pinned to an older model loses it.
+    hidden_for_models?: string[];
+    // [.mark] Shown, never editable. ⛔ The real lock is server-side; this
+    // only stops the screen from suggesting the value is a choice.
+    readonly?: boolean;
 }
 
 export interface ProviderSchema {
@@ -51,7 +65,8 @@ export interface ProviderSchema {
 }
 
 interface FormValues {
-    [key: string]: string | number | boolean;
+    // [.mark] string[] : une liste a etiquettes (redact, replace, keywords...).
+    [key: string]: string | number | boolean | string[];
 }
 
 export interface ServiceConfigurationDefaults {
@@ -151,12 +166,42 @@ function getSchemaDropdownOptions(
 // An optional field carries `default: null` in the schema, and a stored one
 // comes back as null too. Handing null to an input makes React drop it to
 // uncontrolled; "" is what an empty field looks like in the DOM.
-function emptyIfNull(value: unknown): string | number | boolean {
-    return value === null || value === undefined ? "" : (value as string | number | boolean);
+function emptyIfNull(value: unknown): string | number | boolean | string[] {
+    // [.mark] string[] passes through untouched: a list loaded from the saved
+    // configuration has to reach the tag field as a list, not as a string.
+    return value === null || value === undefined ? "" : (value as string | number | boolean | string[]);
 }
 
 function isNumeric(schema: SchemaProperty | undefined): boolean {
     return schema?.type === "number" || schema?.type === "integer";
+}
+
+function isArray(schema: SchemaProperty | undefined): boolean {
+    return schema?.type === "array";
+}
+
+// [.mark] A list of strings, required (`list[str]`) or optional
+// (`list[str] | None`, an anyOf). Without this the field falls through to the
+// final branch and renders as a free text box, where the client has to guess
+// the separator — a guess that is wrong for values containing one.
+function getArraySchema(schema: SchemaProperty | undefined): SchemaProperty | undefined {
+    if (isArray(schema)) return schema;
+    return schema?.anyOf?.find(option => isArray(option));
+}
+
+function isBoolean(schema: SchemaProperty | undefined): boolean {
+    return schema?.type === "boolean";
+}
+
+// [.mark] A boolean, required (`bool`) or optional (`bool | None`, which
+// Pydantic writes as an anyOf). Without this the field falls through to the
+// final branch and renders as a FREE TEXT BOX: the client types "true" by
+// hand, or "vrai", and the API receives a string where it expects a boolean.
+// ⛔ Nothing here is specific to one provider — `return_timestamps` on
+// HuggingFace is already in that state upstream.
+function getBooleanSchema(schema: SchemaProperty | undefined): SchemaProperty | undefined {
+    if (isBoolean(schema)) return schema;
+    return schema?.anyOf?.find(option => isBoolean(option));
 }
 
 function getNumberSchema(schema: SchemaProperty | undefined): SchemaProperty | undefined {
@@ -280,7 +325,7 @@ export function ServiceConfigurationForm({
                 setIsRealtime(true);
             }
 
-            const defaultValues: Record<string, string | number | boolean> = {};
+            const defaultValues: Record<string, string | number | boolean | string[]> = {};
             const selectedProviders: Record<ServiceSegment, string> = {
                 llm: pickDefaultProvider("llm", defaultsData.llm),
                 tts: pickDefaultProvider("tts", defaultsData.tts),
@@ -446,7 +491,7 @@ export function ServiceConfigurationForm({
         if (!providerName) return;
 
         const currentValues = getValues();
-        const preservedValues: Record<string, string | number | boolean> = {};
+        const preservedValues: Record<string, string | number | boolean | string[]> = {};
 
         Object.keys(currentValues).forEach(key => {
             if (!key.startsWith(`${service}_`)) {
@@ -478,14 +523,71 @@ export function ServiceConfigurationForm({
     };
 
     const buildServiceConfig = (service: ServiceSegment, data: FormValues) => {
-        const config: Record<string, string | number | string[]> = {
+        // [.mark] `boolean` belongs here: a switch posts a real boolean, and
+        // the previous type only held because the cast below lied about it.
+        const config: Record<string, string | number | boolean | string[]> = {
             provider: serviceProviders[service],
         };
         const keys = apiKeys[service].map(k => k.trim()).filter(k => k.length > 0);
         if (keys.length > 0) {
             config.api_key = mode === 'override' ? keys[0] : keys;
         }
-        const properties = schemas?.[service]?.[serviceProviders[service]]?.properties;
+        const schemaDuFournisseur = () => schemas?.[service]?.[serviceProviders[service]];
+        const properties = schemaDuFournisseur()?.properties;
+
+        // [.mark] An override must carry only what it CHANGES.
+        //
+        // Sending the whole block defeats the point of a per-service override
+        // in miniature: an agent that changes one setting would also freeze the
+        // model, the language and every other setting at their value of the
+        // day, and would stop following its client from then on — silently.
+        //
+        // 🔑 The server already merges field by field when the provider is
+        // unchanged (resolve_effective_config), so sending LESS makes the agent
+        // inherit MORE. ⛔ When the provider DOES change, the server rebuilds
+        // the section from the override alone, so there the whole block has to
+        // go or the agent ends up with nothing but one field.
+        const configDuClient = (userConfig as Record<string, unknown> | null)?.[service] as
+            | Record<string, unknown>
+            | undefined;
+        const heriteChampParChamp =
+            mode === 'override'
+            && !!configDuClient
+            && configDuClient.provider === serviceProviders[service];
+
+        // [.mark] The rendering resolves $ref before reading a field's flags,
+        // so the save has to resolve it too. A read-only field declared behind
+        // a $ref was drawn disabled and posted anyway.
+        //
+        // ⛔ MERGED, not replaced. Pydantic writes a field's own keywords
+        // (description, readonly, models…) NEXT TO the $ref, not inside the
+        // definition it points at — so replacing would lose exactly the flag
+        // this function exists to read. Raised by the second review of
+        // 2026-09-11; no configuration field carries a $ref today, which is
+        // why nothing showed it.
+        const schemaResolu = (field: string): SchemaProperty | undefined => {
+            const brut = properties?.[field];
+            if (!brut?.$ref) return brut;
+            const definition =
+                schemaDuFournisseur()?.$defs?.[brut.$ref.split('/').pop() || ''];
+            return definition ? { ...definition, ...brut } : brut;
+        };
+
+        const valeurHeritee = (field: string): unknown => {
+            // What the server would apply for this field if we said nothing:
+            // the client's value, or the schema default when the client has
+            // none of its own.
+            if (configDuClient && field in configDuClient) return configDuClient[field];
+            return properties?.[field]?.default;
+        };
+
+        const identiqueAHerite = (field: string, value: unknown): boolean => {
+            const heritee = valeurHeritee(field);
+            // An untouched field holds "" where the inherited value is absent.
+            const vide = (v: unknown) => v === "" || v === null || v === undefined;
+            if (vide(value) && vide(heritee)) return true;
+            return JSON.stringify(value) === JSON.stringify(heritee);
+        };
         Object.entries(data).forEach(([property, value]) => {
             if (!property.startsWith(`${service}_`)) return;
             const field = property.slice(service.length + 1);
@@ -506,7 +608,14 @@ export function ServiceConfigurationForm({
             // possible from the organisation screen, which replaces the whole
             // service block.
             if (value === "" && properties?.[field]?.default === null) return;
-            config[field] = value as string | number;
+            // [.mark] A read-only field is never posted: the server imposes
+            // its value whatever arrives, so storing a copy would only create
+            // a second place where the truth could drift.
+            if (schemaResolu(field)?.readonly) return;
+            // [.mark] An override carries only what it changes, so the agent
+            // keeps inheriting the rest.
+            if (heriteChampParChamp && identiqueAHerite(field, value)) return;
+            config[field] = value as string | number | boolean | string[];
         });
         return config;
     };
@@ -566,9 +675,32 @@ export function ServiceConfigurationForm({
         const currentProvider = serviceProviders[service];
         const providerSchema = schemas?.[service]?.[currentProvider];
         if (!providerSchema) return [];
-        return Object.keys(providerSchema.properties).filter(
-            field => field !== "provider" && field !== "api_key"
-        );
+        const currentModel = watch(`${service}_model`) as string | undefined;
+        return Object.keys(providerSchema.properties).filter(field => {
+            if (field === "provider" || field === "api_key") return false;
+            const schema = providerSchema.properties[field];
+            const actualSchema = schema?.$ref && providerSchema.$defs
+                ? providerSchema.$defs[schema.$ref.split('/').pop() || '']
+                : schema;
+            // [.mark] A field can name the models that accept it. Absent means
+            // every model, so no existing field changes behaviour.
+            // ⛔ A setting shown, filled in, sent and ignored by the model is
+            // what we ruled out for top_k. `model_options` filters the VALUES
+            // of a dropdown; it cannot hide a field.
+            // 🔑 Hiding is a screen decision, not a data decision: the value
+            // stays in the form and is still saved, so switching back to the
+            // model that accepts it does not silently reset it.
+            // [.mark] Compared BY PREFIX, so one entry closes a whole model
+            // family ("nova-3" covers nova-3-phonecall). ⛔ The factory applies
+            // the same rule to the same list: a different rule on either side
+            // would show a field whose value never goes out.
+            const caches = actualSchema?.hidden_for_models;
+            if (caches && currentModel && caches.some(p => currentModel.startsWith(p))) return false;
+            const models = actualSchema?.models;
+            if (!models || models.length === 0) return true;
+            if (!currentModel) return true;
+            return models.includes(currentModel);
+        });
     };
 
     const renderServiceFields = (service: ServiceSegment) => {
@@ -754,6 +886,77 @@ export function ServiceConfigurationForm({
                     />
                 );
             }
+        }
+
+        // [.mark] A compliance value: shown so the pair (what we control, what
+        // we do not) can be read in one place, never editable.
+        // 🔴 This is NOT the lock. The factory imposes these values whatever a
+        // configuration says; disabling the control only stops the screen from
+        // suggesting they are a choice.
+        if (actualSchema?.readonly) {
+            const fieldKey = `${service}_${field}`;
+            const valeur = watch(fieldKey);
+            if (getBooleanSchema(actualSchema)) {
+                return (
+                    <div className="flex h-9 items-center">
+                        <Switch id={fieldKey} checked={valeur === true} disabled />
+                    </div>
+                );
+            }
+            return <Input type="text" value={String(valeur ?? "")} readOnly disabled />;
+        }
+
+        // [.mark] A list is a tag field, not a text box: the client adds one
+        // term at a time instead of guessing a separator.
+        if (getArraySchema(actualSchema)) {
+            const fieldKey = `${service}_${field}`;
+            const valeur = watch(fieldKey);
+            // An untouched optional list holds "" (see emptyIfNull).
+            const valeurs = Array.isArray(valeur) ? (valeur as string[]) : [];
+            return (
+                <ChampEtiquettes
+                    id={fieldKey}
+                    valeurs={valeurs}
+                    placeholder={`Enter ${field.replace(/_/g, " ")}`}
+                    onChange={(nouvelles) => {
+                        // ⛔ An emptied list goes back to "" and not to [],
+                        // so buildServiceConfig leaves it out. Posting [] would
+                        // mean "the client explicitly wants none", which is a
+                        // different request from sending nothing at all.
+                        setValue(fieldKey, nouvelles.length > 0 ? nouvelles : "", {
+                            shouldDirty: true,
+                        });
+                    }}
+                />
+            );
+        }
+
+        // [.mark] A boolean is a switch, not a text box. Placed before the
+        // dropdown branch so the declared TYPE wins over any examples someone
+        // might hang on the field later.
+        if (getBooleanSchema(actualSchema)) {
+            const fieldKey = `${service}_${field}`;
+            // An untouched optional boolean holds "" (see emptyIfNull), which
+            // reads as off. ⛔ Only a real `true` turns the switch on, so a
+            // stray "false" string from an older save cannot show as on.
+            const coche = watch(fieldKey) === true;
+            return (
+                <div className="flex h-9 items-center">
+                    <Switch
+                        id={fieldKey}
+                        checked={coche}
+                        onCheckedChange={(checked) => {
+                            // 🔑 A real boolean, never the string a text box
+                            // would have posted. And `false` is stored as
+                            // `false`, not as "": switching a setting OFF on
+                            // purpose is a choice, and it must survive the
+                            // "empty means inherited" rule in
+                            // buildServiceConfig.
+                            setValue(fieldKey, checked, { shouldDirty: true });
+                        }}
+                    />
+                </div>
+            );
         }
 
         if (actualSchema?.allow_custom_input && dropdownOptions && dropdownOptions.length > 0) {

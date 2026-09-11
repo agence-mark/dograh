@@ -34,9 +34,11 @@ migration leaves marked overrides alone. Their own migration path, for the
 legacy overrides it was built for, is unchanged.
 """
 
+import asyncio
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from api.schemas.ai_model_configuration import (
     BYOKAIModelConfiguration,
@@ -142,6 +144,226 @@ def test_les_reglages_du_client_traversent_la_surcharge():
 
     assert effective.llm.seed == 424242
     assert effective.llm.max_tokens == 180
+
+
+# --------------------------------------------------------------------------- #
+# 1 bis. ONE transcription setting overridden, the rest still inherited
+# --------------------------------------------------------------------------- #
+#
+# 🔑 Since 2026-09-11 the transcription carries nineteen settings, so the
+# difference between "override one field" and "override the block" stopped
+# being theoretical: an override that carried the whole block would freeze the
+# model, the language and seventeen settings on the day it was written.
+#
+# The screen now sends only what changed. These tests are the server-side half
+# of that contract: they prove the small override is enough, and that the agent
+# keeps following its client.
+
+# What the screen sends after the client changes `endpointing` on one agent:
+# the provider (which the server compares) and the one field. Nothing else.
+SURCHARGE_ENDPOINTING_SEUL = {
+    "stt": {
+        "provider": "deepgram",
+        "endpointing": 450,
+    }
+}
+
+
+def test_lagent_change_un_reglage_de_transcription_et_herite_du_reste():
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+
+    effective = resolve_effective_config(client, SURCHARGE_ENDPOINTING_SEUL)
+
+    assert effective.stt.endpointing == 450
+    # Everything else still comes from the client.
+    assert effective.stt.model == "nova-3-general"
+    assert effective.stt.api_key == "cle-client"
+    assert effective.stt.profanity_filter is False
+
+
+def test_le_reglage_surcharge_suit_le_client_quand_il_change_de_modele_deepgram():
+    """The failure a whole-block override would have caused, made visible.
+
+    ⛔ This is the test the chantier exists for: an agent that changed one
+    setting used to freeze the client's Deepgram model with it, and from that
+    day it stopped following the client. Nothing on any screen said so.
+    """
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+    client.stt = client.stt.model_copy(update={"model": "nova-3-medical"})
+
+    effective = resolve_effective_config(client, SURCHARGE_ENDPOINTING_SEUL)
+
+    assert effective.stt.model == "nova-3-medical"
+    assert effective.stt.endpointing == 450
+
+
+def test_les_reglages_de_transcription_du_client_traversent_une_surcharge_de_voix():
+    """An agent that only changes its voice keeps the client's transcription."""
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+    client.stt = client.stt.model_copy(
+        update={"endpointing": 300, "smart_format": True, "replace": ["poil:poele"]}
+    )
+
+    effective = resolve_effective_config(client, SURCHARGE_VOIX_SEULE)
+
+    assert effective.stt.endpointing == 300
+    assert effective.stt.smart_format is True
+    assert effective.stt.replace == ["poil:poele"]
+
+
+def test_une_surcharge_invalide_est_REFUSEE_au_lieu_de_passer():
+    """🔴 Trouvé par la relecture du 11/09, et plus large que ce chantier.
+
+    ``model_copy(update=...)`` ne joue AUCUN validateur : ni les bornes d'un
+    champ, ni un validateur qui compare deux champs. Une surcharge d'agent
+    pouvait donc écrire une configuration que l'écran refuse.
+
+    Mesuré avant correction : ``eager_eot_threshold=0.9`` par-dessus un
+    ``eot_threshold`` de 0,7 passait en silence — **Flux refuse ce couple, et
+    l'appelant aurait parlé dans le vide**. ``eot_timeout_ms=999999`` aussi.
+
+    ⚠️ Le trou est plus ancien que les réglages qui l'ont rendu visible : il
+    valait déjà pour les six réglages Mistral exposés le 10/09, où une
+    surcharge posait une température de 99 sans un mot. D'où le témoin Mistral
+    ci-dessous.
+    """
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+
+    # Le couple interdit par Flux : chaque valeur est dans sa plage.
+    with pytest.raises(ValidationError):
+        resolve_effective_config(
+            client,
+            {"stt": {"provider": "deepgram", "eager_eot_threshold": 0.9}},
+        )
+
+    # Une borne de champ, sur le même chemin.
+    with pytest.raises(ValidationError):
+        resolve_effective_config(
+            client, {"stt": {"provider": "deepgram", "eot_timeout_ms": 999999}}
+        )
+
+    # ⛔ Le témoin : le trou n'était pas propre à la transcription.
+    with pytest.raises(ValidationError):
+        resolve_effective_config(
+            client, {"llm": {"provider": "mistral", "temperature": 99.0}}
+        )
+
+
+def test_une_surcharge_valide_passe_toujours():
+    """La contrepartie, et c'est elle qui doit rester ennuyeuse.
+
+    Revalider ne doit refuser QUE ce qui est invalide. Un couple de seuils
+    correct, une valeur en bord de plage, et la surcharge de voix qui tourne
+    partout ailleurs dans ce fichier doivent continuer de passer.
+    """
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+
+    effective = resolve_effective_config(
+        client,
+        {
+            "stt": {
+                "provider": "deepgram",
+                "eager_eot_threshold": 0.6,
+                "eot_threshold": 0.9,
+                "eot_timeout_ms": 60000,
+            }
+        },
+    )
+
+    assert effective.stt.eager_eot_threshold == 0.6
+    assert effective.stt.eot_threshold == 0.9
+    assert effective.stt.eot_timeout_ms == 60000
+
+
+def test_une_surcharge_deja_en_base_ne_casse_NI_un_appel_NI_un_enregistrement():
+    """🔴 Le revers de la validation, trouvé par la seconde relecture.
+
+    Valider la fusion refuse une surcharge invalide À L'ÉCRITURE, ce qui est le
+    but. Mais les mêmes lignes sont relues ailleurs :
+
+    * au **démarrage d'un appel** -- une surcharge écrite avant cette règle
+      empêcherait l'appel de démarrer, et l'appelant n'aurait rien du tout ;
+    * à **l'enregistrement de la configuration du client** -- la migration
+      tourne APRÈS l'écriture et hors de tout garde, donc chaque sauvegarde
+      rendrait 500 **après avoir écrit**, indéfiniment.
+
+    ⛔ Les deux chemins journalisent et se replient, comme le fait déjà l'amont
+    pour une configuration d'organisation illisible. Refuser une donnée qu'on
+    LIT ne la répare pas, ça propage la panne.
+    """
+    from api.services.configuration.ai_model_configuration import (
+        migrate_workflow_configuration_model_override_to_v2,
+    )
+
+    import api.services.configuration.ai_model_configuration as amc
+
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+    invalide = {"llm": {"provider": "mistral", "temperature": 99.0}}
+
+    # ① La migration laisse la surcharge en l'état plutôt que de lever.
+    migre, change = migrate_workflow_configuration_model_override_to_v2(
+        {"model_overrides": invalide}, client
+    )
+
+    assert change is False
+    assert migre["model_overrides"] == invalide
+
+    # ② Et l'appel démarre quand même, avec la configuration du client.
+    # ⛔ Cette moitié-là manquait : le nom du test l'annonçait, le corps ne
+    # l'exerçait pas (troisième relecture du 11/09). Un test qui ne couvre que
+    # la moitié de ce qu'il nomme est un test dont on surestime la portée.
+    class _Resolu:
+        effective = client
+
+    async def _faux_resolu(organization_id):
+        return _Resolu()
+
+    vrai = amc.get_resolved_ai_model_configuration
+    amc.get_resolved_ai_model_configuration = _faux_resolu
+    try:
+        effective = asyncio.run(
+            amc.get_effective_ai_model_configuration_for_workflow(
+                organization_id=1,
+                workflow_configurations={"model_overrides": invalide},
+            )
+        )
+    finally:
+        amc.get_resolved_ai_model_configuration = vrai
+
+    # La surcharge est ignorée, le client s'applique : l'appel peut démarrer.
+    assert effective.llm.temperature == 0.2
+
+
+def test_la_conformite_survit_a_une_surcharge_qui_tente_de_la_defaire():
+    """🔴 An override is a request body: it can carry anything.
+
+    The two compliance values are shown read-only on screen, but the screen is
+    not the lock. An override that asks for America must change nothing.
+    """
+    from api.services.pipecat.audio_config import AudioConfig
+    from api.services.pipecat.service_factory import create_stt_service
+
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+
+    effective = resolve_effective_config(
+        client,
+        {
+            "stt": {
+                "provider": "deepgram",
+                "region": "api.deepgram.com",
+                "mip_opt_out": False,
+            }
+        },
+    )
+
+    service = create_stt_service(
+        effective,
+        AudioConfig(transport_in_sample_rate=16000, transport_out_sample_rate=24000),
+    )
+    environment = service._client._client_wrapper.get_environment()
+
+    assert environment.base == "https://api.eu.deepgram.com"
+    assert service._build_connect_kwargs()["mip_opt_out"] == "true"
 
 
 # --------------------------------------------------------------------------- #

@@ -179,3 +179,91 @@ def test_tts_dials_the_eu_url_with_the_opt_out():
     url = _capture_websocket_url(service, lambda s: s._connect_websocket())
     assert url.startswith(f"wss://{EU_HOST}/v1/speak?")
     assert "mip_opt_out=true" in url
+
+
+# --------------------------------------------------------------------------
+# Imposed: a configuration that says otherwise changes nothing
+# --------------------------------------------------------------------------
+#
+# 🔴 Since 2026-09-11 the two compliance values also appear on screen, read
+# only. A greyed-out field is not a lock: it stays reachable through the API,
+# and anything reachable through the API will eventually arrive. So the tests
+# below hand the factory a configuration that asks for the opposite of both,
+# and check the wire, not the intent.
+#
+# ⛔ A configuration built in Python, not a request: the point is the factory,
+# which is the single place all three paths go through.
+
+
+def _stt_config_qui_refuse_la_conformite(model: str):
+    """A configuration asking for America and for the training programme."""
+    from api.services.configuration.registry import DeepgramSTTConfiguration
+
+    return SimpleNamespace(
+        stt=DeepgramSTTConfiguration(
+            api_key="test-key",
+            model=model,
+            language="fr",
+            region="api.deepgram.com",
+            mip_opt_out=False,
+        )
+    )
+
+
+def test_classic_stt_ignores_a_configuration_that_asks_for_america():
+    service = create_stt_service(
+        _stt_config_qui_refuse_la_conformite("nova-3-general"), _audio_config()
+    )
+
+    environment = service._client._client_wrapper.get_environment()
+    assert environment.base == f"https://{EU_HOST}"
+    assert environment.production == f"wss://{EU_HOST}"
+    assert service._build_connect_kwargs()["mip_opt_out"] == "true"
+
+
+def test_flux_stt_ignores_a_configuration_that_asks_for_america():
+    service = create_stt_service(
+        _stt_config_qui_refuse_la_conformite("flux-general-en"), _audio_config()
+    )
+
+    url = _capture_websocket_url(service, lambda s: s._connect())
+    assert url.startswith(f"wss://{EU_HOST}/v2/listen?")
+    assert "mip_opt_out=true" in url
+
+
+def test_the_screen_mirror_cannot_be_made_to_lie():
+    """🔴 Raised by the review of 2026-09-11.
+
+    The factory ignores a configuration asking for America -- that is covered
+    above. But the SCREEN reads the STORED value, not the constant, so a stored
+    ``api.deepgram.com`` would be displayed as the region the caller's audio
+    goes to. Nothing would break; the screen would simply say something false,
+    which is the one failure a mirror can have.
+    """
+    from api.services.configuration.registry import DeepgramSTTConfiguration
+
+    config = DeepgramSTTConfiguration(
+        api_key="test-key", region="api.deepgram.com", mip_opt_out=False
+    )
+
+    assert config.region == EU_HOST
+    assert config.mip_opt_out is True
+
+
+def test_the_screen_mirror_says_what_the_code_imposes():
+    """The two shown values are a mirror; a mirror that lies is worse than none.
+
+    ⛔ The field on screen is not read by anything: the factory imposes the
+    constants below. So nothing would break if the mirror drifted — the screen
+    would simply announce a region the audio does not go to. That is why it is
+    compared here rather than trusted.
+    """
+    from api.services.configuration.registry import DeepgramSTTConfiguration
+
+    config = DeepgramSTTConfiguration(api_key="test-key")
+
+    assert config.region == EU_HOST
+    assert EU_HOST in DEEPGRAM_EU_STT_BASE_URL
+    assert EU_HOST in DEEPGRAM_EU_FLUX_URL
+    assert EU_HOST in DEEPGRAM_EU_TTS_BASE_URL
+    assert config.mip_opt_out is True

@@ -190,6 +190,36 @@ def test_la_cle_du_client_est_toujours_recopiee_dans_la_surcharge():
     assert ecrit["model_overrides"]["tts"]["api_key"] == "cle-client"
 
 
+def test_une_surcharge_reduite_a_un_seul_reglage_traverse_la_route():
+    """⛔ The write path, not just the function.
+
+    Since 2026-09-11 the screen sends only the fields an agent CHANGES, so an
+    override can be as small as a provider and one setting. That is a shape the
+    route had never received: every override written before carried a complete
+    service block.
+
+    🔑 What this proves is that the route accepts it AND that the validation it
+    runs on the merged result still passes — the merged configuration is
+    complete even though the override is not. A rouge here would mean the
+    field-by-field override is refused at the door, with the screen showing a
+    saved override that never reached the database.
+    """
+    ecrit = _enregistrer(
+        {
+            "model_overrides": {"stt": {"provider": "deepgram", "endpointing": 450}},
+            DELIBERATE_PER_SERVICE_OVERRIDE_KEY: True,
+        }
+    )
+
+    surcharge = ecrit["model_overrides"]["stt"]
+    assert surcharge["endpointing"] == 450
+    # ⛔ And it is still a small override once written: nothing re-inflated it
+    # into a complete block on the way in, which would have frozen the client's
+    # model onto this agent.
+    assert "model" not in surcharge
+    assert "language" not in surcharge
+
+
 # --------------------------------------------------------------------------- #
 # 2. Their behaviour, untouched
 # --------------------------------------------------------------------------- #

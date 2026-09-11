@@ -99,3 +99,26 @@ DEEPGRAM_LANGUAGES = (
     "zh-CN",
     "zh-TW",
 )
+
+# Models where ``keywords`` has been REPLACED by keyterm prompting, so sending
+# it does nothing at all (verified on
+# https://developers.deepgram.com/docs/keywords, 2026-09-11).
+#
+# ⛔ An EXCLUSION, not a white list of the models that accept it. The model
+# field takes free input, and Deepgram has dozens of older models
+# (`nova-2-finance`, `nova-2-drivethru`…): a white list would silently drop the
+# setting for every model nobody thought to enumerate. Raised by the second
+# review of 2026-09-11, which had already made the same point about the
+# thirteen classic settings.
+#
+# 🔑 ONE list, used by the screen to hide the field AND by the factory to drop
+# it from the request. Two lists would be two chances to diverge, and the
+# screen would stop describing what goes out.
+# ⛔ Chaque entrée se compare EN PRÉFIXE, écran et fabrique compris : "nova-3"
+# couvre donc toute la famille, `nova-3-phonecall` inclus. Énumérer les trois
+# noms connus rouvrirait, côté nova-3, exactement le trou que l'exclusion ferme
+# côté nova-2. Troisième relecture du 11/09.
+DEEPGRAM_KEYTERM_MODELS = (
+    "nova-3",
+    *DEEPGRAM_FLUX_MODELS,
+)
