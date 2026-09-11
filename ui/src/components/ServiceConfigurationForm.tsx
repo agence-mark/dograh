@@ -159,6 +159,21 @@ function isNumeric(schema: SchemaProperty | undefined): boolean {
     return schema?.type === "number" || schema?.type === "integer";
 }
 
+function isBoolean(schema: SchemaProperty | undefined): boolean {
+    return schema?.type === "boolean";
+}
+
+// [.mark] A boolean, required (`bool`) or optional (`bool | None`, which
+// Pydantic writes as an anyOf). Without this the field falls through to the
+// final branch and renders as a FREE TEXT BOX: the client types "true" by
+// hand, or "vrai", and the API receives a string where it expects a boolean.
+// ⛔ Nothing here is specific to one provider — `return_timestamps` on
+// HuggingFace is already in that state upstream.
+function getBooleanSchema(schema: SchemaProperty | undefined): SchemaProperty | undefined {
+    if (isBoolean(schema)) return schema;
+    return schema?.anyOf?.find(option => isBoolean(option));
+}
+
 function getNumberSchema(schema: SchemaProperty | undefined): SchemaProperty | undefined {
     // "integer" counts too: an optional whole number (max_tokens, seed) is
     // typed `integer | null` by Pydantic. Without it the field falls back to a
@@ -754,6 +769,34 @@ export function ServiceConfigurationForm({
                     />
                 );
             }
+        }
+
+        // [.mark] A boolean is a switch, not a text box. Placed before the
+        // dropdown branch so the declared TYPE wins over any examples someone
+        // might hang on the field later.
+        if (getBooleanSchema(actualSchema)) {
+            const fieldKey = `${service}_${field}`;
+            // An untouched optional boolean holds "" (see emptyIfNull), which
+            // reads as off. ⛔ Only a real `true` turns the switch on, so a
+            // stray "false" string from an older save cannot show as on.
+            const coche = watch(fieldKey) === true;
+            return (
+                <div className="flex h-9 items-center">
+                    <Switch
+                        id={fieldKey}
+                        checked={coche}
+                        onCheckedChange={(checked) => {
+                            // 🔑 A real boolean, never the string a text box
+                            // would have posted. And `false` is stored as
+                            // `false`, not as "": switching a setting OFF on
+                            // purpose is a choice, and it must survive the
+                            // "empty means inherited" rule in
+                            // buildServiceConfig.
+                            setValue(fieldKey, checked, { shouldDirty: true });
+                        }}
+                    />
+                </div>
+            );
         }
 
         if (actualSchema?.allow_custom_input && dropdownOptions && dropdownOptions.length > 0) {
