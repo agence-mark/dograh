@@ -1,3 +1,4 @@
+DEEPGRAM_CLASSIC_STT_MODELS = ("nova-3-general", "nova-3-medical")
 DEEPGRAM_FLUX_MODELS = ("flux-general-en", "flux-general-multi")
 DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES = (
     "de",
@@ -98,4 +99,22 @@ DEEPGRAM_LANGUAGES = (
     "vi",
     "zh-CN",
     "zh-TW",
+)
+
+# Models that accept ``keywords``. ⛔ Nova-3 is NOT among them: Deepgram
+# replaced keyword boosting with keyterm prompting there, and passing
+# ``keywords`` to a nova-3 model does nothing at all (verified on
+# https://developers.deepgram.com/docs/keywords, 2026-09-11). The setting is
+# still declared, so it appears the day a client is pinned to an older model
+# through the custom-model box -- and stays off the screen the rest of the
+# time.
+DEEPGRAM_KEYWORDS_MODELS = (
+    "nova-2",
+    "nova-2-general",
+    "nova-2-medical",
+    "nova-2-phonecall",
+    "nova-2-conversationalai",
+    "nova",
+    "enhanced",
+    "base",
 )

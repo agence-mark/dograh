@@ -19,8 +19,10 @@ from api.services.configuration.options import (
     CARTESIA_INK_WHISPER_STT_LANGUAGES,
     CARTESIA_STT_LANGUAGES,
     CARTESIA_STT_MODELS,
+    DEEPGRAM_CLASSIC_STT_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES,
+    DEEPGRAM_KEYWORDS_MODELS,
     DEEPGRAM_LANGUAGES,
     DEEPGRAM_STT_MODELS,
     ELEVENLABS_STT_LANGUAGES,
@@ -1663,6 +1665,196 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
             },
         },
     )
+
+    # ------------------------------------------------------------------ #
+    # The fourteen settings of the classic connector (/v1/listen).
+    #
+    # ⛔ `keyterm` is deliberately NOT declared: it is fed by the agent's
+    # Dictionary and overwritten on every call, so a field here would be
+    # filled in, saved, and ignored — a second live control for the same
+    # thing, right next to the Dictionary (decision of Evan, 2026-09-11).
+    #
+    # Bounds and per-model support were read page by page on
+    # developers.deepgram.com on 2026-09-11. ⛔ They are not guessed, and not
+    # copied from another provider.
+    #
+    # 🔑 The defaults reproduce what runs today: `endpointing` at 100 and
+    # `profanity_filter` off were literals in the factory; the twelve others
+    # are left unset, which leaves the connector's own default in place.
+    # Declaring changes nothing, it makes the setting visible.
+    # ------------------------------------------------------------------ #
+    endpointing: int | None = Field(
+        default=100,
+        ge=0,
+        le=60000,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Silence, in milliseconds, after which Deepgram declares the "
+            "speech finished. This is the setting that decides when the agent "
+            "takes the floor, so it caps the responsiveness of the whole "
+            "chain: too low and the agent cuts the caller off, too high and it "
+            "leaves a blank. Deepgram's own default is 10 ms; 100 ms is the "
+            "value that was hardcoded before this field existed. Deepgram also "
+            "accepts 'false' to switch endpointing off entirely, which this "
+            "field does not offer."
+        ),
+    )
+    utterance_end_ms: int | None = Field(
+        default=None,
+        ge=1000,
+        le=5000,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Silence, in milliseconds, after which Deepgram emits an "
+            "end-of-utterance event. From 1000 to 5000. WARNING: requires "
+            "interim results to be on; without them Deepgram sends nothing. "
+            "Left empty, no such event is requested, which is today's "
+            "behaviour."
+        ),
+    )
+    interim_results: bool | None = Field(
+        default=None,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Sends partial transcriptions as the caller speaks, instead of "
+            "only the finished sentence. On today by way of the connector's "
+            "own default, and required by the end-of-utterance setting above."
+        ),
+    )
+    keywords: list[str] | None = Field(
+        default=None,
+        json_schema_extra={"models": DEEPGRAM_KEYWORDS_MODELS},
+        description=(
+            "Words to boost, written 'word' or 'word:intensifier'. NOT "
+            "supported from nova-3 onwards, where Deepgram replaced it with "
+            "keyterm prompting — which is what the agent's Dictionary already "
+            "feeds. Only shown when an older model is selected."
+        ),
+    )
+    punctuate: bool | None = Field(
+        default=None,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Adds punctuation and capitalisation to the transcript. On today "
+            "by way of the connector's own default. Required for dictation "
+            "below to have any effect."
+        ),
+    )
+    smart_format: bool | None = Field(
+        default=None,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Formats dates, times, phone numbers and amounts for readability. "
+            "Includes the numerals setting below. Off today by way of the "
+            "connector's own default."
+        ),
+    )
+    numerals: bool | None = Field(
+        default=None,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Writes spoken numbers as digits ('twenty three' becomes '23'). "
+            "Off today by way of the connector's own default."
+        ),
+    )
+    dictation: bool | None = Field(
+        default=None,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Turns spoken punctuation commands into characters ('comma' "
+            "becomes ','). WARNING: English only, and has no effect unless "
+            "punctuation is on. Off today by way of the connector's own "
+            "default."
+        ),
+    )
+    profanity_filter: bool | None = Field(
+        default=False,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Replaces or removes coarse language in the transcript. Off is the "
+            "value that was hardcoded before this field existed: what the "
+            "caller said reaches the agent as they said it."
+        ),
+    )
+    redact: list[str] | None = Field(
+        default=None,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Removes sensitive information from the transcript before it "
+            "reaches us. Categories such as pci, pii, phi, numbers, "
+            "aggressive_numbers, or an individual entity type. WARNING: "
+            "outside English, only numbers are redacted. Left empty, nothing "
+            "is redacted, which is today's behaviour."
+        ),
+    )
+    replace: list[str] | None = Field(
+        default=None,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Replacement rules, written 'term heard:term written'. Useful for "
+            "a trade word the model mishears consistently. One rule per entry; "
+            "the colon separates the two halves."
+        ),
+    )
+    search: list[str] | None = Field(
+        default=None,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Terms Deepgram reports the position and confidence of, without "
+            "changing the transcript. WARNING: nothing in the agent reads "
+            "those results today, so this is an observation aid, not a "
+            "behaviour."
+        ),
+    )
+    diarize: bool | None = Field(
+        default=None,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Labels the transcript by speaker. WARNING: Deepgram marks this "
+            "parameter deprecated in favour of diarize_model, which the "
+            "connector does not carry; it still works and routes to the v1 "
+            "diarizer. On a telephone call the agent and the caller are "
+            "already on separate channels, so there is little to gain."
+        ),
+    )
+    detect_entities: bool | None = Field(
+        default=None,
+        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        description=(
+            "Marks names, dates, amounts and the like in the transcript. "
+            "WARNING: nothing in the agent reads those markers today. Off by "
+            "way of the connector's own default."
+        ),
+    )
+
+
+# The single collection point the service factory reads for the classic
+# Deepgram connector, rather than one branch per setting. ⛔ A name added here
+# must be BOTH a field declared above AND a parameter the connector forwards: a
+# setting collected but not sent is configured-then-ignored.
+#
+# ⛔ `keyterm` is NOT here. It is fed by the agent's Dictionary on every call,
+# and collecting it would let the client's value fight the agent's — a fight
+# the client would lose silently.
+#
+# The order is the connector's own declaration order, so the two lists can be
+# read side by side.
+DEEPGRAM_STT_FIELDS: tuple[str, ...] = (
+    "detect_entities",
+    "diarize",
+    "dictation",
+    "endpointing",
+    "interim_results",
+    "keywords",
+    "numerals",
+    "profanity_filter",
+    "punctuate",
+    "redact",
+    "replace",
+    "search",
+    "smart_format",
+    "utterance_end_ms",
+)
 
 
 @register_stt

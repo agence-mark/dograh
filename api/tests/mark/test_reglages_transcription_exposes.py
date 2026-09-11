@@ -482,3 +482,89 @@ def test_aucun_reglage_declare_nest_oublie_par_les_deux_collectes():
         f"tuples: {sorted(oublies)}. Such a field appears on screen, is saved, "
         f"and is never sent."
     )
+
+
+# --------------------------------------------------------------------------- #
+# 5. The screen test's copy of this schema cannot drift away from it
+# --------------------------------------------------------------------------- #
+
+
+def _copie_du_schema_cote_ecran() -> str:
+    from pathlib import Path
+
+    copie = (
+        Path(__file__).resolve().parents[3]
+        / "ui"
+        / "src"
+        / "components"
+        / "mark"
+        / "reglages-transcription-ecran.test.tsx"
+    )
+    assert copie.exists(), f"the screen test is gone: {copie}"
+    return copie.read_text(encoding="utf-8")
+
+
+def _branche_utile(declare: dict) -> dict:
+    """The part of a property that carries the type and the bounds.
+
+    An optional field is written by Pydantic as an ``anyOf`` with a null
+    branch; the bounds live on the other one.
+    """
+    if "anyOf" not in declare:
+        return declare
+    return next(
+        branche for branche in declare["anyOf"] if branche.get("type") != "null"
+    )
+
+
+@pytest.mark.parametrize("champ", LES_QUATORZE + LES_CINQ_FLUX)
+def test_la_copie_du_schema_de_transcription_dit_la_meme_chose(champ):
+    """The screen test carries a literal copy of what the API serves.
+
+    That copy is deliberate — it is the contract between Python and the screen,
+    and it must break loudly when one side moves. But a copy nobody compares is
+    a copy that drifts: on the Mistral chantier it had already drifted the day
+    it was written, a bound reading 0 on one side and 1 on the other. So the
+    comparison is made here, from the side that owns the truth.
+
+    ⛔ Every bound, the type, and the sentence — not a sample of them.
+    """
+    import re
+
+    texte = _copie_du_schema_cote_ecran()
+    declare = DeepgramSTTConfiguration.model_json_schema()["properties"][champ]
+    utile = _branche_utile(declare)
+
+    # The field's block in the TypeScript literal, from its name to the closing
+    # brace at the same indentation.
+    bloc = re.search(
+        re.escape(champ) + r":\s*\{(.+?)\n        \},", texte, re.DOTALL
+    )
+    assert bloc, f"'{champ}' is missing from the screen test's copy of the schema"
+    copie = bloc.group(1)
+
+    for cle in ("minimum", "maximum", "exclusiveMinimum"):
+        if cle not in utile:
+            assert f"{cle}:" not in copie, (
+                f"'{champ}': the screen test declares a {cle} that the schema "
+                f"does not have."
+            )
+            continue
+        attendu = utile[cle]
+        rendu = str(int(attendu)) if float(attendu) == int(attendu) else str(attendu)
+        assert f"{cle}: {rendu}" in copie, (
+            f"'{champ}': the screen test says something else than "
+            f"{cle}={rendu}. Realign the copy in "
+            f"reglages-transcription-ecran.test.tsx."
+        )
+
+    assert f'type: "{utile["type"]}"' in copie, (
+        f"'{champ}': the screen test types it as something other than "
+        f"{utile['type']}, so it would render with the wrong control."
+    )
+
+    assert declare["description"] in copie, (
+        f"'{champ}': the sentence in the screen test is not the sentence the "
+        f"API serves. The screen shows the API's one, so the test would be "
+        f"checking a sentence nobody reads."
+    )
