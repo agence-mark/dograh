@@ -145,6 +145,103 @@ def test_les_reglages_du_client_traversent_la_surcharge():
 
 
 # --------------------------------------------------------------------------- #
+# 1 bis. ONE transcription setting overridden, the rest still inherited
+# --------------------------------------------------------------------------- #
+#
+# 🔑 Since 2026-09-11 the transcription carries nineteen settings, so the
+# difference between "override one field" and "override the block" stopped
+# being theoretical: an override that carried the whole block would freeze the
+# model, the language and seventeen settings on the day it was written.
+#
+# The screen now sends only what changed. These tests are the server-side half
+# of that contract: they prove the small override is enough, and that the agent
+# keeps following its client.
+
+# What the screen sends after the client changes `endpointing` on one agent:
+# the provider (which the server compares) and the one field. Nothing else.
+SURCHARGE_ENDPOINTING_SEUL = {
+    "stt": {
+        "provider": "deepgram",
+        "endpointing": 450,
+    }
+}
+
+
+def test_lagent_change_un_reglage_de_transcription_et_herite_du_reste():
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+
+    effective = resolve_effective_config(client, SURCHARGE_ENDPOINTING_SEUL)
+
+    assert effective.stt.endpointing == 450
+    # Everything else still comes from the client.
+    assert effective.stt.model == "nova-3-general"
+    assert effective.stt.api_key == "cle-client"
+    assert effective.stt.profanity_filter is False
+
+
+def test_le_reglage_surcharge_suit_le_client_quand_il_change_de_modele_deepgram():
+    """The failure a whole-block override would have caused, made visible.
+
+    ⛔ This is the test the chantier exists for: an agent that changed one
+    setting used to freeze the client's Deepgram model with it, and from that
+    day it stopped following the client. Nothing on any screen said so.
+    """
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+    client.stt = client.stt.model_copy(update={"model": "nova-3-medical"})
+
+    effective = resolve_effective_config(client, SURCHARGE_ENDPOINTING_SEUL)
+
+    assert effective.stt.model == "nova-3-medical"
+    assert effective.stt.endpointing == 450
+
+
+def test_les_reglages_de_transcription_du_client_traversent_une_surcharge_de_voix():
+    """An agent that only changes its voice keeps the client's transcription."""
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+    client.stt = client.stt.model_copy(
+        update={"endpointing": 300, "smart_format": True, "replace": ["poil:poele"]}
+    )
+
+    effective = resolve_effective_config(client, SURCHARGE_VOIX_SEULE)
+
+    assert effective.stt.endpointing == 300
+    assert effective.stt.smart_format is True
+    assert effective.stt.replace == ["poil:poele"]
+
+
+def test_la_conformite_survit_a_une_surcharge_qui_tente_de_la_defaire():
+    """🔴 An override is a request body: it can carry anything.
+
+    The two compliance values are shown read-only on screen, but the screen is
+    not the lock. An override that asks for America must change nothing.
+    """
+    from api.services.pipecat.audio_config import AudioConfig
+    from api.services.pipecat.service_factory import create_stt_service
+
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+
+    effective = resolve_effective_config(
+        client,
+        {
+            "stt": {
+                "provider": "deepgram",
+                "region": "api.deepgram.com",
+                "mip_opt_out": False,
+            }
+        },
+    )
+
+    service = create_stt_service(
+        effective,
+        AudioConfig(transport_in_sample_rate=16000, transport_out_sample_rate=24000),
+    )
+    environment = service._client._client_wrapper.get_environment()
+
+    assert environment.base == "https://api.eu.deepgram.com"
+    assert service._build_connect_kwargs()["mip_opt_out"] == "true"
+
+
+# --------------------------------------------------------------------------- #
 # 2. The migration, which used to eat the override on the next save
 # --------------------------------------------------------------------------- #
 

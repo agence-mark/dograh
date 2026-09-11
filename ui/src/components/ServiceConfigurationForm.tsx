@@ -525,6 +525,42 @@ export function ServiceConfigurationForm({
             config.api_key = mode === 'override' ? keys[0] : keys;
         }
         const properties = schemas?.[service]?.[serviceProviders[service]]?.properties;
+
+        // [.mark] An override must carry only what it CHANGES.
+        //
+        // Sending the whole block defeats the point of a per-service override
+        // in miniature: an agent that changes one setting would also freeze the
+        // model, the language and every other setting at their value of the
+        // day, and would stop following its client from then on — silently.
+        //
+        // 🔑 The server already merges field by field when the provider is
+        // unchanged (resolve_effective_config), so sending LESS makes the agent
+        // inherit MORE. ⛔ When the provider DOES change, the server rebuilds
+        // the section from the override alone, so there the whole block has to
+        // go or the agent ends up with nothing but one field.
+        const configDuClient = (userConfig as Record<string, unknown> | null)?.[service] as
+            | Record<string, unknown>
+            | undefined;
+        const heriteChampParChamp =
+            mode === 'override'
+            && !!configDuClient
+            && configDuClient.provider === serviceProviders[service];
+
+        const valeurHeritee = (field: string): unknown => {
+            // What the server would apply for this field if we said nothing:
+            // the client's value, or the schema default when the client has
+            // none of its own.
+            if (configDuClient && field in configDuClient) return configDuClient[field];
+            return properties?.[field]?.default;
+        };
+
+        const identiqueAHerite = (field: string, value: unknown): boolean => {
+            const heritee = valeurHeritee(field);
+            // An untouched field holds "" where the inherited value is absent.
+            const vide = (v: unknown) => v === "" || v === null || v === undefined;
+            if (vide(value) && vide(heritee)) return true;
+            return JSON.stringify(value) === JSON.stringify(heritee);
+        };
         Object.entries(data).forEach(([property, value]) => {
             if (!property.startsWith(`${service}_`)) return;
             const field = property.slice(service.length + 1);
@@ -549,6 +585,9 @@ export function ServiceConfigurationForm({
             // its value whatever arrives, so storing a copy would only create
             // a second place where the truth could drift.
             if (properties?.[field]?.readonly) return;
+            // [.mark] An override carries only what it changes, so the agent
+            // keeps inheriting the rest.
+            if (heriteChampParChamp && identiqueAHerite(field, value)) return;
             config[field] = value as string | number;
         });
         return config;
