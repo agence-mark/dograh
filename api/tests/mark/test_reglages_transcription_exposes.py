@@ -101,6 +101,13 @@ LES_CINQ_FLUX = (
 # without changing a single call.
 ENDPOINTING_ACTUEL = 100
 PROFANITY_FILTER_ACTUEL = False
+# 🔑 These two run ON, by way of the Deepgram connector's own defaults -- see
+# REQUETE_CLASSIQUE_AUJOURDHUI below, where both go out as "true". Declaring
+# them as None would draw the switch OFF for a setting that is ON, and the
+# client who flips it twice to undo would post `false` while believing they
+# returned to the initial state. Found by the review of 2026-09-11.
+INTERIM_RESULTS_ACTUEL = True
+PUNCTUATE_ACTUEL = True
 EOT_THRESHOLD_ACTUEL = 0.7
 EAGER_EOT_THRESHOLD_ACTUEL = 0.5
 EOT_TIMEOUT_MS_ACTUEL = 3000
@@ -242,6 +249,8 @@ def test_les_valeurs_qui_tournent_aujourdhui_sont_les_defauts():
 
     assert config.endpointing == ENDPOINTING_ACTUEL
     assert config.profanity_filter is PROFANITY_FILTER_ACTUEL
+    assert config.interim_results is INTERIM_RESULTS_ACTUEL
+    assert config.punctuate is PUNCTUATE_ACTUEL
     assert config.eot_threshold == EOT_THRESHOLD_ACTUEL
     assert config.eager_eot_threshold == EAGER_EOT_THRESHOLD_ACTUEL
     assert config.eot_timeout_ms == EOT_TIMEOUT_MS_ACTUEL
@@ -256,6 +265,8 @@ def test_les_valeurs_qui_tournent_aujourdhui_sont_les_defauts():
         not in (
             "endpointing",
             "profanity_filter",
+            "interim_results",
+            "punctuate",
             "eot_threshold",
             "eager_eot_threshold",
             "eot_timeout_ms",
@@ -381,7 +392,6 @@ def test_les_quatorze_reglages_arrivent_dans_la_requete():
         dictation=True,
         endpointing=450,
         interim_results=False,
-        keywords=["veranda", "poele"],
         numerals=True,
         profanity_filter=True,
         punctuate=False,
@@ -392,12 +402,12 @@ def test_les_quatorze_reglages_arrivent_dans_la_requete():
         utterance_end_ms=1200,
     )
 
+    # ⛔ `keywords` is checked apart, on a model that accepts it -- see below.
     assert requete["detect_entities"] == "true"
     assert requete["diarize"] == "true"
     assert requete["dictation"] == "true"
     assert requete["endpointing"] == "450"
     assert requete["interim_results"] == "false"
-    assert requete["keywords"] == ["veranda", "poele"]
     assert requete["numerals"] == "true"
     assert requete["profanity_filter"] == "true"
     assert requete["punctuate"] == "false"
@@ -406,6 +416,27 @@ def test_les_quatorze_reglages_arrivent_dans_la_requete():
     assert requete["search"] == ["devis"]
     assert requete["smart_format"] == "true"
     assert requete["utterance_end_ms"] == "1200"
+
+
+def test_les_mots_a_renforcer_partent_sur_un_modele_qui_les_accepte():
+    """The fourteenth setting, on the models Deepgram still reads it on."""
+    requete = _requete_classique(model="nova-2", keywords=["veranda", "poele"])
+
+    assert requete["keywords"] == ["veranda", "poele"]
+
+
+def test_les_mots_a_renforcer_NE_partent_PAS_sur_nova_3():
+    """🔴 Raised by the review of 2026-09-11, and the screen is not enough.
+
+    Deepgram replaced keyword boosting with keyterm prompting from nova-3 on,
+    so the field is hidden there. But a client pinned to nova-2 who filled it
+    in and later moved to nova-3 would keep sending it on every call: the
+    screen would show nothing, and the request would carry it. At best it is
+    ignored; a 400 would break every call.
+    """
+    requete = _requete_classique(keywords=["veranda"])
+
+    assert "keywords" not in requete
 
 
 def test_lendpointing_configure_remplace_le_cent_ecrit_en_dur():
@@ -507,24 +538,52 @@ def test_un_reglage_seul_nentraine_pas_les_autres():
         assert requete[cle] == valeur
 
 
-def test_les_autres_fournisseurs_de_transcription_ne_bougent_pas():
-    """Six other STT providers go through the same factory.
+# ⛔ THIRTEEN other STT providers go through the same factory, not six -- the
+# count was wrong until the review of 2026-09-11 corrected it. These are the
+# ones that build without credentials or a network call; the others need a
+# provider object this test has no business constructing.
+AUTRES_FOURNISSEURS = (
+    ("OpenAISTTConfiguration", ServiceProviders.OPENAI, "gpt-4o-transcribe"),
+    ("CartesiaSTTConfiguration", ServiceProviders.CARTESIA, "ink-whisper"),
+    ("GladiaSTTConfiguration", ServiceProviders.GLADIA, None),
+    ("AssemblyAISTTConfiguration", ServiceProviders.ASSEMBLYAI, None),
+    ("SpeechmaticsSTTConfiguration", ServiceProviders.SPEECHMATICS, None),
+)
 
-    OpenAI is the witness: nothing was declared on its configuration, so it
-    gains nothing and loses nothing.
+
+@pytest.mark.parametrize("nom,fournisseur,modele", AUTRES_FOURNISSEURS)
+def test_les_autres_fournisseurs_de_transcription_ne_bougent_pas(
+    nom, fournisseur, modele
+):
+    """The witnesses: nothing is declared on their configurations, so they
+    gain nothing and lose nothing.
+
+    ⛔ One witness is not enough. A single assertion on OpenAI stayed green
+    while twelve other branches of the same factory could break -- pointed out
+    by the review of 2026-09-11.
     """
-    from api.services.configuration.registry import OpenAISTTConfiguration
+    import api.services.configuration.registry as reg
+
+    config_cls = getattr(reg, nom, None)
+    if config_cls is None:
+        pytest.skip(f"{nom} is not declared in this version")
 
     service = create_stt_service(
-        SimpleNamespace(
-            stt=OpenAISTTConfiguration(
-                api_key="openai-key", provider=ServiceProviders.OPENAI
-            )
-        ),
+        SimpleNamespace(stt=config_cls(api_key="cle", provider=fournisseur)),
         _audio_config(),
     )
 
-    assert service._settings.model == "gpt-4o-transcribe"
+    if modele is not None:
+        assert service._settings.model == modele
+
+    # ⛔ And none of the nineteen settings appears on THEIR configuration.
+    # ⚠️ Asserted on the configuration, not on the connector's settings: some
+    # connectors carry a field of the same name of their own (Gladia has its
+    # own `endpointing`), and finding it there proves nothing either way. What
+    # matters is that we declared nothing on their screen.
+    declares = set(config_cls.model_json_schema()["properties"])
+    fuites = declares & set(LES_QUATORZE + LES_CINQ_FLUX)
+    assert not fuites, f"{sorted(fuites)} declared on {nom}, which never asked for them"
 
 
 # --------------------------------------------------------------------------- #
@@ -635,10 +694,16 @@ def test_la_copie_du_schema_de_transcription_dit_la_meme_chose(champ):
     declare = DeepgramSTTConfiguration.model_json_schema()["properties"][champ]
     utile = _branche_utile(declare)
 
-    # The field's block in the TypeScript literal, from its name to the closing
-    # brace at the same indentation.
+    # The field's block in the TypeScript literal, from its name up to the next
+    # field's name or the end of the object.
+    # ⚠️ Deliberately NOT anchored on an indentation. The first version keyed on
+    # eight spaces, so it would have gone red at the first reformatting of the
+    # .tsx — for a reason with nothing to do with the contract it protects
+    # (review of 2026-09-11).
     bloc = re.search(
-        re.escape(champ) + r":\s*\{(.+?)\n        \},", texte, re.DOTALL
+        re.escape(champ) + r":\s*\{(.*?)\n\s*\},",
+        texte,
+        re.DOTALL,
     )
     assert bloc, f"'{champ}' is missing from the screen test's copy of the schema"
     copie = bloc.group(1)

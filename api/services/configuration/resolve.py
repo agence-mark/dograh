@@ -121,7 +121,44 @@ def resolve_effective_config(
             )
         else:
             # Same provider — merge fields onto existing config
-            merged = base.model_copy(update=override)
+            # [.mark] Rebuilt through the configuration class rather than
+            # copied, so the merged result is VALIDATED.
+            #
+            # 🔴 `model_copy(update=...)` runs no validator at all: neither the
+            # per-field bounds nor a validator that compares two fields. An
+            # agent override could therefore write a configuration the screen
+            # refuses — `eager_eot_threshold=0.9` above an `eot_threshold` of
+            # 0.7, which Flux rejects outright, or a temperature of 99.
+            # Measured on 2026-09-11: both went through silently, and the
+            # caller would have spoken into the void.
+            #
+            # ⚠️ The hole is older than the settings that made it visible: it
+            # was already there for the six Mistral sampling settings exposed
+            # on 2026-09-10. Fixing it here fixes it for every service, and at
+            # the moment it matters — the save route resolves before it
+            # writes, so an invalid override is refused at the door rather than
+            # mid-call.
+            merged = _rebuild_validated(service_type, base, override)
             setattr(effective, section_key, merged)
 
     return effective
+
+
+def _rebuild_validated(service_type: ServiceType, base, override: dict):
+    """Merge an override onto a base config, through the class's validation.
+
+    ⛔ An invalid merge RAISES. That is the point: the save route resolves
+    before it writes, so the refusal lands on the person setting the value
+    rather than on a caller mid-sentence. Swallowing the error here would put
+    the hole straight back.
+
+    The only fallback is for a provider with no class in the registry — there
+    is nothing to validate against, and refusing would break a configuration
+    that used to resolve for a reason unrelated to its values.
+    """
+    registry = REGISTRY.get(service_type, {})
+    config_cls = registry.get(getattr(base, "provider", None))
+    if config_cls is None:
+        return base.model_copy(update=override)
+    fusionne = {**base.model_dump(), **override}
+    return config_cls(**fusionne)

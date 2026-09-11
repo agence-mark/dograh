@@ -16,6 +16,7 @@ from api.errors.failure import (
 from api.services.configuration.options import (
     DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
+    DEEPGRAM_KEYWORDS_MODELS,
 )
 from api.services.configuration.registry import (
     DEEPGRAM_FLUX_FIELDS,
@@ -183,6 +184,23 @@ DEEPGRAM_FLUX_LANGUAGE_HINTS = {
     "pt": Language.PT,
     "ru": Language.RU,
 }
+
+
+def _reglages_classiques(stt_config) -> dict:
+    """The classic Deepgram settings this MODEL accepts, filled in.
+
+    ⛔ The model gate is not only a screen decision. `keywords` is hidden from
+    the screen on nova-3, where Deepgram replaced it with keyterm prompting —
+    but a client who was pinned to nova-2, filled it in, then moved to nova-3
+    would keep sending it on every call. At best it is ignored; a 400 would
+    break every call. Raised by the review of 2026-09-11; filtering costs one
+    line and removes the question.
+    """
+    reglages = collect_declared_settings(stt_config, DEEPGRAM_STT_FIELDS)
+    modele = getattr(stt_config, "model", None)
+    if "keywords" in reglages and modele not in DEEPGRAM_KEYWORDS_MODELS:
+        del reglages["keywords"]
+    return reglages
 
 
 def dograh_stt_uses_flux_language(language: str | None) -> bool:
@@ -388,7 +406,7 @@ def create_stt_service(
                 # ⛔ Fed by the agent's Dictionary, never by the client's
                 # configuration: it is rewritten on every call.
                 keyterm=keyterms or [],
-                **collect_declared_settings(user_config.stt, DEEPGRAM_STT_FIELDS),
+                **_reglages_classiques(user_config.stt),
             ),
             should_interrupt=False,  # Let UserAggregator take care of sending InterruptionFrame
             sample_rate=audio_config.transport_in_sample_rate,

@@ -231,6 +231,25 @@ def test_flux_stt_ignores_a_configuration_that_asks_for_america():
     assert "mip_opt_out=true" in url
 
 
+def test_the_screen_mirror_cannot_be_made_to_lie():
+    """🔴 Raised by the review of 2026-09-11.
+
+    The factory ignores a configuration asking for America -- that is covered
+    above. But the SCREEN reads the STORED value, not the constant, so a stored
+    ``api.deepgram.com`` would be displayed as the region the caller's audio
+    goes to. Nothing would break; the screen would simply say something false,
+    which is the one failure a mirror can have.
+    """
+    from api.services.configuration.registry import DeepgramSTTConfiguration
+
+    config = DeepgramSTTConfiguration(
+        api_key="test-key", region="api.deepgram.com", mip_opt_out=False
+    )
+
+    assert config.region == EU_HOST
+    assert config.mip_opt_out is True
+
+
 def test_the_screen_mirror_says_what_the_code_imposes():
     """The two shown values are a mirror; a mirror that lies is worse than none.
 

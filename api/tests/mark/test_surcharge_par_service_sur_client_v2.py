@@ -37,6 +37,7 @@ legacy overrides it was built for, is unchanged.
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from api.schemas.ai_model_configuration import (
     BYOKAIModelConfiguration,
@@ -207,6 +208,70 @@ def test_les_reglages_de_transcription_du_client_traversent_une_surcharge_de_voi
     assert effective.stt.endpointing == 300
     assert effective.stt.smart_format is True
     assert effective.stt.replace == ["poil:poele"]
+
+
+def test_une_surcharge_invalide_est_REFUSEE_au_lieu_de_passer():
+    """🔴 Trouvé par la relecture du 11/09, et plus large que ce chantier.
+
+    ``model_copy(update=...)`` ne joue AUCUN validateur : ni les bornes d'un
+    champ, ni un validateur qui compare deux champs. Une surcharge d'agent
+    pouvait donc écrire une configuration que l'écran refuse.
+
+    Mesuré avant correction : ``eager_eot_threshold=0.9`` par-dessus un
+    ``eot_threshold`` de 0,7 passait en silence — **Flux refuse ce couple, et
+    l'appelant aurait parlé dans le vide**. ``eot_timeout_ms=999999`` aussi.
+
+    ⚠️ Le trou est plus ancien que les réglages qui l'ont rendu visible : il
+    valait déjà pour les six réglages Mistral exposés le 10/09, où une
+    surcharge posait une température de 99 sans un mot. D'où le témoin Mistral
+    ci-dessous.
+    """
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+
+    # Le couple interdit par Flux : chaque valeur est dans sa plage.
+    with pytest.raises(ValidationError):
+        resolve_effective_config(
+            client,
+            {"stt": {"provider": "deepgram", "eager_eot_threshold": 0.9}},
+        )
+
+    # Une borne de champ, sur le même chemin.
+    with pytest.raises(ValidationError):
+        resolve_effective_config(
+            client, {"stt": {"provider": "deepgram", "eot_timeout_ms": 999999}}
+        )
+
+    # ⛔ Le témoin : le trou n'était pas propre à la transcription.
+    with pytest.raises(ValidationError):
+        resolve_effective_config(
+            client, {"llm": {"provider": "mistral", "temperature": 99.0}}
+        )
+
+
+def test_une_surcharge_valide_passe_toujours():
+    """La contrepartie, et c'est elle qui doit rester ennuyeuse.
+
+    Revalider ne doit refuser QUE ce qui est invalide. Un couple de seuils
+    correct, une valeur en bord de plage, et la surcharge de voix qui tourne
+    partout ailleurs dans ce fichier doivent continuer de passer.
+    """
+    client = compile_ai_model_configuration_v2(_client_au_nouveau_format())
+
+    effective = resolve_effective_config(
+        client,
+        {
+            "stt": {
+                "provider": "deepgram",
+                "eager_eot_threshold": 0.6,
+                "eot_threshold": 0.9,
+                "eot_timeout_ms": 60000,
+            }
+        },
+    )
+
+    assert effective.stt.eager_eot_threshold == 0.6
+    assert effective.stt.eot_threshold == 0.9
+    assert effective.stt.eot_timeout_ms == 60000
 
 
 def test_la_conformite_survit_a_une_surcharge_qui_tente_de_la_defaire():

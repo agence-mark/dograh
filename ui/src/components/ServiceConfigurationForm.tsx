@@ -43,6 +43,12 @@ interface SchemaProperty {
     docs_url?: string;
     // [.mark] The models that accept this setting. Absent = every model.
     models?: string[];
+    // [.mark] The models that do NOT accept it — everything else does.
+    // ⛔ The two are not interchangeable: a white list stops at the models
+    // the dropdown happens to offer, and the model field takes free input.
+    // A setting that belongs to every model EXCEPT one family has to be
+    // written as an exclusion, or a client pinned to an older model loses it.
+    hidden_for_models?: string[];
     // [.mark] Shown, never editable. ⛔ The real lock is server-side; this
     // only stops the screen from suggesting the value is a choice.
     readonly?: boolean;
@@ -517,14 +523,17 @@ export function ServiceConfigurationForm({
     };
 
     const buildServiceConfig = (service: ServiceSegment, data: FormValues) => {
-        const config: Record<string, string | number | string[]> = {
+        // [.mark] `boolean` belongs here: a switch posts a real boolean, and
+        // the previous type only held because the cast below lied about it.
+        const config: Record<string, string | number | boolean | string[]> = {
             provider: serviceProviders[service],
         };
         const keys = apiKeys[service].map(k => k.trim()).filter(k => k.length > 0);
         if (keys.length > 0) {
             config.api_key = mode === 'override' ? keys[0] : keys;
         }
-        const properties = schemas?.[service]?.[serviceProviders[service]]?.properties;
+        const schemasParFournisseur = () => schemas?.[service]?.[serviceProviders[service]];
+        const properties = schemasParFournisseur()?.properties;
 
         // [.mark] An override must carry only what it CHANGES.
         //
@@ -545,6 +554,18 @@ export function ServiceConfigurationForm({
             mode === 'override'
             && !!configDuClient
             && configDuClient.provider === serviceProviders[service];
+
+        // [.mark] The rendering resolves $ref before reading a field's flags,
+        // so the save has to resolve it too. A read-only field declared behind
+        // a $ref was drawn disabled and posted anyway.
+        const schemaResolu = (field: string): SchemaProperty | undefined => {
+            const brut = properties?.[field];
+            if (brut?.$ref) {
+                const schemas = schemasParFournisseur();
+                return schemas?.$defs?.[brut.$ref.split('/').pop() || ''] ?? brut;
+            }
+            return brut;
+        };
 
         const valeurHeritee = (field: string): unknown => {
             // What the server would apply for this field if we said nothing:
@@ -584,11 +605,11 @@ export function ServiceConfigurationForm({
             // [.mark] A read-only field is never posted: the server imposes
             // its value whatever arrives, so storing a copy would only create
             // a second place where the truth could drift.
-            if (properties?.[field]?.readonly) return;
+            if (schemaResolu(field)?.readonly) return;
             // [.mark] An override carries only what it changes, so the agent
             // keeps inheriting the rest.
             if (heriteChampParChamp && identiqueAHerite(field, value)) return;
-            config[field] = value as string | number;
+            config[field] = value as string | number | boolean | string[];
         });
         return config;
     };
@@ -663,6 +684,8 @@ export function ServiceConfigurationForm({
             // 🔑 Hiding is a screen decision, not a data decision: the value
             // stays in the form and is still saved, so switching back to the
             // model that accepts it does not silently reset it.
+            const caches = actualSchema?.hidden_for_models;
+            if (caches && currentModel && caches.includes(currentModel)) return false;
             const models = actualSchema?.models;
             if (!models || models.length === 0) return true;
             if (!currentModel) return true;

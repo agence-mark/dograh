@@ -40,7 +40,6 @@ vi.stubGlobal(
     },
 );
 
-const MODELES_CLASSIQUES = ["nova-3-general", "nova-3-medical"];
 const MODELES_FLUX = ["flux-general-en", "flux-general-multi"];
 const MODELES_KEYWORDS = [
     "nova-2",
@@ -75,19 +74,19 @@ const schemaDeepgram = {
         endpointing: {
             anyOf: [{ type: "integer", minimum: 0, maximum: 60000 }, { type: "null" }],
             default: 100,
-            models: MODELES_CLASSIQUES,
+            hidden_for_models: MODELES_FLUX,
             description: "Silence, in milliseconds, after which Deepgram declares the speech finished. This is the setting that decides when the agent takes the floor, so it caps the responsiveness of the whole chain: too low and the agent cuts the caller off, too high and it leaves a blank. Deepgram's own default is 10 ms; 100 ms is the value that was hardcoded before this field existed. Deepgram also accepts 'false' to switch endpointing off entirely, which this field does not offer.",
         },
         utterance_end_ms: {
             anyOf: [{ type: "integer", minimum: 1000, maximum: 5000 }, { type: "null" }],
             default: null,
-            models: MODELES_CLASSIQUES,
+            hidden_for_models: MODELES_FLUX,
             description: "Silence, in milliseconds, after which Deepgram emits an end-of-utterance event. From 1000 to 5000. WARNING: requires interim results to be on; without them Deepgram sends nothing. Left empty, no such event is requested, which is today's behaviour.",
         },
         interim_results: {
             anyOf: [{ type: "boolean" }, { type: "null" }],
-            default: null,
-            models: MODELES_CLASSIQUES,
+            default: true,
+            hidden_for_models: MODELES_FLUX,
             description: "Sends partial transcriptions as the caller speaks, instead of only the finished sentence. On today by way of the connector's own default, and required by the end-of-utterance setting above.",
         },
         keywords: {
@@ -98,56 +97,56 @@ const schemaDeepgram = {
         },
         punctuate: {
             anyOf: [{ type: "boolean" }, { type: "null" }],
-            default: null,
-            models: MODELES_CLASSIQUES,
+            default: true,
+            hidden_for_models: MODELES_FLUX,
             description: "Adds punctuation and capitalisation to the transcript. On today by way of the connector's own default. Required for dictation below to have any effect.",
         },
         smart_format: {
             anyOf: [{ type: "boolean" }, { type: "null" }],
             default: null,
-            models: MODELES_CLASSIQUES,
+            hidden_for_models: MODELES_FLUX,
             description: "Formats dates, times, phone numbers and amounts for readability. Includes the numerals setting below. Off today by way of the connector's own default.",
         },
         numerals: {
             anyOf: [{ type: "boolean" }, { type: "null" }],
             default: null,
-            models: MODELES_CLASSIQUES,
+            hidden_for_models: MODELES_FLUX,
             description: "Writes spoken numbers as digits ('twenty three' becomes '23'). Off today by way of the connector's own default.",
         },
         dictation: {
             anyOf: [{ type: "boolean" }, { type: "null" }],
             default: null,
-            models: MODELES_CLASSIQUES,
+            hidden_for_models: MODELES_FLUX,
             description: "Turns spoken punctuation commands into characters ('comma' becomes ','). WARNING: English only, and has no effect unless punctuation is on. Off today by way of the connector's own default.",
         },
         profanity_filter: {
             anyOf: [{ type: "boolean" }, { type: "null" }],
             default: false,
-            models: MODELES_CLASSIQUES,
+            hidden_for_models: MODELES_FLUX,
             description: "Replaces or removes coarse language in the transcript. Off is the value that was hardcoded before this field existed: what the caller said reaches the agent as they said it.",
         },
         redact: {
             anyOf: [{ type: "array", items: { type: "string" } }, { type: "null" }],
             default: null,
-            models: MODELES_CLASSIQUES,
+            hidden_for_models: MODELES_FLUX,
             description: "Removes sensitive information from the transcript before it reaches us. Categories such as pci, pii, phi, numbers, aggressive_numbers, or an individual entity type. WARNING: outside English, only numbers are redacted. Left empty, nothing is redacted, which is today's behaviour.",
         },
         replace: {
             anyOf: [{ type: "array", items: { type: "string" } }, { type: "null" }],
             default: null,
-            models: MODELES_CLASSIQUES,
+            hidden_for_models: MODELES_FLUX,
             description: "Replacement rules, written 'term heard:term written'. Useful for a trade word the model mishears consistently. One rule per entry; the colon separates the two halves.",
         },
         search: {
             anyOf: [{ type: "array", items: { type: "string" } }, { type: "null" }],
             default: null,
-            models: MODELES_CLASSIQUES,
+            hidden_for_models: MODELES_FLUX,
             description: "Terms Deepgram reports the position and confidence of, without changing the transcript. WARNING: nothing in the agent reads those results today, so this is an observation aid, not a behaviour.",
         },
         diarize: {
             anyOf: [{ type: "boolean" }, { type: "null" }],
             default: null,
-            models: MODELES_CLASSIQUES,
+            hidden_for_models: MODELES_FLUX,
             description: "Labels the transcript by speaker. WARNING: Deepgram marks this parameter deprecated in favour of diarize_model, which the connector does not carry; it still works and routes to the v1 diarizer. On a telephone call the agent and the caller are already on separate channels, so there is little to gain.",
         },
         eot_threshold: {
@@ -196,7 +195,7 @@ const schemaDeepgram = {
         detect_entities: {
             anyOf: [{ type: "boolean" }, { type: "null" }],
             default: null,
-            models: MODELES_CLASSIQUES,
+            hidden_for_models: MODELES_FLUX,
             description: "Marks names, dates, amounts and the like in the transcript. WARNING: nothing in the agent reads those markers today. Off by way of the connector's own default.",
         },
     },
@@ -352,13 +351,19 @@ describe("[.mark] the Deepgram transcription settings on screen", () => {
     });
 
     it("shows keywords when an older model is selected", async () => {
-        // ⚠️ The witness field has to be one this model shows: on nova-2 the
-        // fourteen nova-3 settings are hidden, endpointing included.
         afficher("nova-2");
         await attendreLEcran("keywords");
 
         expect(estAffiche("keywords")).toBe(true);
-        expect(estAffiche("endpointing")).toBe(false);
+        // 🔴 And the thirteen others STAY, which is the point of gating them by
+        // EXCLUSION rather than by a white list of the two dropdown entries.
+        // Found by the review of 2026-09-11: a white list hid thirteen settings
+        // from a client pinned to an older model — `endpointing` included, the
+        // very setting this chantier exists for.
+        expect(estAffiche("endpointing")).toBe(true);
+        expect(estAffiche("profanity_filter")).toBe(true);
+        // The Flux thresholds are still out: they belong to Flux only.
+        expect(estAffiche("eot_threshold")).toBe(false);
     });
 
     it.each(["eot_threshold", "eager_eot_threshold", "eot_timeout_ms", "min_confidence"])(
@@ -481,8 +486,12 @@ describe("[.mark] the Deepgram transcription settings on screen", () => {
         await waitFor(() => expect(onSave).toHaveBeenCalled());
 
         const envoye = onSave.mock.calls[0][0] as { stt: Record<string, unknown> };
+        // ⛔ The four settings that carry a real default are expected to be
+        // posted: they are what runs today, written as a field instead of a
+        // literal.
+        const AVEC_DEFAUT = ["profanity_filter", "interim_results", "punctuate"];
         for (const champ of [...INTERRUPTEURS, ...LISTES, "utterance_end_ms"]) {
-            if (champ === "profanity_filter") continue; // has a real default
+            if (AVEC_DEFAUT.includes(champ)) continue;
             expect(
                 champ in envoye.stt,
                 `${champ} was posted although it was left untouched`,
@@ -490,5 +499,7 @@ describe("[.mark] the Deepgram transcription settings on screen", () => {
         }
         expect(envoye.stt.endpointing).toBe(100);
         expect(envoye.stt.profanity_filter).toBe(false);
+        expect(envoye.stt.interim_results).toBe(true);
+        expect(envoye.stt.punctuate).toBe(true);
     });
 });

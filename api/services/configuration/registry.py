@@ -26,7 +26,6 @@ from api.services.configuration.options import (
     CARTESIA_INK_WHISPER_STT_LANGUAGES,
     CARTESIA_STT_LANGUAGES,
     CARTESIA_STT_MODELS,
-    DEEPGRAM_CLASSIC_STT_MODELS,
     DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES,
@@ -1647,6 +1646,14 @@ TTSConfig = Annotated[
 ###################################################### STT ########################################################################
 
 
+# ⛔ A MIRROR of api/services/pipecat/deepgram_endpoints.py, not a second
+# source: the factory reads the endpoints module, this one only says out loud
+# what that module imposes. A test compares the two, because a mirror that
+# drifted would break nothing at all and simply announce a region the audio
+# does not go to.
+_DEEPGRAM_REGION_IMPOSEE = "api.eu.deepgram.com"
+
+
 @register_stt
 class DeepgramSTTConfiguration(BaseSTTConfiguration):
     model_config = DEEPGRAM_PROVIDER_MODEL_CONFIG
@@ -1687,15 +1694,26 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     # copied from another provider.
     #
     # 🔑 The defaults reproduce what runs today: `endpointing` at 100 and
-    # `profanity_filter` off were literals in the factory; the twelve others
-    # are left unset, which leaves the connector's own default in place.
+    # `profanity_filter` off were literals in the factory; `interim_results`
+    # and `punctuate` run ON by way of the connector's own default, so they are
+    # declared as True rather than unset — a switch shown OFF for a setting
+    # that runs ON is a screen that lies, and switching it twice would post
+    # `false` while looking like a return to the initial state. The ten others
+    # are left unset, which leaves the connector's default in place.
     # Declaring changes nothing, it makes the setting visible.
+    #
+    # ⛔ The model gate is an EXCLUSION (`hidden_for_models`), not a white
+    # list. The model field takes free input, so a white list built from the
+    # two entries of the dropdown would hide thirteen settings from a client
+    # pinned to `nova-2-phonecall` -- `endpointing` included, which is the
+    # whole point of this chantier. These settings belong to every Deepgram
+    # model that is not Flux.
     # ------------------------------------------------------------------ #
     endpointing: int | None = Field(
         default=100,
         ge=0,
         le=60000,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Silence, in milliseconds, after which Deepgram declares the "
             "speech finished. This is the setting that decides when the agent "
@@ -1711,7 +1729,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
         default=None,
         ge=1000,
         le=5000,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Silence, in milliseconds, after which Deepgram emits an "
             "end-of-utterance event. From 1000 to 5000. WARNING: requires "
@@ -1721,8 +1739,8 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
         ),
     )
     interim_results: bool | None = Field(
-        default=None,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        default=True,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Sends partial transcriptions as the caller speaks, instead of "
             "only the finished sentence. On today by way of the connector's "
@@ -1740,8 +1758,8 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
         ),
     )
     punctuate: bool | None = Field(
-        default=None,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        default=True,
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Adds punctuation and capitalisation to the transcript. On today "
             "by way of the connector's own default. Required for dictation "
@@ -1750,7 +1768,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
     smart_format: bool | None = Field(
         default=None,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Formats dates, times, phone numbers and amounts for readability. "
             "Includes the numerals setting below. Off today by way of the "
@@ -1759,7 +1777,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
     numerals: bool | None = Field(
         default=None,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Writes spoken numbers as digits ('twenty three' becomes '23'). "
             "Off today by way of the connector's own default."
@@ -1767,7 +1785,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
     dictation: bool | None = Field(
         default=None,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Turns spoken punctuation commands into characters ('comma' "
             "becomes ','). WARNING: English only, and has no effect unless "
@@ -1777,7 +1795,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
     profanity_filter: bool | None = Field(
         default=False,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Replaces or removes coarse language in the transcript. Off is the "
             "value that was hardcoded before this field existed: what the "
@@ -1786,7 +1804,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
     redact: list[str] | None = Field(
         default=None,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Removes sensitive information from the transcript before it "
             "reaches us. Categories such as pci, pii, phi, numbers, "
@@ -1797,7 +1815,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
     replace: list[str] | None = Field(
         default=None,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Replacement rules, written 'term heard:term written'. Useful for "
             "a trade word the model mishears consistently. One rule per entry; "
@@ -1806,7 +1824,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
     search: list[str] | None = Field(
         default=None,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Terms Deepgram reports the position and confidence of, without "
             "changing the transcript. WARNING: nothing in the agent reads "
@@ -1816,7 +1834,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
     diarize: bool | None = Field(
         default=None,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Labels the transcript by speaker. WARNING: Deepgram marks this "
             "parameter deprecated in favour of diarize_model, which the "
@@ -1827,7 +1845,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
     detect_entities: bool | None = Field(
         default=None,
-        json_schema_extra={"models": DEEPGRAM_CLASSIC_STT_MODELS},
+        json_schema_extra={"hidden_for_models": DEEPGRAM_FLUX_MODELS},
         description=(
             "Marks names, dates, amounts and the like in the transcript. "
             "WARNING: nothing in the agent reads those markers today. Off by "
@@ -1927,7 +1945,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     # and a test compares the two so the mirror cannot lie.
     # ------------------------------------------------------------------ #
     region: str = Field(
-        default="api.eu.deepgram.com",
+        default=_DEEPGRAM_REGION_IMPOSEE,
         json_schema_extra={"readonly": True},
         description=(
             "The Deepgram region the caller's audio is processed in. Locked on "
@@ -1946,6 +1964,26 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
             "discount, and that is accepted."
         ),
     )
+
+    @model_validator(mode="after")
+    def _la_conformite_ne_se_configure_pas(self):
+        """Whatever arrives, the two compliance fields say what the code does.
+
+        🔴 Raised by the review of 2026-09-11. The factory already imposes the
+        EU endpoint and the training opt-out, so a configuration asking for
+        America changes nothing on the wire -- but the SCREEN reads the STORED
+        value, not the constant. A stored ``api.deepgram.com`` would be shown
+        as the region the caller's audio goes to, which would be false.
+
+        ⛔ Silently realigned rather than refused: these are not a choice, so
+        refusing would turn a value nobody is allowed to act on into a save
+        that fails.
+        """
+        if self.region != _DEEPGRAM_REGION_IMPOSEE:
+            object.__setattr__(self, "region", _DEEPGRAM_REGION_IMPOSEE)
+        if self.mip_opt_out is not True:
+            object.__setattr__(self, "mip_opt_out", True)
+        return self
 
     @model_validator(mode="after")
     def _le_seuil_anticipe_reste_sous_le_seuil_final(self):
@@ -1969,7 +2007,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
         return self
 
 
-# The single collection point the service factory reads for the classic
+# The single collection point the service factory reads for the CLASSIC
 # Deepgram connector, rather than one branch per setting. ⛔ A name added here
 # must be BOTH a field declared above AND a parameter the connector forwards: a
 # setting collected but not sent is configured-then-ignored.
@@ -1978,19 +2016,7 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
 # and collecting it would let the client's value fight the agent's — a fight
 # the client would lose silently.
 #
-# The order is the connector's own declaration order, so the two lists can be
-# read side by side.
-# The single collection point for the Flux connector. ⛔ Separate from the one
-# above on purpose: the two connectors share no setting at all, and a name in
-# the wrong tuple would be collected on a path that ignores it.
-DEEPGRAM_FLUX_FIELDS: tuple[str, ...] = (
-    "eot_threshold",
-    "eager_eot_threshold",
-    "eot_timeout_ms",
-    "language_hints",
-    "min_confidence",
-)
-
+# The order is the connector's own declaration order.
 DEEPGRAM_STT_FIELDS: tuple[str, ...] = (
     "detect_entities",
     "diarize",
@@ -2006,6 +2032,18 @@ DEEPGRAM_STT_FIELDS: tuple[str, ...] = (
     "search",
     "smart_format",
     "utterance_end_ms",
+)
+
+
+# The single collection point for the Flux connector. ⛔ Separate from the one
+# above on purpose: the two connectors share no setting at all, and a name in
+# the wrong tuple would be collected on a path that ignores it.
+DEEPGRAM_FLUX_FIELDS: tuple[str, ...] = (
+    "eot_threshold",
+    "eager_eot_threshold",
+    "eot_timeout_ms",
+    "language_hints",
+    "min_confidence",
 )
 
 

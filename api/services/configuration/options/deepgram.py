@@ -1,4 +1,3 @@
-DEEPGRAM_CLASSIC_STT_MODELS = ("nova-3-general", "nova-3-medical")
 DEEPGRAM_FLUX_MODELS = ("flux-general-en", "flux-general-multi")
 DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES = (
     "de",

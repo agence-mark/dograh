@@ -745,9 +745,11 @@ async def _run_pipeline_impl(
         }
     stamp_sampling_settings(runtime_configuration, user_config.llm)
     if not is_realtime:
-        # ⚠️ Only on this path: the keyboard bench does not transcribe, so a
-        # transcription stamp there would record settings that played no part
-        # in the run. And a realtime call has no separate transcription at all.
+        # ⚠️ The guard is about REALTIME, not about the keyboard bench: a
+        # speech-to-speech call has no separate transcription service, so
+        # `user_config.stt` says nothing about how it was played.
+        # The keyboard bench is excluded elsewhere -- it lives in
+        # `text_chat_runner`, which simply never calls this.
         stamp_transcription_settings(runtime_configuration, user_config.stt)
     merged_call_context_vars = {
         **merged_call_context_vars,
