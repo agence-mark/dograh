@@ -228,10 +228,11 @@ def test_les_six_reglages_arrivent_dans_la_requete():
     assert params["top_p"] == 0.9
     assert params["frequency_penalty"] == 0.4
     assert params["presence_penalty"] == 0.2
-    # Mistral's own name for the seed. Upstream maps it; we only check it made
-    # the trip, because a seed that never leaves is the exact bug that made
-    # the test bench non-reproducible.
-    assert params["random_seed"] == 424242
+    # Mistral's own name for the seed, and it travels in ``extra_body``: at the
+    # top level OpenAI's client refuses the keyword and the whole request dies
+    # before it is sent, agent mute (2026-09-11). See
+    # ``test_graine_random_seed.py``, which owns that rule.
+    assert params["extra_body"]["random_seed"] == 424242
 
 
 def test_la_temperature_configuree_remplace_le_zero_un_ecrit_en_dur():
@@ -270,7 +271,7 @@ def test_un_reglage_seul_nentraine_pas_les_autres():
     """
     params = _params(seed=7)
 
-    assert params["random_seed"] == 7
+    assert params["extra_body"]["random_seed"] == 7
     assert params["temperature"] == TEMPERATURE_ACTUELLE
     assert _non_transmis(params["max_tokens"])
     assert _non_transmis(params["top_p"])
@@ -335,6 +336,12 @@ def test_le_point_de_collecte_ne_ramasse_que_ce_qui_part():
 
     Collecting a setting the builder ignores would put it on screen with no
     effect, which is precisely what the top_k decision refused.
+
+    🚨 READ WHAT THIS PROVES, AND WHAT IT DOES NOT. It reads source code. It
+    was green on 2026-09-10 while a filled-in seed made the agent mute: the
+    string was in the builder, and the request still died on the way out.
+    Reading code is not running it. What the settings actually do to a request
+    lives in ``test_graine_random_seed.py``, which builds one and checks it.
     """
     import inspect
 

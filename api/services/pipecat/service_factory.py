@@ -243,6 +243,44 @@ def stt_uses_external_turns(user_config) -> bool:
     return False
 
 
+class DograhMistralLLMService(MistralLLMService):
+    """Send Mistral's ``random_seed`` in a way OpenAI's client will carry.
+
+    ⛔ Why this class exists rather than a fix upstream: the seed never left
+    the machine. Mistral reads ``random_seed`` and upstream names it correctly,
+    but the call goes out through OpenAI's client library, which raises
+    TypeError on any keyword outside its own signature -- before any network
+    call. The resulting error is NOT fatal, so nothing surfaced: the agent
+    stayed up and answered nothing at all (measured 2026-09-11, runs 112-115,
+    zero tokens).
+
+    ``extra_body`` is the SDK's own channel for provider-specific fields: it is
+    passed through into the request body untouched. Mistral accepts
+    ``random_seed`` there and refuses OpenAI's ``seed`` outright (HTTP 422,
+    ``extra_forbidden``, verified 2026-09-11), so the name has to stay theirs.
+
+    ⚠️ Second defect fixed in the same place: upstream only sent the parameter
+    when it was truthy, so a seed of 0 was dropped in silence while the screen
+    accepted it (``ge=0``). A bench pinned to seed 0 would have drawn afresh
+    every time with nothing to say so.
+
+    🔑 This is a stopgap over a genuine upstream defect, not a divergence we
+    want: the fix is going upstream (Evan, 2026-09-11). Drop this class once it
+    lands there -- the test that covers it goes through the factory, so it will
+    keep passing either way.
+    """
+
+    def build_chat_completion_params(self, params_from_context) -> dict:
+        params = super().build_chat_completion_params(params_from_context)
+        # Upstream puts it at the top level, where the SDK refuses it.
+        params.pop("random_seed", None)
+        if self._settings.seed is not None:
+            extra_body = dict(params.get("extra_body") or {})
+            extra_body["random_seed"] = self._settings.seed
+            params["extra_body"] = extra_body
+        return params
+
+
 class DograhGoogleLLMService(GoogleLLMService):
     adapter_class = DograhGeminiJSONSchemaAdapter
 
@@ -1098,7 +1136,7 @@ def create_llm_service_from_provider(
         # 0.1 stays the default temperature; a configured value replaces it.
         # Any other setting only appears here once someone has filled it in.
         mistral_settings = {"temperature": 0.1, **(sampling or {})}
-        return MistralLLMService(
+        return DograhMistralLLMService(
             api_key=api_key,
             settings=MistralLLMSettings(model=model, **mistral_settings),
             **kwargs,
