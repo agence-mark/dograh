@@ -18,6 +18,8 @@ from api.services.configuration.options import (
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
 )
 from api.services.configuration.registry import (
+    DEEPGRAM_FLUX_FIELDS,
+    DEEPGRAM_STT_FIELDS,
     MISTRAL_SAMPLING_FIELDS,
     ServiceProviders,
 )
@@ -326,18 +328,36 @@ def create_stt_service(
     )
     if user_config.stt.provider == ServiceProviders.DEEPGRAM.value:
         if user_config.stt.model in DEEPGRAM_FLUX_MODELS:
+            # [.mark] The three thresholds used to be literals here (3000, 0.7,
+            # 0.5), chosen by nobody: they arrived on 2026-01-23 inside a
+            # commit about a pipecat version bump. They are now declared on the
+            # configuration with those same values as defaults, so this reads
+            # the same request out of a field instead of out of a literal.
+            reglages = collect_declared_settings(user_config.stt, DEEPGRAM_FLUX_FIELDS)
+            # ⛔ The connector wants Language enums, not the codes the screen
+            # stores, so this one is converted rather than forwarded.
+            indications = reglages.pop("language_hints", None)
             settings_kwargs = {
                 "model": user_config.stt.model,
-                "eot_timeout_ms": 3000,
-                "eot_threshold": 0.7,
-                "eager_eot_threshold": 0.5,
+                # ⛔ Fed by the agent's Dictionary, never by the client's
+                # configuration: it is rewritten on every call.
                 "keyterm": keyterms or [],
+                **reglages,
             }
             if user_config.stt.model == "flux-general-multi":
                 language = getattr(user_config.stt, "language", None)
-                language_hint = DEEPGRAM_FLUX_LANGUAGE_HINTS.get(language)
-                if language_hint:
-                    settings_kwargs["language_hints"] = [language_hint]
+                # A configured list wins; left empty, the hint is derived from
+                # the chosen language, which is what happened before.
+                hints = [
+                    DEEPGRAM_FLUX_LANGUAGE_HINTS[code]
+                    for code in (indications or [])
+                    if code in DEEPGRAM_FLUX_LANGUAGE_HINTS
+                ]
+                if not hints:
+                    language_hint = DEEPGRAM_FLUX_LANGUAGE_HINTS.get(language)
+                    hints = [language_hint] if language_hint else []
+                if hints:
+                    settings_kwargs["language_hints"] = hints
 
             return DeepgramFluxSTTService(
                 api_key=user_config.stt.api_key,
@@ -353,16 +373,22 @@ def create_stt_service(
         # Other models than flux
         # Use language from user config, defaulting to "multi" for multilingual support
         language = getattr(user_config.stt, "language", None) or "multi"
+        # [.mark] `endpointing=100` and `profanity_filter=False` used to be
+        # literals here, chosen by nobody: they arrived on 2025-11-21 inside a
+        # commit about embedded website domains. They are now declared on the
+        # configuration with those same values as defaults, so an empty screen
+        # produces the request it produced before, field by field.
         return DeepgramSTTService(
             api_key=user_config.stt.api_key,
             base_url=DEEPGRAM_EU_STT_BASE_URL,
             mip_opt_out=True,
             settings=DeepgramSTTSettings(
                 language=language,
-                profanity_filter=False,
-                endpointing=100,
                 model=user_config.stt.model,
+                # ⛔ Fed by the agent's Dictionary, never by the client's
+                # configuration: it is rewritten on every call.
                 keyterm=keyterms or [],
+                **collect_declared_settings(user_config.stt, DEEPGRAM_STT_FIELDS),
             ),
             should_interrupt=False,  # Let UserAggregator take care of sending InterruptionFrame
             sample_rate=audio_config.transport_in_sample_rate,
@@ -1025,25 +1051,36 @@ def _migrate_deprecated_google_model(model: str) -> str:
     return model
 
 
-def collect_sampling_settings(llm_config, fields: tuple[str, ...]) -> dict:
-    """Collect the sampling settings that are declared AND filled in.
+def collect_declared_settings(service_config, fields: tuple[str, ...]) -> dict:
+    """Collect the settings that are declared AND filled in.
 
     One collection point rather than one parameter per setting: upstream adds
     three lines and one more argument to this shared function for every field,
-    which is fine for one and unwieldy for six.
+    which is fine for one and unwieldy for nineteen.
 
     ⛔ A field left empty is left OUT of the returned dict, never passed as
     None. That is what keeps the default request byte-for-byte identical to the
     one sent before these fields existed, here and for every other provider.
+
+    🔑 The guard reads the CONFIGURATION, where "not set" is ``None``, and not
+    the connector's settings object, where "not set" is a ``NOT_GIVEN``
+    sentinel that ``is not None`` would happily let through. Handing that
+    sentinel to a connector is how a setting ends up in a request as the string
+    "not_given".
     """
-    if llm_config is None:
+    if service_config is None:
         return {}
     settings = {}
     for field in fields:
-        value = getattr(llm_config, field, None)
+        value = getattr(service_config, field, None)
         if value is not None:
             settings[field] = value
     return settings
+
+
+# Kept under its old name for the Mistral call sites, which read as "sampling"
+# at their end. Same function: the collection rule is not provider-specific.
+collect_sampling_settings = collect_declared_settings
 
 
 def stamp_sampling_settings(runtime_configuration: dict, llm_config) -> dict:
