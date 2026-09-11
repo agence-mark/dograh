@@ -181,6 +181,18 @@ const schemaDeepgram = {
             models: MODELES_FLUX,
             description: "Below this confidence, a finished turn is DROPPED and never reaches the agent, which then hears nothing at all. WARNING: this one is not sent to Deepgram; it is a filter applied on our side to what Deepgram returns. Left empty, nothing is dropped, which is today's behaviour.",
         },
+        region: {
+            type: "string",
+            default: "api.eu.deepgram.com",
+            readonly: true,
+            description: "The Deepgram region the caller's audio is processed in. Locked on Europe: processing inside the EU is a condition of the offer, not an option, so it is imposed in code and cannot be changed from here or through the API.",
+        },
+        mip_opt_out: {
+            type: "boolean",
+            default: true,
+            readonly: true,
+            description: "Refusal to take part in Deepgram's Model Improvement Program, so no call is used to train their models. Locked on: it is a condition of the offer, not an option. Refusing forfeits a discount, and that is accepted.",
+        },
         detect_entities: {
             anyOf: [{ type: "boolean" }, { type: "null" }],
             default: null,
@@ -413,6 +425,43 @@ describe("[.mark] the Deepgram transcription settings on screen", () => {
         for (const champ of ["eot_threshold", "eager_eot_threshold", "eot_timeout_ms", "language_hints", "min_confidence"]) {
             expect(estAffiche(champ), `${champ} is shown on nova-3`).toBe(false);
         }
+    });
+
+    it("shows the two compliance values, locked", async () => {
+        afficher();
+        await attendreLEcran();
+
+        const saisie = bloc("region").querySelector("input") as HTMLInputElement;
+        expect(saisie.value).toBe("api.eu.deepgram.com");
+        expect(saisie.disabled).toBe(true);
+
+        const interrupteur = bloc("mip_opt_out").querySelector('[role="switch"]');
+        expect(interrupteur?.getAttribute("aria-checked")).toBe("true");
+        expect(interrupteur?.hasAttribute("disabled")).toBe(true);
+    });
+
+    it("says WHY the two compliance values are locked, not just that they are", async () => {
+        afficher();
+        await attendreLEcran();
+
+        // ⛔ "Locked" alone reads as a limitation. The sentence has to say it
+        // is a condition of the offer, which is a decision, not a constraint.
+        expect(bloc("region").textContent).toContain("condition of the offer");
+        expect(bloc("mip_opt_out").textContent).toContain("condition of the offer");
+    });
+
+    it("does not post the compliance values", async () => {
+        const onSave = afficher();
+        await attendreLEcran();
+
+        fireEvent.click(screen.getByRole("button", { name: /save configuration/i }));
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+        const envoye = onSave.mock.calls[0][0] as { stt: Record<string, unknown> };
+        // The server imposes both whatever arrives, so storing a copy would
+        // only create a second place where the truth could drift.
+        expect("region" in envoye.stt).toBe(false);
+        expect("mip_opt_out" in envoye.stt).toBe(false);
     });
 
     it("does not offer the agent's Dictionary a second time", async () => {

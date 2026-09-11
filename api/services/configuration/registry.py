@@ -1912,6 +1912,41 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
         ),
     )
 
+    # ------------------------------------------------------------------ #
+    # The two compliance values, shown but not editable.
+    #
+    # 🔴 The lock is in the factory, not here and not on screen. A greyed-out
+    # field is not a lock: it stays reachable through the API. These two fields
+    # exist so the pair (what we control, what we do not) can be read in one
+    # place — Evan, 2026-09-11: "knowing what we master and what we do not, and
+    # knowing whether one day we will have to unlock them".
+    #
+    # ⛔ They are never collected and never sent: the factory imposes the EU
+    # endpoint and the training opt-out whatever a configuration says. The
+    # values below are a MIRROR of api/services/pipecat/deepgram_endpoints.py,
+    # and a test compares the two so the mirror cannot lie.
+    # ------------------------------------------------------------------ #
+    region: str = Field(
+        default="api.eu.deepgram.com",
+        json_schema_extra={"readonly": True},
+        description=(
+            "The Deepgram region the caller's audio is processed in. Locked on "
+            "Europe: processing inside the EU is a condition of the offer, not "
+            "an option, so it is imposed in code and cannot be changed from "
+            "here or through the API."
+        ),
+    )
+    mip_opt_out: bool = Field(
+        default=True,
+        json_schema_extra={"readonly": True},
+        description=(
+            "Refusal to take part in Deepgram's Model Improvement Program, so "
+            "no call is used to train their models. Locked on: it is a "
+            "condition of the offer, not an option. Refusing forfeits a "
+            "discount, and that is accepted."
+        ),
+    )
+
     @model_validator(mode="after")
     def _le_seuil_anticipe_reste_sous_le_seuil_final(self):
         """Flux refuses an eager threshold above the final one.

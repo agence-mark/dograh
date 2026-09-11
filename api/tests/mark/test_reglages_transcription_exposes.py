@@ -566,13 +566,17 @@ def test_aucun_reglage_declare_nest_oublie_par_les_deux_collectes():
     one of the two.
     """
     PLOMBERIE = {"provider", "api_key", "model", "language", "base_url"}
+    # ⛔ Shown, never collected, and that is the whole point: the factory
+    # imposes both whatever a configuration says. They are listed by name here
+    # rather than skipped by a rule, so a third one cannot slip in quietly.
+    CONFORMITE = {"region", "mip_opt_out"}
 
     declares = set(DeepgramSTTConfiguration.model_json_schema()["properties"])
     collectes = set(_collecte("DEEPGRAM_STT_FIELDS")) | set(
         _collecte("DEEPGRAM_FLUX_FIELDS")
     )
 
-    oublies = declares - PLOMBERIE - collectes
+    oublies = declares - PLOMBERIE - CONFORMITE - collectes
     assert not oublies, (
         f"declared on DeepgramSTTConfiguration but absent from both collection "
         f"tuples: {sorted(oublies)}. Such a field appears on screen, is saved, "

@@ -43,6 +43,9 @@ interface SchemaProperty {
     docs_url?: string;
     // [.mark] The models that accept this setting. Absent = every model.
     models?: string[];
+    // [.mark] Shown, never editable. ⛔ The real lock is server-side; this
+    // only stops the screen from suggesting the value is a choice.
+    readonly?: boolean;
 }
 
 export interface ProviderSchema {
@@ -542,6 +545,10 @@ export function ServiceConfigurationForm({
             // possible from the organisation screen, which replaces the whole
             // service block.
             if (value === "" && properties?.[field]?.default === null) return;
+            // [.mark] A read-only field is never posted: the server imposes
+            // its value whatever arrives, so storing a copy would only create
+            // a second place where the truth could drift.
+            if (properties?.[field]?.readonly) return;
             config[field] = value as string | number;
         });
         return config;
@@ -807,6 +814,24 @@ export function ServiceConfigurationForm({
                     />
                 );
             }
+        }
+
+        // [.mark] A compliance value: shown so the pair (what we control, what
+        // we do not) can be read in one place, never editable.
+        // 🔴 This is NOT the lock. The factory imposes these values whatever a
+        // configuration says; disabling the control only stops the screen from
+        // suggesting they are a choice.
+        if (actualSchema?.readonly) {
+            const fieldKey = `${service}_${field}`;
+            const valeur = watch(fieldKey);
+            if (getBooleanSchema(actualSchema)) {
+                return (
+                    <div className="flex h-9 items-center">
+                        <Switch id={fieldKey} checked={valeur === true} disabled />
+                    </div>
+                );
+            }
+            return <Input type="text" value={String(valeur ?? "")} readOnly disabled />;
         }
 
         // [.mark] A list is a tag field, not a text box: the client adds one
