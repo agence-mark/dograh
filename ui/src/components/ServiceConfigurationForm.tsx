@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet } from '@/client/sdk.gen';
+import { ChampEtiquettes } from "@/components/mark/ChampEtiquettes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,7 +26,9 @@ interface SchemaProperty {
     type?: string;
     // An optional field (`x | None` in Pydantic) carries `default: null`, which
     // is not a value to put in an input — see the reset() below.
-    default?: string | number | boolean | null;
+    // [.mark] string[] : une liste peut porter un defaut (ex. [] ou une liste
+    // de termes), et il doit arriver au champ a etiquettes tel quel.
+    default?: string | number | boolean | string[] | null;
     anyOf?: SchemaProperty[];
     minimum?: number;
     maximum?: number;
@@ -51,7 +54,8 @@ export interface ProviderSchema {
 }
 
 interface FormValues {
-    [key: string]: string | number | boolean;
+    // [.mark] string[] : une liste a etiquettes (redact, replace, keywords...).
+    [key: string]: string | number | boolean | string[];
 }
 
 export interface ServiceConfigurationDefaults {
@@ -151,12 +155,27 @@ function getSchemaDropdownOptions(
 // An optional field carries `default: null` in the schema, and a stored one
 // comes back as null too. Handing null to an input makes React drop it to
 // uncontrolled; "" is what an empty field looks like in the DOM.
-function emptyIfNull(value: unknown): string | number | boolean {
-    return value === null || value === undefined ? "" : (value as string | number | boolean);
+function emptyIfNull(value: unknown): string | number | boolean | string[] {
+    // [.mark] string[] passes through untouched: a list loaded from the saved
+    // configuration has to reach the tag field as a list, not as a string.
+    return value === null || value === undefined ? "" : (value as string | number | boolean | string[]);
 }
 
 function isNumeric(schema: SchemaProperty | undefined): boolean {
     return schema?.type === "number" || schema?.type === "integer";
+}
+
+function isArray(schema: SchemaProperty | undefined): boolean {
+    return schema?.type === "array";
+}
+
+// [.mark] A list of strings, required (`list[str]`) or optional
+// (`list[str] | None`, an anyOf). Without this the field falls through to the
+// final branch and renders as a free text box, where the client has to guess
+// the separator — a guess that is wrong for values containing one.
+function getArraySchema(schema: SchemaProperty | undefined): SchemaProperty | undefined {
+    if (isArray(schema)) return schema;
+    return schema?.anyOf?.find(option => isArray(option));
 }
 
 function isBoolean(schema: SchemaProperty | undefined): boolean {
@@ -295,7 +314,7 @@ export function ServiceConfigurationForm({
                 setIsRealtime(true);
             }
 
-            const defaultValues: Record<string, string | number | boolean> = {};
+            const defaultValues: Record<string, string | number | boolean | string[]> = {};
             const selectedProviders: Record<ServiceSegment, string> = {
                 llm: pickDefaultProvider("llm", defaultsData.llm),
                 tts: pickDefaultProvider("tts", defaultsData.tts),
@@ -461,7 +480,7 @@ export function ServiceConfigurationForm({
         if (!providerName) return;
 
         const currentValues = getValues();
-        const preservedValues: Record<string, string | number | boolean> = {};
+        const preservedValues: Record<string, string | number | boolean | string[]> = {};
 
         Object.keys(currentValues).forEach(key => {
             if (!key.startsWith(`${service}_`)) {
@@ -769,6 +788,31 @@ export function ServiceConfigurationForm({
                     />
                 );
             }
+        }
+
+        // [.mark] A list is a tag field, not a text box: the client adds one
+        // term at a time instead of guessing a separator.
+        if (getArraySchema(actualSchema)) {
+            const fieldKey = `${service}_${field}`;
+            const valeur = watch(fieldKey);
+            // An untouched optional list holds "" (see emptyIfNull).
+            const valeurs = Array.isArray(valeur) ? (valeur as string[]) : [];
+            return (
+                <ChampEtiquettes
+                    id={fieldKey}
+                    valeurs={valeurs}
+                    placeholder={`Enter ${field.replace(/_/g, " ")}`}
+                    onChange={(nouvelles) => {
+                        // ⛔ An emptied list goes back to "" and not to [],
+                        // so buildServiceConfig leaves it out. Posting [] would
+                        // mean "the client explicitly wants none", which is a
+                        // different request from sending nothing at all.
+                        setValue(fieldKey, nouvelles.length > 0 ? nouvelles : "", {
+                            shouldDirty: true,
+                        });
+                    }}
+                />
+            );
         }
 
         // [.mark] A boolean is a switch, not a text box. Placed before the
