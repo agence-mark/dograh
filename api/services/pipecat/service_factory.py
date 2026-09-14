@@ -1349,7 +1349,12 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
 )
 
 
-def stamp_pipeline_settings(runtime_configuration: dict, run_configs: dict) -> dict:
+def stamp_pipeline_settings(
+    runtime_configuration: dict,
+    run_configs: dict,
+    *,
+    user_turn_stop_timeout: float | None = None,
+) -> dict:
     """[.mark] Record the Pipecat settings this run was actually played with.
 
     Same reason as the two stamps above: without it, a recorded call cannot say
@@ -1370,15 +1375,26 @@ def stamp_pipeline_settings(runtime_configuration: dict, run_configs: dict) -> d
     ⚠️ The idle PROMPTS themselves are deliberately not stamped: they are free
     text, they can be long, and what matters after the fact is how many times
     the agent asked before hanging up, which is.
+
+    🚨 ``user_turn_stop_timeout`` is passed in RESOLVED, and that is not a
+    detail. It is the one setting whose default depends on the mode (5 s, or
+    30 s when the transcription drives the turns), so the schema leaves it
+    empty -- and the screen tells people to leave it empty. Read off the
+    schema like the others, it would stamp ``null`` on very nearly every call,
+    which is exactly the "what was left blank" this function refuses to
+    record. Two A/B branches running 5 s and 30 s would then be indis-
+    tinguishable afterwards. Found by the counter-review of 2026-09-14, on the
+    correction of an earlier defect.
     """
     from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 
     # 🔑 Resolved through the schema, so a run stamps the same value the
     # pipeline read -- including for a key the client never touched.
     effectifs = WorkflowConfigurationDefaults.model_validate(run_configs or {})
-    runtime_configuration["pipeline_settings"] = {
-        cle: getattr(effectifs, cle) for cle in REGLAGES_PIPECAT_ESTAMPILLES
-    }
+    reglages = {cle: getattr(effectifs, cle) for cle in REGLAGES_PIPECAT_ESTAMPILLES}
+    if user_turn_stop_timeout is not None:
+        reglages["user_turn_stop_timeout"] = user_turn_stop_timeout
+    runtime_configuration["pipeline_settings"] = reglages
     return runtime_configuration
 
 

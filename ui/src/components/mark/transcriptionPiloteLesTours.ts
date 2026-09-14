@@ -10,9 +10,21 @@
  * ⛔ Realtime mode is NOT this case, and an earlier version of this file said
  * it was. Since the patch of 14/09 the voice detector and the pause DO apply
  * to a realtime call -- `_create_realtime_user_turn_config` builds the
- * detector from the agent's settings. Hiding the section there would hide
- * settings that work. (The check was also dead: `is_realtime` is not a root
- * key of the configuration. Both found by the review of 14/09.)
+ * detector from the agent's settings -- so hiding the whole section there
+ * would hide settings that work. (The check was also dead: `is_realtime` is
+ * not a root key of the configuration. Both found by the review of 14/09.)
+ *
+ * ⚠️ But "everything in that section works in realtime" is NOT true either,
+ * and saying so plainly matters more than the convenient half of the
+ * sentence. FIVE settings are shown to a realtime agent and do nothing:
+ * `turn_wait_for_transcript` (forced to false in the pipeline),
+ * `turn_start_use_interim` (the realtime start strategy takes no such
+ * parameter), the two `smart_turn_*` (no turn analyser is built), and
+ * `stt_ttfs_p99_latency` (no transcription service at all). This is not a
+ * regression -- they were already shown, the dead check saw to that -- and it
+ * costs .mark nothing today, our chain being Deepgram + Mistral + Voxtral
+ * rather than realtime. The honest fix is per-setting masking, which belongs
+ * to its own patch. Raised by the counter-review of 14/09; question n° 131.
  *
  * 🚨 A setting shown in a state that is not its own is worse than a setting
  * not shown: someone would raise the pause to 1.5 s, hear no difference, and

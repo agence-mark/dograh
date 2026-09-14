@@ -56,7 +56,7 @@ TRANSMISSIONS = [
         "which strategies may mute the caller's microphone",
     ),
     (
-        r"stamp_pipeline_settings\(runtime_configuration, run_configs\)",
+        r"stamp_pipeline_settings\(\s*runtime_configuration,\s*run_configs,",
         (
             "the record of which settings a call was played with -- without it "
             "an A/B result cannot be read back six weeks later"

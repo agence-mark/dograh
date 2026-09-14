@@ -314,6 +314,9 @@ def test_la_fabrique_de_voix_porte_encore_son_decorateur_derreurs():
     # ⛔ Et le décorateur n'appartient PAS aux fonctions de collecte : posé sur
     # elles, il tenterait d'annoter une liste et avalerait l'exception.
     assert not hasattr(construire_filtres_de_texte_voix, "__wrapped__")
+    # ⚠️ Celle du milieu, donc la plus exposée à une réinsertion au mauvais
+    # endroit -- elle manquait à cette garde. Relevé par la contre-relecture.
+    assert not hasattr(construire_remplacements_de_voix, "__wrapped__")
     assert not hasattr(reglages_de_voix_communs, "__wrapped__")
 
 

@@ -858,7 +858,19 @@ async def _run_pipeline_impl(
     # par le MCP ou à la main ferait mourir l'appel AU MONTAGE du pipeline.
     # Relevé par la relecture indépendante du 14/09.
     try:
-        stamp_pipeline_settings(runtime_configuration, run_configs)
+        # ⛔ Le plafond d'attente est RÉSOLU avant d'être estampillé : c'est le
+        # seul réglage dont le défaut dépend du mode, donc le seul que lire
+        # dans le schéma enregistrerait à `null` sur presque tous les appels.
+        stamp_pipeline_settings(
+            runtime_configuration,
+            run_configs,
+            user_turn_stop_timeout=_resolve_user_turn_stop_timeout(
+                run_configs,
+                uses_external_turns=(
+                    False if is_realtime else stt_uses_external_turns(user_config)
+                ),
+            ),
+        )
     except Exception as e:
         logger.error(
             f"[run {workflow_run_id}] Failed to stamp the pipeline settings: {e}. "

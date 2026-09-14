@@ -145,3 +145,38 @@ def test_le_banc_au_clavier_nestampille_pas_ces_reglages():
         "of them -- no transcription, no voice, no turn strategy -- so the "
         "stamp would describe settings that played no part in the run."
     )
+
+
+def test_le_plafond_dattente_est_estampille_RESOLU_et_jamais_null():
+    """🚨 Le défaut que ma propre correction avait créé, trouvé par la contre-relecture.
+
+    user_turn_stop_timeout est le seul réglage dont le défaut dépend du
+    mode (5 s, ou 30 s quand la transcription pilote les tours), donc le schéma
+    le laisse vide et l'écran dit littéralement « laissez vide ». Lu dans le
+    schéma comme les autres, il s'estampillait donc à null sur presque tous
+    les appels -- exactement le « ce qui a été laissé vide » que cette fonction
+    refuse d'enregistrer.
+
+    ⛔ Ce que ça coûtait : un A/B entre un agent Flux (30 s réels) et un agent
+    nova-3 (5 s réels) portait null des deux côtés. Six semaines plus tard,
+    on relit et on conclut « même plafond ».
+    """
+    # Sans la valeur résolue, le champ du schéma est vide : ce cas ne doit PAS
+    # se retrouver tel quel dans l'estampille d'un appel réel.
+    assert WorkflowConfigurationDefaults().user_turn_stop_timeout is None
+
+    estampille = stamp_pipeline_settings({}, {}, user_turn_stop_timeout=30.0)[
+        "pipeline_settings"
+    ]
+    assert estampille["user_turn_stop_timeout"] == 30.0
+
+    estampille = stamp_pipeline_settings({}, {}, user_turn_stop_timeout=5.0)[
+        "pipeline_settings"
+    ]
+    assert estampille["user_turn_stop_timeout"] == 5.0
+
+    # Et une valeur remplie par le client reste celle qui est estampillée.
+    estampille = stamp_pipeline_settings(
+        {}, {"user_turn_stop_timeout": 12}, user_turn_stop_timeout=12.0
+    )["pipeline_settings"]
+    assert estampille["user_turn_stop_timeout"] == 12
