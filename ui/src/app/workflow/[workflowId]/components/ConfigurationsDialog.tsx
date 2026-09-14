@@ -1,6 +1,10 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import {
+    ReglagesCoupureMicro,
+    SectionCoupureMicro,
+} from "@/components/mark/SectionCoupureMicro";
 import { ReglagesRelance, SectionRelance } from "@/components/mark/SectionRelance";
 import {
     ReglagesTourDeParole,
@@ -34,6 +38,21 @@ interface ConfigurationsDialogProps {
     workflowName: string;
     onSave: (configurations: WorkflowConfigurations, workflowName: string) => Promise<void>;
 }
+
+export const CLES_COUPURE = [
+    "mute_until_first_bot_complete",
+    "mute_during_function_call",
+    "mute_engine_callback",
+    "mute_first_speech",
+    "mute_always",
+] as const;
+
+const extraireCoupure = (
+    configurations: WorkflowConfigurations
+): ReglagesCoupureMicro =>
+    Object.fromEntries(
+        CLES_COUPURE.map((cle) => [cle, (configurations as Record<string, unknown>)[cle]])
+    ) as unknown as ReglagesCoupureMicro;
 
 export const CLES_VOIX = [
     "tts_markdown_filter_enabled",
@@ -156,6 +175,9 @@ export const ConfigurationsDialog = ({
     const [reglagesRelance, setReglagesRelance] = useState<ReglagesRelance>(
         () => extraireRelance(resolvedWorkflowConfigurations)
     );
+    const [reglagesCoupure, setReglagesCoupure] = useState<ReglagesCoupureMicro>(
+        () => extraireCoupure(resolvedWorkflowConfigurations)
+    );
     // ⛔ Read from the SAME resolution the server uses: a section hidden for an
     // agent that does use these settings is as wrong as one shown for an agent
     // that does not.
@@ -195,6 +217,7 @@ export const ConfigurationsDialog = ({
                 ...reglagesVoix,
                 ...reglagesTourDeParole,
                 ...reglagesRelance,
+                ...reglagesCoupure,
             }, name);
             onOpenChange(false);
         } catch (error) {
@@ -222,6 +245,7 @@ export const ConfigurationsDialog = ({
             setReglagesVoix(extraireVoix(nextWorkflowConfigurations));
             setReglagesTourDeParole(extraireTourDeParole(nextWorkflowConfigurations));
             setReglagesRelance(extraireRelance(nextWorkflowConfigurations));
+            setReglagesCoupure(extraireCoupure(nextWorkflowConfigurations));
         }
     }, [open, workflowName, workflowConfigurations]);
 
@@ -454,6 +478,12 @@ export const ConfigurationsDialog = ({
                         onChange={setReglagesTourDeParole}
                         tourPiloteAilleurs={tourPiloteAilleurs}
                         smartTurnActif={turnStopStrategy === 'turn_analyzer'}
+                    />
+
+                    {/* [.mark] Interruptions Section */}
+                    <SectionCoupureMicro
+                        reglages={reglagesCoupure}
+                        onChange={setReglagesCoupure}
                     />
 
                     {/* [.mark] Idle prompts Section */}

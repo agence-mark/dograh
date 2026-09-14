@@ -101,6 +101,16 @@ DEFAULT_USER_IDLE_MAX_PROMPTS = 1
 DEFAULT_TTS_PUSH_SILENCE_AFTER_STOP = False
 DEFAULT_TTS_SILENCE_TIME_S = 1.0
 DEFAULT_TTS_TEXT_AGGREGATION_MODE = "sentence"
+
+# --- Muting the caller's microphone -----------------------------------
+#
+# The three that run today, and the two Pipecat offers that Dograh never
+# built. 🔒 Defaults reproduce today exactly: three on, two off.
+DEFAULT_MUTE_UNTIL_FIRST_BOT_COMPLETE = True
+DEFAULT_MUTE_DURING_FUNCTION_CALL = True
+DEFAULT_MUTE_ENGINE_CALLBACK = True
+DEFAULT_MUTE_FIRST_SPEECH = False
+DEFAULT_MUTE_ALWAYS = False
 MAX_CALL_DISPOSITIONS = 50
 MAX_CALL_DISPOSITION_CODE_LENGTH = 64
 MAX_CALL_DISPOSITION_DESCRIPTION_LENGTH = 1_000
@@ -413,6 +423,45 @@ class WorkflowConfigurationDefaults(BaseModel):
             "free and runs locally. ⚠️ A noise filter can just as easily get "
             "in the transcription's way: it is judged on a real phone line, "
             "not on a browser call."
+        ),
+    )
+    mute_until_first_bot_complete: bool = Field(
+        default=DEFAULT_MUTE_UNTIL_FIRST_BOT_COMPLETE,
+        description=(
+            "Keep the caller from interrupting the agent's opening sentence. "
+            "On until now, and this is the one that keeps a greeting from "
+            "being cut in half by a hello."
+        ),
+    )
+    mute_during_function_call: bool = Field(
+        default=DEFAULT_MUTE_DURING_FUNCTION_CALL,
+        description=(
+            "Keep the caller from interrupting while the agent is running a "
+            "tool, such as a transfer or a lookup."
+        ),
+    )
+    mute_engine_callback: bool = Field(
+        default=DEFAULT_MUTE_ENGINE_CALLBACK,
+        description=(
+            "Follow the workflow's own rule about which nodes may be "
+            "interrupted. ⚠️ Turning it off ignores every 'do not interrupt' "
+            "set on a node, and does it silently."
+        ),
+    )
+    mute_first_speech: bool = Field(
+        default=DEFAULT_MUTE_FIRST_SPEECH,
+        description=(
+            "Keep the caller from interrupting during the agent's very first "
+            "utterance. Narrower than the first setting above, and never used "
+            "until now."
+        ),
+    )
+    mute_always: bool = Field(
+        default=DEFAULT_MUTE_ALWAYS,
+        description=(
+            "The caller can never interrupt the agent at all. ⚠️ On a phone "
+            "call this is usually the wrong answer: someone who has to wait "
+            "out a whole answer hangs up."
         ),
     )
     tts_push_silence_after_stop: bool = Field(

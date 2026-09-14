@@ -58,6 +58,7 @@ from api.services.pipecat.reglages_tour_de_parole import (
     ReglagesTourDeParole,
     appliquer_latence_de_transcription,
     collecter_reglages_tour_de_parole,
+    collecter_strategies_de_coupure,
 )
 from api.services.pipecat.service_factory import (
     create_llm_service,
@@ -97,11 +98,6 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregatorParams,
 )
 from pipecat.transports.smallwebrtc.connection import SmallWebRTCConnection
-from pipecat.turns.user_mute import (
-    CallbackUserMuteStrategy,
-    FunctionCallUserMuteStrategy,
-    MuteUntilFirstBotCompleteUserMuteStrategy,
-)
 from pipecat.turns.user_start import (
     ExternalUserTurnStartStrategy,
     MinWordsUserTurnStartStrategy,
@@ -976,12 +972,10 @@ async def _run_pipeline_impl(
         correct_aggregation_callback=engine.create_aggregation_correction_callback(),
     )
 
-    user_mute_strategies = [
-        MuteUntilFirstBotCompleteUserMuteStrategy(),
-        FunctionCallUserMuteStrategy(),
-        CallbackUserMuteStrategy(should_mute_callback=engine.should_mute_user),
-    ]
     reglages_tour = collecter_reglages_tour_de_parole(run_configs)
+    user_mute_strategies = collecter_strategies_de_coupure(
+        run_configs, should_mute_callback=engine.should_mute_user
+    )
     user_vad_analyzer = SileroVADAnalyzer(params=reglages_tour.parametres_detecteur())
 
     # Configure turn strategies based on STT provider, model, and workflow configuration

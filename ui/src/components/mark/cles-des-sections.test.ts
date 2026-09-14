@@ -24,13 +24,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    CLES_COUPURE,
     CLES_RELANCE,
     CLES_TOUR_DE_PAROLE,
     CLES_VOIX,
 } from "@/app/workflow/[workflowId]/components/ConfigurationsDialog";
 import { DEFAUTS_PIPECAT } from "@/types/workflow-configurations";
 
-const TOUTES = [...CLES_TOUR_DE_PAROLE, ...CLES_RELANCE, ...CLES_VOIX] as string[];
+const TOUTES = [
+    ...CLES_TOUR_DE_PAROLE,
+    ...CLES_RELANCE,
+    ...CLES_VOIX,
+    ...CLES_COUPURE,
+] as string[];
 
 describe("Les cles des sections de la fenetre de configuration", () => {
     it("couvrent tous les reglages Pipecat", () => {

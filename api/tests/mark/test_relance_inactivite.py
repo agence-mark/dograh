@@ -172,28 +172,6 @@ async def test_le_compteur_repart_quand_la_personne_reparle():
     assert agregateur.consignes == [DEFAULT_USER_IDLE_PROMPT, DEFAULT_USER_IDLE_PROMPT]
     assert moteur.raccroche is None
 
-
-# --------------------------------------------------------------------------- #
-# 3. The pipeline actually hands the agent's configuration over
-# --------------------------------------------------------------------------- #
-
-
-def test_le_pipeline_transmet_la_configuration_de_lagent():
-    """⛔ On the source text, and it is not decoration.
-
-    Measured on 2026-09-14: dropping the argument in ``run_pipeline.py`` left
-    every test above green. The handler would then fall back to the English
-    defaults for every agent, whatever was typed on screen, and nothing
-    anywhere would say so.
-
-    The handler is created inside a 400-line function that cannot be called
-    without a whole live pipeline, so this is the assertion that is available.
-    """
-    from api.services.pipecat import run_pipeline
-
-    source = inspect.getsource(run_pipeline)
-    assert "create_user_idle_handler(run_configs)" in source, (
-        "The pipeline creates the idle handler without the agent's "
-        "configuration. Its prompts and prompt count would silently fall back "
-        "to the English defaults, whatever the screen shows."
-    )
+# The matching guard -- "does the pipeline actually hand the configuration
+# over" -- lives in test_transmission_de_la_configuration.py, which asserts it
+# for every collection point at once rather than lot by lot.

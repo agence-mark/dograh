@@ -34,6 +34,11 @@ from api.schemas.workflow_configurations import (
     DEFAULT_FILTER_INCOMPLETE_USER_TURNS,
     DEFAULT_INCOMPLETE_LONG_TIMEOUT,
     DEFAULT_INCOMPLETE_SHORT_TIMEOUT,
+    DEFAULT_MUTE_ALWAYS,
+    DEFAULT_MUTE_DURING_FUNCTION_CALL,
+    DEFAULT_MUTE_ENGINE_CALLBACK,
+    DEFAULT_MUTE_FIRST_SPEECH,
+    DEFAULT_MUTE_UNTIL_FIRST_BOT_COMPLETE,
     DEFAULT_SMART_TURN_MAX_DURATION_SECS,
     DEFAULT_SMART_TURN_PRE_SPEECH_MS,
     DEFAULT_TURN_START_USE_INTERIM,
@@ -193,3 +198,63 @@ def appliquer_latence_de_transcription(service_stt, latence: float | None):
         return service_stt
     service_stt._ttfs_p99_latency = latence
     return service_stt
+
+
+# --------------------------------------------------------------------------- #
+# Muting the caller's microphone
+# --------------------------------------------------------------------------- #
+
+
+def collecter_strategies_de_coupure(run_configs: dict | None, *, should_mute_callback):
+    """[.mark] Build the mute strategies for one agent.
+
+    What it settles: the greeting cut in half by a "hello", and the transfer
+    interrupted halfway through.
+
+    Three strategies ran in a fixed list, and two more that Pipecat offers were
+    never built. None of it was configurable and none of it was on any screen.
+
+    🔑 ONE list, built in order, rather than five ``if`` in the pipeline. The
+    ORDER matters and is the order they ran in before: a test asserts it, not
+    just the membership.
+
+    ⛔ ``mute_engine_callback`` off ignores every "do not interrupt" set on a
+    workflow node, silently -- which is why its description says so on screen.
+    """
+    from pipecat.turns.user_mute.always_user_mute_strategy import (
+        AlwaysUserMuteStrategy,
+    )
+    from pipecat.turns.user_mute.callback_user_mute_strategy import (
+        CallbackUserMuteStrategy,
+    )
+    from pipecat.turns.user_mute.first_speech_user_mute_strategy import (
+        FirstSpeechUserMuteStrategy,
+    )
+    from pipecat.turns.user_mute.function_call_user_mute_strategy import (
+        FunctionCallUserMuteStrategy,
+    )
+    from pipecat.turns.user_mute.mute_until_first_bot_complete_user_mute_strategy import (
+        MuteUntilFirstBotCompleteUserMuteStrategy,
+    )
+
+    run_configs = run_configs or {}
+    strategies = []
+    if _booleen(
+        run_configs,
+        "mute_until_first_bot_complete",
+        DEFAULT_MUTE_UNTIL_FIRST_BOT_COMPLETE,
+    ):
+        strategies.append(MuteUntilFirstBotCompleteUserMuteStrategy())
+    if _booleen(
+        run_configs, "mute_during_function_call", DEFAULT_MUTE_DURING_FUNCTION_CALL
+    ):
+        strategies.append(FunctionCallUserMuteStrategy())
+    if _booleen(run_configs, "mute_engine_callback", DEFAULT_MUTE_ENGINE_CALLBACK):
+        strategies.append(
+            CallbackUserMuteStrategy(should_mute_callback=should_mute_callback)
+        )
+    if _booleen(run_configs, "mute_first_speech", DEFAULT_MUTE_FIRST_SPEECH):
+        strategies.append(FirstSpeechUserMuteStrategy())
+    if _booleen(run_configs, "mute_always", DEFAULT_MUTE_ALWAYS):
+        strategies.append(AlwaysUserMuteStrategy())
+    return strategies

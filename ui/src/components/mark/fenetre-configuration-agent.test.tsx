@@ -214,6 +214,27 @@ describe("Fenetre de configuration de l'agent", () => {
         });
     });
 
+    it("monte la section Interruptions avec les trois strategies d'aujourd'hui", () => {
+        ouvrir(null);
+        const etat = (id: string) =>
+            document.getElementById(id)?.getAttribute('aria-checked');
+        expect(etat('mute_until_first_bot_complete')).toBe('true');
+        expect(etat('mute_during_function_call')).toBe('true');
+        expect(etat('mute_engine_callback')).toBe('true');
+        expect(etat('mute_first_speech')).toBe('false');
+        expect(etat('mute_always')).toBe('false');
+    });
+
+    it('emporte une coupure de micro modifiee dans l enregistrement', async () => {
+        const onSave = ouvrir(null);
+
+        fireEvent.click(document.getElementById('mute_always') as HTMLElement);
+        fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+        expect(onSave.mock.calls[0][0]).toMatchObject({ mute_always: true });
+    });
+
     it("n'efface pas un reglage que l'ecran ne connait pas", () => {
         // 🔑 The defect paid for on 2026-09-10: saving the configuration wiped
         // every per-service override, silently, on every save. The dialog

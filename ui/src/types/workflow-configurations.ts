@@ -58,6 +58,11 @@ export const DEFAUTS_PIPECAT = {
     tts_text_aggregation_mode: 'sentence',
     tts_replacements: [],
     tts_markdown_filter_enabled: false,
+    mute_until_first_bot_complete: true,
+    mute_during_function_call: true,
+    mute_engine_callback: true,
+    mute_first_speech: false,
+    mute_always: false,
 } as const;
 
 export const TURN_START_STRATEGY_OPTIONS: Array<{
@@ -187,6 +192,11 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     tts_silence_time_s: number;
     tts_text_aggregation_mode: 'sentence' | 'token';
     tts_replacements: string[];  // heard:spoken, matched literally
+    mute_until_first_bot_complete: boolean;
+    mute_during_function_call: boolean;
+    mute_engine_callback: boolean;
+    mute_first_speech: boolean;
+    mute_always: boolean;
     user_speech_timeout: number;  // Seconds the caller may pause before the agent answers
     stt_ttfs_p99_latency: number | null;  // Empty = the value Pipecat measured for the provider
     user_turn_stop_timeout: number;  // Hard ceiling on waiting for a transcript
