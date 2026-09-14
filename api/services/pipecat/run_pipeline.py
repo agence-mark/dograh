@@ -66,6 +66,7 @@ from api.services.pipecat.service_factory import (
     create_realtime_llm_service,
     create_stt_service,
     create_tts_service,
+    stamp_pipeline_settings,
     stamp_sampling_settings,
     stamp_transcription_settings,
     stt_uses_external_turns,
@@ -821,6 +822,9 @@ async def _run_pipeline_impl(
         # The keyboard bench is excluded elsewhere -- it lives in
         # `text_chat_runner`, which simply never calls this.
         stamp_transcription_settings(runtime_configuration, user_config.stt)
+    # [.mark] Voice calls only, realtime included: the turn taking, the mute
+    # strategies and the noise filter all play in a realtime call too.
+    stamp_pipeline_settings(runtime_configuration, run_configs)
     merged_call_context_vars = {
         **merged_call_context_vars,
         "runtime_configuration": runtime_configuration,
@@ -1223,6 +1227,46 @@ async def _run_pipeline_impl(
                 await in_memory_logs_buffer.append(message)
             except Exception as e:
                 logger.error(f"Failed to append latency to logs buffer: {e}")
+
+        # [.mark] The per-service breakdown, on the same log as the total.
+        #
+        # A total latency says a call was slow; it does not say whether the
+        # time went to the transcription, the model or the voice -- so an A/B
+        # on the turn taking cannot be read against it. Pipecat has emitted
+        # this event all along (metrics are enabled on the pipeline) and
+        # nothing listened.
+        #
+        # ⛔ Its own message type, ours, rather than an entry added to
+        # Pipecat's enum: one less collision on every version bump.
+        @task.user_bot_latency_observer.event_handler("on_latency_breakdown")
+        async def on_latency_breakdown(observer, breakdown):
+            message = {
+                "type": "mark-latency-breakdown",
+                "payload": {
+                    "ttfb": [m.model_dump() for m in breakdown.ttfb],
+                    "text_aggregation": (
+                        breakdown.text_aggregation.model_dump()
+                        if breakdown.text_aggregation
+                        else None
+                    ),
+                    "user_turn_secs": breakdown.user_turn_secs,
+                    "function_calls": [
+                        m.model_dump() for m in breakdown.function_calls
+                    ],
+                },
+            }
+            if in_memory_logs_buffer.current_node_id:
+                message = {
+                    **message,
+                    "node_id": in_memory_logs_buffer.current_node_id,
+                    "node_name": in_memory_logs_buffer.current_node_name,
+                }
+            try:
+                await in_memory_logs_buffer.append(message)
+            except Exception as e:
+                # ⛔ Logged, never raised: a measurement that fails must not
+                # take the call down with it.
+                logger.error(f"Failed to append latency breakdown: {e}")
 
     # Register turn log handlers for all call types (WebRTC and telephony)
     register_turn_log_handlers(

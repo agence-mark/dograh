@@ -54,6 +54,20 @@ TRANSMISSIONS = [
         "collecter_strategies_de_coupure(\n        run_configs,",
         "which strategies may mute the caller's microphone",
     ),
+    (
+        "stamp_pipeline_settings(runtime_configuration, run_configs)",
+        (
+            "the record of which settings a call was played with -- without it "
+            "an A/B result cannot be read back six weeks later"
+        ),
+    ),
+    (
+        'event_handler("on_latency_breakdown")',
+        (
+            "the per-service latency breakdown: a total latency says a call was "
+            "slow, it does not say where the time went"
+        ),
+    ),
 ]
 
 

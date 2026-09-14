@@ -1299,6 +1299,76 @@ def stamp_transcription_settings(runtime_configuration: dict, stt_config) -> dic
     return runtime_configuration
 
 
+# The Pipecat settings worth recording on a run: the ones that decide how the
+# agent takes the floor, how it speaks, and when it stops listening.
+#
+# ⛔ An explicit list, not "every key of the configuration". A run stamped with
+# the whole configuration would carry secrets, per-service overrides and
+# whatever a later patch adds, and nobody would notice.
+REGLAGES_PIPECAT_ESTAMPILLES = (
+    "user_speech_timeout",
+    "stt_ttfs_p99_latency",
+    "user_turn_stop_timeout",
+    "turn_wait_for_transcript",
+    "turn_start_use_interim",
+    "vad_confidence",
+    "vad_start_secs",
+    "vad_stop_secs",
+    "vad_min_volume",
+    "smart_turn_pre_speech_ms",
+    "smart_turn_max_duration_secs",
+    "audio_idle_timeout",
+    "filter_incomplete_user_turns",
+    "incomplete_short_timeout",
+    "incomplete_long_timeout",
+    "audio_in_noise_filter",
+    "tts_markdown_filter_enabled",
+    "tts_push_silence_after_stop",
+    "tts_silence_time_s",
+    "tts_text_aggregation_mode",
+    "tts_replacements",
+    "user_idle_max_prompts",
+    "mute_until_first_bot_complete",
+    "mute_during_function_call",
+    "mute_engine_callback",
+    "mute_first_speech",
+    "mute_always",
+)
+
+
+def stamp_pipeline_settings(runtime_configuration: dict, run_configs: dict) -> dict:
+    """[.mark] Record the Pipecat settings this run was actually played with.
+
+    Same reason as the two stamps above: without it, a recorded call cannot say
+    which pause, which detector or which mute strategies produced it, and an
+    A/B result is an anecdote rather than a measurement.
+
+    🔑 The EFFECTIVE values, defaults included -- not only what the client
+    filled in. A run stamped with "nothing configured" would be unreadable six
+    weeks later, once a patch has moved the defaults: the question is always
+    "what did THIS call run with", never "what was left blank".
+
+    ⛔ Voice calls only. The keyboard bench goes through neither the
+    transcription, nor the voice, nor the turn strategies, so stamping these
+    settings there would describe settings that played no part -- and a stamp
+    that lies is worse than no stamp. That is why this function is called from
+    the pipeline and not from ``text_chat_runner``.
+
+    ⚠️ The idle PROMPTS themselves are deliberately not stamped: they are free
+    text, they can be long, and what matters after the fact is how many times
+    the agent asked before hanging up, which is.
+    """
+    from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
+
+    # 🔑 Resolved through the schema, so a run stamps the same value the
+    # pipeline read -- including for a key the client never touched.
+    effectifs = WorkflowConfigurationDefaults.model_validate(run_configs or {})
+    runtime_configuration["pipeline_settings"] = {
+        cle: getattr(effectifs, cle) for cle in REGLAGES_PIPECAT_ESTAMPILLES
+    }
+    return runtime_configuration
+
+
 @_report_service_factory_failures(ErrorSource.LLM, provider_argument=0)
 def create_llm_service_from_provider(
     provider: str,
