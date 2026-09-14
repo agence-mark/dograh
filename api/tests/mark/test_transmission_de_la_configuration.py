@@ -34,13 +34,17 @@ from api.services.pipecat import run_pipeline
 TRANSMISSIONS = [
     (
         "collecter_reglages_tour_de_parole(run_configs)",
-        "turn taking: the pause before the agent answers, the voice detector, "
-        "Smart Turn, the aggregator timeouts",
+        (
+            "turn taking: the pause before the agent answers, the voice "
+            "detector, Smart Turn, the aggregator timeouts"
+        ),
     ),
     (
         "run_configs=run_configs,",
-        "the voice settings and the incoming-noise filter reaching the "
-        "transports and the voice factory",
+        (
+            "the voice settings and the incoming-noise filter reaching the "
+            "transports and the voice factory"
+        ),
     ),
     (
         "create_user_idle_handler(run_configs)",
