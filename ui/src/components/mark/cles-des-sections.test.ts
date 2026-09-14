@@ -69,25 +69,31 @@ describe("Les cles des sections de la fenetre de configuration", () => {
         expect(inconnues).toEqual([]);
     });
 
-    it("n'en revendiquent aucun que la section General enregistre deja", () => {
+    it.each([
+        ["GeneralSection", "function GeneralSection(", "function TemplateVariablesSection("],
+        ["VoicemailSection", "function VoicemailSection(", "function withoutModelConfigurationOverrides("],
+        ["WorkflowModelOverridesSection", "function WorkflowModelOverridesSection(", "function WorkflowSettingsPage("],
+    ])("n'en revendiquent aucun que %s enregistre deja", (_nom, debutDeSection, finDeSection) => {
         // Read out of their page rather than copied into a list here: a list
-        // copied by hand goes stale the day upstream adds a field to General,
-        // and it would go stale silently.
+        // copied by hand goes stale the day upstream adds a field to one of
+        // these sections, and it would go stale silently.
         const page = readFileSync(
             join(process.cwd(), "src/app/workflow/[workflowId]/settings/page.tsx"),
             "utf8",
         );
-        const general = page.slice(
-            page.indexOf("function GeneralSection("),
-            page.indexOf("function TemplateVariablesSection("),
-        );
-        const debut = general.indexOf("await onSave(");
-        const charge = general.slice(debut, general.indexOf("\n                name,", debut));
+        const iDebut = page.indexOf(debutDeSection);
+        const iFin = page.indexOf(finDeSection);
+        expect(iDebut, `${debutDeSection} introuvable`).toBeGreaterThan(-1);
+        expect(iFin, `${finDeSection} introuvable`).toBeGreaterThan(iDebut);
 
-        const clesDeGeneral = [...charge.matchAll(/^\s+(\w+):/gm)].map((m) => m[1]);
-        expect(clesDeGeneral.length).toBeGreaterThan(5); // le decoupage a bien trouve la charge
+        const section = page.slice(iDebut, iFin);
+        // Every key this section writes, from each of its onSave payloads.
+        const clesDeLaSection = [...section.matchAll(/onSave\(/g)].flatMap((m) => {
+            const charge = section.slice(m.index!, m.index! + 2500);
+            return [...charge.matchAll(/^\s+([a-z_][a-z0-9_]*):/gm)].map((k) => k[1]);
+        });
 
-        const collisions = TOUTES.filter((cle) => clesDeGeneral.includes(cle));
+        const collisions = TOUTES.filter((cle) => clesDeLaSection.includes(cle));
         expect(collisions).toEqual([]);
     });
 });

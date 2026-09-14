@@ -17,6 +17,7 @@ import { useOrgConfig } from "@/context/OrgConfigContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
+import { messagesHorsBornes } from "./bornes-reglages";
 import {
     type ReglagesCoupureMicro,
     SectionCoupureMicro,
@@ -152,6 +153,17 @@ const extraireTourDeParole = (
         ]),
     ) as unknown as ReglagesTourDeParole;
 
+/**
+ * The same sentence the other sections of the page use.
+ *
+ * Copied rather than imported on purpose: `settings/page.tsx` imports THIS
+ * file, so importing its constant back would be a cycle. The copy is kept
+ * honest by `section-reglages-pipecat.test.tsx`, which reads their file and
+ * asserts the two sentences still match -- two wordings for the same
+ * instruction on the same screen is how a user learns to distrust it.
+ */
+export const RAPPEL_PUBLICATION = "Publish the agent to apply the changes.";
+
 /** The id the card carries, and the one `NAV_ITEMS` must point at. */
 export const ID_SECTION_REGLAGES_PIPECAT = "speech-tuning";
 
@@ -222,6 +234,22 @@ export const SectionReglagesPipecat = ({
         reglagesVoix,
     ]);
 
+    // The server bounds these settings; the screen bounded none of them until
+    // 2026-09-14. A value out of range made the save return 422, and the catch
+    // below only logged -- no message, no success, "Unsaved changes" still up.
+    // Worse: the payload carries the WHOLE configuration, so one bad field also
+    // blocked the three other blocks. Now the button says no before the server
+    // has to.
+    const fautifs = useMemo(
+        () => messagesHorsBornes({
+            ...reglagesTourDeParole,
+            ...reglagesRelance,
+            ...reglagesVoix,
+        } as Record<string, unknown>),
+        [reglagesTourDeParole, reglagesRelance, reglagesVoix],
+    );
+    const nombreDeFautifs = Object.keys(fautifs).length;
+
     useUnsavedChanges(ID_SECTION_REGLAGES_PIPECAT, isDirty);
 
     const handleSave = async () => {
@@ -242,9 +270,18 @@ export const SectionReglagesPipecat = ({
                 },
                 workflowName,
             );
-            toast.success("Speech tuning saved. Publish the agent for it to take effect.");
+            toast.success(`Speech tuning saved. ${RAPPEL_PUBLICATION}`);
         } catch (error) {
+            // Upstream sections swallow this (settings/page.tsx:477, :1079,
+            // :1279). Ours does not: these are the only settings on the screen
+            // with bounds this tight, and a save that fails in silence is the
+            // same family of defect as a setting nobody can see.
             console.error("Failed to save speech tuning:", error);
+            toast.error(
+                error instanceof Error && error.message
+                    ? `Speech tuning not saved: ${error.message}`
+                    : "Speech tuning not saved. Check the values and try again.",
+            );
         } finally {
             setIsSaving(false);
         }
@@ -277,8 +314,17 @@ export const SectionReglagesPipecat = ({
                 <SectionVoix reglages={reglagesVoix} onChange={setReglagesVoix} />
             </CardContent>
             <CardFooter className="justify-end gap-3 border-t pt-6">
-                {isDirty && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
-                <Button onClick={handleSave} disabled={isSaving || !isDirty}>
+                {nombreDeFautifs > 0 && (
+                    <span className="text-xs text-destructive">
+                        {nombreDeFautifs === 1
+                            ? "1 setting is out of range"
+                            : `${nombreDeFautifs} settings are out of range`}
+                    </span>
+                )}
+                {nombreDeFautifs === 0 && isDirty && (
+                    <span className="text-xs text-muted-foreground">Unsaved changes</span>
+                )}
+                <Button onClick={handleSave} disabled={isSaving || !isDirty || nombreDeFautifs > 0}>
                     {isSaving ? "Saving..." : "Save Speech Tuning"}
                 </Button>
             </CardFooter>

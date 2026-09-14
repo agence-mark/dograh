@@ -2,6 +2,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+import { attributsDeBorne, messageHorsBornes } from "./bornes-reglages";
+
 /**
  * [.mark] The "Idle prompts" section of an agent's settings page.
  *
@@ -63,7 +65,12 @@ export const SectionRelance = ({ reglages, onChange }: SectionRelanceProps) => (
                 id="user_idle_max_prompts"
                 type="number"
                 step="1"
-                min="0"
+                {...attributsDeBorne("user_idle_max_prompts")}
+                aria-invalid={
+                    messageHorsBornes("user_idle_max_prompts", reglages.user_idle_max_prompts)
+                        ? true
+                        : undefined
+                }
                 value={reglages.user_idle_max_prompts}
                 onChange={(e) => {
                     const valeur = parseInt(e.target.value, 10);
@@ -72,9 +79,17 @@ export const SectionRelance = ({ reglages, onChange }: SectionRelanceProps) => (
                     }
                 }}
             />
-            <p className="text-xs text-muted-foreground">
-                0 hangs up on the first silence, with the goodbye below.
-            </p>
+            {messageHorsBornes("user_idle_max_prompts", reglages.user_idle_max_prompts)
+                ? (
+                    <p className="text-xs text-destructive">
+                        {messageHorsBornes("user_idle_max_prompts", reglages.user_idle_max_prompts)}
+                    </p>
+                )
+                : (
+                    <p className="text-xs text-muted-foreground">
+                        0 hangs up on the first silence, with the goodbye below.
+                    </p>
+                )}
         </div>
 
         <div className="space-y-2">

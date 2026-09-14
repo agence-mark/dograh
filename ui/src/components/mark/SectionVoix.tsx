@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
+import { attributsDeBorne, messageHorsBornes } from "./bornes-reglages";
 import { ChampEtiquettes } from "./ChampEtiquettes";
 
 /**
@@ -116,7 +117,12 @@ export const SectionVoix = ({ reglages, onChange }: SectionVoixProps) => (
                         id="tts_silence_time_s"
                         type="number"
                         step="0.1"
-                        min="0"
+                        {...attributsDeBorne("tts_silence_time_s")}
+                        aria-invalid={
+                            messageHorsBornes("tts_silence_time_s", reglages.tts_silence_time_s)
+                                ? true
+                                : undefined
+                        }
                         value={reglages.tts_silence_time_s}
                         onChange={(e) => {
                             const valeur = parseFloat(e.target.value);
@@ -125,6 +131,11 @@ export const SectionVoix = ({ reglages, onChange }: SectionVoixProps) => (
                             }
                         }}
                     />
+                    {messageHorsBornes("tts_silence_time_s", reglages.tts_silence_time_s) && (
+                        <p className="text-xs text-destructive">
+                            {messageHorsBornes("tts_silence_time_s", reglages.tts_silence_time_s)}
+                        </p>
+                    )}
                 </div>
             )}
 

@@ -22,16 +22,27 @@
  * question is not asked here, and not asking it is what cost a chantier.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
-import { SectionReglagesPipecat } from "./SectionReglagesPipecat";
+import { RAPPEL_PUBLICATION, SectionReglagesPipecat } from "./SectionReglagesPipecat";
 
 const organisation = { stt: { provider: "deepgram", model: "nova-3-general" } };
 
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock("sonner", () => ({ toast: toastMock }));
+
+// Les toasts sont comptes par les tests d'echec : sans remise a zero, un test
+// lit les appels de ses predecesseurs et passe ou tombe pour la mauvaise raison.
+beforeEach(() => {
+    toastMock.success.mockClear();
+    toastMock.error.mockClear();
+});
 
 vi.mock("@/context/UnsavedChangesContext", () => ({
     useUnsavedChanges: () => undefined,
@@ -136,7 +147,17 @@ describe("Section Reglages vocaux de la page de parametres", () => {
 
     it("laisse partir INTACTS les reglages du tour de parole quand ils sont masques", async () => {
         // A setting shown in a state that is not its own is worse than a hidden
-        // one -- but a HIDDEN one must not become a LOST one either. An agent
+        // one -- but a HIDDEN one must not become a LOST one either.
+        //
+        // ⚠️ Its limit, written rather than papered over: this does NOT tell a
+        // missing `...reglagesTourDeParole` apart, since the spread of the
+        // resolved configuration already carries the same values. That is
+        // acceptable -- the block is masked, so its local state is
+        // unreachable, and which of the two spreads carries the value is an
+        // implementation detail. What must hold is "the value arrives intact",
+        // and that IS asserted: an extraction reading DEFAUTS_PIPECAT instead
+        // of the stored value makes this fail, because the second spread would
+        // then overwrite 0.9 with 0.6. An agent
         // whose transcription drives the turns hides this whole block; saving a
         // voice setting must carry the hidden values out exactly as they came
         // in, not as nulls and not as this screen's idea of a default.
@@ -156,6 +177,12 @@ describe("Section Reglages vocaux de la page de parametres", () => {
             user_speech_timeout: 0.9,
             tts_markdown_filter_enabled: true,
         });
+
+        // 🚨 Le scenario historique EXACT du 14/09, et il n'etait couvert nulle
+        // part : agent Flux -> section masquee -> enregistrement d'un reglage
+        // de VOIX -> le plafond d'attente tombait de 30 s a 5 s. Ce reglage a
+        // deux defauts selon le mode, donc il doit repartir VIDE.
+        expect(onSave.mock.calls[0][0].user_turn_stop_timeout).toBeNull();
     });
 
     it("emporte les reglages du tour de parole dans l'enregistrement", async () => {
@@ -351,5 +378,77 @@ describe("Section Reglages vocaux de la page de parametres", () => {
         ] as const) {
             expect(envoye[cle]).toEqual(recu[cle]);
         }
+    });
+    it("refuse d'enregistrer une valeur hors des bornes du serveur, et le DIT", async () => {
+        // 🚨 Signale par la relecture du 14/09. Le serveur borne dur
+        // (vad_stop_secs : gt=0, le=5). L'ecran ne bornait rien : une fleche de
+        // spinner de trop mettait le champ a 0, le serveur rendait 422, et le
+        // catch se contentait d'un console.error. Aucun message, pas de succes,
+        // « Unsaved changes » toujours affiche. ⛔ Et comme la charge porte TOUTE
+        // la configuration, ce seul champ bloquait aussi les trois autres blocs.
+        const onSave = ouvrir(null);
+
+        fireEvent.change(document.getElementById("vad_stop_secs") as HTMLInputElement, {
+            target: { value: "0" },
+        });
+
+        expect(document.body.textContent).toMatch(/1 setting is out of range/i);
+        expect(
+            (screen.getByRole("button", { name: /save/i }) as HTMLButtonElement).disabled,
+        ).toBe(true);
+
+        fireEvent.click(screen.getByRole("button", { name: /save/i }));
+        await waitFor(() => expect(onSave).not.toHaveBeenCalled());
+    });
+
+    it("porte les bornes du serveur sur le champ lui-meme", async () => {
+        ouvrir(null);
+        const champ = document.getElementById("vad_stop_secs") as HTMLInputElement;
+        expect(champ.getAttribute("max")).toBe("5");
+        expect(champ.getAttribute("min")).toBe("0");
+    });
+
+    it("reouvre l'enregistrement des que la valeur revient dans les bornes", () => {
+        ouvrir(null);
+        const champ = document.getElementById("vad_stop_secs") as HTMLInputElement;
+
+        fireEvent.change(champ, { target: { value: "0" } });
+        expect(
+            (screen.getByRole("button", { name: /save/i }) as HTMLButtonElement).disabled,
+        ).toBe(true);
+
+        fireEvent.change(champ, { target: { value: "0.4" } });
+        expect(
+            (screen.getByRole("button", { name: /save/i }) as HTMLButtonElement).disabled,
+        ).toBe(false);
+        expect(document.body.textContent).not.toMatch(/out of range/i);
+    });
+
+    it("dit quand l'enregistrement a echoue, au lieu de laisser croire au succes", async () => {
+        // Le patron amont avale l'erreur (settings/page.tsx:477, :1079, :1279).
+        // Pas ici : ces reglages sont les seuls de l'ecran avec des bornes aussi
+        // serrees, et un enregistrement muet est de la meme famille qu'un
+        // reglage qu'on ne voit pas.
+        const onSave = vi.fn().mockRejectedValue(new Error("vad_stop_secs: input is not valid"));
+        ouvrir(null, onSave);
+
+        toucherUnReglage();
+        fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+        await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
+        expect(toastMock.error.mock.calls[0][0]).toMatch(/not saved/i);
+        expect(toastMock.success).not.toHaveBeenCalled();
+    });
+
+    it("emploie le MEME rappel de publication que les autres sections de la page", () => {
+        // Deux formulations de la meme consigne sur le meme ecran, c'est ainsi
+        // qu'on apprend a s'en mefier. La constante ne peut pas etre importee
+        // (leur page importe ce fichier, ce serait un cycle) : elle est donc
+        // recopiee, et relue ici contre la leur.
+        const page = readFileSync(
+            join(process.cwd(), "src/app/workflow/[workflowId]/settings/page.tsx"),
+            "utf8",
+        );
+        expect(page).toContain(`const PUBLISH_WORKFLOW_REMINDER = "${RAPPEL_PUBLICATION}"`);
     });
 });
