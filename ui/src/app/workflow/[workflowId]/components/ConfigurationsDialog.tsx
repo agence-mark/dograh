@@ -1,24 +1,24 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import {
     ReglagesTourDeParole,
     SectionTourDeParole,
 } from "@/components/mark/SectionTourDeParole";
 import { ReglagesVoix, SectionVoix } from "@/components/mark/SectionVoix";
 import { transcriptionPiloteLesTours } from "@/components/mark/transcriptionPiloteLesTours";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useOrgConfig } from "@/context/OrgConfigContext";
 import {
     AmbientNoiseConfiguration,
-    DEFAUTS_TOUR_DE_PAROLE,
     DEFAULT_PROVISIONAL_VAD_PAUSE_SECS,
     DEFAULT_TURN_START_MIN_WORDS,
+    DEFAUTS_TOUR_DE_PAROLE,
     ExternalPBXFieldMapping,
     resolveWorkflowConfigurations,
     TURN_START_STRATEGY_OPTIONS,
