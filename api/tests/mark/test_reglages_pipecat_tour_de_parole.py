@@ -415,19 +415,24 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     )
     texte = fichier.read_text(encoding="utf-8")
     bloc = re.search(
-        r"export const DEFAUTS_TOUR_DE_PAROLE = \{(.*?)\} as const;", texte, re.DOTALL
+        r"export const DEFAUTS_PIPECAT = \{(.*?)\} as const;", texte, re.DOTALL
     )
-    assert bloc, "DEFAUTS_TOUR_DE_PAROLE disappeared from the screen's types."
+    assert bloc, "DEFAUTS_PIPECAT disappeared from the screen's types."
 
+    # ⛔ Multi-line values too: the two idle prompts are long enough that the
+    # formatter puts them on their own line, and a line-by-line parser would
+    # silently skip exactly the settings hardest to keep in step.
     ecran = {}
-    for ligne in bloc.group(1).splitlines():
-        paire = re.match(r"\s*([a-z_0-9]+):\s*([^,]+),", ligne)
-        if paire:
-            # TypeScript writes strings with single quotes; JSON wants double.
-            brut = paire.group(2).strip()
-            if brut.startswith("'") and brut.endswith("'"):
-                brut = f'"{brut[1:-1]}"'
-            ecran[paire.group(1)] = json.loads(brut)
+    for cle, brut in re.findall(
+        r"^ {4}([a-z_0-9]+):((?:[^,\n]|\n {8,})+),$",
+        bloc.group(1),
+        re.MULTILINE,
+    ):
+        brut = " ".join(brut.split())
+        # TypeScript writes strings with single quotes; JSON wants double.
+        if brut.startswith("'") and brut.endswith("'"):
+            brut = '"' + brut[1:-1].replace('"', '\\"') + '"'
+        ecran[cle] = json.loads(brut)
 
     schema = WorkflowConfigurationDefaults()
     for cle, valeur_ecran in ecran.items():
@@ -436,7 +441,7 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
             f"'{cle}': the screen shows {valeur_ecran!r} and the pipeline runs "
             f"{valeur_schema!r}. One of the two copies moved without the other."
         )
-    assert len(ecran) == 16, (
-        f"The screen declares {len(ecran)} turn-taking defaults, expected 16. "
+    assert len(ecran) == 19, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 19. "
         f"A setting added on one side only renders and is then dropped."
     )

@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { ReglagesRelance, SectionRelance } from "@/components/mark/SectionRelance";
 import {
     ReglagesTourDeParole,
     SectionTourDeParole,
@@ -18,7 +19,7 @@ import {
     AmbientNoiseConfiguration,
     DEFAULT_PROVISIONAL_VAD_PAUSE_SECS,
     DEFAULT_TURN_START_MIN_WORDS,
-    DEFAUTS_TOUR_DE_PAROLE,
+    DEFAUTS_PIPECAT,
     ExternalPBXFieldMapping,
     resolveWorkflowConfigurations,
     TURN_START_STRATEGY_OPTIONS,
@@ -35,6 +36,19 @@ interface ConfigurationsDialogProps {
     onSave: (configurations: WorkflowConfigurations, workflowName: string) => Promise<void>;
 }
 
+const CLES_RELANCE = [
+    "user_idle_prompt",
+    "user_idle_goodbye_prompt",
+    "user_idle_max_prompts",
+] as const;
+
+const extraireRelance = (
+    configurations: WorkflowConfigurations
+): ReglagesRelance =>
+    Object.fromEntries(
+        CLES_RELANCE.map((cle) => [cle, (configurations as Record<string, unknown>)[cle]])
+    ) as unknown as ReglagesRelance;
+
 // [.mark] The turn-taking keys, pulled out of the resolved configuration.
 // ⛔ Listed from the defaults object rather than typed out again: a setting
 // added to one list and forgotten in the other would render and then be
@@ -43,7 +57,7 @@ const extraireTourDeParole = (
     configurations: WorkflowConfigurations
 ): ReglagesTourDeParole =>
     Object.fromEntries(
-        Object.keys(DEFAUTS_TOUR_DE_PAROLE).map((cle) => [
+        Object.keys(DEFAUTS_PIPECAT).map((cle) => [
             cle,
             (configurations as Record<string, unknown>)[cle],
         ])
@@ -96,6 +110,9 @@ export const ConfigurationsDialog = ({
     const [reglagesTourDeParole, setReglagesTourDeParole] = useState<ReglagesTourDeParole>(
         () => extraireTourDeParole(resolvedWorkflowConfigurations)
     );
+    const [reglagesRelance, setReglagesRelance] = useState<ReglagesRelance>(
+        () => extraireRelance(resolvedWorkflowConfigurations)
+    );
     // ⛔ Read from the SAME resolution the server uses: a section hidden for an
     // agent that does use these settings is as wrong as one shown for an agent
     // that does not.
@@ -134,6 +151,7 @@ export const ConfigurationsDialog = ({
                 external_pbx_field_mappings: externalPbxFieldMappings,
                 ...reglagesVoix,
                 ...reglagesTourDeParole,
+                ...reglagesRelance,
             }, name);
             onOpenChange(false);
         } catch (error) {
@@ -162,6 +180,7 @@ export const ConfigurationsDialog = ({
                 tts_markdown_filter_enabled: nextWorkflowConfigurations.tts_markdown_filter_enabled,
             });
             setReglagesTourDeParole(extraireTourDeParole(nextWorkflowConfigurations));
+            setReglagesRelance(extraireRelance(nextWorkflowConfigurations));
         }
     }, [open, workflowName, workflowConfigurations]);
 
@@ -395,6 +414,9 @@ export const ConfigurationsDialog = ({
                         tourPiloteAilleurs={tourPiloteAilleurs}
                         smartTurnActif={turnStopStrategy === 'turn_analyzer'}
                     />
+
+                    {/* [.mark] Idle prompts Section */}
+                    <SectionRelance reglages={reglagesRelance} onChange={setReglagesRelance} />
 
                     {/* [.mark] Voice Section */}
                     <SectionVoix reglages={reglagesVoix} onChange={setReglagesVoix} />

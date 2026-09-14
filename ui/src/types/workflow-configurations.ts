@@ -23,10 +23,13 @@ export type TurnStartStrategy = NonNullable<GeneratedWorkflowConfigurationDefaul
 export const DEFAULT_TURN_START_MIN_WORDS = 3;
 export const DEFAULT_PROVISIONAL_VAD_PAUSE_SECS = 1.5;
 export const DEFAULT_TTS_MARKDOWN_FILTER_ENABLED = false;
-// [.mark] 🔒 Turn taking: the values the pipeline ran with before the patch.
-// ⛔ They must equal the Python constants of `workflow_configurations.py`;
-// `reglages-tour-de-parole.test.ts` is where a drift between the two shows up.
-export const DEFAUTS_TOUR_DE_PAROLE = {
+// [.mark] 🔒 Every Pipecat setting this fork exposes on the agent, at the
+// value the pipeline ran with BEFORE the patch.
+// ⛔ They must equal the Python constants of `workflow_configurations.py`.
+// The screen needs its own copy (the generated client is regenerated
+// against a running backend), and two copies drift:
+// `test_reglages_pipecat_tour_de_parole.py` is where the drift surfaces.
+export const DEFAUTS_PIPECAT = {
     user_speech_timeout: 0.6,
     stt_ttfs_p99_latency: null,
     user_turn_stop_timeout: 5,
@@ -43,6 +46,13 @@ export const DEFAUTS_TOUR_DE_PAROLE = {
     incomplete_short_timeout: 5,
     incomplete_long_timeout: 10,
     audio_in_noise_filter: 'none',
+    // ⚠️ The two English texts the pipeline sends today, verbatim. Translating
+    // them here would be choosing a value, for every existing agent at once.
+    user_idle_prompt:
+        "The user has been quiet. Politely and briefly ask if they're still there in the language that the user has been speaking so far.",
+    user_idle_goodbye_prompt:
+        "The user has been quiet. We will be disconnecting the call now. Wish them a good day in the language that the user has been speaking so far.",
+    user_idle_max_prompts: 1,
 } as const;
 
 export const TURN_START_STRATEGY_OPTIONS: Array<{
@@ -184,6 +194,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     incomplete_short_timeout: number;
     incomplete_long_timeout: number;
     audio_in_noise_filter: 'none' | 'rnnoise';
+    user_idle_prompt: string;
+    user_idle_goodbye_prompt: string;
+    user_idle_max_prompts: number;
     model_configuration_v2_override?: OrganizationAiModelConfigurationV2;  // Full v2 model configuration override
     [key: string]: unknown;  // Allow additional properties for future configurations
 };
@@ -207,25 +220,25 @@ const FALLBACK_WORKFLOW_CONFIGURATIONS: WorkflowConfigurations = {
     external_pbx_field_mappings: [],
     external_pbx_lead_headers: [],
     tts_markdown_filter_enabled: DEFAULT_TTS_MARKDOWN_FILTER_ENABLED,
-    ...DEFAUTS_TOUR_DE_PAROLE,
+    ...DEFAUTS_PIPECAT,
 };
 
-type ReglagesTourDeParoleResolus = typeof DEFAUTS_TOUR_DE_PAROLE;
+type ReglagesPipecatResolus = typeof DEFAUTS_PIPECAT;
 
-function resoudreTourDeParole(
+function resoudreReglagesPipecat(
     configurations?: Partial<WorkflowConfigurations> | null,
     defaults?: WorkflowConfigurationDefaults | null,
-): ReglagesTourDeParoleResolus {
+): ReglagesPipecatResolus {
     const resolus = {} as Record<string, unknown>;
-    for (const cle of Object.keys(DEFAUTS_TOUR_DE_PAROLE)) {
+    for (const cle of Object.keys(DEFAUTS_PIPECAT)) {
         const surAgent = (configurations as Record<string, unknown> | null | undefined)?.[cle];
         const surOrganisation = (defaults as Record<string, unknown> | null | undefined)?.[cle];
         resolus[cle] =
             surAgent
             ?? surOrganisation
-            ?? DEFAUTS_TOUR_DE_PAROLE[cle as keyof ReglagesTourDeParoleResolus];
+            ?? DEFAUTS_PIPECAT[cle as keyof ReglagesPipecatResolus];
     }
-    return resolus as ReglagesTourDeParoleResolus;
+    return resolus as ReglagesPipecatResolus;
 }
 
 export function resolveWorkflowConfigurations(
@@ -297,7 +310,7 @@ export function resolveWorkflowConfigurations(
         // [.mark] ⛔ `??`, not a spread: a stored configuration carries explicit
         // JSON nulls for keys the client never touched, and spreading them would
         // draw an empty field where the pipeline runs a value.
-        ...resoudreTourDeParole(configurations, defaults),
+        ...resoudreReglagesPipecat(configurations, defaults),
         tts_markdown_filter_enabled:
             configurations?.tts_markdown_filter_enabled
             // Cast until `npm run generate-client` runs against a backend

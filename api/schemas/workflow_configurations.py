@@ -68,6 +68,22 @@ DEFAULT_INCOMPLETE_LONG_TIMEOUT = 10.0
 # a noise filter can get in the transcription's way as easily as it helps,
 # and that is judged on a real phone line.
 DEFAULT_AUDIO_IN_NOISE_FILTER = "none"
+
+# --- Idle prompts ----------------------------------------------------------
+#
+# ⚠️ These two texts are the ones the pipeline sends TODAY, in English, copied
+# verbatim. They are INSTRUCTIONS handed to the model, not sentences spoken as
+# written: the model answers in the caller's language.
+DEFAULT_USER_IDLE_PROMPT = (
+    "The user has been quiet. Politely and briefly ask if they're still there "
+    "in the language that the user has been speaking so far."
+)
+DEFAULT_USER_IDLE_GOODBYE_PROMPT = (
+    "The user has been quiet. We will be disconnecting the call now. Wish them "
+    "a good day in the language that the user has been speaking so far."
+)
+# One prompt, then the goodbye and the hang-up: today's behaviour.
+DEFAULT_USER_IDLE_MAX_PROMPTS = 1
 MAX_CALL_DISPOSITIONS = 50
 MAX_CALL_DISPOSITION_CODE_LENGTH = 64
 MAX_CALL_DISPOSITION_DESCRIPTION_LENGTH = 1_000
@@ -344,6 +360,33 @@ class WorkflowConfigurationDefaults(BaseModel):
         description=(
             "Seconds before prompting when the model judged the caller asked "
             "for time to think. Only used when the setting above is on."
+        ),
+    )
+    user_idle_prompt: str = Field(
+        default=DEFAULT_USER_IDLE_PROMPT,
+        max_length=2000,
+        description=(
+            "What the agent is told to do when the caller goes quiet. ⚠️ An "
+            "instruction given to the model, not a sentence spoken word for "
+            "word: the model answers in the caller's language."
+        ),
+    )
+    user_idle_goodbye_prompt: str = Field(
+        default=DEFAULT_USER_IDLE_GOODBYE_PROMPT,
+        max_length=2000,
+        description=(
+            "What the agent is told to do on the last prompt, just before the "
+            "call is hung up. Same thing: an instruction, not a script."
+        ),
+    )
+    user_idle_max_prompts: int = Field(
+        default=DEFAULT_USER_IDLE_MAX_PROMPTS,
+        ge=0,
+        le=10,
+        description=(
+            "How many times the agent checks whether the caller is still "
+            "there before saying goodbye and hanging up. 0 hangs up on the "
+            "first silence, with the goodbye."
         ),
     )
     audio_in_noise_filter: Literal["none", "rnnoise"] = Field(

@@ -144,6 +144,39 @@ describe("Fenetre de configuration de l'agent", () => {
         });
     });
 
+    it("monte la section Relance avec les consignes d'aujourd'hui", () => {
+        ouvrir(null);
+        const consigne = document.getElementById("user_idle_prompt") as HTMLTextAreaElement;
+        expect(consigne.value).toMatch(/politely and briefly ask if they're still there/i);
+        expect(
+            (document.getElementById("user_idle_max_prompts") as HTMLInputElement).value,
+        ).toBe("1");
+    });
+
+    it("dit que les consignes de relance ne sont pas des phrases prononcees", () => {
+        // ⚠️ Someone who types "Are you still there?" expecting that exact
+        // sentence will hear something else, decide the field does not work,
+        // and stop trusting the screen.
+        ouvrir(null);
+        expect(document.body.textContent).toMatch(
+            /instructions given to the model, not sentences spoken word for word/i,
+        );
+    });
+
+    it("emporte une consigne de relance modifiee dans l'enregistrement", async () => {
+        const onSave = ouvrir(null);
+
+        fireEvent.change(document.getElementById("user_idle_prompt") as HTMLTextAreaElement, {
+            target: { value: "Demande si la personne est toujours la." },
+        });
+        fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+        expect(onSave.mock.calls[0][0]).toMatchObject({
+            user_idle_prompt: "Demande si la personne est toujours la.",
+        });
+    });
+
     it("n'efface pas un reglage que l'ecran ne connait pas", () => {
         // 🔑 The defect paid for on 2026-09-10: saving the configuration wiped
         // every per-service override, silently, on every save. The dialog
