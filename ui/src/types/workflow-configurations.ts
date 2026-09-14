@@ -23,6 +23,26 @@ export type TurnStartStrategy = NonNullable<GeneratedWorkflowConfigurationDefaul
 export const DEFAULT_TURN_START_MIN_WORDS = 3;
 export const DEFAULT_PROVISIONAL_VAD_PAUSE_SECS = 1.5;
 export const DEFAULT_TTS_MARKDOWN_FILTER_ENABLED = false;
+// [.mark] 🔒 Turn taking: the values the pipeline ran with before the patch.
+// ⛔ They must equal the Python constants of `workflow_configurations.py`;
+// `reglages-tour-de-parole.test.ts` is where a drift between the two shows up.
+export const DEFAUTS_TOUR_DE_PAROLE = {
+    user_speech_timeout: 0.6,
+    stt_ttfs_p99_latency: null,
+    user_turn_stop_timeout: 5,
+    turn_wait_for_transcript: true,
+    turn_start_use_interim: true,
+    vad_confidence: 0.7,
+    vad_start_secs: 0.2,
+    vad_stop_secs: 0.2,
+    vad_min_volume: 0.6,
+    smart_turn_pre_speech_ms: 500,
+    smart_turn_max_duration_secs: 8,
+    audio_idle_timeout: 1,
+    filter_incomplete_user_turns: false,
+    incomplete_short_timeout: 5,
+    incomplete_long_timeout: 10,
+} as const;
 
 export const TURN_START_STRATEGY_OPTIONS: Array<{
     value: TurnStartStrategy;
@@ -147,6 +167,21 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // reproduces the value the pipeline hardcodes TODAY: an agent that fills in
     // nothing behaves exactly as before.
     tts_markdown_filter_enabled: boolean;  // Strip markdown before the text reaches the voice
+    user_speech_timeout: number;  // Seconds the caller may pause before the agent answers
+    stt_ttfs_p99_latency: number | null;  // Empty = the value Pipecat measured for the provider
+    user_turn_stop_timeout: number;  // Hard ceiling on waiting for a transcript
+    turn_wait_for_transcript: boolean;
+    turn_start_use_interim: boolean;
+    vad_confidence: number;
+    vad_start_secs: number;
+    vad_stop_secs: number;
+    vad_min_volume: number;
+    smart_turn_pre_speech_ms: number;
+    smart_turn_max_duration_secs: number;
+    audio_idle_timeout: number;
+    filter_incomplete_user_turns: boolean;
+    incomplete_short_timeout: number;
+    incomplete_long_timeout: number;
     model_configuration_v2_override?: OrganizationAiModelConfigurationV2;  // Full v2 model configuration override
     [key: string]: unknown;  // Allow additional properties for future configurations
 };
@@ -170,7 +205,26 @@ const FALLBACK_WORKFLOW_CONFIGURATIONS: WorkflowConfigurations = {
     external_pbx_field_mappings: [],
     external_pbx_lead_headers: [],
     tts_markdown_filter_enabled: DEFAULT_TTS_MARKDOWN_FILTER_ENABLED,
+    ...DEFAUTS_TOUR_DE_PAROLE,
 };
+
+type ReglagesTourDeParoleResolus = typeof DEFAUTS_TOUR_DE_PAROLE;
+
+function resoudreTourDeParole(
+    configurations?: Partial<WorkflowConfigurations> | null,
+    defaults?: WorkflowConfigurationDefaults | null,
+): ReglagesTourDeParoleResolus {
+    const resolus = {} as Record<string, unknown>;
+    for (const cle of Object.keys(DEFAUTS_TOUR_DE_PAROLE)) {
+        const surAgent = (configurations as Record<string, unknown> | null | undefined)?.[cle];
+        const surOrganisation = (defaults as Record<string, unknown> | null | undefined)?.[cle];
+        resolus[cle] =
+            surAgent
+            ?? surOrganisation
+            ?? DEFAUTS_TOUR_DE_PAROLE[cle as keyof ReglagesTourDeParoleResolus];
+    }
+    return resolus as ReglagesTourDeParoleResolus;
+}
 
 export function resolveWorkflowConfigurations(
     configurations?: Partial<WorkflowConfigurations> | null,
@@ -238,6 +292,10 @@ export function resolveWorkflowConfigurations(
             // carrying this field; the generated defaults type predates it.
             ?? (defaults?.external_pbx_lead_headers as string[] | undefined)
             ?? FALLBACK_WORKFLOW_CONFIGURATIONS.external_pbx_lead_headers,
+        // [.mark] ⛔ `??`, not a spread: a stored configuration carries explicit
+        // JSON nulls for keys the client never touched, and spreading them would
+        // draw an empty field where the pipeline runs a value.
+        ...resoudreTourDeParole(configurations, defaults),
         tts_markdown_filter_enabled:
             configurations?.tts_markdown_filter_enabled
             // Cast until `npm run generate-client` runs against a backend

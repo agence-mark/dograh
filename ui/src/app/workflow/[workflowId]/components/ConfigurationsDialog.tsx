@@ -7,10 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+    ReglagesTourDeParole,
+    SectionTourDeParole,
+} from "@/components/mark/SectionTourDeParole";
 import { ReglagesVoix, SectionVoix } from "@/components/mark/SectionVoix";
+import { transcriptionPiloteLesTours } from "@/components/mark/transcriptionPiloteLesTours";
 import { useOrgConfig } from "@/context/OrgConfigContext";
 import {
     AmbientNoiseConfiguration,
+    DEFAUTS_TOUR_DE_PAROLE,
     DEFAULT_PROVISIONAL_VAD_PAUSE_SECS,
     DEFAULT_TURN_START_MIN_WORDS,
     ExternalPBXFieldMapping,
@@ -29,6 +35,20 @@ interface ConfigurationsDialogProps {
     onSave: (configurations: WorkflowConfigurations, workflowName: string) => Promise<void>;
 }
 
+// [.mark] The turn-taking keys, pulled out of the resolved configuration.
+// ⛔ Listed from the defaults object rather than typed out again: a setting
+// added to one list and forgotten in the other would render and then be
+// dropped on save, in silence.
+const extraireTourDeParole = (
+    configurations: WorkflowConfigurations
+): ReglagesTourDeParole =>
+    Object.fromEntries(
+        Object.keys(DEFAUTS_TOUR_DE_PAROLE).map((cle) => [
+            cle,
+            (configurations as Record<string, unknown>)[cle],
+        ])
+    ) as unknown as ReglagesTourDeParole;
+
 export const ConfigurationsDialog = ({
     open,
     onOpenChange,
@@ -36,7 +56,7 @@ export const ConfigurationsDialog = ({
     workflowName,
     onSave
 }: ConfigurationsDialogProps) => {
-    const { externalPbxIntegrationsEnabled } = useOrgConfig();
+    const { externalPbxIntegrationsEnabled, userConfig } = useOrgConfig();
     const resolvedWorkflowConfigurations = resolveWorkflowConfigurations(workflowConfigurations);
     const [name, setName] = useState<string>(workflowName);
     const [ambientNoiseConfig, setAmbientNoiseConfig] = useState<AmbientNoiseConfiguration>(
@@ -73,6 +93,19 @@ export const ConfigurationsDialog = ({
     const [reglagesVoix, setReglagesVoix] = useState<ReglagesVoix>({
         tts_markdown_filter_enabled: resolvedWorkflowConfigurations.tts_markdown_filter_enabled,
     });
+    const [reglagesTourDeParole, setReglagesTourDeParole] = useState<ReglagesTourDeParole>(
+        () => extraireTourDeParole(resolvedWorkflowConfigurations)
+    );
+    // ⛔ Read from the SAME resolution the server uses: a section hidden for an
+    // agent that does use these settings is as wrong as one shown for an agent
+    // that does not.
+    const tourPiloteAilleurs = transcriptionPiloteLesTours({
+        organisation: userConfig,
+        agent: resolvedWorkflowConfigurations,
+        estTempsReel: Boolean(
+            (resolvedWorkflowConfigurations as { is_realtime?: boolean }).is_realtime
+        ),
+    });
     const [isSaving, setIsSaving] = useState(false);
     const selectedTurnStartStrategy = TURN_START_STRATEGY_OPTIONS.find(
         (option) => option.value === turnStartStrategy
@@ -100,6 +133,7 @@ export const ConfigurationsDialog = ({
                 context_compaction_enabled: contextCompactionEnabled,
                 external_pbx_field_mappings: externalPbxFieldMappings,
                 ...reglagesVoix,
+                ...reglagesTourDeParole,
             }, name);
             onOpenChange(false);
         } catch (error) {
@@ -127,6 +161,7 @@ export const ConfigurationsDialog = ({
             setReglagesVoix({
                 tts_markdown_filter_enabled: nextWorkflowConfigurations.tts_markdown_filter_enabled,
             });
+            setReglagesTourDeParole(extraireTourDeParole(nextWorkflowConfigurations));
         }
     }, [open, workflowName, workflowConfigurations]);
 
@@ -352,6 +387,14 @@ export const ConfigurationsDialog = ({
                             </div>
                         )}
                     </div>
+
+                    {/* [.mark] Turn taking Section */}
+                    <SectionTourDeParole
+                        reglages={reglagesTourDeParole}
+                        onChange={setReglagesTourDeParole}
+                        tourPiloteAilleurs={tourPiloteAilleurs}
+                        smartTurnActif={turnStopStrategy === 'turn_analyzer'}
+                    />
 
                     {/* [.mark] Voice Section */}
                     <SectionVoix reglages={reglagesVoix} onChange={setReglagesVoix} />

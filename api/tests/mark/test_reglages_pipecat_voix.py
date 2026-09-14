@@ -34,6 +34,8 @@ import inspect
 from types import SimpleNamespace
 
 import pytest
+from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
+from pipecat.utils.text.xml_function_tag_filter import XMLFunctionTagFilter
 
 from api.schemas.workflow_configurations import (
     DEFAULT_TTS_MARKDOWN_FILTER_ENABLED,
@@ -51,8 +53,6 @@ from api.services.pipecat.service_factory import (
     construire_filtres_de_texte_voix,
     create_tts_service,
 )
-from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
-from pipecat.utils.text.xml_function_tag_filter import XMLFunctionTagFilter
 
 # ⛔ The literal list every provider received before this patch. Comparing
 # against a list re-derived from the code would be tautological: the code is

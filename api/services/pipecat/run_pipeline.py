@@ -1,9 +1,6 @@
 import asyncio
 from typing import Optional
 
-from fastapi import HTTPException
-from loguru import logger
-
 from api.db import db_client
 from api.enums import WorkflowRunMode
 from api.errors.failure import mark_failure_reported
@@ -57,6 +54,11 @@ from api.services.pipecat.recording_audio_cache import (
     warm_recording_cache,
 )
 from api.services.pipecat.recording_router_processor import RecordingRouterProcessor
+from api.services.pipecat.reglages_tour_de_parole import (
+    ReglagesTourDeParole,
+    appliquer_latence_de_transcription,
+    collecter_reglages_tour_de_parole,
+)
 from api.services.pipecat.service_factory import (
     create_llm_service,
     create_llm_service_from_provider,
@@ -82,10 +84,12 @@ from api.services.workflow.dto import ReactFlowDTO
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.services.workflow.workflow_graph import WorkflowGraph
+from fastapi import HTTPException
+from loguru import logger
+
 from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.extensions.voicemail.voicemail_detector import VoicemailDetector
 from pipecat.processors.aggregators.llm_response_universal import (
     LLMAssistantAggregatorParams,
@@ -121,7 +125,10 @@ from pipecat.utils.run_context import set_current_org_id, set_current_run_id
 # Setup tracing if enabled
 ensure_tracing()
 
-DEFAULT_USER_TURN_STOP_TIMEOUT = 5.0
+# 🔑 Read from the schema, so screen and pipeline cannot drift apart.
+DEFAULT_USER_TURN_STOP_TIMEOUT = (
+    WorkflowConfigurationDefaults.model_fields["user_turn_stop_timeout"].default
+)
 EXTERNAL_TURN_USER_STOP_TIMEOUT = 30.0
 
 
@@ -154,7 +161,10 @@ def _resolve_provisional_vad_pause_secs(run_configs: dict) -> float:
 
 
 def _create_non_realtime_user_turn_start_strategies(
-    run_configs: dict, *, uses_external_turns: bool
+    run_configs: dict,
+    *,
+    uses_external_turns: bool,
+    reglages: ReglagesTourDeParole,
 ):
     """Return user turn start strategies for non-realtime pipelines."""
 
@@ -165,14 +175,16 @@ def _create_non_realtime_user_turn_start_strategies(
     if turn_start_strategy == "min_words":
         return [
             MinWordsUserTurnStartStrategy(
-                min_words=_resolve_turn_start_min_words(run_configs)
+                min_words=_resolve_turn_start_min_words(run_configs),
+                use_interim=reglages.use_interim,
             )
         ]
 
     if turn_start_strategy == "provisional_vad":
         return [
             ProvisionalVADUserTurnStartStrategy(
-                pause_secs=_resolve_provisional_vad_pause_secs(run_configs)
+                pause_secs=_resolve_provisional_vad_pause_secs(run_configs),
+                use_interim=reglages.use_interim,
             ),
         ]
 
@@ -183,11 +195,17 @@ def _create_non_realtime_user_turn_start_strategies(
         # confirms a real turn.
         return [ExternalUserTurnStartStrategy(enable_interruptions=True)]
 
-    return [TranscriptionUserTurnStartStrategy(), VADUserTurnStartStrategy()]
+    return [
+        TranscriptionUserTurnStartStrategy(use_interim=reglages.use_interim),
+        VADUserTurnStartStrategy(),
+    ]
 
 
 def _create_non_realtime_user_turn_stop_strategies(
-    run_configs: dict, *, uses_external_turns: bool
+    run_configs: dict,
+    *,
+    uses_external_turns: bool,
+    reglages: ReglagesTourDeParole,
 ):
     """Return user turn stop strategies for non-realtime pipelines."""
 
@@ -198,19 +216,62 @@ def _create_non_realtime_user_turn_stop_strategies(
         smart_turn_params = SmartTurnParams(
             stop_secs=run_configs.get(
                 "smart_turn_stop_secs", DEFAULT_SMART_TURN_STOP_SECS
-            )
+            ),
+            pre_speech_ms=reglages.smart_turn_pre_speech_ms,
+            max_duration_secs=reglages.smart_turn_max_duration_secs,
         )
         return [
             TurnAnalyzerUserTurnStopStrategy(
-                turn_analyzer=LocalSmartTurnAnalyzerV3(params=smart_turn_params)
+                turn_analyzer=LocalSmartTurnAnalyzerV3(params=smart_turn_params),
+                wait_for_transcript=reglages.wait_for_transcript,
             )
         ]
 
-    return [SpeechTimeoutUserTurnStopStrategy()]
+    return [
+        SpeechTimeoutUserTurnStopStrategy(
+            user_speech_timeout=reglages.user_speech_timeout,
+            wait_for_transcript=reglages.wait_for_transcript,
+        )
+    ]
 
 
-def _create_realtime_user_turn_config(provider: str):
-    """Return user turn strategies and optional local VAD for realtime providers."""
+def _construire_parametres_agregateur_utilisateur(
+    *,
+    user_turn_strategies,
+    user_mute_strategies,
+    user_turn_stop_timeout: float,
+    max_user_idle_timeout: float,
+    user_vad_analyzer,
+    reglages: ReglagesTourDeParole,
+) -> LLMUserAggregatorParams:
+    """[.mark] Build the user aggregator parameters from the agent's settings.
+
+    Pulled out of the 400-line pipeline function for ONE reason: built inline,
+    the only thing a test could assert about these three settings is that the
+    dataclass holding them is correct -- which is true whether or not the
+    pipeline ever reads it. Dropping a line here would then break nothing that
+    is green.
+    """
+    return LLMUserAggregatorParams(
+        user_turn_strategies=user_turn_strategies,
+        user_mute_strategies=user_mute_strategies,
+        user_turn_stop_timeout=user_turn_stop_timeout,
+        user_idle_timeout=max_user_idle_timeout,
+        vad_analyzer=user_vad_analyzer,
+        audio_idle_timeout=reglages.audio_idle_timeout,
+        filter_incomplete_user_turns=reglages.filter_incomplete_user_turns,
+        user_turn_completion_config=reglages.configuration_de_fin_de_tour(),
+    )
+
+
+def _create_realtime_user_turn_config(provider: str, reglages: ReglagesTourDeParole):
+    """Return user turn strategies and optional local VAD for realtime providers.
+
+    ⚠️ [.mark] The agent's voice-detector settings apply here too: this is the
+    SECOND place the detector is built, and wiring the settings only into the
+    non-realtime path would leave realtime agents on values nobody chose,
+    silently. The turn strategies themselves stay the provider's business.
+    """
 
     def external_provider_turn_config():
         return (
@@ -227,9 +288,16 @@ def _create_realtime_user_turn_config(provider: str):
                 start=[
                     VADUserTurnStartStrategy(enable_interruptions=enable_interruptions)
                 ],
-                stop=[SpeechTimeoutUserTurnStopStrategy(wait_for_transcript=False)],
+                stop=[
+                    SpeechTimeoutUserTurnStopStrategy(
+                        user_speech_timeout=reglages.user_speech_timeout,
+                        # ⛔ Stays False whatever the agent asked: in realtime
+                        # mode transcripts are off the latency path by design.
+                        wait_for_transcript=False,
+                    )
+                ],
             ),
-            SileroVADAnalyzer(params=VADParams(stop_secs=0.2)),
+            SileroVADAnalyzer(params=reglages.parametres_detecteur()),
         )
 
     if provider in {
@@ -693,11 +761,14 @@ async def _run_pipeline_impl(
             correlation_id=mps_correlation_id,
         )
     else:
-        stt = create_stt_service(
-            user_config,
-            audio_config,
-            keyterms=keyterms,
-            correlation_id=mps_correlation_id,
+        stt = appliquer_latence_de_transcription(
+            create_stt_service(
+                user_config,
+                audio_config,
+                keyterms=keyterms,
+                correlation_id=mps_correlation_id,
+            ),
+            collecter_reglages_tour_de_parole(run_configs).stt_ttfs_p99_latency,
         )
         tts = create_tts_service(
             user_config,
@@ -908,7 +979,8 @@ async def _run_pipeline_impl(
         FunctionCallUserMuteStrategy(),
         CallbackUserMuteStrategy(should_mute_callback=engine.should_mute_user),
     ]
-    user_vad_analyzer = SileroVADAnalyzer(params=VADParams(stop_secs=0.2))
+    reglages_tour = collecter_reglages_tour_de_parole(run_configs)
+    user_vad_analyzer = SileroVADAnalyzer(params=reglages_tour.parametres_detecteur())
 
     # Configure turn strategies based on STT provider, model, and workflow configuration
     if is_realtime:
@@ -916,7 +988,7 @@ async def _run_pipeline_impl(
         # Realtime services still need user-turn tracking even when the model
         # itself owns speech generation and interruption behavior.
         user_turn_strategies, user_vad_analyzer = _create_realtime_user_turn_config(
-            user_config.realtime.provider
+            user_config.realtime.provider, reglages_tour
         )
     else:
         # Some STT services emit their own turn boundaries, so the aggregator
@@ -926,6 +998,7 @@ async def _run_pipeline_impl(
         user_turn_start_strategies = _create_non_realtime_user_turn_start_strategies(
             run_configs,
             uses_external_turns=uses_external_turns,
+            reglages=reglages_tour,
         )
         turn_start_strategy = run_configs.get(
             "turn_start_strategy", DEFAULT_TURN_START_STRATEGY
@@ -939,6 +1012,7 @@ async def _run_pipeline_impl(
         user_turn_stop_strategies = _create_non_realtime_user_turn_stop_strategies(
             run_configs,
             uses_external_turns=uses_external_turns,
+            reglages=reglages_tour,
         )
         user_turn_strategies = UserTurnStrategies(
             start=user_turn_start_strategies,
@@ -950,12 +1024,13 @@ async def _run_pipeline_impl(
         uses_external_turns=uses_external_turns,
     )
 
-    user_params = LLMUserAggregatorParams(
+    user_params = _construire_parametres_agregateur_utilisateur(
         user_turn_strategies=user_turn_strategies,
         user_mute_strategies=user_mute_strategies,
         user_turn_stop_timeout=user_turn_stop_timeout,
-        user_idle_timeout=max_user_idle_timeout,
-        vad_analyzer=user_vad_analyzer,
+        max_user_idle_timeout=max_user_idle_timeout,
+        user_vad_analyzer=user_vad_analyzer,
+        reglages=reglages_tour,
     )
     context_aggregator = LLMContextAggregatorPair(
         context,

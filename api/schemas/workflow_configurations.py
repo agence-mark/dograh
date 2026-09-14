@@ -39,6 +39,31 @@ DEFAULT_CONTEXT_COMPACTION_ENABLED = False
 # for everyone would be choosing a value, which is not this patch's job: it is
 # turned on per agent, starting with the bench agent.
 DEFAULT_TTS_MARKDOWN_FILTER_ENABLED = False
+
+# --- Turn taking -----------------------------------------------------------
+#
+# 🔑 These constants are the SINGLE source of the values the pipeline runs
+# with: `run_pipeline.py` reads them, and carries no literal of its own any
+# more. Before this patch each of them was a literal in the pipeline, or a
+# Pipecat default nobody had ever looked at.
+#
+# ⚠️ Their values are Pipecat's current defaults, copied here on purpose
+# rather than imported. `test_reglages_pipecat_tour_de_parole.py` compares the
+# two, so the day a Pipecat upgrade moves a default the test goes red and the
+# change gets decided rather than absorbed in silence.
+DEFAULT_USER_SPEECH_TIMEOUT = 0.6
+DEFAULT_TURN_WAIT_FOR_TRANSCRIPT = True
+DEFAULT_TURN_START_USE_INTERIM = True
+DEFAULT_VAD_CONFIDENCE = 0.7
+DEFAULT_VAD_START_SECS = 0.2
+DEFAULT_VAD_STOP_SECS = 0.2
+DEFAULT_VAD_MIN_VOLUME = 0.6
+DEFAULT_SMART_TURN_PRE_SPEECH_MS = 500.0
+DEFAULT_SMART_TURN_MAX_DURATION_SECS = 8.0
+DEFAULT_AUDIO_IDLE_TIMEOUT = 1.0
+DEFAULT_FILTER_INCOMPLETE_USER_TURNS = False
+DEFAULT_INCOMPLETE_SHORT_TIMEOUT = 5.0
+DEFAULT_INCOMPLETE_LONG_TIMEOUT = 10.0
 MAX_CALL_DISPOSITIONS = 50
 MAX_CALL_DISPOSITION_CODE_LENGTH = 64
 MAX_CALL_DISPOSITION_DESCRIPTION_LENGTH = 1_000
@@ -167,6 +192,156 @@ class WorkflowConfigurationDefaults(BaseModel):
     )
     dictionary: str = ""
     context_compaction_enabled: bool = DEFAULT_CONTEXT_COMPACTION_ENABLED
+    # --- Turn taking. Every default reproduces today's behaviour. ---
+    #
+    # ⚠️ These settings have no effect when the transcription service drives
+    # the turns itself (Deepgram Flux, Cartesia ink-2) or in realtime mode:
+    # the pipeline does not build these strategies at all. The screen hides
+    # the whole section in that case rather than showing values that play no
+    # part.
+    user_speech_timeout: float = Field(
+        default=DEFAULT_USER_SPEECH_TIMEOUT,
+        gt=0,
+        le=10,
+        description=(
+            "Seconds the caller may pause before the agent takes the floor. "
+            "The single setting that most decides whether the agent cuts "
+            "people off or leaves a silence. Pipecat has never had a screen "
+            "for it: 0.6 s is its own default, chosen by nobody here."
+        ),
+    )
+    stt_ttfs_p99_latency: float | None = Field(
+        default=None,
+        gt=0,
+        le=10,
+        description=(
+            "Seconds the pipeline allows the transcription to deliver its "
+            "final text after the caller stops. Empty means the value Pipecat "
+            "measured for the provider (0.35 s for Deepgram). ⚠️ That "
+            "measurement was taken with a voice detector set to 0.2 s: change "
+            "the detector below without this, and the end of turn is wrong."
+        ),
+    )
+    user_turn_stop_timeout: float = Field(
+        default=5.0,
+        gt=0,
+        le=60,
+        description=(
+            "Hard ceiling on the wait for a transcript before the turn ends "
+            "anyway. Read by the pipeline since before this patch, but it was "
+            "on no schema and no screen."
+        ),
+    )
+    turn_wait_for_transcript: bool = Field(
+        default=DEFAULT_TURN_WAIT_FOR_TRANSCRIPT,
+        description=(
+            "Require at least one transcript before ending the caller's turn. "
+            "Turn it off and the agent answers on silence alone, faster but "
+            "on nothing that was understood."
+        ),
+    )
+    turn_start_use_interim: bool = Field(
+        default=DEFAULT_TURN_START_USE_INTERIM,
+        description=(
+            "Let partial transcripts, not just final ones, confirm that the "
+            "caller has started speaking."
+        ),
+    )
+    # ⚠️ Silero's own bounds: confidence and min_volume are normalised 0-1.
+    # ⛔ The two durations carry no bound at the source; the wide range below
+    # is ours and is flagged as such in the description rather than passed off
+    # as Pipecat's.
+    vad_confidence: float = Field(
+        default=DEFAULT_VAD_CONFIDENCE,
+        ge=0,
+        le=1,
+        description=(
+            "How sure the voice detector must be that it is hearing speech. "
+            "Higher misses quiet speech; lower takes background noise for a "
+            "caller."
+        ),
+    )
+    vad_start_secs: float = Field(
+        default=DEFAULT_VAD_START_SECS,
+        gt=0,
+        le=5,
+        description=(
+            "Seconds of sound before the detector calls it speech. Range is "
+            "ours: Pipecat sets no bound."
+        ),
+    )
+    vad_stop_secs: float = Field(
+        default=DEFAULT_VAD_STOP_SECS,
+        gt=0,
+        le=5,
+        description=(
+            "Seconds of silence before the detector calls the speech over. "
+            "⚠️ Tied to the transcription latency above, which was measured "
+            "at 0.2 s. Range is ours: Pipecat sets no bound."
+        ),
+    )
+    vad_min_volume: float = Field(
+        default=DEFAULT_VAD_MIN_VOLUME,
+        ge=0,
+        le=1,
+        description="Volume below which sound is not considered speech.",
+    )
+    smart_turn_pre_speech_ms: float = Field(
+        default=DEFAULT_SMART_TURN_PRE_SPEECH_MS,
+        ge=0,
+        le=5000,
+        description=(
+            "Milliseconds of audio kept before the caller starts speaking, "
+            "for the Smart Turn model. Only used when end of turn is set to "
+            "Smart Turn."
+        ),
+    )
+    smart_turn_max_duration_secs: float = Field(
+        default=DEFAULT_SMART_TURN_MAX_DURATION_SECS,
+        gt=0,
+        le=60,
+        description=(
+            "Longest audio segment the Smart Turn model examines. Only used "
+            "when end of turn is set to Smart Turn."
+        ),
+    )
+    audio_idle_timeout: float = Field(
+        default=DEFAULT_AUDIO_IDLE_TIMEOUT,
+        ge=0,
+        le=30,
+        description=(
+            "Seconds without any audio at all before the caller is considered "
+            "to have stopped speaking, for instance if they mute their "
+            "microphone mid-sentence. 0 disables it."
+        ),
+    )
+    filter_incomplete_user_turns: bool = Field(
+        default=DEFAULT_FILTER_INCOMPLETE_USER_TURNS,
+        description=(
+            "Ask the model itself whether the caller has finished their "
+            "sentence. ⚠️ Off by default: it costs one extra model call per "
+            "turn, and it has not been checked against Mistral. Its follow-up "
+            "prompts are in English in Pipecat and are not exposed yet."
+        ),
+    )
+    incomplete_short_timeout: float = Field(
+        default=DEFAULT_INCOMPLETE_SHORT_TIMEOUT,
+        gt=0,
+        le=60,
+        description=(
+            "Seconds before prompting when the model judged the caller was "
+            "cut off mid-sentence. Only used when the setting above is on."
+        ),
+    )
+    incomplete_long_timeout: float = Field(
+        default=DEFAULT_INCOMPLETE_LONG_TIMEOUT,
+        gt=0,
+        le=120,
+        description=(
+            "Seconds before prompting when the model judged the caller asked "
+            "for time to think. Only used when the setting above is on."
+        ),
+    )
     tts_markdown_filter_enabled: bool = Field(
         default=DEFAULT_TTS_MARKDOWN_FILTER_ENABLED,
         description=(
