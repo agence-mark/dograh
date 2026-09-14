@@ -64,6 +64,10 @@ DEFAULT_AUDIO_IDLE_TIMEOUT = 1.0
 DEFAULT_FILTER_INCOMPLETE_USER_TURNS = False
 DEFAULT_INCOMPLETE_SHORT_TIMEOUT = 5.0
 DEFAULT_INCOMPLETE_LONG_TIMEOUT = 10.0
+# 🔒 No filter, which is today's behaviour. RNNoise is installed but off:
+# a noise filter can get in the transcription's way as easily as it helps,
+# and that is judged on a real phone line.
+DEFAULT_AUDIO_IN_NOISE_FILTER = "none"
 MAX_CALL_DISPOSITIONS = 50
 MAX_CALL_DISPOSITION_CODE_LENGTH = 64
 MAX_CALL_DISPOSITION_DESCRIPTION_LENGTH = 1_000
@@ -340,6 +344,15 @@ class WorkflowConfigurationDefaults(BaseModel):
         description=(
             "Seconds before prompting when the model judged the caller asked "
             "for time to think. Only used when the setting above is on."
+        ),
+    )
+    audio_in_noise_filter: Literal["none", "rnnoise"] = Field(
+        default=DEFAULT_AUDIO_IN_NOISE_FILTER,
+        description=(
+            "Clean the caller's audio before it is transcribed. RNNoise is "
+            "free and runs locally. ⚠️ A noise filter can just as easily get "
+            "in the transcription's way: it is judged on a real phone line, "
+            "not on a browser call."
         ),
     )
     tts_markdown_filter_enabled: bool = Field(

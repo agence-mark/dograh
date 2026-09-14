@@ -415,7 +415,7 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     )
     texte = fichier.read_text(encoding="utf-8")
     bloc = re.search(
-        r"export const DEFAUTS_TOUR_DE_PAROLE = \{(.*?)\} as const;", texte, re.S
+        r"export const DEFAUTS_TOUR_DE_PAROLE = \{(.*?)\} as const;", texte, re.DOTALL
     )
     assert bloc, "DEFAUTS_TOUR_DE_PAROLE disappeared from the screen's types."
 
@@ -423,7 +423,11 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     for ligne in bloc.group(1).splitlines():
         paire = re.match(r"\s*([a-z_0-9]+):\s*([^,]+),", ligne)
         if paire:
-            ecran[paire.group(1)] = json.loads(paire.group(2).strip())
+            # TypeScript writes strings with single quotes; JSON wants double.
+            brut = paire.group(2).strip()
+            if brut.startswith("'") and brut.endswith("'"):
+                brut = f'"{brut[1:-1]}"'
+            ecran[paire.group(1)] = json.loads(brut)
 
     schema = WorkflowConfigurationDefaults()
     for cle, valeur_ecran in ecran.items():
@@ -432,7 +436,7 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
             f"'{cle}': the screen shows {valeur_ecran!r} and the pipeline runs "
             f"{valeur_schema!r}. One of the two copies moved without the other."
         )
-    assert len(ecran) == 15, (
-        f"The screen declares {len(ecran)} turn-taking defaults, expected 15. "
+    assert len(ecran) == 16, (
+        f"The screen declares {len(ecran)} turn-taking defaults, expected 16. "
         f"A setting added on one side only renders and is then dropped."
     )

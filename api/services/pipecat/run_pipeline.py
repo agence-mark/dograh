@@ -446,6 +446,7 @@ async def _run_pipeline_telephony_impl(
         ambient_noise_config=ambient_noise_config,
         telephony_configuration_id=telephony_configuration_id,
         is_realtime=is_realtime,
+        run_configs=run_configs,
         **transport_kwargs,
     )
 
@@ -571,6 +572,7 @@ async def _run_pipeline_smallwebrtc_impl(
         audio_config,
         ambient_noise_config,
         is_realtime=is_realtime,
+        run_configs=run_configs,
     )
     await _run_pipeline_impl(
         transport,

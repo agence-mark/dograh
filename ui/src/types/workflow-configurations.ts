@@ -42,6 +42,7 @@ export const DEFAUTS_TOUR_DE_PAROLE = {
     filter_incomplete_user_turns: false,
     incomplete_short_timeout: 5,
     incomplete_long_timeout: 10,
+    audio_in_noise_filter: 'none',
 } as const;
 
 export const TURN_START_STRATEGY_OPTIONS: Array<{
@@ -182,6 +183,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     filter_incomplete_user_turns: boolean;
     incomplete_short_timeout: number;
     incomplete_long_timeout: number;
+    audio_in_noise_filter: 'none' | 'rnnoise';
     model_configuration_v2_override?: OrganizationAiModelConfigurationV2;  // Full v2 model configuration override
     [key: string]: unknown;  // Allow additional properties for future configurations
 };

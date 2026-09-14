@@ -41,6 +41,7 @@ const REGLAGES_AUJOURDHUI: ReglagesTourDeParole = {
     filter_incomplete_user_turns: false,
     incomplete_short_timeout: 5,
     incomplete_long_timeout: 10,
+    audio_in_noise_filter: "none",
 };
 
 const afficher = (
@@ -119,6 +120,19 @@ describe("Section Tour de parole", () => {
         expect(champ("incomplete_short_timeout")).toBeNull();
         afficher({ filter_incomplete_user_turns: true });
         expect(champ("incomplete_short_timeout").value).toBe("5");
+    });
+
+    it("propose RNNoise, eteint par defaut", () => {
+        afficher();
+        expect(champ("audio_in_noise_filter")).not.toBeNull();
+        expect(document.body.textContent).toMatch(/no filter/i);
+    });
+
+    it("garde le filtre de bruit meme quand le tour est pilote ailleurs", () => {
+        // ⛔ It cleans the INCOMING audio, whoever decides the turn boundaries.
+        // Hiding it with the rest would take a working setting off the screen.
+        afficher({}, { tourPiloteAilleurs: true });
+        expect(champ("audio_in_noise_filter")).not.toBeNull();
     });
 
     it("cache toute la section quand la transcription pilote les tours", () => {

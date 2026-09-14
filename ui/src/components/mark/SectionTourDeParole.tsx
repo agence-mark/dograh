@@ -1,5 +1,12 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
 /**
@@ -34,6 +41,7 @@ export interface ReglagesTourDeParole {
     filter_incomplete_user_turns: boolean;
     incomplete_short_timeout: number;
     incomplete_long_timeout: number;
+    audio_in_noise_filter: 'none' | 'rnnoise';
 }
 
 interface SectionTourDeParoleProps {
@@ -94,7 +102,40 @@ export const SectionTourDeParole = ({
         </div>
     );
 
+    const bruit = (
+        <div className="space-y-4 border-t pt-4">
+            <p className="text-xs font-medium">Noise</p>
+            <div className="space-y-2">
+                <Label htmlFor="audio_in_noise_filter" className="text-xs">
+                    Clean the caller&apos;s audio
+                </Label>
+                <Select
+                    value={reglages.audio_in_noise_filter}
+                    onValueChange={(valeur: 'none' | 'rnnoise') =>
+                        onChange({ ...reglages, audio_in_noise_filter: valeur })
+                    }
+                >
+                    <SelectTrigger id="audio_in_noise_filter">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="none">No filter</SelectItem>
+                        <SelectItem value="rnnoise">RNNoise</SelectItem>
+                    </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                    RNNoise is free and runs locally. ⚠️ A noise filter can get in the
+                    transcription&apos;s way as easily as it helps: judge it on a real
+                    phone line, not on a browser call.
+                </p>
+            </div>
+        </div>
+    );
+
     if (tourPiloteAilleurs) {
+        // ⛔ The noise filter stays: it cleans the INCOMING audio, whoever
+        // decides the turn boundaries. Hiding it with the rest would take a
+        // working setting off the screen.
         return (
             <div className="space-y-4">
                 <div>
@@ -107,6 +148,7 @@ export const SectionTourDeParole = ({
                         values that play no part in the call.
                     </p>
                 </div>
+                {bruit}
             </div>
         );
     }
@@ -209,6 +251,8 @@ export const SectionTourDeParole = ({
                     "0.5",
                 )}
             </div>
+
+            {bruit}
 
             {smartTurnActif && (
                 <div className="space-y-4 border-t pt-4">
