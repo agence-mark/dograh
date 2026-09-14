@@ -177,6 +177,43 @@ describe("Fenetre de configuration de l'agent", () => {
         });
     });
 
+    it("cache la duree du silence tant que le silence n'est pas allume", () => {
+        // 🚨 The duration was passed to sixteen voice providers and did
+        // NOTHING: Pipecat pushes that silence only when the switch is on, and
+        // nothing ever turned it on. Shown alone, someone would raise it, hear
+        // no change, and stop trusting the screen.
+        ouvrir(null);
+        expect(document.getElementById("tts_silence_time_s")).toBeNull();
+
+        fireEvent.click(
+            screen.getByRole("switch", { name: /add silence after the agent speaks/i }),
+        );
+        expect(
+            (document.getElementById("tts_silence_time_s") as HTMLInputElement).value,
+        ).toBe("1");
+    });
+
+    it("emporte un reglage de voix modifie sans ecraser les autres sections", async () => {
+        // 🚨 The defect of 2026-09-14: the turn-taking section carried every
+        // Pipecat key, and its spread put the voice settings back to their
+        // opening values. Both changes below have to survive the same save.
+        const onSave = ouvrir(null);
+
+        fireEvent.click(
+            screen.getByRole("switch", { name: /strip markdown before speaking/i }),
+        );
+        fireEvent.change(document.getElementById("vad_stop_secs") as HTMLInputElement, {
+            target: { value: "0.4" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+        expect(onSave.mock.calls[0][0]).toMatchObject({
+            tts_markdown_filter_enabled: true,
+            vad_stop_secs: 0.4,
+        });
+    });
+
     it("n'efface pas un reglage que l'ecran ne connait pas", () => {
         // 🔑 The defect paid for on 2026-09-10: saving the configuration wiped
         // every per-service override, silently, on every save. The dialog

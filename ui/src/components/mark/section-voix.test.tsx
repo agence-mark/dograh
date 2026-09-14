@@ -15,13 +15,22 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { SectionVoix } from "./SectionVoix";
+import { type ReglagesVoix, SectionVoix } from "./SectionVoix";
+
+// The values the pipeline ran with before the patch.
+const VOIX_AUJOURDHUI: ReglagesVoix = {
+    tts_markdown_filter_enabled: false,
+    tts_push_silence_after_stop: false,
+    tts_silence_time_s: 1,
+    tts_text_aggregation_mode: 'sentence',
+    tts_replacements: [],
+};
 
 describe("Section Voix", () => {
     it("rend l'interrupteur du filtre de balisage", () => {
         render(
             <SectionVoix
-                reglages={{ tts_markdown_filter_enabled: false }}
+                reglages={{ ...VOIX_AUJOURDHUI, tts_markdown_filter_enabled: false }}
                 onChange={vi.fn()}
             />,
         );
@@ -36,7 +45,7 @@ describe("Section Voix", () => {
     it("affiche l'etat allume quand le reglage est allume", () => {
         render(
             <SectionVoix
-                reglages={{ tts_markdown_filter_enabled: true }}
+                reglages={{ ...VOIX_AUJOURDHUI, tts_markdown_filter_enabled: true }}
                 onChange={vi.fn()}
             />,
         );
@@ -52,7 +61,7 @@ describe("Section Voix", () => {
         const onChange = vi.fn();
         render(
             <SectionVoix
-                reglages={{ tts_markdown_filter_enabled: false }}
+                reglages={{ ...VOIX_AUJOURDHUI, tts_markdown_filter_enabled: false }}
                 onChange={onChange}
             />,
         );
@@ -61,7 +70,9 @@ describe("Section Voix", () => {
             screen.getByRole("switch", { name: /strip markdown before speaking/i }),
         );
 
-        expect(onChange).toHaveBeenCalledWith({ tts_markdown_filter_enabled: true });
+        expect(onChange).toHaveBeenCalledWith(
+            expect.objectContaining({ tts_markdown_filter_enabled: true }),
+        );
     });
 
     it("dit ce que le filtre ne regle PAS", () => {
@@ -71,7 +82,7 @@ describe("Section Voix", () => {
         // not conclude the switch does nothing.
         render(
             <SectionVoix
-                reglages={{ tts_markdown_filter_enabled: true }}
+                reglages={{ ...VOIX_AUJOURDHUI, tts_markdown_filter_enabled: true }}
                 onChange={vi.fn()}
             />,
         );

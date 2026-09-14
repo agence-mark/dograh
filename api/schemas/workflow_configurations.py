@@ -84,6 +84,23 @@ DEFAULT_USER_IDLE_GOODBYE_PROMPT = (
 )
 # One prompt, then the goodbye and the hang-up: today's behaviour.
 DEFAULT_USER_IDLE_MAX_PROMPTS = 1
+
+# --- Voice ------------------------------------------------------------------
+#
+# 🚨 Measured on 2026-09-14, and it changes what this lot could expose:
+# ``silence_time_s=1.0`` is passed on sixteen of the seventeen voice branches
+# and has NO EFFECT AT ALL. Pipecat only pushes that silence when
+# ``push_silence_after_stop`` is True, and nothing in Dograh -- or in Pipecat
+# itself -- ever sets it. So the duration alone would be a setting that does
+# nothing: worse than no setting, because someone would raise it, hear no
+# change, and stop trusting the screen.
+#
+# 🔒 The switch is therefore exposed WITH the duration, and it is OFF by
+# default -- which is exactly today's behaviour, since the silence is not
+# pushed today either.
+DEFAULT_TTS_PUSH_SILENCE_AFTER_STOP = False
+DEFAULT_TTS_SILENCE_TIME_S = 1.0
+DEFAULT_TTS_TEXT_AGGREGATION_MODE = "sentence"
 MAX_CALL_DISPOSITIONS = 50
 MAX_CALL_DISPOSITION_CODE_LENGTH = 64
 MAX_CALL_DISPOSITION_DESCRIPTION_LENGTH = 1_000
@@ -396,6 +413,41 @@ class WorkflowConfigurationDefaults(BaseModel):
             "free and runs locally. ⚠️ A noise filter can just as easily get "
             "in the transcription's way: it is judged on a real phone line, "
             "not on a browser call."
+        ),
+    )
+    tts_push_silence_after_stop: bool = Field(
+        default=DEFAULT_TTS_PUSH_SILENCE_AFTER_STOP,
+        description=(
+            "Add a moment of silence after the agent finishes speaking. Off "
+            "today, which is why the duration below currently changes "
+            "nothing. Useful where a phone line clips the last syllable."
+        ),
+    )
+    tts_silence_time_s: float = Field(
+        default=DEFAULT_TTS_SILENCE_TIME_S,
+        ge=0,
+        le=10,
+        description=(
+            "How long that silence lasts. ⚠️ Only used when the switch above "
+            "is on."
+        ),
+    )
+    tts_text_aggregation_mode: Literal["sentence", "token"] = Field(
+        default=DEFAULT_TTS_TEXT_AGGREGATION_MODE,
+        description=(
+            "Send the text to the voice sentence by sentence, or word by word "
+            "as the model writes it. Word by word answers sooner, but it can "
+            "degrade the voice depending on the provider: judge it by ear."
+        ),
+    )
+    tts_replacements: list[str] = Field(
+        default_factory=list,
+        max_length=200,
+        description=(
+            "Words the voice mispronounces, written as heard:spoken -- for "
+            "instance SAV:S. A. V. Matched literally, not as a pattern, and "
+            "applied to the text sent to the voice only: the conversation "
+            "history keeps the original."
         ),
     )
     tts_markdown_filter_enabled: bool = Field(

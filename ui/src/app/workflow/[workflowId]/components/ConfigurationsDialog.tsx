@@ -19,7 +19,6 @@ import {
     AmbientNoiseConfiguration,
     DEFAULT_PROVISIONAL_VAD_PAUSE_SECS,
     DEFAULT_TURN_START_MIN_WORDS,
-    DEFAUTS_PIPECAT,
     ExternalPBXFieldMapping,
     resolveWorkflowConfigurations,
     TURN_START_STRATEGY_OPTIONS,
@@ -36,7 +35,28 @@ interface ConfigurationsDialogProps {
     onSave: (configurations: WorkflowConfigurations, workflowName: string) => Promise<void>;
 }
 
-const CLES_RELANCE = [
+export const CLES_VOIX = [
+    "tts_markdown_filter_enabled",
+    "tts_push_silence_after_stop",
+    "tts_silence_time_s",
+    "tts_text_aggregation_mode",
+    "tts_replacements",
+] as const;
+
+const extraireVoix = (configurations: WorkflowConfigurations): ReglagesVoix =>
+    Object.fromEntries(
+        CLES_VOIX.map((cle) => [
+            cle,
+            // The replacements list is the one key with no scalar default: an
+            // agent that never touched it has nothing stored, and the pastille
+            // field would render on undefined.
+            cle === "tts_replacements"
+                ? ((configurations as Record<string, unknown>)[cle] ?? [])
+                : (configurations as Record<string, unknown>)[cle],
+        ])
+    ) as unknown as ReglagesVoix;
+
+export const CLES_RELANCE = [
     "user_idle_prompt",
     "user_idle_goodbye_prompt",
     "user_idle_max_prompts",
@@ -50,14 +70,37 @@ const extraireRelance = (
     ) as unknown as ReglagesRelance;
 
 // [.mark] The turn-taking keys, pulled out of the resolved configuration.
-// ⛔ Listed from the defaults object rather than typed out again: a setting
-// added to one list and forgotten in the other would render and then be
-// dropped on save, in silence.
+//
+// 🚨 Listed explicitly, and NOT as `Object.keys(DEFAUTS_PIPECAT)`. That
+// shortcut made this section carry every Pipecat key, voice ones included;
+// spread after the voice section on save, it silently put the voice settings
+// back to the values they had when the dialog opened. So flipping the
+// markdown switch and saving stored `false`. Measured 2026-09-14, and it is
+// exactly the defect `cles-des-sections.test.ts` now guards against.
+export const CLES_TOUR_DE_PAROLE = [
+    "user_speech_timeout",
+    "stt_ttfs_p99_latency",
+    "user_turn_stop_timeout",
+    "turn_wait_for_transcript",
+    "turn_start_use_interim",
+    "vad_confidence",
+    "vad_start_secs",
+    "vad_stop_secs",
+    "vad_min_volume",
+    "smart_turn_pre_speech_ms",
+    "smart_turn_max_duration_secs",
+    "audio_idle_timeout",
+    "filter_incomplete_user_turns",
+    "incomplete_short_timeout",
+    "incomplete_long_timeout",
+    "audio_in_noise_filter",
+] as const;
+
 const extraireTourDeParole = (
     configurations: WorkflowConfigurations
 ): ReglagesTourDeParole =>
     Object.fromEntries(
-        Object.keys(DEFAUTS_PIPECAT).map((cle) => [
+        CLES_TOUR_DE_PAROLE.map((cle) => [
             cle,
             (configurations as Record<string, unknown>)[cle],
         ])
@@ -104,9 +147,9 @@ export const ConfigurationsDialog = ({
         resolvedWorkflowConfigurations.external_pbx_field_mappings
     );
     // [.mark] Pipecat settings grouped by section, each section in our own component.
-    const [reglagesVoix, setReglagesVoix] = useState<ReglagesVoix>({
-        tts_markdown_filter_enabled: resolvedWorkflowConfigurations.tts_markdown_filter_enabled,
-    });
+    const [reglagesVoix, setReglagesVoix] = useState<ReglagesVoix>(
+        () => extraireVoix(resolvedWorkflowConfigurations)
+    );
     const [reglagesTourDeParole, setReglagesTourDeParole] = useState<ReglagesTourDeParole>(
         () => extraireTourDeParole(resolvedWorkflowConfigurations)
     );
@@ -176,9 +219,7 @@ export const ConfigurationsDialog = ({
             setTurnStopStrategy(nextWorkflowConfigurations.turn_stop_strategy);
             setContextCompactionEnabled(nextWorkflowConfigurations.context_compaction_enabled);
             setExternalPbxFieldMappings(nextWorkflowConfigurations.external_pbx_field_mappings);
-            setReglagesVoix({
-                tts_markdown_filter_enabled: nextWorkflowConfigurations.tts_markdown_filter_enabled,
-            });
+            setReglagesVoix(extraireVoix(nextWorkflowConfigurations));
             setReglagesTourDeParole(extraireTourDeParole(nextWorkflowConfigurations));
             setReglagesRelance(extraireRelance(nextWorkflowConfigurations));
         }

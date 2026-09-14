@@ -51,7 +51,9 @@ from api.services.pipecat import service_factory
 from api.services.pipecat.audio_config import AudioConfig
 from api.services.pipecat.service_factory import (
     construire_filtres_de_texte_voix,
+    construire_remplacements_de_voix,
     create_tts_service,
+    reglages_de_voix_communs,
 )
 
 # ⛔ The literal list every provider received before this patch. Comparing
@@ -145,10 +147,14 @@ def test_aucune_branche_ne_construit_sa_propre_liste():
         "Every branch must receive the list from construire_filtres_de_texte_voix, "
         "or a setting turned on will apply to some providers and not others."
     )
-    assert source.count("text_filters=text_filters") == 17, (
-        "Every provider branch that forwards text filters must forward the "
-        "collected list. The count changed: a provider was added or removed, "
-        "and this test is where that gets noticed."
+    assert source.count("**voix,") == 17, (
+        "Every provider branch must receive the collected voice settings. The "
+        "count changed: a provider was added or removed, and this test is "
+        "where that gets noticed."
+    )
+    assert "silence_time_s=1.0" not in source, (
+        "A branch passes silence_time_s as a literal again. It would then "
+        "ignore what the agent configured, on that provider alone."
     )
 
 
@@ -188,3 +194,92 @@ async def test_les_parentheses_restent_prononcees():
     assert "(un instant, je tente le transfert)" in await filtre.filter(
         "(un instant, je tente le transfert)"
     )
+
+
+# --------------------------------------------------------------------------- #
+# 6. The rest of the voice settings (lot 4)
+# --------------------------------------------------------------------------- #
+
+# ⛔ What the sixteen branches carrying `silence_time_s=1.0` actually did
+# before this patch: NOTHING. Pipecat pushes that silence only when
+# `push_silence_after_stop` is on, and nothing in Dograh or in Pipecat ever
+# turned it on. Measured 2026-09-14.
+SILENCE_POUSSE_AVANT = False
+
+
+@pytest.mark.parametrize("nom", sorted(FOURNISSEURS))
+def test_sans_reglage_la_voix_est_construite_comme_avant(nom):
+    service = _voix(FOURNISSEURS[nom]())
+    assert service._push_silence_after_stop is SILENCE_POUSSE_AVANT
+    assert str(service._text_aggregation_mode) == "sentence"
+    assert service._text_transforms == []
+
+
+def test_le_silence_apres_la_parole_est_eteint_par_defaut():
+    """🚨 The setting that could not be exposed alone.
+
+    A duration whose switch is off changes nothing whatever you type into it.
+    Someone would raise it, hear no difference, and stop trusting the screen --
+    so the switch is exposed with it, off, which is today's behaviour.
+    """
+    communs = reglages_de_voix_communs(None)
+    assert communs["push_silence_after_stop"] is False
+    assert communs["silence_time_s"] == 1.0
+
+
+def test_le_silence_sallume_avec_sa_duree():
+    communs = reglages_de_voix_communs(
+        {"tts_push_silence_after_stop": True, "tts_silence_time_s": 0.4}
+    )
+    assert communs["push_silence_after_stop"] is True
+    assert communs["silence_time_s"] == 0.4
+
+
+@pytest.mark.parametrize("nom", sorted(FOURNISSEURS))
+def test_le_mot_a_mot_arrive_sur_chaque_fournisseur(nom):
+    service = _voix(
+        FOURNISSEURS[nom](), run_configs={"tts_text_aggregation_mode": "token"}
+    )
+    assert str(service._text_aggregation_mode) == "token"
+
+
+@pytest.mark.asyncio
+async def test_un_remplacement_transforme_le_texte_envoye_a_la_voix():
+    (_, transformation), = construire_remplacements_de_voix(
+        {"tts_replacements": ["SAV:S. A. V."]}
+    )
+    assert await transformation("Appelez le SAV demain", "*") == (
+        "Appelez le S. A. V. demain"
+    )
+
+
+@pytest.mark.asyncio
+async def test_un_remplacement_est_litteral_et_non_une_expression():
+    """⛔ The screen is filled in by people running a business.
+
+    Left as a regular expression, a dot typed in "M." would match any
+    character and "(" would raise at the first call of the day.
+    """
+    (_, transformation), = construire_remplacements_de_voix(
+        {"tts_replacements": ["M.:Monsieur"]}
+    )
+    assert await transformation("M. Martin et Mx Durand", "*") == (
+        "Monsieur Martin et Mx Durand"
+    )
+    # A pattern that would be invalid as a regex must not raise here.
+    construire_remplacements_de_voix({"tts_replacements": ["(SAV):service"]})
+
+
+def test_une_entree_mal_formee_est_ignoree_et_ne_casse_rien():
+    """⛔ Skipped, not guessed at.
+
+    An empty left side would rewrite every character of every answer.
+    """
+    assert construire_remplacements_de_voix({"tts_replacements": ["sans deux points"]}) == []
+    assert construire_remplacements_de_voix({"tts_replacements": [":prononce"]}) == []
+    assert construire_remplacements_de_voix({"tts_replacements": [None, 42]}) == []
+
+
+def test_sans_remplacement_aucune_transformation_nest_posee():
+    assert construire_remplacements_de_voix(None) == []
+    assert construire_remplacements_de_voix({"tts_replacements": []}) == []

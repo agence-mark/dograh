@@ -53,6 +53,11 @@ export const DEFAUTS_PIPECAT = {
     user_idle_goodbye_prompt:
         "The user has been quiet. We will be disconnecting the call now. Wish them a good day in the language that the user has been speaking so far.",
     user_idle_max_prompts: 1,
+    tts_push_silence_after_stop: false,
+    tts_silence_time_s: 1,
+    tts_text_aggregation_mode: 'sentence',
+    tts_replacements: [],
+    tts_markdown_filter_enabled: false,
 } as const;
 
 export const TURN_START_STRATEGY_OPTIONS: Array<{
@@ -178,6 +183,10 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // reproduces the value the pipeline hardcodes TODAY: an agent that fills in
     // nothing behaves exactly as before.
     tts_markdown_filter_enabled: boolean;  // Strip markdown before the text reaches the voice
+    tts_push_silence_after_stop: boolean;  // Off until now: the duration below did nothing
+    tts_silence_time_s: number;
+    tts_text_aggregation_mode: 'sentence' | 'token';
+    tts_replacements: string[];  // heard:spoken, matched literally
     user_speech_timeout: number;  // Seconds the caller may pause before the agent answers
     stt_ttfs_p99_latency: number | null;  // Empty = the value Pipecat measured for the provider
     user_turn_stop_timeout: number;  // Hard ceiling on waiting for a transcript
@@ -219,11 +228,19 @@ const FALLBACK_WORKFLOW_CONFIGURATIONS: WorkflowConfigurations = {
     call_dispositions: [],
     external_pbx_field_mappings: [],
     external_pbx_lead_headers: [],
-    tts_markdown_filter_enabled: DEFAULT_TTS_MARKDOWN_FILTER_ENABLED,
     ...DEFAUTS_PIPECAT,
+    // ⛔ Re-stated mutable: DEFAUTS_PIPECAT is `as const` so its empty array
+    // is readonly, and the configuration type this fallback feeds is not.
+    tts_replacements: [],
 };
 
-type ReglagesPipecatResolus = typeof DEFAUTS_PIPECAT;
+// ⛔ Mutable: DEFAUTS_PIPECAT is `as const`, so its list default is readonly,
+// and the configuration type this feeds is not.
+type ReglagesPipecatResolus = {
+    -readonly [K in keyof typeof DEFAUTS_PIPECAT]: K extends "tts_replacements"
+        ? string[]
+        : (typeof DEFAUTS_PIPECAT)[K];
+};
 
 function resoudreReglagesPipecat(
     configurations?: Partial<WorkflowConfigurations> | null,
@@ -311,12 +328,6 @@ export function resolveWorkflowConfigurations(
         // JSON nulls for keys the client never touched, and spreading them would
         // draw an empty field where the pipeline runs a value.
         ...resoudreReglagesPipecat(configurations, defaults),
-        tts_markdown_filter_enabled:
-            configurations?.tts_markdown_filter_enabled
-            // Cast until `npm run generate-client` runs against a backend
-            // carrying this field; the generated defaults type predates it.
-            ?? (defaults?.tts_markdown_filter_enabled as boolean | undefined)
-            ?? FALLBACK_WORKFLOW_CONFIGURATIONS.tts_markdown_filter_enabled,
         transcript_configuration: {
             ...DEFAULT_TRANSCRIPT_CONFIGURATION,
             ...(defaults?.transcript_configuration as Partial<TranscriptConfiguration> | undefined),
