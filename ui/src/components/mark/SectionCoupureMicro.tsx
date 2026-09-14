@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
 /**
- * [.mark] The "Interruptions" section of an agent's configuration dialog.
+ * [.mark] The "Interruptions" section of an agent's settings page.
  *
  * What it settles in a real call: the greeting cut in half by a "hello", and
  * the transfer interrupted halfway through.

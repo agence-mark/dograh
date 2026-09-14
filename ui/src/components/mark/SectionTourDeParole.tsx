@@ -9,14 +9,16 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
+import { attributsDeBorne, messageHorsBornes } from "./bornes-reglages";
+
 /**
- * [.mark] The "Turn taking" section of an agent's configuration dialog.
+ * [.mark] The "Turn taking" section of an agent's settings page.
  *
  * What it settles: the agent that talks over the caller, or leaves a silence.
  * It is the section that weighs most on how the agent is perceived, and every
  * value in it used to be a literal in the pipeline that nobody had chosen.
  *
- * 🔒 No default is chosen here either: the dialog hands over values already
+ * 🔒 No default is chosen here either: the page hands over values already
  * resolved, and every resolved default reproduces what the pipeline ran with
  * before this patch.
  *
@@ -67,24 +69,35 @@ export const SectionTourDeParole = ({
     tourPiloteAilleurs,
     smartTurnActif,
 }: SectionTourDeParoleProps) => {
-    const nombre = (cle: CleNumerique, etiquette: string, aide: string, pas = "0.1") => (
-        <div className="space-y-2">
-            <Label htmlFor={cle} className="text-xs">
-                {etiquette}
-            </Label>
-            <Input
-                id={cle}
-                type="number"
-                step={pas}
-                value={reglages[cle]}
-                onChange={(e) => {
-                    const valeur = parseFloat(e.target.value);
-                    if (!isNaN(valeur)) onChange({ ...reglages, [cle]: valeur });
-                }}
-            />
-            <p className="text-xs text-muted-foreground">{aide}</p>
-        </div>
-    );
+    const nombre = (cle: CleNumerique, etiquette: string, aide: string, pas = "0.1") => {
+        // The server bounds every one of these. Until 2026-09-14 the screen
+        // bounded none: one spinner arrow too many meant a 422, and the save
+        // failed without a word -- taking the three other blocks of the card
+        // down with it, since the payload carries the whole configuration.
+        const erreur = messageHorsBornes(cle, reglages[cle]);
+        return (
+            <div className="space-y-2">
+                <Label htmlFor={cle} className="text-xs">
+                    {etiquette}
+                </Label>
+                <Input
+                    id={cle}
+                    type="number"
+                    step={pas}
+                    {...attributsDeBorne(cle)}
+                    aria-invalid={erreur ? true : undefined}
+                    value={reglages[cle]}
+                    onChange={(e) => {
+                        const valeur = parseFloat(e.target.value);
+                        if (!isNaN(valeur)) onChange({ ...reglages, [cle]: valeur });
+                    }}
+                />
+                {erreur
+                    ? <p className="text-xs text-destructive">{erreur}</p>
+                    : <p className="text-xs text-muted-foreground">{aide}</p>}
+            </div>
+        );
+    };
 
     const interrupteur = (cle: CleBooleenne, etiquette: string, aide: string) => (
         <div className="space-y-2">

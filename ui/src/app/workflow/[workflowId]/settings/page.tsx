@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { ArrowLeft, BookA, Brain, CalendarIcon, Clipboard, Download, ExternalLink, FileDown, Fingerprint, Loader2, Mic, Pause, PhoneOff, Play, Plus, Rocket, Settings, Trash2Icon, Upload, Variable, X } from "lucide-react";
+import { ArrowLeft, BookA, Brain, CalendarIcon, Clipboard, Download, ExternalLink, FileDown, Fingerprint, Loader2, Mic, Pause, PhoneOff, Play, Plus, Rocket, Settings, SlidersHorizontal, Trash2Icon, Upload, Variable, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -27,6 +27,7 @@ import {
 import { FlowEdge, FlowNode } from "@/components/flow/types";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
 import { PerServiceModelOverride } from "@/components/mark/PerServiceModelOverride";
+import { ID_SECTION_REGLAGES_PIPECAT, SectionReglagesPipecat } from "@/components/mark/SectionReglagesPipecat";
 import SpinLoader from "@/components/SpinLoader";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -103,6 +104,9 @@ Respond with ONLY "CONVERSATION" if a person answered, or "VOICEMAIL" if it's vo
 // Sidebar navigation items
 const NAV_ITEMS = [
     { id: "general", label: "General", icon: Settings },
+    // [.mark] Our Pipecat settings section. The id MUST match the card id, or the
+    // intersection observer below never highlights this entry.
+    { id: ID_SECTION_REGLAGES_PIPECAT, label: "Speech Tuning", icon: SlidersHorizontal },
     { id: "models", label: "Model Overrides", icon: Brain },
     { id: "variables", label: "Template Variables", icon: Variable },
     { id: "dictionary", label: "Dictionary", icon: BookA },
@@ -1806,6 +1810,13 @@ function WorkflowSettingsInner({
                                 defaultCallDispositions={defaultCallDispositions}
                                 workflowName={workflowName || workflow.name}
                                 workflowId={workflowId}
+                                onSave={saveWorkflowConfigurations}
+                            />
+
+                            {/* [.mark] Speech Tuning */}
+                            <SectionReglagesPipecat
+                                workflowConfigurations={resolvedWorkflowConfigurationsForRender}
+                                workflowName={workflowName || workflow.name}
                                 onSave={saveWorkflowConfigurations}
                             />
 

@@ -27,6 +27,12 @@ export interface ChampEtiquettesProps {
     onChange: (valeurs: string[]) => void;
     placeholder?: string;
     id?: string;
+    /**
+     * The most entries the server accepts. Beyond it the save returns 422, so
+     * the field stops taking entries and says why rather than letting someone
+     * type a 201st and lose the whole save.
+     */
+    maxElements?: number;
 }
 
 export function ChampEtiquettes({
@@ -34,6 +40,7 @@ export function ChampEtiquettes({
     onChange,
     placeholder,
     id,
+    maxElements,
 }: ChampEtiquettesProps) {
     const [saisie, setSaisie] = useState("");
 
@@ -50,7 +57,13 @@ export function ChampEtiquettes({
             setSaisie("");
             return;
         }
-        onChange([...valeurs, ...nouvelles]);
+        // Truncate rather than refuse the whole paste: pasting 250 words and
+        // getting nothing, with no explanation, is worse than keeping the 200
+        // that fit and saying so.
+        const place = maxElements === undefined
+            ? nouvelles.length
+            : Math.max(0, maxElements - valeurs.length);
+        onChange([...valeurs, ...nouvelles.slice(0, place)]);
         setSaisie("");
     };
 
@@ -58,13 +71,16 @@ export function ChampEtiquettes({
         onChange(valeurs.filter(v => v !== valeur));
     };
 
+    const plein = maxElements !== undefined && valeurs.length >= maxElements;
+
     return (
         <div className="space-y-2">
             <Input
                 id={id}
                 type="text"
                 value={saisie}
-                placeholder={placeholder}
+                disabled={plein}
+                placeholder={plein ? `Limit reached (${maxElements})` : placeholder}
                 onChange={e => setSaisie(e.target.value)}
                 onKeyDown={e => {
                     if (e.key !== "Enter") return;
@@ -80,6 +96,11 @@ export function ChampEtiquettes({
                     if (e.target.value.trim().length > 0) ajouter(e.target.value);
                 }}
             />
+            {plein && (
+                <p className="text-xs text-muted-foreground">
+                    {maxElements} entries is the maximum. Remove one to add another.
+                </p>
+            )}
             {valeurs.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                     {valeurs.map(valeur => (

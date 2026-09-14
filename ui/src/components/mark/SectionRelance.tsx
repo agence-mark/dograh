@@ -2,8 +2,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+import { attributDeLongueur, attributsDeBorne, messageHorsBornes } from "./bornes-reglages";
+
 /**
- * [.mark] The "Idle prompts" section of an agent's configuration dialog.
+ * [.mark] The "Idle prompts" section of an agent's settings page.
  *
  * What it settles: a caller who goes quiet was answered in English, by two
  * instructions written into the pipeline, and hung up on after exactly one
@@ -47,6 +49,7 @@ export const SectionRelance = ({ reglages, onChange }: SectionRelanceProps) => (
             </Label>
             <Textarea
                 id="user_idle_prompt"
+                {...attributDeLongueur("user_idle_prompt")}
                 rows={3}
                 value={reglages.user_idle_prompt}
                 onChange={(e) =>
@@ -63,7 +66,12 @@ export const SectionRelance = ({ reglages, onChange }: SectionRelanceProps) => (
                 id="user_idle_max_prompts"
                 type="number"
                 step="1"
-                min="0"
+                {...attributsDeBorne("user_idle_max_prompts")}
+                aria-invalid={
+                    messageHorsBornes("user_idle_max_prompts", reglages.user_idle_max_prompts)
+                        ? true
+                        : undefined
+                }
                 value={reglages.user_idle_max_prompts}
                 onChange={(e) => {
                     const valeur = parseInt(e.target.value, 10);
@@ -72,9 +80,17 @@ export const SectionRelance = ({ reglages, onChange }: SectionRelanceProps) => (
                     }
                 }}
             />
-            <p className="text-xs text-muted-foreground">
-                0 hangs up on the first silence, with the goodbye below.
-            </p>
+            {messageHorsBornes("user_idle_max_prompts", reglages.user_idle_max_prompts)
+                ? (
+                    <p className="text-xs text-destructive">
+                        {messageHorsBornes("user_idle_max_prompts", reglages.user_idle_max_prompts)}
+                    </p>
+                )
+                : (
+                    <p className="text-xs text-muted-foreground">
+                        0 hangs up on the first silence, with the goodbye below.
+                    </p>
+                )}
         </div>
 
         <div className="space-y-2">
@@ -83,6 +99,7 @@ export const SectionRelance = ({ reglages, onChange }: SectionRelanceProps) => (
             </Label>
             <Textarea
                 id="user_idle_goodbye_prompt"
+                {...attributDeLongueur("user_idle_goodbye_prompt")}
                 rows={3}
                 value={reglages.user_idle_goodbye_prompt}
                 onChange={(e) =>

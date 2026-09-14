@@ -9,16 +9,17 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
+import { attributsDeBorne, messageHorsBornes, NOMBRE_MAX_ELEMENTS } from "./bornes-reglages";
 import { ChampEtiquettes } from "./ChampEtiquettes";
 
 /**
- * [.mark] The "Voice" section of an agent's configuration dialog.
+ * [.mark] The "Voice" section of an agent's settings page.
  *
  * Lives in our own folder and is imported in one line by
- * `ConfigurationsDialog.tsx`, so an upstream change to that 500-line
+ * `SectionReglagesPipecat.tsx`, so an upstream change to that 1 900-line
  * hand-written file does not collide with ours on every version bump.
  *
- * 🔒 Defaults are not chosen here: the dialog hands over the value already
+ * 🔒 Defaults are not chosen here: the page hands over the value already
  * resolved, and every resolved default reproduces what the pipeline hardcodes
  * today.
  */
@@ -116,7 +117,12 @@ export const SectionVoix = ({ reglages, onChange }: SectionVoixProps) => (
                         id="tts_silence_time_s"
                         type="number"
                         step="0.1"
-                        min="0"
+                        {...attributsDeBorne("tts_silence_time_s")}
+                        aria-invalid={
+                            messageHorsBornes("tts_silence_time_s", reglages.tts_silence_time_s)
+                                ? true
+                                : undefined
+                        }
                         value={reglages.tts_silence_time_s}
                         onChange={(e) => {
                             const valeur = parseFloat(e.target.value);
@@ -125,6 +131,11 @@ export const SectionVoix = ({ reglages, onChange }: SectionVoixProps) => (
                             }
                         }}
                     />
+                    {messageHorsBornes("tts_silence_time_s", reglages.tts_silence_time_s) && (
+                        <p className="text-xs text-destructive">
+                            {messageHorsBornes("tts_silence_time_s", reglages.tts_silence_time_s)}
+                        </p>
+                    )}
                 </div>
             )}
 
@@ -139,6 +150,7 @@ export const SectionVoix = ({ reglages, onChange }: SectionVoixProps) => (
                         onChange({ ...reglages, tts_replacements: valeurs })
                     }
                     placeholder="SAV:S. A. V."
+                    maxElements={NOMBRE_MAX_ELEMENTS.tts_replacements}
                 />
                 <p className="text-xs text-muted-foreground">
                     Written heard:spoken, matched literally. Only the text sent to the
