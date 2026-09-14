@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-import { attributsDeBorne, messageHorsBornes } from "./bornes-reglages";
+import { attributDeLongueur, attributsDeBorne, messageHorsBornes } from "./bornes-reglages";
 
 /**
  * [.mark] The "Idle prompts" section of an agent's settings page.
@@ -49,6 +49,7 @@ export const SectionRelance = ({ reglages, onChange }: SectionRelanceProps) => (
             </Label>
             <Textarea
                 id="user_idle_prompt"
+                {...attributDeLongueur("user_idle_prompt")}
                 rows={3}
                 value={reglages.user_idle_prompt}
                 onChange={(e) =>
@@ -98,6 +99,7 @@ export const SectionRelance = ({ reglages, onChange }: SectionRelanceProps) => (
             </Label>
             <Textarea
                 id="user_idle_goodbye_prompt"
+                {...attributDeLongueur("user_idle_goodbye_prompt")}
                 rows={3}
                 value={reglages.user_idle_goodbye_prompt}
                 onChange={(e) =>

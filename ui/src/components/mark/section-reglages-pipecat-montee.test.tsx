@@ -172,7 +172,10 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         ).toBeTruthy();
     });
 
-    it("can be saved from the page, so it is not read-only decoration", async () => {
+    it("carries its own Save button on the page (existence only -- it is disabled until something changes)", async () => {
+        // Honest title: this asserts the button EXISTS, not that a save round
+        // trip works. It is disabled at this instant, nothing having changed.
+        // What saving actually does is `section-reglages-pipecat.test.tsx`.
         await rendreLaPage();
         expect(screen.getByRole("button", { name: /save speech tuning/i })).toBeTruthy();
     });
@@ -190,9 +193,13 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         expect(container.querySelector(`#${ID_SECTION_REGLAGES_PIPECAT}`)).not.toBeNull();
     });
 
-    it("sits on a real route, reached by the gear on the agent canvas", async () => {
-        // The one link JSDOM cannot render: Next routes by file path, so the
-        // file existing at this path IS the route, and the canvas pushes to it.
+    it("sits at the file path Next turns into the route, and the canvas SOURCE pushes to it", async () => {
+        // Honest title: the second half is a text assertion on their file --
+        // the same class of check thrown out one floor below, and acceptable
+        // only here. Two reasons: Next routes by file path, so the URL works
+        // whatever that button does, and the button is upstream code we do not
+        // own. What this really guarantees is the route; the gear is a
+        // convenience whose loss would not make the settings unreachable.
         const canevas = readFileSync(
             join(process.cwd(), "src/app/workflow/[workflowId]/RenderWorkflow.tsx"),
             "utf8",

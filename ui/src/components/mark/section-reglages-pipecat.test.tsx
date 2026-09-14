@@ -392,7 +392,10 @@ describe("Section Reglages vocaux de la page de parametres", () => {
             target: { value: "0" },
         });
 
-        expect(document.body.textContent).toMatch(/1 setting is out of range/i);
+        // Nomme, jamais seulement compte : la carte est longue, et un reglage
+        // peut etre hors bornes alors que son champ est MASQUE.
+        expect(document.body.textContent).toMatch(/vad_stop_secs/);
+        expect(document.body.textContent).toMatch(/greater than 0/i);
         expect(
             (screen.getByRole("button", { name: /save/i }) as HTMLButtonElement).disabled,
         ).toBe(true);
@@ -421,7 +424,7 @@ describe("Section Reglages vocaux de la page de parametres", () => {
         expect(
             (screen.getByRole("button", { name: /save/i }) as HTMLButtonElement).disabled,
         ).toBe(false);
-        expect(document.body.textContent).not.toMatch(/out of range/i);
+        expect(document.body.textContent).not.toMatch(/greater than 0/i);
     });
 
     it("dit quand l'enregistrement a echoue, au lieu de laisser croire au succes", async () => {

@@ -26,6 +26,16 @@
  * And why `min`/`max` attributes are not enough on their own: HTML bounds are
  * inclusive, while several of these settings are strictly greater than zero
  * (`gt=0`). The attributes are the hint; `messageHorsBornes` is the check.
+ *
+ * Three kinds of bound live here, and all three are mirrored: numeric ranges
+ * (`BORNES`), text lengths (`LONGUEURS_MAX`) and list sizes
+ * (`NOMBRE_MAX_ELEMENTS`). Only the first was there on the first pass. The
+ * second came from review -- the two idle-prompt instructions are capped at
+ * 2000 characters server-side and nothing said so. The third came from the
+ * test written for the second: Pydantic spells both "max_length", but on
+ * `list[str]` it counts ITEMS, not characters, and the pronunciation list is
+ * capped at 200 entries. Same word, different bound; mixing them would have
+ * put `maxLength=200` on a field where it means something else entirely.
  */
 
 export interface Borne {
@@ -59,6 +69,33 @@ export const BORNES: Record<string, Borne> = {
     tts_silence_time_s: { min: 0, minStrict: false, max: 10 },
     // Idle prompts
     user_idle_max_prompts: { min: 0, minStrict: false, max: 10 },
+};
+
+/**
+ * The `max_length` the schema puts on our text settings.
+ *
+ * Unlike the numeric ranges, a text field CAN be bounded by the browser alone
+ * (`maxLength` simply stops the typing), so there is no message to show -- but
+ * the value still has to be mirrored, and still has to be checked against the
+ * schema.
+ */
+export const LONGUEURS_MAX: Record<string, number> = {
+    user_idle_prompt: 2000,
+    user_idle_goodbye_prompt: 2000,
+};
+
+/**
+ * The most entries a list setting accepts, from the same `max_length` keyword
+ * applied to a `list[...]` field -- where Pydantic counts ITEMS.
+ */
+export const NOMBRE_MAX_ELEMENTS: Record<string, number> = {
+    tts_replacements: 200,
+};
+
+/** The `maxLength` attribute for a TEXT setting, or nothing when unbounded. */
+export const attributDeLongueur = (cle: string): { maxLength?: number } => {
+    const longueur = LONGUEURS_MAX[cle];
+    return longueur === undefined ? {} : { maxLength: longueur };
 };
 
 /**

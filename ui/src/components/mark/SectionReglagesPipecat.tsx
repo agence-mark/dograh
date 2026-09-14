@@ -315,10 +315,18 @@ export const SectionReglagesPipecat = ({
             </CardContent>
             <CardFooter className="justify-end gap-3 border-t pt-6">
                 {nombreDeFautifs > 0 && (
+                    // NAME them, never just count them. Two reasons, both from
+                    // review: this card is long, so "1 setting is out of range"
+                    // makes you hunt; and a setting can be out of range while
+                    // its field is HIDDEN (the whole turn-taking block when the
+                    // transcription drives the turns, the Smart Turn fields
+                    // when that strategy is off, the silence duration when the
+                    // silence is off). Counting alone would then lock the card
+                    // with nothing on screen to fix -- a dead end.
                     <span className="text-xs text-destructive">
-                        {nombreDeFautifs === 1
-                            ? "1 setting is out of range"
-                            : `${nombreDeFautifs} settings are out of range`}
+                        {Object.entries(fautifs)
+                            .map(([cle, message]) => `${cle}: ${message}`)
+                            .join(" ")}
                     </span>
                 )}
                 {nombreDeFautifs === 0 && isDirty && (

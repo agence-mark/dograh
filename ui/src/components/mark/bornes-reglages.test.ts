@@ -13,10 +13,16 @@
  * table in `bornes-reglages.ts` is not trusted: it is READ BACK against the
  * Python file. A bound that drifts breaks this test rather than a save.
  *
- * It also asserts the reverse direction: every bounded setting our sections
- * show has a line in the table. A new numeric setting added to a section
- * without its bound would otherwise be unchecked, which is exactly the state
- * this whole file was written to leave behind.
+ * It also asserts the reverse direction, for each of the three kinds of bound:
+ * every bounded setting our sections show has a line in the RIGHT table
+ * (numeric range, text length, or list size), and each count matches, so a
+ * bound the parser cannot read turns red instead of vanishing. A setting added
+ * to a section without its bound would otherwise be unchecked, which is exactly
+ * the state this whole file was written to leave behind.
+ *
+ * The third table came from writing the second: Pydantic spells "max_length"
+ * for both a `str` and a `list[str]`, and it means characters on one and items
+ * on the other. The test caught it; no review did.
  */
 
 import { readFileSync } from "node:fs";
@@ -24,7 +30,13 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { BORNES, messageHorsBornes, messagesHorsBornes } from "./bornes-reglages";
+import {
+    BORNES,
+    LONGUEURS_MAX,
+    messageHorsBornes,
+    messagesHorsBornes,
+    NOMBRE_MAX_ELEMENTS,
+} from "./bornes-reglages";
 import { CLES_RELANCE, CLES_TOUR_DE_PAROLE, CLES_VOIX } from "./SectionReglagesPipecat";
 
 // vitest runs with the ui/ package as its working directory; the schema is one
@@ -42,16 +54,34 @@ const bornesDuSchema = (cle: string) => {
     const bloc = SCHEMA.slice(depart, fin === -1 ? undefined : fin);
 
     const lire = (nom: string) => {
+        // ⚠️ Deliberately NUMERIC only. A bound written as a named constant
+        // (`le=MAX_VAD_STOP_SECS` — the schema already does this elsewhere,
+        // `max_length=MAX_CALL_DISPOSITION_CODE_LENGTH`) does NOT match here,
+        // and would read as "no bound at all". That is exactly why the count
+        // assertions below exist: a bound this parser cannot read has to turn
+        // red, not vanish.
         const m = bloc.match(new RegExp(`\\b${nom}=([0-9.]+)`));
         return m ? Number(m[1]) : null;
     };
-    return { gt: lire("gt"), ge: lire("ge"), le: lire("le"), lt: lire("lt") };
+    return {
+        gt: lire("gt"),
+        ge: lire("ge"),
+        le: lire("le"),
+        lt: lire("lt"),
+        maxLength: lire("max_length"),
+        // ⚠️ Pydantic spells the same keyword for both, but on a `list[...]`
+        // it counts ITEMS and on a `str` it counts CHARACTERS. Treating them
+        // alike would put a 200-character cap on a 200-ENTRY list.
+        estUneListe: /^\s+\w+:\s*list\[/.test(bloc),
+    };
 };
 
 describe("Les bornes affichees a l'ecran", () => {
     it("trouve bien le schema Python (sinon tout le reste est vide et vert pour rien)", () => {
         expect(SCHEMA).toContain("user_speech_timeout");
-        expect(bornesDuSchema("vad_stop_secs")).toEqual({ gt: 0, ge: null, le: 5, lt: null });
+        expect(bornesDuSchema("vad_stop_secs")).toEqual({
+            gt: 0, ge: null, le: 5, lt: null, maxLength: null, estUneListe: false,
+        });
     });
 
     it.each(Object.keys(BORNES))("correspondent au schema du serveur pour %s", (cle) => {
@@ -85,6 +115,53 @@ describe("Les bornes affichees a l'ecran", () => {
 
         const nonCouvertes = bornesAuSchema.filter((cle) => !(cle in BORNES));
         expect(nonCouvertes).toEqual([]);
+
+        // 🚨 Signale par la contre-relecture du 14/09, et ce n'etait pas
+        // theorique : sans cette ligne, un champ que le parseur n'arrive PAS a
+        // lire compte comme « non borne », sort du controle en silence, et on
+        // retombe exactement dans le defaut que ce fichier ferme. Avec elle,
+        // tout echec d'analyse devient rouge.
+        expect(bornesAuSchema.length).toBe(Object.keys(BORNES).length);
+    });
+
+    it("couvrent aussi les LONGUEURS de texte que le schema plafonne", () => {
+        // Oubliees au premier passage, trouvees par la relecture : les deux
+        // consignes de relance sont plafonnees a 2000 caracteres cote serveur
+        // et rien ne le disait a l'ecran.
+        const cles = [...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE] as string[];
+        const textesPlafonnes = cles.filter((cle) => {
+            const s = bornesDuSchema(cle);
+            return s !== null && s.maxLength !== null && !s.estUneListe;
+        });
+
+        expect(textesPlafonnes.filter((cle) => !(cle in LONGUEURS_MAX))).toEqual([]);
+        expect(textesPlafonnes.length).toBe(Object.keys(LONGUEURS_MAX).length);
+
+        for (const cle of Object.keys(LONGUEURS_MAX)) {
+            expect(bornesDuSchema(cle)?.maxLength, `${cle} : longueur maximale`)
+                .toBe(LONGUEURS_MAX[cle]);
+        }
+    });
+
+    it("couvrent aussi le NOMBRE D'ELEMENTS des listes plafonnees", () => {
+        // 🚨 Trouve par le test ecrit pour le point precedent, pas par une
+        // relecture : `tts_replacements` porte le MEME mot-cle `max_length`,
+        // mais sur une `list[str]` Pydantic compte des ELEMENTS. Les confondre
+        // aurait pose un plafond de 200 caracteres sur une liste de 200
+        // entrees -- un reglage affiche dans un etat qui n'est pas le sien.
+        const cles = [...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE] as string[];
+        const listesPlafonnees = cles.filter((cle) => {
+            const s = bornesDuSchema(cle);
+            return s !== null && s.maxLength !== null && s.estUneListe;
+        });
+
+        expect(listesPlafonnees.filter((cle) => !(cle in NOMBRE_MAX_ELEMENTS))).toEqual([]);
+        expect(listesPlafonnees.length).toBe(Object.keys(NOMBRE_MAX_ELEMENTS).length);
+
+        for (const cle of Object.keys(NOMBRE_MAX_ELEMENTS)) {
+            expect(bornesDuSchema(cle)?.maxLength, `${cle} : nombre maximal d'elements`)
+                .toBe(NOMBRE_MAX_ELEMENTS[cle]);
+        }
     });
 });
 

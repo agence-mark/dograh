@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
-import { attributsDeBorne, messageHorsBornes } from "./bornes-reglages";
+import { attributsDeBorne, messageHorsBornes, NOMBRE_MAX_ELEMENTS } from "./bornes-reglages";
 import { ChampEtiquettes } from "./ChampEtiquettes";
 
 /**
@@ -150,6 +150,7 @@ export const SectionVoix = ({ reglages, onChange }: SectionVoixProps) => (
                         onChange({ ...reglages, tts_replacements: valeurs })
                     }
                     placeholder="SAV:S. A. V."
+                    maxElements={NOMBRE_MAX_ELEMENTS.tts_replacements}
                 />
                 <p className="text-xs text-muted-foreground">
                     Written heard:spoken, matched literally. Only the text sent to the
