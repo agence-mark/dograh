@@ -161,9 +161,18 @@ def _create_non_realtime_user_turn_start_strategies(
     run_configs: dict,
     *,
     uses_external_turns: bool,
-    reglages: ReglagesTourDeParole,
+    reglages: ReglagesTourDeParole | None = None,
 ):
-    """Return user turn start strategies for non-realtime pipelines."""
+    """Return user turn start strategies for non-realtime pipelines.
+
+    [.mark] ``reglages`` is optional and derived from ``run_configs`` when it
+    is not given. Making it required would have been the obvious way to write
+    it, and it broke eighteen upstream tests that call this function with the
+    configuration alone -- for no gain: the settings come from ``run_configs``
+    either way. Keeping the old signature valid is one less conflict on every
+    version bump.
+    """
+    reglages = reglages or collecter_reglages_tour_de_parole(run_configs)
 
     turn_start_strategy = run_configs.get(
         "turn_start_strategy", DEFAULT_TURN_START_STRATEGY
@@ -202,9 +211,13 @@ def _create_non_realtime_user_turn_stop_strategies(
     run_configs: dict,
     *,
     uses_external_turns: bool,
-    reglages: ReglagesTourDeParole,
+    reglages: ReglagesTourDeParole | None = None,
 ):
-    """Return user turn stop strategies for non-realtime pipelines."""
+    """Return user turn stop strategies for non-realtime pipelines.
+
+    [.mark] ``reglages`` optional, same reason as the start strategies above.
+    """
+    reglages = reglages or collecter_reglages_tour_de_parole(run_configs)
 
     if uses_external_turns:
         return [ExternalUserTurnStopStrategy()]
@@ -261,14 +274,20 @@ def _construire_parametres_agregateur_utilisateur(
     )
 
 
-def _create_realtime_user_turn_config(provider: str, reglages: ReglagesTourDeParole):
+def _create_realtime_user_turn_config(
+    provider: str, reglages: ReglagesTourDeParole | None = None
+):
     """Return user turn strategies and optional local VAD for realtime providers.
 
     ⚠️ [.mark] The agent's voice-detector settings apply here too: this is the
     SECOND place the detector is built, and wiring the settings only into the
     non-realtime path would leave realtime agents on values nobody chose,
     silently. The turn strategies themselves stay the provider's business.
+
+    ``reglages`` is optional and falls back to today's values, so the upstream
+    signature stays valid -- one less conflict on every version bump.
     """
+    reglages = reglages or collecter_reglages_tour_de_parole(None)
 
     def external_provider_turn_config():
         return (
