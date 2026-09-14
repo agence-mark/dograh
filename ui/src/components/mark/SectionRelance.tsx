@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 /**
- * [.mark] The "Idle prompts" section of an agent's configuration dialog.
+ * [.mark] The "Idle prompts" section of an agent's settings page.
  *
  * What it settles: a caller who goes quiet was answered in English, by two
  * instructions written into the pipeline, and hung up on after exactly one

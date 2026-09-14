@@ -12,13 +12,13 @@ import { Switch } from "@/components/ui/switch";
 import { ChampEtiquettes } from "./ChampEtiquettes";
 
 /**
- * [.mark] The "Voice" section of an agent's configuration dialog.
+ * [.mark] The "Voice" section of an agent's settings page.
  *
  * Lives in our own folder and is imported in one line by
- * `ConfigurationsDialog.tsx`, so an upstream change to that 500-line
+ * `SectionReglagesPipecat.tsx`, so an upstream change to that 1 900-line
  * hand-written file does not collide with ours on every version bump.
  *
- * 🔒 Defaults are not chosen here: the dialog hands over the value already
+ * 🔒 Defaults are not chosen here: the page hands over the value already
  * resolved, and every resolved default reproduces what the pipeline hardcodes
  * today.
  */

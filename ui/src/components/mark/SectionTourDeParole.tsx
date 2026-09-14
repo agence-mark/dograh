@@ -10,13 +10,13 @@ import {
 import { Switch } from "@/components/ui/switch";
 
 /**
- * [.mark] The "Turn taking" section of an agent's configuration dialog.
+ * [.mark] The "Turn taking" section of an agent's settings page.
  *
  * What it settles: the agent that talks over the caller, or leaves a silence.
  * It is the section that weighs most on how the agent is perceived, and every
  * value in it used to be a literal in the pipeline that nobody had chosen.
  *
- * 🔒 No default is chosen here either: the dialog hands over values already
+ * 🔒 No default is chosen here either: the page hands over values already
  * resolved, and every resolved default reproduces what the pipeline ran with
  * before this patch.
  *

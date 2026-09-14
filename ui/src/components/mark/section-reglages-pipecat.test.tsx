@@ -1,30 +1,41 @@
 /**
- * [.mark] The agent's configuration dialog, rendered whole.
+ * [.mark] The Speech Tuning section of the agent settings page, rendered whole.
  *
  * The question this file answers, and only this one:
  *
- *     Are our sections actually MOUNTED in the dialog the client opens, and
- *     does saving carry their settings out unchanged?
+ *     Are the four sections actually MOUNTED in the block Evan and Pierre
+ *     open, and does saving carry their settings out unchanged?
  *
- * Why a second screen test, next to the per-section ones
- * -----------------------------------------------------
- * ⛔ Rendering a section on its own proves the section works. It does NOT
- * prove the section is on screen: deleting the one line that mounts it in
- * `ConfigurationsDialog.tsx` leaves every per-section test green. Measured on
- * 2026-09-14 while proving the rouge of `section-voix.test.tsx` — which is
- * exactly the shape of defect the screen lesson of 2026-09-10 warns about.
+ * Why a screen test next to the per-section ones
+ * ---------------------------------------------
+ * Rendering a section on its own proves the section works. It does NOT prove
+ * the section is on screen: deleting the one line that mounts it leaves every
+ * per-section test green. Measured on 2026-09-14 while proving the rouge of
+ * `section-voix.test.tsx`.
  *
- * 🔑 It also guards the other half: the dialog rebuilds the whole
- * configuration object on save. A section whose value is not spread into that
- * object renders perfectly and is thrown away on the way out, in silence.
+ * It also guards the other half: the section rebuilds the whole configuration
+ * object on save. A setting not spread into that object renders perfectly and
+ * is thrown away on the way out, in silence.
+ *
+ * And the level ABOVE this one -- is this whole section reachable by clicking
+ * in the application? -- is `section-reglages-pipecat-montee.test.tsx`. That
+ * question is not asked here, and not asking it is what cost a chantier.
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ConfigurationsDialog } from "@/app/workflow/[workflowId]/components/ConfigurationsDialog";
+import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
+
+import { SectionReglagesPipecat } from "./SectionReglagesPipecat";
 
 const organisation = { stt: { provider: "deepgram", model: "nova-3-general" } };
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
+vi.mock("@/context/UnsavedChangesContext", () => ({
+    useUnsavedChanges: () => undefined,
+}));
 
 vi.mock("@/context/OrgConfigContext", () => ({
     useOrgConfig: () => ({
@@ -42,12 +53,12 @@ vi.stubGlobal(
     },
 );
 
+// The page hands every section the RESOLVED configuration, so the harness
+// resolves here too rather than letting the section guess a default.
 const ouvrir = (configurations: Record<string, unknown> | null, onSave = vi.fn()) => {
     render(
-        <ConfigurationsDialog
-            open
-            onOpenChange={vi.fn()}
-            workflowConfigurations={configurations as never}
+        <SectionReglagesPipecat
+            workflowConfigurations={resolveWorkflowConfigurations(configurations as never)}
             workflowName="Agent de test"
             onSave={onSave}
         />,
@@ -55,7 +66,15 @@ const ouvrir = (configurations: Record<string, unknown> | null, onSave = vi.fn()
     return onSave;
 };
 
-describe("Fenetre de configuration de l'agent", () => {
+// The Save button only wakes up once something changed -- the pattern of every
+// other section on that page. So a test about what the payload carries has to
+// change something first, and the smallest honest change is this switch.
+const toucherUnReglage = () =>
+    fireEvent.click(
+        screen.getByRole("switch", { name: /strip markdown before speaking/i }),
+    );
+
+describe("Section Reglages vocaux de la page de parametres", () => {
     it("monte la section Voix", () => {
         ouvrir(null);
         expect(
@@ -133,6 +152,7 @@ describe("Fenetre de configuration de l'agent", () => {
         // "unset" and drift if a default moves.
         const onSave = ouvrir(null);
 
+        toucherUnReglage();
         fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
         expect(onSave.mock.calls[0][0]).toMatchObject({
@@ -153,6 +173,7 @@ describe("Fenetre de configuration de l'agent", () => {
         // que l'écran lui masque justement.
         const onSave = ouvrir(null);
 
+        toucherUnReglage();
         fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
         expect(onSave.mock.calls[0][0].user_turn_stop_timeout).toBeNull();
@@ -256,10 +277,55 @@ describe("Fenetre de configuration de l'agent", () => {
         // round trip untouched.
         const onSave = ouvrir({ mark_reglage_inconnu: "a garder" });
 
+        toucherUnReglage();
         fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
         expect(onSave.mock.calls[0][0]).toMatchObject({
             mark_reglage_inconnu: "a garder",
         });
+    });
+    it("laisse le bouton Enregistrer eteint tant que rien n a change", () => {
+        // The pattern of every other section of that page, and it matters more
+        // here than ailleurs: saving writes the whole RESOLVED configuration to
+        // the database. A section that could be saved untouched would freeze
+        // today's defaults on an agent that never asked for them, and a later
+        // change of default would no longer reach it.
+        ouvrir(null);
+        expect(
+            (screen.getByRole("button", { name: /save/i }) as HTMLButtonElement).disabled,
+        ).toBe(true);
+
+        toucherUnReglage();
+        expect(
+            (screen.getByRole("button", { name: /save/i }) as HTMLButtonElement).disabled,
+        ).toBe(false);
+    });
+
+    it("ne revendique aucun reglage qui appartient a la section General", async () => {
+        // The sections of that page each save {...toute la configuration,
+        // ...leurs champs}. Two sections holding the same key would undo each
+        // other's save, in silence. So ours must not carry General's.
+        const onSave = ouvrir(null);
+
+        toucherUnReglage();
+        fireEvent.click(screen.getByRole("button", { name: /save/i }));
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+        // Untouched, so they leave exactly as they arrived -- the spread of the
+        // resolved configuration, not a value this section decided.
+        const envoye = onSave.mock.calls[0][0];
+        const recu = resolveWorkflowConfigurations(null);
+        for (const cle of [
+            "max_call_duration",
+            "max_user_idle_timeout",
+            "smart_turn_stop_secs",
+            "turn_start_strategy",
+            "turn_start_min_words",
+            "provisional_vad_pause_secs",
+            "turn_stop_strategy",
+            "context_compaction_enabled",
+        ] as const) {
+            expect(envoye[cle]).toEqual(recu[cle]);
+        }
     });
 });

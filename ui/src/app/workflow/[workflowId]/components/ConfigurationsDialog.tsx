@@ -1,17 +1,25 @@
+/**
+ * ⛔ [.mark] THIS DIALOG IS MOUNTED IN NO SCREEN. Do not put anything here.
+ *
+ * It is orphaned in Dograh's own code, and it was already orphaned before our
+ * fork: checked on `b3bb7328` (the upstream base), on `20b3e12`, and against the
+ * running install. Nothing imports `ConfigurationsDialog`.
+ *
+ * It cost us a whole chantier on 2026-09-14: 29 Pipecat settings were added
+ * here, the server was right, the settings were in the published spec, 359
+ * tests were green — and nobody could touch a single one of them.
+ *
+ * ✅ THE REAL SCREEN IS `app/workflow/[workflowId]/settings/page.tsx`, reached
+ * by the gear on the agent canvas. Our settings now live there, in
+ * `components/mark/SectionReglagesPipecat.tsx`.
+ *
+ * It is kept rather than deleted because it is upstream code: deleting it
+ * widens the fork for nothing. `section-reglages-pipecat-montee.test.tsx`
+ * asserts nothing of ours comes back into it.
+ */
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import {
-    ReglagesCoupureMicro,
-    SectionCoupureMicro,
-} from "@/components/mark/SectionCoupureMicro";
-import { ReglagesRelance, SectionRelance } from "@/components/mark/SectionRelance";
-import {
-    ReglagesTourDeParole,
-    SectionTourDeParole,
-} from "@/components/mark/SectionTourDeParole";
-import { ReglagesVoix, SectionVoix } from "@/components/mark/SectionVoix";
-import { transcriptionPiloteLesTours } from "@/components/mark/transcriptionPiloteLesTours";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -39,92 +47,6 @@ interface ConfigurationsDialogProps {
     onSave: (configurations: WorkflowConfigurations, workflowName: string) => Promise<void>;
 }
 
-export const CLES_COUPURE = [
-    "mute_until_first_bot_complete",
-    "mute_during_function_call",
-    "mute_engine_callback",
-    "mute_first_speech",
-    "mute_always",
-] as const;
-
-const extraireCoupure = (
-    configurations: WorkflowConfigurations
-): ReglagesCoupureMicro =>
-    Object.fromEntries(
-        CLES_COUPURE.map((cle) => [cle, (configurations as Record<string, unknown>)[cle]])
-    ) as unknown as ReglagesCoupureMicro;
-
-export const CLES_VOIX = [
-    "tts_markdown_filter_enabled",
-    "tts_push_silence_after_stop",
-    "tts_silence_time_s",
-    "tts_text_aggregation_mode",
-    "tts_replacements",
-] as const;
-
-const extraireVoix = (configurations: WorkflowConfigurations): ReglagesVoix =>
-    Object.fromEntries(
-        CLES_VOIX.map((cle) => [
-            cle,
-            // The replacements list is the one key with no scalar default: an
-            // agent that never touched it has nothing stored, and the pastille
-            // field would render on undefined.
-            cle === "tts_replacements"
-                ? ((configurations as Record<string, unknown>)[cle] ?? [])
-                : (configurations as Record<string, unknown>)[cle],
-        ])
-    ) as unknown as ReglagesVoix;
-
-export const CLES_RELANCE = [
-    "user_idle_prompt",
-    "user_idle_goodbye_prompt",
-    "user_idle_max_prompts",
-] as const;
-
-const extraireRelance = (
-    configurations: WorkflowConfigurations
-): ReglagesRelance =>
-    Object.fromEntries(
-        CLES_RELANCE.map((cle) => [cle, (configurations as Record<string, unknown>)[cle]])
-    ) as unknown as ReglagesRelance;
-
-// [.mark] The turn-taking keys, pulled out of the resolved configuration.
-//
-// 🚨 Listed explicitly, and NOT as `Object.keys(DEFAUTS_PIPECAT)`. That
-// shortcut made this section carry every Pipecat key, voice ones included;
-// spread after the voice section on save, it silently put the voice settings
-// back to the values they had when the dialog opened. So flipping the
-// markdown switch and saving stored `false`. Measured 2026-09-14, and it is
-// exactly the defect `cles-des-sections.test.ts` now guards against.
-export const CLES_TOUR_DE_PAROLE = [
-    "user_speech_timeout",
-    "stt_ttfs_p99_latency",
-    "user_turn_stop_timeout",
-    "turn_wait_for_transcript",
-    "turn_start_use_interim",
-    "vad_confidence",
-    "vad_start_secs",
-    "vad_stop_secs",
-    "vad_min_volume",
-    "smart_turn_pre_speech_ms",
-    "smart_turn_max_duration_secs",
-    "audio_idle_timeout",
-    "filter_incomplete_user_turns",
-    "incomplete_short_timeout",
-    "incomplete_long_timeout",
-    "audio_in_noise_filter",
-] as const;
-
-const extraireTourDeParole = (
-    configurations: WorkflowConfigurations
-): ReglagesTourDeParole =>
-    Object.fromEntries(
-        CLES_TOUR_DE_PAROLE.map((cle) => [
-            cle,
-            (configurations as Record<string, unknown>)[cle],
-        ])
-    ) as unknown as ReglagesTourDeParole;
-
 export const ConfigurationsDialog = ({
     open,
     onOpenChange,
@@ -132,7 +54,7 @@ export const ConfigurationsDialog = ({
     workflowName,
     onSave
 }: ConfigurationsDialogProps) => {
-    const { externalPbxIntegrationsEnabled, userConfig } = useOrgConfig();
+    const { externalPbxIntegrationsEnabled } = useOrgConfig();
     const resolvedWorkflowConfigurations = resolveWorkflowConfigurations(workflowConfigurations);
     const [name, setName] = useState<string>(workflowName);
     const [ambientNoiseConfig, setAmbientNoiseConfig] = useState<AmbientNoiseConfiguration>(
@@ -165,26 +87,6 @@ export const ConfigurationsDialog = ({
     const [externalPbxFieldMappings, setExternalPbxFieldMappings] = useState<ExternalPBXFieldMapping[]>(
         resolvedWorkflowConfigurations.external_pbx_field_mappings
     );
-    // [.mark] Pipecat settings grouped by section, each section in our own component.
-    const [reglagesVoix, setReglagesVoix] = useState<ReglagesVoix>(
-        () => extraireVoix(resolvedWorkflowConfigurations)
-    );
-    const [reglagesTourDeParole, setReglagesTourDeParole] = useState<ReglagesTourDeParole>(
-        () => extraireTourDeParole(resolvedWorkflowConfigurations)
-    );
-    const [reglagesRelance, setReglagesRelance] = useState<ReglagesRelance>(
-        () => extraireRelance(resolvedWorkflowConfigurations)
-    );
-    const [reglagesCoupure, setReglagesCoupure] = useState<ReglagesCoupureMicro>(
-        () => extraireCoupure(resolvedWorkflowConfigurations)
-    );
-    // ⛔ Read from the SAME resolution the server uses: a section hidden for an
-    // agent that does use these settings is as wrong as one shown for an agent
-    // that does not.
-    const tourPiloteAilleurs = transcriptionPiloteLesTours({
-        organisation: userConfig,
-        agent: resolvedWorkflowConfigurations,
-    });
     const [isSaving, setIsSaving] = useState(false);
     const selectedTurnStartStrategy = TURN_START_STRATEGY_OPTIONS.find(
         (option) => option.value === turnStartStrategy
@@ -211,10 +113,6 @@ export const ConfigurationsDialog = ({
                 transcript_configuration: resolvedWorkflowConfigurations.transcript_configuration,
                 context_compaction_enabled: contextCompactionEnabled,
                 external_pbx_field_mappings: externalPbxFieldMappings,
-                ...reglagesVoix,
-                ...reglagesTourDeParole,
-                ...reglagesRelance,
-                ...reglagesCoupure,
             }, name);
             onOpenChange(false);
         } catch (error) {
@@ -239,10 +137,6 @@ export const ConfigurationsDialog = ({
             setTurnStopStrategy(nextWorkflowConfigurations.turn_stop_strategy);
             setContextCompactionEnabled(nextWorkflowConfigurations.context_compaction_enabled);
             setExternalPbxFieldMappings(nextWorkflowConfigurations.external_pbx_field_mappings);
-            setReglagesVoix(extraireVoix(nextWorkflowConfigurations));
-            setReglagesTourDeParole(extraireTourDeParole(nextWorkflowConfigurations));
-            setReglagesRelance(extraireRelance(nextWorkflowConfigurations));
-            setReglagesCoupure(extraireCoupure(nextWorkflowConfigurations));
         }
     }, [open, workflowName, workflowConfigurations]);
 
@@ -468,26 +362,6 @@ export const ConfigurationsDialog = ({
                             </div>
                         )}
                     </div>
-
-                    {/* [.mark] Turn taking Section */}
-                    <SectionTourDeParole
-                        reglages={reglagesTourDeParole}
-                        onChange={setReglagesTourDeParole}
-                        tourPiloteAilleurs={tourPiloteAilleurs}
-                        smartTurnActif={turnStopStrategy === 'turn_analyzer'}
-                    />
-
-                    {/* [.mark] Interruptions Section */}
-                    <SectionCoupureMicro
-                        reglages={reglagesCoupure}
-                        onChange={setReglagesCoupure}
-                    />
-
-                    {/* [.mark] Idle prompts Section */}
-                    <SectionRelance reglages={reglagesRelance} onChange={setReglagesRelance} />
-
-                    {/* [.mark] Voice Section */}
-                    <SectionVoix reglages={reglagesVoix} onChange={setReglagesVoix} />
 
                     {/* Context Management Section */}
                     <div className="space-y-4">
