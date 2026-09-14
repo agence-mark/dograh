@@ -18,6 +18,7 @@ import {
     updateWorkflowStatusApiV1WorkflowWorkflowIdStatusPut,
 } from '@/client/sdk.gen';
 import type { FolderResponse } from '@/client/types.gen';
+import { BoutonDupliquerAgent } from '@/components/mark/BoutonDupliquerAgent';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -174,6 +175,16 @@ export function WorkflowTable({
                                             <Pencil size={16} />
                                             Edit
                                         </Button>
+                                        {/* [.mark] Duplicate, next to Edit. Hidden on
+                                            archived agents: duplicating one would
+                                            create an active copy of something that
+                                            was deliberately put away. */}
+                                        {!showArchived && (
+                                            <BoutonDupliquerAgent
+                                                workflowId={workflow.id}
+                                                onDuplique={() => startTransition(() => router.refresh())}
+                                            />
+                                        )}
                                         {folders && (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
