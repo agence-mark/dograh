@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { ReglagesVoix, SectionVoix } from "@/components/mark/SectionVoix";
 import { useOrgConfig } from "@/context/OrgConfigContext";
 import {
     AmbientNoiseConfiguration,
@@ -68,6 +69,10 @@ export const ConfigurationsDialog = ({
     const [externalPbxFieldMappings, setExternalPbxFieldMappings] = useState<ExternalPBXFieldMapping[]>(
         resolvedWorkflowConfigurations.external_pbx_field_mappings
     );
+    // [.mark] Pipecat settings grouped by section, each section in our own component.
+    const [reglagesVoix, setReglagesVoix] = useState<ReglagesVoix>({
+        tts_markdown_filter_enabled: resolvedWorkflowConfigurations.tts_markdown_filter_enabled,
+    });
     const [isSaving, setIsSaving] = useState(false);
     const selectedTurnStartStrategy = TURN_START_STRATEGY_OPTIONS.find(
         (option) => option.value === turnStartStrategy
@@ -94,6 +99,7 @@ export const ConfigurationsDialog = ({
                 transcript_configuration: resolvedWorkflowConfigurations.transcript_configuration,
                 context_compaction_enabled: contextCompactionEnabled,
                 external_pbx_field_mappings: externalPbxFieldMappings,
+                ...reglagesVoix,
             }, name);
             onOpenChange(false);
         } catch (error) {
@@ -118,6 +124,9 @@ export const ConfigurationsDialog = ({
             setTurnStopStrategy(nextWorkflowConfigurations.turn_stop_strategy);
             setContextCompactionEnabled(nextWorkflowConfigurations.context_compaction_enabled);
             setExternalPbxFieldMappings(nextWorkflowConfigurations.external_pbx_field_mappings);
+            setReglagesVoix({
+                tts_markdown_filter_enabled: nextWorkflowConfigurations.tts_markdown_filter_enabled,
+            });
         }
     }, [open, workflowName, workflowConfigurations]);
 
@@ -343,6 +352,9 @@ export const ConfigurationsDialog = ({
                             </div>
                         )}
                     </div>
+
+                    {/* [.mark] Voice Section */}
+                    <SectionVoix reglages={reglagesVoix} onChange={setReglagesVoix} />
 
                     {/* Context Management Section */}
                     <div className="space-y-4">

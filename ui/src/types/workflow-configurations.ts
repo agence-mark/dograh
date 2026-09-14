@@ -22,6 +22,7 @@ export type TurnStopStrategy = NonNullable<GeneratedWorkflowConfigurationDefault
 export type TurnStartStrategy = NonNullable<GeneratedWorkflowConfigurationDefaults["turn_start_strategy"]>;
 export const DEFAULT_TURN_START_MIN_WORDS = 3;
 export const DEFAULT_PROVISIONAL_VAD_PAUSE_SECS = 1.5;
+export const DEFAULT_TTS_MARKDOWN_FILTER_ENABLED = false;
 
 export const TURN_START_STRATEGY_OPTIONS: Array<{
     value: TurnStartStrategy;
@@ -142,6 +143,10 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     external_pbx_field_mappings: ExternalPBXFieldMapping[];
     external_pbx_lead_headers: string[];  // Extra lead fields to capture from the inbound INVITE
     model_overrides?: ModelOverrides;  // Per-workflow model configuration overrides
+    // [.mark] Pipecat settings this fork exposes on the agent. Every default
+    // reproduces the value the pipeline hardcodes TODAY: an agent that fills in
+    // nothing behaves exactly as before.
+    tts_markdown_filter_enabled: boolean;  // Strip markdown before the text reaches the voice
     model_configuration_v2_override?: OrganizationAiModelConfigurationV2;  // Full v2 model configuration override
     [key: string]: unknown;  // Allow additional properties for future configurations
 };
@@ -164,6 +169,7 @@ const FALLBACK_WORKFLOW_CONFIGURATIONS: WorkflowConfigurations = {
     call_dispositions: [],
     external_pbx_field_mappings: [],
     external_pbx_lead_headers: [],
+    tts_markdown_filter_enabled: DEFAULT_TTS_MARKDOWN_FILTER_ENABLED,
 };
 
 export function resolveWorkflowConfigurations(
@@ -232,6 +238,12 @@ export function resolveWorkflowConfigurations(
             // carrying this field; the generated defaults type predates it.
             ?? (defaults?.external_pbx_lead_headers as string[] | undefined)
             ?? FALLBACK_WORKFLOW_CONFIGURATIONS.external_pbx_lead_headers,
+        tts_markdown_filter_enabled:
+            configurations?.tts_markdown_filter_enabled
+            // Cast until `npm run generate-client` runs against a backend
+            // carrying this field; the generated defaults type predates it.
+            ?? (defaults?.tts_markdown_filter_enabled as boolean | undefined)
+            ?? FALLBACK_WORKFLOW_CONFIGURATIONS.tts_markdown_filter_enabled,
         transcript_configuration: {
             ...DEFAULT_TRANSCRIPT_CONFIGURATION,
             ...(defaults?.transcript_configuration as Partial<TranscriptConfiguration> | undefined),

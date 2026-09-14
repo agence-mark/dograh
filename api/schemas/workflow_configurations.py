@@ -27,6 +27,18 @@ DEFAULT_TURN_START_MIN_WORDS = 3
 DEFAULT_PROVISIONAL_VAD_PAUSE_SECS = 1.5
 DEFAULT_TURN_STOP_STRATEGY = "transcription"
 DEFAULT_CONTEXT_COMPACTION_ENABLED = False
+
+# [.mark] Pipecat settings this fork exposes on the agent.
+#
+# 🔒 Every default below reproduces the value hardcoded in the pipeline TODAY.
+# An agent that fills in nothing is built exactly as it was before this patch.
+# The A/B benches choose the values; a later patch moves the defaults.
+#
+# ⛔ The markdown filter is not installed today, so its default is OFF -- even
+# though asterisks read aloud are the very reason it is exposed. Turning it on
+# for everyone would be choosing a value, which is not this patch's job: it is
+# turned on per agent, starting with the bench agent.
+DEFAULT_TTS_MARKDOWN_FILTER_ENABLED = False
 MAX_CALL_DISPOSITIONS = 50
 MAX_CALL_DISPOSITION_CODE_LENGTH = 64
 MAX_CALL_DISPOSITION_DESCRIPTION_LENGTH = 1_000
@@ -155,6 +167,15 @@ class WorkflowConfigurationDefaults(BaseModel):
     )
     dictionary: str = ""
     context_compaction_enabled: bool = DEFAULT_CONTEXT_COMPACTION_ENABLED
+    tts_markdown_filter_enabled: bool = Field(
+        default=DEFAULT_TTS_MARKDOWN_FILTER_ENABLED,
+        description=(
+            "Strip markdown formatting before the text reaches the voice. "
+            "Without it, a model that answers with **bold** has the asterisks "
+            "read out loud. Does not touch parentheses: a stage direction like "
+            "(one moment) is still spoken, and stays a matter for the prompt."
+        ),
+    )
     call_dispositions: list[CallDispositionOption] = Field(
         default_factory=list,
         max_length=MAX_CALL_DISPOSITIONS,

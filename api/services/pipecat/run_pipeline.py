@@ -703,6 +703,7 @@ async def _run_pipeline_impl(
             user_config,
             audio_config,
             correlation_id=mps_correlation_id,
+            run_configs=run_configs,
         )
         llm = create_llm_service(user_config, correlation_id=mps_correlation_id)
         inference_llm = None
