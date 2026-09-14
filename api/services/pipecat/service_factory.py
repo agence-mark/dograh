@@ -1,17 +1,21 @@
+import re
 from functools import wraps
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
 
 import aiohttp
-from fastapi import HTTPException
-from loguru import logger
-
 from api.constants import MPS_API_URL
 from api.errors.failure import (
     ErrorSource,
     annotate_failure_metadata,
     classify_exception,
     log_failure,
+)
+from api.schemas.workflow_configurations import (
+    DEFAULT_TTS_MARKDOWN_FILTER_ENABLED,
+    DEFAULT_TTS_PUSH_SILENCE_AFTER_STOP,
+    DEFAULT_TTS_SILENCE_TIME_S,
+    DEFAULT_TTS_TEXT_AGGREGATION_MODE,
 )
 from api.services.configuration.options import (
     DEEPGRAM_FLUX_MODELS,
@@ -38,6 +42,9 @@ from api.services.pipecat.mistral_tts import (
     resolve_mistral_endpoint,
 )
 from api.utils.url_security import validate_user_configured_service_url
+from fastapi import HTTPException
+from loguru import logger
+
 from pipecat.adapters.services.open_ai_adapter import OpenAILLMInvocationParams
 from pipecat.services.assemblyai.stt import AssemblyAISTTService, AssemblyAISTTSettings
 from pipecat.services.aws.llm import AWSBedrockLLMService, AWSBedrockLLMSettings
@@ -112,8 +119,11 @@ from pipecat.services.speechmatics.stt import (
     SpeechmaticsSTTService,
     SpeechmaticsSTTSettings,
 )
+from pipecat.services.tts_service import TextAggregationMode
 from pipecat.services.xai.tts import XAITTSService, XAIWebsocketTTSSettings
 from pipecat.transcriptions.language import Language
+from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
+from pipecat.utils.text.transforms.replacements import replace_text
 from pipecat.utils.text.xml_function_tag_filter import XMLFunctionTagFilter
 
 if TYPE_CHECKING:
@@ -702,9 +712,118 @@ def create_stt_service(
         )
 
 
+def construire_filtres_de_texte_voix(run_configs: dict | None = None) -> list:
+    """[.mark] Build the text filters the voice service runs its text through.
+
+    🔑 ONE collection point, not seventeen. Every provider branch below used to
+    carry its own ``text_filters=[xml_function_tag_filter]`` literal; a setting
+    added branch by branch would apply to whichever provider whoever added it
+    happened to think of, and a provider added later would silently get none of
+    them. The branches now receive the list this function produces.
+
+    ⛔ Order matters and is not alphabetical: the function-tag filter comes
+    first so the markdown filter never sees a half-stripped tool call.
+
+    ⚠️ What this does NOT fix: a parenthesised stage direction --
+    "(one moment, I'm transferring you)" -- is still spoken. Filtering
+    parentheses would eat the useful ones too, so it stays a matter for the
+    prompt and the dedicated node.
+    """
+    run_configs = run_configs or {}
+    filtres = [XMLFunctionTagFilter()]
+    if run_configs.get(
+        "tts_markdown_filter_enabled", DEFAULT_TTS_MARKDOWN_FILTER_ENABLED
+    ):
+        filtres.append(MarkdownTextFilter())
+    return filtres
+
+
+def construire_remplacements_de_voix(run_configs: dict | None = None) -> list:
+    """[.mark] Build the pronunciation replacements for the voice.
+
+    Entries are written ``heard:spoken`` on screen -- "SAV:S. A. V." -- and are
+    matched LITERALLY.
+
+    ⛔ Pipecat's ``replace_text`` treats its patterns as regular expressions,
+    and this screen is filled in by people running a business, not by
+    engineers: a dot typed in "M." would match any character, and "(" would
+    raise ``re.error`` at the first call of the day. Each pattern is escaped,
+    so what is typed is what is replaced.
+
+    ⛔ An entry with no colon, or with an empty left side, is skipped rather
+    than guessed at: a replacement of the empty string would rewrite every
+    single character of the answer.
+
+    ⚠️ This changes only the text sent to the voice. The conversation history
+    the model sees keeps the original, which is what makes it safe to bend
+    spelling for pronunciation.
+    """
+    entrees = (run_configs or {}).get("tts_replacements") or []
+    regles = []
+    for entree in entrees:
+        if not isinstance(entree, str) or ":" not in entree:
+            continue
+        entendu, prononce = entree.split(":", 1)
+        entendu = entendu.strip()
+        if not entendu:
+            continue
+        regles.append((re.escape(entendu), prononce.strip()))
+    if not regles:
+        return []
+    return [("*", replace_text(regles))]
+
+
+def reglages_de_voix_communs(run_configs: dict | None = None) -> dict:
+    """[.mark] The voice arguments every provider branch receives.
+
+    🔑 The same collection point as the text filters, for the same reason:
+    seventeen branches, and a setting wired branch by branch reaches the ones
+    whoever wired it thought of.
+
+    🚨 ``silence_time_s`` was passed as a literal 1.0 on sixteen branches and
+    did nothing at all: Pipecat pushes that silence only when
+    ``push_silence_after_stop`` is on, and nothing ever turned it on. Both are
+    forwarded now, the switch off by default -- which is today's behaviour.
+    """
+    # ⛔ `None` vaut "pas rempli", jamais une valeur -- la même défense que
+    # `collecter_reglages_tour_de_parole`. Les configurations stockées portent
+    # des nuls JSON explicites pour les clés jamais touchées, et `float(None)`
+    # ou `TextAggregationMode(None)` tueraient l'appel à la construction de la
+    # voix. L'asymétrie entre les deux points de collecte a été relevée par la
+    # relecture indépendante du 14/09.
+    run_configs = run_configs or {}
+
+    def _valeur(cle, defaut):
+        valeur = run_configs.get(cle)
+        return defaut if valeur is None else valeur
+
+    return {
+        "text_filters": construire_filtres_de_texte_voix(run_configs),
+        "text_transforms": construire_remplacements_de_voix(run_configs),
+        "text_aggregation_mode": TextAggregationMode(
+            _valeur("tts_text_aggregation_mode", DEFAULT_TTS_TEXT_AGGREGATION_MODE)
+        ),
+        "push_silence_after_stop": bool(
+            _valeur("tts_push_silence_after_stop", DEFAULT_TTS_PUSH_SILENCE_AFTER_STOP)
+        ),
+        "silence_time_s": float(
+            _valeur("tts_silence_time_s", DEFAULT_TTS_SILENCE_TIME_S)
+        ),
+    }
+
+
+# ⛔ Le décorateur appartient à create_tts_service, PAS aux fonctions de
+# collecte au-dessus. Décroché le 14/09 en insérant celles-ci juste après lui,
+# et rattrapé par la relecture indépendante : sans lui, un échec de
+# construction de la voix n'est plus classé ni journalisé, et le service ne
+# porte plus la métadonnée qui attribue la faute au client ou à .mark.
+# ⚠️ Aucun test ne pouvait le voir : `inspect.getsource` suit `__wrapped__`.
 @_report_service_factory_failures(ErrorSource.TTS, config_section="tts")
 def create_tts_service(
-    user_config, audio_config: "AudioConfig", correlation_id: str | None = None
+    user_config,
+    audio_config: "AudioConfig",
+    correlation_id: str | None = None,
+    run_configs: dict | None = None,
 ):
     """Create and return appropriate TTS service based on user configuration
 
@@ -715,17 +834,17 @@ def create_tts_service(
     logger.info(
         f"Creating TTS service: provider={user_config.tts.provider}, model={user_config.tts.model}"
     )
-    # Create function call filter to prevent TTS from speaking function call tags
-    xml_function_tag_filter = XMLFunctionTagFilter()
+    # Everything the agent configured about its voice, in one dict splatted
+    # into every provider branch below.
+    voix = reglages_de_voix_communs(run_configs)
     if user_config.tts.provider == ServiceProviders.DEEPGRAM.value:
         return DeepgramTTSService(
             api_key=user_config.tts.api_key,
             base_url=DEEPGRAM_EU_TTS_BASE_URL,
             mip_opt_out=True,
             settings=DeepgramTTSSettings(voice=user_config.tts.voice),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.MISTRAL.value:
         base_url = getattr(user_config.tts, "base_url", None)
@@ -747,9 +866,8 @@ def create_tts_service(
                 or "voxtral-mini-tts-latest",
                 voice=getattr(user_config.tts, "voice", None) or "fr_marie_neutral",
             ),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.OPENAI.value:
         kwargs = {}
@@ -761,9 +879,8 @@ def create_tts_service(
             api_key=user_config.tts.api_key,
             sample_rate=OPENAI_SAMPLE_RATE,
             settings=OpenAITTSSettings(model=user_config.tts.model),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
             **kwargs,
         )
     elif user_config.tts.provider == ServiceProviders.GOOGLE.value:
@@ -786,9 +903,8 @@ def create_tts_service(
             credentials=credentials,
             location=location,
             settings=GoogleTTSSettings(**settings_kwargs),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.ELEVENLABS.value:
         # Backward compatible with older configuration "Name - voice_id"
@@ -812,9 +928,8 @@ def create_tts_service(
                 speed=user_config.tts.speed,
                 similarity_boost=0.75,
             ),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.CARTESIA.value:
         speed = getattr(user_config.tts, "speed", None)
@@ -840,9 +955,8 @@ def create_tts_service(
                     else {}
                 ),
             ),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.INWORLD.value:
         voice = getattr(user_config.tts, "voice", None) or "Ashley"
@@ -859,9 +973,8 @@ def create_tts_service(
                 speaking_rate=speed,
                 delivery_mode=delivery_mode,
             ),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.DOGRAH.value:
         # Convert HTTP URL to WebSocket URL for TTS
@@ -875,9 +988,8 @@ def create_tts_service(
                 voice=user_config.tts.voice,
                 speed=user_config.tts.speed,
             ),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.CAMB.value:
         from pipecat.services.camb.tts import CambTTSService
@@ -888,7 +1000,7 @@ def create_tts_service(
             api_key=user_config.tts.api_key,
             voice_id=voice_id,
             model=user_config.tts.model,
-            text_filters=[xml_function_tag_filter],
+            **voix,
             skip_aggregator_types=["recording_router", "recording"],
         )
         # Set language directly as BCP-47 code (bypasses Language enum conversion)
@@ -904,9 +1016,8 @@ def create_tts_service(
                 voice=user_config.tts.voice,
                 speed=user_config.tts.speed,
             ),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.RIME.value:
         speed = getattr(user_config.tts, "speed", None)
@@ -929,9 +1040,8 @@ def create_tts_service(
         return RimeTTSService(
             api_key=user_config.tts.api_key,
             settings=RimeTTSSettings(**settings_kwargs),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.SARVAM.value:
         # Map Sarvam language code to pipecat Language enum for TTS
@@ -965,9 +1075,8 @@ def create_tts_service(
         return SarvamTTSService(
             api_key=user_config.tts.api_key,
             settings=SarvamTTSSettings(**settings_kwargs),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.MINIMAX.value:
         group_id = getattr(user_config.tts, "group_id", None)
@@ -1000,9 +1109,8 @@ def create_tts_service(
                 voice=voice,
                 speed=speed,
             ),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.AZURE_SPEECH.value:
         region = getattr(user_config.tts, "region", None) or "eastus"
@@ -1021,9 +1129,8 @@ def create_tts_service(
             api_key=user_config.tts.api_key,
             region=region,
             settings=AzureTTSSettings(**settings_kwargs),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.SMALLEST.value:
         language_code = getattr(user_config.tts, "language", None) or "en"
@@ -1043,9 +1150,8 @@ def create_tts_service(
         return SmallestTTSService(
             api_key=user_config.tts.api_key,
             settings=settings_kwargs,
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.XAI.value:
         voice = getattr(user_config.tts, "voice", None) or "eve"
@@ -1063,9 +1169,8 @@ def create_tts_service(
                 voice=voice,
                 language=pipecat_language,
             ),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     elif user_config.tts.provider == ServiceProviders.LMNT.value:
         voice = getattr(user_config.tts, "voice", None) or "lily"
@@ -1087,9 +1192,8 @@ def create_tts_service(
                 language=pipecat_language,
                 model=model,
             ),
-            text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
+            **voix,
         )
     else:
         raise HTTPException(
@@ -1205,6 +1309,92 @@ def stamp_transcription_settings(runtime_configuration: dict, stt_config) -> dic
         reglages = _reglages_classiques(stt_config)
     if reglages:
         runtime_configuration["stt_settings"] = reglages
+    return runtime_configuration
+
+
+# The Pipecat settings worth recording on a run: the ones that decide how the
+# agent takes the floor, how it speaks, and when it stops listening.
+#
+# ⛔ An explicit list, not "every key of the configuration". A run stamped with
+# the whole configuration would carry secrets, per-service overrides and
+# whatever a later patch adds, and nobody would notice.
+REGLAGES_PIPECAT_ESTAMPILLES = (
+    "user_speech_timeout",
+    "stt_ttfs_p99_latency",
+    "user_turn_stop_timeout",
+    "turn_wait_for_transcript",
+    "turn_start_use_interim",
+    "vad_confidence",
+    "vad_start_secs",
+    "vad_stop_secs",
+    "vad_min_volume",
+    "smart_turn_pre_speech_ms",
+    "smart_turn_max_duration_secs",
+    "audio_idle_timeout",
+    "filter_incomplete_user_turns",
+    "incomplete_short_timeout",
+    "incomplete_long_timeout",
+    "audio_in_noise_filter",
+    "tts_markdown_filter_enabled",
+    "tts_push_silence_after_stop",
+    "tts_silence_time_s",
+    "tts_text_aggregation_mode",
+    "tts_replacements",
+    "user_idle_max_prompts",
+    "mute_until_first_bot_complete",
+    "mute_during_function_call",
+    "mute_engine_callback",
+    "mute_first_speech",
+    "mute_always",
+)
+
+
+def stamp_pipeline_settings(
+    runtime_configuration: dict,
+    run_configs: dict,
+    *,
+    user_turn_stop_timeout: float | None = None,
+) -> dict:
+    """[.mark] Record the Pipecat settings this run was actually played with.
+
+    Same reason as the two stamps above: without it, a recorded call cannot say
+    which pause, which detector or which mute strategies produced it, and an
+    A/B result is an anecdote rather than a measurement.
+
+    🔑 The EFFECTIVE values, defaults included -- not only what the client
+    filled in. A run stamped with "nothing configured" would be unreadable six
+    weeks later, once a patch has moved the defaults: the question is always
+    "what did THIS call run with", never "what was left blank".
+
+    ⛔ Voice calls only. The keyboard bench goes through neither the
+    transcription, nor the voice, nor the turn strategies, so stamping these
+    settings there would describe settings that played no part -- and a stamp
+    that lies is worse than no stamp. That is why this function is called from
+    the pipeline and not from ``text_chat_runner``.
+
+    ⚠️ The idle PROMPTS themselves are deliberately not stamped: they are free
+    text, they can be long, and what matters after the fact is how many times
+    the agent asked before hanging up, which is.
+
+    🚨 ``user_turn_stop_timeout`` is passed in RESOLVED, and that is not a
+    detail. It is the one setting whose default depends on the mode (5 s, or
+    30 s when the transcription drives the turns), so the schema leaves it
+    empty -- and the screen tells people to leave it empty. Read off the
+    schema like the others, it would stamp ``null`` on very nearly every call,
+    which is exactly the "what was left blank" this function refuses to
+    record. Two A/B branches running 5 s and 30 s would then be indis-
+    tinguishable afterwards. Found by the counter-review of 2026-09-14, on the
+    correction of an earlier defect.
+    """
+    from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
+
+    # 🔑 Resolved through the schema, so a run stamps the same value the
+    # pipeline read -- including for a key the client never touched.
+    effectifs = WorkflowConfigurationDefaults.model_validate(run_configs or {})
+    reglages = {cle: getattr(effectifs, cle) for cle in REGLAGES_PIPECAT_ESTAMPILLES}
+    if user_turn_stop_timeout is not None:
+        reglages["user_turn_stop_timeout"] = user_turn_stop_timeout
+    runtime_configuration["pipeline_settings"] = reglages
     return runtime_configuration
 
 
@@ -1394,6 +1584,7 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.openai_realtime import (
             DograhOpenAIRealtimeLLMService,
         )
+
         from pipecat.services.openai.realtime.events import (
             AudioConfiguration,
             AudioInput,
@@ -1431,6 +1622,7 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.grok_realtime import (
             DograhGrokRealtimeLLMService,
         )
+
         from pipecat.services.xai.realtime.events import (
             AudioConfiguration,
             AudioInput,
@@ -1522,6 +1714,7 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.azure_realtime import (
             DograhAzureRealtimeLLMService,
         )
+
         from pipecat.services.openai.realtime.events import (
             AudioConfiguration,
             AudioInput,

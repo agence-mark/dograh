@@ -13,6 +13,11 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from api.schemas.workflow_configurations import (
+    DEFAULT_USER_IDLE_GOODBYE_PROMPT,
+    DEFAULT_USER_IDLE_MAX_PROMPTS,
+    DEFAULT_USER_IDLE_PROMPT,
+)
 from loguru import logger
 from pipecat.frames.frames import (
     LLMMessagesAppendFrame,
@@ -29,11 +34,36 @@ if TYPE_CHECKING:
 
 
 class UserIdleHandler:
-    """Helper class to manage user idle retry logic with state."""
+    """Helper class to manage user idle retry logic with state.
 
-    def __init__(self, engine: "PipecatEngine"):
+    [.mark] The two instructions and the number of prompts used to be written
+    into this method: both texts in English, and exactly one prompt before the
+    hang-up. Nothing on any screen said so, and a French-speaking client could
+    not change either. They are configured on the agent now, with these very
+    texts as the defaults -- an agent that fills in nothing behaves exactly as
+    before.
+
+    ⚠️ They are INSTRUCTIONS given to the model, not sentences spoken word for
+    word: each one already asks the model to answer in the caller's language.
+    """
+
+    def __init__(
+        self,
+        engine: "PipecatEngine",
+        *,
+        idle_prompt: str | None = None,
+        goodbye_prompt: str | None = None,
+        max_prompts: int | None = None,
+    ):
         self._engine = engine
         self._retry_count = 0
+        self._idle_prompt = idle_prompt or DEFAULT_USER_IDLE_PROMPT
+        self._goodbye_prompt = goodbye_prompt or DEFAULT_USER_IDLE_GOODBYE_PROMPT
+        # ⛔ `is None`, not `or`: 0 is a legitimate value (hang up on the first
+        # silence) and `or` would silently turn it back into 1.
+        self._max_prompts = (
+            DEFAULT_USER_IDLE_MAX_PROMPTS if max_prompts is None else int(max_prompts)
+        )
 
     def reset(self):
         """Reset the retry count when user becomes active."""
@@ -44,27 +74,29 @@ class UserIdleHandler:
         self._retry_count += 1
         logger.debug(f"Handling user_idle, attempt: {self._retry_count}")
 
-        if self._retry_count == 1:
-            message = {
-                "role": "user",
-                "content": "The user has been quiet. Politely and briefly ask if they're still there in the language that the user has been speaking so far.",
-            }
+        if self._retry_count <= self._max_prompts:
+            message = {"role": "user", "content": self._idle_prompt}
             await aggregator.push_frame(LLMMessagesAppendFrame([message], run_llm=True))
             return
 
-        message = {
-            "role": "user",
-            "content": "The user has been quiet. We will be disconnecting the call now. Wish them a good day in the language that the user has been speaking so far.",
-        }
+        message = {"role": "user", "content": self._goodbye_prompt}
         await aggregator.push_frame(LLMMessagesAppendFrame([message], run_llm=True))
         await self._engine.end_call_with_reason(
             EndTaskReason.USER_IDLE_MAX_DURATION_EXCEEDED.value
         )
 
 
-def create_user_idle_handler(engine: "PipecatEngine") -> UserIdleHandler:
+def create_user_idle_handler(
+    engine: "PipecatEngine", run_configs: dict | None = None
+) -> UserIdleHandler:
     """Return a UserIdleHandler that manages user-idle timeouts with state."""
-    return UserIdleHandler(engine)
+    run_configs = run_configs or {}
+    return UserIdleHandler(
+        engine,
+        idle_prompt=run_configs.get("user_idle_prompt"),
+        goodbye_prompt=run_configs.get("user_idle_goodbye_prompt"),
+        max_prompts=run_configs.get("user_idle_max_prompts"),
+    )
 
 
 # ---------------------------------------------------------------------------

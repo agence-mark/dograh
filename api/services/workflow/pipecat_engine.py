@@ -1207,12 +1207,16 @@ class PipecatEngine:
 
         return False
 
-    def create_user_idle_handler(self):
+    def create_user_idle_handler(self, run_configs: dict | None = None):
         """
         Returns a UserIdleHandler that manages user-idle timeouts with state.
         The handler tracks retry count and handles escalating prompts.
+
+        [.mark] ``run_configs`` carries the agent's own prompts and prompt
+        count; without it the handler falls back to the values the pipeline
+        has always sent.
         """
-        return engine_callbacks.create_user_idle_handler(self)
+        return engine_callbacks.create_user_idle_handler(self, run_configs)
 
     def create_max_duration_callback(self):
         """
