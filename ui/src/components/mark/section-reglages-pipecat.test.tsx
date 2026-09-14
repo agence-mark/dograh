@@ -134,6 +134,30 @@ describe("Section Reglages vocaux de la page de parametres", () => {
         expect(document.getElementById("user_speech_timeout")).toBeNull();
     });
 
+    it("laisse partir INTACTS les reglages du tour de parole quand ils sont masques", async () => {
+        // A setting shown in a state that is not its own is worse than a hidden
+        // one -- but a HIDDEN one must not become a LOST one either. An agent
+        // whose transcription drives the turns hides this whole block; saving a
+        // voice setting must carry the hidden values out exactly as they came
+        // in, not as nulls and not as this screen's idea of a default.
+        const onSave = ouvrir({
+            model_overrides: { stt: { provider: "deepgram", model: "flux-general-en" } },
+            vad_stop_secs: 0.35,
+            user_speech_timeout: 0.9,
+        });
+        expect(document.getElementById("user_speech_timeout")).toBeNull();
+
+        toucherUnReglage();
+        fireEvent.click(screen.getByRole("button", { name: /save/i }));
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+        expect(onSave.mock.calls[0][0]).toMatchObject({
+            vad_stop_secs: 0.35,
+            user_speech_timeout: 0.9,
+            tts_markdown_filter_enabled: true,
+        });
+    });
+
     it("emporte les reglages du tour de parole dans l'enregistrement", async () => {
         const onSave = ouvrir(null);
 
