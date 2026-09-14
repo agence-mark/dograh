@@ -24,6 +24,7 @@ wrong (another agent's, say). Nothing short of an end-to-end call would.
 """
 
 import inspect
+import re
 
 import pytest
 
@@ -33,36 +34,36 @@ from api.services.pipecat import run_pipeline
 # each one would silently fall back to if it did not.
 TRANSMISSIONS = [
     (
-        "collecter_reglages_tour_de_parole(run_configs)",
+        r"collecter_reglages_tour_de_parole\(run_configs\)",
         (
             "turn taking: the pause before the agent answers, the voice "
             "detector, Smart Turn, the aggregator timeouts"
         ),
     ),
     (
-        "run_configs=run_configs,",
+        r"run_configs=run_configs,",
         (
             "the voice settings and the incoming-noise filter reaching the "
             "transports and the voice factory"
         ),
     ),
     (
-        "create_user_idle_handler(run_configs)",
+        r"create_user_idle_handler\(run_configs\)",
         "the idle prompts and how many times they are sent before hanging up",
     ),
     (
-        "collecter_strategies_de_coupure(\n        run_configs,",
+        r"collecter_strategies_de_coupure\(\s*run_configs,",
         "which strategies may mute the caller's microphone",
     ),
     (
-        "stamp_pipeline_settings(runtime_configuration, run_configs)",
+        r"stamp_pipeline_settings\(runtime_configuration, run_configs\)",
         (
             "the record of which settings a call was played with -- without it "
             "an A/B result cannot be read back six weeks later"
         ),
     ),
     (
-        'event_handler("on_latency_breakdown")',
+        r'event_handler\("on_latency_breakdown"\)',
         (
             "the per-service latency breakdown: a total latency says a call was "
             "slow, it does not say where the time went"
@@ -75,8 +76,11 @@ TRANSMISSIONS = [
     "appel,ce_qui_serait_perdu", TRANSMISSIONS, ids=lambda v: v[:40]
 )
 def test_le_pipeline_transmet_la_configuration(appel, ce_qui_serait_perdu):
+    # ⚠️ Motifs, et non chaînes exactes : une assertion qui dépend de
+    # l'indentation est un filet qu'un formateur décroche sans bruit. Relevé
+    # par la relecture du 14/09.
     source = inspect.getsource(run_pipeline)
-    assert appel in source, (
+    assert re.search(appel, source), (
         f"The pipeline no longer hands the agent's configuration to this "
         f"collection point. What falls back to defaults, silently: "
         f"{ce_qui_serait_perdu}."
@@ -86,7 +90,7 @@ def test_le_pipeline_transmet_la_configuration(appel, ce_qui_serait_perdu):
 def test_le_transport_navigateur_et_la_voix_recoivent_chacun_la_configuration():
     """``run_configs=run_configs`` has to appear at each site, not just once."""
     source = inspect.getsource(run_pipeline)
-    assert source.count("run_configs=run_configs,") >= 3, (
+    assert len(re.findall(r"run_configs=run_configs,", source)) >= 3, (
         "Fewer call sites forward the configuration than expected: the voice "
         "factory, the browser transport and the telephony transports each need "
         "it. One of them is now running on defaults."

@@ -28,7 +28,7 @@ import { Switch } from "@/components/ui/switch";
 export interface ReglagesTourDeParole {
     user_speech_timeout: number;
     stt_ttfs_p99_latency: number | null;
-    user_turn_stop_timeout: number;
+    user_turn_stop_timeout: number | null;
     turn_wait_for_transcript: boolean;
     turn_start_use_interim: boolean;
     vad_confidence: number;
@@ -199,12 +199,34 @@ export const SectionTourDeParole = ({
                 </p>
             </div>
 
-            {nombre(
-                "user_turn_stop_timeout",
-                "Hard ceiling on waiting for a transcript (seconds)",
-                "The turn ends anyway past this. Read by the pipeline for a long time, on no screen until now.",
-                "0.5",
-            )}
+            <div className="space-y-2">
+                <Label htmlFor="user_turn_stop_timeout" className="text-xs">
+                    Hard ceiling on waiting for a transcript (seconds)
+                </Label>
+                <Input
+                    id="user_turn_stop_timeout"
+                    type="number"
+                    step="0.5"
+                    placeholder="5 s (30 s when the transcription drives the turns)"
+                    value={reglages.user_turn_stop_timeout ?? ""}
+                    onChange={(e) => {
+                        const brut = e.target.value;
+                        if (brut === "") {
+                            onChange({ ...reglages, user_turn_stop_timeout: null });
+                            return;
+                        }
+                        const valeur = parseFloat(brut);
+                        if (!isNaN(valeur)) {
+                            onChange({ ...reglages, user_turn_stop_timeout: valeur });
+                        }
+                    }}
+                />
+                <p className="text-xs text-muted-foreground">
+                    The turn ends anyway past this. ⛔ Leave empty: this setting has TWO
+                    defaults, 5 s normally and 30 s when the transcription service drives
+                    the turns. Writing 5 s here cuts the second case to 5 s.
+                </p>
+            </div>
 
             {interrupteur(
                 "turn_wait_for_transcript",

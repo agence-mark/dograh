@@ -122,17 +122,25 @@ from pipecat.utils.run_context import set_current_org_id, set_current_run_id
 # Setup tracing if enabled
 ensure_tracing()
 
-# 🔑 Read from the schema, so screen and pipeline cannot drift apart.
-DEFAULT_USER_TURN_STOP_TIMEOUT = (
-    WorkflowConfigurationDefaults.model_fields["user_turn_stop_timeout"].default
-)
+# ⛔ [.mark] Écrit ici et non lu dans le schéma : ce réglage a DEUX valeurs par
+# défaut selon le mode (5 s, ou 30 s en tours externes), donc le schéma le
+# déclare vide et c'est cette fonction qui tranche. Le test
+# `test_reglages_pipecat_tour_de_parole.py` compare les deux valeurs à
+# l'écran, pour qu'elles ne dérivent pas.
+DEFAULT_USER_TURN_STOP_TIMEOUT = 5.0
 EXTERNAL_TURN_USER_STOP_TIMEOUT = 30.0
 
 
 def _resolve_user_turn_stop_timeout(
     run_configs: dict, *, uses_external_turns: bool
 ) -> float:
-    if "user_turn_stop_timeout" in run_configs:
+    # ⛔ [.mark] "rempli", et non "présent". Depuis que l'écran matérialise
+    # toute la configuration, la clé EXISTE sur tout agent enregistré une fois,
+    # et un test de présence rendait sa valeur quoi qu'il arrive -- faisant
+    # tomber un agent en tours externes de 30 s à 5 s au premier
+    # enregistrement, depuis une section que l'écran lui masque justement.
+    # Relevé par la relecture indépendante du 14/09.
+    if run_configs.get("user_turn_stop_timeout") is not None:
         return float(run_configs["user_turn_stop_timeout"])
     if uses_external_turns:
         return EXTERNAL_TURN_USER_STOP_TIMEOUT
@@ -843,7 +851,19 @@ async def _run_pipeline_impl(
         stamp_transcription_settings(runtime_configuration, user_config.stt)
     # [.mark] Voice calls only, realtime included: the turn taking, the mute
     # strategies and the noise filter all play in a realtime call too.
-    stamp_pipeline_settings(runtime_configuration, run_configs)
+    #
+    # ⛔ Journalisée, jamais levée -- même principe que le détail de latence
+    # plus bas : une mesure qui échoue ne doit pas emporter l'appel. Le
+    # validateur borne les champs, donc une configuration hors bornes écrite
+    # par le MCP ou à la main ferait mourir l'appel AU MONTAGE du pipeline.
+    # Relevé par la relecture indépendante du 14/09.
+    try:
+        stamp_pipeline_settings(runtime_configuration, run_configs)
+    except Exception as e:
+        logger.error(
+            f"[run {workflow_run_id}] Failed to stamp the pipeline settings: {e}. "
+            f"The call goes on; it simply cannot say afterwards what it ran with."
+        )
     merged_call_context_vars = {
         **merged_call_context_vars,
         "runtime_configuration": runtime_configuration,

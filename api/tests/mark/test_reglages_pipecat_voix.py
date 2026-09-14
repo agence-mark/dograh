@@ -31,6 +31,7 @@ choose, a later patch moves the default.
 """
 
 import inspect
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -152,7 +153,10 @@ def test_aucune_branche_ne_construit_sa_propre_liste():
         "count changed: a provider was added or removed, and this test is "
         "where that gets noticed."
     )
-    assert "silence_time_s=1.0" not in source, (
+    # ⚠️ Any literal, not just 1.0, and tolerant to spacing: an assertion on
+    # one exact string is a net that `silence_time_s=0.5` walks straight past.
+    # Raised by the review of 14/09.
+    assert not re.search(r"silence_time_s\s*=\s*[0-9]", source), (
         "A branch passes silence_time_s as a literal again. It would then "
         "ignore what the agent configured, on that provider alone."
     )
@@ -283,3 +287,56 @@ def test_une_entree_mal_formee_est_ignoree_et_ne_casse_rien():
 def test_sans_remplacement_aucune_transformation_nest_posee():
     assert construire_remplacements_de_voix(None) == []
     assert construire_remplacements_de_voix({"tts_replacements": []}) == []
+
+
+# --------------------------------------------------------------------------- #
+# 7. Les deux défauts rattrapés par la relecture du 14/09
+# --------------------------------------------------------------------------- #
+
+
+def test_la_fabrique_de_voix_porte_encore_son_decorateur_derreurs():
+    """🚨 Décroché le 14/09 en insérant une fonction juste après le décorateur.
+
+    ⛔ Aucun test ne pouvait le voir : ``inspect.getsource`` suit
+    ``__wrapped__``, donc les assertions sur le texte source passaient
+    identiquement, décorée ou non.
+
+    Ce que la perte coûtait : un échec de construction de la voix (mauvaise
+    voix, endpoint invalide) n'était plus classé ni journalisé, et le service
+    ne portait plus la métadonnée qui attribue la faute au client ou à .mark.
+    Rien ne cassait, tout devenait muet.
+    """
+    assert hasattr(create_tts_service, "__wrapped__"), (
+        "create_tts_service n'est plus décorée par _report_service_factory_"
+        "failures. Un échec de construction de la voix ne sera plus classé, et "
+        "l'attribution de la faute est perdue sur toute erreur TTS de l'appel."
+    )
+    # ⛔ Et le décorateur n'appartient PAS aux fonctions de collecte : posé sur
+    # elles, il tenterait d'annoter une liste et avalerait l'exception.
+    assert not hasattr(construire_filtres_de_texte_voix, "__wrapped__")
+    assert not hasattr(reglages_de_voix_communs, "__wrapped__")
+
+
+@pytest.mark.parametrize(
+    "run_configs",
+    [
+        {"tts_silence_time_s": None},
+        {"tts_text_aggregation_mode": None},
+        {"tts_push_silence_after_stop": None},
+        {"tts_replacements": None},
+    ],
+)
+def test_un_null_enregistre_ne_tue_pas_la_construction_de_la_voix(run_configs):
+    """⛔ Un null vaut "pas rempli", jamais une valeur.
+
+    Les configurations stockées portent des nuls JSON explicites pour les clés
+    jamais touchées, et ``run_configs`` arrive brut de la base. ``float(None)``
+    ou ``TextAggregationMode(None)`` tueraient l'appel à la construction de la
+    voix. Le point de collecte du tour de parole se défendait déjà ; celui de
+    la voix ne le faisait pas -- asymétrie relevée par la relecture du 14/09.
+    """
+    communs = reglages_de_voix_communs(run_configs)
+    assert communs["silence_time_s"] == 1.0
+    assert str(communs["text_aggregation_mode"]) == "sentence"
+    assert communs["push_silence_after_stop"] is False
+    assert communs["text_transforms"] == []

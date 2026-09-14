@@ -184,9 +184,6 @@ export const ConfigurationsDialog = ({
     const tourPiloteAilleurs = transcriptionPiloteLesTours({
         organisation: userConfig,
         agent: resolvedWorkflowConfigurations,
-        estTempsReel: Boolean(
-            (resolvedWorkflowConfigurations as { is_realtime?: boolean }).is_realtime
-        ),
     });
     const [isSaving, setIsSaving] = useState(false);
     const selectedTurnStartStrategy = TURN_START_STRATEGY_OPTIONS.find(

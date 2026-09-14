@@ -120,9 +120,28 @@ def test_les_consignes_de_relance_ne_sont_pas_estampillees():
 
 
 def test_le_banc_au_clavier_nestampille_pas_ces_reglages():
-    """⛔ It transcribes nothing, speaks nothing and runs no turn strategy."""
+    """⛔ It transcribes nothing, speaks nothing and runs no turn strategy.
+
+    ⚠️ Read honestly, and the review of 14/09 was right to push on this. A
+    lone negative assertion -- "this string is absent from that module" --
+    would pass for ever on a string nobody ever wrote there, and would prove
+    nothing while looking like a guarded invariant.
+
+    So it is asserted in TWO parts: the module does stamp something (it calls
+    ``stamp_sampling_settings``, which is true today and keeps this test
+    pointed at a module that still stamps), and it does NOT stamp the Pipecat
+    settings. The first half is what makes the second meaningful: if the
+    keyboard bench stopped stamping altogether, or this import went stale, the
+    test goes red instead of quietly passing.
+    """
     source = inspect.getsource(text_chat_runner)
+    assert "stamp_sampling_settings" in source, (
+        "The keyboard bench no longer stamps anything at all, so the assertion "
+        "below no longer says what it claims to say. Check what this module "
+        "became before adjusting it."
+    )
     assert "stamp_pipeline_settings" not in source, (
         "The keyboard bench stamps the Pipecat settings. It goes through none "
-        "of them, so the stamp would describe settings that played no part."
+        "of them -- no transcription, no voice, no turn strategy -- so the "
+        "stamp would describe settings that played no part in the run."
     )

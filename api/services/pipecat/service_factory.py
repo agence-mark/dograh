@@ -712,7 +712,6 @@ def create_stt_service(
         )
 
 
-@_report_service_factory_failures(ErrorSource.TTS, config_section="tts")
 def construire_filtres_de_texte_voix(run_configs: dict | None = None) -> list:
     """[.mark] Build the text filters the voice service runs its text through.
 
@@ -786,26 +785,40 @@ def reglages_de_voix_communs(run_configs: dict | None = None) -> dict:
     ``push_silence_after_stop`` is on, and nothing ever turned it on. Both are
     forwarded now, the switch off by default -- which is today's behaviour.
     """
+    # ⛔ `None` vaut "pas rempli", jamais une valeur -- la même défense que
+    # `collecter_reglages_tour_de_parole`. Les configurations stockées portent
+    # des nuls JSON explicites pour les clés jamais touchées, et `float(None)`
+    # ou `TextAggregationMode(None)` tueraient l'appel à la construction de la
+    # voix. L'asymétrie entre les deux points de collecte a été relevée par la
+    # relecture indépendante du 14/09.
     run_configs = run_configs or {}
+
+    def _valeur(cle, defaut):
+        valeur = run_configs.get(cle)
+        return defaut if valeur is None else valeur
+
     return {
         "text_filters": construire_filtres_de_texte_voix(run_configs),
         "text_transforms": construire_remplacements_de_voix(run_configs),
         "text_aggregation_mode": TextAggregationMode(
-            run_configs.get(
-                "tts_text_aggregation_mode", DEFAULT_TTS_TEXT_AGGREGATION_MODE
-            )
+            _valeur("tts_text_aggregation_mode", DEFAULT_TTS_TEXT_AGGREGATION_MODE)
         ),
         "push_silence_after_stop": bool(
-            run_configs.get(
-                "tts_push_silence_after_stop", DEFAULT_TTS_PUSH_SILENCE_AFTER_STOP
-            )
+            _valeur("tts_push_silence_after_stop", DEFAULT_TTS_PUSH_SILENCE_AFTER_STOP)
         ),
         "silence_time_s": float(
-            run_configs.get("tts_silence_time_s", DEFAULT_TTS_SILENCE_TIME_S)
+            _valeur("tts_silence_time_s", DEFAULT_TTS_SILENCE_TIME_S)
         ),
     }
 
 
+# ⛔ Le décorateur appartient à create_tts_service, PAS aux fonctions de
+# collecte au-dessus. Décroché le 14/09 en insérant celles-ci juste après lui,
+# et rattrapé par la relecture indépendante : sans lui, un échec de
+# construction de la voix n'est plus classé ni journalisé, et le service ne
+# porte plus la métadonnée qui attribue la faute au client ou à .mark.
+# ⚠️ Aucun test ne pouvait le voir : `inspect.getsource` suit `__wrapped__`.
+@_report_service_factory_failures(ErrorSource.TTS, config_section="tts")
 def create_tts_service(
     user_config,
     audio_config: "AudioConfig",

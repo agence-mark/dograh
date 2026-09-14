@@ -33,6 +33,7 @@ of setting ends up applying to half the calls.
 """
 
 import inspect
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -176,6 +177,51 @@ def test_sans_reglage_le_plafond_dattente_est_celui_daujourdhui():
         run_pipeline._resolve_user_turn_stop_timeout({}, uses_external_turns=False)
         == USER_TURN_STOP_TIMEOUT_AVANT
     )
+
+
+def test_le_plafond_dattente_garde_ses_DEUX_defauts():
+    """🚨 The blocking defect of 2026-09-14, found by the independent review.
+
+    This setting has TWO defaults, not one: 5 s normally, and 30 s when the
+    transcription service drives the turns itself. Declaring it with 5 as a
+    default meant the screen materialised 5 into the stored configuration on
+    the first save -- so opening a Flux agent's dialog to change its VOICE cut
+    its transcript ceiling from 30 s to 5 s, from a section the screen hides
+    from exactly those agents.
+
+    ⛔ The pipeline therefore tests "filled in", not "present": since the
+    screen materialises the whole configuration, the key exists on every agent
+    ever saved.
+    """
+    assert (
+        run_pipeline._resolve_user_turn_stop_timeout({}, uses_external_turns=True)
+        == 30.0
+    )
+    # A key stored as null (never filled in) must behave like an absent key.
+    assert (
+        run_pipeline._resolve_user_turn_stop_timeout(
+            {"user_turn_stop_timeout": None}, uses_external_turns=True
+        )
+        == 30.0
+    )
+    assert (
+        run_pipeline._resolve_user_turn_stop_timeout(
+            {"user_turn_stop_timeout": None}, uses_external_turns=False
+        )
+        == USER_TURN_STOP_TIMEOUT_AVANT
+    )
+    # And a value genuinely filled in still wins, in both modes.
+    assert (
+        run_pipeline._resolve_user_turn_stop_timeout(
+            {"user_turn_stop_timeout": 12}, uses_external_turns=True
+        )
+        == 12
+    )
+
+
+def test_le_schema_laisse_le_plafond_dattente_VIDE():
+    """⛔ Empty, because there is no single number that is right in both modes."""
+    assert WorkflowConfigurationDefaults().user_turn_stop_timeout is None
 
 
 # --------------------------------------------------------------------------- #
@@ -345,8 +391,11 @@ def test_nos_constantes_egalent_les_defauts_de_pipecat():
         configuration.filter_incomplete_user_turns
         == defauts_agregateur.filter_incomplete_user_turns
     )
-    assert (
-        configuration.user_turn_stop_timeout == defauts_agregateur.user_turn_stop_timeout
+    # ⛔ Not compared to the aggregator's default: ours is deliberately empty,
+    # because this setting has two defaults and the pipeline picks between
+    # them. The constant that reproduces Pipecat's is asserted instead.
+    assert run_pipeline.DEFAULT_USER_TURN_STOP_TIMEOUT == (
+        defauts_agregateur.user_turn_stop_timeout
     )
     completion = UserTurnCompletionConfig()
     assert configuration.incomplete_short_timeout == completion.incomplete_short_timeout
@@ -385,6 +434,11 @@ def test_le_pipeline_ne_construit_plus_de_detecteur_en_dur():
     assert "SpeechTimeoutUserTurnStopStrategy()" not in source, (
         "The silence strategy is built with no argument again, which silently "
         "restores Pipecat's 0.6 s whatever the agent configured."
+    )
+    # ⚠️ Tolerant to spacing: an exact-literal assertion is a net that a
+    # formatter takes down without a sound. Raised by the review of 14/09.
+    assert not re.search(r"VADParams\s*\(\s*stop_secs\s*=", source), (
+        "A code path builds the voice detector with a literal stop_secs again."
     )
 
 
@@ -444,4 +498,20 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     assert len(ecran) == 29, (
         f"The screen declares {len(ecran)} Pipecat defaults, expected 29. "
         f"A setting added on one side only renders and is then dropped."
+    )
+
+
+def test_la_fin_de_tour_par_le_modele_existe_encore_chez_pipecat():
+    """⚠️ Deprecated upstream since Pipecat 1.2.0, removed in 2.0.0.
+
+    Exposed anyway -- off by default, and an A/B may want to try it -- but the
+    day it disappears, this test goes red rather than letting a screen offer a
+    setting the pipeline silently ignores. It takes `incomplete_short_timeout`
+    and `incomplete_long_timeout` with it. Raised by the review of 14/09.
+    """
+    defauts = LLMUserAggregatorParams()
+    assert hasattr(defauts, "filter_incomplete_user_turns"), (
+        "Pipecat dropped `filter_incomplete_user_turns`. Three settings on the "
+        "agent screen no longer do anything: remove them, and say so in the "
+        "release notes rather than leaving dead switches."
     )

@@ -269,14 +269,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "the detector below without this, and the end of turn is wrong."
         ),
     )
-    user_turn_stop_timeout: float = Field(
-        default=5.0,
+    user_turn_stop_timeout: float | None = Field(
+        default=None,
         gt=0,
         le=60,
         description=(
             "Hard ceiling on the wait for a transcript before the turn ends "
-            "anyway. Read by the pipeline since before this patch, but it was "
-            "on no schema and no screen."
+            "anyway. Empty means the value the pipeline picks for this agent: "
+            "5 s normally, 30 s when the transcription service drives the "
+            "turns itself. ⛔ This setting has TWO defaults, not one -- "
+            "writing 5 s into it silently cuts a Flux agent from 30 s to 5 s."
         ),
     )
     turn_wait_for_transcript: bool = Field(
@@ -362,13 +364,20 @@ class WorkflowConfigurationDefaults(BaseModel):
             "microphone mid-sentence. 0 disables it."
         ),
     )
+    # ⚠️ DEPRECATED UPSTREAM since Pipecat 1.2.0, removed in 2.0.0
+    # (`llm_response_universal.py`). Exposed anyway, because it is off by
+    # default and an A/B may still want to try it -- but it will disappear on
+    # a version bump, taking the two timeouts below with it. Written here so
+    # that day is a decision and not a surprise. Raised by the review of
+    # 2026-09-14; tracked as question n° 131.
     filter_incomplete_user_turns: bool = Field(
         default=DEFAULT_FILTER_INCOMPLETE_USER_TURNS,
         description=(
             "Ask the model itself whether the caller has finished their "
             "sentence. ⚠️ Off by default: it costs one extra model call per "
-            "turn, and it has not been checked against Mistral. Its follow-up "
-            "prompts are in English in Pipecat and are not exposed yet."
+            "turn, it has not been checked against Mistral, and its follow-up "
+            "prompts are in English in Pipecat. ⚠️ Deprecated upstream: it "
+            "will disappear on a Pipecat major upgrade."
         ),
     )
     incomplete_short_timeout: float = Field(

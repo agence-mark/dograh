@@ -28,7 +28,7 @@ import {
 const REGLAGES_AUJOURDHUI: ReglagesTourDeParole = {
     user_speech_timeout: 0.6,
     stt_ttfs_p99_latency: null,
-    user_turn_stop_timeout: 5,
+    user_turn_stop_timeout: null,
     turn_wait_for_transcript: true,
     turn_start_use_interim: true,
     vad_confidence: 0.7,
@@ -70,7 +70,11 @@ describe("Section Tour de parole", () => {
         afficher();
         expect(champ("user_speech_timeout").value).toBe("0.6");
         expect(champ("vad_stop_secs").value).toBe("0.2");
-        expect(champ("user_turn_stop_timeout").value).toBe("5");
+        // ⛔ VIDE, pas 5. Ce réglage a DEUX défauts selon le mode (5 s, ou
+        // 30 s quand la transcription pilote les tours) : écrire 5 dans le
+        // champ fait tomber le second cas à 5 s au premier enregistrement.
+        // Défaut confirmé par la relecture du 14/09.
+        expect(champ("user_turn_stop_timeout").value).toBe("");
         expect(champ("audio_idle_timeout").value).toBe("1");
     });
 
@@ -82,6 +86,19 @@ describe("Section Tour de parole", () => {
         expect(champ("stt_ttfs_p99_latency").value).toBe("");
         expect(document.body.textContent).toMatch(
             /leave empty to keep the value pipecat measured/i,
+        );
+    });
+
+    it("dit que le plafond d'attente a DEUX defauts", () => {
+        afficher();
+        expect(document.body.textContent).toMatch(/this setting has two defaults/i);
+    });
+
+    it("remonte le plafond d'attente a null quand on vide le champ", () => {
+        const onChange = afficher({ user_turn_stop_timeout: 12 });
+        fireEvent.change(champ("user_turn_stop_timeout"), { target: { value: "" } });
+        expect(onChange).toHaveBeenCalledWith(
+            expect.objectContaining({ user_turn_stop_timeout: null }),
         );
     });
 
@@ -191,8 +208,18 @@ describe("Quelle transcription pilote les tours", () => {
         ).toEqual({ provider: "deepgram", model: "nova-3-general" });
     });
 
-    it("le temps reel pilote toujours ses tours", () => {
-        expect(transcriptionPiloteLesTours({ estTempsReel: true })).toBe(true);
+    it("le temps reel ne masque PAS la section", () => {
+        // ⛔ Corrigé le 14/09 après la relecture. Une version antérieure de ce
+        // fichier masquait la section en temps réel. C'est faux depuis ce
+        // patch : le détecteur de parole et la pause s'appliquent AUSSI à un
+        // appel temps réel, `_create_realtime_user_turn_config` les construit
+        // depuis la configuration de l'agent. Les masquer cacherait des
+        // réglages qui fonctionnent.
+        expect(
+            transcriptionPiloteLesTours({
+                organisation: { stt: { provider: "deepgram", model: "nova-3-general" } },
+            }),
+        ).toBe(false);
     });
 
     it("sans configuration connue, la section reste affichee", () => {

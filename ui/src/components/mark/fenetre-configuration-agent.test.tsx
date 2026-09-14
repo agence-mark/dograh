@@ -144,6 +144,20 @@ describe("Fenetre de configuration de l'agent", () => {
         });
     });
 
+    it("n'ecrit PAS de plafond d'attente quand l'agent n'y a pas touche", () => {
+        // 🚨 Le défaut bloquant du 14/09, relevé par la relecture. Ce réglage a
+        // DEUX valeurs par défaut : 5 s normalement, 30 s quand la
+        // transcription pilote elle-même les tours. En écrivant 5 à
+        // l'enregistrement, ouvrir la fenêtre d'un agent Flux pour changer sa
+        // voix faisait tomber son plafond de 30 s à 5 s -- depuis une section
+        // que l'écran lui masque justement.
+        const onSave = ouvrir(null);
+
+        fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+        expect(onSave.mock.calls[0][0].user_turn_stop_timeout).toBeNull();
+    });
+
     it("monte la section Relance avec les consignes d'aujourd'hui", () => {
         ouvrir(null);
         const consigne = document.getElementById("user_idle_prompt") as HTMLTextAreaElement;

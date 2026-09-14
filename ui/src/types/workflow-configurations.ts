@@ -32,7 +32,7 @@ export const DEFAULT_TTS_MARKDOWN_FILTER_ENABLED = false;
 export const DEFAUTS_PIPECAT = {
     user_speech_timeout: 0.6,
     stt_ttfs_p99_latency: null,
-    user_turn_stop_timeout: 5,
+    user_turn_stop_timeout: null,
     turn_wait_for_transcript: true,
     turn_start_use_interim: true,
     vad_confidence: 0.7,
@@ -199,7 +199,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     mute_always: boolean;
     user_speech_timeout: number;  // Seconds the caller may pause before the agent answers
     stt_ttfs_p99_latency: number | null;  // Empty = the value Pipecat measured for the provider
-    user_turn_stop_timeout: number;  // Hard ceiling on waiting for a transcript
+    user_turn_stop_timeout: number | null;  // Empty = 5 s, or 30 s in external-turn mode
     turn_wait_for_transcript: boolean;
     turn_start_use_interim: boolean;
     vad_confidence: number;

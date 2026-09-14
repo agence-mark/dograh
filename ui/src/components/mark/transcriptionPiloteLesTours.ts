@@ -3,9 +3,16 @@
  *
  * Why the screen needs to know
  * ---------------------------
- * When it does (Deepgram Flux, Cartesia ink-2) — or in realtime mode — the
- * pipeline does not build the turn strategies at all: it follows the signals
- * the provider sends. Every turn-taking setting is then inert.
+ * When it does (Deepgram Flux, Cartesia ink-2), the pipeline does not build
+ * the turn strategies at all: it follows the signals the provider sends, and
+ * every turn-taking setting is inert.
+ *
+ * ⛔ Realtime mode is NOT this case, and an earlier version of this file said
+ * it was. Since the patch of 14/09 the voice detector and the pause DO apply
+ * to a realtime call -- `_create_realtime_user_turn_config` builds the
+ * detector from the agent's settings. Hiding the section there would hide
+ * settings that work. (The check was also dead: `is_realtime` is not a root
+ * key of the configuration. Both found by the review of 14/09.)
  *
  * 🚨 A setting shown in a state that is not its own is worse than a setting
  * not shown: someone would raise the pause to 1.5 s, hear no difference, and
@@ -42,8 +49,6 @@ export interface EntreesDeResolution {
         model_overrides?: { stt?: ConfigurationTranscription | null } | null;
         [key: string]: unknown;
     } | null;
-    /** True when the agent runs a realtime model, which owns its own turns. */
-    estTempsReel?: boolean;
 }
 
 const lireStt = (valeur: unknown): ConfigurationTranscription | null => {
@@ -75,7 +80,6 @@ export const transcriptionEffective = ({
 
 /** True when the turn-taking settings play no part in this agent's calls. */
 export const transcriptionPiloteLesTours = (entrees: EntreesDeResolution): boolean => {
-    if (entrees.estTempsReel) return true;
     const stt = transcriptionEffective(entrees);
     if (!stt?.provider || !stt.model) return false;
     const modeles = MODELES_QUI_PILOTENT_LES_TOURS[stt.provider];
