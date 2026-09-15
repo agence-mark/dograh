@@ -54,6 +54,10 @@ cd api && python -m pytest tests/mark -q
 | `test_duplication_agent.py` | La copie d'un agent garde son `workflow_configurations` **à l'identique** — marqueur de surcharge par service et réglages Pipecat compris — et c'est une copie **profonde**. 🔑 Une branche d'A/B EST une copie : deux branches qui partagent un dictionnaire bougeraient ensemble, et le banc comparerait un agent avec lui-même sans que rien n'ait l'air anormal. Rien ne gardait ce chemin d'écriture avant le 14/09 | n° 116 |
 | `test_conversion_nombres_transcription.py` | Les nombres dictés arrivent au modèle **en chiffres** quand l'interrupteur de l'agent est allumé, et **seulement dans les transcriptions finales françaises** : la phrase du 15/09 sort en « le 07 88 26 14 09 », les phrases ordinaires, les provisoires et l'anglais sortent intacts, une conversion qui échoue rend le texte d'origine. 🔒 **La phrase d'origine n'est jamais modifiée** : la conversion pousse une copie qui garde son identifiant, sinon le fil en direct afficherait tantôt des lettres, tantôt des chiffres. ✅ **Vérifié sur ce que le direct AFFICHE**, avec le vrai observateur du fil en direct branché : une seule phrase finale, en lettres 🔒 **Éteint, la liste des processeurs est identique à avant** ; allumé, l'étape est **juste avant l'agrégateur**, et absente du pipeline temps réel | n° 148 |
 
+| `test_etat_ouverture.py` | Depuis des horaires saisis au format lisible, **l'état du magasin** (`OUVERT`, `PAUSE`, `FERME`, `SUR_RENDEZ_VOUS`) **et la phrase de réouverture** sont exacts : les 17 situations de l'épreuve du 15/09 (pause déjeuner, jours fériés, congés, horaires réduits, changement d'heure), la traduction, les refus avec numéro de ligne, la priorité des exceptions, les jours fériés 2027 à 2030, et **chaque instant d'une semaine a exactement un état, compté et asserté dans les deux sens**. 🔒 **Un agent sans horaires reçoit le contexte d'avant, à l'identique** ; une valeur déjà fournie n'est jamais écrasée ; des horaires invalides arrivés jusqu'à l'appel ne lèvent rien. ⚠️ Ligne `jours fériés` absente = fériés **fermés** (le prototype les laissait ouverts) | n° 151 |
+| `test_horaires_ouverture_reglage.py` | La route qui **enregistre** les réglages de l'agent écrit les horaires **tels que saisis**, **refuse en 422** une saisie fautive avec son numéro de ligne (rien n'est écrit), accepte le vide, et publie le champ dans la spec. 🔑 **Et un agent sans horaires ne journalise AUCUNE erreur** : avant la déclaration du champ, le contexte était juste mais une erreur partait à chaque appel — vert pour une mauvaise raison, prouvé rouge | n° 151 |
+| `test_etat_ouverture_branchement.py` | 🚨 **L'injection est-elle APPELÉE**, et au bon moment ? Voix : motif sur le source, **dans l'ordre** lecture de la configuration < injection < persistance < pre-call fetch. Clavier : **exécuté** jusqu'au moteur, base simulée, heure fixée — le contexte persisté porte les trois variables et **la consigne rendue dit « État : PAUSE »**, pas « État : . » (l'appel réel du 15/09). Le pre-call fetch gagne ; une valeur injectée au rejeu reste ; l'état du premier tour reste aux tours suivants ; sans horaires, dictionnaire persisté exact. ⚠️ Ne couvre pas un moteur qui rendrait depuis un autre dictionnaire | n° 151 |
+
 ## Comment se lit le rouge
 
 **Constaté le 10/09/2026**, en retirant le patch pour vérifier que ces tests protègent vraiment
@@ -79,12 +83,12 @@ Un seul patch perdu peut donc faire croire que toute la suite est cassée. Pour 
 python -m pytest tests/mark -q --continue-on-collection-errors
 ```
 
-**La mesure de référence, au 15/09/2026 sur `mark/deploiement` (fusion `93e6deff`) : 380 tests, tous
-verts avec les patchs.**
+**La mesure de référence, au 15/09/2026 sur `chantier/etat-ouverture` (à reporter à la fusion) : 465 tests,
+tous verts avec les patchs.** 380 sur `mark/deploiement` (fusion `93e6deff`) avant ce chantier.
 ⚠️ **Elle change à chaque chantier** : 47 avant l'exposition des réglages Mistral, 105 le 10/09 au
 soir, **113 après la réparation de la graine**, 234 après l'exposition des réglages de la
 transcription, **350 après l'exposition des réglages Pipecat** (14/09), 359 après la réparation de
-l'écran, **380 avec la conversion des nombres dictés** (15/09). C'est ce nombre-là que la procédure de montée de version prend comme base —
+l'écran, **380 avec la conversion des nombres dictés** (15/09), **465 avec l'état d'ouverture** (15/09, branche). C'est ce nombre-là que la procédure de montée de version prend comme base —
 **une mesure de référence périmée fait passer une perte de patch pour un changement de compte.**
 
 **Le rouge de référence, mesuré le matin sur les 47 :** sans les patchs de `registry.py`,
