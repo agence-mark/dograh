@@ -79,9 +79,8 @@ Un seul patch perdu peut donc faire croire que toute la suite est cassée. Pour 
 python -m pytest tests/mark -q --continue-on-collection-errors
 ```
 
-**La mesure de référence, au 15/09/2026 sur la branche `chantier/conversion-nombres-transcription` :
-380 tests, tous verts avec les patchs.** ⚠️ Tant que la branche n'est pas fusionnée, la référence de
-`mark/deploiement` reste **359**.
+**La mesure de référence, au 15/09/2026 sur `mark/deploiement` (fusion `93e6deff`) : 380 tests, tous
+verts avec les patchs.**
 ⚠️ **Elle change à chaque chantier** : 47 avant l'exposition des réglages Mistral, 105 le 10/09 au
 soir, **113 après la réparation de la graine**, 234 après l'exposition des réglages de la
 transcription, **350 après l'exposition des réglages Pipecat** (14/09), 359 après la réparation de
