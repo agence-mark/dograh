@@ -14,7 +14,6 @@ from api.constants import (
     MIN_TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
     TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
 )
-from api.services.pipecat.etat_ouverture import HorairesInvalides, vers_expression_osm
 
 DEFAULT_MAX_CALL_DURATION_SECONDS = 300
 # Hard ceiling on configurable call duration. Must stay <= the concurrency
@@ -592,19 +591,19 @@ class WorkflowConfigurationDefaults(BaseModel):
 
     @field_validator("horaires_ouverture")
     @classmethod
-    def valider_horaires_ouverture(cls, value: str | None) -> str | None:
-        """[.mark] Refused when SAVED, not when a call comes in (D9).
+    def horaires_vides_a_none(cls, value: str | None) -> str | None:
+        """[.mark] Blank means "no hours". Never raises.
 
-        The message carries the line number and is shown as is under the field.
-        The text is stored as typed: it is also what the agent reads back when
-        asked for the opening hours.
+        ⛔ The GRAMMAR is not checked here, on purpose. This model is also read
+        at call set-up on the whole configuration (``conversion_nombres.py``,
+        ``service_factory.py``): a validator raising here would kill the call
+        on invalid hours stored by hand, which is the opposite of D9. Found by
+        the review of 2026-09-15. The grammar is checked on the SAVE route
+        (``UpdateWorkflowRequest`` in ``routes/workflow.py``), and at call
+        set-up ``injecter_etat_ouverture`` logs and injects nothing.
         """
         if value is None or not value.strip():
             return None
-        try:
-            vers_expression_osm(value)
-        except HorairesInvalides as erreur:
-            raise ValueError(str(erreur)) from None
         return value
 
     @field_validator("external_pbx_lead_headers", mode="before")

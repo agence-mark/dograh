@@ -215,6 +215,27 @@ def test_lignes_vides_et_commentaires_ignores():
     assert vers_expression_osm(texte).startswith("Mo off; Tu off")
 
 
+@pytest.mark.parametrize("fautive", ["ouverte le matin", "ouvert n'importe quoi"])
+def test_jours_feries_ouvert_est_strict(fautive):
+    """Review of 2026-09-15: « ouvert le matin seulement » was read as open all day."""
+    with pytest.raises(HorairesInvalides, match="ligne 8"):
+        vers_expression_osm(SEPT_JOURS_FERMES + f"\njours fériés : {fautive}")
+    assert "PH" not in vers_expression_osm(SEPT_JOURS_FERMES + "\njours fériés : Ouverte")
+
+
+@pytest.mark.parametrize("plage", ["22:00-02:00", "12:00-12:00"])
+def test_une_plage_dont_la_fin_precede_le_debut_est_refusee(plage):
+    """Review of 2026-09-15: a range past midnight was cut at midnight in silence."""
+    texte = SEPT_JOURS_FERMES.replace("vendredi : fermé", f"vendredi : {plage}")
+    with pytest.raises(HorairesInvalides, match="ligne 5 : la fin précède le début"):
+        vers_expression_osm(texte)
+
+
+def test_une_plage_jusqua_24h_est_acceptee():
+    texte = SEPT_JOURS_FERMES.replace("vendredi : fermé", "vendredi : 22:00-24:00")
+    assert _etat(texte, "2026-09-18 23:00") == (OUVERT, "")
+
+
 # --------------------------------------------------------------------------- #
 # 5. Priority (rule 7)
 # --------------------------------------------------------------------------- #
@@ -291,6 +312,15 @@ def test_ouvert_et_sur_rendez_vous_nont_pas_de_reouverture():
 
 def test_aucune_ouverture_sous_60_jours():
     assert _etat(SEPT_JOURS_FERMES, "2026-09-15 11:00") == (FERME, "")
+
+
+@pytest.mark.parametrize("quand", ["2026-01-28 02:30", "2026-01-28 02:00", "2026-08-26 02:30"])
+def test_lhorizon_ne_tombe_pas_dans_lheure_qui_nexiste_pas(quand):
+    """⛔ Review of 2026-09-15: 28 January 02:30 + 60 days in local time is
+    29 March 02:30, skipped by the switch to summer time. The library raised
+    and, through the injection, the call got no state -- one night a year.
+    (26 August 02:30 + 60 days: 25 October 02:30, the hour that happens twice.)"""
+    assert _etat(EXEMPLE_D2, quand) == (FERME, "aujourd'hui à 10 heures")
 
 
 def test_ouverture_a_61_jours_ignoree_a_59_jours_trouvee():

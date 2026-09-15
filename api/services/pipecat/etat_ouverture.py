@@ -34,7 +34,7 @@ not in the ``FR`` calendar.
 
 import re
 import unicodedata
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from loguru import logger
@@ -119,7 +119,15 @@ def _valeur(brute: str, ligne: int) -> tuple[str, str]:
         bornes = re.split(r"\s*[-–]\s*", morceau)
         if len(bornes) != 2:
             raise HorairesInvalides(f"ligne {ligne} : plage illisible « {morceau} »")
-        sortie.append(f"{_heure(bornes[0], ligne)}-{_heure(bornes[1], ligne)}")
+        debut, fin = _heure(bornes[0], ligne), _heure(bornes[1], ligne)
+        if fin <= debut:
+            # A range past midnight would be cut at midnight in silence: the
+            # next day's rule, always present, replaces its overflow in OSM.
+            raise HorairesInvalides(
+                f"ligne {ligne} : la fin précède le début « {morceau} » "
+                "(une plage ne passe pas minuit)"
+            )
+        sortie.append(f"{debut}-{fin}")
     if not sortie:
         raise HorairesInvalides(f"ligne {ligne} : aucune plage horaire")
     return ",".join(sortie), commentaire
@@ -183,7 +191,9 @@ def vers_expression_osm(texte: str) -> str:
 
         if cle_normalisee in ("jours feries", "feries"):
             normalisee = _sans_accents(valeur.strip())
-            if normalisee.startswith("ouvert"):
+            # Strict: « ouvert le matin seulement » must be refused, not read
+            # as open all day (rule 8).
+            if normalisee in ("ouvert", "ouverte"):
                 # Open on public holidays: the weekday rules apply unchanged.
                 regle_feries = None
             else:
@@ -271,8 +281,12 @@ def calculer_etat(expression: str, maintenant: datetime) -> tuple[str, str]:
         logger.error(f"[etat_ouverture] ambiguous state at {t.isoformat()} for « {expression} »")
 
     reouverture, commentaire_reouverture = None, ""
+    # ⛔ The horizon is added in UTC. Added in local time, 28 January 02:30 +
+    # 60 days lands on 29 March 02:30, an hour that does not exist in Paris,
+    # and the library raises (review of 2026-09-15).
+    horizon = (t.astimezone(UTC) + HORIZON_REOUVERTURE).astimezone(PARIS)
     for debut, _fin, etat_intervalle, commentaire_intervalle in horaires.intervals(
-        t, t + HORIZON_REOUVERTURE
+        t, horizon
     ):
         if etat_intervalle == State.OPEN:
             reouverture, commentaire_reouverture = _a_paris(debut), commentaire_intervalle

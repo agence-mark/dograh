@@ -113,6 +113,17 @@ describe("[.mark] Opening Hours card", () => {
         expect(toastMock.success).not.toHaveBeenCalled();
     });
 
+    it("strips the prefix on every line when several refusals are joined", async () => {
+        const onSave = vi
+            .fn()
+            .mockRejectedValue(new Error("Value error, ligne 1 : x\nValue error, ligne 3 : y"));
+        ouvrir(null, onSave);
+        fireEvent.change(champ(), { target: { value: "lundi 10:00" } });
+        enregistrer();
+        const alerte = await screen.findByRole("alert");
+        expect(alerte.textContent).toBe("ligne 1 : x\nligne 3 : y");
+    });
+
     it("clears the refusal as soon as the entry is edited", async () => {
         const onSave = vi.fn().mockRejectedValue(new Error("Value error, ligne 1 : x"));
         ouvrir(null, onSave);

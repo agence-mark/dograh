@@ -66,7 +66,8 @@ const messageLisible = (erreur: unknown): string => {
     const brut = erreur instanceof Error && erreur.message
         ? erreur.message
         : detailFromError(erreur, "Opening hours not saved. Check the entry and try again.");
-    return brut.replace(/^Value error,\s*/, "");
+    // Several refusals come joined by line breaks: strip the prefix on each.
+    return brut.replace(/^Value error,\s*/gm, "");
 };
 
 export const SectionHorairesOuverture = ({

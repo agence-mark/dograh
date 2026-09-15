@@ -19,6 +19,7 @@ until a caller is told the shop is open on a Sunday.
 ``ui/src/components/mark/section-horaires-ouverture.test.tsx``.
 """
 
+import re
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -146,6 +147,42 @@ def test_le_champ_figure_dans_la_spec_publiee():
 
 def test_le_defaut_est_vide():
     assert WorkflowConfigurationDefaults().horaires_ouverture is None
+
+
+HORAIRES_INVALIDES = {"horaires_ouverture": "lundi 10:00-18:30", "conversion_nombres_transcription": False}
+
+
+def test_lire_une_configuration_aux_horaires_invalides_ne_leve_pas():
+    """⛔ D9 on the READ side. Review of 2026-09-15: the grammar was checked by
+    the schema itself, and the schema is also read on the WHOLE configuration
+    when a call is set up. Invalid hours stored by hand made that read raise,
+    and the call died -- while the injection test, which stops at its own
+    function, stayed green."""
+    lue = WorkflowConfigurationDefaults.model_validate(HORAIRES_INVALIDES)
+    assert lue.horaires_ouverture == "lundi 10:00-18:30"
+
+
+def test_le_montage_de_lappel_survit_a_des_horaires_invalides():
+    """The two call set-up paths that read the whole configuration, called."""
+    from api.services.pipecat.conversion_nombres import creer_conversion_nombres
+    from api.services.pipecat.service_factory import stamp_pipeline_settings
+
+    assert creer_conversion_nombres(HORAIRES_INVALIDES, None) is None
+    estampille = stamp_pipeline_settings({}, HORAIRES_INVALIDES)
+    assert "pipeline_settings" in estampille
+    assert injecter_etat_ouverture(
+        {"direction": "inbound"}, HORAIRES_INVALIDES, maintenant=datetime(2026, 9, 15, 11, tzinfo=PARIS)
+    ) == {"direction": "inbound"}
+
+
+def test_la_grammaire_est_verifiee_par_la_route_et_pas_par_le_schema():
+    """The refusal lives on the save route; the schema only turns blank into None."""
+    import inspect
+
+    from api.routes import workflow as route
+
+    assert re.search(r"vers_expression_osm\(", inspect.getsource(route))
+    assert WorkflowConfigurationDefaults.model_validate({"horaires_ouverture": "   "}).horaires_ouverture is None
 
 
 @pytest.mark.parametrize("configs", [{}, {"horaires_ouverture": None}, {"horaires_ouverture": "  "}])
