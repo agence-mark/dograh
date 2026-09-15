@@ -49,6 +49,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
+import { ID_SECTION_HORAIRES_OUVERTURE } from "./SectionHorairesOuverture";
 import { ID_SECTION_REGLAGES_PIPECAT } from "./SectionReglagesPipecat";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -216,6 +217,18 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
                 "utf8",
             ),
         ).not.toThrow();
+    });
+
+    it("[opening hours] the card is really mounted, with its field, its Save button and its sidebar entry", async () => {
+        // Same trap, same guard, for the card added on 2026-09-15: a card that
+        // renders in its own test and is mounted nowhere is hours nobody types.
+        const { container } = await rendreLaPage();
+        expect(container.querySelector(`#${ID_SECTION_HORAIRES_OUVERTURE}`)).not.toBeNull();
+        expect(document.getElementById("horaires_ouverture")).not.toBeNull();
+        expect(screen.getByRole("button", { name: /save opening hours/i })).toBeTruthy();
+        const entree = container.querySelector(`a[href="#${ID_SECTION_HORAIRES_OUVERTURE}"]`);
+        expect(entree).not.toBeNull();
+        expect(entree?.textContent).toContain("Opening Hours");
     });
 
     it("is NOT left behind in the dead dialog, where it was unreachable", () => {
