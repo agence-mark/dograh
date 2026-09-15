@@ -175,8 +175,35 @@ def test_le_montage_de_lappel_survit_a_des_horaires_invalides():
     ) == {"direction": "inbound"}
 
 
+@pytest.mark.parametrize(
+    "hors_bornes",
+    [
+        {"horaires_ouverture": "x" * 5000},
+        {"horaires_ouverture": 12},
+        {"horaires_ouverture": ["lundi"]},
+        # The motif is not ours alone: any bounded setting stored out of range.
+        {"max_call_duration": 0},
+    ],
+    ids=["5000-caracteres", "nombre", "liste", "max_call_duration-0"],
+)
+def test_le_montage_survit_a_une_valeur_hors_bornes_ecrite_en_base(hors_bornes):
+    """⛔ Counter-review of 2026-09-15: ``creer_conversion_nombres`` read the WHOLE
+    configuration through the schema, at call set-up, without a try. A value
+    written by hand past a bound killed the call -- the grammar fix had closed
+    one door of that motif, not the motif."""
+    from api.services.pipecat.conversion_nombres import creer_conversion_nombres
+
+    assert creer_conversion_nombres(hors_bornes, None) is None
+    assert injecter_etat_ouverture({"a": 1}, hors_bornes) == {"a": 1}
+
+
 def test_la_grammaire_est_verifiee_par_la_route_et_pas_par_le_schema():
-    """The refusal lives on the save route; the schema only turns blank into None."""
+    """The refusal lives on the save route; the schema only turns blank into None.
+
+    ⚠️ Read honestly: the first assertion is a motif on the source and stays
+    green if the validator is disabled (checked by the counter-review). The
+    real guard of the refusal is ``test_la_route_refuse_une_saisie_fautive…``,
+    which goes red then."""
     import inspect
 
     from api.routes import workflow as route

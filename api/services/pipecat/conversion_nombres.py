@@ -126,7 +126,15 @@ def creer_conversion_nombres(
     🔑 Read through the schema, like the other settings: a stored ``null`` means
     "not filled in" and falls back to the default, which is off.
     """
-    effectifs = WorkflowConfigurationDefaults.model_validate(run_configs or {})
+    # ⛔ Only the switch goes through the schema, not the whole configuration:
+    # this runs at call set-up, without a try, and any OTHER setting out of its
+    # bounds in the database (a max_call_duration of 0, hours of 5000
+    # characters written by hand) made the call die here. Counter-review of
+    # 2026-09-15. Same shape as the ``call_dispositions`` read in run_pipeline.
+    cle = "conversion_nombres_transcription"
+    effectifs = WorkflowConfigurationDefaults.model_validate(
+        {cle: (run_configs or {}).get(cle)}
+    )
     if not effectifs.conversion_nombres_transcription:
         return None
     return ConversionNombresProcessor(

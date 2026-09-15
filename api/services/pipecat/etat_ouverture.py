@@ -14,8 +14,9 @@ typed in a readable French format in the agent's settings.
 The three functions, in the order the data flows
 ------------------------------------------------
 1. ``vers_expression_osm``  the readable text -> an OpenStreetMap expression.
-   Raises ``HorairesInvalides`` with the line number. Also used by the settings
-   schema, so a bad entry is refused when it is SAVED, not when a call comes in.
+   Raises ``HorairesInvalides`` with the line number. Also used by the save
+   route (``UpdateWorkflowRequest``), so a bad entry is refused when it is
+   SAVED -- never by the schema, which is read at call set-up.
 2. ``calculer_etat``        expression + instant -> (state, spoken reopening).
 3. ``injecter_etat_ouverture``  writes ``etat_ouverture``, ``reouverture`` and
    ``horaires_ouverture`` into the call context. ⛔ Never raises.
@@ -328,8 +329,8 @@ def injecter_etat_ouverture(
       hand, through MCP) are logged and nothing is injected: the call goes on.
     """
     try:
-        # Imported here: the settings schema imports this module for its
-        # validator, so a top-level import would be a cycle.
+        # Imported here to keep this module free of ``api.*`` imports at load
+        # time: the save route imports it, and it stays importable on its own.
         from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 
         horaires = WorkflowConfigurationDefaults.model_validate(
