@@ -290,6 +290,16 @@ def test_minuit():
     assert _etat(texte, "2026-09-15 20:00") == (FERME, "demain à minuit")
 
 
+@pytest.mark.parametrize(
+    "ouverture,phrase",
+    [("00:30-02:00", "demain à minuit 30"), ("00:05-02:00", "demain à minuit 05"), ("01:00-02:00", "demain à 1 heure")],
+)
+def test_minuit_et_des_minutes(ouverture, phrase):
+    """Evan, 2026-09-15: « minuit 30 », not « 0 heure 30 »."""
+    texte = SEPT_JOURS_FERMES.replace("mercredi : fermé", f"mercredi : {ouverture}")
+    assert _etat(texte, "2026-09-15 20:00") == (FERME, phrase)
+
+
 def test_au_dela_de_7_jours_le_quantieme_et_le_mois_accentue():
     texte = SEPT_JOURS_FERMES + "\nexceptions :\n24/08/2026 : 10:00-12:00"
     assert _etat(texte, "2026-08-10 11:00") == (FERME, "lundi 24 août à 10 heures")

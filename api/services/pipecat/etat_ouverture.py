@@ -240,9 +240,10 @@ def _a_paris(instant: datetime) -> datetime:
 
 
 def heure_parlee(instant: datetime) -> str:
-    """« 14 heures », « 10 heures 30 », « 9 heures 05 », « minuit »."""
-    if instant.hour == 0 and instant.minute == 0:
-        return "minuit"
+    """« 14 heures », « 10 heures 30 », « 9 heures 05 », « minuit », « minuit 30 »."""
+    if instant.hour == 0:
+        # Evan, 2026-09-15: « minuit 30 », not « 0 heure 30 ».
+        return "minuit" + (f" {instant.minute:02d}" if instant.minute else "")
     unite = "heure" if instant.hour <= 1 else "heures"
     return f"{instant.hour} {unite}" + (f" {instant.minute:02d}" if instant.minute else "")
 
