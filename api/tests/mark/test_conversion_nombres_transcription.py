@@ -177,6 +177,46 @@ async def test_la_phrase_dorigine_nest_pas_modifiee_et_la_copie_garde_son_identi
 
 
 @pytest.mark.asyncio
+async def test_le_fil_en_direct_affiche_la_phrase_une_seule_fois_en_lettres():
+    """🔒 D2, asserted on what the live view SHOWS, not on how it is achieved.
+
+    The test above checks the means (a copy keeping the frame id). This one
+    runs the real ``RealtimeFeedbackObserver`` on the pipeline: if an upgrade
+    changed how that observer skips frames it has seen, the live view would
+    show the sentence twice, words then digits, and only this test would say so.
+    """
+    import asyncio
+
+    from api.services.pipecat.realtime_feedback_observer import (
+        RealtimeFeedbackObserver,
+    )
+
+    messages = []
+
+    async def envoyer(message):
+        messages.append(message)
+
+    observateur = RealtimeFeedbackObserver(ws_sender=envoyer)
+    processeur = ConversionNombresProcessor(langue_agent_francaise=True)
+
+    descendantes, _ = await run_test(
+        processeur,
+        frames_to_send=[_finale(PHRASE_DU_15_09)],
+        observers=[observateur],
+    )
+    # Observers drain their own queue: give it a turn before reading.
+    await asyncio.sleep(0.1)
+
+    finales = [
+        m for m in messages if m.get("payload", {}).get("final") is True
+    ]
+    assert [m["payload"]["text"] for m in finales] == [PHRASE_DU_15_09]
+    # And the model's side did get the digits.
+    (vers_le_modele,) = [t for t in descendantes if isinstance(t, TranscriptionFrame)]
+    assert vers_le_modele.text == "le 07 88 26 14 09"
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("phrase", ["il me reste deux bûches", "une fois par an"])
 async def test_les_phrases_ordinaires_sortent_inchangees(phrase):
     processeur = ConversionNombresProcessor(langue_agent_francaise=True)
