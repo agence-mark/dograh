@@ -445,6 +445,9 @@ describe("Section Reglages vocaux de la page de parametres", () => {
 
     it("affiche l'interrupteur des nombres dictes eteint par defaut", () => {
         // 🔒 Off is today's behaviour: the model reads the transcript as written.
+        // ⚠️ A switch with no value at all also renders unchecked, so the
+        // resolved default is asserted too, not only what the switch shows.
+        expect(resolveWorkflowConfigurations(null).conversion_nombres_transcription).toBe(false);
         ouvrir(null);
         expect(
             screen

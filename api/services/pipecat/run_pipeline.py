@@ -26,12 +26,12 @@ from api.services.observability.active_calls import (
     unregister_active_call as unregister_worker_active_call,
 )
 from api.services.pipecat.audio_config import AudioConfig, create_audio_config
+from api.services.pipecat.conversion_nombres import creer_conversion_nombres
 from api.services.pipecat.event_handlers import (
     register_audio_data_handler,
     register_event_handlers,
 )
 from api.services.pipecat.in_memory_buffers import InMemoryLogsBuffer
-from api.services.pipecat.conversion_nombres import creer_conversion_nombres
 from api.services.pipecat.pipeline_builder import (
     build_pipeline,
     build_realtime_pipeline,
