@@ -14,6 +14,7 @@ from api.constants import (
     MIN_TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
     TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
 )
+from api.services.pipecat.etat_ouverture import HorairesInvalides, vers_expression_osm
 
 DEFAULT_MAX_CALL_DURATION_SECONDS = 300
 # Hard ceiling on configurable call duration. Must stay <= the concurrency
@@ -74,6 +75,12 @@ DEFAULT_AUDIO_IN_NOISE_FILTER = "none"
 # 🔒 Off, which is today's behaviour: the model reads the transcript as the
 # transcription service wrote it. Turned on per agent (decision of 2026-09-15).
 DEFAULT_CONVERSION_NOMBRES_TRANSCRIPTION = False
+
+# --- Opening hours ----------------------------------------------------------
+#
+# 🔒 Empty, which is today's behaviour: nothing is computed and nothing is
+# injected into the call context (decision D6 of 2026-09-15).
+DEFAULT_HORAIRES_OUVERTURE = None
 
 # --- Idle prompts ----------------------------------------------------------
 #
@@ -449,6 +456,15 @@ class WorkflowConfigurationDefaults(BaseModel):
             "count as fewer words."
         ),
     )
+    horaires_ouverture: str | None = Field(
+        default=DEFAULT_HORAIRES_OUVERTURE,
+        max_length=4000,
+        description=(
+            "Opening hours in the readable French format. Computes etat_ouverture, "
+            "reouverture and horaires_ouverture at call start. Empty: nothing is "
+            "computed."
+        ),
+    )
     mute_until_first_bot_complete: bool = Field(
         default=DEFAULT_MUTE_UNTIL_FIRST_BOT_COMPLETE,
         description=(
@@ -572,6 +588,23 @@ class WorkflowConfigurationDefaults(BaseModel):
                 "call disposition descriptions must total at most "
                 f"{MAX_CALL_DISPOSITION_DESCRIPTIONS_TOTAL_LENGTH} characters"
             )
+        return value
+
+    @field_validator("horaires_ouverture")
+    @classmethod
+    def valider_horaires_ouverture(cls, value: str | None) -> str | None:
+        """[.mark] Refused when SAVED, not when a call comes in (D9).
+
+        The message carries the line number and is shown as is under the field.
+        The text is stored as typed: it is also what the agent reads back when
+        asked for the opening hours.
+        """
+        if value is None or not value.strip():
+            return None
+        try:
+            vers_expression_osm(value)
+        except HorairesInvalides as erreur:
+            raise ValueError(str(erreur)) from None
         return value
 
     @field_validator("external_pbx_lead_headers", mode="before")
