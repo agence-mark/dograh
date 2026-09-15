@@ -34,7 +34,10 @@ from api.enums import WorkflowRunMode, WorkflowRunState
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.configuration.registry import ServiceProviders
 from api.services.pipecat.audio_config import create_audio_config
-from api.services.pipecat.etat_ouverture import injecter_etat_ouverture
+from api.services.pipecat.etat_ouverture import (
+    injecter_date_heure_appel,
+    injecter_etat_ouverture,
+)
 from api.services.pipecat.pipeline_builder import create_pipeline_task
 from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
@@ -42,7 +45,9 @@ from api.services.pipecat.pipeline_metrics_aggregator import (
 from api.services.pipecat.pre_call_fetch import execute_pre_call_fetch
 from api.services.pipecat.recording_audio_cache import create_recording_audio_fetcher
 from api.services.pipecat.service_factory import (
+    cle_de_cache,
     create_llm_service,
+    stamp_prompt_cache_key,
     stamp_sampling_settings,
 )
 from api.services.pipecat.tracing_config import (
@@ -489,7 +494,12 @@ async def execute_text_chat_pending_turn(
         initial_context=base_initial_context,
     )
 
-    llm = create_llm_service(user_config, correlation_id=mps_correlation_id)
+    # [.mark] One cache key per agent (D1), on the conversation only (D6).
+    llm = create_llm_service(
+        user_config,
+        correlation_id=mps_correlation_id,
+        prompt_cache_key=cle_de_cache(workflow_id),
+    )
     inference_llm = llm
     call_dispositions = WorkflowConfigurationDefaults.model_validate(
         {"call_dispositions": run_configs.get("call_dispositions") or []}
@@ -516,6 +526,9 @@ async def execute_text_chat_pending_turn(
     # only the phone path would leave every bench result unable to say what it
     # was played with -- which is the whole reason the stamp exists.
     stamp_sampling_settings(runtime_configuration, user_config.llm)
+    stamp_prompt_cache_key(
+        runtime_configuration, user_config.llm, cle_de_cache(workflow_id)
+    )
     initial_context = {
         **base_initial_context,
         "runtime_configuration": runtime_configuration,
@@ -526,6 +539,9 @@ async def execute_text_chat_pending_turn(
     # persistence below. On later turns the keys persisted by the first turn
     # are kept (D7 again): the state stays the one of the first turn (D8).
     initial_context = injecter_etat_ouverture(initial_context, run_configs)
+    # [.mark] Date and time of the call (latence-modele D2), same moment and
+    # same rule: later turns keep the values persisted by the first one.
+    initial_context = injecter_date_heure_appel(initial_context)
 
     base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
 

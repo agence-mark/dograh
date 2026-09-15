@@ -285,10 +285,17 @@ async def test_clavier_aux_tours_suivants_letat_du_premier_tour_reste():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("configurations", [{}, {"horaires_ouverture": None}])
 async def test_clavier_sans_horaires_le_contexte_persiste_est_celui_davant(configurations):
-    """D6. 🔒 Asserted as an exact dictionary: the keys of before, not one more."""
+    """D6. 🔒 Asserted as an exact dictionary: no opening-state key, not one more.
+
+    ⚠️ Since the latence-modele chantier (D2, 2026-09-15) every agent also
+    receives the date and time of the call, hours or not: those two keys are
+    the only ones added, and ``test_date_heure_appel.py`` owns them.
+    """
     persiste, consigne = await _jouer_le_premier_tour(configurations)
     assert persiste == {
         "direction": "inbound",
         "runtime_configuration": {"llm_provider": "openai", "llm_model": "gpt-4.1"},
+        "date_appel": "mardi 15 septembre 2026",
+        "heure_appel": "13 heures",
     }
     assert consigne == "État : . Réouverture : ."
