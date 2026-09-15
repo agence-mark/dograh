@@ -84,7 +84,7 @@ def build_pipeline(
 
     # [.mark] After the voicemail detector, right before the aggregator: the
     # aggregator is where the model's text and the recorded transcript come
-    # from, and the live transcript has already been sent upstream of here.
+    # from. The step pushes a copy, so the live transcript stays in words.
     if conversion_nombres:
         processors.append(conversion_nombres)
 

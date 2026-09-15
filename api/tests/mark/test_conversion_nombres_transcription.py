@@ -158,6 +158,25 @@ async def test_la_phrase_du_15_09_sort_en_chiffres():
 
 
 @pytest.mark.asyncio
+async def test_la_phrase_dorigine_nest_pas_modifiee_et_la_copie_garde_son_identifiant():
+    """🔒 D2: the live transcript stays in words.
+
+    Observers read the frame later, from a queue. Rewritten in place, the live
+    view would show words or digits depending on timing. A copy is pushed
+    instead, with the SAME id: the live observer has already seen that id and
+    skips it, rather than showing the sentence twice.
+    """
+    processeur = ConversionNombresProcessor(langue_agent_francaise=True)
+    originale = _finale(PHRASE_DU_15_09)
+    (sortie,) = await _sortie(processeur, originale)
+
+    assert originale.text == PHRASE_DU_15_09
+    assert sortie is not originale
+    assert sortie.text == "le 07 88 26 14 09"
+    assert sortie.id == originale.id
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("phrase", ["il me reste deux bûches", "une fois par an"])
 async def test_les_phrases_ordinaires_sortent_inchangees(phrase):
     processeur = ConversionNombresProcessor(langue_agent_francaise=True)

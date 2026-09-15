@@ -23,13 +23,18 @@ exactly the same list of processors as before this patch.
   unchanged. The model only reads final transcripts, so nothing is lost there.
   The one case affected: "minimum words" with interim transcripts turned off,
   where a dictated number counts as fewer words.
-- The live transcript shown during the call. It is sent when the transcription
-  service pushes the frame, before this step, so it stays in words. The
-  recorded transcript comes from the aggregator and carries the digits. Gap
-  accepted on 2026-09-15.
+- The live transcript shown during the call. Observers read frames later, from
+  a queue, so rewriting the frame in place would let the live view show words
+  on one sentence and digits on the next. The conversion therefore works on a
+  COPY that keeps the frame id: the live observer already marked that id as
+  seen when the transcription pushed the original, skips the copy, and keeps
+  showing words. The recorded transcript comes from the aggregator and carries
+  the digits. Gap accepted on 2026-09-15.
 - Realtime mode, which has no transcription step to convert.
 - Any language but French.
 """
+
+import copy
 
 from loguru import logger
 
@@ -97,7 +102,12 @@ class ConversionNombresProcessor(FrameProcessor):
             and self._a_convertir(frame)
         ):
             try:
-                frame.text = _alpha2digit(frame.text)
+                # ⛔ A copy, never the original: see the module docstring. A
+                # shallow copy keeps the frame id, which is what keeps the
+                # live observer from showing the sentence a second time.
+                converti = copy.copy(frame)
+                converti.text = _alpha2digit(frame.text)
+                frame = converti
             except Exception as erreur:
                 # ⛔ A conversion failure must never cost the call: the model
                 # gets the transcript in words, as it did before this patch.

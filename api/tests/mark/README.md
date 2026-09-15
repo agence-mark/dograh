@@ -52,7 +52,7 @@ cd api && python -m pytest tests/mark -q
 | `test_estampille_reglages_pipecat.py` | Chaque appel **vocal** enregistre les 27 réglages Pipecat **avec lesquels il a été joué, valeurs par défaut comprises** — sans quoi un résultat d'A/B est illisible dès qu'un patch déplace un défaut. Protège **dans les deux sens** : aucun réglage exposé n'échappe à l'estampille, et l'estampille n'emporte pas toute la configuration (surcharges, secrets). ⛔ Le banc au clavier n'estampille rien de tout cela | n° 104, 116 |
 | `test_transmission_de_la_configuration.py` | 🚨 **Le pipeline DONNE-t-il la configuration de l'agent à chacun de ses points de collecte ?** Mesuré trois fois le 14/09 : retirer `run_configs` à un point d'appel laisse **tous les autres tests verts**, les points de collecte étant testés directement — ils répondent très bien sur une configuration que le pipeline ne leur donne plus, et l'agent tourne alors sur les défauts quoi qu'affiche l'écran. Assertions sur le texte source, avec **ce qu'elles ne couvrent pas écrit dedans** | n° 116 |
 | `test_duplication_agent.py` | La copie d'un agent garde son `workflow_configurations` **à l'identique** — marqueur de surcharge par service et réglages Pipecat compris — et c'est une copie **profonde**. 🔑 Une branche d'A/B EST une copie : deux branches qui partagent un dictionnaire bougeraient ensemble, et le banc comparerait un agent avec lui-même sans que rien n'ait l'air anormal. Rien ne gardait ce chemin d'écriture avant le 14/09 | n° 116 |
-| `test_conversion_nombres_transcription.py` | Les nombres dictés arrivent au modèle **en chiffres** quand l'interrupteur de l'agent est allumé, et **seulement dans les transcriptions finales françaises** : la phrase du 15/09 sort en « le 07 88 26 14 09 », les phrases ordinaires, les provisoires et l'anglais sortent intacts, une conversion qui échoue rend le texte d'origine. 🔒 **Éteint, la liste des processeurs est identique à avant** ; allumé, l'étape est **juste avant l'agrégateur**, et absente du pipeline temps réel | n° 148 |
+| `test_conversion_nombres_transcription.py` | Les nombres dictés arrivent au modèle **en chiffres** quand l'interrupteur de l'agent est allumé, et **seulement dans les transcriptions finales françaises** : la phrase du 15/09 sort en « le 07 88 26 14 09 », les phrases ordinaires, les provisoires et l'anglais sortent intacts, une conversion qui échoue rend le texte d'origine. 🔒 **La phrase d'origine n'est jamais modifiée** : la conversion pousse une copie qui garde son identifiant, sinon le fil en direct afficherait tantôt des lettres, tantôt des chiffres. 🔒 **Éteint, la liste des processeurs est identique à avant** ; allumé, l'étape est **juste avant l'agrégateur**, et absente du pipeline temps réel | n° 148 |
 
 ## Comment se lit le rouge
 
@@ -80,12 +80,12 @@ python -m pytest tests/mark -q --continue-on-collection-errors
 ```
 
 **La mesure de référence, au 15/09/2026 sur la branche `chantier/conversion-nombres-transcription` :
-378 tests, tous verts avec les patchs.** ⚠️ Tant que la branche n'est pas fusionnée, la référence de
+379 tests, tous verts avec les patchs.** ⚠️ Tant que la branche n'est pas fusionnée, la référence de
 `mark/deploiement` reste **359**.
 ⚠️ **Elle change à chaque chantier** : 47 avant l'exposition des réglages Mistral, 105 le 10/09 au
 soir, **113 après la réparation de la graine**, 234 après l'exposition des réglages de la
 transcription, **350 après l'exposition des réglages Pipecat** (14/09), 359 après la réparation de
-l'écran, **378 avec la conversion des nombres dictés** (15/09). C'est ce nombre-là que la procédure de montée de version prend comme base —
+l'écran, **379 avec la conversion des nombres dictés** (15/09). C'est ce nombre-là que la procédure de montée de version prend comme base —
 **une mesure de référence périmée fait passer une perte de patch pour un changement de compte.**
 
 **Le rouge de référence, mesuré le matin sur les 47 :** sans les patchs de `registry.py`,
