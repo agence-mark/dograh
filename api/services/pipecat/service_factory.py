@@ -342,6 +342,11 @@ class DograhMistralLLMService(MistralLLMService):
     keep passing either way.
     """
 
+    def __init__(self, *, prompt_cache_key: str | None = None, **kwargs):
+        # [.mark] Empty means no key at all, never an empty one in the request.
+        self._prompt_cache_key = prompt_cache_key or None
+        super().__init__(**kwargs)
+
     def build_chat_completion_params(
         self, params_from_context: OpenAILLMInvocationParams
     ) -> dict:
@@ -358,7 +363,48 @@ class DograhMistralLLMService(MistralLLMService):
                 **(params.get("extra_body") or {}),
                 "random_seed": graine,
             }
+        # [.mark] Mistral serves the start of a request from its cache ONLY when
+        # the request names a cache key: without one, 0 input tokens came from
+        # the cache, with one 2,560 of 2,624 and 160 ms less to the first token
+        # (measured 2026-09-15). Same channel as the seed, same reason: the
+        # client library refuses keywords it does not know. Absent key, request
+        # unchanged -- that is every provider but Mistral, and every call that
+        # is not a conversation.
+        if self._prompt_cache_key:
+            params["extra_body"] = {
+                **(params.get("extra_body") or {}),
+                "prompt_cache_key": self._prompt_cache_key,
+            }
         return params
+
+
+def cle_de_cache(workflow_id: int) -> str:
+    """[.mark] The Mistral prompt cache key of an agent: ``mark-wf-<id>``.
+
+    Per agent, not per call (decision D1 of 2026-09-15): every call of an agent
+    starts with the same global prompt, so the first turn of a call can reuse
+    the cache left by the previous call. ⛔ Built from the agent id alone: a key
+    travels to Mistral, so it never carries anything about the caller.
+    """
+    return f"mark-wf-{workflow_id}"
+
+
+def stamp_prompt_cache_key(
+    runtime_configuration: dict, llm_config, prompt_cache_key: str | None
+) -> dict:
+    """[.mark] Record the cache key a run's conversation was sent with.
+
+    There is no setting on screen for it (D7), so this stamp is the only way to
+    tell afterwards whether a run could use the cache at all. Mistral only,
+    exactly like ``create_llm_service`` hands the key on: a stamp on another
+    provider would claim a key that never left.
+    """
+    if (
+        prompt_cache_key
+        and getattr(llm_config, "provider", None) == ServiceProviders.MISTRAL.value
+    ):
+        runtime_configuration["llm_prompt_cache_key"] = prompt_cache_key
+    return runtime_configuration
 
 
 class DograhGoogleLLMService(GoogleLLMService):
@@ -1418,6 +1464,7 @@ def create_llm_service_from_provider(
     bill_to: str | None = None,
     usage_context: str | None = None,
     sampling: dict | None = None,
+    prompt_cache_key: str | None = None,
 ):
     """Create an LLM service from explicit provider/model/api_key.
 
@@ -1430,6 +1477,8 @@ def create_llm_service_from_provider(
         sampling: Sampling settings collected from the configuration
             (temperature, seed, max_tokens...). Empty or absent means the
             request keeps the values hardcoded below, unchanged.
+        prompt_cache_key: [.mark] Mistral's prompt cache key (``cle_de_cache``).
+            Used by Mistral only, ignored by every other provider.
     """
     logger.info(f"Creating LLM service: provider={provider}, model={model}")
     if provider in (
@@ -1470,6 +1519,7 @@ def create_llm_service_from_provider(
         return DograhMistralLLMService(
             api_key=api_key,
             settings=MistralLLMSettings(model=model, **mistral_settings),
+            prompt_cache_key=prompt_cache_key,
             **kwargs,
         )
     elif provider == ServiceProviders.GROQ.value:
@@ -1780,8 +1830,13 @@ def create_llm_service(
     user_config,
     correlation_id: str | None = None,
     usage_context: str | None = None,
+    prompt_cache_key: str | None = None,
 ):
-    """Create and return appropriate LLM service based on user configuration."""
+    """Create and return appropriate LLM service based on user configuration.
+
+    ``prompt_cache_key`` [.mark]: handed on to Mistral only; every other
+    provider is built exactly as before, whatever is passed.
+    """
     provider = user_config.llm.provider
     model = user_config.llm.model
     api_key = user_config.llm.api_key
@@ -1797,6 +1852,7 @@ def create_llm_service(
         kwargs["sampling"] = collect_sampling_settings(
             user_config.llm, MISTRAL_SAMPLING_FIELDS
         )
+        kwargs["prompt_cache_key"] = prompt_cache_key
     elif provider == ServiceProviders.OPENROUTER.value:
         kwargs["base_url"] = user_config.llm.base_url
     elif provider == ServiceProviders.AZURE.value:

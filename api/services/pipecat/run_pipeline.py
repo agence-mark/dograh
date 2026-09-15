@@ -63,12 +63,14 @@ from api.services.pipecat.reglages_tour_de_parole import (
     collecter_strategies_de_coupure,
 )
 from api.services.pipecat.service_factory import (
+    cle_de_cache,
     create_llm_service,
     create_llm_service_from_provider,
     create_realtime_llm_service,
     create_stt_service,
     create_tts_service,
     stamp_pipeline_settings,
+    stamp_prompt_cache_key,
     stamp_sampling_settings,
     stamp_transcription_settings,
     stt_uses_external_turns,
@@ -812,7 +814,13 @@ async def _run_pipeline_impl(
             correlation_id=mps_correlation_id,
             run_configs=run_configs,
         )
-        llm = create_llm_service(user_config, correlation_id=mps_correlation_id)
+        # [.mark] One cache key per agent (D1), on the conversation only (D6):
+        # not the realtime side channel above, nor extraction and voicemail.
+        llm = create_llm_service(
+            user_config,
+            correlation_id=mps_correlation_id,
+            prompt_cache_key=cle_de_cache(workflow_id),
+        )
         inference_llm = None
 
     # Variable and disposition extraction may share this out-of-band LLM. A
@@ -859,6 +867,11 @@ async def _run_pipeline_impl(
         # The keyboard bench is excluded elsewhere -- it lives in
         # `text_chat_runner`, which simply never calls this.
         stamp_transcription_settings(runtime_configuration, user_config.stt)
+        # [.mark] Same guard, other reason: the cache key is only handed to the
+        # conversation LLM built in the non-realtime branch above.
+        stamp_prompt_cache_key(
+            runtime_configuration, user_config.llm, cle_de_cache(workflow_id)
+        )
     # [.mark] Voice calls only, realtime included: the turn taking, the mute
     # strategies and the noise filter all play in a realtime call too.
     #
