@@ -38,6 +38,7 @@ def build_pipeline(
     termination_funnel,
     voicemail_detector=None,
     recording_router=None,
+    conversion_nombres=None,
 ):
     """Build the main pipeline with all components.
 
@@ -49,6 +50,9 @@ def build_pipeline(
         recording_router: Optional RecordingRouterProcessor. When provided,
             inserts between callback processor and TTS to route between
             pre-recorded audio playback and dynamic TTS.
+        conversion_nombres: [.mark] Optional ConversionNombresProcessor. When
+            provided, inserted just before the user aggregator so the model
+            reads dictated numbers as digits. None leaves the list unchanged.
     """
     # Build processors list with optional voicemail detection.
     #
@@ -77,6 +81,12 @@ def build_pipeline(
     post_llm = [pipeline_engine_callback_processor]
     if recording_router:
         post_llm.append(recording_router)
+
+    # [.mark] After the voicemail detector, right before the aggregator: the
+    # aggregator is where the model's text and the recorded transcript come
+    # from, and the live transcript has already been sent upstream of here.
+    if conversion_nombres:
+        processors.append(conversion_nombres)
 
     processors.append(user_context_aggregator)
 

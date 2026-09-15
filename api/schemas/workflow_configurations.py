@@ -69,6 +69,12 @@ DEFAULT_INCOMPLETE_LONG_TIMEOUT = 10.0
 # and that is judged on a real phone line.
 DEFAULT_AUDIO_IN_NOISE_FILTER = "none"
 
+# --- Transcription ----------------------------------------------------------
+#
+# 🔒 Off, which is today's behaviour: the model reads the transcript as the
+# transcription service wrote it. Turned on per agent (decision of 2026-09-15).
+DEFAULT_CONVERSION_NOMBRES_TRANSCRIPTION = False
+
 # --- Idle prompts ----------------------------------------------------------
 #
 # ⚠️ These two texts are the ones the pipeline sends TODAY, in English, copied
@@ -432,6 +438,15 @@ class WorkflowConfigurationDefaults(BaseModel):
             "free and runs locally. ⚠️ A noise filter can just as easily get "
             "in the transcription's way: it is judged on a real phone line, "
             "not on a browser call."
+        ),
+    )
+    conversion_nombres_transcription: bool = Field(
+        default=DEFAULT_CONVERSION_NOMBRES_TRANSCRIPTION,
+        description=(
+            "Converts numbers the caller dictates into digits before the model "
+            "reads them. No effect in realtime mode. With the \"minimum words\" "
+            "interruption and interim transcripts turned off, dictated numbers "
+            "count as fewer words."
         ),
     )
     mute_until_first_bot_complete: bool = Field(

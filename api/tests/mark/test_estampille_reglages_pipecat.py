@@ -82,6 +82,7 @@ def test_lestampille_couvre_chaque_reglage_expose():
                 "user_speech_timeout",
                 "user_turn_stop_timeout",
                 "stt_ttfs",
+                "conversion_nombres",
             )
         )
     }

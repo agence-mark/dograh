@@ -31,6 +31,7 @@ from api.services.pipecat.event_handlers import (
     register_event_handlers,
 )
 from api.services.pipecat.in_memory_buffers import InMemoryLogsBuffer
+from api.services.pipecat.conversion_nombres import creer_conversion_nombres
 from api.services.pipecat.pipeline_builder import (
     build_pipeline,
     build_realtime_pipeline,
@@ -1217,6 +1218,7 @@ async def _run_pipeline_impl(
             termination_funnel,
             voicemail_detector=voicemail_detector,
             recording_router=recording_router,
+            conversion_nombres=creer_conversion_nombres(run_configs, user_config.stt),
         )
 
     # Create pipeline task with audio configuration
