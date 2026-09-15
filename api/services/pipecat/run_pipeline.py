@@ -27,6 +27,7 @@ from api.services.observability.active_calls import (
 )
 from api.services.pipecat.audio_config import AudioConfig, create_audio_config
 from api.services.pipecat.conversion_nombres import creer_conversion_nombres
+from api.services.pipecat.etat_ouverture import injecter_etat_ouverture
 from api.services.pipecat.event_handlers import (
     register_audio_data_handler,
     register_event_handlers,
@@ -710,6 +711,14 @@ async def _run_pipeline_impl(
     run_definition = workflow_run.definition
     run_workflow_json = run_definition.workflow_json
     run_configs = run_definition.workflow_configurations or {}
+
+    # [.mark] Opening state, computed once at call set-up, Paris time (D8).
+    # BEFORE the persistence below and BEFORE the pre-call fetch, which is
+    # merged over it and therefore wins (D7). No hours on the agent: the
+    # context is left exactly as it was (D6). Never raises (D9).
+    merged_call_context_vars = injecter_etat_ouverture(
+        merged_call_context_vars, run_configs
+    )
 
     # Extract configurations from the version's workflow_configurations
     max_call_duration_seconds = DEFAULT_MAX_CALL_DURATION_SECONDS
