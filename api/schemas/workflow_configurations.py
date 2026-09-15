@@ -75,6 +75,12 @@ DEFAULT_AUDIO_IN_NOISE_FILTER = "none"
 # transcription service wrote it. Turned on per agent (decision of 2026-09-15).
 DEFAULT_CONVERSION_NOMBRES_TRANSCRIPTION = False
 
+# --- Opening hours ----------------------------------------------------------
+#
+# 🔒 Empty, which is today's behaviour: nothing is computed and nothing is
+# injected into the call context (decision D6 of 2026-09-15).
+DEFAULT_HORAIRES_OUVERTURE = None
+
 # --- Idle prompts ----------------------------------------------------------
 #
 # ⚠️ These two texts are the ones the pipeline sends TODAY, in English, copied
@@ -449,6 +455,15 @@ class WorkflowConfigurationDefaults(BaseModel):
             "count as fewer words."
         ),
     )
+    horaires_ouverture: str | None = Field(
+        default=DEFAULT_HORAIRES_OUVERTURE,
+        max_length=4000,
+        description=(
+            "Opening hours in the readable French format. Computes etat_ouverture, "
+            "reouverture and horaires_ouverture at call start. Empty: nothing is "
+            "computed."
+        ),
+    )
     mute_until_first_bot_complete: bool = Field(
         default=DEFAULT_MUTE_UNTIL_FIRST_BOT_COMPLETE,
         description=(
@@ -572,6 +587,23 @@ class WorkflowConfigurationDefaults(BaseModel):
                 "call disposition descriptions must total at most "
                 f"{MAX_CALL_DISPOSITION_DESCRIPTIONS_TOTAL_LENGTH} characters"
             )
+        return value
+
+    @field_validator("horaires_ouverture")
+    @classmethod
+    def horaires_vides_a_none(cls, value: str | None) -> str | None:
+        """[.mark] Blank means "no hours". Never raises.
+
+        ⛔ The GRAMMAR is not checked here, on purpose. This model is also read
+        at call set-up on the whole configuration (``conversion_nombres.py``,
+        ``service_factory.py``): a validator raising here would kill the call
+        on invalid hours stored by hand, which is the opposite of D9. Found by
+        the review of 2026-09-15. The grammar is checked on the SAVE route
+        (``UpdateWorkflowRequest`` in ``routes/workflow.py``), and at call
+        set-up ``injecter_etat_ouverture`` logs and injects nothing.
+        """
+        if value is None or not value.strip():
+            return None
         return value
 
     @field_validator("external_pbx_lead_headers", mode="before")

@@ -185,6 +185,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     external_pbx_field_mappings: ExternalPBXFieldMapping[];
     external_pbx_lead_headers: string[];  // Extra lead fields to capture from the inbound INVITE
     model_overrides?: ModelOverrides;  // Per-workflow model configuration overrides
+    // [.mark] Opening hours in the readable French format. Empty (null): no
+    // opening state is computed at call start, exactly as before.
+    horaires_ouverture?: string | null;
     // [.mark] Pipecat settings this fork exposes on the agent. Every default
     // reproduces the value the pipeline hardcodes TODAY: an agent that fills in
     // nothing behaves exactly as before.

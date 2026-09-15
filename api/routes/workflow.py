@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from httpx import HTTPStatusError
 from loguru import logger
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from api.constants import DEPLOYMENT_MODE
 from api.db import db_client
@@ -48,6 +48,7 @@ from api.services.configuration.resolve import (
     resolve_effective_config,
 )
 from api.services.mps_service_key_client import mps_service_key_client
+from api.services.pipecat.etat_ouverture import HorairesInvalides, vers_expression_osm
 from api.services.posthog_client import capture_event
 from api.services.reports import generate_workflow_report_csv
 from api.services.storage import storage_fs
@@ -343,6 +344,23 @@ class UpdateWorkflowRequest(BaseModel):
     # enforced by FastAPI; extra="allow" keeps passthrough keys like
     # model_configuration_v2_override intact.
     workflow_configurations: WorkflowConfigurationDefaults | None = None
+
+    @field_validator("workflow_configurations")
+    @classmethod
+    def valider_horaires_ouverture(
+        cls, value: WorkflowConfigurationDefaults | None
+    ) -> WorkflowConfigurationDefaults | None:
+        """[.mark] Opening hours refused when SAVED (D9), with their line number.
+
+        ⛔ Here and not on the schema: the schema is also read on the whole
+        configuration when a call is set up, and a raise there kills the call.
+        """
+        if value is not None and value.horaires_ouverture:
+            try:
+                vers_expression_osm(value.horaires_ouverture)
+            except HorairesInvalides as erreur:
+                raise ValueError(str(erreur)) from None
+        return value
 
 
 class WorkflowVersionResponse(BaseModel):

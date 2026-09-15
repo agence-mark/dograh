@@ -34,6 +34,7 @@ from api.enums import WorkflowRunMode, WorkflowRunState
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.configuration.registry import ServiceProviders
 from api.services.pipecat.audio_config import create_audio_config
+from api.services.pipecat.etat_ouverture import injecter_etat_ouverture
 from api.services.pipecat.pipeline_builder import create_pipeline_task
 from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
@@ -521,6 +522,10 @@ async def execute_text_chat_pending_turn(
     }
     if mps_correlation_id:
         initial_context[MPS_CORRELATION_ID_CONTEXT_KEY] = mps_correlation_id
+    # [.mark] Opening state, BEFORE the pre-call fetch (which wins, D7) and the
+    # persistence below. On later turns the keys persisted by the first turn
+    # are kept (D7 again): the state stays the one of the first turn (D8).
+    initial_context = injecter_etat_ouverture(initial_context, run_configs)
 
     base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
 
