@@ -83,7 +83,7 @@ Un seul patch perdu peut donc faire croire que toute la suite est cassée. Pour 
 python -m pytest tests/mark -q --continue-on-collection-errors
 ```
 
-**La mesure de référence, au 15/09/2026 sur `chantier/etat-ouverture` (à reporter à la fusion) : 483 tests,
+**La mesure de référence, au 15/09/2026 sur `mark/deploiement` (fusion `d59c3788`, état d'ouverture) : 483 tests,
 tous verts avec les patchs.** 380 sur `mark/deploiement` (fusion `93e6deff`) avant ce chantier.
 ⚠️ **Elle change à chaque chantier** : 47 avant l'exposition des réglages Mistral, 105 le 10/09 au
 soir, **113 après la réparation de la graine**, 234 après l'exposition des réglages de la
