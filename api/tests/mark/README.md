@@ -83,12 +83,12 @@ Un seul patch perdu peut donc faire croire que toute la suite est cassée. Pour 
 python -m pytest tests/mark -q --continue-on-collection-errors
 ```
 
-**La mesure de référence, au 15/09/2026 sur `chantier/etat-ouverture` (à reporter à la fusion) : 480 tests,
+**La mesure de référence, au 15/09/2026 sur `chantier/etat-ouverture` (à reporter à la fusion) : 483 tests,
 tous verts avec les patchs.** 380 sur `mark/deploiement` (fusion `93e6deff`) avant ce chantier.
 ⚠️ **Elle change à chaque chantier** : 47 avant l'exposition des réglages Mistral, 105 le 10/09 au
 soir, **113 après la réparation de la graine**, 234 après l'exposition des réglages de la
 transcription, **350 après l'exposition des réglages Pipecat** (14/09), 359 après la réparation de
-l'écran, **380 avec la conversion des nombres dictés** (15/09), **480 avec l'état d'ouverture** (15/09, branche, après relecture et contre-relecture). C'est ce nombre-là que la procédure de montée de version prend comme base —
+l'écran, **380 avec la conversion des nombres dictés** (15/09), **483 avec l'état d'ouverture** (15/09, branche, après relecture, contre-relecture et « minuit 30 »). C'est ce nombre-là que la procédure de montée de version prend comme base —
 **une mesure de référence périmée fait passer une perte de patch pour un changement de compte.**
 
 **Le rouge de référence, mesuré le matin sur les 47 :** sans les patchs de `registry.py`,
