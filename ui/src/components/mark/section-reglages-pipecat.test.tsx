@@ -443,6 +443,50 @@ describe("Section Reglages vocaux de la page de parametres", () => {
         expect(toastMock.success).not.toHaveBeenCalled();
     });
 
+    it("affiche l'interrupteur des nombres dictes eteint par defaut", () => {
+        // 🔒 Off is today's behaviour: the model reads the transcript as written.
+        ouvrir(null);
+        expect(
+            screen
+                .getByRole("switch", { name: /write dictated numbers as digits/i })
+                .getAttribute("aria-checked"),
+        ).toBe("false");
+    });
+
+    it("emporte l'interrupteur des nombres dictes allume dans l'enregistrement", async () => {
+        const onSave = ouvrir(null);
+
+        fireEvent.click(
+            screen.getByRole("switch", { name: /write dictated numbers as digits/i }),
+        );
+        fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+        expect(onSave.mock.calls[0][0]).toMatchObject({
+            conversion_nombres_transcription: true,
+        });
+    });
+
+    it("montre l'interrupteur des nombres dictes a un agent Flux, dont le tour de parole est masque", () => {
+        // ⛔ The first agent this switch is for runs on Flux. Placed in the
+        // turn-taking section, it would be hidden exactly there.
+        ouvrir({
+            model_overrides: { stt: { provider: "deepgram", model: "flux-general-multi" } },
+        });
+        expect(document.getElementById("user_speech_timeout")).toBeNull();
+        expect(
+            screen.getByRole("switch", { name: /write dictated numbers as digits/i }),
+        ).toBeTruthy();
+    });
+
+    it("dit que l'interrupteur des nombres dictes est sans effet en temps reel", () => {
+        ouvrir(null);
+        expect(document.body.textContent).toMatch(/no effect in realtime mode/i);
+        expect(document.body.textContent).toMatch(
+            /dictated numbers count as fewer words/i,
+        );
+    });
+
     it("emploie le MEME rappel de publication que les autres sections de la page", () => {
         // Deux formulations de la meme consigne sur le meme ecran, c'est ainsi
         // qu'on apprend a s'en mefier. La constante ne peut pas etre importee

@@ -63,6 +63,7 @@ export const DEFAUTS_PIPECAT = {
     mute_engine_callback: true,
     mute_first_speech: false,
     mute_always: false,
+    conversion_nombres_transcription: false,
 } as const;
 
 export const TURN_START_STRATEGY_OPTIONS: Array<{
@@ -197,6 +198,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     mute_engine_callback: boolean;
     mute_first_speech: boolean;
     mute_always: boolean;
+    conversion_nombres_transcription: boolean;  // Dictated numbers reach the model as digits
     user_speech_timeout: number;  // Seconds the caller may pause before the agent answers
     stt_ttfs_p99_latency: number | null;  // Empty = the value Pipecat measured for the provider
     user_turn_stop_timeout: number | null;  // Empty = 5 s, or 30 s in external-turn mode

@@ -495,8 +495,8 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
             f"'{cle}': the screen shows {valeur_ecran!r} and the pipeline runs "
             f"{valeur_schema!r}. One of the two copies moved without the other."
         )
-    assert len(ecran) == 29, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 29. "
+    assert len(ecran) == 30, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 30. "
         f"A setting added on one side only renders and is then dropped."
     )
 
