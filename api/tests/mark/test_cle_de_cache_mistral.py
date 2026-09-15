@@ -225,9 +225,20 @@ def test_le_chemin_telephonique_estampille_la_cle_hors_temps_reel():
     appels = _appels(source, "stamp_prompt_cache_key")
     assert len(appels) == 1
     assert "cle_de_cache(workflow_id)" in appels[0][1]
+    # INSIDE the non-realtime block, not merely after it: moved out one indent,
+    # a realtime call with a Mistral side channel would stamp a key that never
+    # left (independent review of 2026-09-16). The block is cut at the first
+    # line indented no deeper than the guard itself.
     garde = source.index("    if not is_realtime:\n", source.index("stamp_sampling_settings(runtime_configuration"))
-    fin_du_bloc = source.index("    # [.mark] Voice calls only, realtime included")
-    assert garde < source.index("stamp_prompt_cache_key(") < fin_du_bloc
+    lignes = source[garde:].split("\n")
+    bloc = [lignes[0]]
+    for ligne in lignes[1:]:
+        if ligne.strip() and len(ligne) - len(ligne.lstrip()) <= 4:
+            break
+        bloc.append(ligne)
+    assert "stamp_prompt_cache_key(" in "\n".join(bloc), (
+        "the cache-key stamp is no longer inside the non-realtime guard of run_pipeline"
+    )
 
 
 class _Arret(Exception):
