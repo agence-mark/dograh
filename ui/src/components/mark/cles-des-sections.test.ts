@@ -40,10 +40,12 @@ import {
     CLES_COUPURE,
     CLES_RELANCE,
     CLES_TOUR_DE_PAROLE,
+    CLES_TRANSCRIPTION,
     CLES_VOIX,
 } from "./SectionReglagesPipecat";
 
 const TOUTES = [
+    ...CLES_TRANSCRIPTION,
     ...CLES_TOUR_DE_PAROLE,
     ...CLES_RELANCE,
     ...CLES_VOIX,

@@ -46,6 +46,7 @@ CONFIGURATION = {
     "tts_replacements": ["SAV:S. A. V."],
     "mute_always": False,
     "user_idle_max_prompts": 2,
+    "conversion_nombres_transcription": True,
     "ambient_noise_configuration": {"enabled": False, "volume": 0.3},
 }
 
@@ -113,6 +114,7 @@ async def test_la_copie_garde_le_marqueur_de_surcharge_par_service():
         "tts_markdown_filter_enabled",
         "tts_replacements",
         "user_idle_max_prompts",
+        "conversion_nombres_transcription",
     ],
 )
 async def test_chaque_reglage_pipecat_survit_a_la_copie(reglage):

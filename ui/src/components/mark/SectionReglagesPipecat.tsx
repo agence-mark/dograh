@@ -27,6 +27,10 @@ import {
     type ReglagesTourDeParole,
     SectionTourDeParole,
 } from "./SectionTourDeParole";
+import {
+    type ReglagesTranscription,
+    SectionTranscription,
+} from "./SectionTranscription";
 import { type ReglagesVoix, SectionVoix } from "./SectionVoix";
 import { transcriptionPiloteLesTours } from "./transcriptionPiloteLesTours";
 
@@ -75,6 +79,9 @@ import { transcriptionPiloteLesTours } from "./transcriptionPiloteLesTours";
 // `GeneralSection` owns — both invariants are asserted in that same test file.
 // ---------------------------------------------------------------------------
 
+// ⛔ Never hidden, unlike the turn-taking keys: see `SectionTranscription.tsx`.
+export const CLES_TRANSCRIPTION = ["conversion_nombres_transcription"] as const;
+
 export const CLES_COUPURE = [
     "mute_until_first_bot_complete",
     "mute_during_function_call",
@@ -115,6 +122,13 @@ export const CLES_TOUR_DE_PAROLE = [
     "incomplete_long_timeout",
     "audio_in_noise_filter",
 ] as const;
+
+const extraireTranscription = (
+    configurations: WorkflowConfigurations,
+): ReglagesTranscription =>
+    Object.fromEntries(
+        CLES_TRANSCRIPTION.map((cle) => [cle, (configurations as Record<string, unknown>)[cle]]),
+    ) as unknown as ReglagesTranscription;
 
 const extraireCoupure = (
     configurations: WorkflowConfigurations,
@@ -196,6 +210,9 @@ export const SectionReglagesPipecat = ({
     const [reglagesVoix, setReglagesVoix] = useState<ReglagesVoix>(
         () => extraireVoix(workflowConfigurations),
     );
+    const [reglagesTranscription, setReglagesTranscription] = useState<ReglagesTranscription>(
+        () => extraireTranscription(workflowConfigurations),
+    );
     const [isSaving, setIsSaving] = useState(false);
 
     // Read from the SAME resolution the server uses: a section hidden for an
@@ -218,12 +235,14 @@ export const SectionReglagesPipecat = ({
             ...extraireCoupure(workflowConfigurations),
             ...extraireRelance(workflowConfigurations),
             ...extraireVoix(workflowConfigurations),
+            ...extraireTranscription(workflowConfigurations),
         };
         const courant = {
             ...reglagesTourDeParole,
             ...reglagesCoupure,
             ...reglagesRelance,
             ...reglagesVoix,
+            ...reglagesTranscription,
         };
         return JSON.stringify(enregistre) !== JSON.stringify(courant);
     }, [
@@ -232,6 +251,7 @@ export const SectionReglagesPipecat = ({
         reglagesCoupure,
         reglagesRelance,
         reglagesVoix,
+        reglagesTranscription,
     ]);
 
     // The server bounds these settings; the screen bounded none of them until
@@ -267,6 +287,7 @@ export const SectionReglagesPipecat = ({
                     ...reglagesCoupure,
                     ...reglagesRelance,
                     ...reglagesVoix,
+                    ...reglagesTranscription,
                 },
                 workflowName,
             );
@@ -300,6 +321,10 @@ export const SectionReglagesPipecat = ({
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
+                <SectionTranscription
+                    reglages={reglagesTranscription}
+                    onChange={setReglagesTranscription}
+                />
                 <SectionTourDeParole
                     reglages={reglagesTourDeParole}
                     onChange={setReglagesTourDeParole}

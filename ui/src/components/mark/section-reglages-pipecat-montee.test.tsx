@@ -170,6 +170,9 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         expect(
             screen.getByRole("switch", { name: /strip markdown before speaking/i }),
         ).toBeTruthy();
+        expect(
+            screen.getByRole("switch", { name: /write dictated numbers as digits/i }),
+        ).toBeTruthy();
     });
 
     it("carries its own Save button on the page (existence only -- it is disabled until something changes)", async () => {

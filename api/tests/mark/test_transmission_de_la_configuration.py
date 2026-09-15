@@ -63,6 +63,13 @@ TRANSMISSIONS = [
         ),
     ),
     (
+        r"creer_conversion_nombres\(\s*run_configs,",
+        (
+            "writing dictated numbers as digits: the model would read them in "
+            "words again, and stitch them back wrong"
+        ),
+    ),
+    (
         r'event_handler\("on_latency_breakdown"\)',
         (
             "the per-service latency breakdown: a total latency says a call was "

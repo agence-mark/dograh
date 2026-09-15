@@ -26,6 +26,7 @@ from api.services.observability.active_calls import (
     unregister_active_call as unregister_worker_active_call,
 )
 from api.services.pipecat.audio_config import AudioConfig, create_audio_config
+from api.services.pipecat.conversion_nombres import creer_conversion_nombres
 from api.services.pipecat.event_handlers import (
     register_audio_data_handler,
     register_event_handlers,
@@ -1217,6 +1218,7 @@ async def _run_pipeline_impl(
             termination_funnel,
             voicemail_detector=voicemail_detector,
             recording_router=recording_router,
+            conversion_nombres=creer_conversion_nombres(run_configs, user_config.stt),
         )
 
     # Create pipeline task with audio configuration

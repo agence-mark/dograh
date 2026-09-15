@@ -1346,6 +1346,7 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "mute_engine_callback",
     "mute_first_speech",
     "mute_always",
+    "conversion_nombres_transcription",
 )
 
 
