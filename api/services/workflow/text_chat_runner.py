@@ -34,7 +34,10 @@ from api.enums import WorkflowRunMode, WorkflowRunState
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.configuration.registry import ServiceProviders
 from api.services.pipecat.audio_config import create_audio_config
-from api.services.pipecat.etat_ouverture import injecter_etat_ouverture
+from api.services.pipecat.etat_ouverture import (
+    injecter_date_heure_appel,
+    injecter_etat_ouverture,
+)
 from api.services.pipecat.pipeline_builder import create_pipeline_task
 from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
@@ -536,6 +539,9 @@ async def execute_text_chat_pending_turn(
     # persistence below. On later turns the keys persisted by the first turn
     # are kept (D7 again): the state stays the one of the first turn (D8).
     initial_context = injecter_etat_ouverture(initial_context, run_configs)
+    # [.mark] Date and time of the call (latence-modele D2), same moment and
+    # same rule: later turns keep the values persisted by the first one.
+    initial_context = injecter_date_heure_appel(initial_context)
 
     base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
 

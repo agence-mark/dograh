@@ -21,6 +21,11 @@ The three functions, in the order the data flows
 3. ``injecter_etat_ouverture``  writes ``etat_ouverture``, ``reouverture`` and
    ``horaires_ouverture`` into the call context. ⛔ Never raises.
 
+And a fourth, from the latence-modele chantier (D2, 2026-09-15), called right
+after the third because it is the same moment of the call:
+4. ``injecter_date_heure_appel``  writes ``date_appel`` and ``heure_appel``,
+   for every agent. ⛔ Never raises.
+
 Decisions (Evan, 2026-09-15), referenced as D1..D13 in the plan
 ``_AUTONOMIE/plans/en-cours/etat-ouverture/2026-09-15-plan-etat-ouverture.md``.
 
@@ -352,5 +357,47 @@ def injecter_etat_ouverture(
     except Exception as erreur:  # noqa: BLE001 -- D9: the call must go on
         logger.error(
             f"[etat_ouverture] opening state not injected, the call goes on without it: {erreur}"
+        )
+        return contexte
+
+
+# --------------------------------------------------------------------------- #
+# 4. Date and time of the call, frozen when it is picked up (latence-modele D2)
+# --------------------------------------------------------------------------- #
+
+CLE_DATE_APPEL = "date_appel"
+CLE_HEURE_APPEL = "heure_appel"
+
+
+def date_parlee(instant: datetime) -> str:
+    """« mardi 15 septembre 2026 », « vendredi 1er janvier 2027 »."""
+    quantieme = "1er" if instant.day == 1 else str(instant.day)
+    return f"{JOURS[instant.weekday()]} {quantieme} {MOIS[instant.month - 1]} {instant.year}"
+
+
+def injecter_date_heure_appel(contexte: dict, maintenant: datetime | None = None) -> dict:
+    """Return the call context with the date and time of the call, Paris time.
+
+    Why frozen: the global prompt read ``{{current_time_Europe/Paris}}``, to the
+    second, re-rendered at every node. Everything after it changed on every
+    request, so Mistral's prompt cache stopped around 120 tokens (measured
+    2026-09-15). A prompt that reads these two variables keeps its start.
+
+    - Every agent, hours or not: two variables no prompt reads have no effect.
+    - A value already present and non-empty is kept (a replay that injects a
+      date keeps it; on the keyboard the first turn's values stay).
+    - ⛔ Never raises: logged, context returned unchanged.
+    """
+    try:
+        instant = _a_paris(maintenant or datetime.now(PARIS))
+        calcule = {CLE_DATE_APPEL: date_parlee(instant), CLE_HEURE_APPEL: heure_parlee(instant)}
+        enrichi = dict(contexte)
+        for cle, valeur in calcule.items():
+            if _est_vide(enrichi.get(cle)):
+                enrichi[cle] = valeur
+        return enrichi
+    except Exception as erreur:  # noqa: BLE001 -- the call must go on
+        logger.error(
+            f"[etat_ouverture] date and time of the call not injected, the call goes on without them: {erreur}"
         )
         return contexte
