@@ -4,7 +4,11 @@ from loguru import logger
 
 from api.services.pipecat.audio_config import AudioConfig
 from pipecat.pipeline.pipeline import Pipeline
-from pipecat.pipeline.worker import PipelineParams, PipelineWorker
+from pipecat.pipeline.worker import (
+    PipelineParams,
+    PipelineWorker,
+    ProcessorUnusablePolicy,
+)
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 from pipecat.utils.run_context import turn_var
@@ -36,17 +40,21 @@ def build_pipeline(
     pipeline_engine_callback_processor,
     pipeline_metrics_aggregator,
     termination_funnel,
-    voicemail_detector=None,
     recording_router=None,
+    answer_supervisor=None,
+    # [.mark] APRES les parametres de l'amont, et en KEYWORD-ONLY : inserer un
+    # parametre a nous au milieu de leur liste decale la position de tous les
+    # suivants, et un appelant d'amont ecrit en positionnel se mesalimente alors
+    # EN SILENCE -- ni ruff ni le typage ne le voient.
+    *,
     conversion_nombres=None,
 ):
     """Build the main pipeline with all components.
 
     Args:
         audio_buffer: AudioBufferProcessor that handles both input and output audio recording.
-        voicemail_detector: Optional native pipecat VoicemailDetector. When provided,
-            inserts voicemail detection after STT. Note: We don't use the TTS gate
-            to avoid blocking TTS frames during classification.
+        answer_supervisor: Optional answer sensor before the user aggregator,
+            with its context gate immediately after the aggregator.
         recording_router: Optional RecordingRouterProcessor. When provided,
             inserts between callback processor and TTS to route between
             pre-recorded audio playback and dynamic TTS.
@@ -54,7 +62,7 @@ def build_pipeline(
             provided, inserted just before the user aggregator so the model
             reads dictated numbers as digits. None leaves the list unchanged.
     """
-    # Build processors list with optional voicemail detection.
+    # Build processors with optional answer handling.
     #
     # The termination funnel sits directly behind the input transport so every
     # other processor's upstream frames pass through it -- that is the only
@@ -66,16 +74,8 @@ def build_pipeline(
         stt,
     ]
 
-    # Insert voicemail detector after STT if enabled
-    # Note: We intentionally do NOT use voicemail_detector.gate() to allow TTS
-    # frames to continue flowing during classification (non-blocking detection)
-
-    # Note: We must keep user_context_aggregator after voicemail_detector
-    # or else, LLMContextFrames generated from user_context_aggregator will
-    # start generating LLM Completion from Voicemail Classifier
-    if voicemail_detector:
-        logger.info("Adding native voicemail detector to pipeline")
-        processors.append(voicemail_detector.detector())
+    if answer_supervisor is not None:
+        processors.append(answer_supervisor)
 
     # Continue with the rest of the pipeline
     post_llm = [pipeline_engine_callback_processor]
@@ -90,11 +90,8 @@ def build_pipeline(
 
     processors.append(user_context_aggregator)
 
-    # Insert LLM gate before the main LLM when voicemail detection is enabled.
-    # This prevents the main LLM from being triggered until classification
-    # determines whether a human or voicemail answered the call.
-    if voicemail_detector:
-        processors.append(voicemail_detector.llm_gate())
+    if answer_supervisor is not None:
+        processors.append(answer_supervisor.llm_gate())
 
     processors.extend(
         [
@@ -120,32 +117,11 @@ def build_realtime_pipeline(
     pipeline_engine_callback_processor,
     pipeline_metrics_aggregator,
     termination_funnel,
-    voicemail_detector=None,
 ):
     """Build a pipeline for realtime (speech-to-speech) LLM services.
 
     Realtime services (e.g. OpenAI Realtime, Gemini Live) handle STT+LLM+TTS
     internally, so no separate STT or TTS processors are needed.
-
-    Args:
-        voicemail_detector: Optional VoicemailDetector. Placed *below* the
-            realtime LLM. This is asymmetric with the non-realtime layout
-            (where the detector sits between STT and the main user aggregator)
-            because the realtime LLM is both the source of TranscriptionFrame
-            (broadcast downstream) and the sink of LLMContextFrame (consumed
-            by _handle_context without forwarding). Placing the detector below
-            the realtime LLM means: downstream TranscriptionFrames reach the
-            classifier branch, UserStartedSpeakingFrame /
-            UserStoppedSpeakingFrame are forwarded through by the LLM, and the
-            main aggregator's LLMContextFrame is absorbed by the realtime LLM
-            and never leaks into the classifier (which would otherwise run a
-            voicemail completion on the workflow's main context).
-
-            The TTS gate and LLM gate are intentionally not used: the realtime
-            LLM reacts to audio directly, not to LLMContextFrames. On voicemail
-            detection we drop the call via end_call_with_reason; the detector's
-            ConversationGate also blocks downstream audio output until the call
-            ends.
     """
     processors = [
         transport.input(),
@@ -153,10 +129,6 @@ def build_realtime_pipeline(
         user_context_aggregator,
         realtime_llm,
     ]
-
-    if voicemail_detector:
-        logger.info("Adding native voicemail detector to realtime pipeline")
-        processors.append(voicemail_detector.detector())
 
     processors.extend(
         [
@@ -174,7 +146,7 @@ def build_realtime_pipeline(
 def create_pipeline_task(
     pipeline,
     workflow_run_id,
-    audio_config: AudioConfig = None,
+    audio_config: AudioConfig | None = None,
     *,
     conversation_parent_context=None,
     conversation_type: str = "voice",
@@ -216,6 +188,11 @@ def create_pipeline_task(
     task = PipelineWorker(
         pipeline,
         params=pipeline_params,
+        # Pipecat 1.8 replaces ErrorFrame.fatal with processor usability plus
+        # a worker policy. A voice/text model that is permanently unusable
+        # cannot produce a meaningful Dograh run, so preserve the fork's old
+        # fatal-error cancellation behavior through the supported contract.
+        processor_unusable_policy=ProcessorUnusablePolicy.CANCEL,
         enable_tracing=True,
         enable_rtvi=False,
         conversation_id=f"{workflow_run_id}",

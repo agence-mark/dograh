@@ -3,7 +3,7 @@
 The questions this file answers:
 
     Does an agent that asks for RNNoise actually get it on its transport --
-    the browser one AND the seven telephony ones -- does an agent that asks
+    the browser one AND the eight telephony ones -- does an agent that asks
     for nothing get exactly today's transport, and does the optional extra
     stay OUT of the import path until someone turns it on?
 
@@ -37,7 +37,7 @@ from api.services.pipecat.transport_params import filtre_de_bruit_overrides
 
 RACINE = Path(__file__).resolve().parents[2]
 
-# The browser transport plus the seven telephony ones: the full list of places
+# The browser transport plus the eight telephony ones: the full list of places
 # audio comes in. ⛔ Listed here so that a provider added without the filter is
 # a red test, not a silent gap.
 TRANSPORTS = [
@@ -107,14 +107,19 @@ def test_chaque_transport_passe_par_le_point_de_collecte(fichier):
     )
 
 
-def test_il_y_a_bien_huit_transports():
-    """The browser one and the seven telephony ones.
+def test_il_y_a_bien_neuf_transports():
+    """The browser one and the eight telephony ones.
 
     ⛔ Goes red when a provider is added: that is the moment to decide whether
     it carries the filter, rather than discovering months later that it never
     did.
+
+    🔑 [.mark] Il a fait exactement son travail le 2026-09-16 : la montee vers
+    l'amont `23d22b95` a apporte un NEUVIEME transport (exotel), et ce test est
+    ce qui l'a signale. La decision prise a ce moment-la, et c'est la seule
+    coherente : il porte le filtre comme les huit autres. Passe de 8 a 9.
     """
-    assert len(TRANSPORTS) == 8
+    assert len(TRANSPORTS) == 9
 
 
 # --------------------------------------------------------------------------- #

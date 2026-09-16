@@ -58,8 +58,12 @@ RUN \
 # l'image empeche l'API de demarrer (paye sur le patch Mistral), donc il est
 # ici plutot qu'importe a chaud. ⚠️ Il retrograde `av` de 17.1.0 a 17.0.1 et
 # tire matplotlib : mesure le 14/09, suite de tests verte apres coup.
+# [.mark] Montee de version 2026-09-16 : commit Pipecat 4966073 -> 70385ad
+# (amont `23d22b95`), et l'extra `aws-nova-sonic` de l'amont est CONSERVE.
+# ⛔ On ne retire jamais un extra de l'amont : un extra absent n'empeche pas
+# un usage, il empeche l'API de DEMARRER.
 RUN \
-    uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise] @ git+https://github.com/dograh-hq/pipecat.git@496607395f0df106cf5c352a3d219ff459940157' \
+    uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic] @ git+https://github.com/dograh-hq/pipecat.git@70385ad8a5204458a241e60287289932e3eb3ae2' \
  && uv pip uninstall opencv-python \
  && uv pip install opencv-python-headless \
  && python -c "import nltk; nltk.download('punkt_tab', download_dir='/opt/venv/nltk_data', quiet=True)"

@@ -290,10 +290,18 @@ async def test_clavier_sans_horaires_le_contexte_persiste_est_celui_davant(confi
     ⚠️ Since the latence-modele chantier (D2, 2026-09-15) every agent also
     receives the date and time of the call, hours or not: those two keys are
     the only ones added, and ``test_date_heure_appel.py`` owns them.
+
+    ⚠️ [.mark] Montee vers l'amont `23d22b95` (2026-09-16) : `workflow_run_id`
+    s'ajoute a la liste. Il vient de l'amont, qui expose desormais
+    l'identifiant d'execution dans le contexte initial -- pas de chez nous.
+    🔑 C'est exactement ce que cette assertion exacte sert a voir : une cle qui
+    apparait dans le contexte de TOUS les agents ne doit jamais passer
+    inapercue, meme quand elle est inoffensive. On la constate, on l'inscrit.
     """
     persiste, consigne = await _jouer_le_premier_tour(configurations)
     assert persiste == {
         "direction": "inbound",
+        "workflow_run_id": 7,
         "runtime_configuration": {"llm_provider": "openai", "llm_model": "gpt-4.1"},
         "date_appel": "mardi 15 septembre 2026",
         "heure_appel": "13 heures",

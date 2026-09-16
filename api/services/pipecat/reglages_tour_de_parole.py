@@ -205,7 +205,12 @@ def appliquer_latence_de_transcription(service_stt, latence: float | None):
 # --------------------------------------------------------------------------- #
 
 
-def collecter_strategies_de_coupure(run_configs: dict | None, *, should_mute_callback):
+def collecter_strategies_de_coupure(
+    run_configs: dict | None,
+    *,
+    should_mute_callback,
+    supervision_decroche_active: bool = False,
+):
     """[.mark] Build the mute strategies for one agent.
 
     What it settles: the greeting cut in half by a "hello", and the transfer
@@ -239,12 +244,24 @@ def collecter_strategies_de_coupure(run_configs: dict | None, *, should_mute_cal
 
     run_configs = run_configs or {}
     strategies = []
+    # [.mark] Montee du 2026-09-16 : seul apport repris de la fonction que
+    # l'amont a ajoutee. Quand une supervision de decroche tourne, c'est elle
+    # qui decide quand l'appelant a la parole, donc la premiere strategie
+    # devient `FirstSpeech` au lieu d'attendre la fin de la phrase du robot.
+    # ⛔ Le drapeau ne PEUT PAS produire deux `FirstSpeech` : il remplace la
+    # premiere strategie, et le reglage `mute_first_speech` est ignore quand il
+    # a deja pose la sienne.
+    premiere_est_first_speech = False
     if _booleen(
         run_configs,
         "mute_until_first_bot_complete",
         DEFAULT_MUTE_UNTIL_FIRST_BOT_COMPLETE,
     ):
-        strategies.append(MuteUntilFirstBotCompleteUserMuteStrategy())
+        if supervision_decroche_active:
+            strategies.append(FirstSpeechUserMuteStrategy())
+            premiere_est_first_speech = True
+        else:
+            strategies.append(MuteUntilFirstBotCompleteUserMuteStrategy())
     if _booleen(
         run_configs, "mute_during_function_call", DEFAULT_MUTE_DURING_FUNCTION_CALL
     ):
@@ -253,7 +270,10 @@ def collecter_strategies_de_coupure(run_configs: dict | None, *, should_mute_cal
         strategies.append(
             CallbackUserMuteStrategy(should_mute_callback=should_mute_callback)
         )
-    if _booleen(run_configs, "mute_first_speech", DEFAULT_MUTE_FIRST_SPEECH):
+    if (
+        not premiere_est_first_speech
+        and _booleen(run_configs, "mute_first_speech", DEFAULT_MUTE_FIRST_SPEECH)
+    ):
         strategies.append(FirstSpeechUserMuteStrategy())
     if _booleen(run_configs, "mute_always", DEFAULT_MUTE_ALWAYS):
         strategies.append(AlwaysUserMuteStrategy())

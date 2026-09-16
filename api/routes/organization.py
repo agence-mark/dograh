@@ -1667,6 +1667,9 @@ class LangfuseCredentialsRequest(BaseModel):
     # Required: Langfuse v4 trace links are project-scoped, and the legacy
     # /trace/<id> form 404s without it.
     project_id: str = Field(min_length=1)
+    # Off unless the org asks for it: a public trace is readable by anyone
+    # holding its URL, with no Langfuse login.
+    traces_public: bool = False
 
 
 class LangfuseCredentialsResponse(BaseModel):
@@ -1674,6 +1677,7 @@ class LangfuseCredentialsResponse(BaseModel):
     public_key: str = ""
     secret_key: str = ""
     project_id: str = ""
+    traces_public: bool = False
     configured: bool = False
 
 
@@ -1696,6 +1700,7 @@ async def get_langfuse_credentials(user: UserModel = Depends(get_user)):
         public_key=mask_key(config.value.get("public_key", "")),
         secret_key=mask_key(config.value.get("secret_key", "")),
         project_id=config.value.get("project_id", ""),
+        traces_public=bool(config.value.get("traces_public", False)),
         configured=True,
     )
 
@@ -1719,6 +1724,7 @@ async def save_langfuse_credentials(
         "public_key": request.public_key,
         "secret_key": request.secret_key,
         "project_id": request.project_id.strip(),
+        "traces_public": request.traces_public,
     }
 
     # Preserve masked fields
@@ -1799,6 +1805,7 @@ class CircuitBreakerConfigResponse(BaseModel):
 class LastCampaignSettingsResponse(BaseModel):
     retry_config: Optional[RetryConfigResponse] = None
     max_concurrency: Optional[int] = None
+    rate_limit_per_second: int = 1
     schedule_config: Optional[ScheduleConfigResponse] = None
     circuit_breaker: Optional[CircuitBreakerConfigResponse] = None
 
@@ -1882,6 +1889,7 @@ async def get_campaign_defaults(user: UserModel = Depends(get_user)):
             last_campaign_settings = LastCampaignSettingsResponse(
                 retry_config=retry,
                 max_concurrency=max_conc,
+                rate_limit_per_second=last_campaign.rate_limit_per_second,
                 schedule_config=sched,
                 circuit_breaker=cb,
             )

@@ -180,11 +180,18 @@ const schemaDeepgram = {
             models: MODELES_FLUX,
             description: "Below this confidence, a finished turn is DROPPED and never reaches the agent, which then hears nothing at all. WARNING: this one is not sent to Deepgram; it is a filter applied on our side to what Deepgram returns. Left empty, nothing is dropped, which is today's behaviour.",
         },
+        base_url: {
+            type: "string",
+            default: "https://api.eu.deepgram.com",
+            examples: ["https://api.deepgram.com", "https://api.eu.deepgram.com", "https://api.au.deepgram.com"],
+            allow_custom_input: true,
+            description: "The Deepgram endpoint the caller's audio is sent to, and therefore the jurisdiction that processes it. Defaults to Europe and can be changed: upstream defaults it to the global endpoint, .mark defaults it to the EU one. Leaving it empty also sends the audio to Europe.",
+        },
         region: {
             type: "string",
             default: "api.eu.deepgram.com",
             readonly: true,
-            description: "The Deepgram region the caller's audio is processed in. Locked on Europe: processing inside the EU is a condition of the offer, not an option, so it is imposed in code and cannot be changed from here or through the API.",
+            description: "The Deepgram region the caller's audio is processed in. Derived from the endpoint above rather than chosen: change the endpoint and this follows. Defaults to Europe.",
         },
         mip_opt_out: {
             type: "boolean",
@@ -432,27 +439,46 @@ describe("[.mark] the Deepgram transcription settings on screen", () => {
         }
     });
 
-    it("shows the two compliance values, locked", async () => {
+    // \🔑 2026-09-16, decision d'Evan : les deux valeurs s'affichent
+    // toujours sans se saisir, mais plus pour la meme raison. La region se
+    // DEDUIT de l'adresse ; l'opposition a l'entrainement, elle, reste une
+    // condition de l'offre. Les deux tests sont donc separes : les confondre
+    // laisserait passer le jour ou l'une des deux change de regime.
+
+    it("shows the region, derived and not typed", async () => {
         afficher();
         await attendreLEcran();
 
         const saisie = bloc("region").querySelector("input") as HTMLInputElement;
         expect(saisie.value).toBe("api.eu.deepgram.com");
         expect(saisie.disabled).toBe(true);
+        expect(bloc("region").textContent).toContain("Derived from the endpoint above");
+    });
+
+    it("keeps the training opt-out locked, and says why", async () => {
+        afficher();
+        await attendreLEcran();
 
         const interrupteur = bloc("mip_opt_out").querySelector('[role="switch"]');
         expect(interrupteur?.getAttribute("aria-checked")).toBe("true");
         expect(interrupteur?.hasAttribute("disabled")).toBe(true);
+        // ⛔ "Locked" alone reads as a limitation. The sentence has to say it
+        // is a condition of the offer, which is a decision, not a constraint.
+        expect(bloc("mip_opt_out").textContent).toContain("condition of the offer");
     });
 
-    it("says WHY the two compliance values are locked, not just that they are", async () => {
+    it("lets the endpoint be typed, and offers the three regions", async () => {
+        // \🔴 Le test qui manquerait le plus : c'est ce champ qui decide de
+        // la juridiction ou part l'audio de l'appelant. Il a ete VERROUILLE du
+        // 11/09 au 16/09 ; s'il le redevenait par accident (un `readonly`
+        // remis dans le schema), rien d'autre ici ne le dirait.
         afficher();
         await attendreLEcran();
 
-        // ⛔ "Locked" alone reads as a limitation. The sentence has to say it
-        // is a condition of the offer, which is a decision, not a constraint.
-        expect(bloc("region").textContent).toContain("condition of the offer");
-        expect(bloc("mip_opt_out").textContent).toContain("condition of the offer");
+        expect(estAffiche("base_url")).toBe(true);
+        const bouton = bloc("base_url").querySelector("button");
+        expect(bouton?.hasAttribute("disabled")).toBe(false);
+        expect(bloc("base_url").textContent).toContain("api.eu.deepgram.com");
     });
 
     it("does not post the compliance values", async () => {
@@ -463,10 +489,18 @@ describe("[.mark] the Deepgram transcription settings on screen", () => {
         await waitFor(() => expect(onSave).toHaveBeenCalled());
 
         const envoye = onSave.mock.calls[0][0] as { stt: Record<string, unknown> };
-        // The server imposes both whatever arrives, so storing a copy would
-        // only create a second place where the truth could drift.
+        // ⛔ Deux raisons DIFFERENTES depuis le 16/09 : `mip_opt_out` est
+        // impose par le serveur quoi qu'il arrive, `region` est DERIVEE de
+        // l'adresse. Ni l'un ni l'autre ne se stocke : ce serait un second
+        // endroit ou la verite pourrait deriver.
         expect("region" in envoye.stt).toBe(false);
         expect("mip_opt_out" in envoye.stt).toBe(false);
+        // ⛔ L'adresse, elle, est le contraire : depuis le 16/09 c'est une
+        // vraie configuration, donc elle DOIT etre enregistree. Si elle
+        // repartait dans le meme silence que les deux valeurs ci-dessus, le
+        // champ se laisserait saisir et l'agent continuerait d'appeler
+        // l'Europe — un ecran qui ment, dans l'autre sens.
+        expect(envoye.stt.base_url).toBe("https://api.eu.deepgram.com");
     });
 
     it("does not offer the agent's Dictionary a second time", async () => {

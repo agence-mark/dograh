@@ -8,6 +8,24 @@ on:
       - "pipecat/**"
       - "scripts/**"
       - ".github/workflows/api-tests.yml"
+  # [.mark] 2026-09-16, decision d'Evan. L'amont ne declenche QUE sur une
+  # pull request vers `main` : chez nous `main` est le miroir de l'amont et on
+  # n'ouvre jamais de pull request, donc cette CI n'avait JAMAIS tourne.
+  # ⛔ Consequence mesuree le 16/09 : `api/tests/integrations/test_run_pipeline.py`
+  # est le seul fichier qui traverse le montage d'un appel, il exige un Postgres
+  # que le poste n'a pas, et personne ne l'avait donc joue depuis la montee de
+  # version. C'est exactement le chemin ou se cachait le bloquant de la nuit du
+  # 16/09 (un import emporte par une resolution de conflit : 523 tests verts, et
+  # aucun appel n'aurait pu demarrer).
+  push:
+    branches:
+      - "chantier/**"
+      - "mark/deploiement"
+    paths:
+      - "api/**"
+      - "pipecat/**"
+      - "scripts/**"
+      - ".github/workflows/api-tests.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

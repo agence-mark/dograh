@@ -97,6 +97,12 @@ export type AriConfigurationRequest = {
      */
     ws_client_name?: string;
     /**
+     * Dial String Template
+     *
+     * How a plain number becomes an Asterisk dial string. ``{number}`` is substituted; anything already carrying a channel technology (``PJSIP/...``, ``Local/...``) is dialled as written.
+     */
+    dial_string_template?: string;
+    /**
      * Optional external PBX connected through this Asterisk instance
      */
     external_pbx?: VicidialExternalPbxConfiguration | null;
@@ -140,6 +146,84 @@ export type AwsBedrockLlmConfiguration = {
      * AWS region where the Bedrock model is available.
      */
     aws_region?: string;
+};
+
+/**
+ * AWS Nova 2 Sonic
+ *
+ * Amazon Bedrock's realtime speech-to-speech model. Uses AWS IAM credentials rather than a Bedrock API key.
+ */
+export type AwsNovaSonicRealtimeLlmConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'aws_nova_sonic';
+    /**
+     * Api Key
+     *
+     * Not used for Nova 2 Sonic — authentication is via the AWS credentials above. Leave blank.
+     */
+    api_key?: string | Array<string> | null;
+    /**
+     * Model
+     *
+     * Amazon Nova 2 Sonic model ID.
+     */
+    model?: string;
+    /**
+     * Voice
+     *
+     * Voice the model speaks in. Tiffany and Matthew are polyglot voices.
+     */
+    voice?: string;
+    /**
+     * Aws Access Key
+     *
+     * AWS access key ID with permission to invoke Nova 2 Sonic in Bedrock.
+     */
+    aws_access_key?: string;
+    /**
+     * Aws Secret Key
+     *
+     * AWS secret access key paired with the access key ID.
+     */
+    aws_secret_key?: string;
+    /**
+     * Aws Session Token
+     *
+     * Optional AWS session token for temporary IAM credentials.
+     */
+    aws_session_token?: string | null;
+    /**
+     * Aws Region
+     *
+     * AWS region where Nova 2 Sonic is enabled for the account.
+     */
+    aws_region?: string;
+    /**
+     * Endpointing Sensitivity
+     *
+     * How quickly Nova decides the user has stopped speaking. Leave blank to use the model default.
+     */
+    endpointing_sensitivity?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+    /**
+     * Temperature
+     *
+     * Sampling temperature for Nova 2 Sonic (greater than 0, up to 1).
+     */
+    temperature?: number;
+    /**
+     * Max Tokens
+     *
+     * Maximum response tokens.
+     */
+    max_tokens?: number;
+    /**
+     * Top P
+     *
+     * Nucleus-sampling threshold.
+     */
+    top_p?: number;
 };
 
 /**
@@ -583,7 +667,9 @@ export type ByokPipelineAiModelConfiguration = {
         provider: 'xai';
     } & XaittsConfiguration) | ({
         provider: 'lmnt';
-    } & LmntTtsConfiguration);
+    } & LmntTtsConfiguration) | ({
+        provider: 'speechify';
+    } & SpeechifyTtsConfiguration);
     /**
      * Stt
      */
@@ -649,7 +735,9 @@ export type ByokRealtimeAiModelConfiguration = {
         provider: 'google_vertex_realtime';
     } & GoogleVertexRealtimeLlmConfiguration) | ({
         provider: 'azure_realtime';
-    } & AzureRealtimeLlmConfiguration);
+    } & AzureRealtimeLlmConfiguration) | ({
+        provider: 'aws_nova_sonic';
+    } & AwsNovaSonicRealtimeLlmConfiguration);
     /**
      * Llm
      */
@@ -1011,6 +1099,10 @@ export type CampaignResponse = {
      * Max Concurrency
      */
     max_concurrency?: number | null;
+    /**
+     * Rate Limit Per Second
+     */
+    rate_limit_per_second?: number;
     schedule_config?: ScheduleConfigResponse | null;
     circuit_breaker?: CircuitBreakerConfigResponse | null;
     /**
@@ -1041,6 +1133,10 @@ export type CampaignResponse = {
      * Logs
      */
     logs?: Array<CampaignLogEntryResponse>;
+    /**
+     * Warnings
+     */
+    warnings?: Array<string>;
 };
 
 /**
@@ -1478,6 +1574,10 @@ export type CreateCampaignRequest = {
      * Max Concurrency
      */
     max_concurrency?: number | null;
+    /**
+     * Rate Limit Per Second
+     */
+    rate_limit_per_second?: number;
     schedule_config?: ScheduleConfigRequest | null;
     circuit_breaker?: CircuitBreakerConfigRequest | null;
 };
@@ -1909,6 +2009,138 @@ export type DeepgramSttConfiguration = {
      * Language code. 'multi' enables Nova-3 auto-detect and omits language hints for Flux multilingual auto-detect.
      */
     language?: string;
+    /**
+     * Base Url
+     *
+     * The Deepgram endpoint the caller's audio is sent to, and therefore the jurisdiction that processes it. Defaults to Europe and can be changed: upstream defaults it to the global endpoint, .mark defaults it to the EU one. Leaving it empty also sends the audio to Europe.
+     */
+    base_url?: string;
+    /**
+     * Endpointing
+     *
+     * Silence, in milliseconds, after which Deepgram declares the speech finished. This is the setting that decides when the agent takes the floor, so it caps the responsiveness of the whole chain: too low and the agent cuts the caller off, too high and it leaves a blank. Deepgram's own default is 10 ms; 100 ms is the value that was hardcoded before this field existed. Deepgram also accepts 'false' to switch endpointing off entirely, which this field does not offer.
+     */
+    endpointing?: number | null;
+    /**
+     * Utterance End Ms
+     *
+     * Silence, in milliseconds, after which Deepgram emits an end-of-utterance event. From 1000 to 5000. WARNING: requires interim results to be on; without them Deepgram sends nothing. Left empty, no such event is requested, which is today's behaviour.
+     */
+    utterance_end_ms?: number | null;
+    /**
+     * Interim Results
+     *
+     * Sends partial transcriptions as the caller speaks, instead of only the finished sentence. On today by way of the connector's own default, and required by the end-of-utterance setting above.
+     */
+    interim_results?: boolean | null;
+    /**
+     * Keywords
+     *
+     * Words to boost, written 'word' or 'word:intensifier'. NOT supported from nova-3 onwards, where Deepgram replaced it with keyterm prompting — which is what the agent's Dictionary already feeds. Only shown when an older model is selected.
+     */
+    keywords?: Array<string> | null;
+    /**
+     * Punctuate
+     *
+     * Adds punctuation and capitalisation to the transcript. On today by way of the connector's own default. Required for dictation below to have any effect.
+     */
+    punctuate?: boolean | null;
+    /**
+     * Smart Format
+     *
+     * Formats dates, times, phone numbers and amounts for readability. Includes the numerals setting below. Off today by way of the connector's own default.
+     */
+    smart_format?: boolean | null;
+    /**
+     * Numerals
+     *
+     * Writes spoken numbers as digits ('twenty three' becomes '23'). Off today by way of the connector's own default.
+     */
+    numerals?: boolean | null;
+    /**
+     * Dictation
+     *
+     * Turns spoken punctuation commands into characters ('comma' becomes ','). WARNING: English only, and has no effect unless punctuation is on. Off today by way of the connector's own default.
+     */
+    dictation?: boolean | null;
+    /**
+     * Profanity Filter
+     *
+     * Replaces or removes coarse language in the transcript. Off is the value that was hardcoded before this field existed: what the caller said reaches the agent as they said it.
+     */
+    profanity_filter?: boolean | null;
+    /**
+     * Redact
+     *
+     * Removes sensitive information from the transcript before it reaches us. Categories such as pci, pii, phi, numbers, aggressive_numbers, or an individual entity type. WARNING: outside English, only numbers are redacted. Left empty, nothing is redacted, which is today's behaviour.
+     */
+    redact?: Array<string> | null;
+    /**
+     * Replace
+     *
+     * Replacement rules, written 'term heard:term written'. Useful for a trade word the model mishears consistently. One rule per entry; the colon separates the two halves.
+     */
+    replace?: Array<string> | null;
+    /**
+     * Search
+     *
+     * Terms Deepgram reports the position and confidence of, without changing the transcript. WARNING: nothing in the agent reads those results today, so this is an observation aid, not a behaviour.
+     */
+    search?: Array<string> | null;
+    /**
+     * Diarize
+     *
+     * Labels the transcript by speaker. WARNING: Deepgram marks this parameter deprecated in favour of diarize_model, which the connector does not carry; it still works and routes to the v1 diarizer. On a telephone call the agent and the caller are already on separate channels, so there is little to gain.
+     */
+    diarize?: boolean | null;
+    /**
+     * Detect Entities
+     *
+     * Marks names, dates, amounts and the like in the transcript. WARNING: nothing in the agent reads those markers today. Off by way of the connector's own default.
+     */
+    detect_entities?: boolean | null;
+    /**
+     * Eot Threshold
+     *
+     * Confidence Flux needs before it declares the turn finished. Low means turns end sooner, so the agent answers faster and cuts in more often; high means it waits for a complete sentence. From 0.5 to 1. Deepgram's default is 0.7, which is also the value that was hardcoded before this field existed.
+     */
+    eot_threshold?: number | null;
+    /**
+     * Eager Eot Threshold
+     *
+     * Confidence at which Flux announces the turn is probably about to end, so the answer can be prepared before the caller has actually stopped. From 0.3 to 0.9, and it must stay at or below the threshold above. Deepgram leaves it off by default; 0.5 is the value that was hardcoded before this field existed.
+     */
+    eager_eot_threshold?: number | null;
+    /**
+     * Eot Timeout Ms
+     *
+     * Silence, in milliseconds, after which Flux finishes the turn whatever its confidence. From 500 to 60000. Deepgram's default is 5000; 3000 is the value that was hardcoded before this field existed.
+     */
+    eot_timeout_ms?: number | null;
+    /**
+     * Language Hints
+     *
+     * Languages to bias multilingual detection towards. Only the multilingual Flux model reads them. Left empty, the hint is derived from the language chosen above, which is what happens today; filled in, it replaces that derivation.
+     */
+    language_hints?: Array<string> | null;
+    /**
+     * Min Confidence
+     *
+     * Below this confidence, a finished turn is DROPPED and never reaches the agent, which then hears nothing at all. WARNING: this one is not sent to Deepgram; it is a filter applied on our side to what Deepgram returns. Left empty, nothing is dropped, which is today's behaviour.
+     */
+    min_confidence?: number | null;
+    /**
+     * Region
+     *
+     * The Deepgram region the caller's audio is processed in. Derived from the endpoint above rather than chosen: change the endpoint and this follows. Defaults to Europe.
+     */
+    region?: string;
+    /**
+     * Mip Opt Out
+     *
+     * Refusal to take part in Deepgram's Model Improvement Program, so no call is used to train their models. Locked on: it is a condition of the offer, not an option. Refusing forfeits a discount, and that is accepted.
+     */
+    mip_opt_out?: boolean;
 };
 
 /**
@@ -1929,6 +2161,12 @@ export type DeepgramTtsConfiguration = {
      * Deepgram voice ID (model is inferred from the 'aura-N' prefix).
      */
     voice?: string;
+    /**
+     * Base Url
+     *
+     * The Deepgram endpoint the spoken text is sent to. Defaults to Europe and can be changed: upstream defaults it to the global endpoint, .mark defaults it to the EU one. Leaving it empty also sends the audio to Europe.
+     */
+    base_url?: string;
 };
 
 /**
@@ -2610,6 +2848,44 @@ export type EndTextChatSessionRequest = {
 };
 
 /**
+ * ExotelConfigurationRequest
+ */
+export type ExotelConfigurationRequest = {
+    /**
+     * Provider
+     */
+    provider?: 'exotel';
+    /**
+     * Account Sid
+     *
+     * Exotel Account SID
+     */
+    account_sid: string;
+    /**
+     * Api Key
+     *
+     * Exotel API Key
+     */
+    api_key: string;
+    /**
+     * Api Token
+     *
+     * Exotel API Token
+     */
+    api_token: string;
+    /**
+     * Api Base Url
+     *
+     * Exotel API base URL. Use https://api.in.exotel.com for India or https://api.exotel.com for other regions.
+     */
+    api_base_url?: string;
+    /**
+     * From Numbers
+     */
+    from_numbers?: Array<string>;
+};
+
+/**
  * ExternalPBXFieldMapping
  *
  * Map one gathered-context value to a provider-native field.
@@ -2761,12 +3037,6 @@ export type GoogleRealtimeLlmConfiguration = {
      * ISO 639-1 language code.
      */
     language?: string;
-    /**
-     * Temperature
-     *
-     * Sampling temperature for Gemini Live (0.0 to 2.0).
-     */
-    temperature?: number | null;
 };
 
 /**
@@ -2890,7 +3160,7 @@ export type GoogleVertexLlmConfiguration = {
     /**
      * Location
      *
-     * GCP region for the Vertex AI endpoint (e.g. 'global').
+     * Vertex AI location, which decides where requests are processed. 'eu' and 'us' are multi-regions that keep processing inside that geography; a single region such as 'europe-west4' pins it further; 'global' routes anywhere in the world and carries no data residency guarantee. Model availability varies by location.
      */
     location?: string;
     /**
@@ -2934,12 +3204,6 @@ export type GoogleVertexRealtimeLlmConfiguration = {
      */
     language?: string;
     /**
-     * Temperature
-     *
-     * Sampling temperature for Gemini Live (0.0 to 2.0).
-     */
-    temperature?: number | null;
-    /**
      * Project Id
      *
      * Google Cloud project ID for Vertex AI.
@@ -2948,7 +3212,7 @@ export type GoogleVertexRealtimeLlmConfiguration = {
     /**
      * Location
      *
-     * GCP region for the Vertex AI endpoint (e.g. 'global').
+     * Vertex AI location, which decides where requests are processed. 'eu' and 'us' are multi-regions that keep processing inside that geography; a single region such as 'europe-west4' pins it further; 'global' routes anywhere in the world and carries no data residency guarantee. Model availability varies by location.
      */
     location?: string;
     /**
@@ -3511,6 +3775,10 @@ export type LangfuseCredentialsRequest = {
      * Project Id
      */
     project_id: string;
+    /**
+     * Traces Public
+     */
+    traces_public?: boolean;
 };
 
 /**
@@ -3534,6 +3802,10 @@ export type LangfuseCredentialsResponse = {
      */
     project_id?: string;
     /**
+     * Traces Public
+     */
+    traces_public?: boolean;
+    /**
      * Configured
      */
     configured?: boolean;
@@ -3548,12 +3820,18 @@ export type LastCampaignSettingsResponse = {
      * Max Concurrency
      */
     max_concurrency?: number | null;
+    /**
+     * Rate Limit Per Second
+     */
+    rate_limit_per_second?: number;
     schedule_config?: ScheduleConfigResponse | null;
     circuit_breaker?: CircuitBreakerConfigResponse | null;
 };
 
 /**
  * LMNT
+ *
+ * Stored LMNT configurations remain readable after the provider's retirement.
  */
 export type LmntTtsConfiguration = {
     /**
@@ -3951,6 +4229,42 @@ export type MistralLlmConfiguration = {
      * Mistral API endpoint. Defaults to the EU endpoint.
      */
     base_url?: string;
+    /**
+     * Temperature
+     *
+     * How much randomness goes into each word. Low keeps answers predictable and on-script; high makes them varied and less reliable. Mistral recommends 0.0 to 0.7. Defaults to 0.1, the value that was hardcoded before this field existed.
+     */
+    temperature?: number;
+    /**
+     * Seed
+     *
+     * Fixes the draw: two identical calls give back the same conversation. A laboratory tool for comparing two settings, not a production one. Left empty, each call is drawn afresh.
+     */
+    seed?: number | null;
+    /**
+     * Max Tokens
+     *
+     * Longest answer the model may produce, in tokens (a token is roughly three quarters of a word). An answer half as long comes back about twice as fast, which is heard on the phone. WARNING: this ceiling also applies to the out-of-band call that fills in the call report, so a low value can truncate it and leave fields empty. Left empty, the model stops when it has finished.
+     */
+    max_tokens?: number | null;
+    /**
+     * Top P
+     *
+     * Restricts the draw to the most likely words: 0.1 keeps only the top 10% of the probability mass. Acts on the same phenomenon as temperature, so Mistral advises changing one or the other, not both. Above 0 and up to 1.
+     */
+    top_p?: number | null;
+    /**
+     * Frequency Penalty
+     *
+     * Discourages repeating a word already used often in the answer. From -2 to 2; positive values reduce repetition.
+     */
+    frequency_penalty?: number | null;
+    /**
+     * Presence Penalty
+     *
+     * Pushes the model towards subjects it has not brought up yet. From -2 to 2; positive values widen the range of topics.
+     */
+    presence_penalty?: number | null;
 };
 
 /**
@@ -4250,7 +4564,7 @@ export type OpenAillmService = {
 };
 
 /**
- * OpenAI Realtime
+ * OpenAI
  */
 export type OpenAiRealtimeLlmConfiguration = {
     /**
@@ -4264,7 +4578,7 @@ export type OpenAiRealtimeLlmConfiguration = {
     /**
      * Model
      *
-     * OpenAI realtime (speech-to-speech) model.
+     * Choose GPT-Live for full-duplex speech or a GPT-Realtime model.
      */
     model?: string;
     /**
@@ -4279,6 +4593,12 @@ export type OpenAiRealtimeLlmConfiguration = {
      * ISO 639-1 language code for input audio transcription (e.g. 'pt', 'es'). Improves transcription accuracy and latency. Leave unset to auto-detect.
      */
     language?: string | null;
+    /**
+     * Backend Model
+     *
+     * OpenAI Responses model that follows your workflow and calls tools. Uses the same API key; backend usage is billed separately from voice.
+     */
+    backend_model?: string;
 };
 
 /**
@@ -5889,6 +6209,38 @@ export type SpeachesTtsConfiguration = {
 };
 
 /**
+ * Speechify
+ */
+export type SpeechifyTtsConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'speechify';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Speechify TTS model. 'simba-3.2' is the streaming-native English model with the lowest latency; 'simba-3.0' adds German, Spanish, French, Italian, and Portuguese.
+     */
+    model?: string;
+    /**
+     * Voice
+     *
+     * Speechify voice ID. Options are filtered to voices available for the selected model; a custom or cloned voice ID must support the selected model (see GET /v1/voices), or synthesis fails.
+     */
+    voice?: string;
+    /**
+     * Language
+     *
+     * Language code for synthesis (e.g. 'en', 'de', 'es', 'fr', 'it', 'pt-BR'). Options are filtered to the selected model's documented languages; simba-3.2 is documented as English-only.
+     */
+    language?: string;
+};
+
+/**
  * Speechmatics
  */
 export type SpeechmaticsSttConfiguration = {
@@ -5903,7 +6255,7 @@ export type SpeechmaticsSttConfiguration = {
     /**
      * Model
      *
-     * Speechmatics operating point: 'standard' or 'enhanced'.
+     * Speechmatics Agent STT model.
      */
     model?: string;
     /**
@@ -6065,6 +6417,8 @@ export type TelephonyConfigurationCreateRequest = {
     } & AriConfigurationRequest) | ({
         provider: 'cloudonix';
     } & CloudonixConfigurationRequest) | ({
+        provider: 'exotel';
+    } & ExotelConfigurationRequest) | ({
         provider: 'plivo';
     } & PlivoConfigurationRequest) | ({
         provider: 'telnyx';
@@ -6229,6 +6583,8 @@ export type TelephonyConfigurationUpdateRequest = {
     } & AriConfigurationRequest) | ({
         provider: 'cloudonix';
     } & CloudonixConfigurationRequest) | ({
+        provider: 'exotel';
+    } & ExotelConfigurationRequest) | ({
         provider: 'plivo';
     } & PlivoConfigurationRequest) | ({
         provider: 'telnyx';
@@ -6883,12 +7239,6 @@ export type TwilioConfigurationRequest = {
      * Twilio Auth Token
      */
     auth_token: string;
-    /**
-     * Amd Enabled
-     *
-     * Detect whether outbound calls are answered by a person or machine. Twilio may bill AMD as an additional per-call feature.
-     */
-    amd_enabled?: boolean;
 };
 
 /**
@@ -6930,6 +7280,10 @@ export type UpdateCampaignRequest = {
      * Max Concurrency
      */
     max_concurrency?: number | null;
+    /**
+     * Rate Limit Per Second
+     */
+    rate_limit_per_second?: number | null;
     schedule_config?: ScheduleConfigRequest | null;
     circuit_breaker?: CircuitBreakerConfigRequest | null;
 };
@@ -7439,6 +7793,18 @@ export type WidgetTexts = {
      */
     endChatText?: string;
     /**
+     * Endchatconfirmtext
+     */
+    endChatConfirmText?: string;
+    /**
+     * Endchatcanceltext
+     */
+    endChatCancelText?: string;
+    /**
+     * Endingchattext
+     */
+    endingChatText?: string;
+    /**
      * Conversationendedtext
      */
     conversationEndedText?: string;
@@ -7536,15 +7902,11 @@ export type WorkflowConfigurationDefaults = {
     /**
      * Turn Start Strategy
      */
-    turn_start_strategy?: 'default' | 'min_words' | 'provisional_vad';
+    turn_start_strategy?: 'default' | 'min_words';
     /**
      * Turn Start Min Words
      */
     turn_start_min_words?: number;
-    /**
-     * Provisional Vad Pause Secs
-     */
-    provisional_vad_pause_secs?: number;
     /**
      * Turn Stop Strategy
      */
@@ -7557,6 +7919,192 @@ export type WorkflowConfigurationDefaults = {
      * Context Compaction Enabled
      */
     context_compaction_enabled?: boolean;
+    /**
+     * User Speech Timeout
+     *
+     * Seconds the caller may pause before the agent takes the floor. The single setting that most decides whether the agent cuts people off or leaves a silence. Pipecat has never had a screen for it: 0.6 s is its own default, chosen by nobody here.
+     */
+    user_speech_timeout?: number;
+    /**
+     * Stt Ttfs P99 Latency
+     *
+     * Seconds the pipeline allows the transcription to deliver its final text after the caller stops. Empty means the value Pipecat measured for the provider (0.35 s for Deepgram). ⚠️ That measurement was taken with a voice detector set to 0.2 s: change the detector below without this, and the end of turn is wrong.
+     */
+    stt_ttfs_p99_latency?: number | null;
+    /**
+     * User Turn Stop Timeout
+     *
+     * Hard ceiling on the wait for a transcript before the turn ends anyway. Empty means the value the pipeline picks for this agent: 5 s normally, 30 s when the transcription service drives the turns itself. ⛔ This setting has TWO defaults, not one -- writing 5 s into it silently cuts a Flux agent from 30 s to 5 s.
+     */
+    user_turn_stop_timeout?: number | null;
+    /**
+     * Turn Wait For Transcript
+     *
+     * Require at least one transcript before ending the caller's turn. Turn it off and the agent answers on silence alone, faster but on nothing that was understood.
+     */
+    turn_wait_for_transcript?: boolean;
+    /**
+     * Turn Start Use Interim
+     *
+     * Let partial transcripts, not just final ones, confirm that the caller has started speaking.
+     */
+    turn_start_use_interim?: boolean;
+    /**
+     * Vad Confidence
+     *
+     * How sure the voice detector must be that it is hearing speech. Higher misses quiet speech; lower takes background noise for a caller.
+     */
+    vad_confidence?: number;
+    /**
+     * Vad Start Secs
+     *
+     * Seconds of sound before the detector calls it speech. Range is ours: Pipecat sets no bound.
+     */
+    vad_start_secs?: number;
+    /**
+     * Vad Stop Secs
+     *
+     * Seconds of silence before the detector calls the speech over. ⚠️ Tied to the transcription latency above, which was measured at 0.2 s. Range is ours: Pipecat sets no bound.
+     */
+    vad_stop_secs?: number;
+    /**
+     * Vad Min Volume
+     *
+     * Volume below which sound is not considered speech.
+     */
+    vad_min_volume?: number;
+    /**
+     * Smart Turn Pre Speech Ms
+     *
+     * Milliseconds of audio kept before the caller starts speaking, for the Smart Turn model. Only used when end of turn is set to Smart Turn.
+     */
+    smart_turn_pre_speech_ms?: number;
+    /**
+     * Smart Turn Max Duration Secs
+     *
+     * Longest audio segment the Smart Turn model examines. Only used when end of turn is set to Smart Turn.
+     */
+    smart_turn_max_duration_secs?: number;
+    /**
+     * Audio Idle Timeout
+     *
+     * Seconds without any audio at all before the caller is considered to have stopped speaking, for instance if they mute their microphone mid-sentence. 0 disables it.
+     */
+    audio_idle_timeout?: number;
+    /**
+     * Filter Incomplete User Turns
+     *
+     * Ask the model itself whether the caller has finished their sentence. ⚠️ Off by default: it costs one extra model call per turn, it has not been checked against Mistral, and its follow-up prompts are in English in Pipecat. ⚠️ Deprecated upstream: it will disappear on a Pipecat major upgrade.
+     */
+    filter_incomplete_user_turns?: boolean;
+    /**
+     * Incomplete Short Timeout
+     *
+     * Seconds before prompting when the model judged the caller was cut off mid-sentence. Only used when the setting above is on.
+     */
+    incomplete_short_timeout?: number;
+    /**
+     * Incomplete Long Timeout
+     *
+     * Seconds before prompting when the model judged the caller asked for time to think. Only used when the setting above is on.
+     */
+    incomplete_long_timeout?: number;
+    /**
+     * User Idle Prompt
+     *
+     * What the agent is told to do when the caller goes quiet. ⚠️ An instruction given to the model, not a sentence spoken word for word: the model answers in the caller's language.
+     */
+    user_idle_prompt?: string;
+    /**
+     * User Idle Goodbye Prompt
+     *
+     * What the agent is told to do on the last prompt, just before the call is hung up. Same thing: an instruction, not a script.
+     */
+    user_idle_goodbye_prompt?: string;
+    /**
+     * User Idle Max Prompts
+     *
+     * How many times the agent checks whether the caller is still there before saying goodbye and hanging up. 0 hangs up on the first silence, with the goodbye.
+     */
+    user_idle_max_prompts?: number;
+    /**
+     * Audio In Noise Filter
+     *
+     * Clean the caller's audio before it is transcribed. RNNoise is free and runs locally. ⚠️ A noise filter can just as easily get in the transcription's way: it is judged on a real phone line, not on a browser call.
+     */
+    audio_in_noise_filter?: 'none' | 'rnnoise';
+    /**
+     * Conversion Nombres Transcription
+     *
+     * Converts numbers the caller dictates into digits before the model reads them. No effect in realtime mode. With the "minimum words" interruption and interim transcripts turned off, dictated numbers count as fewer words.
+     */
+    conversion_nombres_transcription?: boolean;
+    /**
+     * Horaires Ouverture
+     *
+     * Opening hours in the readable French format. Computes etat_ouverture, reouverture and horaires_ouverture at call start. Empty: nothing is computed.
+     */
+    horaires_ouverture?: string | null;
+    /**
+     * Mute Until First Bot Complete
+     *
+     * Keep the caller from interrupting the agent's opening sentence. On until now, and this is the one that keeps a greeting from being cut in half by a hello.
+     */
+    mute_until_first_bot_complete?: boolean;
+    /**
+     * Mute During Function Call
+     *
+     * Keep the caller from interrupting while the agent is running a tool, such as a transfer or a lookup.
+     */
+    mute_during_function_call?: boolean;
+    /**
+     * Mute Engine Callback
+     *
+     * Follow the workflow's own rule about which nodes may be interrupted. ⚠️ Turning it off ignores every 'do not interrupt' set on a node, and does it silently.
+     */
+    mute_engine_callback?: boolean;
+    /**
+     * Mute First Speech
+     *
+     * Keep the caller from interrupting during the agent's very first utterance. Narrower than the first setting above, and never used until now.
+     */
+    mute_first_speech?: boolean;
+    /**
+     * Mute Always
+     *
+     * The caller can never interrupt the agent at all. ⚠️ On a phone call this is usually the wrong answer: someone who has to wait out a whole answer hangs up.
+     */
+    mute_always?: boolean;
+    /**
+     * Tts Push Silence After Stop
+     *
+     * Add a moment of silence after the agent finishes speaking. Off today, which is why the duration below currently changes nothing. Useful where a phone line clips the last syllable.
+     */
+    tts_push_silence_after_stop?: boolean;
+    /**
+     * Tts Silence Time S
+     *
+     * How long that silence lasts. ⚠️ Only used when the switch above is on.
+     */
+    tts_silence_time_s?: number;
+    /**
+     * Tts Text Aggregation Mode
+     *
+     * Send the text to the voice sentence by sentence, or word by word as the model writes it. Word by word answers sooner, but it can degrade the voice depending on the provider: judge it by ear.
+     */
+    tts_text_aggregation_mode?: 'sentence' | 'token';
+    /**
+     * Tts Replacements
+     *
+     * Words the voice mispronounces, written as heard:spoken -- for instance SAV:S. A. V. Matched literally, not as a pattern, and applied to the text sent to the voice only: the conversation history keeps the original.
+     */
+    tts_replacements?: Array<string>;
+    /**
+     * Tts Markdown Filter Enabled
+     *
+     * Strip markdown formatting before the text reaches the voice. Without it, a model that answers with **bold** has the asterisks read out loud. Does not touch parentheses: a stage direction like (one moment) is still spoken, and stays a matter for the prompt.
+     */
+    tts_markdown_filter_enabled?: boolean;
     /**
      * Call Dispositions
      *
@@ -8236,6 +8784,27 @@ export type InitiateCallApiV1TelephonyInitiateCallPostResponses = {
     200: unknown;
 };
 
+export type HandleInboundRunApiV1TelephonyInboundRunGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/telephony/inbound/run';
+};
+
+export type HandleInboundRunApiV1TelephonyInboundRunGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+};
+
+export type HandleInboundRunApiV1TelephonyInboundRunGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type HandleInboundRunApiV1TelephonyInboundRunPostData = {
     body?: never;
     path?: never;
@@ -8421,6 +8990,38 @@ export type HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostErrors = {
 };
 
 export type HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type HandleExotelStatusCallbackApiV1TelephonyExotelStatusCallbackWorkflowRunIdPostData = {
+    body?: never;
+    path: {
+        /**
+         * Workflow Run Id
+         */
+        workflow_run_id: number;
+    };
+    query?: never;
+    url: '/api/v1/telephony/exotel/status-callback/{workflow_run_id}';
+};
+
+export type HandleExotelStatusCallbackApiV1TelephonyExotelStatusCallbackWorkflowRunIdPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type HandleExotelStatusCallbackApiV1TelephonyExotelStatusCallbackWorkflowRunIdPostError = HandleExotelStatusCallbackApiV1TelephonyExotelStatusCallbackWorkflowRunIdPostErrors[keyof HandleExotelStatusCallbackApiV1TelephonyExotelStatusCallbackWorkflowRunIdPostErrors];
+
+export type HandleExotelStatusCallbackApiV1TelephonyExotelStatusCallbackWorkflowRunIdPostResponses = {
     /**
      * Successful Response
      */
