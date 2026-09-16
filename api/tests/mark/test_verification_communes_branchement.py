@@ -550,7 +550,7 @@ async def test_clavier_execute_le_message_tape_arrive_annote_au_contexte():
 
 @pytest.mark.asyncio
 async def test_clavier_execute_un_code_postal_dicte_arrive_en_chiffres_avec_la_mention():
-    """R5: the keyboard reads like a call, conversion on (Nuances de Feu)."""
+    """R5: the keyboard reads like a call, conversion on."""
     contexte, recueilli = await _message_tape_jusquau_modele(
         "Saint-Maximin soixante sept cent quarante", {"conversion_nombres_transcription": True}
     )
