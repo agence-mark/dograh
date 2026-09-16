@@ -22,7 +22,14 @@ Decisions of 2026-09-16
 - D7: the keyboard bench is annotated too (``annoter_message_tape``), so a
   keyboard campaign behaves like a call.
 - T7: provisional contexts (``speculation=True``) are annotated as well.
-  Dormant today (Flux's eager end of turn is not enabled), covered anyway.
+  ⚠️ Only PARTLY covered, dormant today (Flux's eager end of turn is not
+  enabled). Pipecat runs the early answer on a COPY of the context
+  (``_run_speculative_inference``): the note reaches that early answer, but
+  when the turn confirms it, the real message is written without a new
+  context frame and never passes through this step. Later turns, and the
+  variable extraction, would not see the note, and the only record is marked
+  ``provisoire``. To be handled the day the early answer is turned on
+  (review of 2026-09-16).
 - T8: every check is recorded in the call's gathered context, under
   ``communes_verifiees``: the note is not in the transcript, and without this
   record a bench cannot be scored.
@@ -180,10 +187,13 @@ class VerificationCommunesProcessor(FrameProcessor):
         cle = (id(message), contenu)
         if cle in self._examines:
             return
-        self._examines.add(cle)
         annote = await annoter_texte(
             contenu, self._adresse, _nom_etape(noeud), self._consigner, provisoire=frame.speculation
         )
+        # Marked AFTER the analysis: an interruption that cancels this task
+        # during the await leaves the message unmarked, so the next context
+        # that carries it is analysed again (review of 2026-09-16).
+        self._examines.add(cle)
         if annote != contenu:
             message["content"] = annote
             self._examines.add((id(message), annote))

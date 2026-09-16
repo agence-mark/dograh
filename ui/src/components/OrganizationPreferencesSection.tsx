@@ -200,8 +200,14 @@ export function OrganizationPreferencesSection() {
       if (result.error) {
         const message = detailFromError(result.error, "Failed to save preferences");
         // [.mark] A refused address is shown under its fields, not only in a
-        // toast that disappears.
-        if (result.response?.status === 422) {
+        // toast that disappears. Only an ADDRESS refusal: the route raises it
+        // as a plain string, while a validation error of another field comes
+        // as a list naming that field (review of 2026-09-16).
+        const detail = (result.error as { detail?: unknown } | undefined)?.detail;
+        const refusAdresse =
+          typeof detail === "string" ||
+          JSON.stringify(detail ?? "").includes("adresse_etablissement");
+        if (result.response?.status === 422 && refusAdresse) {
           setErreurAdresse(message);
         }
         toast.error(message);
@@ -213,8 +219,6 @@ export function OrganizationPreferencesSection() {
       }
 
       setPreferences(toFormPreferences(result.data));
-      setAdresse(result.data.adresse_etablissement ?? null);
-      setErreurAdresse(null);
       setTimezone(result.data.timezone || emptyPreferences.timezone || "UTC");
       await refreshConfig();
       toast.success(successMessage);
@@ -229,10 +233,17 @@ export function OrganizationPreferencesSection() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    await persistPreferences(
+    // [.mark] The draft address is touched HERE only: saving the disposition
+    // mapping sends the saved address and must leave the one being typed alone
+    // (review of 2026-09-16).
+    const enregistre = await persistPreferences(
       { ...preferences, adresse_etablissement: adresse },
       "Preferences saved",
     );
+    if (enregistre) {
+      setAdresseIncomplete(false);
+      setErreurAdresse(null);
+    }
   }
 
   async function handleDispositionMappingSave(

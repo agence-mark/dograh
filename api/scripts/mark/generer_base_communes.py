@@ -11,6 +11,12 @@ delete the old file in the same commit.
 
 ⛔ Never called during a call: it downloads.
 
+⚠️ Before pointing ``FICHIER_BASE`` at a new file, check the addresses already
+saved (organizations and agents): a commune merged away since the last list
+loses its INSEE code, and every later save of those preferences or agents --
+even from a screen that does not show the address -- is refused with
+« Unknown commune » (review of 2026-09-16).
+
 Source: API Géo, https://geo.api.gouv.fr (INSEE Code officiel géographique,
 La Poste postal codes, INSEE population). Licence Ouverte (open licence of the
 French State's geographic API); attribution kept in the file header.

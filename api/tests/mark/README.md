@@ -92,7 +92,7 @@ python -m pytest tests/mark -q --continue-on-collection-errors
 ```
 
 **La mesure de référence, au 16/09/2026 sur `chantier/verification-communes` (vérification des
-communes, avant fusion) : 615 tests sur 31 fichiers, tous verts avec les patchs.** 537 sur
+communes, avant fusion) : 615 tests sur 31 fichiers, tous verts avec les patchs (616 après la relecture).** 537 sur
 `mark/deploiement` à `f62b9a58` avant ce chantier (le 527 de la montée de version, plus le garde
 `asyncio.run` et un test d'amont cité). 483 sur `mark/deploiement`
 (fusion `d59c3788`, état d'ouverture) avant ces deux chantiers.

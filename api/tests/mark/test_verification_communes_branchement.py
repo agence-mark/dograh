@@ -227,6 +227,25 @@ async def test_un_contexte_renvoye_deux_fois_une_seule_mention():
 
 
 @pytest.mark.asyncio
+async def test_une_analyse_interrompue_ne_marque_pas_le_message_examine():
+    """Review of 2026-09-16: an interruption cancels the processing task during
+    the analysis. Marked BEFORE the await, the message was then never analysed
+    again, and the model never got the note."""
+    processeur = _processeur(NOEUD_COORDONNEES)
+    contexte = _contexte({"role": "user", "content": "c'est à Beauvet"})
+    vrai = verification_communes.annoter_texte
+
+    with patch.object(verification_communes, "annoter_texte", side_effect=asyncio.CancelledError):
+        with pytest.raises(asyncio.CancelledError):
+            await processeur._annoter_contexte(LLMContextFrame(context=contexte))
+    assert contexte.messages[-1]["content"] == "c'est à Beauvet"
+
+    with patch.object(verification_communes, "annoter_texte", side_effect=vrai):
+        await processeur._annoter_contexte(LLMContextFrame(context=contexte))
+    assert contexte.messages[-1]["content"] == f"c'est à Beauvet {MENTION_BEAUVAIS}"
+
+
+@pytest.mark.asyncio
 async def test_seul_le_dernier_message_de_lappelant_est_annote():
     contexte = _contexte(
         {"role": "user", "content": "j'habite à Sanlis"},
@@ -242,7 +261,14 @@ async def test_seul_le_dernier_message_de_lappelant_est_annote():
 
 @pytest.mark.asyncio
 async def test_le_contexte_provisoire_est_annote_aussi():
-    """T7: Flux's eager end of turn (dormant today) sends a provisional context."""
+    """T7: Flux's eager end of turn (dormant today) sends a provisional context.
+
+    ⚠️ Honest scope (review of 2026-09-16): this sends the SAME context object
+    twice over, so it only proves a frame marked ``speculation=True`` is
+    annotated. It does NOT prove the real context gets the note: Pipecat runs
+    the early answer on a COPY, and a confirmed early answer writes the real
+    message without going through this step. That gap is written in the module.
+    """
     contexte = _contexte({"role": "user", "content": "c'est à Beauvet"})
     traces = []
     await _faire_passer(

@@ -34,6 +34,9 @@ const mocks = vi.hoisted(() => ({
     refreshConfig: vi.fn(),
     toast: { success: vi.fn(), error: vi.fn() },
     organisation: { current: null as OrganizationPreferences | null },
+    // ⚠️ One stable array: a new one on every render re-runs the mapping
+    // dialog's effect in a loop and kills the test worker.
+    codesSysteme: ["do_not_call"],
 }));
 
 vi.mock("@/client/sdk.gen", () => ({
@@ -52,7 +55,12 @@ vi.mock("@/context/UserConfigContext", () => ({
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: 1 }, loading: false }) }));
 vi.mock("react-timezone-select", () => ({ default: () => <div data-testid="timezone-select" /> }));
 vi.mock("@/hooks/useDispositionCodes", () => ({
-    useDispositionCodes: () => ({ codes: [], endTaskReasonCodes: [], systemCodes: [], isLoading: false }),
+    useDispositionCodes: () => ({
+        codes: mocks.codesSysteme,
+        endTaskReasonCodes: [],
+        systemCodes: mocks.codesSysteme,
+        isLoading: false,
+    }),
 }));
 vi.mock("@/components/ui/dialog", () => ({
     Dialog: ({ open, children }: { open: boolean; children: ReactNode }) => (open ? <div>{children}</div> : null),
@@ -232,6 +240,66 @@ describe("[.mark] business address on the Platform Settings page", () => {
         fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
         const alerte = await screen.findByRole("alert");
         expect(alerte.textContent).toContain("does not have the postal code 60300");
+    });
+});
+
+describe("[.mark] business address on the Platform Settings page, after the review of 2026-09-16", () => {
+    it("clearing a saved address sends the preferences WITHOUT it, which clears it on the server", async () => {
+        // The PUT replaces the whole preferences row: an absent key IS a cleared
+        // address. If the screen ever kept sending the old one, nothing else would say so.
+        mocks.getPreferences.mockResolvedValue({
+            data: { timezone: "UTC", disposition_mapping: {}, adresse_etablissement: SAINT_MAXIMIN },
+        });
+        render(<PageReglagesPlateforme />);
+        await screen.findByText("Business address");
+        await waitFor(() => expect(liste("settings-business-address").value).toBe("60589"));
+
+        taper("settings-business-address", "code-postal", "");
+        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+        await waitFor(() => expect(mocks.savePreferences).toHaveBeenCalledTimes(1));
+        expect(mocks.savePreferences.mock.calls[0][0].body).not.toHaveProperty("adresse_etablissement");
+    });
+
+    it("saving the disposition mapping does not throw away the address being typed", async () => {
+        mocks.getPreferences.mockResolvedValue({
+            data: { timezone: "UTC", disposition_mapping_enabled: true, disposition_mapping: {} },
+        });
+        render(<PageReglagesPlateforme />);
+        await screen.findByText("Business address");
+        taper("settings-business-address", "code-postal", "60740");
+        await waitFor(() => expect(liste("settings-business-address").value).toBe("60589"));
+
+        // The mapping is saved first, from its own dialog...
+        fireEvent.click(await screen.findByRole("button", { name: "Configure mapping" }));
+        fireEvent.change(screen.getByLabelText("Code for do_not_call"), { target: { value: "DNC" } });
+        fireEvent.click(screen.getByRole("button", { name: "Save mapping" }));
+        await waitFor(() => expect(mocks.savePreferences).toHaveBeenCalledTimes(1));
+        // ...with the SAVED address (none), not the draft.
+        expect(mocks.savePreferences.mock.calls[0][0].body).not.toHaveProperty("adresse_etablissement");
+
+        // ...then the page is saved: the typed address must still be the one sent.
+        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+        await waitFor(() => expect(mocks.savePreferences).toHaveBeenCalledTimes(2));
+        expect(mocks.savePreferences.mock.calls[1][0].body.adresse_etablissement).toEqual({
+            code_postal: "60740",
+            code_insee: "60589",
+            commune: "Saint-Maximin",
+            voie: null,
+        });
+    });
+
+    it("a 422 about ANOTHER field is not shown under the address", async () => {
+        mocks.savePreferences.mockResolvedValue({
+            error: { detail: [{ loc: ["body", "disposition_mapping"], msg: "codes too long" }] },
+            response: { status: 422 },
+        });
+        render(<PageReglagesPlateforme />);
+        await screen.findByText("Business address");
+        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+        await waitFor(() => expect(mocks.savePreferences).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(mocks.toast.error).toHaveBeenCalled());
+        expect(screen.queryByRole("alert")).toBeNull();
     });
 });
 
