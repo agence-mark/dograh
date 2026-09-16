@@ -1,8 +1,8 @@
 import os
 
+from api.services.pipecat.audio_config import AudioConfig
 from loguru import logger
 
-from api.services.pipecat.audio_config import AudioConfig
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import (
     PipelineParams,
@@ -41,8 +41,13 @@ def build_pipeline(
     pipeline_metrics_aggregator,
     termination_funnel,
     recording_router=None,
-    conversion_nombres=None,
     answer_supervisor=None,
+    # [.mark] APRES les parametres de l'amont, et en KEYWORD-ONLY : inserer un
+    # parametre a nous au milieu de leur liste decale la position de tous les
+    # suivants, et un appelant d'amont ecrit en positionnel se mesalimente alors
+    # EN SILENCE -- ni ruff ni le typage ne le voient.
+    *,
+    conversion_nombres=None,
 ):
     """Build the main pipeline with all components.
 

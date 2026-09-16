@@ -204,6 +204,33 @@ def _create_answer_supervisor(
 # strategie devient `FirstSpeech` au lieu de `MuteUntilFirstBotComplete`.
 
 
+def _create_user_mute_strategies(engine, answer_supervisor):
+    """[.mark] Enveloppe de compatibilite vers notre collecteur reglable.
+
+    Cette fonction est celle de l'amont. Nous ne l'utilisons pas dans le
+    pipeline -- `collecter_strategies_de_coupure` construit la meme liste, mais
+    depuis les cinq reglages de l'agent au lieu d'une liste figee, et son unique
+    apport (FirstSpeech quand une supervision de decroche tourne) y est repris.
+
+    ATTENTION : elle est CONSERVEE parce que deux fichiers de tests de l'amont
+    l'importent par son nom (`test_answer_supervisor_wiring.py`,
+    `test_answer_supervisor_playback.py`). L'avoir retiree les faisait echouer a
+    la COLLECTE, donc une seizaine de tests ne s'executaient plus du tout -- et
+    ce sont precisement les tests de l'amont qui avaient vu le NameError que nos
+    523 tests ne voyaient pas. Retirer le detecteur au moment ou il prouve sa
+    valeur serait le pire des echanges.
+
+    Appelee sans configuration d'agent, elle rend donc l'ordre de l'amont :
+    MuteUntilFirstBotComplete (ou FirstSpeech si une supervision tourne), puis
+    FunctionCall, puis Callback.
+    """
+    return collecter_strategies_de_coupure(
+        None,
+        should_mute_callback=engine.should_mute_user,
+        supervision_decroche_active=answer_supervisor is not None,
+    )
+
+
 def _resolve_user_turn_stop_timeout(
     run_configs: dict, *, uses_external_turns: bool
 ) -> float:
@@ -346,8 +373,9 @@ def _construire_parametres_agregateur_utilisateur(
 
 def _create_realtime_user_turn_config(
     provider: str,
-    reglages: ReglagesTourDeParole | None = None,
     model: str | None = None,
+    *,
+    reglages: ReglagesTourDeParole | None = None,
 ):
     """Return user turn strategies and optional local VAD for realtime providers.
 
@@ -1180,8 +1208,8 @@ async def _run_pipeline_impl(
         # itself owns speech generation and interruption behavior.
         user_turn_strategies, user_vad_analyzer = _create_realtime_user_turn_config(
             user_config.realtime.provider,
-            reglages_tour,
             user_config.realtime.model,
+            reglages=reglages_tour,
         )
     else:
         # Some STT services emit their own turn boundaries, so the aggregator
