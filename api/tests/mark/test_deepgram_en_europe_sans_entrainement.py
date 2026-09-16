@@ -359,6 +359,41 @@ def test_the_shown_region_follows_the_configured_endpoint():
     assert config.mip_opt_out is True
 
 
+def test_the_endpoint_field_stays_typable_and_the_opt_out_stays_locked():
+    """🔴 La garde qui manquait, relevee par la relecture du 16/09.
+
+    Rien n'assertait la decision meme de ce chantier. Le test d'ecran qui
+    pretend le faire lit une COPIE MANUSCRITE du schema, declaree dans le
+    fichier de test : la prochaine resolution de conflit peut remettre
+    ``readonly`` sur l'adresse, le champ redevient grise en production, et les
+    531 tests serveur comme les 346 d'ecran restent verts.
+
+    ⛔ Ce test lit le VRAI schema, celui que l'ecran recoit. Il tient les deux
+    bouts dans le meme geste : l'adresse se saisit, l'opposition a
+    l'entrainement ne se saisit pas.
+    """
+    from api.services.configuration.options import DEEPGRAM_BASE_URLS
+    from api.services.configuration.registry import (
+        DeepgramSTTConfiguration,
+        DeepgramTTSConfiguration,
+    )
+
+    for classe in (DeepgramSTTConfiguration, DeepgramTTSConfiguration):
+        champ = classe.model_json_schema()["properties"]["base_url"]
+        assert champ.get("readonly") is not True, (
+            f"{classe.__name__}.base_url est redevenu non modifiable"
+        )
+        assert champ["default"] == DEEPGRAM_EU_STT_BASE_URL
+        assert champ["examples"] == list(DEEPGRAM_BASE_URLS)
+        assert champ["allow_custom_input"] is True
+
+    proprietes = DeepgramSTTConfiguration.model_json_schema()["properties"]
+    # ⛔ Et l'inverse dans le meme test : ouvrir la region n'ouvre pas
+    # l'entrainement, et la region reste DEDUITE.
+    assert proprietes["mip_opt_out"]["readonly"] is True
+    assert proprietes["region"]["readonly"] is True
+
+
 def test_a_configuration_left_alone_shows_europe():
     """Sans y toucher, les deux classes et les trois constantes disent l'Europe.
 

@@ -489,8 +489,10 @@ describe("[.mark] the Deepgram transcription settings on screen", () => {
         await waitFor(() => expect(onSave).toHaveBeenCalled());
 
         const envoye = onSave.mock.calls[0][0] as { stt: Record<string, unknown> };
-        // The server imposes both whatever arrives, so storing a copy would
-        // only create a second place where the truth could drift.
+        // ⛔ Deux raisons DIFFERENTES depuis le 16/09 : `mip_opt_out` est
+        // impose par le serveur quoi qu'il arrive, `region` est DERIVEE de
+        // l'adresse. Ni l'un ni l'autre ne se stocke : ce serait un second
+        // endroit ou la verite pourrait deriver.
         expect("region" in envoye.stt).toBe(false);
         expect("mip_opt_out" in envoye.stt).toBe(false);
         // ⛔ L'adresse, elle, est le contraire : depuis le 16/09 c'est une

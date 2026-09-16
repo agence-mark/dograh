@@ -450,7 +450,16 @@ def _deepgram_base_url(service_config) -> str:
     if "://" not in base_url:
         base_url = f"https://{base_url}"
     _validate_runtime_service_url(base_url, "base_url")
-    return base_url.rstrip("/")
+    base_url = base_url.rstrip("/")
+    # [.mark] 2026-09-16 : on garde le SCHEMA et l'HOTE, on jette le chemin.
+    # ⛔ Chaque connecteur ajoute le sien (`/v2/listen`, `/v1/speak`), donc une
+    # adresse copiee depuis la documentation Flux - la forme que
+    # `deepgram_endpoints.py` documente lui-meme - produirait
+    # `wss://hote/v2/listen/v2/listen` et l'agent ne transcrirait plus. L'amont
+    # a le meme defaut ; chez nous le champ se saisit a la main, donc le piege
+    # est atteignable. Releve par la relecture du 16/09, mesure.
+    protocole, _, reste = base_url.partition("://")
+    return f"{protocole}://{reste.split('/', 1)[0]}" if reste else base_url
 
 
 def _deepgram_websocket_url(base_url: str, path: str = "") -> str:

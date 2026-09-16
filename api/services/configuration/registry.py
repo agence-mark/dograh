@@ -3,6 +3,15 @@ from collections.abc import Iterable
 from enum import Enum, auto
 from typing import Annotated, Dict, Literal, Type, TypeVar, Union
 
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
+
 from api.services.configuration.options import (
     AZURE_EMBEDDING_MODELS,
     AZURE_MODELS,
@@ -17,11 +26,11 @@ from api.services.configuration.options import (
     CARTESIA_INK_WHISPER_STT_LANGUAGES,
     CARTESIA_STT_LANGUAGES,
     CARTESIA_STT_MODELS,
+    DEEPGRAM_BASE_URLS,
     DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES,
     DEEPGRAM_KEYTERM_MODELS,
-    DEEPGRAM_BASE_URLS,
     DEEPGRAM_LANGUAGES,
     DEEPGRAM_STT_MODELS,
     ELEVENLABS_STT_LANGUAGES,
@@ -58,14 +67,6 @@ from api.services.configuration.options.google import (
     GOOGLE_VERTEX_DEFAULT_LOCATION,
     GOOGLE_VERTEX_LOCATIONS,
     GOOGLE_VERTEX_MODELS,
-)
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    computed_field,
-    field_validator,
-    model_validator,
 )
 
 
@@ -1244,11 +1245,10 @@ RealtimeConfig = Annotated[
 ###################################################### TTS ########################################################################
 
 
-# [.mark] Montee vers l'amont `23d22b95` (2026-09-16). L'amont expose desormais
-# l'adresse Deepgram en champ configurable, avec l'adresse MONDIALE par defaut.
-# ⛔ Chez nous elle reste une CONDITION de l'offre : le champ est montre, mais
-# VERROUILLE, et la fabrique impose l'Europe quoi qu'il arrive (decision D3).
-# Ces deux valeurs sont un MIROIR de api/services/pipecat/deepgram_endpoints.py,
+# [.mark] Montee vers l'amont `23d22b95` (2026-09-16). L'amont expose l'adresse
+# Deepgram en champ configurable, avec l'adresse MONDIALE par defaut. Chez nous
+# le champ est configurable AUSSI, avec l'EUROPE par defaut.
+# Cette valeur est un MIROIR de api/services/pipecat/deepgram_endpoints.py,
 # et un test les compare.
 # 🔑 2026-09-16, decision d'Evan : ce sont desormais des VALEURS PAR DEFAUT,
 # plus des impositions. Le champ est modifiable, l'Europe est ce qu'on trouve
@@ -1953,7 +1953,12 @@ def _region_deepgram_de_ladresse(base_url: str) -> str:
     if not adresse:
         return _DEEPGRAM_REGION_PAR_DEFAUT
     sans_schema = adresse.split("://", 1)[-1]
-    return sans_schema.split("/", 1)[0].strip() or _DEEPGRAM_REGION_PAR_DEFAUT
+    hote = sans_schema.split("/", 1)[0].strip()
+    # ⛔ Une adresse non vide dont l'hote est vide (`"https://"`) ne rend PAS le
+    # defaut : la fabrique, elle, composera cette adresse-la et echouera. Rendre
+    # l'Europe ici afficherait une region ou rien ne part. Releve par la
+    # relecture du 16/09, mesure.
+    return hote or adresse
 
 
 @register_stt
@@ -2283,18 +2288,23 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
 
     @model_validator(mode="after")
-    def _la_conformite_ne_se_configure_pas(self):
-        """Whatever arrives, the two compliance fields say what the code does.
+    def _la_region_suit_ladresse_et_lentrainement_reste_refuse(self):
+        """Two shown fields, and since 2026-09-16 two DIFFERENT reasons.
 
-        🔴 Raised by the review of 2026-09-11. The factory already imposes the
-        EU endpoint and the training opt-out, so a configuration asking for
-        America changes nothing on the wire -- but the SCREEN reads the STORED
-        value, not the constant. A stored ``api.deepgram.com`` would be shown
-        as the region the caller's audio goes to, which would be false.
+        ⛔ ``region`` is a MIRROR of the endpoint above, not a choice: it is
+        derived here so the screen cannot announce a jurisdiction the audio does
+        not go to. Since Evan's decision of 2026-09-16 the endpoint IS
+        configurable, so a configuration asking for America **does** change what
+        goes out on the wire, deliberately -- and this mirror is what keeps the
+        screen honest about it.
 
-        ⛔ Silently realigned rather than refused: these are not a choice, so
-        refusing would turn a value nobody is allowed to act on into a save
-        that fails.
+        ⛔ ``mip_opt_out`` is the opposite: still a CONDITION of the offer,
+        imposed by the factory whatever a configuration says. It was not opened,
+        and it does not depend on the region.
+
+        ⛔ Both are silently realigned rather than refused: neither is a value
+        anyone is allowed to act on here, so refusing would turn a mirror into a
+        save that fails.
         """
         region_attendue = _region_deepgram_de_ladresse(self.base_url)
         if self.region != region_attendue:

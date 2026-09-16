@@ -980,11 +980,15 @@ export function ServiceConfigurationForm({
             }
         }
 
-        // [.mark] A compliance value: shown so the pair (what we control, what
-        // we do not) can be read in one place, never editable.
-        // 🔴 This is NOT the lock. The factory imposes these values whatever a
-        // configuration says; disabling the control only stops the screen from
-        // suggesting they are a choice.
+        // [.mark] A value that is shown but not typed. Two reasons live behind
+        // this flag, and they are NOT the same since 2026-09-16:
+        //   - imposed by the factory whatever a configuration says
+        //     (`mip_opt_out`), or
+        //   - DERIVED from another field, so typing it would be meaningless
+        //     (`region`, which follows the Deepgram endpoint).
+        // 🔴 In neither case is this the lock. Disabling the control only stops
+        // the screen from suggesting the value is a choice; a greyed-out field
+        // stays reachable through the API.
         if (actualSchema?.readonly) {
             const fieldKey = `${service}_${field}`;
             const valeur = watch(fieldKey);

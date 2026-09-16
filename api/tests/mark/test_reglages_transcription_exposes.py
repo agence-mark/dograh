@@ -719,6 +719,10 @@ def test_aucun_reglage_declare_nest_oublie_par_les_deux_collectes():
     that is not plumbing (provider, model, language, credentials) has to be in
     one of the two.
     """
+    # ⚠️ `base_url` est ici depuis que l'amont l'a ouvert : ce n'est pas un
+    # reglage de transcription, c'est l'adresse. ⛔ Depuis le 16/09 elle est
+    # CONFIGURABLE, et le test qui garde ce fait vit dans
+    # `test_deepgram_en_europe_sans_entrainement.py`.
     PLOMBERIE = {"provider", "api_key", "model", "language", "base_url"}
     # ⛔ Shown, never collected, and that is the whole point: the factory
     # imposes both whatever a configuration says. They are listed by name here
