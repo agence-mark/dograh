@@ -49,7 +49,7 @@ from api.services.nombres.mots import MOTS_NOMBRE
 MOTS_OUTILS = set(
     """a au aux c ce cet cette ces c est d de des du dans en et est il elle j je l la le les
     ma mon mes me m n ne nous on ou où par pas pour qu que qui s sa se son sur ses t ta te
-    tu un une vous y oui non bah ben euh hein alors voila voilà merci bonjour
+    tu un une vous y oui ouais non bah ben euh hein hum alors voila voilà merci bonjour
     rue avenue boulevard chemin allee allée impasse place route lieu dit residence résidence
     numero numéro code postal commune ville village habite j habite suis c est""".split()
 )
@@ -89,6 +89,8 @@ SEUIL_PHON = 72
 SEUIL_DETECTION = 82
 MARGE_SURE = 8
 PHON_SURE = 85
+# Among several readings of a postal code, only a name heard this closely is backed by one.
+PHON_EXACT = 90
 # A town of a department the caller said ("dans l'Oise").
 BONUS_DEPARTEMENT = 15
 
@@ -169,6 +171,20 @@ def analyser(
         spans_cp = sorted({s for spans in codes_postaux.values() for s in spans})
         mots_cp = {k for d, f in spans_cp for k in range(d, f)}
     mots_cp |= set(mots_nombres or ())
+    # Decision of Evan, 2026-09-16: the towns of a code are added as candidates
+    # (partial match) only when that code is the SINGLE reading of its number.
+    # "donc soixante cinq cents" made Ourdon (65100) sure from the word "donc".
+    if codes_postaux is None:
+        cps_candidates = cps
+    else:
+        lectures_par_span: dict[tuple[int, int], set[str]] = {}
+        for cp, spans in codes_postaux.items():
+            for s in spans:
+                lectures_par_span.setdefault(tuple(s), set()).add(cp)
+        cps_candidates = {
+            cp for cp, spans in codes_postaux.items()
+            if all(len(lectures_par_span[tuple(s)]) == 1 for s in spans)
+        }
 
     attente = []
     reponse_courte = sum(1 for m in mots if m not in MOTS_HORS_COMPTE and not m.isdigit()) <= 5
@@ -195,6 +211,11 @@ def analyser(
             if any(m.isdigit() for m in seg) or any(m in TYPES_VOIE for m in seg):
                 continue
             if any(k in mots_cp for k in range(i, i + n)):
+                continue
+            # With the reader, words that are only a number are never a town
+            # ("c'est deux mille" read Dreux as sure). Names that carry a number
+            # word among others stay searchable (Six-Fours-les-Plages).
+            if codes_postaux is not None and all(m in MOTS_NOMBRE or m == "et" for m in seg):
                 continue
             if any(m in MOTS_OUTILS and m not in LIAISONS for m in seg[1:-1]):
                 continue
@@ -225,7 +246,7 @@ def analyser(
             idxs: dict[int, float] = {int(j): float(ligne[j]) for j in trouves}
             # A postal code was said: the towns that carry it are compared too,
             # a partial name allowed.
-            for cp in cps:
+            for cp in cps_candidates:
                 for j in base.par_cp.get(cp, []):
                     s = max(fuzz.partial_ratio(k_son, base.sons[j]), fuzz.partial_ratio(extrait, base.norms[j]))
                     if s >= SEUIL_PHON:
@@ -238,7 +259,12 @@ def analyser(
                 score += POIDS_POP * math.log10(max(c.population, 1))
                 score += 5 if amorce else 0
                 score += BONUS_MOT * (n - 1)  # a reading over more words is preferred
-                if cps and set(c.cps) & cps:
+                # A code backs a town when it is the single reading of its number,
+                # or, among several readings, when the name is heard almost exactly:
+                # "très bien soixante deux cent cinquante" made Beugin (62150) sure
+                # from the word "bien"; "Beauchamps quatre vingt sept cent soixante
+                # dix" must still find Beauchamps (80) and not Beauchamp (95).
+                if set(c.cps) & cps_candidates or (set(c.cps) & cps and s_phon >= PHON_EXACT):
                     score += 30
                 if magasin:
                     score += max(0.0, 20 - distance_km(c, *magasin) / 7.5)

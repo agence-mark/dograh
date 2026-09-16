@@ -208,6 +208,10 @@ def _lectures_code_postal(mots: tuple[str, ...]) -> tuple[set[str], set[str]]:
         # 12 words is the longest 5-digit number ("quatre vingt dix sept mille
         # neuf cent quatre vingt dix neuf" is 11).
         for j in range(i + 1, min(n, i + 12) + 1):
+            # "mille ..." with nothing before it only opens a number (decision of
+            # Evan, 2026-09-16): "deux mille" is not 2 | 1000 = 21000 (Dijon).
+            if i > 0 and mots[i] == "mille":
+                break
             v = _valeur(mots[i:j])
             if v is not None:
                 parcourir(j, chiffres + v[1], groupes + 1)
@@ -411,7 +415,10 @@ def _departements_nommes(
             if tuple(p.mots[i:i + k]) != nom or any(x in pris for x in range(i, i + k)):
                 continue
             avant = p.avant(i, 2)
-            amorce = avant[-1:] == ["en"] or avant in (["dans", "l"], ["dans", "le"], ["dans", "la"], ["dans", "les"])
+            # "en somme" means "in short"; the department is said "dans la Somme".
+            amorce = (avant[-1:] == ["en"] and nom != ("somme",)) or avant in (
+                ["dans", "l"], ["dans", "le"], ["dans", "la"], ["dans", "les"]
+            )
             reponse_entiere = utiles == list(range(i, i + k))
             suivant = p.apres(i + k, 1)
             if not (amorce or reponse_entiere) or suivant in (["de"], ["des"], ["du"], ["d"]):
@@ -648,6 +655,7 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
     ⛔ Proximity alone never makes a code sure: Calais is 150 km from the shop,
     and a call from Calais is still possible.
     """
+    from api.services.communes.analyse import PHON_EXACT
     from api.services.communes.analyse import SURE as COMMUNE_SURE
     from api.services.communes.base import distance_km
 
@@ -665,22 +673,29 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
         # ("soixante deux cents, soixante deux cents" made Compiègne sure).
         if getattr(detection, "code_postal_entendu", False):
             continue
-        # A sure town is taken as it is: a lower reading never replaces it.
-        candidates = detection.lectures[:1] if detection.statut == COMMUNE_SURE else detection.lectures
+        # A sure town is taken as it is: a lower reading never replaces it. A
+        # town still to confirm is promoted only by a number with a SINGLE
+        # reading: with two, any word near the number could carry the wrong one.
+        if detection.statut == COMMUNE_SURE:
+            candidates = detection.lectures[:1]
+        elif len(lectures) + len(zero) == 1:
+            candidates = detection.lectures
+        else:
+            candidates = tuple(l for l in detection.lectures if l.phon >= PHON_EXACT)
         for lecture in candidates:
             communs = [cp for cp in lectures + zero if cp in lecture.commune.cps]
             if communs:
                 return ChoixCodePostal(communs[0], SURE, PAR_COMMUNE_DITE, (lecture.commune,), detection)
 
-    if not lectures:
-        return ChoixCodePostal(None, A_CONFIRMER, PAR_PROXIMITE)
-
     # ② The call so far: towns waiting for a confirmation, then the last sure one.
+    # The leading-zero reading counts here as in ① (decision of Evan, 2026-09-16:
+    # « Abbécourt » then « deux mille trois cents » is 02300, not Chenôve 21300).
+    toutes = lectures + zero
     en_attente, derniere_sure = _communes_de_la_trace(trace_appel, base)
     portes: dict[str, list] = {}
     for commune in en_attente:
         for cp in commune.cps:
-            if cp in lectures and commune not in portes.get(cp, []):
+            if cp in toutes and commune not in portes.get(cp, []):
                 portes.setdefault(cp, []).append(commune)
     # Sure only when ONE reading is carried, by ONE proposed town: three proposed
     # towns of 60120 do not make the first of them the caller's.
@@ -689,9 +704,12 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
         if len(communes) == 1:
             return ChoixCodePostal(cp, SURE, PAR_TRACE, (communes[0],))
     if derniere_sure is not None:
-        communs = [cp for cp in lectures if cp in derniere_sure.cps]
+        communs = [cp for cp in toutes if cp in derniere_sure.cps]
         if len(communs) == 1:
             return ChoixCodePostal(communs[0], SURE, PAR_TRACE, (derniere_sure,))
+
+    if not lectures:
+        return ChoixCodePostal(None, A_CONFIRMER, PAR_PROXIMITE)
 
     # ③ The department said.
     if departements:
@@ -704,8 +722,8 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
                 dans[0], SURE, PAR_DEPARTEMENT, tuple(base.communes_du_code_postal(dans[0]))
             )
 
-    # ④ A single reading exists.
-    if len(lectures) == 1:
+    # ④ A single reading exists, the leading-zero one included.
+    if len(lectures) == 1 and not zero:
         return ChoixCodePostal(
             lectures[0], SURE, PAR_LECTURE_UNIQUE, tuple(base.communes_du_code_postal(lectures[0]))
         )
@@ -780,8 +798,9 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None) -> Lectur
     for n in candidats:
         c = choisir_code_postal(n, detections, trace_appel, departements, magasin, base)
         if n.type == AUTRE:
-            # A 4-digit number is a postal code only when a town of that code is said.
-            if c.par != PAR_COMMUNE_DITE:
+            # A 4-digit number is a postal code only when a town of that code is
+            # said in the message, or earlier in the call (②).
+            if c.par not in (PAR_COMMUNE_DITE, PAR_TRACE):
                 continue
             i = nombres.index(n)
             n = nombres[i] = replace(n, type=CODE_POSTAL, lectures_cp=n.lectures_cp_zero, ecrit=c.code)

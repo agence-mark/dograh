@@ -280,12 +280,11 @@ def test_aucun_telephone_montant_reference_ni_expression_figee_ne_devient_une_co
 
 
 def _trace_comme_lappel(lecture):
-    """As ``trace_de`` records it, ``code_postal_entendu`` included."""
-    entrees = _trace(lecture)
-    for entree, d in zip(entrees, lecture.detections):
-        if d.code_postal_entendu:
-            entree["code_postal_entendu"] = True
-    return entrees
+    """The entries the call REALLY records (``trace_de``): a hand-made record
+    left the production half of the B2 fix untested (counter-review of 16/09)."""
+    from api.services.pipecat.verification_communes import trace_de
+
+    return [trace_de(d, charger_base(), "coordonnees") for d in lecture.detections]
 
 
 def test_un_code_repete_dans_le_message_reste_a_confirmer(base, magasin):
