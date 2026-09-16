@@ -50,7 +50,6 @@ of a default -- ``DeepgramSTTService`` swallows a bad base_url and falls back
 to the default endpoint with only a log line.
 """
 
-import asyncio
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -62,6 +61,7 @@ from api.services.pipecat.deepgram_endpoints import (
     DEEPGRAM_EU_TTS_BASE_URL,
 )
 from api.services.pipecat.service_factory import create_stt_service, create_tts_service
+from tests.mark.boucle_isolee import executer_sans_toucher_la_boucle_courante
 
 # ⛔ This literal is the point. The "passed" tests below compare against the
 # imported constants, which makes them tautological if a constant is mutated;
@@ -121,7 +121,9 @@ def _capture_websocket_url(service, connect_coroutine):
     service.push_error_frame = noop
     service._call_event_handler = noop
 
-    asyncio.run(connect_coroutine(service))
+    # ⛔ Pas `asyncio.run()` : il laisse le thread principal sans boucle et fait
+    # tomber un test d'amont lance apres. Voir `boucle_isolee.py`.
+    executer_sans_toucher_la_boucle_courante(connect_coroutine(service))
     return captured["url"]
 
 

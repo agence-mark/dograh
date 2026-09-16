@@ -34,7 +34,6 @@ migration leaves marked overrides alone. Their own migration path, for the
 legacy overrides it was built for, is unchanged.
 """
 
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -57,6 +56,7 @@ from api.services.configuration.registry import (
     MistralTTSConfiguration,
 )
 from api.services.configuration.resolve import resolve_effective_config
+from tests.mark.boucle_isolee import executer_sans_toucher_la_boucle_courante
 
 # The marker the agent screen writes next to a deliberate per-service override.
 # Written as a literal on purpose: this file is one of the two sides of the
@@ -65,16 +65,24 @@ from api.services.configuration.resolve import resolve_effective_config
 MARQUEUR = "mark_per_service_override"
 
 
-def _client_au_nouveau_format(modele="mistral-medium-latest") -> OrganizationAIModelConfigurationV2:
+def _client_au_nouveau_format(
+    modele="mistral-medium-latest",
+) -> OrganizationAIModelConfigurationV2:
     """One client, configured the way .mark configures a client."""
     return OrganizationAIModelConfigurationV2(
         mode="byok",
         byok=BYOKAIModelConfiguration(
             mode="pipeline",
             pipeline=BYOKPipelineAIModelConfiguration(
-                llm=MistralLLMConfiguration(api_key="cle-client", model=modele, temperature=0.2),
-                tts=MistralTTSConfiguration(api_key="cle-client", voice="fr_marie_neutral"),
-                stt=DeepgramSTTConfiguration(api_key="cle-client", model="nova-3-general"),
+                llm=MistralLLMConfiguration(
+                    api_key="cle-client", model=modele, temperature=0.2
+                ),
+                tts=MistralTTSConfiguration(
+                    api_key="cle-client", voice="fr_marie_neutral"
+                ),
+                stt=DeepgramSTTConfiguration(
+                    api_key="cle-client", model="nova-3-general"
+                ),
             ),
         ),
     )
@@ -321,7 +329,8 @@ def test_une_surcharge_deja_en_base_ne_casse_NI_un_appel_NI_un_enregistrement():
     vrai = amc.get_resolved_ai_model_configuration
     amc.get_resolved_ai_model_configuration = _faux_resolu
     try:
-        effective = asyncio.run(
+        # ⛔ Pas `asyncio.run()` : voir `boucle_isolee.py`.
+        effective = executer_sans_toucher_la_boucle_courante(
             amc.get_effective_ai_model_configuration_for_workflow(
                 organization_id=1,
                 workflow_configurations={"model_overrides": invalide},
