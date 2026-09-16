@@ -324,7 +324,19 @@ async def test_text_chat_session_creation_executes_initial_assistant_turn(
     workflow_run = await db_session.get_workflow_run_by_id(created["workflow_run_id"])
     assert workflow_run is not None
     assert workflow_run.definition_id == draft.id
-    assert workflow_run.initial_context == {
+    # [.mark] 2026-09-16 : notre fork injecte `date_appel` et `heure_appel` dans le
+    # contexte initial, au chat texte comme au telephone (heure figee au
+    # decroche, decision d'Evan du 15/09, en production). L'egalite exacte de
+    # l'amont tombait donc chez nous depuis le 15/09, sans que personne le voie :
+    # sans Postgres sur le poste, ce test etait en erreur avant ET apres le patch.
+    # ⛔ On retire nos deux cles avant la comparaison au lieu d'ecarter le test :
+    # il couvre tout le reste de la session texte. Leur FORMAT est teste a part,
+    # dans `tests/mark/test_date_heure_appel.py`.
+    contexte_initial = dict(workflow_run.initial_context)
+    for cle in ("date_appel", "heure_appel"):
+        valeur = contexte_initial.pop(cle, None)
+        assert isinstance(valeur, str) and valeur, f"{cle} absente ou vide"
+    assert contexte_initial == {
         "name": "explicit",
         "draft_only": "kept",
         "workflow_run_id": workflow_run.id,
