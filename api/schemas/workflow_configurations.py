@@ -14,6 +14,7 @@ from api.constants import (
     MIN_TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
     TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
 )
+from api.schemas.organization_preferences import AdresseEtablissement
 
 DEFAULT_MAX_CALL_DURATION_SECONDS = 300
 # Hard ceiling on configurable call duration. Must stay <= the concurrency
@@ -73,12 +74,22 @@ DEFAULT_AUDIO_IN_NOISE_FILTER = "none"
 # 🔒 Off, which is today's behaviour: the model reads the transcript as the
 # transcription service wrote it. Turned on per agent (decision of 2026-09-15).
 DEFAULT_CONVERSION_NOMBRES_TRANSCRIPTION = False
+# ⚠️ ON, unlike the switch above (decision D5 of 2026-09-16): it only acts at
+# steps that collect a `commune` or `adresse…` variable, and it was decided for
+# every agent, so an agent that never collects a town is unaffected.
+DEFAULT_VERIFICATION_COMMUNES = True
 
 # --- Opening hours ----------------------------------------------------------
 #
 # 🔒 Empty, which is today's behaviour: nothing is computed and nothing is
 # injected into the call context (decision D6 of 2026-09-15).
 DEFAULT_HORAIRES_OUVERTURE = None
+
+# --- Business address -------------------------------------------------------
+#
+# 🔒 Empty: the agent uses its organization's address (decision D2 of
+# 2026-09-16), and without one nothing is injected.
+DEFAULT_ADRESSE_ETABLISSEMENT = None
 
 # --- Idle prompts ----------------------------------------------------------
 #
@@ -451,6 +462,14 @@ class WorkflowConfigurationDefaults(BaseModel):
             "count as fewer words."
         ),
     )
+    verification_communes: bool = Field(
+        default=DEFAULT_VERIFICATION_COMMUNES,
+        description=(
+            "Matches the town the caller names against the official list of "
+            "French communes before the model reads it. Acts only at steps that "
+            "collect a `commune` or `adresse…` variable. No effect in realtime mode."
+        ),
+    )
     horaires_ouverture: str | None = Field(
         default=DEFAULT_HORAIRES_OUVERTURE,
         max_length=4000,
@@ -458,6 +477,14 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Opening hours in the readable French format. Computes etat_ouverture, "
             "reouverture and horaires_ouverture at call start. Empty: nothing is "
             "computed."
+        ),
+    )
+    adresse_etablissement: AdresseEtablissement | None = Field(
+        default=DEFAULT_ADRESSE_ETABLISSEMENT,
+        description=(
+            "Business address for this agent. Leave empty to use the "
+            "organization's address. Given to the agent as "
+            "{{adresse_etablissement}}; the street is not used to recognise towns."
         ),
     )
     mute_until_first_bot_complete: bool = Field(

@@ -10,10 +10,12 @@ import { Switch } from "@/components/ui/switch";
  * been invisible exactly where it is needed. So this section is never hidden.
  *
  * 🔒 Defaults are not chosen here: the page hands over the value already
- * resolved, and the resolved default is off, which is today's behaviour.
+ * resolved. Number conversion is off by default; the town check is ON by
+ * default (decision D5 of 2026-09-16).
  */
 export interface ReglagesTranscription {
     conversion_nombres_transcription: boolean;
+    verification_communes: boolean;
 }
 
 interface SectionTranscriptionProps {
@@ -51,6 +53,30 @@ export const SectionTranscription = ({ reglages, onChange }: SectionTranscriptio
                 With the &quot;minimum words&quot; interruption and interim transcripts turned
                 off, dictated numbers count as fewer words.
             </p>
+        </div>
+
+        <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+                <Label htmlFor="verification_communes" className="text-sm">
+                    Recognise the caller&apos;s town
+                </Label>
+                <Switch
+                    id="verification_communes"
+                    checked={reglages.verification_communes}
+                    onCheckedChange={(coche) =>
+                        onChange({ ...reglages, verification_communes: coche })
+                    }
+                />
+            </div>
+            <p className="text-xs text-muted-foreground">
+                Matches the town the caller names against the official list of French communes
+                before the model reads it.
+            </p>
+            <p className="text-xs text-muted-foreground">
+                Acts only at steps that collect a <code>commune</code> or <code>adresse…</code>{" "}
+                variable.
+            </p>
+            <p className="text-xs text-muted-foreground">No effect in realtime mode.</p>
         </div>
     </div>
 );

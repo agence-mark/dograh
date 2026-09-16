@@ -48,6 +48,7 @@ def build_pipeline(
     # EN SILENCE -- ni ruff ni le typage ne le voient.
     *,
     conversion_nombres=None,
+    verification_communes=None,
 ):
     """Build the main pipeline with all components.
 
@@ -61,6 +62,10 @@ def build_pipeline(
         conversion_nombres: [.mark] Optional ConversionNombresProcessor. When
             provided, inserted just before the user aggregator so the model
             reads dictated numbers as digits. None leaves the list unchanged.
+        verification_communes: [.mark] Optional VerificationCommunesProcessor.
+            When provided, inserted just before the LLM, AFTER the user
+            aggregator and its gate: the model reads the town note, the
+            recorded transcript does not. None leaves the list unchanged.
     """
     # Build processors with optional answer handling.
     #
@@ -92,6 +97,12 @@ def build_pipeline(
 
     if answer_supervisor is not None:
         processors.append(answer_supervisor.llm_gate())
+
+    # [.mark] After the aggregator, right before the model (verification-communes
+    # D1): the recorded transcript is emitted by the aggregator from the text it
+    # wrote, so the note reaches the model and the extraction, not the transcript.
+    if verification_communes:
+        processors.append(verification_communes)
 
     processors.extend(
         [

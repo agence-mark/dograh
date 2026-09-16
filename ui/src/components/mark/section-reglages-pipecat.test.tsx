@@ -485,6 +485,47 @@ describe("Section Reglages vocaux de la page de parametres", () => {
         ).toBeTruthy();
     });
 
+    it("[verification-communes] affiche l'interrupteur des communes ALLUME par defaut", () => {
+        // ⚠️ Unlike the numbers switch: on by default (decision D5 of 2026-09-16).
+        // The resolved default is asserted too, not only what the switch shows.
+        expect(resolveWorkflowConfigurations(null).verification_communes).toBe(true);
+        ouvrir(null);
+        expect(
+            screen
+                .getByRole("switch", { name: /recognise the caller's town/i })
+                .getAttribute("aria-checked"),
+        ).toBe("true");
+    });
+
+    it("[verification-communes] emporte false quand on eteint l'interrupteur des communes", async () => {
+        const onSave = ouvrir(null);
+        fireEvent.click(screen.getByRole("switch", { name: /recognise the caller's town/i }));
+        fireEvent.click(screen.getByRole("button", { name: /save/i }));
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+        expect(onSave.mock.calls[0][0].verification_communes).toBe(false);
+    });
+
+    it("[verification-communes] garde false quand l'agent l'a deja eteint", () => {
+        // `??` and not `||`: a stored false must not come back on.
+        expect(resolveWorkflowConfigurations({ verification_communes: false } as never).verification_communes).toBe(false);
+        ouvrir({ verification_communes: false });
+        expect(
+            screen
+                .getByRole("switch", { name: /recognise the caller's town/i })
+                .getAttribute("aria-checked"),
+        ).toBe("false");
+    });
+
+    it("[verification-communes] montre l'interrupteur des communes a un agent Flux, avec ses limites", () => {
+        ouvrir({
+            model_overrides: { stt: { provider: "deepgram", model: "flux-general-multi" } },
+        });
+        expect(document.getElementById("user_speech_timeout")).toBeNull();
+        expect(screen.getByRole("switch", { name: /recognise the caller's town/i })).toBeTruthy();
+        expect(document.body.textContent).toMatch(/official list of French communes/i);
+        expect(document.body.textContent).toMatch(/collect a commune or adresse… variable/i);
+    });
+
     it("dit que l'interrupteur des nombres dictes est sans effet en temps reel", () => {
         ouvrir(null);
         expect(document.body.textContent).toMatch(/no effect in realtime mode/i);

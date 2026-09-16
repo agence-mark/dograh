@@ -14,6 +14,10 @@ from api.schemas.workflow_configurations import (
     WorkflowConfigurationDefaults,
 )
 from api.services.call_concurrency import call_concurrency
+from api.services.communes.adresse import (
+    injecter_adresse_etablissement,
+    lire_adresse_etablissement,
+)
 from api.services.configuration.registry import ServiceProviders
 from api.services.integrations import (
     IntegrationRuntimeContext,
@@ -87,6 +91,10 @@ from api.services.pipecat.tracing_config import (
 )
 from api.services.pipecat.transcript_log_coordinator import TranscriptLogCoordinator
 from api.services.pipecat.transport_setup import create_webrtc_transport
+from api.services.pipecat.verification_communes import (
+    consigner_dans,
+    creer_verification_communes,
+)
 from api.services.pipecat.worker_runner import run_pipeline_worker
 from api.services.pipecat.ws_sender_registry import get_ws_sender
 from api.services.telephony import registry as telephony_registry
@@ -844,6 +852,16 @@ async def _run_pipeline_impl(
     # its own start and defeats Mistral's cache. Every agent; same rules as the
     # line above (the pre-call fetch wins, never raises).
     merged_call_context_vars = injecter_date_heure_appel(merged_call_context_vars)
+    # [.mark] Business address (verification-communes D2, D4): the agent's,
+    # else the organization's. Same moment and same rules as the two lines
+    # above: the pre-call fetch wins, nothing raises. Read once here, it also
+    # gives the town recognition its location clue.
+    adresse_etablissement = await lire_adresse_etablissement(
+        run_configs, workflow.organization_id
+    )
+    merged_call_context_vars = injecter_adresse_etablissement(
+        merged_call_context_vars, adresse_etablissement
+    )
 
     # Extract configurations from the version's workflow_configurations
     max_call_duration_seconds = DEFAULT_MAX_CALL_DURATION_SECONDS
@@ -1362,6 +1380,15 @@ async def _run_pipeline_impl(
             recording_router=recording_router,
             conversion_nombres=creer_conversion_nombres(run_configs, user_config.stt),
             answer_supervisor=answer_supervisor,
+            # [.mark] Town check (verification-communes): the agent's switch,
+            # the business address as location clue, the current step read
+            # live, and the record written into the gathered context (T8).
+            verification_communes=creer_verification_communes(
+                run_configs,
+                adresse_etablissement,
+                lambda: engine._current_node,
+                consigner_dans(lambda: engine._gathered_context),
+            ),
         )
 
     # Create pipeline task with audio configuration

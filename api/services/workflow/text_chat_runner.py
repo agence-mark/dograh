@@ -34,6 +34,10 @@ from pipecat.utils.run_context import set_current_org_id
 from api.db import db_client
 from api.enums import WorkflowRunMode, WorkflowRunState
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
+from api.services.communes.adresse import (
+    injecter_adresse_etablissement,
+    lire_adresse_etablissement,
+)
 from api.services.configuration.registry import ServiceProviders
 from api.services.pipecat.audio_config import create_audio_config
 from api.services.pipecat.etat_ouverture import (
@@ -55,6 +59,10 @@ from api.services.pipecat.service_factory import (
 from api.services.pipecat.tracing_config import (
     build_remote_parent_context,
     get_trace_url,
+)
+from api.services.pipecat.verification_communes import (
+    annoter_message_tape,
+    consigner_dans,
 )
 from api.services.pipecat.worker_runner import (
     run_pipeline_worker,
@@ -557,6 +565,14 @@ async def execute_text_chat_pending_turn(
     # [.mark] Date and time of the call (latence-modele D2), same moment and
     # same rule: later turns keep the values persisted by the first one.
     initial_context = injecter_date_heure_appel(initial_context)
+    # [.mark] Business address (verification-communes D2, D4), same moment and
+    # same rule: later turns keep the value persisted by the first one.
+    adresse_etablissement = await lire_adresse_etablissement(
+        run_configs, workflow.organization_id
+    )
+    initial_context = injecter_adresse_etablissement(
+        initial_context, adresse_etablissement
+    )
 
     base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
 
@@ -764,7 +780,17 @@ async def execute_text_chat_pending_turn(
             )
 
         if pending_user_message is not None:
-            context.add_message({"role": "user", "content": pending_user_message})
+            # [.mark] Town check on the keyboard too (verification-communes D7),
+            # BEFORE the message enters the context: the model reads it
+            # directly, there is no aggregator step to go through here.
+            message_pour_le_modele = await annoter_message_tape(
+                pending_user_message,
+                run_configs,
+                adresse_etablissement,
+                engine._current_node,
+                consigner_dans(lambda: engine._gathered_context),
+            )
+            context.add_message({"role": "user", "content": message_pour_le_modele})
             generation_marker = capture_processor.activity_count
             response_window.note_direct_context_request()
             await llm.queue_frame(LLMContextFrame(context))

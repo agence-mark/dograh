@@ -1560,6 +1560,7 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "mute_first_speech",
     "mute_always",
     "conversion_nombres_transcription",
+    "verification_communes",
 )
 
 
