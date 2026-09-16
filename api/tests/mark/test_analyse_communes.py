@@ -209,3 +209,33 @@ def test_la_marque_ouvre_chaque_mention(base, magasin):
     assert mentionne.count(MARQUE) == 1
     assert deja_mentionne(mentionne)
     assert not deja_mentionne(texte)
+
+
+# --------------------------------------------------------------------------- #
+# 4. Plan nombres-dictes: billing words, departments, postal codes read in words
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "phrase", ["le devis faisait 15000 euros", "c'est la commande 60300"]
+)
+def test_n6_un_mot_de_facturation_nest_pas_une_commune(base, magasin, phrase):
+    """N6, even without the reader: Devise (80) and Lacommande (64) were sure."""
+    assert [d for d in analyser(phrase, base, magasin) if d.statut == SURE] == []
+
+
+def test_le_departement_dit_departage(base):
+    """"Sanlis" hesitates between Senlis (60) and Senlis (62): the Oise said decides."""
+    sans = analyser("à Sanlis", base, None)
+    avec = analyser("à Sanlis", base, None, departements={"60"})
+    assert sans[0].statut == A_CONFIRMER
+    assert (avec[0].statut, avec[0].lectures[0].commune.dep) == (SURE, "60")
+
+
+def test_les_mots_dun_code_postal_lu_ne_sont_pas_une_commune(base, magasin):
+    """With the reader's spans, the words of a postal code anchor the town next
+    to them and are never read as a town themselves."""
+    texte = "Saint-Maximin soixante sept cent quarante"
+    spans = {"60740": [(2, 6)], "67140": [(2, 6)]}
+    (d,) = analyser(texte, base, magasin, codes_postaux=spans)
+    assert (d.statut, d.lectures[0].commune.nom, d.fin) == (SURE, "Saint-Maximin", 2)

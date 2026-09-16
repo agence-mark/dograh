@@ -38,6 +38,7 @@ from functools import lru_cache
 from typing import Iterable
 
 from api.services.communes.base import normaliser
+from api.services.nombres.mots import DIZAINES, MOTS_NOMBRE, UNITES
 
 TELEPHONE = "telephone"
 MONTANT = "montant"
@@ -54,12 +55,8 @@ _JETON = re.compile(rf"[^{_SEPARATEURS}]+")
 _PONCTUATION = re.compile(r"[.,;:!?()«»\"]")
 _APOSTROPHES = "’'`"
 
-_UNITES = (
-    "zero un deux trois quatre cinq six sept huit neuf dix onze douze treize "
-    "quatorze quinze seize"
-).split()
-_DIZAINES = {2: "vingt", 3: "trente", 4: "quarante", 5: "cinquante", 6: "soixante"}
-MOTS_NOMBRE = frozenset(_UNITES) | frozenset(_DIZAINES.values()) | {"cent", "mille"}
+_UNITES = UNITES
+_DIZAINES = DIZAINES
 
 
 def _en_lettres_100(n: int) -> str:
@@ -566,3 +563,193 @@ def reecrire(texte: str, nombres: list[NombreLu], choix_cp: dict[int, str] | Non
     if curseur < len(texte):
         morceaux.append(_alpha2digit(texte[curseur:]))
     return "".join(morceaux)
+
+
+# --------------------------------------------------------------------------- #
+# Choosing a postal code between readings (N2), with the town analysis
+# --------------------------------------------------------------------------- #
+
+SURE = "sure"
+A_CONFIRMER = "a_confirmer"
+
+PAR_COMMUNE_DITE = "commune_dite"
+PAR_TRACE = "trace_de_lappel"
+PAR_DEPARTEMENT = "departement"
+PAR_LECTURE_UNIQUE = "lecture_unique"
+PAR_PROXIMITE = "proximite"
+
+
+@dataclass(frozen=True)
+class ChoixCodePostal:
+    code: str | None
+    statut: str  # SURE | A_CONFIRMER
+    par: str  # which branch of N2 decided
+    communes: tuple = ()  # Commune: the town identified, or the towns to propose
+    detection: object | None = None  # branch ①: the town detection that carries the code
+
+
+def _communes_de_la_trace(trace_appel, base) -> tuple[list, object | None]:
+    """(towns proposed to confirm since the last sure one, the last sure town)."""
+    derniere_sure = None
+    en_attente: list = []
+    for entree in trace_appel or []:
+        if not isinstance(entree, dict) or entree.get("provisoire"):
+            continue
+        if entree.get("statut") == "sure" and entree.get("commune_retenue"):
+            derniere_sure = base.commune(entree["commune_retenue"].get("code_insee") or "")
+            en_attente = []
+        elif entree.get("statut") == "a_confirmer":
+            for proposition in entree.get("propositions") or []:
+                commune = base.commune(proposition.get("code_insee") or "")
+                if commune is not None:
+                    en_attente.append(commune)
+    return en_attente, derniere_sure
+
+
+def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, base) -> ChoixCodePostal:
+    """N2, in order: ① a town said in the message that carries a reading;
+    ② a town proposed to confirm earlier in the call, or the last town kept
+    sure; ③ the department said; ④ a single reading exists. Sure in these four
+    cases. Otherwise the reading nearest the business, TO CONFIRM.
+
+    ⛔ Proximity alone never makes a code sure: Calais is 150 km from the shop,
+    and a call from Calais is still possible.
+    """
+    from api.services.communes.analyse import SURE as COMMUNE_SURE
+    from api.services.communes.base import distance_km
+
+    lectures = list(nombre.lectures_cp)
+    zero = [cp for cp in nombre.lectures_cp_zero if cp not in lectures]
+
+    # ① A town said in this message, the nearest to the number first.
+    def ecart(d) -> int:
+        if d.debut < 0:
+            return 10**6
+        return min(abs(d.debut - nombre.fin), abs(nombre.debut - d.fin))
+
+    for detection in sorted(detections, key=ecart):
+        # A sure town is taken as it is: a lower reading never replaces it.
+        candidates = detection.lectures[:1] if detection.statut == COMMUNE_SURE else detection.lectures
+        for lecture in candidates:
+            communs = [cp for cp in lectures + zero if cp in lecture.commune.cps]
+            if communs:
+                return ChoixCodePostal(communs[0], SURE, PAR_COMMUNE_DITE, (lecture.commune,), detection)
+
+    if not lectures:
+        return ChoixCodePostal(None, A_CONFIRMER, PAR_PROXIMITE)
+
+    # ② The call so far: towns waiting for a confirmation, then the last sure one.
+    en_attente, derniere_sure = _communes_de_la_trace(trace_appel, base)
+    portes: dict[str, object] = {}
+    for commune in en_attente:
+        for cp in commune.cps:
+            if cp in lectures:
+                portes.setdefault(cp, commune)
+    if len(portes) == 1:
+        ((cp, commune),) = portes.items()
+        return ChoixCodePostal(cp, SURE, PAR_TRACE, (commune,))
+    if derniere_sure is not None:
+        communs = [cp for cp in lectures if cp in derniere_sure.cps]
+        if len(communs) == 1:
+            return ChoixCodePostal(communs[0], SURE, PAR_TRACE, (derniere_sure,))
+
+    # ③ The department said.
+    if departements:
+        dans = [
+            cp for cp in lectures
+            if any(c.dep in departements for c in base.communes_du_code_postal(cp))
+        ]
+        if len(dans) == 1:
+            return ChoixCodePostal(
+                dans[0], SURE, PAR_DEPARTEMENT, tuple(base.communes_du_code_postal(dans[0]))
+            )
+
+    # ④ A single reading exists.
+    if len(lectures) == 1:
+        return ChoixCodePostal(
+            lectures[0], SURE, PAR_LECTURE_UNIQUE, tuple(base.communes_du_code_postal(lectures[0]))
+        )
+
+    # Otherwise: the reading nearest the business first (the largest town first
+    # without it), to confirm. Each reading is proposed as its largest town
+    # ("Senlis", not the village of the same code that happens to be nearer).
+    def cle(cp):
+        communes = base.communes_du_code_postal(cp)
+        if magasin:
+            return min(distance_km(c, *magasin) for c in communes)
+        return -communes[0].population
+
+    ordonnees = sorted(lectures, key=cle)
+    return ChoixCodePostal(
+        ordonnees[0],
+        A_CONFIRMER,
+        PAR_PROXIMITE,
+        tuple(base.communes_du_code_postal(cp)[0] for cp in ordonnees),
+    )
+
+
+@dataclass(frozen=True)
+class LectureMessage:
+    nombres: list[NombreLu]
+    detections: list  # communes.analyse.Detection, as the model will be told
+    choix: dict[int, ChoixCodePostal]  # keyed by NombreLu.debut
+
+    @property
+    def choix_cp(self) -> dict[int, str]:
+        return {debut: c.code for debut, c in self.choix.items() if c.code}
+
+
+def analyser_message(texte: str, base, magasin=None, trace_appel=None) -> LectureMessage:
+    """The numbers and the towns of one message, read together. Blocking.
+
+    The reader gives every existing postal-code reading; the town analysis runs
+    once with all of them; N2 chooses. A postal code said without any town gets
+    a town note of its own, built here (``code_postal_entendu``).
+    """
+    from dataclasses import replace
+
+    from api.services.communes.analyse import A_CONFIRMER as COMMUNE_A_CONFIRMER
+    from api.services.communes.analyse import SURE as COMMUNE_SURE
+    from api.services.communes.analyse import Detection, Lecture, analyser
+
+    nombres = lire_nombres(texte, base.par_cp, base.departements)
+    departements = {n.departement for n in nombres if n.type == DEPARTEMENT and n.departement}
+    candidats = [
+        n for n in nombres if n.type == CODE_POSTAL or (n.type == AUTRE and n.lectures_cp_zero)
+    ]
+    spans: dict[str, list[tuple[int, int]]] = {}
+    for n in candidats:
+        for cp in n.lectures_cp + n.lectures_cp_zero:
+            spans.setdefault(cp, []).append((n.debut, n.fin))
+
+    detections = analyser(texte, base, magasin, codes_postaux=spans, departements=departements)
+    communes_dites = bool(detections)
+    choix: dict[int, ChoixCodePostal] = {}
+    for n in candidats:
+        c = choisir_code_postal(n, detections, trace_appel, departements, magasin, base)
+        if n.type == AUTRE:
+            # A 4-digit number is a postal code only when a town of that code is said.
+            if c.par != PAR_COMMUNE_DITE:
+                continue
+            i = nombres.index(n)
+            n = nombres[i] = replace(n, type=CODE_POSTAL, lectures_cp=n.lectures_cp_zero, ecrit=c.code)
+        choix[n.debut] = c
+        if c.detection is not None:
+            d = c.detection
+            retenue = next(l for l in d.lectures if l.commune == c.communes[0])
+            autres = tuple(l for l in d.lectures if l is not retenue)
+            detections[detections.index(d)] = replace(
+                d, statut=COMMUNE_SURE, lectures=(retenue, *autres), codes_postaux_dits=frozenset({c.code})
+            )
+        elif not communes_dites and c.code:
+            une_seule = c.statut == SURE and len(c.communes) == 1
+            detections.append(Detection(
+                entendu=n.entendu,
+                debut=n.debut,
+                fin=n.fin,
+                statut=COMMUNE_SURE if une_seule else COMMUNE_A_CONFIRMER,
+                lectures=tuple(Lecture(commune, 0, 0, 0) for commune in c.communes[:5]),
+                codes_postaux_dits=frozenset({c.code}) if c.statut == SURE else frozenset(n.lectures_cp),
+                code_postal_entendu=True,
+            ))
+    return LectureMessage(nombres=nombres, detections=detections, choix=choix)
