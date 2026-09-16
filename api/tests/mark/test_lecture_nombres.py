@@ -320,3 +320,22 @@ def test_un_n_elide_nest_pas_un_numero(base):
     assert nombre.type == CODE_POSTAL
     (nombre,) = _lire("facture n° quatre cent douze", base)
     assert nombre.type == REFERENCE
+
+
+@pytest.mark.parametrize(
+    "phrase,attendu",
+    [
+        # Decision of Evan, 2026-09-16: "somme" naming the department is not an amount word.
+        ("dans la Somme quatre vingt mille quatre cent quarante", CODE_POSTAL),
+        ("dans la somme de trois mille euros", MONTANT),
+        ("la somme était de deux mille", MONTANT),
+        # "bon" counts only in "bon de ..." or "bon numéro".
+        ("euh bon, Saint-Maximin soixante sept cent quarante", CODE_POSTAL),
+        ("bon Saint-Maximin soixante sept cent quarante", CODE_POSTAL),
+        ("le bon de commande quarante-deux", REFERENCE),
+        ("le bon numéro douze", REFERENCE),
+    ],
+)
+def test_somme_et_bon_selon_la_decision_devan(base, phrase, attendu):
+    nombres = [n for n in _lire(phrase, base) if n.type != "departement"]
+    assert [n.type for n in nombres] == [attendu], phrase

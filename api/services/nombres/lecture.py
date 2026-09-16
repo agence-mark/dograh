@@ -366,6 +366,21 @@ def _telephones_regroupes(p: _Phrase, suites: list[tuple[int, int]]) -> list[tup
     return res
 
 
+def _declencheur_reference(p: "_Phrase", i: int) -> bool:
+    """Does word i announce a reference? "n'" elided is not "n°"; "bon" counts
+    only in "bon de ..." or "bon numéro" (decision of Evan, 2026-09-16: "euh bon,
+    Saint-Maximin soixante sept cent quarante" made the postal code a reference)."""
+    m = p.mots[i]
+    if m not in _AVANT_REFERENCE:
+        return False
+    if m == "n":
+        return not p.elide(i)
+    if m == "bon":
+        suivant = p.mots[i + 1] if i + 1 < len(p.mots) and not p.coupure(i) else None
+        return suivant in ("de", "d", "numero", "n")
+    return True
+
+
 def _code_postal_avant(avant: list[str]) -> bool:
     return any(avant[k:k + 2] == ["code", "postal"] for k in range(len(avant) - 1))
 
@@ -465,6 +480,13 @@ def lire_nombres(
     suites = _telephones_regroupes(p, _suites(p))
     lus: list[NombreLu] = []
     absorbees: set[int] = set()
+    # Words that name a department ("dans la Somme"): decision of Evan, 2026-09-16,
+    # "somme" there is not an amount word.
+    mots_departement = (
+        {k for n in _departements_nommes(p, departements, set()) for k in range(n.debut, n.fin)}
+        if departements
+        else set()
+    )
 
     for d0, f0 in suites:
         if d0 in absorbees:
@@ -481,9 +503,13 @@ def lire_nombres(
             continue
 
         # 2. Amount.
+        debut_avant = d0 - len(avant3)
         if (
             any(m in _APRES_MONTANT for m in apres2)
-            or any(m in _AVANT_MONTANT for m in avant3)
+            or any(
+                m in _AVANT_MONTANT and not (m == "somme" and debut_avant + k in mots_departement)
+                for k, m in enumerate(avant3)
+            )
             or avant3[-2:] in (["facture", "de"], ["devis", "de"])
         ):
             lus.append(NombreLu(d0, f0, entendu, MONTANT, _alpha2digit(entendu), montants=_montants(mots)))
@@ -493,8 +519,7 @@ def lire_nombres(
         d, f, joint = _reference_etendue(p, d0, f0, suites)
         if (
             joint
-            or any(m in _AVANT_REFERENCE and not (m == "n" and p.elide(d0 - len(avant3) + k))
-                   for k, m in enumerate(avant3))
+            or any(_declencheur_reference(p, debut_avant + k) for k, m in enumerate(avant3))
             or (d0 > 0 and _lettre_isolee(p, d0 - 1) and not p.coupure(d0 - 1))
         ):
             absorbees.update(s for s, _ in suites if d0 < s < f)
