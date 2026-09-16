@@ -1,8 +1,8 @@
 import os
 
-from api.services.pipecat.audio_config import AudioConfig
 from loguru import logger
 
+from api.services.pipecat.audio_config import AudioConfig
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import (
     PipelineParams,

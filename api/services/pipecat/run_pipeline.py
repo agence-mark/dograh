@@ -113,9 +113,11 @@ from pipecat.audio.vad.silero import SileroVADAnalyzer
 #     decroche.
 #   - VADParams (le leur) : ne servait qu au detecteur en dur stop_secs=0.2,
 #     que nos reglages d'agent remplacent (reglages_tour.parametres_detecteur()).
-#   - pipecat.turns.user_mute (le leur) : leur _create_user_mute_strategies est
-#     remplace par notre collecter_strategies_de_coupure, qui construit la meme
-#     liste depuis les cinq reglages de l'agent et importe ces classes localement.
+#   - pipecat.turns.user_mute (le leur) : le pipeline passe par notre
+#     collecter_strategies_de_coupure, qui importe ces classes LOCALEMENT, donc
+#     aucun import de ce module n'est necessaire ici. ATTENTION : la fonction
+#     _create_user_mute_strategies de l'amont, elle, est bien CONSERVEE plus bas
+#     en enveloppe -- ne pas lire cette ligne comme si elle avait disparu.
 #
 # ATTENTION : un import orphelin apres une fusion est le symptome le plus
 # courant d un patch perdu. Ces trois-la ont ete verifies un par un avant
@@ -197,11 +199,9 @@ def _create_answer_supervisor(
     return AnswerSupervisor(config, context=context, classify=classifier.classify)
 
 
-# [.mark] `_create_user_mute_strategies` de l'amont est RETIRE : notre
-# `collecter_strategies_de_coupure` construit la meme liste, mais depuis les
-# cinq reglages de l'agent au lieu d'une liste figee. ⛔ Son unique apport a ete
-# REPRIS la-bas : quand une supervision de decroche est active, la premiere
-# strategie devient `FirstSpeech` au lieu de `MuteUntilFirstBotComplete`.
+# [.mark] `_create_user_mute_strategies` est CONSERVEE juste en dessous, en
+# enveloppe : le pipeline ne l'appelle pas, mais deux fichiers de tests de
+# l'amont l'importent par son nom. Le detail et le motif sont dans sa docstring.
 
 
 def _create_user_mute_strategies(engine, answer_supervisor):
