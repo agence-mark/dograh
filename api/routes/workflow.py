@@ -27,6 +27,7 @@ from api.schemas.workflow import WorkflowRunResponseSchema
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.sdk_expose import sdk_expose
 from api.services.auth.depends import get_user
+from api.services.communes.adresse import AdresseInvalide, valider_adresse_saisie
 from api.services.configuration.ai_model_configuration import (
     DELIBERATE_PER_SERVICE_OVERRIDE_KEY,
     WORKFLOW_MODEL_CONFIGURATION_V2_OVERRIDE_KEY,
@@ -1147,6 +1148,19 @@ async def update_workflow(
             if request.workflow_configurations is not None
             else None
         )
+        # [.mark] The agent's business address, checked against the national
+        # list of communes. Here and not in the schema: the schema is also read
+        # when a call is set up, where a refusal must never cost the call.
+        if workflow_configurations and workflow_configurations.get("adresse_etablissement"):
+            try:
+                adresse = await valider_adresse_saisie(
+                    request.workflow_configurations.adresse_etablissement
+                )
+            except AdresseInvalide as erreur:
+                raise HTTPException(status_code=422, detail=str(erreur)) from None
+            workflow_configurations["adresse_etablissement"] = adresse.model_dump(
+                mode="json", exclude_none=True
+            )
         try:
             workflow_configurations = await apply_external_pbx_mapping_policy(
                 workflow_configurations,

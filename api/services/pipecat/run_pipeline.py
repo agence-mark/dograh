@@ -14,6 +14,10 @@ from api.schemas.workflow_configurations import (
     WorkflowConfigurationDefaults,
 )
 from api.services.call_concurrency import call_concurrency
+from api.services.communes.adresse import (
+    injecter_adresse_etablissement,
+    lire_adresse_etablissement,
+)
 from api.services.configuration.registry import ServiceProviders
 from api.services.integrations import (
     IntegrationRuntimeContext,
@@ -844,6 +848,16 @@ async def _run_pipeline_impl(
     # its own start and defeats Mistral's cache. Every agent; same rules as the
     # line above (the pre-call fetch wins, never raises).
     merged_call_context_vars = injecter_date_heure_appel(merged_call_context_vars)
+    # [.mark] Business address (verification-communes D2, D4): the agent's,
+    # else the organization's. Same moment and same rules as the two lines
+    # above: the pre-call fetch wins, nothing raises. Read once here, it also
+    # gives the town recognition its location clue.
+    adresse_etablissement = await lire_adresse_etablissement(
+        run_configs, workflow.organization_id
+    )
+    merged_call_context_vars = injecter_adresse_etablissement(
+        merged_call_context_vars, adresse_etablissement
+    )
 
     # Extract configurations from the version's workflow_configurations
     max_call_duration_seconds = DEFAULT_MAX_CALL_DURATION_SECONDS

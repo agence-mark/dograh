@@ -56,6 +56,8 @@ from api.services.auth.depends import (
     get_user_with_selected_organization,
     require_local_auth,
 )
+from api.services.communes.adresse import AdresseInvalide, valider_adresse_saisie
+from api.services.communes.base import obtenir_base
 from api.services.configuration.ai_model_configuration import (
     check_for_masked_keys_in_ai_model_configuration_v2,
     compile_ai_model_configuration_v2,
@@ -691,10 +693,39 @@ async def save_preferences(
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
     organization_id = user.selected_organization_id
+    # [.mark] The business address is checked HERE, against the national list,
+    # and not in the schema: the schema is also read when a call is set up.
+    try:
+        adresse = await valider_adresse_saisie(request.adresse_etablissement)
+    except AdresseInvalide as erreur:
+        raise HTTPException(status_code=422, detail=str(erreur)) from None
+    request = request.model_copy(update={"adresse_etablissement": adresse})
     return await upsert_organization_preferences(
         organization_id,
         request,
     )
+
+
+class CommuneDuCodePostal(BaseModel):
+    code_insee: str
+    nom: str
+
+
+@router.get("/communes", response_model=List[CommuneDuCodePostal])
+async def get_communes_du_code_postal(
+    code_postal: str = Query(pattern=r"^\d{5}$"),
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] The communes that carry a postal code, largest first.
+
+    Feeds the town list of the business address. Read from the list embedded
+    in the image: no outside call.
+    """
+    base = await obtenir_base()
+    return [
+        CommuneDuCodePostal(code_insee=c.insee, nom=c.nom)
+        for c in base.communes_du_code_postal(code_postal)
+    ]
 
 
 @router.get(

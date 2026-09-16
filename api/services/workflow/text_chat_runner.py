@@ -34,6 +34,10 @@ from pipecat.utils.run_context import set_current_org_id
 from api.db import db_client
 from api.enums import WorkflowRunMode, WorkflowRunState
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
+from api.services.communes.adresse import (
+    injecter_adresse_etablissement,
+    lire_adresse_etablissement,
+)
 from api.services.configuration.registry import ServiceProviders
 from api.services.pipecat.audio_config import create_audio_config
 from api.services.pipecat.etat_ouverture import (
@@ -557,6 +561,14 @@ async def execute_text_chat_pending_turn(
     # [.mark] Date and time of the call (latence-modele D2), same moment and
     # same rule: later turns keep the values persisted by the first one.
     initial_context = injecter_date_heure_appel(initial_context)
+    # [.mark] Business address (verification-communes D2, D4), same moment and
+    # same rule: later turns keep the value persisted by the first one.
+    adresse_etablissement = await lire_adresse_etablissement(
+        run_configs, workflow.organization_id
+    )
+    initial_context = injecter_adresse_etablissement(
+        initial_context, adresse_etablissement
+    )
 
     base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
 

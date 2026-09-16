@@ -7,9 +7,50 @@ MAX_DISPOSITION_MAPPING_ENTRIES = 200
 MAX_DISPOSITION_CODE_LENGTH = 64
 
 
+class AdresseEtablissement(BaseModel):
+    """[.mark] The business's address: organization-wide, overridable per agent.
+
+    Given to agents as ``{{adresse_etablissement}}``. The town recognition
+    (``api/services/communes/``) reads only the postal code and the commune,
+    never the street.
+
+    ⛔ Only the FORMAT is checked here. That the commune exists and carries
+    this postal code is checked by the save routes, against the national list:
+    this model is also read when a call is set up, and a refusal there must
+    never cost the call (same rule as the opening hours).
+    """
+
+    code_postal: str = Field(pattern=r"^\d{5}$", description="Postal code, 5 digits.")
+    code_insee: str = Field(
+        pattern=r"^[0-9][0-9AB][0-9]{3}$",
+        description="INSEE code of the commune chosen in the postal code's list.",
+    )
+    commune: str = Field(min_length=1, max_length=100, description="Official name of the commune.")
+    voie: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Street number and name. Optional; not used to recognise towns.",
+    )
+
+    @field_validator("voie", mode="before")
+    @classmethod
+    def _voie_vide_a_none(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+
 class OrganizationPreferences(BaseModel):
     test_phone_number: str | None = None
     timezone: str | None = None
+    adresse_etablissement: AdresseEtablissement | None = Field(
+        default=None,
+        description=(
+            "[.mark] The business's address. Helps recognise the towns callers "
+            "name, and is given to agents as {{adresse_etablissement}}."
+        ),
+    )
     external_pbx_integrations_enabled: bool = False
     disposition_mapping_enabled: bool = False
     disposition_mapping: dict[str, str] = Field(

@@ -14,6 +14,7 @@ from api.constants import (
     MIN_TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
     TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
 )
+from api.schemas.organization_preferences import AdresseEtablissement
 
 DEFAULT_MAX_CALL_DURATION_SECONDS = 300
 # Hard ceiling on configurable call duration. Must stay <= the concurrency
@@ -79,6 +80,12 @@ DEFAULT_CONVERSION_NOMBRES_TRANSCRIPTION = False
 # 🔒 Empty, which is today's behaviour: nothing is computed and nothing is
 # injected into the call context (decision D6 of 2026-09-15).
 DEFAULT_HORAIRES_OUVERTURE = None
+
+# --- Business address -------------------------------------------------------
+#
+# 🔒 Empty: the agent uses its organization's address (decision D2 of
+# 2026-09-16), and without one nothing is injected.
+DEFAULT_ADRESSE_ETABLISSEMENT = None
 
 # --- Idle prompts ----------------------------------------------------------
 #
@@ -458,6 +465,14 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Opening hours in the readable French format. Computes etat_ouverture, "
             "reouverture and horaires_ouverture at call start. Empty: nothing is "
             "computed."
+        ),
+    )
+    adresse_etablissement: AdresseEtablissement | None = Field(
+        default=DEFAULT_ADRESSE_ETABLISSEMENT,
+        description=(
+            "Business address for this agent. Leave empty to use the "
+            "organization's address. Given to the agent as "
+            "{{adresse_etablissement}}; the street is not used to recognise towns."
         ),
     )
     mute_until_first_bot_complete: bool = Field(

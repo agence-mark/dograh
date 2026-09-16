@@ -48,6 +48,7 @@ CONFIGURATION = {
     "user_idle_max_prompts": 2,
     "conversion_nombres_transcription": True,
     "horaires_ouverture": "lundi : fermé\nmardi : 10:00-12:30 et 14:00-18:30\n",
+    "adresse_etablissement": {"code_postal": "60300", "code_insee": "60612", "commune": "Senlis"},
     "ambient_noise_configuration": {"enabled": False, "volume": 0.3},
 }
 
@@ -117,6 +118,7 @@ async def test_la_copie_garde_le_marqueur_de_surcharge_par_service():
         "user_idle_max_prompts",
         "conversion_nombres_transcription",
         "horaires_ouverture",
+        "adresse_etablissement",
     ],
 )
 async def test_chaque_reglage_pipecat_survit_a_la_copie(reglage):
