@@ -21,6 +21,7 @@ from api.services.configuration.options import (
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES,
     DEEPGRAM_KEYTERM_MODELS,
+    DEEPGRAM_BASE_URLS,
     DEEPGRAM_LANGUAGES,
     DEEPGRAM_STT_MODELS,
     ELEVENLABS_STT_LANGUAGES,
@@ -1248,15 +1249,23 @@ RealtimeConfig = Annotated[
 # ⛔ Chez nous elle reste une CONDITION de l'offre : le champ est montre, mais
 # VERROUILLE, et la fabrique impose l'Europe quoi qu'il arrive (decision D3).
 # Ces deux valeurs sont un MIROIR de api/services/pipecat/deepgram_endpoints.py,
-# pour les memes raisons que la region et l'opposition a l'entrainement plus
-# bas, et le meme test les compare — un miroir qui derive n'a aucun effet sur le
-# fil, il annonce simplement une adresse ou l'audio ne va pas.
+# et un test les compare.
+# 🔑 2026-09-16, decision d'Evan : ce sont desormais des VALEURS PAR DEFAUT,
+# plus des impositions. Le champ est modifiable, l'Europe est ce qu'on trouve
+# sans y toucher, et la fabrique respecte ce qui est saisi. Le miroir garde donc
+# tout son sens : un defaut affiche qui ne serait pas le defaut applique
+# mentirait exactement comme avant.
 # ⚠️ Les deux formes ne sont PAS interchangeables : la transcription prend un
 # schema + hote, la synthese une base sans chemin.
-# 🔑 Definies ICI, avant les deux classes qui les lisent : la classe de synthese
+# 🔑 UNE seule valeur pour les deux classes, en forme https, celle du menu
+# de l'amont (`DEEPGRAM_BASE_URLS`). C'est la fabrique qui remet l'adresse dans
+# la forme attendue par chaque connecteur (`_deepgram_websocket_url`), donc ce
+# qui est STOCKE n'a pas a porter trois formes. Proposer un menu d'adresses
+# https dans un champ dont le defaut serait `wss://` afficherait, lui, deux
+# conventions dans la meme liste.
+# 🔑 Definie ICI, avant les deux classes qui la lisent : la classe de synthese
 # est declaree bien avant la section transcription.
-_DEEPGRAM_STT_BASE_URL_IMPOSEE = "https://api.eu.deepgram.com"
-_DEEPGRAM_TTS_BASE_URL_IMPOSEE = "wss://api.eu.deepgram.com"
+_DEEPGRAM_BASE_URL_PAR_DEFAUT = "https://api.eu.deepgram.com"
 
 
 @register_tts
@@ -1268,15 +1277,16 @@ class DeepgramTTSConfiguration(BaseServiceConfiguration):
         description="Deepgram voice ID (model is inferred from the 'aura-N' prefix).",
     )
     base_url: str = Field(
-        default=_DEEPGRAM_TTS_BASE_URL_IMPOSEE,
-        json_schema_extra={"readonly": True},
+        default=_DEEPGRAM_BASE_URL_PAR_DEFAUT,
+        json_schema_extra={
+            "examples": list(DEEPGRAM_BASE_URLS),
+            "allow_custom_input": True,
+        },
         description=(
-            "The Deepgram endpoint the spoken text is sent to. Locked on "
-            "Europe: processing inside the EU is a condition of the offer, not "
-            "an option, so it is imposed in code and cannot be changed from "
-            "here or through the API. The upstream project makes this field "
-            "configurable and defaults it to the global endpoint; .mark does "
-            "not."
+            "The Deepgram endpoint the spoken text is sent to. Defaults to "
+            "Europe and can be changed: upstream defaults it to the global "
+            "endpoint, .mark defaults it to the EU one. Leaving it empty also "
+            "sends the audio to Europe."
         ),
     )
 
@@ -1292,25 +1302,6 @@ class DeepgramTTSConfiguration(BaseServiceConfiguration):
         else:
             # Default fallback
             return "aura-2"
-
-    @model_validator(mode="after")
-    def _ladresse_ne_se_configure_pas(self):
-        """[.mark] L'adresse affichee dit ce que le code impose, quoi qu'on stocke.
-
-        ⛔ Meme motif que sur la transcription : la fabrique impose deja
-        l'Europe, donc une configuration qui demande l'Amerique ne change rien
-        sur le fil — mais l'ECRAN lit la valeur STOCKEE, pas la constante. Un
-        `api.deepgram.com` stocke s'afficherait comme l'adresse ou part le texte
-        a prononcer, ce qui serait faux. C'est la seule panne qu'un miroir peut
-        avoir, et c'est celle que la relecture du 11/09 avait relevee.
-
-        ⛔ Realigne en silence plutot que refuse : ce n'est pas un choix, donc
-        refuser transformerait une valeur sur laquelle personne n'a la main en
-        un enregistrement qui echoue.
-        """
-        if self.base_url != _DEEPGRAM_TTS_BASE_URL_IMPOSEE:
-            object.__setattr__(self, "base_url", _DEEPGRAM_TTS_BASE_URL_IMPOSEE)
-        return self
 
 
 MISTRAL_TTS_MODELS = ["voxtral-mini-tts-latest", "voxtral-mini-tts-2603"]
@@ -1939,10 +1930,30 @@ TTSConfig = Annotated[
 
 # ⛔ A MIRROR of api/services/pipecat/deepgram_endpoints.py, not a second
 # source: the factory reads the endpoints module, this one only says out loud
-# what that module imposes. A test compares the two, because a mirror that
-# drifted would break nothing at all and simply announce a region the audio
-# does not go to.
-_DEEPGRAM_REGION_IMPOSEE = "api.eu.deepgram.com"
+# where the audio goes. A test compares the two, because a mirror that drifted
+# would break nothing at all and simply announce a region the audio does not go
+# to.
+# 🔑 2026-09-16, decision d'Evan : l'adresse etant desormais modifiable,
+# cette valeur n'est plus qu'un DEFAUT. Le champ `region` SUIT l'adresse
+# reellement configuree (voir le validateur plus bas) — sinon l'ecran
+# continuerait d'annoncer l'Europe pendant que l'audio partirait ailleurs, ce
+# qui est exactement le mensonge que la relecture du 11/09 avait fait corriger.
+_DEEPGRAM_REGION_PAR_DEFAUT = "api.eu.deepgram.com"
+
+
+def _region_deepgram_de_ladresse(base_url: str) -> str:
+    """[.mark] L'hote de l'adresse configuree, tel qu'il sera affiche.
+
+    ⛔ Volontairement sans `urlparse` : la valeur peut arriver sous les trois
+    formes que les connecteurs acceptent (`https://hote`, `wss://hote/v2/listen`,
+    ou un hote nu tape a la main), et on ne veut ici que l'hote. Une adresse
+    vide rend le defaut, parce que c'est vers lui que la fabrique replie.
+    """
+    adresse = (base_url or "").strip()
+    if not adresse:
+        return _DEEPGRAM_REGION_PAR_DEFAUT
+    sans_schema = adresse.split("://", 1)[-1]
+    return sans_schema.split("/", 1)[0].strip() or _DEEPGRAM_REGION_PAR_DEFAUT
 
 
 @register_stt
@@ -1972,15 +1983,17 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
         },
     )
     base_url: str = Field(
-        default=_DEEPGRAM_STT_BASE_URL_IMPOSEE,
-        json_schema_extra={"readonly": True},
+        default=_DEEPGRAM_BASE_URL_PAR_DEFAUT,
+        json_schema_extra={
+            "examples": list(DEEPGRAM_BASE_URLS),
+            "allow_custom_input": True,
+        },
         description=(
-            "The Deepgram endpoint the caller's audio is sent to. Locked on "
-            "Europe: processing inside the EU is a condition of the offer, not "
-            "an option, so it is imposed in code and cannot be changed from "
-            "here or through the API. The upstream project makes this field "
-            "configurable and defaults it to the global endpoint; .mark does "
-            "not."
+            "The Deepgram endpoint the caller's audio is sent to, and "
+            "therefore the jurisdiction that processes it. Defaults to Europe "
+            "and can be changed: upstream defaults it to the global endpoint, "
+            ".mark defaults it to the EU one. Leaving it empty also sends the "
+            "audio to Europe."
         ),
     )
 
@@ -2237,27 +2250,25 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
     )
 
     # ------------------------------------------------------------------ #
-    # The two compliance values, shown but not editable.
+    # Deux valeurs qui s'affichent sans se saisir, pour des raisons DIFFERENTES
+    # depuis le 16/09 :
     #
-    # 🔴 The lock is in the factory, not here and not on screen. A greyed-out
-    # field is not a lock: it stays reachable through the API. These two fields
-    # exist so the pair (what we control, what we do not) can be read in one
-    # place — Evan, 2026-09-11: "knowing what we master and what we do not, and
-    # knowing whether one day we will have to unlock them".
+    # - `region` est un MIROIR de l'adresse configuree juste au-dessus. On ne la
+    #   saisit pas parce qu'elle se DEDUIT, pas parce qu'elle serait interdite.
+    # - `mip_opt_out` reste, lui, une condition de l'offre : impose par la
+    #   fabrique quoi qu'une configuration raconte.
     #
-    # ⛔ They are never collected and never sent: the factory imposes the EU
-    # endpoint and the training opt-out whatever a configuration says. The
-    # values below are a MIRROR of api/services/pipecat/deepgram_endpoints.py,
-    # and a test compares the two so the mirror cannot lie.
+    # 🔴 Le verrou de l'opposition a l'entrainement est dans la FABRIQUE, pas
+    # ici et pas a l'ecran. Un champ grise n'est pas un verrou : il reste
+    # atteignable par l'API.
     # ------------------------------------------------------------------ #
     region: str = Field(
-        default=_DEEPGRAM_REGION_IMPOSEE,
+        default=_DEEPGRAM_REGION_PAR_DEFAUT,
         json_schema_extra={"readonly": True},
         description=(
-            "The Deepgram region the caller's audio is processed in. Locked on "
-            "Europe: processing inside the EU is a condition of the offer, not "
-            "an option, so it is imposed in code and cannot be changed from "
-            "here or through the API."
+            "The Deepgram region the caller's audio is processed in. Derived "
+            "from the endpoint above rather than chosen: change the endpoint "
+            "and this follows. Defaults to Europe."
         ),
     )
     mip_opt_out: bool = Field(
@@ -2285,16 +2296,11 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
         refusing would turn a value nobody is allowed to act on into a save
         that fails.
         """
-        if self.region != _DEEPGRAM_REGION_IMPOSEE:
-            object.__setattr__(self, "region", _DEEPGRAM_REGION_IMPOSEE)
+        region_attendue = _region_deepgram_de_ladresse(self.base_url)
+        if self.region != region_attendue:
+            object.__setattr__(self, "region", region_attendue)
         if self.mip_opt_out is not True:
             object.__setattr__(self, "mip_opt_out", True)
-        # [.mark] 2026-09-16 : meme traitement pour l'adresse que l'amont vient
-        # d'ouvrir. Sans cette ligne, un `api.deepgram.com` stocke s'afficherait
-        # comme l'adresse ou part l'audio de l'appelant — le mensonge exact que
-        # la relecture du 11/09 avait fait corriger sur la region.
-        if self.base_url != _DEEPGRAM_STT_BASE_URL_IMPOSEE:
-            object.__setattr__(self, "base_url", _DEEPGRAM_STT_BASE_URL_IMPOSEE)
         return self
 
     @model_validator(mode="after")

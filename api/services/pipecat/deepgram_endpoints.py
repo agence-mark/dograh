@@ -1,29 +1,31 @@
-"""Deepgram endpoints and compliance flags, hardcoded on purpose.
+"""Deepgram European endpoints: the DEFAULT the audio goes to.
 
-These are NOT configuration. They live here, next to their only consumer
-(``service_factory.py``), rather than in ``configuration/`` -- neither in
-``registry.py``, which describes what a user may configure, nor in
-``configuration/options/``, which holds the menus of choices offered to a
-user. Nobody chooses these values.
+🔑 2026-09-16, decision d'Evan. These were a lock until that date; they are
+now defaults. The address is a normal configurable field again, with Europe as
+the value nobody has to think about, because Dograh is our own internal tool
+and holding a field shut is not worth what it costs at every upstream merge.
 
-.mark sells EU processing of the caller's raw audio, and non-participation in
-Deepgram's Model Improvement Program, as CONDITIONS of the offer rather than
-as options. Exposing them as editable configuration would hand the promise to
-someone able to undo it.
+What did NOT change: the Model Improvement Program opt-out is still imposed by
+the factory, on all three paths, whatever a configuration says. It does not
+depend on the region, refusing it forfeits a discount, and that is accepted.
+
+These constants live here, next to their consumer (``service_factory.py``),
+rather than in ``configuration/``: they are what the code falls back to, not a
+menu offered to a user. ``registry.py`` mirrors them as the field defaults, and
+a test compares the two.
 
 Deepgram serves /v1/listen, /v2/listen and /v1/speak on the European endpoint
 with the same API keys, so the endpoint choice itself costs nothing; the only
 exclusion is the Whisper models, which are not offered here anyway. The
-opt-out below is a different matter: refusing the Model Improvement Program
-forfeits a discount, so it does change the bill. That is accepted -- it is a
-condition of the offer, not a cost optimisation. The management API is NOT
-served there -- see ``check_validity._check_deepgram_api_key``, which stays on
-the global endpoint deliberately.
+management API is NOT served there -- see
+``check_validity._check_deepgram_api_key``, which stays on the global endpoint
+deliberately.
 
-The three values are NOT interchangeable, and that is the point: each
+⛔ The three values are NOT interchangeable, and that is the point: each
 connector takes a different shape of address, and passing one where another
 belongs yields a connector that still talks to the default American endpoint,
-silently and without raising.
+silently and without raising. ``_deepgram_websocket_url`` derives all three
+from one configured value for exactly that reason.
 """
 
 # A scheme + host. DeepgramSTTService derives both the wss:// and https://

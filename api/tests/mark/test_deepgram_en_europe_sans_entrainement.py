@@ -15,11 +15,25 @@ byte leaves the EU".
 
 Why it exists
 -------------
-.mark sells EU processing of the caller's raw audio, and non-participation in
-Deepgram's training programme, as CONDITIONS of the offer rather than as
-options. Dograh passed neither, so every call went to ``api.deepgram.com``
-with the Model Improvement Program left on, and the sentence in the sales
-material was false.
+Dograh passed neither the endpoint nor the opt-out, so every call went to
+``api.deepgram.com`` with the Model Improvement Program left on, and the
+sentence in the sales material was false.
+
+🔑 2026-09-16, decision d'Evan, et elle change ce que ce fichier prouve.
+L'adresse est desormais MODIFIABLE, avec l'Europe pour valeur par defaut :
+Dograh est notre outil interne, et refuser une montee de version pour garder un
+champ ferme coute plus que ca ne protege. Ce fichier ne prouve donc plus que
+l'Europe est imposee. Il prouve trois choses differentes, et la difference
+compte :
+
+1. **sans rien configurer, l'audio part en Europe** — sur les trois chemins,
+2. **une adresse vide part en Europe aussi** — le repli, seul endroit ou une
+   configuration ancienne pourrait basculer aux Etats-Unis en silence,
+3. **une adresse saisie est HONOREE** — sinon "modifiable" serait un mensonge,
+   et le champ afficherait une adresse ou l'audio ne va pas.
+
+⛔ L'opposition a l'entrainement, elle, reste IMPOSEE par la fabrique : elle
+n'a pas ete ouverte, et elle ne depend pas de la region.
 
 There are THREE Deepgram code paths, not two, and they take three different
 shapes of address:
@@ -182,21 +196,86 @@ def test_tts_dials_the_eu_url_with_the_opt_out():
 
 
 # --------------------------------------------------------------------------
-# Imposed: a configuration that says otherwise changes nothing
+# Le repli : une adresse VIDE part en Europe, pas au defaut mondial de l'amont
 # --------------------------------------------------------------------------
 #
-# 🔴 Since 2026-09-11 the two compliance values also appear on screen, read
-# only. A greyed-out field is not a lock: it stays reachable through the API,
-# and anything reachable through the API will eventually arrive. So the tests
-# below hand the factory a configuration that asks for the opposite of both,
-# and check the wire, not the intent.
+# 🔴 C'est le seul chemin par lequel l'audio pourrait basculer aux
+# Etats-Unis sans que personne ne l'ait demande : une section de configuration
+# enregistree AVANT l'ouverture du champ, ou construite sans passer par le
+# registre, arrive avec une adresse vide. L'amont replie alors sur
+# ``api.deepgram.com``. Nous replions sur l'Europe.
 #
-# ⛔ A configuration built in Python, not a request: the point is the factory,
-# which is the single place all three paths go through.
+# ⛔ Les trois chemins sont couverts separement : ils lisent la meme valeur
+# mais la remettent en forme chacun a leur maniere, et c'est la remise en forme
+# qui a deja fait partir de l'audio au mauvais endroit.
 
 
-def _stt_config_qui_refuse_la_conformite(model: str):
-    """A configuration asking for America and for the training programme."""
+def _config_stt_sans_adresse(model: str):
+    """Une section de transcription ou l'adresse est vide, comme avant le 16/09."""
+    return SimpleNamespace(
+        stt=SimpleNamespace(
+            provider=ServiceProviders.DEEPGRAM.value,
+            api_key="test-key",
+            model=model,
+            language="fr",
+            base_url="",
+        )
+    )
+
+
+def test_an_empty_endpoint_still_goes_to_europe_on_the_classic_path():
+    service = create_stt_service(
+        _config_stt_sans_adresse("nova-3-general"), _audio_config()
+    )
+
+    environment = service._client._client_wrapper.get_environment()
+    assert environment.base == f"https://{EU_HOST}"
+    assert environment.production == f"wss://{EU_HOST}"
+
+
+def test_an_empty_endpoint_still_goes_to_europe_on_flux():
+    service = create_stt_service(
+        _config_stt_sans_adresse("flux-general-en"), _audio_config()
+    )
+
+    url = _capture_websocket_url(service, lambda s: s._connect())
+    assert url.startswith(f"wss://{EU_HOST}/v2/listen?")
+
+
+def test_an_empty_endpoint_still_goes_to_europe_on_the_voice():
+    config = SimpleNamespace(
+        tts=SimpleNamespace(
+            provider=ServiceProviders.DEEPGRAM.value,
+            api_key="test-key",
+            model="aura-2-thalia-en",
+            voice="aura-2-thalia-en",
+            base_url="",
+        )
+    )
+    service = create_tts_service(config, _audio_config())
+
+    url = _capture_websocket_url(service, lambda s: s._connect_websocket())
+    assert url.startswith(f"wss://{EU_HOST}/v1/speak?")
+
+
+# --------------------------------------------------------------------------
+# Honore : une adresse saisie est SUIVIE, sinon "modifiable" est un mensonge
+# --------------------------------------------------------------------------
+#
+# 🔑 2026-09-16 : ces tests assertent l'INVERSE de ce que ce fichier
+# assertait la veille, et c'est voulu. Ils sont ecrits avec l'adresse mondiale
+# precisement parce que c'est celle dont on ne veut pas par defaut : si la
+# fabrique la remplacait en douce par l'Europe, le champ afficherait une
+# adresse ou l'audio ne va pas — la panne exacte que le miroir doit empecher,
+# dans l'autre sens.
+#
+# ⛔ L'opposition a l'entrainement, elle, reste asserte a "true" DANS LE MEME
+# test : elle n'a pas ete ouverte, et rien ne doit l'ouvrir par ricochet.
+
+AUTRE_HOTE = "api.deepgram.com"
+
+
+def _config_stt_avec_adresse(model: str, adresse: str):
     from api.services.configuration.registry import DeepgramSTTConfiguration
 
     return SimpleNamespace(
@@ -204,66 +283,88 @@ def _stt_config_qui_refuse_la_conformite(model: str):
             api_key="test-key",
             model=model,
             language="fr",
-            region="api.deepgram.com",
+            base_url=adresse,
             mip_opt_out=False,
         )
     )
 
 
-def test_classic_stt_ignores_a_configuration_that_asks_for_america():
+def test_the_classic_path_honours_a_configured_endpoint():
     service = create_stt_service(
-        _stt_config_qui_refuse_la_conformite("nova-3-general"), _audio_config()
+        _config_stt_avec_adresse("nova-3-general", f"https://{AUTRE_HOTE}"),
+        _audio_config(),
     )
 
     environment = service._client._client_wrapper.get_environment()
-    assert environment.base == f"https://{EU_HOST}"
-    assert environment.production == f"wss://{EU_HOST}"
+    assert environment.base == f"https://{AUTRE_HOTE}"
+    assert environment.production == f"wss://{AUTRE_HOTE}"
+    # ⛔ Ouvrir la region n'ouvre pas l'entrainement.
     assert service._build_connect_kwargs()["mip_opt_out"] == "true"
 
 
-def test_flux_stt_ignores_a_configuration_that_asks_for_america():
+def test_flux_honours_a_configured_endpoint():
     service = create_stt_service(
-        _stt_config_qui_refuse_la_conformite("flux-general-en"), _audio_config()
+        _config_stt_avec_adresse("flux-general-en", f"https://{AUTRE_HOTE}"),
+        _audio_config(),
     )
 
     url = _capture_websocket_url(service, lambda s: s._connect())
-    assert url.startswith(f"wss://{EU_HOST}/v2/listen?")
+    assert url.startswith(f"wss://{AUTRE_HOTE}/v2/listen?")
     assert "mip_opt_out=true" in url
 
 
-def test_the_screen_mirror_cannot_be_made_to_lie():
-    """🔴 Raised by the review of 2026-09-11.
+def test_the_voice_honours_a_configured_endpoint():
+    from api.services.configuration.registry import DeepgramTTSConfiguration
 
-    The factory ignores a configuration asking for America -- that is covered
-    above. But the SCREEN reads the STORED value, not the constant, so a stored
-    ``api.deepgram.com`` would be displayed as the region the caller's audio
-    goes to. Nothing would break; the screen would simply say something false,
-    which is the one failure a mirror can have.
+    config = SimpleNamespace(
+        tts=DeepgramTTSConfiguration(
+            api_key="test-key",
+            voice="aura-2-thalia-en",
+            base_url=f"wss://{AUTRE_HOTE}",
+        )
+    )
+    service = create_tts_service(config, _audio_config())
+
+    url = _capture_websocket_url(service, lambda s: s._connect_websocket())
+    assert url.startswith(f"wss://{AUTRE_HOTE}/v1/speak?")
+    assert "mip_opt_out=true" in url
+
+
+# --------------------------------------------------------------------------
+# Le miroir : ce que l'ecran affiche SUIT ce qui est configure
+# --------------------------------------------------------------------------
+
+
+def test_the_shown_region_follows_the_configured_endpoint():
+    """🔴 Le motif releve par la relecture du 11/09, dans l'autre sens.
+
+    Tant que l'Europe etait imposee, le danger etait qu'une adresse americaine
+    STOCKEE s'affiche comme la destination. Maintenant que l'adresse est
+    honoree, le danger s'inverse : c'est l'ecran qui continuerait d'annoncer
+    l'Europe pendant que l'audio partirait ailleurs. Dans les deux cas la panne
+    est la meme — un ecran qui decrit autre chose que le fil.
     """
     from api.services.configuration.registry import DeepgramSTTConfiguration
 
     config = DeepgramSTTConfiguration(
         api_key="test-key",
-        region="api.deepgram.com",
+        region=EU_HOST,
         mip_opt_out=False,
-        # [.mark] 2026-09-16 : l'amont a ouvert l'adresse en champ configurable.
-        # Une configuration qui demande l'Amerique doit etre REALIGNEE, pas
-        # affichee telle quelle.
-        base_url="https://api.deepgram.com",
+        base_url=f"https://{AUTRE_HOTE}",
     )
 
-    assert config.region == EU_HOST
+    assert config.region == AUTRE_HOTE
+    assert config.base_url == f"https://{AUTRE_HOTE}"
+    # ⛔ Et l'entrainement reste refuse, quoi qu'on demande.
     assert config.mip_opt_out is True
-    assert config.base_url == DEEPGRAM_EU_STT_BASE_URL
 
 
-def test_the_screen_mirror_says_what_the_code_imposes():
-    """The two shown values are a mirror; a mirror that lies is worse than none.
+def test_a_configuration_left_alone_shows_europe():
+    """Sans y toucher, les deux classes et les trois constantes disent l'Europe.
 
-    ⛔ The field on screen is not read by anything: the factory imposes the
-    constants below. So nothing would break if the mirror drifted — the screen
-    would simply announce a region the audio does not go to. That is why it is
-    compared here rather than trusted.
+    ⛔ Les trois formes ne sont pas interchangeables — la transcription prend
+    un schema + hote, Flux une URL complete, la synthese une base sans chemin —
+    donc chacune est comparee a SA constante.
     """
     from api.services.configuration.registry import (
         DeepgramSTTConfiguration,
@@ -273,23 +374,15 @@ def test_the_screen_mirror_says_what_the_code_imposes():
     config = DeepgramSTTConfiguration(api_key="test-key")
 
     assert config.region == EU_HOST
+    # ⛔ Les deux classes stockent la MEME forme (https) depuis le 16/09 : la
+    # mise en forme par connecteur est faite par la fabrique, et les tests du
+    # fil plus haut prouvent que chacune des trois sort juste.
+    assert config.base_url == DEEPGRAM_EU_STT_BASE_URL
+    assert (
+        DeepgramTTSConfiguration(api_key="test-key").base_url
+        == DEEPGRAM_EU_STT_BASE_URL
+    )
     assert EU_HOST in DEEPGRAM_EU_STT_BASE_URL
     assert EU_HOST in DEEPGRAM_EU_FLUX_URL
     assert EU_HOST in DEEPGRAM_EU_TTS_BASE_URL
     assert config.mip_opt_out is True
-
-    # [.mark] 2026-09-16 : l'adresse que l'amont vient d'ouvrir est elle aussi
-    # un miroir, sur les DEUX classes. ⛔ Les deux formes ne sont pas
-    # interchangeables — la transcription prend un schema + hote, la synthese
-    # une base sans chemin — donc chacune est comparee a SA constante.
-    assert config.base_url == DEEPGRAM_EU_STT_BASE_URL
-    assert DeepgramTTSConfiguration(api_key="test-key").base_url == DEEPGRAM_EU_TTS_BASE_URL
-
-    # Et une adresse americaine stockee sur la synthese est realignee, comme
-    # sur la transcription.
-    assert (
-        DeepgramTTSConfiguration(
-            api_key="test-key", base_url="wss://api.deepgram.com"
-        ).base_url
-        == DEEPGRAM_EU_TTS_BASE_URL
-    )

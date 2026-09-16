@@ -2012,7 +2012,7 @@ export type DeepgramSttConfiguration = {
     /**
      * Base Url
      *
-     * Deepgram API endpoint. This is what decides where call audio is processed: use https://api.eu.deepgram.com to keep processing inside the EU, or https://api.au.deepgram.com for Australia. The same API key works on every regional endpoint.
+     * The Deepgram endpoint the caller's audio is sent to, and therefore the jurisdiction that processes it. Defaults to Europe and can be changed: upstream defaults it to the global endpoint, .mark defaults it to the EU one. Leaving it empty also sends the audio to Europe.
      */
     base_url?: string;
     /**
@@ -2132,7 +2132,7 @@ export type DeepgramSttConfiguration = {
     /**
      * Region
      *
-     * The Deepgram region the caller's audio is processed in. Locked on Europe: processing inside the EU is a condition of the offer, not an option, so it is imposed in code and cannot be changed from here or through the API.
+     * The Deepgram region the caller's audio is processed in. Derived from the endpoint above rather than chosen: change the endpoint and this follows. Defaults to Europe.
      */
     region?: string;
     /**
@@ -2164,7 +2164,7 @@ export type DeepgramTtsConfiguration = {
     /**
      * Base Url
      *
-     * Deepgram API endpoint. This is what decides where your text is processed: use https://api.eu.deepgram.com to keep processing inside the EU, or https://api.au.deepgram.com for Australia. The same API key works on every regional endpoint.
+     * The Deepgram endpoint the spoken text is sent to. Defaults to Europe and can be changed: upstream defaults it to the global endpoint, .mark defaults it to the EU one. Leaving it empty also sends the audio to Europe.
      */
     base_url?: string;
 };

@@ -18,7 +18,6 @@ from api.schemas.workflow_configurations import (
     DEFAULT_TTS_TEXT_AGGREGATION_MODE,
 )
 from api.services.configuration.options import (
-    DEEPGRAM_DEFAULT_BASE_URL,
     DEEPGRAM_FLUX_MODELS,
     DEEPGRAM_KEYTERM_MODELS,
     GOOGLE_VERTEX_DEFAULT_LOCATION,
@@ -29,11 +28,7 @@ from api.services.configuration.registry import (
     MISTRAL_SAMPLING_FIELDS,
     ServiceProviders,
 )
-from api.services.pipecat.deepgram_endpoints import (
-    DEEPGRAM_EU_FLUX_URL,
-    DEEPGRAM_EU_STT_BASE_URL,
-    DEEPGRAM_EU_TTS_BASE_URL,
-)
+from api.services.pipecat.deepgram_endpoints import DEEPGRAM_EU_STT_BASE_URL
 from api.services.pipecat.gemini_json_schema_adapter import (
     DograhGeminiJSONSchemaAdapter,
 )
@@ -441,7 +436,13 @@ def _deepgram_base_url(service_config) -> str:
     """
     base_url = (getattr(service_config, "base_url", None) or "").strip()
     if not base_url:
-        return DEEPGRAM_DEFAULT_BASE_URL
+        # [.mark] 2026-09-16 : le repli est l'EUROPE, la ou l'amont replie sur
+        # son defaut mondial. Le champ porte deja l'Europe comme valeur par
+        # defaut ; ce repli couvre le cas ou il arrive VIDE (configuration
+        # enregistree avant l'ouverture du champ, ou section construite sans
+        # passer par le registre). Sans lui, un champ vide enverrait l'audio de
+        # l'appelant aux Etats-Unis en silence.
+        return DEEPGRAM_EU_STT_BASE_URL
     # Deepgram documents the regional switch as "replace api.deepgram.com with
     # api.eu.deepgram.com", so operators reasonably type a bare host. The URL
     # validator - and the SaaS SSRF checks behind it - need a scheme, so assume
@@ -563,9 +564,10 @@ def create_stt_service(
                 api_key=user_config.stt.api_key,
                 # Flux takes the complete WebSocket URL, path included, unlike
                 # the classic connector which takes a host and derives the rest.
-                # [.mark] D3 : l'Europe reste IMPOSEE par la fabrique, quel que
-                # soit le champ d'adresse que l'amont expose desormais.
-                url=DEEPGRAM_EU_FLUX_URL,
+                # [.mark] 2026-09-16 (decision d'Evan) : l'adresse configuree
+                # est RESPECTEE ; l'Europe n'est plus imposee, elle est le
+                # defaut du champ et le repli de `_deepgram_base_url`.
+                url=_deepgram_websocket_url(deepgram_base_url, "/v2/listen"),
                 mip_opt_out=True,
                 settings=DeepgramFluxSTTSettings(**settings_kwargs),
                 should_interrupt=False,  # Let UserAggregator take care of sending InterruptionFrame
@@ -583,8 +585,8 @@ def create_stt_service(
         return DeepgramSTTService(
             api_key=user_config.stt.api_key,
             # Takes the host and derives the wss and https URLs itself.
-            # [.mark] D3 : l'Europe reste IMPOSEE par la fabrique.
-            base_url=DEEPGRAM_EU_STT_BASE_URL,
+            # [.mark] 2026-09-16 : adresse configuree respectee, Europe par defaut.
+            base_url=deepgram_base_url,
             mip_opt_out=True,
             settings=DeepgramSTTSettings(
                 language=language,
@@ -992,8 +994,8 @@ def create_tts_service(
         return DeepgramTTSService(
             api_key=user_config.tts.api_key,
             # Wants wss://host with no path; it appends /v1/speak itself.
-            # [.mark] D3 : l'Europe reste IMPOSEE par la fabrique.
-            base_url=DEEPGRAM_EU_TTS_BASE_URL,
+            # [.mark] 2026-09-16 : adresse configuree respectee, Europe par defaut.
+            base_url=_deepgram_websocket_url(deepgram_base_url),
             mip_opt_out=True,
             settings=DeepgramTTSSettings(voice=user_config.tts.voice),
             skip_aggregator_types=["recording_router", "recording"],
