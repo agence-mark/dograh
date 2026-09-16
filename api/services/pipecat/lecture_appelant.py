@@ -115,12 +115,12 @@ def _trace_nombre(nombre, choix, etape: str | None) -> dict:
 
 
 def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list, conversion: bool,
-          communes: bool, references: bool):
+          communes: bool, references: bool, etape_adresse: bool = True):
     """Blocking: runs in a worker thread. Returns (text for the model, town records, number records)."""
     try:
         base = charger_base()
         magasin = base.coordonnees(adresse.code_insee) if adresse else None
-        lecture = analyser_message(texte, base, magasin, trace_communes)
+        lecture = analyser_message(texte, base, magasin, trace_communes, etape_adresse=etape_adresse)
     except Exception as erreur:  # noqa: BLE001
         # Without the list of communes (or its analysis), the numbers are still
         # written as digits: the fix of 2026-09-15 does not depend on the towns.
@@ -164,7 +164,8 @@ async def lire_texte(
         lire_trace = getattr(consigner, "lire", None)
         trace_communes = lire_trace(CLE_TRACE) if callable(lire_trace) else []
         lu, lecture, base = await asyncio.to_thread(
-            _lire, texte, adresse, trace_communes, conversion, communes, etape_reference(noeud)
+            _lire, texte, adresse, trace_communes, conversion, communes, etape_reference(noeud),
+            etape_concernee(noeud),
         )
         if consigner is not None:
             entrees: list[tuple[str, dict]] = []

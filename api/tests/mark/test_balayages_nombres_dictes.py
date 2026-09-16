@@ -76,13 +76,25 @@ def _codes(base, deps):
     return sorted({cp for c in base.communes if c.dep in deps for cp in c.cps})
 
 
-def _fausses_sures(lecture, cp):
+def _fausses_sures(lecture, cp, base, insee=None):
+    """Every code or town announced SURE and wrong.
+
+    ⛔ A town is wrong when it is not THE town said (``insee``), or, when no town
+    was said, as soon as the code carries several towns: the third review of
+    2026-09-16 found 450 wrong towns OF THE RIGHT CODE that the first version
+    of this criterion (« the town carries the code ») let through.
+    """
     fausses = [("code", c.code, c.par) for c in lecture.choix.values() if c.statut == "sure" and c.code != cp]
-    fausses += [
-        ("commune", d.entendu, d.lectures[0].commune.nom)
-        for d in lecture.detections
-        if d.statut == SURE and cp not in d.lectures[0].commune.cps
-    ]
+    for d in lecture.detections:
+        if d.statut != SURE:
+            continue
+        c = d.lectures[0].commune
+        if insee is not None:
+            faux = c.insee != insee
+        else:
+            faux = cp not in c.cps or len(base.communes_du_code_postal(cp)) > 1
+        if faux:
+            fausses.append(("commune", d.entendu, c.nom))
     return fausses
 
 
@@ -95,7 +107,7 @@ def test_amorces_devant_un_code_postal_aucune_fausse_sure(base, magasin, departe
         if dit
         for amorce in AMORCES
     ]
-    fausses = [(p, f) for p, cp in phrases for f in _fausses_sures(analyser_message(p, base, magasin), cp)]
+    fausses = [(p, f) for p, cp in phrases for f in _fausses_sures(analyser_message(p, base, magasin), cp, base)]
     # Counted: a sweep that stopped reading would pass empty.
     assert len(phrases) == {"60": 4158, "80": 3630}[departement]
     assert fausses == []
@@ -104,13 +116,16 @@ def test_amorces_devant_un_code_postal_aucune_fausse_sure(base, magasin, departe
 @pytest.mark.parametrize("departements", [("60", "95"), ("80",)])
 def test_commune_et_code_dans_le_meme_message_aucune_fausse_sure(base, magasin, departements):
     phrases = [
-        (f"{c.nom} {dit}", cp)
+        (f"{c.nom} {dit}", cp, c.insee)
         for c in base.communes if c.dep in departements
         for cp in c.cps
         for dit in (_diction_a(cp), _diction_b(cp))
         if dit
     ]
-    fausses = [(p, f) for p, cp in phrases for f in _fausses_sures(analyser_message(p, base, magasin), cp)]
+    fausses = [
+        (p, f) for p, cp, insee in phrases
+        for f in _fausses_sures(analyser_message(p, base, magasin), cp, base, insee)
+    ]
     assert len(phrases) == {("60", "95"): 1726, ("80",): 1545}[departements]
     assert fausses == []
 
@@ -130,27 +145,52 @@ def test_commune_puis_code_au_tour_suivant_aucune_fausse_sure(base, magasin, dep
                 n += 1
                 avant = analyser_message(c.nom, base, magasin, [])
                 trace = [trace_de(d, base, "coordonnees") for d in avant.detections]
-                faux += [(c.nom, dit, f) for f in _fausses_sures(analyser_message(dit, base, magasin, trace), cp)]
+                faux += [
+                    (c.nom, dit, f)
+                    for f in _fausses_sures(analyser_message(dit, base, magasin, trace), cp, base, c.insee)
+                ]
     assert n == {("60",): 1356, ("02", "08"): 1248}[departements]
     assert faux == []
 
 
-def test_un_nombre_de_1000_a_9999_reste_un_nombre(base, magasin):
-    """« mille » opens a number only (decision of Evan): "c'est deux mille" is
-    2000, never 21000 (Dijon). Written exactly as the conversion of 15/09."""
-    ecarts, sures = [], []
-    n = 0
-    for v in range(1000, 10000, 10):
-        a, b = divmod(v, 1000)
-        mots = ("mille" if a == 1 else _en_lettres_1000(a) + " mille") + (" " + _en_lettres_1000(b) if b else "")
-        texte = "c'est " + mots
-        n += 1
-        lecture = analyser_message(texte, base, magasin, [])
+def _nombre_en_lettres(v):
+    if v < 1000:
+        return _en_lettres_1000(v)
+    a, b = divmod(v, 1000)
+    return ("mille" if a == 1 else _en_lettres_1000(a) + " mille") + (" " + _en_lettres_1000(b) if b else "")
+
+
+def _reste_un_nombre(textes, base, magasin):
+    ecarts, codes, sures = [], [], []
+    for texte in textes:
+        lecture = analyser_message(texte, base, magasin, [], etape_adresse=False)
         if reecrire(texte, lecture.nombres, lecture.choix_cp) != alpha2digit(texte, "fr"):
             ecarts.append(texte)
+        if lecture.choix:
+            codes.append(texte)
         sures += [(texte, d.lectures[0].commune.nom) for d in lecture.detections if d.statut == SURE]
-    assert n == 900
-    assert ecarts == []
+    return ecarts, codes, sures
+
+
+def test_un_nombre_de_0_a_9999_reste_un_nombre_hors_etape_dadresse(base, magasin):
+    """Every number, one by one (decisions of Evan, 2026-09-16): « mille » opens
+    a number only, and an ordinary number is a postal code only with a context.
+    "c'est deux mille" is 2000, never 21000 (Dijon); "c'est cent quatre-vingt"
+    is 180, never 10420. Written exactly as the conversion of 15/09."""
+    textes = ["c'est " + _nombre_en_lettres(v) for v in range(0, 10000)]
+    assert len(textes) == 10000
+    assert _reste_un_nombre(textes, base, magasin) == ([], [], [])
+
+
+def test_la_forme_x_cents_reste_un_nombre_hors_etape_dadresse(base, magasin):
+    """"quinze cents", "soixante deux cents": never a code or a town outside an address step."""
+    textes = [
+        f"c'est {_en_lettres_100(x)} cent" + ("" if y == 0 else " " + _en_lettres_100(y))
+        for x in range(11, 100) for y in range(0, 100)
+    ]
+    assert len(textes) == 8900
+    _, codes, sures = _reste_un_nombre(textes, base, magasin)
+    assert codes == []
     assert sures == []
 
 
@@ -194,7 +234,9 @@ def test_zero_initial_par_la_commune_du_tour_precedent(base, magasin):
     lu, r = _lu("deux mille trois cents", base, magasin, trace)
     (choix,) = r.choix.values()
     assert (choix.code, choix.statut) == ("02300", "sure")
-    assert lu.startswith("02300 [Vérification de la commune : « deux mille trois cents » correspond à Abbécourt")
+    # Decision of Evan, 2026-09-16: 02300 also carries Chauny and Sinceny, so the
+    # town said at the previous turn comes first, to confirm.
+    assert lu.startswith("02300 [Vérification de la commune : « deux mille trois cents » peut être Abbécourt (02300, Aisne)")
 
 
 def test_en_somme_nest_pas_le_departement(base, magasin):
@@ -225,3 +267,109 @@ def test_une_commune_a_confirmer_mal_entendue_nest_pas_promue_par_un_code_ambigu
     assert loin.par != PAR_COMMUNE_DITE
     proche = choisir_code_postal(nombre, [detection(95)], [], set(), magasin, base)
     assert (proche.par, proche.code) == (PAR_COMMUNE_DITE, "62150")
+
+
+
+def test_un_numero_de_maison_nest_jamais_un_code_postal(base, magasin):
+    lu, r = _lu("j'habite au cent quatre-vingt rue Victor Hugo à Senlis", base, magasin)
+    assert lu.startswith("j'habite au 180 rue Victor Hugo à Senlis")
+    assert r.choix == {}
+
+
+def test_un_nombre_a_zero_initial_nest_pas_un_code_hors_etape_dadresse(base, magasin):
+    """After « j'habite à Chauny », « on en a pour deux mille trois cents » at a
+    step that collects no town stays 2300 (third review, minor 5)."""
+    avant = analyser_message("j'habite à Chauny", base, magasin, [])
+    trace = [trace_de(d, base, "accueil") for d in avant.detections]
+    texte = "on en a pour deux mille trois cents"
+    r = analyser_message(texte, base, magasin, trace, etape_adresse=False)
+    assert reecrire(texte, r.nombres, r.choix_cp) == "on en a pour 2300"
+    assert r.choix == {}
+
+
+PHRASES_SANS_COMMUNE = [
+    "oui bonjour", "chez mes parents", "bonsoir", "c'est Madame Martin", "ben c'est la campagne",
+    "d'accord très bien", "le poêle ne marche plus", "je suis chez moi", "voilà voilà", "hum hum",
+]
+
+
+def test_une_phrase_sans_commune_puis_un_code_ne_nomme_pas_une_commune_sure(base, magasin):
+    """Third review, point 3: « chez mes parents » proposed Esches, then
+    « soixante cent dix » named Esches sure (60110 is also Méru)."""
+    codes = [cp for cp in _codes(base, {"60"}) if len(base.communes_du_code_postal(cp)) > 1]
+    faux = []
+    n = 0
+    for phrase in PHRASES_SANS_COMMUNE:
+        avant = analyser_message(phrase, base, magasin, [])
+        trace = [trace_de(d, base, "coordonnees") for d in avant.detections]
+        for cp in codes:
+            dit = _diction_a(cp)
+            if not dit:
+                continue
+            n += 1
+            lecture = analyser_message(dit, base, magasin, trace)
+            faux += [(phrase, dit, f) for f in _fausses_sures(lecture, cp, base)]
+    assert n > 500
+    assert faux == []
+
+
+# --------------------------------------------------------------------------- #
+# Third review of 2026-09-16, decisions 4 and 5 of Evan: fast named cases
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "texte",
+    ["donc soixante mille cent douze", "d'accord, quatre-vingt mille cent dix",
+     # A partial match allowed by a single-reading code (phon 100, name 0):
+     "je crois que c'est soixante cent vingt", "exactement soixante mille deux cent cinquante",
+     "très bien quatre vingt trois cent", "ça doit être deux mille cinq cent dix"],
+)
+def test_un_mot_pres_dun_code_ne_nomme_pas_une_commune_sure(base, magasin, texte):
+    lu, _ = _lu(texte, base, magasin)
+    assert "correspond à" not in lu, lu
+
+
+def test_une_proposition_du_tour_precedent_ne_devient_pas_sure(base, magasin):
+    avant = analyser_message("chez mes parents", base, magasin, [])
+    trace = [trace_de(d, base, "coordonnees") for d in avant.detections]
+    lu, r = _lu("soixante cent dix", base, magasin, trace)
+    (choix,) = r.choix.values()
+    assert (choix.code, choix.statut) == ("60110", "sure")
+    assert "correspond à" not in lu
+
+
+def test_une_commune_retenue_a_tort_ne_se_propage_pas_au_code(base, magasin):
+    avant = analyser_message("ben c'est la campagne", base, magasin, [])
+    trace = [trace_de(d, base, "coordonnees") for d in avant.detections]
+    lu, _ = _lu("soixante six cent quarante", base, magasin, trace)
+    assert "correspond à" not in lu
+
+
+@pytest.mark.parametrize(
+    "texte,ecrit",
+    [("je l'ai eu à quinze cents", "je l'ai eu à 1500"), ("c'est onze cent dix", "c'est 1110"),
+     ("c'est cent quatre-vingt", "c'est 180")],
+)
+def test_un_nombre_ordinaire_hors_etape_dadresse(base, magasin, texte, ecrit):
+    r = analyser_message(texte, base, magasin, [], etape_adresse=False)
+    assert r.choix == {}
+    assert reecrire(texte, r.nombres, r.choix_cp) == alpha2digit(texte, "fr")
+
+
+def test_un_nombre_ordinaire_devient_code_avec_un_contexte(base, magasin):
+    """Decision 5: the same words are a postal code at an address step, or with a
+    town or a department said that carries a reading."""
+    r = analyser_message("soixante deux cents", base, magasin, [], etape_adresse=True)
+    assert [c.code for c in r.choix.values()] == ["60200"]
+    r = analyser_message("Compiègne soixante deux cents", base, magasin, [], etape_adresse=False)
+    assert [(c.code, c.statut) for c in r.choix.values()] == [("60200", "sure")]
+    r = analyser_message("soixante deux cents, dans l'Oise", base, magasin, [], etape_adresse=False)
+    assert [(c.code, c.statut) for c in r.choix.values()] == [("60200", "sure")]
+    r = analyser_message("soixante deux cents", base, magasin, [], etape_adresse=False)
+    assert r.choix == {}
+
+
+def test_le_debut_exact_du_nom_est_le_nom_entendu(base):
+    (d,) = analyser_message("Beaumont 95260", base, None).detections
+    assert (d.statut, d.lectures[0].commune.nom) == (SURE, "Beaumont-sur-Oise")

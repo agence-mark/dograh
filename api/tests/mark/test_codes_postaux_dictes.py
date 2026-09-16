@@ -142,8 +142,12 @@ def test_n2_commune_a_confirmer_puis_code_postal(base, magasin):
     assert bovet.statut == A_CONFIRMER
     lu, r = _lu("soixante mille", base, magasin, _trace(avant))
     assert (_code(r).code, _code(r).statut, _code(r).par) == ("60000", "sure", PAR_TRACE)
+    # Decision of Evan, 2026-09-16: the code is sure, but 60000 also carries
+    # Allonne and Goincourt and « Bovet » was not heard exactly: Beauvais is
+    # proposed first, to confirm.
     (beauvais,) = r.detections
-    assert (beauvais.statut, beauvais.lectures[0].commune.nom) == (SURE, "Beauvais")
+    assert (beauvais.statut, beauvais.lectures[0].commune.nom) == (A_CONFIRMER, "Beauvais")
+    assert "correspond à" not in lu
 
 
 def test_n2_departement_dit(base, magasin):
@@ -316,11 +320,13 @@ def test_un_code_redit_au_tour_suivant_ne_se_confirme_pas_lui_meme(base, magasin
 
 
 def test_une_commune_nommee_puis_le_code_reste_sure(base, magasin):
-    """The fix does not undo N2 ②: « Bovet » heard, then « soixante mille »."""
+    """The fix does not undo N2 ②: « Bovet » heard, then « soixante mille »: the
+    code is sure, Beauvais proposed first (decision of Evan, 2026-09-16: named
+    sure only if heard exactly or alone in its code)."""
     _, avant = _lu("j'habite à Bovet", base, magasin)
     _, r = _lu("soixante mille", base, magasin, _trace_comme_lappel(avant))
     (d,) = r.detections
-    assert (d.statut, d.lectures[0].commune.nom) == (SURE, "Beauvais")
+    assert (_code(r).statut, d.statut, d.lectures[0].commune.nom) == ("sure", A_CONFIRMER, "Beauvais")
 
 
 def test_un_code_incertain_a_cote_dune_commune_qui_ne_le_porte_pas_est_signale(base, magasin):

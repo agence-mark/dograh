@@ -306,9 +306,12 @@ async def test_la_trace_de_lappel_tranche_le_code_postal_du_tour_suivant():
     contexte.add_message({"role": "assistant", "content": "Beauvais ou Boves ?"})
     contexte.add_message({"role": "user", "content": "soixante mille"})
     await processeur._lire_contexte(LLMContextFrame(context=contexte))
+    # Decision of Evan, 2026-09-16: 60000 carries several towns and « Bovet » was
+    # not heard exactly: Beauvais comes first, to confirm.
     assert contexte.messages[-1]["content"] == (
-        "soixante mille [Vérification de la commune : « soixante mille » correspond à "
-        "Beauvais (60000, Oise). Utilise ce nom sans le faire répéter.]"
+        "soixante mille [Vérification de la commune : « soixante mille » peut être "
+        "Beauvais (60000, Oise), Allonne (60000, Oise) ou Goincourt (60000, Oise). "
+        "Fais préciser la commune avant de la noter.]"
     )
 
 

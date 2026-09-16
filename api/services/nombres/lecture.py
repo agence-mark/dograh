@@ -133,6 +133,10 @@ class NombreLu:
     # 4-digit readings that exist with a leading zero ("mille deux cents" ->
     # 01200): usable only when a town carrying that code is said (plan).
     lectures_cp_zero: tuple[str, ...] = ()
+    # Also an ordinary number under five digits ("cent quatre-vingt", "quinze
+    # cents", "soixante deux cents"): a postal code only with a context
+    # (decision of Evan, 2026-09-16), decided by ``analyser_message``.
+    ordinaire: bool = False
 
     @property
     def montant_ambigu(self) -> bool:
@@ -385,6 +389,26 @@ def _declencheur_reference(p: "_Phrase", i: int) -> bool:
     return True
 
 
+_APRES_NUMERO_DE_VOIE = frozenset(
+    """rue avenue av boulevard bd chemin allee impasse place route quai square residence
+    lotissement cours passage sentier ruelle voie bis ter""".split()
+)
+
+
+def _forme_ordinaire(mots: tuple[str, ...]) -> bool:
+    """Is this run also an ordinary number under five digits?"""
+    v = _valeur(mots)
+    if v is not None and v[0] < 10000:
+        return True
+    # "quinze cents", "onze cent dix": hundreds counted past ten.
+    if "cent" in mots:
+        k = mots.index("cent")
+        x = _TABLE.get(" ".join(mots[:k]))
+        y = _TABLE.get(" ".join(mots[k + 1:])) if k + 1 < len(mots) else 0
+        return x is not None and 11 <= x <= 99 and y is not None and 0 <= y <= 99
+    return False
+
+
 def _code_postal_avant(avant: list[str]) -> bool:
     return any(avant[k:k + 2] == ["code", "postal"] for k in range(len(avant) - 1))
 
@@ -542,11 +566,16 @@ def lire_nombres(
         existe = (lambda cp: True) if connus is None else (lambda cp: cp in connus)
         lectures = tuple(sorted(cp for cp in cinq if existe(cp)))
         lectures_zero = tuple(sorted(cp for cp in zero if existe(cp) and cp not in lectures))
-        if code_postal_dit or lectures:
+        # A house number is never a postal code: "au cent quatre-vingt rue …".
+        numero_de_voie = not code_postal_dit and any(m in _APRES_NUMERO_DE_VOIE for m in apres2[:1])
+        if (code_postal_dit or lectures) and not numero_de_voie:
             ecrit = lectures[0] if len(lectures) == 1 else _alpha2digit(entendu)
             lus.append(NombreLu(d0, f0, entendu, CODE_POSTAL, ecrit, lectures_cp=lectures,
-                                lectures_cp_zero=lectures_zero))
+                                lectures_cp_zero=lectures_zero,
+                                ordinaire=not code_postal_dit and _forme_ordinaire(mots)))
             continue
+        if numero_de_voie:
+            lectures_zero = ()
 
         # 5. Department, by its number.
         valeur = _valeur(mots)
@@ -655,7 +684,6 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
     ⛔ Proximity alone never makes a code sure: Calais is 150 km from the shop,
     and a call from Calais is still possible.
     """
-    from api.services.communes.analyse import PHON_EXACT
     from api.services.communes.analyse import SURE as COMMUNE_SURE
     from api.services.communes.base import distance_km
 
@@ -678,10 +706,11 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
         # reading: with two, any word near the number could carry the wrong one.
         if detection.statut == COMMUNE_SURE:
             candidates = detection.lectures[:1]
-        elif len(lectures) + len(zero) == 1:
-            candidates = detection.lectures
         else:
-            candidates = tuple(l for l in detection.lectures if l.phon >= PHON_EXACT)
+            # Decision of Evan, 2026-09-16: promoted only when ONE of its readings
+            # carries the code and that name was heard almost exactly.
+            porteuses = [l for l in detection.lectures if any(cp in l.commune.cps for cp in lectures + zero)]
+            candidates = tuple(l for l in porteuses if l.nom_exact) if len(porteuses) == 1 else ()
         for lecture in candidates:
             communs = [cp for cp in lectures + zero if cp in lecture.commune.cps]
             if communs:
@@ -702,11 +731,18 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
     if len(portes) == 1:
         ((cp, communes),) = portes.items()
         if len(communes) == 1:
-            return ChoixCodePostal(cp, SURE, PAR_TRACE, (communes[0],))
+            # Decision of Evan, 2026-09-16: the code is sure, the town is named
+            # only if it is the code's only town ("chez mes parents" proposed
+            # Esches, then "soixante cent dix": 60110 is also Méru).
+            autres = tuple(c for c in base.communes_du_code_postal(cp) if c != communes[0])
+            return ChoixCodePostal(cp, SURE, PAR_TRACE, (communes[0], *autres))
     if derniere_sure is not None:
         communs = [cp for cp in toutes if cp in derniere_sure.cps]
         if len(communs) == 1:
-            return ChoixCodePostal(communs[0], SURE, PAR_TRACE, (derniere_sure,))
+            # Named sure only if alone in its code, as for the proposed towns: a
+            # town kept wrongly earlier ("à la campagne") must not spread to the code.
+            autres = tuple(c for c in base.communes_du_code_postal(communs[0]) if c != derniere_sure)
+            return ChoixCodePostal(communs[0], SURE, PAR_TRACE, (derniere_sure, *autres))
 
     if not lectures:
         return ChoixCodePostal(None, A_CONFIRMER, PAR_PROXIMITE)
@@ -757,7 +793,7 @@ class LectureMessage:
         return {debut: c.code for debut, c in self.choix.items() if c.code}
 
 
-def analyser_message(texte: str, base, magasin=None, trace_appel=None) -> LectureMessage:
+def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adresse: bool = True) -> LectureMessage:
     """The numbers and the towns of one message, read together. Blocking.
 
     The reader gives every existing postal-code reading; the town analysis runs
@@ -772,13 +808,14 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None) -> Lectur
 
     nombres = lire_nombres(texte, base.par_cp, base.departements)
     departements = {n.departement for n in nombres if n.type == DEPARTEMENT and n.departement}
-    candidats = [
-        n for n in nombres if n.type == CODE_POSTAL or (n.type == AUTRE and n.lectures_cp_zero)
-    ]
-    spans: dict[str, list[tuple[int, int]]] = {}
-    for n in candidats:
-        for cp in n.lectures_cp + n.lectures_cp_zero:
-            spans.setdefault(cp, []).append((n.debut, n.fin))
+
+    def candidats_et_spans():
+        cands = [n for n in nombres if n.type == CODE_POSTAL or (n.type == AUTRE and n.lectures_cp_zero)]
+        sp: dict[str, list[tuple[int, int]]] = {}
+        for n in cands:
+            for cp in n.lectures_cp + n.lectures_cp_zero:
+                sp.setdefault(cp, []).append((n.debut, n.fin))
+        return cands, sp
 
     # Words of a phone, an amount, a reference, a department or a fixed
     # expression are never a town ("zéro six" was proposed as Clairoix at the
@@ -790,6 +827,26 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None) -> Lectur
         if n.type in (TELEPHONE, MONTANT, REFERENCE, DEPARTEMENT)
         for k in range(n.debut, n.fin)
     } | _positions_figees([j.mot for j in jetons(texte)])
+
+    # Decision of Evan, 2026-09-16: outside a step that collects a town or an
+    # address, an ordinary number ("quinze cents") is a postal code only when a
+    # town said in the message or earlier in the call, or a department said,
+    # carries one of its readings. Decided on an analysis without its readings.
+    ordinaires = [n for n in nombres if n.type == CODE_POSTAL and n.ordinaire]
+    if ordinaires and not etape_adresse:
+        for n in ordinaires:
+            nombres[nombres.index(n)] = replace(n, type=AUTRE)
+        _, sp = candidats_et_spans()
+        sans = analyser(texte, base, magasin, codes_postaux=sp, departements=departements, mots_nombres=mots_nombres)
+        for n in ordinaires:
+            c = choisir_code_postal(n, sans, trace_appel, departements, magasin, base)
+            i = [k for k, m in enumerate(nombres) if m.debut == n.debut][0]
+            if c.par in (PAR_COMMUNE_DITE, PAR_TRACE, PAR_DEPARTEMENT):
+                nombres[i] = n
+            else:
+                nombres[i] = replace(n, type=AUTRE, ecrit=_alpha2digit(n.entendu), lectures_cp=(),
+                                     lectures_cp_zero=(), ordinaire=False)
+    candidats, spans = candidats_et_spans()
     detections = analyser(
         texte, base, magasin, codes_postaux=spans, departements=departements, mots_nombres=mots_nombres
     )
@@ -800,7 +857,9 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None) -> Lectur
         if n.type == AUTRE:
             # A 4-digit number is a postal code only when a town of that code is
             # said in the message, or earlier in the call (②).
-            if c.par not in (PAR_COMMUNE_DITE, PAR_TRACE):
+            # Through the call's record (②) only at a step that collects a town:
+            # otherwise "deux mille trois cents" would stay a code all call long.
+            if not (c.par == PAR_COMMUNE_DITE or (c.par == PAR_TRACE and etape_adresse)):
                 continue
             i = nombres.index(n)
             n = nombres[i] = replace(n, type=CODE_POSTAL, lectures_cp=n.lectures_cp_zero, ecrit=c.code)

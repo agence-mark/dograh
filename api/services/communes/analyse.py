@@ -49,7 +49,7 @@ from api.services.nombres.mots import MOTS_NOMBRE
 MOTS_OUTILS = set(
     """a au aux c ce cet cette ces c est d de des du dans en et est il elle j je l la le les
     ma mon mes me m n ne nous on ou où par pas pour qu que qui s sa se son sur ses t ta te
-    tu un une vous y oui ouais non bah ben euh hein hum alors voila voilà merci bonjour
+    tu un une vous y oui ouais non bah ben euh hein hum alors voila voilà merci bonjour tres très bien etre être
     rue avenue boulevard chemin allee allée impasse place route lieu dit residence résidence
     numero numéro code postal commune ville village habite j habite suis c est""".split()
 )
@@ -91,6 +91,8 @@ MARGE_SURE = 8
 PHON_SURE = 85
 # Among several readings of a postal code, only a name heard this closely is backed by one.
 PHON_EXACT = 90
+# First words too common to name a town on their own.
+PREFIXES_GENERIQUES = frozenset({"saint", "sainte", "le", "la", "les", "l", "pont", "mont", "val", "villers", "ville"})
 # A town of a department the caller said ("dans l'Oise").
 BONUS_DEPARTEMENT = 15
 
@@ -106,6 +108,16 @@ class Lecture:
     score: float
     phon: float
     ortho: float
+    # With the number reader: the name's own resemblance (without the partial
+    # match a postal code allows), and whether a postal code backed this reading.
+    phon_nom: float | None = None
+    par_code: bool = False
+
+    @property
+    def nom_exact(self) -> bool:
+        """Heard almost exactly: decision of Evan, 2026-09-16, the only way a
+        postal code may make a town sure when the code has several towns."""
+        return (self.phon if self.phon_nom is None else self.phon_nom) >= PHON_EXACT
 
 
 @dataclass(frozen=True)
@@ -244,6 +256,7 @@ def analyser(
             if len(trouves) > 60:
                 trouves = trouves[np.argsort(-ligne[trouves])[:60]]
             idxs: dict[int, float] = {int(j): float(ligne[j]) for j in trouves}
+            noms = dict(idxs)
             # A postal code was said: the towns that carry it are compared too,
             # a partial name allowed.
             for cp in cps_candidates:
@@ -264,13 +277,20 @@ def analyser(
                 # "très bien soixante deux cent cinquante" made Beugin (62150) sure
                 # from the word "bien"; "Beauchamps quatre vingt sept cent soixante
                 # dix" must still find Beauchamps (80) and not Beauchamp (95).
-                if set(c.cps) & cps_candidates or (set(c.cps) & cps and s_phon >= PHON_EXACT):
+                s_nom = noms.get(j, 0.0)
+                # The first words of the name, said exactly, are the name heard:
+                # "Beaumont 95260" is Beaumont-sur-Oise. Not a bare "saint".
+                if extrait not in PREFIXES_GENERIQUES and base.norms[j].startswith(extrait + " "):
+                    s_nom = 100.0
+                par_code = j not in noms or noms[j] < s_phon
+                if set(c.cps) & cps_candidates or (set(c.cps) & cps and s_nom >= PHON_EXACT):
                     score += 30
+                    par_code = True
                 if magasin:
                     score += max(0.0, 20 - distance_km(c, *magasin) / 7.5)
                 if departements and c.dep in departements:
                     score += BONUS_DEPARTEMENT
-                lectures.append(Lecture(c, score, s_phon, s_ortho))
+                lectures.append(Lecture(c, score, s_phon, s_ortho, s_nom, par_code))
             if not lectures:
                 continue
             # A very short word only counts when spelled like the town ("vos" is not Voh).
@@ -301,6 +321,11 @@ def analyser(
         top = lectures[0]
         second = lectures[1].score if len(lectures) > 1 else -1e9
         sure = top.phon >= PHON_SURE and top.score - second >= MARGE_SURE
+        # Decision of Evan, 2026-09-16: backed by a postal code, a town is sure
+        # only when its name was heard almost exactly ("donc soixante mille cent
+        # douze" made Maisoncelle-Saint-Pierre sure from the word "donc").
+        if sure and codes_postaux is not None and top.par_code and not top.nom_exact:
+            sure = False
         prises.append(Detection(
             entendu=_extrait_dorigine(texte, d, f, mots),
             debut=d,
