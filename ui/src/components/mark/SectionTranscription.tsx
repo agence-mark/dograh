@@ -46,13 +46,15 @@ export const SectionTranscription = ({ reglages, onChange }: SectionTranscriptio
                 />
             </div>
             <p className="text-xs text-muted-foreground">
-                Converts numbers the caller dictates into digits before the model reads them.
+                Rewrites the numbers the caller dictates as digits before the model reads them,
+                and reads postal codes said both ways (&quot;soixante sept cent quarante&quot;,
+                &quot;soixante mille sept cent quarante&quot;), amounts and invoice or quote
+                references.
             </p>
-            <p className="text-xs text-muted-foreground">No effect in realtime mode.</p>
             <p className="text-xs text-muted-foreground">
-                With the &quot;minimum words&quot; interruption and interim transcripts turned
-                off, dictated numbers count as fewer words.
+                The recorded transcript keeps the caller&apos;s words.
             </p>
+            <p className="text-xs text-muted-foreground">French only. No effect in realtime mode.</p>
         </div>
 
         <div className="space-y-2">

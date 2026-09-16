@@ -254,6 +254,18 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         expect(interrupteur.getAttribute("aria-checked")).toBe("true");
     });
 
+    it("[nombres-dictes] the number switch tells what it now does, on the page", async () => {
+        // The step moved after the aggregator (plan nombres-dictes, N1): the
+        // recorded transcript keeps the words, and postal codes are read both
+        // ways. The old sentence about "minimum words" no longer holds.
+        await rendreLaPage();
+        const interrupteur = screen.getByRole("switch", { name: /write dictated numbers as digits/i });
+        expect(interrupteur.getAttribute("aria-checked")).toBe("false");
+        expect(screen.getByText(/reads postal codes said both ways/i)).toBeTruthy();
+        expect(screen.getByText(/the recorded transcript keeps the caller's words/i)).toBeTruthy();
+        expect(screen.queryByText(/minimum words/i)).toBeNull();
+    });
+
     it("is NOT left behind in the dead dialog, where it was unreachable", () => {
         // The guard that would have prevented this whole chantier: nothing of
         // ours goes back into a file no screen mounts.

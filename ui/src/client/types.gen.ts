@@ -8095,7 +8095,7 @@ export type WorkflowConfigurationDefaults = {
     /**
      * Conversion Nombres Transcription
      *
-     * Converts numbers the caller dictates into digits before the model reads them. No effect in realtime mode. With the "minimum words" interruption and interim transcripts turned off, dictated numbers count as fewer words.
+     * Rewrites the numbers the caller dictates as digits before the model reads them, and reads postal codes said both ways ("soixante sept cent quarante", "soixante mille sept cent quarante"), amounts and invoice or quote references. The recorded transcript keeps the caller's words. French only. No effect in realtime mode.
      */
     conversion_nombres_transcription?: boolean;
     /**
