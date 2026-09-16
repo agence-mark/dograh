@@ -74,6 +74,10 @@ DEFAULT_AUDIO_IN_NOISE_FILTER = "none"
 # 🔒 Off, which is today's behaviour: the model reads the transcript as the
 # transcription service wrote it. Turned on per agent (decision of 2026-09-15).
 DEFAULT_CONVERSION_NOMBRES_TRANSCRIPTION = False
+# ⚠️ ON, unlike the switch above (decision D5 of 2026-09-16): it only acts at
+# steps that collect a `commune` or `adresse…` variable, and it was decided for
+# every agent, so an agent that never collects a town is unaffected.
+DEFAULT_VERIFICATION_COMMUNES = True
 
 # --- Opening hours ----------------------------------------------------------
 #
@@ -456,6 +460,14 @@ class WorkflowConfigurationDefaults(BaseModel):
             "reads them. No effect in realtime mode. With the \"minimum words\" "
             "interruption and interim transcripts turned off, dictated numbers "
             "count as fewer words."
+        ),
+    )
+    verification_communes: bool = Field(
+        default=DEFAULT_VERIFICATION_COMMUNES,
+        description=(
+            "Matches the town the caller names against the official list of "
+            "French communes before the model reads it. Acts only at steps that "
+            "collect a `commune` or `adresse…` variable. No effect in realtime mode."
         ),
     )
     horaires_ouverture: str | None = Field(

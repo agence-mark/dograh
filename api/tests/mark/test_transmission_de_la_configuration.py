@@ -70,6 +70,13 @@ TRANSMISSIONS = [
         ),
     ),
     (
+        r"creer_verification_communes\(\s*run_configs,",
+        (
+            "the town check: the agent's switch would be ignored, and its "
+            "business address would no longer be the location clue"
+        ),
+    ),
+    (
         r'event_handler\("on_latency_breakdown"\)',
         (
             "the per-service latency breakdown: a total latency says a call was "

@@ -91,6 +91,10 @@ from api.services.pipecat.tracing_config import (
 )
 from api.services.pipecat.transcript_log_coordinator import TranscriptLogCoordinator
 from api.services.pipecat.transport_setup import create_webrtc_transport
+from api.services.pipecat.verification_communes import (
+    consigner_dans,
+    creer_verification_communes,
+)
 from api.services.pipecat.worker_runner import run_pipeline_worker
 from api.services.pipecat.ws_sender_registry import get_ws_sender
 from api.services.telephony import registry as telephony_registry
@@ -1376,6 +1380,15 @@ async def _run_pipeline_impl(
             recording_router=recording_router,
             conversion_nombres=creer_conversion_nombres(run_configs, user_config.stt),
             answer_supervisor=answer_supervisor,
+            # [.mark] Town check (verification-communes): the agent's switch,
+            # the business address as location clue, the current step read
+            # live, and the record written into the gathered context (T8).
+            verification_communes=creer_verification_communes(
+                run_configs,
+                adresse_etablissement,
+                lambda: engine._current_node,
+                consigner_dans(lambda: engine._gathered_context),
+            ),
         )
 
     # Create pipeline task with audio configuration
