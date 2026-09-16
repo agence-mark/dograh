@@ -197,6 +197,11 @@ def charger_base() -> BaseCommunes:
     return _base
 
 
+def base_si_chargee() -> BaseCommunes | None:
+    """The process-wide list if already read, else None. Never reads the file."""
+    return _base
+
+
 async def obtenir_base() -> BaseCommunes:
     """The process-wide list, read in a worker thread the first time."""
     if _base is not None:
