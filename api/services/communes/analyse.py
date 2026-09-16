@@ -138,6 +138,7 @@ def analyser(
     magasin: tuple[float, float] | None = None,
     codes_postaux: Mapping[str, Sequence[tuple[int, int]]] | None = None,
     departements: set[str] | frozenset[str] | None = None,
+    mots_nombres: set[int] | frozenset[int] | None = None,
 ) -> list[Detection]:
     """The towns named in ``texte``, each with a verdict.
 
@@ -151,7 +152,11 @@ def analyser(
     never part of a town, and a postal code said alone is left to the caller
     (``nombres.lecture.analyser_message``), which chooses between readings.
     ``departements``: codes of the departments said; their towns get a bonus.
-    Without these two arguments, postal codes are found as on 2026-09-16.
+    ``mots_nombres``: word positions of the numbers the reader classified
+    (phone, amount, reference, department): never part of a town. Without it,
+    a phone dictated in words at the address step proposed "zéro six" as
+    Clairoix (lot 3 of the plan, 2026-09-16).
+    Without these arguments, postal codes are found as on 2026-09-16.
     """
     norm = normaliser(texte)
     mots = norm.split()
@@ -163,6 +168,7 @@ def analyser(
         cps = set(codes_postaux)
         spans_cp = sorted({s for spans in codes_postaux.values() for s in spans})
         mots_cp = {k for d, f in spans_cp for k in range(d, f)}
+    mots_cp |= set(mots_nombres or ())
 
     attente = []
     reponse_courte = sum(1 for m in mots if m not in MOTS_HORS_COMPTE and not m.isdigit()) <= 5

@@ -474,9 +474,10 @@ def lire_nombres(
         apres2 = p.apres(f0, 2)
         entendu = p.extrait(d0, f0)
 
-        # 1. Phone.
+        # 1. Phone ("plus trente-trois ..." takes its "plus").
         if _est_telephone(p, d0, f0):
-            lus.append(NombreLu(d0, f0, entendu, TELEPHONE, _alpha2digit(entendu)))
+            d = d0 - 1 if d0 > 0 and p.mots[d0 - 1] == "plus" and not p.coupure(d0 - 1) else d0
+            lus.append(NombreLu(d, f0, p.extrait(d, f0), TELEPHONE, _alpha2digit(p.extrait(d, f0))))
             continue
 
         # 2. Amount.
@@ -722,7 +723,19 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None) -> Lectur
         for cp in n.lectures_cp + n.lectures_cp_zero:
             spans.setdefault(cp, []).append((n.debut, n.fin))
 
-    detections = analyser(texte, base, magasin, codes_postaux=spans, departements=departements)
+    # Words of a phone, an amount, a reference, a department or a fixed
+    # expression are never a town ("zéro six" was proposed as Clairoix at the
+    # address step, "mille mercis" read Millay as sure). Other numbers stay
+    # searchable: 75 communes carry a number word (Six-Fours-les-Plages).
+    mots_nombres = {
+        k
+        for n in nombres
+        if n.type in (TELEPHONE, MONTANT, REFERENCE, DEPARTEMENT)
+        for k in range(n.debut, n.fin)
+    } | _positions_figees([j.mot for j in jetons(texte)])
+    detections = analyser(
+        texte, base, magasin, codes_postaux=spans, departements=departements, mots_nombres=mots_nombres
+    )
     communes_dites = bool(detections)
     choix: dict[int, ChoixCodePostal] = {}
     for n in candidats:

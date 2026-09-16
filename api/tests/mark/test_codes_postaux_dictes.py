@@ -236,3 +236,39 @@ def test_fiches_commune_et_code_postal_dits(base, magasin, phrase, commune, code
     (d,) = r.detections
     assert (d.statut, d.lectures[0].commune.nom) == (SURE, commune)
     assert (_code(r).code, _code(r).statut) == (code, "sure")
+
+
+# --------------------------------------------------------------------------- #
+# 5. The whole set of dictated sentences: no number becomes a town
+# --------------------------------------------------------------------------- #
+
+
+def test_aucun_telephone_montant_reference_ni_expression_figee_ne_devient_une_commune(base, magasin):
+    """Found at lot 3: a phone dictated in words at the address step proposed
+    "zéro six" as Clairoix, "plus" as Plou, and "mille mercis" read Millay as sure.
+    Both ways and counted over the 39 sentences of ``nombres_dictes.json``."""
+    jeu = json.loads(
+        (Path(__file__).parent / "donnees" / "nombres_dictes.json").read_text(encoding="utf-8")
+    )["phrases"]
+    communes = {}
+    for element in jeu:
+        r = analyser_message(element["phrase"], base, magasin)
+        communes[element["phrase"]] = [(d.lectures[0].commune.nom, d.statut) for d in r.detections]
+    assert len(communes) == 39
+
+    # Where a town is expected: the postal codes of sheet B, and Bresles.
+    avec = {p: c for p, c in communes.items() if c}
+    assert avec == {
+        "Compiègne, soixante deux cents": [("Compiègne", SURE)],
+        "soixante deux cents": [("Compiègne", A_CONFIRMER)],
+        "soixante mille deux cents": [("Compiègne", SURE)],
+        "Chantilly, soixante cinq cents": [("Chantilly", SURE)],
+        "quatre-vingt-quinze mille huit cent vingt": [("Bruyères-sur-Oise", SURE)],
+        "six zéro sept quatre zéro": [("Saint-Maximin", SURE)],
+        "Saint-Leu-d'Esserent, soixante trois cent quarante": [("Saint-Leu-d'Esserent", SURE)],
+        "code postal soixante mille": [("Beauvais", A_CONFIRMER)],
+        "à Bresles, dans l'Oise": [("Bresles", SURE)],
+        # Known limit, not a target: a number of no class is still searched,
+        # since 75 communes carry a number word (Six-Fours-les-Plages).
+        "vingt ans": [("Vinantes", A_CONFIRMER)],
+    }

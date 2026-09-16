@@ -1,5 +1,11 @@
 """[.mark] Check the town a caller names, before the model reads it.
 
+⚠️ Since the plan nombres-dictes (2026-09-16), the step that runs in the call
+and on the keyboard is ``lecture_appelant.py``: it reads numbers and towns
+together, so a postal code said in words reaches the town check. What stays
+here is shared by that step: which steps collect a town, the switch, the
+record, and the check of 2026-09-16 used as is when the agent is not French.
+
 Why this module exists
 ----------------------
 "Beauvais" was transcribed "Beauvet" (2026-09-15), then "Bovet" (2026-09-16).
@@ -19,8 +25,8 @@ Decisions of 2026-09-16
 - D5: only at steps that extract a variable named ``commune``, starting with
   ``commune_`` or with ``adresse``. Switch per agent, ON by default.
 - D6: the instruction to the agent lives in the note; no prompt is edited.
-- D7: the keyboard bench is annotated too (``annoter_message_tape``), so a
-  keyboard campaign behaves like a call.
+- D7: the keyboard bench is annotated too (now ``lecture_appelant.lire_message_tape``),
+  so a keyboard campaign behaves like a call.
 - T7: provisional contexts (``speculation=True``) are annotated as well.
   ⚠️ Only PARTLY covered, dormant today (Flux's eager end of turn is not
   enabled). Pipecat runs the early answer on a COPY of the context
@@ -57,10 +63,8 @@ from loguru import logger
 from api.schemas.organization_preferences import AdresseEtablissement
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.communes.analyse import SURE, Detection, analyser
-from api.services.communes.base import BaseCommunes, charger_base, obtenir_base
+from api.services.communes.base import BaseCommunes, charger_base
 from api.services.communes.mention import deja_mentionne, mentionner
-from pipecat.frames.frames import Frame, LLMContextFrame, StartFrame
-from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 CLE_INTERRUPTEUR = "verification_communes"
 CLE_TRACE = "communes_verifiees"
@@ -148,110 +152,24 @@ async def annoter_texte(
         return texte
 
 
-def _nom_etape(noeud) -> str | None:
-    return getattr(noeud, "name", None)
+class Consignation:
+    """Records into the call's gathered context (T8), and reads it back.
+
+    ``consigner(entree)`` appends a town check under ``communes_verifiees``;
+    ``consigner(entree, cle)`` under another key (``nombres_lus``). ``lire``
+    gives the reading step the towns of the call so far (N2, branch ②).
+    """
+
+    def __init__(self, contexte_recueilli: Callable[[], dict]):
+        self._contexte_recueilli = contexte_recueilli
+
+    def __call__(self, entree: dict, cle: str = CLE_TRACE) -> None:
+        self._contexte_recueilli().setdefault(cle, []).append(entree)
+
+    def lire(self, cle: str = CLE_TRACE) -> list:
+        return list(self._contexte_recueilli().get(cle) or [])
 
 
-class VerificationCommunesProcessor(FrameProcessor):
-    """Annotates the caller's last message with the towns it names."""
-
-    def __init__(
-        self,
-        *,
-        adresse: AdresseEtablissement | None,
-        etape_courante: Callable[[], object],
-        consigner: Callable[[dict], None] | None = None,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self._adresse = adresse
-        self._etape_courante = etape_courante
-        self._consigner = consigner
-        # (id, content) of messages already examined: a context is sent to the
-        # model again after a tool call, and must not be analysed again.
-        self._examines: set[tuple[int, str]] = set()
-
-    async def _precharger(self):
-        try:
-            await obtenir_base()
-        except Exception as erreur:  # noqa: BLE001
-            logger.warning(f"[.mark] List of communes not preloaded: {erreur!r}")
-
-    async def _annoter_contexte(self, frame: LLMContextFrame):
-        noeud = self._etape_courante()
-        if not etape_concernee(noeud):
-            return
-        messages = frame.context.messages
-        for message in reversed(messages):
-            if isinstance(message, dict) and message.get("role") == "user":
-                break
-        else:
-            return
-        contenu = message.get("content")
-        if not isinstance(contenu, str) or deja_mentionne(contenu):
-            return
-        cle = (id(message), contenu)
-        if cle in self._examines:
-            return
-        annote = await annoter_texte(
-            contenu, self._adresse, _nom_etape(noeud), self._consigner, provisoire=frame.speculation
-        )
-        # Marked AFTER the analysis: an interruption that cancels this task
-        # during the await leaves the message unmarked, so the next context
-        # that carries it is analysed again (review of 2026-09-16).
-        self._examines.add(cle)
-        if annote != contenu:
-            message["content"] = annote
-            self._examines.add((id(message), annote))
-
-    async def process_frame(self, frame: Frame, direction: FrameDirection):
-        await super().process_frame(frame, direction)
-        if isinstance(frame, StartFrame):
-            # Read the list before the first turn needs it, off the loop.
-            self.create_task(self._precharger())
-        elif isinstance(frame, LLMContextFrame) and direction == FrameDirection.DOWNSTREAM:
-            try:
-                await self._annoter_contexte(frame)
-            except Exception as erreur:  # noqa: BLE001 -- the call must go on
-                logger.warning(f"[.mark] Town check failed, context kept as is: {erreur!r}")
-        await self.push_frame(frame, direction)
-
-
-def creer_verification_communes(
-    run_configs: dict | None,
-    adresse: AdresseEtablissement | None,
-    etape_courante: Callable[[], object],
-    consigner: Callable[[dict], None] | None = None,
-) -> VerificationCommunesProcessor | None:
-    """The step for this agent, or ``None`` when its switch is off (D5)."""
-    if not interrupteur_allume(run_configs):
-        return None
-    return VerificationCommunesProcessor(
-        adresse=adresse, etape_courante=etape_courante, consigner=consigner
-    )
-
-
-def consigner_dans(contexte_recueilli: Callable[[], dict]) -> Callable[[dict], None]:
+def consigner_dans(contexte_recueilli: Callable[[], dict]) -> Consignation:
     """A recorder that appends to the call's gathered context (T8)."""
-
-    def consigner(entree: dict) -> None:
-        contexte_recueilli().setdefault(CLE_TRACE, []).append(entree)
-
-    return consigner
-
-
-async def annoter_message_tape(
-    texte: str,
-    run_configs: dict | None,
-    adresse: AdresseEtablissement | None,
-    noeud,
-    consigner: Callable[[dict], None] | None,
-) -> str:
-    """D7, keyboard bench: the typed message, annotated like a call's. Never raises."""
-    try:
-        if not interrupteur_allume(run_configs) or not etape_concernee(noeud):
-            return texte
-        return await annoter_texte(texte, adresse, _nom_etape(noeud), consigner)
-    except Exception as erreur:  # noqa: BLE001
-        logger.warning(f"[.mark] Town check failed on the keyboard, message kept: {erreur!r}")
-        return texte
+    return Consignation(contexte_recueilli)

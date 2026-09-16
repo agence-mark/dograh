@@ -30,7 +30,6 @@ from api.services.observability.active_calls import (
     unregister_active_call as unregister_worker_active_call,
 )
 from api.services.pipecat.audio_config import AudioConfig, create_audio_config
-from api.services.pipecat.conversion_nombres import creer_conversion_nombres
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -40,6 +39,7 @@ from api.services.pipecat.event_handlers import (
     register_event_handlers,
 )
 from api.services.pipecat.in_memory_buffers import InMemoryLogsBuffer
+from api.services.pipecat.lecture_appelant import creer_lecture_appelant
 from api.services.pipecat.pipeline_builder import (
     build_pipeline,
     build_realtime_pipeline,
@@ -91,10 +91,7 @@ from api.services.pipecat.tracing_config import (
 )
 from api.services.pipecat.transcript_log_coordinator import TranscriptLogCoordinator
 from api.services.pipecat.transport_setup import create_webrtc_transport
-from api.services.pipecat.verification_communes import (
-    consigner_dans,
-    creer_verification_communes,
-)
+from api.services.pipecat.verification_communes import consigner_dans
 from api.services.pipecat.worker_runner import run_pipeline_worker
 from api.services.pipecat.ws_sender_registry import get_ws_sender
 from api.services.telephony import registry as telephony_registry
@@ -1378,13 +1375,14 @@ async def _run_pipeline_impl(
             pipeline_metrics_aggregator,
             termination_funnel,
             recording_router=recording_router,
-            conversion_nombres=creer_conversion_nombres(run_configs, user_config.stt),
             answer_supervisor=answer_supervisor,
-            # [.mark] Town check (verification-communes): the agent's switch,
-            # the business address as location clue, the current step read
-            # live, and the record written into the gathered context (T8).
-            verification_communes=creer_verification_communes(
+            # [.mark] Caller reading (nombres-dictes, one step for numbers and
+            # towns): the agent's two switches and language, the business
+            # address as location clue, the current step read live, and the
+            # record written into the gathered context (T7).
+            lecture_appelant=creer_lecture_appelant(
                 run_configs,
+                user_config.stt,
                 adresse_etablissement,
                 lambda: engine._current_node,
                 consigner_dans(lambda: engine._gathered_context),
