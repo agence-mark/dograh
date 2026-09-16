@@ -22,6 +22,27 @@ from api.tests.integrations._run_pipeline_helpers import USER_CONFIGURATION
 from pipecat.tests import MockLLMService
 
 
+def _sans_date_heure_appel(contexte: dict) -> dict:
+    """[.mark] Le contexte initial sans les deux cles que notre fork y injecte.
+
+    Notre fork ajoute `date_appel` et `heure_appel` au contexte initial, au chat
+    texte comme au telephone (heure figee au decroche, decision d'Evan du 15/09,
+    en production). Les egalites exactes de l'amont tombaient donc chez nous
+    depuis le 15/09, sans que personne le voie : sans Postgres sur le poste, ces
+    tests etaient en erreur avant ET apres le patch.
+
+    ⛔ On retire nos deux cles au lieu d'ecarter les tests, qui couvrent tout le
+    reste de la session texte - et on exige qu'elles soient presentes : leur
+    absence serait un patch perdu. Leur FORMAT est teste a part, dans
+    `tests/mark/test_date_heure_appel.py`.
+    """
+    contexte = dict(contexte)
+    for cle in ("date_appel", "heure_appel"):
+        valeur = contexte.pop(cle, None)
+        assert isinstance(valeur, str) and valeur, f"{cle} absente ou vide"
+    return contexte
+
+
 def _log_texts(logs: dict | None, event_type: str) -> list[str]:
     events = (logs or {}).get("realtime_feedback_events") or []
     return [
@@ -324,19 +345,8 @@ async def test_text_chat_session_creation_executes_initial_assistant_turn(
     workflow_run = await db_session.get_workflow_run_by_id(created["workflow_run_id"])
     assert workflow_run is not None
     assert workflow_run.definition_id == draft.id
-    # [.mark] 2026-09-16 : notre fork injecte `date_appel` et `heure_appel` dans le
-    # contexte initial, au chat texte comme au telephone (heure figee au
-    # decroche, decision d'Evan du 15/09, en production). L'egalite exacte de
-    # l'amont tombait donc chez nous depuis le 15/09, sans que personne le voie :
-    # sans Postgres sur le poste, ce test etait en erreur avant ET apres le patch.
-    # ⛔ On retire nos deux cles avant la comparaison au lieu d'ecarter le test :
-    # il couvre tout le reste de la session texte. Leur FORMAT est teste a part,
-    # dans `tests/mark/test_date_heure_appel.py`.
-    contexte_initial = dict(workflow_run.initial_context)
-    for cle in ("date_appel", "heure_appel"):
-        valeur = contexte_initial.pop(cle, None)
-        assert isinstance(valeur, str) and valeur, f"{cle} absente ou vide"
-    assert contexte_initial == {
+    # [.mark] Voir `_sans_date_heure_appel`.
+    assert _sans_date_heure_appel(workflow_run.initial_context) == {
         "name": "explicit",
         "draft_only": "kept",
         "workflow_run_id": workflow_run.id,
@@ -497,7 +507,8 @@ async def test_text_chat_pre_call_fetch_hydrates_initial_context_once(
 
     workflow_run = await db_session.get_workflow_run_by_id(created["workflow_run_id"])
     assert workflow_run is not None
-    assert workflow_run.initial_context == {
+    # [.mark] Voir `_sans_date_heure_appel`.
+    assert _sans_date_heure_appel(workflow_run.initial_context) == {
         "workflow_run_id": workflow_run.id,
         "customer_name": "Fetched",
         "account_tier": "gold",
