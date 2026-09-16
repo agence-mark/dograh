@@ -199,8 +199,13 @@ def _appels(source: str, fonction: str) -> list[tuple[str, str]]:
 @pytest.mark.parametrize(
     "module,autres_attendus",
     [
-        # phone: realtime side channel, variable extraction, voicemail
-        (run_pipeline, {"inference_llm =", "", "voicemail_llm ="}),
+        # phone: realtime side channel, variable extraction, answer classifier
+        # [.mark] `voicemail_llm` -> `classifier_llm` a la montee du 2026-09-16 :
+        # l'amont a remplace le detecteur de repondeur par la supervision de
+        # decroche, qui cree son modele sous un autre nom. ⛔ L'invariant est
+        # INCHANGE (seul l'appel de conversation porte la cle) ; c'est la cible
+        # qui a ete renommee, et ce test est ce qui l'a signale.
+        (run_pipeline, {"inference_llm =", "", "classifier_llm ="}),
         # keyboard: variable extraction
         (text_chat_runner, {""}),
     ],

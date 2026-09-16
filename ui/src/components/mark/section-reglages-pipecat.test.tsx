@@ -372,7 +372,10 @@ describe("Section Reglages vocaux de la page de parametres", () => {
             "smart_turn_stop_secs",
             "turn_start_strategy",
             "turn_start_min_words",
-            "provisional_vad_pause_secs",
+            // [.mark] `provisional_vad_pause_secs` retire le 2026-09-16 (D9) :
+            // le reglage n'existe plus dans le schema depuis que l'amont a mis
+            // la strategie a la retraite. Le garder ici comparerait deux
+            // `undefined`, donc une assertion qui ne peut plus jamais echouer.
             "turn_stop_strategy",
             "context_compaction_enabled",
         ] as const) {

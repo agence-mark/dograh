@@ -276,10 +276,18 @@ def test_les_resultats_intermediaires_arrivent_dans_les_strategies_de_depart():
     )
     assert min_words._use_interim is False
 
-    (pause,) = _depart(
+    # [.mark] Montee du 2026-09-16 (D9) : `provisional_vad` a ete mis a la
+    # retraite par l'amont, ce cas est donc REECRIT et non supprime.
+    # 🔑 Ce qu'il garde maintenant vaut mieux que ce qu'il gardait avant : une
+    # definition d'agent enregistree AVANT la retraite porte encore cette
+    # valeur en base, l'amont la ramene sur les strategies par defaut -- et
+    # notre reglage `turn_start_use_interim` doit survivre a cette retombee.
+    # ⛔ Sans cette assertion, un agent ancien repartirait en silence sur le
+    # defaut de Pipecat pour les resultats intermediaires.
+    transcription_retombee, _ = _depart(
         {"turn_start_use_interim": False, "turn_start_strategy": "provisional_vad"}
     )
-    assert pause._use_interim is False
+    assert transcription_retombee._use_interim is False
 
 
 def test_la_fin_de_tour_par_le_modele_sallume_avec_ses_delais():

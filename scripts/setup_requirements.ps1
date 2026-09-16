@@ -60,11 +60,17 @@ if ($Dev) {
 
 # Install pipecat in editable mode with all extras
 Write-Host "Installing pipecat dependencies..."
-uv pip install -e './pipecat[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest]'
+# [.mark] Parite avec `setup_requirements.sh` et `api/Dockerfile` (regle de
+# `scripts/AGENTS.md` : on edite les deux scripts dans le meme changement).
+# ⛔ Les trois listes d'extras doivent rester IDENTIQUES : le 08/09/2026,
+# `mistral` manquait dans un seul des chemins d'installation et la suite tombait.
+$PipecatInstallArgs = @('-e', './pipecat[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic]')
 
 if ($Dev) {
-    Write-Host "Installing pipecat dev dependencies..."
-    uv pip install --group pipecat/pyproject.toml:dev
+    # Resolve dev tools with runtime dependencies so grpcio-tools cannot
+    # override pipecat's protobuf version constraint.
+    $PipecatInstallArgs += @('--group', 'pipecat/pyproject.toml:dev')
 }
+uv pip install @PipecatInstallArgs
 
 Write-Host "Setup complete! Requirements are installed."

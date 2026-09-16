@@ -243,11 +243,18 @@ def test_the_screen_mirror_cannot_be_made_to_lie():
     from api.services.configuration.registry import DeepgramSTTConfiguration
 
     config = DeepgramSTTConfiguration(
-        api_key="test-key", region="api.deepgram.com", mip_opt_out=False
+        api_key="test-key",
+        region="api.deepgram.com",
+        mip_opt_out=False,
+        # [.mark] 2026-09-16 : l'amont a ouvert l'adresse en champ configurable.
+        # Une configuration qui demande l'Amerique doit etre REALIGNEE, pas
+        # affichee telle quelle.
+        base_url="https://api.deepgram.com",
     )
 
     assert config.region == EU_HOST
     assert config.mip_opt_out is True
+    assert config.base_url == DEEPGRAM_EU_STT_BASE_URL
 
 
 def test_the_screen_mirror_says_what_the_code_imposes():
@@ -258,7 +265,10 @@ def test_the_screen_mirror_says_what_the_code_imposes():
     would simply announce a region the audio does not go to. That is why it is
     compared here rather than trusted.
     """
-    from api.services.configuration.registry import DeepgramSTTConfiguration
+    from api.services.configuration.registry import (
+        DeepgramSTTConfiguration,
+        DeepgramTTSConfiguration,
+    )
 
     config = DeepgramSTTConfiguration(api_key="test-key")
 
@@ -267,3 +277,19 @@ def test_the_screen_mirror_says_what_the_code_imposes():
     assert EU_HOST in DEEPGRAM_EU_FLUX_URL
     assert EU_HOST in DEEPGRAM_EU_TTS_BASE_URL
     assert config.mip_opt_out is True
+
+    # [.mark] 2026-09-16 : l'adresse que l'amont vient d'ouvrir est elle aussi
+    # un miroir, sur les DEUX classes. ⛔ Les deux formes ne sont pas
+    # interchangeables — la transcription prend un schema + hote, la synthese
+    # une base sans chemin — donc chacune est comparee a SA constante.
+    assert config.base_url == DEEPGRAM_EU_STT_BASE_URL
+    assert DeepgramTTSConfiguration(api_key="test-key").base_url == DEEPGRAM_EU_TTS_BASE_URL
+
+    # Et une adresse americaine stockee sur la synthese est realignee, comme
+    # sur la transcription.
+    assert (
+        DeepgramTTSConfiguration(
+            api_key="test-key", base_url="wss://api.deepgram.com"
+        ).base_url
+        == DEEPGRAM_EU_TTS_BASE_URL
+    )

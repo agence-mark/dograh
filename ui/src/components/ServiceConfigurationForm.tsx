@@ -35,6 +35,11 @@ interface SchemaProperty {
     enum?: string[];
     examples?: string[];
     model_options?: Record<string, string[]>;
+    // [.mark] Liste BLANCHE apportee par l'amont le 2026-09-16. Elle est
+    // declaree parce que leur formulaire la lit, mais ⛔ AUCUN de nos champs
+    // ne doit l'utiliser : un modele saisi librement et absent de la liste
+    // ferait disparaitre le reglage. Nos gardes s'ecrivent en exclusion.
+    visible_for_models?: string[];
     allow_custom_input?: boolean;
     $ref?: string;
     description?: string;
@@ -212,6 +217,46 @@ function getNumberSchema(schema: SchemaProperty | undefined): SchemaProperty | u
     // submitted as "" and rejected by the API.
     if (isNumeric(schema)) return schema;
     return schema?.anyOf?.find(option => isNumeric(option));
+}
+
+// [.mark] Montee de version 2026-09-16 : l'aide de l'AMONT est adoptee (D4),
+// avec DEUX amendements que notre mesure du 11/09 impose.
+// ⛔ `visible_for_models` est une liste BLANCHE : un modele saisi librement et
+// absent de la liste FAIT DISPARAITRE le champ. C'est exactement ce qui avait
+// coute 13 reglages sur 14 a un client sur un modele ancien. On garde le
+// mecanisme de l'amont mais AUCUN de nos champs ne l'utilise : nos gardes
+// s'ecrivent toujours en EXCLUSION.
+// 🔑 `hidden_for_models` est compare PAR PREFIXE, pas par egalite : une entree
+// ferme toute une famille ("nova-3" couvre "nova-3-phonecall"). La fabrique
+// applique la meme regle a la meme liste ; une regle differente d'un cote
+// afficherait un champ dont la valeur ne part jamais.
+function isVisibleForModel(schema: SchemaProperty | undefined, model?: string): boolean {
+    if (schema?.visible_for_models && !schema.visible_for_models.includes(model || "")) return false;
+    const caches = schema?.hidden_for_models;
+    if (caches && model && caches.some(p => model.startsWith(p))) return false;
+    const models = schema?.models;
+    if (!models || models.length === 0) return true;
+    if (!model) return true;
+    return models.includes(model);
+}
+
+// [.mark] Montee du 2026-09-16. ⛔ NE PAS confondre avec `isVisibleForModel`,
+// qui decide de l'AFFICHAGE. Celle-ci decide de l'ENVOI, et elle ne regarde
+// QUE la liste blanche de l'amont.
+//
+// Pourquoi les deux ne peuvent pas etre la meme regle :
+//   · `visible_for_models` (amont, UN champ : `backend_model`) veut dire « ce
+//     champ n'existe que pour ces modeles ». Hors de la liste, l'envoyer n'a
+//     aucun sens -> il est retire de la charge.
+//   · `hidden_for_models` (NOS 16 champs Deepgram) et `models` (notre scission
+//     classique/Flux) veulent dire « pas affiche MAINTENANT ». 🔑 Chez nous
+//     masquer n'est pas effacer : un client sur `nova-3` garde ce que portent
+//     les champs Flux, sinon revenir sur Flux remettrait trois seuils a zero
+//     en silence. Regle du 11/09, et c'est `masquage-par-modele.test.tsx` qui
+//     la garde.
+function estApplicablePourLeModele(schema: SchemaProperty | undefined, model?: string): boolean {
+    if (!schema?.visible_for_models) return true;
+    return schema.visible_for_models.includes(model || "");
 }
 
 export function ServiceConfigurationForm({
@@ -473,6 +518,32 @@ export function ServiceConfigurationForm({
         }
     }, [ttsModel, serviceProviders.tts, setValue, getValues, schemas, isCustomInput.tts_voice]);
 
+    const realtimeModel = watch("realtime_model");
+    useEffect(() => {
+        const voiceSchema = schemas?.realtime?.[serviceProviders.realtime]?.properties?.voice;
+        const voices = voiceSchema?.model_options?.[realtimeModel as string];
+        if (!voices?.length) return;
+        const currentVoice = getValues("realtime_voice") as string;
+        if (!voices.includes(currentVoice)) {
+            setValue("realtime_voice", voices[0], { shouldDirty: true });
+            setIsCustomInput(previous => ({ ...previous, realtime_voice: false }));
+        }
+    }, [realtimeModel, serviceProviders.realtime, schemas, getValues, setValue]);
+
+    // Reset language when TTS model changes if the provider has model-dependent language options
+    useEffect(() => {
+        const languageSchema = schemas?.tts?.[serviceProviders.tts]?.properties?.language;
+        const modelOptions = languageSchema?.model_options;
+        if (!modelOptions || !ttsModel) return;
+
+        const validLanguages = modelOptions[ttsModel as string];
+        const currentLanguage = getValues("tts_language") as string;
+        const isCustomLanguage = !!isCustomInput.tts_language;
+        if (validLanguages && currentLanguage && !validLanguages.includes(currentLanguage) && !isCustomLanguage) {
+            setValue("tts_language", validLanguages[0], { shouldDirty: true });
+        }
+    }, [ttsModel, serviceProviders.tts, setValue, getValues, schemas, isCustomInput.tts_language]);
+
     // Reset language when STT model changes if the provider has model-dependent language options
     const sttModel = watch("stt_model");
     useEffect(() => {
@@ -615,6 +686,25 @@ export function ServiceConfigurationForm({
             // [.mark] An override carries only what it changes, so the agent
             // keeps inheriting the rest.
             if (heriteChampParChamp && identiqueAHerite(field, value)) return;
+            // [.mark] Garde d'ENVOI, limitee a la LISTE BLANCHE de l'amont.
+            // `visible_for_models` dit « ce champ n'existe que pour ces
+            // modeles-la » (leur `backend_model`, propre au sous-mode Live) :
+            // le poster ailleurs n'aurait aucun sens, donc il est retire.
+            // ⛔ `hidden_for_models` et `models`, eux, ne coupent RIEN a
+            // l'envoi : voir le bloc ci-dessous.
+            if (!estApplicablePourLeModele(schemaResolu(field), data[`${service}_model`] as string)) return;
+            // ⛔ [.mark] La garde d'ENVOI de l'amont n'est PAS reprise, et
+            // c'est un ecart delibere. Ils ne transmettent pas un champ masque
+            // pour le modele courant ; chez nous, « masquer est une decision
+            // d'ECRAN, pas de donnee » : la valeur reste enregistree, pour
+            // qu'un retour au modele qui l'accepte ne la perde pas en silence.
+            // 🔑 Reprise a la fusion du 2026-09-16, elle a fait passer au rouge
+            // `masquage-par-modele.test.tsx` (« hides the field without
+            // dropping the value it holds »). Le test avait raison.
+            // 🔒 Et rien n'est perdu cote justesse : c'est la FABRIQUE qui
+            // retire un reglage que le modele refuse (`_reglages_classiques`
+            // supprime `keywords` sur les modeles a keyterm), donc la requete
+            // reste correcte sans que l'ecran ait a effacer la valeur.
             config[field] = value as string | number | boolean | string[];
         });
         return config;
@@ -694,12 +784,14 @@ export function ServiceConfigurationForm({
             // family ("nova-3" covers nova-3-phonecall). ⛔ The factory applies
             // the same rule to the same list: a different rule on either side
             // would show a field whose value never goes out.
-            const caches = actualSchema?.hidden_for_models;
-            if (caches && currentModel && caches.some(p => currentModel.startsWith(p))) return false;
-            const models = actualSchema?.models;
-            if (!models || models.length === 0) return true;
-            if (!currentModel) return true;
-            return models.includes(currentModel);
+            // [.mark] Montee du 2026-09-16 : la regle vit desormais dans
+            // `isVisibleForModel`, l'aide de l'amont AMENDEE (comparaison par
+            // prefixe + liste `models`). ⛔ On lui passe `actualSchema`, pas
+            // `properties[field]` comme l'amont : sans le dereferencement du
+            // `$ref`, un champ declare par reference echapperait a la regle.
+            // Les deux points d'appel (affichage et envoi) partagent ainsi la
+            // MEME regle, ce qui etait deja l'exigence du 11/09.
+            return isVisibleForModel(actualSchema, currentModel);
         });
     };
 

@@ -3,15 +3,6 @@ from collections.abc import Iterable
 from enum import Enum, auto
 from typing import Annotated, Dict, Literal, Type, TypeVar, Union
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    computed_field,
-    field_validator,
-    model_validator,
-)
-
 from api.services.configuration.options import (
     AZURE_EMBEDDING_MODELS,
     AZURE_MODELS,
@@ -62,7 +53,19 @@ from api.services.configuration.options import (
     SMALLEST_TTS_VOICES,
     SPEECHMATICS_STT_LANGUAGES,
 )
-from api.services.configuration.options.google import GOOGLE_VERTEX_MODELS
+from api.services.configuration.options.google import (
+    GOOGLE_VERTEX_DEFAULT_LOCATION,
+    GOOGLE_VERTEX_LOCATIONS,
+    GOOGLE_VERTEX_MODELS,
+)
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 
 class ServiceType(Enum):
@@ -104,10 +107,12 @@ class ServiceProviders(str, Enum):
     GOOGLE_REALTIME = "google_realtime"
     GOOGLE_VERTEX_REALTIME = "google_vertex_realtime"
     AZURE_REALTIME = "azure_realtime"
+    AWS_NOVA_SONIC = "aws_nova_sonic"
     SMALLEST = "smallest"
     XAI = "xai"
     LMNT = "lmnt"
     MISTRAL = "mistral"
+    SPEECHIFY = "speechify"
 
 
 class BaseServiceConfiguration(BaseModel):
@@ -137,11 +142,13 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.GOOGLE_REALTIME,
         ServiceProviders.GOOGLE_VERTEX_REALTIME,
         ServiceProviders.AZURE_REALTIME,
+        ServiceProviders.AWS_NOVA_SONIC,
         ServiceProviders.SARVAM,
         ServiceProviders.SMALLEST,
         ServiceProviders.XAI,
         ServiceProviders.LMNT,
         ServiceProviders.MISTRAL,
+        ServiceProviders.SPEECHIFY,
     ]
     api_key: str | list[str]
 
@@ -319,7 +326,7 @@ AZURE_OPENAI_PROVIDER_MODEL_CONFIG = provider_model_config("Azure OpenAI")
 DOGRAH_PROVIDER_MODEL_CONFIG = provider_model_config("Dograh")
 AWS_BEDROCK_PROVIDER_MODEL_CONFIG = provider_model_config("AWS Bedrock")
 GOOGLE_VERTEX_PROVIDER_MODEL_CONFIG = provider_model_config("Google Vertex")
-OPENAI_REALTIME_PROVIDER_MODEL_CONFIG = provider_model_config("OpenAI Realtime")
+OPENAI_REALTIME_PROVIDER_MODEL_CONFIG = provider_model_config("OpenAI")
 GROK_REALTIME_PROVIDER_MODEL_CONFIG = provider_model_config("Grok Realtime")
 ULTRAVOX_REALTIME_PROVIDER_MODEL_CONFIG = provider_model_config("Ultravox Realtime")
 GOOGLE_REALTIME_PROVIDER_MODEL_CONFIG = provider_model_config("Google Realtime")
@@ -331,6 +338,10 @@ ELEVENLABS_PROVIDER_MODEL_CONFIG = provider_model_config("ElevenLabs")
 CARTESIA_PROVIDER_MODEL_CONFIG = provider_model_config("Cartesia")
 XAI_PROVIDER_MODEL_CONFIG = provider_model_config("xAI")
 LMNT_PROVIDER_MODEL_CONFIG = provider_model_config("LMNT")
+SPEECHIFY_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "Speechify",
+    provider_docs_url="https://docs.speechify.ai",
+)
 INWORLD_PROVIDER_MODEL_CONFIG = provider_model_config(
     "Inworld",
     description=(
@@ -368,6 +379,17 @@ AZURE_REALTIME_PROVIDER_MODEL_CONFIG = provider_model_config(
     "Azure OpenAI Realtime",
     description="Azure OpenAI Realtime API — low-latency speech-to-speech conversations.",
     provider_docs_url="https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/realtime-audio-quickstart",
+)
+AWS_NOVA_SONIC_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "AWS Nova 2 Sonic",
+    description=(
+        "Amazon Bedrock's realtime speech-to-speech model. Uses AWS IAM "
+        "credentials rather than a Bedrock API key."
+    ),
+    provider_docs_url=(
+        "https://docs.aws.amazon.com/nova/latest/nova2-userguide/"
+        "sonic-getting-started.html"
+    ),
 )
 
 OPENAI_MODELS = [
@@ -580,8 +602,18 @@ class GoogleVertexLLMConfiguration(BaseLLMConfiguration):
     )
     project_id: str = Field(description="Google Cloud project ID for Vertex AI.")
     location: str = Field(
-        default="global",
-        description="GCP region for the Vertex AI endpoint (e.g. 'global').",
+        default=GOOGLE_VERTEX_DEFAULT_LOCATION,
+        description=(
+            "Vertex AI location, which decides where requests are processed. "
+            "'eu' and 'us' are multi-regions that keep processing inside that "
+            "geography; a single region such as 'europe-west4' pins it further; "
+            "'global' routes anywhere in the world and carries no data "
+            "residency guarantee. Model availability varies by location."
+        ),
+        json_schema_extra={
+            "examples": list(GOOGLE_VERTEX_LOCATIONS),
+            "allow_custom_input": True,
+        },
     )
     credentials: str | None = Field(
         default=None,
@@ -781,7 +813,13 @@ class SarvamLLMConfiguration(BaseLLMConfiguration):
     )
 
 
-OPENAI_REALTIME_MODELS = ["gpt-realtime-2"]
+OPENAI_REALTIME_MODELS = [
+    "gpt-live-1",
+    "gpt-realtime-2.1",
+    "gpt-realtime-2.1-mini",
+    "gpt-realtime-2",
+]
+OPENAI_LIVE_VOICES = ["marin", "cedar"]
 # ISO 639-1 codes accepted by the Realtime API's input_audio_transcription.
 # Not exhaustive — the field allows custom input.
 OPENAI_REALTIME_LANGUAGES = [
@@ -805,7 +843,35 @@ OPENAI_REALTIME_VOICES = [
     "sage",
     "shimmer",
     "verse",
+    "marin",
+    "cedar",
 ]
+AWS_NOVA_SONIC_MODELS = ["amazon.nova-2-sonic-v1:0"]
+AWS_NOVA_SONIC_VOICES = [
+    "tiffany",
+    "matthew",
+    "amy",
+    "olivia",
+    "kiara",
+    "arjun",
+    "ambre",
+    "florian",
+    "beatrice",
+    "lorenzo",
+    "tina",
+    "lennart",
+    "lupe",
+    "carlos",
+    "carolina",
+    "leo",
+]
+AWS_NOVA_SONIC_REGIONS = [
+    "us-east-1",
+    "us-west-2",
+    "eu-north-1",
+    "ap-northeast-1",
+]
+AWS_NOVA_SONIC_ENDPOINTING_SENSITIVITIES = ["HIGH", "MEDIUM", "LOW"]
 
 
 @register_service(ServiceType.REALTIME)
@@ -816,7 +882,7 @@ class OpenAIRealtimeLLMConfiguration(BaseLLMConfiguration):
     )
     model: str = Field(
         default="gpt-realtime-2",
-        description="OpenAI realtime (speech-to-speech) model.",
+        description="Choose GPT-Live for full-duplex speech or a GPT-Realtime model.",
         json_schema_extra={
             "examples": OPENAI_REALTIME_MODELS,
             "allow_custom_input": True,
@@ -827,6 +893,7 @@ class OpenAIRealtimeLLMConfiguration(BaseLLMConfiguration):
         description="Voice the model speaks in.",
         json_schema_extra={
             "examples": OPENAI_REALTIME_VOICES,
+            "model_options": {"gpt-live-1": OPENAI_LIVE_VOICES},
             "allow_custom_input": True,
         },
     )
@@ -839,7 +906,117 @@ class OpenAIRealtimeLLMConfiguration(BaseLLMConfiguration):
         json_schema_extra={
             "examples": OPENAI_REALTIME_LANGUAGES,
             "allow_custom_input": True,
+            "hidden_for_models": ["gpt-live-1"],
         },
+    )
+    backend_model: str = Field(
+        default="gpt-5.4-mini",
+        min_length=1,
+        description=(
+            "OpenAI Responses model that follows your workflow and calls tools. "
+            "Uses the same API key; backend usage is billed separately from voice."
+        ),
+        json_schema_extra={
+            "examples": ["gpt-5.4-mini"],
+            "allow_custom_input": True,
+            "visible_for_models": ["gpt-live-1"],
+        },
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def default_live_voice(cls, data):
+        if (
+            isinstance(data, dict)
+            and data.get("model") == "gpt-live-1"
+            and not data.get("voice")
+        ):
+            return {**data, "voice": "marin"}
+        return data
+
+
+@register_service(ServiceType.REALTIME)
+class AWSNovaSonicRealtimeLLMConfiguration(BaseLLMConfiguration):
+    model_config = AWS_NOVA_SONIC_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.AWS_NOVA_SONIC] = ServiceProviders.AWS_NOVA_SONIC
+    model: str = Field(
+        default="amazon.nova-2-sonic-v1:0",
+        description="Amazon Nova 2 Sonic model ID.",
+        json_schema_extra={
+            "examples": AWS_NOVA_SONIC_MODELS,
+            "allow_custom_input": True,
+        },
+    )
+    voice: str = Field(
+        default="matthew",
+        description=(
+            "Voice the model speaks in. Tiffany and Matthew are polyglot voices."
+        ),
+        json_schema_extra={
+            "examples": AWS_NOVA_SONIC_VOICES,
+            "allow_custom_input": True,
+            "docs_url": (
+                "https://docs.aws.amazon.com/nova/latest/nova2-userguide/"
+                "sonic-language-support.html"
+            ),
+        },
+    )
+    aws_access_key: str = Field(
+        default="",
+        description=(
+            "AWS access key ID with permission to invoke Nova 2 Sonic in Bedrock."
+        ),
+    )
+    aws_secret_key: str = Field(
+        default="",
+        description="AWS secret access key paired with the access key ID.",
+    )
+    aws_session_token: str | None = Field(
+        default=None,
+        description="Optional AWS session token for temporary IAM credentials.",
+    )
+    aws_region: str = Field(
+        default="us-east-1",
+        description="AWS region where Nova 2 Sonic is enabled for the account.",
+        json_schema_extra={
+            "examples": AWS_NOVA_SONIC_REGIONS,
+            "allow_custom_input": True,
+        },
+    )
+    endpointing_sensitivity: Literal["HIGH", "MEDIUM", "LOW"] | None = Field(
+        default=None,
+        description=(
+            "How quickly Nova decides the user has stopped speaking. Leave blank "
+            "to use the model default."
+        ),
+        json_schema_extra={
+            "examples": AWS_NOVA_SONIC_ENDPOINTING_SENSITIVITIES,
+        },
+    )
+    temperature: float = Field(
+        default=0.7,
+        gt=0.0,
+        le=1.0,
+        description="Sampling temperature for Nova 2 Sonic (greater than 0, up to 1).",
+    )
+    max_tokens: int = Field(
+        default=1024,
+        ge=1,
+        le=5000,
+        description="Maximum response tokens.",
+    )
+    top_p: float = Field(
+        default=0.9,
+        ge=0.0,
+        le=1.0,
+        description="Nucleus-sampling threshold.",
+    )
+    api_key: str | list[str] | None = Field(
+        default=None,
+        description=(
+            "Not used for Nova 2 Sonic — authentication is via the AWS "
+            "credentials above. Leave blank."
+        ),
     )
 
 
@@ -920,12 +1097,6 @@ class GoogleRealtimeLLMConfiguration(BaseLLMConfiguration):
             "allow_custom_input": True,
         },
     )
-    temperature: float | None = Field(
-        default=None,
-        ge=0.0,
-        le=2.0,
-        description="Sampling temperature for Gemini Live (0.0 to 2.0).",
-    )
 
 
 @register_service(ServiceType.REALTIME)
@@ -958,16 +1129,20 @@ class GoogleVertexRealtimeLLMConfiguration(BaseLLMConfiguration):
             "allow_custom_input": True,
         },
     )
-    temperature: float | None = Field(
-        default=None,
-        ge=0.0,
-        le=2.0,
-        description="Sampling temperature for Gemini Live (0.0 to 2.0).",
-    )
     project_id: str = Field(description="Google Cloud project ID for Vertex AI.")
     location: str = Field(
-        default="global",
-        description="GCP region for the Vertex AI endpoint (e.g. 'global').",
+        default=GOOGLE_VERTEX_DEFAULT_LOCATION,
+        description=(
+            "Vertex AI location, which decides where requests are processed. "
+            "'eu' and 'us' are multi-regions that keep processing inside that "
+            "geography; a single region such as 'europe-west4' pins it further; "
+            "'global' routes anywhere in the world and carries no data "
+            "residency guarantee. Model availability varies by location."
+        ),
+        json_schema_extra={
+            "examples": list(GOOGLE_VERTEX_LOCATIONS),
+            "allow_custom_input": True,
+        },
     )
     credentials: str | None = Field(
         default=None,
@@ -1028,6 +1203,7 @@ REALTIME_PROVIDERS = {
     ServiceProviders.GOOGLE_REALTIME.value,
     ServiceProviders.GOOGLE_VERTEX_REALTIME.value,
     ServiceProviders.AZURE_REALTIME.value,
+    ServiceProviders.AWS_NOVA_SONIC.value,
 }
 
 
@@ -1059,11 +1235,28 @@ RealtimeConfig = Annotated[
         GoogleRealtimeLLMConfiguration,
         GoogleVertexRealtimeLLMConfiguration,
         AzureRealtimeLLMConfiguration,
+        AWSNovaSonicRealtimeLLMConfiguration,
     ],
     Field(discriminator="provider"),
 ]
 
 ###################################################### TTS ########################################################################
+
+
+# [.mark] Montee vers l'amont `23d22b95` (2026-09-16). L'amont expose desormais
+# l'adresse Deepgram en champ configurable, avec l'adresse MONDIALE par defaut.
+# ⛔ Chez nous elle reste une CONDITION de l'offre : le champ est montre, mais
+# VERROUILLE, et la fabrique impose l'Europe quoi qu'il arrive (decision D3).
+# Ces deux valeurs sont un MIROIR de api/services/pipecat/deepgram_endpoints.py,
+# pour les memes raisons que la region et l'opposition a l'entrainement plus
+# bas, et le meme test les compare — un miroir qui derive n'a aucun effet sur le
+# fil, il annonce simplement une adresse ou l'audio ne va pas.
+# ⚠️ Les deux formes ne sont PAS interchangeables : la transcription prend un
+# schema + hote, la synthese une base sans chemin.
+# 🔑 Definies ICI, avant les deux classes qui les lisent : la classe de synthese
+# est declaree bien avant la section transcription.
+_DEEPGRAM_STT_BASE_URL_IMPOSEE = "https://api.eu.deepgram.com"
+_DEEPGRAM_TTS_BASE_URL_IMPOSEE = "wss://api.eu.deepgram.com"
 
 
 @register_tts
@@ -1073,6 +1266,18 @@ class DeepgramTTSConfiguration(BaseServiceConfiguration):
     voice: str = Field(
         default="aura-2-helena-en",
         description="Deepgram voice ID (model is inferred from the 'aura-N' prefix).",
+    )
+    base_url: str = Field(
+        default=_DEEPGRAM_TTS_BASE_URL_IMPOSEE,
+        json_schema_extra={"readonly": True},
+        description=(
+            "The Deepgram endpoint the spoken text is sent to. Locked on "
+            "Europe: processing inside the EU is a condition of the offer, not "
+            "an option, so it is imposed in code and cannot be changed from "
+            "here or through the API. The upstream project makes this field "
+            "configurable and defaults it to the global endpoint; .mark does "
+            "not."
+        ),
     )
 
     @computed_field
@@ -1087,6 +1292,25 @@ class DeepgramTTSConfiguration(BaseServiceConfiguration):
         else:
             # Default fallback
             return "aura-2"
+
+    @model_validator(mode="after")
+    def _ladresse_ne_se_configure_pas(self):
+        """[.mark] L'adresse affichee dit ce que le code impose, quoi qu'on stocke.
+
+        ⛔ Meme motif que sur la transcription : la fabrique impose deja
+        l'Europe, donc une configuration qui demande l'Amerique ne change rien
+        sur le fil — mais l'ECRAN lit la valeur STOCKEE, pas la constante. Un
+        `api.deepgram.com` stocke s'afficherait comme l'adresse ou part le texte
+        a prononcer, ce qui serait faux. C'est la seule panne qu'un miroir peut
+        avoir, et c'est celle que la relecture du 11/09 avait relevee.
+
+        ⛔ Realigne en silence plutot que refuse : ce n'est pas un choix, donc
+        refuser transformerait une valeur sur laquelle personne n'a la main en
+        un enregistrement qui echoue.
+        """
+        if self.base_url != _DEEPGRAM_TTS_BASE_URL_IMPOSEE:
+            object.__setattr__(self, "base_url", _DEEPGRAM_TTS_BASE_URL_IMPOSEE)
+        return self
 
 
 MISTRAL_TTS_MODELS = ["voxtral-mini-tts-latest", "voxtral-mini-tts-2603"]
@@ -1252,7 +1476,7 @@ class DograhTTSService(BaseTTSConfiguration):
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Speed of the voice.")
 
 
-CARTESIA_TTS_MODELS = ["sonic-3.5", "sonic-3"]
+CARTESIA_TTS_MODELS = ["sonic-3.6", "sonic-3.5", "sonic-3"]
 INWORLD_TTS_MODELS = ["inworld-tts-2"]
 INWORLD_TTS_VOICES = ["Ashley"]
 INWORLD_TTS_LANGUAGES = ["en-US"]
@@ -1590,8 +1814,9 @@ LMNT_TTS_MODELS = ["aurora", "blizzard"]
 LMNT_TTS_VOICES = ["lily", "daniel", "ava", "caleb", "leah", "zeke"]
 
 
-@register_tts
 class LmntTTSConfiguration(BaseTTSConfiguration):
+    """Stored LMNT configurations remain readable after the provider's retirement."""
+
     model_config = LMNT_PROVIDER_MODEL_CONFIG
     provider: Literal[ServiceProviders.LMNT] = ServiceProviders.LMNT
     model: str = Field(
@@ -1620,6 +1845,71 @@ class LmntTTSConfiguration(BaseTTSConfiguration):
     )
 
 
+# Only the streaming-native Simba models: pipecat's SpeechifyHttpTTSService
+# uses the /v1/audio/stream/with-timestamps endpoint, which rejects the legacy
+# simba-english/simba-multilingual models.
+SPEECHIFY_TTS_MODELS = [
+    "simba-3.2",
+    "simba-3.0",
+]
+SPEECHIFY_TTS_VOICES = ["beatrice_32", "geffen_32", "alicia", "alton"]
+# The API rejects voices outside a model's allow-list (HTTP 400): simba-3.2
+# only accepts voices that list it in GET /v1/voices, currently its dedicated
+# "_32" voices. simba-3.0 accepts the general shared catalog.
+SPEECHIFY_TTS_VOICES_BY_MODEL = {
+    "simba-3.2": ["beatrice_32", "geffen_32"],
+    "simba-3.0": SPEECHIFY_TTS_VOICES,
+}
+# Documented languages per model, used to filter the language dropdown. The
+# API accepts other codes (synthesis succeeds), so this steers rather than
+# hard-blocks: allow_custom_input still permits manual entry.
+SPEECHIFY_TTS_LANGUAGES_BY_MODEL = {
+    "simba-3.2": ["en"],
+    "simba-3.0": ["en", "de", "es", "fr", "it", "pt-BR"],
+}
+
+
+@register_tts
+class SpeechifyTTSConfiguration(BaseTTSConfiguration):
+    model_config = SPEECHIFY_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.SPEECHIFY] = ServiceProviders.SPEECHIFY
+    model: str = Field(
+        default="simba-3.2",
+        description=(
+            "Speechify TTS model. 'simba-3.2' is the streaming-native English "
+            "model with the lowest latency; 'simba-3.0' adds German, Spanish, "
+            "French, Italian, and Portuguese."
+        ),
+        json_schema_extra={"examples": SPEECHIFY_TTS_MODELS},
+    )
+    voice: str = Field(
+        default="beatrice_32",
+        description=(
+            "Speechify voice ID. Options are filtered to voices available for "
+            "the selected model; a custom or cloned voice ID must support the "
+            "selected model (see GET /v1/voices), or synthesis fails."
+        ),
+        json_schema_extra={
+            "examples": SPEECHIFY_TTS_VOICES,
+            "allow_custom_input": True,
+            "model_options": SPEECHIFY_TTS_VOICES_BY_MODEL,
+        },
+    )
+    language: str = Field(
+        default="en",
+        description=(
+            "Language code for synthesis (e.g. 'en', 'de', 'es', 'fr', 'it', "
+            "'pt-BR'). Options are filtered to the selected model's documented "
+            "languages; simba-3.2 is documented as English-only."
+        ),
+        json_schema_extra={
+            "examples": SPEECHIFY_TTS_LANGUAGES_BY_MODEL["simba-3.0"],
+            "allow_custom_input": True,
+            "model_options": SPEECHIFY_TTS_LANGUAGES_BY_MODEL,
+        },
+    )
+
+
 TTSConfig = Annotated[
     Union[
         DeepgramTTSConfiguration,
@@ -1639,6 +1929,7 @@ TTSConfig = Annotated[
         SmallestAITTSConfiguration,
         XAITTSConfiguration,
         LmntTTSConfiguration,
+        SpeechifyTTSConfiguration,
     ],
     Field(discriminator="provider"),
 ]
@@ -1679,6 +1970,18 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
                 "flux-general-multi": DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGE_OPTIONS,
             },
         },
+    )
+    base_url: str = Field(
+        default=_DEEPGRAM_STT_BASE_URL_IMPOSEE,
+        json_schema_extra={"readonly": True},
+        description=(
+            "The Deepgram endpoint the caller's audio is sent to. Locked on "
+            "Europe: processing inside the EU is a condition of the offer, not "
+            "an option, so it is imposed in code and cannot be changed from "
+            "here or through the API. The upstream project makes this field "
+            "configurable and defaults it to the global endpoint; .mark does "
+            "not."
+        ),
     )
 
     # ------------------------------------------------------------------ #
@@ -1986,6 +2289,12 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
             object.__setattr__(self, "region", _DEEPGRAM_REGION_IMPOSEE)
         if self.mip_opt_out is not True:
             object.__setattr__(self, "mip_opt_out", True)
+        # [.mark] 2026-09-16 : meme traitement pour l'adresse que l'amont vient
+        # d'ouvrir. Sans cette ligne, un `api.deepgram.com` stocke s'afficherait
+        # comme l'adresse ou part l'audio de l'appelant — le mensonge exact que
+        # la relecture du 11/09 avait fait corriger sur la region.
+        if self.base_url != _DEEPGRAM_STT_BASE_URL_IMPOSEE:
+            object.__setattr__(self, "base_url", _DEEPGRAM_STT_BASE_URL_IMPOSEE)
         return self
 
     @model_validator(mode="after")
@@ -2187,8 +2496,9 @@ class SpeechmaticsSTTConfiguration(BaseSTTConfiguration):
     model_config = SPEECHMATICS_PROVIDER_MODEL_CONFIG
     provider: Literal[ServiceProviders.SPEECHMATICS] = ServiceProviders.SPEECHMATICS
     model: str = Field(
-        default="enhanced",
-        description="Speechmatics operating point: 'standard' or 'enhanced'.",
+        default="linden-1",
+        description="Speechmatics Agent STT model.",
+        json_schema_extra={"examples": ["linden-1"]},
     )
     language: str = Field(
         default="en",
