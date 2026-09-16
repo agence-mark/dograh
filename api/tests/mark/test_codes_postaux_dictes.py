@@ -272,3 +272,83 @@ def test_aucun_telephone_montant_reference_ni_expression_figee_ne_devient_une_co
         # since 75 communes carry a number word (Six-Fours-les-Plages).
         "vingt ans": [("Vinantes", A_CONFIRMER)],
     }
+
+
+# --------------------------------------------------------------------------- #
+# 6. Review of 2026-09-16: a postal code must never confirm itself
+# --------------------------------------------------------------------------- #
+
+
+def _trace_comme_lappel(lecture):
+    """As ``trace_de`` records it, ``code_postal_entendu`` included."""
+    entrees = _trace(lecture)
+    for entree, d in zip(entrees, lecture.detections):
+        if d.code_postal_entendu:
+            entree["code_postal_entendu"] = True
+    return entrees
+
+
+def test_un_code_repete_dans_le_message_reste_a_confirmer(base, magasin):
+    """B1: the note born of the first "soixante deux cents" made the second one
+    announce Compiègne as sure."""
+    lu, r = _lu("soixante deux cents, soixante deux cents", base, magasin)
+    assert [c.statut for c in r.choix.values()] == ["a_confirmer", "a_confirmer"]
+    assert [d.statut for d in r.detections] == [A_CONFIRMER]
+    assert lu.count("[Vérification de la commune") == 1
+    assert "correspond à" not in lu
+
+
+@pytest.mark.parametrize(
+    "premier,second,communes_du_code",
+    [
+        ("soixante cent vingt", "soixante mille cent vingt", ["Breteuil", "Ansauvillers", "Bonneuil-les-Eaux"]),
+        ("soixante trois cents", "soixante mille trois cents", ["Senlis", "Chamant"]),
+        ("soixante deux cents", "soixante deux cents", ["Compiègne", "Calais"]),
+    ],
+)
+def test_un_code_redit_au_tour_suivant_ne_se_confirme_pas_lui_meme(base, magasin, premier, second, communes_du_code):
+    """B2: the proposals made from a code are not towns the caller said."""
+    _, avant = _lu(premier, base, magasin)
+    lu, r = _lu(second, base, magasin, _trace_comme_lappel(avant))
+    assert [d.statut for d in r.detections] == [A_CONFIRMER], lu
+    assert "correspond à" not in lu
+    propositions = [l.commune.nom for l in r.detections[0].lectures]
+    assert set(communes_du_code) & set(propositions)
+
+
+def test_une_commune_nommee_puis_le_code_reste_sure(base, magasin):
+    """The fix does not undo N2 ②: « Bovet » heard, then « soixante mille »."""
+    _, avant = _lu("j'habite à Bovet", base, magasin)
+    _, r = _lu("soixante mille", base, magasin, _trace_comme_lappel(avant))
+    (d,) = r.detections
+    assert (d.statut, d.lectures[0].commune.nom) == (SURE, "Beauvais")
+
+
+def test_un_code_incertain_a_cote_dune_commune_qui_ne_le_porte_pas_est_signale(base, magasin):
+    lu, r = _lu("Beauvais soixante deux cents", base, magasin)
+    assert [(d.statut, d.lectures[0].commune.nom) for d in r.detections] == [
+        (SURE, "Beauvais"), (A_CONFIRMER, "Compiègne")
+    ]
+    assert lu.endswith(
+        "[Vérification de la commune : « soixante deux cents » peut être Compiègne (60200, Oise) "
+        "ou Calais (62100, Pas-de-Calais). Fais préciser la commune avant de la noter.]"
+    )
+
+
+def test_deux_communes_proposees_du_meme_code_ne_rendent_pas_la_premiere_sure(base, magasin):
+    """B2, uniqueness alone: two towns proposed for a NAME (not a code) that
+    share a postal code do not make the first of them the caller's."""
+    breteuil, ansauvillers = (
+        next(c for c in base.communes_du_code_postal("60120") if c.nom == nom)
+        for nom in ("Breteuil", "Ansauvillers")
+    )
+    trace = [{
+        "statut": "a_confirmer",
+        "commune_retenue": None,
+        "propositions": [{"code_insee": breteuil.insee}, {"code_insee": ansauvillers.insee}],
+    }]
+    lu, r = _lu("soixante cent vingt", base, magasin, trace)
+    assert _code(r).par != PAR_TRACE
+    (d,) = r.detections
+    assert d.statut == A_CONFIRMER
+    assert "correspond à" not in lu

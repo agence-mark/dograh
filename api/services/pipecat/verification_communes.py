@@ -112,6 +112,9 @@ def trace_de(detection: Detection, base: BaseCommunes, etape: str | None) -> dic
         "statut": "sure" if detection.statut == SURE else "a_confirmer",
         "commune_retenue": _lecture(detection, base, 0) if detection.statut == SURE else None,
         "propositions": [_lecture(detection, base, i) for i in range(min(3, len(detection.lectures)))],
+        # Present only when the words heard were a postal code (plan nombres-dictes):
+        # its proposals must not confirm that same code on a later turn.
+        **({"code_postal_entendu": True} if getattr(detection, "code_postal_entendu", False) else {}),
     }
 
 

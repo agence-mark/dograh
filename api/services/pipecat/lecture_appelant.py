@@ -55,9 +55,11 @@ from api.schemas.organization_preferences import AdresseEtablissement
 from api.services.communes.base import charger_base, obtenir_base
 from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
 from api.services.communes.mention import mentionner
+from api.services.nombres import lecture as lecteur
 from api.services.nombres.lecture import (
     CODE_POSTAL,
     MONTANT,
+    LectureMessage,
     analyser_message,
     reecrire,
 )
@@ -115,11 +117,18 @@ def _trace_nombre(nombre, choix, etape: str | None) -> dict:
 def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list, conversion: bool,
           communes: bool, references: bool):
     """Blocking: runs in a worker thread. Returns (text for the model, town records, number records)."""
-    base = charger_base()
-    magasin = base.coordonnees(adresse.code_insee) if adresse else None
-    lecture = analyser_message(texte, base, magasin, trace_communes)
+    try:
+        base = charger_base()
+        magasin = base.coordonnees(adresse.code_insee) if adresse else None
+        lecture = analyser_message(texte, base, magasin, trace_communes)
+    except Exception as erreur:  # noqa: BLE001
+        # Without the list of communes (or its analysis), the numbers are still
+        # written as digits: the fix of 2026-09-15 does not depend on the towns.
+        logger.warning(f"[.mark] Town analysis failed, numbers read without it: {erreur!r}")
+        base = None
+        lecture = LectureMessage(nombres=lecteur.lire_nombres(texte), detections=[], choix={})
     lu = reecrire(texte, lecture.nombres, lecture.choix_cp) if conversion else texte
-    if communes:
+    if communes and base is not None:
         lu = mentionner(lu, lecture.detections, base)
     if conversion:
         lu = mentionner_nombres(lu, lecture.nombres, avec_references=references)

@@ -333,6 +333,28 @@ async def test_traces_ecrites_une_seule_fois_contexte_renvoye_deux_fois():
 
 
 @pytest.mark.asyncio
+async def test_un_message_sans_mention_renvoye_deux_fois_est_lu_une_fois():
+    """Idempotence by the examined set, not by a note: a phone carries none."""
+    recueilli: dict = {}
+    processeur = _processeur(NOEUD_ACCUEIL, consigner=consigner_dans(lambda: recueilli))
+    contexte = LLMContext(messages=[{"role": "user", "content": TELEPHONE}])
+    await run_test(
+        processeur,
+        frames_to_send=[LLMContextFrame(context=contexte), LLMContextFrame(context=contexte)],
+        start_timeout=DEMARRAGE_S,
+    )
+    assert contexte.messages[-1]["content"] == "06 12 34 56 78"
+    assert len(recueilli[CLE_TRACE_NOMBRES]) == 1
+
+
+@pytest.mark.asyncio
+async def test_sans_la_base_des_communes_le_telephone_reste_en_chiffres():
+    """The fix of 2026-09-15 does not depend on the list of communes."""
+    with patch.object(lecture_appelant, "charger_base", side_effect=RuntimeError("base absente")):
+        assert await _lu(_processeur(NOEUD_COORDONNEES), TELEPHONE) == "06 12 34 56 78"
+
+
+@pytest.mark.asyncio
 async def test_contexte_provisoire_marque():
     recueilli: dict = {}
     contexte = LLMContext(messages=[{"role": "user", "content": TELEPHONE}])

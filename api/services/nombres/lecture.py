@@ -491,7 +491,12 @@ def lire_nombres(
 
         # 3. Reference.
         d, f, joint = _reference_etendue(p, d0, f0, suites)
-        if joint or any(m in _AVANT_REFERENCE for m in avant3) or (d0 > 0 and _lettre_isolee(p, d0 - 1) and not p.coupure(d0 - 1)):
+        if (
+            joint
+            or any(m in _AVANT_REFERENCE and not (m == "n" and p.elide(d0 - len(avant3) + k))
+                   for k, m in enumerate(avant3))
+            or (d0 > 0 and _lettre_isolee(p, d0 - 1) and not p.coupure(d0 - 1))
+        ):
             absorbees.update(s for s, _ in suites if d0 < s < f)
             extrait = p.extrait(d, f)
             lus.append(NombreLu(d, f, extrait, REFERENCE, _ecrire_reference(extrait)))
@@ -599,7 +604,9 @@ def _communes_de_la_trace(trace_appel, base) -> tuple[list, object | None]:
         if entree.get("statut") == "sure" and entree.get("commune_retenue"):
             derniere_sure = base.commune(entree["commune_retenue"].get("code_insee") or "")
             en_attente = []
-        elif entree.get("statut") == "a_confirmer":
+        elif entree.get("statut") == "a_confirmer" and not entree.get("code_postal_entendu"):
+            # Proposals born of a postal code heard are not excluded from
+            # everything, only from confirming that same code again (review of 2026-09-16).
             for proposition in entree.get("propositions") or []:
                 commune = base.commune(proposition.get("code_insee") or "")
                 if commune is not None:
@@ -629,6 +636,10 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
         return min(abs(d.debut - nombre.fin), abs(nombre.debut - d.fin))
 
     for detection in sorted(detections, key=ecart):
+        # A postal code heard is not a town said: it would confirm itself
+        # ("soixante deux cents, soixante deux cents" made Compiègne sure).
+        if getattr(detection, "code_postal_entendu", False):
+            continue
         # A sure town is taken as it is: a lower reading never replaces it.
         candidates = detection.lectures[:1] if detection.statut == COMMUNE_SURE else detection.lectures
         for lecture in candidates:
@@ -641,14 +652,17 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
 
     # ② The call so far: towns waiting for a confirmation, then the last sure one.
     en_attente, derniere_sure = _communes_de_la_trace(trace_appel, base)
-    portes: dict[str, object] = {}
+    portes: dict[str, list] = {}
     for commune in en_attente:
         for cp in commune.cps:
-            if cp in lectures:
-                portes.setdefault(cp, commune)
+            if cp in lectures and commune not in portes.get(cp, []):
+                portes.setdefault(cp, []).append(commune)
+    # Sure only when ONE reading is carried, by ONE proposed town: three proposed
+    # towns of 60120 do not make the first of them the caller's.
     if len(portes) == 1:
-        ((cp, commune),) = portes.items()
-        return ChoixCodePostal(cp, SURE, PAR_TRACE, (commune,))
+        ((cp, communes),) = portes.items()
+        if len(communes) == 1:
+            return ChoixCodePostal(cp, SURE, PAR_TRACE, (communes[0],))
     if derniere_sure is not None:
         communs = [cp for cp in lectures if cp in derniere_sure.cps]
         if len(communs) == 1:
@@ -754,15 +768,21 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None) -> Lectur
             detections[detections.index(d)] = replace(
                 d, statut=COMMUNE_SURE, lectures=(retenue, *autres), codes_postaux_dits=frozenset({c.code})
             )
-        elif not communes_dites and c.code:
+        elif c.code and (not communes_dites or c.statut == A_CONFIRMER):
+            # Said alone, or uncertain next to a town that does not carry it
+            # ("Beauvais soixante deux cents"): the model is told to ask.
             une_seule = c.statut == SURE and len(c.communes) == 1
+            dits = frozenset({c.code}) if c.statut == SURE else frozenset(n.lectures_cp)
+            # The same code said twice in a message gets one note, not two.
+            if any(d.code_postal_entendu and d.codes_postaux_dits == dits for d in detections):
+                continue
             detections.append(Detection(
                 entendu=n.entendu,
                 debut=n.debut,
                 fin=n.fin,
                 statut=COMMUNE_SURE if une_seule else COMMUNE_A_CONFIRMER,
                 lectures=tuple(Lecture(commune, 0, 0, 0) for commune in c.communes[:5]),
-                codes_postaux_dits=frozenset({c.code}) if c.statut == SURE else frozenset(n.lectures_cp),
+                codes_postaux_dits=dits,
                 code_postal_entendu=True,
             ))
     return LectureMessage(nombres=nombres, detections=detections, choix=choix)

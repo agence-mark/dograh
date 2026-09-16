@@ -312,3 +312,11 @@ def test_la_marque_ouvre_chaque_mention(base):
     assert MARQUE == "[Lecture des nombres"
     assert mentionne.count(MARQUE) == 1
     assert deja_mentionne(mentionne) and not deja_mentionne(texte)
+
+
+def test_un_n_elide_nest_pas_un_numero(base):
+    """Review of 2026-09-16: « je n'ai plus » made a postal code a reference."""
+    (nombre,) = _lire("je n'ai plus soixante sept cent quarante", base)
+    assert nombre.type == CODE_POSTAL
+    (nombre,) = _lire("facture n° quatre cent douze", base)
+    assert nombre.type == REFERENCE
