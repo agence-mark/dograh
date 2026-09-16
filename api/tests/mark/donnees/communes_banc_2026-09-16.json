@@ -1,0 +1,438 @@
+{
+ "source": "Essai du 16/09/2026, prototype v4 (banc4.py). Textes seuls, aucun chemin ni nom d'entreprise.",
+ "magasin_de_reference": {
+  "designation": "Saint-Maximin (60)",
+  "insee": "60589"
+ },
+ "avec_commune": [
+  {
+   "phrase": "c'est à Beauvet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "origine": "réel"
+  },
+  {
+   "phrase": "j'habite à Bovet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "origine": "réel"
+  },
+  {
+   "phrase": "à Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "au 12 rue de la gare à Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "12 route de Paris à Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "c'est à Crail",
+   "commune": "Creil",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "je suis à Compiène",
+   "commune": "Compiègne",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Chantili",
+   "commune": "Chantilly",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "on habite à Nogent sur Oise",
+   "commune": "Nogent-sur-Oise",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Pont Saint Maxence",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "c'est sur Mérut",
+   "commune": "Méru",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Lian cour",
+   "commune": "Liancourt",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Gouvieu",
+   "commune": "Gouvieux",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Clairmont",
+   "commune": "Clermont",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Crêpe il en Valois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Crépi en Valois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "La Morlaie",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Champly",
+   "commune": "Chambly",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Persan",
+   "commune": "Persan",
+   "departement": "95",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "c'est à Précy sur Oise",
+   "commune": "Précy-sur-Oise",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Noyons",
+   "commune": "Noyon",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Saint Maximin",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Villers Saint Paul",
+   "commune": "Villers-Saint-Paul",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Montataire",
+   "commune": "Montataire",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "c'est à Moui",
+   "commune": "Mouy",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Breteuil",
+   "commune": "Breteuil",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Onneuil",
+   "commune": "Auneuil",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Grand villiers",
+   "commune": "Grandvilliers",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Estrée Saint Denis",
+   "commune": "Estrées-Saint-Denis",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Verneuil en Halatte",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Laignville",
+   "commune": "Laigneville",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Sire les Mello",
+   "commune": "Cires-lès-Mello",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Saint Leu des serrants",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Chaumont en Vexin",
+   "commune": "Chaumont-en-Vexin",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Margny les Compiègne",
+   "commune": "Margny-lès-Compiègne",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Tourotte",
+   "commune": "Thourotte",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Pierre fond",
+   "commune": "Pierrefonds",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à La signy",
+   "commune": "Lassigny",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Coille la forêt",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Gerberoi",
+   "commune": "Gerberoy",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Brêle",
+   "commune": "Bresles",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Saint Just en Chaussée",
+   "commune": "Saint-Just-en-Chaussée",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Beaumont sur Oise",
+   "commune": "Beaumont-sur-Oise",
+   "departement": "95",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Lile Adam",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Amien",
+   "commune": "Amiens",
+   "departement": "80",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "c'est à Gisor",
+   "commune": "Gisors",
+   "departement": "27",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Soisson",
+   "commune": "Soissons",
+   "departement": "02",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Pont toise",
+   "commune": "Pontoise",
+   "departement": "95",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Clermont Ferrand",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "j'habite à Lyon",
+   "commune": "Lyon",
+   "departement": "69",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Ex en Provence",
+   "commune": "Aix-en-Provence",
+   "departement": "13",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "à Bordo",
+   "commune": "Bordeaux",
+   "departement": "33",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Beaumont 95260",
+   "commune": "Beaumont-sur-Oise",
+   "departement": "95",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "60300 Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "Saint Maximin 60740",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "origine": "simulé"
+  },
+  {
+   "phrase": "c'est le 60000",
+   "commune": "Beauvais",
+   "departement": "60",
+   "origine": "simulé"
+  }
+ ],
+ "adresses_sans_commune": [
+  "c'est au 12 rue de la gare",
+  "au 4 allée des lilas",
+  "le poêle est dans le salon",
+  "c'est une maison avec un grand jardin",
+  "j'ai un insert Edilkamin",
+  "oui c'est bien ça",
+  "mon numéro c'est le 06 12 34 56 78",
+  "je voudrais faire ramoner mon poêle",
+  "c'est pour un entretien annuel",
+  "il fait du bruit et il y a de la fumée",
+  "c'est au fond de l'impasse des roses",
+  "ma femme sera là mardi",
+  "la facture est arrivée hier",
+  "je m'appelle Laurent Moreau",
+  "c'est le bâtiment B au deuxième étage",
+  "vous pouvez passer le matin",
+  "c'est à côté de la boulangerie",
+  "c'est la résidence les charmilles",
+  "au lieu dit le moulin",
+  "à la campagne",
+  "chemin de la croix blanche",
+  "c'est la maison bleue au bout",
+  "il faudrait quelqu'un rapidement",
+  "c'est une Palazzetti de deux mille dix huit",
+  "je ne sais pas trop"
+ ],
+ "phrases_du_labo": [
+  "Bonjour, avant tout : quel jour et quelle heure sont indiqués dans vos informations, mot pour mot ?",
+  "Et le magasin est ouvert là, maintenant ?",
+  "Bonjour, je voudrais faire ramoner mon poêle, c'est possible ?",
+  "Oui c'est ça",
+  "Monsieur Lefèvre",
+  "Un poêle à granulés",
+  "C'est un Edilkamin",
+  "12 rue des Tilleuls à Beauvais",
+  "L'année dernière, en octobre je crois",
+  "06 12 34 56 78",
+  "Oui c'est bien ça",
+  "Beauvais",
+  "Je veux parler à quelqu'un, pas à un robot",
+  "Oui",
+  "Bonjour, je vous appelle pour votre référencement sur internet, on peut vous positionner en première page de Google",
+  "C'est une offre spéciale ce mois-ci, je peux vous expliquer en deux minutes ?",
+  "Bonjour, j'ai reçu ma facture, il y a une ligne que je ne comprends pas, et je trouve ça cher",
+  "Monsieur Morel",
+  "La facture de juillet, numéro 2026-0847",
+  "C'est la ligne main d'oeuvre, 380 euros pour un ramonage je trouve ça abusé, vous trouvez pas ?",
+  "Bon d'accord",
+  "Bonjour, je fais construire, je voudrais savoir pour mettre un poêle",
+  "Madame Dubois",
+  "Je ne sais pas encore, bois ou granulés",
+  "Une maison neuve, il y a un conduit de prévu",
+  "Pour cet hiver si possible",
+  "Bonjour, je voudrais des renseignements pour installer un poêle chez moi",
+  "Monsieur Petit",
+  "Et ça coûte combien à peu près, un poêle à granulés ?",
+  "Vous me conseillez quoi, du bois ou du granulé ?",
+  "Bon. C'est pour une maison ancienne avec une cheminée existante",
+  "Cet automne",
+  "Mon poêle s'arrête tout seul depuis deux jours, il affiche un code",
+  "Monsieur Bertrand",
+  "Un poêle à granulés MCZ",
+  "Il affiche E5 et il se met en sécurité",
+  "Depuis avant-hier",
+  "8 rue du Moulin à Creil",
+  "Bonjour, mon poêle tire mal depuis quelques jours",
+  "Madame Rousseau",
+  "C'est un poêle à bois, un Godin",
+  "Ben il chauffe moins bien, et d'ailleurs ça sent la fumée dans le salon",
+  "Oui d'accord",
+  "J'ai un feu de cheminée !",
+  "Oui vite s'il vous plaît",
+  "Bonjour, je voulais savoir où en est ma commande, j'ai vu quelqu'un il y a trois semaines",
+  "Madame Girard",
+  "C'est pour un insert, la commande de fin août",
+  "Je crois que c'était Julien",
+  "D'accord",
+  "Bonjour, je voudrais un renseignement sur vos horaires",
+  "Merci, c'est tout",
+  "06 12 12 12 12",
+  "06 33 44 55 66",
+  "06 22 33 44 55",
+  "Compiègne",
+  "C'est pour une maison ancienne avec une cheminée existante",
+  "06 44 55 66 77",
+  "Senlis",
+  "06 77 88 99 00",
+  "06 11 22 33 44",
+  "06 55 66 77 88",
+  "06 99 88 77 66",
+  "Chantilly"
+ ]
+}
