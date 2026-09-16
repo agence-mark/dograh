@@ -34,6 +34,12 @@ Decisions of 2026-09-16
   ``communes_verifiees``: the note is not in the transcript, and without this
   record a bench cannot be scored.
 
+⚠️ The current step is read when the context reaches this step. Right after a
+move to a step that collects a town, the caller's last message, said at the
+previous step, is analysed then (« à Beauvais pour un devis » said at the
+greeting gets its note at the address step). Wanted: that step is the one that
+needs the town (counter-review of 2026-09-16).
+
 ⛔ What it must never do
 - Hold the audio: the analysis (about 10 ms) and the first read of the list
   run in a worker thread.

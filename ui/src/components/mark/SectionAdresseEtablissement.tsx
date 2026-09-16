@@ -120,6 +120,7 @@ export const SectionAdresseEtablissement = ({
                     id="agent-business-address"
                     enregistree={enregistree}
                     erreur={erreur}
+                    desactive={isSaving}
                     onChange={(valeur, estIncomplete) => {
                         setAdresse(valeur);
                         setIncomplete(estIncomplete);

@@ -369,6 +369,7 @@ export function OrganizationPreferencesSection() {
           id="settings-business-address"
           enregistree={preferences.adresse_etablissement}
           erreur={erreurAdresse}
+          desactive={saving}
           onChange={(valeur, incomplete) => {
             setAdresse(valeur);
             setAdresseIncomplete(incomplete);

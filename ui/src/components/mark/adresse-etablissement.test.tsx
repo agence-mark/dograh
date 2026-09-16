@@ -289,6 +289,25 @@ describe("[.mark] business address on the Platform Settings page, after the revi
         });
     });
 
+    it("locks the address fields while the preferences are being saved", async () => {
+        // Counter-review of 2026-09-16: a postal code retyped during the save left
+        // a draft the answer did not reset, and the next save cleared the address.
+        let terminer: (v: unknown) => void = () => {};
+        mocks.savePreferences.mockImplementation(() => new Promise((r) => { terminer = r; }));
+        render(<PageReglagesPlateforme />);
+        await screen.findByText("Business address");
+        taper("settings-business-address", "code-postal", "60740");
+        await waitFor(() => expect(liste("settings-business-address").value).toBe("60589"));
+        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+        const codePostal = () => document.getElementById("settings-business-address-code-postal") as HTMLInputElement;
+        await waitFor(() => expect(codePostal().disabled).toBe(true));
+        expect((document.getElementById("settings-business-address-voie") as HTMLInputElement).disabled).toBe(true);
+
+        terminer({ data: { timezone: "UTC", disposition_mapping: {}, adresse_etablissement: SAINT_MAXIMIN } });
+        await waitFor(() => expect(codePostal().disabled).toBe(false));
+    });
+
     it("a 422 about ANOTHER field is not shown under the address", async () => {
         mocks.savePreferences.mockResolvedValue({
             error: { detail: [{ loc: ["body", "disposition_mapping"], msg: "codes too long" }] },

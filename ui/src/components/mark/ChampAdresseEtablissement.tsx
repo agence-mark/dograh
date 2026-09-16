@@ -36,6 +36,12 @@ export interface ChampAdresseEtablissementProps {
     onChange: (valeur: AdresseEtablissement | null, incomplete: boolean) => void;
     /** A refusal from the server, shown under the fields. */
     erreur?: string | null;
+    /**
+     * ⛔ True while the parent saves: a postal code retyped during the save
+     * would leave a draft the answer does not reset, and the next save could
+     * clear the address while the screen shows it (counter-review of 2026-09-16).
+     */
+    desactive?: boolean;
 }
 
 export const ChampAdresseEtablissement = ({
@@ -43,6 +49,7 @@ export const ChampAdresseEtablissement = ({
     enregistree,
     onChange,
     erreur,
+    desactive = false,
 }: ChampAdresseEtablissementProps) => {
     const [codePostal, setCodePostal] = useState(enregistree?.code_postal ?? "");
     const [codeInsee, setCodeInsee] = useState(enregistree?.code_insee ?? "");
@@ -128,6 +135,7 @@ export const ChampAdresseEtablissement = ({
                     <Input
                         id={`${id}-code-postal`}
                         inputMode="numeric"
+                        disabled={desactive}
                         maxLength={5}
                         placeholder="60740"
                         value={codePostal}
@@ -149,7 +157,7 @@ export const ChampAdresseEtablissement = ({
                     <select
                         id={`${id}-commune`}
                         className="h-9 w-full rounded-md border bg-background px-2 text-sm disabled:opacity-50"
-                        disabled={communes.length === 0}
+                        disabled={desactive || communes.length === 0}
                         value={codeInsee}
                         onChange={(e) => {
                             setCodeInsee(e.target.value);
@@ -178,6 +186,7 @@ export const ChampAdresseEtablissement = ({
                 <Input
                     id={`${id}-voie`}
                     maxLength={200}
+                    disabled={desactive}
                     placeholder="12 rue de la Gare"
                     value={voie}
                     onChange={(e) => {
