@@ -427,6 +427,13 @@ def _validate_runtime_service_url(url: str, field_name: str) -> None:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
+# [.mark] Les chemins que les connecteurs Deepgram ajoutent EUX-MEMES. Un tel
+# chemin present dans l'adresse configuree serait donc double.
+# ⛔ Mis a jour en meme temps que les trois formes de `deepgram_endpoints.py` :
+# un connecteur de plus, un chemin de plus ici.
+_CHEMINS_DES_CONNECTEURS_DEEPGRAM = frozenset({"/v1/listen", "/v2/listen", "/v1/speak"})
+
+
 def _deepgram_base_url(service_config) -> str:
     """Resolve the Deepgram endpoint for an STT or TTS config section.
 
@@ -451,15 +458,29 @@ def _deepgram_base_url(service_config) -> str:
         base_url = f"https://{base_url}"
     _validate_runtime_service_url(base_url, "base_url")
     base_url = base_url.rstrip("/")
-    # [.mark] 2026-09-16 : on garde le SCHEMA et l'HOTE, on jette le chemin.
-    # ⛔ Chaque connecteur ajoute le sien (`/v2/listen`, `/v1/speak`), donc une
-    # adresse copiee depuis la documentation Flux - la forme que
-    # `deepgram_endpoints.py` documente lui-meme - produirait
-    # `wss://hote/v2/listen/v2/listen` et l'agent ne transcrirait plus. L'amont
-    # a le meme defaut ; chez nous le champ se saisit a la main, donc le piege
-    # est atteignable. Releve par la relecture du 16/09, mesure.
-    protocole, _, reste = base_url.partition("://")
-    return f"{protocole}://{reste.split('/', 1)[0]}" if reste else base_url
+    decoupee = urlparse(base_url)
+    # [.mark] 2026-09-16 : une adresse NON VIDE mais sans hote (`"https://"`)
+    # vaut une adresse vide, donc l'Europe.
+    # 🔴 Mesure de la contre-relecture, et c'est ce qui rend cette ligne
+    # necessaire : pipecat AVALE une base_url invalide et se replie sur son
+    # endpoint par defaut AMERICAIN, avec une simple ligne de journal
+    # (`deepgram/stt.py`). Une faute de frappe a l'enregistrement enverrait donc
+    # l'audio de l'appelant aux Etats-Unis, en silence. ⛔ Normalise plutot que
+    # refuse : un validateur qui refuse s'applique aussi a la LECTURE, donc il
+    # transformerait une configuration deja enregistree en appel impossible.
+    if not decoupee.netloc:
+        return DEEPGRAM_EU_STT_BASE_URL
+    # [.mark] 2026-09-16 : le chemin d'un CONNECTEUR est jete, les autres restent.
+    # ⛔ Chaque connecteur ajoute le sien, donc une adresse copiee depuis la
+    # documentation Flux - la forme que `deepgram_endpoints.py` documente
+    # lui-meme - produirait `wss://hote/v2/listen/v2/listen` et l'agent ne
+    # transcrirait plus. ⚠️ Mais pipecat documente `base_url` comme acceptant
+    # un chemin, pour une instance auto-hebergee derriere un proxy a prefixe :
+    # jeter TOUT chemin lui retirerait son prefixe en silence. On ne jette donc
+    # que les trois chemins qu'un connecteur rajoute de toute facon.
+    if decoupee.path.rstrip("/") in _CHEMINS_DES_CONNECTEURS_DEEPGRAM:
+        return urlunparse(decoupee._replace(path=""))
+    return base_url
 
 
 def _deepgram_websocket_url(base_url: str, path: str = "") -> str:

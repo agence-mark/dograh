@@ -724,9 +724,11 @@ def test_aucun_reglage_declare_nest_oublie_par_les_deux_collectes():
     # CONFIGURABLE, et le test qui garde ce fait vit dans
     # `test_deepgram_en_europe_sans_entrainement.py`.
     PLOMBERIE = {"provider", "api_key", "model", "language", "base_url"}
-    # ⛔ Shown, never collected, and that is the whole point: the factory
-    # imposes both whatever a configuration says. They are listed by name here
-    # rather than skipped by a rule, so a third one cannot slip in quietly.
+    # ⛔ Shown, never collected, and for two DIFFERENT reasons since the 16/09:
+    # the factory imposes `mip_opt_out` whatever a configuration says, while
+    # `region` is DERIVED from the endpoint on save and read by nobody. They are
+    # listed by name here rather than skipped by a rule, so a third one cannot
+    # slip in quietly.
     CONFORMITE = {"region", "mip_opt_out"}
 
     declares = set(DeepgramSTTConfiguration.model_json_schema()["properties"])

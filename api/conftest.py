@@ -371,3 +371,30 @@ async def test_client_factory(db_session):
                 app.dependency_overrides.pop(get_user, None)
 
     return _create_client_for_user
+
+
+# ---------------------------------------------------------------------------
+# [.mark] Les tests d'amont que notre fork fait echouer DELIBEREMENT.
+#
+# Ajoute en fin de fichier, et uniquement ici : un hook de collecte est le seul
+# endroit qui marque un test d'amont sans TOUCHER au fichier d'amont, donc sans
+# creer un conflit a chaque montee de version. La liste et les raisons vivent
+# dans `tests/mark/divergences_amont.py`, qui est a nous.
+#
+# `strict=True` : une divergence qui se remet a PASSER est rapportee comme un
+# echec (XPASS). C'est ce qui nous previent le jour ou l'amont change d'avis,
+# ou le jour ou un de nos patchs se perd dans une fusion.
+# ---------------------------------------------------------------------------
+def pytest_collection_modifyitems(config, items):
+    from tests.mark.divergences_amont import DIVERGENCES_ASSUMEES
+
+    racine = Path(__file__).resolve().parent
+    for item in items:
+        chemin = Path(str(item.fspath)).resolve()
+        try:
+            cle = chemin.relative_to(racine).as_posix()
+        except ValueError:
+            continue
+        raison = DIVERGENCES_ASSUMEES.get(cle, {}).get(item.originalname or item.name)
+        if raison:
+            item.add_marker(pytest.mark.xfail(reason=raison, strict=True))

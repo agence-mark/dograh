@@ -331,6 +331,88 @@ def test_the_voice_honours_a_configured_endpoint():
 
 
 # --------------------------------------------------------------------------
+# La mise en forme de l'adresse saisie : trois pieges, trois gardes
+# --------------------------------------------------------------------------
+#
+# 🔴 Ces trois tests gardent une DIVERGENCE avec l'amont, pas un comportement
+# d'amont. Sans eux, la prochaine resolution de conflit restaure la ligne
+# d'origine, les pieges reviennent, et rien ne rougit. C'est le motif que ce
+# chantier a deja paye deux fois.
+
+
+def test_a_connector_path_in_the_endpoint_is_not_doubled():
+    """⛔ L'adresse que quelqu'un copie depuis la documentation Flux.
+
+    `deepgram_endpoints.py` documente lui-meme cette forme
+    (`wss://hote/v2/listen`), donc c'est celle qu'on a sous les yeux au moment
+    de remplir le champ. Le connecteur ajoutant SON chemin, la garder
+    produirait `wss://hote/v2/listen/v2/listen` : l'agent ne transcrit plus.
+    """
+    service = create_stt_service(
+        _config_stt_avec_adresse("flux-general-en", f"https://{EU_HOST}/v2/listen"),
+        _audio_config(),
+    )
+
+    url = _capture_websocket_url(service, lambda s: s._connect())
+    assert url.startswith(f"wss://{EU_HOST}/v2/listen?")
+    assert "/v2/listen/v2/listen" not in url
+
+
+def test_a_path_that_no_connector_adds_is_preserved():
+    """⚠️ Et l'inverse, qui est la raison de ne pas jeter TOUT chemin.
+
+    Pipecat documente `base_url` comme acceptant un chemin, pour une instance
+    auto-hebergee derriere un proxy a prefixe. Jeter le prefixe lui retirerait
+    sa route, en silence. ⛔ Seuls les trois chemins qu'un connecteur rajoute
+    de toute facon sont coupes.
+    """
+    from api.services.pipecat.service_factory import _deepgram_base_url
+
+    section = SimpleNamespace(base_url="https://passerelle.interne/deepgram")
+
+    assert _deepgram_base_url(section) == "https://passerelle.interne/deepgram"
+
+
+def test_an_endpoint_without_a_host_goes_to_europe_rather_than_america():
+    """🔴 Le trou mesure par la contre-relecture du 16/09.
+
+    Une faute de frappe (`"https://"`) n'est pas une adresse vide, donc elle ne
+    passait pas par le repli. ⛔ Et pipecat AVALE une base_url invalide : il se
+    replie sur son endpoint par defaut AMERICAIN avec une simple ligne de
+    journal. L'audio de l'appelant serait donc parti aux Etats-Unis sur une
+    faute de frappe, sans rien lever.
+
+    ⛔ Les deux bouts sont assertes ici : ce qui part sur le fil, ET ce que
+    l'ecran annonce. Le jour ou ils divergent, l'un des deux ment.
+    """
+    from api.services.configuration.registry import DeepgramSTTConfiguration
+
+    service = create_stt_service(
+        _config_stt_sans_adresse("nova-3-general"), _audio_config()
+    )
+    service_casse = create_stt_service(
+        SimpleNamespace(
+            stt=SimpleNamespace(
+                provider=ServiceProviders.DEEPGRAM.value,
+                api_key="test-key",
+                model="nova-3-general",
+                language="fr",
+                base_url="https://",
+            )
+        ),
+        _audio_config(),
+    )
+
+    attendu = service._client._client_wrapper.get_environment().base
+    assert attendu == f"https://{EU_HOST}"
+    assert service_casse._client._client_wrapper.get_environment().base == attendu
+
+    # Et l'ecran dit la meme chose que le fil.
+    config = DeepgramSTTConfiguration(api_key="test-key", base_url="https://")
+    assert config.region == EU_HOST
+
+
+# --------------------------------------------------------------------------
 # Le miroir : ce que l'ecran affiche SUIT ce qui est configure
 # --------------------------------------------------------------------------
 

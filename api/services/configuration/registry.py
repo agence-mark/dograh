@@ -1954,11 +1954,15 @@ def _region_deepgram_de_ladresse(base_url: str) -> str:
         return _DEEPGRAM_REGION_PAR_DEFAUT
     sans_schema = adresse.split("://", 1)[-1]
     hote = sans_schema.split("/", 1)[0].strip()
-    # ⛔ Une adresse non vide dont l'hote est vide (`"https://"`) ne rend PAS le
-    # defaut : la fabrique, elle, composera cette adresse-la et echouera. Rendre
-    # l'Europe ici afficherait une region ou rien ne part. Releve par la
-    # relecture du 16/09, mesure.
-    return hote or adresse
+    # ⛔ Une adresse non vide dont l'hote est vide (`"https://"`) rend le defaut,
+    # et c'est VRAI : la fabrique traite ce cas comme une adresse vide et part
+    # en Europe (`_deepgram_base_url`). Les deux disent donc la meme chose.
+    # 🔑 Premiere version de ce chantier : rendre l'adresse brute, au motif que
+    # la fabrique echouerait. La contre-relecture a MESURE le contraire - pipecat
+    # avale une adresse invalide et repart sur l'endpoint americain - donc le
+    # remede est passe la ou il sert, dans la fabrique, et ce miroir redit
+    # simplement ce qu'elle fait.
+    return hote or _DEEPGRAM_REGION_PAR_DEFAUT
 
 
 @register_stt
@@ -2292,8 +2296,10 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
         """Two shown fields, and since 2026-09-16 two DIFFERENT reasons.
 
         ⛔ ``region`` is a MIRROR of the endpoint above, not a choice: it is
-        derived here so the screen cannot announce a jurisdiction the audio does
-        not go to. Since Evan's decision of 2026-09-16 the endpoint IS
+        derived here, ON SAVE, so what is STORED never announces a jurisdiction
+        the audio does not go to. ⚠️ The screen does not recompute it: between
+        typing an endpoint and reloading the configuration, the field still
+        shows the previous region. Since Evan's decision of 2026-09-16 the endpoint IS
         configurable, so a configuration asking for America **does** change what
         goes out on the wire, deliberately -- and this mirror is what keeps the
         screen honest about it.
