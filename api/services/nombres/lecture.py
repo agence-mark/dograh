@@ -566,8 +566,9 @@ def lire_nombres(
         existe = (lambda cp: True) if connus is None else (lambda cp: cp in connus)
         lectures = tuple(sorted(cp for cp in cinq if existe(cp)))
         lectures_zero = tuple(sorted(cp for cp in zero if existe(cp) and cp not in lectures))
-        # A house number is never a postal code: "au cent quatre-vingt rue …".
-        numero_de_voie = not code_postal_dit and any(m in _APRES_NUMERO_DE_VOIE for m in apres2[:1])
+        # A house number is never a postal code: "au cent quatre-vingt rue …",
+        # a comma between them too ("le cent quatre-vingt, rue des Lilas").
+        numero_de_voie = not code_postal_dit and any(m in _APRES_NUMERO_DE_VOIE for m in p.mots[f0:f0 + 1])
         if (code_postal_dit or lectures) and not numero_de_voie:
             ecrit = lectures[0] if len(lectures) == 1 else _alpha2digit(entendu)
             lus.append(NombreLu(d0, f0, entendu, CODE_POSTAL, ecrit, lectures_cp=lectures,
@@ -793,6 +794,48 @@ class LectureMessage:
         return {debut: c.code for debut, c in self.choix.items() if c.code}
 
 
+# Spelling needed to take a town whose name carries a number word (0 to 100).
+ORTHO_NOM_A_NOMBRE = 90
+
+
+def _mots_de(nombres: Iterable[NombreLu]) -> set[int]:
+    return {k for n in nombres for k in range(n.debut, n.fin)}
+
+
+def _analyser_avec_noms_a_nombre(texte, base, magasin, spans, departements, mots_nombres, mots_autres):
+    """The towns, the words of ordinary numbers excluded.
+
+    Without them, 75 towns whose name carries a number word would never be
+    found ("j'habite à Six-Fours-les-Plages"). They are taken from a second
+    analysis only when the number word is spelled with the rest of the name,
+    exactly: "le cinq rue des Lilas" never reads Cinqueux, "vers vingt heures"
+    never Vervins.
+    """
+    from api.services.communes.analyse import MOTS_OUTILS, analyser
+
+    detections = analyser(
+        texte, base, magasin, codes_postaux=spans, departements=departements,
+        mots_nombres=mots_nombres | mots_autres,
+    )
+    if not mots_autres:
+        return detections
+    mots = normaliser(texte).split()
+    retenues = []
+    for d in analyser(texte, base, magasin, codes_postaux=spans, departements=departements, mots_nombres=mots_nombres):
+        positions = range(d.debut, d.fin)
+        top = d.lectures[0]
+        if not (
+            any(k in mots_autres for k in positions)
+            and any(k not in mots_autres and mots[k] not in MOTS_OUTILS for k in positions)
+            and set(normaliser(top.commune.nom).split()) & set(MOTS_NOMBRE)
+            and top.ortho >= ORTHO_NOM_A_NOMBRE
+        ):
+            continue
+        detections = [x for x in detections if x.fin <= d.debut or x.debut >= d.fin]
+        retenues.append(d)
+    return sorted(detections + retenues, key=lambda x: x.debut) if retenues else detections
+
+
 def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adresse: bool = True) -> LectureMessage:
     """The numbers and the towns of one message, read together. Blocking.
 
@@ -817,15 +860,13 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
                 sp.setdefault(cp, []).append((n.debut, n.fin))
         return cands, sp
 
-    # Words of a phone, an amount, a reference, a department or a fixed
-    # expression are never a town ("zéro six" was proposed as Clairoix at the
-    # address step, "mille mercis" read Millay as sure). Other numbers stay
-    # searchable: 75 communes carry a number word (Six-Fours-les-Plages).
+    # Words of any number read, or of a fixed expression, are never a town
+    # ("zéro six" was proposed as Clairoix at the address step, "mille mercis"
+    # read Millay as sure, "c'est le cinq, rue des Lilas" read Cinqueux and
+    # "vers vingt heures" Vervins). A town whose name carries a number word
+    # (Six-Fours-les-Plages) is recovered below, when spelled out exactly.
     mots_nombres = {
-        k
-        for n in nombres
-        if n.type in (TELEPHONE, MONTANT, REFERENCE, DEPARTEMENT)
-        for k in range(n.debut, n.fin)
+        k for n in nombres if n.type != AUTRE for k in range(n.debut, n.fin)
     } | _positions_figees([j.mot for j in jetons(texte)])
 
     # Decision of Evan, 2026-09-16: outside a step that collects a town or an
@@ -837,7 +878,9 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
         for n in ordinaires:
             nombres[nombres.index(n)] = replace(n, type=AUTRE)
         _, sp = candidats_et_spans()
-        sans = analyser(texte, base, magasin, codes_postaux=sp, departements=departements, mots_nombres=mots_nombres)
+        sans = _analyser_avec_noms_a_nombre(
+            texte, base, magasin, sp, departements, mots_nombres, _mots_de(n for n in nombres if n.type == AUTRE)
+        )
         for n in ordinaires:
             c = choisir_code_postal(n, sans, trace_appel, departements, magasin, base)
             i = [k for k, m in enumerate(nombres) if m.debut == n.debut][0]
@@ -847,8 +890,8 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
                 nombres[i] = replace(n, type=AUTRE, ecrit=_alpha2digit(n.entendu), lectures_cp=(),
                                      lectures_cp_zero=(), ordinaire=False)
     candidats, spans = candidats_et_spans()
-    detections = analyser(
-        texte, base, magasin, codes_postaux=spans, departements=departements, mots_nombres=mots_nombres
+    detections = _analyser_avec_noms_a_nombre(
+        texte, base, magasin, spans, departements, mots_nombres, _mots_de(n for n in nombres if n.type == AUTRE)
     )
     communes_dites = bool(detections)
     choix: dict[int, ChoixCodePostal] = {}

@@ -272,9 +272,9 @@ def test_aucun_telephone_montant_reference_ni_expression_figee_ne_devient_une_co
         "Saint-Leu-d'Esserent, soixante trois cent quarante": [("Saint-Leu-d'Esserent", SURE)],
         "code postal soixante mille": [("Beauvais", A_CONFIRMER)],
         "à Bresles, dans l'Oise": [("Bresles", SURE)],
-        # Known limit, not a target: a number of no class is still searched,
-        # since 75 communes carry a number word (Six-Fours-les-Plages).
-        "vingt ans": [("Vinantes", A_CONFIRMER)],
+        # "vingt ans" proposed Vinantes until 2026-09-16: the words of any
+        # number are no longer a town (Six-Fours-les-Plages is recovered when
+        # spelled out, see test_balayages_nombres_dictes).
     }
 
 

@@ -373,3 +373,54 @@ def test_un_nombre_ordinaire_devient_code_avec_un_contexte(base, magasin):
 def test_le_debut_exact_du_nom_est_le_nom_entendu(base):
     (d,) = analyser_message("Beaumont 95260", base, None).detections
     assert (d.statut, d.lectures[0].commune.nom) == (SURE, "Beaumont-sur-Oise")
+
+
+# --------------------------------------------------------------------------- #
+# A number said in a sentence is never a town (closure of 2026-09-16)
+# --------------------------------------------------------------------------- #
+
+
+def test_un_numero_de_rue_nest_pas_une_commune(base, magasin):
+    """« c'est le cinq, rue des Lilas » read Cinqueux sure."""
+    r = analyser_message("c'est le cinq, rue des Lilas à Saint-Maximin", base, magasin, [])
+    assert [d.lectures[0].commune.nom for d in r.detections] == ["Saint-Maximin"]
+    r = analyser_message("le cent quatre-vingt, rue des Lilas", base, magasin, [])
+    assert (r.choix, r.detections) == ({}, [])
+
+
+def test_aucun_nombre_de_0_a_999_dans_une_phrase_ne_nomme_une_commune_sure(base, magasin):
+    """At the address step, before a street or an hour: 715 towns were sure
+    ("vers vingt heures" -> Vervins, "le cinq" -> Cinqueux). A number said alone
+    at the address step stays a possible postal code (decision of Evan), so the
+    words of the number themselves are what must never make a town."""
+    faux, n = [], 0
+    for v in range(0, 1000):
+        dit = _en_lettres_1000(v) if v else "zéro"
+        for texte in (f"c'est le {dit}", f"le {dit}, rue des Lilas", f"au {dit} rue de la Gare", f"vers {dit} heures"):
+            n += 1
+            r = analyser_message(texte, base, magasin, [])
+            nombres = {k for x in r.nombres for k in range(x.debut, x.fin)}
+            faux += [
+                (texte, d.lectures[0].commune.nom)
+                for d in r.detections
+                if d.statut == SURE and not d.code_postal_entendu and nombres & set(range(d.debut, d.fin))
+            ]
+            if "rue" in texte:
+                faux += [(texte, c.code) for c in r.choix.values()]
+    assert n == 4000
+    assert faux == []
+
+
+@pytest.mark.parametrize(
+    "texte, nom",
+    [
+        ("j'habite à Six-Fours-les-Plages", "Six-Fours-les-Plages"),
+        ("j'habite à six fours les plages", "Six-Fours-les-Plages"),
+        ("c'est à Trois-Rivières", "Trois-Rivières"),
+    ],
+)
+def test_une_commune_au_nom_chiffre_reste_reconnue(base, magasin, texte, nom):
+    """55 of the 56 towns carrying a number word stay sure when spelled out;
+    only « La Douze » is lost (its only other word is an article)."""
+    sures = [d.lectures[0].commune.nom for d in analyser_message(texte, base, magasin, []).detections if d.statut == SURE]
+    assert sures == [nom]
