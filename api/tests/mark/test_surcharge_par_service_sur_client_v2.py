@@ -56,7 +56,7 @@ from api.services.configuration.registry import (
     MistralTTSConfiguration,
 )
 from api.services.configuration.resolve import resolve_effective_config
-from tests.mark.boucle_isolee import executer_sans_toucher_la_boucle_courante
+from api.tests.mark.boucle_isolee import executer_sans_toucher_la_boucle_courante
 
 # The marker the agent screen writes next to a deliberate per-service override.
 # Written as a literal on purpose: this file is one of the two sides of the

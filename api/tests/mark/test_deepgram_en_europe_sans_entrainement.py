@@ -61,7 +61,7 @@ from api.services.pipecat.deepgram_endpoints import (
     DEEPGRAM_EU_TTS_BASE_URL,
 )
 from api.services.pipecat.service_factory import create_stt_service, create_tts_service
-from tests.mark.boucle_isolee import executer_sans_toucher_la_boucle_courante
+from api.tests.mark.boucle_isolee import executer_sans_toucher_la_boucle_courante
 
 # ⛔ This literal is the point. The "passed" tests below compare against the
 # imported constants, which makes them tautological if a constant is mutated;

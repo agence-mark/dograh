@@ -386,7 +386,7 @@ async def test_client_factory(db_session):
 # ou le jour ou un de nos patchs se perd dans une fusion.
 # ---------------------------------------------------------------------------
 def pytest_collection_modifyitems(config, items):
-    from tests.mark.divergences_amont import DIVERGENCES_ASSUMEES
+    from api.tests.mark.divergences_amont import DIVERGENCES_ASSUMEES
 
     racine = Path(__file__).resolve().parent
     for item in items:

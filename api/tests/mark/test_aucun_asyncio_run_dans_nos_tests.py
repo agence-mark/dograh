@@ -50,7 +50,7 @@ def test_aucun_asyncio_run_dans_nos_tests():
     assert not fautifs, (
         "asyncio.run() laisse le thread principal sans boucle et fait tomber un "
         "test d'amont lance apres. Utiliser "
-        "tests.mark.boucle_isolee.executer_sans_toucher_la_boucle_courante. "
+        "api.tests.mark.boucle_isolee.executer_sans_toucher_la_boucle_courante. "
         f"Trouve dans : {fautifs}"
     )
 
