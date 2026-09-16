@@ -33,6 +33,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
+from typing import Mapping, Sequence
 
 from api.services.communes.base import (
     BaseCommunes,
@@ -42,15 +43,24 @@ from api.services.communes.base import (
     distance_km,
     normaliser,
 )
+from api.services.nombres.mots import MOTS_NOMBRE
 
 # Words that never start or end a town name in a sentence.
 MOTS_OUTILS = set(
     """a au aux c ce cet cette ces c est d de des du dans en et est il elle j je l la le les
     ma mon mes me m n ne nous on ou où par pas pour qu que qui s sa se son sur ses t ta te
-    tu un une vous y oui non bah ben euh hein alors voila voilà merci bonjour
+    tu un une vous y oui ouais non bah ben euh hein hum alors voila voilà merci bonjour tres très bien etre être
     rue avenue boulevard chemin allee allée impasse place route lieu dit residence résidence
     numero numéro code postal commune ville village habite j habite suis c est""".split()
 )
+# N6 (plan nombres-dictes): billing words never start or end a town, and do not
+# make an answer longer. "le devis faisait 15000 euros" gave Devise (80) sure,
+# "c'est la commande 60300" gave Lacommande (64) sure.
+MOTS_FACTURATION = frozenset(
+    """devis facture commande euro euros centime centimes numero reference dossier
+    montant acompte total prix ttc ht tiret""".split()
+)
+MOTS_OUTILS |= MOTS_FACTURATION
 # Words allowed INSIDE a compound name (Nogent-sur-Oise, Pont-Sainte-Maxence).
 LIAISONS = {"sur", "sous", "les", "le", "la", "l", "de", "des", "du", "en", "et", "aux", "au", "d", "lès"}
 # The word right before a town: "à Beauvais", "sur Creil", "commune de"...
@@ -64,6 +74,11 @@ ARTICLES = {"la", "le", "les", "l"}
 MOTS_VIDES_REPONSE = {"oui", "non", "alors", "euh", "ben", "bah", "c", "est", "ca", "je", "j", "suis",
                       "habite", "a", "sur", "moi", "on", "nous", "voila", "merci", "commune", "ville",
                       "de", "la", "le", "donc", "en", "fait", "bien", "sure"}
+# N6: billing words and number words do not COUNT in the length of an answer
+# ("Senlis soixante trois cents" is a short answer). ⛔ Counting only: they do
+# not open an answer either, or "La facture de juillet" reads Juilly as sure
+# (measured on the lab sentences, 2026-09-16).
+MOTS_HORS_COMPTE = MOTS_VIDES_REPONSE | MOTS_FACTURATION | MOTS_NOMBRE
 
 # Thresholds of the trial (prototype v4 defaults).
 BONUS_MOT = 5
@@ -74,6 +89,12 @@ SEUIL_PHON = 72
 SEUIL_DETECTION = 82
 MARGE_SURE = 8
 PHON_SURE = 85
+# Among several readings of a postal code, only a name heard this closely is backed by one.
+PHON_EXACT = 90
+# First words too common to name a town on their own.
+PREFIXES_GENERIQUES = frozenset({"saint", "sainte", "le", "la", "les", "l", "pont", "mont", "val", "villers", "ville"})
+# A town of a department the caller said ("dans l'Oise").
+BONUS_DEPARTEMENT = 15
 
 SURE = "sure"
 A_CONFIRMER = "a_confirmer"
@@ -87,6 +108,16 @@ class Lecture:
     score: float
     phon: float
     ortho: float
+    # With the number reader: the name's own resemblance (without the partial
+    # match a postal code allows), and whether a postal code backed this reading.
+    phon_nom: float | None = None
+    par_code: bool = False
+
+    @property
+    def nom_exact(self) -> bool:
+        """Heard almost exactly: decision of Evan, 2026-09-16, the only way a
+        postal code may make a town sure when the code has several towns."""
+        return (self.phon if self.phon_nom is None else self.phon_nom) >= PHON_EXACT
 
 
 @dataclass(frozen=True)
@@ -97,6 +128,9 @@ class Detection:
     statut: str  # SURE | A_CONFIRMER
     lectures: tuple[Lecture, ...]  # best first
     codes_postaux_dits: frozenset[str]
+    # The words heard are a postal code, not a name: the note then asks for the
+    # town only (asking for "the town or its postal code" gets the same code again).
+    code_postal_entendu: bool = False
 
 
 def _extrait_dorigine(texte: str, debut: int, fin: int, mots_normalises: list[str]) -> str:
@@ -116,20 +150,56 @@ def analyser(
     texte: str,
     base: BaseCommunes,
     magasin: tuple[float, float] | None = None,
+    codes_postaux: Mapping[str, Sequence[tuple[int, int]]] | None = None,
+    departements: set[str] | frozenset[str] | None = None,
+    mots_nombres: set[int] | frozenset[int] | None = None,
 ) -> list[Detection]:
     """The towns named in ``texte``, each with a verdict.
 
     ``magasin`` is the (longitude, latitude) of the business: towns nearby get
     a bonus, which is what separates "Bovet" -> Beauvais (60) from Boves (80).
     Blocking and CPU-bound: call it in a worker thread.
+
+    ``codes_postaux`` (plan nombres-dictes, T6): the postal codes the number
+    reader found, EVERY existing reading, each with the word spans [debut, fin)
+    that say it. Given, it replaces the search for five digits, its words are
+    never part of a town, and a postal code said alone is left to the caller
+    (``nombres.lecture.analyser_message``), which chooses between readings.
+    ``departements``: codes of the departments said; their towns get a bonus.
+    ``mots_nombres``: word positions of the numbers the reader classified
+    (phone, amount, reference, department): never part of a town. Without it,
+    a phone dictated in words at the address step proposed "zéro six" as
+    Clairoix (lot 3 of the plan, 2026-09-16).
+    Without these arguments, postal codes are found as on 2026-09-16.
     """
     norm = normaliser(texte)
     mots = norm.split()
-    cps = set(re.findall(r"\b\d{5}\b", texte))
+    if codes_postaux is None:
+        cps = set(re.findall(r"\b\d{5}\b", texte))
+        spans_cp = [(k, k + 1) for k, m in enumerate(mots) if m in cps]
+        mots_cp: set[int] = set()
+    else:
+        cps = set(codes_postaux)
+        spans_cp = sorted({s for spans in codes_postaux.values() for s in spans})
+        mots_cp = {k for d, f in spans_cp for k in range(d, f)}
+    mots_cp |= set(mots_nombres or ())
+    # Decision of Evan, 2026-09-16: the towns of a code are added as candidates
+    # (partial match) only when that code is the SINGLE reading of its number.
+    # "donc soixante cinq cents" made Ourdon (65100) sure from the word "donc".
+    if codes_postaux is None:
+        cps_candidates = cps
+    else:
+        lectures_par_span: dict[tuple[int, int], set[str]] = {}
+        for cp, spans in codes_postaux.items():
+            for s in spans:
+                lectures_par_span.setdefault(tuple(s), set()).add(cp)
+        cps_candidates = {
+            cp for cp, spans in codes_postaux.items()
+            if all(len(lectures_par_span[tuple(s)]) == 1 for s in spans)
+        }
 
     attente = []
-    reponse_courte = sum(1 for m in mots if m not in MOTS_VIDES_REPONSE and not m.isdigit()) <= 5
-    pos_cp = [k for k, m in enumerate(mots) if m in cps]
+    reponse_courte = sum(1 for m in mots if m not in MOTS_HORS_COMPTE and not m.isdigit()) <= 5
     for i in range(len(mots)):
         # A name right after a street type is a street name, not a town.
         avant = mots[max(0, i - 3):i]
@@ -146,11 +216,18 @@ def analyser(
             ancre = (
                 (i > 0 and mots[i - 1] in AMORCES)
                 or (reponse_courte and debut_utile)
-                or any(p == i - 1 or p == i + n for p in pos_cp)
+                or any(f == i or d == i + n for d, f in spans_cp)
             )
             if not ancre:
                 continue
             if any(m.isdigit() for m in seg) or any(m in TYPES_VOIE for m in seg):
+                continue
+            if any(k in mots_cp for k in range(i, i + n)):
+                continue
+            # With the reader, words that are only a number are never a town
+            # ("c'est deux mille" read Dreux as sure). Names that carry a number
+            # word among others stay searchable (Six-Fours-les-Plages).
+            if codes_postaux is not None and all(m in MOTS_NOMBRE or m == "et" for m in seg):
                 continue
             if any(m in MOTS_OUTILS and m not in LIAISONS for m in seg[1:-1]):
                 continue
@@ -179,9 +256,10 @@ def analyser(
             if len(trouves) > 60:
                 trouves = trouves[np.argsort(-ligne[trouves])[:60]]
             idxs: dict[int, float] = {int(j): float(ligne[j]) for j in trouves}
+            noms = dict(idxs)
             # A postal code was said: the towns that carry it are compared too,
             # a partial name allowed.
-            for cp in cps:
+            for cp in cps_candidates:
                 for j in base.par_cp.get(cp, []):
                     s = max(fuzz.partial_ratio(k_son, base.sons[j]), fuzz.partial_ratio(extrait, base.norms[j]))
                     if s >= SEUIL_PHON:
@@ -194,11 +272,25 @@ def analyser(
                 score += POIDS_POP * math.log10(max(c.population, 1))
                 score += 5 if amorce else 0
                 score += BONUS_MOT * (n - 1)  # a reading over more words is preferred
-                if cps and set(c.cps) & cps:
+                # A code backs a town when it is the single reading of its number,
+                # or, among several readings, when the name is heard almost exactly:
+                # "très bien soixante deux cent cinquante" made Beugin (62150) sure
+                # from the word "bien"; "Beauchamps quatre vingt sept cent soixante
+                # dix" must still find Beauchamps (80) and not Beauchamp (95).
+                s_nom = noms.get(j, 0.0)
+                # The first words of the name, said exactly, are the name heard:
+                # "Beaumont 95260" is Beaumont-sur-Oise. Not a bare "saint".
+                if extrait not in PREFIXES_GENERIQUES and base.norms[j].startswith(extrait + " "):
+                    s_nom = 100.0
+                par_code = j not in noms or noms[j] < s_phon
+                if set(c.cps) & cps_candidates or (set(c.cps) & cps and s_nom >= PHON_EXACT):
                     score += 30
+                    par_code = True
                 if magasin:
                     score += max(0.0, 20 - distance_km(c, *magasin) / 7.5)
-                lectures.append(Lecture(c, score, s_phon, s_ortho))
+                if departements and c.dep in departements:
+                    score += BONUS_DEPARTEMENT
+                lectures.append(Lecture(c, score, s_phon, s_ortho, s_nom, par_code))
             if not lectures:
                 continue
             # A very short word only counts when spelled like the town ("vos" is not Voh).
@@ -229,6 +321,11 @@ def analyser(
         top = lectures[0]
         second = lectures[1].score if len(lectures) > 1 else -1e9
         sure = top.phon >= PHON_SURE and top.score - second >= MARGE_SURE
+        # Decision of Evan, 2026-09-16: backed by a postal code, a town is sure
+        # only when its name was heard almost exactly ("donc soixante mille cent
+        # douze" made Maisoncelle-Saint-Pierre sure from the word "donc").
+        if sure and codes_postaux is not None and top.par_code and not top.nom_exact:
+            sure = False
         prises.append(Detection(
             entendu=_extrait_dorigine(texte, d, f, mots),
             debut=d,
@@ -238,8 +335,8 @@ def analyser(
             codes_postaux_dits=frozenset(cps),
         ))
 
-    # A postal code said on its own.
-    if cps and not prises:
+    # A postal code said on its own (with the reader, its caller chooses).
+    if cps and not prises and codes_postaux is None:
         for cp in sorted(cps):
             communes = base.communes_du_code_postal(cp)
             if communes:

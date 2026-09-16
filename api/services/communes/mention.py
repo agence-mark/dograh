@@ -9,7 +9,8 @@ The wording is fixed by the plan, word for word:
 - sure:
   ``[Vérification de la commune : « Beauvet » correspond à Beauvais (60000, Oise).
   Utilise ce nom sans le faire répéter.]``
-- uncertain (two or three proposals):
+- uncertain (two or three proposals); when the words heard are a postal code,
+  the last sentence is « Fais préciser la commune avant de la noter. »:
   ``[Vérification de la commune : « Sanlis » peut être Senlis (60300, Oise),
   Senlis (62310, Pas-de-Calais) ou Saint-Lys (31470, Haute-Garonne). Fais
   préciser la commune ou son code postal avant de la noter.]``
@@ -51,10 +52,14 @@ def phrase_de_mention(detection: Detection, base: BaseCommunes) -> str:
             "Utilise ce nom sans le faire répéter.]"
         )
     propositions = [_libelle(l, base, dits) for l in detection.lectures[:3]]
-    return (
-        f"{MARQUE} : « {detection.entendu} » peut être {_enumerer(propositions)}. "
-        "Fais préciser la commune ou son code postal avant de la noter.]"
+    # A postal code was heard: asking for "the town or its postal code" would
+    # get the same code again (plan nombres-dictes).
+    demande = (
+        "Fais préciser la commune avant de la noter.]"
+        if detection.code_postal_entendu
+        else "Fais préciser la commune ou son code postal avant de la noter.]"
     )
+    return f"{MARQUE} : « {detection.entendu} » peut être {_enumerer(propositions)}. {demande}"
 
 
 def mentionner(texte: str, detections: list[Detection], base: BaseCommunes) -> str:

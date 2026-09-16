@@ -63,17 +63,12 @@ TRANSMISSIONS = [
         ),
     ),
     (
-        r"creer_conversion_nombres\(\s*run_configs,",
+        r"creer_lecture_appelant\(\s*run_configs,\s*user_config\.stt,\s*adresse_etablissement,",
         (
-            "writing dictated numbers as digits: the model would read them in "
-            "words again, and stitch them back wrong"
-        ),
-    ),
-    (
-        r"creer_verification_communes\(\s*run_configs,",
-        (
-            "the town check: the agent's switch would be ignored, and its "
-            "business address would no longer be the location clue"
+            "reading the caller's numbers and towns: the two switches would be "
+            "ignored, dictated numbers read in words again and stitched back "
+            "wrong, postal codes said in words never checked, the agent's "
+            "language and business address no longer taken into account"
         ),
     ),
     (

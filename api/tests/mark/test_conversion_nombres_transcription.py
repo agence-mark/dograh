@@ -2,46 +2,95 @@
 
 The questions this file answers:
 
-    With the switch off, is the pipeline exactly the one of before? With it
-    on, does a final French transcript reach the aggregator in digits -- and
-    do interims, other languages and ordinary sentences come out untouched?
+    With both switches off, is the pipeline exactly the one of before? With
+    either on, is the ONE caller reading step right before the model, and
+    nothing before the aggregator? Through the real aggregator, does the model
+    read the digits while the recorded transcript keeps the caller's words?
+    Does a reference get its note only at a step that collects one? Is every
+    number recorded for the bench, once?
 
 Why it exists
 -------------
 On 2026-09-15 a phone number dictated in words was transcribed correctly by
 Flux and then stitched into eleven wrong digits by the model, twice. The
-conversion hands the model digits instead.
+conversion hands the model digits instead. Since the plan nombres-dictes
+(2026-09-16, N1) it is done after the aggregator, together with the town
+check, by ``lecture_appelant.py``: before the aggregator, ``text2num`` froze
+ONE reading of a postal code ("soixante sept cent quarante" -> 67140).
 
-🔑 Tested at the level of the feature: a transcript goes THROUGH the processor
-and what comes out is read. Where the processor sits is asserted on the list
-the real ``build_pipeline`` returns, and that it is called with the agent's
-configuration is asserted in ``test_transmission_de_la_configuration.py``.
+🔑 Tested at the level of the feature: a transcript goes THROUGH the real user
+aggregator and the step; what the model reads AND what is recorded are read.
+That the step is built with the agent's configuration is asserted in
+``test_transmission_de_la_configuration.py``.
 """
 
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from pipecat.frames.frames import InterimTranscriptionFrame, TranscriptionFrame
-from pipecat.processors.frame_processor import FrameProcessor
-from pipecat.transcriptions.language import Language
+from pipecat.frames.frames import (
+    LLMContextFrame,
+    ProposedUserStartedSpeakingFrame,
+    ProposedUserStoppedSpeakingFrame,
+    TranscriptionFrame,
+)
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMAssistantAggregator,
+    LLMUserAggregator,
+    LLMUserAggregatorParams,
+)
+from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
+from pipecat.tests import run_test
+from pipecat.tests.utils import SleepFrame
+from pipecat.turns.user_turn_strategies import ExternalUserTurnStrategies
 
+from api.schemas.organization_preferences import AdresseEtablissement
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
-from api.services.pipecat import conversion_nombres
+from api.services.nombres import lecture
+from api.services.pipecat import lecture_appelant
 from api.services.pipecat.conversion_nombres import (
-    ConversionNombresProcessor,
-    creer_conversion_nombres,
+    conversion_allumee,
     langue_agent_francaise,
+)
+from api.services.pipecat.lecture_appelant import (
+    CLE_TRACE_NOMBRES,
+    LectureAppelantProcessor,
+    creer_lecture_appelant,
+    etape_reference,
+    lire_message_tape,
 )
 from api.services.pipecat.pipeline_builder import (
     build_pipeline,
     build_realtime_pipeline,
 )
-from pipecat.tests import run_test
+from api.services.pipecat.realtime_feedback_observer import register_turn_log_handlers
+from api.services.pipecat.verification_communes import CLE_TRACE, consigner_dans
+from api.services.workflow.conversation_history import build_conversation_history
 
 PHRASE_DU_15_09 = "le zéro sept quatre vingt huit vingt six quatorze zéro neuf"
+TELEPHONE = "zéro six douze trente-quatre cinquante-six soixante-dix-huit"
+REFERENCE = "facture deux mille vingt-six tiret huit cent quarante-sept"
+MENTION_REFERENCE = (
+    "[Lecture des nombres : référence entendue « deux mille vingt-six tiret huit cent "
+    "quarante-sept », écrite « 2026-847 ». Relis-la groupe par groupe et fais-la confirmer "
+    "avant de la noter.]"
+)
 
 STT_FRANCAIS = SimpleNamespace(language="fr", language_hints=None)
+MAGASIN = AdresseEtablissement(code_postal="60740", code_insee="60589", commune="Saint-Maximin")
+
+NOEUD_COORDONNEES = SimpleNamespace(
+    name="coordonnees",
+    extraction_variables=[SimpleNamespace(name="numero_dicte"), SimpleNamespace(name="commune")],
+)
+NOEUD_FACTURE = SimpleNamespace(
+    name="qualif_facture", extraction_variables=[SimpleNamespace(name="reference_facture")]
+)
+NOEUD_ACCUEIL = SimpleNamespace(name="accueil", extraction_variables=[SimpleNamespace(name="motif")])
+
+DEMARRAGE_S = 15
 
 
 def _transport():
@@ -65,200 +114,322 @@ def _composants():
     }
 
 
-async def _sortie(processeur, trame):
-    descendantes, _ = await run_test(processeur, frames_to_send=[trame])
-    return [t for t in descendantes if isinstance(t, type(trame))]
-
-
-def _finale(texte, language=None):
-    return TranscriptionFrame(
-        text=texte, user_id="appelant", timestamp="0", language=language
+def _processeur(noeud, consigner=None, conversion=True, verification=True, langue_francaise=True):
+    return LectureAppelantProcessor(
+        conversion=conversion,
+        verification=verification,
+        langue_francaise=langue_francaise,
+        adresse=MAGASIN,
+        etape_courante=lambda: noeud,
+        consigner=consigner,
     )
 
 
+async def _lu(processeur, texte):
+    contexte = LLMContext(messages=[{"role": "user", "content": texte}])
+    await run_test(processeur, frames_to_send=[LLMContextFrame(context=contexte)], start_timeout=DEMARRAGE_S)
+    return contexte.messages[-1]["content"]
+
+
 # --------------------------------------------------------------------------- #
-# 1. Off: today's pipeline, unchanged
+# 1. Both off: today's pipeline, unchanged
 # --------------------------------------------------------------------------- #
 
 
-def test_eteint_la_liste_des_processeurs_est_identique():
+def test_deux_interrupteurs_eteints_aucune_etape():
     composants = _composants()
+    etape = creer_lecture_appelant(
+        {"conversion_nombres_transcription": False, "verification_communes": False},
+        STT_FRANCAIS, None, lambda: None,
+    )
+    assert etape is None
     # ⚠️ Each Pipeline wraps the list in its own source and sink objects, so
     # the two ends differ by construction: the processors between them are
     # what is compared.
     sans = build_pipeline(**composants).processors[1:-1]
-    avec = build_pipeline(**composants, conversion_nombres=None).processors[1:-1]
+    avec = build_pipeline(**composants, lecture_appelant=etape).processors[1:-1]
     assert len(sans) == 11
     assert avec == sans
-    assert not any(isinstance(p, ConversionNombresProcessor) for p in avec)
+    # Nothing .mark between the transcription and the model.
+    entre = avec[avec.index(composants["stt"]) + 1:avec.index(composants["llm"])]
+    assert entre == [composants["user_context_aggregator"]]
 
 
 def test_le_defaut_est_eteint():
     assert WorkflowConfigurationDefaults().conversion_nombres_transcription is False
-    assert creer_conversion_nombres({}, STT_FRANCAIS) is None
-    assert creer_conversion_nombres(None, STT_FRANCAIS) is None
-    # ⛔ A stored null means "not filled in", not a value.
-    assert (
-        creer_conversion_nombres(
-            {"conversion_nombres_transcription": None}, STT_FRANCAIS
-        )
-        is None
-    )
+    for configuration in ({}, None, {"conversion_nombres_transcription": None}):
+        # ⛔ A stored null means "not filled in", not a value.
+        assert conversion_allumee(configuration) is False
+    assert conversion_allumee({"conversion_nombres_transcription": True}) is True
 
 
 # --------------------------------------------------------------------------- #
-# 2. On: where it sits
+# 2. Either on: one step, right before the model, nothing before the aggregator
 # --------------------------------------------------------------------------- #
 
 
-def test_allume_le_processeur_est_juste_avant_lagregateur():
+@pytest.mark.parametrize(
+    "conversion,verification", [(True, False), (False, True), (True, True)]
+)
+def test_letape_est_juste_avant_le_modele_rien_avant_lagregateur(conversion, verification):
     composants = _composants()
-    conversion = creer_conversion_nombres(
-        {"conversion_nombres_transcription": True}, STT_FRANCAIS
+    etape = creer_lecture_appelant(
+        {"conversion_nombres_transcription": conversion, "verification_communes": verification},
+        STT_FRANCAIS, MAGASIN, lambda: None,
     )
-    assert isinstance(conversion, ConversionNombresProcessor)
+    assert isinstance(etape, LectureAppelantProcessor)
+    assert (etape._conversion, etape._verification) == (conversion, verification)
 
-    processeurs = build_pipeline(**composants, conversion_nombres=conversion).processors
-    agregateur = composants["user_context_aggregator"]
-    assert processeurs.index(conversion) == processeurs.index(agregateur) - 1
-    # And after the transcription: it converts what the transcription wrote.
-    assert processeurs.index(conversion) > processeurs.index(composants["stt"])
+    processeurs = build_pipeline(**composants, lecture_appelant=etape).processors
+    assert processeurs.index(etape) == processeurs.index(composants["llm"]) - 1
+    assert processeurs.index(etape) > processeurs.index(composants["user_context_aggregator"])
+    # Counted: exactly one .mark step, and the transcription feeds the aggregator directly.
+    assert sum(1 for p in processeurs if isinstance(p, LectureAppelantProcessor)) == 1
+    assert processeurs.index(composants["user_context_aggregator"]) == processeurs.index(composants["stt"]) + 1
 
 
-def test_le_pipeline_temps_reel_ne_contient_pas_la_conversion():
-    """No transcription step in realtime mode, so nothing to convert."""
-    pipeline = build_realtime_pipeline(
-        _transport(),
-        FrameProcessor(),
-        FrameProcessor(),
-        FrameProcessor(),
-        FrameProcessor(),
-        FrameProcessor(),
-        FrameProcessor(),
-        FrameProcessor(),
-    )
-    assert not any(
-        isinstance(p, ConversionNombresProcessor) for p in pipeline.processors
-    )
+def test_apres_la_porte_du_superviseur_de_decroche():
+    composants = _composants()
+    porte = FrameProcessor()
+    superviseur = FrameProcessor()
+    superviseur.llm_gate = lambda: porte
+    etape = _processeur(NOEUD_COORDONNEES)
+    processeurs = build_pipeline(**composants, lecture_appelant=etape, answer_supervisor=superviseur).processors
+    assert processeurs.index(porte) < processeurs.index(etape) == processeurs.index(composants["llm"]) - 1
+
+
+def test_le_pipeline_temps_reel_ne_contient_pas_letape():
+    """No transcription step in realtime mode, so nothing to read."""
+    pipeline = build_realtime_pipeline(_transport(), *[FrameProcessor() for _ in range(7)])
+    assert not any(isinstance(p, LectureAppelantProcessor) for p in pipeline.processors)
 
 
 # --------------------------------------------------------------------------- #
-# 3. On: what comes out
+# 3. At the level of the feature: the real aggregator
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.asyncio
-async def test_la_phrase_du_15_09_sort_en_chiffres():
-    processeur = ConversionNombresProcessor(langue_agent_francaise=True)
-    (trame,) = await _sortie(processeur, _finale(PHRASE_DU_15_09))
-    assert trame.text == "le 07 88 26 14 09"
-    # The other fields are left alone.
-    assert trame.user_id == "appelant"
-    assert trame.timestamp == "0"
+class _Capture(FrameProcessor):
+    def __init__(self):
+        super().__init__()
+        self.lu_par_le_modele: list[str] = []
+
+    async def process_frame(self, frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+        if isinstance(frame, LLMContextFrame):
+            self.lu_par_le_modele.append(frame.context.messages[-1]["content"])
+        await self.push_frame(frame, direction)
 
 
-@pytest.mark.asyncio
-async def test_la_phrase_dorigine_nest_pas_modifiee_et_la_copie_garde_son_identifiant():
-    """🔒 D2: the live transcript stays in words.
-
-    Observers read the frame later, from a queue. Rewritten in place, the live
-    view would show words or digits depending on timing. A copy is pushed
-    instead, with the SAME id: the live observer has already seen that id and
-    skips it, rather than showing the sentence twice.
-    """
-    processeur = ConversionNombresProcessor(langue_agent_francaise=True)
-    originale = _finale(PHRASE_DU_15_09)
-    (sortie,) = await _sortie(processeur, originale)
-
-    assert originale.text == PHRASE_DU_15_09
-    assert sortie is not originale
-    assert sortie.text == "le 07 88 26 14 09"
-    assert sortie.id == originale.id
-
-
-@pytest.mark.asyncio
-async def test_le_fil_en_direct_affiche_la_phrase_une_seule_fois_en_lettres():
-    """🔒 D2, asserted on what the live view SHOWS, not on how it is achieved.
-
-    The test above checks the means (a copy keeping the frame id). This one
-    runs the real ``RealtimeFeedbackObserver`` on the pipeline: if an upgrade
-    changed how that observer skips frames it has seen, the live view would
-    show the sentence twice, words then digits, and only this test would say so.
-    """
-    import asyncio
-
-    from api.services.pipecat.realtime_feedback_observer import (
-        RealtimeFeedbackObserver,
+async def _par_lagregateur(texte, noeud):
+    contexte = LLMContext(messages=[{"role": "assistant", "content": "Je vous écoute."}])
+    agregateur = LLMUserAggregator(
+        contexte, params=LLMUserAggregatorParams(user_turn_strategies=ExternalUserTurnStrategies())
     )
-
-    messages = []
-
-    async def envoyer(message):
-        messages.append(message)
-
-    observateur = RealtimeFeedbackObserver(ws_sender=envoyer)
-    processeur = ConversionNombresProcessor(langue_agent_francaise=True)
-
-    descendantes, _ = await run_test(
-        processeur,
-        frames_to_send=[_finale(PHRASE_DU_15_09)],
-        observers=[observateur],
+    enregistre = []
+    coordinateur = SimpleNamespace(
+        record_user_transcript=AsyncMock(side_effect=lambda text, **_: enregistre.append(text)),
+        record_assistant_transcript=AsyncMock(),
     )
-    # Observers drain their own queue: give it a turn before reading.
-    await asyncio.sleep(0.1)
+    register_turn_log_handlers(coordinateur, agregateur, LLMAssistantAggregator(contexte))
+    modele = _Capture()
+    await run_test(
+        Pipeline([agregateur, _processeur(noeud), modele]),
+        frames_to_send=[
+            ProposedUserStartedSpeakingFrame(),
+            TranscriptionFrame(text=texte, user_id="", timestamp="now"),
+            ProposedUserStoppedSpeakingFrame(),
+            SleepFrame(sleep=1.0),
+        ],
+        start_timeout=DEMARRAGE_S,
+    )
+    return enregistre, modele.lu_par_le_modele, contexte
 
-    finales = [
-        m for m in messages if m.get("payload", {}).get("final") is True
+
+@pytest.mark.asyncio
+async def test_telephone_enregistre_en_mots_lu_en_chiffres():
+    """🔒 N1: the recorded transcript keeps the words, the model reads digits."""
+    enregistre, lu, contexte = await _par_lagregateur(TELEPHONE, NOEUD_COORDONNEES)
+    assert enregistre == [TELEPHONE]
+    assert lu == ["06 12 34 56 78"]
+    # The variable extraction reads the same history as the model.
+    historique = build_conversation_history(contexte)
+    assert "06 12 34 56 78" in historique and TELEPHONE not in historique
+
+
+@pytest.mark.asyncio
+async def test_code_postal_dicte_a_letape_coordonnees():
+    texte = "Saint-Maximin soixante sept cent quarante"
+    enregistre, lu, contexte = await _par_lagregateur(texte, NOEUD_COORDONNEES)
+    assert enregistre == [texte]
+    assert lu == [
+        "Saint-Maximin 60740 [Vérification de la commune : « Saint-Maximin » correspond à "
+        "Saint-Maximin (60740, Oise). Utilise ce nom sans le faire répéter.]"
     ]
-    assert [m["payload"]["text"] for m in finales] == [PHRASE_DU_15_09]
-    # And the model's side did get the digits.
-    (vers_le_modele,) = [t for t in descendantes if isinstance(t, TranscriptionFrame)]
-    assert vers_le_modele.text == "le 07 88 26 14 09"
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("phrase", ["il me reste deux bûches", "une fois par an"])
-async def test_les_phrases_ordinaires_sortent_inchangees(phrase):
-    processeur = ConversionNombresProcessor(langue_agent_francaise=True)
-    (trame,) = await _sortie(processeur, _finale(phrase))
-    assert trame.text == phrase
-
-
-@pytest.mark.asyncio
-async def test_une_transcription_provisoire_sort_inchangee():
-    """⛔ The "minimum words" interruption counts the words of interims."""
-    processeur = ConversionNombresProcessor(langue_agent_francaise=True)
-    provisoire = InterimTranscriptionFrame(
-        text=PHRASE_DU_15_09, user_id="appelant", timestamp="0"
-    )
-    (trame,) = await _sortie(processeur, provisoire)
-    assert trame.text == PHRASE_DU_15_09
-
-
-@pytest.mark.asyncio
-async def test_la_langue_detectee_de_la_phrase_decide():
-    processeur = ConversionNombresProcessor(langue_agent_francaise=True)
-    (anglaise,) = await _sortie(processeur, _finale("vingt ans", Language.EN))
-    assert anglaise.text == "vingt ans"
-
-    processeur = ConversionNombresProcessor(langue_agent_francaise=False)
-    (francaise,) = await _sortie(processeur, _finale("vingt ans", Language.FR_FR))
-    assert francaise.text == "20 ans"
-
-
-@pytest.mark.asyncio
-async def test_une_conversion_qui_echoue_garde_le_texte_dorigine():
-    """⛔ A conversion failure never costs the call."""
-    processeur = ConversionNombresProcessor(langue_agent_francaise=True)
-    with patch.object(
-        conversion_nombres, "_alpha2digit", side_effect=RuntimeError("panne")
-    ):
-        (trame,) = await _sortie(processeur, _finale(PHRASE_DU_15_09))
-    assert trame.text == PHRASE_DU_15_09
+    assert lu[0] in build_conversation_history(contexte)
 
 
 # --------------------------------------------------------------------------- #
-# 4. The agent's language
+# 4. References (N4) and amounts (N3)
+# --------------------------------------------------------------------------- #
+
+
+def test_etape_reference():
+    assert etape_reference(NOEUD_FACTURE) is True
+    assert etape_reference(NOEUD_COORDONNEES) is False
+    assert etape_reference(None) is False
+
+
+@pytest.mark.asyncio
+async def test_reference_mentionnee_seulement_a_letape_qui_la_recueille():
+    assert await _lu(_processeur(NOEUD_FACTURE), REFERENCE) == f"facture 2026-847 {MENTION_REFERENCE}"
+    assert await _lu(_processeur(NOEUD_ACCUEIL), REFERENCE) == "facture 2026-847"
+
+
+@pytest.mark.asyncio
+async def test_montant_ambigu_mentionne_a_toute_etape():
+    assert await _lu(_processeur(NOEUD_ACCUEIL), "trois mille cinq euros") == (
+        "3005 euros [Lecture des nombres : « trois mille cinq » peut être 3 500 € ou "
+        "3 005 €. Si tu notes ce montant, note les deux.]"
+    )
+
+
+@pytest.mark.asyncio
+async def test_conversion_eteinte_ni_chiffres_ni_mention_de_nombre():
+    processeur = _processeur(NOEUD_FACTURE, conversion=False)
+    assert await _lu(processeur, REFERENCE) == REFERENCE
+
+
+# --------------------------------------------------------------------------- #
+# 5. Records, idempotence, provisional contexts, failures
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_traces_ecrites_une_seule_fois_contexte_renvoye_deux_fois():
+    recueilli: dict = {}
+    processeur = _processeur(NOEUD_COORDONNEES, consigner=consigner_dans(lambda: recueilli))
+    contexte = LLMContext(messages=[{"role": "user", "content": "Saint-Maximin soixante sept cent quarante"}])
+    await run_test(
+        processeur,
+        frames_to_send=[LLMContextFrame(context=contexte), LLMContextFrame(context=contexte)],
+        start_timeout=DEMARRAGE_S,
+    )
+    contenu = contexte.messages[-1]["content"]
+    assert contenu.count("60740") == 2  # once written, once in the town note
+    assert contenu.count("[Vérification de la commune") == 1
+    (nombre,) = recueilli[CLE_TRACE_NOMBRES]
+    assert nombre == {
+        "etape": "coordonnees",
+        "entendu": "soixante sept cent quarante",
+        "type": "code_postal",
+        "ecrit": "60740",
+        "lectures": ["60740", "67140"],
+        "retenu": "60740",
+        "statut": "sure",
+    }
+    (commune,) = recueilli[CLE_TRACE]
+    assert commune["commune_retenue"]["nom"] == "Saint-Maximin"
+
+
+@pytest.mark.asyncio
+async def test_un_message_sans_mention_renvoye_deux_fois_est_lu_une_fois():
+    """Idempotence by the examined set, not by a note: a phone carries none."""
+    recueilli: dict = {}
+    processeur = _processeur(NOEUD_ACCUEIL, consigner=consigner_dans(lambda: recueilli))
+    contexte = LLMContext(messages=[{"role": "user", "content": TELEPHONE}])
+    await run_test(
+        processeur,
+        frames_to_send=[LLMContextFrame(context=contexte), LLMContextFrame(context=contexte)],
+        start_timeout=DEMARRAGE_S,
+    )
+    assert contexte.messages[-1]["content"] == "06 12 34 56 78"
+    assert len(recueilli[CLE_TRACE_NOMBRES]) == 1
+
+
+@pytest.mark.asyncio
+async def test_sans_la_base_des_communes_le_telephone_reste_en_chiffres():
+    """The fix of 2026-09-15 does not depend on the list of communes."""
+    with patch.object(lecture_appelant, "charger_base", side_effect=RuntimeError("base absente")):
+        assert await _lu(_processeur(NOEUD_COORDONNEES), TELEPHONE) == "06 12 34 56 78"
+
+
+@pytest.mark.asyncio
+async def test_contexte_provisoire_marque():
+    recueilli: dict = {}
+    contexte = LLMContext(messages=[{"role": "user", "content": TELEPHONE}])
+    await run_test(
+        _processeur(NOEUD_COORDONNEES, consigner=consigner_dans(lambda: recueilli)),
+        frames_to_send=[LLMContextFrame(context=contexte, speculation=True)],
+        start_timeout=DEMARRAGE_S,
+    )
+    (nombre,) = recueilli[CLE_TRACE_NOMBRES]
+    assert nombre["provisoire"] is True
+    assert nombre["type"] == "telephone"
+
+
+@pytest.mark.asyncio
+async def test_un_echec_du_lecteur_laisse_le_message_intact():
+    """⛔ T9: a failure never costs the call."""
+    with patch.object(lecture, "lire_nombres", side_effect=RuntimeError("panne")):
+        assert await _lu(_processeur(NOEUD_COORDONNEES), PHRASE_DU_15_09) == PHRASE_DU_15_09
+
+
+@pytest.mark.asyncio
+async def test_une_autre_langue_aucune_reecriture():
+    processeur = _processeur(NOEUD_ACCUEIL, langue_francaise=False)
+    assert await _lu(processeur, PHRASE_DU_15_09) == PHRASE_DU_15_09
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "phrase,attendu",
+    [
+        (PHRASE_DU_15_09, "le 07 88 26 14 09"),
+        ("il me reste deux bûches", "il me reste deux bûches"),
+        ("une fois par an", "une fois par an"),
+        ("un poêle tout neuf", "un poêle tout neuf"),
+    ],
+)
+async def test_les_phrases_du_15_09(phrase, attendu):
+    assert await _lu(_processeur(NOEUD_ACCUEIL), phrase) == attendu
+
+
+# --------------------------------------------------------------------------- #
+# 6. The keyboard (R5)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_clavier_meme_traitement_que_lappel():
+    allume = {"conversion_nombres_transcription": True}
+    recueilli: dict = {}
+    consigner = consigner_dans(lambda: recueilli)
+    assert await lire_message_tape(TELEPHONE, allume, STT_FRANCAIS, MAGASIN, NOEUD_ACCUEIL, consigner) == (
+        "06 12 34 56 78"
+    )
+    assert await lire_message_tape(REFERENCE, allume, STT_FRANCAIS, MAGASIN, NOEUD_FACTURE, consigner) == (
+        f"facture 2026-847 {MENTION_REFERENCE}"
+    )
+    assert await lire_message_tape(REFERENCE, allume, STT_FRANCAIS, MAGASIN, NOEUD_ACCUEIL, consigner) == (
+        "facture 2026-847"
+    )
+    # Conversion off: words kept, the town note still there.
+    assert await lire_message_tape(
+        "Saint-Maximin soixante sept cent quarante", {}, STT_FRANCAIS, MAGASIN, NOEUD_COORDONNEES, consigner
+    ) == (
+        "Saint-Maximin soixante sept cent quarante [Vérification de la commune : « Saint-Maximin » "
+        "correspond à Saint-Maximin (60740, Oise). Utilise ce nom sans le faire répéter.]"
+    )
+    # Not French: nothing rewritten.
+    anglais = SimpleNamespace(language="en", language_hints=None)
+    assert await lire_message_tape(TELEPHONE, allume, anglais, MAGASIN, NOEUD_ACCUEIL, consigner) == TELEPHONE
+    # Counted: three messages read with the conversion on.
+    assert [n["type"] for n in recueilli[CLE_TRACE_NOMBRES]] == ["telephone", "reference", "reference"]
+
+
+# --------------------------------------------------------------------------- #
+# 7. The agent's language
 # --------------------------------------------------------------------------- #
 
 
@@ -277,3 +448,12 @@ async def test_une_conversion_qui_echoue_garde_le_texte_dorigine():
 def test_langue_agent_francaise(language, indications, attendu):
     stt = SimpleNamespace(language=language, language_hints=indications)
     assert langue_agent_francaise(stt) is attendu
+
+
+def test_le_module_ne_fabrique_plus_detape_avant_lagregateur():
+    """T5: the old step is gone, not left as dead code."""
+    from api.services.pipecat import conversion_nombres
+
+    assert not hasattr(conversion_nombres, "ConversionNombresProcessor")
+    assert not hasattr(conversion_nombres, "creer_conversion_nombres")
+    assert not hasattr(lecture_appelant, "ConversionNombresProcessor")

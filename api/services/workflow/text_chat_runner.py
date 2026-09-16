@@ -44,6 +44,7 @@ from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
 )
+from api.services.pipecat.lecture_appelant import lire_message_tape
 from api.services.pipecat.pipeline_builder import create_pipeline_task
 from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
@@ -60,10 +61,7 @@ from api.services.pipecat.tracing_config import (
     build_remote_parent_context,
     get_trace_url,
 )
-from api.services.pipecat.verification_communes import (
-    annoter_message_tape,
-    consigner_dans,
-)
+from api.services.pipecat.verification_communes import consigner_dans
 from api.services.pipecat.worker_runner import (
     run_pipeline_worker,
     wait_for_pipeline_worker_started,
@@ -780,12 +778,13 @@ async def execute_text_chat_pending_turn(
             )
 
         if pending_user_message is not None:
-            # [.mark] Town check on the keyboard too (verification-communes D7),
-            # BEFORE the message enters the context: the model reads it
-            # directly, there is no aggregator step to go through here.
-            message_pour_le_modele = await annoter_message_tape(
+            # [.mark] Caller reading on the keyboard too (nombres-dictes R5,
+            # verification-communes D7), BEFORE the message enters the context:
+            # the model reads it directly, there is no aggregator step here.
+            message_pour_le_modele = await lire_message_tape(
                 pending_user_message,
                 run_configs,
+                getattr(user_config, "stt", None),
                 adresse_etablissement,
                 engine._current_node,
                 consigner_dans(lambda: engine._gathered_context),

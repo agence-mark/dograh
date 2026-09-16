@@ -164,10 +164,11 @@ def test_lire_une_configuration_aux_horaires_invalides_ne_leve_pas():
 
 def test_le_montage_de_lappel_survit_a_des_horaires_invalides():
     """The two call set-up paths that read the whole configuration, called."""
-    from api.services.pipecat.conversion_nombres import creer_conversion_nombres
+    from api.services.pipecat.lecture_appelant import creer_lecture_appelant
     from api.services.pipecat.service_factory import stamp_pipeline_settings
 
-    assert creer_conversion_nombres(HORAIRES_INVALIDES, None) is None
+    # Conversion off by default, town check on by default: the step is built.
+    assert creer_lecture_appelant(HORAIRES_INVALIDES, None, None, lambda: None) is not None
     estampille = stamp_pipeline_settings({}, HORAIRES_INVALIDES)
     assert "pipeline_settings" in estampille
     assert injecter_etat_ouverture(
@@ -190,10 +191,12 @@ def test_le_montage_survit_a_une_valeur_hors_bornes_ecrite_en_base(hors_bornes):
     """⛔ Counter-review of 2026-09-15: ``creer_conversion_nombres`` read the WHOLE
     configuration through the schema, at call set-up, without a try. A value
     written by hand past a bound killed the call -- the grammar fix had closed
-    one door of that motif, not the motif."""
-    from api.services.pipecat.conversion_nombres import creer_conversion_nombres
+    one door of that motif, not the motif. Since 2026-09-16 the step is
+    ``creer_lecture_appelant``, which reads its two switches alone."""
+    from api.services.pipecat.lecture_appelant import creer_lecture_appelant
 
-    assert creer_conversion_nombres(hors_bornes, None) is None
+    etape = creer_lecture_appelant(hors_bornes, None, None, lambda: None)
+    assert etape is not None and etape._conversion is False
     assert injecter_etat_ouverture({"a": 1}, hors_bornes) == {"a": 1}
 
 

@@ -456,10 +456,11 @@ class WorkflowConfigurationDefaults(BaseModel):
     conversion_nombres_transcription: bool = Field(
         default=DEFAULT_CONVERSION_NOMBRES_TRANSCRIPTION,
         description=(
-            "Converts numbers the caller dictates into digits before the model "
-            "reads them. No effect in realtime mode. With the \"minimum words\" "
-            "interruption and interim transcripts turned off, dictated numbers "
-            "count as fewer words."
+            "Rewrites the numbers the caller dictates as digits before the model "
+            "reads them, and reads postal codes said both ways (\"soixante sept "
+            "cent quarante\", \"soixante mille sept cent quarante\"), amounts and "
+            "invoice or quote references. The recorded transcript keeps the "
+            "caller's words. French only. No effect in realtime mode."
         ),
     )
     verification_communes: bool = Field(
@@ -629,8 +630,8 @@ class WorkflowConfigurationDefaults(BaseModel):
         """[.mark] Blank means "no hours". Never raises.
 
         ⛔ The GRAMMAR is not checked here, on purpose. This model is also read
-        at call set-up on the whole configuration (``conversion_nombres.py``,
-        ``service_factory.py``): a validator raising here would kill the call
+        at call set-up on the whole configuration (``service_factory.py``; the
+        number conversion's switch did too until 2026-09-15): a validator raising here would kill the call
         on invalid hours stored by hand, which is the opposite of D9. Found by
         the review of 2026-09-15. The grammar is checked on the SAVE route
         (``UpdateWorkflowRequest`` in ``routes/workflow.py``), and at call

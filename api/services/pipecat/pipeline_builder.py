@@ -47,8 +47,7 @@ def build_pipeline(
     # suivants, et un appelant d'amont ecrit en positionnel se mesalimente alors
     # EN SILENCE -- ni ruff ni le typage ne le voient.
     *,
-    conversion_nombres=None,
-    verification_communes=None,
+    lecture_appelant=None,
 ):
     """Build the main pipeline with all components.
 
@@ -59,13 +58,11 @@ def build_pipeline(
         recording_router: Optional RecordingRouterProcessor. When provided,
             inserts between callback processor and TTS to route between
             pre-recorded audio playback and dynamic TTS.
-        conversion_nombres: [.mark] Optional ConversionNombresProcessor. When
-            provided, inserted just before the user aggregator so the model
-            reads dictated numbers as digits. None leaves the list unchanged.
-        verification_communes: [.mark] Optional VerificationCommunesProcessor.
-            When provided, inserted just before the LLM, AFTER the user
-            aggregator and its gate: the model reads the town note, the
-            recorded transcript does not. None leaves the list unchanged.
+        lecture_appelant: [.mark] Optional LectureAppelantProcessor (dictated
+            numbers and towns, plan nombres-dictes). When provided, inserted
+            just before the LLM, AFTER the user aggregator and its gate: the
+            model reads the digits and the notes, the recorded transcript keeps
+            the caller's words. None leaves the list unchanged.
     """
     # Build processors with optional answer handling.
     #
@@ -87,22 +84,17 @@ def build_pipeline(
     if recording_router:
         post_llm.append(recording_router)
 
-    # [.mark] After the voicemail detector, right before the aggregator: the
-    # aggregator is where the model's text and the recorded transcript come
-    # from. The step pushes a copy, so the live transcript stays in words.
-    if conversion_nombres:
-        processors.append(conversion_nombres)
-
     processors.append(user_context_aggregator)
 
     if answer_supervisor is not None:
         processors.append(answer_supervisor.llm_gate())
 
-    # [.mark] After the aggregator, right before the model (verification-communes
-    # D1): the recorded transcript is emitted by the aggregator from the text it
-    # wrote, so the note reaches the model and the extraction, not the transcript.
-    if verification_communes:
-        processors.append(verification_communes)
+    # [.mark] After the aggregator, right before the model (nombres-dictes N1,
+    # verification-communes D1): the recorded transcript is emitted by the
+    # aggregator from the text it wrote, so the digits and the notes reach the
+    # model and the extraction, not the transcript.
+    if lecture_appelant:
+        processors.append(lecture_appelant)
 
     processors.extend(
         [

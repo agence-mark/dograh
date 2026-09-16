@@ -2,11 +2,13 @@
 
 The questions this file answers:
 
-    With the switch off, is the pipeline exactly the one of before? With it
-    on (the default), does the step sit right before the model, annotate the
-    caller's last message only at a step that collects a town, only once --
-    and does the recorded transcript keep what the caller said while the
-    model and the variable extraction read the note?
+    With the switch on (the default), does the caller reading step
+    (``lecture_appelant.py``, one step for numbers and towns since the plan
+    nombres-dictes) annotate the caller's last message only at a step that
+    collects a town, only once -- and does the recorded transcript keep what
+    the caller said while the model and the variable extraction read the note?
+    Where the step sits for each pair of switches is asserted in
+    ``test_conversion_nombres_transcription.py``.
 
 Why it exists
 -------------
@@ -17,7 +19,8 @@ message instead, the note would land in every verbatim, in silence. Test 4
 runs the REAL user aggregator, with the REAL transcript handlers, to see it.
 
 ⚠️ What this file does NOT prove: that the town recognised is right (that is
-``test_analyse_communes.py``), nor that the screen shows the switch (``ui/``).
+``test_analyse_communes.py`` and ``test_codes_postaux_dictes.py``), nor that
+the screen shows the switch (``ui/``).
 """
 
 import asyncio
@@ -47,21 +50,24 @@ from pipecat.turns.user_turn_strategies import ExternalUserTurnStrategies
 
 from api.schemas.organization_preferences import AdresseEtablissement
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
-from api.services.pipecat import run_pipeline, verification_communes
-from api.services.pipecat.pipeline_builder import build_pipeline, build_realtime_pipeline
+from api.services.pipecat import lecture_appelant, run_pipeline
+from api.services.pipecat.lecture_appelant import (
+    CLE_TRACE_NOMBRES,
+    LectureAppelantProcessor,
+    creer_lecture_appelant,
+    lire_message_tape,
+)
 from api.services.pipecat.realtime_feedback_observer import register_turn_log_handlers
 from api.services.pipecat.verification_communes import (
     CLE_TRACE,
-    VerificationCommunesProcessor,
-    annoter_message_tape,
     consigner_dans,
-    creer_verification_communes,
     etape_concernee,
 )
 from api.services.workflow import text_chat_runner
 from api.services.workflow.conversation_history import build_conversation_history
 
 MAGASIN = AdresseEtablissement(code_postal="60740", code_insee="60589", commune="Saint-Maximin")
+STT_FRANCAIS = SimpleNamespace(language="fr", language_hints=None)
 
 NOEUD_COORDONNEES = SimpleNamespace(
     name="coordonnees",
@@ -74,27 +80,6 @@ MENTION_BEAUVAIS = (
     "Utilise ce nom sans le faire répéter.]"
 )
 
-
-def _transport():
-    entree, sortie = FrameProcessor(), FrameProcessor()
-    return SimpleNamespace(input=lambda: entree, output=lambda: sortie)
-
-
-def _composants():
-    return {
-        "transport": _transport(),
-        "stt": FrameProcessor(),
-        "audio_buffer": FrameProcessor(),
-        "llm": FrameProcessor(),
-        "tts": FrameProcessor(),
-        "user_context_aggregator": FrameProcessor(),
-        "assistant_context_aggregator": FrameProcessor(),
-        "pipeline_engine_callback_processor": FrameProcessor(),
-        "pipeline_metrics_aggregator": FrameProcessor(),
-        "termination_funnel": FrameProcessor(),
-    }
-
-
 # ⚠️ ``run_test`` gives the pipeline one second to start. The FIRST start of a
 # process can take longer on a slow machine (measured 2026-09-16 on a Windows
 # workstation, where an existing test of this suite fails the same way when
@@ -102,8 +87,16 @@ def _composants():
 DEMARRAGE_S = 15
 
 
-def _processeur(noeud, consigner=None, adresse=MAGASIN):
-    return VerificationCommunesProcessor(adresse=adresse, etape_courante=lambda: noeud, consigner=consigner)
+def _processeur(noeud, consigner=None, adresse=MAGASIN, conversion=False, langue_francaise=True):
+    """The caller reading step, town check on, conversion off unless asked."""
+    return LectureAppelantProcessor(
+        conversion=conversion,
+        verification=True,
+        langue_francaise=langue_francaise,
+        adresse=adresse,
+        etape_courante=lambda: noeud,
+        consigner=consigner,
+    )
 
 
 def _contexte(*messages):
@@ -111,62 +104,26 @@ def _contexte(*messages):
 
 
 # --------------------------------------------------------------------------- #
-# 1. Off: today's pipeline, unchanged
+# 1. The switch
 # --------------------------------------------------------------------------- #
-
-
-def test_eteint_la_liste_des_processeurs_est_identique():
-    composants = _composants()
-    sans = build_pipeline(**composants).processors[1:-1]
-    avec = build_pipeline(**composants, verification_communes=None).processors[1:-1]
-    assert len(sans) == 11
-    assert avec == sans
 
 
 def test_interrupteur_allume_par_defaut_eteint_sur_demande():
     assert WorkflowConfigurationDefaults().verification_communes is True
     etape = lambda: None  # noqa: E731
-    assert isinstance(creer_verification_communes({}, None, etape), VerificationCommunesProcessor)
-    assert isinstance(creer_verification_communes(None, None, etape), VerificationCommunesProcessor)
     # A stored null means "not filled in": the default, on.
-    assert isinstance(
-        creer_verification_communes({"verification_communes": None}, None, etape), VerificationCommunesProcessor
-    )
-    assert creer_verification_communes({"verification_communes": False}, None, etape) is None
+    for configuration in ({}, None, {"verification_communes": None}):
+        construite = creer_lecture_appelant(configuration, STT_FRANCAIS, None, etape)
+        assert isinstance(construite, LectureAppelantProcessor)
+        assert construite._verification is True
+    # Off, with the conversion off by default: no step at all.
+    assert creer_lecture_appelant({"verification_communes": False}, STT_FRANCAIS, None, etape) is None
 
 
 def test_linterrupteur_ne_relit_que_sa_cle():
     """⛔ Another setting stored out of bounds must not kill the call here."""
     etape = lambda: None  # noqa: E731
-    assert creer_verification_communes({"max_call_duration": 0, "horaires_ouverture": 12}, None, etape) is not None
-
-
-# --------------------------------------------------------------------------- #
-# 2. On: where it sits
-# --------------------------------------------------------------------------- #
-
-
-def test_allume_le_processeur_est_juste_avant_le_modele():
-    composants = _composants()
-    etape = _processeur(NOEUD_COORDONNEES)
-    processeurs = build_pipeline(**composants, verification_communes=etape).processors
-    assert processeurs.index(etape) == processeurs.index(composants["llm"]) - 1
-    assert processeurs.index(etape) > processeurs.index(composants["user_context_aggregator"])
-
-
-def test_apres_la_porte_du_superviseur_de_decroche():
-    composants = _composants()
-    porte = FrameProcessor()
-    superviseur = FrameProcessor()
-    superviseur.llm_gate = lambda: porte
-    etape = _processeur(NOEUD_COORDONNEES)
-    processeurs = build_pipeline(**composants, verification_communes=etape, answer_supervisor=superviseur).processors
-    assert processeurs.index(porte) < processeurs.index(etape) == processeurs.index(composants["llm"]) - 1
-
-
-def test_absent_du_pipeline_temps_reel():
-    pipeline = build_realtime_pipeline(_transport(), *[FrameProcessor() for _ in range(7)])
-    assert not any(isinstance(p, VerificationCommunesProcessor) for p in pipeline.processors)
+    assert creer_lecture_appelant({"max_call_duration": 0, "horaires_ouverture": 12}, None, None, etape) is not None
 
 
 @pytest.mark.parametrize(
@@ -189,7 +146,7 @@ def test_etape_concernee(noms, attendu):
 
 
 # --------------------------------------------------------------------------- #
-# 3. On: what comes out
+# 2. On: what comes out
 # --------------------------------------------------------------------------- #
 
 
@@ -217,6 +174,36 @@ async def test_a_une_autre_etape_rien_ne_change():
 
 
 @pytest.mark.asyncio
+async def test_conversion_eteinte_le_modele_garde_les_mots_la_mention_est_la():
+    """Plan « qui fait quoi »: town check on, conversion off. The reader helps
+    the town (a postal code said in words), the model keeps the words."""
+    recueilli: dict = {}
+    texte = "Saint-Maximin soixante sept cent quarante"
+    contexte = _contexte({"role": "user", "content": texte})
+    await _faire_passer(
+        _processeur(NOEUD_COORDONNEES, consigner=consigner_dans(lambda: recueilli)),
+        LLMContextFrame(context=contexte),
+    )
+    assert contexte.messages[-1]["content"] == (
+        f"{texte} [Vérification de la commune : « Saint-Maximin » correspond à "
+        "Saint-Maximin (60740, Oise). Utilise ce nom sans le faire répéter.]"
+    )
+    # No number record without the conversion.
+    assert CLE_TRACE_NOMBRES not in recueilli
+    assert len(recueilli[CLE_TRACE]) == 1
+
+
+@pytest.mark.asyncio
+async def test_une_autre_langue_la_verification_du_16_09_inchangee():
+    """Not French: the reader does not run, the town check of 2026-09-16 does."""
+    contexte = _contexte({"role": "user", "content": "c'est à Beauvet"})
+    await _faire_passer(
+        _processeur(NOEUD_COORDONNEES, conversion=True, langue_francaise=False), LLMContextFrame(context=contexte)
+    )
+    assert contexte.messages[-1]["content"] == f"c'est à Beauvet {MENTION_BEAUVAIS}"
+
+
+@pytest.mark.asyncio
 async def test_un_contexte_renvoye_deux_fois_une_seule_mention():
     """After a tool call the same context goes to the model again."""
     contexte = _contexte({"role": "user", "content": "c'est à Beauvet"})
@@ -233,15 +220,15 @@ async def test_une_analyse_interrompue_ne_marque_pas_le_message_examine():
     again, and the model never got the note."""
     processeur = _processeur(NOEUD_COORDONNEES)
     contexte = _contexte({"role": "user", "content": "c'est à Beauvet"})
-    vrai = verification_communes.annoter_texte
+    vrai = lecture_appelant.lire_texte
 
-    with patch.object(verification_communes, "annoter_texte", side_effect=asyncio.CancelledError):
+    with patch.object(lecture_appelant, "lire_texte", side_effect=asyncio.CancelledError):
         with pytest.raises(asyncio.CancelledError):
-            await processeur._annoter_contexte(LLMContextFrame(context=contexte))
+            await processeur._lire_contexte(LLMContextFrame(context=contexte))
     assert contexte.messages[-1]["content"] == "c'est à Beauvet"
 
-    with patch.object(verification_communes, "annoter_texte", side_effect=vrai):
-        await processeur._annoter_contexte(LLMContextFrame(context=contexte))
+    with patch.object(lecture_appelant, "lire_texte", side_effect=vrai):
+        await processeur._lire_contexte(LLMContextFrame(context=contexte))
     assert contexte.messages[-1]["content"] == f"c'est à Beauvet {MENTION_BEAUVAIS}"
 
 
@@ -270,13 +257,13 @@ async def test_le_contexte_provisoire_est_annote_aussi():
     message without going through this step. That gap is written in the module.
     """
     contexte = _contexte({"role": "user", "content": "c'est à Beauvet"})
-    traces = []
+    recueilli: dict = {}
     await _faire_passer(
-        _processeur(NOEUD_COORDONNEES, consigner=traces.append),
+        _processeur(NOEUD_COORDONNEES, consigner=consigner_dans(lambda: recueilli)),
         LLMContextFrame(context=contexte, speculation=True),
     )
     assert contexte.messages[-1]["content"].endswith(MENTION_BEAUVAIS)
-    assert traces[0]["provisoire"] is True
+    assert recueilli[CLE_TRACE][0]["provisoire"] is True
 
 
 @pytest.mark.asyncio
@@ -310,9 +297,28 @@ async def test_une_incertaine_est_tracee_sans_commune_retenue():
 
 
 @pytest.mark.asyncio
+async def test_la_trace_de_lappel_tranche_le_code_postal_du_tour_suivant():
+    """N2 ②, through the step: « Bovet » to confirm, then « soixante mille »."""
+    recueilli: dict = {}
+    processeur = _processeur(NOEUD_COORDONNEES, consigner=consigner_dans(lambda: recueilli))
+    contexte = _contexte({"role": "user", "content": "j'habite à Bovet"})
+    await processeur._lire_contexte(LLMContextFrame(context=contexte))
+    contexte.add_message({"role": "assistant", "content": "Beauvais ou Boves ?"})
+    contexte.add_message({"role": "user", "content": "soixante mille"})
+    await processeur._lire_contexte(LLMContextFrame(context=contexte))
+    # Decision of Evan, 2026-09-16: 60000 carries several towns and « Bovet » was
+    # not heard exactly: Beauvais comes first, to confirm.
+    assert contexte.messages[-1]["content"] == (
+        "soixante mille [Vérification de la commune : « soixante mille » peut être "
+        "Beauvais (60000, Oise), Allonne (60000, Oise) ou Goincourt (60000, Oise). "
+        "Fais préciser la commune avant de la noter.]"
+    )
+
+
+@pytest.mark.asyncio
 async def test_un_echec_de_lanalyse_laisse_le_message_intact():
     contexte = _contexte({"role": "user", "content": "c'est à Beauvet"})
-    with patch.object(verification_communes, "analyser", side_effect=RuntimeError("panne")):
+    with patch.object(lecture_appelant, "analyser_message", side_effect=RuntimeError("panne")):
         descendantes, _ = await run_test(
             _processeur(NOEUD_COORDONNEES), frames_to_send=[LLMContextFrame(context=contexte)], start_timeout=DEMARRAGE_S
         )
@@ -323,7 +329,7 @@ async def test_un_echec_de_lanalyse_laisse_le_message_intact():
 
 @pytest.mark.asyncio
 async def test_la_boucle_nest_pas_retenue_pendant_lanalyse():
-    """The analysis runs in a worker thread: the event loop keeps beating.
+    """The reading runs in a worker thread: the event loop keeps beating.
 
     ⚠️ Compared, not thresholded. Measured 2026-09-16: an analysis of a long
     sentence takes ~22 ms and, in a thread, still freezes the loop up to ~17 ms
@@ -351,10 +357,13 @@ async def test_la_boucle_nest_pas_retenue_pendant_lanalyse():
         return len(battements)
 
     async def en_tache_de_fond():
-        await verification_communes.annoter_texte(phrase, MAGASIN, "coordonnees", None)
+        await lecture_appelant.lire_texte(
+            phrase, conversion=True, verification=True, langue_francaise=True,
+            adresse=MAGASIN, noeud=NOEUD_COORDONNEES, consigner=None,
+        )
 
     async def sur_la_boucle():
-        verification_communes._analyser_et_mentionner(phrase, MAGASIN)
+        lecture_appelant._lire(phrase, MAGASIN, [], True, True, False)
 
     await en_tache_de_fond()  # warm: the list and the imports
     fond = await battements_pendant(en_tache_de_fond)
@@ -363,7 +372,7 @@ async def test_la_boucle_nest_pas_retenue_pendant_lanalyse():
 
 
 # --------------------------------------------------------------------------- #
-# 4. At the level of the feature: the real aggregator, the real transcript handlers
+# 3. At the level of the feature: the real aggregator, the real transcript handlers
 # --------------------------------------------------------------------------- #
 
 
@@ -414,7 +423,7 @@ async def test_le_verbatim_garde_ce_qui_a_ete_dit_le_modele_et_lextraction_lisen
 
 
 # --------------------------------------------------------------------------- #
-# 5. The keyboard bench (D7)
+# 4. The keyboard bench (D7, R5)
 # --------------------------------------------------------------------------- #
 
 
@@ -422,14 +431,17 @@ async def test_le_verbatim_garde_ce_qui_a_ete_dit_le_modele_et_lextraction_lisen
 async def test_clavier_message_annote_a_letape_concernee_seulement():
     recueilli: dict = {}
     consigner = consigner_dans(lambda: recueilli)
-    assert await annoter_message_tape("c'est à Beauvet", {}, MAGASIN, NOEUD_COORDONNEES, consigner) == (
+    assert await lire_message_tape("c'est à Beauvet", {}, STT_FRANCAIS, MAGASIN, NOEUD_COORDONNEES, consigner) == (
         f"c'est à Beauvet {MENTION_BEAUVAIS}"
     )
     assert len(recueilli[CLE_TRACE]) == 1
-    assert await annoter_message_tape("c'est à Beauvet", {}, MAGASIN, NOEUD_ACCUEIL, consigner) == "c'est à Beauvet"
     assert (
-        await annoter_message_tape(
-            "c'est à Beauvet", {"verification_communes": False}, MAGASIN, NOEUD_COORDONNEES, consigner
+        await lire_message_tape("c'est à Beauvet", {}, STT_FRANCAIS, MAGASIN, NOEUD_ACCUEIL, consigner)
+        == "c'est à Beauvet"
+    )
+    assert (
+        await lire_message_tape(
+            "c'est à Beauvet", {"verification_communes": False}, STT_FRANCAIS, MAGASIN, NOEUD_COORDONNEES, consigner
         )
         == "c'est à Beauvet"
     )
@@ -440,9 +452,8 @@ class _Arret(Exception):
     pass
 
 
-@pytest.mark.asyncio
-async def test_clavier_execute_le_message_tape_arrive_annote_au_contexte():
-    """The keyboard path RUN up to the model's queue: the context it reads."""
+async def _message_tape_jusquau_modele(texte: str, configuration: dict):
+    """The keyboard path RUN up to the model's queue: (context, gathered context)."""
     contexte_capture = {}
 
     class _Moteur:
@@ -492,7 +503,7 @@ async def test_clavier_execute_le_message_tape_arrive_annote_au_contexte():
                 "edges": [{"id": "e", "source": "start", "target": "end",
                            "data": {"label": "Fin", "condition": "Quand c'est fini."}}],
             },
-            workflow_configurations={"adresse_etablissement": MAGASIN.model_dump()},
+            workflow_configurations={"adresse_etablissement": MAGASIN.model_dump(), **configuration},
         ),
         workflow=SimpleNamespace(organization_id=11, user=SimpleNamespace(id=1)),
     )
@@ -512,7 +523,9 @@ async def test_clavier_execute_le_message_tape_arrive_annote_au_contexte():
         ),
         patch(
             "api.services.configuration.ai_model_configuration.get_effective_ai_model_configuration_for_workflow",
-            AsyncMock(return_value=SimpleNamespace(llm=SimpleNamespace(provider="openai", model="gpt-4.1"), embeddings=None)),
+            AsyncMock(return_value=SimpleNamespace(
+                llm=SimpleNamespace(provider="openai", model="gpt-4.1"), embeddings=None, stt=STT_FRANCAIS
+            )),
         ),
         patch("api.services.managed_model_services.ensure_mps_correlation_id", AsyncMock(return_value=None)),
         patch.object(text_chat_runner, "stamp_sampling_settings", lambda cible, _llm: cible),
@@ -525,32 +538,58 @@ async def test_clavier_execute_le_message_tape_arrive_annote_au_contexte():
             await text_chat_runner.execute_text_chat_pending_turn(
                 workflow_run_id=7,
                 workflow_id=6,
-                session_data={"turns": [{"status": "pending", "user_message": {"text": "c'est à Beauvet"}}]},
+                session_data={"turns": [{"status": "pending", "user_message": {"text": texte}}]},
                 checkpoint=None,
             )
-    messages = contexte_capture["contexte"].messages
-    assert messages[-1] == {"role": "user", "content": f"c'est à Beauvet {MENTION_BEAUVAIS}"}
-    assert len(contexte_capture["moteur"]._gathered_context[CLE_TRACE]) == 1
+    return contexte_capture["contexte"], contexte_capture["moteur"]._gathered_context
+
+
+@pytest.mark.asyncio
+async def test_clavier_execute_le_message_tape_arrive_annote_au_contexte():
+    contexte, recueilli = await _message_tape_jusquau_modele("c'est à Beauvet", {})
+    assert contexte.messages[-1] == {"role": "user", "content": f"c'est à Beauvet {MENTION_BEAUVAIS}"}
+    assert len(recueilli[CLE_TRACE]) == 1
+
+
+@pytest.mark.asyncio
+async def test_clavier_execute_un_code_postal_dicte_arrive_en_chiffres_avec_la_mention():
+    """R5: the keyboard reads like a call, conversion on."""
+    contexte, recueilli = await _message_tape_jusquau_modele(
+        "Saint-Maximin soixante sept cent quarante", {"conversion_nombres_transcription": True}
+    )
+    assert contexte.messages[-1] == {
+        "role": "user",
+        "content": (
+            "Saint-Maximin 60740 [Vérification de la commune : « Saint-Maximin » correspond à "
+            "Saint-Maximin (60740, Oise). Utilise ce nom sans le faire répéter.]"
+        ),
+    }
+    (nombre,) = recueilli[CLE_TRACE_NOMBRES]
+    assert (nombre["type"], nombre["retenu"], nombre["statut"]) == ("code_postal", "60740", "sure")
 
 
 # --------------------------------------------------------------------------- #
-# 6. Branching on the source
+# 5. Branching on the source
 # --------------------------------------------------------------------------- #
 
 
 def test_le_chemin_telephonique_cree_letape_avec_ladresse_et_le_noeud_courant():
     source = inspect.getsource(run_pipeline)
     assert re.search(
-        r"verification_communes=creer_verification_communes\(\s*run_configs,\s*adresse_etablissement,"
+        r"lecture_appelant=creer_lecture_appelant\(\s*run_configs,\s*user_config\.stt,\s*adresse_etablissement,"
         r"\s*lambda: engine\._current_node,\s*consigner_dans\(lambda: engine\._gathered_context\)",
         source,
-    ), "The phone path no longer builds the town check with the agent's configuration."
-    assert len(re.findall(r"creer_verification_communes\(", source)) == 1
+    ), "The phone path no longer builds the caller reading step with the agent's configuration."
+    assert len(re.findall(r"creer_lecture_appelant\(", source)) == 1
 
 
 def test_le_chemin_clavier_annote_avant_dajouter_le_message():
     source = inspect.getsource(text_chat_runner)
-    annotation = re.search(r"message_pour_le_modele = await annoter_message_tape\(\s*pending_user_message", source)
+    annotation = re.search(
+        r"message_pour_le_modele = await lire_message_tape\(\s*pending_user_message,\s*run_configs,"
+        r"\s*getattr\(user_config, \"stt\", None\)",
+        source,
+    )
     ajout = re.search(r'context\.add_message\(\{"role": "user", "content": message_pour_le_modele\}\)', source)
     assert annotation and ajout
     assert annotation.start() < ajout.start()
