@@ -102,23 +102,26 @@ from loguru import logger
 
 from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+
 # ------------------------------------------------------------------------- #
 # [.mark] TROIS imports de Pipecat sont volontairement ABSENTS de ce bloc, et
-# c'est verifie plutot que suppose. Montee vers l'amont `23d22b95`, 2026-09-16 :
+# c'est verifie plutot que suppose. Montee vers l'amont 23d22b95, 2026-09-16 :
 #
-#   · `VoicemailDetector` (le notre) : plus reference nulle part depuis que
+#   - VoicemailDetector (le notre) : plus reference nulle part depuis que
 #     l'amont a remplace le detecteur de repondeur par la supervision de
 #     decroche.
-#   · `VADParams` (le leur) : ne servait qu'au detecteur en dur
-#     `stop_secs=0.2`, que nos reglages d'agent remplacent
-#     (`reglages_tour.parametres_detecteur()`).
-#   · `pipecat.turns.user_mute` (le leur) : leur `_create_user_mute_strategies`
-#     est remplace par notre `collecter_strategies_de_coupure`, qui construit la
-#     meme liste depuis les cinq reglages de l'agent et importe ces classes
-#     localement.
+#   - VADParams (le leur) : ne servait qu au detecteur en dur stop_secs=0.2,
+#     que nos reglages d'agent remplacent (reglages_tour.parametres_detecteur()).
+#   - pipecat.turns.user_mute (le leur) : leur _create_user_mute_strategies est
+#     remplace par notre collecter_strategies_de_coupure, qui construit la meme
+#     liste depuis les cinq reglages de l'agent et importe ces classes localement.
 #
-# ⛔ Un import orphelin apres une fusion est le symptome le plus courant d'un
-# patch perdu : ces trois-la ont ete verifies un par un avant d'etre retires.
+# ATTENTION : un import orphelin apres une fusion est le symptome le plus
+# courant d un patch perdu. Ces trois-la ont ete verifies un par un avant
+# retrait. Le 16/09/2026 un QUATRIEME import a ete emporte par accident en
+# regroupant ces commentaires (SileroVADAnalyzer, utilise sur le chemin
+# inconditionnel) : tous les appels auraient leve NameError. Garde : ruff F821.
 # ------------------------------------------------------------------------- #
 from pipecat.processors.aggregators.llm_response_universal import (
     LLMAssistantAggregatorParams,
