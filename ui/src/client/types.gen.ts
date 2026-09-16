@@ -245,6 +245,47 @@ export type ActiveCallsResponse = {
 };
 
 /**
+ * AdresseEtablissement
+ *
+ * [.mark] The business's address: organization-wide, overridable per agent.
+ *
+ * Given to agents as ``{{adresse_etablissement}}``. The town recognition
+ * (``api/services/communes/``) reads only the postal code and the commune,
+ * never the street.
+ *
+ * ⛔ Only the FORMAT is checked here. That the commune exists and carries
+ * this postal code is checked by the save routes, against the national list:
+ * this model is also read when a call is set up, and a refusal there must
+ * never cost the call (same rule as the opening hours).
+ */
+export type AdresseEtablissement = {
+    /**
+     * Code Postal
+     *
+     * Postal code, 5 digits.
+     */
+    code_postal: string;
+    /**
+     * Code Insee
+     *
+     * INSEE code of the commune chosen in the postal code's list.
+     */
+    code_insee: string;
+    /**
+     * Commune
+     *
+     * Official name of the commune.
+     */
+    commune: string;
+    /**
+     * Voie
+     *
+     * Street number and name. Optional; not used to recognise towns.
+     */
+    voie?: string | null;
+};
+
+/**
  * AmbientNoiseConfigurationDefaults
  */
 export type AmbientNoiseConfigurationDefaults = {
@@ -1433,6 +1474,20 @@ export type CloudonixConfigurationRequest = {
      * Cloudonix Voice Application name. The application's url is updated when inbound workflows are attached to numbers on this domain. If omitted, an application is auto-created on save and its name is stored on the configuration.
      */
     application_name?: string | null;
+};
+
+/**
+ * CommuneDuCodePostal
+ */
+export type CommuneDuCodePostal = {
+    /**
+     * Code Insee
+     */
+    code_insee: string;
+    /**
+     * Nom
+     */
+    nom: string;
 };
 
 /**
@@ -4823,6 +4878,10 @@ export type OrganizationPreferences = {
      */
     timezone?: string | null;
     /**
+     * [.mark] The business's address. Helps recognise the towns callers name, and is given to agents as {{adresse_etablissement}}.
+     */
+    adresse_etablissement?: AdresseEtablissement | null;
+    /**
      * External Pbx Integrations Enabled
      */
     external_pbx_integrations_enabled?: boolean;
@@ -8040,11 +8099,21 @@ export type WorkflowConfigurationDefaults = {
      */
     conversion_nombres_transcription?: boolean;
     /**
+     * Verification Communes
+     *
+     * Matches the town the caller names against the official list of French communes before the model reads it. Acts only at steps that collect a `commune` or `adresse…` variable. No effect in realtime mode.
+     */
+    verification_communes?: boolean;
+    /**
      * Horaires Ouverture
      *
      * Opening hours in the readable French format. Computes etat_ouverture, reouverture and horaires_ouverture at call start. Empty: nothing is computed.
      */
     horaires_ouverture?: string | null;
+    /**
+     * Business address for this agent. Leave empty to use the organization's address. Given to the agent as {{adresse_etablissement}}; the street is not used to recognise towns.
+     */
+    adresse_etablissement?: AdresseEtablissement | null;
     /**
      * Mute Until First Bot Complete
      *
@@ -12851,6 +12920,52 @@ export type SavePreferencesApiV1OrganizationsPreferencesPutResponses = {
 };
 
 export type SavePreferencesApiV1OrganizationsPreferencesPutResponse = SavePreferencesApiV1OrganizationsPreferencesPutResponses[keyof SavePreferencesApiV1OrganizationsPreferencesPutResponses];
+
+export type GetCommunesDuCodePostalApiV1OrganizationsCommunesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Code Postal
+         */
+        code_postal: string;
+    };
+    url: '/api/v1/organizations/communes';
+};
+
+export type GetCommunesDuCodePostalApiV1OrganizationsCommunesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCommunesDuCodePostalApiV1OrganizationsCommunesGetError = GetCommunesDuCodePostalApiV1OrganizationsCommunesGetErrors[keyof GetCommunesDuCodePostalApiV1OrganizationsCommunesGetErrors];
+
+export type GetCommunesDuCodePostalApiV1OrganizationsCommunesGetResponses = {
+    /**
+     * Response Get Communes Du Code Postal Api V1 Organizations Communes Get
+     *
+     * Successful Response
+     */
+    200: Array<CommuneDuCodePostal>;
+};
+
+export type GetCommunesDuCodePostalApiV1OrganizationsCommunesGetResponse = GetCommunesDuCodePostalApiV1OrganizationsCommunesGetResponses[keyof GetCommunesDuCodePostalApiV1OrganizationsCommunesGetResponses];
 
 export type ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetData = {
     body?: never;

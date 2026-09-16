@@ -80,7 +80,10 @@ import { transcriptionPiloteLesTours } from "./transcriptionPiloteLesTours";
 // ---------------------------------------------------------------------------
 
 // ⛔ Never hidden, unlike the turn-taking keys: see `SectionTranscription.tsx`.
-export const CLES_TRANSCRIPTION = ["conversion_nombres_transcription"] as const;
+export const CLES_TRANSCRIPTION = [
+    "conversion_nombres_transcription",
+    "verification_communes",
+] as const;
 
 export const CLES_COUPURE = [
     "mute_until_first_bot_complete",

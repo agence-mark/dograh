@@ -49,6 +49,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
+import { ID_SECTION_ADRESSE_ETABLISSEMENT } from "./SectionAdresseEtablissement";
 import { ID_SECTION_HORAIRES_OUVERTURE } from "./SectionHorairesOuverture";
 import { ID_SECTION_REGLAGES_PIPECAT } from "./SectionReglagesPipecat";
 
@@ -229,6 +230,28 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         const entree = container.querySelector(`a[href="#${ID_SECTION_HORAIRES_OUVERTURE}"]`);
         expect(entree).not.toBeNull();
         expect(entree?.textContent).toContain("Opening Hours");
+    });
+
+    it("[verification-communes] the business address card is mounted, with its fields, its Save button and its sidebar entry", async () => {
+        const { container } = await rendreLaPage();
+        expect(container.querySelector(`#${ID_SECTION_ADRESSE_ETABLISSEMENT}`)).not.toBeNull();
+        expect(screen.getByText("Business address for this agent")).toBeTruthy();
+        expect(document.getElementById("agent-business-address-code-postal")).not.toBeNull();
+        expect(document.getElementById("agent-business-address-commune")).not.toBeNull();
+        expect(screen.getByRole("button", { name: /save business address/i })).toBeTruthy();
+        const entree = container.querySelector(`a[href="#${ID_SECTION_ADRESSE_ETABLISSEMENT}"]`);
+        expect(entree).not.toBeNull();
+        expect(entree?.textContent).toContain("Business Address");
+        // Right after the opening hours (plan, lot 5).
+        const horaires = container.querySelector(`#${ID_SECTION_HORAIRES_OUVERTURE}`);
+        const adresse = container.querySelector(`#${ID_SECTION_ADRESSE_ETABLISSEMENT}`);
+        expect(horaires?.nextElementSibling).toBe(adresse);
+    });
+
+    it("[verification-communes] the town check switch is on the page, ON by default", async () => {
+        await rendreLaPage();
+        const interrupteur = screen.getByRole("switch", { name: /recognise the caller's town/i });
+        expect(interrupteur.getAttribute("aria-checked")).toBe("true");
     });
 
     it("is NOT left behind in the dead dialog, where it was unreachable", () => {

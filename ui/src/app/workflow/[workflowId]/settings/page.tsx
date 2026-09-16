@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { ArrowLeft, BookA, Brain, CalendarIcon, Clipboard, Clock, Download, ExternalLink, FileDown, Fingerprint, Loader2, Mic, Pause, PhoneOff, Play, Plus, Rocket, Settings, SlidersHorizontal, Trash2Icon, Upload, Variable, X } from "lucide-react";
+import { ArrowLeft, BookA, Brain, CalendarIcon, Clipboard, Clock, Download, ExternalLink, FileDown, Fingerprint, Loader2, MapPin, Mic, Pause, PhoneOff, Play, Plus, Rocket, Settings, SlidersHorizontal, Trash2Icon, Upload, Variable, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -27,6 +27,7 @@ import {
 import { FlowEdge, FlowNode } from "@/components/flow/types";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
 import { PerServiceModelOverride } from "@/components/mark/PerServiceModelOverride";
+import { ID_SECTION_ADRESSE_ETABLISSEMENT, SectionAdresseEtablissement } from "@/components/mark/SectionAdresseEtablissement";
 import { ID_SECTION_HORAIRES_OUVERTURE, SectionHorairesOuverture } from "@/components/mark/SectionHorairesOuverture";
 import { ID_SECTION_REGLAGES_PIPECAT, SectionReglagesPipecat } from "@/components/mark/SectionReglagesPipecat";
 import SpinLoader from "@/components/SpinLoader";
@@ -88,6 +89,8 @@ const NAV_ITEMS = [
     { id: ID_SECTION_REGLAGES_PIPECAT, label: "Speech Tuning", icon: SlidersHorizontal },
     // [.mark] Opening hours, same rule: the id is the card's.
     { id: ID_SECTION_HORAIRES_OUVERTURE, label: "Opening Hours", icon: Clock },
+    // [.mark] Business address, same rule: the id is the card's.
+    { id: ID_SECTION_ADRESSE_ETABLISSEMENT, label: "Business Address", icon: MapPin },
     { id: "models", label: "Model Overrides", icon: Brain },
     { id: "variables", label: "Template Variables", icon: Variable },
     { id: "dictionary", label: "Dictionary", icon: BookA },
@@ -1741,6 +1744,13 @@ function WorkflowSettingsInner({
 
                             {/* [.mark] Opening Hours */}
                             <SectionHorairesOuverture
+                                workflowConfigurations={resolvedWorkflowConfigurationsForRender}
+                                workflowName={workflowName || workflow.name}
+                                onSave={saveWorkflowConfigurations}
+                            />
+
+                            {/* [.mark] Business address for this agent */}
+                            <SectionAdresseEtablissement
                                 workflowConfigurations={resolvedWorkflowConfigurationsForRender}
                                 workflowName={workflowName || workflow.name}
                                 onSave={saveWorkflowConfigurations}

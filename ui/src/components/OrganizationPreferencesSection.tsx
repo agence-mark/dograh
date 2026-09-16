@@ -11,6 +11,7 @@ import {
 } from "@/client/sdk.gen";
 import type { OrganizationPreferences } from "@/client/types.gen";
 import { DispositionMappingDialog } from "@/components/DispositionMappingDialog";
+import { ChampAdresseEtablissement } from "@/components/mark/ChampAdresseEtablissement";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ const emptyPreferences: OrganizationPreferences = {
   external_pbx_integrations_enabled: false,
   disposition_mapping_enabled: false,
   disposition_mapping: {},
+  adresse_etablissement: null,
 };
 
 /** Normalize a server response into the shape this form edits. */
@@ -38,6 +40,7 @@ function toFormPreferences(
       preferences.external_pbx_integrations_enabled ?? false,
     disposition_mapping_enabled: preferences.disposition_mapping_enabled ?? false,
     disposition_mapping: preferences.disposition_mapping ?? {},
+    adresse_etablissement: preferences.adresse_etablissement ?? null,
   };
 }
 
@@ -121,6 +124,11 @@ export function OrganizationPreferencesSection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [mappingDialogOpen, setMappingDialogOpen] = useState(false);
+  // [.mark] The business address being edited. The field is handed the SAVED
+  // address (`preferences`), and reports the draft here.
+  const [adresse, setAdresse] = useState<OrganizationPreferences["adresse_etablissement"]>(null);
+  const [adresseIncomplete, setAdresseIncomplete] = useState(false);
+  const [erreurAdresse, setErreurAdresse] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading || !user || hasFetched.current) {
@@ -148,6 +156,7 @@ export function OrganizationPreferencesSection() {
 
       const nextPreferences = result.data || emptyPreferences;
       setPreferences(toFormPreferences(nextPreferences));
+      setAdresse(nextPreferences.adresse_etablissement ?? null);
       setTimezone(
         nextPreferences.timezone || emptyPreferences.timezone || "UTC",
       );
@@ -178,12 +187,24 @@ export function OrganizationPreferencesSection() {
               // should stop it being applied, not discard the entries someone
               // spent time configuring.
               disposition_mapping: nextPreferences.disposition_mapping ?? {},
+              // [.mark] The PUT replaces the whole preferences row, so an absent
+              // key clears the address exactly like null. Sent only when there is
+              // one: the body of an organization without address stays as before.
+              ...(nextPreferences.adresse_etablissement
+                ? { adresse_etablissement: nextPreferences.adresse_etablissement }
+                : {}),
             },
           },
         );
 
       if (result.error) {
-        toast.error(detailFromError(result.error, "Failed to save preferences"));
+        const message = detailFromError(result.error, "Failed to save preferences");
+        // [.mark] A refused address is shown under its fields, not only in a
+        // toast that disappears.
+        if (result.response?.status === 422) {
+          setErreurAdresse(message);
+        }
+        toast.error(message);
         return false;
       }
       if (!result.data) {
@@ -192,6 +213,8 @@ export function OrganizationPreferencesSection() {
       }
 
       setPreferences(toFormPreferences(result.data));
+      setAdresse(result.data.adresse_etablissement ?? null);
+      setErreurAdresse(null);
       setTimezone(result.data.timezone || emptyPreferences.timezone || "UTC");
       await refreshConfig();
       toast.success(successMessage);
@@ -206,7 +229,10 @@ export function OrganizationPreferencesSection() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    await persistPreferences(preferences, "Preferences saved");
+    await persistPreferences(
+      { ...preferences, adresse_etablissement: adresse },
+      "Preferences saved",
+    );
   }
 
   async function handleDispositionMappingSave(
@@ -319,13 +345,38 @@ export function OrganizationPreferencesSection() {
           </div>
         )}
       </div>
+      <div className="space-y-3 rounded-lg border p-4">
+        <div className="space-y-1">
+          <Label>Business address</Label>
+          <p className="text-xs text-muted-foreground">
+            Helps recognise the towns callers name. Given to agents as{" "}
+            <code>{"{{adresse_etablissement}}"}</code>; the street is not used
+            to recognise towns.
+          </p>
+        </div>
+        <ChampAdresseEtablissement
+          id="settings-business-address"
+          enregistree={preferences.adresse_etablissement}
+          erreur={erreurAdresse}
+          onChange={(valeur, incomplete) => {
+            setAdresse(valeur);
+            setAdresseIncomplete(incomplete);
+            setErreurAdresse(null);
+          }}
+        />
+        {adresseIncomplete && (
+          <p className="text-xs text-muted-foreground">
+            Choose the town for this postal code before saving.
+          </p>
+        )}
+      </div>
       <DispositionMappingDialog
         open={mappingDialogOpen}
         onOpenChange={setMappingDialogOpen}
         mapping={preferences.disposition_mapping ?? {}}
         onSave={handleDispositionMappingSave}
       />
-      <Button type="submit" disabled={saving}>
+      <Button type="submit" disabled={saving || adresseIncomplete}>
         <Save className="mr-2 h-4 w-4" />
         {saving ? "Saving..." : "Save"}
       </Button>

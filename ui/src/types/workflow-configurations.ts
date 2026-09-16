@@ -1,4 +1,5 @@
 import type {
+    AdresseEtablissement,
     AmbientNoiseConfigurationDefaults,
     CallDispositionOption as GeneratedCallDispositionOption,
     OrganizationAiModelConfigurationV2,
@@ -63,6 +64,8 @@ export const DEFAUTS_PIPECAT = {
     mute_first_speech: false,
     mute_always: false,
     conversion_nombres_transcription: false,
+    // ⚠️ ON (decision D5 of 2026-09-16): acts only at steps that collect a town.
+    verification_communes: true,
 } as const;
 
 // "provisional_vad" was retired. Definitions saved before then still carry it,
@@ -205,6 +208,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Opening hours in the readable French format. Empty (null): no
     // opening state is computed at call start, exactly as before.
     horaires_ouverture?: string | null;
+    // [.mark] Business address for this agent. Empty (null): the organization's
+    // address is used.
+    adresse_etablissement?: AdresseEtablissement | null;
     // [.mark] Pipecat settings this fork exposes on the agent. Every default
     // reproduces the value the pipeline hardcodes TODAY: an agent that fills in
     // nothing behaves exactly as before.
@@ -219,6 +225,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     mute_first_speech: boolean;
     mute_always: boolean;
     conversion_nombres_transcription: boolean;  // Dictated numbers reach the model as digits
+    verification_communes: boolean;  // Town the caller names checked against the list of communes
     user_speech_timeout: number;  // Seconds the caller may pause before the agent answers
     stt_ttfs_p99_latency: number | null;  // Empty = the value Pipecat measured for the provider
     user_turn_stop_timeout: number | null;  // Empty = 5 s, or 30 s in external-turn mode
