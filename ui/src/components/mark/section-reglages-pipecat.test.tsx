@@ -529,9 +529,14 @@ describe("Section Reglages vocaux de la page de parametres", () => {
     it("dit que l'interrupteur des nombres dictes est sans effet en temps reel", () => {
         ouvrir(null);
         expect(document.body.textContent).toMatch(/no effect in realtime mode/i);
+        // Plan nombres-dictes (N1): the step moved after the aggregator, so the
+        // remark about the "minimum words" interruption no longer holds, and the
+        // recorded transcript keeps the caller's words.
+        expect(document.body.textContent).toMatch(/french only/i);
         expect(document.body.textContent).toMatch(
-            /dictated numbers count as fewer words/i,
+            /the recorded transcript keeps the caller's words/i,
         );
+        expect(document.body.textContent).not.toMatch(/count as fewer words/i);
     });
 
     it("emploie le MEME rappel de publication que les autres sections de la page", () => {
