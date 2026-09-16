@@ -1,22 +1,20 @@
 """[.mark] None of OUR tests may call ``asyncio.run()``.
 
-🔴 Born from the first CI run on our branches, 2026-09-16: two of our tests
-called ``asyncio.run()``, which leaves the main thread with no current event
-loop on exit, and an upstream test run after them
-(``tests/test_add_call_disposition_code.py``) then failed on
-``asyncio.get_event_loop()``. The defect had been in production since 08/09 and
-nobody saw it, because the CI had never run on this fork.
+``asyncio.run()`` changes a process-wide setting on exit, and every test run
+after it inherits the change. Use
+``api.tests.mark.boucle_isolee.executer_sans_toucher_la_boucle_courante``.
 
-⛔ Why a test and not a rule written somewhere: the failure is an ORDER effect.
-The offending test passes, the victim passes on its own, and only the full
-suite run in collection order shows anything. Nobody would catch the next one
-by reading a diff.
+⛔ What this guard does NOT claim: it does not keep upstream tests safe on its
+own. On 2026-09-16 an upstream test failed on "no current event loop"; our
+``asyncio.run()`` calls were one trigger, pytest-asyncio was another, and the
+root cause was the upstream test itself (fixed there). This guard only keeps
+OUR tests from adding to the problem, which an order effect makes invisible
+when reading a diff.
 
 ⛔ The call is looked up in the syntax tree, not by text search: this very
-file, and ``boucle_isolee.py``, NAME ``asyncio.run()`` in prose, and a text
-search would either fail on them or be tempted into an exception list.
+file, and ``boucle_isolee.py``, NAME ``asyncio.run()`` in prose.
 
-Scope: ``tests/mark/`` only, which is ours. Upstream tests are theirs to fix.
+Scope: ``tests/mark/`` only, which is ours.
 """
 
 import ast

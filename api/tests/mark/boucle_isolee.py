@@ -1,24 +1,20 @@
 """[.mark] Run a coroutine from a synchronous test without touching global state.
 
-🔴 Why this exists: the first CI run on our branches (2026-09-16) stopped on an
-UPSTREAM test, ``tests/test_add_call_disposition_code.py``, with
-``RuntimeError: There is no current event loop in thread 'MainThread'``.
+``asyncio.run()`` calls ``set_event_loop(None)`` on exit: it changes a
+process-wide setting that every later test inherits. This helper runs the
+coroutine on a private loop and never calls ``set_event_loop``, so the thread
+leaves exactly as it came.
 
-The test passes on its own. It failed because two of OUR tests ran before it
-and called ``asyncio.run()``. On exit, ``asyncio.run()`` calls
-``set_event_loop(None)``, so it leaves the main thread with no current loop;
-the upstream test then calls ``asyncio.get_event_loop()``, which raises under
-Python 3.13 when no loop is set.
+🔑 Context, and it is worth getting right (2026-09-16). The first CI runs on our
+branches stopped on an upstream test, ``tests/test_add_call_disposition_code.py``,
+with "There is no current event loop". Our ``asyncio.run()`` calls were first
+taken for THE cause; bisecting and instrumenting in the exact CI conditions
+showed they were only ONE trigger among several (pytest-asyncio removes the
+loop too). ⛔ The root cause was that upstream test calling
+``asyncio.get_event_loop()`` from synchronous code, which depends on whatever
+state earlier tests leave behind. It was fixed there, in one line.
 
-⛔ The defect was already in production (both calls date from 08/09 and 10/09).
-Nobody saw it because the CI had never run on this fork.
-
-The fault is shared -- their test leans on a deprecated implicit loop, ours
-reset a process-wide setting -- but the fix belongs on OUR side: it is our test
-that changes something it does not own, and patching their file would cost a
-conflict at every upstream merge.
-
-``test_aucun_asyncio_run_dans_nos_tests`` keeps it from coming back.
+This helper stays because not altering process-wide state is right on its own.
 """
 
 import asyncio

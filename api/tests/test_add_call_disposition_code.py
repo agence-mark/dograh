@@ -67,9 +67,20 @@ def test_disposition_code_new_value_is_not_same_reference(client):
 
     client.async_session = MagicMock(return_value=mock_session)
 
-    asyncio.get_event_loop().run_until_complete(
-        client.add_call_disposition_code(workflow_id=1, disposition_code="new_code")
-    )
+    # [.mark] 2026-09-16 : une boucle PRIVEE, a la place de
+    # `asyncio.get_event_loop()`. Appele depuis du code synchrone, celui-ci
+    # depend de l'etat que les tests precedents laissent au processus : sous
+    # Python 3.13 il leve des qu'une boucle a ete posee puis retiree avant lui.
+    # Ce test passait dans la CI de l'amont par chance d'ordre, et tombait dans
+    # la notre - mesure : la boucle est presente au debut du test et retiree par
+    # pytest-asyncio avant son corps. Candidat a contribution tel quel.
+    boucle = asyncio.new_event_loop()
+    try:
+        boucle.run_until_complete(
+            client.add_call_disposition_code(workflow_id=1, disposition_code="new_code")
+        )
+    finally:
+        boucle.close()
 
     # Verify the disposition code was added
     assigned = workflow.call_disposition_codes
