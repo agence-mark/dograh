@@ -1,5 +1,5 @@
 {
- "_lire": "Corpus réel des communes : appels 230 à 273 (15 au 17/09), banc du 16/09, fiche A v3, noms mal transcrits des bancs dans les tournures d'appel, phrases de la relecture et de la contre-relecture du 17/09, phrases du labo. Textes seuls, sans nom de personne ni numéro dicté. rang_production : rang de la commune attendue sur le fork 657a365b, chaque phrase lue seule, par magasin (-1 = annoncée sûre, 0 = proposée en premier, 1 = en deuxième, 2 = en troisième, null = absente). ⛔ Ne jamais modifier un rang_production pour faire passer le test.",
+ "_lire": "Corpus réel des communes : appels 230 à 273 (15 au 17/09), banc du 16/09, fiche A v3, noms mal transcrits des bancs dans les tournures d'appel, phrases de la relecture, de la contre-relecture et de la relecture finale du 17/09, phrases du labo. Textes seuls, sans nom de personne ni numéro dicté. rang_production : rang de la commune attendue sur le fork 657a365b, chaque phrase lue seule, par magasin (-1 = annoncée sûre, 0 = proposée en premier, 1 = en deuxième, 2 = en troisième, null = absente). ⛔ Ne jamais modifier un rang_production pour faire passer le test.",
  "magasins": {
   "60589": "Saint-Maximin (60)",
   "60159": "Compiègne (60)",
@@ -13607,6 +13607,146 @@
     "13055": 0,
     "sans": 0
    }
+  },
+  {
+   "phrase": "Grand Villiers, au Moulin.",
+   "commune": "Grandvilliers",
+   "departement": "60",
+   "source": "relecture finale du 17/09",
+   "rang_production": {
+    "60589": 0,
+    "60159": 0,
+    "78168": 1,
+    "13055": 0,
+    "sans": 0
+   },
+   "autres_sures_production": {
+    "60589": 0,
+    "60159": 0,
+    "78168": 0,
+    "13055": 0,
+    "sans": 0
+   }
+  },
+  {
+   "phrase": "Compiagnes, au Clos des Roses.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "relecture finale du 17/09",
+   "rang_production": {
+    "60589": 0,
+    "60159": -1,
+    "78168": 1,
+    "13055": 0,
+    "sans": 0
+   },
+   "autres_sures_production": {
+    "60589": 0,
+    "60159": 0,
+    "78168": 0,
+    "13055": 0,
+    "sans": 0
+   }
+  },
+  {
+   "phrase": "C'est Bovet, au hameau de Marissel.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "relecture finale du 17/09",
+   "rang_production": {
+    "60589": 1,
+    "60159": 1,
+    "78168": 1,
+    "13055": 1,
+    "sans": 1
+   },
+   "autres_sures_production": {
+    "60589": 0,
+    "60159": 0,
+    "78168": 0,
+    "13055": 0,
+    "sans": 0
+   }
+  },
+  {
+   "phrase": "Bovet. Au revoir.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "relecture finale du 17/09",
+   "rang_production": {
+    "60589": 1,
+    "60159": 1,
+    "78168": 1,
+    "13055": null,
+    "sans": null
+   },
+   "autres_sures_production": {
+    "60589": 0,
+    "60159": 0,
+    "78168": 0,
+    "13055": 1,
+    "sans": 1
+   }
+  },
+  {
+   "phrase": "Champly, à la zone industrielle.",
+   "commune": "Chambly",
+   "departement": "60",
+   "source": "relecture finale du 17/09",
+   "rang_production": {
+    "60589": 0,
+    "60159": 0,
+    "78168": 0,
+    "13055": null,
+    "sans": null
+   },
+   "autres_sures_production": {
+    "60589": 0,
+    "60159": 1,
+    "78168": 1,
+    "13055": 0,
+    "sans": 0
+   }
+  },
+  {
+   "phrase": "Bouvé à l'école",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "relecture finale du 17/09",
+   "rang_production": {
+    "60589": 1,
+    "60159": 2,
+    "78168": null,
+    "13055": null,
+    "sans": null
+   },
+   "autres_sures_production": {
+    "60589": 1,
+    "60159": 1,
+    "78168": 1,
+    "13055": 1,
+    "sans": 1
+   }
+  },
+  {
+   "phrase": "Oui Bovet à la mairie",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "relecture finale du 17/09",
+   "rang_production": {
+    "60589": 1,
+    "60159": 1,
+    "78168": 1,
+    "13055": 1,
+    "sans": 1
+   },
+   "autres_sures_production": {
+    "60589": 0,
+    "60159": 0,
+    "78168": 0,
+    "13055": 0,
+    "sans": 0
+   }
   }
  ],
  "parasites": [
@@ -17608,6 +17748,11 @@
    "Oui bonjour, j'aimerais faire ramoner mon poêle à bois s'il vous plaît.",
    "Oui bonjour, j'aimerais prendre un rendez-vous pour faire ramoner mon poêle à bois s'il vous plaît.",
    "Oui vite s'il vous plaît",
+   "Passe au prochain.",
+   "Passe aux choses.",
+   "Passe à l'élément dix.",
+   "Passe à l'élément quinze.",
+   "Passe à l'élément suivant.",
    "Passe à la suite.",
    "Révérance FA quatre cent douze.",
    "Un poêle à granulés",
@@ -17659,6 +17804,11 @@
    "Oui bonjour, j'aimerais faire ramoner mon poêle à bois s'il vous plaît.",
    "Oui bonjour, j'aimerais prendre un rendez-vous pour faire ramoner mon poêle à bois s'il vous plaît.",
    "Oui vite s'il vous plaît",
+   "Passe au prochain.",
+   "Passe aux choses.",
+   "Passe à l'élément dix.",
+   "Passe à l'élément quinze.",
+   "Passe à l'élément suivant.",
    "Passe à la suite.",
    "Révérance FA quatre cent douze.",
    "Un poêle à granulés",
@@ -17707,6 +17857,8 @@
    "Oui bonjour, j'aimerais faire ramoner mon poêle à bois s'il vous plaît.",
    "Oui bonjour, j'aimerais prendre un rendez-vous pour faire ramoner mon poêle à bois s'il vous plaît.",
    "Oui vite s'il vous plaît",
+   "Passe au prochain.",
+   "Passe aux choses.",
    "Passe à l'élément dix.",
    "Passe à l'élément quinze.",
    "Passe à l'élément suivant.",
@@ -17753,6 +17905,8 @@
    "On est le jeudi 15 janvier.",
    "Oui vite s'il vous plaît",
    "Oui, c'est bien ça et il a été entretenu l'année dernière au mois d'octobre.",
+   "Passe au prochain.",
+   "Passe aux choses.",
    "Passe à l'élément dix.",
    "Passe à l'élément quinze.",
    "Passe à l'élément suivant.",
@@ -17801,6 +17955,8 @@
    "Non, je voudrais faire ramoner mon poêle à granulé.",
    "On est le jeudi 15 janvier.",
    "Oui vite s'il vous plaît",
+   "Passe au prochain.",
+   "Passe aux choses.",
    "Passe à l'élément dix.",
    "Passe à l'élément quinze.",
    "Passe à l'élément suivant.",

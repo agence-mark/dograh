@@ -1063,8 +1063,8 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
             texte, base, detections, candidats, mots_nombres | _mots_de(nombres), trace_appel, trace_nombres
         )
     # A town said is one that will be proposed: a parasite dropped below must not
-    # silence the note of a postal code said alone (« Passe à la suite. Soixante
-    # mille. », review of 2026-09-17).
+    # silence the note of a postal code said alone (« C'est la maison au bout du
+    # chemin, soixante mille. », review of 2026-09-17).
     communes_dites = bool(propositions_fondees(texte, detections, base))
     choix: dict[int, ChoixCodePostal] = {}
     for n in candidats:

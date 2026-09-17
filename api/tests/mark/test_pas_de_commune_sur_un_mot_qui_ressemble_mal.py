@@ -51,20 +51,19 @@ def _noms(r):
 # --------------------------------------------------------------------------- #
 
 PARASITES_DU_17_09 = [
-    # Words that go on with a complement name no place: « Passe » is Pacé at 100.
-    "Passe à l'élément dix.",  # run 266: Pacé, Allemant
-    "Passe aux choses.",  # run 266: Pacé
     # An article right before the words belongs to the commune's name.
     "C'est la maison au bout du chemin.",  # run 266: Maisons, Lormaison
     "C'est le bâtiment b au deuxième étage.",  # run 266: Athis-Mons
     # « côté » followed by « de » is a preposition.
     "c'est à côté de la boulangerie.",  # run 266: Contay, Corte
 ]
-# ⚠️ Known limits, kept knowingly (rule of Evan: zero loss first, counter-review
-# of 2026-09-17). No rule that loses no commune meant, for any shop, removes
-# them: « Un poêle à granulés » (Grandrû, Grans, Grane), « L'année dernière… »
-# (Lanne), « Passe à la suite. » (Lassy), « il y a marqué… » (Marques),
-# « Révérance FA… », « Flammo. », « crée ». The full list, per shop, is
+# ⚠️ Known limits, kept knowingly (rule of Evan: zero loss first, reviews of
+# 2026-09-17). No rule that loses no commune meant, for any shop, removes them:
+# « Un poêle à granulés » (Grandrû, Grans, Grane), « L'année dernière… » (Lanne),
+# « il y a marqué… » (Marques), « Révérance FA… », « crée », and the bench's
+# own sentences « Passe à la suite. », « Passe aux choses. », « Passe à
+# l'élément dix. » (the complement rule that removed them also erased real
+# communes, « Grand Villiers, au Moulin. »: withdrawn). The full list, per shop, is
 # ``parasites_restants_connus`` in ``donnees/communes_corpus_reel_2026-09-17.json``.
 # « L'année dernière » and « poêle à granulés » are said outside the address
 # question: the remedy is a dedicated identity step in the agent, not the fork.
@@ -88,8 +87,8 @@ def test_la_verification_hors_du_francais_applique_la_meme_regle():
     from api.services.pipecat.verification_communes import _analyser_et_mentionner
 
     adresse = AdresseEtablissement(code_postal="60740", code_insee="60589", commune="Saint-Maximin")
-    texte, detections, _ = _analyser_et_mentionner("Passe aux choses.", adresse)
-    assert (texte, detections) == ("Passe aux choses.", [])
+    texte, detections, _ = _analyser_et_mentionner("c'est à côté de la boulangerie.", adresse)
+    assert (texte, detections) == ("c'est à côté de la boulangerie.", [])
 
 
 # --------------------------------------------------------------------------- #
@@ -124,15 +123,23 @@ def test_brel_propose_toujours_bresles_en_premier(base, magasin, texte):
 @pytest.mark.parametrize("texte, commune", [
     ("C'est à Bovet.", "Beauvais"),  # run 261 (Boves first, Beauvais proposed)
     ("Bouvé.", "Beauvais"),  # run 264
-    ("Bové d'enloises", "Beauvais"),  # run 259, « dans l'Oise » garbled: not a complement
+    ("Bové d'enloises", "Beauvais"),  # run 259, « dans l'Oise » garbled
     ("C'est à Lyon Court.", "Liancourt"),  # run 264
     ("Grand Villiers.", "Grandvilliers"),  # run 264
     ("C'est à Compiagnes.", "Compiègne"),  # run 262
     ("À Saint-Laurent.", "Saint-Laurent"),  # run 261: written exactly, homonyms kept
-    # Run 245: the caller goes on after the town, without a complement of it.
+    # Run 245: the caller goes on after the town.
     ("Non, c'est à Bovet et oui, il a été entretenu l'année dernière en octobre.", "Beauvais"),
-    # An address after the town is not a complement of it.
     ("c'est à Bovet, au 12 rue des Lilas", "Beauvais"),
+    # Final review of 2026-09-17: a commune said alone, then a place. The
+    # complement rule erased them all (present in production): withdrawn.
+    ("Grand Villiers, au Moulin.", "Grandvilliers"),
+    ("Compiagnes, au Clos des Roses.", "Compiègne"),
+    ("C'est Bovet, au hameau de Marissel.", "Beauvais"),
+    ("Bovet. Au revoir.", "Beauvais"),
+    ("Champly, à la zone industrielle.", "Chambly"),
+    ("Bouvé à l'école", "Beauvais"),
+    ("Oui Bovet à la mairie", "Beauvais"),
 ])
 def test_une_commune_mal_transcrite_reste_proposee(base, magasin, texte, commune):
     r = analyser_message(texte, base, magasin)
@@ -161,7 +168,7 @@ def test_aucune_regle_ne_depend_du_magasin():
 
 
 # --------------------------------------------------------------------------- #
-# 4. Review of 2026-09-17: a place located next to the town is not a complement
+# 4. Review of 2026-09-17: a place located next to the town does not erase it
 # --------------------------------------------------------------------------- #
 
 
@@ -176,8 +183,8 @@ def test_aucune_regle_ne_depend_du_magasin():
     ("C'est à Bovet à la campagne", "Beauvais"),
 ])
 def test_un_repere_de_lieu_apres_la_commune_ne_lefface_pas(base, magasin, texte, commune):
-    """Measured by the review: the complement rule dropped the commune meant, and
-    « côté » still proposed Contay and Corte, « vers » Vert."""
+    """Measured by the review: a rule dropped the commune meant, and « côté » still
+    proposed Contay and Corte, « vers » Vert."""
     noms = _noms(analyser_message(texte, base, magasin))
     assert any(commune in n for n in noms), noms
     assert not any({"Contay", "Corte", "Vert", "Vers"} & set(n) for n in noms), noms
@@ -191,7 +198,3 @@ def test_un_parasite_retire_ne_fait_pas_taire_le_code_postal_dit(base, magasin, 
     codes = [[l.commune.nom for l in d.lectures] for d in r.detections if d.code_postal_entendu]
     assert codes and codes[0][:3] == ["Beauvais", "Allonne", "Goincourt"], r.detections
     assert _noms(r) == []
-
-
-def test_les_mots_sans_contenu_sont_calcules_une_fois_par_liste(base):
-    assert analyse._mots_sans_contenu(base) is analyse._mots_sans_contenu(base)

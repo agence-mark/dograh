@@ -439,58 +439,14 @@ def analyser(
 # Proposals to confirm: only on words that resemble the commune (2026-09-17)
 # --------------------------------------------------------------------------- #
 
-# Words after which « à … » or « de la … » continues the words heard instead of
-# naming a place: « passe à la suite », « passe aux choses ».
-_PREPOSITIONS_COMPLEMENT = frozenset({"a", "au", "aux"})
 _DE = frozenset({"de", "d", "du", "des"})
-_DETERMINANTS = frozenset({"l", "la", "le", "les", "un", "une"})
-_OUVRE_UNE_ADRESSE = TYPES_VOIE | {"numero"}
 # Grammar words that place something relative to a place (review of 2026-09-17):
-# « à Bovet, à côté de la gare », « Brel à côté de Beauvais », « vers Bovet ».
-# What follows them locates the town, it does not continue the words heard;
-# and on their own, followed by more words, they are a preposition, not a town.
+# « à côté de la gare », « c'est vers Bovet »: followed by more words, they are a
+# preposition, not a town.
 LIEUX_RELATIFS = frozenset(
     """cote bord bords sortie entree bout pres proximite abords alentours environs centre milieu
     fond face hauteur niveau pied coin limite derriere devant vers nord sud ouest""".split()
 )
-
-
-def _mots_sans_contenu(base: BaseCommunes) -> frozenset[str]:
-    """Computed once per list of communes (about 0.5 ms each time otherwise)."""
-    deja = getattr(base, "_mark_mots_sans_contenu", None)
-    if deja is None:
-        departements = {m for nom in base.departements.values() for m in normaliser(nom).split()}
-        deja = frozenset(
-            MOTS_OUTILS | MOTS_HORS_COMPTE | MOTS_CONVERSATION | LIAISONS | LIEUX_RELATIFS | departements
-        )
-        base._mark_mots_sans_contenu = deja
-    return deja
-
-
-def _complement(mots: list[str], debut_lu: int, fin: int, sans_contenu: frozenset[str]) -> bool:
-    """The words heard go on with a complement: « passe | à la suite », « passe |
-    aux choses ». ⛔ Not when:
-    - a place marker introduces the words (« c'est à Bovet à la campagne »): the
-      caller is naming a place;
-    - what follows locates the place (« Brel | à côté de Beauvais », « Bovet | au
-      bord de l'eau »), or is an address, a number, a department.
-    """
-    if fin >= len(mots) or (debut_lu > 0 and mots[debut_lu - 1] in AMORCES):
-        return False
-    suite = mots[fin]
-    if suite in _PREPOSITIONS_COMPLEMENT:
-        debut = fin + 1
-    elif suite in _DE and fin + 1 < len(mots) and mots[fin + 1] in _DETERMINANTS:
-        debut = fin + 2
-    else:
-        return False
-    premier = next((m for m in mots[debut:] if m not in _DETERMINANTS), None)
-    if premier is None or premier.isdigit() or premier in MOTS_NOMBRE or premier in _OUVRE_UNE_ADRESSE \
-            or premier in LIEUX_RELATIFS:
-        return False
-    return any(
-        not m.isdigit() and m not in MOTS_NOMBRE and m not in sans_contenu for m in mots[debut:]
-    )
 
 
 def _article_du_nom(article: str, nom_normalise: str) -> bool:
@@ -504,19 +460,21 @@ def propositions_fondees(texte: str, detections: list[Detection], base: BaseComm
 
     Decision of Evan, 2026-09-17 (fiche D, runs 269 to 272): the agent names the
     first commune to confirm aloud, so « L'année dernière » proposed Anet and
-    « Passe aux choses » Pacé. Rule of Evan for this repair: zero loss against
-    production for any shop; what no such rule removes is a known limit.
+    « c'est à côté de la boulangerie » Contay. Rule of Evan for this repair: zero
+    loss against production for any shop; what no such rule removes is a known limit.
 
     1. An article belongs to the commune's name, glued or not: « l'année » is not
        Anet (the article opens the words heard), « la maison » is not Maisons
        (it comes right before them); « la signy » stays Lassigny.
-    2. Words that go on with a complement (« passe aux choses ») name no place,
-       unless a place marker introduces them or what follows locates the place
-       (« Brel à côté de Beauvais », « Bovet au bord de l'eau »).
-    3. Words that place relative to a place (« côté », « vers »), followed by
+    2. Words that place relative to a place (« côté », « vers »), followed by
        « de » or by words not introduced by a place marker, are a preposition:
        « à côté de la gare » is not Contay, « c'est vers Bovet » not Vers;
        « j'habite à Vers, dans le Lot » is Vers.
+
+    ⛔ No complement rule (final review of 2026-09-17): « passe | aux choses »
+    also erased communes said alone then followed by a place, present in
+    production: « Grand Villiers, au Moulin. », « Compiagnes, au Clos des
+    Roses. », « Bovet. Au revoir. », « Champly, à la zone industrielle. ».
 
     ⛔ No resemblance threshold and no radius around the shop (decision of Evan,
     2026-09-17, option d): measured on the real corpus with five shops, a 40 km
@@ -539,7 +497,6 @@ def propositions_fondees(texte: str, detections: list[Detection], base: BaseComm
     if not any(d.statut == A_CONFIRMER and not d.code_postal_entendu for d in detections):
         return detections
     mots = normaliser(texte).split()
-    sans_contenu = _mots_sans_contenu(base)
     gardees: list[Detection] = []
     for d in detections:
         if d.statut != A_CONFIRMER or d.code_postal_entendu or d.debut < 0:
@@ -553,7 +510,6 @@ def propositions_fondees(texte: str, detections: list[Detection], base: BaseComm
             and all(m in LIEUX_RELATIFS for m in mots[d.debut:d.fin])
             and (mots[d.fin] in _DE or not (d.debut > 0 and mots[d.debut - 1] in AMORCES))
         ) or (d.fin - d.debut > 1 and mots[d.debut] in LIEUX_RELATIFS and mots[d.debut + 1] in _DE)
-        continue_la_phrase = _complement(mots, d.debut, d.fin, sans_contenu)
         article = mots[d.debut] if d.fin - d.debut > 1 and mots[d.debut] in ARTICLES else None
         article_avant = mots[d.debut - 1] if d.debut > 0 and mots[d.debut - 1] in ARTICLES else None
 
@@ -569,8 +525,6 @@ def propositions_fondees(texte: str, detections: list[Detection], base: BaseComm
                 return False
             if exact:
                 return True
-            if continue_la_phrase:
-                return False
             if article is not None and not _article_du_nom(article, base.norms[j]):
                 return False
             if article_avant is not None and not _article_du_nom(article_avant, base.norms[j]):

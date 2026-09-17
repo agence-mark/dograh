@@ -24,6 +24,9 @@ regression. A better rank, or a parasite that stops proposing, may be recorded
 
 The data (``donnees/communes_corpus_reel_2026-09-17.json``) holds texts only,
 without any person's name nor dictated phone number.
+
+⚠️ Measured on the French path only (``analyser_message``): the non-French path
+(``annoter_texte``, ``_analyser_et_mentionner``) is not replayed on the corpus.
 """
 
 import json
@@ -63,9 +66,9 @@ def _rang(detections, commune, departement):
 
 def test_le_corpus_couvre_les_cinq_magasins():
     assert sorted(CORPUS["magasins"]) == sorted(MAGASINS)
-    assert len(CORPUS["vraies"]) == 680 and len(CORPUS["parasites"]) == 220
+    assert len(CORPUS["vraies"]) == 687 and len(CORPUS["parasites"]) == 220
     assert {k: sum(1 for e in CORPUS["vraies"] if e["rang_production"][k] is not None) for k in MAGASINS} == {
-        "60589": 513, "60159": 514, "78168": 487, "13055": 458, "sans": 466,
+        "60589": 520, "60159": 521, "78168": 493, "13055": 462, "sans": 470,
     }
 
 
