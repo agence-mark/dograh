@@ -676,6 +676,13 @@ def _communes_de_la_trace(trace_appel, base) -> tuple[list, object | None]:
     return en_attente, derniere_sure
 
 
+def _distance_au_magasin(cp: str, magasin, base) -> float:
+    """Distance from the business to the nearest town of ``cp``, in km."""
+    from api.services.communes.base import distance_km
+
+    return min(distance_km(c, *magasin) for c in base.communes_du_code_postal(cp))
+
+
 def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, base) -> ChoixCodePostal:
     """N2, in order: ① a town said in the message that carries a reading;
     ② a town proposed to confirm earlier in the call, or the last town kept
@@ -683,10 +690,10 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
     cases. Otherwise the reading nearest the business, TO CONFIRM.
 
     ⛔ Proximity alone never makes a code sure: Calais is 150 km from the shop,
-    and a call from Calais is still possible.
+    and a call from Calais is still possible. It can only withhold ②'s last sure
+    town (decision of Evan, 2026-09-17).
     """
     from api.services.communes.analyse import SURE as COMMUNE_SURE
-    from api.services.communes.base import distance_km
 
     lectures = list(nombre.lectures_cp)
     zero = [cp for cp in nombre.lectures_cp_zero if cp not in lectures]
@@ -743,6 +750,22 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
             # Named sure only if alone in its code, as for the proposed towns: a
             # town kept wrongly earlier ("à la campagne") must not spread to the code.
             autres = tuple(c for c in base.communes_du_code_postal(communs[0]) if c != derniere_sure)
+            # Decision of Evan, 2026-09-17 (bench run 266): the town kept earlier
+            # makes the code sure only if it carries the reading nearest the
+            # business. "Clermont-Ferrand, soixante-trois mille" then "Senlis
+            # (heard « cent lis »), soixante trois cents" made 63100 and
+            # Clermont-Ferrand sure; 60300 is nearer, so both are proposed, the
+            # town kept first. "Senlis" then "soixante trois cents" stays sure.
+            # Without the business address there is nothing to compare: unchanged.
+            if magasin and len(toutes) > 1:
+                plus_proche = min(toutes, key=lambda cp: _distance_au_magasin(cp, magasin, base))
+                if plus_proche != communs[0]:
+                    return ChoixCodePostal(
+                        communs[0],
+                        A_CONFIRMER,
+                        PAR_TRACE,
+                        (derniere_sure, base.communes_du_code_postal(plus_proche)[0]),
+                    )
             return ChoixCodePostal(communs[0], SURE, PAR_TRACE, (derniere_sure, *autres))
 
     if not lectures:
@@ -769,10 +792,9 @@ def choisir_code_postal(nombre, detections, trace_appel, departements, magasin, 
     # without it), to confirm. Each reading is proposed as its largest town
     # ("Senlis", not the village of the same code that happens to be nearer).
     def cle(cp):
-        communes = base.communes_du_code_postal(cp)
         if magasin:
-            return min(distance_km(c, *magasin) for c in communes)
-        return -communes[0].population
+            return _distance_au_magasin(cp, magasin, base)
+        return -base.communes_du_code_postal(cp)[0].population
 
     ordonnees = sorted(lectures, key=cle)
     return ChoixCodePostal(
