@@ -84,8 +84,10 @@ DEFAULT_VERIFICATION_COMMUNES = True
 # patch. Absent, null or blank = this value, so no existing agent changes.
 DEFAULT_VARIABLES_COMMUNE = "commune, commune_*, adresse*"
 # One name: letters, digits, `_` or `-`, with an optional final `*` meaning
-# "every name that starts with". A lone `*` would match every step: refused.
-_NOM_VARIABLE_COMMUNE = re.compile(r"^[\w-]+\*?$")
+# "every name that starts with". A lone `*` would match every step, and « a* »
+# every variable starting with « a » (review of 2026-09-17): at least 3
+# characters before the `*`.
+_NOM_VARIABLE_COMMUNE = re.compile(r"^(?:[\w-]+|[\w-]{3,}\*)$")
 
 
 def decouper_variables_commune(valeur: str | None) -> tuple[str, ...]:
@@ -101,7 +103,7 @@ def decouper_variables_commune(valeur: str | None) -> tuple[str, ...]:
         if not _NOM_VARIABLE_COMMUNE.match(nom):
             raise ValueError(
                 f"'{nom}' is not a variable name. Use letters, digits, _ or -, "
-                "separated by commas; a * is allowed only at the end of a name."
+                "separated by commas; a * is allowed only at the end of a name, after at least 3 characters."
             )
     return noms
 

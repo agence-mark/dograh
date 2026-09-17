@@ -576,6 +576,19 @@ describe("Section Reglages vocaux de la page de parametres", () => {
         ).toBe(true);
     });
 
+    it("[variables-commune] refuse une etoile apres moins de 3 caracteres, accepte apres 3", () => {
+        ouvrir(null);
+        const champ = document.getElementById("variables_commune") as HTMLInputElement;
+        const bouton = () => screen.getByRole("button", { name: /save speech tuning/i }) as HTMLButtonElement;
+        fireEvent.change(champ, { target: { value: "ville, a*" } });
+        expect(screen.getAllByText(/"a\*" is not a variable name/).length).toBeGreaterThan(0);
+        expect(document.body.textContent).toMatch(/at least 3 characters/);
+        expect(bouton().disabled).toBe(true);
+        fireEvent.change(champ, { target: { value: "ville, adr*" } });
+        expect(document.body.textContent).not.toMatch(/is not a variable name/);
+        expect(bouton().disabled).toBe(false);
+    });
+
     it("dit que l'interrupteur des nombres dictes est sans effet en temps reel", () => {
         ouvrir(null);
         expect(document.body.textContent).toMatch(/no effect in realtime mode/i);

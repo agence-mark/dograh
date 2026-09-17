@@ -121,7 +121,8 @@ def test_casse_espaces_et_virgule_finale_ne_comptent_pas():
 
 @pytest.mark.parametrize(
     "illisible",
-    ["ville chantier", "*", "adr*esse", "ville;adresse", 12, ["ville"]],
+    # « a* » would check every variable starting with « a » (review of 2026-09-17).
+    ["ville chantier", "*", "adr*esse", "ville;adresse", 12, ["ville"], "a*", "ad*"],
 )
 def test_une_valeur_illisible_rend_le_defaut_avec_un_avertissement(illisible):
     avertissements: list[str] = []
@@ -219,12 +220,22 @@ def test_la_route_ecrit_une_liste_valide():
     assert ecrit["variables_commune"] == PERSONNALISEE
 
 
-@pytest.mark.parametrize("fautive", ["ville chantier", "*", "adr*esse"])
+@pytest.mark.parametrize("fautive", ["ville chantier", "*", "adr*esse", "a*", "ville, ad*"])
 def test_la_route_refuse_un_nom_invalide_et_necrit_rien(fautive):
     reponse, ecrit = _enregistrer({"variables_commune": fautive})
     assert reponse.status_code == 422
     assert "is not a variable name" in reponse.text
     assert ecrit is None
+
+
+def test_une_etoile_apres_trois_caracteres_est_acceptee():
+    """Review of 2026-09-17: at least 3 characters before a final *, so « a* »
+    cannot check every variable starting with « a »; « adr* » is fine."""
+    assert variables_commune({"variables_commune": "adr*, vil*"}) == ("adr*", "vil*")
+    reponse, ecrit = _enregistrer({"variables_commune": "adr*"})
+    assert reponse.status_code == 200, reponse.text
+    reponse, _ = _enregistrer({"variables_commune": "a*"})
+    assert "at least 3 characters" in reponse.text
 
 
 def test_la_route_ecrit_le_defaut_pour_un_champ_vide():

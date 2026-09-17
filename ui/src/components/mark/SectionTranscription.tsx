@@ -27,8 +27,11 @@ export interface ReglagesTranscription {
     variables_commune: string;
 }
 
-/** One name: letters, digits, `_` or `-`, an optional final `*`. Same rule as the server. */
-const NOM_VARIABLE = /^[\p{L}\p{N}_-]+\*?$/u;
+/**
+ * One name: letters, digits, `_` or `-`, an optional final `*` after at least 3
+ * characters (« a* » would check every variable starting with « a »). Same rule as the server.
+ */
+const NOM_VARIABLE = /^(?:[\p{L}\p{N}_-]+|[\p{L}\p{N}_-]{3,}\*)$/u;
 
 /**
  * The message to show under the variable names, or `null` when they can be saved.
@@ -45,7 +48,7 @@ export const erreurVariablesCommune = (texte: string | null | undefined): string
     const fautif = noms.find((nom) => !NOM_VARIABLE.test(nom));
     return fautif === undefined
         ? null
-        : `"${fautif}" is not a variable name. Use letters, digits, _ or -, separated by commas; a * only at the end of a name.`;
+        : `"${fautif}" is not a variable name. Use letters, digits, _ or -, separated by commas; a * only at the end of a name, after at least 3 characters.`;
 };
 
 interface SectionTranscriptionProps {
@@ -137,7 +140,8 @@ export const SectionTranscription = ({ reglages, onChange }: SectionTranscriptio
                         <p>
                             A <code>*</code> at the end means &quot;every name that starts
                             with&quot;: <code>adresse*</code> covers <code>adresse</code>,{" "}
-                            <code>adresse_chantier</code>, <code>adresse_intervention</code>.
+                            <code>adresse_chantier</code>, <code>adresse_intervention</code>. At least 3
+                            characters before the <code>*</code>.
                         </p>
                         <p>
                             Example: <code>ville, lieu_chantier, adresse*</code>. Capitals and
