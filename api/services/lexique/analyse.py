@@ -170,7 +170,6 @@ class Forme:
     cle_sonore: str
     cle_phonetique: str
     banale: bool  # made of common words only
-    homonyme_commune: bool  # the name of a French commune
 
 
 @dataclass(frozen=True)
@@ -239,13 +238,18 @@ class Index:
         courants = mots_courants()
         communes = noms_des_communes if noms_des_communes is not None else ()
         formes = []
+        deja: set[tuple[str, str]] = set()
         for terme in lexique.termes:
             if terme.type != "nom":
                 continue  # a trade word is only listened for, never corrected
             for ecrit in dict.fromkeys(terme.formes()):
                 norm = normaliser_terme(ecrit)
-                if any(f.norm == norm and f.terme == terme.terme for f in formes):
+                # ⛔ Un ensemble, pas un parcours de la liste : à 2 000 termes de
+                # 10 orthographes (ce que les bornes autorisent), le parcours
+                # mettait 13 s à préparer l'index (relecture du 17/09).
+                if (terme.terme, norm) in deja:
                     continue
+                deja.add((terme.terme, norm))
                 formes.append(
                     Forme(
                         terme=terme.terme,
@@ -254,7 +258,6 @@ class Index:
                         cle_sonore=cle_sonore(norm),
                         cle_phonetique=cle_phonetique(norm),
                         banale=all(m in courants for m in norm.split()),
-                        homonyme_commune=norm in communes,
                     )
                 )
         sons_des_formes = sons_sans_drapeaux([f.norm for f in formes]) if (avec_sons and formes) else None

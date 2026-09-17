@@ -58,6 +58,7 @@ export function SectionLexiqueMetier() {
   const [chargement, setChargement] = useState(true);
   const [enregistrement, setEnregistrement] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [lu, setLu] = useState(false);
   const fichier = useRef<HTMLInputElement>(null);
   const { user, loading: authLoading } = useAuth();
   const dejaLu = useRef(false);
@@ -75,11 +76,21 @@ export function SectionLexiqueMetier() {
     setChargement(true);
     try {
       const reponse = await getLexiqueApiV1OrganizationsLexiqueGet();
-      if (reponse.data) {
-        setLexique(reponse.data);
+      if (reponse.error || !reponse.data) {
+        // ⛔ Enregistrer remplace TOUT le lexique : tant qu'on n'a pas lu ce qui
+        // existe, on ne laisse pas écraser (relecture indépendante du 17/09).
+        setLu(false);
+        setErreur(
+          detailFromError(reponse.error, "Failed to load the trade vocabulary"),
+        );
+        return;
       }
+      setLexique(reponse.data);
+      setLu(true);
+      setErreur(null);
     } catch {
-      toast.error("Failed to load the trade vocabulary");
+      setLu(false);
+      setErreur("Failed to load the trade vocabulary");
     } finally {
       setChargement(false);
     }
@@ -156,7 +167,10 @@ export function SectionLexiqueMetier() {
     );
     lien.download = `lexique-${aujourdhui}.json`;
     lien.click();
-    URL.revokeObjectURL(lien.href);
+    // Révoquée au tour suivant : révoquée dans la foulée du clic, le
+    // téléchargement échoue sur certains navigateurs.
+    const adresse = lien.href;
+    setTimeout(() => URL.revokeObjectURL(adresse), 0);
   }
 
   const termes = lexique.termes ?? [];
@@ -204,7 +218,7 @@ export function SectionLexiqueMetier() {
         <Button
           type="button"
           size="sm"
-          disabled={enregistrement}
+          disabled={enregistrement || !lu}
           onClick={() => void enregistrer(lexique)}
         >
           {/* Named like the other cards of the page: a bare "Save" would be one
@@ -214,6 +228,11 @@ export function SectionLexiqueMetier() {
       </div>
 
       {erreur && <p className="text-xs text-destructive">{erreur}</p>}
+      {!lu && (
+        <p className="text-xs text-destructive">
+          Nothing was changed. Saving is disabled until the saved vocabulary can be read.
+        </p>
+      )}
 
       <p className="text-xs text-muted-foreground">
         {ecoutes.length} terms listened for (the agent&apos;s Dictionary comes first;{" "}

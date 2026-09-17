@@ -26,6 +26,7 @@ notes those two add are never read as brand names (T17).
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 from typing import Callable
 
 from loguru import logger
@@ -34,7 +35,12 @@ from api.schemas.lexique_metier import LexiqueMetier
 from api.services.communes.base import base_si_chargee, obtenir_base
 from api.services.communes.sons import precharger as precharger_sons
 from api.services.lexique.analyse import Index, analyser
-from api.services.lexique.correction import corriger, deja_mentionne, partie_de_lappelant
+from api.services.lexique.correction import (
+    deja_mentionne,
+    mentions,
+    partie_de_lappelant,
+    reecrire,
+)
 from api.services.lexique.ecoute import prononciations_du_lexique
 from api.services.lexique.reglages import interrupteur_allume
 from api.services.pipecat.verification_communes import sons_allumes
@@ -50,6 +56,7 @@ __all__ = [
     "ReconnaissanceLexiqueProcessor",
     "annoter_message_tape",
     "construire_index",
+    "index_du_lexique",
     "creer_reconnaissance_lexique",
     "interrupteur_allume",
     "trace_du_lexique",
@@ -58,6 +65,27 @@ __all__ = [
 
 def noms_a_reconnaitre(lexique: LexiqueMetier) -> list:
     return [terme for terme in lexique.termes if terme.type == "nom"]
+
+
+# T7 : un index par (contenu du lexique, sons) — le clavier reconstruisait le
+# sien à chaque message (≈ 180 ms pour 147 noms).
+_index_en_cache: "OrderedDict[tuple[str, bool], Index]" = OrderedDict()
+MAX_INDEX_EN_CACHE = 50
+
+
+def index_du_lexique(lexique: LexiqueMetier, avec_sons: bool = True) -> Index | None:
+    """L'index de ce lexique, préparé une fois par processus. Bloquant à froid."""
+    cle = (lexique.model_dump_json(), avec_sons)
+    garde = _index_en_cache.get(cle)
+    if garde is not None:
+        _index_en_cache.move_to_end(cle)
+        return garde
+    index = construire_index(lexique, avec_sons)
+    if index is not None:
+        _index_en_cache[cle] = index
+        while len(_index_en_cache) > MAX_INDEX_EN_CACHE:
+            _index_en_cache.popitem(last=False)
+    return index
 
 
 def construire_index(lexique: LexiqueMetier, avec_sons: bool = True) -> Index | None:
@@ -121,7 +149,13 @@ async def corriger_texte(
         lectures = await asyncio.to_thread(analyser, appelant, index, avec_sons)
         if not lectures:
             return texte
-        corrige = corriger(appelant, lectures)
+        # ⛔ L'ordre : les mots de l'appelant corrigés, PUIS les notes des autres
+        # lecteurs telles quelles, PUIS les nôtres. Une note du lexique glissée
+        # avant celle des communes empêchait la lecture suivante de voir cette
+        # dernière, et le modèle recevait deux fois la même consigne de ville
+        # (relecture indépendante du 17/09).
+        corrige = reecrire(appelant, lectures)
+        notes_du_lexique = mentions(lectures)
         if consigner is not None:
             for detection in lectures:
                 try:
@@ -134,7 +168,7 @@ async def corriger_texte(
                 except Exception as erreur:  # noqa: BLE001
                     logger.warning(f"[.mark] Trade name not recorded: {erreur!r}")
         # The notes of the other readers are glued back, untouched (T17).
-        return f"{corrige} {notes}" if notes else corrige
+        return " ".join(m for m in [corrige, notes, *notes_du_lexique] if m)
     except Exception as erreur:  # noqa: BLE001 -- the call must go on
         logger.warning(f"[.mark] Trade vocabulary failed, message kept as is: {erreur!r}")
         return texte
@@ -170,7 +204,7 @@ class ReconnaissanceLexiqueProcessor(FrameProcessor):
             await obtenir_base()
             if self._avec_sons:
                 await asyncio.to_thread(precharger_sons)
-            self._index = await asyncio.to_thread(construire_index, self._lexique, self._avec_sons)
+            self._index = await asyncio.to_thread(index_du_lexique, self._lexique, self._avec_sons)
             if self._consigner is not None and self._index is not None:
                 # L18: which variant ran, and whether the engine was there at all.
                 self._consigner(
@@ -260,7 +294,7 @@ async def annoter_message_tape(
             return texte
         avec_sons = avec_sons and sons_allumes(run_configs, "sons_lexique")
         await obtenir_base()
-        index = await asyncio.to_thread(construire_index, lexique, avec_sons)
+        index = await asyncio.to_thread(index_du_lexique, lexique, avec_sons)
         return await corriger_texte(
             texte,
             index,

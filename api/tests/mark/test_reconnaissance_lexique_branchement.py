@@ -42,7 +42,6 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregatorParams,
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
-from pipecat.tests import run_test
 from pipecat.tests.utils import SleepFrame
 from pipecat.turns.user_turn_strategies import ExternalUserTurnStrategies
 
@@ -56,7 +55,6 @@ from api.services.pipecat.lecture_appelant import LectureAppelantProcessor
 from api.services.pipecat.pipeline_builder import build_pipeline
 from api.services.pipecat.reconnaissance_lexique import (
     CLE_TRACE,
-    CLE_TRACE_LEXIQUE,
     ReconnaissanceLexiqueProcessor,
     annoter_message_tape,
     construire_index,
@@ -66,6 +64,7 @@ from api.services.pipecat.reconnaissance_lexique import (
 from api.services.pipecat.service_factory import REGLAGES_PIPECAT_ESTAMPILLES
 from api.services.pipecat.verification_communes import CLE_TRACE as CLE_TRACE_COMMUNES
 from api.services.pipecat.verification_communes import consigner_dans
+from pipecat.tests import run_test
 
 MAGASIN = AdresseEtablissement(code_postal="60740", code_insee="60589", commune="Saint-Maximin")
 NOEUD = SimpleNamespace(
@@ -410,6 +409,30 @@ async def test_la_mention_du_lexique_ne_coute_pas_une_commune():
     assert contenu.count("[Lexique :") == 1
     # The brand named in the note is not read as a commune.
     assert not [t for t in recueilli.get(CLE_TRACE_COMMUNES, []) if "Bordelet" in str(t)]
+
+
+@pytest.mark.asyncio
+async def test_la_mention_du_lexique_passe_apres_celle_des_communes():
+    """🔴 Relecture du 17/09 : glissée AVANT la note des communes, la nôtre
+    empêchait la lecture suivante de voir celle-là, et le modèle recevait deux
+    fois la même consigne de ville."""
+    deja = (
+        "c'est un poêle édile camembert à Beauvet [Vérification de la commune : « Beauvet » "
+        "correspond à Beauvais (60000, Oise). Utilise ce nom sans le faire répéter.]"
+    )
+    contexte = _contexte({"role": "user", "content": deja})
+    await _faire_passer(_processeur(), LLMContextFrame(context=contexte))
+    contenu = contexte.messages[-1]["content"]
+    assert contenu.index("[Vérification de la commune") < contenu.index("[Lexique :")
+    assert contenu.endswith("Fais confirmer ce nom avant de le noter.]")
+    # Et la lecture de l'appelant voit toujours la note de commune : elle ne la
+    # réécrit pas une seconde fois.
+    from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
+    from api.services.lexique.correction import partie_de_lappelant
+
+    appelant, _notes = partie_de_lappelant(contenu)
+    assert commune_deja_mentionnee(contenu)
+    assert commune_deja_mentionnee(appelant) or "[Vérification" not in appelant
 
 
 # --------------------------------------------------------------------------- #

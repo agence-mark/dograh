@@ -37,6 +37,22 @@ async def lire_lexique(organization_id: int | None) -> LexiqueMetier:
         return LexiqueMetier()
 
 
+async def lire_lexique_strict(organization_id: int | None) -> LexiqueMetier:
+    """Le lexique, ou une exception si la ligne existe et n'est pas lisible.
+
+    ⛔ Pour l'ÉCRAN seulement. La règle « ne jamais lever » est faite pour l'appel :
+    sur l'écran, elle ferait afficher un lexique vide, et l'enregistrement qui
+    suit (un remplacement complet) écraserait un lexique bien présent en base
+    (relecture indépendante du 17/09).
+    """
+    if organization_id is None:
+        return LexiqueMetier()
+    ligne = await db_client.get_configuration(organization_id, CLE)
+    if ligne is None or not ligne.value:
+        return LexiqueMetier()
+    return LexiqueMetier.model_validate(ligne.value)
+
+
 async def enregistrer_lexique(organization_id: int, lexique: LexiqueMetier) -> LexiqueMetier:
     await db_client.upsert_configuration(organization_id, CLE, lexique.model_dump(mode="json"))
     return lexique

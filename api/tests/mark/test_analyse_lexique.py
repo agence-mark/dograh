@@ -40,7 +40,11 @@ from api.services.lexique.analyse import (
     cle_sonore,
     sons_sans_drapeaux,
 )
-from api.services.lexique.correction import corriger, deja_mentionne, partie_de_lappelant
+from api.services.lexique.correction import (
+    corriger,
+    deja_mentionne,
+    partie_de_lappelant,
+)
 
 DONNEES = Path(__file__).parent / "donnees"
 # Measured on the port, 2026-09-17 (L20): the trial's figures minus what the two
@@ -61,6 +65,11 @@ def lexique() -> LexiqueMetier:
 @pytest.fixture(scope="module")
 def banc() -> dict:
     return json.loads((DONNEES / "lexique_banc_2026-09-16.json").read_text("utf-8"))
+
+
+@pytest.fixture(scope="module")
+def base_communes() -> dict:
+    return charger_base().par_nom
 
 
 @pytest.fixture(scope="module")
@@ -364,9 +373,11 @@ def test_la_marque_reste_reconnue_quand_le_passage_nest_pas_une_commune(index_ho
     assert [(d.terme, d.statut) for d in lectures] == [("Cheminées de Chazelles", SURE)]
 
 
-def test_les_formes_homonymes_dune_commune_sont_marquees(index_homonymes):
-    homonymes = {f.norm for f in index_homonymes.formes if f.homonyme_commune}
-    assert homonymes == {"chazelles", "barbas", "deville"}
+def test_les_trois_marques_de_ce_test_sont_bien_des_communes(base_communes):
+    """La donnée du test, vérifiée : sans ça, les cas ci-dessus ne prouveraient rien."""
+    from api.schemas.lexique_metier import normaliser_terme as forme
+
+    assert {forme("Chazelles"), forme("Barbas"), forme("Deville")} <= set(base_communes)
 
 
 def test_sans_la_base_des_communes_rien_nest_lu(lexique, monkeypatch):

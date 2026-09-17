@@ -204,6 +204,33 @@ def test_sans_prononciation_aucune_transformation_nest_posee():
     assert construire_remplacements_de_voix(None, False, None) == []
 
 
+@pytest.mark.asyncio
+async def test_chaque_orthographe_dun_nom_est_prononcee():
+    """🔴 Relecture du 17/09 : la table indexée sur la forme normalisée gardait
+    UNE seule orthographe -- la variante -- et l'orthographe officielle, la seule
+    que la correction écrit, n'était plus prononcée."""
+    lexique = LexiqueMetier.model_validate(
+        {"termes": [{"terme": "Jotul", "variantes": ["Jøtul"], "prononciation": "yotoul"}]}
+    )
+    assert await _dire("Vous avez un Jotul, et aussi un Jøtul.", None, lexique) == (
+        "Vous avez un yotoul, et aussi un yotoul."
+    )
+    motifs = [motif for motif, _ in regles_de_prononciation(None, lexique)]
+    assert len(motifs) == 2
+
+
+@pytest.mark.asyncio
+async def test_lentree_de_lagent_ecarte_toutes_les_orthographes_du_meme_mot():
+    lexique = LexiqueMetier.model_validate(
+        {"termes": [{"terme": "Jotul", "variantes": ["Jøtul"], "prononciation": "yotoul"}]}
+    )
+    dit = await _dire(
+        "un Jotul et un Jøtul", {"tts_replacements": ["jotul:iotoul de Norvège"]}, lexique
+    )
+    assert "yotoul" not in dit
+    assert dit == "un iotoul de Norvège et un iotoul de Norvège"
+
+
 def test_les_formes_longues_sont_remplacees_dabord():
     lexique = LexiqueMetier.model_validate(
         {"termes": [{"terme": "Cheminées Godin", "variantes": ["Godin"], "prononciation": "godin"}]}

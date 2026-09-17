@@ -39,6 +39,8 @@ from api.services.communes.adresse import (
     lire_adresse_etablissement,
 )
 from api.services.configuration.registry import ServiceProviders
+from api.services.lexique.ecoute import injecter_lexique_a_ecouter
+from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.pipecat.audio_config import create_audio_config
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
@@ -50,6 +52,7 @@ from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
 )
 from api.services.pipecat.pre_call_fetch import execute_pre_call_fetch
+from api.services.pipecat.reconnaissance_lexique import annoter_message_tape
 from api.services.pipecat.recording_audio_cache import create_recording_audio_fetcher
 from api.services.pipecat.service_factory import (
     cle_de_cache,
@@ -61,9 +64,6 @@ from api.services.pipecat.tracing_config import (
     build_remote_parent_context,
     get_trace_url,
 )
-from api.services.lexique.ecoute import injecter_lexique_a_ecouter
-from api.services.lexique.reglages import lire_lexique_de_lappel
-from api.services.pipecat.reconnaissance_lexique import annoter_message_tape
 from api.services.pipecat.verification_communes import consigner_dans
 from api.services.pipecat.worker_runner import (
     run_pipeline_worker,

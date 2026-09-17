@@ -34,10 +34,17 @@ from api.services.communes.base import charger_base
 from api.services.lexique import analyse as analyse_lexique
 from api.services.lexique.analyse import SURE, Index, analyser
 from api.services.nombres.lecture import analyser_message
-from api.services.pipecat.lecture_appelant import creer_lecture_appelant, lire_message_tape
+from api.services.pipecat.lecture_appelant import (
+    creer_lecture_appelant,
+    lire_message_tape,
+)
 from api.services.pipecat.reconnaissance_lexique import creer_reconnaissance_lexique
 from api.services.pipecat.service_factory import REGLAGES_PIPECAT_ESTAMPILLES
-from api.services.pipecat.verification_communes import CLE_TRACE, consigner_dans, sons_allumes
+from api.services.pipecat.verification_communes import (
+    CLE_TRACE,
+    consigner_dans,
+    sons_allumes,
+)
 
 MAGASIN = AdresseEtablissement(code_postal="60740", code_insee="60589", commune="Saint-Maximin")
 STT_FRANCAIS = SimpleNamespace(language="fr", language_hints=None)

@@ -1,6 +1,9 @@
 import asyncio
 from typing import Optional
 
+from fastapi import HTTPException
+from loguru import logger
+
 from api.db import db_client
 from api.enums import WorkflowRunMode
 from api.errors.failure import mark_failure_reported
@@ -23,6 +26,11 @@ from api.services.integrations import (
     IntegrationRuntimeContext,
     create_runtime_sessions,
 )
+from api.services.lexique.ecoute import (
+    construire_liste_flux,
+    injecter_lexique_a_ecouter,
+)
+from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.observability.active_calls import (
     register_active_call as register_worker_active_call,
 )
@@ -39,14 +47,7 @@ from api.services.pipecat.event_handlers import (
     register_event_handlers,
 )
 from api.services.pipecat.in_memory_buffers import InMemoryLogsBuffer
-from api.services.lexique.ecoute import construire_liste_flux, injecter_lexique_a_ecouter
-from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.pipecat.lecture_appelant import creer_lecture_appelant
-from api.services.pipecat.reconnaissance_lexique import (
-    CLE_TRACE_LEXIQUE,
-    creer_reconnaissance_lexique,
-    trace_du_lexique,
-)
 from api.services.pipecat.pipeline_builder import (
     build_pipeline,
     build_realtime_pipeline,
@@ -65,6 +66,11 @@ from api.services.pipecat.realtime_feedback_events import (
 from api.services.pipecat.realtime_feedback_observer import (
     RealtimeFeedbackObserver,
     register_turn_log_handlers,
+)
+from api.services.pipecat.reconnaissance_lexique import (
+    CLE_TRACE_LEXIQUE,
+    creer_reconnaissance_lexique,
+    trace_du_lexique,
 )
 from api.services.pipecat.recording_audio_cache import (
     create_recording_audio_fetcher,
@@ -109,9 +115,6 @@ from api.services.workflow.dto import ReactFlowDTO
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.services.workflow.workflow_graph import WorkflowGraph
-from fastapi import HTTPException
-from loguru import logger
-
 from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer

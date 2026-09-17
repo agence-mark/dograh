@@ -143,6 +143,12 @@ def test_une_commune_qui_porte_le_nom_dune_marque_reste_une_commune(base, index,
     assert commune in proposees, proposees
 
 
-def test_le_lexique_de_ce_filet_contient_bien_les_homonymes(index):
-    homonymes = {f.norm for f in index.formes if f.homonyme_commune}
-    assert {"chazelles", "deville", "barbas"} <= homonymes
+def test_le_lexique_de_ce_filet_contient_bien_les_homonymes(index, base):
+    """La donnée du filet, vérifiée : ces trois marques sont bien des communes,
+    et le lexique du filet les porte. Sans ça, les trois cas ci-dessus
+    passeraient pour une raison sans rapport."""
+    from api.schemas.lexique_metier import normaliser_terme
+
+    formes = {f.norm for f in index.formes}
+    assert {"chazelles", "deville", "barbas"} <= formes
+    assert all(normaliser_terme(n) in base.par_nom for n in ("Chazelles", "Deville", "Barbas"))

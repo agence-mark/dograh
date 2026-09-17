@@ -212,6 +212,25 @@ async def test_une_base_indisponible_donne_un_lexique_vide():
         assert (await lire_lexique(ORGANISATION_A)).termes == []
 
 
+@pytest.mark.asyncio
+async def test_la_route_de_lecran_refuse_de_rendre_un_lexique_illisible(base):
+    """🔴 Relecture du 17/09 : rendu vide, un lexique illisible s'affichait « aucun
+    terme », et l'enregistrement suivant (un remplacement complet) l'écrasait."""
+    base.lignes[(ORGANISATION_A, CLE)] = {"termes": "pas une liste"}
+    reponse = _client(base).get("/organizations/lexique")
+    assert reponse.status_code == 500
+    assert "cannot be read" in reponse.text
+    # Et la ligne est toujours là, intacte.
+    assert base.lignes[(ORGANISATION_A, CLE)] == {"termes": "pas une liste"}
+
+
+@pytest.mark.asyncio
+async def test_lappel_lui_continue_avec_un_lexique_vide(base):
+    """La même ligne illisible ne coûte rien à un appel : deux lectures, deux règles."""
+    base.lignes[(ORGANISATION_A, CLE)] = {"termes": "pas une liste"}
+    assert (await lire_lexique(ORGANISATION_A)).termes == []
+
+
 # --------------------------------------------------------------------------- #
 # 3. Import (T13)
 # --------------------------------------------------------------------------- #

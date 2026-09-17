@@ -2,8 +2,8 @@
 
 import { ExternalLink } from "lucide-react";
 
-import { MCPSection } from "@/components/MCPSection";
 import { SectionLexiqueMetier } from "@/components/mark/SectionLexiqueMetier";
+import { MCPSection } from "@/components/MCPSection";
 import { OrganizationPreferencesSection } from "@/components/OrganizationPreferencesSection";
 import { TelemetrySection } from "@/components/TelemetrySection";
 import {

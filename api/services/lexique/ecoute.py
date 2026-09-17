@@ -69,6 +69,11 @@ def construire_liste_flux(
 
 def prononciations_du_lexique(lexique: LexiqueMetier | None) -> list[tuple[str, str]]:
     """(spelling, how to say it) for every spelling of every name that has one."""
+    return [(ecrit, prononce) for ecrit, prononce, _ in _prononciations_par_terme(lexique)]
+
+
+def _prononciations_par_terme(lexique: LexiqueMetier | None) -> list[tuple[str, str, str]]:
+    """(spelling, how to say it, the term it belongs to), every spelling kept."""
     if lexique is None:
         return []
     paires = []
@@ -76,7 +81,7 @@ def prononciations_du_lexique(lexique: LexiqueMetier | None) -> list[tuple[str, 
         if not terme.prononciation:
             continue
         for ecrit in dict.fromkeys(terme.formes()):
-            paires.append((ecrit, terme.prononciation))
+            paires.append((ecrit, terme.prononciation, terme.terme))
     return paires
 
 
@@ -112,11 +117,31 @@ def regles_de_prononciation(
     ⛔ Patterns are escaped: this screen is filled in by people running a
     business, and a dot typed in "M." would otherwise match any character.
     """
+    # ⛔ Indexée sur l'orthographe ÉCRITE, pas sur sa forme normalisée : « Jotul »
+    # et « Jøtul » ont la même forme normalisée, et l'une écrasait l'autre. C'est
+    # l'orthographe officielle qui disparaissait -- celle que la correction écrit,
+    # donc la seule que la voix reçoit (relecture indépendante du 17/09).
+    du_lexique = _prononciations_par_terme(lexique)
+    de_lagent = entrees_de_lagent(run_configs)
+    # L'agent l'emporte sur le mot qu'il nomme, et sa façon de le dire vaut pour
+    # TOUTES les orthographes de ce nom : sinon la variante resterait dite
+    # autrement que le nom officiel, ou plus dite du tout.
+    formes_de_lagent = {normaliser_terme(ecrit) for ecrit, _ in de_lagent}
+    surcharges = {
+        terme: prononce
+        for ecrit, prononce in de_lagent
+        for orthographe, _, terme in du_lexique
+        if normaliser_terme(orthographe) == normaliser_terme(ecrit)
+    }
     table: dict[str, tuple[str, str]] = {}
-    for ecrit, prononce in prononciations_du_lexique(lexique):
-        table[normaliser_terme(ecrit)] = (ecrit, prononce)
-    for ecrit, prononce in entrees_de_lagent(run_configs):
-        table[normaliser_terme(ecrit)] = (ecrit, prononce)
+    for ecrit, prononce, terme in du_lexique:
+        if terme in surcharges:
+            prononce = surcharges[terme]
+        elif normaliser_terme(ecrit) in formes_de_lagent:
+            continue  # l'agent dit ce mot autrement, et il l'emporte
+        table[ecrit] = (ecrit, prononce)
+    for ecrit, prononce in de_lagent:
+        table[ecrit] = (ecrit, prononce)
     regles = []
     for ecrit, prononce in sorted(table.values(), key=lambda paire: -len(paire[0])):
         # (?i): what is typed on screen is matched whatever its case.

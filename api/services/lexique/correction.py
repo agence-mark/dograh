@@ -44,22 +44,37 @@ def phrase_de_mention(detection: Detection) -> str:
     )
 
 
-def corriger(texte: str, detections: list[Detection]) -> str:
-    """``texte`` with the sure names written properly, then one note per doubtful name."""
-    if not detections:
-        return texte
+def reecrire(texte: str, detections: list[Detection]) -> str:
+    """``texte`` with the sure names written properly, WITHOUT any note."""
     corrige = texte
     # From the end: an earlier replacement would move the spans that follow.
     for detection in sorted(detections, key=lambda d: -d.debut):
         if detection.statut != SURE or detection.entendu == detection.terme:
             continue
         corrige = corrige[: detection.debut] + detection.terme + corrige[detection.fin :]
-    notes = [
+    return corrige
+
+
+def mentions(detections: list[Detection]) -> list[str]:
+    """One note per doubtful name, in the order the names were heard."""
+    return [
         phrase_de_mention(d)
         for d in sorted(detections, key=lambda d: d.debut)
         if d.statut == A_CONFIRMER
     ]
-    return " ".join([corrige, *notes]) if notes else corrige
+
+
+def corriger(texte: str, detections: list[Detection]) -> str:
+    """``texte`` with the sure names written properly, then one note per doubtful name.
+
+    ⚠️ For a message that already carries the notes of the towns or of the
+    numbers, the caller of this function composes the order itself
+    (``reconnaissance_lexique.corriger_texte``): the notes of the vocabulary go
+    AFTER theirs, never between the caller's words and their notes.
+    """
+    if not detections:
+        return texte
+    return " ".join([reecrire(texte, detections), *mentions(detections)])
 
 
 def deja_mentionne(texte: str) -> bool:

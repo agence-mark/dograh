@@ -85,6 +85,7 @@ from api.services.lexique.stockage import (
     enregistrer_lexique,
     fusionner_import,
     lire_lexique,
+    lire_lexique_strict,
 )
 from api.services.mps_billing import ensure_hosted_mps_billing_account_v2
 from api.services.mps_service_key_client import mps_service_key_client
@@ -738,8 +739,23 @@ async def get_communes_du_code_postal(
 async def get_lexique(
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
-    """[.mark] The organization's trade vocabulary (empty when none was saved)."""
-    return await lire_lexique(user.selected_organization_id)
+    """[.mark] The organization's trade vocabulary (empty when none was saved).
+
+    ⛔ Strict on purpose, unlike the reading a call does: an unreadable row shown
+    as an empty vocabulary would be OVERWRITTEN by the next save, which replaces
+    the whole vocabulary.
+    """
+    try:
+        return await lire_lexique_strict(user.selected_organization_id)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Trade vocabulary unreadable for the screen: {erreur!r}")
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "The trade vocabulary saved for this organization cannot be read. "
+                "Nothing was changed; saving now would replace it."
+            ),
+        ) from None
 
 
 @router.put("/lexique", response_model=LexiqueMetier)

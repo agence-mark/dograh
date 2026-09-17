@@ -58,6 +58,7 @@ from api.services.communes.base import charger_base, obtenir_base
 from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
 from api.services.communes.mention import mentionner
 from api.services.communes.sons import precharger as precharger_sons
+from api.services.lexique.correction import MARQUE as MARQUE_LEXIQUE
 from api.services.nombres import lecture as lecteur
 from api.services.nombres.lecture import (
     CODE_POSTAL,
@@ -67,7 +68,6 @@ from api.services.nombres.lecture import (
     reecrire,
 )
 from api.services.nombres.mention import deja_mentionne as nombres_deja_mentionnes
-from api.services.lexique.correction import MARQUE as MARQUE_LEXIQUE
 from api.services.nombres.mention import mentionner_nombres
 from api.services.pipecat.conversion_nombres import (
     conversion_allumee,

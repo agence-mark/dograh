@@ -153,6 +153,21 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
         );
     });
 
+    it("refuse d'enregistrer quand le lexique enregistré n'a pas pu être lu", async () => {
+        // 🔴 Relecture du 17/09 : enregistrer remplace TOUT le lexique.
+        sdk.getLexiqueApiV1OrganizationsLexiqueGet.mockResolvedValue({
+            error: { detail: "The trade vocabulary saved for this organization cannot be read." },
+        });
+        render(<SectionLexiqueMetier />);
+        await screen.findByText(/cannot be read/i);
+        expect(document.body.textContent).toMatch(/Saving is disabled/i);
+        expect(
+            (screen.getByRole("button", { name: /save trade vocabulary/i }) as HTMLButtonElement)
+                .disabled,
+        ).toBe(true);
+        expect(sdk.saveLexiqueApiV1OrganizationsLexiquePut).not.toHaveBeenCalled();
+    });
+
     it("importe un modèle et affiche le résumé", async () => {
         sdk.importLexiqueApiV1OrganizationsLexiqueImportPost.mockResolvedValue({
             data: { ajoutes: 27, deja_presents: 3 },
