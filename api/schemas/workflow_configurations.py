@@ -79,6 +79,9 @@ DEFAULT_CONVERSION_NOMBRES_TRANSCRIPTION = False
 # steps that collect a `commune` or `adresse…` variable, and it was decided for
 # every agent, so an agent that never collects a town is unaffected.
 DEFAULT_VERIFICATION_COMMUNES = True
+# [.mark] The trade vocabulary is on by default (L2): an organization that filled
+# one wants every agent to use it; the switch is there to measure without it.
+DEFAULT_LEXIQUE_METIER = True
 # 🔒 The rule written in the code until 2026-09-17, now a setting: a client
 # whose variable is called `ville` or `lieu_chantier` gets the check without a
 # patch. Absent, null or blank = this value, so no existing agent changes.
@@ -498,6 +501,14 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Matches the town the caller names against the official list of "
             "French communes before the model reads it. Acts only at steps that "
             "collect a `commune` or `adresse…` variable. No effect in realtime mode."
+        ),
+    )
+    lexique_metier: bool = Field(
+        default=DEFAULT_LEXIQUE_METIER,
+        description=(
+            "Uses the organization's trade vocabulary: listens for the ticked "
+            "terms, corrects misheard names before the model reads them, and "
+            "applies their pronunciations to the voice. No effect in realtime mode."
         ),
     )
     variables_commune: str = Field(

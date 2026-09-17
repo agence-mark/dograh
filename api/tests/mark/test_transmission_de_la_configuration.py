@@ -72,6 +72,28 @@ TRANSMISSIONS = [
         ),
     ),
     (
+        r"lire_lexique_de_lappel\(run_configs, workflow\.organization_id\)",
+        (
+            "the organization's trade vocabulary: the agent's switch would be "
+            "ignored and the vocabulary of another organization -- or none -- "
+            "used to correct the names"
+        ),
+    ),
+    (
+        r'construire_liste_flux\(\s*\(run_configs or \{\}\)\.get\("dictionary"\), lexique_metier\s*\)',
+        (
+            "the terms the transcription listens for: the ticked names of the "
+            "trade would never reach Deepgram"
+        ),
+    ),
+    (
+        r"lexique=lexique_metier,",
+        (
+            "the pronunciations: the voice would go on saying the brand names "
+            "as they are spelled"
+        ),
+    ),
+    (
         r'event_handler\("on_latency_breakdown"\)',
         (
             "the per-service latency breakdown: a total latency says a call was "

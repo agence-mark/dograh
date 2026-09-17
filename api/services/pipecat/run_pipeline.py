@@ -39,6 +39,8 @@ from api.services.pipecat.event_handlers import (
     register_event_handlers,
 )
 from api.services.pipecat.in_memory_buffers import InMemoryLogsBuffer
+from api.services.lexique.ecoute import construire_liste_flux
+from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.pipecat.lecture_appelant import creer_lecture_appelant
 from api.services.pipecat.pipeline_builder import (
     build_pipeline,
@@ -859,11 +861,22 @@ async def _run_pipeline_impl(
     merged_call_context_vars = injecter_adresse_etablissement(
         merged_call_context_vars, adresse_etablissement
     )
+    # [.mark] The organization's trade vocabulary (plan lexique-metier, L1, L2):
+    # read once here, used three times -- the terms the transcription listens
+    # for, the names corrected before the model reads them, and how the voice
+    # says them. Empty when the agent's switch is off, and never raises.
+    lexique_metier = await lire_lexique_de_lappel(run_configs, workflow.organization_id)
 
     # Extract configurations from the version's workflow_configurations
     max_call_duration_seconds = DEFAULT_MAX_CALL_DURATION_SECONDS
     max_user_idle_timeout = DEFAULT_MAX_USER_IDLE_TIMEOUT_SECONDS
-    keyterms = None  # Dictionary words for STT boosting
+    # [.mark] The agent's Dictionary first, then the terms ticked in the trade
+    # vocabulary, within one budget (L7, T11). Without a vocabulary this is
+    # exactly the list of before.
+    termes_ecoutes, ecoute_tronquee = construire_liste_flux(
+        (run_configs or {}).get("dictionary"), lexique_metier
+    )
+    keyterms = termes_ecoutes or None  # Terms the transcription listens for
     transcript_config = run_configs.get("transcript_configuration") or {}
     include_transcript_end_timestamps = bool(
         transcript_config.get("include_end_timestamps", False)
@@ -876,12 +889,6 @@ async def _run_pipeline_impl(
         if "max_user_idle_timeout" in run_configs:
             max_user_idle_timeout = run_configs["max_user_idle_timeout"]
 
-        if "dictionary" in run_configs:
-            dictionary = run_configs["dictionary"]
-            if dictionary and isinstance(dictionary, str):
-                keyterms = [
-                    term.strip() for term in dictionary.split(",") if term.strip()
-                ]
 
     # Resolve model overrides from the version onto global org config (skip
     # when the caller already resolved it).
@@ -951,6 +958,7 @@ async def _run_pipeline_impl(
             audio_config,
             correlation_id=mps_correlation_id,
             run_configs=run_configs,
+            lexique=lexique_metier,
         )
         # [.mark] One cache key per agent (D1), on the conversation only (D6):
         # not the realtime side channel above, nor extraction and voicemail.
