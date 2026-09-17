@@ -84,7 +84,6 @@ from api.services.configuration.registry import (
 from api.services.lexique.stockage import (
     enregistrer_lexique,
     fusionner_import,
-    lire_lexique,
     lire_lexique_strict,
 )
 from api.services.mps_billing import ensure_hosted_mps_billing_account_v2
@@ -774,7 +773,19 @@ async def import_lexique(
 ):
     """[.mark] Add a template's terms that are absent; a term already there is never changed."""
     organization_id = user.selected_organization_id
-    existant = await lire_lexique(organization_id)
+    try:
+        # ⛔ Strict, comme la lecture de l'écran : vu vide, un lexique illisible
+        # serait REMPLACÉ par les seuls termes du modèle (relecture du 17/09).
+        existant = await lire_lexique_strict(organization_id)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Trade vocabulary unreadable, import refused: {erreur!r}")
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "The trade vocabulary saved for this organization cannot be read. "
+                "Nothing was imported; importing now would replace it."
+            ),
+        ) from None
     try:
         fusion, ajoutes, deja_presents = fusionner_import(existant, request)
     except ValidationError as erreur:

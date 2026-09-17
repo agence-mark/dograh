@@ -220,6 +220,18 @@ async def test_chaque_orthographe_dun_nom_est_prononcee():
 
 
 @pytest.mark.asyncio
+async def test_une_surcharge_de_lagent_ne_sapplique_quune_fois():
+    """🔴 Contre-relecture du 17/09 : « jotul » de l'agent et « Jotul » du lexique
+    faisaient deux motifs équivalents, et le remplacement était appliqué deux fois."""
+    lexique = LexiqueMetier.model_validate(
+        {"termes": [{"terme": "Jotul", "prononciation": "yotoul"}]}
+    )
+    run_configs = {"tts_replacements": ["jotul:Jotul de Norvège"]}
+    assert len(regles_de_prononciation(run_configs, lexique)) == 1
+    assert await _dire("un Jotul.", run_configs, lexique) == "un Jotul de Norvège."
+
+
+@pytest.mark.asyncio
 async def test_lentree_de_lagent_ecarte_toutes_les_orthographes_du_meme_mot():
     lexique = LexiqueMetier.model_validate(
         {"termes": [{"terme": "Jotul", "variantes": ["Jøtul"], "prononciation": "yotoul"}]}

@@ -198,6 +198,7 @@ export function SectionLexiqueMetier() {
           type="button"
           variant="outline"
           size="sm"
+          disabled={!lu}
           onClick={() => fichier.current?.click()}
         >
           <Upload className="mr-1 h-4 w-4" />

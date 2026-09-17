@@ -126,7 +126,6 @@ def regles_de_prononciation(
     # L'agent l'emporte sur le mot qu'il nomme, et sa façon de le dire vaut pour
     # TOUTES les orthographes de ce nom : sinon la variante resterait dite
     # autrement que le nom officiel, ou plus dite du tout.
-    formes_de_lagent = {normaliser_terme(ecrit) for ecrit, _ in de_lagent}
     surcharges = {
         terme: prononce
         for ecrit, prononce in de_lagent
@@ -134,13 +133,18 @@ def regles_de_prononciation(
         if normaliser_terme(orthographe) == normaliser_terme(ecrit)
     }
     table: dict[str, tuple[str, str]] = {}
+    couvertes: set[str] = set()
     for ecrit, prononce, terme in du_lexique:
         if terme in surcharges:
             prononce = surcharges[terme]
-        elif normaliser_terme(ecrit) in formes_de_lagent:
-            continue  # l'agent dit ce mot autrement, et il l'emporte
         table[ecrit] = (ecrit, prononce)
+        couvertes.add(normaliser_terme(ecrit))
     for ecrit, prononce in de_lagent:
+        # ⛔ Une orthographe déjà portée par le lexique surchargé ne se réécrit pas
+        # ici : les motifs ignorent la casse, et deux motifs équivalents
+        # appliquaient le remplacement DEUX fois (contre-relecture du 17/09).
+        if normaliser_terme(ecrit) in couvertes:
+            continue
         table[ecrit] = (ecrit, prononce)
     regles = []
     for ecrit, prononce in sorted(table.values(), key=lambda paire: -len(paire[0])):

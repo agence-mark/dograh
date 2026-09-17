@@ -425,14 +425,14 @@ async def test_la_mention_du_lexique_passe_apres_celle_des_communes():
     contenu = contexte.messages[-1]["content"]
     assert contenu.index("[Vérification de la commune") < contenu.index("[Lexique :")
     assert contenu.endswith("Fais confirmer ce nom avant de le noter.]")
-    # Et la lecture de l'appelant voit toujours la note de commune : elle ne la
-    # réécrit pas une seconde fois.
+    # Et la lecture de l'appelant, qui découpe au premier « [Lexique : », voit
+    # toujours la note de commune : elle ne la réécrit pas une seconde fois.
     from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
-    from api.services.lexique.correction import partie_de_lappelant
+    from api.services.pipecat.lecture_appelant import _separer_mention_lexique
 
-    appelant, _notes = partie_de_lappelant(contenu)
-    assert commune_deja_mentionnee(contenu)
-    assert commune_deja_mentionnee(appelant) or "[Vérification" not in appelant
+    avant_la_mention, mention = _separer_mention_lexique(contenu)
+    assert mention.startswith("[Lexique :")
+    assert commune_deja_mentionnee(avant_la_mention)
 
 
 # --------------------------------------------------------------------------- #

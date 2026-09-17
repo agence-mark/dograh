@@ -291,6 +291,16 @@ def test_import_qui_depasserait_la_borne_est_refuse_sans_ecrire(base):
     assert base.lignes[(ORGANISATION_A, CLE)] is plein
 
 
+def test_limport_refuse_aussi_decraser_un_lexique_illisible(base):
+    """🔴 Contre-relecture du 17/09 : vu vide, un lexique illisible aurait été
+    REMPLACÉ par les seuls termes du modèle."""
+    base.lignes[(ORGANISATION_A, CLE)] = {"termes": "pas une liste"}
+    reponse = _client(base).post("/organizations/lexique/import", json=MODELE)
+    assert reponse.status_code == 500
+    assert "cannot be read" in reponse.text
+    assert base.lignes[(ORGANISATION_A, CLE)] == {"termes": "pas une liste"}
+
+
 def test_import_dun_fichier_hors_bornes_refuse(base):
     reponse = _client(base).post("/organizations/lexique/import", json={"termes": [{"terme": ""}]})
     assert reponse.status_code == 422

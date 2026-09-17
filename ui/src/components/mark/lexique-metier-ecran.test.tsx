@@ -166,6 +166,11 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
                 .disabled,
         ).toBe(true);
         expect(sdk.saveLexiqueApiV1OrganizationsLexiquePut).not.toHaveBeenCalled();
+        // 🔴 L'import remplace lui aussi : il est désactivé tant qu'on n'a pas lu.
+        expect(
+            (screen.getByRole("button", { name: /import template/i }) as HTMLButtonElement)
+                .disabled,
+        ).toBe(true);
     });
 
     it("importe un modèle et affiche le résumé", async () => {
