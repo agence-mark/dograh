@@ -1,0 +1,1130 @@
+{
+ "format": "lexique-mark",
+ "version": 1,
+ "modeles_importes": [
+  {
+   "nom": "essai-2026-09-16 (Flamme Verte + 15 marques ; « Godin » seul fondu dans « Cheminées Godin »)",
+   "date": "2026-09-16"
+  }
+ ],
+ "termes": [
+  {
+   "terme": "Aduro",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Alpenwood",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "AMG",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Anselmo Cola",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Arikazan",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Artense",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Atra",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Attika",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Austroflamm",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Barbas",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Becafire",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Best Fires",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Bodart & Gonay",
+   "variantes": [
+    "Bodart et Gonay",
+    "Bodart"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Bordelet",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Brisach",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Bronpi",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Cadel",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Camina & Schmid",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Caminetti Montegrappa",
+   "variantes": [
+    "Montegrappa"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Charnwood",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Chaudières Miquée",
+   "variantes": [
+    "Miquée"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Cheminees De Chazelles",
+   "variantes": [
+    "Chazelles",
+    "Cheminées de Chazelles"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Cheminées Godin",
+   "variantes": [
+    "Godin"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Cheminees Philippe",
+   "variantes": [
+    "Philippe",
+    "Cheminées Philippe"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "CMG",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Contura",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Crown",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "De Dietrich",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Denia",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Deville",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Dik Geurts par Fonte Flamme",
+   "variantes": [
+    "Dik Geurts"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Domusa Teknik",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Dovre",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Drooff",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Dru par Fonte Flamme",
+   "variantes": [
+    "Dru"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Ecoforest",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Edilkamin",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Ember",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Extraflame",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Ferroli",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "FF Concept by France Flamme",
+   "variantes": [
+    "France Flamme"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Fireplace",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Fogo Montanha",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Fondis",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Fonte Flamme",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "France Turbo",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Freepoint",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Froling",
+   "variantes": [
+    "Fröling"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Hargassner",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Hase",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Herz®",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Hoben",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Hwam / Wiking",
+   "variantes": [
+    "Hwam",
+    "Wiking"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "ILD",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Interstoves",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Invicta",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Izyflam",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Jacobus",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Jide",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Jotul",
+   "variantes": [
+    "Jøtul"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Justus",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Klover | Fuoco e Passione",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Kratki",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Kunst",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "KWB",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "La Nordica",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Lacunza",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Laminox Idro",
+   "variantes": [
+    "Laminox"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Lasian",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Leda",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Lorflam",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Lotus",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "MCZ",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Morso",
+   "variantes": [
+    "Morsø"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Morvan",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Nobis",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Nordic Fire",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Nordpeis",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Oertli",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Okofen",
+   "variantes": [
+    "Ökofen"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Oliger",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Oranier",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Palazzetti",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Panadero",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Pegaso",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Piazzetta",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Rais",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Ravelli",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "RED",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Redpod",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Rhea Flam",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Richard Le Droff",
+   "variantes": [
+    "Richard Le Droff"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Romotop",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Royal",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Ruegg",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Scan",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Schuster",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Seguin Duteriez",
+   "variantes": [
+    "Seguin"
+   ],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Sistemi",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Skia Design",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Solarfocus",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Solzaima",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Spartherm",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Storch",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Stoveitalia",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Superior",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Supra",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Surdiac",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Thermi Confort",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Thermolab",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Tulikivi",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Turbo Fonte",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Ungaro",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Unical",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Viessmann",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Vivace",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Wanders",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Wiesberg",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Windhager",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Wodtke",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Rika",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Stûv",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Thermorossi",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Jolly Mec",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Brunner",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Harman",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Haas+Sohn",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Skantherm",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Nestor Martin",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Stovax",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Hark",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Olsberg",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Termatech",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Kalor",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  },
+  {
+   "terme": "Ferlux",
+   "variantes": [],
+   "prononciation": null,
+   "type": "nom",
+   "categorie": "marque",
+   "a_ecouter": false
+  }
+ ]
+}
