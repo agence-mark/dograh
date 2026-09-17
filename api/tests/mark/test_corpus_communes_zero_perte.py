@@ -16,7 +16,8 @@ Rule of Evan, 2026-09-17: « Tu casses l'outil à chaque chantier de réparation
 A repair of the town check is judged by this file FIRST: a rule that removes a
 parasite at the cost of one real commune, for any shop, is refused. A rule
 measured on one shop only is not enough: a 40 km radius was zero loss for
-Saint-Maximin and lost 17 communes for Compiègne (counter-review of 17/09).
+Saint-Maximin and lost 17 communes for Compiègne (counter-review of 17/09;
+Evan chose no radius, option d).
 ⛔ Never edit ``rang_production`` to make this file pass: a worse rank is a
 regression. A better rank, or a parasite that stops proposing, may be recorded
 (regenerate the file and say so in the commit).
@@ -39,27 +40,6 @@ CORPUS = json.loads(
 )
 ABSENTE = 99
 MAGASINS = ["60589", "60159", "78168", "13055", "sans"]
-# ⚠️ EN ATTENTE DE DÉCISION D'EVAN (contre-relecture du 17/09) : avec le rayon de
-# 40 km de ``propositions_fondees``, ces magasins perdent des communes voulues
-# (Compiègne 17, Coignières 10, Marseille 7 : « perçant » -> Persan, « Abrel » ->
-# Bresles, « bonsoir Oise » -> Beaumont-sur-Oise). Marqués en échec attendu,
-# STRICT : visibles à chaque passage (xfailed), et le jour où la décision les
-# fait passer, le test rougit (XPASS) pour qu'on retire la marque.
-EN_ATTENTE_DE_DECISION = {"60159", "78168", "13055"}
-
-
-def _contextes():
-    return [
-        pytest.param(
-            cle,
-            marks=pytest.mark.xfail(
-                strict=True, reason="en attente de décision d'Evan sur le rayon de 40 km (contre-relecture du 17/09)"
-            ),
-        )
-        if cle in EN_ATTENTE_DE_DECISION
-        else cle
-        for cle in MAGASINS
-    ]
 
 
 @pytest.fixture(scope="module")
@@ -89,7 +69,7 @@ def test_le_corpus_couvre_les_cinq_magasins():
     }
 
 
-@pytest.mark.parametrize("cle", _contextes())
+@pytest.mark.parametrize("cle", MAGASINS)
 def test_aucune_commune_voulue_perdue_ni_sure_a_tort_de_plus(base, cle):
     magasin = _magasin(base, cle)
     lues, pertes, sures_en_plus = 0, [], []
@@ -114,7 +94,9 @@ def test_aucune_commune_voulue_perdue_ni_sure_a_tort_de_plus(base, cle):
 
 @pytest.mark.parametrize("cle", MAGASINS)
 def test_aucun_parasite_ne_revient(base, cle):
-    """The sentences without a commune: only the known limits still propose one."""
+    """The sentences without a commune: no new one proposes a commune. The known
+    limits (``parasites_restants_connus``) are NOT wanted, only tolerated: one that
+    stops proposing is an improvement, recorded by regenerating the data."""
     magasin = _magasin(base, cle)
     lues, proposent, sures_en_plus = 0, set(), []
     for e in CORPUS["parasites"]:
@@ -126,4 +108,4 @@ def test_aucun_parasite_ne_revient(base, cle):
             sures_en_plus.append(e["phrase"])
     assert lues == len(CORPUS["parasites"])
     assert sures_en_plus == []
-    assert sorted(proposent) == CORPUS["parasites_restants_connus"][cle]
+    assert sorted(proposent - set(CORPUS["parasites_restants_connus"][cle])) == []

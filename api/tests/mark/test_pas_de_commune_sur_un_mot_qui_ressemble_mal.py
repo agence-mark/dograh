@@ -51,13 +51,6 @@ def _noms(r):
 # --------------------------------------------------------------------------- #
 
 PARASITES_DU_17_09 = [
-    # Resemblance under SEUIL_PROPOSITION, and farther than RAYON_PROPOSITION_FAIBLE
-    # from the shop (⚠️ radius pending Evan's decision).
-    "Un poêle à granulés",  # run 271: Grandrû, Grans, Grane
-    "Bonjour, je voudrais faire amener mon poêle à granulés s'il vous plaît.",  # run 269
-    "Non, je voudrais faire ramoner mon poêle à granulé.",  # run 269
-    "c'est un poêle à granulés et dilcama.",  # run 272
-    "Révérance FA quatre cent douze.",  # run 267: Recouvrance, Préveranges
     # Words that go on with a complement name no place: « Passe » is Pacé at 100.
     "Passe à l'élément dix.",  # run 266: Pacé, Allemant
     "Passe aux choses.",  # run 266: Pacé
@@ -68,10 +61,13 @@ PARASITES_DU_17_09 = [
     "c'est à côté de la boulangerie.",  # run 266: Contay, Corte
 ]
 # ⚠️ Known limits, kept knowingly (rule of Evan: zero loss first, counter-review
-# of 2026-09-17): « L'année dernière… » (Lanne, the article glued is allowed),
-# « Passe à la suite. » (Lassy), « il y a marqué… » (Marques: the « il y a »
-# rule depended on capitals, removed), « Flammo. », « crée ». The full list, per
-# shop, is ``parasites_restants_connus`` in ``donnees/communes_corpus_reel_2026-09-17.json``.
+# of 2026-09-17). No rule that loses no commune meant, for any shop, removes
+# them: « Un poêle à granulés » (Grandrû, Grans, Grane), « L'année dernière… »
+# (Lanne), « Passe à la suite. » (Lassy), « il y a marqué… » (Marques),
+# « Révérance FA… », « Flammo. », « crée ». The full list, per shop, is
+# ``parasites_restants_connus`` in ``donnees/communes_corpus_reel_2026-09-17.json``.
+# « L'année dernière » and « poêle à granulés » are said outside the address
+# question: the remedy is a dedicated identity step in the agent, not the fork.
 
 
 @pytest.mark.parametrize("texte", PARASITES_DU_17_09)
@@ -155,9 +151,13 @@ def test_contre_relecture_la_commune_reste_proposee(base, texte, commune, magasi
     assert any(commune in [l.commune.nom for l in d.lectures] for d in r.detections), r.detections
 
 
-def test_sans_adresse_du_magasin_rien_nest_retire_par_la_ressemblance(base):
-    """Nothing locates a weak reading without the shop: kept, as in production."""
-    assert any("Grans" in n for n in _noms(analyser_message("Un poêle à granulés", base, None)))
+def test_aucune_regle_ne_depend_du_magasin():
+    """Decision of Evan, 2026-09-17 (option d): a 40 km radius lost 17 communes
+    for Compiègne, 10 for Coignières, 7 for Marseille."""
+    import inspect
+
+    assert not hasattr(analyse, "RAYON_PROPOSITION_FAIBLE")
+    assert "magasin" not in inspect.signature(analyse.propositions_fondees).parameters
 
 
 # --------------------------------------------------------------------------- #
