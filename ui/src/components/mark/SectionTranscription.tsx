@@ -1,5 +1,8 @@
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+
+import { attributDeLongueur } from "./bornes-reglages";
 
 /**
  * [.mark] The "Transcription" section of an agent's settings page.
@@ -12,11 +15,41 @@ import { Switch } from "@/components/ui/switch";
  * 🔒 Defaults are not chosen here: the page hands over the value already
  * resolved. Number conversion is off by default; the town check is ON by
  * default (decision D5 of 2026-09-16).
+ *
+ * The names of the variables that trigger the town check are a setting since
+ * 2026-09-17 (decision of Evan): a client whose variable is `ville` gets the
+ * check without a patch. Shown only while the switch is on, like the silence
+ * duration under its switch in the voice section.
  */
 export interface ReglagesTranscription {
     conversion_nombres_transcription: boolean;
     verification_communes: boolean;
+    variables_commune: string;
 }
+
+/**
+ * One name: letters, digits, `_` or `-`, an optional final `*` after at least 3
+ * characters (« a* » would check every variable starting with « a »). Same rule as the server.
+ */
+const NOM_VARIABLE = /^(?:[\p{L}\p{N}_-]+|[\p{L}\p{N}_-]{3,}\*)$/u;
+
+/**
+ * The message to show under the variable names, or `null` when they can be saved.
+ *
+ * Mirrors `decouper_variables_commune` (`api/schemas/workflow_configurations.py`),
+ * which refuses the same entries with a 422: the button says no before the
+ * server has to. Empty is fine: it means the default.
+ */
+export const erreurVariablesCommune = (texte: string | null | undefined): string | null => {
+    const noms = (texte ?? "")
+        .split(",")
+        .map((nom) => nom.trim())
+        .filter((nom) => nom !== "");
+    const fautif = noms.find((nom) => !NOM_VARIABLE.test(nom));
+    return fautif === undefined
+        ? null
+        : `"${fautif}" is not a variable name. Use letters, digits, _ or -, separated by commas; a * only at the end of a name, after at least 3 characters.`;
+};
 
 interface SectionTranscriptionProps {
     reglages: ReglagesTranscription;
@@ -75,10 +108,52 @@ export const SectionTranscription = ({ reglages, onChange }: SectionTranscriptio
                 before the model reads it.
             </p>
             <p className="text-xs text-muted-foreground">
-                Acts only at steps that collect a <code>commune</code> or <code>adresse…</code>{" "}
-                variable.
+                Acts only at steps that collect a town variable: <code>commune</code> or{" "}
+                <code>adresse…</code> by default, or the names set below.
             </p>
             <p className="text-xs text-muted-foreground">No effect in realtime mode.</p>
+
+            {reglages.verification_communes && (
+                <div className="space-y-2 pt-2">
+                    <Label htmlFor="variables_commune" className="text-xs">
+                        Variables that trigger the town check
+                    </Label>
+                    <Input
+                        id="variables_commune"
+                        {...attributDeLongueur("variables_commune")}
+                        aria-invalid={erreurVariablesCommune(reglages.variables_commune) ? true : undefined}
+                        value={reglages.variables_commune}
+                        onChange={(e) => onChange({ ...reglages, variables_commune: e.target.value })}
+                    />
+                    {erreurVariablesCommune(reglages.variables_commune) && (
+                        <p className="text-xs text-destructive">
+                            {erreurVariablesCommune(reglages.variables_commune)}
+                        </p>
+                    )}
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                        <p>
+                            Write the name of the variable that collects the town, exactly as it
+                            appears in the step of the workflow: open the step, then{" "}
+                            <em>Variables to Extract</em> and its <em>Variable Name</em>.
+                        </p>
+                        <p>Several names: separate them with commas.</p>
+                        <p>
+                            A <code>*</code> at the end means &quot;every name that starts
+                            with&quot;: <code>adresse*</code> covers <code>adresse</code>,{" "}
+                            <code>adresse_chantier</code>, <code>adresse_intervention</code>. At least 3
+                            characters before the <code>*</code>.
+                        </p>
+                        <p>
+                            Example: <code>ville, lieu_chantier, adresse*</code>. Capitals and
+                            spaces do not matter.
+                        </p>
+                        <p>
+                            Leave empty to go back to the default:{" "}
+                            <code>commune, commune_*, adresse*</code>.
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     </div>
 );

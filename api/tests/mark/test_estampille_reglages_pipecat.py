@@ -84,6 +84,7 @@ def test_lestampille_couvre_chaque_reglage_expose():
                 "stt_ttfs",
                 "conversion_nombres",
                 "verification_communes",
+                "variables_commune",
             )
         )
     }

@@ -28,6 +28,7 @@ import {
     SectionTourDeParole,
 } from "./SectionTourDeParole";
 import {
+    erreurVariablesCommune,
     type ReglagesTranscription,
     SectionTranscription,
 } from "./SectionTranscription";
@@ -83,6 +84,7 @@ import { transcriptionPiloteLesTours } from "./transcriptionPiloteLesTours";
 export const CLES_TRANSCRIPTION = [
     "conversion_nombres_transcription",
     "verification_communes",
+    "variables_commune",
 ] as const;
 
 export const CLES_COUPURE = [
@@ -263,14 +265,16 @@ export const SectionReglagesPipecat = ({
     // Worse: the payload carries the WHOLE configuration, so one bad field also
     // blocked the three other blocks. Now the button says no before the server
     // has to.
-    const fautifs = useMemo(
-        () => messagesHorsBornes({
+    const fautifs = useMemo(() => {
+        const messages = messagesHorsBornes({
             ...reglagesTourDeParole,
             ...reglagesRelance,
             ...reglagesVoix,
-        } as Record<string, unknown>),
-        [reglagesTourDeParole, reglagesRelance, reglagesVoix],
-    );
+        } as Record<string, unknown>);
+        // A name the server would refuse (422) blocks the button the same way.
+        const variables = erreurVariablesCommune(reglagesTranscription.variables_commune);
+        return variables ? { ...messages, variables_commune: variables } : messages;
+    }, [reglagesTourDeParole, reglagesRelance, reglagesVoix, reglagesTranscription]);
     const nombreDeFautifs = Object.keys(fautifs).length;
 
     useUnsavedChanges(ID_SECTION_REGLAGES_PIPECAT, isDirty);

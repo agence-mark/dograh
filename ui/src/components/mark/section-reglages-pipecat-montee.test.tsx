@@ -254,6 +254,37 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         expect(interrupteur.getAttribute("aria-checked")).toBe("true");
     });
 
+    it("[variables-commune] the town variable names are on the page, under the switch, with the default and the notice", async () => {
+        // Rendered on the PAGE, not the section alone: the 29 settings of
+        // 2026-09-14 rendered perfectly in a file no screen mounted.
+        const { container } = await rendreLaPage();
+        const interrupteur = screen.getByRole("switch", { name: /recognise the caller's town/i });
+        const champ = screen.getByLabelText("Variables that trigger the town check") as HTMLInputElement;
+        expect(champ.value).toBe("commune, commune_*, adresse*");
+        // Under the switch, inside the same card.
+        const carte = container.querySelector(`#${ID_SECTION_REGLAGES_PIPECAT}`);
+        expect(carte?.contains(champ)).toBe(true);
+        expect(
+            interrupteur.compareDocumentPosition(champ) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        // The notice: where the name is, commas, the final *, an example, empty = default.
+        const texte = carte?.textContent ?? "";
+        expect(texte).toMatch(/Variables to Extract and its Variable Name/);
+        expect(texte).toMatch(/separate them with commas/);
+        expect(texte).toMatch(/A \* at the end means "every name that starts with"/);
+        expect(texte).toMatch(/Example: ville, lieu_chantier, adresse\*/);
+        expect(texte).toMatch(/Leave empty to go back to the default: commune, commune_\*, adresse\*/);
+    });
+
+    it("[coupure] the section of the moments the agent can't be interrupted carries its new title on the page", async () => {
+        await rendreLaPage();
+        expect(
+            screen.getByRole("heading", { name: "Moments when the agent can't be interrupted" }),
+        ).toBeTruthy();
+        // The old title read as General > Interruption, which is another setting.
+        expect(screen.queryByRole("heading", { name: "Interruptions" })).toBeNull();
+    });
+
     it("[nombres-dictes] the number switch tells what it now does, on the page", async () => {
         // The step moved after the aggregator (plan nombres-dictes, N1): the
         // recorded transcript keeps the words, and postal codes are read both

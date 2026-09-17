@@ -24,6 +24,9 @@ Decisions of 2026-09-16
   before any downstream step runs.
 - D5: only at steps that extract a variable named ``commune``, starting with
   ``commune_`` or with ``adresse``. Switch per agent, ON by default.
+  Since 2026-09-17 these names are a setting of the agent (``variables_commune``,
+  default ``commune, commune_*, adresse*``): a client whose variable is called
+  ``ville`` gets the check without a patch. Read at call time, alone.
 - D6: the instruction to the agent lives in the note; no prompt is edited.
 - D7: the keyboard bench is annotated too (now ``lecture_appelant.lire_message_tape``),
   so a keyboard campaign behaves like a call.
@@ -61,22 +64,59 @@ from typing import Callable
 from loguru import logger
 
 from api.schemas.organization_preferences import AdresseEtablissement
-from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
-from api.services.communes.analyse import SURE, Detection, analyser
+from api.schemas.workflow_configurations import (
+    DEFAULT_VARIABLES_COMMUNE,
+    WorkflowConfigurationDefaults,
+    decouper_variables_commune,
+)
+from api.services.communes.analyse import SURE, Detection, analyser, propositions_fondees
 from api.services.communes.base import BaseCommunes, charger_base
 from api.services.communes.mention import deja_mentionne, mentionner
 
 CLE_INTERRUPTEUR = "verification_communes"
 CLE_TRACE = "communes_verifiees"
+CLE_VARIABLES = "variables_commune"
+
+# The names of the default setting, ready to compare.
+VARIABLES_PAR_DEFAUT = decouper_variables_commune(DEFAULT_VARIABLES_COMMUNE)
 
 
-def etape_concernee(noeud) -> bool:
-    """Does this step collect a town? One rule for every agent, by variable name."""
+def _correspond(nom: str, motif: str) -> bool:
+    return nom.startswith(motif[:-1]) if motif.endswith("*") else nom == motif
+
+
+def etape_concernee(noeud, variables: tuple[str, ...] = VARIABLES_PAR_DEFAUT) -> bool:
+    """Does this step collect a town? By the name of its extraction variables.
+
+    ``variables`` is the agent's setting, already split (``variables_commune``):
+    a name, or a name ending with ``*`` for "starts with". Case and spaces
+    around the variable's name do not count.
+    """
     for variable in getattr(noeud, "extraction_variables", None) or []:
         nom = (getattr(variable, "name", None) or "").strip().lower()
-        if nom == "commune" or nom.startswith("commune_") or nom.startswith("adresse"):
+        if nom and any(_correspond(nom, motif) for motif in variables):
             return True
     return False
+
+
+def variables_commune(run_configs: dict | None) -> tuple[str, ...]:
+    """The agent's variable names, read alone through the schema (null or blank = default).
+
+    ⛔ Only this key, like the switch below. An unreadable value (invalid name
+    stored by hand, wrong type) falls back to the default with a warning: the
+    call goes on with the rule of before, it does not lose the check.
+    """
+    try:
+        valeur = WorkflowConfigurationDefaults.model_validate(
+            {CLE_VARIABLES: (run_configs or {}).get(CLE_VARIABLES)}
+        ).variables_commune
+        return decouper_variables_commune(valeur)
+    except Exception as erreur:  # noqa: BLE001 -- the call must go on
+        logger.warning(
+            f"[.mark] Town check variable names unreadable, default used "
+            f"({DEFAULT_VARIABLES_COMMUNE}): {erreur!r}"
+        )
+        return VARIABLES_PAR_DEFAUT
 
 
 def interrupteur_allume(run_configs: dict | None) -> bool:
@@ -122,7 +162,7 @@ def _analyser_et_mentionner(texte: str, adresse: AdresseEtablissement | None):
     """Blocking: runs in a worker thread. Returns (annotated text, detections, base)."""
     base = charger_base()
     magasin = base.coordonnees(adresse.code_insee) if adresse else None
-    detections = analyser(texte, base, magasin)
+    detections = propositions_fondees(texte, analyser(texte, base, magasin), base)
     return mentionner(texte, detections, base), detections, base
 
 

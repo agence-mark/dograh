@@ -300,8 +300,13 @@ describe("Section Reglages vocaux de la page de parametres", () => {
         });
     });
 
-    it("monte la section Interruptions avec les trois strategies d'aujourd'hui", () => {
+    it("monte la section des moments ou l'agent ne se laisse pas couper avec les trois strategies d'aujourd'hui", () => {
         ouvrir(null);
+        // Renamed on 2026-09-17: "Interruptions" read as General > Interruption.
+        expect(
+            screen.getByRole("heading", { name: "Moments when the agent can't be interrupted" }),
+        ).toBeTruthy();
+        expect(screen.queryByRole("heading", { name: "Interruptions" })).toBeNull();
         const etat = (id: string) =>
             document.getElementById(id)?.getAttribute('aria-checked');
         expect(etat('mute_until_first_bot_complete')).toBe('true');
@@ -523,7 +528,65 @@ describe("Section Reglages vocaux de la page de parametres", () => {
         expect(document.getElementById("user_speech_timeout")).toBeNull();
         expect(screen.getByRole("switch", { name: /recognise the caller's town/i })).toBeTruthy();
         expect(document.body.textContent).toMatch(/official list of French communes/i);
-        expect(document.body.textContent).toMatch(/collect a commune or adresse… variable/i);
+        expect(document.body.textContent).toMatch(
+            /collect a town variable: commune or adresse… by default, or the names set below/i,
+        );
+    });
+
+    it("[variables-commune] montre les noms par defaut sous l'interrupteur, avec la notice", () => {
+        expect(resolveWorkflowConfigurations(null).variables_commune).toBe(
+            "commune, commune_*, adresse*",
+        );
+        ouvrir(null);
+        const champ = screen.getByLabelText("Variables that trigger the town check") as HTMLInputElement;
+        expect(champ.value).toBe("commune, commune_*, adresse*");
+        expect(champ.maxLength).toBe(500);
+        expect(document.body.textContent).toMatch(/Variables to Extract and its Variable Name/);
+        expect(document.body.textContent).toMatch(/Leave empty to go back to the default/);
+    });
+
+    it("[variables-commune] masque le champ quand l'interrupteur des communes est eteint", () => {
+        ouvrir({ verification_communes: false });
+        expect(document.getElementById("variables_commune")).toBeNull();
+    });
+
+    it("[variables-commune] emporte les noms saisis dans l'enregistrement", async () => {
+        const onSave = ouvrir(null);
+        fireEvent.change(document.getElementById("variables_commune") as HTMLInputElement, {
+            target: { value: "ville, lieu_chantier, adresse*" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: /save/i }));
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+        expect(onSave.mock.calls[0][0].variables_commune).toBe("ville, lieu_chantier, adresse*");
+    });
+
+    it("[variables-commune] garde les noms deja enregistres sur l'agent", () => {
+        ouvrir({ variables_commune: "ville" });
+        expect((document.getElementById("variables_commune") as HTMLInputElement).value).toBe("ville");
+    });
+
+    it("[variables-commune] refuse un nom invalide avant le serveur, en le nommant", () => {
+        ouvrir(null);
+        fireEvent.change(document.getElementById("variables_commune") as HTMLInputElement, {
+            target: { value: "ville chantier" },
+        });
+        expect(screen.getAllByText(/"ville chantier" is not a variable name/).length).toBeGreaterThan(0);
+        expect(
+            (screen.getByRole("button", { name: /save speech tuning/i }) as HTMLButtonElement).disabled,
+        ).toBe(true);
+    });
+
+    it("[variables-commune] refuse une etoile apres moins de 3 caracteres, accepte apres 3", () => {
+        ouvrir(null);
+        const champ = document.getElementById("variables_commune") as HTMLInputElement;
+        const bouton = () => screen.getByRole("button", { name: /save speech tuning/i }) as HTMLButtonElement;
+        fireEvent.change(champ, { target: { value: "ville, a*" } });
+        expect(screen.getAllByText(/"a\*" is not a variable name/).length).toBeGreaterThan(0);
+        expect(document.body.textContent).toMatch(/at least 3 characters/);
+        expect(bouton().disabled).toBe(true);
+        fireEvent.change(champ, { target: { value: "ville, adr*" } });
+        expect(document.body.textContent).not.toMatch(/is not a variable name/);
+        expect(bouton().disabled).toBe(false);
     });
 
     it("dit que l'interrupteur des nombres dictes est sans effet en temps reel", () => {

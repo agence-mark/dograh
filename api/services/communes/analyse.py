@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Mapping, Sequence
 
 from api.services.communes.base import (
@@ -433,6 +433,108 @@ def analyser(
                     codes_postaux_dits=frozenset(cps),
                 ))
     return prises
+
+
+# --------------------------------------------------------------------------- #
+# Proposals to confirm: only on words that resemble the commune (2026-09-17)
+# --------------------------------------------------------------------------- #
+
+_DE = frozenset({"de", "d", "du", "des"})
+# Grammar words that place something relative to a place (review of 2026-09-17):
+# « à côté de la gare », « c'est vers Bovet »: followed by more words, they are a
+# preposition, not a town.
+LIEUX_RELATIFS = frozenset(
+    """cote bord bords sortie entree bout pres proximite abords alentours environs centre milieu
+    fond face hauteur niveau pied coin limite derriere devant vers nord sud ouest""".split()
+)
+
+
+def _article_du_nom(article: str, nom_normalise: str) -> bool:
+    """« la signy » can be Lassigny, « la morley » Lamorlaye: the article may be
+    glued in the commune's name. « l'année » is not Anet, « la maison » not Maisons."""
+    return nom_normalise.replace(" ", "").startswith(article)
+
+
+def propositions_fondees(texte: str, detections: list[Detection], base: BaseCommunes) -> list[Detection]:
+    """The detections, without the communes proposed on words that name no place.
+
+    Decision of Evan, 2026-09-17 (fiche D, runs 269 to 272): the agent names the
+    first commune to confirm aloud, so « L'année dernière » proposed Anet and
+    « c'est à côté de la boulangerie » Contay. Rule of Evan for this repair: zero
+    loss against production for any shop; what no such rule removes is a known limit.
+
+    1. An article belongs to the commune's name, glued or not: « l'année » is not
+       Anet (the article opens the words heard), « la maison » is not Maisons
+       (it comes right before them); « la signy » stays Lassigny.
+    2. Words that place relative to a place (« côté », « vers »), followed by
+       « de » or by words not introduced by a place marker, are a preposition:
+       « à côté de la gare » is not Contay, « c'est vers Bovet » not Vers;
+       « j'habite à Vers, dans le Lot » is Vers.
+
+    ⛔ No complement rule (final review of 2026-09-17): « passe | aux choses »
+    also erased communes said alone then followed by a place, present in
+    production: « Grand Villiers, au Moulin. », « Compiagnes, au Clos des
+    Roses. », « Bovet. Au revoir. », « Champly, à la zone industrielle. ».
+
+    ⛔ No resemblance threshold and no radius around the shop (decision of Evan,
+    2026-09-17, option d): measured on the real corpus with five shops, a 40 km
+    radius lost « perçant » -> Persan, « Abrel » -> Bresles and « bonsoir Oise »
+    -> Beaumont-sur-Oise for Compiègne (17), Coignières (10) and Marseille (7).
+    The shop's location keeps its other uses (proximity bonus, nearest postal
+    code, last sure town), as in production.
+
+    ⚠️ Known limits: « L'année dernière » still proposes Lanne (Hautes-Pyrénées),
+    « poêle à granulés » Grandrû, Grans and Grane. These are said outside the
+    address question: the remedy is a dedicated identity step in the agent, not
+    this module.
+
+    Only proposals TO CONFIRM are touched: a sure town, a postal code heard, a
+    commune backed by a postal code and a name written exactly as the commune
+    (« Saint-Laurent », « à Vers, dans le Lot ») are always kept. A detection
+    left with no proposal is dropped. No rule depends on the shop's location.
+    Blocking: worker thread, like ``analyser``.
+    """
+    if not any(d.statut == A_CONFIRMER and not d.code_postal_entendu for d in detections):
+        return detections
+    mots = normaliser(texte).split()
+    gardees: list[Detection] = []
+    for d in detections:
+        if d.statut != A_CONFIRMER or d.code_postal_entendu or d.debut < 0:
+            gardees.append(d)
+            continue
+        extrait = " ".join(mots[d.debut:d.fin])
+        # « c'est vers Bovet », « à côté de la gare »: a preposition;
+        # « j'habite à Vers, dans le Lot »: a place.
+        preposition = (
+            d.fin < len(mots)
+            and all(m in LIEUX_RELATIFS for m in mots[d.debut:d.fin])
+            and (mots[d.fin] in _DE or not (d.debut > 0 and mots[d.debut - 1] in AMORCES))
+        ) or (d.fin - d.debut > 1 and mots[d.debut] in LIEUX_RELATIFS and mots[d.debut + 1] in _DE)
+        article = mots[d.debut] if d.fin - d.debut > 1 and mots[d.debut] in ARTICLES else None
+        article_avant = mots[d.debut - 1] if d.debut > 0 and mots[d.debut - 1] in ARTICLES else None
+
+        def fondee(l: Lecture) -> bool:
+            if l.par_code:
+                return True
+            j = base.par_insee[l.commune.insee]
+            exact = extrait == base.norms[j]
+            # A name of several words written exactly is never an accident (Bout-du-Pont-de-Larn).
+            if exact and d.fin - d.debut > 1:
+                return True
+            if preposition:
+                return False
+            if exact:
+                return True
+            if article is not None and not _article_du_nom(article, base.norms[j]):
+                return False
+            if article_avant is not None and not _article_du_nom(article_avant, base.norms[j]):
+                return False
+            return True
+
+        lectures = tuple(l for l in d.lectures if fondee(l))
+        if lectures:
+            gardees.append(d if lectures == d.lectures else replace(d, lectures=lectures))
+    return gardees
 
 
 # --------------------------------------------------------------------------- #

@@ -454,13 +454,13 @@ class _Arret(Exception):
     pass
 
 
-async def _message_tape_jusquau_modele(texte: str, configuration: dict):
+async def _message_tape_jusquau_modele(texte: str, configuration: dict, noeud=NOEUD_COORDONNEES):
     """The keyboard path RUN up to the model's queue: (context, gathered context)."""
     contexte_capture = {}
 
     class _Moteur:
         def __init__(self, **kwargs):
-            self._current_node = NOEUD_COORDONNEES
+            self._current_node = noeud
             self._gathered_context = {}
             contexte_capture["contexte"] = kwargs["context"]
             contexte_capture["moteur"] = self

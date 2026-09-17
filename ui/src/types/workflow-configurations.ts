@@ -66,6 +66,9 @@ export const DEFAUTS_PIPECAT = {
     conversion_nombres_transcription: false,
     // ⚠️ ON (decision D5 of 2026-09-16): acts only at steps that collect a town.
     verification_communes: true,
+    // The names of the extraction variables that get the town check; a final *
+    // means "starts with". Same rule as before the setting existed (2026-09-17).
+    variables_commune: 'commune, commune_*, adresse*',
 } as const;
 
 // "provisional_vad" was retired. Definitions saved before then still carry it,
@@ -226,6 +229,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     mute_always: boolean;
     conversion_nombres_transcription: boolean;  // Dictated numbers reach the model as digits
     verification_communes: boolean;  // Town the caller names checked against the list of communes
+    variables_commune: string;  // Extraction variables that trigger it, comma separated, final * = starts with
     user_speech_timeout: number;  // Seconds the caller may pause before the agent answers
     stt_ttfs_p99_latency: number | null;  // Empty = the value Pipecat measured for the provider
     user_turn_stop_timeout: number | null;  // Empty = 5 s, or 30 s in external-turn mode
@@ -277,7 +281,10 @@ const FALLBACK_WORKFLOW_CONFIGURATIONS: WorkflowConfigurations = {
 type ReglagesPipecatResolus = {
     -readonly [K in keyof typeof DEFAUTS_PIPECAT]: K extends "tts_replacements"
         ? string[]
-        : (typeof DEFAUTS_PIPECAT)[K];
+        // Free text: its default must not narrow the type to that one literal.
+        : K extends "variables_commune"
+          ? string
+          : (typeof DEFAUTS_PIPECAT)[K];
 };
 
 function resoudreReglagesPipecat(

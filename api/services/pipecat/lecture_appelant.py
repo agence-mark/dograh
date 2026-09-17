@@ -23,7 +23,9 @@ What the model reads (who does what, by switch)
 |                      | departments, N6); town note   |                                     |
 +----------------------+-------------------------------+-------------------------------------+
 
-- Town notes only at steps that collect a town (``etape_concernee``, 2026-09-16).
+- Town notes only at steps that collect a town (``etape_concernee``, 2026-09-16),
+  by the agent's variable names (``variables_commune``, 2026-09-17): the call
+  and the keyboard read the same setting.
 - Reference notes only at steps that collect a variable starting with
   ``reference`` (N4). Digits at every step.
 - 🔒 N1: the recorded transcript keeps the caller's WORDS. The aggregator
@@ -72,10 +74,12 @@ from api.services.pipecat.conversion_nombres import (
 )
 from api.services.pipecat.verification_communes import (
     CLE_TRACE,
+    VARIABLES_PAR_DEFAUT,
     annoter_texte,
     etape_concernee,
     interrupteur_allume,
     trace_de,
+    variables_commune,
 )
 from pipecat.frames.frames import Frame, LLMContextFrame, StartFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
@@ -148,12 +152,17 @@ async def lire_texte(
     noeud,
     consigner: Callable[..., None] | None,
     provisoire: bool = False,
+    variables: tuple[str, ...] = VARIABLES_PAR_DEFAUT,
 ) -> str:
-    """``texte`` as the model must read it, or ``texte`` unchanged. Never raises."""
+    """``texte`` as the model must read it, or ``texte`` unchanged. Never raises.
+
+    ``variables``: the agent's names of the variables that collect a town.
+    """
     try:
         if not texte or commune_deja_mentionnee(texte) or nombres_deja_mentionnes(texte):
             return texte
-        communes = verification and etape_concernee(noeud)
+        etape_adresse = etape_concernee(noeud, variables)
+        communes = verification and etape_adresse
         etape = _nom_etape(noeud)
         if not langue_francaise:
             # The reader is French only: the town check of 2026-09-16, unchanged.
@@ -170,7 +179,7 @@ async def lire_texte(
         trace_nombres = lire_trace(CLE_TRACE_NOMBRES) if callable(lire_trace) else []
         lu, lecture, base = await asyncio.to_thread(
             _lire, texte, adresse, trace_communes, conversion, communes, etape_reference(noeud),
-            etape_concernee(noeud), trace_nombres,
+            etape_adresse, trace_nombres,
         )
         if consigner is not None:
             entrees: list[tuple[str, dict]] = []
@@ -208,9 +217,11 @@ class LectureAppelantProcessor(FrameProcessor):
         adresse: AdresseEtablissement | None,
         etape_courante: Callable[[], object],
         consigner: Callable[..., None] | None = None,
+        variables: tuple[str, ...] = VARIABLES_PAR_DEFAUT,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self._variables = variables
         self._conversion = conversion
         self._verification = verification
         self._langue_francaise = langue_francaise
@@ -252,6 +263,7 @@ class LectureAppelantProcessor(FrameProcessor):
             noeud=self._etape_courante(),
             consigner=self._consigner,
             provisoire=frame.speculation,
+            variables=self._variables,
         )
         # Marked AFTER the reading: an interruption that cancels this task
         # during the await leaves the message unmarked, so the next context
@@ -293,6 +305,7 @@ def creer_lecture_appelant(
         adresse=adresse,
         etape_courante=etape_courante,
         consigner=consigner,
+        variables=variables_commune(run_configs),
     )
 
 
@@ -314,6 +327,7 @@ async def lire_message_tape(
             adresse=adresse,
             noeud=noeud,
             consigner=consigner,
+            variables=variables_commune(run_configs),
         )
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[.mark] Caller reading failed on the keyboard, message kept: {erreur!r}")

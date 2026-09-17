@@ -1,3 +1,4 @@
+import re
 from typing import Annotated, Literal
 
 from pydantic import (
@@ -78,6 +79,34 @@ DEFAULT_CONVERSION_NOMBRES_TRANSCRIPTION = False
 # steps that collect a `commune` or `adresse…` variable, and it was decided for
 # every agent, so an agent that never collects a town is unaffected.
 DEFAULT_VERIFICATION_COMMUNES = True
+# 🔒 The rule written in the code until 2026-09-17, now a setting: a client
+# whose variable is called `ville` or `lieu_chantier` gets the check without a
+# patch. Absent, null or blank = this value, so no existing agent changes.
+DEFAULT_VARIABLES_COMMUNE = "commune, commune_*, adresse*"
+# One name: letters, digits, `_` or `-`, with an optional final `*` meaning
+# "every name that starts with". A lone `*` would match every step, and « a* »
+# every variable starting with « a » (review of 2026-09-17): at least 3
+# characters before the `*`.
+_NOM_VARIABLE_COMMUNE = re.compile(r"^(?:[\w-]+|[\w-]{3,}\*)$")
+
+
+def decouper_variables_commune(valeur: str | None) -> tuple[str, ...]:
+    """``"Ville, adresse*"`` -> ``("ville", "adresse*")``. Blank -> the default.
+
+    Case and spaces around a name do not count, empty items (a trailing comma)
+    are ignored. ⛔ Raises ``ValueError`` naming the first invalid name.
+    """
+    if valeur is None or not valeur.strip():
+        valeur = DEFAULT_VARIABLES_COMMUNE
+    noms = tuple(nom.strip().lower() for nom in valeur.split(",") if nom.strip())
+    for nom in noms:
+        if not _NOM_VARIABLE_COMMUNE.match(nom):
+            raise ValueError(
+                f"'{nom}' is not a variable name. Use letters, digits, _ or -, "
+                "separated by commas; a * is allowed only at the end of a name, after at least 3 characters."
+            )
+    return noms
+
 
 # --- Opening hours ----------------------------------------------------------
 #
@@ -471,6 +500,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "collect a `commune` or `adresse…` variable. No effect in realtime mode."
         ),
     )
+    variables_commune: str = Field(
+        default=DEFAULT_VARIABLES_COMMUNE,
+        max_length=500,
+        description=(
+            "The extraction variables that trigger the town check, separated by "
+            "commas. A final * means every name that starts with it (adresse* "
+            "covers adresse_chantier). Case and spaces do not count. Empty: "
+            "commune, commune_*, adresse*."
+        ),
+    )
     horaires_ouverture: str | None = Field(
         default=DEFAULT_HORAIRES_OUVERTURE,
         max_length=4000,
@@ -622,6 +661,22 @@ class WorkflowConfigurationDefaults(BaseModel):
                 "call disposition descriptions must total at most "
                 f"{MAX_CALL_DISPOSITION_DESCRIPTIONS_TOTAL_LENGTH} characters"
             )
+        return value
+
+    @field_validator("variables_commune", mode="before")
+    @classmethod
+    def variables_commune_valides(cls, value: object) -> object:
+        """[.mark] Blank means the default; an invalid name is refused (422 on save).
+
+        Safe to raise here, unlike the opening hours: at call time the key is
+        read ALONE (``verification_communes.variables_commune``), and an
+        unreadable value falls back to the default with a warning.
+        """
+        if isinstance(value, str):
+            if not value.strip():
+                return DEFAULT_VARIABLES_COMMUNE
+            decouper_variables_commune(value)
+            return value.strip()
         return value
 
     @field_validator("horaires_ouverture")
