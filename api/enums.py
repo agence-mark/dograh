@@ -174,6 +174,9 @@ class OrganizationConfigurationKey(Enum):
     ORGANIZATION_BOOTSTRAP = (
         "ORGANIZATION_BOOTSTRAP"  # Single-winner lease for post-signup provisioning
     )
+    # [.mark] The organization's trade vocabulary (brands, trade words): a free-text
+    # key of the existing table, so no migration. Format: api/schemas/lexique_metier.py
+    LEXIQUE_METIER = "LEXIQUE_METIER"
 
 
 class UserConfigurationKey(Enum):

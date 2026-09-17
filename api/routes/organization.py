@@ -31,6 +31,7 @@ from api.schemas.ai_model_configuration import (
     OrganizationAIModelConfigurationResponse,
     OrganizationAIModelConfigurationV2,
 )
+from api.schemas.lexique_metier import LexiqueMetier, ResultatImport
 from api.schemas.organization_preferences import OrganizationPreferences
 from api.schemas.telephony_config import (
     TelephonyConfigRequest,
@@ -79,6 +80,11 @@ from api.services.configuration.registry import (
     DograhTTSService,
     ServiceProviders,
     ServiceType,
+)
+from api.services.lexique.stockage import (
+    enregistrer_lexique,
+    fusionner_import,
+    lire_lexique,
 )
 from api.services.mps_billing import ensure_hosted_mps_billing_account_v2
 from api.services.mps_service_key_client import mps_service_key_client
@@ -726,6 +732,42 @@ async def get_communes_du_code_postal(
         CommuneDuCodePostal(code_insee=c.insee, nom=c.nom)
         for c in base.communes_du_code_postal(code_postal)
     ]
+
+
+@router.get("/lexique", response_model=LexiqueMetier)
+async def get_lexique(
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] The organization's trade vocabulary (empty when none was saved)."""
+    return await lire_lexique(user.selected_organization_id)
+
+
+@router.put("/lexique", response_model=LexiqueMetier)
+async def save_lexique(
+    request: LexiqueMetier,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] Replace the organization's trade vocabulary. Bounds: 422 before writing."""
+    return await enregistrer_lexique(user.selected_organization_id, request)
+
+
+@router.post("/lexique/import", response_model=ResultatImport)
+async def import_lexique(
+    request: LexiqueMetier,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] Add a template's terms that are absent; a term already there is never changed."""
+    organization_id = user.selected_organization_id
+    existant = await lire_lexique(organization_id)
+    try:
+        fusion, ajoutes, deja_presents = fusionner_import(existant, request)
+    except ValidationError as erreur:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"msg": e["msg"], "loc": list(e["loc"])} for e in erreur.errors()],
+        ) from None
+    await enregistrer_lexique(organization_id, fusion)
+    return ResultatImport(ajoutes=ajoutes, deja_presents=deja_presents)
 
 
 @router.get(
