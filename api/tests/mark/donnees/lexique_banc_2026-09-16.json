@@ -1,5 +1,5 @@
 {
- "source": "Essai du 2026-09-16 (_AUTONOMIE/essais/2026-09-16-lexique-metier) : chaque marque dite dans deux phrases par la voix française de Windows, dégradée en 8 kHz, retranscrite par Whisper en local sans vocabulaire. Textes seuls.",
+ "source": "Essai du 2026-09-16 (_AUTONOMIE/essais/2026-09-16-lexique-metier) : chaque marque dite dans deux phrases par la voix française de Windows, dégradée en 8 kHz, retranscrite par Whisper en local sans vocabulaire. Textes seuls. Les 81 phrases sans marque viennent des scénarios ÉCRITS du labo (personnages inventés, numéros et adresses fictifs) : aucun appel réel, aucune donnée de client.",
  "avec_marque": {
   "small": [
    {
