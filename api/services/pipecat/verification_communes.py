@@ -69,7 +69,7 @@ from api.schemas.workflow_configurations import (
     WorkflowConfigurationDefaults,
     decouper_variables_commune,
 )
-from api.services.communes.analyse import SURE, Detection, analyser
+from api.services.communes.analyse import SURE, Detection, analyser, propositions_fondees
 from api.services.communes.base import BaseCommunes, charger_base
 from api.services.communes.mention import deja_mentionne, mentionner
 
@@ -162,7 +162,7 @@ def _analyser_et_mentionner(texte: str, adresse: AdresseEtablissement | None):
     """Blocking: runs in a worker thread. Returns (annotated text, detections, base)."""
     base = charger_base()
     magasin = base.coordonnees(adresse.code_insee) if adresse else None
-    detections = analyser(texte, base, magasin)
+    detections = propositions_fondees(texte, analyser(texte, base, magasin), base)
     return mentionner(texte, detections, base), detections, base
 
 
