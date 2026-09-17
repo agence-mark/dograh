@@ -1062,7 +1062,10 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
         detections = _ville_par_code(
             texte, base, detections, candidats, mots_nombres | _mots_de(nombres), trace_appel, trace_nombres
         )
-    communes_dites = bool(detections)
+    # A town said is one that will be proposed: a parasite dropped below must not
+    # silence the note of a postal code said alone (« Passe à la suite. Soixante
+    # mille. », review of 2026-09-17).
+    communes_dites = bool(propositions_fondees(texte, detections, base, magasin, departements))
     choix: dict[int, ChoixCodePostal] = {}
     for n in candidats:
         c = choisir_code_postal(n, detections, trace_appel, departements, magasin, base)
@@ -1102,5 +1105,5 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
             ))
     # Decision of Evan, 2026-09-17: no commune proposed on words that resemble it
     # badly. Last, so the postal codes above were chosen with every reading.
-    detections = propositions_fondees(texte, detections, base)
+    detections = propositions_fondees(texte, detections, base, magasin, departements)
     return LectureMessage(nombres=nombres, detections=detections, choix=choix)

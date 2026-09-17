@@ -1,0 +1,6616 @@
+{
+ "_lire": "Corpus réel des communes (appels 230 à 273 du 15 au 17/09, banc du 16/09, fiche A v3, noms mal transcrits des bancs dans les tournures d'appel, phrases de la relecture du 17/09). Textes seuls, sans nom de personne. rang_production : rang de la commune attendue sur le fork 657a365b (-1 = annoncée sûre, 0 = proposée en premier, 1 = en deuxième, null = absente), chaque phrase lue seule, magasin Saint-Maximin (60589).",
+ "magasin_insee": "60589",
+ "vraies": [
+  {
+   "phrase": "c a bauvais soixante mille.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "J'habite à Chambly, soixante deux cent trente.",
+   "commune": "Chambly",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est sur Brel soixante cinq cent dix.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Grandvilliers soixante deux cent dix.",
+   "commune": "Grandvilliers",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À Clermont-Ferrand, soixante trois mille.",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "cent lis, soixante trois cents.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À Crépy envallois, soixante huit cents.",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "est à Pont-Saint-Maxence, soixante sept cents.",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À Lamorley, soixante deux cent soixante.",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "J'habite à Lyon, soixante-neuf mille trois.",
+   "commune": "Lyon",
+   "departement": "69",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à lit en cours soixante cent quarante.",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Cent-lix, soixante-mille-trois-cent.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "sans lis.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Beaumont-sur-Oise, quatre vingt dix deux cent soixante.",
+   "commune": "Beaumont-sur-Oise",
+   "departement": "95",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "J'habite à Clermont, soixante six cents.",
+   "commune": "Clermont",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Accueil soixante cents",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "crée",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Bordeaux trente-trois-mille.",
+   "commune": "Bordeaux",
+   "departement": "33",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Copenhague soixante deux cents.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À Saint-Laurent, soixante trois cent quarante.",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c à Breteuil, soixante cent vingt.",
+   "commune": "Breteuil",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Coil à forêt, soixante-cinq cent quatre-vingt.",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à monte-à-terre soixante, cent soixante.",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Aix-en-Provence, treize-mille-cent.",
+   "commune": "Aix-en-Provence",
+   "departement": "13",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "J'habite à Liladan quatre vingt quinze deux cent quatre vingt dix.",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Vers néanalate, soixante mille cinq cent soixante, cinq cent cinquante.",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à perçant quatre vingt quinze trois cent quarante.",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Gisor vingt sept cent quarante.",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Saint-Maro, trente cinq quatre cent.",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "run 266",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À soixante deux mille deux cents.",
+   "commune": "Soissons",
+   "departement": "02",
+   "source": "run 266",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "cent maximum soixante sept cent quarante.",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "J'habite à Amiens quatre-vingt-mille.",
+   "commune": "Amiens",
+   "departement": "80",
+   "source": "run 266",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "soixante deux cents.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "conquieigne.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Compiègne soixante deux cents",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Soixante mille deux cents.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Chantil soixante cinq cents.",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Quatre vingt quinze mille huit cent vingt.",
+   "commune": "Bruyères-sur-Oise",
+   "departement": "95",
+   "source": "run 267",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Six zéro sept quatre zéro.",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint Ledeseran soixante-trois cinq-cent-quarante.",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Code postal soixante mille.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Vous voyez,",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bouvé",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Abrel dans l'Oise.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bressel.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 267",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Soixante trois cents.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 268",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sans lisse.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 268",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "J'habite à Chambly.",
+   "commune": "Chambly",
+   "departement": "60",
+   "source": "run 268",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Soixante deux cent trente.",
+   "commune": "Chambly",
+   "departement": "60",
+   "source": "run 268",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "J'habite à Saint-Maxima.",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "run 268",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "soixante sept cent quarante.",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "run 268",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c a Strasbourg soixante-sept-mille.",
+   "commune": "Strasbourg",
+   "departement": "67",
+   "source": "run 268",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Soixante sept cents",
+   "commune": "Strasbourg",
+   "departement": "67",
+   "source": "run 268",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Strasbourg,",
+   "commune": "Strasbourg",
+   "departement": "67",
+   "source": "run 268",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À Brel dans l'Oise.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 268",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brel.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 268",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bretzel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 268",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brell soixante.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 268",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à cent lits soixante trois cents",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 269",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Alors je suis de Chambly soixante deux cent trente.",
+   "commune": "Chambly",
+   "departement": "60",
+   "source": "run 270",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Non, je suis à cent lits au soixante trois cents.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 271",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Non, je suis bien à cent lits dans l'oise.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 271",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Non, je suis à cent lits, soixante, trois cents.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 272",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Non, je suis à cent lits. Soixante-mille-trois-cent.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 272",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Chambly soixante deux cent trente.",
+   "commune": "Chambly",
+   "departement": "60",
+   "source": "run 273",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Beauvais, soixante mille",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Chambly, soixante deux cent trente",
+   "commune": "Chambly",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est sur Bresles, soixante cinq cent dix",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Grandvilliers, soixante deux cent dix",
+   "commune": "Grandvilliers",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Clermont-Ferrand, soixante-trois mille",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Senlis, soixante trois cents",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Crépy-en-Valois, soixante huit cents",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "on est à Pont-Sainte-Maxence, soixante sept cents",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Lamorlaye, soixante deux cent soixante",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Lyon, soixante-neuf mille trois",
+   "commune": "Lyon",
+   "departement": "69",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Liancourt, soixante cent quarante",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Senlis, soixante mille trois cents",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Beaumont-sur-Oise, quatre-vingt-quinze deux cent soixante",
+   "commune": "Beaumont-sur-Oise",
+   "departement": "95",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Clermont, soixante six cents",
+   "commune": "Clermont",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Creil, soixante cent",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Bordeaux, trente-trois mille",
+   "commune": "Bordeaux",
+   "departement": "33",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Compiègne, soixante deux cents",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint-Leu-d'Esserent, soixante trois cent quarante",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Breteuil, soixante cent vingt",
+   "commune": "Breteuil",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Coye-la-Forêt, soixante cinq cent quatre-vingts",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Montataire, soixante cent soixante",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Aix-en-Provence, treize mille cent",
+   "commune": "Aix-en-Provence",
+   "departement": "13",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à L'Isle-Adam, quatre-vingt-quinze deux cent quatre-vingt-dix",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Verneuil-en-Halatte, soixante mille cinq cent cinquante",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Persan, quatre-vingt-quinze trois cent quarante",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Gisors, vingt-sept cent quarante",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Saint-Malo, trente-cinq quatre cents",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Soissons, deux mille deux cents",
+   "commune": "Soissons",
+   "departement": "02",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Maximin, soixante sept cent quarante",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Amiens, quatre-vingt mille",
+   "commune": "Amiens",
+   "departement": "80",
+   "source": "fiche A v3",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "8 rue du Moulin à Creil",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "run 231",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Oui, douze rue des Lilas à Beauvet.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 244",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Douze rue des Lilas à Beaufort.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 245",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Non, c'est à Bovet et oui, il a été entretenu l'année dernière en octobre.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 245",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Aux douze rues d'Edila à Bovet.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 246",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Non, c'est le douze rue des Lilas à Bovet. il a été entretenu pour la dernière fois au mois de septembre l'année dernière.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 246",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Non, beauvais, 12 rues de beauvais.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 251",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Vers moyen marathon.",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "run 251",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Non, à Vernoi il y en a là-dedans.",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "run 251",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Non, 12 rue de Bovet à Vernoy en allate",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "run 251",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est un poêle à granulés Edilkamin, à Saint-Maximin.",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "run 253",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "au 12 rue des Lilas à Bovet.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 254",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "12 rue des Lilas à Bovet.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 256",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Il se trouve aux 12 rues des Lilas à Bovet.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 257",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Oui, c'est le 12 rue des Lilas à Bovet, 60000.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 258",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est amové.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Bovet.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bové d'enloises",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Beauvais dans l'oise.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est sur Brel.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est Brell Danloise.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est Brel dans l'Oise.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bressle.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Grandvilliers.",
+   "commune": "Grandvilliers",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À Clermont-Ferrand.",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "cent lis, soixante, trois cents.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à crépi en valois.",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "On est à France en absence.",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "On est à Pont-Saint-Maxence.",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À la Morley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "J'habite à Lyon.",
+   "commune": "Lyon",
+   "departement": "69",
+   "source": "run 259",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Lyon dans le Rhône.",
+   "commune": "Lyon",
+   "departement": "69",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Lyon Court.",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est un lien court.",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "L'y encourt.",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sans",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Beaumont-sur-Oise, quatre vingt quinze deux cent soixante.",
+   "commune": "Beaumont-sur-Oise",
+   "departement": "95",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "J'habite à Clermont.",
+   "commune": "Clermont",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Accueil.",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Arcueil"
+   ]
+  },
+  {
+   "phrase": "à créer.",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à créer",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Créile",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Bordeaux.",
+   "commune": "Bordeaux",
+   "departement": "33",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Compiégnon.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint-Luc Destronc.",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Saint-Luc"
+   ]
+  },
+  {
+   "phrase": "À Saint-Le-Destronc.",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "run 259",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c a b v",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 260",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Bové.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 260",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brel dans l'Oise.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Grandvilliers,",
+   "commune": "Grandvilliers",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Claire Montferran.",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Cent lits soixante trois cents.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Crépy en valoir.",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "On est à Ponce-Acmaxence.",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À la Morlet.",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sans lis.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Beaumont-sur-Oise quatre vingt quinze deux cent soixante.",
+   "commune": "Beaumont-sur-Oise",
+   "departement": "95",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Oui, bonsoir Oise.",
+   "commune": "Beaumont-sur-Oise",
+   "departement": "95",
+   "source": "run 261",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bon sournoise dans le Val-d'Oise.",
+   "commune": "Beaumont-sur-Oise",
+   "departement": "95",
+   "source": "run 261",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Créile,",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à conquérir.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À Saint-Laurent.",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Breteuil soixante cent vingt.",
+   "commune": "Breteuil",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Coil à forêt.",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à moult à terre.",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À Aix-en-Provence.",
+   "commune": "Aix-en-Provence",
+   "departement": "13",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "J'habite à Liladan.",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Verneuil en allate, soixante mille cinq cent cinquante.",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "run 261",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Bouvé.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Dans l'Oise,",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Grandvillier.",
+   "commune": "Grandvilliers",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "cent lits soixante mille trois cents.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Cent lits, soixante mille trois cents.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Un crépi en valois.",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "On est à Ponce-Atte-Maxence.",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À la Morley,",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Dans l'Oise,",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Creil,",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Compiagnes.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Compiègne.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint-Laurent dans l'Oise.",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c a Breteuil soixante mille cent vingt.",
+   "commune": "Breteuil",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Coil la forêt.",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à monte-à-terre.",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Aix-en-Provence.",
+   "commune": "Aix-en-Provence",
+   "departement": "13",
+   "source": "run 262",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Verneuil en हालात soixante mille cinq cent cinquante.",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "run 262",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À persan,",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "run 262",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Je suis à Vernoy en हालात. 65 150.",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "run 263",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bouvé.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "BOV.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brestle.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Grand Villiers.",
+   "commune": "Grandvilliers",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Clairement Ferrand.",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Clermont-Ferrand.",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À Crépy en valois.",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "On en est à Pont-Saint-Maxence.",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À la Morlé.",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Lyon.",
+   "commune": "Lyon",
+   "departement": "69",
+   "source": "run 264",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Lyon soixante-neuf.",
+   "commune": "Lyon",
+   "departement": "69",
+   "source": "run 264",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "L'y en cours.",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Lyon Court.",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Beaumont-sur-Oise",
+   "commune": "Beaumont-sur-Oise",
+   "departement": "95",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Compiène.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sans le desseran,",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Breteuil.",
+   "commune": "Breteuil",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "il a foré.",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est un monte-à-terre.",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Ex en Provence.",
+   "commune": "Aix-en-Provence",
+   "departement": "13",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Verneuil en alerte.",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À Persan.",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Gisor.",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est Hassan Malo.",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "À soi son.",
+   "commune": "Soissons",
+   "departement": "02",
+   "source": "run 264",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Soissons.",
+   "commune": "Soissons",
+   "departement": "02",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sans Maximin,",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "J'habite à Amiens,",
+   "commune": "Amiens",
+   "departement": "80",
+   "source": "run 264",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Soixante deux cents.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 265",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Compieigne.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 265",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Compiègne soixante deux cents.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "run 265",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Chantilly soixante cinq cents.",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "run 265",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "quatre vingt quinze mille huit cent vingt.",
+   "commune": "Bruyères-sur-Oise",
+   "departement": "95",
+   "source": "run 265",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Le-Destran, soixante trois cent quarante.",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "run 265",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bouvé,",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "run 265",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Abrel dans l'oise.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 265",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Oui.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "run 265",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Beauvet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Bovet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "au 12 rue de la gare à Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "12 route de Paris à Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Crail",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Compiène",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Chantili",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "on habite à Nogent sur Oise",
+   "commune": "Nogent-sur-Oise",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Pont Saint Maxence",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est sur Mérut",
+   "commune": "Méru",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Lian cour",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Gouvieu",
+   "commune": "Gouvieux",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Clairmont",
+   "commune": "Clermont",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Crêpe il en Valois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Crépi en Valois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "La Morlaie",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Champly",
+   "commune": "Chambly",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Persan",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Précy sur Oise",
+   "commune": "Précy-sur-Oise",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Noyons",
+   "commune": "Noyon",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint Maximin",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Villers Saint Paul",
+   "commune": "Villers-Saint-Paul",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Montataire",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Moui",
+   "commune": "Mouy",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Breteuil",
+   "commune": "Breteuil",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Onneuil",
+   "commune": "Auneuil",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Grand villiers",
+   "commune": "Grandvilliers",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Estrée Saint Denis",
+   "commune": "Estrées-Saint-Denis",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Verneuil en Halatte",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Laignville",
+   "commune": "Laigneville",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sire les Mello",
+   "commune": "Cires-lès-Mello",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint Leu des serrants",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Chaumont en Vexin",
+   "commune": "Chaumont-en-Vexin",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Margny les Compiègne",
+   "commune": "Margny-lès-Compiègne",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Tourotte",
+   "commune": "Thourotte",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à La signy",
+   "commune": "Lassigny",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Coille la forêt",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Gerberoi",
+   "commune": "Gerberoy",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Brêle",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint Just en Chaussée",
+   "commune": "Saint-Just-en-Chaussée",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Beaumont sur Oise",
+   "commune": "Beaumont-sur-Oise",
+   "departement": "95",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Lile Adam",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Amien",
+   "commune": "Amiens",
+   "departement": "80",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Gisor",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Soisson",
+   "commune": "Soissons",
+   "departement": "02",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Pont toise",
+   "commune": "Pontoise",
+   "departement": "95",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Clermont Ferrand",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Lyon",
+   "commune": "Lyon",
+   "departement": "69",
+   "source": "banc 16/09",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Ex en Provence",
+   "commune": "Aix-en-Provence",
+   "departement": "13",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Bordo",
+   "commune": "Bordeaux",
+   "departement": "33",
+   "source": "banc 16/09",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Beaumont 95260",
+   "commune": "Beaumont-sur-Oise",
+   "departement": "95",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "60300 Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint Maximin 60740",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est le 60000",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "banc 16/09",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Brel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Brel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Brel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brel dans l'Oise",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Brel dans l'Oise",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Brel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Brel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brell",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brell.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Brell",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Brell",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Brell",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brell dans l'Oise",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Brell dans l'Oise",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Brell",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Brell",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Abrel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Abrel.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Abrel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Abrel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Abrel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Abrel dans l'Oise",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Abrel dans l'Oise",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Abrel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Abrel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bressel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Bressel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Bressel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Bressel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bressel dans l'Oise",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Bressel dans l'Oise",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Bressel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Bressel",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brêle",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brêle.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Brêle",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Brêle",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brêle dans l'Oise",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Brêle dans l'Oise",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Brêle",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Brêle",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bové",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bové.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Bové",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Bové",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Bové",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bové dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Bové dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Bové",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Bové",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Bouvé",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Bouvé",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Bouvé",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bouvé dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Bouvé dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Bouvé",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Bouvé",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bovet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bovet.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Bovet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Bovet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Bovet dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Bovet dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Bovet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Bovet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Beauvet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Beauvet.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Beauvet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Beauvet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Beauvet dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Beauvet dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Beauvet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Beauvet",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "BOV",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à BOV",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à BOV",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à BOV",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "BOV dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à BOV dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à BOV",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est BOV",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "bauvais",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "bauvais.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à bauvais",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à bauvais",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à bauvais",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "bauvais dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à bauvais dans l'Oise",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à bauvais",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est bauvais",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Coil à forêt",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Coil à forêt",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Coil à forêt",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Coil à forêt",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Coil à forêt dans l'Oise",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Coil à forêt dans l'Oise",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Coil à forêt",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Coil à forêt",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "il a foré",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à il a foré",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à il a foré",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à il a foré",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "il a foré dans l'Oise",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à il a foré dans l'Oise",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à il a foré",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est il a foré",
+   "commune": "Coye-la-Forêt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "monte-à-terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "monte-à-terre.",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à monte-à-terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à monte-à-terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à monte-à-terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "monte-à-terre dans l'Oise",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à monte-à-terre dans l'Oise",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à monte-à-terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est monte-à-terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "moult à terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "moult à terre.",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à moult à terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à moult à terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à moult à terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "moult à terre dans l'Oise",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à moult à terre dans l'Oise",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à moult à terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est moult à terre",
+   "commune": "Montataire",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Liladan",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Liladan.",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Liladan",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Liladan",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Liladan",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Liladan dans l'Oise",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Liladan dans l'Oise",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Liladan",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Liladan",
+   "commune": "L'Isle-Adam",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Lyon Court",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Lyon Court",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Lyon Court",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Lyon Court",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Lyon Court dans l'Oise",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Lyon Court dans l'Oise",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Lyon Court",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Lyon Court",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "L'y en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à L'y en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à L'y en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à L'y en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "L'y en cours dans l'Oise",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à L'y en cours dans l'Oise",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à L'y en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est L'y en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "lit en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "lit en cours.",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à lit en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à lit en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à lit en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "lit en cours dans l'Oise",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à lit en cours dans l'Oise",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à lit en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est lit en cours",
+   "commune": "Liancourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "conquérir",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "conquérir.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à conquérir",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à conquérir",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à conquérir",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "conquérir dans l'Oise",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à conquérir dans l'Oise",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à conquérir",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est conquérir",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "conquieigne",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à conquieigne",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à conquieigne",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à conquieigne",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "conquieigne dans l'Oise",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à conquieigne dans l'Oise",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à conquieigne",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est conquieigne",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Copenhague",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Copenhague.",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Copenhague",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Copenhague",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Copenhague",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Copenhague dans l'Oise",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Copenhague dans l'Oise",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Copenhague",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Copenhague",
+   "commune": "Compiègne",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Laurent",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Laurent.",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint-Laurent",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Saint-Laurent",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Saint-Laurent",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Laurent dans l'Oise",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint-Laurent dans l'Oise",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Saint-Laurent",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Saint-Laurent",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint Ledeseran",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint Ledeseran.",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint Ledeseran",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Saint Ledeseran",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Saint Ledeseran",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint Ledeseran dans l'Oise",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint Ledeseran dans l'Oise",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Saint Ledeseran",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Saint Ledeseran",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Luc Destronc",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Saint-Luc"
+   ]
+  },
+  {
+   "phrase": "Saint-Luc Destronc.",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Saint-Luc"
+   ]
+  },
+  {
+   "phrase": "à Saint-Luc Destronc",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Saint-Luc"
+   ]
+  },
+  {
+   "phrase": "c'est à Saint-Luc Destronc",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Saint-Luc"
+   ]
+  },
+  {
+   "phrase": "j'habite à Saint-Luc Destronc",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Saint-Luc"
+   ]
+  },
+  {
+   "phrase": "Saint-Luc Destronc dans l'Oise",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint-Luc Destronc dans l'Oise",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Saint-Luc Destronc",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Saint-Luc"
+   ]
+  },
+  {
+   "phrase": "c'est Saint-Luc Destronc",
+   "commune": "Saint-Leu-d'Esserent",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Saint-Luc"
+   ]
+  },
+  {
+   "phrase": "Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sanlis.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sanlis dans l'Oise",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Sanlis dans l'Oise",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Sanlis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "cent lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "cent lis.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à cent lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à cent lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à cent lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "cent lis dans l'Oise",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à cent lis dans l'Oise",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à cent lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est cent lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "sans lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à sans lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à sans lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à sans lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "sans lis dans l'Oise",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à sans lis dans l'Oise",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à sans lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est sans lis",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sans lisse",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Sans lisse",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Sans lisse",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Sans lisse",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sans lisse dans l'Oise",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Sans lisse dans l'Oise",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Sans lisse",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Sans lisse",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Cent-lix",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Cent-lix.",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Cent-lix",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Cent-lix",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Cent-lix",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Cent-lix dans l'Oise",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Cent-lix dans l'Oise",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Cent-lix",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Cent-lix",
+   "commune": "Senlis",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "la Morley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "la Morley.",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à la Morley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à la Morley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à la Morley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "la Morley dans l'Oise",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à la Morley dans l'Oise",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à la Morley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est la Morley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Lamorley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Lamorley.",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Lamorley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Lamorley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Lamorley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Lamorley dans l'Oise",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Lamorley dans l'Oise",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Lamorley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Lamorley",
+   "commune": "Lamorlaye",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Crépy envallois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Crépy envallois.",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Crépy envallois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Crépy envallois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Crépy envallois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Crépy envallois dans l'Oise",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Crépy envallois dans l'Oise",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Crépy envallois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Crépy envallois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Vers néanalate",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Vers néanalate.",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Vers néanalate",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Vers néanalate",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Vers néanalate",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Vers néanalate dans l'Oise",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Vers néanalate dans l'Oise",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Vers néanalate",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Vers néanalate",
+   "commune": "Verneuil-en-Halatte",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "perçant",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "perçant.",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à perçant",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à perçant",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à perçant",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "perçant dans l'Oise",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à perçant dans l'Oise",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à perçant",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est perçant",
+   "commune": "Persan",
+   "departement": "95",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Gisor",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Gisor.",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Gisor",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Gisor",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Gisor dans l'Oise",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Gisor dans l'Oise",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Gisor",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Gisor",
+   "commune": "Gisors",
+   "departement": "27",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Chantil",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Chantil.",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Chantil",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Chantil",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Chantil",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Chantil dans l'Oise",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Chantil dans l'Oise",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Chantil",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Chantil",
+   "commune": "Chantilly",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Maxima",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Maxima.",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint-Maxima",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Saint-Maxima",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Saint-Maxima",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Maxima dans l'Oise",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint-Maxima dans l'Oise",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Saint-Maxima",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Saint-Maxima",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sans Maximin",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sans Maximin.",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Sans Maximin",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Sans Maximin",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Sans Maximin",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Sans Maximin dans l'Oise",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Sans Maximin dans l'Oise",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Sans Maximin",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Sans Maximin",
+   "commune": "Saint-Maximin",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Maro",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Maro.",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint-Maro",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Saint-Maro",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Saint-Maro",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Saint-Maro dans l'Oise",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Saint-Maro dans l'Oise",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Saint-Maro",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Saint-Maro",
+   "commune": "Saint-Malo",
+   "departement": "35",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Accueil",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Arcueil"
+   ]
+  },
+  {
+   "phrase": "à Accueil",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Arcueil"
+   ]
+  },
+  {
+   "phrase": "c'est à Accueil",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Arcueil"
+   ]
+  },
+  {
+   "phrase": "j'habite à Accueil",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Arcueil"
+   ]
+  },
+  {
+   "phrase": "Accueil dans l'Oise",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Accueil dans l'Oise",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Accueil",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Arcueil"
+   ]
+  },
+  {
+   "phrase": "c'est Accueil",
+   "commune": "Creil",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": [
+    "Arcueil"
+   ]
+  },
+  {
+   "phrase": "Clairement Ferrand",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Clairement Ferrand",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Clairement Ferrand",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Clairement Ferrand",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Clairement Ferrand dans l'Oise",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Clairement Ferrand dans l'Oise",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Clairement Ferrand",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Clairement Ferrand",
+   "commune": "Clermont-Ferrand",
+   "departement": "63",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Angecourt",
+   "commune": "Angicourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Angecourt.",
+   "commune": "Angicourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Angecourt",
+   "commune": "Angicourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Angecourt",
+   "commune": "Angicourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Angecourt",
+   "commune": "Angicourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Angecourt dans l'Oise",
+   "commune": "Angicourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Angecourt dans l'Oise",
+   "commune": "Angicourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Angecourt",
+   "commune": "Angicourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Angecourt",
+   "commune": "Angicourt",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Crêpe il en Valois.",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Crêpe il en Valois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Crêpe il en Valois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Crêpe il en Valois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Crêpe il en Valois dans l'Oise",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Crêpe il en Valois dans l'Oise",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Crêpe il en Valois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Crêpe il en Valois",
+   "commune": "Crépy-en-Valois",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Nogent sur Oise",
+   "commune": "Nogent-sur-Oise",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Nogent sur Oise.",
+   "commune": "Nogent-sur-Oise",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Nogent sur Oise",
+   "commune": "Nogent-sur-Oise",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Nogent sur Oise",
+   "commune": "Nogent-sur-Oise",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Nogent sur Oise",
+   "commune": "Nogent-sur-Oise",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Nogent sur Oise dans l'Oise",
+   "commune": "Nogent-sur-Oise",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Nogent sur Oise dans l'Oise",
+   "commune": "Nogent-sur-Oise",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Nogent sur Oise",
+   "commune": "Nogent-sur-Oise",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Nogent sur Oise",
+   "commune": "Nogent-sur-Oise",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Pont-Saint-Maxence",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Pont-Saint-Maxence.",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Pont-Saint-Maxence",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est à Pont-Saint-Maxence",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "j'habite à Pont-Saint-Maxence",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Pont-Saint-Maxence dans l'Oise",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": null,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "à Pont-Saint-Maxence dans l'Oise",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "je suis à Pont-Saint-Maxence",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "c'est Pont-Saint-Maxence",
+   "commune": "Pont-Sainte-Maxence",
+   "departement": "60",
+   "source": "nom mal transcrit des bancs, tournure",
+   "rang_production": -1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Bouvé, à côté de la gare.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "relecture du 17/09",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Bovet au bord de l'eau.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "relecture du 17/09",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est à Bovet à la sortie du village.",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "relecture du 17/09",
+   "rang_production": 1,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Champly à côté de Persan.",
+   "commune": "Chambly",
+   "departement": "60",
+   "source": "relecture du 17/09",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "Brel à côté de Beauvais.",
+   "commune": "Bresles",
+   "departement": "60",
+   "source": "relecture du 17/09",
+   "rang_production": 0,
+   "autres_sures_production": []
+  },
+  {
+   "phrase": "C'est vers Bovet à côté de Beauvais",
+   "commune": "Beauvais",
+   "departement": "60",
+   "source": "relecture du 17/09",
+   "rang_production": 1,
+   "autres_sures_production": []
+  }
+ ],
+ "parasites": [
+  {
+   "phrase": "C'est au douze rue de la gare.",
+   "source": "run 266",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est la maison au bout du chemin.",
+   "source": "run 266",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Passe aux choses.",
+   "source": "run 266",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Passe à l'élément dix.",
+   "source": "run 266",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Aux quatre alliés des Lilas,",
+   "source": "run 266",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Passe à l'élément quinze.",
+   "source": "run 266",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui.",
+   "source": "run 266",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est à côté de la boulangerie. pas ça l'élément vingt-et-un.",
+   "source": "run 266",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui,",
+   "source": "run 266",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est la résidence Les Charmilles.",
+   "source": "run 266",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Non.",
+   "source": "run 266",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Au fond de l'impasse des Roses.",
+   "source": "run 266",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est le bâtiment b au deuxième étage.",
+   "source": "run 266",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est derrière l'église, la maison avec le portail vert.",
+   "source": "run 266",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Fin du test.",
+   "source": "run 266",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est dans le soixante.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Dans le Val-d'Oise.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Dans le Val-d'Oise,",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est dans le quatre vingt quinze.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Le devis faisait quinze mille euros.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Le devis faisait quinze mille.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Trois-mille-cinq-cents euros.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Trois mille cinq euros.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Cent vingt euros cinquante.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "La facture est de deux mille quatre cent quatre vingt dix neuf euros.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Ma facture numéro douze mille.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "facture deux mille vingt six tiret huit cent quarante sept.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Le devis d deux mille vingt six zéro quarante deux. zéro zéro quarante deux.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Je me suis trompé",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "D deux mille vingt six zéro zéro quarante deux",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est la commande soixante mille trois cents",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Révérance FA quatre cent douze.",
+   "source": "run 267",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Référence FA412.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Le devis numéro quarante deux cinquante huit.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Un poil tout neuf.",
+   "source": "run 267",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Je ne peux pas ça au numéro dix.",
+   "source": "run 268",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Passe à la suite.",
+   "source": "run 268",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Passe à l'élément suivant.",
+   "source": "run 268",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est dans le quatre-vingt-quinze.",
+   "source": "run 268",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Le devis des deux mille vingt six zéro zéro quarante deux.",
+   "source": "run 268",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "référence f a quatre cent douze.",
+   "source": "run 268",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Le devis numéro quarante-deux cinquante-huit.",
+   "source": "run 268",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, je voudrais faire amener mon poêle à granulés s'il vous plaît.",
+   "source": "run 269",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Non, je voudrais faire ramoner mon poêle à granulé.",
+   "source": "run 269",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui, c'est bien ça.",
+   "source": "run 269",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Merci. Au revoir.",
+   "source": "run 269",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, j'ai reçu une ma facture et il y a une ligne que je ne comprends pas dessus.",
+   "source": "run 270",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui, c'est la facture de référence deux mille vingt six tiret huit cent quarante sept.",
+   "source": "run 270",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "En fait, il y a marqué huit cents euros et je ne comprends pas d'où sort cette ligne.",
+   "source": "run 270",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Un autre numéro s'il vous plaît.",
+   "source": "run 270",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Au revoir.",
+   "source": "run 270",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, je voudrais faire ramoner mon poil s'il vous plaît.",
+   "source": "run 271",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Un poêle à granulés",
+   "source": "run 271",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "d a n t o n.",
+   "source": "run 271",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Le numéro six.",
+   "source": "run 271",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "L'année dernière en octobre deux mille vingt cinq.",
+   "source": "run 271",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, je voudrais faire ramoner mon poêle à granulés s'il vous plaît.",
+   "source": "run 272",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est un médicament.",
+   "source": "run 272",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est un poêle à granulés et dilcama.",
+   "source": "run 272",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est bien ça.",
+   "source": "run 272",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "L'année dernière au mois d'octobre.",
+   "source": "run 272",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui bonjour, j'ai reçu ma facture, il y a une ligne que je ne comprends pas.",
+   "source": "run 273",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui, c'est la facture deux mille vingt six tiret huit cent quarante sept.",
+   "source": "run 273",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "il y a une ligne de huit cents euros qui n'est pas justifiée.",
+   "source": "run 273",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est au 12 rue de la gare",
+   "source": "fiche A v3",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est la maison au bout du chemin",
+   "source": "fiche A v3",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "au 4 allée des lilas",
+   "source": "fiche A v3",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est à côté de la boulangerie",
+   "source": "fiche A v3",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est la résidence les charmilles",
+   "source": "fiche A v3",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "au fond de l'impasse des roses",
+   "source": "fiche A v3",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est le bâtiment B au deuxième étage",
+   "source": "fiche A v3",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est derrière l'église, la maison avec le portail vert",
+   "source": "fiche A v3",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, j'ai reçu ma facture, il y a une ligne que je ne comprends pas, et je trouve ça cher",
+   "source": "run 230",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui",
+   "source": "run 230",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "La facture de juillet, numéro 2026-0847",
+   "source": "run 230",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est la ligne main d'oeuvre, 380 euros pour un ramonage je trouve ça abusé, vous trouvez pas ?",
+   "source": "run 230",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bon d'accord",
+   "source": "run 230",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Mon poêle s'arrête tout seul depuis deux jours, il affiche un code",
+   "source": "run 231",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Un poêle à granulés MCZ",
+   "source": "run 231",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Il affiche E5 et il se met en sécurité",
+   "source": "run 231",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Depuis avant-hier",
+   "source": "run 231",
+   "proposee_en_production": false,
+   "sures_production": [
+    "Deuillet"
+   ]
+  },
+  {
+   "phrase": "Bonjour, avant tout : quel jour et quelle heure sont indiqués dans vos informations, mot pour mot ?",
+   "source": "run 232",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Et le magasin est ouvert là, maintenant ?",
+   "source": "run 232",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, mon poêle tire mal depuis quelques jours",
+   "source": "run 238",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui c'est ça",
+   "source": "run 238",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est un poêle à bois, un Godin",
+   "source": "run 238",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Ben il chauffe moins bien, et d'ailleurs ça sent la fumée dans le salon",
+   "source": "run 238",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui d'accord",
+   "source": "run 238",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, je voudrais faire amener mon poêle.",
+   "source": "run 242",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, je voudrais faire ramoner mon poêle.",
+   "source": "run 244",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Un poêle à granulés, un édile camembert.",
+   "source": "run 244",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "l'an dernier en octobre",
+   "source": "run 244",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui, c'est bon.",
+   "source": "run 244",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, j'aimerais faire ramoner mon poêle s'il vous plaît.",
+   "source": "run 245",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est un poêle à granulés",
+   "source": "run 245",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est un édil commun.",
+   "source": "run 245",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Non, ce n'est pas ça, mais ce n'est pas grave.",
+   "source": "run 245",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui, c'est ça.",
+   "source": "run 245",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui bonjour, j'aimerais faire ramoner mon poêle à bois s'il vous plaît.",
+   "source": "run 246",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui, c'est un Edile commun.",
+   "source": "run 246",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "neuf cent vingt-deux neuf cent quatre-vingt-treize cent dix-huit trois cent quarante-six neuf cent quatre-vingt-onze.",
+   "source": "run 247",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est fini, tu peux raccrocher.",
+   "source": "run 247",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "178 179 180 181 182.",
+   "source": "run 248",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Il y a deux bûches dans mon poêle à bois.",
+   "source": "run 248",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "On est le jeudi 15 janvier.",
+   "source": "run 248",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Il y a 40 pannes sur mon poêle à granulés.",
+   "source": "run 248",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "J'ai acheté un pour la boîte tout 9.",
+   "source": "run 249",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "J'ai acheté un poêle à boîte tout 9.",
+   "source": "run 249",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "910.",
+   "source": "run 249",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "950.",
+   "source": "run 249",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "38240.",
+   "source": "run 249",
+   "proposee_en_production": false,
+   "sures_production": [
+    "Meylan"
+   ]
+  },
+  {
+   "phrase": "1000 mercis pour l'installation.",
+   "source": "run 250",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Il y a 1000 erreurs sur mon point la granulée.",
+   "source": "run 250",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "J'ai un poil à granulés tout beau tout 9.",
+   "source": "run 250",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "J'ai une rayure sur mon poil à granulés tout 9.",
+   "source": "run 250",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "1000 excuses pour mon manque de respect.",
+   "source": "run 250",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "J'ai une facture de 1300 euros à régler.",
+   "source": "run 250",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, j'ai 300 problèmes sur mon poids la bois.",
+   "source": "run 250",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "1000 mercis pour mon point tout 9.",
+   "source": "run 250",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, j'aimerais savoir vos horaires d'ouverture s'il vous plaît.",
+   "source": "run 251",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Voici 60. Ok.",
+   "source": "run 251",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Donnez-moi les horaires du samedi s'il vous plaît.",
+   "source": "run 251",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui s'il vous plaît.",
+   "source": "run 251",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Ok super merci beaucoup.",
+   "source": "run 251",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui pour un entretien de poêle s'il vous plaît.",
+   "source": "run 251",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Pour l'annuler,",
+   "source": "run 251",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Non en fait c'est pour un poêle à granulés s'il vous plaît.",
+   "source": "run 251",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "12 rue de Beaufort.",
+   "source": "run 251",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Allez c'est bon fin de l'appel. fondamental.",
+   "source": "run 251",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "octobre de l'année dernière.",
+   "source": "run 251",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui bonjour, j'aimerais savoir si vous êtes ouvert aujourd'hui.",
+   "source": "run 252",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Non, j'aimerais connaître vos horaires d'ouverture",
+   "source": "run 252",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Non, j'aimerais connaître tous vos horaires d'ouverture sur cette semaine.",
+   "source": "run 252",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Dans ce cas bon, j'ai tous les renseignements, je passerai en magasin.",
+   "source": "run 252",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "À bientôt, au revoir.",
+   "source": "run 252",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, je voudrais faire l'entretien annuel de mon poêle.",
+   "source": "run 253",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, je voudrais faire ramener mon poêle s'il vous plaît.",
+   "source": "run 254",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "J'appelle pour faire ramoner mon poêle",
+   "source": "run 254",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est un Eddy comment?",
+   "source": "run 254",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Il est entretenu l'an dernier au mois d'octobre.",
+   "source": "run 254",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Non, je voudrais faire ramoner mon poêle s'il vous plaît.",
+   "source": "run 256",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est à un poêle à granulés de la marque Edulcamin.",
+   "source": "run 256",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "L'an dernier au mois d'octobre",
+   "source": "run 256",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, je voudrais faire ramoner mon poêle s'il vous plaît.",
+   "source": "run 257",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est un poêle à granulés de la marque Edilcamin.",
+   "source": "run 257",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "De l'an dernier au mois d'octobre",
+   "source": "run 257",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Non, c'est bien mauvais.",
+   "source": "run 257",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Ok super. Merci beaucoup.",
+   "source": "run 257",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui bonjour, j'aimerais prendre un rendez-vous pour faire ramoner mon poêle à bois s'il vous plaît.",
+   "source": "run 258",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui, c'est bien ça et il a été entretenu l'année dernière au mois d'octobre.",
+   "source": "run 258",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Oui c'est bon. Merci, au revoir.",
+   "source": "run 258",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est au douze rue de la gare.",
+   "source": "run 259",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Aux quatre alliés des Lilas.",
+   "source": "run 259",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est à côté de la boulangerie.",
+   "source": "run 259",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est aux douze rues de la gare.",
+   "source": "run 261",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Aux quatre, allez des Lilas.",
+   "source": "run 261",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est la résidence des Charmilles.",
+   "source": "run 261",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Aux quatre allers des Lilas,",
+   "source": "run 262",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est la résidence Lécharmier.",
+   "source": "run 262",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Au fond de l'impasse des Roses,",
+   "source": "run 262",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Bonjour, j'aimerais prendre un rendez-vous pour mon entretien de poêle à bois s'il vous plaît.",
+   "source": "run 263",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est à la maison au bout du chemin.",
+   "source": "run 264",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "maison.",
+   "source": "run 264",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "Passe au passe au prochain. pas ce prochain.",
+   "source": "run 264",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Passe au prochain.",
+   "source": "run 264",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "à côté de la boulangerie.",
+   "source": "run 264",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "trois mille cinq cents euros.",
+   "source": "run 265",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Trois-mille-cinq euros.",
+   "source": "run 265",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "cent vingt, cent vingt euros cinquante.",
+   "source": "run 265",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Facture douze mille vingt six tiret huit cent quarante sept.",
+   "source": "run 265",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "Le devis d deux mille vingt six zéro zéro quarante deux.",
+   "source": "run 265",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "C'est la commande soixante mille trois cents.",
+   "source": "run 265",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "référence f à quatre cent douze euros.",
+   "source": "run 265",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "le poêle est dans le salon",
+   "source": "banc 16/09",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est une maison avec un grand jardin",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "j'ai un insert Edilkamin",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "oui c'est bien ça",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "je voudrais faire ramoner mon poêle",
+   "source": "banc 16/09",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est pour un entretien annuel",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "il fait du bruit et il y a de la fumée",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est au fond de l'impasse des roses",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "ma femme sera là mardi",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "la facture est arrivée hier",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "je m'appelle Laurent Moreau",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "vous pouvez passer le matin",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "au lieu dit le moulin",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "à la campagne",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": [
+    "Campagne"
+   ]
+  },
+  {
+   "phrase": "chemin de la croix blanche",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est la maison bleue au bout",
+   "source": "banc 16/09",
+   "proposee_en_production": true,
+   "sures_production": []
+  },
+  {
+   "phrase": "il faudrait quelqu'un rapidement",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "c'est une Palazzetti de deux mille dix huit",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  },
+  {
+   "phrase": "je ne sais pas trop",
+   "source": "banc 16/09",
+   "proposee_en_production": false,
+   "sures_production": []
+  }
+ ],
+ "parasites_restants_connus": [
+  "1000 mercis pour l'installation.",
+  "1000 mercis pour mon point tout 9.",
+  "Bon d'accord",
+  "Bonjour, j'aimerais prendre un rendez-vous pour mon entretien de poêle à bois s'il vous plaît.",
+  "C'est fini, tu peux raccrocher.",
+  "C'est un poêle à bois, un Godin",
+  "C'est à la maison au bout du chemin.",
+  "Il y a 1000 erreurs sur mon point la granulée.",
+  "Il y a deux bûches dans mon poêle à bois.",
+  "J'ai acheté un pour la boîte tout 9.",
+  "J'ai acheté un poêle à boîte tout 9.",
+  "J'ai une facture de 1300 euros à régler.",
+  "Non, c'est bien mauvais.",
+  "Oui bonjour, j'aimerais faire ramoner mon poêle à bois s'il vous plaît.",
+  "Oui bonjour, j'aimerais prendre un rendez-vous pour faire ramoner mon poêle à bois s'il vous plaît.",
+  "Voici 60. Ok.",
+  "je voudrais faire ramoner mon poêle",
+  "maison."
+ ]
+}

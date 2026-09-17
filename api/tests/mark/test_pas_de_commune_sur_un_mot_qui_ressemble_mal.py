@@ -13,7 +13,7 @@ Fiche D, runs 269 to 272 (2026-09-17): « Un poêle à granulés » made the age
 « Est-ce que vous êtes à Grandrû, dans l'Oise ? », then « Grans, dans les
 Bouches-du-Rhône ? ». « L'année dernière » proposed Anet, « Passe à la suite »
 Pacé and Lassy. Decision of Evan: no commune on a word that resembles it badly,
-« Brel » still proposes Bresles. The motif is fixed by four rules of
+« Brel » still proposes Bresles. The motif is fixed by the rules of
 ``analyse.propositions_fondees``, measured on the calls of 15 to 17/09; the
 texts below are what the transcription really wrote.
 
@@ -51,13 +51,13 @@ def _noms(r):
 # --------------------------------------------------------------------------- #
 
 PARASITES_DU_17_09 = [
-    # Resemblance: a proposal needs its spelling keys at SEUIL_PROPOSITION.
+    # Resemblance under SEUIL_PROPOSITION and no location clue (far from the shop).
     "Un poêle à granulés",  # run 271: Grandrû, Grans, Grane
     "Bonjour, je voudrais faire amener mon poêle à granulés s'il vous plaît.",  # run 269
     "Non, je voudrais faire ramoner mon poêle à granulé.",  # run 269
     "Révérance FA quatre cent douze.",  # run 267: Recouvrance, Préveranges
-    "Flammo.",  # run 269: Lamorlaye
-    "crée",  # run 266: Courtry, Crépy (the espeak sounds alone, at 92)
+    # ⚠️ Limits, kept knowingly (zero loss first): « Flammo. » still proposes
+    # Lamorlaye (8 km) and « crée » Courtry (36 km), weak but near the shop.
     # An article that opens the words heard belongs to the commune's name
     # (Anet, Lanne and Anneux resemble « l'année » at 100 by one key).
     "L'année dernière en octobre deux mille vingt cinq.",  # run 271: Anet
@@ -104,16 +104,13 @@ def test_la_verification_hors_du_francais_applique_la_meme_regle():
 
 
 def test_brel_avec_le_departement_60_propose_bresles(base, magasin):
-    """Run 268. Bornel and Creil, weaker, are no longer named after it."""
+    """Run 268: as in production, Bresles named first (Bornel and Creil, weak but
+    near the shop, stay after it: zero loss)."""
     texte = "À Brel dans l'Oise."
     r = analyser_message(texte, base, magasin)
     (d,) = r.detections
-    assert (d.statut, [l.commune.nom for l in d.lectures]) == (A_CONFIRMER, ["Bresles"])
-    assert mentionner(texte, r.detections, base) == (
-        "À Brel dans l'Oise. [Vérification de la commune : « Brel » peut être Bresles (60510, Oise). "
-        "Demande si c'est Bresles (Oise), en nommant son département. "
-        "Si ce n'est pas elle, fais préciser la commune ou son code postal avant de la noter.]"
-    )
+    assert (d.statut, [l.commune.nom for l in d.lectures]) == (A_CONFIRMER, ["Bresles", "Bornel", "Creil"])
+    assert "Demande d'abord si c'est Bresles (Oise)" in mentionner(texte, r.detections, base)
 
 
 @pytest.mark.parametrize("texte", [
@@ -148,7 +145,57 @@ def test_une_commune_mal_transcrite_reste_proposee(base, magasin, texte, commune
     assert any(commune in noms for noms in _noms(r)), _noms(r)
 
 
-def test_le_seuil_est_celui_mesure():
-    """Measured on 2026-09-17 (see the comment above the constant): kept from
-    85.7, parasites up to 82.4, « Brel » -> Bresles at 88.9."""
-    assert 82.4 < analyse.SEUIL_PROPOSITION <= 85.7
+def test_le_rayon_est_celui_mesure():
+    """Measured on 2026-09-17 (comment above the constants): communes meant with a
+    weak resemblance lie within 26 km of the shop, « granulés » -> Grandrû at 62."""
+    assert 26 < analyse.RAYON_PROPOSITION_FAIBLE < 62
+    assert analyse.SEUIL_PROPOSITION > 83.3  # « perçant » -> Persan is kept by the radius
+
+
+def test_sans_adresse_du_magasin_rien_nest_retire_par_la_ressemblance(base):
+    """Nothing locates a weak reading without the shop: kept, as in production."""
+    assert any("Grans" in n for n in _noms(analyser_message("Un poêle à granulés", base, None)))
+
+
+# --------------------------------------------------------------------------- #
+# 4. Review of 2026-09-17: a place located next to the town is not a complement
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("texte, commune", [
+    ("C'est à Bouvé, à côté de la gare.", "Beauvais"),
+    ("C'est à Bovet au bord de l'eau.", "Beauvais"),
+    ("C'est à Bovet à la sortie du village.", "Beauvais"),
+    ("Champly à côté de Persan.", "Chambly"),
+    ("Brel à côté de Beauvais.", "Bresles"),
+    ("C'est vers Bovet à côté de Beauvais", "Beauvais"),
+    # A place marker introduces the name: what follows never removes it.
+    ("C'est à Bovet à la campagne", "Beauvais"),
+])
+def test_un_repere_de_lieu_apres_la_commune_ne_lefface_pas(base, magasin, texte, commune):
+    """Measured by the review: the complement rule dropped the commune meant, and
+    « côté » still proposed Contay and Corte, « vers » Vert."""
+    noms = _noms(analyser_message(texte, base, magasin))
+    assert any(commune in n for n in noms), noms
+    assert not any({"Contay", "Corte", "Vert", "Vers"} & set(n) for n in noms), noms
+
+
+def test_il_y_a_suivi_dun_nom_ecrit_avec_une_majuscule_reste_propose(base, magasin):
+    """The « a » of « il y a » is the verb only before a word the transcription
+    writes in lower case (« il y a marqué »): « il y a Bovet » names a place."""
+    assert any("Beauvais" in n for n in _noms(analyser_message("il y a Bovet", base, magasin)))
+    assert _noms(analyser_message("il y a marqué huit cents euros", base, magasin)) == []
+
+
+@pytest.mark.parametrize("texte", ["Passe à la suite. Soixante mille.", "C'est la maison au bout du chemin, soixante mille."])
+def test_un_parasite_retire_ne_fait_pas_taire_le_code_postal_dit(base, magasin, texte):
+    """Review of 2026-09-17: the parasite counted as a town said, so the postal
+    code said alone got no note. Alone, « Soixante mille. » proposes Beauvais."""
+    r = analyser_message(texte, base, magasin)
+    codes = [[l.commune.nom for l in d.lectures] for d in r.detections if d.code_postal_entendu]
+    assert codes and codes[0][:3] == ["Beauvais", "Allonne", "Goincourt"], r.detections
+    assert _noms(r) == []
+
+
+def test_les_mots_sans_contenu_sont_calcules_une_fois_par_liste(base):
+    assert analyse._mots_sans_contenu(base) is analyse._mots_sans_contenu(base)

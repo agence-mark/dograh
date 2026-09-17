@@ -222,16 +222,13 @@ def test_un_code_postal_sur_de_plusieurs_communes_fait_preciser_la_commune(base,
 def test_la_premiere_commune_proposee_est_nommee(base, magasin):
     """Bench of 2026-09-17, run 268: « Brel » gave Bresles first four times, and
     the model never said it. Decision of Evan: the agent names the first one;
-    a refusal brings the next. Since the decision of 2026-09-17 on weak words,
-    Bornel and Creil are no longer proposed with « À Brel dans l'Oise »
-    (``test_pas_de_commune_sur_un_mot_qui_ressemble_mal.py``): « Brel. » alone,
-    the same run, still gives two."""
-    lu, r = _lu("Brel.", base, magasin)
+    a refusal brings the next."""
+    lu, r = _lu("À Brel dans l'Oise.", base, magasin)
     (d,) = r.detections
     assert d.statut == A_CONFIRMER
     assert lu.endswith(
-        "peut être Bresles (60510, Oise) ou Breuil (80400, Somme). "
-        "Demande d'abord si c'est Bresles (Oise) ; si ce n'est pas elle, propose Breuil (Somme). "
+        "peut être Bresles (60510, Oise), Bornel (60540, Oise) ou Creil (60100, Oise). "
+        "Demande d'abord si c'est Bresles (Oise) ; si ce n'est pas elle, propose Bornel (Oise), puis Creil (Oise). "
         "Nomme chaque commune avec son département. "
         "Si aucune ne convient, fais préciser la commune ou son code postal avant de la noter.]"
     )
