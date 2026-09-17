@@ -41,10 +41,11 @@ from pathlib import Path
 DOSSIER_BASE = Path(__file__).resolve().parents[2] / "assets" / "communes"
 # ⛔ Named explicitly, not "the newest file in the folder": which list a call
 # ran on must be readable in the code. Regenerating = new file + this constant.
-FICHIER_BASE = DOSSIER_BASE / "communes-2026-09.json.gz"
+FICHIER_BASE = DOSSIER_BASE / "communes-2026-09-v2.json.gz"
 
-# Bumped whenever normaliser / cle_phonetique / cle_sonore change meaning.
-VERSION_CLES = 1
+# Bumped whenever normaliser / cle_phonetique / cle_sonore / the sounds change
+# meaning. 2 (2026-09-17): the espeak-ng sounds added (``sons.py``, V5).
+VERSION_CLES = 2
 
 
 def normaliser(texte: str) -> str:
@@ -125,14 +126,31 @@ class BaseCommunes:
     sons: list[str]
     departements: dict[str, str]
     entete: dict
+    # espeak-ng sounds (``sons.py``); "" for a commune without them.
+    esps: list[str] = field(default_factory=list)
     par_cp: dict[str, list[int]] = field(default_factory=dict)
     par_insee: dict[str, int] = field(default_factory=dict)
+    # Communes by normalised name: « Saint-Just » is carried by 12 of them.
+    par_nom: dict[str, list[int]] = field(default_factory=dict)
+
+    # The sounds with one plain character per sound: rapidfuzz compares
+    # one-byte strings about a third faster than the phonetic alphabet.
+    esps_cles: list[str] = field(default_factory=list)
+    _table_sons: dict[int, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         for i, c in enumerate(self.communes):
             self.par_insee[c.insee] = i
+            self.par_nom.setdefault(self.norms[i], []).append(i)
             for cp in c.cps:
                 self.par_cp.setdefault(cp, []).append(i)
+        caracteres = sorted(set("".join(self.esps)))
+        # From "!" upwards; a sound never met in the list keeps its own character.
+        self._table_sons = {ord(c): chr(0x21 + k) for k, c in enumerate(caracteres)}
+        self.esps_cles = [self.cle_de_son(e) for e in self.esps]
+
+    def cle_de_son(self, son: str) -> str:
+        return son.translate(self._table_sons)
 
     def communes_du_code_postal(self, code_postal: str) -> list[Commune]:
         """The communes that carry this postal code, largest first."""
@@ -167,12 +185,13 @@ def lire_fichier(chemin: Path) -> BaseCommunes:
     """Read a generated file. Synchronous: call it off the event loop."""
     with gzip.open(chemin, "rt", encoding="utf-8") as f:
         donnees = json.load(f)
-    communes, norms, phons, sons = [], [], [], []
-    for insee, nom, cps, population, dep, lon, lat, norm, phon, son in donnees["communes"]:
+    communes, norms, phons, sons, esps = [], [], [], [], []
+    for insee, nom, cps, population, dep, lon, lat, norm, phon, son, *esp in donnees["communes"]:
         communes.append(Commune(insee, nom, tuple(cps), population, dep, lon, lat))
         norms.append(norm)
         phons.append(phon)
         sons.append(son)
+        esps.append(esp[0] if esp else "")
     return BaseCommunes(
         communes=communes,
         norms=norms,
@@ -180,6 +199,7 @@ def lire_fichier(chemin: Path) -> BaseCommunes:
         sons=sons,
         departements=donnees["departements"],
         entete=donnees["entete"],
+        esps=esps,
     )
 
 
@@ -194,6 +214,11 @@ def charger_base() -> BaseCommunes:
         with _verrou:
             if _base is None:
                 _base = lire_fichier(FICHIER_BASE)
+    return _base
+
+
+def base_si_chargee() -> BaseCommunes | None:
+    """The process-wide list if already read, else None. Never reads the file."""
     return _base
 
 

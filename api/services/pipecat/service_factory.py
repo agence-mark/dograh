@@ -28,6 +28,7 @@ from api.services.configuration.registry import (
     MISTRAL_SAMPLING_FIELDS,
     ServiceProviders,
 )
+from api.services.pipecat.conversion_nombres import langue_agent_francaise
 from api.services.pipecat.deepgram_endpoints import DEEPGRAM_EU_STT_BASE_URL
 from api.services.pipecat.gemini_json_schema_adapter import (
     DograhGeminiJSONSchemaAdapter,
@@ -37,6 +38,7 @@ from api.services.pipecat.mistral_tts import (
     MistralRegionalTTSService,
     resolve_mistral_endpoint,
 )
+from api.services.pipecat.nombres_pour_la_voix import nombres_en_mots
 from api.utils.url_security import validate_user_configured_service_url
 from fastapi import HTTPException
 from loguru import logger
@@ -905,7 +907,9 @@ def construire_filtres_de_texte_voix(run_configs: dict | None = None) -> list:
     return filtres
 
 
-def construire_remplacements_de_voix(run_configs: dict | None = None) -> list:
+def construire_remplacements_de_voix(
+    run_configs: dict | None = None, langue_francaise: bool = False
+) -> list:
     """[.mark] Build the pronunciation replacements for the voice.
 
     Entries are written ``heard:spoken`` on screen -- "SAV:S. A. V." -- and are
@@ -924,8 +928,14 @@ def construire_remplacements_de_voix(run_configs: dict | None = None) -> list:
     ⚠️ This changes only the text sent to the voice. The conversation history
     the model sees keeps the original, which is what makes it safe to bend
     spelling for pronunciation.
+
+    🔑 A French agent also gets its numbers written in words, AFTER the
+    replacements (plan voix-et-communes, V1): what is typed on screen applies
+    to the text as the model wrote it. Sentence aggregation only; see
+    ``nombres_pour_la_voix.py`` for why a transform and not a filter.
     """
-    entrees = (run_configs or {}).get("tts_replacements") or []
+    run_configs = run_configs or {}
+    entrees = run_configs.get("tts_replacements") or []
     regles = []
     for entree in entrees:
         if not isinstance(entree, str) or ":" not in entree:
@@ -935,12 +945,16 @@ def construire_remplacements_de_voix(run_configs: dict | None = None) -> list:
         if not entendu:
             continue
         regles.append((re.escape(entendu), prononce.strip()))
-    if not regles:
-        return []
-    return [("*", replace_text(regles))]
+    transformations = [("*", replace_text(regles))] if regles else []
+    mode = run_configs.get("tts_text_aggregation_mode") or DEFAULT_TTS_TEXT_AGGREGATION_MODE
+    if langue_francaise and str(mode) == "sentence":
+        transformations.append(("*", nombres_en_mots))
+    return transformations
 
 
-def reglages_de_voix_communs(run_configs: dict | None = None) -> dict:
+def reglages_de_voix_communs(
+    run_configs: dict | None = None, langue_francaise: bool = False
+) -> dict:
     """[.mark] The voice arguments every provider branch receives.
 
     🔑 The same collection point as the text filters, for the same reason:
@@ -966,7 +980,7 @@ def reglages_de_voix_communs(run_configs: dict | None = None) -> dict:
 
     return {
         "text_filters": construire_filtres_de_texte_voix(run_configs),
-        "text_transforms": construire_remplacements_de_voix(run_configs),
+        "text_transforms": construire_remplacements_de_voix(run_configs, langue_francaise),
         "text_aggregation_mode": TextAggregationMode(
             _valeur("tts_text_aggregation_mode", DEFAULT_TTS_TEXT_AGGREGATION_MODE)
         ),
@@ -1011,7 +1025,10 @@ def create_tts_service(
     )
     # Everything the agent configured about its voice, in one dict splatted
     # into every provider branch below.
-    voix = reglages_de_voix_communs(run_configs)
+    voix = reglages_de_voix_communs(
+        run_configs,
+        langue_francaise=langue_agent_francaise(getattr(user_config, "stt", None)),
+    )
 
     # ⛔ [.mark] L'affectation `xml_function_tag_filter = XMLFunctionTagFilter()`
     # de l'amont est RETIREE ici, et rien n'est perdu : le filtre de balises

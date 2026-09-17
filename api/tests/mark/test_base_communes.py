@@ -32,12 +32,15 @@ from api.services.communes.base import (
     normaliser,
     obtenir_base,
 )
+from api.services.communes.sons import sons
 
 
 def test_le_fichier_se_charge_avec_toute_la_france():
     base = charger_base()
     assert 34_000 <= len(base.communes) <= 36_000
-    assert len(base.norms) == len(base.phons) == len(base.sons) == len(base.communes)
+    assert len(base.norms) == len(base.phons) == len(base.sons) == len(base.esps) == len(base.communes)
+    # V5 (plan voix-et-communes): every commune carries its pronounced sounds.
+    assert all(base.esps)
 
     saint_maximin = base.commune("60589")
     assert saint_maximin is not None
@@ -66,11 +69,17 @@ def test_les_cles_du_fichier_sont_celles_que_le_code_calcule():
 
     ecarts = [
         (insee, nom)
-        for insee, nom, _cps, _pop, _dep, _lon, _lat, norm, phon, son in tirees
+        for insee, nom, _cps, _pop, _dep, _lon, _lat, norm, phon, son, _esp in tirees
         if (norm, phon, son)
         != (normaliser(nom), cle_phonetique(normaliser(nom)), cle_sonore(normaliser(nom)))
     ]
     assert ecarts == []
+    # 🔴 The pronounced sounds too: a new espeak-ng (or a change of ``sons.py``)
+    # without regeneration compares today's sounds of what the caller said
+    # against yesterday's sounds of the towns.
+    recalcules = sons([normaliser(l[1]) for l in tirees])
+    assert recalcules is not None, "espeak-ng unavailable where the tests run"
+    assert [(l[1], l[10]) for l in tirees] == [(l[1], r) for l, r in zip(tirees, recalcules)]
 
 
 def test_communes_dun_code_postal():

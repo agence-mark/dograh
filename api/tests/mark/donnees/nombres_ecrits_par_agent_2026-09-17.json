@@ -1,0 +1,395 @@
+{
+ "source": "Phrases a chiffres ecrites par l agent aux runs 264 et 265 (banc du 2026-09-17), avec ce que la voix doit dire (plan voix-et-communes, lot 1). Chaque attendu relu a la main.",
+ "phrases": [
+  {
+   "run": 264,
+   "ecrit": "Bonjour, c'est le test. Élément 1.",
+   "dit": "Bonjour, c'est le test. Élément un."
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens Boves pour la commune. Élément 2.",
+   "dit": "Je retiens Boves pour la commune. Élément deux."
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : 12 rue de la Gare à Boves.",
+   "dit": "Je retiens : douze rue de la Gare à Boves."
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Chambly, code postal 60230.",
+   "dit": "Je retiens : Chambly, code postal soixante, deux cent trente."
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Bresles, code postal 60510.",
+   "dit": "Je retiens : Bresles, code postal soixante, cinq cent dix."
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Grandvilliers, code postal 60210.",
+   "dit": "Je retiens : Grandvilliers, code postal soixante, deux cent dix."
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Clermont-Ferrand, code postal 63000.",
+   "dit": "Je retiens : Clermont-Ferrand, code postal soixante-trois mille."
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Senlis, code postal 60300. Élément 8",
+   "dit": "Je retiens : Senlis, code postal soixante, trois cents. Élément huit"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Crépy-en-Valois, code postal 60800.",
+   "dit": "Je retiens : Crépy-en-Valois, code postal soixante, huit cents."
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Pont-Sainte-Maxence, code postal 60700. Élément 11",
+   "dit": "Je retiens : Pont-Sainte-Maxence, code postal soixante, sept cents. Élément onze"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Lamorlaye, code postal 60260. Élément 12",
+   "dit": "Je retiens : Lamorlaye, code postal soixante, deux cent soixante. Élément douze"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens Lyon, mais précisez le code postal ou confirmez qu'il s'agit bien de Lyon (69), s'il vous plaît.",
+   "dit": "Je retiens Lyon, mais précisez le code postal ou confirmez qu'il s'agit bien de Lyon (soixante-neuf), s'il vous plaît."
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Lyon, code postal 69001. Élément 13",
+   "dit": "Je retiens : Lyon, code postal soixante-neuf, zéro zéro un. Élément treize"
+  },
+  {
+   "run": 264,
+   "ecrit": "Rien à retenir. Élément 14",
+   "dit": "Rien à retenir. Élément quatorze"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : 4 allée des Lilas. Élément 15",
+   "dit": "Je retiens : quatre allée des Lilas. Élément quinze"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Senlis, code postal 60300. Élément 16",
+   "dit": "Je retiens : Senlis, code postal soixante, trois cents. Élément seize"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Beaumont-sur-Oise, code postal 95260. Élément 17",
+   "dit": "Je retiens : Beaumont-sur-Oise, code postal quatre-vingt-quinze, deux cent soixante. Élément dix-sept"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Clermont, code postal 60600. Élément 18",
+   "dit": "Je retiens : Clermont, code postal soixante, six cents. Élément dix-huit"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Arcueil, code postal 94110. Élément 19",
+   "dit": "Je retiens : Arcueil, code postal quatre-vingt-quatorze, cent dix. Élément dix-neuf"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Bordeaux, code postal 33000. Élément 20",
+   "dit": "Je retiens : Bordeaux, code postal trente-trois mille. Élément vingt"
+  },
+  {
+   "run": 264,
+   "ecrit": "Rien à retenir. Élément 21",
+   "dit": "Rien à retenir. Élément vingt et un"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Compiègne, code postal 60200. Élément 22",
+   "dit": "Je retiens : Compiègne, code postal soixante, deux cents. Élément vingt-deux"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Saint-Leu-d'Esserent, code postal 60340. Élément 23",
+   "dit": "Je retiens : Saint-Leu-d'Esserent, code postal soixante, trois cent quarante. Élément vingt-trois"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Breteuil, code postal 60120.",
+   "dit": "Je retiens : Breteuil, code postal soixante, cent vingt."
+  },
+  {
+   "run": 264,
+   "ecrit": "Rien à retenir. Élément 25",
+   "dit": "Rien à retenir. Élément vingt-cinq"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : résidence Les Charmilles. Élément 26",
+   "dit": "Je retiens : résidence Les Charmilles. Élément vingt-six"
+  },
+  {
+   "run": 264,
+   "ecrit": "Rien à retenir. Élément 27",
+   "dit": "Rien à retenir. Élément vingt-sept"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Aix-en-Provence, code postal 13080. Élément 28",
+   "dit": "Je retiens : Aix-en-Provence, code postal treize, zéro quatre-vingts. Élément vingt-huit"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : L'Isle-Adam, code postal 95290. Élément 29",
+   "dit": "Je retiens : L'Isle-Adam, code postal quatre-vingt-quinze, deux cent quatre-vingt-dix. Élément vingt-neuf"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Verneuil-en-Halatte, code postal 60550. Élément 30",
+   "dit": "Je retiens : Verneuil-en-Halatte, code postal soixante, cinq cent cinquante. Élément trente"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Persan, code postal 95340. Élément 31",
+   "dit": "Je retiens : Persan, code postal quatre-vingt-quinze, trois cent quarante. Élément trente et un"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : impasse des Roses. Élément 32",
+   "dit": "Je retiens : impasse des Roses. Élément trente-deux"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Gisors, code postal 27140. Élément 33",
+   "dit": "Je retiens : Gisors, code postal vingt-sept, cent quarante. Élément trente-trois"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Saint-Malo, code postal 35400. Élément 34",
+   "dit": "Je retiens : Saint-Malo, code postal trente-cinq, quatre cents. Élément trente-quatre"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Soissons, code postal 02200. Élément 35",
+   "dit": "Je retiens : Soissons, code postal zéro deux, deux cents. Élément trente-cinq"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : bâtiment B, deuxième étage. Élément 36",
+   "dit": "Je retiens : bâtiment B, deuxième étage. Élément trente-six"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Saint-Maximin, code postal 60740. Élément 37",
+   "dit": "Je retiens : Saint-Maximin, code postal soixante, sept cent quarante. Élément trente-sept"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : Amiens, code postal 80000. Élément 38",
+   "dit": "Je retiens : Amiens, code postal quatre-vingt mille. Élément trente-huit"
+  },
+  {
+   "run": 264,
+   "ecrit": "Je retiens : derrière l'église, maison avec portail vert. Élément 39",
+   "dit": "Je retiens : derrière l'église, maison avec portail vert. Élément trente-neuf"
+  },
+  {
+   "run": 265,
+   "ecrit": "Bonjour, c'est le test. Élément 1.",
+   "dit": "Bonjour, c'est le test. Élément un."
+  },
+  {
+   "run": 265,
+   "ecrit": "Vous avez dit \"60200\". Pour ce code postal, la commune pourrait être Compiègne ou Calais. Pouvez-vous préciser la commune ?",
+   "dit": "Vous avez dit \"soixante, deux cents\". Pour ce code postal, la commune pourrait être Compiègne ou Calais. Pouvez-vous préciser la commune ?"
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : Compiègne, code postal 60200. Élément 2.",
+   "dit": "J'ai retenu : Compiègne, code postal soixante, deux cents. Élément deux."
+  },
+  {
+   "run": 265,
+   "ecrit": "Rien à retenir. Élément 3.",
+   "dit": "Rien à retenir. Élément trois."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : Compiègne, code postal 60200. Élément 4.",
+   "dit": "J'ai retenu : Compiègne, code postal soixante, deux cents. Élément quatre."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : Chantilly, code postal 60500. Élément 5.",
+   "dit": "J'ai retenu : Chantilly, code postal soixante, cinq cents. Élément cinq."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : Bruyères-sur-Oise, code postal 95820. Élément 6.",
+   "dit": "J'ai retenu : Bruyères-sur-Oise, code postal quatre-vingt-quinze, huit cent vingt. Élément six."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : Saint-Maximin, code postal 60740. Élément 7.",
+   "dit": "J'ai retenu : Saint-Maximin, code postal soixante, sept cent quarante. Élément sept."
+  },
+  {
+   "run": 265,
+   "ecrit": "Pour \"60340\", la commune pourrait être Saint-Leu-d'Esserent dans l'Oise. Pouvez-vous confirmer ?",
+   "dit": "Pour \"soixante, trois cent quarante\", la commune pourrait être Saint-Leu-d'Esserent dans l'Oise. Pouvez-vous confirmer ?"
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : Saint-Leu-d'Esserent, code postal 60340. Élément 8.",
+   "dit": "J'ai retenu : Saint-Leu-d'Esserent, code postal soixante, trois cent quarante. Élément huit."
+  },
+  {
+   "run": 265,
+   "ecrit": "Pour \"60000\", plusieurs communes sont possibles : Beauvais, Allonne ou Goincourt. Pouvez-vous préciser ?",
+   "dit": "Pour \"soixante mille\", plusieurs communes sont possibles : Beauvais, Allonne ou Goincourt. Pouvez-vous préciser ?"
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : Beauvais, code postal 60000. Élément 9.",
+   "dit": "J'ai retenu : Beauvais, code postal soixante mille. Élément neuf."
+  },
+  {
+   "run": 265,
+   "ecrit": "Pour \"Abrel dans l'Oise\", la commune la plus proche est Bresles, code postal 60510. Pouvez-vous confirmer ?",
+   "dit": "Pour \"Abrel dans l'Oise\", la commune la plus proche est Bresles, code postal soixante, cinq cent dix. Pouvez-vous confirmer ?"
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : Bresles, code postal 60510. Élément 10.",
+   "dit": "J'ai retenu : Bresles, code postal soixante, cinq cent dix. Élément dix."
+  },
+  {
+   "run": 265,
+   "ecrit": "Rien à retenir. Élément 11.",
+   "dit": "Rien à retenir. Élément onze."
+  },
+  {
+   "run": 265,
+   "ecrit": "Rien à retenir. Élément 12.",
+   "dit": "Rien à retenir. Élément douze."
+  },
+  {
+   "run": 265,
+   "ecrit": "Rien à retenir. Élément 13.",
+   "dit": "Rien à retenir. Élément treize."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : le numéro de téléphone 06 12 34 56 78. Élément 14.",
+   "dit": "J'ai retenu : le numéro de téléphone zéro six, douze, trente-quatre, cinquante-six, soixante-dix-huit. Élément quatorze."
+  },
+  {
+   "run": 265,
+   "ecrit": "Rien à retenir. Élément 15.",
+   "dit": "Rien à retenir. Élément quinze."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : le numéro de téléphone 07 88 26 14 09. Élément 16.",
+   "dit": "J'ai retenu : le numéro de téléphone zéro sept, quatre-vingt-huit, vingt-six, quatorze, zéro neuf. Élément seize."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : le numéro international +33 6 12 34 56 78. Élément 17.",
+   "dit": "J'ai retenu : le numéro international plus trente-trois, six, douze, trente-quatre, cinquante-six, soixante-dix-huit. Élément dix-sept."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : le numéro de téléphone 03 44 22 10 60. Élément 18.",
+   "dit": "J'ai retenu : le numéro de téléphone zéro trois, quarante-quatre, vingt-deux, dix, soixante. Élément dix-huit."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : un montant de 15 000 euros. Élément 19.",
+   "dit": "J'ai retenu : un montant de quinze mille euros. Élément dix-neuf."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : un montant de 15 000. Élément 20.",
+   "dit": "J'ai retenu : un montant de quinze mille. Élément vingt."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : un montant de 3 500 euros. Élément 21.",
+   "dit": "J'ai retenu : un montant de trois mille cinq cents euros. Élément vingt et un."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : un montant de 3 005 euros. Élément 22.",
+   "dit": "J'ai retenu : un montant de trois mille cinq euros. Élément vingt-deux."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : un montant de 120 euros 50. Élément 23.",
+   "dit": "J'ai retenu : un montant de cent vingt euros cinquante. Élément vingt-trois."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : un montant de 2 499 euros. Élément 24.",
+   "dit": "J'ai retenu : un montant de deux mille quatre cent quatre-vingt-dix-neuf euros. Élément vingt-quatre."
+  },
+  {
+   "run": 265,
+   "ecrit": "Vous avez dit : douze mille, soit 12 000. Je note cette référence ?",
+   "dit": "Vous avez dit : douze mille, soit douze mille. Je note cette référence ?"
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : la référence 12000. Élément 25.",
+   "dit": "J'ai retenu : la référence douze mille. Élément vingt-cinq."
+  },
+  {
+   "run": 265,
+   "ecrit": "Vous avez dit : douze mille vingt-six, tiret, huit cent quarante-sept, soit 12026-847. Je note cette référence ?",
+   "dit": "Vous avez dit : douze mille vingt-six, tiret, huit cent quarante-sept, soit douze mille vingt-six, tiret, huit cent quarante-sept. Je note cette référence ?"
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : la référence 12026-847. Élément 26.",
+   "dit": "J'ai retenu : la référence douze mille vingt-six, tiret, huit cent quarante-sept. Élément vingt-six."
+  },
+  {
+   "run": 265,
+   "ecrit": "Vous avez dit : d, deux mille vingt-six, zéro zéro quarante-deux, soit d 2026 0042. Je note cette référence ?",
+   "dit": "Vous avez dit : d, deux mille vingt-six, zéro zéro quarante-deux, soit d deux mille vingt-six, zéro zéro quarante-deux. Je note cette référence ?"
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : la référence d 2026 0042. Élément 27.",
+   "dit": "J'ai retenu : la référence d, deux mille vingt-six, zéro zéro quarante-deux. Élément vingt-sept."
+  },
+  {
+   "run": 265,
+   "ecrit": "Vous avez dit : soixante mille trois cents, soit 60300. Je note cette référence ?",
+   "dit": "Vous avez dit : soixante mille trois cents, soit soixante, trois cents. Je note cette référence ?"
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : la référence 60300. Élément 28.",
+   "dit": "J'ai retenu : la référence soixante mille trois cents. Élément vingt-huit."
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : la référence f à 412 euros. Élément 29.",
+   "dit": "J'ai retenu : la référence f à quatre cent douze euros. Élément vingt-neuf."
+  },
+  {
+   "run": 265,
+   "ecrit": "Vous avez dit : quarante-deux, cinquante-huit, soit 42 58. Je note cette référence ?",
+   "dit": "Vous avez dit : quarante-deux, cinquante-huit, soit quarante-deux, cinquante-huit. Je note cette référence ?"
+  },
+  {
+   "run": 265,
+   "ecrit": "J'ai retenu : la référence 42 58. Élément 30.",
+   "dit": "J'ai retenu : la référence quarante-deux, cinquante-huit. Élément trente."
+  }
+ ]
+}

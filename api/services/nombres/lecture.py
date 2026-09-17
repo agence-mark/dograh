@@ -836,12 +836,154 @@ def _analyser_avec_noms_a_nombre(texte, base, magasin, spans, departements, mots
     return sorted(detections + retenues, key=lambda x: x.debut) if retenues else detections
 
 
-def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adresse: bool = True) -> LectureMessage:
+def _derniere_entree(trace) -> dict | None:
+    for entree in reversed(trace or []):
+        if isinstance(entree, dict) and not entree.get("provisoire"):
+            return entree
+    return None
+
+
+def _debut_dun_nom_plus_proche(commune, base, magasin) -> bool:
+    """« Pont » opens Pont-Sainte-Maxence; « Marseille » opens Marseille-en-Beauvaisis,
+    nearer the shop than Marseille (13): said twice, it names none of them for sure
+    (counter-review of 2026-09-17, 13 such towns within 60 km of the shop).
+    Without the shop's location, any longer name opening on it is enough."""
+    from api.services.communes.base import distance_km
+
+    nom = normaliser(commune.nom)
+    debut = nom + " "
+    plus_longues = [base.communes[j] for j, n in enumerate(base.norms) if n.startswith(debut)]
+    if not plus_longues:
+        return False
+    if magasin is None:
+        return True
+    ici = distance_km(commune, *magasin)
+    return any(distance_km(c, *magasin) < ici for c in plus_longues)
+
+
+_NEGATION = re.compile(r"\b(non|pas|ni|nan)\b")
+
+
+def _repetition_tranche(texte, base, detections, trace_appel, magasin=None):
+    """V8 (plan voix-et-communes): the caller repeats the name after a request
+    for precision, the commune proposed first is kept.
+
+    « Lyon » said three times stayed to confirm (run 264). When the last town
+    check of the call asked for precision, and this message's best reading is
+    the same commune again, it is sure.
+
+    ⛔ Not when repeating brings nothing new (review of 2026-09-17): a name that
+    several communes carry (« Saint-Just », « Beaumont » said twice made
+    Saint-Just (34), Beaumont (63) sure), or a message that says no (« non,
+    Angecourt » made Angicourt sure).
+    ⛔ Decision of Evan, 2026-09-17: only for a name WRITTEN as the commune
+    (« Lyon » twice is Lyon). A badly transcribed name is written the same way
+    twice: « Bouvé » twice made Boves sure, the error of run 264. It stays to
+    confirm, and the agent asks again with the postal code, which decides (V4).
+    """
+    from dataclasses import replace
+
+    from api.services.communes.analyse import A_CONFIRMER as COMMUNE_A_CONFIRMER
+    from api.services.communes.analyse import SURE as COMMUNE_SURE
+
+    derniere = _derniere_entree(trace_appel)
+    if (
+        derniere is None
+        or derniere.get("statut") != "a_confirmer"
+        or derniere.get("code_postal_entendu")
+        or not derniere.get("propositions")
+    ):
+        return detections
+    en_tete = (derniere["propositions"][0] or {}).get("code_insee")
+    if _NEGATION.search(normaliser(texte)):
+        return detections
+
+    def seule_de_son_nom(d) -> bool:
+        nom = normaliser(d.lectures[0].commune.nom)
+        ecrit_comme_la_commune = normaliser(d.entendu) == nom
+        homonymes = len(base.par_nom.get(nom, [])) > 1
+        return ecrit_comme_la_commune and not homonymes and not _debut_dun_nom_plus_proche(
+            d.lectures[0].commune, base, magasin
+        )
+
+    return [
+        replace(d, statut=COMMUNE_SURE)
+        if d.statut == COMMUNE_A_CONFIRMER and not d.code_postal_entendu and d.lectures
+        and d.lectures[0].commune.insee == en_tete and seule_de_son_nom(d)
+        else d
+        for d in detections
+    ]
+
+
+def _codes_retenus(trace_nombres) -> set[str]:
+    """The postal code of the call's last number read as one: the code kept when
+    sure, otherwise every reading (V4, a code said at an earlier turn)."""
+    for entree in reversed(trace_nombres or []):
+        if not isinstance(entree, dict) or entree.get("provisoire") or entree.get("type") != CODE_POSTAL:
+            continue
+        if entree.get("statut") == SURE and entree.get("retenu"):
+            return {entree["retenu"]}
+        return set(entree.get("lectures") or [])
+    return set()
+
+
+def _ville_par_code(texte, base, detections, candidats, mots_exclus, trace_appel, trace_nombres):
+    """V4 (plan voix-et-communes), decision of Evan, 2026-09-17: a postal code
+    known, the town is looked for among ITS communes, and sure when clearly ahead.
+
+    Two ways a code is known:
+    1. said in this message ("Bouvé, soixante mille");
+    2. said at an earlier turn ("soixante mille", then "Bouvé"): the code of
+       the call's last postal code read.
+    ⛔ Not the town said at the turn BEFORE the code ("Bouvé", then "soixante
+    mille"): decision of Evan, 2026-09-17, it stays to confirm as on 2026-09-16.
+    Applied, « chez mes parents » then « soixante cent dix » made Esches sure
+    (39 false sure towns on the sweep of the third review).
+    The town found replaces the readings of the same words; a code is then
+    chosen by N2 ① as for a town said.
+    """
+    from api.services.communes.analyse import ville_par_code
+    from api.services.communes.analyse import SURE as COMMUNE_SURE
+
+    codes_message = {cp for n in candidats for cp in n.lectures_cp + n.lectures_cp_zero}
+    spans_codes = [(n.debut, n.fin) for n in candidats]
+    trouvee = None
+    if codes_message:
+        codes = codes_message
+        trouvee = ville_par_code(texte, base, codes_message, mots_exclus, spans_codes=spans_codes)
+    else:
+        codes = _codes_retenus(trace_nombres)
+        if codes:
+            trouvee = ville_par_code(texte, base, codes, mots_exclus)
+    # A town SPELLED as said, that does not carry the code, is another place, in
+    # both cases: "Arcueil" after 60100; "Chantilly 60230" is not Chambly, the name
+    # is right and the code wrong or badly heard (review of 2026-09-17). A sound
+    # alone is not enough ("Accueil" is Arcueil by its sound, and was Creil, run 264).
+    if trouvee is not None and any(
+        l.ortho >= ORTHO_NOM_A_NOMBRE and not set(l.commune.cps) & codes
+        # The same words or more: « Lyon » inside « Lyon Court » is not the name said.
+        for d in detections if d.debut <= trouvee.debut and d.fin >= trouvee.fin
+        for l in d.lectures
+    ):
+        trouvee = None
+    if trouvee is None:
+        return detections
+    gardees = [d for d in detections if d.fin <= trouvee.debut or d.debut >= trouvee.fin or d.debut < 0]
+    return sorted([*gardees, trouvee], key=lambda d: d.debut)
+
+
+def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adresse: bool = True,
+                     trace_nombres=None) -> LectureMessage:
     """The numbers and the towns of one message, read together. Blocking.
 
     The reader gives every existing postal-code reading; the town analysis runs
     once with all of them; N2 chooses. A postal code said without any town gets
     a town note of its own, built here (``code_postal_entendu``).
+
+    At a step that collects a town (plan voix-et-communes): a name repeated
+    after a request for precision is sure (V8), and a postal code known, in
+    this message or the call's record ``trace_nombres``, decides the town
+    among its communes (V4).
     """
     from dataclasses import replace
 
@@ -893,6 +1035,11 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
     detections = _analyser_avec_noms_a_nombre(
         texte, base, magasin, spans, departements, mots_nombres, _mots_de(n for n in nombres if n.type == AUTRE)
     )
+    if etape_adresse:
+        detections = _repetition_tranche(texte, base, detections, trace_appel, magasin)
+        detections = _ville_par_code(
+            texte, base, detections, candidats, mots_nombres | _mots_de(nombres), trace_appel, trace_nombres
+        )
     communes_dites = bool(detections)
     choix: dict[int, ChoixCodePostal] = {}
     for n in candidats:

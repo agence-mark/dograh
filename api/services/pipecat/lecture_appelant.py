@@ -55,6 +55,7 @@ from api.schemas.organization_preferences import AdresseEtablissement
 from api.services.communes.base import charger_base, obtenir_base
 from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
 from api.services.communes.mention import mentionner
+from api.services.communes.sons import precharger as precharger_sons
 from api.services.nombres import lecture as lecteur
 from api.services.nombres.lecture import (
     CODE_POSTAL,
@@ -115,12 +116,14 @@ def _trace_nombre(nombre, choix, etape: str | None) -> dict:
 
 
 def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list, conversion: bool,
-          communes: bool, references: bool, etape_adresse: bool = True):
+          communes: bool, references: bool, etape_adresse: bool = True, trace_nombres: list | None = None):
     """Blocking: runs in a worker thread. Returns (text for the model, town records, number records)."""
     try:
         base = charger_base()
         magasin = base.coordonnees(adresse.code_insee) if adresse else None
-        lecture = analyser_message(texte, base, magasin, trace_communes, etape_adresse=etape_adresse)
+        lecture = analyser_message(
+            texte, base, magasin, trace_communes, etape_adresse=etape_adresse, trace_nombres=trace_nombres
+        )
     except Exception as erreur:  # noqa: BLE001
         # Without the list of communes (or its analysis), the numbers are still
         # written as digits: the fix of 2026-09-15 does not depend on the towns.
@@ -163,9 +166,11 @@ async def lire_texte(
             return texte
         lire_trace = getattr(consigner, "lire", None)
         trace_communes = lire_trace(CLE_TRACE) if callable(lire_trace) else []
+        # V4 (plan voix-et-communes): a postal code said at an earlier turn.
+        trace_nombres = lire_trace(CLE_TRACE_NOMBRES) if callable(lire_trace) else []
         lu, lecture, base = await asyncio.to_thread(
             _lire, texte, adresse, trace_communes, conversion, communes, etape_reference(noeud),
-            etape_concernee(noeud),
+            etape_concernee(noeud), trace_nombres,
         )
         if consigner is not None:
             entrees: list[tuple[str, dict]] = []
@@ -219,6 +224,9 @@ class LectureAppelantProcessor(FrameProcessor):
     async def _precharger(self):
         try:
             await obtenir_base()
+            # The pronunciation engine too: its first start (about 650 ms) would
+            # otherwise delay the first address turn of the call (review of 2026-09-17).
+            await asyncio.to_thread(precharger_sons)
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[.mark] List of communes not preloaded: {erreur!r}")
 
