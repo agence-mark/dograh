@@ -87,6 +87,13 @@ TRANSMISSIONS = [
         ),
     ),
     (
+        r"reconnaissance_lexique=creer_reconnaissance_lexique\(\s*run_configs,\s*lexique_metier,",
+        (
+            "the step that corrects the trade names: the agent would read "
+            "« édile camembert » again, and the towns would read it too"
+        ),
+    ),
+    (
         r"lexique=lexique_metier,",
         (
             "the pronunciations: the voice would go on saying the brand names "

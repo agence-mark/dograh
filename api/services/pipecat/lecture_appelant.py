@@ -67,6 +67,7 @@ from api.services.nombres.lecture import (
     reecrire,
 )
 from api.services.nombres.mention import deja_mentionne as nombres_deja_mentionnes
+from api.services.lexique.correction import MARQUE as MARQUE_LEXIQUE
 from api.services.nombres.mention import mentionner_nombres
 from api.services.pipecat.conversion_nombres import (
     conversion_allumee,
@@ -157,7 +158,45 @@ async def lire_texte(
     """``texte`` as the model must read it, or ``texte`` unchanged. Never raises.
 
     ``variables``: the agent's names of the variables that collect a town.
+
+    🆕 T17 (plan lexique-metier): the note the trade vocabulary may have added
+    is set aside and glued back untouched. Read along with the rest, the brand
+    names it cites ("Deville", "Barbas") would be proposed as communes and the
+    agent would say them out loud (fiche D of 2026-09-17).
     """
+    appelant, mention_lexique = _separer_mention_lexique(texte)
+    lu = await _lire_texte_de_lappelant(
+        appelant,
+        conversion=conversion,
+        verification=verification,
+        langue_francaise=langue_francaise,
+        adresse=adresse,
+        noeud=noeud,
+        consigner=consigner,
+        provisoire=provisoire,
+        variables=variables,
+    )
+    return f"{lu} {mention_lexique}" if mention_lexique else lu
+
+
+def _separer_mention_lexique(texte: str) -> tuple[str, str]:
+    """(what the caller said, the trade vocabulary's note) -- the note is never read."""
+    place = texte.find(MARQUE_LEXIQUE) if texte else -1
+    return (texte, "") if place == -1 else (texte[:place].rstrip(), texte[place:])
+
+
+async def _lire_texte_de_lappelant(
+    texte: str,
+    *,
+    conversion: bool,
+    verification: bool,
+    langue_francaise: bool,
+    adresse: AdresseEtablissement | None,
+    noeud,
+    consigner: Callable[..., None] | None,
+    provisoire: bool = False,
+    variables: tuple[str, ...] = VARIABLES_PAR_DEFAUT,
+) -> str:
     try:
         if not texte or commune_deja_mentionnee(texte) or nombres_deja_mentionnes(texte):
             return texte

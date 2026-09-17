@@ -104,6 +104,14 @@ communes, avant fusion) : 615 tests sur 31 fichiers, tous verts avec les patchs 
 `mark/deploiement` à `f62b9a58` avant ce chantier (le 527 de la montée de version, plus le garde
 `asyncio.run` et un test d'amont cité). 483 sur `mark/deploiement`
 (fusion `d59c3788`, état d'ouverture) avant ces deux chantiers.
+**🆕 Lexique métier (17/09, branche `chantier/lexique-metier`)** : quatre fichiers neufs —
+`test_lexique_stockage.py` (format, bornes, stockage, import), `test_analyse_lexique.py` (le banc de
+l'essai du 16/09, les cas réels, les homonymes d'une commune), `test_lexique_ecoute_et_voix.py`
+(liste envoyée à la transcription, prononciations), `test_reconnaissance_lexique_branchement.py`
+(place dans la chaîne, clavier, traces, variable de l'agent) — plus le filet
+`test_corpus_communes_avec_lexique.py`, qui rejoue le corpus réel des communes **lexique allumé** :
+aucune commune perdue pour les cinq magasins. **Base : 1 032 verts avant le chantier** (`f9add26e`).
+
 ⚠️ **Elle change à chaque chantier** : 47 avant l'exposition des réglages Mistral, 105 le 10/09 au
 soir, **113 après la réparation de la graine**, 234 après l'exposition des réglages de la
 transcription, **350 après l'exposition des réglages Pipecat** (14/09), 359 après la réparation de

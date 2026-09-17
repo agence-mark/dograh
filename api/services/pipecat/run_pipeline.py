@@ -39,9 +39,14 @@ from api.services.pipecat.event_handlers import (
     register_event_handlers,
 )
 from api.services.pipecat.in_memory_buffers import InMemoryLogsBuffer
-from api.services.lexique.ecoute import construire_liste_flux
+from api.services.lexique.ecoute import construire_liste_flux, injecter_lexique_a_ecouter
 from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.pipecat.lecture_appelant import creer_lecture_appelant
+from api.services.pipecat.reconnaissance_lexique import (
+    CLE_TRACE_LEXIQUE,
+    creer_reconnaissance_lexique,
+    trace_du_lexique,
+)
 from api.services.pipecat.pipeline_builder import (
     build_pipeline,
     build_realtime_pipeline,
@@ -877,6 +882,12 @@ async def _run_pipeline_impl(
         (run_configs or {}).get("dictionary"), lexique_metier
     )
     keyterms = termes_ecoutes or None  # Terms the transcription listens for
+    # [.mark] The ticked names are given to the agent as {{lexique_a_ecouter}}
+    # (Q1 = B): one source for "which brands do you sell?", and a name added on
+    # screen is said without republishing the agent.
+    merged_call_context_vars = injecter_lexique_a_ecouter(
+        merged_call_context_vars, [t.terme for t in lexique_metier.termes if t.a_ecouter]
+    )
     transcript_config = run_configs.get("transcript_configuration") or {}
     include_transcript_end_timestamps = bool(
         transcript_config.get("include_end_timestamps", False)
@@ -1395,7 +1406,27 @@ async def _run_pipeline_impl(
                 lambda: engine._current_node,
                 consigner_dans(lambda: engine._gathered_context),
             ),
+            # [.mark] Trade vocabulary (plan lexique-metier): the names of the
+            # trade written properly before the numbers and the towns are read.
+            reconnaissance_lexique=creer_reconnaissance_lexique(
+                run_configs,
+                lexique_metier,
+                lambda: engine._current_node,
+                consigner_dans(lambda: engine._gathered_context),
+            ),
         )
+
+    # [.mark] What the call ran with, for the bench to read back (T10): the
+    # size of the vocabulary and the terms the transcription was asked to
+    # listen for. Written once, at pick-up.
+    if not is_realtime and lexique_metier.termes:
+        try:
+            consigner_dans(lambda: engine._gathered_context)(
+                trace_du_lexique(lexique_metier, termes_ecoutes, ecoute_tronquee),
+                CLE_TRACE_LEXIQUE,
+            )
+        except Exception as erreur:  # noqa: BLE001 -- a record never costs a call
+            logger.warning(f"[.mark] Trade vocabulary not recorded: {erreur!r}")
 
     # Create pipeline task with audio configuration
     task = create_pipeline_task(pipeline, workflow_run_id, audio_config)

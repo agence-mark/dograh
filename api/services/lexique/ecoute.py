@@ -124,3 +124,28 @@ def regles_de_prononciation(
         # A backslash in the replacement is a group reference for ``re.sub``.
         regles.append((motif, prononce.replace("\\", "\\\\")))
     return regles
+
+
+CLE_A_ECOUTER = "lexique_a_ecouter"
+
+
+def injecter_lexique_a_ecouter(contexte: dict, termes: list[str]) -> dict:
+    """Return the call context with ``lexique_a_ecouter``: the names, comma separated.
+
+    The agent answers "which brands do you sell?" from this variable, so a name
+    ticked on screen is said without republishing the agent (Q1 = B).
+
+    - No ticked name: the context is returned unchanged, key absent.
+    - A value already present and non-empty is kept (the pre-call fetch wins).
+    - ⛔ Never raises.
+    """
+    try:
+        if not termes:
+            return contexte
+        actuelle = contexte.get(CLE_A_ECOUTER)
+        if actuelle is not None and not (isinstance(actuelle, str) and not actuelle.strip()):
+            return contexte
+        return {**contexte, CLE_A_ECOUTER: ", ".join(termes)}
+    except Exception as erreur:  # noqa: BLE001 -- the call must go on
+        logger.error(f"[.mark] Terms listened for not injected, the call goes on: {erreur!r}")
+        return contexte
