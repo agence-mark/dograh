@@ -108,7 +108,7 @@ communes, avant fusion) : 615 tests sur 31 fichiers, tous verts avec les patchs 
 `test_lexique_stockage.py` (format, bornes, stockage, import), `test_analyse_lexique.py` (le banc de
 l'essai du 16/09, les cas réels, les homonymes d'une commune), `test_lexique_ecoute_et_voix.py`
 (liste envoyée à la transcription, prononciations), `test_reconnaissance_lexique_branchement.py`
-(place dans la chaîne, clavier, traces, variable de l'agent) — plus le filet
+(place dans la chaîne, clavier, traces, variable de l'agent) et `test_interrupteurs_sons.py` (les deux interrupteurs des sons, communes et lexique) — plus le filet
 `test_corpus_communes_avec_lexique.py`, qui rejoue le corpus réel des communes **lexique allumé** :
 aucune commune perdue pour les cinq magasins. **Base : 1 032 verts avant le chantier** (`f9add26e`).
 
