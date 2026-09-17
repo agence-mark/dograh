@@ -58,11 +58,14 @@ PARASITES_DU_17_09 = [
     "Révérance FA quatre cent douze.",  # run 267: Recouvrance, Préveranges
     "Flammo.",  # run 269: Lamorlaye
     "crée",  # run 266: Courtry, Crépy (the espeak sounds alone, at 92)
-    # An article that opens the words heard belongs to the commune's name.
+    # An article that opens the words heard belongs to the commune's name
+    # (Anet, Lanne and Anneux resemble « l'année » at 100 by one key).
     "L'année dernière en octobre deux mille vingt cinq.",  # run 271: Anet
-    "Passe à la suite.",  # run 268: Lassy
-    "Passe à l'élément dix.",  # run 266: Allemant
-    # Words that go on with a complement name no place.
+    # Words that go on with a complement name no place: « Passe » is Pacé at 100.
+    # « la suite » (Lassy) and « l'élément » (Allemant) fall by the article AND
+    # by the resemblance (80, 83).
+    "Passe à la suite.",  # run 268: Pacé, Lassy
+    "Passe à l'élément dix.",  # run 266: Pacé, Allemant
     "Passe aux choses.",  # run 266: Pacé
     "C'est la maison au bout du chemin.",  # run 266: Maisons, Lormaison
     "c'est un poêle à granulés et dilcama.",  # run 272
