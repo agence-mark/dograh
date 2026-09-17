@@ -73,6 +73,33 @@ const LEXIQUE = {
     ],
 };
 
+/** Un lexique de la taille de la vraie vie : c'est lui qui a motivé la modale. */
+const LEXIQUE_LONG = {
+    format: "lexique-mark",
+    version: 1,
+    modeles_importes: [],
+    termes: [
+        { terme: "Edilkamin", variantes: ["Edil Kamin"], prononciation: "édile kamine", type: "nom", categorie: "marque", a_ecouter: true },
+        { terme: "Jøtul", variantes: [], prononciation: "yotoul", type: "nom", categorie: "marque", a_ecouter: false },
+        { terme: "Flamebox", variantes: [], prononciation: null, type: "nom", categorie: "marque", a_ecouter: false },
+        { terme: "Fonte Flamme", variantes: [], prononciation: null, type: "nom", categorie: "marque", a_ecouter: false },
+        { terme: "ramonage", variantes: [], prononciation: null, type: "mot", categorie: "mot du métier", a_ecouter: false },
+    ],
+};
+
+async function ouvrirLong() {
+    sdk.getLexiqueApiV1OrganizationsLexiqueGet.mockResolvedValue({ data: LEXIQUE_LONG });
+    render(<SectionLexiqueMetier />);
+    fireEvent.click(await screen.findByRole("button", { name: /open vocabulary/i }));
+    await screen.findByLabelText("Term 1");
+}
+
+const chercher = (texte: string) =>
+    fireEvent.change(screen.getByLabelText("Search the vocabulary"), { target: { value: texte } });
+
+const coche = (rang: number) =>
+    screen.getByRole("switch", { name: `Listen for ${rang}` }).getAttribute("aria-checked");
+
 beforeEach(() => {
     toastMock.success.mockClear();
     toastMock.error.mockClear();
@@ -87,6 +114,9 @@ beforeEach(() => {
 
 async function ouvrirLexique() {
     render(<SectionLexiqueMetier />);
+    // 🆕 18/09 : la liste vit dans une modale. Le résumé s'affiche sur la carte,
+    // puis « Open vocabulary » ouvre ce qui s'éditait à plat avant.
+    fireEvent.click(await screen.findByRole("button", { name: /open vocabulary/i }));
     await screen.findByLabelText("Term 1");
 }
 
@@ -161,9 +191,9 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
         render(<SectionLexiqueMetier />);
         await screen.findByText(/cannot be read/i);
         expect(document.body.textContent).toMatch(/Saving is disabled/i);
+        // Ni ouvrir la modale, ni importer : les deux mènent à un remplacement.
         expect(
-            (screen.getByRole("button", { name: /save trade vocabulary/i }) as HTMLButtonElement)
-                .disabled,
+            (screen.getByRole("button", { name: /open vocabulary/i }) as HTMLButtonElement).disabled,
         ).toBe(true);
         expect(sdk.saveLexiqueApiV1OrganizationsLexiquePut).not.toHaveBeenCalled();
         // 🔴 L'import remplace lui aussi : il est désactivé tant qu'on n'a pas lu.
@@ -214,8 +244,9 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
             },
             revokeObjectURL: () => {},
         });
-        await ouvrirLexique();
-        fireEvent.click(screen.getByRole("button", { name: /export/i }));
+        // L'export vit sur la carte : pas besoin d'ouvrir la modale.
+        render(<SectionLexiqueMetier />);
+        fireEvent.click(await screen.findByRole("button", { name: /export/i }));
         expect(blobs.length).toBe(1);
         const contenu = JSON.parse(await blobs[0].text());
         expect(contenu.format).toBe("lexique-mark");
@@ -224,9 +255,100 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
     });
 
     it("compte les termes écoutés et rappelle le budget", async () => {
-        await ouvrirLexique();
+        render(<SectionLexiqueMetier />);
+        await screen.findByRole("button", { name: /open vocabulary/i });
         expect(document.body.textContent).toMatch(/1 terms listened for/);
         expect(document.body.textContent).toMatch(/120 terms \/ 1600 characters in total/);
+    });
+});
+
+describe("La modale, la recherche et les deux boutons", () => {
+    it("la carte ne montre qu'un résumé : la liste est derrière le bouton", async () => {
+        sdk.getLexiqueApiV1OrganizationsLexiqueGet.mockResolvedValue({ data: LEXIQUE_LONG });
+        render(<SectionLexiqueMetier />);
+        await screen.findByRole("button", { name: /open vocabulary/i });
+        expect(document.body.textContent).toMatch(/5 terms/);
+        expect(document.body.textContent).toMatch(/1 listened for/);
+        expect(document.body.textContent).toMatch(/2 pronunciations/);
+        // Rien de la liste n'est rendu tant qu'on n'a pas ouvert.
+        expect(screen.queryByLabelText("Term 1")).toBeNull();
+        expect(screen.queryByLabelText("Search the vocabulary")).toBeNull();
+    });
+
+    it("ouvre la modale et referme sans rien changer", async () => {
+        await ouvrirLong();
+        fireEvent.change(screen.getByLabelText("Term 1"), { target: { value: "Autre chose" } });
+        fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
+        await waitFor(() => expect(screen.queryByLabelText("Search the vocabulary")).toBeNull());
+        expect(sdk.saveLexiqueApiV1OrganizationsLexiquePut).not.toHaveBeenCalled();
+        // Rouverte, la modale repart de ce qui est enregistré.
+        fireEvent.click(screen.getByRole("button", { name: /open vocabulary/i }));
+        expect((await screen.findByLabelText("Term 1")).getAttribute("value")).toBe("Edilkamin");
+    });
+
+    it("la recherche ne garde que ce qui correspond, accents et casse ignorés", async () => {
+        await ouvrirLong();
+        chercher("flam");
+        expect(screen.queryByLabelText("Term 1")).toBeNull();
+        expect(screen.getByLabelText("Term 3")).toBeTruthy();
+        expect(screen.getByLabelText("Term 4")).toBeTruthy();
+        expect(document.body.textContent).toMatch(/2 shown/);
+        // « jotul » trouve « Jøtul », « metier » trouve « mot du métier ».
+        chercher("jotul");
+        expect(screen.getByLabelText("Term 2")).toBeTruthy();
+        chercher("metier");
+        expect(screen.getByLabelText("Term 5")).toBeTruthy();
+        chercher("xyz");
+        expect(document.body.textContent).toMatch(/No term matches/);
+    });
+
+    it("coche et décoche ce qui est affiché, et rien d'autre", async () => {
+        await ouvrirLong();
+        chercher("flam");
+        fireEvent.click(screen.getByRole("button", { name: /^tick the 2 shown$/i }));
+        expect(coche(3)).toBe("true");
+        expect(coche(4)).toBe("true");
+        chercher("");
+        // Edilkamin, hors de la recherche, garde sa case ; les autres aussi.
+        expect(coche(1)).toBe("true");
+        expect(coche(2)).toBe("false");
+        expect(coche(5)).toBe("false");
+        expect(document.body.textContent).toMatch(/3 of 5 listened for/);
+    });
+
+    it("sans recherche, les boutons portent sur tout le lexique", async () => {
+        await ouvrirLong();
+        fireEvent.click(screen.getByRole("button", { name: /^tick the 5 shown$/i }));
+        expect(document.body.textContent).toMatch(/5 of 5 listened for/);
+        fireEvent.click(screen.getByRole("button", { name: /^untick the 5 shown$/i }));
+        expect(document.body.textContent).toMatch(/0 of 5 listened for/);
+    });
+
+    it("enregistre ce que la modale a changé, puis se referme", async () => {
+        await ouvrirLong();
+        chercher("flam");
+        fireEvent.click(screen.getByRole("button", { name: /^tick the 2 shown$/i }));
+        fireEvent.click(screen.getByRole("button", { name: /save trade vocabulary/i }));
+        await waitFor(() => expect(sdk.saveLexiqueApiV1OrganizationsLexiquePut).toHaveBeenCalled());
+        const envoye = charge().termes;
+        expect(envoye.map((t: { a_ecouter: boolean }) => t.a_ecouter)).toEqual([
+            true, false, true, true, false,
+        ]);
+        // ⚠️ Pas « Term 1 » : la recherche le masque déjà, l'assertion serait vraie
+        // dialogue ouvert comme fermé. La barre de recherche, elle, n'existe que
+        // dans le dialogue.
+        await waitFor(() => expect(screen.queryByLabelText("Search the vocabulary")).toBeNull());
+        // Le résumé de la carte suit.
+        expect(document.body.textContent).toMatch(/3 listened for/);
+    });
+
+    it("un terme ajouté sous une recherche reste visible", async () => {
+        await ouvrirLong();
+        chercher("flam");
+        fireEvent.click(screen.getByRole("button", { name: /add term/i }));
+        expect((screen.getByLabelText("Search the vocabulary") as HTMLInputElement).value).toBe("");
+        expect(screen.getByLabelText("Term 6")).toBeTruthy();
+        expect((screen.getByLabelText("Term 6") as HTMLInputElement).value).toBe("");
     });
 });
 

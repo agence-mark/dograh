@@ -212,8 +212,10 @@ describe("[.mark] business address on the Platform Settings page", () => {
         // is mounted nowhere is a vocabulary nobody can fill.
         render(<PageReglagesPlateforme />);
         await screen.findByText("Trade vocabulary");
-        expect(await screen.findByRole("button", { name: /save trade vocabulary/i })).toBeTruthy();
-        expect(document.body.textContent).toMatch(/No term yet/);
+        // 🆕 18/09 : la liste est passée dans une modale, la carte porte le résumé
+        // et le bouton qui l'ouvre.
+        expect(await screen.findByRole("button", { name: /open vocabulary/i })).toBeTruthy();
+        expect(document.body.textContent).toMatch(/0 terms/);
     });
 
     it("sends the chosen address with the other preferences", async () => {
