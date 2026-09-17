@@ -136,6 +136,37 @@ def test_n2_commune_retenue_au_tour_precedent(base, magasin):
     assert lu.startswith("60740 [Vérification de la commune : « soixante sept cent quarante » correspond à Saint-Maximin (60740, Oise).")
 
 
+def test_ville_du_tour_davant_qui_ne_porte_pas_la_lecture_la_plus_proche_est_a_confirmer(base, magasin):
+    """Bench of 2026-09-17, run 266, element 7. Decision of Evan: the town kept
+    earlier makes the code sure only if it carries the reading nearest the
+    business; otherwise both are proposed, the town kept first."""
+    _, avant = _lu("à Clermont-Ferrand, soixante-trois mille", base, magasin)
+    assert avant.detections[0].statut == SURE
+    lu, r = _lu("cent lis, soixante trois cents", base, magasin, _trace(avant))
+    assert (_code(r).code, _code(r).statut, _code(r).par) == ("63100", "a_confirmer", PAR_TRACE)
+    assert [c.nom for c in _code(r).communes] == ["Clermont-Ferrand", "Senlis"]
+    proposees = [d for d in r.detections if d.code_postal_entendu]
+    assert [(d.statut, [l.commune.nom for l in d.lectures]) for d in proposees] == [
+        (A_CONFIRMER, ["Clermont-Ferrand", "Senlis"])
+    ]
+    assert not any(d.statut == SURE for d in r.detections)
+    assert "correspond à" not in lu
+
+
+def test_ville_du_tour_davant_qui_porte_la_lecture_la_plus_proche_reste_sure(base, magasin):
+    """The common case the rule exists for, kept: the town, then its code."""
+    _, avant = _lu("j'habite à Senlis", base, magasin)
+    _, r = _lu("soixante trois cents", base, magasin, _trace(avant))
+    assert (_code(r).code, _code(r).statut, _code(r).par) == ("60300", "sure", PAR_TRACE)
+
+
+def test_ville_du_tour_davant_sans_adresse_du_magasin_inchangee(base, magasin):
+    """Without the business address there is nothing to compare: as before."""
+    _, avant = _lu("à Clermont-Ferrand, soixante-trois mille", base, magasin)
+    _, r = _lu("soixante trois cents", base, None, _trace(avant))
+    assert (_code(r).code, _code(r).statut, _code(r).par) == ("63100", "sure", PAR_TRACE)
+
+
 def test_n2_commune_a_confirmer_puis_code_postal(base, magasin):
     _, avant = _lu("j'habite à Bovet", base, magasin)
     (bovet,) = avant.detections

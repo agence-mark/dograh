@@ -74,8 +74,8 @@ TELEPHONE = "zéro six douze trente-quatre cinquante-six soixante-dix-huit"
 REFERENCE = "facture deux mille vingt-six tiret huit cent quarante-sept"
 MENTION_REFERENCE = (
     "[Lecture des nombres : référence entendue « deux mille vingt-six tiret huit cent "
-    "quarante-sept », écrite « 2026-847 ». Relis-la groupe par groupe et fais-la confirmer "
-    "avant de la noter.]"
+    "quarante-sept », écrite « 2026-847 ». Relis-la en recopiant « 2026-847 » tel quel, en "
+    "chiffres, et fais-la confirmer avant de la noter.]"
 )
 
 STT_FRANCAIS = SimpleNamespace(language="fr", language_hints=None)
