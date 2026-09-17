@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Mapping, Sequence
 
 from api.services.communes.base import (
@@ -105,6 +105,16 @@ DECALAGE_ESP = 0
 # Readings longer than this are not listened to (the longest name caught by its
 # sounds on the benches, « Verneuil en alerte », is three words).
 MOTS_MAX_SONS = 4
+# Decision of Evan, 2026-09-17 (fiche D): a commune to confirm is named aloud,
+# so a word that resembles it badly proposes nothing. The resemblance that
+# vouches for a proposal is the spelling keys' (phonetic_fr, home sound key),
+# not the espeak sounds alone (« crée » sounds like Crépy at 92, spells 57).
+# Measured on 2026-09-17 on the calls and benches of 15 to 17/09 (runs 230 to
+# 273): communes meant by the caller kept from 85.7 (« Bouvé » -> Beauvais,
+# « Champly » -> Chambly), « Brel » -> Bresles at 88.9; parasites up to 82.4
+# (« Révérance » -> Préveranges), « granulés » -> Grans 80. Lost: « Abrel »
+# -> Bresles (80), « perçant » -> Persan (83.3) when said without its code.
+SEUIL_PROPOSITION = 84
 
 SURE = "sure"
 A_CONFIRMER = "a_confirmer"
@@ -433,6 +443,98 @@ def analyser(
                     codes_postaux_dits=frozenset(cps),
                 ))
     return prises
+
+
+# --------------------------------------------------------------------------- #
+# Proposals to confirm: only on words that resemble the commune (2026-09-17)
+# --------------------------------------------------------------------------- #
+
+# Words after which « à … » or « de la … » continues the words heard instead of
+# naming a place: « passe à la suite », « la maison au bout du chemin ».
+_PREPOSITIONS_COMPLEMENT = frozenset({"a", "au", "aux"})
+_DE = frozenset({"de", "d", "du", "des"})
+_DETERMINANTS = frozenset({"l", "la", "le", "les", "un", "une"})
+_OUVRE_UNE_ADRESSE = TYPES_VOIE | {"numero"}
+
+
+def _mots_sans_contenu(base: BaseCommunes) -> frozenset[str]:
+    departements = {m for nom in base.departements.values() for m in normaliser(nom).split()}
+    return frozenset(MOTS_OUTILS | MOTS_HORS_COMPTE | MOTS_CONVERSATION | LIAISONS | departements)
+
+
+def _complement(mots: list[str], fin: int, sans_contenu: frozenset[str]) -> bool:
+    """The words heard go on with a complement: « passe | à la suite », « maison |
+    au bout du chemin », « côté | de la boulangerie ». Not an address that follows
+    the town (« Bovet, au 12 rue des Lilas »), nor a department or a postal code."""
+    if fin >= len(mots):
+        return False
+    suite = mots[fin]
+    if suite in _PREPOSITIONS_COMPLEMENT:
+        debut = fin + 1
+    elif suite in _DE and fin + 1 < len(mots) and mots[fin + 1] in _DETERMINANTS:
+        debut = fin + 2
+    else:
+        return False
+    if debut < len(mots) and (mots[debut].isdigit() or mots[debut] in MOTS_NOMBRE or mots[debut] in _OUVRE_UNE_ADRESSE):
+        return False
+    return any(
+        not m.isdigit() and m not in MOTS_NOMBRE and m not in sans_contenu for m in mots[debut:]
+    )
+
+
+def propositions_fondees(texte: str, detections: list[Detection], base: BaseCommunes) -> list[Detection]:
+    """The detections, without the communes proposed on words that resemble them badly.
+
+    Decision of Evan, 2026-09-17 (fiche D, runs 269 to 272): the agent names the
+    first commune to confirm aloud, so « Un poêle à granulés » made it ask
+    « Est-ce que vous êtes à Grandrû ? », « L'année dernière » proposed Anet,
+    « Passe à la suite » Pacé and Lassy. The motif, not the words:
+
+    1. Resemblance: a proposal needs its spelling keys at SEUIL_PROPOSITION.
+    2. An article opening the words heard belongs to the commune's name:
+       « l'année » is not Anet, « la suite » is not Lassy.
+    3. Words that go on with a complement (« passe à la suite ») name no place.
+    4. The « a » of « il y a » is the verb: « il y a marqué » is not Marques.
+
+    Only proposals TO CONFIRM are touched: a sure town, a postal code heard, a
+    commune backed by a postal code and a name written exactly as the commune
+    (« Saint-Laurent », homonyms) are kept. A detection left with no proposal
+    is dropped. Blocking: worker thread, like ``analyser``.
+    """
+    if not any(d.statut == A_CONFIRMER and not d.code_postal_entendu for d in detections):
+        return detections
+    from rapidfuzz import fuzz
+
+    mots = normaliser(texte).split()
+    sans_contenu = _mots_sans_contenu(base)
+    gardees: list[Detection] = []
+    for d in detections:
+        if d.statut != A_CONFIRMER or d.code_postal_entendu or d.debut < 0:
+            gardees.append(d)
+            continue
+        extrait = " ".join(mots[d.debut:d.fin])
+        k_phon, k_son = cle_phonetique(extrait), cle_sonore(extrait)
+        continue_la_phrase = _complement(mots, d.fin, sans_contenu) or (
+            d.debut >= 2 and mots[d.debut - 1] == "a" and mots[d.debut - 2] == "y"
+        )
+        article = mots[d.debut] if d.fin - d.debut > 1 and mots[d.debut] in ARTICLES else None
+
+        def fondee(l: Lecture) -> bool:
+            if l.par_code:
+                return True
+            j = base.par_insee[l.commune.insee]
+            if extrait == base.norms[j]:
+                return True
+            if continue_la_phrase:
+                return False
+            if article is not None and base.norms[j].split()[0] != article:
+                return False
+            return max(fuzz.ratio(k_phon, base.phons[j]), fuzz.ratio(k_son, base.sons[j])) >= SEUIL_PROPOSITION
+
+        lectures = tuple(l for l in d.lectures if fondee(l))
+        if lectures:
+            gardees.append(d if lectures == d.lectures else replace(d, lectures=lectures))
+    return gardees
 
 
 # --------------------------------------------------------------------------- #

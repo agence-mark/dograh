@@ -1011,7 +1011,7 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
 
     from api.services.communes.analyse import A_CONFIRMER as COMMUNE_A_CONFIRMER
     from api.services.communes.analyse import SURE as COMMUNE_SURE
-    from api.services.communes.analyse import Detection, Lecture, analyser
+    from api.services.communes.analyse import Detection, Lecture, analyser, propositions_fondees
 
     nombres = lire_nombres(texte, base.par_cp, base.departements)
     departements = {n.departement for n in nombres if n.type == DEPARTEMENT and n.departement}
@@ -1100,4 +1100,7 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
                 codes_postaux_dits=dits,
                 code_postal_entendu=True,
             ))
+    # Decision of Evan, 2026-09-17: no commune proposed on words that resemble it
+    # badly. Last, so the postal codes above were chosen with every reading.
+    detections = propositions_fondees(texte, detections, base)
     return LectureMessage(nombres=nombres, detections=detections, choix=choix)
