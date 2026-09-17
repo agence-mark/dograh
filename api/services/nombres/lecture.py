@@ -836,13 +836,6 @@ def _analyser_avec_noms_a_nombre(texte, base, magasin, spans, departements, mots
     return sorted(detections + retenues, key=lambda x: x.debut) if retenues else detections
 
 
-# ⚠️ Pending Evan's decision (A-VALIDER, 2026-09-17): the town said at the turn
-# BEFORE the code. Measured: « chez mes parents » then « soixante cent dix »
-# makes Esches sure, the defect of the third review of 2026-09-16 (39 false sure
-# towns on its sweep). Off, the town stays to confirm, as on 2026-09-16.
-VILLE_DU_TOUR_PRECEDENT = False
-
-
 def _derniere_entree(trace) -> dict | None:
     for entree in reversed(trace or []):
         if isinstance(entree, dict) and not entree.get("provisoire"):
@@ -897,47 +890,29 @@ def _ville_par_code(texte, base, detections, candidats, mots_exclus, trace_appel
     """V4 (plan voix-et-communes), decision of Evan, 2026-09-17: a postal code
     known, the town is looked for among ITS communes, and sure when clearly ahead.
 
-    Three ways a code is known, in order:
-    1. said in this message ("Bouvé, soixante mille"): the words of the message;
-    2. said in this message, the town at the turn before ("Bouvé", then
-       "soixante mille"): the words of the last town check of the call;
-    3. said at an earlier turn ("soixante mille", then "Bouvé"): the words of
-       this message, the code of the call's last postal code read.
+    Two ways a code is known:
+    1. said in this message ("Bouvé, soixante mille");
+    2. said at an earlier turn ("soixante mille", then "Bouvé"): the code of
+       the call's last postal code read.
+    ⛔ Not the town said at the turn BEFORE the code ("Bouvé", then "soixante
+    mille"): decision of Evan, 2026-09-17, it stays to confirm as on 2026-09-16.
+    Applied, « chez mes parents » then « soixante cent dix » made Esches sure
+    (39 false sure towns on the sweep of the third review).
     The town found replaces the readings of the same words; a code is then
     chosen by N2 ① as for a town said.
     """
-    from dataclasses import replace
-
-    from api.services.communes.analyse import (
-        ECART_CODE,
-        ECART_CODE_TRACE,
-        SEUIL_CODE,
-        SEUIL_CODE_TRACE,
-        ville_par_code,
-    )
+    from api.services.communes.analyse import ville_par_code
     from api.services.communes.analyse import SURE as COMMUNE_SURE
 
     codes_message = {cp for n in candidats for cp in n.lectures_cp + n.lectures_cp_zero}
     spans_codes = [(n.debut, n.fin) for n in candidats]
     trouvee = None
     if codes_message:
-        trouvee = ville_par_code(texte, base, codes_message, mots_exclus, SEUIL_CODE, ECART_CODE, spans_codes)
-        if VILLE_DU_TOUR_PRECEDENT and trouvee is None and not any(
-            d.statut == COMMUNE_SURE and not d.code_postal_entendu for d in detections
-        ):
-            derniere = _derniere_entree(trace_appel)
-            if (
-                derniere is not None and derniere.get("statut") == "a_confirmer"
-                and not derniere.get("code_postal_entendu") and derniere.get("entendu")
-            ):
-                avant = ville_par_code(derniere["entendu"], base, codes_message, frozenset(),
-                                       SEUIL_CODE_TRACE, ECART_CODE_TRACE)
-                if avant is not None:
-                    trouvee = replace(avant, debut=-1, fin=-1)
+        trouvee = ville_par_code(texte, base, codes_message, mots_exclus, spans_codes=spans_codes)
     else:
         codes_appel = _codes_retenus(trace_nombres)
         if codes_appel:
-            trouvee = ville_par_code(texte, base, codes_appel, mots_exclus, SEUIL_CODE_TRACE, ECART_CODE_TRACE)
+            trouvee = ville_par_code(texte, base, codes_appel, mots_exclus)
             # A town SPELLED as said, that does not carry the code, is another place
             # ("Arcueil"); a sound alone is not enough ("Accueil" is Arcueil by its
             # sound, and was Creil, run 264).
@@ -949,10 +924,7 @@ def _ville_par_code(texte, base, detections, candidats, mots_exclus, trace_appel
                 trouvee = None
     if trouvee is None:
         return detections
-    if trouvee.debut < 0:
-        gardees = [d for d in detections if d.code_postal_entendu]
-    else:
-        gardees = [d for d in detections if d.fin <= trouvee.debut or d.debut >= trouvee.fin or d.debut < 0]
+    gardees = [d for d in detections if d.fin <= trouvee.debut or d.debut >= trouvee.fin or d.debut < 0]
     return sorted([*gardees, trouvee], key=lambda d: d.debut)
 
 

@@ -102,6 +102,9 @@ BONUS_DEPARTEMENT = 15
 POIDS_ESP = 1
 SEUIL_ESP = 80
 DECALAGE_ESP = 0
+# Readings longer than this are not listened to (the longest name caught by its
+# sounds on the benches, « Verneuil en alerte », is three words).
+MOTS_MAX_SONS = 4
 
 SURE = "sure"
 A_CONFIRMER = "a_confirmer"
@@ -119,6 +122,8 @@ class Lecture:
     # match a postal code allows), and whether a postal code backed this reading.
     phon_nom: float | None = None
     par_code: bool = False
+    # V5: the reading owes its score to the pronounced sounds, not to the spelling.
+    par_son: bool = False
 
     @property
     def nom_exact(self) -> bool:
@@ -153,21 +158,24 @@ def _extrait_dorigine(texte: str, debut: int, fin: int, mots_normalises: list[st
     return texte[jetons[debut].start():jetons[fin - 1].end()]
 
 
-def _joints(texte: str, mots: list[str]) -> set[int]:
-    """Positions k whose word is glued to word k + 1 by a hyphen or an apostrophe
-    in the ORIGINAL sentence ("Saint-Le-Destran", "l'Isle")."""
+def _joints(texte: str, mots: list[str], signes: str = "-’'`") -> set[int]:
+    """Positions k whose word is glued to word k + 1 by one of ``signes`` in the
+    ORIGINAL sentence: a hyphen or an apostrophe by default ("Saint-Le-Destran",
+    "l'Isle")."""
     jetons = [m for m in re.finditer(rf"[^{_SEPARATEURS[1:-1]}]+", texte)]
     if len(jetons) != len(mots):
         return set()
+    motif = "[" + re.escape(signes) + "]"
     return {
         k for k in range(len(jetons) - 1)
-        if re.search(r"[-’'`]", texte[jetons[k].end():jetons[k + 1].start()])
+        if re.search(motif, texte[jetons[k].end():jetons[k + 1].start()])
     }
 
 
 def _segments(texte: str, mots: list[str], spans_cp, mots_cp: set[int], avec_lecteur: bool):
     """The readings of a sentence a town may hide in: (start, length, words, after an amorce)."""
     joints = _joints(texte, mots)
+    tirets = _joints(texte, mots, "-")
     reponse_courte = sum(1 for m in mots if m not in MOTS_HORS_COMPTE and not m.isdigit()) <= 5
     for i in range(len(mots)):
         # A name right after a street type is a street name, not a town.
@@ -182,10 +190,18 @@ def _segments(texte: str, mots: list[str], spans_cp, mots_cp: set[int], avec_lec
             mots[i - 1] not in ARTICLES or (i - 1) in joints
         ):
             continue
+        # Same motif inside a name written with hyphens: no reading starts in its
+        # middle ("Lachapelle-sous-Chanéac" is not Chanéac, France-wide sweep of
+        # 2026-09-17). Hyphens only: "je viens d'Amiens" is Amiens.
+        if i > 0 and (i - 1) in tirets:
+            continue
         for n in range(1, N_MAX + 1):
             seg = mots[i:i + n]
             if len(seg) < n:
                 break
+            # ... nor ends in its middle ("Saint-Paul-sur-Ubaye" is not "Saint" -> Saint-Ay).
+            if (i + n - 1) in tirets:
+                continue
             if (seg[0] in MOTS_OUTILS and not (n > 1 and seg[0] in ARTICLES)) or seg[-1] in MOTS_OUTILS or seg[-1] in LIAISONS:
                 continue
             debut_utile = all(m in MOTS_VIDES_REPONSE for m in mots[:i])
@@ -285,16 +301,27 @@ def analyser(
                                score_cutoff=SEUIL_PHON, dtype=np.uint8, workers=-1)
         m_son = process.cdist([t[5] for t in attente], base.sons, scorer=fuzz.ratio,
                               score_cutoff=SEUIL_PHON, dtype=np.uint8, workers=-1)
-        m_max = np.maximum(m_phon, m_son)
+        m_max = m_orthographe = np.maximum(m_phon, m_son)
         # V5 (plan voix-et-communes): the pronounced sounds, in one call for the
         # whole sentence, scored on their own threshold and combined by the
-        # maximum, so a town already recognised is never lost.
-        sons_entendus = sons([t[2] for t in attente]) if base.esps and POIDS_ESP else None
+        # maximum, so a town already recognised is never lost. The sounds FIND
+        # candidates; the spelling decides between towns that sound alike (below).
+        # ⏱️ Only the readings the spelling did not already find at a sure level:
+        # "Beauvais" needs no sounds. Measured 2026-09-17: the sounds of every
+        # reading took the step from 12 to 16 ms (plan ceiling 15).
+        a_ecouter = [
+            w for w in range(len(attente))
+            if attente[w][1] <= MOTS_MAX_SONS and m_orthographe[w].max(initial=0) < PHON_EXACT
+        ]
+        sons_entendus = (
+            sons([attente[w][2] for w in a_ecouter]) if a_ecouter and base.esps and POIDS_ESP else None
+        )
         if sons_entendus is not None:
-            m_esp = process.cdist(sons_entendus, base.esps, scorer=fuzz.ratio,
+            m_esp = process.cdist([base.cle_de_son(e) for e in sons_entendus], base.esps_cles, scorer=fuzz.ratio,
                                   score_cutoff=SEUIL_ESP, dtype=np.uint8, workers=-1)
             m_esp = np.where(m_esp > 0, np.clip(m_esp.astype(np.int16) - DECALAGE_ESP, 0, 100), 0).astype(np.uint8)
-            m_max = np.maximum(m_max, m_esp)
+            m_max = m_max.copy()
+            m_max[a_ecouter] = np.maximum(m_max[a_ecouter], m_esp)
         for w, (i, n, extrait, amorce, k_phon, k_son) in enumerate(attente):
             ligne = m_max[w]
             trouves = np.nonzero(ligne)[0]
@@ -335,7 +362,8 @@ def analyser(
                     score += max(0.0, 20 - distance_km(c, *magasin) / 7.5)
                 if departements and c.dep in departements:
                     score += BONUS_DEPARTEMENT
-                lectures.append(Lecture(c, score, s_phon, s_ortho, s_nom, par_code))
+                par_son = float(m_orthographe[w][j]) < s_phon and j in noms and noms[j] == s_phon
+                lectures.append(Lecture(c, score, s_phon, s_ortho, s_nom, par_code, par_son))
             if not lectures:
                 continue
             # A very short word only counts when spelled like the town ("vos" is not Voh).
@@ -347,6 +375,16 @@ def analyser(
             for l in sorted(lectures, key=lambda l: -l.score):
                 meilleures.setdefault(l.commune.insee, l)
             lectures = list(meilleures.values())
+            # V5, sounds and spelling together (Evan, 2026-09-17): a town that only
+            # SOUNDS like the words never beats a town WRITTEN like them. "Angecourt"
+            # sounds exactly like Angicourt, nearer the shop: Angecourt goes first,
+            # and the two stay to confirm. Without this, the France-wide sweep gained
+            # 7 false sure towns, all homophones.
+            if lectures[0].par_son:
+                ecrites = [l for l in lectures if not l.par_son and l.phon >= PHON_SURE]
+                if ecrites:
+                    lectures.remove(ecrites[0])
+                    lectures.insert(0, ecrites[0])
             fenetres.append((lectures[0].score, i, i + n, lectures))
 
     # Readings that do not overlap, best first. An exact reading over several
@@ -401,14 +439,14 @@ def analyser(
 # V4 (plan voix-et-communes): the town among the communes of a postal code said
 # --------------------------------------------------------------------------- #
 
-# Measured by sweep on 2026-09-17 (see the plan's journal): the best commune of
-# the code must reach SEUIL_CODE and lead the next one by ECART_CODE. A code
-# remembered from an earlier turn asks more: the caller may be naming another
-# place by then.
-SEUIL_CODE = 60
-ECART_CODE = 20
-SEUIL_CODE_TRACE = 60
-ECART_CODE_TRACE = 20
+# Decision of Evan, 2026-09-17, on the sweep of that day (15 badly transcribed
+# names of the benches; 68 sentences without a town x the 95 codes of the Oise):
+# the best commune of the code must reach SEUIL_CODE and lead the next one by
+# ECART_CODE. At 75/30: 11 names of 15 sure, +21 false sure towns (same message)
+# and +14 (code at the turn before) on 6 460 sentences. At 60/20: 15 of 15, but
+# +143 and +133. The other four stay to confirm, never wrong.
+SEUIL_CODE = 75
+ECART_CODE = 30
 # Conversation words that never name a town next to a postal code: the words a
 # caller says before one ("d'accord soixante mille"), from the sweep of
 # 2026-09-16 (``test_balayages_nombres_dictes.AMORCES``).
@@ -495,7 +533,8 @@ def ville_par_code(
                 fuzz.ratio(sons_cles[w], base.sons[j]),
                 fuzz.ratio(phons[w], base.phons[j]),
                 fuzz.ratio(extraits[w], base.norms[j]),
-                fuzz.ratio(prononces[w], base.esps[j]) if prononces is not None and base.esps[j] else 0.0,
+                fuzz.ratio(base.cle_de_son(prononces[w]), base.esps_cles[j])
+                if prononces is not None and base.esps[j] else 0.0,
             )
             if s > meilleurs.get(j, (-1.0,))[0]:
                 meilleurs[j] = (s, span)

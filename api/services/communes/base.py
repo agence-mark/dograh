@@ -131,11 +131,23 @@ class BaseCommunes:
     par_cp: dict[str, list[int]] = field(default_factory=dict)
     par_insee: dict[str, int] = field(default_factory=dict)
 
+    # The sounds with one plain character per sound: rapidfuzz compares
+    # one-byte strings about a third faster than the phonetic alphabet.
+    esps_cles: list[str] = field(default_factory=list)
+    _table_sons: dict[int, str] = field(default_factory=dict)
+
     def __post_init__(self) -> None:
         for i, c in enumerate(self.communes):
             self.par_insee[c.insee] = i
             for cp in c.cps:
                 self.par_cp.setdefault(cp, []).append(i)
+        caracteres = sorted(set("".join(self.esps)))
+        # From "!" upwards; a sound never met in the list keeps its own character.
+        self._table_sons = {ord(c): chr(0x21 + k) for k, c in enumerate(caracteres)}
+        self.esps_cles = [self.cle_de_son(e) for e in self.esps]
+
+    def cle_de_son(self, son: str) -> str:
+        return son.translate(self._table_sons)
 
     def communes_du_code_postal(self, code_postal: str) -> list[Commune]:
         """The communes that carry this postal code, largest first."""
