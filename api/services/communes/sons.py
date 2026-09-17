@@ -39,6 +39,11 @@ _RETIRES = str.maketrans("", "", " ˈˌːˑ-‿")
 _backend = None
 _indisponible = False
 _verrou = threading.Lock()
+# 🔒 One synthesis at a time: phonemizer writes each result to ONE temporary file
+# per backend and espeak-ng's C state is shared, while ctypes releases the Python
+# lock. Two calls at once returned wrong sounds 747 times out of 750 (review of
+# 2026-09-17). About a millisecond per sentence: waiting costs nothing.
+_verrou_synthese = threading.Lock()
 
 
 def _obtenir_backend():
@@ -61,6 +66,11 @@ def _obtenir_backend():
                 _indisponible = True
                 logger.warning(f"[.mark] Pronunciation library unavailable, spelling keys only: {erreur!r}")
     return _backend
+
+
+def precharger() -> None:
+    """Start the engine (about 650 ms the first time). Blocking: worker thread."""
+    _obtenir_backend()
 
 
 def simplifier(api: str) -> str:
@@ -88,7 +98,9 @@ def sons(textes: list[str]) -> list[str] | None:
         return None
     try:
         prepares = [_ELISION.sub(r"\1", t) for t in textes]
-        return [simplifier(s) for s in backend.phonemize(prepares, strip=True)]
+        with _verrou_synthese:
+            prononces = backend.phonemize(prepares, strip=True)
+        return [simplifier(s) for s in prononces]
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[.mark] Pronunciation failed, spelling keys only: {erreur!r}")
         return None

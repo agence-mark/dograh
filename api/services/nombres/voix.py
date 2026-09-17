@@ -292,6 +292,13 @@ def ecrire_pour_la_voix(texte: str, codes_postaux: Container[str] | None = None)
     """
     if not texte or not any(c.isdigit() for c in texte):
         return texte
+    # Voice tags keep their digits (<break time="1s"/>): only the text between is rewritten.
+    if "<" in texte and ">" in texte:
+        morceaux = re.split(r"(<[^<>]*>)", texte)
+        return "".join(
+            m if m.startswith("<") and m.endswith(">") else ecrire_pour_la_voix(m, codes_postaux)
+            for m in morceaux
+        )
     t = texte
     t = _appliquer(_TELEPHONE_INTERNATIONAL, _telephone_international, t)
     t = _appliquer(_TELEPHONE, _telephone, t)

@@ -11,6 +11,12 @@ changes only the text sent to the voice; the context keeps what the model
 wrote. It is Pipecat's own seam for "for the voice only", the one the
 pronunciation replacements already use.
 
+⚠️ True for voices WITHOUT word timestamps, Voxtral (Mistral) among them
+(asserted by test_nombres_pour_la_voix.py). A voice that times each word (ElevenLabs, Cartesia, Azure, Rime,
+Inworld, Speechify, Dograh) builds the context from what it SAID: the history
+would then hold the words (Pipecat, ``tts_service.py``). Our agents speak with
+Voxtral; changing the voice means checking this first (review of 2026-09-17).
+
 When it runs
 ------------
 - French agents only (``langue_agent_francaise``), without a switch on screen:

@@ -123,9 +123,19 @@ def test_un_nom_ecrit_exactement_nest_pas_remplace_par_le_code_du_tour_davant(ba
     # Spelled exactly, not in the code: another place, even when close to a commune of it.
     _, r = _tours(base, magasin, ["soixante cent quarante", "Liancourt-Saint-Pierre"])
     assert _sures(r) == ["Liancourt-Saint-Pierre"]
-    # « Boves » is not sure on its own (Beauvais is near the shop): the code decides.
+    # « Boves » is a real town, written as said: never replaced by Beauvais, left to confirm.
     _, r = _tours(base, magasin, ["soixante mille", "Boves"])
-    assert _sures(r) == ["Beauvais"]
+    assert _sures(r) == []
+
+
+@pytest.mark.parametrize("texte, ville", [
+    ("Chantilly 60230", "Chambly"), ("Goincourt 60129", "Gilocourt"), ("Mouy 60790", "Pouilly"),
+])
+def test_un_nom_juste_avec_un_code_faux_ne_devient_pas_une_autre_commune(base, magasin, texte, ville):
+    """Review of 2026-09-17: the right name with a wrong (or badly heard) code
+    made another commune of that code sure. The conflict stays visible."""
+    (r,) = _tours(base, magasin, [texte])
+    assert ville not in _sures(r)
 
 
 def test_la_ville_du_code_nest_pas_prise_dans_des_mots_de_conversation(base, magasin):
@@ -147,18 +157,42 @@ def test_lecture_du_code_a_deux_lectures_tranchee_par_la_ville(base, magasin):
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("nom, ville", [("Lyon", "Lyon"), ("Lyon Court", "Liancourt")])
-def test_un_nom_repete_apres_une_precision_tranche(base, magasin, nom, ville):
-    premier, second = _tours(base, magasin, [nom, nom])
+def test_un_nom_ecrit_comme_la_commune_repete_apres_une_precision_tranche(base, magasin):
+    premier, second = _tours(base, magasin, ["Lyon", "Lyon"])
     assert _sures(premier) == []
-    assert _sures(second) == [ville]
+    assert _sures(second) == ["Lyon"]
+
+
+@pytest.mark.parametrize("nom, code, ville", [
+    ("Bouvé", "soixante mille", "Beauvais"), ("Lyon Court", "soixante cent quarante", "Liancourt"),
+])
+def test_un_nom_mal_transcrit_repete_ne_tranche_pas_le_code_tranche(base, magasin, nom, code, ville):
+    """Decision of Evan, 2026-09-17: « Bouvé » twice made Boves sure (run 264's
+    error). Repeated, it stays to confirm; said again with the code, V4 decides."""
+    _, second = _tours(base, magasin, [nom, nom])
+    assert _sures(second) == []
+    _, avec_code = _tours(base, magasin, [nom, f"{nom}, {code}"])
+    assert _sures(avec_code) == [ville]
+
+
+@pytest.mark.parametrize("seq", [
+    ["Villers", "Villers"], ["Saint-Just", "Saint-Just"], ["Beaumont", "Beaumont"],
+    ["Pont", "Pont"], ["Saint-Martin", "Saint-Martin"], ["Angecourt", "non, Angecourt"],
+    ["Bressolles", "Bressolles"], ["Morvilliers", "Morvilliers"], ["Collongues", "Collongues"],
+    ["Balan", "Balan"], ["Cerdon", "Cerdon"],
+])
+def test_une_repetition_qui_napporte_rien_ne_tranche_pas(base, magasin, seq):
+    """Review of 2026-09-17: a name several communes carry, or open (« Pont »),
+    said twice, names none of them; « non » is not a confirmation."""
+    _, r = _tours(base, magasin, seq)
+    assert _sures(r) == []
 
 
 def test_la_repetition_ne_tranche_que_la_commune_proposee_en_tete(base, magasin):
     _, r = _tours(base, magasin, ["Lyon", "Senlis"])
     assert _sures(r) == ["Senlis"]  # sure on its own
-    _, r = _tours(base, magasin, ["Lyon", "Bouvé"])
-    assert _sures(r) == []
+    _, r = _tours(base, magasin, ["Lyon", "Lognes"])
+    assert "Lyon" not in _sures(r)
 
 
 # --------------------------------------------------------------------------- #
@@ -207,6 +241,18 @@ def test_les_sons_rapprochent_ce_que_la_transcription_ecrit(base, magasin):
     assert module_sons.sons(["monte a terre"]) == module_sons.sons(["montataire"])
     (r,) = _tours(base, magasin, ["Clairement Ferrand"])
     assert _sures(r) == ["Clermont-Ferrand"]
+
+
+def test_les_sons_restent_justes_quand_plusieurs_appels_les_demandent_en_meme_temps():
+    """🔒 Review of 2026-09-17: without a lock, 747 results out of 750 were wrong
+    with 8 threads (one temporary file per engine, shared C state)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    lots = [["beauvais", "monte a terre", "liancourt"], ["senlis", "coye la foret"], ["l isle adam", "creil"]] * 40
+    attendus = [module_sons.sons(l) for l in lots]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        obtenus = list(pool.map(module_sons.sons, lots))
+    assert obtenus == attendus
 
 
 def test_sans_la_bibliotheque_la_verification_continue(base, magasin, monkeypatch):

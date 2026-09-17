@@ -130,6 +130,8 @@ class BaseCommunes:
     esps: list[str] = field(default_factory=list)
     par_cp: dict[str, list[int]] = field(default_factory=dict)
     par_insee: dict[str, int] = field(default_factory=dict)
+    # Communes by normalised name: « Saint-Just » is carried by 12 of them.
+    par_nom: dict[str, list[int]] = field(default_factory=dict)
 
     # The sounds with one plain character per sound: rapidfuzz compares
     # one-byte strings about a third faster than the phonetic alphabet.
@@ -139,6 +141,7 @@ class BaseCommunes:
     def __post_init__(self) -> None:
         for i, c in enumerate(self.communes):
             self.par_insee[c.insee] = i
+            self.par_nom.setdefault(self.norms[i], []).append(i)
             for cp in c.cps:
                 self.par_cp.setdefault(cp, []).append(i)
         caracteres = sorted(set("".join(self.esps)))

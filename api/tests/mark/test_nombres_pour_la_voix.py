@@ -217,6 +217,8 @@ def test_les_cas_nommes_par_le_plan(base):
         ("2,5 mètres", "deux virgule cinq mètres"),
         # letters glued to digits are read apart
         ("en 4G", "en quatre G"),
+        # voice tags keep their digits (review of 2026-09-17)
+        ('<break time="1s"/> code postal 60550', '<break time="1s"/> code postal soixante, cinq cent cinquante'),
         # no digit: untouched, the very same object
         ("Rien à retenir.", "Rien à retenir."),
     ],
@@ -271,6 +273,15 @@ def test_chaque_voix_francaise_recoit_la_reecriture(nom):
     service = create_tts_service(user_config, _audio_config(), run_configs={})
     assert [t for _, t in service._text_transforms] == [nombres_en_mots]
     assert nombres_en_mots not in service._text_filters
+
+
+def test_voxtral_garde_le_texte_du_modele_pour_lhistorique():
+    """⚠️ V1 holds only for voices WITHOUT word timestamps (review of 2026-09-17):
+    those build the context from the text they were given, not from what they
+    said. Our agents speak with Voxtral: this turns red if that ever changes."""
+    user_config = SimpleNamespace(tts=FOURNISSEURS["mistral"](), stt=STT_FRANCAIS)
+    service = create_tts_service(user_config, _audio_config(), run_configs={})
+    assert service._push_text_frames is True
 
 
 @pytest.mark.parametrize("nom", sorted(FOURNISSEURS))
@@ -335,6 +346,9 @@ async def test_la_voix_dit_les_mots_et_lhistorique_garde_les_chiffres():
             LLMTextFrame("Beauvais, code postal 60000, c'est bien ça ?"),
             LLMFullResponseEndFrame(),
         ],
+        # Same margin as the other pipeline tests of this folder: the start of a
+        # pipeline is slower after heavy modules in the same run (a 1 s default timed out).
+        start_timeout=15,
     )
     assert voix.dits and "soixante mille" in " ".join(voix.dits)
     assert not any(c.isdigit() for c in " ".join(voix.dits))

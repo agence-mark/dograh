@@ -55,6 +55,7 @@ from api.schemas.organization_preferences import AdresseEtablissement
 from api.services.communes.base import charger_base, obtenir_base
 from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
 from api.services.communes.mention import mentionner
+from api.services.communes.sons import precharger as precharger_sons
 from api.services.nombres import lecture as lecteur
 from api.services.nombres.lecture import (
     CODE_POSTAL,
@@ -223,6 +224,9 @@ class LectureAppelantProcessor(FrameProcessor):
     async def _precharger(self):
         try:
             await obtenir_base()
+            # The pronunciation engine too: its first start (about 650 ms) would
+            # otherwise delay the first address turn of the call (review of 2026-09-17).
+            await asyncio.to_thread(precharger_sons)
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[.mark] List of communes not preloaded: {erreur!r}")
 

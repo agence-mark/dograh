@@ -843,13 +843,31 @@ def _derniere_entree(trace) -> dict | None:
     return None
 
 
-def _repetition_tranche(detections, trace_appel):
+def _debut_de_plusieurs_noms(entendu: str, base) -> bool:
+    """« Pont » opens Pont-Sainte-Maxence, Pont-l'Évêque…: said twice, it names none of them."""
+    debut = entendu + " "
+    return sum(1 for n in base.norms if n.startswith(debut)) >= 2
+
+
+_NEGATION = re.compile(r"\b(non|pas|ni|nan)\b")
+
+
+def _repetition_tranche(texte, base, detections, trace_appel):
     """V8 (plan voix-et-communes): the caller repeats the name after a request
     for precision, the commune proposed first is kept.
 
     « Lyon » said three times stayed to confirm (run 264). When the last town
     check of the call asked for precision, and this message's best reading is
     the same commune again, it is sure.
+
+    ⛔ Not when repeating brings nothing new (review of 2026-09-17): a name that
+    several communes carry (« Saint-Just », « Beaumont » said twice made
+    Saint-Just (34), Beaumont (63) sure), or a message that says no (« non,
+    Angecourt » made Angicourt sure).
+    ⛔ Decision of Evan, 2026-09-17: only for a name WRITTEN as the commune
+    (« Lyon » twice is Lyon). A badly transcribed name is written the same way
+    twice: « Bouvé » twice made Boves sure, the error of run 264. It stays to
+    confirm, and the agent asks again with the postal code, which decides (V4).
     """
     from dataclasses import replace
 
@@ -865,10 +883,19 @@ def _repetition_tranche(detections, trace_appel):
     ):
         return detections
     en_tete = (derniere["propositions"][0] or {}).get("code_insee")
+    if _NEGATION.search(normaliser(texte)):
+        return detections
+
+    def seule_de_son_nom(d) -> bool:
+        nom = normaliser(d.lectures[0].commune.nom)
+        ecrit_comme_la_commune = normaliser(d.entendu) == nom
+        homonymes = len(base.par_nom.get(nom, [])) > 1
+        return ecrit_comme_la_commune and not homonymes and not _debut_de_plusieurs_noms(nom, base)
+
     return [
         replace(d, statut=COMMUNE_SURE)
         if d.statut == COMMUNE_A_CONFIRMER and not d.code_postal_entendu and d.lectures
-        and d.lectures[0].commune.insee == en_tete
+        and d.lectures[0].commune.insee == en_tete and seule_de_son_nom(d)
         else d
         for d in detections
     ]
@@ -908,20 +935,23 @@ def _ville_par_code(texte, base, detections, candidats, mots_exclus, trace_appel
     spans_codes = [(n.debut, n.fin) for n in candidats]
     trouvee = None
     if codes_message:
+        codes = codes_message
         trouvee = ville_par_code(texte, base, codes_message, mots_exclus, spans_codes=spans_codes)
     else:
-        codes_appel = _codes_retenus(trace_nombres)
-        if codes_appel:
-            trouvee = ville_par_code(texte, base, codes_appel, mots_exclus)
-            # A town SPELLED as said, that does not carry the code, is another place
-            # ("Arcueil"); a sound alone is not enough ("Accueil" is Arcueil by its
-            # sound, and was Creil, run 264).
-            if trouvee is not None and any(
-                d.statut == COMMUNE_SURE and d.lectures and d.lectures[0].ortho >= ORTHO_NOM_A_NOMBRE
-                and not set(d.lectures[0].commune.cps) & codes_appel
-                for d in detections
-            ):
-                trouvee = None
+        codes = _codes_retenus(trace_nombres)
+        if codes:
+            trouvee = ville_par_code(texte, base, codes, mots_exclus)
+    # A town SPELLED as said, that does not carry the code, is another place, in
+    # both cases: "Arcueil" after 60100; "Chantilly 60230" is not Chambly, the name
+    # is right and the code wrong or badly heard (review of 2026-09-17). A sound
+    # alone is not enough ("Accueil" is Arcueil by its sound, and was Creil, run 264).
+    if trouvee is not None and any(
+        l.ortho >= ORTHO_NOM_A_NOMBRE and not set(l.commune.cps) & codes
+        # The same words or more: « Lyon » inside « Lyon Court » is not the name said.
+        for d in detections if d.debut <= trouvee.debut and d.fin >= trouvee.fin
+        for l in d.lectures
+    ):
+        trouvee = None
     if trouvee is None:
         return detections
     gardees = [d for d in detections if d.fin <= trouvee.debut or d.debut >= trouvee.fin or d.debut < 0]
@@ -992,7 +1022,7 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
         texte, base, magasin, spans, departements, mots_nombres, _mots_de(n for n in nombres if n.type == AUTRE)
     )
     if etape_adresse:
-        detections = _repetition_tranche(detections, trace_appel)
+        detections = _repetition_tranche(texte, base, detections, trace_appel)
         detections = _ville_par_code(
             texte, base, detections, candidats, mots_nombres | _mots_de(nombres), trace_appel, trace_nombres
         )
