@@ -161,6 +161,12 @@ def test_un_nom_ecrit_comme_la_commune_repete_apres_une_precision_tranche(base, 
     premier, second = _tours(base, magasin, ["Lyon", "Lyon"])
     assert _sures(premier) == []
     assert _sures(second) == ["Lyon"]
+    # Longer names open on « Pont » or « Marseille », not on « Lyon »: without
+    # the shop, any of them blocks.
+    from api.services.nombres.lecture import _debut_dun_nom_plus_proche
+
+    marseille = next(c for c in base.communes if c.nom == "Marseille")
+    assert _debut_dun_nom_plus_proche(marseille, base, None)
 
 
 @pytest.mark.parametrize("nom, code, ville", [
@@ -180,6 +186,8 @@ def test_un_nom_mal_transcrit_repete_ne_tranche_pas_le_code_tranche(base, magasi
     ["Pont", "Pont"], ["Saint-Martin", "Saint-Martin"], ["Angecourt", "non, Angecourt"],
     ["Bressolles", "Bressolles"], ["Morvilliers", "Morvilliers"], ["Collongues", "Collongues"],
     ["Balan", "Balan"], ["Cerdon", "Cerdon"],
+    # A longer town nearer the shop opens on the name (counter-review of 2026-09-17).
+    ["Marseille", "Marseille"], ["Mory", "Mory"], ["Vendeuil", "Vendeuil"],
 ])
 def test_une_repetition_qui_napporte_rien_ne_tranche_pas(base, magasin, seq):
     """Review of 2026-09-17: a name several communes carry, or open (« Pont »),

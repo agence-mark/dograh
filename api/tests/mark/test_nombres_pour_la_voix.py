@@ -219,6 +219,8 @@ def test_les_cas_nommes_par_le_plan(base):
         ("en 4G", "en quatre G"),
         # voice tags keep their digits (review of 2026-09-17)
         ('<break time="1s"/> code postal 60550', '<break time="1s"/> code postal soixante, cinq cent cinquante'),
+        # « < » and « > » that are no tag: rewritten, no endless recursion
+        ("si 5 > 3 et 2 < 4", "si cinq > trois et deux < quatre"),
         # no digit: untouched, the very same object
         ("Rien à retenir.", "Rien à retenir."),
     ],

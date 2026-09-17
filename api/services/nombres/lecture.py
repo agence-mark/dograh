@@ -843,16 +843,28 @@ def _derniere_entree(trace) -> dict | None:
     return None
 
 
-def _debut_de_plusieurs_noms(entendu: str, base) -> bool:
-    """« Pont » opens Pont-Sainte-Maxence, Pont-l'Évêque…: said twice, it names none of them."""
-    debut = entendu + " "
-    return sum(1 for n in base.norms if n.startswith(debut)) >= 2
+def _debut_dun_nom_plus_proche(commune, base, magasin) -> bool:
+    """« Pont » opens Pont-Sainte-Maxence; « Marseille » opens Marseille-en-Beauvaisis,
+    nearer the shop than Marseille (13): said twice, it names none of them for sure
+    (counter-review of 2026-09-17, 13 such towns within 60 km of the shop).
+    Without the shop's location, any longer name opening on it is enough."""
+    from api.services.communes.base import distance_km
+
+    nom = normaliser(commune.nom)
+    debut = nom + " "
+    plus_longues = [base.communes[j] for j, n in enumerate(base.norms) if n.startswith(debut)]
+    if not plus_longues:
+        return False
+    if magasin is None:
+        return True
+    ici = distance_km(commune, *magasin)
+    return any(distance_km(c, *magasin) < ici for c in plus_longues)
 
 
 _NEGATION = re.compile(r"\b(non|pas|ni|nan)\b")
 
 
-def _repetition_tranche(texte, base, detections, trace_appel):
+def _repetition_tranche(texte, base, detections, trace_appel, magasin=None):
     """V8 (plan voix-et-communes): the caller repeats the name after a request
     for precision, the commune proposed first is kept.
 
@@ -890,7 +902,9 @@ def _repetition_tranche(texte, base, detections, trace_appel):
         nom = normaliser(d.lectures[0].commune.nom)
         ecrit_comme_la_commune = normaliser(d.entendu) == nom
         homonymes = len(base.par_nom.get(nom, [])) > 1
-        return ecrit_comme_la_commune and not homonymes and not _debut_de_plusieurs_noms(nom, base)
+        return ecrit_comme_la_commune and not homonymes and not _debut_dun_nom_plus_proche(
+            d.lectures[0].commune, base, magasin
+        )
 
     return [
         replace(d, statut=COMMUNE_SURE)
@@ -1022,7 +1036,7 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
         texte, base, magasin, spans, departements, mots_nombres, _mots_de(n for n in nombres if n.type == AUTRE)
     )
     if etape_adresse:
-        detections = _repetition_tranche(texte, base, detections, trace_appel)
+        detections = _repetition_tranche(texte, base, detections, trace_appel, magasin)
         detections = _ville_par_code(
             texte, base, detections, candidats, mots_nombres | _mots_de(nombres), trace_appel, trace_nombres
         )
