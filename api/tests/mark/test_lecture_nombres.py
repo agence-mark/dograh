@@ -291,7 +291,8 @@ def test_mention_reference_au_mot_pres(base):
     assert mentionner_nombres(texte, nombres) == (
         "facture deux mille vingt-six tiret huit cent quarante-sept [Lecture des nombres : "
         "référence entendue « deux mille vingt-six tiret huit cent quarante-sept », écrite "
-        "« 2026-847 ». Relis-la groupe par groupe et fais-la confirmer avant de la noter.]"
+        "« 2026-847 ». Relis-la en recopiant « 2026-847 » tel quel, en chiffres, et fais-la "
+        "confirmer avant de la noter.]"
     )
     # N4: at a step that collects no reference, no note.
     assert mentionner_nombres(texte, nombres, avec_references=False) == texte

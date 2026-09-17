@@ -8,8 +8,11 @@ The wording is fixed by the plan (nombres-dictes, 2026-09-16), word for word:
   No reading back is asked: an agent may be forbidden to read an amount.
 - reference (N4), only at steps that collect a ``reference…`` variable:
   ``[Lecture des nombres : référence entendue « deux mille vingt-six tiret huit
-  cent quarante-sept », écrite « 2026-847 ». Relis-la groupe par groupe et
-  fais-la confirmer avant de la noter.]``
+  cent quarante-sept », écrite « 2026-847 ». Relis-la en recopiant « 2026-847 »
+  tel quel, en chiffres, et fais-la confirmer avant de la noter.]``
+  Changed by Evan, 2026-09-17 (bench run 267): "relis-la groupe par groupe" made
+  the model write the words itself ("quatre-vingt-quatre sept" for 847), which
+  the voice rewrite cannot correct; in digits, the voice says them right.
 - nothing for a phone, a department, an unambiguous amount, anything else.
 
 ⛔ ``MARQUE`` makes the note idempotent, like the town note's.
@@ -36,7 +39,8 @@ def phrase_de_mention(nombre: NombreLu) -> str | None:
     if nombre.type == REFERENCE:
         return (
             f"{MARQUE} : référence entendue « {nombre.entendu} », écrite « {nombre.ecrit} ». "
-            "Relis-la groupe par groupe et fais-la confirmer avant de la noter.]"
+            f"Relis-la en recopiant « {nombre.ecrit} » tel quel, en chiffres, "
+            "et fais-la confirmer avant de la noter.]"
         )
     return None
 
