@@ -85,6 +85,9 @@ export const CLES_TRANSCRIPTION = [
     "conversion_nombres_transcription",
     "verification_communes",
     "variables_commune",
+    "sons_communes",
+    "lexique_metier",
+    "sons_lexique",
 ] as const;
 
 export const CLES_COUPURE = [

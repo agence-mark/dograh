@@ -241,11 +241,15 @@ def analyser(
     codes_postaux: Mapping[str, Sequence[tuple[int, int]]] | None = None,
     departements: set[str] | frozenset[str] | None = None,
     mots_nombres: set[int] | frozenset[int] | None = None,
+    *,
+    avec_sons: bool = True,
 ) -> list[Detection]:
     """The towns named in ``texte``, each with a verdict.
 
     ``magasin`` is the (longitude, latitude) of the business: towns nearby get
     a bonus, which is what separates "Bovet" -> Beauvais (60) from Boves (80).
+    ``avec_sons=False`` (the agent's switch, L18 of 2026-09-17): the spelling
+    keys alone, exactly as when the pronunciation library is absent.
     Blocking and CPU-bound: call it in a worker thread.
 
     ``codes_postaux`` (plan nombres-dictes, T6): the postal codes the number
@@ -314,7 +318,9 @@ def analyser(
             if attente[w][1] <= MOTS_MAX_SONS and m_orthographe[w].max(initial=0) < PHON_EXACT
         ]
         sons_entendus = (
-            sons([attente[w][2] for w in a_ecouter]) if a_ecouter and base.esps and POIDS_ESP else None
+            sons([attente[w][2] for w in a_ecouter])
+            if a_ecouter and base.esps and POIDS_ESP and avec_sons
+            else None
         )
         if sons_entendus is not None:
             m_esp = process.cdist([base.cle_de_son(e) for e in sons_entendus], base.esps_cles, scorer=fuzz.ratio,
@@ -589,6 +595,8 @@ def ville_par_code(
     seuil: float = SEUIL_CODE,
     ecart: float = ECART_CODE,
     spans_codes: Sequence[tuple[int, int]] = (),
+    *,
+    avec_sons: bool = True,
 ) -> Detection | None:
     """The town named in ``texte`` among the communes of ``codes``, when one is
     NETTEMENT DEVANT the others; None otherwise.
@@ -626,7 +634,10 @@ def ville_par_code(
     extraits = [candidats[s] for s in spans]
     phons = [cle_phonetique(e) for e in extraits]
     sons_cles = [cle_sonore(e) for e in extraits]
-    prononces = sons(extraits) if base.esps else None
+    # ⛔ The switch cuts BOTH uses of the sounds: ``POIDS_ESP`` only ever cut
+    # the one in ``analyser`` (review of 2026-09-17), and a measure with the
+    # sounds "off" that still used them here would say nothing.
+    prononces = sons(extraits) if base.esps and avec_sons else None
 
     meilleurs: dict[int, tuple[float, tuple[int, int]]] = {}
     for w, span in enumerate(spans):

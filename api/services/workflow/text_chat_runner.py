@@ -39,6 +39,8 @@ from api.services.communes.adresse import (
     lire_adresse_etablissement,
 )
 from api.services.configuration.registry import ServiceProviders
+from api.services.lexique.ecoute import injecter_lexique_a_ecouter
+from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.pipecat.audio_config import create_audio_config
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
@@ -50,6 +52,7 @@ from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
 )
 from api.services.pipecat.pre_call_fetch import execute_pre_call_fetch
+from api.services.pipecat.reconnaissance_lexique import annoter_message_tape
 from api.services.pipecat.recording_audio_cache import create_recording_audio_fetcher
 from api.services.pipecat.service_factory import (
     cle_de_cache,
@@ -571,6 +574,13 @@ async def execute_text_chat_pending_turn(
     initial_context = injecter_adresse_etablissement(
         initial_context, adresse_etablissement
     )
+    # [.mark] The organization's trade vocabulary (plan lexique-metier, L10):
+    # the keyboard bench reads a typed message like a call's. Empty when the
+    # agent's switch is off, and never raises.
+    lexique_metier = await lire_lexique_de_lappel(run_configs, workflow.organization_id)
+    initial_context = injecter_lexique_a_ecouter(
+        initial_context, [t.terme for t in lexique_metier.termes if t.a_ecouter]
+    )
 
     base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
 
@@ -781,8 +791,17 @@ async def execute_text_chat_pending_turn(
             # [.mark] Caller reading on the keyboard too (nombres-dictes R5,
             # verification-communes D7), BEFORE the message enters the context:
             # the model reads it directly, there is no aggregator step here.
-            message_pour_le_modele = await lire_message_tape(
+            # [.mark] The trade names first (T8), like in a call: the numbers
+            # and the towns then read a message where "Supra" is written properly.
+            message_pour_le_modele = await annoter_message_tape(
                 pending_user_message,
+                run_configs,
+                lexique_metier,
+                engine._current_node,
+                consigner_dans(lambda: engine._gathered_context),
+            )
+            message_pour_le_modele = await lire_message_tape(
+                message_pour_le_modele,
                 run_configs,
                 getattr(user_config, "stt", None),
                 adresse_etablissement,

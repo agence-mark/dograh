@@ -587,11 +587,17 @@ def test_le_chemin_telephonique_cree_letape_avec_ladresse_et_le_noeud_courant():
 
 def test_le_chemin_clavier_annote_avant_dajouter_le_message():
     source = inspect.getsource(text_chat_runner)
+    # 🆕 17/09: the trade vocabulary corrects the typed message first, so what
+    # this call receives is its result, not ``pending_user_message`` itself.
     annotation = re.search(
-        r"message_pour_le_modele = await lire_message_tape\(\s*pending_user_message,\s*run_configs,"
+        r"message_pour_le_modele = await lire_message_tape\(\s*message_pour_le_modele,\s*run_configs,"
         r"\s*getattr\(user_config, \"stt\", None\)",
         source,
     )
+    lexique = re.search(
+        r"message_pour_le_modele = await annoter_message_tape\(\s*pending_user_message,", source
+    )
+    assert lexique and lexique.start() < annotation.start()
     ajout = re.search(r'context\.add_message\(\{"role": "user", "content": message_pour_le_modele\}\)', source)
     assert annotation and ajout
     assert annotation.start() < ajout.start()

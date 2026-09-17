@@ -20,11 +20,21 @@ import { attributDeLongueur } from "./bornes-reglages";
  * 2026-09-17 (decision of Evan): a client whose variable is `ville` gets the
  * check without a patch. Shown only while the switch is on, like the silence
  * duration under its switch in the voice section.
+ *
+ * 🆕 The organization's trade vocabulary (plan lexique-metier, L2) is ON by
+ * default, and each of the two recognitions -- towns and trade names -- has a
+ * switch for the pronunciation library (L18), so the two can be measured
+ * without touching the code. A sound switch follows the same rule as the
+ * variables field: hidden while the switch it depends on is off, its value
+ * kept (Q3 = B + D, decision of Evan of 2026-09-17).
  */
 export interface ReglagesTranscription {
     conversion_nombres_transcription: boolean;
     verification_communes: boolean;
     variables_commune: string;
+    sons_communes: boolean;
+    lexique_metier: boolean;
+    sons_lexique: boolean;
 }
 
 /**
@@ -152,6 +162,68 @@ export const SectionTranscription = ({ reglages, onChange }: SectionTranscriptio
                             <code>commune, commune_*, adresse*</code>.
                         </p>
                     </div>
+
+                    <div className="space-y-2 pt-2">
+                        <div className="flex items-center justify-between gap-4">
+                            <Label htmlFor="sons_communes" className="text-sm">
+                                Use sounds to recognise towns
+                            </Label>
+                            <Switch
+                                id="sons_communes"
+                                checked={reglages.sons_communes}
+                                onCheckedChange={(coche) =>
+                                    onChange({ ...reglages, sons_communes: coche })
+                                }
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Compares how the heard words sound with how each town sounds
+                            (pronunciation library), in addition to the spelling. Turn off to
+                            compare with spelling only.
+                        </p>
+                    </div>
+                </div>
+            )}
+        </div>
+
+        <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+                <Label htmlFor="lexique_metier" className="text-sm">
+                    Use the organization&apos;s trade vocabulary
+                </Label>
+                <Switch
+                    id="lexique_metier"
+                    checked={reglages.lexique_metier}
+                    onCheckedChange={(coche) =>
+                        onChange({ ...reglages, lexique_metier: coche })
+                    }
+                />
+            </div>
+            <p className="text-xs text-muted-foreground">
+                Listens for the ticked terms, corrects misheard names before the model reads
+                them, and applies the pronunciations to the voice.
+            </p>
+            <p className="text-xs text-muted-foreground">No effect in realtime mode.</p>
+
+            {reglages.lexique_metier && (
+                <div className="space-y-2 pt-2">
+                    <div className="flex items-center justify-between gap-4">
+                        <Label htmlFor="sons_lexique" className="text-sm">
+                            Use sounds to recognise names
+                        </Label>
+                        <Switch
+                            id="sons_lexique"
+                            checked={reglages.sons_lexique}
+                            onCheckedChange={(coche) =>
+                                onChange({ ...reglages, sons_lexique: coche })
+                            }
+                        />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Compares how the heard words sound with how each name of the trade
+                        vocabulary sounds, in addition to the spelling. A name found by its sound
+                        alone is asked for confirmation. Turn off to compare with spelling only.
+                    </p>
                 </div>
             )}
         </div>

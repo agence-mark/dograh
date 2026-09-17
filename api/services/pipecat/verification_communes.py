@@ -119,6 +119,24 @@ def variables_commune(run_configs: dict | None) -> tuple[str, ...]:
         return VARIABLES_PAR_DEFAUT
 
 
+def sons_allumes(run_configs: dict | None, cle: str = "sons_communes") -> bool:
+    """One of the two sound switches (L18 of 2026-09-17), read ALONE like the others.
+
+    Off = the mode already in place when the pronunciation library is absent
+    (spelling keys only), chosen on purpose to measure what the sounds bring.
+    """
+    try:
+        return bool(
+            getattr(
+                WorkflowConfigurationDefaults.model_validate({cle: (run_configs or {}).get(cle)}),
+                cle,
+            )
+        )
+    except Exception as erreur:  # noqa: BLE001 -- the call must go on
+        logger.warning(f"[.mark] Sound switch « {cle} » unreadable, left on: {erreur!r}")
+        return True
+
+
 def interrupteur_allume(run_configs: dict | None) -> bool:
     """The agent's switch, read alone through the schema (a stored null = default = on).
 
@@ -152,17 +170,20 @@ def trace_de(detection: Detection, base: BaseCommunes, etape: str | None) -> dic
         "statut": "sure" if detection.statut == SURE else "a_confirmer",
         "commune_retenue": _lecture(detection, base, 0) if detection.statut == SURE else None,
         "propositions": [_lecture(detection, base, i) for i in range(min(3, len(detection.lectures)))],
+        # L18: did the pronounced sounds decide the reading kept? Without it an
+        # A/B of the sounds cannot be read back.
+        "par_son": bool(detection.lectures[0].par_son) if detection.lectures else False,
         # Present only when the words heard were a postal code (plan nombres-dictes):
         # its proposals must not confirm that same code on a later turn.
         **({"code_postal_entendu": True} if getattr(detection, "code_postal_entendu", False) else {}),
     }
 
 
-def _analyser_et_mentionner(texte: str, adresse: AdresseEtablissement | None):
+def _analyser_et_mentionner(texte: str, adresse: AdresseEtablissement | None, avec_sons: bool = True):
     """Blocking: runs in a worker thread. Returns (annotated text, detections, base)."""
     base = charger_base()
     magasin = base.coordonnees(adresse.code_insee) if adresse else None
-    detections = propositions_fondees(texte, analyser(texte, base, magasin), base)
+    detections = propositions_fondees(texte, analyser(texte, base, magasin, avec_sons=avec_sons), base)
     return mentionner(texte, detections, base), detections, base
 
 
@@ -172,12 +193,15 @@ async def annoter_texte(
     etape: str | None,
     consigner: Callable[[dict], None] | None,
     provisoire: bool = False,
+    avec_sons: bool = True,
 ) -> str:
     """``texte`` with its town notes, or ``texte`` unchanged. Never raises."""
     try:
         if not texte or deja_mentionne(texte):
             return texte
-        annote, detections, base = await asyncio.to_thread(_analyser_et_mentionner, texte, adresse)
+        annote, detections, base = await asyncio.to_thread(
+            _analyser_et_mentionner, texte, adresse, avec_sons
+        )
         if consigner is not None:
             for detection in detections:
                 try:

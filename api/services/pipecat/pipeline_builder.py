@@ -48,6 +48,7 @@ def build_pipeline(
     # EN SILENCE -- ni ruff ni le typage ne le voient.
     *,
     lecture_appelant=None,
+    reconnaissance_lexique=None,
 ):
     """Build the main pipeline with all components.
 
@@ -58,6 +59,12 @@ def build_pipeline(
         recording_router: Optional RecordingRouterProcessor. When provided,
             inserts between callback processor and TTS to route between
             pre-recorded audio playback and dynamic TTS.
+        reconnaissance_lexique: [.mark] Optional ReconnaissanceLexiqueProcessor
+            (the organization's trade vocabulary, plan lexique-metier). When
+            provided, inserted just BEFORE ``lecture_appelant`` -- or just
+            before the LLM when that one is absent: the brand names are written
+            properly before the numbers and the towns are read. None leaves the
+            list unchanged.
         lecture_appelant: [.mark] Optional LectureAppelantProcessor (dictated
             numbers and towns, plan nombres-dictes). When provided, inserted
             just before the LLM, AFTER the user aggregator and its gate: the
@@ -93,6 +100,12 @@ def build_pipeline(
     # verification-communes D1): the recorded transcript is emitted by the
     # aggregator from the text it wrote, so the digits and the notes reach the
     # model and the extraction, not the transcript.
+    # [.mark] The trade vocabulary comes first (T8): "Supra" written properly
+    # is no longer read as a commune, and the notes the reading below adds are
+    # never read as brand names.
+    if reconnaissance_lexique:
+        processors.append(reconnaissance_lexique)
+
     if lecture_appelant:
         processors.append(lecture_appelant)
 

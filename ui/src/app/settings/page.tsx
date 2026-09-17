@@ -2,6 +2,7 @@
 
 import { ExternalLink } from "lucide-react";
 
+import { SectionLexiqueMetier } from "@/components/mark/SectionLexiqueMetier";
 import { MCPSection } from "@/components/MCPSection";
 import { OrganizationPreferencesSection } from "@/components/OrganizationPreferencesSection";
 import { TelemetrySection } from "@/components/TelemetrySection";
@@ -34,6 +35,20 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <OrganizationPreferencesSection />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Trade vocabulary</CardTitle>
+            <CardDescription>
+              The names and words of this business: recognised before the model
+              reads them, listened for by the transcription, and pronounced the
+              way you write them.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SectionLexiqueMetier />
           </CardContent>
         </Card>
 

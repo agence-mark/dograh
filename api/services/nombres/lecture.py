@@ -824,7 +824,8 @@ def _mots_de(nombres: Iterable[NombreLu]) -> set[int]:
     return {k for n in nombres for k in range(n.debut, n.fin)}
 
 
-def _analyser_avec_noms_a_nombre(texte, base, magasin, spans, departements, mots_nombres, mots_autres):
+def _analyser_avec_noms_a_nombre(texte, base, magasin, spans, departements, mots_nombres, mots_autres,
+                                 avec_sons=True):
     """The towns, the words of ordinary numbers excluded.
 
     Without them, 75 towns whose name carries a number word would never be
@@ -837,13 +838,14 @@ def _analyser_avec_noms_a_nombre(texte, base, magasin, spans, departements, mots
 
     detections = analyser(
         texte, base, magasin, codes_postaux=spans, departements=departements,
-        mots_nombres=mots_nombres | mots_autres,
+        mots_nombres=mots_nombres | mots_autres, avec_sons=avec_sons,
     )
     if not mots_autres:
         return detections
     mots = normaliser(texte).split()
     retenues = []
-    for d in analyser(texte, base, magasin, codes_postaux=spans, departements=departements, mots_nombres=mots_nombres):
+    for d in analyser(texte, base, magasin, codes_postaux=spans, departements=departements,
+                      mots_nombres=mots_nombres, avec_sons=avec_sons):
         positions = range(d.debut, d.fin)
         top = d.lectures[0]
         if not (
@@ -949,7 +951,8 @@ def _codes_retenus(trace_nombres) -> set[str]:
     return set()
 
 
-def _ville_par_code(texte, base, detections, candidats, mots_exclus, trace_appel, trace_nombres):
+def _ville_par_code(texte, base, detections, candidats, mots_exclus, trace_appel, trace_nombres,
+                    avec_sons=True):
     """V4 (plan voix-et-communes), decision of Evan, 2026-09-17: a postal code
     known, the town is looked for among ITS communes, and sure when clearly ahead.
 
@@ -972,11 +975,12 @@ def _ville_par_code(texte, base, detections, candidats, mots_exclus, trace_appel
     trouvee = None
     if codes_message:
         codes = codes_message
-        trouvee = ville_par_code(texte, base, codes_message, mots_exclus, spans_codes=spans_codes)
+        trouvee = ville_par_code(texte, base, codes_message, mots_exclus, spans_codes=spans_codes,
+                                 avec_sons=avec_sons)
     else:
         codes = _codes_retenus(trace_nombres)
         if codes:
-            trouvee = ville_par_code(texte, base, codes, mots_exclus)
+            trouvee = ville_par_code(texte, base, codes, mots_exclus, avec_sons=avec_sons)
     # A town SPELLED as said, that does not carry the code, is another place, in
     # both cases: "Arcueil" after 60100; "Chantilly 60230" is not Chambly, the name
     # is right and the code wrong or badly heard (review of 2026-09-17). A sound
@@ -995,7 +999,7 @@ def _ville_par_code(texte, base, detections, candidats, mots_exclus, trace_appel
 
 
 def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adresse: bool = True,
-                     trace_nombres=None) -> LectureMessage:
+                     trace_nombres=None, *, avec_sons: bool = True) -> LectureMessage:
     """The numbers and the towns of one message, read together. Blocking.
 
     The reader gives every existing postal-code reading; the town analysis runs
@@ -1043,7 +1047,8 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
             nombres[nombres.index(n)] = replace(n, type=AUTRE)
         _, sp = candidats_et_spans()
         sans = _analyser_avec_noms_a_nombre(
-            texte, base, magasin, sp, departements, mots_nombres, _mots_de(n for n in nombres if n.type == AUTRE)
+            texte, base, magasin, sp, departements, mots_nombres,
+            _mots_de(n for n in nombres if n.type == AUTRE), avec_sons,
         )
         for n in ordinaires:
             c = choisir_code_postal(n, sans, trace_appel, departements, magasin, base)
@@ -1055,12 +1060,14 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
                                      lectures_cp_zero=(), ordinaire=False)
     candidats, spans = candidats_et_spans()
     detections = _analyser_avec_noms_a_nombre(
-        texte, base, magasin, spans, departements, mots_nombres, _mots_de(n for n in nombres if n.type == AUTRE)
+        texte, base, magasin, spans, departements, mots_nombres,
+        _mots_de(n for n in nombres if n.type == AUTRE), avec_sons,
     )
     if etape_adresse:
         detections = _repetition_tranche(texte, base, detections, trace_appel, magasin)
         detections = _ville_par_code(
-            texte, base, detections, candidats, mots_nombres | _mots_de(nombres), trace_appel, trace_nombres
+            texte, base, detections, candidats, mots_nombres | _mots_de(nombres), trace_appel, trace_nombres,
+            avec_sons,
         )
     # A town said is one that will be proposed: a parasite dropped below must not
     # silence the note of a postal code said alone (« C'est la maison au bout du

@@ -1,0 +1,2812 @@
+{
+ "source": "Essai du 2026-09-16 (_AUTONOMIE/essais/2026-09-16-lexique-metier) : chaque marque dite dans deux phrases par la voix française de Windows, dégradée en 8 kHz, retranscrite par Whisper en local sans vocabulaire. Textes seuls. Les 81 phrases sans marque viennent des scénarios ÉCRITS du labo (personnages inventés, numéros et adresses fictifs) : aucun appel réel, aucune donnée de client.",
+ "avec_marque": {
+  "small": [
+   {
+    "terme": "Aduro",
+    "dit": "Aduro",
+    "transcrit": "La marque c'est à du rô, je crois."
+   },
+   {
+    "terme": "Aduro",
+    "dit": "Aduro",
+    "transcrit": "C'est un poil à du rô."
+   },
+   {
+    "terme": "Alpenwood",
+    "dit": "Alpenwood",
+    "transcrit": "annoncer le panoude"
+   },
+   {
+    "terme": "Alpenwood",
+    "dit": "Alpenwood",
+    "transcrit": "La marque, c'est-elle Penwood, je crois ?"
+   },
+   {
+    "terme": "AMG",
+    "dit": "AMG",
+    "transcrit": "C'est un poids à MG."
+   },
+   {
+    "terme": "AMG",
+    "dit": "AMG",
+    "transcrit": "annoncer à MJ"
+   },
+   {
+    "terme": "Anselmo Cola",
+    "dit": "Anselmo Cola",
+    "transcrit": "C'est un poil et une salle mocholat."
+   },
+   {
+    "terme": "Anselmo Cola",
+    "dit": "Anselmo Cola",
+    "transcrit": "J'ai un encelle mochola à granuler."
+   },
+   {
+    "terme": "Arikazan",
+    "dit": "Arikazan",
+    "transcrit": "C'est un poids laricaison."
+   },
+   {
+    "terme": "Arikazan",
+    "dit": "Arikazan",
+    "transcrit": "La marque, c'est Arikazan, je crois."
+   },
+   {
+    "terme": "Artense",
+    "dit": "Artense",
+    "transcrit": "J'ai un artens à granuler."
+   },
+   {
+    "terme": "Artense",
+    "dit": "Artense",
+    "transcrit": "C'est un poil à thons."
+   },
+   {
+    "terme": "Atra",
+    "dit": "Atra",
+    "transcrit": "C'est un poilitre."
+   },
+   {
+    "terme": "Atra",
+    "dit": "Atra",
+    "transcrit": "J'ai un étreur à granuler."
+   },
+   {
+    "terme": "Attika",
+    "dit": "Attika",
+    "transcrit": "un insératica"
+   },
+   {
+    "terme": "Attika",
+    "dit": "Attika",
+    "transcrit": "C'est un poids latica."
+   },
+   {
+    "terme": "Austroflamm",
+    "dit": "Austroflamm",
+    "transcrit": "J'ai un oestrophla macranulé."
+   },
+   {
+    "terme": "Austroflamm",
+    "dit": "Austroflamm",
+    "transcrit": "C'est un poids l'ostroflame."
+   },
+   {
+    "terme": "Barbas",
+    "dit": "Barbas",
+    "transcrit": "Un insert barba."
+   },
+   {
+    "terme": "Barbas",
+    "dit": "Barbas",
+    "transcrit": "C'est un poil barba."
+   },
+   {
+    "terme": "Becafire",
+    "dit": "Becafire",
+    "transcrit": "C'est un poil BKFR"
+   },
+   {
+    "terme": "Becafire",
+    "dit": "Becafire",
+    "transcrit": "Un insert BKFR"
+   },
+   {
+    "terme": "Best Fires",
+    "dit": "Best Fires",
+    "transcrit": "C'est un poil best fire."
+   },
+   {
+    "terme": "Best Fires",
+    "dit": "Best Fires",
+    "transcrit": "La marque, c'est Best Fire, je crois."
+   },
+   {
+    "terme": "Bodart & Gonay",
+    "dit": "Bodart et Gonay",
+    "transcrit": "Un insert bouddhare et ganoï."
+   },
+   {
+    "terme": "Bodart & Gonay",
+    "dit": "Bodart et Gonay",
+    "transcrit": "C'est un poil baudard et ghanomie."
+   },
+   {
+    "terme": "Bordelet",
+    "dit": "Bordelet",
+    "transcrit": "J'ai un bordelet à granuler."
+   },
+   {
+    "terme": "Bordelet",
+    "dit": "Bordelet",
+    "transcrit": "C'est un poil bordelais ?"
+   },
+   {
+    "terme": "Brisach",
+    "dit": "Brisach",
+    "transcrit": "J'ai un bris sage à granuler."
+   },
+   {
+    "terme": "Brisach",
+    "dit": "Brisach",
+    "transcrit": "Un insert brissage."
+   },
+   {
+    "terme": "Bronpi",
+    "dit": "Bronpi",
+    "transcrit": "à n'insère brompie"
+   },
+   {
+    "terme": "Bronpi",
+    "dit": "Bronpi",
+    "transcrit": "C'est un poil brompi."
+   },
+   {
+    "terme": "Cadel",
+    "dit": "Cadel",
+    "transcrit": "C'est un poil cadel."
+   },
+   {
+    "terme": "Cadel",
+    "dit": "Cadel",
+    "transcrit": "La marque, c'est Cadel, je crois."
+   },
+   {
+    "terme": "Camina & Schmid",
+    "dit": "Camina et Schmid",
+    "transcrit": "La marque, c'est Kamina et Schmidt, je crois."
+   },
+   {
+    "terme": "Camina & Schmid",
+    "dit": "Camina et Schmid",
+    "transcrit": "Ananser Kaminah et Schmitt."
+   },
+   {
+    "terme": "Caminetti Montegrappa",
+    "dit": "Montegrappa",
+    "transcrit": "J'ai un monté grappa à granuler."
+   },
+   {
+    "terme": "Caminetti Montegrappa",
+    "dit": "Montegrappa",
+    "transcrit": "C'est un poil monté grappa"
+   },
+   {
+    "terme": "Charnwood",
+    "dit": "Charnwood",
+    "transcrit": "J'ai un charnou d'agranulé."
+   },
+   {
+    "terme": "Charnwood",
+    "dit": "Charnwood",
+    "transcrit": "une serre de charnouille"
+   },
+   {
+    "terme": "Chaudières Miquée",
+    "dit": "Miquée",
+    "transcrit": "C'est un poil miqué."
+   },
+   {
+    "terme": "Chaudières Miquée",
+    "dit": "Miquée",
+    "transcrit": "La marque s'est miquée, je crois."
+   },
+   {
+    "terme": "Cheminees De Chazelles",
+    "dit": "Chazelles",
+    "transcrit": "C'est un poil chazelle."
+   },
+   {
+    "terme": "Cheminees De Chazelles",
+    "dit": "Chazelles",
+    "transcrit": "La marque, c'est Chazelle, je crois."
+   },
+   {
+    "terme": "Cheminées Godin",
+    "dit": "Godin",
+    "transcrit": "C'est un poil gaudant."
+   },
+   {
+    "terme": "Cheminées Godin",
+    "dit": "Godin",
+    "transcrit": "La marque, c'est Godin, je crois."
+   },
+   {
+    "terme": "Cheminees Philippe",
+    "dit": "Philippe",
+    "transcrit": "J'ai un Philippe à granuler."
+   },
+   {
+    "terme": "Cheminees Philippe",
+    "dit": "Philippe",
+    "transcrit": "Anne-Infer Philippe."
+   },
+   {
+    "terme": "CMG",
+    "dit": "CMG",
+    "transcrit": "à l'incert CMG."
+   },
+   {
+    "terme": "CMG",
+    "dit": "CMG",
+    "transcrit": "J'ai un CMG à granuler"
+   },
+   {
+    "terme": "Contura",
+    "dit": "Contura",
+    "transcrit": "un encerre contourant."
+   },
+   {
+    "terme": "Contura",
+    "dit": "Contura",
+    "transcrit": "La marque, c'est Contura, je crois."
+   },
+   {
+    "terme": "Crown",
+    "dit": "Crown",
+    "transcrit": "...à n'en faire croire."
+   },
+   {
+    "terme": "Crown",
+    "dit": "Crown",
+    "transcrit": "J'ai un crône à granuler."
+   },
+   {
+    "terme": "De Dietrich",
+    "dit": "De Dietrich",
+    "transcrit": "La marque, c'est de Dittrich, je crois."
+   },
+   {
+    "terme": "De Dietrich",
+    "dit": "De Dietrich",
+    "transcrit": "C'est un poil de dîtrige."
+   },
+   {
+    "terme": "Denia",
+    "dit": "Denia",
+    "transcrit": "J'ai un digne au agranulé."
+   },
+   {
+    "terme": "Denia",
+    "dit": "Denia",
+    "transcrit": "La marque c'est Dignov je crois."
+   },
+   {
+    "terme": "Deville",
+    "dit": "Deville",
+    "transcrit": "J'ai un devil à granuler."
+   },
+   {
+    "terme": "Deville",
+    "dit": "Deville",
+    "transcrit": "C'est un poil de ville."
+   },
+   {
+    "terme": "Dik Geurts par Fonte Flamme",
+    "dit": "Dik Geurts",
+    "transcrit": "La marque s'est dit que je crois."
+   },
+   {
+    "terme": "Dik Geurts par Fonte Flamme",
+    "dit": "Dik Geurts",
+    "transcrit": "Un incertique genre."
+   },
+   {
+    "terme": "Domusa Teknik",
+    "dit": "Domusa Teknik",
+    "transcrit": "Un insert d'Omusa technique."
+   },
+   {
+    "terme": "Domusa Teknik",
+    "dit": "Domusa Teknik",
+    "transcrit": "J'ai un domusat technique à granuler."
+   },
+   {
+    "terme": "Dovre",
+    "dit": "Dovre",
+    "transcrit": "un insert d'œuvre."
+   },
+   {
+    "terme": "Dovre",
+    "dit": "Dovre",
+    "transcrit": "J'ai un doigt à granuler."
+   },
+   {
+    "terme": "Drooff",
+    "dit": "Drooff",
+    "transcrit": "C'est un poil drouffe."
+   },
+   {
+    "terme": "Drooff",
+    "dit": "Drooff",
+    "transcrit": "Un insert de roof."
+   },
+   {
+    "terme": "Dru par Fonte Flamme",
+    "dit": "Dru",
+    "transcrit": "à Nincertre-Rue."
+   },
+   {
+    "terme": "Dru par Fonte Flamme",
+    "dit": "Dru",
+    "transcrit": "C'est un poil drus ?"
+   },
+   {
+    "terme": "Ecoforest",
+    "dit": "Ecoforest",
+    "transcrit": "La marque c'était CoForest je crois."
+   },
+   {
+    "terme": "Ecoforest",
+    "dit": "Ecoforest",
+    "transcrit": "C'est un poil écoforeste ?"
+   },
+   {
+    "terme": "Edilkamin",
+    "dit": "Edilkamin",
+    "transcrit": "Ananser Edil Kaman"
+   },
+   {
+    "terme": "Edilkamin",
+    "dit": "Edilkamin",
+    "transcrit": "J'ai un édilecama à granuler."
+   },
+   {
+    "terme": "Ember",
+    "dit": "Ember",
+    "transcrit": "C'est un poil embeur."
+   },
+   {
+    "terme": "Ember",
+    "dit": "Ember",
+    "transcrit": "La marque, c'était Ember, je crois."
+   },
+   {
+    "terme": "Extraflame",
+    "dit": "Extraflame",
+    "transcrit": "C'est un poil extraflamme."
+   },
+   {
+    "terme": "Extraflame",
+    "dit": "Extraflame",
+    "transcrit": "La marque, c'est Extraflam, je crois."
+   },
+   {
+    "terme": "Ferroli",
+    "dit": "Ferroli",
+    "transcrit": "La marque c'est Ferroli je crois."
+   },
+   {
+    "terme": "Ferroli",
+    "dit": "Ferroli",
+    "transcrit": "J'ai un ferroli à granuler."
+   },
+   {
+    "terme": "FF Concept by France Flamme",
+    "dit": "France Flamme",
+    "transcrit": "La marque, c'est France Flam, je crois."
+   },
+   {
+    "terme": "FF Concept by France Flamme",
+    "dit": "France Flamme",
+    "transcrit": "un insert franc flamme"
+   },
+   {
+    "terme": "Fireplace",
+    "dit": "Fireplace",
+    "transcrit": "Un un certifier, s'il vous plaît."
+   },
+   {
+    "terme": "Fireplace",
+    "dit": "Fireplace",
+    "transcrit": "La marque c'est Fireplace, je crois."
+   },
+   {
+    "terme": "Fogo Montanha",
+    "dit": "Fogo Montanha",
+    "transcrit": "Anacer fogo montano"
+   },
+   {
+    "terme": "Fogo Montanha",
+    "dit": "Fogo Montanha",
+    "transcrit": "C'est un poil fogo montana ?"
+   },
+   {
+    "terme": "Fondis",
+    "dit": "Fondis",
+    "transcrit": "C'est un poil fondi."
+   },
+   {
+    "terme": "Fondis",
+    "dit": "Fondis",
+    "transcrit": "J'ai un fondi à granuler."
+   },
+   {
+    "terme": "Fonte Flamme",
+    "dit": "Fonte Flamme",
+    "transcrit": "Un insert fond de flammes"
+   },
+   {
+    "terme": "Fonte Flamme",
+    "dit": "Fonte Flamme",
+    "transcrit": "La marque, c'est Fontflam, je crois."
+   },
+   {
+    "terme": "France Turbo",
+    "dit": "France Turbo",
+    "transcrit": "C'est un poil France Turbo."
+   },
+   {
+    "terme": "France Turbo",
+    "dit": "France Turbo",
+    "transcrit": "un insert France Turbo"
+   },
+   {
+    "terme": "Freepoint",
+    "dit": "Freepoint",
+    "transcrit": "La marque c'est FreePoint je crois."
+   },
+   {
+    "terme": "Freepoint",
+    "dit": "Freepoint",
+    "transcrit": "à Nincertri."
+   },
+   {
+    "terme": "Froling",
+    "dit": "Fröling",
+    "transcrit": "Un insert freline."
+   },
+   {
+    "terme": "Froling",
+    "dit": "Fröling",
+    "transcrit": "J'ai un freeline à granuler."
+   },
+   {
+    "terme": "Godin",
+    "dit": "Godin",
+    "transcrit": "et non c'est un goût d'en"
+   },
+   {
+    "terme": "Godin",
+    "dit": "Godin",
+    "transcrit": "La marque, c'est Godin, je crois."
+   },
+   {
+    "terme": "Hargassner",
+    "dit": "Hargassner",
+    "transcrit": "La marque c'est Argasner, je crois."
+   },
+   {
+    "terme": "Hargassner",
+    "dit": "Hargassner",
+    "transcrit": "C'est un poids larguestenaire."
+   },
+   {
+    "terme": "Hase",
+    "dit": "Hase",
+    "transcrit": "Annoncez-Rose."
+   },
+   {
+    "terme": "Hase",
+    "dit": "Hase",
+    "transcrit": "J'ai un hase à granuler."
+   },
+   {
+    "terme": "Herz®",
+    "dit": "Herz®",
+    "transcrit": "J'ai un horse symbol marque déposé à granuler."
+   },
+   {
+    "terme": "Herz®",
+    "dit": "Herz®",
+    "transcrit": "La marque, serveur symbole marque déposée, je crois."
+   },
+   {
+    "terme": "Hoben",
+    "dit": "Hoben",
+    "transcrit": "C'est un poil raubum."
+   },
+   {
+    "terme": "Hoben",
+    "dit": "Hoben",
+    "transcrit": "J'ai un rabonne à granuler."
+   },
+   {
+    "terme": "Hwam / Wiking",
+    "dit": "Hwam",
+    "transcrit": "C'est un poil lois-me."
+   },
+   {
+    "terme": "Hwam / Wiking",
+    "dit": "Hwam",
+    "transcrit": "Ananseruam."
+   },
+   {
+    "terme": "ILD",
+    "dit": "ILD",
+    "transcrit": "La marque, c'est Ialdé, je crois."
+   },
+   {
+    "terme": "ILD",
+    "dit": "ILD",
+    "transcrit": "C'est un poilier LD."
+   },
+   {
+    "terme": "Interstoves",
+    "dit": "Interstoves",
+    "transcrit": "J'ai un interstove à granuler."
+   },
+   {
+    "terme": "Interstoves",
+    "dit": "Interstoves",
+    "transcrit": "un insert interstove"
+   },
+   {
+    "terme": "Invicta",
+    "dit": "Invicta",
+    "transcrit": "et un serin victor."
+   },
+   {
+    "terme": "Invicta",
+    "dit": "Invicta",
+    "transcrit": "J'ai un invicte à granuler."
+   },
+   {
+    "terme": "Izyflam",
+    "dit": "Izyflam",
+    "transcrit": "C'est un poids lisif lame."
+   },
+   {
+    "terme": "Izyflam",
+    "dit": "Izyflam",
+    "transcrit": "un insérisif flamme"
+   },
+   {
+    "terme": "Jacobus",
+    "dit": "Jacobus",
+    "transcrit": "Anna Sergekobov"
+   },
+   {
+    "terme": "Jacobus",
+    "dit": "Jacobus",
+    "transcrit": "J'ai un jeu Cobra sa granulée."
+   },
+   {
+    "terme": "Jide",
+    "dit": "Jide",
+    "transcrit": "La marque c'est JID, je crois."
+   },
+   {
+    "terme": "Jide",
+    "dit": "Jide",
+    "transcrit": "C'est un poil j'ai idée."
+   },
+   {
+    "terme": "Jotul",
+    "dit": "Jøtul",
+    "transcrit": "à n'inserge tulle."
+   },
+   {
+    "terme": "Jotul",
+    "dit": "Jøtul",
+    "transcrit": "La marque s'est jetue, je crois."
+   },
+   {
+    "terme": "Justus",
+    "dit": "Justus",
+    "transcrit": "La marque, c'est juste-tu, je crois."
+   },
+   {
+    "terme": "Justus",
+    "dit": "Justus",
+    "transcrit": "Un insert justeux."
+   },
+   {
+    "terme": "Klover | Fuoco e Passione",
+    "dit": "Klover | Fuoco e Passione",
+    "transcrit": "Un encercle ou un fou au coût passionne."
+   },
+   {
+    "terme": "Klover | Fuoco e Passione",
+    "dit": "Klover | Fuoco e Passione",
+    "transcrit": "J'ai un clove fou au coheu passionné à granuler."
+   },
+   {
+    "terme": "Kratki",
+    "dit": "Kratki",
+    "transcrit": "Aniser Kratki"
+   },
+   {
+    "terme": "Kratki",
+    "dit": "Kratki",
+    "transcrit": "C'est un poil crat qui..."
+   },
+   {
+    "terme": "Kunst",
+    "dit": "Kunst",
+    "transcrit": "J'ai un canst à granuler."
+   },
+   {
+    "terme": "Kunst",
+    "dit": "Kunst",
+    "transcrit": "C'est un poil canste."
+   },
+   {
+    "terme": "KWB",
+    "dit": "KWB",
+    "transcrit": "J'ai un KWB à granuler."
+   },
+   {
+    "terme": "KWB",
+    "dit": "KWB",
+    "transcrit": "C'est un poil KWB."
+   },
+   {
+    "terme": "La Nordica",
+    "dit": "La Nordica",
+    "transcrit": "J'ai un l'anordica à granuler."
+   },
+   {
+    "terme": "La Nordica",
+    "dit": "La Nordica",
+    "transcrit": "La marque, c'est la Nordica, je crois."
+   },
+   {
+    "terme": "Lacunza",
+    "dit": "Lacunza",
+    "transcrit": "J'ai un lac unis à granuler."
+   },
+   {
+    "terme": "Lacunza",
+    "dit": "Lacunza",
+    "transcrit": "C'est un poil lacuna?"
+   },
+   {
+    "terme": "Laminox Idro",
+    "dit": "Laminox",
+    "transcrit": "Ananser l'aminox."
+   },
+   {
+    "terme": "Laminox Idro",
+    "dit": "Laminox",
+    "transcrit": "La marque, c'est l'aminox, je crois."
+   },
+   {
+    "terme": "Lasian",
+    "dit": "Lasian",
+    "transcrit": "J'ai un lasion à granuler."
+   },
+   {
+    "terme": "Lasian",
+    "dit": "Lasian",
+    "transcrit": "à n'inser la zion."
+   },
+   {
+    "terme": "Leda",
+    "dit": "Leda",
+    "transcrit": "La marque Céline, je crois."
+   },
+   {
+    "terme": "Leda",
+    "dit": "Leda",
+    "transcrit": "C'est un poil lit de..."
+   },
+   {
+    "terme": "Lorflam",
+    "dit": "Lorflam",
+    "transcrit": "J'ai un l'orflamme à granuler."
+   },
+   {
+    "terme": "Lorflam",
+    "dit": "Lorflam",
+    "transcrit": "à n'insérer leur flamme."
+   },
+   {
+    "terme": "Lotus",
+    "dit": "Lotus",
+    "transcrit": "La marque c'est Lotus, je crois."
+   },
+   {
+    "terme": "Lotus",
+    "dit": "Lotus",
+    "transcrit": "Anacer Lotus"
+   },
+   {
+    "terme": "MCZ",
+    "dit": "MCZ",
+    "transcrit": "La marque 7MCZ, je crois."
+   },
+   {
+    "terme": "MCZ",
+    "dit": "MCZ",
+    "transcrit": "C'est un poil MCZ."
+   },
+   {
+    "terme": "Morso",
+    "dit": "Morsø",
+    "transcrit": "C'est un poil mort."
+   },
+   {
+    "terme": "Morso",
+    "dit": "Morsø",
+    "transcrit": "J'ai un mort à granuler."
+   },
+   {
+    "terme": "Morvan",
+    "dit": "Morvan",
+    "transcrit": "un insert morvond"
+   },
+   {
+    "terme": "Morvan",
+    "dit": "Morvan",
+    "transcrit": "J'ai un morvant à granuler."
+   },
+   {
+    "terme": "Nobis",
+    "dit": "Nobis",
+    "transcrit": "Un insère nobis."
+   },
+   {
+    "terme": "Nobis",
+    "dit": "Nobis",
+    "transcrit": "J'ai un obis à granuler."
+   },
+   {
+    "terme": "Nordic Fire",
+    "dit": "Nordic Fire",
+    "transcrit": "C'est un poil Nordic Fire."
+   },
+   {
+    "terme": "Nordic Fire",
+    "dit": "Nordic Fire",
+    "transcrit": "J'ai un ordite failleur à granuler."
+   },
+   {
+    "terme": "Nordpeis",
+    "dit": "Nordpeis",
+    "transcrit": "Anancernour des Aïs."
+   },
+   {
+    "terme": "Nordpeis",
+    "dit": "Nordpeis",
+    "transcrit": "C'est un poil Nord et Ace."
+   },
+   {
+    "terme": "Oertli",
+    "dit": "Oertli",
+    "transcrit": "J'ai un orte-lit à granuler."
+   },
+   {
+    "terme": "Oertli",
+    "dit": "Oertli",
+    "transcrit": "C'est un poids leur pli."
+   },
+   {
+    "terme": "Okofen",
+    "dit": "Ökofen",
+    "transcrit": "J'ai un eau cofène à granuler."
+   },
+   {
+    "terme": "Okofen",
+    "dit": "Ökofen",
+    "transcrit": "Ananserukofen"
+   },
+   {
+    "terme": "Oliger",
+    "dit": "Oliger",
+    "transcrit": "J'ai un oligé à granuler."
+   },
+   {
+    "terme": "Oliger",
+    "dit": "Oliger",
+    "transcrit": "C'est un poil au liger."
+   },
+   {
+    "terme": "Oranier",
+    "dit": "Oranier",
+    "transcrit": "La marque, c'est Oranier, je crois."
+   },
+   {
+    "terme": "Oranier",
+    "dit": "Oranier",
+    "transcrit": "Annonceur Auragné"
+   },
+   {
+    "terme": "Palazzetti",
+    "dit": "Palazzetti",
+    "transcrit": "C'est un poil palazzo eti."
+   },
+   {
+    "terme": "Palazzetti",
+    "dit": "Palazzetti",
+    "transcrit": "Un insert palade zéti"
+   },
+   {
+    "terme": "Panadero",
+    "dit": "Panadero",
+    "transcrit": "C'est un poil pinaudero."
+   },
+   {
+    "terme": "Panadero",
+    "dit": "Panadero",
+    "transcrit": "La marque, c'est peine d'air haut, je crois."
+   },
+   {
+    "terme": "Pegaso",
+    "dit": "Pegaso",
+    "transcrit": "J'ai un pégasso à granuler."
+   },
+   {
+    "terme": "Pegaso",
+    "dit": "Pegaso",
+    "transcrit": "La marque c'est Pegasso, je crois."
+   },
+   {
+    "terme": "Piazzetta",
+    "dit": "Piazzetta",
+    "transcrit": "C'est un poil pièce état."
+   },
+   {
+    "terme": "Piazzetta",
+    "dit": "Piazzetta",
+    "transcrit": "J'ai un pied de zeta à granuler."
+   },
+   {
+    "terme": "Rais",
+    "dit": "Rais",
+    "transcrit": "C'est un poil le ré?"
+   },
+   {
+    "terme": "Rais",
+    "dit": "Rais",
+    "transcrit": "Je vous remercie."
+   },
+   {
+    "terme": "Ravelli",
+    "dit": "Ravelli",
+    "transcrit": "J'ai un ravelli à granuler"
+   },
+   {
+    "terme": "Ravelli",
+    "dit": "Ravelli",
+    "transcrit": "La marque Ceraveli, je crois."
+   },
+   {
+    "terme": "RED",
+    "dit": "RED",
+    "transcrit": "Annonceur Red"
+   },
+   {
+    "terme": "RED",
+    "dit": "RED",
+    "transcrit": "C'est un poil red."
+   },
+   {
+    "terme": "Redpod",
+    "dit": "Redpod",
+    "transcrit": "La marque, c'est RedPo, je crois."
+   },
+   {
+    "terme": "Redpod",
+    "dit": "Redpod",
+    "transcrit": "J'ai un redpot à granuler."
+   },
+   {
+    "terme": "Rhea Flam",
+    "dit": "Rhea Flam",
+    "transcrit": "La marque sérieux flèmes, je crois."
+   },
+   {
+    "terme": "Rhea Flam",
+    "dit": "Rhea Flam",
+    "transcrit": "J'ai un rioflème à granuler"
+   },
+   {
+    "terme": "Richard Le Droff",
+    "dit": "Richard Le Droff",
+    "transcrit": "C'est un poil Richard Ludroff ?"
+   },
+   {
+    "terme": "Richard Le Droff",
+    "dit": "Richard Le Droff",
+    "transcrit": "Anne-Annerie-Charles-Droof"
+   },
+   {
+    "terme": "Romotop",
+    "dit": "Romotop",
+    "transcrit": "Je suis au top."
+   },
+   {
+    "terme": "Romotop",
+    "dit": "Romotop",
+    "transcrit": "J'ai un romotope à granuler."
+   },
+   {
+    "terme": "Royal",
+    "dit": "Royal",
+    "transcrit": "à Nasser Royale."
+   },
+   {
+    "terme": "Royal",
+    "dit": "Royal",
+    "transcrit": "J'ai un roya à la granuler."
+   },
+   {
+    "terme": "Ruegg",
+    "dit": "Ruegg",
+    "transcrit": "La marque, c'est Ruel, je crois."
+   },
+   {
+    "terme": "Ruegg",
+    "dit": "Ruegg",
+    "transcrit": "C'est un poil ruène."
+   },
+   {
+    "terme": "Scan",
+    "dit": "Scan",
+    "transcrit": "J'ai un scant à granuler."
+   },
+   {
+    "terme": "Scan",
+    "dit": "Scan",
+    "transcrit": "C'est un poil scon."
+   },
+   {
+    "terme": "Schuster",
+    "dit": "Schuster",
+    "transcrit": "La marque, c'est Schuster, je crois."
+   },
+   {
+    "terme": "Schuster",
+    "dit": "Schuster",
+    "transcrit": "Un insert chouisteur."
+   },
+   {
+    "terme": "Seguin Duteriez",
+    "dit": "Seguin",
+    "transcrit": "La marque c'est séguin je crois."
+   },
+   {
+    "terme": "Seguin Duteriez",
+    "dit": "Seguin",
+    "transcrit": "J'ai un ségan à granuler."
+   },
+   {
+    "terme": "Sistemi",
+    "dit": "Sistemi",
+    "transcrit": "J'ai un système Y à granuler."
+   },
+   {
+    "terme": "Sistemi",
+    "dit": "Sistemi",
+    "transcrit": "La marque c'est Systemi, je crois."
+   },
+   {
+    "terme": "Skia Design",
+    "dit": "Skia Design",
+    "transcrit": "C'est un poils qui a design."
+   },
+   {
+    "terme": "Skia Design",
+    "dit": "Skia Design",
+    "transcrit": "un insert qui a design."
+   },
+   {
+    "terme": "Solarfocus",
+    "dit": "Solarfocus",
+    "transcrit": "La marque c'est Solar Focus, je crois."
+   },
+   {
+    "terme": "Solarfocus",
+    "dit": "Solarfocus",
+    "transcrit": "C'est un poil solar focus."
+   },
+   {
+    "terme": "Solzaima",
+    "dit": "Solzaima",
+    "transcrit": "C'est un poil solzallumar."
+   },
+   {
+    "terme": "Solzaima",
+    "dit": "Solzaima",
+    "transcrit": "La marque, c'est Solzema, je crois."
+   },
+   {
+    "terme": "Spartherm",
+    "dit": "Spartherm",
+    "transcrit": "La marque c'est Sparterm, je crois."
+   },
+   {
+    "terme": "Spartherm",
+    "dit": "Spartherm",
+    "transcrit": "un insert sparterme"
+   },
+   {
+    "terme": "Storch",
+    "dit": "Storch",
+    "transcrit": "C'est un poil torch."
+   },
+   {
+    "terme": "Storch",
+    "dit": "Storch",
+    "transcrit": "La marque c'est torch je crois."
+   },
+   {
+    "terme": "Stoveitalia",
+    "dit": "Stoveitalia",
+    "transcrit": "La marque c'est Stovetalia, je crois."
+   },
+   {
+    "terme": "Stoveitalia",
+    "dit": "Stoveitalia",
+    "transcrit": "A un serre stovétalien."
+   },
+   {
+    "terme": "Superior",
+    "dit": "Superior",
+    "transcrit": "La marque c'est supérieur je crois."
+   },
+   {
+    "terme": "Superior",
+    "dit": "Superior",
+    "transcrit": "C'est un poil supérieur."
+   },
+   {
+    "terme": "Supra",
+    "dit": "Supra",
+    "transcrit": "La marque c'est supras je crois."
+   },
+   {
+    "terme": "Supra",
+    "dit": "Supra",
+    "transcrit": "C'est un poil suprant."
+   },
+   {
+    "terme": "Surdiac",
+    "dit": "Surdiac",
+    "transcrit": "La marque, c'est sur Ghiac, je crois."
+   },
+   {
+    "terme": "Surdiac",
+    "dit": "Surdiac",
+    "transcrit": "Un insert sur Diac."
+   },
+   {
+    "terme": "Thermi Confort",
+    "dit": "Thermi Confort",
+    "transcrit": "J'ai un thermiconfort à granuler ?"
+   },
+   {
+    "terme": "Thermi Confort",
+    "dit": "Thermi Confort",
+    "transcrit": "La marque, c'est thermiconfort, je crois."
+   },
+   {
+    "terme": "Thermolab",
+    "dit": "Thermolab",
+    "transcrit": "J'ai un thermolabé à granuler."
+   },
+   {
+    "terme": "Thermolab",
+    "dit": "Thermolab",
+    "transcrit": "C'est un poil thermolabé."
+   },
+   {
+    "terme": "Tulikivi",
+    "dit": "Tulikivi",
+    "transcrit": "Un incertule qui vit."
+   },
+   {
+    "terme": "Tulikivi",
+    "dit": "Tulikivi",
+    "transcrit": "La marque, c'est Uli Kivi, je crois."
+   },
+   {
+    "terme": "Turbo Fonte",
+    "dit": "Turbo Fonte",
+    "transcrit": "J'ai un turbo fonte à granuler."
+   },
+   {
+    "terme": "Turbo Fonte",
+    "dit": "Turbo Fonte",
+    "transcrit": "C'est un poil turbo-fonte ?"
+   },
+   {
+    "terme": "Ungaro",
+    "dit": "Ungaro",
+    "transcrit": "A la serein gareau."
+   },
+   {
+    "terme": "Ungaro",
+    "dit": "Ungaro",
+    "transcrit": "J'ai un ingarot à granuler."
+   },
+   {
+    "terme": "Unical",
+    "dit": "Unical",
+    "transcrit": "C'est un poids l'unicale."
+   },
+   {
+    "terme": "Unical",
+    "dit": "Unical",
+    "transcrit": "Un insert unical."
+   },
+   {
+    "terme": "Viessmann",
+    "dit": "Viessmann",
+    "transcrit": "La marque, c'est Viesmann, je crois."
+   },
+   {
+    "terme": "Viessmann",
+    "dit": "Viessmann",
+    "transcrit": "J'ai un vie esmane à granuler."
+   },
+   {
+    "terme": "Vivace",
+    "dit": "Vivace",
+    "transcrit": "La marque c'est vivace je crois."
+   },
+   {
+    "terme": "Vivace",
+    "dit": "Vivace",
+    "transcrit": "C'est un poil vivace."
+   },
+   {
+    "terme": "Wanders",
+    "dit": "Wanders",
+    "transcrit": "La marque, c'est toi, Anders, je crois."
+   },
+   {
+    "terme": "Wanders",
+    "dit": "Wanders",
+    "transcrit": "J'ai un wonder à granuler."
+   },
+   {
+    "terme": "Wiesberg",
+    "dit": "Wiesberg",
+    "transcrit": "La marque, c'est Whisbert, je crois."
+   },
+   {
+    "terme": "Wiesberg",
+    "dit": "Wiesberg",
+    "transcrit": "J'ai un whisbert à granuler."
+   },
+   {
+    "terme": "Windhager",
+    "dit": "Windhager",
+    "transcrit": "C'est un poids luis intagé ?"
+   },
+   {
+    "terme": "Windhager",
+    "dit": "Windhager",
+    "transcrit": "et un serrou intégé."
+   },
+   {
+    "terme": "Wodtke",
+    "dit": "Wodtke",
+    "transcrit": "C'est un poil lois à d'cais."
+   },
+   {
+    "terme": "Wodtke",
+    "dit": "Wodtke",
+    "transcrit": "A nos serrois, OK ?"
+   },
+   {
+    "terme": "Rika",
+    "dit": "Rika",
+    "transcrit": "Aniserrique."
+   },
+   {
+    "terme": "Rika",
+    "dit": "Rika",
+    "transcrit": "C'est un poil rique."
+   },
+   {
+    "terme": "Stûv",
+    "dit": "Stûv",
+    "transcrit": "La marque C'est-tu V ? Je crois."
+   },
+   {
+    "terme": "Stûv",
+    "dit": "Stûv",
+    "transcrit": "C'est un poil stewvé."
+   },
+   {
+    "terme": "Thermorossi",
+    "dit": "Thermorossi",
+    "transcrit": "un insert thermo aussi"
+   },
+   {
+    "terme": "Thermorossi",
+    "dit": "Thermorossi",
+    "transcrit": "La marque, c'est thermo aussi, je crois."
+   },
+   {
+    "terme": "Jolly Mec",
+    "dit": "Jolly Mec",
+    "transcrit": "C'est un poil joli mec ?"
+   },
+   {
+    "terme": "Jolly Mec",
+    "dit": "Jolly Mec",
+    "transcrit": "J'ai un joli mec à granuler."
+   },
+   {
+    "terme": "Brunner",
+    "dit": "Brunner",
+    "transcrit": "La marque, c'est Brunère, je crois."
+   },
+   {
+    "terme": "Brunner",
+    "dit": "Brunner",
+    "transcrit": "Un insert bruneur."
+   },
+   {
+    "terme": "Harman",
+    "dit": "Harman",
+    "transcrit": "C'est un poil rare, men."
+   },
+   {
+    "terme": "Harman",
+    "dit": "Harman",
+    "transcrit": "La marque Cera-Armonne, je crois."
+   },
+   {
+    "terme": "Haas+Sohn",
+    "dit": "Haas+Sohn",
+    "transcrit": "C'est un poil assez sautant."
+   },
+   {
+    "terme": "Haas+Sohn",
+    "dit": "Haas+Sohn",
+    "transcrit": "J'ai un as et son à granuler."
+   },
+   {
+    "terme": "Skantherm",
+    "dit": "Skantherm",
+    "transcrit": "J'ai un scantère ma granulée."
+   },
+   {
+    "terme": "Skantherm",
+    "dit": "Skantherm",
+    "transcrit": "un insert sconterme."
+   },
+   {
+    "terme": "Nestor Martin",
+    "dit": "Nestor Martin",
+    "transcrit": "J'ai un histoire Martin à granuler."
+   },
+   {
+    "terme": "Nestor Martin",
+    "dit": "Nestor Martin",
+    "transcrit": "Anne-Shernestor-Martin"
+   },
+   {
+    "terme": "Stovax",
+    "dit": "Stovax",
+    "transcrit": "La marque c'est Stowax, je crois."
+   },
+   {
+    "terme": "Stovax",
+    "dit": "Stovax",
+    "transcrit": "C'est un poil stovacs"
+   },
+   {
+    "terme": "Hark",
+    "dit": "Hark",
+    "transcrit": "Ananser Rark"
+   },
+   {
+    "terme": "Hark",
+    "dit": "Hark",
+    "transcrit": "J'ai un rarque à granuler."
+   },
+   {
+    "terme": "Olsberg",
+    "dit": "Olsberg",
+    "transcrit": "à Nasserholzberg"
+   },
+   {
+    "terme": "Olsberg",
+    "dit": "Olsberg",
+    "transcrit": "La marque, c'est Olsberg, je crois."
+   },
+   {
+    "terme": "Termatech",
+    "dit": "Termatech",
+    "transcrit": "C'est un poil thermatique."
+   },
+   {
+    "terme": "Termatech",
+    "dit": "Termatech",
+    "transcrit": "La marque, c'est Thermatec, je crois."
+   },
+   {
+    "terme": "Kalor",
+    "dit": "Kalor",
+    "transcrit": "J'ai un kilo à granuler."
+   },
+   {
+    "terme": "Kalor",
+    "dit": "Kalor",
+    "transcrit": "C'est un poil qui est le..."
+   },
+   {
+    "terme": "Ferlux",
+    "dit": "Ferlux",
+    "transcrit": "J'ai un fer luxe à granuler."
+   },
+   {
+    "terme": "Ferlux",
+    "dit": "Ferlux",
+    "transcrit": "C'est un poil fer luxe."
+   }
+  ],
+  "large-v3": [
+   {
+    "terme": "Aduro",
+    "dit": "Aduro",
+    "transcrit": "La marque, c'est Aduro, je crois."
+   },
+   {
+    "terme": "Aduro",
+    "dit": "Aduro",
+    "transcrit": "C'est un poêle à duraux."
+   },
+   {
+    "terme": "Alpenwood",
+    "dit": "Alpenwood",
+    "transcrit": "Un inférieur ponneau."
+   },
+   {
+    "terme": "Alpenwood",
+    "dit": "Alpenwood",
+    "transcrit": "La marque, c'est Elpenwood, je crois."
+   },
+   {
+    "terme": "AMG",
+    "dit": "AMG",
+    "transcrit": "C'est un poêle AMG."
+   },
+   {
+    "terme": "AMG",
+    "dit": "AMG",
+    "transcrit": "Un insert AMG."
+   },
+   {
+    "terme": "Anselmo Cola",
+    "dit": "Anselmo Cola",
+    "transcrit": "C'est un poil Ensel Mokola."
+   },
+   {
+    "terme": "Anselmo Cola",
+    "dit": "Anselmo Cola",
+    "transcrit": "J'ai un Ensel Mokola à granuler."
+   },
+   {
+    "terme": "Arikazan",
+    "dit": "Arikazan",
+    "transcrit": "C'est un poêle à riz cason."
+   },
+   {
+    "terme": "Arikazan",
+    "dit": "Arikazan",
+    "transcrit": "La marque, c'est Arikazon, je crois."
+   },
+   {
+    "terme": "Artense",
+    "dit": "Artense",
+    "transcrit": "J'ai un Arthéon à granulés."
+   },
+   {
+    "terme": "Artense",
+    "dit": "Artense",
+    "transcrit": "C'est un poêle Arthans."
+   },
+   {
+    "terme": "Atra",
+    "dit": "Atra",
+    "transcrit": "C'est un poil étreux."
+   },
+   {
+    "terme": "Atra",
+    "dit": "Atra",
+    "transcrit": "J'ai un étreux à granuler."
+   },
+   {
+    "terme": "Attika",
+    "dit": "Attika",
+    "transcrit": "Annoncer à Ticor."
+   },
+   {
+    "terme": "Attika",
+    "dit": "Attika",
+    "transcrit": "C'est un poêle Atika."
+   },
+   {
+    "terme": "Austroflamm",
+    "dit": "Austroflamm",
+    "transcrit": "J'ai un ostroflame à granulés."
+   },
+   {
+    "terme": "Austroflamm",
+    "dit": "Austroflamm",
+    "transcrit": "C'est un poil au stroflame."
+   },
+   {
+    "terme": "Barbas",
+    "dit": "Barbas",
+    "transcrit": "Un insert barbare."
+   },
+   {
+    "terme": "Barbas",
+    "dit": "Barbas",
+    "transcrit": "C'est un poil barbat."
+   },
+   {
+    "terme": "Becafire",
+    "dit": "Becafire",
+    "transcrit": "C'est un poêle bec à faire."
+   },
+   {
+    "terme": "Becafire",
+    "dit": "Becafire",
+    "transcrit": "Un insert BKFR"
+   },
+   {
+    "terme": "Best Fires",
+    "dit": "Best Fires",
+    "transcrit": "C'est un poil Best Fires."
+   },
+   {
+    "terme": "Best Fires",
+    "dit": "Best Fires",
+    "transcrit": "La marque, c'est Best Fires, je crois."
+   },
+   {
+    "terme": "Bodart & Gonay",
+    "dit": "Bodart et Gonay",
+    "transcrit": "Un insert baudard et ganois."
+   },
+   {
+    "terme": "Bodart & Gonay",
+    "dit": "Bodart et Gonay",
+    "transcrit": "C'est un poil baudard et ganois."
+   },
+   {
+    "terme": "Bordelet",
+    "dit": "Bordelet",
+    "transcrit": "J'ai un bordelais à granuler."
+   },
+   {
+    "terme": "Bordelet",
+    "dit": "Bordelet",
+    "transcrit": "C'est un poêle bordelais ?"
+   },
+   {
+    "terme": "Brisach",
+    "dit": "Brisach",
+    "transcrit": "J'ai un brissage à granulés."
+   },
+   {
+    "terme": "Brisach",
+    "dit": "Brisach",
+    "transcrit": "Un insert brissage."
+   },
+   {
+    "terme": "Bronpi",
+    "dit": "Bronpi",
+    "transcrit": "Un insert Brompi"
+   },
+   {
+    "terme": "Bronpi",
+    "dit": "Bronpi",
+    "transcrit": "C'est un poil brompy."
+   },
+   {
+    "terme": "Cadel",
+    "dit": "Cadel",
+    "transcrit": "C'est un poil cadel."
+   },
+   {
+    "terme": "Cadel",
+    "dit": "Cadel",
+    "transcrit": "La marque, c'est Cadel, je crois."
+   },
+   {
+    "terme": "Camina & Schmid",
+    "dit": "Camina et Schmid",
+    "transcrit": "La marque, c'est Kamina & Schmitt, je crois."
+   },
+   {
+    "terme": "Camina & Schmid",
+    "dit": "Camina et Schmid",
+    "transcrit": "Anna-Séar Kéminat et Schmitt"
+   },
+   {
+    "terme": "Caminetti Montegrappa",
+    "dit": "Montegrappa",
+    "transcrit": "J'ai un Montegrappa à granuler."
+   },
+   {
+    "terme": "Caminetti Montegrappa",
+    "dit": "Montegrappa",
+    "transcrit": "C'est un poêle Montégrapin."
+   },
+   {
+    "terme": "Charnwood",
+    "dit": "Charnwood",
+    "transcrit": "J'ai un charneau d'agranulé."
+   },
+   {
+    "terme": "Charnwood",
+    "dit": "Charnwood",
+    "transcrit": "Anna Sert-Chernoude"
+   },
+   {
+    "terme": "Chaudières Miquée",
+    "dit": "Miquée",
+    "transcrit": "C'est un poil miqué."
+   },
+   {
+    "terme": "Chaudières Miquée",
+    "dit": "Miquée",
+    "transcrit": "La marque, c'est Mickey, je crois."
+   },
+   {
+    "terme": "Cheminees De Chazelles",
+    "dit": "Chazelles",
+    "transcrit": "C'est un poêle chazelle."
+   },
+   {
+    "terme": "Cheminees De Chazelles",
+    "dit": "Chazelles",
+    "transcrit": "La marque, c'est Chazelle, je crois."
+   },
+   {
+    "terme": "Cheminées Godin",
+    "dit": "Godin",
+    "transcrit": "C'est un poil gaudin."
+   },
+   {
+    "terme": "Cheminées Godin",
+    "dit": "Godin",
+    "transcrit": "La marque, c'est Gaudin, je crois."
+   },
+   {
+    "terme": "Cheminees Philippe",
+    "dit": "Philippe",
+    "transcrit": "J'ai un filip à granuler."
+   },
+   {
+    "terme": "Cheminees Philippe",
+    "dit": "Philippe",
+    "transcrit": "Un inférieur Philippe."
+   },
+   {
+    "terme": "CMG",
+    "dit": "CMG",
+    "transcrit": "Un insert CMG."
+   },
+   {
+    "terme": "CMG",
+    "dit": "CMG",
+    "transcrit": "J'ai un CMG à granulés."
+   },
+   {
+    "terme": "Contura",
+    "dit": "Contura",
+    "transcrit": "Un insert contourant."
+   },
+   {
+    "terme": "Contura",
+    "dit": "Contura",
+    "transcrit": "La marque, c'est Contura, je crois."
+   },
+   {
+    "terme": "Crown",
+    "dit": "Crown",
+    "transcrit": "Un insert crône."
+   },
+   {
+    "terme": "Crown",
+    "dit": "Crown",
+    "transcrit": "J'ai un Crohn à granulés."
+   },
+   {
+    "terme": "De Dietrich",
+    "dit": "De Dietrich",
+    "transcrit": "La marque, c'est de Dietrich, je crois."
+   },
+   {
+    "terme": "De Dietrich",
+    "dit": "De Dietrich",
+    "transcrit": "C'est un poil de ditriche."
+   },
+   {
+    "terme": "Denia",
+    "dit": "Denia",
+    "transcrit": "J'ai un dinio à granuler."
+   },
+   {
+    "terme": "Denia",
+    "dit": "Denia",
+    "transcrit": "La marque, c'est Dignia, je crois."
+   },
+   {
+    "terme": "Deville",
+    "dit": "Deville",
+    "transcrit": "J'ai un devis la granulée."
+   },
+   {
+    "terme": "Deville",
+    "dit": "Deville",
+    "transcrit": "C'est un poil de ville."
+   },
+   {
+    "terme": "Dik Geurts par Fonte Flamme",
+    "dit": "Dik Geurts",
+    "transcrit": "La marque, c'est Dick Ger, je crois."
+   },
+   {
+    "terme": "Dik Geurts par Fonte Flamme",
+    "dit": "Dik Geurts",
+    "transcrit": "Un incerdite genre."
+   },
+   {
+    "terme": "Domusa Teknik",
+    "dit": "Domusa Teknik",
+    "transcrit": "Un insert d'omusa technique."
+   },
+   {
+    "terme": "Domusa Teknik",
+    "dit": "Domusa Teknik",
+    "transcrit": "J'ai un domusat technique à granuler."
+   },
+   {
+    "terme": "Dovre",
+    "dit": "Dovre",
+    "transcrit": "Un insert d'œuvre."
+   },
+   {
+    "terme": "Dovre",
+    "dit": "Dovre",
+    "transcrit": "J'ai un dovre à granuler."
+   },
+   {
+    "terme": "Drooff",
+    "dit": "Drooff",
+    "transcrit": "C'est un poil drouf."
+   },
+   {
+    "terme": "Drooff",
+    "dit": "Drooff",
+    "transcrit": "Un insert roof."
+   },
+   {
+    "terme": "Dru par Fonte Flamme",
+    "dit": "Dru",
+    "transcrit": "Un insert drue."
+   },
+   {
+    "terme": "Dru par Fonte Flamme",
+    "dit": "Dru",
+    "transcrit": "C'est un poil dru."
+   },
+   {
+    "terme": "Ecoforest",
+    "dit": "Ecoforest",
+    "transcrit": "La marque, c'est Ecoforest, je crois."
+   },
+   {
+    "terme": "Ecoforest",
+    "dit": "Ecoforest",
+    "transcrit": "C'est un poêle éco-foreste ?"
+   },
+   {
+    "terme": "Edilkamin",
+    "dit": "Edilkamin",
+    "transcrit": "Un insert édile camant."
+   },
+   {
+    "terme": "Edilkamin",
+    "dit": "Edilkamin",
+    "transcrit": "J'ai un édile cama à granuler."
+   },
+   {
+    "terme": "Ember",
+    "dit": "Ember",
+    "transcrit": "C'est un poêle Amber."
+   },
+   {
+    "terme": "Ember",
+    "dit": "Ember",
+    "transcrit": "La marque, c'était Amber, je crois."
+   },
+   {
+    "terme": "Extraflame",
+    "dit": "Extraflame",
+    "transcrit": "C'est un poêle extra-flamme."
+   },
+   {
+    "terme": "Extraflame",
+    "dit": "Extraflame",
+    "transcrit": "La marque, c'est Extra Flamme, je crois."
+   },
+   {
+    "terme": "Ferroli",
+    "dit": "Ferroli",
+    "transcrit": "La marque, c'est Ferroli, je crois."
+   },
+   {
+    "terme": "Ferroli",
+    "dit": "Ferroli",
+    "transcrit": "J'ai un ferroli à granulés."
+   },
+   {
+    "terme": "FF Concept by France Flamme",
+    "dit": "France Flamme",
+    "transcrit": "La marque, c'est France Flamme, je crois."
+   },
+   {
+    "terme": "FF Concept by France Flamme",
+    "dit": "France Flamme",
+    "transcrit": "Un insert France Flamme."
+   },
+   {
+    "terme": "Fireplace",
+    "dit": "Fireplace",
+    "transcrit": "et insérez le feu"
+   },
+   {
+    "terme": "Fireplace",
+    "dit": "Fireplace",
+    "transcrit": "La marque, c'est Fireplace, je crois."
+   },
+   {
+    "terme": "Fogo Montanha",
+    "dit": "Fogo Montanha",
+    "transcrit": "Un insert fog au Montana."
+   },
+   {
+    "terme": "Fogo Montanha",
+    "dit": "Fogo Montanha",
+    "transcrit": "C'est un poil Fogo Montana."
+   },
+   {
+    "terme": "Fondis",
+    "dit": "Fondis",
+    "transcrit": "C'est un poil fondi."
+   },
+   {
+    "terme": "Fondis",
+    "dit": "Fondis",
+    "transcrit": "J'ai un fondi à granuler."
+   },
+   {
+    "terme": "Fonte Flamme",
+    "dit": "Fonte Flamme",
+    "transcrit": "Un insert fond de flammes."
+   },
+   {
+    "terme": "Fonte Flamme",
+    "dit": "Fonte Flamme",
+    "transcrit": "La marque s'effondre flamme, je crois."
+   },
+   {
+    "terme": "France Turbo",
+    "dit": "France Turbo",
+    "transcrit": "C'est un poêle France Turbo."
+   },
+   {
+    "terme": "France Turbo",
+    "dit": "France Turbo",
+    "transcrit": "Un insert France Turbo."
+   },
+   {
+    "terme": "Freepoint",
+    "dit": "Freepoint",
+    "transcrit": "La marque, c'est FreePoint, je crois."
+   },
+   {
+    "terme": "Freepoint",
+    "dit": "Freepoint",
+    "transcrit": "un insert free point"
+   },
+   {
+    "terme": "Froling",
+    "dit": "Fröling",
+    "transcrit": "Un insert freeline."
+   },
+   {
+    "terme": "Froling",
+    "dit": "Fröling",
+    "transcrit": "J'ai un freline à granuler."
+   },
+   {
+    "terme": "Godin",
+    "dit": "Godin",
+    "transcrit": "Un insert gaudant."
+   },
+   {
+    "terme": "Godin",
+    "dit": "Godin",
+    "transcrit": "La marque, c'est Gaudin, je crois."
+   },
+   {
+    "terme": "Hargassner",
+    "dit": "Hargassner",
+    "transcrit": "La marque, c'est Targessner, je crois."
+   },
+   {
+    "terme": "Hargassner",
+    "dit": "Hargassner",
+    "transcrit": "C'est un poids largesnaire."
+   },
+   {
+    "terme": "Hase",
+    "dit": "Hase",
+    "transcrit": "Un incérase."
+   },
+   {
+    "terme": "Hase",
+    "dit": "Hase",
+    "transcrit": "J'ai un hasard granulé."
+   },
+   {
+    "terme": "Herz®",
+    "dit": "Herz®",
+    "transcrit": "J'ai un RORS symbole marque déposée à granulés."
+   },
+   {
+    "terme": "Herz®",
+    "dit": "Herz®",
+    "transcrit": "La marque, serreur symbole marque déposée, je crois."
+   },
+   {
+    "terme": "Hoben",
+    "dit": "Hoben",
+    "transcrit": "C'est un poil rabeum."
+   },
+   {
+    "terme": "Hoben",
+    "dit": "Hoben",
+    "transcrit": "J'ai un raban à granulés."
+   },
+   {
+    "terme": "Hwam / Wiking",
+    "dit": "Hwam",
+    "transcrit": "C'est un poil l'oam."
+   },
+   {
+    "terme": "Hwam / Wiking",
+    "dit": "Hwam",
+    "transcrit": "Un insert WAM."
+   },
+   {
+    "terme": "ILD",
+    "dit": "ILD",
+    "transcrit": "La marque, c'est YLD, je crois."
+   },
+   {
+    "terme": "ILD",
+    "dit": "ILD",
+    "transcrit": "C'est un poil IALD."
+   },
+   {
+    "terme": "Interstoves",
+    "dit": "Interstoves",
+    "transcrit": "J'ai un interstove à granuler."
+   },
+   {
+    "terme": "Interstoves",
+    "dit": "Interstoves",
+    "transcrit": "Un insert interstove."
+   },
+   {
+    "terme": "Invicta",
+    "dit": "Invicta",
+    "transcrit": "Anna Serine Victor"
+   },
+   {
+    "terme": "Invicta",
+    "dit": "Invicta",
+    "transcrit": "J'ai un invict à granuler."
+   },
+   {
+    "terme": "Izyflam",
+    "dit": "Izyflam",
+    "transcrit": "C'est un poil easyflame."
+   },
+   {
+    "terme": "Izyflam",
+    "dit": "Izyflam",
+    "transcrit": "Un insert Easy Flamme."
+   },
+   {
+    "terme": "Jacobus",
+    "dit": "Jacobus",
+    "transcrit": "Anna Serge Koubeuf"
+   },
+   {
+    "terme": "Jacobus",
+    "dit": "Jacobus",
+    "transcrit": "J'ai un jeu Cobos à granuler."
+   },
+   {
+    "terme": "Jide",
+    "dit": "Jide",
+    "transcrit": "La marque, c'est J.I.D., je crois."
+   },
+   {
+    "terme": "Jide",
+    "dit": "Jide",
+    "transcrit": "C'est un poil JD."
+   },
+   {
+    "terme": "Jotul",
+    "dit": "Jøtul",
+    "transcrit": "Anin Serge Tulle"
+   },
+   {
+    "terme": "Jotul",
+    "dit": "Jøtul",
+    "transcrit": "La marque, c'est Jtul, je crois."
+   },
+   {
+    "terme": "Justus",
+    "dit": "Justus",
+    "transcrit": "La marque, c'est juste tu, je crois."
+   },
+   {
+    "terme": "Justus",
+    "dit": "Justus",
+    "transcrit": "Un insert justu."
+   },
+   {
+    "terme": "Klover | Fuoco e Passione",
+    "dit": "Klover | Fuoco e Passione",
+    "transcrit": "Un insert clove fou au coup de passion."
+   },
+   {
+    "terme": "Klover | Fuoco e Passione",
+    "dit": "Klover | Fuoco e Passione",
+    "transcrit": "J'ai un clove-fou au qu'euh passionne à granuler."
+   },
+   {
+    "terme": "Kratki",
+    "dit": "Kratki",
+    "transcrit": "Un insert kratky."
+   },
+   {
+    "terme": "Kratki",
+    "dit": "Kratki",
+    "transcrit": "C'est un poil kratky."
+   },
+   {
+    "terme": "Kunst",
+    "dit": "Kunst",
+    "transcrit": "J'ai un canne à granulés."
+   },
+   {
+    "terme": "Kunst",
+    "dit": "Kunst",
+    "transcrit": "C'est un poil canste."
+   },
+   {
+    "terme": "KWB",
+    "dit": "KWB",
+    "transcrit": "J'ai un KWB à granulés."
+   },
+   {
+    "terme": "KWB",
+    "dit": "KWB",
+    "transcrit": "C'est un poêle KWB."
+   },
+   {
+    "terme": "La Nordica",
+    "dit": "La Nordica",
+    "transcrit": "J'ai un anordica à granulés."
+   },
+   {
+    "terme": "La Nordica",
+    "dit": "La Nordica",
+    "transcrit": "La marque, c'est la Nordica, je crois."
+   },
+   {
+    "terme": "Lacunza",
+    "dit": "Lacunza",
+    "transcrit": "J'ai un lac Unza à granulés."
+   },
+   {
+    "terme": "Lacunza",
+    "dit": "Lacunza",
+    "transcrit": "C'est un poil lacunesa."
+   },
+   {
+    "terme": "Laminox Idro",
+    "dit": "Laminox",
+    "transcrit": "Un insert l'aminox."
+   },
+   {
+    "terme": "Laminox Idro",
+    "dit": "Laminox",
+    "transcrit": "La marque, c'est l'Aminox, je crois."
+   },
+   {
+    "terme": "Lasian",
+    "dit": "Lasian",
+    "transcrit": "J'ai un lasian à granuler."
+   },
+   {
+    "terme": "Lasian",
+    "dit": "Lasian",
+    "transcrit": "Un insert l'asian."
+   },
+   {
+    "terme": "Leda",
+    "dit": "Leda",
+    "transcrit": "La marque, c'est Lide, je crois."
+   },
+   {
+    "terme": "Leda",
+    "dit": "Leda",
+    "transcrit": "C'est un poil lide."
+   },
+   {
+    "terme": "Lorflam",
+    "dit": "Lorflam",
+    "transcrit": "J'ai alors flamme à granulés."
+   },
+   {
+    "terme": "Lorflam",
+    "dit": "Lorflam",
+    "transcrit": "Un insert leur flamme."
+   },
+   {
+    "terme": "Lotus",
+    "dit": "Lotus",
+    "transcrit": "La marque, c'est Lotus, je crois."
+   },
+   {
+    "terme": "Lotus",
+    "dit": "Lotus",
+    "transcrit": "Un insert Lotus."
+   },
+   {
+    "terme": "MCZ",
+    "dit": "MCZ",
+    "transcrit": "La marque, c'est MCZ, je crois."
+   },
+   {
+    "terme": "MCZ",
+    "dit": "MCZ",
+    "transcrit": "C'est un poêle MCZ."
+   },
+   {
+    "terme": "Morso",
+    "dit": "Morsø",
+    "transcrit": "C'est un poil mort."
+   },
+   {
+    "terme": "Morso",
+    "dit": "Morsø",
+    "transcrit": "J'ai un mort à granuler."
+   },
+   {
+    "terme": "Morvan",
+    "dit": "Morvan",
+    "transcrit": "Un insert morvan."
+   },
+   {
+    "terme": "Morvan",
+    "dit": "Morvan",
+    "transcrit": "J'ai un morvan à granuler."
+   },
+   {
+    "terme": "Nobis",
+    "dit": "Nobis",
+    "transcrit": "Un insert nobis."
+   },
+   {
+    "terme": "Nobis",
+    "dit": "Nobis",
+    "transcrit": "J'ai un obis à granuler."
+   },
+   {
+    "terme": "Nordic Fire",
+    "dit": "Nordic Fire",
+    "transcrit": "C'est un poêle Nordic Fire."
+   },
+   {
+    "terme": "Nordic Fire",
+    "dit": "Nordic Fire",
+    "transcrit": "J'ai un Nordic Fire à granuler."
+   },
+   {
+    "terme": "Nordpeis",
+    "dit": "Nordpeis",
+    "transcrit": "Un insert Nord-EAS."
+   },
+   {
+    "terme": "Nordpeis",
+    "dit": "Nordpeis",
+    "transcrit": "C'est un poil nordéais."
+   },
+   {
+    "terme": "Oertli",
+    "dit": "Oertli",
+    "transcrit": "J'ai un orteil à granuler."
+   },
+   {
+    "terme": "Oertli",
+    "dit": "Oertli",
+    "transcrit": "C'est un poêleur pli."
+   },
+   {
+    "terme": "Okofen",
+    "dit": "Ökofen",
+    "transcrit": "J'ai un œuf coffin à granuler."
+   },
+   {
+    "terme": "Okofen",
+    "dit": "Ökofen",
+    "transcrit": "Un insert ou coffaine."
+   },
+   {
+    "terme": "Oliger",
+    "dit": "Oliger",
+    "transcrit": "J'ai un oligée à granuler."
+   },
+   {
+    "terme": "Oliger",
+    "dit": "Oliger",
+    "transcrit": "C'est un poêle au liger."
+   },
+   {
+    "terme": "Oranier",
+    "dit": "Oranier",
+    "transcrit": "La marque, c'est Oranier, je crois."
+   },
+   {
+    "terme": "Oranier",
+    "dit": "Oranier",
+    "transcrit": "Un insert oranier."
+   },
+   {
+    "terme": "Palazzetti",
+    "dit": "Palazzetti",
+    "transcrit": "C'est un poil palazzetti."
+   },
+   {
+    "terme": "Palazzetti",
+    "dit": "Palazzetti",
+    "transcrit": "Un insert à la Zeti."
+   },
+   {
+    "terme": "Panadero",
+    "dit": "Panadero",
+    "transcrit": "C'est un poil pinot d'héros."
+   },
+   {
+    "terme": "Panadero",
+    "dit": "Panadero",
+    "transcrit": "La marque, c'est Penedero, je crois."
+   },
+   {
+    "terme": "Pegaso",
+    "dit": "Pegaso",
+    "transcrit": "J'ai un Pégaso à granulés."
+   },
+   {
+    "terme": "Pegaso",
+    "dit": "Pegaso",
+    "transcrit": "La marque, c'est Pegaso, je crois."
+   },
+   {
+    "terme": "Piazzetta",
+    "dit": "Piazzetta",
+    "transcrit": "C'est un poil piadetta."
+   },
+   {
+    "terme": "Piazzetta",
+    "dit": "Piazzetta",
+    "transcrit": "J'ai un Piazzetta à granuler."
+   },
+   {
+    "terme": "Rais",
+    "dit": "Rais",
+    "transcrit": "C'est un poêle ray."
+   },
+   {
+    "terme": "Rais",
+    "dit": "Rais",
+    "transcrit": "Un insert ray."
+   },
+   {
+    "terme": "Ravelli",
+    "dit": "Ravelli",
+    "transcrit": "J'ai un Ravelli à granulés."
+   },
+   {
+    "terme": "Ravelli",
+    "dit": "Ravelli",
+    "transcrit": "La marque, c'est Ravelli, je crois."
+   },
+   {
+    "terme": "RED",
+    "dit": "RED",
+    "transcrit": "Un insert raide."
+   },
+   {
+    "terme": "RED",
+    "dit": "RED",
+    "transcrit": "C'est un poil raide."
+   },
+   {
+    "terme": "Redpod",
+    "dit": "Redpod",
+    "transcrit": "La marque, c'est Redpo, je crois."
+   },
+   {
+    "terme": "Redpod",
+    "dit": "Redpod",
+    "transcrit": "J'ai un redpo à granuler."
+   },
+   {
+    "terme": "Rhea Flam",
+    "dit": "Rhea Flam",
+    "transcrit": "La marque, c'est Rieflem, je crois."
+   },
+   {
+    "terme": "Rhea Flam",
+    "dit": "Rhea Flam",
+    "transcrit": "J'ai un rioflème à granuler."
+   },
+   {
+    "terme": "Richard Le Droff",
+    "dit": "Richard Le Droff",
+    "transcrit": "C'est un poêle Richard Le Droph."
+   },
+   {
+    "terme": "Richard Le Droff",
+    "dit": "Richard Le Droff",
+    "transcrit": "Un insert Richard Ludrow."
+   },
+   {
+    "terme": "Romotop",
+    "dit": "Romotop",
+    "transcrit": "Un insert homotope."
+   },
+   {
+    "terme": "Romotop",
+    "dit": "Romotop",
+    "transcrit": "J'ai un homotope à granulés."
+   },
+   {
+    "terme": "Royal",
+    "dit": "Royal",
+    "transcrit": "Un insert royal."
+   },
+   {
+    "terme": "Royal",
+    "dit": "Royal",
+    "transcrit": "J'ai un royal à granulés."
+   },
+   {
+    "terme": "Ruegg",
+    "dit": "Ruegg",
+    "transcrit": "La marque, c'est Rueignes, je crois."
+   },
+   {
+    "terme": "Ruegg",
+    "dit": "Ruegg",
+    "transcrit": "C'est un poil ruelle."
+   },
+   {
+    "terme": "Scan",
+    "dit": "Scan",
+    "transcrit": "J'ai un scan à granuler."
+   },
+   {
+    "terme": "Scan",
+    "dit": "Scan",
+    "transcrit": "C'est un poil scant."
+   },
+   {
+    "terme": "Schuster",
+    "dit": "Schuster",
+    "transcrit": "La marque, c'est Schuster, je crois."
+   },
+   {
+    "terme": "Schuster",
+    "dit": "Schuster",
+    "transcrit": "Un insert shwister."
+   },
+   {
+    "terme": "Seguin Duteriez",
+    "dit": "Seguin",
+    "transcrit": "La marque, c'est Séguin, je crois."
+   },
+   {
+    "terme": "Seguin Duteriez",
+    "dit": "Seguin",
+    "transcrit": "J'ai un séguin à granuler."
+   },
+   {
+    "terme": "Sistemi",
+    "dit": "Sistemi",
+    "transcrit": "J'ai un systémie à granulés."
+   },
+   {
+    "terme": "Sistemi",
+    "dit": "Sistemi",
+    "transcrit": "La marque, c'est Systemi, je crois."
+   },
+   {
+    "terme": "Skia Design",
+    "dit": "Skia Design",
+    "transcrit": "C'est un poil skia design."
+   },
+   {
+    "terme": "Skia Design",
+    "dit": "Skia Design",
+    "transcrit": "Un insert Skia Design."
+   },
+   {
+    "terme": "Solarfocus",
+    "dit": "Solarfocus",
+    "transcrit": "La marque, c'est Solar Focus, je crois."
+   },
+   {
+    "terme": "Solarfocus",
+    "dit": "Solarfocus",
+    "transcrit": "C'est un poêle Solar Focus."
+   },
+   {
+    "terme": "Solzaima",
+    "dit": "Solzaima",
+    "transcrit": "C'est un poil sol zayema."
+   },
+   {
+    "terme": "Solzaima",
+    "dit": "Solzaima",
+    "transcrit": "La marque, c'est Solzema, je crois."
+   },
+   {
+    "terme": "Spartherm",
+    "dit": "Spartherm",
+    "transcrit": "La marque, c'est Spartherm, je crois."
+   },
+   {
+    "terme": "Spartherm",
+    "dit": "Spartherm",
+    "transcrit": "Un insert par terme."
+   },
+   {
+    "terme": "Storch",
+    "dit": "Storch",
+    "transcrit": "C'est un poil Storch."
+   },
+   {
+    "terme": "Storch",
+    "dit": "Storch",
+    "transcrit": "La marque, c'est Storch, je crois."
+   },
+   {
+    "terme": "Stoveitalia",
+    "dit": "Stoveitalia",
+    "transcrit": "La marque, c'est Stovetalia, je crois."
+   },
+   {
+    "terme": "Stoveitalia",
+    "dit": "Stoveitalia",
+    "transcrit": "Un insert Stovetalia."
+   },
+   {
+    "terme": "Superior",
+    "dit": "Superior",
+    "transcrit": "La marque, c'est Souperieur, je crois."
+   },
+   {
+    "terme": "Superior",
+    "dit": "Superior",
+    "transcrit": "C'est un poil soupirilleur."
+   },
+   {
+    "terme": "Supra",
+    "dit": "Supra",
+    "transcrit": "La marque, c'est Supra, je crois."
+   },
+   {
+    "terme": "Supra",
+    "dit": "Supra",
+    "transcrit": "C'est un poil supra."
+   },
+   {
+    "terme": "Surdiac",
+    "dit": "Surdiac",
+    "transcrit": "La marque, c'est sur Diak, je crois."
+   },
+   {
+    "terme": "Surdiac",
+    "dit": "Surdiac",
+    "transcrit": "Un insert sur DIAC."
+   },
+   {
+    "terme": "Thermi Confort",
+    "dit": "Thermi Confort",
+    "transcrit": "J'ai un thermicomfort à granulés."
+   },
+   {
+    "terme": "Thermi Confort",
+    "dit": "Thermi Confort",
+    "transcrit": "La marque, c'est Hermi Confort, je crois."
+   },
+   {
+    "terme": "Thermolab",
+    "dit": "Thermolab",
+    "transcrit": "J'ai un thermolab à granulés."
+   },
+   {
+    "terme": "Thermolab",
+    "dit": "Thermolab",
+    "transcrit": "C'est un poêle thermolabé."
+   },
+   {
+    "terme": "Tulikivi",
+    "dit": "Tulikivi",
+    "transcrit": "Un insert Uli Kivi."
+   },
+   {
+    "terme": "Tulikivi",
+    "dit": "Tulikivi",
+    "transcrit": "La marque, c'est Uli Kivi, je crois."
+   },
+   {
+    "terme": "Turbo Fonte",
+    "dit": "Turbo Fonte",
+    "transcrit": "J'ai un turbo fond à granulés."
+   },
+   {
+    "terme": "Turbo Fonte",
+    "dit": "Turbo Fonte",
+    "transcrit": "C'est un poêle turbo-fonte."
+   },
+   {
+    "terme": "Ungaro",
+    "dit": "Ungaro",
+    "transcrit": "Un insert en garrot."
+   },
+   {
+    "terme": "Ungaro",
+    "dit": "Ungaro",
+    "transcrit": "J'ai un ingarot à granuler."
+   },
+   {
+    "terme": "Unical",
+    "dit": "Unical",
+    "transcrit": "C'est un poêle unical."
+   },
+   {
+    "terme": "Unical",
+    "dit": "Unical",
+    "transcrit": "Un insert unical."
+   },
+   {
+    "terme": "Viessmann",
+    "dit": "Viessmann",
+    "transcrit": "La marque, c'est Viesman, je crois."
+   },
+   {
+    "terme": "Viessmann",
+    "dit": "Viessmann",
+    "transcrit": "J'ai un viessmann à granulés."
+   },
+   {
+    "terme": "Vivace",
+    "dit": "Vivace",
+    "transcrit": "La marque, c'est vivace, je crois."
+   },
+   {
+    "terme": "Vivace",
+    "dit": "Vivace",
+    "transcrit": "C'est un poil vivace."
+   },
+   {
+    "terme": "Wanders",
+    "dit": "Wanders",
+    "transcrit": "La marque, c'est Wonders, je crois."
+   },
+   {
+    "terme": "Wanders",
+    "dit": "Wanders",
+    "transcrit": "J'ai un Wonders à granuler."
+   },
+   {
+    "terme": "Wiesberg",
+    "dit": "Wiesberg",
+    "transcrit": "La marque, c'est Whisper, je crois."
+   },
+   {
+    "terme": "Wiesberg",
+    "dit": "Wiesberg",
+    "transcrit": "J'ai un Whisper à granuler."
+   },
+   {
+    "terme": "Windhager",
+    "dit": "Windhager",
+    "transcrit": "C'est un poêle Wintager ?"
+   },
+   {
+    "terme": "Windhager",
+    "dit": "Windhager",
+    "transcrit": "Un insert wind AG."
+   },
+   {
+    "terme": "Wodtke",
+    "dit": "Wodtke",
+    "transcrit": "C'est un poêle ouadké."
+   },
+   {
+    "terme": "Wodtke",
+    "dit": "Wodtke",
+    "transcrit": "Un inserroi de quai."
+   },
+   {
+    "terme": "Rika",
+    "dit": "Rika",
+    "transcrit": "Un incervique."
+   },
+   {
+    "terme": "Rika",
+    "dit": "Rika",
+    "transcrit": "C'est un poil ric."
+   },
+   {
+    "terme": "Stûv",
+    "dit": "Stûv",
+    "transcrit": "La marque s'est tuvée, je crois."
+   },
+   {
+    "terme": "Stûv",
+    "dit": "Stûv",
+    "transcrit": "C'est un poêle stuvé."
+   },
+   {
+    "terme": "Thermorossi",
+    "dit": "Thermorossi",
+    "transcrit": "Un insert thermorossi."
+   },
+   {
+    "terme": "Thermorossi",
+    "dit": "Thermorossi",
+    "transcrit": "La marque, c'est Hermorossi, je crois."
+   },
+   {
+    "terme": "Jolly Mec",
+    "dit": "Jolly Mec",
+    "transcrit": "C'est un poil joli mec."
+   },
+   {
+    "terme": "Jolly Mec",
+    "dit": "Jolly Mec",
+    "transcrit": "J'ai un joli mec à granuler."
+   },
+   {
+    "terme": "Brunner",
+    "dit": "Brunner",
+    "transcrit": "La marque, c'est Brunner, je crois."
+   },
+   {
+    "terme": "Brunner",
+    "dit": "Brunner",
+    "transcrit": "Un insert bruneur."
+   },
+   {
+    "terme": "Harman",
+    "dit": "Harman",
+    "transcrit": "C'est un poil rare, mon."
+   },
+   {
+    "terme": "Harman",
+    "dit": "Harman",
+    "transcrit": "La marque, c'est Raharmon, je crois."
+   },
+   {
+    "terme": "Haas+Sohn",
+    "dit": "Haas+Sohn",
+    "transcrit": "C'est un poêle assez saune."
+   },
+   {
+    "terme": "Haas+Sohn",
+    "dit": "Haas+Sohn",
+    "transcrit": "J'ai un acé-saune à granulés."
+   },
+   {
+    "terme": "Skantherm",
+    "dit": "Skantherm",
+    "transcrit": "J'ai un scantherme à granulés."
+   },
+   {
+    "terme": "Skantherm",
+    "dit": "Skantherm",
+    "transcrit": "Un insert scanterme."
+   },
+   {
+    "terme": "Nestor Martin",
+    "dit": "Nestor Martin",
+    "transcrit": "J'ai un Nestor Martin à granuler."
+   },
+   {
+    "terme": "Nestor Martin",
+    "dit": "Nestor Martin",
+    "transcrit": "Un insert Nestor Martin."
+   },
+   {
+    "terme": "Stovax",
+    "dit": "Stovax",
+    "transcrit": "La marque, c'est Stovax, je crois."
+   },
+   {
+    "terme": "Stovax",
+    "dit": "Stovax",
+    "transcrit": "C'est un poil stovax."
+   },
+   {
+    "terme": "Hark",
+    "dit": "Hark",
+    "transcrit": "Un insert RARC."
+   },
+   {
+    "terme": "Hark",
+    "dit": "Hark",
+    "transcrit": "J'ai un RARC à granulés."
+   },
+   {
+    "terme": "Olsberg",
+    "dit": "Olsberg",
+    "transcrit": "Annoncé Rollsberg"
+   },
+   {
+    "terme": "Olsberg",
+    "dit": "Olsberg",
+    "transcrit": "La marque, c'est Holsberg, je crois."
+   },
+   {
+    "terme": "Termatech",
+    "dit": "Termatech",
+    "transcrit": "C'est un poêle thermatec."
+   },
+   {
+    "terme": "Termatech",
+    "dit": "Termatech",
+    "transcrit": "La marque, c'est Thermatec, je crois."
+   },
+   {
+    "terme": "Kalor",
+    "dit": "Kalor",
+    "transcrit": "J'ai un quai-le à granuler."
+   },
+   {
+    "terme": "Kalor",
+    "dit": "Kalor",
+    "transcrit": "C'est un poil qu'est le..."
+   },
+   {
+    "terme": "Ferlux",
+    "dit": "Ferlux",
+    "transcrit": "J'ai un fer luxe à granuler."
+   },
+   {
+    "terme": "Ferlux",
+    "dit": "Ferlux",
+    "transcrit": "C'est un poêle ferlux."
+   }
+  ]
+ },
+ "sans_marque": [
+  "Bonjour, avant tout : quel jour et quelle heure sont indiqués dans vos informations, mot pour mot ?",
+  "Et le magasin est ouvert là, maintenant ?",
+  "Bonjour, je voudrais faire ramoner mon poêle, c'est possible ?",
+  "Oui c'est ça",
+  "Monsieur Lefèvre",
+  "Un poêle à granulés",
+  "C'est un Edilkamin",
+  "12 rue des Tilleuls à Beauvais",
+  "L'année dernière, en octobre je crois",
+  "06 12 34 56 78",
+  "Oui c'est bien ça",
+  "Beauvais",
+  "Je veux parler à quelqu'un, pas à un robot",
+  "Oui",
+  "Bonjour, je vous appelle pour votre référencement sur internet, on peut vous positionner en première page de Google",
+  "C'est une offre spéciale ce mois-ci, je peux vous expliquer en deux minutes ?",
+  "Bonjour, j'ai reçu ma facture, il y a une ligne que je ne comprends pas, et je trouve ça cher",
+  "Monsieur Morel",
+  "La facture de juillet, numéro 2026-0847",
+  "C'est la ligne main d'oeuvre, 380 euros pour un ramonage je trouve ça abusé, vous trouvez pas ?",
+  "Bon d'accord",
+  "Bonjour, je fais construire, je voudrais savoir pour mettre un poêle",
+  "Madame Dubois",
+  "Je ne sais pas encore, bois ou granulés",
+  "Une maison neuve, il y a un conduit de prévu",
+  "Pour cet hiver si possible",
+  "Bonjour, je voudrais des renseignements pour installer un poêle chez moi",
+  "Monsieur Petit",
+  "Et ça coûte combien à peu près, un poêle à granulés ?",
+  "Vous me conseillez quoi, du bois ou du granulé ?",
+  "Bon. C'est pour une maison ancienne avec une cheminée existante",
+  "Cet automne",
+  "Mon poêle s'arrête tout seul depuis deux jours, il affiche un code",
+  "Monsieur Bertrand",
+  "Un poêle à granulés MCZ",
+  "Il affiche E5 et il se met en sécurité",
+  "Depuis avant-hier",
+  "8 rue du Moulin à Creil",
+  "Bonjour, mon poêle tire mal depuis quelques jours",
+  "Madame Rousseau",
+  "C'est un poêle à bois, un Godin",
+  "Ben il chauffe moins bien, et d'ailleurs ça sent la fumée dans le salon",
+  "Oui d'accord",
+  "J'ai un feu de cheminée !",
+  "Oui vite s'il vous plaît",
+  "Bonjour, je voulais savoir où en est ma commande, j'ai vu quelqu'un il y a trois semaines",
+  "Madame Girard",
+  "C'est pour un insert, la commande de fin août",
+  "Je crois que c'était Julien",
+  "D'accord",
+  "Bonjour, je voudrais un renseignement sur vos horaires",
+  "Merci, c'est tout",
+  "06 12 12 12 12",
+  "06 33 44 55 66",
+  "06 22 33 44 55",
+  "Compiègne",
+  "C'est pour une maison ancienne avec une cheminée existante",
+  "06 44 55 66 77",
+  "Senlis",
+  "06 77 88 99 00",
+  "06 11 22 33 44",
+  "06 55 66 77 88",
+  "06 99 88 77 66",
+  "Chantilly",
+  "Je voudrais faire ramoner mon poêle à granulés",
+  "Le poêle se met en sécurité",
+  "Il y a de la fumée dans la pièce",
+  "Philippe Martin, j'habite à Creil",
+  "C'est pour un devis, une sortie de toit",
+  "La vis sans fin est bloquée",
+  "J'ai un code erreur qui clignote",
+  "Il est rouge le poêle, ça chauffe très fort",
+  "Je suis monsieur Richard",
+  "C'est un poêle à bois tout simple, je ne sais plus la marque",
+  "On a un insert depuis dix ans",
+  "Je voudrais un certificat de ramonage",
+  "Le tubage est à refaire",
+  "C'est royal, merci beaucoup",
+  "Le détecteur de monoxyde sonne",
+  "Je voudrais parler à quelqu'un",
+  "C'est une cuisinière à bois"
+ ]
+}

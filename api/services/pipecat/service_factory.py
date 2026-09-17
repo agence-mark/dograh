@@ -1,4 +1,3 @@
-import re
 from functools import wraps
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
@@ -38,6 +37,7 @@ from api.services.pipecat.mistral_tts import (
     MistralRegionalTTSService,
     resolve_mistral_endpoint,
 )
+from api.services.lexique.ecoute import regles_de_prononciation
 from api.services.pipecat.nombres_pour_la_voix import nombres_en_mots
 from api.utils.url_security import validate_user_configured_service_url
 from fastapi import HTTPException
@@ -908,7 +908,7 @@ def construire_filtres_de_texte_voix(run_configs: dict | None = None) -> list:
 
 
 def construire_remplacements_de_voix(
-    run_configs: dict | None = None, langue_francaise: bool = False
+    run_configs: dict | None = None, langue_francaise: bool = False, lexique=None
 ) -> list:
     """[.mark] Build the pronunciation replacements for the voice.
 
@@ -925,6 +925,11 @@ def construire_remplacements_de_voix(
     than guessed at: a replacement of the empty string would rewrite every
     single character of the answer.
 
+    🆕 The organization's trade vocabulary is said the same way (L8 of
+    2026-09-16): ONE table, the agent winning on the same word, and for every
+    entry -- the agent's included -- case is ignored and only whole words are
+    replaced. ``api/services/lexique/ecoute.py`` builds it.
+
     ⚠️ This changes only the text sent to the voice. The conversation history
     the model sees keeps the original, which is what makes it safe to bend
     spelling for pronunciation.
@@ -935,16 +940,7 @@ def construire_remplacements_de_voix(
     ``nombres_pour_la_voix.py`` for why a transform and not a filter.
     """
     run_configs = run_configs or {}
-    entrees = run_configs.get("tts_replacements") or []
-    regles = []
-    for entree in entrees:
-        if not isinstance(entree, str) or ":" not in entree:
-            continue
-        entendu, prononce = entree.split(":", 1)
-        entendu = entendu.strip()
-        if not entendu:
-            continue
-        regles.append((re.escape(entendu), prononce.strip()))
+    regles = regles_de_prononciation(run_configs, lexique)
     transformations = [("*", replace_text(regles))] if regles else []
     mode = run_configs.get("tts_text_aggregation_mode") or DEFAULT_TTS_TEXT_AGGREGATION_MODE
     if langue_francaise and str(mode) == "sentence":
@@ -953,7 +949,7 @@ def construire_remplacements_de_voix(
 
 
 def reglages_de_voix_communs(
-    run_configs: dict | None = None, langue_francaise: bool = False
+    run_configs: dict | None = None, langue_francaise: bool = False, lexique=None
 ) -> dict:
     """[.mark] The voice arguments every provider branch receives.
 
@@ -980,7 +976,7 @@ def reglages_de_voix_communs(
 
     return {
         "text_filters": construire_filtres_de_texte_voix(run_configs),
-        "text_transforms": construire_remplacements_de_voix(run_configs, langue_francaise),
+        "text_transforms": construire_remplacements_de_voix(run_configs, langue_francaise, lexique),
         "text_aggregation_mode": TextAggregationMode(
             _valeur("tts_text_aggregation_mode", DEFAULT_TTS_TEXT_AGGREGATION_MODE)
         ),
@@ -1005,6 +1001,7 @@ def create_tts_service(
     audio_config: "AudioConfig",
     correlation_id: str | None = None,
     run_configs: dict | None = None,
+    lexique=None,
 ):
     """Create and return appropriate TTS service based on user configuration
 
@@ -1028,6 +1025,7 @@ def create_tts_service(
     voix = reglages_de_voix_communs(
         run_configs,
         langue_francaise=langue_agent_francaise(getattr(user_config, "stt", None)),
+        lexique=lexique,
     )
 
     # ⛔ [.mark] L'affectation `xml_function_tag_filter = XMLFunctionTagFilter()`
@@ -1579,6 +1577,9 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "conversion_nombres_transcription",
     "verification_communes",
     "variables_commune",
+    "lexique_metier",
+    "sons_communes",
+    "sons_lexique",
 )
 
 

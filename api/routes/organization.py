@@ -31,6 +31,7 @@ from api.schemas.ai_model_configuration import (
     OrganizationAIModelConfigurationResponse,
     OrganizationAIModelConfigurationV2,
 )
+from api.schemas.lexique_metier import LexiqueMetier, ResultatImport
 from api.schemas.organization_preferences import OrganizationPreferences
 from api.schemas.telephony_config import (
     TelephonyConfigRequest,
@@ -79,6 +80,11 @@ from api.services.configuration.registry import (
     DograhTTSService,
     ServiceProviders,
     ServiceType,
+)
+from api.services.lexique.stockage import (
+    enregistrer_lexique,
+    fusionner_import,
+    lire_lexique_strict,
 )
 from api.services.mps_billing import ensure_hosted_mps_billing_account_v2
 from api.services.mps_service_key_client import mps_service_key_client
@@ -726,6 +732,69 @@ async def get_communes_du_code_postal(
         CommuneDuCodePostal(code_insee=c.insee, nom=c.nom)
         for c in base.communes_du_code_postal(code_postal)
     ]
+
+
+@router.get("/lexique", response_model=LexiqueMetier)
+async def get_lexique(
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] The organization's trade vocabulary (empty when none was saved).
+
+    ⛔ Strict on purpose, unlike the reading a call does: an unreadable row shown
+    as an empty vocabulary would be OVERWRITTEN by the next save, which replaces
+    the whole vocabulary.
+    """
+    try:
+        return await lire_lexique_strict(user.selected_organization_id)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Trade vocabulary unreadable for the screen: {erreur!r}")
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "The trade vocabulary saved for this organization cannot be read. "
+                "Nothing was changed; saving now would replace it."
+            ),
+        ) from None
+
+
+@router.put("/lexique", response_model=LexiqueMetier)
+async def save_lexique(
+    request: LexiqueMetier,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] Replace the organization's trade vocabulary. Bounds: 422 before writing."""
+    return await enregistrer_lexique(user.selected_organization_id, request)
+
+
+@router.post("/lexique/import", response_model=ResultatImport)
+async def import_lexique(
+    request: LexiqueMetier,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] Add a template's terms that are absent; a term already there is never changed."""
+    organization_id = user.selected_organization_id
+    try:
+        # ⛔ Strict, comme la lecture de l'écran : vu vide, un lexique illisible
+        # serait REMPLACÉ par les seuls termes du modèle (relecture du 17/09).
+        existant = await lire_lexique_strict(organization_id)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Trade vocabulary unreadable, import refused: {erreur!r}")
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "The trade vocabulary saved for this organization cannot be read. "
+                "Nothing was imported; importing now would replace it."
+            ),
+        ) from None
+    try:
+        fusion, ajoutes, deja_presents = fusionner_import(existant, request)
+    except ValidationError as erreur:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"msg": e["msg"], "loc": list(e["loc"])} for e in erreur.errors()],
+        ) from None
+    await enregistrer_lexique(organization_id, fusion)
+    return ResultatImport(ajoutes=ajoutes, deja_presents=deja_presents)
 
 
 @router.get(

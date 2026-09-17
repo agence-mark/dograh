@@ -177,6 +177,18 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         ).toBeTruthy();
     });
 
+    it("[trade vocabulary] shows the three switches on the page", async () => {
+        // Same trap as the settings above: a switch that renders in its own
+        // test and is mounted nowhere is a setting nobody can touch.
+        await rendreLaPage();
+        expect(document.getElementById("lexique_metier")).not.toBeNull();
+        expect(document.getElementById("sons_communes")).not.toBeNull();
+        expect(document.getElementById("sons_lexique")).not.toBeNull();
+        expect(
+            screen.getByRole("switch", { name: /use the organization's trade vocabulary/i }),
+        ).toBeTruthy();
+    });
+
     it("carries its own Save button on the page (existence only -- it is disabled until something changes)", async () => {
         // Honest title: this asserts the button EXISTS, not that a save round
         // trip works. It is disabled at this instant, nothing having changed.

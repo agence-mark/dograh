@@ -1,6 +1,9 @@
 import asyncio
 from typing import Optional
 
+from fastapi import HTTPException
+from loguru import logger
+
 from api.db import db_client
 from api.enums import WorkflowRunMode
 from api.errors.failure import mark_failure_reported
@@ -23,6 +26,11 @@ from api.services.integrations import (
     IntegrationRuntimeContext,
     create_runtime_sessions,
 )
+from api.services.lexique.ecoute import (
+    construire_liste_flux,
+    injecter_lexique_a_ecouter,
+)
+from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.observability.active_calls import (
     register_active_call as register_worker_active_call,
 )
@@ -58,6 +66,11 @@ from api.services.pipecat.realtime_feedback_events import (
 from api.services.pipecat.realtime_feedback_observer import (
     RealtimeFeedbackObserver,
     register_turn_log_handlers,
+)
+from api.services.pipecat.reconnaissance_lexique import (
+    CLE_TRACE_LEXIQUE,
+    creer_reconnaissance_lexique,
+    trace_du_lexique,
 )
 from api.services.pipecat.recording_audio_cache import (
     create_recording_audio_fetcher,
@@ -102,9 +115,6 @@ from api.services.workflow.dto import ReactFlowDTO
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.services.workflow.workflow_graph import WorkflowGraph
-from fastapi import HTTPException
-from loguru import logger
-
 from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer
@@ -859,11 +869,28 @@ async def _run_pipeline_impl(
     merged_call_context_vars = injecter_adresse_etablissement(
         merged_call_context_vars, adresse_etablissement
     )
+    # [.mark] The organization's trade vocabulary (plan lexique-metier, L1, L2):
+    # read once here, used three times -- the terms the transcription listens
+    # for, the names corrected before the model reads them, and how the voice
+    # says them. Empty when the agent's switch is off, and never raises.
+    lexique_metier = await lire_lexique_de_lappel(run_configs, workflow.organization_id)
 
     # Extract configurations from the version's workflow_configurations
     max_call_duration_seconds = DEFAULT_MAX_CALL_DURATION_SECONDS
     max_user_idle_timeout = DEFAULT_MAX_USER_IDLE_TIMEOUT_SECONDS
-    keyterms = None  # Dictionary words for STT boosting
+    # [.mark] The agent's Dictionary first, then the terms ticked in the trade
+    # vocabulary, within one budget (L7, T11). Without a vocabulary this is
+    # exactly the list of before.
+    termes_ecoutes, ecoute_tronquee = construire_liste_flux(
+        (run_configs or {}).get("dictionary"), lexique_metier
+    )
+    keyterms = termes_ecoutes or None  # Terms the transcription listens for
+    # [.mark] The ticked names are given to the agent as {{lexique_a_ecouter}}
+    # (Q1 = B): one source for "which brands do you sell?", and a name added on
+    # screen is said without republishing the agent.
+    merged_call_context_vars = injecter_lexique_a_ecouter(
+        merged_call_context_vars, [t.terme for t in lexique_metier.termes if t.a_ecouter]
+    )
     transcript_config = run_configs.get("transcript_configuration") or {}
     include_transcript_end_timestamps = bool(
         transcript_config.get("include_end_timestamps", False)
@@ -876,12 +903,6 @@ async def _run_pipeline_impl(
         if "max_user_idle_timeout" in run_configs:
             max_user_idle_timeout = run_configs["max_user_idle_timeout"]
 
-        if "dictionary" in run_configs:
-            dictionary = run_configs["dictionary"]
-            if dictionary and isinstance(dictionary, str):
-                keyterms = [
-                    term.strip() for term in dictionary.split(",") if term.strip()
-                ]
 
     # Resolve model overrides from the version onto global org config (skip
     # when the caller already resolved it).
@@ -951,6 +972,7 @@ async def _run_pipeline_impl(
             audio_config,
             correlation_id=mps_correlation_id,
             run_configs=run_configs,
+            lexique=lexique_metier,
         )
         # [.mark] One cache key per agent (D1), on the conversation only (D6):
         # not the realtime side channel above, nor extraction and voicemail.
@@ -1387,7 +1409,27 @@ async def _run_pipeline_impl(
                 lambda: engine._current_node,
                 consigner_dans(lambda: engine._gathered_context),
             ),
+            # [.mark] Trade vocabulary (plan lexique-metier): the names of the
+            # trade written properly before the numbers and the towns are read.
+            reconnaissance_lexique=creer_reconnaissance_lexique(
+                run_configs,
+                lexique_metier,
+                lambda: engine._current_node,
+                consigner_dans(lambda: engine._gathered_context),
+            ),
         )
+
+    # [.mark] What the call ran with, for the bench to read back (T10): the
+    # size of the vocabulary and the terms the transcription was asked to
+    # listen for. Written once, at pick-up.
+    if not is_realtime and lexique_metier.termes:
+        try:
+            consigner_dans(lambda: engine._gathered_context)(
+                trace_du_lexique(lexique_metier, termes_ecoutes, ecoute_tronquee),
+                CLE_TRACE_LEXIQUE,
+            )
+        except Exception as erreur:  # noqa: BLE001 -- a record never costs a call
+            logger.warning(f"[.mark] Trade vocabulary not recorded: {erreur!r}")
 
     # Create pipeline task with audio configuration
     task = create_pipeline_task(pipeline, workflow_run_id, audio_config)
