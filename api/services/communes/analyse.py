@@ -105,20 +105,6 @@ DECALAGE_ESP = 0
 # Readings longer than this are not listened to (the longest name caught by its
 # sounds on the benches, « Verneuil en alerte », is three words).
 MOTS_MAX_SONS = 4
-# Decision of Evan, 2026-09-17 (fiche D): a commune to confirm is named aloud,
-# so a word that resembles it badly and nothing locates proposes nothing.
-# ⛔ Rule of Evan for this repair: zero loss against production (657a365b) on
-# the real corpus (``test_corpus_communes_zero_perte.py``). The resemblance is
-# the spelling keys' (phonetic_fr, home sound key), not the espeak sounds alone
-# (« crée » sounds like Crépy at 92, spells 57). Measured on 2026-09-17:
-# communes meant by the caller go down to 76.2 (« bonsoir Oise » ->
-# Beaumont-sur-Oise), 80 (« Abrel » -> Bresles), 83.3 (« perçant » -> Persan),
-# all within 26 km of the shop; « granulés » -> Grandrû is 76.9, at 62 km. So
-# under SEUIL_PROPOSITION a proposal needs a location clue: within
-# RAYON_PROPOSITION_FAIBLE km (true 26 at most, parasites 62 and farther:
-# Grandrû; Grans 654, Préveranges 308, La Ciotat 714), or its department said.
-SEUIL_PROPOSITION = 84
-RAYON_PROPOSITION_FAIBLE = 40
 
 SURE = "sure"
 A_CONFIRMER = "a_confirmer"
@@ -507,43 +493,46 @@ def _complement(mots: list[str], debut_lu: int, fin: int, sans_contenu: frozense
     )
 
 
-def propositions_fondees(
-    texte: str,
-    detections: list[Detection],
-    base: BaseCommunes,
-    magasin: tuple[float, float] | None = None,
-    departements: set[str] | frozenset[str] | None = None,
-) -> list[Detection]:
-    """The detections, without the communes proposed on words that resemble them badly.
+def _article_du_nom(article: str, nom_normalise: str) -> bool:
+    """« la signy » can be Lassigny, « la morley » Lamorlaye: the article may be
+    glued in the commune's name. « l'année » is not Anet, « la maison » not Maisons."""
+    return nom_normalise.replace(" ", "").startswith(article)
+
+
+def propositions_fondees(texte: str, detections: list[Detection], base: BaseCommunes) -> list[Detection]:
+    """The detections, without the communes proposed on words that name no place.
 
     Decision of Evan, 2026-09-17 (fiche D, runs 269 to 272): the agent names the
-    first commune to confirm aloud, so « Un poêle à granulés » made it ask
-    « Est-ce que vous êtes à Grandrû ? », « L'année dernière » proposed Anet,
-    « Passe à la suite » Pacé and Lassy. The motif, not the words:
+    first commune to confirm aloud, so « L'année dernière » proposed Anet and
+    « Passe aux choses » Pacé. Rule of Evan for this repair: zero loss against
+    production for any shop; what no such rule removes is a known limit.
 
-    1. Resemblance: a proposal whose spelling keys stay under SEUIL_PROPOSITION
-       needs a location clue: within RAYON_PROPOSITION_FAIBLE km of the shop, or
-       in a department said. Without the shop's address, nothing is removed.
-    2. An article belongs to the commune's name: « l'année » is not Anet (the
-       article opens the words heard), « la maison » is not Maisons (it comes
-       right before them).
-    3. Words that go on with a complement (« passe aux choses ») name no place,
-       unless a place marker introduces them or what follows locates the place.
-    4. The « a » of « il y a » is the verb: « il y a marqué » is not Marques.
-       Only for a word the transcription writes in lower case: « il y a Bovet »
-       still proposes Beauvais.
-    5. Words that place relative to a place (« côté », « vers »), followed by
-       more words, are a preposition: « à côté de la gare » is not Contay.
+    1. An article belongs to the commune's name, glued or not: « l'année » is not
+       Anet (the article opens the words heard), « la maison » is not Maisons
+       (it comes right before them); « la signy » stays Lassigny.
+    2. Words that go on with a complement (« passe aux choses ») name no place,
+       unless a place marker introduces them or what follows locates the place
+       (« Brel à côté de Beauvais », « Bovet au bord de l'eau »).
+    3. Words that place relative to a place (« côté », « vers »), followed by
+       « de » or by words not introduced by a place marker, are a preposition:
+       « à côté de la gare » is not Contay, « c'est vers Bovet » not Vers;
+       « j'habite à Vers, dans le Lot » is Vers.
+
+    ⛔ No resemblance threshold and no distance to the shop (counter-review of
+    2026-09-17): measured on the real corpus with five shops, a radius lost
+    « Abrel » -> Bresles or « perçant » -> Persan for Compiègne, Coignières or
+    Marseille; a resemblance threshold removed no parasite up to 70, and at 76
+    already lost « Saint-Luc Destronc » -> Saint-Leu-d'Esserent (Compiègne).
+    « granulés » -> Grandrû stays a known limit.
 
     Only proposals TO CONFIRM are touched: a sure town, a postal code heard, a
     commune backed by a postal code and a name written exactly as the commune
-    (« Saint-Laurent », homonyms) are kept, except by rule 5. A detection left
-    with no proposal is dropped. Blocking: worker thread, like ``analyser``.
+    (« Saint-Laurent », « à Vers, dans le Lot ») are always kept. A detection
+    left with no proposal is dropped. No rule depends on the shop's location.
+    Blocking: worker thread, like ``analyser``.
     """
     if not any(d.statut == A_CONFIRMER and not d.code_postal_entendu for d in detections):
         return detections
-    from rapidfuzz import fuzz
-
     mots = normaliser(texte).split()
     sans_contenu = _mots_sans_contenu(base)
     gardees: list[Detection] = []
@@ -552,38 +541,36 @@ def propositions_fondees(
             gardees.append(d)
             continue
         extrait = " ".join(mots[d.debut:d.fin])
-        k_phon, k_son = cle_phonetique(extrait), cle_sonore(extrait)
-        preposition = d.fin < len(mots) and all(m in LIEUX_RELATIFS for m in mots[d.debut:d.fin])
-        il_y_a = (
-            d.debut >= 2 and mots[d.debut - 1] == "a" and mots[d.debut - 2] == "y"
-            and _extrait_dorigine(texte, d.debut, d.debut + 1, mots)[:1].islower()
-        )
-        continue_la_phrase = _complement(mots, d.debut, d.fin, sans_contenu) or il_y_a
+        # « c'est vers Bovet », « à côté de la gare »: a preposition;
+        # « j'habite à Vers, dans le Lot »: a place.
+        preposition = (
+            d.fin < len(mots)
+            and all(m in LIEUX_RELATIFS for m in mots[d.debut:d.fin])
+            and (mots[d.fin] in _DE or not (d.debut > 0 and mots[d.debut - 1] in AMORCES))
+        ) or (d.fin - d.debut > 1 and mots[d.debut] in LIEUX_RELATIFS and mots[d.debut + 1] in _DE)
+        continue_la_phrase = _complement(mots, d.debut, d.fin, sans_contenu)
         article = mots[d.debut] if d.fin - d.debut > 1 and mots[d.debut] in ARTICLES else None
         article_avant = mots[d.debut - 1] if d.debut > 0 and mots[d.debut - 1] in ARTICLES else None
 
         def fondee(l: Lecture) -> bool:
             if l.par_code:
                 return True
+            j = base.par_insee[l.commune.insee]
+            exact = extrait == base.norms[j]
+            # A name of several words written exactly is never an accident (Bout-du-Pont-de-Larn).
+            if exact and d.fin - d.debut > 1:
+                return True
             if preposition:
                 return False
-            j = base.par_insee[l.commune.insee]
-            if extrait == base.norms[j]:
+            if exact:
                 return True
             if continue_la_phrase:
                 return False
-            premier_du_nom = base.norms[j].split()[0]
-            if article is not None and premier_du_nom != article:
+            if article is not None and not _article_du_nom(article, base.norms[j]):
                 return False
-            if article_avant is not None and premier_du_nom != article_avant:
+            if article_avant is not None and not _article_du_nom(article_avant, base.norms[j]):
                 return False
-            if max(fuzz.ratio(k_phon, base.phons[j]), fuzz.ratio(k_son, base.sons[j])) >= SEUIL_PROPOSITION:
-                return True
-            return (
-                magasin is None
-                or distance_km(l.commune, *magasin) <= RAYON_PROPOSITION_FAIBLE
-                or bool(departements and l.commune.dep in departements)
-            )
+            return True
 
         lectures = tuple(l for l in d.lectures if fondee(l))
         if lectures:

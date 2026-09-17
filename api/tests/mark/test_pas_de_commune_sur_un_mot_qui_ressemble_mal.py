@@ -51,29 +51,21 @@ def _noms(r):
 # --------------------------------------------------------------------------- #
 
 PARASITES_DU_17_09 = [
-    # Resemblance under SEUIL_PROPOSITION and no location clue (far from the shop).
-    "Un poêle à granulés",  # run 271: Grandrû, Grans, Grane
-    "Bonjour, je voudrais faire amener mon poêle à granulés s'il vous plaît.",  # run 269
-    "Non, je voudrais faire ramoner mon poêle à granulé.",  # run 269
-    "Révérance FA quatre cent douze.",  # run 267: Recouvrance, Préveranges
-    # ⚠️ Limits, kept knowingly (zero loss first): « Flammo. » still proposes
-    # Lamorlaye (8 km) and « crée » Courtry (36 km), weak but near the shop.
-    # An article that opens the words heard belongs to the commune's name
-    # (Anet, Lanne and Anneux resemble « l'année » at 100 by one key).
-    "L'année dernière en octobre deux mille vingt cinq.",  # run 271: Anet
     # Words that go on with a complement name no place: « Passe » is Pacé at 100.
-    # « la suite » (Lassy) and « l'élément » (Allemant) fall by the article AND
-    # by the resemblance (80, 83).
-    "Passe à la suite.",  # run 268: Pacé, Lassy
     "Passe à l'élément dix.",  # run 266: Pacé, Allemant
     "Passe aux choses.",  # run 266: Pacé
+    # An article right before the words belongs to the commune's name.
     "C'est la maison au bout du chemin.",  # run 266: Maisons, Lormaison
-    "c'est un poêle à granulés et dilcama.",  # run 272
-    "c'est à côté de la boulangerie.",  # run 266: Contay, Corte
     "C'est le bâtiment b au deuxième étage.",  # run 266: Athis-Mons
-    # The « a » of « il y a » is the verb.
-    "En fait, il y a marqué huit cents euros et je ne comprends pas d'où sort cette ligne.",  # run 270: Marques
+    # « côté » followed by « de » is a preposition.
+    "c'est à côté de la boulangerie.",  # run 266: Contay, Corte
 ]
+# ⚠️ Known limits, kept knowingly (rule of Evan: zero loss first, counter-review
+# of 2026-09-17). No rule that loses no commune meant, for any shop, removes
+# them: « Un poêle à granulés » (Grandrû, Grans, Grane), « L'année dernière… »
+# (Lanne), « Passe à la suite. » (Lassy), « il y a marqué… » (Marques),
+# « Révérance FA… », « Flammo. », « crée ». The full list, per shop, is
+# ``parasites_restants_connus`` in ``donnees/communes_corpus_reel_2026-09-17.json``.
 
 
 @pytest.mark.parametrize("texte", PARASITES_DU_17_09)
@@ -84,8 +76,8 @@ def test_aucune_commune_proposee_sur_un_parasite_du_17_09(base, magasin, texte):
 
 
 def test_une_commune_sure_dans_la_meme_phrase_reste(base, magasin):
-    """Run 253: only the proposals to confirm are touched."""
-    r = analyser_message("C'est un poêle à granulés Edilkamin, à Saint-Maximin.", base, magasin)
+    """Only the proposals to confirm are touched."""
+    r = analyser_message("C'est la maison au bout du chemin, à Saint-Maximin.", base, magasin)
     assert [(d.statut, d.lectures[0].commune.nom) for d in r.detections] == [(SURE, "Saint-Maximin")]
 
 
@@ -94,8 +86,8 @@ def test_la_verification_hors_du_francais_applique_la_meme_regle():
     from api.services.pipecat.verification_communes import _analyser_et_mentionner
 
     adresse = AdresseEtablissement(code_postal="60740", code_insee="60589", commune="Saint-Maximin")
-    texte, detections, _ = _analyser_et_mentionner("Un poêle à granulés", adresse)
-    assert (texte, detections) == ("Un poêle à granulés", [])
+    texte, detections, _ = _analyser_et_mentionner("Passe aux choses.", adresse)
+    assert (texte, detections) == ("Passe aux choses.", [])
 
 
 # --------------------------------------------------------------------------- #
@@ -129,7 +121,7 @@ def test_brel_propose_toujours_bresles_en_premier(base, magasin, texte):
 
 @pytest.mark.parametrize("texte, commune", [
     ("C'est à Bovet.", "Beauvais"),  # run 261 (Boves first, Beauvais proposed)
-    ("Bouvé.", "Beauvais"),  # run 264, the weakest kept: 85.7
+    ("Bouvé.", "Beauvais"),  # run 264
     ("Bové d'enloises", "Beauvais"),  # run 259, « dans l'Oise » garbled: not a complement
     ("C'est à Lyon Court.", "Liancourt"),  # run 264
     ("Grand Villiers.", "Grandvilliers"),  # run 264
@@ -145,16 +137,24 @@ def test_une_commune_mal_transcrite_reste_proposee(base, magasin, texte, commune
     assert any(commune in noms for noms in _noms(r)), _noms(r)
 
 
-def test_le_rayon_est_celui_mesure():
-    """Measured on 2026-09-17 (comment above the constants): communes meant with a
-    weak resemblance lie within 26 km of the shop, « granulés » -> Grandrû at 62."""
-    assert 26 < analyse.RAYON_PROPOSITION_FAIBLE < 62
-    assert analyse.SEUIL_PROPOSITION > 83.3  # « perçant » -> Persan is kept by the radius
+@pytest.mark.parametrize("texte, commune, magasin_insee", [
+    ("à La signy", "Lassigny", "78168"),  # the article glued in the name (counter-review)
+    ("la Morley", "Lamorlaye", None),
+    ("J'habite à Vers, dans le Lot.", "Vers", None),  # a name written exactly before « vers »
+    ("il y a bovet", "Beauvais", "60589"),  # typed in lower case: no « il y a » rule
+])
+def test_contre_relecture_la_commune_reste_proposee(base, texte, commune, magasin_insee):
+    magasin = base.coordonnees(magasin_insee) if magasin_insee else None
+    r = analyser_message(texte, base, magasin)
+    assert any(commune in [l.commune.nom for l in d.lectures] for d in r.detections), r.detections
 
 
-def test_sans_adresse_du_magasin_rien_nest_retire_par_la_ressemblance(base):
-    """Nothing locates a weak reading without the shop: kept, as in production."""
-    assert any("Grans" in n for n in _noms(analyser_message("Un poêle à granulés", base, None)))
+def test_aucune_regle_ne_depend_du_magasin():
+    """Counter-review of 2026-09-17: a 40 km radius lost 17 communes for Compiègne."""
+    import inspect
+
+    assert not hasattr(analyse, "RAYON_PROPOSITION_FAIBLE")
+    assert "magasin" not in inspect.signature(analyse.propositions_fondees).parameters
 
 
 # --------------------------------------------------------------------------- #
@@ -180,14 +180,7 @@ def test_un_repere_de_lieu_apres_la_commune_ne_lefface_pas(base, magasin, texte,
     assert not any({"Contay", "Corte", "Vert", "Vers"} & set(n) for n in noms), noms
 
 
-def test_il_y_a_suivi_dun_nom_ecrit_avec_une_majuscule_reste_propose(base, magasin):
-    """The « a » of « il y a » is the verb only before a word the transcription
-    writes in lower case (« il y a marqué »): « il y a Bovet » names a place."""
-    assert any("Beauvais" in n for n in _noms(analyser_message("il y a Bovet", base, magasin)))
-    assert _noms(analyser_message("il y a marqué huit cents euros", base, magasin)) == []
-
-
-@pytest.mark.parametrize("texte", ["Passe à la suite. Soixante mille.", "C'est la maison au bout du chemin, soixante mille."])
+@pytest.mark.parametrize("texte", ["C'est la maison au bout du chemin, soixante mille."])
 def test_un_parasite_retire_ne_fait_pas_taire_le_code_postal_dit(base, magasin, texte):
     """Review of 2026-09-17: the parasite counted as a town said, so the postal
     code said alone got no note. Alone, « Soixante mille. » proposes Beauvais."""
