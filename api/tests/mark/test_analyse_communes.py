@@ -176,7 +176,8 @@ def test_mention_incertaine_au_mot_pres(base):
     assert mentionner(texte, detections, base) == (
         "à Sanlis [Vérification de la commune : « Sanlis » peut être Senlis (60300, Oise), "
         "Senlis (62310, Pas-de-Calais) ou Saint-Lys (31470, Haute-Garonne). "
-        "Demande d'abord si c'est Senlis ; si ce n'est pas elle, propose Senlis, puis Saint-Lys. "
+        "Demande d'abord si c'est Senlis (Oise) ; si ce n'est pas elle, propose Senlis (Pas-de-Calais), "
+        "puis Saint-Lys (Haute-Garonne). "
         "Nomme chaque commune avec son département. "
         "Si aucune ne convient, fais préciser la commune ou son code postal avant de la noter.]"
     )

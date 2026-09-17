@@ -194,7 +194,7 @@ def test_n2_rien_pour_trancher_a_confirmer_au_plus_proche(base, magasin):
     assert lu == (
         "60200 [Vérification de la commune : « soixante deux cents » peut être "
         "Compiègne (60200, Oise) ou Calais (62100, Pas-de-Calais). "
-        "Demande d'abord si c'est Compiègne ; si ce n'est pas elle, propose Calais. "
+        "Demande d'abord si c'est Compiègne (Oise) ; si ce n'est pas elle, propose Calais (Pas-de-Calais). "
         "Nomme chaque commune avec son département. "
         "Si aucune ne convient, fais préciser la commune avant de la noter.]"
     )
@@ -212,7 +212,7 @@ def test_un_code_postal_sur_de_plusieurs_communes_fait_preciser_la_commune(base,
     (d,) = r.detections
     assert d.statut == A_CONFIRMER and d.code_postal_entendu
     assert lu.endswith(
-        "Demande d'abord si c'est Beauvais ; si ce n'est pas elle, propose Allonne, puis Goincourt. "
+        "Demande d'abord si c'est Beauvais (Oise) ; si ce n'est pas elle, propose Allonne (Oise), puis Goincourt (Oise). "
         "Nomme chaque commune avec son département. "
         "Si aucune ne convient, fais préciser la commune avant de la noter.]"
     )
@@ -228,8 +228,19 @@ def test_la_premiere_commune_proposee_est_nommee(base, magasin):
     assert d.statut == A_CONFIRMER
     assert lu.endswith(
         "peut être Bresles (60510, Oise), Bornel (60540, Oise) ou Creil (60100, Oise). "
-        "Demande d'abord si c'est Bresles ; si ce n'est pas elle, propose Bornel, puis Creil. "
+        "Demande d'abord si c'est Bresles (Oise) ; si ce n'est pas elle, propose Bornel (Oise), puis Creil (Oise). "
         "Nomme chaque commune avec son département. "
+        "Si aucune ne convient, fais préciser la commune ou son code postal avant de la noter.]"
+    )
+
+
+def test_des_communes_homonymes_sont_nommees_avec_leur_departement(base, magasin):
+    """Review of 2026-09-17: bare names read « si ce n'est pas Saint-Just, propose
+    Saint-Just, puis Saint-Just » (11 % of communes share their name)."""
+    lu, _ = _lu("à Saint-Just", base, magasin)
+    assert lu.endswith(
+        "Demande d'abord si c'est Saint-Just (Hérault) ; si ce n'est pas elle, propose "
+        "Saint-Just (Ille-et-Vilaine), puis Saint-Just (Ain). Nomme chaque commune avec son département. "
         "Si aucune ne convient, fais préciser la commune ou son code postal avant de la noter.]"
     )
 
@@ -241,7 +252,7 @@ def test_une_seule_commune_proposee_est_nommee(base, magasin):
     (d,) = r.detections
     seule = replace(d, lectures=d.lectures[:1])
     assert mentionner("À Brel dans l'Oise.", [seule], base).endswith(
-        "peut être Bresles (60510, Oise). Demande si c'est Bresles, avec son département. "
+        "peut être Bresles (60510, Oise). Demande si c'est Bresles (Oise), en nommant son département. "
         "Si ce n'est pas elle, fais préciser la commune ou son code postal avant de la noter.]"
     )
 
@@ -401,8 +412,8 @@ def test_un_code_incertain_a_cote_dune_commune_qui_ne_le_porte_pas_est_signale(b
     ]
     assert lu.endswith(
         "[Vérification de la commune : « soixante deux cents » peut être Compiègne (60200, Oise) "
-        "ou Calais (62100, Pas-de-Calais). Demande d'abord si c'est Compiègne ; si ce n'est pas elle, "
-        "propose Calais. Nomme chaque commune avec son département. "
+        "ou Calais (62100, Pas-de-Calais). Demande d'abord si c'est Compiègne (Oise) ; si ce n'est pas elle, "
+        "propose Calais (Pas-de-Calais). Nomme chaque commune avec son département. "
         "Si aucune ne convient, fais préciser la commune avant de la noter.]"
     )
 

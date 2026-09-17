@@ -13,9 +13,10 @@ The wording is fixed by the plan, word for word:
   the last sentence ends « fais préciser la commune avant de la noter. »:
   ``[Vérification de la commune : « Sanlis » peut être Senlis (60300, Oise),
   Senlis (62310, Pas-de-Calais) ou Saint-Lys (31470, Haute-Garonne). Demande
-  d'abord si c'est Senlis ; si ce n'est pas elle, propose Senlis, puis
-  Saint-Lys. Nomme chaque commune avec son département. Si aucune ne convient,
-  fais préciser la commune ou son code postal avant de la noter.]``
+  d'abord si c'est Senlis (Oise) ; si ce n'est pas elle, propose Senlis
+  (Pas-de-Calais), puis Saint-Lys (Haute-Garonne). Nomme chaque commune avec
+  son département. Si aucune ne convient, fais préciser la commune ou son code
+  postal avant de la noter.]``
   Decision of Evan, 2026-09-17 (bench run 268): « Fais préciser la commune »
   alone made the model ask an open question four times without ever saying
   Bresles, which it had been given first. The agent now names the first
@@ -65,9 +66,12 @@ def phrase_de_mention(detection: Detection, base: BaseCommunes) -> str:
         if detection.code_postal_entendu
         else "fais préciser la commune ou son code postal avant de la noter.]"
     )
-    noms = [l.commune.nom for l in detection.lectures[:3]]
+    # Each town with its department: a bare name would read « si ce n'est pas
+    # Saint-Just, propose Saint-Just » for homonyms (review of 2026-09-17:
+    # 11 % of communes share their name).
+    noms = [f"{l.commune.nom} ({base.nom_departement(l.commune.dep)})" for l in detection.lectures[:3]]
     if len(noms) == 1:
-        demande = f"Demande si c'est {noms[0]}, avec son département. Si ce n'est pas elle, {preciser}"
+        demande = f"Demande si c'est {noms[0]}, en nommant son département. Si ce n'est pas elle, {preciser}"
     else:
         demande = (
             f"Demande d'abord si c'est {noms[0]} ; si ce n'est pas elle, propose {', puis '.join(noms[1:])}. "
