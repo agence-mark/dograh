@@ -194,7 +194,9 @@ def test_n2_rien_pour_trancher_a_confirmer_au_plus_proche(base, magasin):
     assert lu == (
         "60200 [Vérification de la commune : « soixante deux cents » peut être "
         "Compiègne (60200, Oise) ou Calais (62100, Pas-de-Calais). "
-        "Fais préciser la commune avant de la noter.]"
+        "Demande d'abord si c'est Compiègne ; si ce n'est pas elle, propose Calais. "
+        "Nomme chaque commune avec son département. "
+        "Si aucune ne convient, fais préciser la commune avant de la noter.]"
     )
 
 
@@ -209,14 +211,45 @@ def test_un_code_postal_sur_de_plusieurs_communes_fait_preciser_la_commune(base,
     assert (_code(r).code, _code(r).statut) == ("60000", "sure")
     (d,) = r.detections
     assert d.statut == A_CONFIRMER and d.code_postal_entendu
-    assert lu.endswith("Fais préciser la commune avant de la noter.]")
+    assert lu.endswith(
+        "Demande d'abord si c'est Beauvais ; si ce n'est pas elle, propose Allonne, puis Goincourt. "
+        "Nomme chaque commune avec son département. "
+        "Si aucune ne convient, fais préciser la commune avant de la noter.]"
+    )
     assert lu.startswith("code postal 60000 [Vérification de la commune : « soixante mille » peut être Beauvais (60000, Oise)")
+
+
+def test_la_premiere_commune_proposee_est_nommee(base, magasin):
+    """Bench of 2026-09-17, run 268: « Brel » gave Bresles first four times, and
+    the model never said it. Decision of Evan: the agent names the first one;
+    a refusal brings the next."""
+    lu, r = _lu("À Brel dans l'Oise.", base, magasin)
+    (d,) = r.detections
+    assert d.statut == A_CONFIRMER
+    assert lu.endswith(
+        "peut être Bresles (60510, Oise), Bornel (60540, Oise) ou Creil (60100, Oise). "
+        "Demande d'abord si c'est Bresles ; si ce n'est pas elle, propose Bornel, puis Creil. "
+        "Nomme chaque commune avec son département. "
+        "Si aucune ne convient, fais préciser la commune ou son code postal avant de la noter.]"
+    )
+
+
+def test_une_seule_commune_proposee_est_nommee(base, magasin):
+    from dataclasses import replace
+
+    _, r = _lu("À Brel dans l'Oise.", base, magasin)
+    (d,) = r.detections
+    seule = replace(d, lectures=d.lectures[:1])
+    assert mentionner("À Brel dans l'Oise.", [seule], base).endswith(
+        "peut être Bresles (60510, Oise). Demande si c'est Bresles, avec son département. "
+        "Si ce n'est pas elle, fais préciser la commune ou son code postal avant de la noter.]"
+    )
 
 
 def test_la_variante_ne_touche_pas_une_commune_entendue(base):
     """A name heard keeps « la commune ou son code postal »."""
     lu, _ = _lu("à Sanlis", base, None)
-    assert lu.endswith("Fais préciser la commune ou son code postal avant de la noter.]")
+    assert lu.endswith("Si aucune ne convient, fais préciser la commune ou son code postal avant de la noter.]")
 
 
 # --------------------------------------------------------------------------- #
@@ -368,7 +401,9 @@ def test_un_code_incertain_a_cote_dune_commune_qui_ne_le_porte_pas_est_signale(b
     ]
     assert lu.endswith(
         "[Vérification de la commune : « soixante deux cents » peut être Compiègne (60200, Oise) "
-        "ou Calais (62100, Pas-de-Calais). Fais préciser la commune avant de la noter.]"
+        "ou Calais (62100, Pas-de-Calais). Demande d'abord si c'est Compiègne ; si ce n'est pas elle, "
+        "propose Calais. Nomme chaque commune avec son département. "
+        "Si aucune ne convient, fais préciser la commune avant de la noter.]"
     )
 
 

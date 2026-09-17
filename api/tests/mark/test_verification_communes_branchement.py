@@ -311,7 +311,9 @@ async def test_la_trace_de_lappel_tranche_le_code_postal_du_tour_suivant():
     assert contexte.messages[-1]["content"] == (
         "soixante mille [Vérification de la commune : « soixante mille » peut être "
         "Beauvais (60000, Oise), Allonne (60000, Oise) ou Goincourt (60000, Oise). "
-        "Fais préciser la commune avant de la noter.]"
+        "Demande d'abord si c'est Beauvais ; si ce n'est pas elle, propose Allonne, puis Goincourt. "
+        "Nomme chaque commune avec son département. "
+        "Si aucune ne convient, fais préciser la commune avant de la noter.]"
     )
 
 
