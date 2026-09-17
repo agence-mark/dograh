@@ -37,6 +37,7 @@ from api.services.lexique.analyse import Index, analyser
 from api.services.lexique.correction import corriger, deja_mentionne, partie_de_lappelant
 from api.services.lexique.ecoute import prononciations_du_lexique
 from api.services.lexique.reglages import interrupteur_allume
+from api.services.pipecat.verification_communes import sons_allumes
 from pipecat.frames.frames import Frame, LLMContextFrame, StartFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
@@ -170,6 +171,12 @@ class ReconnaissanceLexiqueProcessor(FrameProcessor):
             if self._avec_sons:
                 await asyncio.to_thread(precharger_sons)
             self._index = await asyncio.to_thread(construire_index, self._lexique, self._avec_sons)
+            if self._consigner is not None and self._index is not None:
+                # L18: which variant ran, and whether the engine was there at all.
+                self._consigner(
+                    {"sons_lexique": self._avec_sons, "sons_disponibles": self._index.sons_disponibles},
+                    CLE_TRACE_LEXIQUE,
+                )
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[.mark] Trade vocabulary not prepared: {erreur!r}")
 
@@ -234,7 +241,8 @@ def creer_reconnaissance_lexique(
         lexique=lexique,
         etape_courante=etape_courante,
         consigner=consigner,
-        avec_sons=avec_sons,
+        # L18: the agent's own switch for the sounds of the trade names.
+        avec_sons=avec_sons and sons_allumes(run_configs, "sons_lexique"),
     )
 
 
@@ -250,6 +258,7 @@ async def annoter_message_tape(
     try:
         if not interrupteur_allume(run_configs) or not noms_a_reconnaitre(lexique):
             return texte
+        avec_sons = avec_sons and sons_allumes(run_configs, "sons_lexique")
         await obtenir_base()
         index = await asyncio.to_thread(construire_index, lexique, avec_sons)
         return await corriger_texte(

@@ -1579,6 +1579,8 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "verification_communes",
     "variables_commune",
     "lexique_metier",
+    "sons_communes",
+    "sons_lexique",
 )
 
 

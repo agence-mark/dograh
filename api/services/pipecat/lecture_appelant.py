@@ -79,6 +79,7 @@ from api.services.pipecat.verification_communes import (
     annoter_texte,
     etape_concernee,
     interrupteur_allume,
+    sons_allumes,
     trace_de,
     variables_commune,
 )
@@ -121,13 +122,15 @@ def _trace_nombre(nombre, choix, etape: str | None) -> dict:
 
 
 def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list, conversion: bool,
-          communes: bool, references: bool, etape_adresse: bool = True, trace_nombres: list | None = None):
+          communes: bool, references: bool, etape_adresse: bool = True, trace_nombres: list | None = None,
+          avec_sons: bool = True):
     """Blocking: runs in a worker thread. Returns (text for the model, town records, number records)."""
     try:
         base = charger_base()
         magasin = base.coordonnees(adresse.code_insee) if adresse else None
         lecture = analyser_message(
-            texte, base, magasin, trace_communes, etape_adresse=etape_adresse, trace_nombres=trace_nombres
+            texte, base, magasin, trace_communes, etape_adresse=etape_adresse, trace_nombres=trace_nombres,
+            avec_sons=avec_sons,
         )
     except Exception as erreur:  # noqa: BLE001
         # Without the list of communes (or its analysis), the numbers are still
@@ -154,6 +157,7 @@ async def lire_texte(
     consigner: Callable[..., None] | None,
     provisoire: bool = False,
     variables: tuple[str, ...] = VARIABLES_PAR_DEFAUT,
+    avec_sons: bool = True,
 ) -> str:
     """``texte`` as the model must read it, or ``texte`` unchanged. Never raises.
 
@@ -175,6 +179,7 @@ async def lire_texte(
         consigner=consigner,
         provisoire=provisoire,
         variables=variables,
+        avec_sons=avec_sons,
     )
     return f"{lu} {mention_lexique}" if mention_lexique else lu
 
@@ -196,6 +201,7 @@ async def _lire_texte_de_lappelant(
     consigner: Callable[..., None] | None,
     provisoire: bool = False,
     variables: tuple[str, ...] = VARIABLES_PAR_DEFAUT,
+    avec_sons: bool = True,
 ) -> str:
     try:
         if not texte or commune_deja_mentionnee(texte) or nombres_deja_mentionnes(texte):
@@ -208,7 +214,8 @@ async def _lire_texte_de_lappelant(
             if not communes:
                 return texte
             return await annoter_texte(
-                texte, adresse, etape, (lambda e: consigner(e, CLE_TRACE)) if consigner else None, provisoire
+                texte, adresse, etape, (lambda e: consigner(e, CLE_TRACE)) if consigner else None, provisoire,
+                avec_sons,
             )
         if not conversion and not communes:
             return texte
@@ -218,7 +225,7 @@ async def _lire_texte_de_lappelant(
         trace_nombres = lire_trace(CLE_TRACE_NOMBRES) if callable(lire_trace) else []
         lu, lecture, base = await asyncio.to_thread(
             _lire, texte, adresse, trace_communes, conversion, communes, etape_reference(noeud),
-            etape_adresse, trace_nombres,
+            etape_adresse, trace_nombres, avec_sons,
         )
         if consigner is not None:
             entrees: list[tuple[str, dict]] = []
@@ -257,10 +264,12 @@ class LectureAppelantProcessor(FrameProcessor):
         etape_courante: Callable[[], object],
         consigner: Callable[..., None] | None = None,
         variables: tuple[str, ...] = VARIABLES_PAR_DEFAUT,
+        avec_sons: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self._variables = variables
+        self._avec_sons = avec_sons
         self._conversion = conversion
         self._verification = verification
         self._langue_francaise = langue_francaise
@@ -303,6 +312,7 @@ class LectureAppelantProcessor(FrameProcessor):
             consigner=self._consigner,
             provisoire=frame.speculation,
             variables=self._variables,
+            avec_sons=self._avec_sons,
         )
         # Marked AFTER the reading: an interruption that cancels this task
         # during the await leaves the message unmarked, so the next context
@@ -345,6 +355,7 @@ def creer_lecture_appelant(
         etape_courante=etape_courante,
         consigner=consigner,
         variables=variables_commune(run_configs),
+        avec_sons=sons_allumes(run_configs),
     )
 
 
@@ -367,6 +378,7 @@ async def lire_message_tape(
             noeud=noeud,
             consigner=consigner,
             variables=variables_commune(run_configs),
+            avec_sons=sons_allumes(run_configs),
         )
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[.mark] Caller reading failed on the keyboard, message kept: {erreur!r}")

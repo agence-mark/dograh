@@ -79,6 +79,11 @@ DEFAULT_CONVERSION_NOMBRES_TRANSCRIPTION = False
 # steps that collect a `commune` or `adresse…` variable, and it was decided for
 # every agent, so an agent that never collects a town is unaffected.
 DEFAULT_VERIFICATION_COMMUNES = True
+# [.mark] The sounds (espeak-ng) are on by default: they are what the fork runs
+# on today. The two switches (L18) exist to measure what they bring, without
+# touching the code (off = the mode already used when the library is absent).
+DEFAULT_SONS_COMMUNES = True
+DEFAULT_SONS_LEXIQUE = True
 # [.mark] The trade vocabulary is on by default (L2): an organization that filled
 # one wants every agent to use it; the switch is there to measure without it.
 DEFAULT_LEXIQUE_METIER = True
@@ -501,6 +506,21 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Matches the town the caller names against the official list of "
             "French communes before the model reads it. Acts only at steps that "
             "collect a `commune` or `adresse…` variable. No effect in realtime mode."
+        ),
+    )
+    sons_communes: bool = Field(
+        default=DEFAULT_SONS_COMMUNES,
+        description=(
+            "Compares how the heard words sound with how each town sounds "
+            "(pronunciation library), in addition to the spelling. Off: spelling only."
+        ),
+    )
+    sons_lexique: bool = Field(
+        default=DEFAULT_SONS_LEXIQUE,
+        description=(
+            "Compares how the heard words sound with how each name of the trade "
+            "vocabulary sounds, in addition to the spelling. A name found by its "
+            "sound alone is asked for confirmation. Off: spelling only."
         ),
     )
     lexique_metier: bool = Field(
