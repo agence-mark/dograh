@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
     getPreferences: vi.fn(),
     savePreferences: vi.fn(),
     refreshConfig: vi.fn(),
+    getLexique: vi.fn().mockResolvedValue({ data: { format: "lexique-mark", version: 1, termes: [] } }),
     toast: { success: vi.fn(), error: vi.fn() },
     organisation: { current: null as OrganizationPreferences | null },
     // ⚠️ One stable array: a new one on every render re-runs the mapping
@@ -43,6 +44,10 @@ vi.mock("@/client/sdk.gen", () => ({
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: mocks.communes,
     getPreferencesApiV1OrganizationsPreferencesGet: mocks.getPreferences,
     savePreferencesApiV1OrganizationsPreferencesPut: mocks.savePreferences,
+    // 🆕 The same page now also carries the trade vocabulary card.
+    getLexiqueApiV1OrganizationsLexiqueGet: mocks.getLexique,
+    saveLexiqueApiV1OrganizationsLexiquePut: vi.fn(),
+    importLexiqueApiV1OrganizationsLexiqueImportPost: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));
 vi.mock("@/context/UnsavedChangesContext", () => ({ useUnsavedChanges: () => undefined }));
@@ -200,6 +205,15 @@ describe("[.mark] business address on the Platform Settings page", () => {
         expect(bloc).toBeTruthy();
         expect(document.getElementById("settings-business-address-code-postal")).not.toBeNull();
         expect(document.body.textContent).toMatch(/Helps recognise the towns callers name/);
+    });
+
+    it("[trade vocabulary] the card is really mounted on the same page", async () => {
+        // Same guard as the other cards: a card that renders in its own test and
+        // is mounted nowhere is a vocabulary nobody can fill.
+        render(<PageReglagesPlateforme />);
+        await screen.findByText("Trade vocabulary");
+        expect(await screen.findByRole("button", { name: /save trade vocabulary/i })).toBeTruthy();
+        expect(document.body.textContent).toMatch(/No term yet/);
     });
 
     it("sends the chosen address with the other preferences", async () => {

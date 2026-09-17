@@ -3884,6 +3884,30 @@ export type LastCampaignSettingsResponse = {
 };
 
 /**
+ * LexiqueMetier
+ *
+ * The whole vocabulary of an organization (and of a template file).
+ */
+export type LexiqueMetier = {
+    /**
+     * Format
+     */
+    format?: 'lexique-mark';
+    /**
+     * Version
+     */
+    version?: 1;
+    /**
+     * Modeles Importes
+     */
+    modeles_importes?: Array<ModeleImporte>;
+    /**
+     * Termes
+     */
+    termes?: Array<TermeLexique>;
+};
+
+/**
  * LMNT
  *
  * Stored LMNT configurations remain readable after the provider's retirement.
@@ -4394,6 +4418,24 @@ export type ModelConfigurationMetricPrice = {
 export type ModelConfigurationPricingResponse = {
     platform_usage?: ModelConfigurationMetricPrice | null;
     dograh_model?: ModelConfigurationMetricPrice | null;
+};
+
+/**
+ * ModeleImporte
+ *
+ * A template of the socle imported into this vocabulary.
+ */
+export type ModeleImporte = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Date
+     *
+     * YYYY-MM-DD
+     */
+    date: string;
 };
 
 /**
@@ -5678,6 +5720,24 @@ export type RedialCampaignRequest = {
 };
 
 /**
+ * ResultatImport
+ */
+export type ResultatImport = {
+    /**
+     * Ajoutes
+     *
+     * Terms added to the vocabulary.
+     */
+    ajoutes: number;
+    /**
+     * Deja Presents
+     *
+     * Terms left untouched: one of their spellings was already there.
+     */
+    deja_presents: number;
+};
+
+/**
  * RetryConfigRequest
  */
 export type RetryConfigRequest = {
@@ -6797,6 +6857,48 @@ export type TelnyxConfigurationRequest = {
      * Webhook public key from Mission Control Portal → Keys & Credentials → Public Key. Used to verify Telnyx webhook signatures.
      */
     webhook_public_key?: string | null;
+};
+
+/**
+ * TermeLexique
+ *
+ * One name or word of the trade.
+ */
+export type TermeLexique = {
+    /**
+     * Terme
+     *
+     * The official spelling, the one the model reads and the agent writes.
+     */
+    terme: string;
+    /**
+     * Variantes
+     *
+     * Other spellings of the same name (« Jotul », « Godin »).
+     */
+    variantes?: Array<string>;
+    /**
+     * Prononciation
+     *
+     * How the voice should say it, written as it sounds. Only the text sent to the voice changes.
+     */
+    prononciation?: string | null;
+    /**
+     * Type
+     *
+     * nom: recognised and corrected before the model reads it. mot: a common word of the trade, only listened for by the transcription.
+     */
+    type?: 'nom' | 'mot';
+    /**
+     * Categorie
+     */
+    categorie?: string | null;
+    /**
+     * A Ecouter
+     *
+     * Sent to the transcription as a term to listen for (after the agent's Dictionary).
+     */
+    a_ecouter?: boolean;
 };
 
 /**
@@ -8104,6 +8206,24 @@ export type WorkflowConfigurationDefaults = {
      * Matches the town the caller names against the official list of French communes before the model reads it. Acts only at steps that collect a `commune` or `adresse…` variable. No effect in realtime mode.
      */
     verification_communes?: boolean;
+    /**
+     * Sons Communes
+     *
+     * Compares how the heard words sound with how each town sounds (pronunciation library), in addition to the spelling. Off: spelling only.
+     */
+    sons_communes?: boolean;
+    /**
+     * Sons Lexique
+     *
+     * Compares how the heard words sound with how each name of the trade vocabulary sounds, in addition to the spelling. A name found by its sound alone is asked for confirmation. Off: spelling only.
+     */
+    sons_lexique?: boolean;
+    /**
+     * Lexique Metier
+     *
+     * Uses the organization's trade vocabulary: listens for the ticked terms, corrects misheard names before the model reads them, and applies their pronunciations to the voice. No effect in realtime mode.
+     */
+    lexique_metier?: boolean;
     /**
      * Variables Commune
      *
@@ -12972,6 +13092,123 @@ export type GetCommunesDuCodePostalApiV1OrganizationsCommunesGetResponses = {
 };
 
 export type GetCommunesDuCodePostalApiV1OrganizationsCommunesGetResponse = GetCommunesDuCodePostalApiV1OrganizationsCommunesGetResponses[keyof GetCommunesDuCodePostalApiV1OrganizationsCommunesGetResponses];
+
+export type GetLexiqueApiV1OrganizationsLexiqueGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/lexique';
+};
+
+export type GetLexiqueApiV1OrganizationsLexiqueGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetLexiqueApiV1OrganizationsLexiqueGetError = GetLexiqueApiV1OrganizationsLexiqueGetErrors[keyof GetLexiqueApiV1OrganizationsLexiqueGetErrors];
+
+export type GetLexiqueApiV1OrganizationsLexiqueGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: LexiqueMetier;
+};
+
+export type GetLexiqueApiV1OrganizationsLexiqueGetResponse = GetLexiqueApiV1OrganizationsLexiqueGetResponses[keyof GetLexiqueApiV1OrganizationsLexiqueGetResponses];
+
+export type SaveLexiqueApiV1OrganizationsLexiquePutData = {
+    body: LexiqueMetier;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/lexique';
+};
+
+export type SaveLexiqueApiV1OrganizationsLexiquePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveLexiqueApiV1OrganizationsLexiquePutError = SaveLexiqueApiV1OrganizationsLexiquePutErrors[keyof SaveLexiqueApiV1OrganizationsLexiquePutErrors];
+
+export type SaveLexiqueApiV1OrganizationsLexiquePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: LexiqueMetier;
+};
+
+export type SaveLexiqueApiV1OrganizationsLexiquePutResponse = SaveLexiqueApiV1OrganizationsLexiquePutResponses[keyof SaveLexiqueApiV1OrganizationsLexiquePutResponses];
+
+export type ImportLexiqueApiV1OrganizationsLexiqueImportPostData = {
+    body: LexiqueMetier;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/lexique/import';
+};
+
+export type ImportLexiqueApiV1OrganizationsLexiqueImportPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ImportLexiqueApiV1OrganizationsLexiqueImportPostError = ImportLexiqueApiV1OrganizationsLexiqueImportPostErrors[keyof ImportLexiqueApiV1OrganizationsLexiqueImportPostErrors];
+
+export type ImportLexiqueApiV1OrganizationsLexiqueImportPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatImport;
+};
+
+export type ImportLexiqueApiV1OrganizationsLexiqueImportPostResponse = ImportLexiqueApiV1OrganizationsLexiqueImportPostResponses[keyof ImportLexiqueApiV1OrganizationsLexiqueImportPostResponses];
 
 export type ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetData = {
     body?: never;

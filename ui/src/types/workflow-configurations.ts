@@ -69,6 +69,13 @@ export const DEFAUTS_PIPECAT = {
     // The names of the extraction variables that get the town check; a final *
     // means "starts with". Same rule as before the setting existed (2026-09-17).
     variables_commune: 'commune, commune_*, adresse*',
+    // 🆕 The sounds (espeak-ng) are what the fork runs on today; the two
+    // switches (L18 of 2026-09-17) exist to measure what they bring.
+    sons_communes: true,
+    // ⚠️ ON (L2 of 2026-09-16): an organization that filled a trade vocabulary
+    // wants every agent to use it.
+    lexique_metier: true,
+    sons_lexique: true,
 } as const;
 
 // "provisional_vad" was retired. Definitions saved before then still carry it,
@@ -230,6 +237,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     conversion_nombres_transcription: boolean;  // Dictated numbers reach the model as digits
     verification_communes: boolean;  // Town the caller names checked against the list of communes
     variables_commune: string;  // Extraction variables that trigger it, comma separated, final * = starts with
+    sons_communes: boolean;  // The pronunciation library used to recognise towns
+    lexique_metier: boolean;  // The organization's trade vocabulary: listened for, corrected, pronounced
+    sons_lexique: boolean;  // The pronunciation library used to recognise the trade names
     user_speech_timeout: number;  // Seconds the caller may pause before the agent answers
     stt_ttfs_p99_latency: number | null;  // Empty = the value Pipecat measured for the provider
     user_turn_stop_timeout: number | null;  // Empty = 5 s, or 30 s in external-turn mode
