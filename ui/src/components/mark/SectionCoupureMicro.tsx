@@ -2,7 +2,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
 /**
- * [.mark] The "Interruptions" section of an agent's settings page.
+ * [.mark] The "Moments when the agent can't be interrupted" section of an agent's
+ * settings page (titled "Interruptions" until 2026-09-17, which read as the same
+ * thing as General > Interruption, the number of words needed to cut the agent).
  *
  * What it settles in a real call: the greeting cut in half by a "hello", and
  * the transfer interrupted halfway through.
@@ -64,7 +66,7 @@ export const SectionCoupureMicro = ({
 }: SectionCoupureMicroProps) => (
     <div className="space-y-4">
         <div>
-            <h3 className="text-sm font-semibold mb-1">Interruptions</h3>
+            <h3 className="text-sm font-semibold mb-1">Moments when the agent can&apos;t be interrupted</h3>
             <p className="text-xs text-muted-foreground">
                 When the caller&apos;s microphone is ignored, so the agent can finish
                 what it is doing.

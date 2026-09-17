@@ -254,6 +254,15 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         expect(interrupteur.getAttribute("aria-checked")).toBe("true");
     });
 
+    it("[coupure] the section of the moments the agent can't be interrupted carries its new title on the page", async () => {
+        await rendreLaPage();
+        expect(
+            screen.getByRole("heading", { name: "Moments when the agent can't be interrupted" }),
+        ).toBeTruthy();
+        // The old title read as General > Interruption, which is another setting.
+        expect(screen.queryByRole("heading", { name: "Interruptions" })).toBeNull();
+    });
+
     it("[nombres-dictes] the number switch tells what it now does, on the page", async () => {
         // The step moved after the aggregator (plan nombres-dictes, N1): the
         // recorded transcript keeps the words, and postal codes are read both

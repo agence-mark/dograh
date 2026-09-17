@@ -300,8 +300,13 @@ describe("Section Reglages vocaux de la page de parametres", () => {
         });
     });
 
-    it("monte la section Interruptions avec les trois strategies d'aujourd'hui", () => {
+    it("monte la section des moments ou l'agent ne se laisse pas couper avec les trois strategies d'aujourd'hui", () => {
         ouvrir(null);
+        // Renamed on 2026-09-17: "Interruptions" read as General > Interruption.
+        expect(
+            screen.getByRole("heading", { name: "Moments when the agent can't be interrupted" }),
+        ).toBeTruthy();
+        expect(screen.queryByRole("heading", { name: "Interruptions" })).toBeNull();
         const etat = (id: string) =>
             document.getElementById(id)?.getAttribute('aria-checked');
         expect(etat('mute_until_first_bot_complete')).toBe('true');
