@@ -322,7 +322,9 @@ def test_un_code_redit_au_tour_suivant_ne_se_confirme_pas_lui_meme(base, magasin
 def test_une_commune_nommee_puis_le_code_reste_sure(base, magasin):
     """The fix does not undo N2 ②: « Bovet » heard, then « soixante mille »: the
     code is sure, Beauvais proposed first (decision of Evan, 2026-09-16: named
-    sure only if heard exactly or alone in its code)."""
+    sure only if heard exactly or alone in its code). ⚠️ The town said at the
+    turn BEFORE the code is not covered by V4 until Evan decides (lecture.py,
+    ``VILLE_DU_TOUR_PRECEDENT``)."""
     _, avant = _lu("j'habite à Bovet", base, magasin)
     _, r = _lu("soixante mille", base, magasin, _trace_comme_lappel(avant))
     (d,) = r.detections

@@ -43,6 +43,7 @@ from api.services.communes.base import (
     distance_km,
     normaliser,
 )
+from api.services.communes.sons import sons
 from api.services.nombres.mots import MOTS_NOMBRE
 
 # Words that never start or end a town name in a sentence.
@@ -95,6 +96,12 @@ PHON_EXACT = 90
 PREFIXES_GENERIQUES = frozenset({"saint", "sainte", "le", "la", "les", "l", "pont", "mont", "val", "villers", "ville"})
 # A town of a department the caller said ("dans l'Oise").
 BONUS_DEPARTEMENT = 15
+# V5 (plan voix-et-communes), measured by sweep on 2026-09-17: the pronounced
+# sounds count from SEUIL_ESP, lowered by DECALAGE_ESP before joining the
+# spelling scores. POIDS_ESP = 0 turns them off.
+POIDS_ESP = 1
+SEUIL_ESP = 80
+DECALAGE_ESP = 0
 
 SURE = "sure"
 A_CONFIRMER = "a_confirmer"
@@ -144,6 +151,71 @@ def _extrait_dorigine(texte: str, debut: int, fin: int, mots_normalises: list[st
     if len(jetons) != len(mots_normalises):
         return " ".join(mots_normalises[debut:fin])
     return texte[jetons[debut].start():jetons[fin - 1].end()]
+
+
+def _joints(texte: str, mots: list[str]) -> set[int]:
+    """Positions k whose word is glued to word k + 1 by a hyphen or an apostrophe
+    in the ORIGINAL sentence ("Saint-Le-Destran", "l'Isle")."""
+    jetons = [m for m in re.finditer(rf"[^{_SEPARATEURS[1:-1]}]+", texte)]
+    if len(jetons) != len(mots):
+        return set()
+    return {
+        k for k in range(len(jetons) - 1)
+        if re.search(r"[-’'`]", texte[jetons[k].end():jetons[k + 1].start()])
+    }
+
+
+def _segments(texte: str, mots: list[str], spans_cp, mots_cp: set[int], avec_lecteur: bool):
+    """The readings of a sentence a town may hide in: (start, length, words, after an amorce)."""
+    joints = _joints(texte, mots)
+    reponse_courte = sum(1 for m in mots if m not in MOTS_HORS_COMPTE and not m.isdigit()) <= 5
+    for i in range(len(mots)):
+        # A name right after a street type is a street name, not a town.
+        avant = mots[max(0, i - 3):i]
+        voies = [k for k, m in enumerate(avant) if m in TYPES_VOIE]
+        if voies and not any(m in AMORCES for m in avant[voies[-1]:]):
+            continue
+        # T8 (plan voix-et-communes): the rest of a name that opens on a generic
+        # prefix is not a town of its own. "Saint-Le-Destran" read "Le-Destran"
+        # as Lestrem (62), sure (run 265). An article counts only when glued.
+        if i > 0 and mots[i - 1] in PREFIXES_GENERIQUES and (
+            mots[i - 1] not in ARTICLES or (i - 1) in joints
+        ):
+            continue
+        for n in range(1, N_MAX + 1):
+            seg = mots[i:i + n]
+            if len(seg) < n:
+                break
+            if (seg[0] in MOTS_OUTILS and not (n > 1 and seg[0] in ARTICLES)) or seg[-1] in MOTS_OUTILS or seg[-1] in LIAISONS:
+                continue
+            debut_utile = all(m in MOTS_VIDES_REPONSE for m in mots[:i])
+            ancre = (
+                (i > 0 and mots[i - 1] in AMORCES)
+                or (reponse_courte and debut_utile)
+                or any(f == i or d == i + n for d, f in spans_cp)
+            )
+            if not ancre:
+                continue
+            if any(m.isdigit() for m in seg) or any(m in TYPES_VOIE for m in seg):
+                continue
+            if any(k in mots_cp for k in range(i, i + n)):
+                continue
+            # With the reader, words that are only a number are never a town
+            # ("c'est deux mille" read Dreux as sure). Names that carry a number
+            # word among others stay searchable (Six-Fours-les-Plages).
+            if avec_lecteur and all(m in MOTS_NOMBRE or m == "et" for m in seg):
+                continue
+            # A tool word inside a name only when glued on both sides: "monte-à-terre"
+            # is one written name (Montataire, run 264), "Beauvais à côté" is not.
+            if any(
+                m in MOTS_OUTILS and m not in LIAISONS and not (k - 1 in joints and k in joints)
+                for k, m in enumerate(seg[1:-1], start=i + 1)
+            ):
+                continue
+            extrait = " ".join(seg)
+            if len(extrait.replace(" ", "")) < 3:
+                continue
+            yield i, n, extrait, i > 0 and mots[i - 1] in AMORCES
 
 
 def analyser(
@@ -198,47 +270,11 @@ def analyser(
             if all(len(lectures_par_span[tuple(s)]) == 1 for s in spans)
         }
 
-    attente = []
-    reponse_courte = sum(1 for m in mots if m not in MOTS_HORS_COMPTE and not m.isdigit()) <= 5
-    for i in range(len(mots)):
-        # A name right after a street type is a street name, not a town.
-        avant = mots[max(0, i - 3):i]
-        voies = [k for k, m in enumerate(avant) if m in TYPES_VOIE]
-        if voies and not any(m in AMORCES for m in avant[voies[-1]:]):
-            continue
-        for n in range(1, N_MAX + 1):
-            seg = mots[i:i + n]
-            if len(seg) < n:
-                break
-            if (seg[0] in MOTS_OUTILS and not (n > 1 and seg[0] in ARTICLES)) or seg[-1] in MOTS_OUTILS or seg[-1] in LIAISONS:
-                continue
-            debut_utile = all(m in MOTS_VIDES_REPONSE for m in mots[:i])
-            ancre = (
-                (i > 0 and mots[i - 1] in AMORCES)
-                or (reponse_courte and debut_utile)
-                or any(f == i or d == i + n for d, f in spans_cp)
-            )
-            if not ancre:
-                continue
-            if any(m.isdigit() for m in seg) or any(m in TYPES_VOIE for m in seg):
-                continue
-            if any(k in mots_cp for k in range(i, i + n)):
-                continue
-            # With the reader, words that are only a number are never a town
-            # ("c'est deux mille" read Dreux as sure). Names that carry a number
-            # word among others stay searchable (Six-Fours-les-Plages).
-            if codes_postaux is not None and all(m in MOTS_NOMBRE or m == "et" for m in seg):
-                continue
-            if any(m in MOTS_OUTILS and m not in LIAISONS for m in seg[1:-1]):
-                continue
-            extrait = " ".join(seg)
-            if len(extrait.replace(" ", "")) < 3:
-                continue
-            amorce = i > 0 and mots[i - 1] in AMORCES
-            k_phon, k_son = cle_phonetique(extrait), cle_sonore(extrait)
-            if len(k_son) < 2:
-                continue
-            attente.append((i, n, extrait, amorce, k_phon, k_son))
+    attente = [
+        (i, n, extrait, amorce, cle_phonetique(extrait), cle_sonore(extrait))
+        for i, n, extrait, amorce in _segments(texte, mots, spans_cp, mots_cp, codes_postaux is not None)
+    ]
+    attente = [a for a in attente if len(a[5]) >= 2]
 
     fenetres: list[tuple[float, int, int, list[Lecture]]] = []
     if attente:
@@ -250,6 +286,15 @@ def analyser(
         m_son = process.cdist([t[5] for t in attente], base.sons, scorer=fuzz.ratio,
                               score_cutoff=SEUIL_PHON, dtype=np.uint8, workers=-1)
         m_max = np.maximum(m_phon, m_son)
+        # V5 (plan voix-et-communes): the pronounced sounds, in one call for the
+        # whole sentence, scored on their own threshold and combined by the
+        # maximum, so a town already recognised is never lost.
+        sons_entendus = sons([t[2] for t in attente]) if base.esps and POIDS_ESP else None
+        if sons_entendus is not None:
+            m_esp = process.cdist(sons_entendus, base.esps, scorer=fuzz.ratio,
+                                  score_cutoff=SEUIL_ESP, dtype=np.uint8, workers=-1)
+            m_esp = np.where(m_esp > 0, np.clip(m_esp.astype(np.int16) - DECALAGE_ESP, 0, 100), 0).astype(np.uint8)
+            m_max = np.maximum(m_max, m_esp)
         for w, (i, n, extrait, amorce, k_phon, k_son) in enumerate(attente):
             ligne = m_max[w]
             trouves = np.nonzero(ligne)[0]
@@ -350,3 +395,123 @@ def analyser(
                     codes_postaux_dits=frozenset(cps),
                 ))
     return prises
+
+
+# --------------------------------------------------------------------------- #
+# V4 (plan voix-et-communes): the town among the communes of a postal code said
+# --------------------------------------------------------------------------- #
+
+# Measured by sweep on 2026-09-17 (see the plan's journal): the best commune of
+# the code must reach SEUIL_CODE and lead the next one by ECART_CODE. A code
+# remembered from an earlier turn asks more: the caller may be naming another
+# place by then.
+SEUIL_CODE = 60
+ECART_CODE = 20
+SEUIL_CODE_TRACE = 60
+ECART_CODE_TRACE = 20
+# Conversation words that never name a town next to a postal code: the words a
+# caller says before one ("d'accord soixante mille"), from the sweep of
+# 2026-09-16 (``test_balayages_nombres_dictes.AMORCES``).
+MOTS_CONVERSATION = frozenset(
+    """accord exactement attendez ecoutez normalement crois pense bon hum ouais bah ben donc
+    merci beaucoup moi mon ma code postal voila oui non alors euh bien tres sure doit peut faut""".split()
+)
+
+
+def _reponse_entiere(mots: list[str], exclus: set[int]) -> tuple[int, int] | None:
+    """The whole answer, conversation words and numbers removed at both ends:
+    "c'est un monte-à-terre" -> "monte a terre" (run 264)."""
+    utiles = [
+        k for k, m in enumerate(mots)
+        if k not in exclus and m not in MOTS_CONVERSATION and m not in MOTS_VIDES_REPONSE
+        and m not in ("un", "une", "au", "chez", "est", "c")
+    ]
+    if not utiles:
+        return None
+    d, f = utiles[0], utiles[-1] + 1
+    seg = mots[d:f]
+    if f - d > N_MAX or any(k in exclus for k in range(d, f)) or any(m.isdigit() for m in seg):
+        return None
+    if seg[0] in TYPES_VOIE or len("".join(seg)) < 3:
+        return None
+    # Grammar words alone are no name: "il y a soixante mille" read Tillé as
+    # sure, "je crois que c'est …" Cuts (sweep of 2026-09-16, amorces).
+    if all(m in MOTS_OUTILS or m in MOTS_CONVERSATION for m in seg):
+        return None
+    return d, f
+
+
+def ville_par_code(
+    texte: str,
+    base: BaseCommunes,
+    codes: set[str] | frozenset[str],
+    mots_exclus: set[int] | frozenset[int] = frozenset(),
+    seuil: float = SEUIL_CODE,
+    ecart: float = ECART_CODE,
+    spans_codes: Sequence[tuple[int, int]] = (),
+) -> Detection | None:
+    """The town named in ``texte`` among the communes of ``codes``, when one is
+    NETTEMENT DEVANT the others; None otherwise.
+
+    Decision of Evan, 2026-09-17 (V4): a postal code said makes the town sure
+    when its name is the closest among the communes of that code, clearly ahead.
+    "Bouvé" said with 60000 is Beauvais: among the eight communes of 60000,
+    nothing else comes close. Relaxes the rule of 2026-09-16 (a name heard almost
+    exactly) for this case only.
+
+    ``codes``: every existing reading of the postal code said ("soixante sept
+    cent quarante" is 60740 or 67140: the town decides between them).
+    ``mots_exclus``: word positions of the numbers read; ``spans_codes``: the
+    words [debut, fin) of the postal codes, a name next to them is anchored.
+    Blocking: worker thread.
+    """
+    from rapidfuzz import fuzz
+
+    indices = sorted({j for cp in codes for j in base.par_cp.get(cp, [])})
+    if not indices:
+        return None
+    mots = normaliser(texte).split()
+    exclus = set(mots_exclus)
+    candidats: dict[tuple[int, int], str] = {}
+    for i, n, extrait, _amorce in _segments(texte, mots, list(spans_codes), exclus, True):
+        if all(m in MOTS_CONVERSATION or m in MOTS_OUTILS for m in mots[i:i + n]):
+            continue
+        candidats[(i, i + n)] = extrait
+    entiere = _reponse_entiere(mots, exclus)
+    if entiere is not None:
+        candidats.setdefault(entiere, " ".join(mots[entiere[0]:entiere[1]]))
+    if not candidats:
+        return None
+    spans = list(candidats)
+    extraits = [candidats[s] for s in spans]
+    phons = [cle_phonetique(e) for e in extraits]
+    sons_cles = [cle_sonore(e) for e in extraits]
+    prononces = sons(extraits) if base.esps else None
+
+    meilleurs: dict[int, tuple[float, tuple[int, int]]] = {}
+    for w, span in enumerate(spans):
+        for j in indices:
+            s = max(
+                fuzz.ratio(sons_cles[w], base.sons[j]),
+                fuzz.ratio(phons[w], base.phons[j]),
+                fuzz.ratio(extraits[w], base.norms[j]),
+                fuzz.ratio(prononces[w], base.esps[j]) if prononces is not None and base.esps[j] else 0.0,
+            )
+            if s > meilleurs.get(j, (-1.0,))[0]:
+                meilleurs[j] = (s, span)
+    classes = sorted(meilleurs.items(), key=lambda x: (-x[1][0], -base.communes[x[0]].population))
+    (j, (score, (debut, fin))), *autres = classes
+    second = autres[0][1][0] if autres else 0.0
+    if score < seuil or score - second < ecart:
+        return None
+    commune = base.communes[j]
+    lectures = [Lecture(commune, score, score, score, score, True)]
+    lectures += [Lecture(base.communes[k], s, s, s, s, True) for k, (s, _) in autres[:2]]
+    return Detection(
+        entendu=_extrait_dorigine(texte, debut, fin, mots),
+        debut=debut,
+        fin=fin,
+        statut=SURE,
+        lectures=tuple(lectures),
+        codes_postaux_dits=frozenset(set(codes) & set(commune.cps)),
+    )

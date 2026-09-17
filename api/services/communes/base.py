@@ -41,10 +41,11 @@ from pathlib import Path
 DOSSIER_BASE = Path(__file__).resolve().parents[2] / "assets" / "communes"
 # ⛔ Named explicitly, not "the newest file in the folder": which list a call
 # ran on must be readable in the code. Regenerating = new file + this constant.
-FICHIER_BASE = DOSSIER_BASE / "communes-2026-09.json.gz"
+FICHIER_BASE = DOSSIER_BASE / "communes-2026-09-v2.json.gz"
 
-# Bumped whenever normaliser / cle_phonetique / cle_sonore change meaning.
-VERSION_CLES = 1
+# Bumped whenever normaliser / cle_phonetique / cle_sonore / the sounds change
+# meaning. 2 (2026-09-17): the espeak-ng sounds added (``sons.py``, V5).
+VERSION_CLES = 2
 
 
 def normaliser(texte: str) -> str:
@@ -125,6 +126,8 @@ class BaseCommunes:
     sons: list[str]
     departements: dict[str, str]
     entete: dict
+    # espeak-ng sounds (``sons.py``); "" for a commune without them.
+    esps: list[str] = field(default_factory=list)
     par_cp: dict[str, list[int]] = field(default_factory=dict)
     par_insee: dict[str, int] = field(default_factory=dict)
 
@@ -167,12 +170,13 @@ def lire_fichier(chemin: Path) -> BaseCommunes:
     """Read a generated file. Synchronous: call it off the event loop."""
     with gzip.open(chemin, "rt", encoding="utf-8") as f:
         donnees = json.load(f)
-    communes, norms, phons, sons = [], [], [], []
-    for insee, nom, cps, population, dep, lon, lat, norm, phon, son in donnees["communes"]:
+    communes, norms, phons, sons, esps = [], [], [], [], []
+    for insee, nom, cps, population, dep, lon, lat, norm, phon, son, *esp in donnees["communes"]:
         communes.append(Commune(insee, nom, tuple(cps), population, dep, lon, lat))
         norms.append(norm)
         phons.append(phon)
         sons.append(son)
+        esps.append(esp[0] if esp else "")
     return BaseCommunes(
         communes=communes,
         norms=norms,
@@ -180,6 +184,7 @@ def lire_fichier(chemin: Path) -> BaseCommunes:
         sons=sons,
         departements=donnees["departements"],
         entete=donnees["entete"],
+        esps=esps,
     )
 
 

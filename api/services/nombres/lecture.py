@@ -836,12 +836,138 @@ def _analyser_avec_noms_a_nombre(texte, base, magasin, spans, departements, mots
     return sorted(detections + retenues, key=lambda x: x.debut) if retenues else detections
 
 
-def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adresse: bool = True) -> LectureMessage:
+# ⚠️ Pending Evan's decision (A-VALIDER, 2026-09-17): the town said at the turn
+# BEFORE the code. Measured: « chez mes parents » then « soixante cent dix »
+# makes Esches sure, the defect of the third review of 2026-09-16 (39 false sure
+# towns on its sweep). Off, the town stays to confirm, as on 2026-09-16.
+VILLE_DU_TOUR_PRECEDENT = False
+
+
+def _derniere_entree(trace) -> dict | None:
+    for entree in reversed(trace or []):
+        if isinstance(entree, dict) and not entree.get("provisoire"):
+            return entree
+    return None
+
+
+def _repetition_tranche(detections, trace_appel):
+    """V8 (plan voix-et-communes): the caller repeats the name after a request
+    for precision, the commune proposed first is kept.
+
+    « Lyon » said three times stayed to confirm (run 264). When the last town
+    check of the call asked for precision, and this message's best reading is
+    the same commune again, it is sure.
+    """
+    from dataclasses import replace
+
+    from api.services.communes.analyse import A_CONFIRMER as COMMUNE_A_CONFIRMER
+    from api.services.communes.analyse import SURE as COMMUNE_SURE
+
+    derniere = _derniere_entree(trace_appel)
+    if (
+        derniere is None
+        or derniere.get("statut") != "a_confirmer"
+        or derniere.get("code_postal_entendu")
+        or not derniere.get("propositions")
+    ):
+        return detections
+    en_tete = (derniere["propositions"][0] or {}).get("code_insee")
+    return [
+        replace(d, statut=COMMUNE_SURE)
+        if d.statut == COMMUNE_A_CONFIRMER and not d.code_postal_entendu and d.lectures
+        and d.lectures[0].commune.insee == en_tete
+        else d
+        for d in detections
+    ]
+
+
+def _codes_retenus(trace_nombres) -> set[str]:
+    """The postal code of the call's last number read as one: the code kept when
+    sure, otherwise every reading (V4, a code said at an earlier turn)."""
+    for entree in reversed(trace_nombres or []):
+        if not isinstance(entree, dict) or entree.get("provisoire") or entree.get("type") != CODE_POSTAL:
+            continue
+        if entree.get("statut") == SURE and entree.get("retenu"):
+            return {entree["retenu"]}
+        return set(entree.get("lectures") or [])
+    return set()
+
+
+def _ville_par_code(texte, base, detections, candidats, mots_exclus, trace_appel, trace_nombres):
+    """V4 (plan voix-et-communes), decision of Evan, 2026-09-17: a postal code
+    known, the town is looked for among ITS communes, and sure when clearly ahead.
+
+    Three ways a code is known, in order:
+    1. said in this message ("Bouvé, soixante mille"): the words of the message;
+    2. said in this message, the town at the turn before ("Bouvé", then
+       "soixante mille"): the words of the last town check of the call;
+    3. said at an earlier turn ("soixante mille", then "Bouvé"): the words of
+       this message, the code of the call's last postal code read.
+    The town found replaces the readings of the same words; a code is then
+    chosen by N2 ① as for a town said.
+    """
+    from dataclasses import replace
+
+    from api.services.communes.analyse import (
+        ECART_CODE,
+        ECART_CODE_TRACE,
+        SEUIL_CODE,
+        SEUIL_CODE_TRACE,
+        ville_par_code,
+    )
+    from api.services.communes.analyse import SURE as COMMUNE_SURE
+
+    codes_message = {cp for n in candidats for cp in n.lectures_cp + n.lectures_cp_zero}
+    spans_codes = [(n.debut, n.fin) for n in candidats]
+    trouvee = None
+    if codes_message:
+        trouvee = ville_par_code(texte, base, codes_message, mots_exclus, SEUIL_CODE, ECART_CODE, spans_codes)
+        if VILLE_DU_TOUR_PRECEDENT and trouvee is None and not any(
+            d.statut == COMMUNE_SURE and not d.code_postal_entendu for d in detections
+        ):
+            derniere = _derniere_entree(trace_appel)
+            if (
+                derniere is not None and derniere.get("statut") == "a_confirmer"
+                and not derniere.get("code_postal_entendu") and derniere.get("entendu")
+            ):
+                avant = ville_par_code(derniere["entendu"], base, codes_message, frozenset(),
+                                       SEUIL_CODE_TRACE, ECART_CODE_TRACE)
+                if avant is not None:
+                    trouvee = replace(avant, debut=-1, fin=-1)
+    else:
+        codes_appel = _codes_retenus(trace_nombres)
+        if codes_appel:
+            trouvee = ville_par_code(texte, base, codes_appel, mots_exclus, SEUIL_CODE_TRACE, ECART_CODE_TRACE)
+            # A town SPELLED as said, that does not carry the code, is another place
+            # ("Arcueil"); a sound alone is not enough ("Accueil" is Arcueil by its
+            # sound, and was Creil, run 264).
+            if trouvee is not None and any(
+                d.statut == COMMUNE_SURE and d.lectures and d.lectures[0].ortho >= ORTHO_NOM_A_NOMBRE
+                and not set(d.lectures[0].commune.cps) & codes_appel
+                for d in detections
+            ):
+                trouvee = None
+    if trouvee is None:
+        return detections
+    if trouvee.debut < 0:
+        gardees = [d for d in detections if d.code_postal_entendu]
+    else:
+        gardees = [d for d in detections if d.fin <= trouvee.debut or d.debut >= trouvee.fin or d.debut < 0]
+    return sorted([*gardees, trouvee], key=lambda d: d.debut)
+
+
+def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adresse: bool = True,
+                     trace_nombres=None) -> LectureMessage:
     """The numbers and the towns of one message, read together. Blocking.
 
     The reader gives every existing postal-code reading; the town analysis runs
     once with all of them; N2 chooses. A postal code said without any town gets
     a town note of its own, built here (``code_postal_entendu``).
+
+    At a step that collects a town (plan voix-et-communes): a name repeated
+    after a request for precision is sure (V8), and a postal code known, in
+    this message or the call's record ``trace_nombres``, decides the town
+    among its communes (V4).
     """
     from dataclasses import replace
 
@@ -893,6 +1019,11 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
     detections = _analyser_avec_noms_a_nombre(
         texte, base, magasin, spans, departements, mots_nombres, _mots_de(n for n in nombres if n.type == AUTRE)
     )
+    if etape_adresse:
+        detections = _repetition_tranche(detections, trace_appel)
+        detections = _ville_par_code(
+            texte, base, detections, candidats, mots_nombres | _mots_de(nombres), trace_appel, trace_nombres
+        )
     communes_dites = bool(detections)
     choix: dict[int, ChoixCodePostal] = {}
     for n in candidats:

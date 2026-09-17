@@ -27,3 +27,7 @@ opening_hours_py==2.1.4
 tzdata==2026.4
 phonetic-fr==1.0.3
 rapidfuzz==3.14.6
+# [.mark] Pronunciation library (town check, V5 of plan voix-et-communes). GPL: a
+# hosted service only, never offered to Dograh. The loader bundles espeak-ng, no apt step.
+espeakng-loader==0.2.4
+phonemizer-fork==3.3.2

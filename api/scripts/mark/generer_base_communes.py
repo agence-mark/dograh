@@ -4,7 +4,15 @@ Run from the repository root, once a year or when the keys change:
 
     PYTHONPATH=. api/.venv/Scripts/python.exe -m api.scripts.mark.generer_base_communes
 
-Writes ``api/assets/communes/communes-AAAA-MM.json.gz``. Then point
+Writes ``api/assets/communes/communes-AAAA-MM.json.gz``. To recompute the
+keys and sounds WITHOUT downloading (same communes, same data), for example
+after a change of ``VERSION_CLES``:
+
+    PYTHONPATH=. api/.venv/Scripts/python.exe -m api.scripts.mark.generer_base_communes
+        --depuis api/assets/communes/communes-2026-09.json.gz
+        --sortie api/assets/communes/communes-2026-09-v2.json.gz
+
+The sounds need espeak-ng (``espeakng-loader``, ``phonemizer-fork``). Then point
 ``FICHIER_BASE`` in ``api/services/communes/base.py`` at the new file, run
 ``api/tests/mark/test_base_communes.py`` and ``test_analyse_communes.py``, and
 delete the old file in the same commit.
@@ -39,6 +47,7 @@ from api.services.communes.base import (
     cle_sonore,
     normaliser,
 )
+from api.services.communes.sons import sons
 
 URL_COMMUNES = (
     "https://geo.api.gouv.fr/communes"
@@ -55,7 +64,13 @@ def _telecharger(url: str):
 
 def construire(communes_brutes: list[dict], departements_bruts: list[dict], telecharge_le: str) -> dict:
     communes = []
-    for c in sorted(communes_brutes, key=lambda c: c["code"]):
+    triees = sorted(communes_brutes, key=lambda c: c["code"])
+    # ⛔ The sounds are required: a file without them would silently turn the
+    # pronunciation score off for every call.
+    sons_des_noms = sons([normaliser(c["nom"]) for c in triees])
+    if sons_des_noms is None:
+        raise SystemExit("espeak-ng unavailable: install espeakng-loader and phonemizer-fork")
+    for c, son_prononce in zip(triees, sons_des_noms):
         lon, lat = (c.get("centre") or {}).get("coordinates", (None, None))
         norm = normaliser(c["nom"])
         communes.append(
@@ -70,6 +85,7 @@ def construire(communes_brutes: list[dict], departements_bruts: list[dict], tele
                 norm,
                 cle_phonetique(norm),
                 cle_sonore(norm),
+                son_prononce,
             ]
         )
     return {
@@ -81,7 +97,7 @@ def construire(communes_brutes: list[dict], departements_bruts: list[dict], tele
             "perimetre": "communes actuelles seulement, ni anciennes communes ni lieux-dits",
             "version_cles": VERSION_CLES,
             "colonnes": ["insee", "nom", "codes_postaux", "population", "departement",
-                         "longitude", "latitude", "norm", "phon", "son"],
+                         "longitude", "latitude", "norm", "phon", "son", "son_prononce"],
             "nombre": len(communes),
         },
         "departements": {d["code"]: d["nom"] for d in departements_bruts},
@@ -92,12 +108,25 @@ def construire(communes_brutes: list[dict], departements_bruts: list[dict], tele
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--sortie", type=Path, default=None)
+    parser.add_argument("--depuis", type=Path, default=None,
+                        help="an existing file: recompute its keys, download nothing")
     args = parser.parse_args()
 
     maintenant = datetime.now(timezone.utc)
-    communes = _telecharger(URL_COMMUNES)
-    departements = _telecharger(URL_DEPARTEMENTS)
-    donnees = construire(communes, departements, maintenant.date().isoformat())
+    if args.depuis:
+        with gzip.open(args.depuis, "rt", encoding="utf-8") as f:
+            ancien = json.load(f)
+        communes = [
+            {"code": l[0], "nom": l[1], "codesPostaux": l[2], "population": l[3],
+             "codeDepartement": l[4], "centre": {"coordinates": (l[5], l[6])}}
+            for l in ancien["communes"]
+        ]
+        departements = [{"code": code, "nom": nom} for code, nom in ancien["departements"].items()]
+        donnees = construire(communes, departements, ancien["entete"]["telecharge_le"])
+    else:
+        communes = _telecharger(URL_COMMUNES)
+        departements = _telecharger(URL_DEPARTEMENTS)
+        donnees = construire(communes, departements, maintenant.date().isoformat())
 
     sortie = args.sortie or DOSSIER_BASE / f"communes-{maintenant:%Y-%m}.json.gz"
     sortie.parent.mkdir(parents=True, exist_ok=True)
