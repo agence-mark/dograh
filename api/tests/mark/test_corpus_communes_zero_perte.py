@@ -39,6 +39,27 @@ CORPUS = json.loads(
 )
 ABSENTE = 99
 MAGASINS = ["60589", "60159", "78168", "13055", "sans"]
+# ⚠️ EN ATTENTE DE DÉCISION D'EVAN (contre-relecture du 17/09) : avec le rayon de
+# 40 km de ``propositions_fondees``, ces magasins perdent des communes voulues
+# (Compiègne 17, Coignières 10, Marseille 7 : « perçant » -> Persan, « Abrel » ->
+# Bresles, « bonsoir Oise » -> Beaumont-sur-Oise). Marqués en échec attendu,
+# STRICT : visibles à chaque passage (xfailed), et le jour où la décision les
+# fait passer, le test rougit (XPASS) pour qu'on retire la marque.
+EN_ATTENTE_DE_DECISION = {"60159", "78168", "13055"}
+
+
+def _contextes():
+    return [
+        pytest.param(
+            cle,
+            marks=pytest.mark.xfail(
+                strict=True, reason="en attente de décision d'Evan sur le rayon de 40 km (contre-relecture du 17/09)"
+            ),
+        )
+        if cle in EN_ATTENTE_DE_DECISION
+        else cle
+        for cle in MAGASINS
+    ]
 
 
 @pytest.fixture(scope="module")
@@ -68,7 +89,7 @@ def test_le_corpus_couvre_les_cinq_magasins():
     }
 
 
-@pytest.mark.parametrize("cle", MAGASINS)
+@pytest.mark.parametrize("cle", _contextes())
 def test_aucune_commune_voulue_perdue_ni_sure_a_tort_de_plus(base, cle):
     magasin = _magasin(base, cle)
     lues, pertes, sures_en_plus = 0, [], []

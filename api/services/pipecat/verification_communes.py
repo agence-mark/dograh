@@ -162,7 +162,7 @@ def _analyser_et_mentionner(texte: str, adresse: AdresseEtablissement | None):
     """Blocking: runs in a worker thread. Returns (annotated text, detections, base)."""
     base = charger_base()
     magasin = base.coordonnees(adresse.code_insee) if adresse else None
-    detections = propositions_fondees(texte, analyser(texte, base, magasin), base)
+    detections = propositions_fondees(texte, analyser(texte, base, magasin), base, magasin)
     return mentionner(texte, detections, base), detections, base
 
 

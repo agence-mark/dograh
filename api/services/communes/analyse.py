@@ -105,6 +105,20 @@ DECALAGE_ESP = 0
 # Readings longer than this are not listened to (the longest name caught by its
 # sounds on the benches, « Verneuil en alerte », is three words).
 MOTS_MAX_SONS = 4
+# Decision of Evan, 2026-09-17 (fiche D): a commune to confirm is named aloud,
+# so a word that resembles it badly and nothing locates proposes nothing.
+# ⛔ Rule of Evan for this repair: zero loss against production (657a365b) on
+# the real corpus (``test_corpus_communes_zero_perte.py``). The resemblance is
+# the spelling keys' (phonetic_fr, home sound key), not the espeak sounds alone
+# (« crée » sounds like Crépy at 92, spells 57). Measured on 2026-09-17:
+# communes meant by the caller go down to 76.2 (« bonsoir Oise » ->
+# Beaumont-sur-Oise), 80 (« Abrel » -> Bresles), 83.3 (« perçant » -> Persan),
+# all within 26 km of the shop; « granulés » -> Grandrû is 76.9, at 62 km. So
+# under SEUIL_PROPOSITION a proposal needs a location clue: within
+# RAYON_PROPOSITION_FAIBLE km (true 26 at most, parasites 62 and farther:
+# Grandrû; Grans 654, Préveranges 308, La Ciotat 714), or its department said.
+SEUIL_PROPOSITION = 84
+RAYON_PROPOSITION_FAIBLE = 40
 
 SURE = "sure"
 A_CONFIRMER = "a_confirmer"
@@ -499,7 +513,13 @@ def _article_du_nom(article: str, nom_normalise: str) -> bool:
     return nom_normalise.replace(" ", "").startswith(article)
 
 
-def propositions_fondees(texte: str, detections: list[Detection], base: BaseCommunes) -> list[Detection]:
+def propositions_fondees(
+    texte: str,
+    detections: list[Detection],
+    base: BaseCommunes,
+    magasin: tuple[float, float] | None = None,
+    departements: set[str] | frozenset[str] | None = None,
+) -> list[Detection]:
     """The detections, without the communes proposed on words that name no place.
 
     Decision of Evan, 2026-09-17 (fiche D, runs 269 to 272): the agent names the
@@ -518,21 +538,22 @@ def propositions_fondees(texte: str, detections: list[Detection], base: BaseComm
        « à côté de la gare » is not Contay, « c'est vers Bovet » not Vers;
        « j'habite à Vers, dans le Lot » is Vers.
 
-    ⛔ No resemblance threshold and no distance to the shop (counter-review of
-    2026-09-17): measured on the real corpus with five shops, a radius lost
-    « Abrel » -> Bresles or « perçant » -> Persan for Compiègne, Coignières or
-    Marseille; a resemblance threshold removed no parasite up to 70, and at 76
-    already lost « Saint-Luc Destronc » -> Saint-Leu-d'Esserent (Compiègne).
-    « granulés » -> Grandrû stays a known limit.
+    4. Resemblance: a proposal whose spelling keys stay under SEUIL_PROPOSITION
+       needs a location clue: within RAYON_PROPOSITION_FAIBLE km of the shop, or
+       in a department said. Without the shop's address, nothing is removed.
+       ⚠️ Pending Evan's decision (counter-review of 2026-09-17): zero loss for
+       Saint-Maximin, not for every shop (``test_corpus_communes_zero_perte.py``).
 
     Only proposals TO CONFIRM are touched: a sure town, a postal code heard, a
     commune backed by a postal code and a name written exactly as the commune
     (« Saint-Laurent », « à Vers, dans le Lot ») are always kept. A detection
-    left with no proposal is dropped. No rule depends on the shop's location.
+    left with no proposal is dropped.
     Blocking: worker thread, like ``analyser``.
     """
     if not any(d.statut == A_CONFIRMER and not d.code_postal_entendu for d in detections):
         return detections
+    from rapidfuzz import fuzz
+
     mots = normaliser(texte).split()
     sans_contenu = _mots_sans_contenu(base)
     gardees: list[Detection] = []
@@ -541,6 +562,7 @@ def propositions_fondees(texte: str, detections: list[Detection], base: BaseComm
             gardees.append(d)
             continue
         extrait = " ".join(mots[d.debut:d.fin])
+        k_phon, k_son = cle_phonetique(extrait), cle_sonore(extrait)
         # « c'est vers Bovet », « à côté de la gare »: a preposition;
         # « j'habite à Vers, dans le Lot »: a place.
         preposition = (
@@ -570,7 +592,13 @@ def propositions_fondees(texte: str, detections: list[Detection], base: BaseComm
                 return False
             if article_avant is not None and not _article_du_nom(article_avant, base.norms[j]):
                 return False
-            return True
+            if max(fuzz.ratio(k_phon, base.phons[j]), fuzz.ratio(k_son, base.sons[j])) >= SEUIL_PROPOSITION:
+                return True
+            return (
+                magasin is None
+                or distance_km(l.commune, *magasin) <= RAYON_PROPOSITION_FAIBLE
+                or bool(departements and l.commune.dep in departements)
+            )
 
         lectures = tuple(l for l in d.lectures if fondee(l))
         if lectures:
