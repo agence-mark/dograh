@@ -484,9 +484,12 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     # ⛔ Multi-line values too: the two idle prompts are long enough that the
     # formatter puts them on their own line, and a line-by-line parser would
     # silently skip exactly the settings hardest to keep in step.
+    # ⛔ And commas INSIDE a quoted value: `variables_commune` is a list of names
+    # written as one string (2026-09-17). Without the quoted alternative its
+    # line would not match, and only the count below would say so.
     ecran = {}
     for cle, brut in re.findall(
-        r"^ {4}([a-z_0-9]+):((?:[^,\n]|\n {8,})+),$",
+        r"^ {4}([a-z_0-9]+):((?:'[^'\n]*'|[^,\n]|\n {8,})+),$",
         bloc.group(1),
         re.MULTILINE,
     ):
@@ -503,8 +506,8 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
             f"'{cle}': the screen shows {valeur_ecran!r} and the pipeline runs "
             f"{valeur_schema!r}. One of the two copies moved without the other."
         )
-    assert len(ecran) == 31, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 31. "
+    assert len(ecran) == 32, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 32. "
         f"A setting added on one side only renders and is then dropped."
     )
 

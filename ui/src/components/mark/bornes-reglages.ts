@@ -82,6 +82,7 @@ export const BORNES: Record<string, Borne> = {
 export const LONGUEURS_MAX: Record<string, number> = {
     user_idle_prompt: 2000,
     user_idle_goodbye_prompt: 2000,
+    variables_commune: 500,
 };
 
 /**

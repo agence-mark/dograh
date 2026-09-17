@@ -8105,6 +8105,12 @@ export type WorkflowConfigurationDefaults = {
      */
     verification_communes?: boolean;
     /**
+     * Variables Commune
+     *
+     * The extraction variables that trigger the town check, separated by commas. A final * means every name that starts with it (adresse* covers adresse_chantier). Case and spaces do not count. Empty: commune, commune_*, adresse*.
+     */
+    variables_commune?: string;
+    /**
      * Horaires Ouverture
      *
      * Opening hours in the readable French format. Computes etat_ouverture, reouverture and horaires_ouverture at call start. Empty: nothing is computed.

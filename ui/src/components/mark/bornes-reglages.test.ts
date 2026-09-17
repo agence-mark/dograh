@@ -37,7 +37,12 @@ import {
     messagesHorsBornes,
     NOMBRE_MAX_ELEMENTS,
 } from "./bornes-reglages";
-import { CLES_RELANCE, CLES_TOUR_DE_PAROLE, CLES_VOIX } from "./SectionReglagesPipecat";
+import {
+    CLES_RELANCE,
+    CLES_TOUR_DE_PAROLE,
+    CLES_TRANSCRIPTION,
+    CLES_VOIX,
+} from "./SectionReglagesPipecat";
 
 // vitest runs with the ui/ package as its working directory; the schema is one
 // level up, in the API.
@@ -107,7 +112,7 @@ describe("Les bornes affichees a l'ecran", () => {
         // The other direction: a numeric setting shown without a bound is an
         // unchecked field, and an unchecked field is a save that fails without
         // a word.
-        const cles = [...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE] as string[];
+        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE] as string[];
         const bornesAuSchema = cles.filter((cle) => {
             const s = bornesDuSchema(cle);
             return s !== null && (s.le !== null || s.lt !== null);
@@ -128,7 +133,7 @@ describe("Les bornes affichees a l'ecran", () => {
         // Oubliees au premier passage, trouvees par la relecture : les deux
         // consignes de relance sont plafonnees a 2000 caracteres cote serveur
         // et rien ne le disait a l'ecran.
-        const cles = [...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE] as string[];
+        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE] as string[];
         const textesPlafonnes = cles.filter((cle) => {
             const s = bornesDuSchema(cle);
             return s !== null && s.maxLength !== null && !s.estUneListe;
@@ -149,7 +154,7 @@ describe("Les bornes affichees a l'ecran", () => {
         // mais sur une `list[str]` Pydantic compte des ELEMENTS. Les confondre
         // aurait pose un plafond de 200 caracteres sur une liste de 200
         // entrees -- un reglage affiche dans un etat qui n'est pas le sien.
-        const cles = [...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE] as string[];
+        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE] as string[];
         const listesPlafonnees = cles.filter((cle) => {
             const s = bornesDuSchema(cle);
             return s !== null && s.maxLength !== null && s.estUneListe;
