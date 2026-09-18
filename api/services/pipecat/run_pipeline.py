@@ -38,6 +38,7 @@ from api.services.observability.active_calls import (
     unregister_active_call as unregister_worker_active_call,
 )
 from api.services.pipecat.audio_config import AudioConfig, create_audio_config
+from api.services.annonce.stockage import lire_annonce_ouverture
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -847,12 +848,17 @@ async def _run_pipeline_impl(
     run_workflow_json = run_definition.workflow_json
     run_configs = run_definition.workflow_configurations or {}
 
+    # [.mark] What the agents of this organization say at pick-up when the
+    # business is closed, and the state forced by hand (chantier
+    # reglages-annonce-ouverture, 18/09). Read once here, like the address and
+    # the trade vocabulary; the defaults on any problem, and never raises.
+    reglages_annonce = await lire_annonce_ouverture(workflow.organization_id)
     # [.mark] Opening state, computed once at call set-up, Paris time (D8).
     # BEFORE the persistence below and BEFORE the pre-call fetch, which is
-    # merged over it and therefore wins (D7). No hours on the agent: the
-    # context is left exactly as it was (D6). Never raises (D9).
+    # merged over it and therefore wins (D7). No hours on the agent and no
+    # forced state: the context is left exactly as it was (D6). Never raises (D9).
     merged_call_context_vars = injecter_etat_ouverture(
-        merged_call_context_vars, run_configs
+        merged_call_context_vars, run_configs, reglages=reglages_annonce
     )
     # [.mark] Date and time of the call, frozen here for the whole call
     # (latence-modele D2): a prompt that reads the clock at every node changes
@@ -1558,6 +1564,7 @@ async def _run_pipeline_impl(
         user_provider_id=user_provider_id,
         integration_runtime_sessions=integration_runtime_sessions,
         include_transcript_end_timestamps=include_transcript_end_timestamps,
+        reglages_annonce=reglages_annonce,
     )
 
     register_audio_data_handler(audio_buffer, workflow_run_id, in_memory_audio_buffer)

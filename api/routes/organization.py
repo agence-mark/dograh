@@ -31,6 +31,7 @@ from api.schemas.ai_model_configuration import (
     OrganizationAIModelConfigurationResponse,
     OrganizationAIModelConfigurationV2,
 )
+from api.schemas.annonce_ouverture import ReglagesAnnonceOuverture
 from api.schemas.lexique_metier import LexiqueMetier, ResultatImport
 from api.schemas.organization_preferences import OrganizationPreferences
 from api.schemas.telephony_config import (
@@ -80,6 +81,10 @@ from api.services.configuration.registry import (
     DograhTTSService,
     ServiceProviders,
     ServiceType,
+)
+from api.services.annonce.stockage import (
+    enregistrer_annonce_ouverture,
+    lire_annonce_ouverture_strict,
 )
 from api.services.lexique.stockage import (
     enregistrer_lexique,
@@ -795,6 +800,38 @@ async def import_lexique(
         ) from None
     await enregistrer_lexique(organization_id, fusion)
     return ResultatImport(ajoutes=ajoutes, deja_presents=deja_presents)
+
+
+@router.get("/annonce-ouverture", response_model=ReglagesAnnonceOuverture)
+async def get_annonce_ouverture(
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] What the agents say at pick-up when the business is closed.
+
+    ⛔ Strict on purpose, unlike the reading a call does: settings shown as the
+    defaults because the row cannot be read would be OVERWRITTEN by the next
+    save, which replaces them whole.
+    """
+    try:
+        return await lire_annonce_ouverture_strict(user.selected_organization_id)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Announcement settings unreadable for the screen: {erreur!r}")
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "The announcement settings saved for this organization cannot be read. "
+                "Nothing was changed; saving now would replace them."
+            ),
+        ) from None
+
+
+@router.put("/annonce-ouverture", response_model=ReglagesAnnonceOuverture)
+async def save_annonce_ouverture(
+    request: ReglagesAnnonceOuverture,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] Replace the organization's announcement settings. Bounds: 422 before writing."""
+    return await enregistrer_annonce_ouverture(user.selected_organization_id, request)
 
 
 @router.get(

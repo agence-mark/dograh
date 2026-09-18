@@ -70,10 +70,29 @@ def test_le_chemin_telephonique_injecte_avant_la_persistance_et_le_pre_call_fetc
     configs = _position(
         source, r"run_configs = run_definition\.workflow_configurations", "run_configs"
     )
+    # 🆕 18/09: the organization's announcement settings are read first and
+    # handed to the injection (chantier reglages-annonce-ouverture).
+    reglages = _position(
+        source,
+        r"reglages_annonce = await lire_annonce_ouverture\(workflow\.organization_id\)",
+        "The reading of the announcement settings on the phone path",
+    )
     injection = _position(
         source,
-        r"merged_call_context_vars = injecter_etat_ouverture\(\s*merged_call_context_vars,\s*run_configs\s*\)",
+        r"merged_call_context_vars = injecter_etat_ouverture\(\s*merged_call_context_vars,"
+        r"\s*run_configs,\s*reglages=reglages_annonce\s*\)",
         "The opening-state injection on the phone path",
+    )
+    assert reglages < injection, (
+        "The announcement settings must be read BEFORE the injection, otherwise "
+        "the sentence said at pick-up is the default one, not the organization's."
+    )
+    # The same settings must reach the refresh that follows a pre-call fetch:
+    # without them the fetch would rewrite the sentence with the defaults.
+    _position(
+        source,
+        r"reglages_annonce=reglages_annonce,",
+        "The announcement settings handed to the event handlers",
     )
     persistance = _position(
         source,
@@ -95,10 +114,22 @@ def test_le_chemin_clavier_injecte_avant_le_pre_call_fetch_et_la_persistance():
     construction = _position(
         source, r"initial_context = \{\s*\*\*base_initial_context", "initial_context"
     )
+    reglages = _position(
+        source,
+        r"reglages_annonce = await lire_annonce_ouverture\(workflow\.organization_id\)",
+        "The reading of the announcement settings on the keyboard path",
+    )
     injection = _position(
         source,
-        r"initial_context = injecter_etat_ouverture\(initial_context, run_configs\)",
+        r"initial_context = injecter_etat_ouverture\(\s*initial_context,\s*run_configs,"
+        r"\s*reglages=reglages_annonce\s*\)",
         "The opening-state injection on the keyboard path",
+    )
+    assert reglages < injection
+    _position(
+        source,
+        r"rafraichir_annonce\(initial_context, reglages_annonce\)",
+        "The refresh after the keyboard path's pre-call fetch",
     )
     fetch = _position(source, r"execute_pre_call_fetch\(", "The pre-call fetch")
     persistance = _position(source, r"update_workflow_run\(", "The persistence")

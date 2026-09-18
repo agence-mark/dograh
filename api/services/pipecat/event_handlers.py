@@ -86,8 +86,16 @@ def register_event_handlers(
     integration_runtime_sessions: list[IntegrationRuntimeSession] | None = None,
     include_transcript_end_timestamps: bool = False,
     answer_supervisor=None,
+    reglages_annonce=None,
 ):
     """Register all event handlers for transport and task events.
+
+    Args:
+        reglages_annonce: [.mark] the organization's announcement settings, so
+            that the sentence rebuilt after a pre-call fetch is the one the
+            organization typed. ``None`` falls back to the default sentences.
+            ⛔ Passed as a parameter, never through the call context: the
+            context is rendered into prompts and persisted on the run.
 
     Returns:
         In-memory recording buffers for use by other handlers.
@@ -166,7 +174,7 @@ def register_event_handlers(
                     # the greeting's announcement is derived from. Without this,
                     # a business the fetch says is closed announces nothing.
                     engine._call_context_vars = rafraichir_annonce(
-                        engine._call_context_vars
+                        engine._call_context_vars, reglages_annonce
                     )
                     try:
                         await db_client.update_workflow_run(
