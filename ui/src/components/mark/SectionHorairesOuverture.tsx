@@ -116,9 +116,15 @@ export const SectionHorairesOuverture = ({
                     At the start of each call, the agent receives whether the business is
                     open, on a break, closed or by appointment only, and when it reopens:
                     {" "}<code className="rounded bg-muted px-1 text-xs">etat_ouverture</code>,
-                    {" "}<code className="rounded bg-muted px-1 text-xs">reouverture</code> and
-                    {" "}<code className="rounded bg-muted px-1 text-xs">horaires_ouverture</code>.
-                    Leave empty and nothing is computed.
+                    {" "}<code className="rounded bg-muted px-1 text-xs">reouverture</code>,
+                    {" "}<code className="rounded bg-muted px-1 text-xs">horaires_ouverture</code> and
+                    {" "}<code className="rounded bg-muted px-1 text-xs">annonce_ouverture</code>.
+                    The last one is the ready-made sentence to say when picking up
+                    (&laquo;&nbsp;Nous sommes fermés en ce moment, nous rouvrons&nbsp;&hellip;&nbsp;&raquo;),
+                    empty when the business is reachable: paste
+                    {" "}<code className="rounded bg-muted px-1 text-xs">{"{{initial_context.annonce_ouverture}}"}</code>
+                    {" "}in the start node&apos;s greeting so the announcement no longer depends
+                    on the model. Leave the hours empty and nothing is computed.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">

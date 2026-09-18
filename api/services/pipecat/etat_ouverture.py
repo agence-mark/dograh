@@ -18,8 +18,11 @@ The three functions, in the order the data flows
    route (``UpdateWorkflowRequest``), so a bad entry is refused when it is
    SAVED -- never by the schema, which is read at call set-up.
 2. ``calculer_etat``        expression + instant -> (state, spoken reopening).
-3. ``injecter_etat_ouverture``  writes ``etat_ouverture``, ``reouverture`` and
-   ``horaires_ouverture`` into the call context. ⛔ Never raises.
+3. ``injecter_etat_ouverture``  writes ``etat_ouverture``, ``reouverture``,
+   ``horaires_ouverture`` and ``annonce_ouverture`` into the call context.
+   ⛔ Never raises. The fourth one (chantier corrections-appels-agent-6,
+   2026-09-18) is the sentence the recorded greeting says when the shop is
+   closed, so that the announcement no longer depends on the model.
 
 And a fourth, from the latence-modele chantier (D2, 2026-09-15), called right
 after the third because it is the same moment of the call:
@@ -57,6 +60,7 @@ ETATS = (OUVERT, PAUSE, FERME, SUR_RENDEZ_VOUS)
 CLE_ETAT = "etat_ouverture"
 CLE_REOUVERTURE = "reouverture"
 CLE_HORAIRES = "horaires_ouverture"
+CLE_ANNONCE = "annonce_ouverture"
 
 # D11: no opening found within this horizon -> empty reopening, state FERME.
 HORIZON_REOUVERTURE = timedelta(days=60)
@@ -320,6 +324,82 @@ def _est_vide(valeur: object) -> bool:
     return valeur is None or (isinstance(valeur, str) and not valeur.strip())
 
 
+def phrase_annonce(etat: str, reouverture: str) -> str:
+    """The closing sentence the recorded greeting says, or an empty string.
+
+    Why it is computed here, and not left to the agent's prompt: measured on the
+    21 calls of 2026-09-17, the announcement was MISSING 12 times and late 4
+    times. The prompt said « say it in your FIRST SENTENCE », but the greeting is
+    a fixed text (``greeting_type: text``), so the model's first sentence is
+    already the second turn. A state that has to be announced on every call is
+    injected, like the state itself (rule of 2026-09-14).
+
+    ⚠️ The trailing space belongs to the value: the greeting is written
+    ``... bonjour. {{initial_context.annonce_ouverture}}Qu'est-ce que je peux faire
+    pour vous ?`` so that an open business says the greeting it has always said,
+    unchanged. An unknown variable renders as an empty string
+    (``render_template``), so an agent without opening hours is never at risk of
+    speaking the placeholder.
+
+    ⛔ Write the variable as a DOTTED path in the greeting
+    (``initial_context.annonce_ouverture``). A bare ``{{annonce_ouverture}}``
+    is collected by ``get_required_template_variables`` and then demanded as a
+    column of every outbound campaign's contact file, which rejects the file
+    with HTTP 400 (review of 2026-09-18). Dotted paths are skipped there, and
+    the renderer falls back to the bare key anyway.
+
+    ⚠️ Wording stays generic, because this fork carries nothing specific to one
+    client: neither "magasin" (a building trade PME has no shop) nor "pause
+    déjeuner" (PAUSE means "already open today and reopening today", which at
+    14:30 is not lunch).
+    """
+    if etat == FERME:
+        debut = "Nous sommes fermés en ce moment"
+    elif etat == PAUSE:
+        debut = "Nous sommes fermés pour le moment"
+    elif etat in ETATS:  # OUVERT, SUR_RENDEZ_VOUS: nothing to announce.
+        return ""
+    else:
+        # A state written by hand, by a keyboard replay or by a pre-call fetch
+        # ("ferme", "FERME ") reads as closed in the prompt while the greeting
+        # announces nothing. Silent until now; said out loud from here on.
+        logger.warning(f"[etat_ouverture] unknown state « {etat} », nothing announced")
+        return ""
+    return f"{debut}, nous rouvrons {reouverture}. " if reouverture else f"{debut}. "
+
+
+def rafraichir_annonce(contexte: dict) -> dict:
+    """Re-derive ``annonce_ouverture`` after something overwrote the state.
+
+    Why: a pre-call fetch is merged AFTER the injection, on both paths
+    (``event_handlers`` for the phone, ``text_chat_runner`` for the keyboard),
+    and it may overwrite ``etat_ouverture`` and ``reouverture``. Without this,
+    the greeting would announce a closed business while the model is told it is
+    open -- or, worse for the defect this chantier fixes, announce NOTHING while
+    the business is closed. Found by the independent review of 2026-09-18.
+
+    ⛔ Never raises, like the injection it completes: a context this cannot read
+    is returned untouched, and the call goes on.
+    """
+    try:
+        if CLE_ANNONCE not in contexte:
+            return contexte  # no hours on this agent: nothing was ever injected
+        etat = contexte.get(CLE_ETAT)
+        reouverture = contexte.get(CLE_REOUVERTURE)
+        a_jour = phrase_annonce(
+            etat if isinstance(etat, str) else "",
+            reouverture if isinstance(reouverture, str) else "",
+        )
+        if a_jour == contexte[CLE_ANNONCE]:
+            return contexte
+        enrichi = dict(contexte)
+        enrichi[CLE_ANNONCE] = a_jour
+        return enrichi
+    except Exception as erreur:  # noqa: BLE001 -- the call must go on
+        logger.error(f"[etat_ouverture] announcement not refreshed, call goes on: {erreur}")
+        return contexte
+
+
 def injecter_etat_ouverture(
     contexte: dict,
     run_configs: dict,
@@ -331,6 +411,11 @@ def injecter_etat_ouverture(
     - D7: a key already present and non-empty is NOT overwritten (a keyboard
       replay that injects a state keeps it; a pre-call fetch, merged later,
       wins too). An empty key is computed.
+    - ⚠️ D7 does NOT apply to ``annonce_ouverture``: it is DERIVED from the
+      state finally kept, so it is always rewritten. A keyboard replay cannot
+      force an announcement of its own; it forces the STATE, and the sentence
+      follows. A pre-call fetch merged after this call is handled by
+      ``rafraichir_annonce``.
     - D9: ⛔ never raises. Invalid hours that reached a call anyway (written by
       hand, through MCP) are logged and nothing is injected: the call goes on.
     """
@@ -353,6 +438,14 @@ def injecter_etat_ouverture(
         for cle, valeur in calcule.items():
             if _est_vide(enrichi.get(cle)):
                 enrichi[cle] = valeur
+        # Computed from the state FINALLY kept, never from the computed one: a
+        # keyboard replay that forces FERME on a Tuesday at 11 must announce a
+        # closed shop (D7 applies to the state, the sentence follows it).
+        etat_retenu, reouverture_retenue = enrichi[CLE_ETAT], enrichi[CLE_REOUVERTURE]
+        enrichi[CLE_ANNONCE] = phrase_annonce(
+            etat_retenu if isinstance(etat_retenu, str) else "",
+            reouverture_retenue if isinstance(reouverture_retenue, str) else "",
+        )
         return enrichi
     except Exception as erreur:  # noqa: BLE001 -- D9: the call must go on
         logger.error(

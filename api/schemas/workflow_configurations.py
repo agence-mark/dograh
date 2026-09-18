@@ -546,8 +546,10 @@ class WorkflowConfigurationDefaults(BaseModel):
         max_length=4000,
         description=(
             "Opening hours in the readable French format. Computes etat_ouverture, "
-            "reouverture and horaires_ouverture at call start. Empty: nothing is "
-            "computed."
+            "reouverture, horaires_ouverture and annonce_ouverture at call start. "
+            "The last one is the sentence to say when picking up, empty when the "
+            "business is reachable; use it in the start node greeting as "
+            "{{initial_context.annonce_ouverture}}. Empty: nothing is computed."
         ),
     )
     adresse_etablissement: AdresseEtablissement | None = Field(

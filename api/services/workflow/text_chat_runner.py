@@ -45,6 +45,7 @@ from api.services.pipecat.audio_config import create_audio_config
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
+    rafraichir_annonce,
 )
 from api.services.pipecat.lecture_appelant import lire_message_tape
 from api.services.pipecat.pipeline_builder import create_pipeline_task
@@ -610,6 +611,9 @@ async def execute_text_chat_pending_turn(
             initial_context = merge_external_initial_context(
                 initial_context, fetch_result
             )
+            # [.mark] Same reason as the telephony path: the fetch can overwrite
+            # the opening state after the announcement was derived from it.
+            initial_context = rafraichir_annonce(initial_context)
 
     await db_client.update_workflow_run(
         workflow_run_id,
