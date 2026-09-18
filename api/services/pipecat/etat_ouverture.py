@@ -24,6 +24,14 @@ The three functions, in the order the data flows
    2026-09-18) is the sentence the recorded greeting says when the shop is
    closed, so that the announcement no longer depends on the model.
 
+🆕 Chantier ``reglages-annonce-ouverture`` (2026-09-18): the two sentences said
+at pick-up, and a state forced by hand until a date, are SETTINGS of the
+organization (``api/schemas/annonce_ouverture.py``, read by
+``api/services/annonce/stockage.py``). They arrive here as ``reglages``, read
+once when the call is set up, like the address and the trade vocabulary. Absent
+or unreadable, this module behaves exactly as it did before: the two default
+sentences, and the state computed from the hours.
+
 And a fourth, from the latence-modele chantier (D2, 2026-09-15), called right
 after the third because it is the same moment of the call:
 4. ``injecter_date_heure_appel``  writes ``date_appel`` and ``heure_appel``,
@@ -64,6 +72,16 @@ CLE_ANNONCE = "annonce_ouverture"
 
 # D11: no opening found within this horizon -> empty reopening, state FERME.
 HORIZON_REOUVERTURE = timedelta(days=60)
+
+# [.mark] chantier reglages-annonce-ouverture (2026-09-18). The sentences said
+# at pick-up are no longer written here: they are a setting of the ORGANIZATION
+# (api/schemas/annonce_ouverture.py). These two values are what an organization
+# that never opened that screen keeps hearing, word for word.
+#   « {reouverture} »  the spoken reopening (« demain à 10 heures »).
+#   « [ … ] »          said only when the reopening is known.
+JETON_REOUVERTURE = "reouverture"
+ANNONCE_FERMETURE_DEFAUT = "Nous sommes fermés en ce moment[, nous rouvrons {reouverture}]."
+ANNONCE_PAUSE_DEFAUT = "Nous sommes fermés pour le moment[, nous rouvrons {reouverture}]."
 
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 _OSM_JOURS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
@@ -324,7 +342,63 @@ def _est_vide(valeur: object) -> bool:
     return valeur is None or (isinstance(valeur, str) and not valeur.strip())
 
 
-def phrase_annonce(etat: str, reouverture: str) -> str:
+def _sans_partie_optionnelle(texte: str) -> str:
+    """Drop what is between brackets. An unclosed « [ » is optional to the end.
+
+    ⛔ Never raises: this reads a value that may have been written outside the
+    screen (by hand, through MCP), and a sentence is never worth a call. The
+    screen refuses an unbalanced entry when it is SAVED
+    (``verifier_modele_annonce``); read back, the safe reading is that an
+    optional part nobody closed stays optional.
+    """
+    sortie, profondeur = [], 0
+    for caractere in texte:
+        if caractere == "[":
+            profondeur += 1
+        elif caractere == "]":
+            profondeur = max(0, profondeur - 1)
+        elif not profondeur:
+            sortie.append(caractere)
+    return "".join(sortie)
+
+
+def rendre_annonce(modele: str | None, reouverture: str) -> str:
+    """Put a settings sentence into the words the greeting says, or "".
+
+    « Nous sommes fermés en ce moment[, nous rouvrons {reouverture}]. » with a
+    known reopening gives « Nous sommes fermés en ce moment, nous rouvrons
+    demain à 10 heures. »; without one, « Nous sommes fermés en ce moment. ».
+
+    ⚠️ The trailing space belongs to the value, see ``phrase_annonce``.
+    An empty sentence announces nothing at all (decision D of 2026-09-18).
+    """
+    texte = modele.strip() if isinstance(modele, str) else ""
+    if not texte:
+        return ""
+    if reouverture:
+        texte = texte.replace("[", "").replace("]", "")
+    else:
+        texte = _sans_partie_optionnelle(texte)
+    texte = texte.replace("{" + JETON_REOUVERTURE + "}", reouverture)
+    texte = re.sub(r"\s+", " ", texte).strip()
+    return f"{texte} " if texte else ""
+
+
+def _modele_annonce(etat: str, reglages: object | None) -> str | None:
+    """The settings sentence for this state, the default one, or ``None``.
+
+    Read by attribute rather than typed, so this module keeps importing nothing
+    from ``api.*`` at load time: the settings schema imports IT, for the two
+    default sentences above.
+    """
+    if etat == FERME:
+        return getattr(reglages, "annonce_fermeture", ANNONCE_FERMETURE_DEFAUT)
+    if etat == PAUSE:
+        return getattr(reglages, "annonce_pause", ANNONCE_PAUSE_DEFAUT)
+    return None
+
+
+def phrase_annonce(etat: str, reouverture: str, reglages: object | None = None) -> str:
     """The closing sentence the recorded greeting says, or an empty string.
 
     Why it is computed here, and not left to the agent's prompt: measured on the
@@ -333,6 +407,10 @@ def phrase_annonce(etat: str, reouverture: str) -> str:
     a fixed text (``greeting_type: text``), so the model's first sentence is
     already the second turn. A state that has to be announced on every call is
     injected, like the state itself (rule of 2026-09-14).
+
+    🆕 18/09, chantier ``reglages-annonce-ouverture``: the two sentences are a
+    setting of the ORGANIZATION. ``reglages`` absent or unreadable -> the
+    defaults, which are the sentences of before, word for word.
 
     ⚠️ The trailing space belongs to the value: the greeting is written
     ``... bonjour. {{initial_context.annonce_ouverture}}Qu'est-ce que je peux faire
@@ -348,27 +426,24 @@ def phrase_annonce(etat: str, reouverture: str) -> str:
     with HTTP 400 (review of 2026-09-18). Dotted paths are skipped there, and
     the renderer falls back to the bare key anyway.
 
-    ⚠️ Wording stays generic, because this fork carries nothing specific to one
-    client: neither "magasin" (a building trade PME has no shop) nor "pause
-    déjeuner" (PAUSE means "already open today and reopening today", which at
-    14:30 is not lunch).
+    ⚠️ The DEFAULT wording stays generic, because this fork carries nothing
+    specific to one client: neither "magasin" (a building trade PME has no shop)
+    nor "pause déjeuner" (PAUSE means "already open today and reopening today",
+    which at 14:30 is not lunch). What an organization types for itself is its
+    own business.
     """
-    if etat == FERME:
-        debut = "Nous sommes fermés en ce moment"
-    elif etat == PAUSE:
-        debut = "Nous sommes fermés pour le moment"
-    elif etat in ETATS:  # OUVERT, SUR_RENDEZ_VOUS: nothing to announce.
+    if etat in (FERME, PAUSE):
+        return rendre_annonce(_modele_annonce(etat, reglages), reouverture)
+    if etat in ETATS:  # OUVERT, SUR_RENDEZ_VOUS: nothing to announce.
         return ""
-    else:
-        # A state written by hand, by a keyboard replay or by a pre-call fetch
-        # ("ferme", "FERME ") reads as closed in the prompt while the greeting
-        # announces nothing. Silent until now; said out loud from here on.
-        logger.warning(f"[etat_ouverture] unknown state « {etat} », nothing announced")
-        return ""
-    return f"{debut}, nous rouvrons {reouverture}. " if reouverture else f"{debut}. "
+    # A state written by hand, by a keyboard replay or by a pre-call fetch
+    # ("ferme", "FERME ") reads as closed in the prompt while the greeting
+    # announces nothing. Silent until now; said out loud from here on.
+    logger.warning(f"[etat_ouverture] unknown state « {etat} », nothing announced")
+    return ""
 
 
-def rafraichir_annonce(contexte: dict) -> dict:
+def rafraichir_annonce(contexte: dict, reglages: object | None = None) -> dict:
     """Re-derive ``annonce_ouverture`` after something overwrote the state.
 
     Why: a pre-call fetch is merged AFTER the injection, on both paths
@@ -377,6 +452,9 @@ def rafraichir_annonce(contexte: dict) -> dict:
     the greeting would announce a closed business while the model is told it is
     open -- or, worse for the defect this chantier fixes, announce NOTHING while
     the business is closed. Found by the independent review of 2026-09-18.
+
+    ``reglages`` is the organization's setting, carried here so that the sentence
+    rebuilt is the one the organization typed, not the default one.
 
     ⛔ Never raises, like the injection it completes: a context this cannot read
     is returned untouched, and the call goes on.
@@ -389,6 +467,7 @@ def rafraichir_annonce(contexte: dict) -> dict:
         a_jour = phrase_annonce(
             etat if isinstance(etat, str) else "",
             reouverture if isinstance(reouverture, str) else "",
+            reglages,
         )
         if a_jour == contexte[CLE_ANNONCE]:
             return contexte
@@ -400,17 +479,58 @@ def rafraichir_annonce(contexte: dict) -> dict:
         return contexte
 
 
+def forcage_actif(
+    reglages: object | None, instant: datetime
+) -> tuple[str, str] | None:
+    """The state forced by hand at this instant, and its spoken reopening.
+
+    Decisions 2 and 3 of 2026-09-18: a state forced on the organization wins over
+    whatever the hours say, and the date it was forced UNTIL is both what the
+    agent announces and what lifts the forcing ON ITS OWN -- past that instant
+    nobody has to come back to the screen, the hours take over again.
+
+    - No forcing, or a state nobody recognises: ``None``, the hours decide.
+    - No end date: the forcing holds until someone goes back to « computed »,
+      and nothing is announced about a reopening (decision C).
+    - ⛔ Never raises: read by attribute, and a value that is not a date is
+      treated as no date at all.
+    """
+    try:
+        etat = getattr(reglages, "etat_force", None)
+        if not isinstance(etat, str) or etat not in ETATS:
+            return None
+        fin = getattr(reglages, "etat_force_jusqu_a", None)
+        if not isinstance(fin, datetime):
+            return etat, ""
+        fin = _a_paris(fin)
+        if instant >= fin:
+            return None  # expired by itself: back to the hours, with nobody's help
+        if etat in (FERME, PAUSE):
+            return etat, _phrase_reouverture(instant, fin, "")
+        return etat, ""
+    except Exception as erreur:  # noqa: BLE001 -- the call must go on
+        logger.error(f"[etat_ouverture] forced state not read, the hours decide: {erreur}")
+        return None
+
+
 def injecter_etat_ouverture(
     contexte: dict,
     run_configs: dict,
     maintenant: datetime | None = None,
+    reglages: object | None = None,
 ) -> dict:
     """Return the call context with the opening state added.
 
-    - D6: no opening hours on the agent -> the context is returned unchanged.
+    - D6: no opening hours on the agent -> the context is returned unchanged,
+      UNLESS the organization forces a state: a forcing is meant to close the
+      whole company, and an agent without hours is still one of its agents.
+    - 🆕 18/09: a state forced on the organization replaces the COMPUTED state,
+      as long as the call happens before the date it was forced until.
     - D7: a key already present and non-empty is NOT overwritten (a keyboard
       replay that injects a state keeps it; a pre-call fetch, merged later,
-      wins too). An empty key is computed.
+      wins too). An empty key is computed. ⚠️ This still applies ON TOP of a
+      forcing: the forcing replaces what the HOURS say, not what a replay or a
+      fetch says.
     - ⚠️ D7 does NOT apply to ``annonce_ouverture``: it is DERIVED from the
       state finally kept, so it is always rewritten. A keyboard replay cannot
       force an announcement of its own; it forces the STATE, and the sentence
@@ -427,12 +547,19 @@ def injecter_etat_ouverture(
         horaires = WorkflowConfigurationDefaults.model_validate(
             {CLE_HORAIRES: (run_configs or {}).get(CLE_HORAIRES)}
         ).horaires_ouverture
-        if not horaires:
+
+        instant = _a_paris(maintenant or datetime.now(PARIS))
+        force = forcage_actif(reglages, instant)
+        if not horaires and force is None:
             return contexte
 
-        instant = maintenant or datetime.now(PARIS)
-        etat, reouverture = calculer_etat(vers_expression_osm(horaires), instant)
-        calcule = {CLE_ETAT: etat, CLE_REOUVERTURE: reouverture, CLE_HORAIRES: horaires}
+        if force is not None:
+            etat, reouverture = force
+        else:
+            etat, reouverture = calculer_etat(vers_expression_osm(horaires), instant)
+        calcule = {CLE_ETAT: etat, CLE_REOUVERTURE: reouverture}
+        if horaires:
+            calcule[CLE_HORAIRES] = horaires
 
         enrichi = dict(contexte)
         for cle, valeur in calcule.items():
@@ -445,6 +572,7 @@ def injecter_etat_ouverture(
         enrichi[CLE_ANNONCE] = phrase_annonce(
             etat_retenu if isinstance(etat_retenu, str) else "",
             reouverture_retenue if isinstance(reouverture_retenue, str) else "",
+            reglages,
         )
         return enrichi
     except Exception as erreur:  # noqa: BLE001 -- D9: the call must go on
