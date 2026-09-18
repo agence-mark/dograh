@@ -145,6 +145,11 @@ REFUSES = {
     "crochets-imbriques": {"annonce_fermeture": "Fermé[ [x] ]."},
     "variable-inconnue": {"annonce_fermeture": "Fermé, retour {reouvertue}."},
     "variable-inconnue-en-pause": {"annonce_pause": "Retour {heure}."},
+    # ⛔ Une accolade seule passait : le motif exige une fermante pour voir un
+    # jeton (relecture indépendante du 18/09). Elle partait à la voix.
+    "accolade-ouvrante-seule": {"annonce_fermeture": "Fermé { en ce moment."},
+    "accolade-fermante-seule": {"annonce_fermeture": "Fermé } demain."},
+    "accolades-doublees": {"annonce_fermeture": "Fermé {{reouverture}}."},
     "phrase-trop-longue": {"annonce_fermeture": "F" * (MAX_LONGUEUR_ANNONCE + 1)},
     "etat-inconnu": {"etat_force": "CONGES"},
     "date-sans-etat": {"etat_force": None, "etat_force_jusqu_a": "2026-12-26T09:00:00"},
@@ -241,6 +246,36 @@ def test_lecran_refuse_de_lire_une_ligne_illisible_plutot_que_montrer_les_defaut
     reponse = _client(base).get("/organizations/annonce-ouverture")
     assert reponse.status_code == 500
     assert "saving now would replace them" in reponse.text
+
+
+def test_les_refus_sont_ecrits_en_anglais_comme_le_reste_de_lecran(base):
+    """The settings page is in English; a refusal shown there must be too.
+
+    Same rule as the trade vocabulary's bounds, and it is what the screen shows
+    word for word (``detailFromError``).
+    """
+    corps = {**REGLAGES, "annonce_fermeture": "Fermé[, retour {reouverture}."}
+    reponse = _client(base).put("/organizations/annonce-ouverture", json=corps)
+    assert reponse.status_code == 422
+    assert "never closed" in reponse.text
+    sans_etat = {**REGLAGES, "etat_force": None}
+    autre = _client(base).put("/organizations/annonce-ouverture", json=sans_etat)
+    assert autre.status_code == 422
+    assert "without a forced state" in autre.text
+
+
+def test_une_date_de_fin_avec_fuseau_est_ramenee_a_lheure_de_paris(base):
+    """Written by hand with an offset: converted, never truncated blindly.
+
+    ⛔ Truncated, « 2026-12-26T09:00:00Z » would come back to the screen as
+    09:00 Paris and be saved an hour or two off, in silence (review of 18/09).
+    """
+    corps = {**REGLAGES, "etat_force_jusqu_a": "2026-12-26T09:00:00+00:00"}
+    reponse = _client(base).put("/organizations/annonce-ouverture", json=corps)
+    assert reponse.status_code == 200, reponse.text
+    relu = ReglagesAnnonceOuverture.model_validate(base.lignes[(ORGANISATION_A, CLE)])
+    assert relu.etat_force_jusqu_a == datetime(2026, 12, 26, 10, 0)  # UTC+1 in December
+    assert relu.etat_force_jusqu_a.tzinfo is None
 
 
 def test_les_reglages_dune_organisation_ne_sont_jamais_lus_pour_une_autre(base):

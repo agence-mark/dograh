@@ -117,6 +117,14 @@ export function SectionAnnonceOuverture() {
     void charger();
   }, [authLoading, user]);
 
+  function reessayer() {
+    // ⛔ Without this, a failed read locks the card for good: saving stays
+    // asleep (which is right, it would overwrite) but the only way out is to
+    // reload the page (independent review of 2026-09-18, Mineur 6).
+    dejaLu.current = true;
+    void charger();
+  }
+
   async function charger() {
     setChargement(true);
     try {
@@ -182,6 +190,11 @@ export function SectionAnnonceOuverture() {
         reopening the agent announces, and what is inside{" "}
         <code className="rounded bg-muted px-1 text-xs">[ ]</code> is said only when that
         reopening is known. An empty sentence announces nothing.
+      </p>
+
+      <p className="text-xs text-muted-foreground">
+        Nothing is ever announced on an <strong>outbound</strong> call: we placed it, so telling
+        the person we are closed would make no sense. The agent is still told the state.
       </p>
 
       <div className="space-y-2">
@@ -254,12 +267,21 @@ export function SectionAnnonceOuverture() {
               onChange={(e) => modifier({ etat_force_jusqu_a: e.target.value || null })}
             />
             <p className="text-xs text-muted-foreground">
+              This moment lifts the forced state by itself: after it the agents go back to
+              their opening hours, with nobody doing anything.{" "}
               {parle
-                ? "This moment is announced as the reopening, and it lifts the forced state by itself: after it the agents go back to their opening hours, with nobody doing anything."
-                : "This moment lifts the forced state by itself: after it the agents go back to their opening hours."}{" "}
+                ? "What the agent announces as the reopening is the first opening of its own hours at or after this moment, so « until 02/01 00:00 » is said as « we reopen on the 2nd at 10 » — or later, if that day is closed. An agent with no opening hours announces this moment itself."
+                : ""}{" "}
               Left empty, the forced state holds until someone comes back here
               {parle ? ", and no reopening is announced." : "."}
             </p>
+            {force === "PAUSE" && (
+              <p className="text-xs text-muted-foreground">
+                A break means &laquo;&nbsp;open earlier today, back later today&nbsp;&raquo;:
+                forcing it for several days says something the caller will find odd. For a
+                longer closing, force Closed.
+              </p>
+            )}
             <p className="text-xs text-destructive">
               A forced state applies to EVERY agent of this organization. To close one site
               only, add a dated exception in that agent&apos;s opening hours (
@@ -280,9 +302,16 @@ export function SectionAnnonceOuverture() {
         </p>
       )}
 
-      <Button type="button" disabled={enregistrement || !lu} onClick={() => void enregistrer()}>
-        {enregistrement ? "Saving…" : "Save announcement settings"}
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" disabled={enregistrement || !lu} onClick={() => void enregistrer()}>
+          {enregistrement ? "Saving…" : "Save announcement settings"}
+        </Button>
+        {!lu && (
+          <Button type="button" variant="outline" onClick={reessayer}>
+            Retry
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

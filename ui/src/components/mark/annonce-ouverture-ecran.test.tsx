@@ -18,6 +18,10 @@
  * the PAGE itself (lesson of 14/09, 29 settings put in a dead file).
  */
 
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -92,21 +96,30 @@ async function afficher() {
 // 1. The rendering rule, the same one the server applies
 // --------------------------------------------------------------------------- //
 
+// ⛔ The SAME file the server's suite reads (review of 18/09, S4). The rendering
+// exists twice -- here for the preview, in Python for what the caller hears --
+// and this corpus is what makes the first drift between them go red.
+const CORPUS = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../../../api/tests/mark/donnees/annonce_rendu_cas.json",
+);
+const CAS = JSON.parse(readFileSync(CORPUS, "utf-8")).cas as Array<{
+    modele: string;
+    reouverture: string;
+    attendu: string;
+}>;
+
 describe("[.mark] the preview follows the server's rule", () => {
-    // ⚠️ The same cases as ``test_le_rendu_dune_phrase`` on the server, minus its
-    // trailing space: that space is for the greeting, not for a preview.
-    it.each([
-        ["Fermé[, retour {reouverture}].", "demain à 10 heures", "Fermé, retour demain à 10 heures."],
-        ["Fermé[, retour {reouverture}].", "", "Fermé."],
-        ["Fermé[ jusqu'à {reouverture}], merci.", "", "Fermé, merci."],
-        ["Nous sommes fermés.", "demain à 10 heures", "Nous sommes fermés."],
-        // An unclosed « [ » is optional to the end, exactly like on the server.
-        ["Fermé[, retour {reouverture}.", "", "Fermé"],
-        ["", "demain à 10 heures", ""],
-        ["   ", "", ""],
-    ])("%s + %s", (modele, reouverture, attendu) => {
-        expect(rendreAnnonce(modele, reouverture)).toBe(attendu);
+    it("reads the corpus the server reads", () => {
+        expect(CAS.length).toBeGreaterThanOrEqual(10);
     });
+
+    it.each(CAS.map((c) => [c.modele, c.reouverture, c.attendu]))(
+        "%s + %s",
+        (modele, reouverture, attendu) => {
+            expect(rendreAnnonce(modele, reouverture)).toBe(attendu);
+        },
+    );
 
     it("never leaves a bracket in what would be said", () => {
         for (const modele of ["a[b", "a]b", "a[b]c", "[x]"]) {
@@ -121,6 +134,14 @@ describe("[.mark] the preview follows the server's rule", () => {
 // --------------------------------------------------------------------------- //
 
 describe("[.mark] the announcement settings card", () => {
+    it("says that an outbound call announces nothing", async () => {
+        // Decision of Evan, 18/09. Not saying it on screen would leave people
+        // wondering why the sentence they just wrote is never heard.
+        await afficher();
+        expect(document.body.textContent).toContain("outbound");
+        expect(document.body.textContent).toContain("we placed it");
+    });
+
     it("shows what is saved, in the two sentence fields", async () => {
         await afficher();
         expect(champ("annonce_fermeture").value).toBe(DEFAUTS.annonce_fermeture);
@@ -213,14 +234,25 @@ describe("[.mark] the announcement settings card", () => {
     });
 
     it("shows a refusal from the server instead of swallowing it", async () => {
+        // ⚠️ The REAL shape of a FastAPI 422: ``detail`` is an ARRAY of
+        // {msg, loc}, not a string. Mocked as a string, this test would not
+        // prove that ``detailFromError`` unpacks it (review of 18/09, S6).
         mocks.saveAnnonce.mockResolvedValue({
-            error: { detail: "Un « [ » qui ne se referme jamais." },
+            error: {
+                detail: [
+                    {
+                        msg: "Value error, A « [ » that is never closed.",
+                        loc: ["body", "annonce_fermeture"],
+                        type: "value_error",
+                    },
+                ],
+            },
             response: { status: 422 },
         });
         await afficher();
         fireEvent.click(screen.getByRole("button", { name: /save announcement settings/i }));
         const alerte = await screen.findByRole("alert");
-        expect(alerte.textContent).toContain("ne se referme jamais");
+        expect(alerte.textContent).toContain("never closed");
     });
 
     it("keeps Save asleep when the saved settings could not be read", async () => {
@@ -232,6 +264,48 @@ describe("[.mark] the announcement settings card", () => {
         })) as HTMLButtonElement;
         expect(bouton.disabled).toBe(true);
         expect(document.body.textContent).toContain("Nothing was changed");
+    });
+
+    it("offers a Retry that reads again, and wakes Save back up when it works", async () => {
+        // ⛔ Without it, a failed read locks the card until the page is reloaded.
+        mocks.getAnnonce.mockResolvedValueOnce({ error: { detail: "unreadable" } });
+        render(<SectionAnnonceOuverture />);
+        const reprise = await screen.findByRole("button", { name: /^retry$/i });
+        mocks.getAnnonce.mockResolvedValue({ data: DEFAUTS });
+        fireEvent.click(reprise);
+        await waitFor(() => expect(mocks.getAnnonce).toHaveBeenCalledTimes(2));
+        await waitFor(() =>
+            expect(
+                (screen.getByRole("button", {
+                    name: /save announcement settings/i,
+                }) as HTMLButtonElement).disabled,
+            ).toBe(false),
+        );
+        expect(screen.queryByRole("button", { name: /^retry$/i })).toBeNull();
+    });
+
+    it("warns that forcing a break for days says something odd", async () => {
+        await afficher();
+        fireEvent.change(champ("etat_force"), { target: { value: "PAUSE" } });
+        await waitFor(() =>
+            expect(document.body.textContent).toContain("back later today"),
+        );
+        fireEvent.change(champ("etat_force"), { target: { value: "FERME" } });
+        await waitFor(() =>
+            expect(document.body.textContent).not.toContain("back later today"),
+        );
+    });
+
+    it("says what the announced reopening really is, not just the end date", async () => {
+        // The end of the forcing and the reopening are two different moments as
+        // soon as that end falls outside the hours (review of 18/09, Majeur 1).
+        await afficher();
+        fireEvent.change(champ("etat_force"), { target: { value: "FERME" } });
+        await waitFor(() =>
+            expect(document.body.textContent).toContain(
+                "the first opening of its own hours at or after this moment",
+            ),
+        );
     });
 });
 

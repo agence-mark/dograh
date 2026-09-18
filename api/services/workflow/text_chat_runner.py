@@ -567,6 +567,11 @@ async def execute_text_chat_pending_turn(
     # [.mark] The organization's announcement settings (chantier
     # reglages-annonce-ouverture, 18/09), read once like the address below: the
     # keyboard bench must hear exactly what a call hears.
+    # ⛔ And NO ``direction`` here, on purpose. An outbound call announces
+    # nothing (decision of Evan, 18/09), but a keyboard run is created with
+    # ``call_type`` left at its database default, which is ``outbound``: passing
+    # it would silence the announcement on EVERY bench, which is precisely where
+    # Evan and Pierre listen for it. The keyboard replays what a caller hears.
     reglages_annonce = await lire_annonce_ouverture(workflow.organization_id)
     initial_context = injecter_etat_ouverture(
         initial_context, run_configs, reglages=reglages_annonce

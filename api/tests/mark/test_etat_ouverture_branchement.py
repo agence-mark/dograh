@@ -34,7 +34,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from api.services.pipecat import etat_ouverture, run_pipeline
+from api.services.pipecat import etat_ouverture, event_handlers, run_pipeline
 from api.services.workflow import text_chat_runner
 from api.services.workflow.text_chat_runner import execute_text_chat_pending_turn
 from api.utils.template_renderer import render_template
@@ -77,12 +77,26 @@ def test_le_chemin_telephonique_injecte_avant_la_persistance_et_le_pre_call_fetc
         r"reglages_annonce = await lire_annonce_ouverture\(workflow\.organization_id\)",
         "The reading of the announcement settings on the phone path",
     )
+    # 🆕 18/09: an outbound call announces nothing, so the direction must be
+    # known BEFORE the injection -- it used to be computed further down, for the
+    # pre-call fetch only.
+    direction = _position(
+        source,
+        r'call_direction = getattr\(workflow_run, "call_type", None\)',
+        "The reading of the call direction on the phone path",
+    )
     injection = _position(
         source,
         r"merged_call_context_vars = injecter_etat_ouverture\(\s*merged_call_context_vars,"
-        r"\s*run_configs,\s*reglages=reglages_annonce\s*\)",
+        r"\s*run_configs,\s*reglages=reglages_annonce,\s*direction=call_direction,\s*\)",
         "The opening-state injection on the phone path",
     )
+    assert direction < injection, (
+        "The call direction must be read BEFORE the injection, otherwise an "
+        "outbound call announces the business is closed to someone we called."
+    )
+    # Computed once, not twice: a second reading could drift from the first.
+    assert len(re.findall(r'call_direction = getattr\(workflow_run, "call_type"', source)) == 1
     assert reglages < injection, (
         "The announcement settings must be read BEFORE the injection, otherwise "
         "the sentence said at pick-up is the default one, not the organization's."
@@ -93,6 +107,21 @@ def test_le_chemin_telephonique_injecte_avant_la_persistance_et_le_pre_call_fetc
         source,
         r"reglages_annonce=reglages_annonce,",
         "The announcement settings handed to the event handlers",
+    )
+    # ⛔ And they must be USED there. Handing them over proves nothing if
+    # ``event_handlers`` refreshes without them: the phone path is production,
+    # and it was the only one not guarded (independent review of 2026-09-18,
+    # Mineur 2). The keyboard path has the same assertion below.
+    _position(
+        inspect.getsource(event_handlers),
+        r"rafraichir_annonce\(\s*engine\._call_context_vars,\s*reglages_annonce,"
+        r"\s*direction_appel\s*\)",
+        "The refresh after the phone path's pre-call fetch, with settings and direction",
+    )
+    _position(
+        source,
+        r"direction_appel=call_direction,",
+        "The call direction handed to the event handlers",
     )
     persistance = _position(
         source,

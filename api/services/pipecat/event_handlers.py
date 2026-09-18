@@ -87,6 +87,7 @@ def register_event_handlers(
     include_transcript_end_timestamps: bool = False,
     answer_supervisor=None,
     reglages_annonce=None,
+    direction_appel=None,
 ):
     """Register all event handlers for transport and task events.
 
@@ -96,6 +97,10 @@ def register_event_handlers(
             organization typed. ``None`` falls back to the default sentences.
             ⛔ Passed as a parameter, never through the call context: the
             context is rendered into prompts and persisted on the run.
+        direction_appel: [.mark] "inbound" or "outbound". An outbound call
+            announces nothing (decision of Evan, 18/09), and the refresh below
+            must know it too -- otherwise a pre-call fetch would put the
+            announcement back on a call we placed ourselves.
 
     Returns:
         In-memory recording buffers for use by other handlers.
@@ -174,7 +179,7 @@ def register_event_handlers(
                     # the greeting's announcement is derived from. Without this,
                     # a business the fetch says is closed announces nothing.
                     engine._call_context_vars = rafraichir_annonce(
-                        engine._call_context_vars, reglages_annonce
+                        engine._call_context_vars, reglages_annonce, direction_appel
                     )
                     try:
                         await db_client.update_workflow_run(

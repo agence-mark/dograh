@@ -36,10 +36,14 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from api.services.pipecat.etat_ouverture import (
+# ⛔ The neutral module, never the service one: a schema that imports a service
+# is the wrong way round, and it only held because that service imports nothing
+# from ``api.*`` at load time (review of 2026-09-18, S5).
+from api.services.annonce.constantes import (
     ANNONCE_FERMETURE_DEFAUT,
     ANNONCE_PAUSE_DEFAUT,
     ETATS,
@@ -57,32 +61,47 @@ _AUTRE_JETON = re.compile(r"\{([^}]*)\}")
 
 
 def verifier_modele_annonce(texte: str) -> str:
-    """Refuse what would be heard wrong, and say why in French.
+    """Refuse what would be heard wrong, and say why.
 
-    Two things are checked, because both are silent defects otherwise:
-    brackets that do not close (the whole optional part would be spoken, dot
-    included), and a placeholder that is not ``{reouverture}`` (a typo such as
-    ``{reouvertue}`` would be said out loud, braces and all).
+    ⚠️ In English, like every other refusal shown on this screen (the trade
+    vocabulary's are too): the settings page is in English throughout.
+
+    Three things are checked, because each of them is a silent defect at the
+    other end of a phone line:
+
+    - brackets that do not close: the whole optional part would be dropped when
+      the reopening is unknown, final full stop included;
+    - a placeholder that is not ``{reouverture}``: a typo such as
+      ``{reouvertue}`` would be said out loud, braces and all;
+    - a lone brace: ``_AUTRE_JETON`` needs a closing one to see a placeholder at
+      all, so ``« Fermé { en ce moment »`` used to pass and the brace reached the
+      voice (independent review of 2026-09-18, Mineur 3).
     """
     profondeur = 0
     for caractere in texte:
         if caractere == "[":
             if profondeur:
-                raise ValueError("Les crochets ne s'imbriquent pas : « [ … [ … ] ] ».")
+                raise ValueError("Brackets do not nest: « [ … [ … ] ] ».")
             profondeur += 1
         elif caractere == "]":
             if not profondeur:
-                raise ValueError("Un « ] » sans « [ » ouvrant.")
+                raise ValueError("A « ] » with no « [ » before it.")
             profondeur -= 1
     if profondeur:
-        raise ValueError("Un « [ » qui ne se referme jamais.")
+        raise ValueError("A « [ » that is never closed.")
 
     for jeton in _AUTRE_JETON.findall(texte):
         if jeton != JETON_REOUVERTURE:
             raise ValueError(
-                f"« {{{jeton}}} » n'existe pas : la seule variable est "
-                f"« {{{JETON_REOUVERTURE}}} », l'heure de réouverture."
+                f"« {{{jeton}}} » does not exist: the only variable is "
+                f"« {{{JETON_REOUVERTURE}}} », the spoken reopening."
             )
+    reste = texte.replace("{" + JETON_REOUVERTURE + "}", "")
+    if "{" in reste or "}" in reste:
+        raise ValueError(
+            "A lone « { » or « } »: it would be said out loud. The only variable "
+            f"is « {{{JETON_REOUVERTURE}}} »."
+        )
     return texte
 
 
@@ -126,6 +145,21 @@ class ReglagesAnnonceOuverture(BaseModel):
         ),
     )
 
+    @field_validator("etat_force_jusqu_a")
+    @classmethod
+    def _en_heure_de_paris(cls, value: datetime | None) -> datetime | None:
+        """Stored as a Paris wall clock, with no offset -- which is what it means.
+
+        The screen's ``datetime-local`` field only ever produces a naive value.
+        A row written elsewhere (MCP, curl) may carry an offset; converting it
+        here means the screen shows the right local time and the next save does
+        not shift it by an hour or two in silence (independent review of
+        2026-09-18, Mineur 5).
+        """
+        if value is None or value.tzinfo is None:
+            return value
+        return value.astimezone(ZoneInfo("Europe/Paris")).replace(tzinfo=None)
+
     @field_validator("annonce_fermeture", "annonce_pause", mode="before")
     @classmethod
     def _nettoyer(cls, value):
@@ -147,7 +181,7 @@ class ReglagesAnnonceOuverture(BaseModel):
         """
         if self.etat_force_jusqu_a is not None and self.etat_force is None:
             raise ValueError(
-                "Une date de fin ne veut rien dire sans état forcé : choisissez un "
-                "état, ou effacez la date."
+                "An end date means nothing without a forced state: choose a state, "
+                "or clear the date."
             )
         return self
