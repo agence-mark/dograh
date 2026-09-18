@@ -34,6 +34,7 @@ from api.services.pipecat.etat_ouverture import (
     HorairesInvalides,
     calculer_etat,
     injecter_etat_ouverture,
+    phrase_annonce,
     vers_expression_osm,
 )
 
@@ -357,7 +358,9 @@ def test_sans_horaires_le_contexte_est_identique(configs):
     assert set(resultat) == set(copie)
 
 
-def test_avec_horaires_les_trois_variables_sont_injectees():
+def test_avec_horaires_les_quatre_variables_sont_injectees():
+    """The fourth, ``annonce_ouverture``, arrived with the chantier
+    corrections-appels-agent-6 (2026-09-18): see section 12 below."""
     resultat = injecter_etat_ouverture(
         {"direction": "inbound"}, {"horaires_ouverture": EXEMPLE_D2}, maintenant=MARDI_13H
     )
@@ -366,6 +369,7 @@ def test_avec_horaires_les_trois_variables_sont_injectees():
         "etat_ouverture": PAUSE,
         "reouverture": "aujourd'hui à 14 heures",
         "horaires_ouverture": EXEMPLE_D2,
+        "annonce_ouverture": "Le magasin est en pause déjeuner, il rouvre aujourd'hui à 14 heures. ",
     }
 
 
@@ -466,3 +470,88 @@ def test_chaque_instant_dune_semaine_a_exactement_un_etat():
     assert instants == 7 * 24 * 4
     assert sum(comptes.values()) == instants
     assert all(comptes[etat] > 0 for etat in ETATS), comptes
+
+
+# --------------------------------------------------------------------------- #
+# 12. The sentence the recorded greeting says (chantier corrections, 2026-09-18)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("etat", [OUVERT, SUR_RENDEZ_VOUS])
+def test_rien_a_annoncer_quand_le_magasin_est_joignable(etat):
+    """🔒 An open shop keeps the greeting it has always said, to the character."""
+    assert phrase_annonce(etat, "aujourd'hui à 14 heures") == ""
+
+
+def test_ferme_annonce_la_fermeture_et_la_reouverture():
+    phrase = phrase_annonce(FERME, "demain à 10 heures")
+    assert phrase == "Le magasin est fermé en ce moment, il rouvre demain à 10 heures. "
+
+
+def test_pause_annonce_le_dejeuner():
+    assert phrase_annonce(PAUSE, "aujourd'hui à 14 heures") == (
+        "Le magasin est en pause déjeuner, il rouvre aujourd'hui à 14 heures. "
+    )
+
+
+@pytest.mark.parametrize("etat", [FERME, PAUSE])
+def test_sans_reouverture_la_phrase_sarrete_apres_letat(etat):
+    """D11: no opening within 60 days -> an empty reopening. The sentence must
+    not say « il rouvre . »"""
+    phrase = phrase_annonce(etat, "")
+    assert phrase.endswith(". ") and "il rouvre" not in phrase
+
+
+@pytest.mark.parametrize("etat", [FERME, PAUSE])
+def test_la_phrase_finit_par_une_espace_pour_le_message_daccueil(etat):
+    """The greeting is written « ... du magasin. {{annonce_ouverture}}Qu'est-ce ... »:
+    without the trailing space the announcement would stick to the next sentence."""
+    assert phrase_annonce(etat, "demain à 10 heures").endswith(". ")
+
+
+def test_lannonce_est_injectee_avec_les_autres_variables():
+    resultat = injecter_etat_ouverture(
+        {"direction": "inbound"}, {"horaires_ouverture": EXEMPLE_D2}, maintenant=MARDI_13H
+    )
+    assert resultat["annonce_ouverture"] == (
+        "Le magasin est en pause déjeuner, il rouvre aujourd'hui à 14 heures. "
+    )
+
+
+def test_lannonce_suit_letat_force_par_un_rejeu_au_clavier():
+    """D7 applies to the state; the sentence must follow the state KEPT, not the
+    computed one. A keyboard replay forcing FERME on a Tuesday at 11 announces
+    a closed shop, otherwise the scenarios of the bench prove nothing."""
+    resultat = injecter_etat_ouverture(
+        {"etat_ouverture": FERME, "reouverture": "lundi à 10 heures"},
+        {"horaires_ouverture": EXEMPLE_D2},
+        maintenant=MARDI_11H,
+    )
+    assert resultat["annonce_ouverture"] == (
+        "Le magasin est fermé en ce moment, il rouvre lundi à 10 heures. "
+    )
+
+
+@pytest.mark.parametrize("configs", [{}, {"horaires_ouverture": None}, None])
+def test_sans_horaires_aucune_annonce_nest_ajoutee(configs):
+    """🔒 D6: an agent without opening hours gets the context it had before."""
+    resultat = injecter_etat_ouverture({"direction": "inbound"}, configs, maintenant=MARDI_11H)
+    assert "annonce_ouverture" not in resultat
+
+
+def test_une_variable_absente_du_contexte_ne_se_prononce_pas():
+    """The greeting of an agent without hours must not speak the placeholder."""
+    from api.utils.template_renderer import render_template
+
+    accueil = "Nuances de Feu bonjour. {{annonce_ouverture}}Qu'est-ce que je peux faire pour vous ?"
+    assert render_template(accueil, {"direction": "inbound"}) == (
+        "Nuances de Feu bonjour. Qu'est-ce que je peux faire pour vous ?"
+    )
+    ferme = render_template(accueil, injecter_etat_ouverture(
+        {"etat_ouverture": FERME, "reouverture": "demain à 10 heures"},
+        {"horaires_ouverture": EXEMPLE_D2}, maintenant=MARDI_11H,
+    ))
+    assert ferme == (
+        "Nuances de Feu bonjour. Le magasin est fermé en ce moment, il rouvre demain à 10 heures. "
+        "Qu'est-ce que je peux faire pour vous ?"
+    )
