@@ -24,6 +24,7 @@ from api.services.pipecat.termination_funnel_processor import (
 from api.services.pipecat.tracing_config import get_trace_url
 from api.services.pipecat.transcript_log_coordinator import TranscriptLogCoordinator
 from api.services.posthog_client import capture_event
+from api.services.pipecat.etat_ouverture import rafraichir_annonce
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.services.workflow_run_artifacts import upload_workflow_run_artifacts
@@ -160,6 +161,12 @@ def register_event_handlers(
                 if fetch_result:
                     engine._call_context_vars = merge_external_initial_context(
                         engine._call_context_vars, fetch_result
+                    )
+                    # [.mark] The fetch may overwrite the opening state, which
+                    # the greeting's announcement is derived from. Without this,
+                    # a business the fetch says is closed announces nothing.
+                    engine._call_context_vars = rafraichir_annonce(
+                        engine._call_context_vars
                     )
                     try:
                         await db_client.update_workflow_run(

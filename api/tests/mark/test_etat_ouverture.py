@@ -35,6 +35,7 @@ from api.services.pipecat.etat_ouverture import (
     calculer_etat,
     injecter_etat_ouverture,
     phrase_annonce,
+    rafraichir_annonce,
     vers_expression_osm,
 )
 
@@ -360,7 +361,7 @@ def test_sans_horaires_le_contexte_est_identique(configs):
 
 def test_avec_horaires_les_quatre_variables_sont_injectees():
     """The fourth, ``annonce_ouverture``, arrived with the chantier
-    corrections-appels-agent-6 (2026-09-18): see section 12 below."""
+    corrections-appels-agent-6 (2026-09-18): see section 14 below."""
     resultat = injecter_etat_ouverture(
         {"direction": "inbound"}, {"horaires_ouverture": EXEMPLE_D2}, maintenant=MARDI_13H
     )
@@ -369,7 +370,7 @@ def test_avec_horaires_les_quatre_variables_sont_injectees():
         "etat_ouverture": PAUSE,
         "reouverture": "aujourd'hui à 14 heures",
         "horaires_ouverture": EXEMPLE_D2,
-        "annonce_ouverture": "Le magasin est en pause déjeuner, il rouvre aujourd'hui à 14 heures. ",
+        "annonce_ouverture": "Nous sommes fermés pour le moment, nous rouvrons aujourd'hui à 14 heures. ",
     }
 
 
@@ -473,7 +474,7 @@ def test_chaque_instant_dune_semaine_a_exactement_un_etat():
 
 
 # --------------------------------------------------------------------------- #
-# 12. The sentence the recorded greeting says (chantier corrections, 2026-09-18)
+# 14. The sentence the recorded greeting says (chantier corrections, 2026-09-18)
 # --------------------------------------------------------------------------- #
 
 
@@ -485,13 +486,23 @@ def test_rien_a_annoncer_quand_le_magasin_est_joignable(etat):
 
 def test_ferme_annonce_la_fermeture_et_la_reouverture():
     phrase = phrase_annonce(FERME, "demain à 10 heures")
-    assert phrase == "Le magasin est fermé en ce moment, il rouvre demain à 10 heures. "
+    assert phrase == "Nous sommes fermés en ce moment, nous rouvrons demain à 10 heures. "
 
 
-def test_pause_annonce_le_dejeuner():
+def test_pause_annonce_une_fermeture_du_moment():
+    """⚠️ PAUSE means « already open today and reopening today », NOT lunch: at
+    14:30 on a 9-12 / 15-18 week, « pause déjeuner » would be false. And this
+    fork says nothing specific to one client, so no « magasin » either."""
     assert phrase_annonce(PAUSE, "aujourd'hui à 14 heures") == (
-        "Le magasin est en pause déjeuner, il rouvre aujourd'hui à 14 heures. "
+        "Nous sommes fermés pour le moment, nous rouvrons aujourd'hui à 14 heures. "
     )
+
+
+def test_aucun_mot_propre_a_un_client_dans_les_phrases():
+    """🔒 Review of 2026-09-18: this fork carries nothing specific to one client."""
+    for etat in (FERME, PAUSE):
+        phrase = phrase_annonce(etat, "demain à 10 heures").lower()
+        assert "magasin" not in phrase and "déjeuner" not in phrase, phrase
 
 
 @pytest.mark.parametrize("etat", [FERME, PAUSE])
@@ -514,7 +525,7 @@ def test_lannonce_est_injectee_avec_les_autres_variables():
         {"direction": "inbound"}, {"horaires_ouverture": EXEMPLE_D2}, maintenant=MARDI_13H
     )
     assert resultat["annonce_ouverture"] == (
-        "Le magasin est en pause déjeuner, il rouvre aujourd'hui à 14 heures. "
+        "Nous sommes fermés pour le moment, nous rouvrons aujourd'hui à 14 heures. "
     )
 
 
@@ -528,7 +539,7 @@ def test_lannonce_suit_letat_force_par_un_rejeu_au_clavier():
         maintenant=MARDI_11H,
     )
     assert resultat["annonce_ouverture"] == (
-        "Le magasin est fermé en ce moment, il rouvre lundi à 10 heures. "
+        "Nous sommes fermés en ce moment, nous rouvrons lundi à 10 heures. "
     )
 
 
@@ -543,7 +554,10 @@ def test_une_variable_absente_du_contexte_ne_se_prononce_pas():
     """The greeting of an agent without hours must not speak the placeholder."""
     from api.utils.template_renderer import render_template
 
-    accueil = "Nuances de Feu bonjour. {{annonce_ouverture}}Qu'est-ce que je peux faire pour vous ?"
+    accueil = (
+        "Nuances de Feu bonjour. {{initial_context.annonce_ouverture}}"
+        "Qu'est-ce que je peux faire pour vous ?"
+    )
     assert render_template(accueil, {"direction": "inbound"}) == (
         "Nuances de Feu bonjour. Qu'est-ce que je peux faire pour vous ?"
     )
@@ -552,6 +566,115 @@ def test_une_variable_absente_du_contexte_ne_se_prononce_pas():
         {"horaires_ouverture": EXEMPLE_D2}, maintenant=MARDI_11H,
     ))
     assert ferme == (
-        "Nuances de Feu bonjour. Le magasin est fermé en ce moment, il rouvre demain à 10 heures. "
+        "Nuances de Feu bonjour. Nous sommes fermés en ce moment, nous rouvrons demain à 10 heures. "
         "Qu'est-ce que je peux faire pour vous ?"
     )
+
+
+def test_chaque_etat_connu_annonce_ou_se_tait_dans_les_deux_sens():
+    """⛔ Asserted both ways and counted (review of 2026-09-18, Mineur 4):
+    the direct sense alone would let a future state fall silent unnoticed."""
+    from api.services.pipecat.etat_ouverture import ETATS as tous
+
+    muets, parlants = 0, 0
+    for etat in tous:
+        phrase = phrase_annonce(etat, "demain à 10 heures")
+        # Direct: closed -> a sentence. Inverse: a sentence -> closed.
+        assert (phrase != "") == (etat in (FERME, PAUSE)), etat
+        assert (phrase == "") == (etat in (OUVERT, SUR_RENDEZ_VOUS)), etat
+        muets += phrase == ""
+        parlants += phrase != ""
+    assert muets + parlants == len(tous) == 4
+    assert muets == 2 and parlants == 2
+
+
+@pytest.mark.parametrize("inconnu", ["ferme", "FERME ", "Fermé", "", "CLOSED"])
+def test_un_etat_inconnu_ne_dit_rien_et_se_voit_dans_les_journaux(inconnu, caplog):
+    """A state written by hand reads as closed in the prompt while the greeting
+    announces nothing. Silent until the review of 2026-09-18."""
+    assert phrase_annonce(inconnu, "demain à 10 heures") == ""
+
+
+@pytest.mark.parametrize("valeur", [["x"], 42, {"a": 1}, None])
+def test_une_reouverture_qui_nest_pas_du_texte_nest_jamais_prononcee(valeur):
+    """``il rouvre ['x']`` would be spoken as is. The injection filters the
+    non-str, like ``_est_vide`` does for the rest of the module."""
+    resultat = injecter_etat_ouverture(
+        {"etat_ouverture": FERME, "reouverture": valeur},
+        {"horaires_ouverture": EXEMPLE_D2},
+        maintenant=MARDI_11H,
+    )
+    annonce = resultat["annonce_ouverture"]
+    assert "[" not in annonce and "{" not in annonce and "42" not in annonce
+
+
+# --------------------------------------------------------------------------- #
+# 15. The announcement follows a state overwritten AFTER the injection
+# --------------------------------------------------------------------------- #
+
+
+def test_un_prefetch_qui_ferme_apres_coup_fait_apparaitre_lannonce():
+    """Review of 2026-09-18, Majeur 2: a pre-call fetch is merged AFTER the
+    injection and can overwrite the state. Without the refresh, a business the
+    fetch says is closed announces NOTHING -- the very defect this fixes."""
+    injecte = injecter_etat_ouverture(
+        {"direction": "inbound"}, {"horaires_ouverture": EXEMPLE_D2}, maintenant=MARDI_11H
+    )
+    assert injecte["etat_ouverture"] == OUVERT and injecte["annonce_ouverture"] == ""
+
+    apres_fetch = {**injecte, "etat_ouverture": FERME, "reouverture": "demain à 10 heures"}
+    rafraichi = rafraichir_annonce(apres_fetch)
+    assert rafraichi["annonce_ouverture"] == (
+        "Nous sommes fermés en ce moment, nous rouvrons demain à 10 heures. "
+    )
+
+
+def test_un_prefetch_qui_ouvre_apres_coup_fait_taire_lannonce():
+    """The other way round: the fetch says open, the announcement must go."""
+    injecte = injecter_etat_ouverture(
+        {"direction": "inbound"}, {"horaires_ouverture": EXEMPLE_D2}, maintenant=MARDI_13H
+    )
+    assert injecte["annonce_ouverture"] != ""
+    rafraichi = rafraichir_annonce({**injecte, "etat_ouverture": OUVERT, "reouverture": ""})
+    assert rafraichi["annonce_ouverture"] == ""
+
+
+def test_le_rafraichissement_ne_touche_pas_un_agent_sans_horaires():
+    """🔒 D6 again: nothing was injected, nothing is added."""
+    contexte = {"direction": "inbound", "etat_ouverture": FERME}
+    assert rafraichir_annonce(contexte) == contexte
+    assert "annonce_ouverture" not in rafraichir_annonce(contexte)
+
+
+def test_le_rafraichissement_ne_modifie_pas_lentree_en_place():
+    contexte = injecter_etat_ouverture(
+        {"direction": "inbound"}, {"horaires_ouverture": EXEMPLE_D2}, maintenant=MARDI_11H
+    )
+    copie = dict(contexte)
+    rafraichir_annonce({**contexte, "etat_ouverture": FERME, "reouverture": "demain à 10 heures"})
+    assert contexte == copie
+
+
+@pytest.mark.parametrize("casse", [{"etat_ouverture": ["x"]}, {"reouverture": 42}, {}])
+def test_le_rafraichissement_ne_leve_jamais(casse):
+    """⛔ Same promise as the injection it completes: the call must go on."""
+    contexte = injecter_etat_ouverture(
+        {"direction": "inbound"}, {"horaires_ouverture": EXEMPLE_D2}, maintenant=MARDI_13H
+    )
+    resultat = rafraichir_annonce({**contexte, **casse})
+    assert isinstance(resultat, dict) and "annonce_ouverture" in resultat
+
+
+def test_la_variable_du_message_daccueil_nest_pas_reclamee_aux_campagnes():
+    """Review of 2026-09-18, Majeur 1: a BARE ``{{annonce_ouverture}}`` is
+    collected as a required template variable, and every outbound campaign on
+    that workflow is then rejected (HTTP 400) unless its contact file carries a
+    column of that name. A dotted path is skipped."""
+    from api.services.workflow.workflow_graph import extract_template_variables
+
+    nu = extract_template_variables("Bonjour. {{annonce_ouverture}}Que puis-je faire ?")
+    pointe = extract_template_variables(
+        "Bonjour. {{initial_context.annonce_ouverture}}Que puis-je faire ?"
+    )
+    assert "annonce_ouverture" in nu  # the trap, asserted so it cannot be forgotten
+    assert pointe == set()  # the form the greeting must use
