@@ -2,6 +2,7 @@
 
 import { ExternalLink } from "lucide-react";
 
+import { SectionAnnonceOuverture } from "@/components/mark/SectionAnnonceOuverture";
 import { SectionLexiqueMetier } from "@/components/mark/SectionLexiqueMetier";
 import { MCPSection } from "@/components/MCPSection";
 import { OrganizationPreferencesSection } from "@/components/OrganizationPreferencesSection";
@@ -49,6 +50,20 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <SectionLexiqueMetier />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Closed-business announcement</CardTitle>
+            <CardDescription>
+              What every agent of this organization says when it picks up while
+              the business is closed or on a break, and the state you can force
+              by hand until a date.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SectionAnnonceOuverture />
           </CardContent>
         </Card>
 

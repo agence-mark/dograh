@@ -5720,6 +5720,46 @@ export type RedialCampaignRequest = {
 };
 
 /**
+ * ReglagesAnnonceOuverture
+ *
+ * The organization's announcement sentences and its forced state.
+ */
+export type ReglagesAnnonceOuverture = {
+    /**
+     * Format
+     */
+    format?: 'annonce-ouverture-mark';
+    /**
+     * Version
+     */
+    version?: 1;
+    /**
+     * Annonce Fermeture
+     *
+     * Said at pick-up when the business is closed. « {reouverture} » is the spoken reopening; what is in brackets disappears when it is unknown. Empty announces nothing.
+     */
+    annonce_fermeture?: string;
+    /**
+     * Annonce Pause
+     *
+     * Said at pick-up when the business is on a break (already open today and reopening today). Same rules as the closing sentence.
+     */
+    annonce_pause?: string;
+    /**
+     * Etat Force
+     *
+     * The state every agent of this organization is in, whatever the hours say. None: computed from the hours. ⚠️ A forced state closes ALL the agents of the organization.
+     */
+    etat_force?: 'OUVERT' | 'PAUSE' | 'FERME' | 'SUR_RENDEZ_VOUS' | null;
+    /**
+     * Etat Force Jusqu A
+     *
+     * When the forced state lifts itself, Paris time. It is also the reopening the agent announces. None: the forcing holds until someone goes back to « computed ».
+     */
+    etat_force_jusqu_a?: string | null;
+};
+
+/**
  * ResultatImport
  */
 export type ResultatImport = {
@@ -8233,7 +8273,7 @@ export type WorkflowConfigurationDefaults = {
     /**
      * Horaires Ouverture
      *
-     * Opening hours in the readable French format. Computes etat_ouverture, reouverture and horaires_ouverture at call start. Empty: nothing is computed.
+     * Opening hours in the readable French format. Computes etat_ouverture, reouverture, horaires_ouverture and annonce_ouverture at call start. The last one is the sentence to say when picking up, empty when the business is reachable; use it in the start node greeting as {{initial_context.annonce_ouverture}}. Empty: nothing is computed.
      */
     horaires_ouverture?: string | null;
     /**
@@ -13209,6 +13249,84 @@ export type ImportLexiqueApiV1OrganizationsLexiqueImportPostResponses = {
 };
 
 export type ImportLexiqueApiV1OrganizationsLexiqueImportPostResponse = ImportLexiqueApiV1OrganizationsLexiqueImportPostResponses[keyof ImportLexiqueApiV1OrganizationsLexiqueImportPostResponses];
+
+export type GetAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/annonce-ouverture';
+};
+
+export type GetAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGetError = GetAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGetErrors[keyof GetAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGetErrors];
+
+export type GetAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesAnnonceOuverture;
+};
+
+export type GetAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGetResponse = GetAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGetResponses[keyof GetAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGetResponses];
+
+export type SaveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePutData = {
+    body: ReglagesAnnonceOuverture;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/annonce-ouverture';
+};
+
+export type SaveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePutError = SaveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePutErrors[keyof SaveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePutErrors];
+
+export type SaveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesAnnonceOuverture;
+};
+
+export type SaveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePutResponse = SaveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePutResponses[keyof SaveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePutResponses];
 
 export type ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetData = {
     body?: never;

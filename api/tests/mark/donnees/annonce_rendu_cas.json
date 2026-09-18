@@ -1,0 +1,81 @@
+{
+  "_pourquoi": "[.mark] Le rendu d'une phrase d'annonce existe DEUX fois : rendre_annonce (serveur, api/services/pipecat/etat_ouverture.py) et rendreAnnonce (apercu de l'ecran, ui/src/components/mark/SectionAnnonceOuverture.tsx). Ces cas sont lus par les deux suites, pytest et vitest, pour que le premier ecart fasse tomber l'une des deux. Relecture independante du 18/09, S4.",
+  "_espace_finale": "Le serveur ajoute une espace finale (le message d'accueil colle la phrase a la suivante) ; l'apercu ne l'affiche pas. Les cas ci-dessous sont SANS espace finale : cote Python, on compare apres .rstrip(' ') quand la sortie n'est pas vide.",
+  "cas": [
+    {
+      "modele": "Fermé[, retour {reouverture}].",
+      "reouverture": "demain à 10 heures",
+      "attendu": "Fermé, retour demain à 10 heures."
+    },
+    {
+      "modele": "Fermé[, retour {reouverture}].",
+      "reouverture": "",
+      "attendu": "Fermé."
+    },
+    {
+      "modele": "Fermé[ jusqu'à {reouverture}], merci.",
+      "reouverture": "",
+      "attendu": "Fermé, merci."
+    },
+    {
+      "modele": "Fermé[ jusqu'à {reouverture}], merci.",
+      "reouverture": "jeudi à 9 heures",
+      "attendu": "Fermé jusqu'à jeudi à 9 heures, merci."
+    },
+    {
+      "modele": "Nous sommes fermés.",
+      "reouverture": "demain à 10 heures",
+      "attendu": "Nous sommes fermés."
+    },
+    {
+      "modele": "Fermé[, retour {reouverture}.",
+      "reouverture": "",
+      "attendu": "Fermé"
+    },
+    {
+      "modele": "Fermé[, retour {reouverture}.",
+      "reouverture": "demain à 10 heures",
+      "attendu": "Fermé, retour demain à 10 heures."
+    },
+    {
+      "modele": "Fermé] en ce moment.",
+      "reouverture": "",
+      "attendu": "Fermé en ce moment."
+    },
+    {
+      "modele": "  Fermé   en   ce moment.  ",
+      "reouverture": "",
+      "attendu": "Fermé en ce moment."
+    },
+    {
+      "modele": "{reouverture}",
+      "reouverture": "demain à 10 heures",
+      "attendu": "demain à 10 heures"
+    },
+    {
+      "modele": "{reouverture}",
+      "reouverture": "",
+      "attendu": ""
+    },
+    {
+      "modele": "",
+      "reouverture": "demain à 10 heures",
+      "attendu": ""
+    },
+    {
+      "modele": "   ",
+      "reouverture": "",
+      "attendu": ""
+    },
+    {
+      "modele": "[tout est optionnel]",
+      "reouverture": "",
+      "attendu": ""
+    },
+    {
+      "modele": "[tout est optionnel]",
+      "reouverture": "demain",
+      "attendu": "tout est optionnel"
+    }
+  ]
+}

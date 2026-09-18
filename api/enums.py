@@ -177,6 +177,10 @@ class OrganizationConfigurationKey(Enum):
     # [.mark] The organization's trade vocabulary (brands, trade words): a free-text
     # key of the existing table, so no migration. Format: api/schemas/lexique_metier.py
     LEXIQUE_METIER = "LEXIQUE_METIER"
+    # [.mark] What the agent says when it picks up while the business is closed,
+    # and the state forced by hand until a date. Same free-text key of the same
+    # table, so no migration. Format: api/schemas/annonce_ouverture.py
+    ANNONCE_OUVERTURE = "ANNONCE_OUVERTURE"
 
 
 class UserConfigurationKey(Enum):

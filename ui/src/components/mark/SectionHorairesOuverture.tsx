@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -125,6 +126,14 @@ export const SectionHorairesOuverture = ({
                     {" "}<code className="rounded bg-muted px-1 text-xs">{"{{initial_context.annonce_ouverture}}"}</code>
                     {" "}in the start node&apos;s greeting so the announcement no longer depends
                     on the model. Leave the hours empty and nothing is computed.
+                </CardDescription>
+                <CardDescription>
+                    The WORDS of that sentence, and a state forced by hand for the whole
+                    business, are set once for the organization:{" "}
+                    <Link href="/settings" className="underline">
+                        Platform Settings &rarr; Closed-business announcement
+                    </Link>
+                    . The hours below stay on this agent, because they describe one place.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">

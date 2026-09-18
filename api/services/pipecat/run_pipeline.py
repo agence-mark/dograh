@@ -38,6 +38,7 @@ from api.services.observability.active_calls import (
     unregister_active_call as unregister_worker_active_call,
 )
 from api.services.pipecat.audio_config import AudioConfig, create_audio_config
+from api.services.annonce.stockage import lire_annonce_ouverture
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -847,12 +848,28 @@ async def _run_pipeline_impl(
     run_workflow_json = run_definition.workflow_json
     run_configs = run_definition.workflow_configurations or {}
 
+    # [.mark] Inbound or outbound? Computed HERE rather than further down,
+    # because the announcement said at pick-up depends on it (decision of Evan,
+    # 18/09: an outbound call announces nothing -- we placed it). Same value the
+    # pre-call fetch has always used, reused below.
+    call_direction = getattr(workflow_run, "call_type", None)
+    if hasattr(call_direction, "value"):
+        call_direction = call_direction.value
+    call_direction = call_direction or merged_call_context_vars.get("direction")
+    # [.mark] What the agents of this organization say at pick-up when the
+    # business is closed, and the state forced by hand (chantier
+    # reglages-annonce-ouverture, 18/09). Read once here, like the address and
+    # the trade vocabulary; the defaults on any problem, and never raises.
+    reglages_annonce = await lire_annonce_ouverture(workflow.organization_id)
     # [.mark] Opening state, computed once at call set-up, Paris time (D8).
     # BEFORE the persistence below and BEFORE the pre-call fetch, which is
-    # merged over it and therefore wins (D7). No hours on the agent: the
-    # context is left exactly as it was (D6). Never raises (D9).
+    # merged over it and therefore wins (D7). No hours on the agent and no
+    # forced state: the context is left exactly as it was (D6). Never raises (D9).
     merged_call_context_vars = injecter_etat_ouverture(
-        merged_call_context_vars, run_configs
+        merged_call_context_vars,
+        run_configs,
+        reglages=reglages_annonce,
+        direction=call_direction,
     )
     # [.mark] Date and time of the call, frozen here for the whole call
     # (latence-modele D2): a prompt that reads the clock at every node changes
@@ -1070,10 +1087,7 @@ async def _run_pipeline_impl(
     # Pre-call fetch: fire early so it runs concurrently with remaining setup
     pre_call_fetch_task = None
     start_node = workflow_graph.nodes.get(workflow_graph.start_node_id)
-    call_direction = getattr(workflow_run, "call_type", None)
-    if hasattr(call_direction, "value"):
-        call_direction = call_direction.value
-    call_direction = call_direction or merged_call_context_vars.get("direction")
+    # ``call_direction`` was computed above, before the opening-state injection.
     if (
         start_node
         and start_node.should_run_pre_call_fetch(call_direction)
@@ -1558,6 +1572,8 @@ async def _run_pipeline_impl(
         user_provider_id=user_provider_id,
         integration_runtime_sessions=integration_runtime_sessions,
         include_transcript_end_timestamps=include_transcript_end_timestamps,
+        reglages_annonce=reglages_annonce,
+        direction_appel=call_direction,
     )
 
     register_audio_data_handler(audio_buffer, workflow_run_id, in_memory_audio_buffer)

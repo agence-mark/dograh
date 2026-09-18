@@ -42,6 +42,7 @@ from api.services.configuration.registry import ServiceProviders
 from api.services.lexique.ecoute import injecter_lexique_a_ecouter
 from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.pipecat.audio_config import create_audio_config
+from api.services.annonce.stockage import lire_annonce_ouverture
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -563,7 +564,18 @@ async def execute_text_chat_pending_turn(
     # [.mark] Opening state, BEFORE the pre-call fetch (which wins, D7) and the
     # persistence below. On later turns the keys persisted by the first turn
     # are kept (D7 again): the state stays the one of the first turn (D8).
-    initial_context = injecter_etat_ouverture(initial_context, run_configs)
+    # [.mark] The organization's announcement settings (chantier
+    # reglages-annonce-ouverture, 18/09), read once like the address below: the
+    # keyboard bench must hear exactly what a call hears.
+    # ⛔ And NO ``direction`` here, on purpose. An outbound call announces
+    # nothing (decision of Evan, 18/09), but a keyboard run is created with
+    # ``call_type`` left at its database default, which is ``outbound``: passing
+    # it would silence the announcement on EVERY bench, which is precisely where
+    # Evan and Pierre listen for it. The keyboard replays what a caller hears.
+    reglages_annonce = await lire_annonce_ouverture(workflow.organization_id)
+    initial_context = injecter_etat_ouverture(
+        initial_context, run_configs, reglages=reglages_annonce
+    )
     # [.mark] Date and time of the call (latence-modele D2), same moment and
     # same rule: later turns keep the values persisted by the first one.
     initial_context = injecter_date_heure_appel(initial_context)
@@ -613,7 +625,7 @@ async def execute_text_chat_pending_turn(
             )
             # [.mark] Same reason as the telephony path: the fetch can overwrite
             # the opening state after the announcement was derived from it.
-            initial_context = rafraichir_annonce(initial_context)
+            initial_context = rafraichir_annonce(initial_context, reglages_annonce)
 
     await db_client.update_workflow_run(
         workflow_run_id,

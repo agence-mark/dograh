@@ -19,11 +19,14 @@ on a Tuesday morning and fails on a Sunday is not a test.
 is ``test_etat_ouverture_branchement.py``.
 """
 
+import inspect
+import re
 from datetime import date, datetime, timedelta
 
 import pytest
 from opening_hours import OpeningHours
 
+from api.services.workflow import text_chat_runner
 from api.services.pipecat.etat_ouverture import (
     ETATS,
     FERME,
@@ -703,3 +706,511 @@ def test_la_variable_du_message_daccueil_nest_pas_reclamee_aux_campagnes():
     )
     assert "annonce_ouverture" in nu  # the trap, asserted so it cannot be forgotten
     assert pointe == set()  # the form the greeting must use
+
+
+# --------------------------------------------------------------------------- #
+# 15. The sentences and the state, set on the organization (chantier
+#     reglages-annonce-ouverture, 2026-09-18)
+#
+# The question this section answers:
+#
+#     Does the agent say the sentence the organization typed, does a state
+#     forced by hand win over the hours, and does that forcing LIFT ITSELF once
+#     its date has passed -- with nobody coming back to the screen?
+#
+# ⛔ Every test here fixes the instant too. A forcing that expires is the one
+# thing a test reading the real clock could never prove twice.
+# --------------------------------------------------------------------------- #
+
+from types import SimpleNamespace  # noqa: E402
+
+from api.schemas.annonce_ouverture import ReglagesAnnonceOuverture  # noqa: E402
+from api.services.pipecat.etat_ouverture import (  # noqa: E402
+    ANNONCE_FERMETURE_DEFAUT,
+    ANNONCE_PAUSE_DEFAUT,
+    forcage_actif,
+    rendre_annonce,
+    reouverture_du_forcage,
+)
+
+VENDREDI_20H = _a("2026-09-18 20:00")  # after closing, reopens Saturday 10:00
+SAMEDI_11H = _a("2026-09-19 11:00")  # open
+
+
+def _reglages(**champs) -> ReglagesAnnonceOuverture:
+    return ReglagesAnnonceOuverture.model_validate(champs)
+
+
+def _injecte(quand: datetime, reglages=None, configs=None, contexte=None, direction=None) -> dict:
+    return injecter_etat_ouverture(
+        dict(contexte or {}),
+        {"horaires_ouverture": EXEMPLE_D2} if configs is None else configs,
+        maintenant=quand,
+        reglages=reglages,
+        direction=direction,
+    )
+
+
+# 15.1 The sentences ------------------------------------------------------- #
+
+
+def test_sans_reglages_les_phrases_sont_celles_davant():
+    """🔒 Every organization that never opens the settings screen hears no change."""
+    assert phrase_annonce(FERME, "demain à 10 heures") == (
+        "Nous sommes fermés en ce moment, nous rouvrons demain à 10 heures. "
+    )
+    assert phrase_annonce(PAUSE, "") == "Nous sommes fermés pour le moment. "
+    defaut = _reglages()
+    assert phrase_annonce(FERME, "demain à 10 heures", defaut) == phrase_annonce(
+        FERME, "demain à 10 heures"
+    )
+    assert phrase_annonce(PAUSE, "", defaut) == phrase_annonce(PAUSE, "")
+
+
+def test_la_phrase_de_lorganisation_est_reprise_telle_quelle():
+    reglages = _reglages(
+        annonce_fermeture="Le magasin est fermé[, nous rouvrons {reouverture}].",
+        annonce_pause="Nous revenons dans un instant.",
+    )
+    assert phrase_annonce(FERME, "jeudi à 9 heures", reglages) == (
+        "Le magasin est fermé, nous rouvrons jeudi à 9 heures. "
+    )
+    assert phrase_annonce(PAUSE, "aujourd'hui à 14 heures", reglages) == (
+        "Nous revenons dans un instant. "
+    )
+
+
+@pytest.mark.parametrize(
+    "modele,reouverture,attendu",
+    [
+        # The brackets are kept when the reopening is known, dropped when it is not.
+        ("Fermé[, retour {reouverture}].", "demain à 10 heures", "Fermé, retour demain à 10 heures. "),
+        ("Fermé[, retour {reouverture}].", "", "Fermé. "),
+        # An optional part in the middle, with text after it.
+        ("Fermé[ jusqu'à {reouverture}], merci.", "", "Fermé, merci. "),
+        # No bracket at all: the sentence is said as typed, reopening or not.
+        ("Nous sommes fermés.", "demain à 10 heures", "Nous sommes fermés. "),
+        # ⛔ An unclosed « [ » is optional to the END -- final full stop included,
+        # which is why the screen REFUSES it when it is saved. Read back from a
+        # row written by hand, the sentence is poorer; it never speaks a bracket.
+        ("Fermé[, retour {reouverture}.", "", "Fermé "),
+        ("Fermé[, retour {reouverture}.", "demain à 10 heures", "Fermé, retour demain à 10 heures. "),
+        # Empty: nothing at all, not even the trailing space (decision D).
+        ("", "demain à 10 heures", ""),
+        ("   ", "", ""),
+        (None, "", ""),
+    ],
+)
+def test_le_rendu_dune_phrase(modele, reouverture, attendu):
+    assert rendre_annonce(modele, reouverture) == attendu
+
+
+def test_une_phrase_vide_nannonce_rien_du_tout():
+    """Decision D: an organization that wants no announcement empties the field."""
+    reglages = _reglages(annonce_fermeture="", annonce_pause="")
+    assert phrase_annonce(FERME, "demain à 10 heures", reglages) == ""
+    assert phrase_annonce(PAUSE, "", reglages) == ""
+    contexte = _injecte(VENDREDI_20H, reglages)
+    assert contexte["etat_ouverture"] == FERME  # the model is still told
+    assert contexte["annonce_ouverture"] == ""  # the greeting says nothing
+
+
+@pytest.mark.parametrize("etat", [OUVERT, SUR_RENDEZ_VOUS])
+def test_une_entreprise_joignable_nannonce_toujours_rien(etat):
+    """Decision A: no sentence is offered for these two, and none is said."""
+    reglages = _reglages(annonce_fermeture="Fermé.", annonce_pause="Pause.")
+    assert phrase_annonce(etat, "", reglages) == ""
+
+
+@pytest.mark.parametrize("faux", [None, object(), "FERME", 42])
+def test_des_reglages_illisibles_donnent_la_phrase_par_defaut(faux):
+    """⛔ Anything that is not a settings object falls back to the sentence of before."""
+    assert phrase_annonce(FERME, "demain à 10 heures", faux) == (
+        "Nous sommes fermés en ce moment, nous rouvrons demain à 10 heures. "
+    )
+
+
+def test_un_reglage_dont_la_phrase_est_none_ne_dit_rien():
+    """A row written by hand with a null sentence: nothing said, no exception."""
+    assert phrase_annonce(FERME, "demain à 10 heures", SimpleNamespace(annonce_fermeture=None)) == ""
+
+
+# 15.2 The forced state ---------------------------------------------------- #
+
+
+def test_letat_force_gagne_sur_les_horaires():
+    """Decision 2: Saturday 11:00 the hours say OPEN; forced FERME, it is closed.
+
+    The forcing ends Monday at 10:00, which IS an opening in these hours (by
+    appointment), so that is what is announced, comment included.
+    """
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2026-09-21T10:00:00")
+    contexte = _injecte(SAMEDI_11H, reglages)
+    assert contexte["etat_ouverture"] == FERME
+    assert contexte["reouverture"] == "lundi à 10 heures, sur rendez-vous"
+    assert contexte["annonce_ouverture"] == (
+        "Nous sommes fermés en ce moment, nous rouvrons lundi à 10 heures, sur rendez-vous. "
+    )
+    # Without the forcing, the very same instant is OPEN: what is proven here is
+    # the forcing, not the hours.
+    assert _injecte(SAMEDI_11H)["etat_ouverture"] == OUVERT
+
+
+def test_un_forcage_expire_rend_la_main_aux_horaires_tout_seul():
+    """Decision 3, and the point of the whole mechanism: nobody has to come back.
+
+    Same settings, two instants: before the end date the business is closed,
+    after it the hours decide again -- here, OPEN.
+    """
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2026-09-19T10:00:00")
+    avant = _injecte(_a("2026-09-19 09:59"), reglages)
+    apres = _injecte(_a("2026-09-19 10:01"), reglages)
+    assert avant["etat_ouverture"] == FERME
+    assert apres["etat_ouverture"] == OUVERT
+    assert apres["annonce_ouverture"] == ""
+
+
+def test_a_la_seconde_de_la_date_de_fin_le_forcage_est_deja_leve():
+    """The bound is closed on the hours' side: « until 10:00 » means open at 10:00."""
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2026-09-19T10:00:00")
+    fin = _a("2026-09-19 10:00:00")
+    assert forcage_actif(reglages, _a("2026-09-19 09:59:59")) == (FERME, fin)
+    assert forcage_actif(reglages, fin) is None
+
+
+def test_un_forcage_sans_date_tient_et_nannonce_aucune_reouverture():
+    """Decision C: an empty date holds until someone goes back to « computed »."""
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a=None)
+    for quand in (SAMEDI_11H, _a("2027-06-15 11:00")):
+        contexte = _injecte(quand, reglages)
+        assert contexte["etat_ouverture"] == FERME
+        assert contexte["reouverture"] == ""
+        assert contexte["annonce_ouverture"] == "Nous sommes fermés en ce moment. "
+
+
+def test_le_retour_a_calcule_rend_la_main_immediatement():
+    """Back to « computed » on screen = ``etat_force`` at None, nothing else."""
+    contexte = _injecte(SAMEDI_11H, _reglages(etat_force=None))
+    assert contexte["etat_ouverture"] == OUVERT
+    assert contexte["annonce_ouverture"] == ""
+
+
+@pytest.mark.parametrize("etat", [OUVERT, SUR_RENDEZ_VOUS])
+def test_un_etat_joignable_force_nannonce_pas_de_reouverture(etat):
+    """A business forced OPEN has no reopening to announce, date or not."""
+    reglages = _reglages(etat_force=etat, etat_force_jusqu_a="2026-09-21T10:00:00")
+    contexte = _injecte(VENDREDI_20H, reglages)
+    assert contexte["etat_ouverture"] == etat
+    assert contexte["reouverture"] == ""
+    assert contexte["annonce_ouverture"] == ""
+    # Without the forcing, this instant is FERME: the forcing is what is proven.
+    assert _injecte(VENDREDI_20H)["etat_ouverture"] == FERME
+
+
+def test_un_forcage_sapplique_meme_a_un_agent_sans_horaires():
+    """A forcing closes the whole company; an agent without hours is one of its agents.
+
+    ⛔ Without a forcing, that same agent keeps EXACTLY the context it had
+    before this patch (D6) -- asserted just below, so the two cannot drift.
+    """
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2026-09-21T10:00:00")
+    ferme = _injecte(SAMEDI_11H, reglages, configs={})
+    assert ferme["etat_ouverture"] == FERME
+    assert ferme["annonce_ouverture"] == (
+        "Nous sommes fermés en ce moment, nous rouvrons lundi à 10 heures. "
+    )
+    assert "horaires_ouverture" not in ferme  # nothing invented for an agent without hours
+    sans_forcage = _injecte(SAMEDI_11H, _reglages(), configs={}, contexte={"direction": "inbound"})
+    assert sans_forcage == {"direction": "inbound"}
+
+
+def test_une_valeur_deja_dans_le_contexte_gagne_encore_sur_un_forcage():
+    """D7 still applies ON TOP: the forcing replaces the HOURS, not a replay.
+
+    The keyboard bench must keep being able to play any state, whatever the
+    organization forces that day.
+    """
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2026-09-21T10:00:00")
+    contexte = _injecte(
+        SAMEDI_11H, reglages, contexte={"etat_ouverture": OUVERT, "reouverture": ""}
+    )
+    assert contexte["etat_ouverture"] == OUVERT
+    assert contexte["annonce_ouverture"] == ""
+
+
+def test_un_forcage_avec_des_horaires_invalides_est_quand_meme_applique():
+    """Hours refused by the screen but written by hand: the forcing still holds."""
+    reglages = _reglages(etat_force=FERME)
+    contexte = _injecte(SAMEDI_11H, reglages, configs={"horaires_ouverture": "lundi 10:00-18:30"})
+    assert contexte["etat_ouverture"] == FERME
+
+
+@pytest.mark.parametrize(
+    "casse",
+    [
+        SimpleNamespace(etat_force="CONGES"),
+        SimpleNamespace(etat_force=42),
+        object(),
+        None,
+    ],
+)
+def test_un_forcage_illisible_laisse_decider_les_horaires(casse):
+    """⛔ Never raises, and never guesses: anything unreadable means no forcing."""
+    assert forcage_actif(casse, SAMEDI_11H) is None
+
+
+def test_une_date_de_fin_illisible_est_un_forcage_sans_fin():
+    """What is unreadable is the DATE, not the decision to close: the state holds."""
+    casse = SimpleNamespace(etat_force=FERME, etat_force_jusqu_a="2026-09-21")
+    assert forcage_actif(casse, SAMEDI_11H) == (FERME, None)
+
+
+# 15.3 The refresh after a pre-call fetch keeps the organization's sentence -- #
+
+
+def test_le_rafraichissement_reprend_la_phrase_de_lorganisation():
+    """⛔ Without the settings, a pre-call fetch would rewrite the sentence with
+    the DEFAULT one: the organization's wording would vanish mid-call."""
+    reglages = _reglages(annonce_fermeture="Le magasin est fermé[, retour {reouverture}].")
+    contexte = _injecte(SAMEDI_11H, reglages)
+    assert contexte["annonce_ouverture"] == ""  # open, nothing announced
+    apres_fetch = rafraichir_annonce(
+        {**contexte, "etat_ouverture": FERME, "reouverture": "lundi à 10 heures"}, reglages
+    )
+    assert apres_fetch["annonce_ouverture"] == "Le magasin est fermé, retour lundi à 10 heures. "
+
+
+def test_le_rafraichissement_sans_reglages_garde_la_phrase_par_defaut():
+    contexte = _injecte(SAMEDI_11H)
+    apres_fetch = rafraichir_annonce(
+        {**contexte, "etat_ouverture": FERME, "reouverture": "lundi à 10 heures"}
+    )
+    assert apres_fetch["annonce_ouverture"] == (
+        "Nous sommes fermés en ce moment, nous rouvrons lundi à 10 heures. "
+    )
+
+
+def test_les_deux_phrases_par_defaut_restent_generiques():
+    """⚠️ The fork carries nothing specific to one client: not « magasin », not
+    « pause déjeuner ». What an organization types for itself is its own."""
+    for modele in (ANNONCE_FERMETURE_DEFAUT, ANNONCE_PAUSE_DEFAUT):
+        minuscules = modele.lower()
+        assert "magasin" not in minuscules
+        assert "déjeuner" not in minuscules
+
+
+# 15.4 The reopening a forced state announces (review of 18/09, Majeur 1) ---- #
+#
+# The question this block answers:
+#
+#     When the business is closed by hand UNTIL a moment, does the agent
+#     announce the moment it actually REOPENS -- or the moment the forcing
+#     happens to lift, which is not the same thing?
+
+
+def test_une_fermeture_jusqua_minuit_annonce_louverture_du_matin():
+    """🔴 The case the review found, and the ordinary one: the holidays.
+
+    « Closed until 03/01/2027 00:00 » is the natural entry -- that is when the
+    forcing must lift. Saying it as it stands gave « nous rouvrons dimanche
+    3 janvier à minuit »: an hour nobody reopens at, on a day this shop is shut.
+    The hours say the next opening is Monday 4 January at 10, by appointment.
+    """
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2027-01-03T00:00:00")
+    contexte = _injecte(_a("2026-12-26 15:00"), reglages)
+    assert contexte["etat_ouverture"] == FERME
+    assert contexte["reouverture"] == "lundi 4 janvier à 10 heures, sur rendez-vous"
+    assert "minuit" not in contexte["annonce_ouverture"]
+    assert "dimanche" not in contexte["annonce_ouverture"]
+
+
+def test_une_fin_de_forcage_a_minuit_un_jour_ouvre_annonce_lheure_douverture():
+    """Same trap, one day earlier: the 2nd is a Saturday, open from 10."""
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2027-01-02T00:00:00")
+    contexte = _injecte(_a("2026-12-26 15:00"), reglages)
+    assert contexte["reouverture"] == "samedi 2 janvier à 10 heures"
+
+
+def test_une_fin_de_forcage_pendant_les_heures_douverture_sannonce_telle_quelle():
+    """The forcing lifts at 14:00 on a Tuesday, and the shop is open at 14:00."""
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2026-09-22T14:00:00")
+    contexte = _injecte(_a("2026-09-22 11:00"), reglages)
+    assert contexte["reouverture"] == "aujourd'hui à 14 heures"
+
+
+def test_une_fin_de_forcage_avant_louverture_du_jour_annonce_louverture():
+    """Lifting at 07:00 on a Tuesday: the shop opens at 10, and says 10."""
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2026-09-22T07:00:00")
+    contexte = _injecte(_a("2026-09-21 20:00"), reglages)
+    assert contexte["reouverture"] == "demain à 10 heures"
+
+
+def test_sans_horaires_le_forcage_annonce_sa_propre_date():
+    """Nothing better exists for an agent without hours, and it is what was typed."""
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2026-09-21T10:00:00")
+    contexte = _injecte(SAMEDI_11H, reglages, configs={})
+    assert contexte["reouverture"] == "lundi à 10 heures"
+
+
+def test_des_horaires_illisibles_font_retomber_sur_la_date_du_forcage():
+    """Hours written by hand past the screen: the forcing still speaks, from its date."""
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2026-09-21T10:00:00")
+    contexte = _injecte(
+        SAMEDI_11H, reglages, configs={"horaires_ouverture": "lundi 10:00-18:30"}
+    )
+    assert contexte["etat_ouverture"] == FERME
+    assert contexte["reouverture"] == "lundi à 10 heures"
+
+
+def test_un_forcage_qui_finit_sur_une_entreprise_fermee_pour_toujours_nannonce_rien():
+    """Nothing open within the horizon after the end: the sentence keeps its core."""
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2026-09-21T10:00:00")
+    contexte = _injecte(
+        SAMEDI_11H, reglages, configs={"horaires_ouverture": SEPT_JOURS_FERMES}
+    )
+    assert contexte["reouverture"] == ""
+    assert contexte["annonce_ouverture"] == "Nous sommes fermés en ce moment. "
+
+
+@pytest.mark.parametrize("etat", [OUVERT, SUR_RENDEZ_VOUS])
+def test_un_etat_joignable_force_na_pas_de_reouverture_a_calculer(etat):
+    assert reouverture_du_forcage(etat, _a("2026-09-21 10:00"), EXEMPLE_D2, SAMEDI_11H) == ""
+
+
+def test_un_forcage_sans_fin_na_pas_de_reouverture_a_calculer():
+    assert reouverture_du_forcage(FERME, None, EXEMPLE_D2, SAMEDI_11H) == ""
+
+
+@pytest.mark.parametrize(
+    "horaires", [None, "", "   ", "lundi 10:00-18:30", "n'importe quoi"]
+)
+def test_le_calcul_de_la_reouverture_ne_leve_jamais(horaires):
+    """⛔ Same promise as everything else here: a sentence is never worth a call."""
+    resultat = reouverture_du_forcage(FERME, _a("2026-09-21 10:00"), horaires, SAMEDI_11H)
+    assert isinstance(resultat, str)
+
+
+# 15.5 The corpus the SCREEN reads too (review of 18/09, S4) ---------------- #
+
+
+def test_le_corpus_partage_avec_lecran_est_rendu_a_lidentique():
+    """⛔ The rendering exists twice: here, and in the screen's preview.
+
+    Both read the SAME file, so the first time one of them drifts, one of the
+    two suites goes red. Without that, the two could disagree for weeks and only
+    a caller would notice -- the preview would promise a sentence the agent does
+    not say.
+    """
+    import json
+    from pathlib import Path
+
+    fichier = Path(__file__).parent / "donnees" / "annonce_rendu_cas.json"
+    cas = json.loads(fichier.read_text(encoding="utf-8"))["cas"]
+    assert len(cas) >= 10, "corpus trop maigre pour prouver quoi que ce soit"
+    for c in cas:
+        obtenu = rendre_annonce(c["modele"], c["reouverture"])
+        # The trailing space belongs to the greeting, not to the corpus.
+        assert obtenu.rstrip(" ") == c["attendu"], c
+        assert obtenu == "" or obtenu.endswith(" ")
+
+
+# --------------------------------------------------------------------------- #
+# 16. Nothing is announced on an outbound call (decision of Evan, 18/09)
+#
+# The question this section answers:
+#
+#     On a call WE placed, does the agent keep quiet about the business being
+#     closed -- and, just as important, does everything else keep announcing?
+#
+# 🔴 Why the second half matters as much as the first: a run created without an
+# explicit call type reads as « outbound » (database default), and that includes
+# every keyboard bench. A rule applied too widely would delete the announcement
+# from the very place Evan and Pierre listen for it, silently -- which is the
+# defect this whole chantier fixed, 12 times out of 21 on 17/09.
+# --------------------------------------------------------------------------- #
+
+from api.services.pipecat.etat_ouverture import est_sortant  # noqa: E402
+
+
+def test_un_appel_sortant_nannonce_rien():
+    """We placed the call: telling the person we are closed makes no sense."""
+    contexte = _injecte(VENDREDI_20H, _reglages(), direction="outbound")
+    assert contexte["etat_ouverture"] == FERME  # the model is still told
+    assert contexte["reouverture"] != ""
+    assert contexte["annonce_ouverture"] == ""  # the greeting says nothing
+
+
+def test_un_appel_sortant_nannonce_rien_non_plus_sous_un_etat_force():
+    reglages = _reglages(etat_force=FERME, etat_force_jusqu_a="2026-09-21T10:00:00")
+    contexte = _injecte(SAMEDI_11H, reglages, direction="outbound")
+    assert contexte["etat_ouverture"] == FERME
+    assert contexte["annonce_ouverture"] == ""
+
+
+@pytest.mark.parametrize(
+    "direction", ["inbound", "INBOUND", None, "", "   ", "both", 42, object()]
+)
+def test_tout_ce_qui_nest_pas_explicitement_sortant_annonce_comme_avant(direction):
+    """🔒 Conservative on purpose: only an explicit « outbound » goes quiet.
+
+    The two mistakes do not cost the same. Announcing on an outbound call is
+    awkward; NOT announcing on an inbound one is the defect measured on 17/09.
+    """
+    contexte = _injecte(VENDREDI_20H, _reglages(), direction=direction)
+    assert contexte["annonce_ouverture"] == "Nous sommes fermés en ce moment, nous rouvrons demain à 10 heures. "
+
+
+@pytest.mark.parametrize("valeur", ["outbound", "OUTBOUND", " Outbound "])
+def test_la_casse_et_les_espaces_ne_font_pas_passer_un_sortant_pour_un_entrant(valeur):
+    assert est_sortant(valeur) is True
+
+
+@pytest.mark.parametrize("valeur", ["inbound", "out", "outbound_call", None, 42, object(), ""])
+def test_rien_dautre_nest_pris_pour_un_sortant(valeur):
+    assert est_sortant(valeur) is False
+
+
+def test_le_rafraichissement_dun_sortant_ne_remet_pas_lannonce():
+    """⛔ A pre-call fetch merged after the injection must not put it back.
+
+    Without the direction here, a fetch that closes the business mid-setup would
+    hand the outbound agent the sentence the injection had just withheld.
+    """
+    contexte = _injecte(SAMEDI_11H, _reglages(), direction="outbound")
+    apres_fetch = rafraichir_annonce(
+        {**contexte, "etat_ouverture": FERME, "reouverture": "lundi à 10 heures"},
+        _reglages(),
+        "outbound",
+    )
+    assert apres_fetch["annonce_ouverture"] == ""
+
+
+def test_le_rafraichissement_dun_entrant_annonce_toujours():
+    contexte = _injecte(SAMEDI_11H, _reglages(), direction="inbound")
+    apres_fetch = rafraichir_annonce(
+        {**contexte, "etat_ouverture": FERME, "reouverture": "lundi à 10 heures"},
+        _reglages(),
+        "inbound",
+    )
+    assert apres_fetch["annonce_ouverture"] != ""
+
+
+def test_le_banc_au_clavier_annonce_toujours():
+    """🔴 The keyboard path passes NO direction, and that is deliberate.
+
+    A keyboard run is created with ``call_type`` left at its database default,
+    « outbound ». Handing that to the injection would silence the announcement
+    on every bench -- where Evan and Pierre listen for it. The keyboard replays
+    what a CALLER hears.
+    """
+    source = inspect.getsource(text_chat_runner)
+    appel = re.search(
+        r"initial_context = injecter_etat_ouverture\((?:[^()]|\([^()]*\))*\)", source
+    )
+    assert appel, "the keyboard injection is no longer in the source"
+    assert "direction" not in appel.group(0), (
+        "The keyboard path must NOT pass a direction: a keyboard run reads as "
+        "outbound by database default, and every bench would stop announcing."
+    )
+    # And the reason is written down next to it, so nobody adds it back.
+    assert "database default, which is ``outbound``" in source
