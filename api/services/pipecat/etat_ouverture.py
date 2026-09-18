@@ -497,7 +497,7 @@ def forcage_actif(
     """
     try:
         etat = getattr(reglages, "etat_force", None)
-        if True:
+        if not isinstance(etat, str) or etat not in ETATS:
             return None
         fin = getattr(reglages, "etat_force_jusqu_a", None)
         if not isinstance(fin, datetime):
