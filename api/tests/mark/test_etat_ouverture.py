@@ -589,10 +589,35 @@ def test_chaque_etat_connu_annonce_ou_se_tait_dans_les_deux_sens():
 
 
 @pytest.mark.parametrize("inconnu", ["ferme", "FERME ", "Fermé", "", "CLOSED"])
-def test_un_etat_inconnu_ne_dit_rien_et_se_voit_dans_les_journaux(inconnu, caplog):
+def test_un_etat_inconnu_ne_dit_rien_mais_le_dit_dans_les_journaux(inconnu):
     """A state written by hand reads as closed in the prompt while the greeting
-    announces nothing. Silent until the review of 2026-09-18."""
-    assert phrase_annonce(inconnu, "demain à 10 heures") == ""
+    announces nothing. Silent until the review of 2026-09-18 -- so the warning is
+    ASSERTED here: without it, removing the log would leave this test green and
+    the defect silent again. ``caplog`` is not used: loguru does not feed it
+    without explicit wiring, so a sink of our own collects the messages."""
+    from loguru import logger
+
+    recus: list[str] = []
+    jeton = logger.add(lambda message: recus.append(str(message)), level="WARNING")
+    try:
+        assert phrase_annonce(inconnu, "demain à 10 heures") == ""
+    finally:
+        logger.remove(jeton)
+    assert any("unknown state" in ligne for ligne in recus), recus
+
+
+def test_un_etat_connu_najoute_aucun_avertissement():
+    """⛔ The inverse sense: a normal call must not log anything."""
+    from loguru import logger
+
+    recus: list[str] = []
+    jeton = logger.add(lambda message: recus.append(str(message)), level="WARNING")
+    try:
+        for etat in (OUVERT, PAUSE, FERME, SUR_RENDEZ_VOUS):
+            phrase_annonce(etat, "demain à 10 heures")
+    finally:
+        logger.remove(jeton)
+    assert recus == []
 
 
 @pytest.mark.parametrize("valeur", [["x"], 42, {"a": 1}, None])
