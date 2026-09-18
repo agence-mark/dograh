@@ -33,6 +33,17 @@ const mocks = vi.hoisted(() => ({
     savePreferences: vi.fn(),
     refreshConfig: vi.fn(),
     getLexique: vi.fn().mockResolvedValue({ data: { format: "lexique-mark", version: 1, termes: [] } }),
+    // 🆕 18/09: the same page now also carries the announcement settings card.
+    getAnnonce: vi.fn().mockResolvedValue({
+        data: {
+            format: "annonce-ouverture-mark",
+            version: 1,
+            annonce_fermeture: "Nous sommes fermés en ce moment[, nous rouvrons {reouverture}].",
+            annonce_pause: "Nous sommes fermés pour le moment[, nous rouvrons {reouverture}].",
+            etat_force: null,
+            etat_force_jusqu_a: null,
+        },
+    }),
     toast: { success: vi.fn(), error: vi.fn() },
     organisation: { current: null as OrganizationPreferences | null },
     // ⚠️ One stable array: a new one on every render re-runs the mapping
@@ -48,6 +59,8 @@ vi.mock("@/client/sdk.gen", () => ({
     getLexiqueApiV1OrganizationsLexiqueGet: mocks.getLexique,
     saveLexiqueApiV1OrganizationsLexiquePut: vi.fn(),
     importLexiqueApiV1OrganizationsLexiqueImportPost: vi.fn(),
+    getAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGet: mocks.getAnnonce,
+    saveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePut: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));
 vi.mock("@/context/UnsavedChangesContext", () => ({ useUnsavedChanges: () => undefined }));
