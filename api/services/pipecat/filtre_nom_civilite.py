@@ -49,10 +49,14 @@ from collections.abc import Callable
 from loguru import logger
 
 from pipecat.frames.frames import (
+    CancelFrame,
+    EndFrame,
     Frame,
     InterruptionFrame,
     LLMFullResponseEndFrame,
+    LLMFullResponseStartFrame,
     LLMTextFrame,
+    TTSSpeakFrame,
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
@@ -61,19 +65,53 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 # à l'agent.
 CIVILITES = ("monsieur", "madame", "mademoiselle")
 
+# Les mêmes, telles qu'elles peuvent être écrites par le modèle. Les formes
+# abrégées sont rares (zéro cas sur les 3 889 phrases du corpus), mais sans
+# elles « M. Untel, bonjour. » ressortait « M., bonjour. » -- relevé par la
+# relecture indépendante du 22/09. Le test de zéro perte vérifie qu'elles ne
+# mordent sur rien d'autre.
+MOTIFS_DE_CIVILITE = (
+    r"monsieur",
+    r"madame",
+    r"mademoiselle",
+    r"mme\b",
+    r"mlle\b",
+    r"m\.",
+)
+
 # Une frontière de phrase : ce qui déclenche la synthèse côté voix.
 FIN_DE_PHRASE = re.compile(r"[.!?…](?:[\"'»\)]|\s|$)")
 
 
 def _motif_du_nom(nom: str) -> str:
-    """Le nom, échappé, avec ses variantes d'apostrophe.
+    """Le nom, échappé, acceptant les DEUX apostrophes.
 
     ⛔ Échappé, parce qu'un nom est une donnée saisie : « M. (Dupont) » ferait
     lever une expression régulière construite naïvement, et emporterait le tour
     de parole.
+
+    🔴 Les deux apostrophes, dans les deux sens. La version précédente
+    remplaçait ``\\'`` — une séquence que ``re.escape`` ne produit plus depuis
+    Python 3.7, donc du code mort : un nom stocké « D'Arcy » (droite, comme la
+    transcription l'écrit) ne reconnaissait pas « D’Arcy » (typographique,
+    comme le modèle l'écrit), et le nom était prononcé. Exactement ce que ce
+    module existe pour empêcher. Relevé par la relecture indépendante du 22/09.
+
+    ⚠️ En UNE passe : remplacer les apostrophes l'une après l'autre réécrit la
+    classe que la passe précédente vient d'insérer (``D['['’]]Arcy``).
     """
-    echappe = re.escape(nom.strip())
-    return echappe.replace(r"\'", "['’]").replace("’", "['’]")
+    return re.sub(r"['’]", "['’]", re.escape(nom.strip()))
+
+
+def _porte_une_majuscule(valeur: str) -> bool:
+    """Un nom de personne, par opposition au mot ordinaire de même forme.
+
+    🔑 On regarde **chaque mot**, pas seulement le premier. Un nom à particule
+    s'écrit « van Hecke », « de Vries », « Le Goff » : juger sur le premier
+    caractère laissait passer le nom entier, interrupteur allumé. Relevé par la
+    relecture indépendante du 22/09.
+    """
+    return any(mot[:1].isupper() for mot in re.split(r"[\s'’-]+", valeur) if mot)
 
 
 def retirer_nom_et_civilite(
@@ -104,7 +142,7 @@ def retirer_nom_et_civilite(
         return texte
     try:
         nom_utilisable = (nom or "").strip() if retirer_nom else ""
-        civilites = "|".join(CIVILITES) if retirer_civilite else ""
+        civilites = "|".join(MOTIFS_DE_CIVILITE) if retirer_civilite else ""
 
         morceaux = []
         if nom_utilisable:
@@ -140,12 +178,17 @@ def retirer_nom_et_civilite(
             nonlocal retraits
             valeur = trouve.group("noyau")
             commence_par_civilite = valeur.lower().startswith(CIVILITES)
-            if not commence_par_civilite and not valeur[:1].isupper():
+            if not commence_par_civilite and not _porte_une_majuscule(valeur):
                 # Le nom en minuscules reste : c'est le mot ordinaire, pas la
                 # personne (« passé chez le boulanger » chez M. Boulanger).
                 return trouve.group(0)
             retraits += 1
-            en_tete = trouve.start() == 0
+            # « En tête » vaut aussi après une fin de phrase : « …ne quittez
+            # pas. Monsieur Untel, je transfère. » doit rendre « …ne quittez
+            # pas. Je transfère. », pas « …ne quittez pas., je transfère. »
+            en_tete = trouve.start() == 0 or bool(
+                re.search(r"[.!?…]\s*$", texte[: trouve.start()])
+            )
             encadre = bool(trouve.group("avant")) and bool(trouve.group("apres"))
             # « votre poêle, monsieur Untel, est un Godin » -> les DEUX virgules
             # partent, sinon il reste « votre poêle, est un Godin ».
@@ -185,6 +228,8 @@ def _recoudre(texte: str) -> str:
     sortie = texte
     # Deux espaces pour un, là où le groupe se tenait.
     sortie = re.sub(r"[ \t]{2,}", " ", sortie)
+    # Une phrase recollée à la précédente parce que le groupe emportait l'espace.
+    sortie = re.sub(r"(?<=[.!?…])(?=[A-Za-zÀ-ÿ])", " ", sortie)
     # Un espace ou une virgule laissés devant la ponctuation de fin.
     sortie = re.sub(r"\s*,\s*(?=[.!?…])", "", sortie)
     # Un début de phrase qui commence désormais par une espace ou une virgule.
@@ -196,7 +241,12 @@ def _recoudre(texte: str) -> str:
         lambda m: m.group(1) + m.group(2).upper(),
         sortie,
     )
-    return sortie.strip()
+    sortie = sortie.strip()
+    # Une phrase qui n'était QUE le nom ne laisse qu'un point : « Untel. » ->
+    # « . ». Mieux vaut ne rien dire que dire une ponctuation seule.
+    if not re.search(r"[A-Za-zÀ-ÿ0-9]", sortie):
+        return ""
+    return sortie
 
 
 class FiltreNomCiviliteProcessor(FrameProcessor):
@@ -229,6 +279,10 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
         self._champ_du_nom = champ_du_nom
         self._par_phrase = str(mode_envoi) == "sentence"
         self._tampon = ""
+        # La frame qui a ouvert la phrase en cours : c'est elle qu'on réémet,
+        # pour ne pas perdre ses drapeaux (voir `_emettre`).
+        self._porteuse: LLMTextFrame | None = None
+        self._nom_deja_signale = False
         if not self._par_phrase:
             logger.info(
                 "[.mark] Name/title filter inert: the text is sent to the voice "
@@ -239,7 +293,22 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
         try:
             variables = self._variables() or {}
             valeur = variables.get(self._champ_du_nom)
-            return str(valeur).strip() if valeur else None
+            if valeur:
+                return str(valeur).strip()
+            # 🔴 Dit UNE fois, et seulement quand l'interrupteur du nom est
+            # allumé : sans ça, un agent dont la variable d'extraction porte un
+            # autre nom que `nom` affiche un interrupteur allumé, sans effet et
+            # sans une ligne de journal. Relevé par la relecture indépendante
+            # du 22/09. ⚠️ C'est aussi le cas normal au tout début de l'appel,
+            # avant la première extraction -- d'où le « une fois ».
+            if self._retirer_nom and not self._nom_deja_signale and variables:
+                self._nom_deja_signale = True
+                logger.info(
+                    f"[.mark] Name filter: no '{self._champ_du_nom}' among the "
+                    f"extracted variables {sorted(variables)}; only the title "
+                    "can be removed."
+                )
+            return None
         except Exception as erreur:  # noqa: BLE001 -- l'appel doit continuer
             logger.warning(f"[.mark] Caller name unreadable: {erreur!r}")
             return None
@@ -252,26 +321,75 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
             retirer_civilite=self._retirer_civilite,
         )
 
+    async def _emettre(self, texte: str, direction: FrameDirection):
+        """Pousse le texte filtré en RÉUTILISANT la frame qui a ouvert la phrase.
+
+        🔑 Réutilisée, pas reconstruite : une ``LLMTextFrame`` neuve repart avec
+        les valeurs par défaut de ``skip_tts`` et ``append_to_context``, qui
+        sont ``field(init=False)``. Or le routeur d'enregistrements -- le
+        processeur immédiatement en amont -- pose ``skip_tts`` sur son texte
+        marqueur : reconstruire la frame le renvoyait à la voix. Relevé par la
+        relecture indépendante du 22/09.
+        """
+        porteuse = self._porteuse or LLMTextFrame(texte)
+        porteuse.text = texte
+        self._porteuse = None
+        await self.push_frame(porteuse, direction)
+
     async def _vider(self, direction: FrameDirection):
         """Transmet ce qui reste en tampon, filtré."""
         if not self._tampon:
+            self._porteuse = None
             return
         reste, self._tampon = self._tampon, ""
-        await self.push_frame(LLMTextFrame(self._filtrer(reste)), direction)
+        await self._emettre(self._filtrer(reste), direction)
+
+    def _oublier(self):
+        """Jette ce qui est en tampon, sans le dire."""
+        self._tampon = ""
+        self._porteuse = None
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
 
-        if not self._par_phrase or not isinstance(frame, LLMTextFrame):
-            # ⚠️ La fin de réponse et l'interruption passent AUSSI par ici, et
-            # c'est ce qui garantit qu'aucun morceau ne reste coincé en tampon.
-            if isinstance(frame, LLMFullResponseEndFrame):
-                await self._vider(direction)
-            elif isinstance(frame, InterruptionFrame):
-                self._tampon = ""
+        # ⛔ Une frame marquée « ne pas dire » (le texte marqueur du routeur
+        # d'enregistrements) ne rejoint JAMAIS le tampon : on vide d'abord ce
+        # qui est en cours, puis on la laisse passer intacte, drapeau compris.
+        if self._par_phrase and getattr(frame, "skip_tts", False):
+            await self._vider(direction)
             await self.push_frame(frame, direction)
             return
 
+        # 🔴 La parole que le MOTEUR injecte lui-même -- accueil, phrase figée
+        # d'une porte, message d'outil -- ne passe pas par le modèle, donc pas
+        # par le tampon. Et elle porte des variables substituées : une phrase
+        # de transition écrite « Merci {nom}, je vous mets en relation » serait
+        # dite en entier, les deux interrupteurs allumés. Relevé par la
+        # relecture indépendante du 22/09. Elle est déjà une phrase complète :
+        # on la filtre sur place, sans la bufferiser.
+        if self._par_phrase and isinstance(frame, TTSSpeakFrame) and frame.text:
+            frame.text = self._filtrer(frame.text)
+            await self.push_frame(frame, direction)
+            return
+
+        if not self._par_phrase or not isinstance(frame, LLMTextFrame):
+            if isinstance(frame, LLMFullResponseEndFrame):
+                await self._vider(direction)
+            elif isinstance(frame, LLMFullResponseStartFrame):
+                # 🔴 Une réponse commence TOUJOURS à vide. Sans ça, une frame
+                # arrivée après une interruption (la queue du tour annulé)
+                # restait en tampon et se soudait au premier mot du tour
+                # suivant : « un GodinOui ? ». Reproduit par la relecture
+                # indépendante du 22/09. Le service de voix se réarme de la
+                # même façon, sur la même frame.
+                self._oublier()
+            elif isinstance(frame, (InterruptionFrame, EndFrame, CancelFrame)):
+                self._oublier()
+            await self.push_frame(frame, direction)
+            return
+
+        if self._porteuse is None:
+            self._porteuse = frame
         self._tampon += frame.text
         # On ne retient que le morceau de phrase en cours : tout ce qui est
         # terminé part immédiatement, pour ne pas retarder la voix.
@@ -281,7 +399,10 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
                 break
             coupe = fin.end()
             phrase, self._tampon = self._tampon[:coupe], self._tampon[coupe:]
-            await self.push_frame(LLMTextFrame(self._filtrer(phrase)), direction)
+            await self._emettre(self._filtrer(phrase), direction)
+            # La phrase suivante s'ouvrira sur la prochaine frame reçue.
+            if self._tampon:
+                self._porteuse = frame
 
 
 def creer_filtre_nom_civilite(

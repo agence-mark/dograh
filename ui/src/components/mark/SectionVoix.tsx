@@ -187,8 +187,10 @@ export const SectionVoix = ({ reglages, onChange }: SectionVoixProps) => (
                     when the text goes to the voice word by word. The name is only known
                     once it has been extracted, so anything said before that is untouched.
                     A name written in lower case is left alone, so a name at the very start
-                    of a sentence may survive. And they act on what is SAID: the call
-                    record and the transcript keep the name either way.
+                    of a sentence may survive. They act on what is SAID: the call record
+                    and the caller&apos;s own transcript keep the name, while the agent&apos;s
+                    side of the transcript is written from what it actually said, so it
+                    loses the name too.
                 </p>
                 <p className="text-xs text-muted-foreground">
                     <strong>Writing the prompt.</strong> With the name switch on, have the

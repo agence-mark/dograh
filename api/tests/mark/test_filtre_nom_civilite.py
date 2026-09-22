@@ -33,7 +33,36 @@ from api.services.pipecat.filtre_nom_civilite import retirer_nom_et_civilite
 CORPUS = Path(__file__).parent / "donnees" / "phrases-agent.jsonl"
 
 # Une phrase « concernée » est une phrase où le filtre a quelque chose à faire.
-CIVILITES = ("monsieur", "madame", "mademoiselle")
+CIVILITES = ("monsieur", "madame", "mademoiselle", "mme", "mlle", "m.")
+
+# 🔴 Les noms des vingt cartes d'identité des essais, et PAS un nom inventé.
+# La version précédente filtrait sur « Dupont », qui n'apparaît pas une seule
+# fois dans le corpus : le bras « nom » du filtre n'avait littéralement rien à
+# rencontrer, et le test ne prouvait que le bras « civilité ». Relevé par la
+# relecture indépendante du 22/09, qui a refait la mesure en fort : 20 noms ×
+# toutes les phrases, 65 599 comparaisons, zéro perte.
+NOMS_DES_CARTES = (
+    "Vasseur",
+    "Dufresnoy",
+    "Carpentier",
+    "Quennehen",
+    "Nguyen",
+    "Lefebvre",
+    "Bouchez",
+    "Ferreira",
+    "Leclercq",
+    "Houdaille",
+    "Tessier",
+    "Poulain",
+    "Wattebled",
+    "Delamotte",
+    "Haddad",
+    "Lemaire",
+    "Rousselle",
+    "Benali",
+    "Morel",
+    "Lambert",
+)
 
 
 def _corpus() -> list[str]:
@@ -62,20 +91,25 @@ def test_A_zero_perte_sur_les_phrases_sans_nom_ni_civilite():
     point d'interrogation ailleurs est inutilisable : il parlerait mal à 100 %
     des appels pour en corriger 16 %.
     """
-    intactes = 0
+    comparaisons = 0
     for phrase in _corpus():
-        if _porte_une_civilite(phrase) or "Dupont" in phrase:
+        if _porte_une_civilite(phrase):
             continue
-        sortie = retirer_nom_et_civilite(
-            phrase, "Dupont", retirer_nom=True, retirer_civilite=True
-        )
-        assert sortie == phrase, (
-            f"phrase modifiée sans raison : {phrase!r} -> {sortie!r}"
-        )
-        intactes += 1
+        # Chaque nom de carte, contre chaque phrase qui ne le porte pas : c'est
+        # ce qui met VRAIMENT le bras « nom » du filtre à l'épreuve.
+        for nom in NOMS_DES_CARTES:
+            if nom.lower() in phrase.lower():
+                continue
+            sortie = retirer_nom_et_civilite(
+                phrase, nom, retirer_nom=True, retirer_civilite=True
+            )
+            assert sortie == phrase, (
+                f"phrase modifiée sans raison (nom {nom!r}) : {phrase!r} -> {sortie!r}"
+            )
+            comparaisons += 1
     # ⛔ Le comptage, dans l'autre sens : sans lui, un corpus mal lu (zéro ligne)
     # rendrait ce test vert en silence. Invariant dans les deux sens.
-    assert intactes > 3000, f"corpus trop maigre : {intactes} phrases sans civilité"
+    assert comparaisons > 60000, f"corpus trop maigre : {comparaisons} comparaisons"
 
 
 def test_H_le_comptage_des_phrases_concernees():

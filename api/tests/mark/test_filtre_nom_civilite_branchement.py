@@ -21,6 +21,7 @@ from types import SimpleNamespace
 import pytest
 from pipecat.frames.frames import (
     Frame,
+    InterruptionFrame,
     LLMFullResponseEndFrame,
     LLMFullResponseStartFrame,
     LLMTextFrame,
@@ -266,3 +267,134 @@ def test_le_chemin_telephonique_construit_bien_le_filtre():
         "le filtre ne reçoit plus les variables extraites : il ne connaîtrait "
         "jamais le nom de l'appelant."
     )
+
+
+# ─── Ce que la relecture indépendante du 22/09 a trouvé ──────────────────────
+
+
+@pytest.mark.asyncio
+async def test_une_interruption_ne_SOUDE_pas_deux_tours():
+    """🔴 Reproduit par la relecture : `« un Godin » + « Oui ? »` sortait collé.
+
+    Une frame arrivée APRÈS l'interruption -- la queue du tour annulé, que le
+    modèle finit d'écrire -- se rebufférisait et n'était jamais chassée, faute
+    de fin de réponse pour ce tour. Elle se soudait au premier mot du tour
+    suivant : « un GodinOui ? ». Une réponse commence toujours à vide, comme le
+    service de voix qui se réarme sur la même frame.
+    """
+    aval = _Aval()
+    await run_test(
+        Pipeline([_filtre(), aval]),
+        frames_to_send=[
+            LLMFullResponseStartFrame(),
+            LLMTextFrame("Votre poêle est"),
+            InterruptionFrame(),
+            LLMTextFrame(" un Godin"),  # la queue du tour annulé
+            LLMFullResponseStartFrame(),  # le tour suivant
+            LLMTextFrame("Oui ?"),
+            LLMFullResponseEndFrame(),
+            SleepFrame(sleep=0.3),
+        ],
+        start_timeout=DEMARRAGE_S,
+    )
+
+    assert "GodinOui" not in "".join(aval.textes)
+    assert "Oui ?" in "".join(aval.textes)
+
+
+@pytest.mark.asyncio
+async def test_le_drapeau_ne_pas_dire_survit_au_filtre():
+    """🔴 Le routeur d'enregistrements est le processeur juste en amont, et il
+    pose `skip_tts` sur son texte marqueur. Reconstruire la frame renvoyait ce
+    marqueur à la voix.
+    """
+    marqueur = LLMTextFrame("▸")
+    marqueur.skip_tts = True
+    aval = _Aval()
+    recues: list[Frame] = []
+
+    class _Espion(FrameProcessor):
+        async def process_frame(self, frame: Frame, direction: FrameDirection):
+            await super().process_frame(frame, direction)
+            recues.append(frame)
+            await self.push_frame(frame, direction)
+
+    await run_test(
+        Pipeline([_filtre(), _Espion(), aval]),
+        frames_to_send=[
+            LLMFullResponseStartFrame(),
+            LLMTextFrame("D'accord."),
+            marqueur,
+            LLMFullResponseEndFrame(),
+            SleepFrame(sleep=0.3),
+        ],
+        start_timeout=DEMARRAGE_S,
+    )
+
+    marqueurs = [f for f in recues if getattr(f, "skip_tts", False)]
+    assert marqueurs, "le marqueur a disparu"
+    assert all("▸" in f.text for f in marqueurs)
+
+
+@pytest.mark.asyncio
+async def test_la_parole_injectee_par_le_MOTEUR_est_filtree_aussi():
+    """🔴 L'accueil, la phrase figée d'une porte et les messages d'outil ne
+    passent pas par le modèle. Une transition écrite « Merci {nom}, je vous
+    mets en relation » aurait été dite en entier, les interrupteurs allumés.
+    """
+    from pipecat.frames.frames import TTSSpeakFrame
+
+    aval = _Aval()
+    dits: list[str] = []
+
+    class _Espion(FrameProcessor):
+        async def process_frame(self, frame: Frame, direction: FrameDirection):
+            await super().process_frame(frame, direction)
+            if isinstance(frame, TTSSpeakFrame):
+                dits.append(frame.text)
+            await self.push_frame(frame, direction)
+
+    await run_test(
+        Pipeline([_filtre(), _Espion(), aval]),
+        frames_to_send=[
+            TTSSpeakFrame("Merci monsieur Dupont, je vous mets en relation."),
+            SleepFrame(sleep=0.3),
+        ],
+        start_timeout=DEMARRAGE_S,
+    )
+
+    assert dits, "la parole du moteur a disparu"
+    assert all("Dupont" not in texte for texte in dits)
+
+
+def test_un_nom_a_PARTICULE_est_retire():
+    """🔴 « van Hecke », « de Vries », « Le Goff » : juger la majuscule sur le
+    premier caractère laissait passer le nom entier."""
+    from api.services.pipecat.filtre_nom_civilite import retirer_nom_et_civilite
+
+    assert (
+        retirer_nom_et_civilite(
+            "Bonjour monsieur van Hecke.", "van Hecke", retirer_nom=True
+        )
+        == "Bonjour monsieur."
+    )
+    assert (
+        retirer_nom_et_civilite("Bonjour van Hecke.", "van Hecke", retirer_nom=True)
+        == "Bonjour."
+    )
+
+
+def test_les_DEUX_apostrophes_sont_reconnues():
+    """🔴 Le nom vient de la transcription, qui écrit l'apostrophe droite ; le
+    modèle écrit la typographique. Le module doit reconnaître les deux, dans
+    les deux sens, sinon le nom est prononcé."""
+    from api.services.pipecat.filtre_nom_civilite import retirer_nom_et_civilite
+
+    for stocke in ("D'Arcy", "D’Arcy"):
+        for dit in ("D'Arcy", "D’Arcy"):
+            sortie = retirer_nom_et_civilite(
+                f"Bonjour monsieur {dit}.", stocke, retirer_nom=True
+            )
+            assert sortie == "Bonjour monsieur.", (
+                f"{stocke!r} contre {dit!r} : {sortie!r}"
+            )
