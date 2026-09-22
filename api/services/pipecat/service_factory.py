@@ -35,6 +35,7 @@ from api.services.pipecat.gemini_json_schema_adapter import (
 from api.services.pipecat.minimax_tts import MiniMaxOwnedSessionTTSService
 from api.services.pipecat.mistral_tts import (
     MistralRegionalTTSService,
+    point_entree_mistral,
     resolve_mistral_endpoint,
 )
 from api.services.lexique.ecoute import regles_de_prononciation
@@ -1107,11 +1108,10 @@ def create_tts_service(
             **voix,
         )
     elif user_config.tts.provider == ServiceProviders.ELEVENLABS.value:
-        # Backward compatible with older configuration "Name - voice_id"
-        try:
-            voice_id = user_config.tts.voice.split(" - ")[1]
-        except IndexError:
-            voice_id = user_config.tts.voice
+        # [.mark] Backward compatible with older configuration "Name - voice_id".
+        # Moved into `_voix_jouee` so the stamp and the request read the same
+        # value: §5.4, a stamp assembled apart from the request drifts from it.
+        voice_id = _voix_jouee(user_config.tts) or user_config.tts.voice
         # ElevenLabs TTS consumes the full normalized WebSocket URL. Realtime
         # STT uses the same normalization before adapting it to Pipecat's
         # scheme-less base_url contract.
@@ -1261,9 +1261,9 @@ def create_tts_service(
         language = getattr(user_config.tts, "language", None)
         pipecat_language = language_mapping.get(language, Language.HI)
 
-        voice = (
-            getattr(user_config.tts, "voice", None) or ""
-        ).strip().lower() or "anushka"
+        # [.mark] Même fonction que l'estampille (§5.4) ; le repli reste ici,
+        # il appartient à la branche et n'a pas à être recopié ailleurs.
+        voice = _voix_jouee(user_config.tts) or "anushka"
         speed = getattr(user_config.tts, "speed", None)
         settings_kwargs = {
             "model": user_config.tts.model,
@@ -1537,6 +1537,117 @@ def stamp_transcription_settings(runtime_configuration: dict, stt_config) -> dic
         reglages = _reglages_classiques(stt_config)
     if reglages:
         runtime_configuration["stt_settings"] = reglages
+    return runtime_configuration
+
+
+def _voix_jouee(tts_config) -> str | None:
+    """[.mark] The voice identifier the provider really receives.
+
+    🔑 Shared with the factory rather than re-derived here: §5.4 of
+    ``18-ajout-fournisseur.md`` says the stamp and the request go through the
+    SAME function, because a stamp assembled apart drifts from what went out.
+    ElevenLabs is the one provider whose configured value is transformed --
+    legacy configurations carry ``"Name - voice_id"`` and only the identifier
+    is sent -- so stamping the configured string would attribute to the call a
+    voice name the provider never saw.
+
+    Sarvam is the second: it lowercases the voice before sending it, so a stamp
+    that kept the capital would attribute to the call a voice the provider
+    never received. Same defect, one field over -- family ② of §7, the case
+    corrected instead of the motive. Raised by the independent review of
+    2026-09-22.
+
+    ⛔ What this deliberately does NOT do: reproduce the per-branch fallbacks
+    ("Ashley" for Inworld, "anushka" for Sarvam, "eve" for xAI...). They apply
+    when the configuration declares nothing, and a second list of them would be
+    exactly the parallel collection §5.4 forbids -- it would go stale the day a
+    branch changes its fallback, and stamp a voice that was never played. A
+    configuration that declares no voice is stamped with none.
+    """
+    voix = (getattr(tts_config, "voice", None) or "").strip()
+    if not voix:
+        return None
+    fournisseur = getattr(tts_config, "provider", None)
+    if fournisseur == ServiceProviders.ELEVENLABS.value:
+        # Backward compatible with older configuration "Name - voice_id"
+        try:
+            return voix.split(" - ")[1]
+        except IndexError:
+            return voix
+    if fournisseur == ServiceProviders.SARVAM.value:
+        return voix.lower()
+    return voix
+
+
+def _point_entree_voix(tts_config) -> str | None:
+    """[.mark] The HOST the spoken text was sent to.
+
+    🚨 RESOLVED for the two providers whose empty field means something other
+    than "nowhere", and each through the very function that builds ITS request,
+    so the stamp cannot drift from what went out:
+
+    · **Deepgram** -- :func:`_deepgram_base_url`, which falls back to Europe;
+    · **Mistral** -- :func:`point_entree_mistral`, whose empty field falls back
+      to the GLOBAL endpoint. It is our production voice, and EU processing is
+      a contractual condition rather than a preference, so this is the single
+      most important thing this stamp records.
+
+    ⚠️ For the fifteen other providers this is the address AS CONFIGURED, and
+    the docstring says so rather than promising more: their branches add paths
+    (MiniMax appends ``/t2a_v2``), read an address from the environment
+    (Dograh) or decide the jurisdiction by a region rather than a URL (Google,
+    Azure). Reproducing those transforms here would be the parallel list §5.4
+    forbids; claiming they are resolved would be the lie §7 ② warns about.
+
+    ⛔ Read an absent ``endpoint`` as "the configuration declared none", never
+    as "the call reached no endpoint".
+    """
+    fournisseur = getattr(tts_config, "provider", None)
+    if fournisseur == ServiceProviders.DEEPGRAM.value:
+        # The very function the factory calls three lines before building the
+        # request, so the two cannot drift. The host is stamped, while the
+        # request goes out on `wss://` with the connector's own path appended.
+        return _deepgram_base_url(tts_config)
+    if fournisseur == ServiceProviders.MISTRAL.value:
+        return point_entree_mistral(getattr(tts_config, "base_url", None))
+    adresse = (getattr(tts_config, "base_url", None) or "").strip()
+    return adresse or None
+
+
+def stamp_voice_settings(runtime_configuration: dict, tts_config) -> dict:
+    """[.mark] Record the voice this run was actually played with.
+
+    A run already stamps ``tts_provider`` and ``tts_model``, but neither the
+    voice nor the endpoint -- so two voices of the same provider are
+    indistinguishable after the fact, and no voice bench is verifiable. Six
+    Voxtral emotions share one model name, and the lab measured on 2026-09-21
+    that the expressive one is precisely the one that drifts; ``aura-2-helena``
+    against ``aura-2-thalia`` is the next comparison to be made.
+
+    That is the §5.4 trap of ``18-ajout-fournisseur.md``: a recorded call that
+    cannot say what produced it turns every later comparison into an anecdote.
+
+    ⚠️ Stamped where it informs, and nowhere else. The keyboard bench
+    (``text_chat_runner``) makes nobody speak, and a realtime call has no
+    separate synthesis service at all -- stamping a voice in either place would
+    record one that played no part in the run, and a stamp that lies is worse
+    than no stamp.
+
+    ⛔ A provider that declares nothing is stamped with nothing rather than
+    with an empty record: an empty record would read as "played with no voice",
+    which is false -- the factory still hands a fallback to several providers.
+    """
+    if tts_config is None:
+        return runtime_configuration
+    reglages = {}
+    voix = _voix_jouee(tts_config)
+    if voix:
+        reglages["voice"] = voix
+    point_entree = _point_entree_voix(tts_config)
+    if point_entree:
+        reglages["endpoint"] = point_entree
+    if reglages:
+        runtime_configuration["tts_settings"] = reglages
     return runtime_configuration
 
 

@@ -29,6 +29,8 @@ export interface ReglagesVoix {
     tts_silence_time_s: number;
     tts_text_aggregation_mode: 'sentence' | 'token';
     tts_replacements: string[];
+    interdire_nom_appelant: boolean;
+    interdire_civilite_appelant: boolean;
 }
 
 interface SectionVoixProps {
@@ -138,6 +140,66 @@ export const SectionVoix = ({ reglages, onChange }: SectionVoixProps) => (
                     )}
                 </div>
             )}
+
+            <div className="space-y-2 rounded-md border p-3">
+                <div className="flex items-center justify-between gap-4">
+                    <Label htmlFor="interdire_nom_appelant" className="text-sm">
+                        Never say the caller&apos;s name
+                    </Label>
+                    <Switch
+                        id="interdire_nom_appelant"
+                        checked={reglages.interdire_nom_appelant}
+                        onCheckedChange={(coche) =>
+                            onChange({ ...reglages, interdire_nom_appelant: coche })
+                        }
+                    />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                    <Label htmlFor="interdire_civilite_appelant" className="text-sm">
+                        Never say Monsieur, Madame or Mademoiselle
+                    </Label>
+                    <Switch
+                        id="interdire_civilite_appelant"
+                        checked={reglages.interdire_civilite_appelant}
+                        onCheckedChange={(coche) =>
+                            onChange({ ...reglages, interdire_civilite_appelant: coche })
+                        }
+                    />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                    Enforced in code, not by the prompt: five rewrites of the
+                    instructions in two days still left the name spoken in 2 voice runs
+                    out of 5. Each switch works on its own.
+                </p>
+                {reglages.tts_text_aggregation_mode !== 'sentence' &&
+                    (reglages.interdire_nom_appelant ||
+                        reglages.interdire_civilite_appelant) && (
+                        <p className="text-xs text-destructive">
+                            &#9888; Inert right now: the text above is sent to the voice
+                            word by word, and a name is split across several words. Switch
+                            back to &quot;Sentence by sentence&quot; for these to have any
+                            effect.
+                        </p>
+                    )}
+                <p className="text-xs text-muted-foreground">
+                    <strong>What these switches do not cover.</strong> The first name is
+                    not filtered. A SPELLED name is deliberately left alone. Both are inert
+                    when the text goes to the voice word by word. The name is only known
+                    once it has been extracted, so anything said before that is untouched.
+                    A name written in lower case is left alone, so a name at the very start
+                    of a sentence may survive. They act on what is SAID: the call record
+                    and the caller&apos;s own transcript keep the name, while the agent&apos;s
+                    side of the transcript is written from what it actually said, so it
+                    loses the name too.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                    <strong>Writing the prompt.</strong> With the name switch on, have the
+                    agent confirm a name by SPELLING it back
+                    (&quot;D - U - P - O - N - T, is that right?&quot;), never by saying
+                    it, otherwise the confirmation has nothing left to confirm
+                    (&quot;is that right?&quot;).
+                </p>
+            </div>
 
             <div className="space-y-2">
                 <Label htmlFor="tts_replacements" className="text-xs">

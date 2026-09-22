@@ -507,9 +507,10 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
             f"{valeur_schema!r}. One of the two copies moved without the other."
         )
     # 32 until 2026-09-17, then 35: the trade vocabulary and the two sound
-    # switches (plan lexique-metier, L2 and L18).
-    assert len(ecran) == 35, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 35. "
+    # switches (plan lexique-metier, L2 and L18). Then 37 on 2026-09-22: the
+    # two switches that forbid saying the caller's name and title.
+    assert len(ecran) == 37, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 37. "
         f"A setting added on one side only renders and is then dropped."
     )
 

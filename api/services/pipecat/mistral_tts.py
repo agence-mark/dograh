@@ -52,6 +52,35 @@ def resolve_mistral_endpoint(base_url: str | None) -> tuple[str | None, str | No
     return None, trimmed
 
 
+# The SDK's own fallback when no endpoint is forwarded, and the reason this
+# module exists: an empty field does not mean "no endpoint", it means this one.
+MISTRAL_SERVER_GLOBAL_URL = "https://api.mistral.ai"
+_SERVER_TO_URL = {
+    serveur: f"https://{hote}" for hote, serveur in _HOST_TO_SERVER.items()
+}
+
+
+def point_entree_mistral(base_url: str | None) -> str:
+    """[.mark] The address the voice really reaches, as a readable string.
+
+    🔑 Derived from :func:`resolve_mistral_endpoint` -- the very function that
+    builds the request -- rather than from a second reading of the
+    configuration. §5.4 of ``18-ajout-fournisseur.md``: a stamp assembled apart
+    from the request drifts from it.
+
+    🚨 An EMPTY field resolves to the GLOBAL endpoint, not to nothing. That is
+    the whole point: EU processing is a contractual condition of the .mark
+    offer, and a run stamped "no endpoint" would hide the one case where the
+    condition was not met.
+    """
+    server, server_url = resolve_mistral_endpoint(base_url)
+    if server_url:
+        return server_url
+    if server:
+        return _SERVER_TO_URL[server]
+    return MISTRAL_SERVER_GLOBAL_URL
+
+
 class MistralRegionalTTSService(MistralTTSService):
     """MistralTTSService variant whose client targets an explicit endpoint."""
 
