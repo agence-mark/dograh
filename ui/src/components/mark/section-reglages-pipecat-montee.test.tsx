@@ -177,6 +177,22 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         ).toBeTruthy();
     });
 
+    it("[name and title] shows both switches, and its notice, on the page", async () => {
+        // ⛔ Même piège, et il coûterait plus cher ici qu'ailleurs : deux
+        // interrupteurs visibles dans leur propre test mais montés nulle part
+        // laisseraient croire qu'on a coupé la prononciation du nom alors que
+        // l'agent continue de le dire. Une promesse fausse au client.
+        await rendreLaPage();
+        expect(document.getElementById("interdire_nom_appelant")).not.toBeNull();
+        expect(document.getElementById("interdire_civilite_appelant")).not.toBeNull();
+        expect(
+            screen.getByRole("switch", { name: /never say the caller's name/i }),
+        ).toBeTruthy();
+        // Le pense-bête de rédaction : sans lui, la confirmation du nom perd son
+        // objet dès que l'interrupteur est allumé.
+        expect(document.body.textContent).toContain("SPELLING it back");
+    });
+
     it("[trade vocabulary] shows the three switches on the page", async () => {
         // Same trap as the settings above: a switch that renders in its own
         // test and is mounted nowhere is a setting nobody can touch.

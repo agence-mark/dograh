@@ -58,6 +58,10 @@ export const DEFAUTS_PIPECAT = {
     tts_text_aggregation_mode: 'sentence',
     tts_replacements: [],
     tts_markdown_filter_enabled: false,
+    // [.mark] Eteints par defaut : on les allume a la construction d'un agent
+    // client, jamais avant. Aucun agent existant ne change de comportement.
+    interdire_nom_appelant: false,
+    interdire_civilite_appelant: false,
     mute_until_first_bot_complete: true,
     mute_during_function_call: true,
     mute_engine_callback: true,
@@ -229,6 +233,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     tts_silence_time_s: number;
     tts_text_aggregation_mode: 'sentence' | 'token';
     tts_replacements: string[];  // heard:spoken, matched literally
+    interdire_nom_appelant: boolean;  // [.mark] ne jamais PRONONCER le nom de l'appelant
+    interdire_civilite_appelant: boolean;  // [.mark] ni sa civilite
     mute_until_first_bot_complete: boolean;
     mute_during_function_call: boolean;
     mute_engine_callback: boolean;

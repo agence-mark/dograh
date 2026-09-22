@@ -8329,6 +8329,18 @@ export type WorkflowConfigurationDefaults = {
      */
     tts_text_aggregation_mode?: 'sentence' | 'token';
     /**
+     * Interdire Nom Appelant
+     *
+     * Stop the agent from SAYING the caller's family name out loud. Enforced in code rather than by the prompt, which never held: five rewrites in two days still left the name spoken in 2 voice runs out of 5. ⚠️ Only works when the text is sent to the voice sentence by sentence (see the aggregation mode above): word by word, a name is split across frames and the filter stays inert. The name is still written to the call record and the transcript -- this filters what is spoken, never what is noted. A SPELLED name is deliberately left alone, so have the agent confirm a name by spelling it, never by saying it.
+     */
+    interdire_nom_appelant?: boolean;
+    /**
+     * Interdire Civilite Appelant
+     *
+     * Stop the agent from saying Monsieur, Madame or Mademoiselle. Same mechanism and same limits as the switch above. Independent of it: either can be used alone.
+     */
+    interdire_civilite_appelant?: boolean;
+    /**
      * Tts Replacements
      *
      * Words the voice mispronounces, written as heard:spoken -- for instance SAV:S. A. V. Matched literally, not as a pattern, and applied to the text sent to the voice only: the conversation history keeps the original.

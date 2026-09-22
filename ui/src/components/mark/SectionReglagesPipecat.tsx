@@ -104,6 +104,8 @@ export const CLES_VOIX = [
     "tts_silence_time_s",
     "tts_text_aggregation_mode",
     "tts_replacements",
+    "interdire_nom_appelant",
+    "interdire_civilite_appelant",
 ] as const;
 
 export const CLES_RELANCE = [
