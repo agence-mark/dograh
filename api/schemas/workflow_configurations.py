@@ -84,6 +84,12 @@ DEFAULT_VERIFICATION_COMMUNES = True
 # touching the code (off = the mode already used when the library is absent).
 DEFAULT_SONS_COMMUNES = True
 DEFAULT_SONS_LEXIQUE = True
+# [.mark] Q11 of the plan adresses-et-epellation (Evan, 2026-09-22): both ON by
+# default. The street check only acts at the steps that already trigger the town
+# check, and the spelling reader only reports what a caller actually spelled —
+# neither changes an agent that meets neither case.
+DEFAULT_VERIFICATION_VOIES = True
+DEFAULT_LECTURE_EPELLATION = True
 # [.mark] The trade vocabulary is on by default (L2): an organization that filled
 # one wants every agent to use it; the switch is there to measure without it.
 DEFAULT_LEXIQUE_METIER = True
@@ -513,6 +519,27 @@ class WorkflowConfigurationDefaults(BaseModel):
         description=(
             "Compares how the heard words sound with how each town sounds "
             "(pronunciation library), in addition to the spelling. Off: spelling only."
+        ),
+    )
+    verification_voies: bool = Field(
+        default=DEFAULT_VERIFICATION_VOIES,
+        description=(
+            "Matches the street the caller names against the streets of their "
+            "commune in the national address base, and tells the model the name "
+            "to use. Needs the town check: without a commune there is no list of "
+            "streets to search. Acts at the same steps. A street that is not "
+            "found is spelled out once, never asked again. No effect in realtime "
+            "mode."
+        ),
+    )
+    lecture_epellation: bool = Field(
+        default=DEFAULT_LECTURE_EPELLATION,
+        description=(
+            "Reads the letters a caller spells out (\"f l a m a n t\", \"F comme "
+            "François\", \"deux T\", accents, e-mail addresses) and tells the "
+            "model to copy them exactly. Acts at every step: a name, a street, a "
+            "brand or an address can be spelled at any moment. No effect in "
+            "realtime mode."
         ),
     )
     sons_lexique: bool = Field(

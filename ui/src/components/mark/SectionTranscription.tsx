@@ -33,6 +33,8 @@ export interface ReglagesTranscription {
     verification_communes: boolean;
     variables_commune: string;
     sons_communes: boolean;
+    verification_voies: boolean;
+    lecture_epellation: boolean;
     lexique_metier: boolean;
     sons_lexique: boolean;
 }
@@ -182,8 +184,59 @@ export const SectionTranscription = ({ reglages, onChange }: SectionTranscriptio
                             compare with spelling only.
                         </p>
                     </div>
+
+                    {/* Inside the town block on purpose (Q11, 2026-09-22): without a
+                        commune there is no list of streets to search, so this switch is
+                        hidden - and its stored value kept - when the town check is off. */}
+                    <div className="space-y-2 pt-2">
+                        <div className="flex items-center justify-between gap-4">
+                            <Label htmlFor="verification_voies" className="text-sm">
+                                Check street names
+                            </Label>
+                            <Switch
+                                id="verification_voies"
+                                checked={reglages.verification_voies}
+                                onCheckedChange={(coche) =>
+                                    onChange({ ...reglages, verification_voies: coche })
+                                }
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Matches the street the caller names against the streets of their
+                            commune in the national address base, and tells the model the name to
+                            use.
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            A street that is not found is spelled out once, then noted as spelled
+                            - the caller is never asked twice.
+                        </p>
+                    </div>
                 </div>
             )}
+        </div>
+
+        <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+                <Label htmlFor="lecture_epellation" className="text-sm">
+                    Read spelled letters
+                </Label>
+                <Switch
+                    id="lecture_epellation"
+                    checked={reglages.lecture_epellation}
+                    onCheckedChange={(coche) =>
+                        onChange({ ...reglages, lecture_epellation: coche })
+                    }
+                />
+            </div>
+            <p className="text-xs text-muted-foreground">
+                Reads the letters a caller spells out - &quot;f l a m a n t&quot;, &quot;F comme
+                François&quot;, &quot;deux T&quot;, accents, e-mail addresses - and tells the model
+                to copy them exactly.
+            </p>
+            <p className="text-xs text-muted-foreground">
+                Acts at every step: a name, a street or a brand can be spelled at any moment.
+            </p>
+            <p className="text-xs text-muted-foreground">No effect in realtime mode.</p>
         </div>
 
         <div className="space-y-2">

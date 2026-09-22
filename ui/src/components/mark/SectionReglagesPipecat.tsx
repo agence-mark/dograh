@@ -86,6 +86,8 @@ export const CLES_TRANSCRIPTION = [
     "verification_communes",
     "variables_commune",
     "sons_communes",
+    "verification_voies",
+    "lecture_epellation",
     "lexique_metier",
     "sons_lexique",
 ] as const;
