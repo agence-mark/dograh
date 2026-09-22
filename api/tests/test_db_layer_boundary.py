@@ -8,6 +8,16 @@ API_ROOT = Path(__file__).resolve().parents[1]
 NON_RUNTIME_TOP_LEVEL = {"alembic", "db", "tests"}
 NON_RUNTIME_FILES = {Path("conftest.py")}
 INTERNAL_TOOLING_PREFIXES = {("services", "admin_utils")}
+# [.mark] These read (and build) a SQLite file shipped in ``api/assets/``, never
+# the application database: the streets of a commune, looked up on an address
+# turn. The guard defends the boundary around Postgres, and ``sqlite3`` is in
+# the standard library, so the import and session rules below still apply to
+# them in full — ONLY the "raw SQL literal" rule is lifted, and only here.
+# ⛔ Put a Postgres query in one of these and this guard will not catch it.
+FICHIERS_SQLITE_EMBARQUES = {
+    ("services", "voies"),
+    ("scripts", "mark"),
+}
 DATABASE_IMPORT_ROOTS = {"asyncpg", "psycopg", "psycopg2", "sqlalchemy"}
 DIRECT_DATABASE_CALLS = {"async_session", "execute_raw_query"}
 SQL_LITERAL = re.compile(
@@ -35,6 +45,14 @@ def _runtime_python_files():
         ):
             continue
         yield path, relative
+
+
+def _lit_un_fichier_sqlite(relative: Path) -> bool:
+    """[.mark] Is this file one of the SQLite asset readers listed above?"""
+    return any(
+        relative.parts[: len(prefixe)] == prefixe
+        for prefixe in FICHIERS_SQLITE_EMBARQUES
+    )
 
 
 def test_runtime_database_access_is_confined_to_db_clients():
@@ -65,6 +83,7 @@ def test_runtime_database_access_is_confined_to_db_clients():
                 isinstance(node, ast.Constant)
                 and isinstance(node.value, str)
                 and SQL_LITERAL.search(node.value)
+                and not _lit_un_fichier_sqlite(relative)
             ):
                 violations.append(f"{relative}:{node.lineno}: raw SQL literal")
 

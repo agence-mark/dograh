@@ -27,6 +27,7 @@ clés (`api/scripts/mark/extraire_index_de_test.py`).
 
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 
@@ -567,3 +568,55 @@ def test_une_mention_suppose_toujours_une_detection_et_reciproquement():
     # ordinaires du corpus se taisent maintenant toutes.
     assert avec_mention >= 300
     assert sures >= 140
+
+
+# --- 8. L'exemption arrachée à la garde d'architecture reste étroite -------
+
+
+def test_les_lecteurs_sqlite_ne_touchent_jamais_la_base_applicative():
+    """🔴 ``tests/test_db_layer_boundary.py`` interdit le SQL brut hors de
+    ``api/db/``. Nos deux dossiers y ont une exemption **nominative**, parce
+    qu'ils lisent un fichier livré dans ``api/assets/``, pas Postgres.
+
+    L'exemption ne lève que la règle du littéral SQL. Ce test tient l'autre
+    moitié du marché : **aucun pilote de la base applicative** sous ces
+    chemins. Sans lui, écrire une requête Postgres dans ``services/voies/``
+    passerait désormais sans un mot — et c'est précisément le trou que
+    l'exemption ouvre.
+    """
+    from api.tests.test_db_layer_boundary import (  # noqa: PLC0415
+        DATABASE_IMPORT_ROOTS,
+        DIRECT_DATABASE_CALLS,
+        FICHIERS_SQLITE_EMBARQUES,
+    )
+
+    racine = Path(__file__).resolve().parents[2]
+    # L'exemption vaut pour ces deux dossiers-là, et pas un de plus.
+    assert FICHIERS_SQLITE_EMBARQUES == {("services", "voies"), ("scripts", "mark")}
+
+    fautes: list[str] = []
+    vus = 0
+    for prefixe in FICHIERS_SQLITE_EMBARQUES:
+        for fichier in (racine.joinpath(*prefixe)).rglob("*.py"):
+            vus += 1
+            source = fichier.read_text(encoding="utf-8")
+            arbre = ast.parse(source, filename=str(fichier))
+            for noeud in ast.walk(arbre):
+                noms: list[str] = []
+                if isinstance(noeud, ast.Import):
+                    noms = [a.name for a in noeud.names]
+                elif isinstance(noeud, ast.ImportFrom) and noeud.module:
+                    noms = [noeud.module]
+                for nom in noms:
+                    if nom.split(".", 1)[0] in DATABASE_IMPORT_ROOTS:
+                        fautes.append(f"{fichier.name}:{noeud.lineno}: {nom}")
+                if (
+                    isinstance(noeud, ast.Call)
+                    and isinstance(noeud.func, ast.Attribute)
+                    and noeud.func.attr in DIRECT_DATABASE_CALLS
+                ):
+                    fautes.append(f"{fichier.name}:{noeud.lineno}: {noeud.func.attr}()")
+    # Le comptage : sans lui, un chemin devenu faux rendrait zéro fichier lu,
+    # donc zéro faute, donc un vert qui ne prouve rien.
+    assert vus >= 4
+    assert fautes == [], fautes
