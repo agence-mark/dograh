@@ -187,10 +187,22 @@ def _commune_sure(lecture: LectureMessage, trace_communes: list | None) -> str |
     return None
 
 
-def _lire_voie(texte: str, insee: str, nom_commune: str | None, avec_sons: bool) -> DetectionVoie | None:
+def _lire_voie(
+    texte: str,
+    insee: str,
+    nom_commune: str | None,
+    avec_sons: bool,
+    autres_communes: tuple[str, ...] = (),
+) -> DetectionVoie | None:
     """The street verdict, or None when it could not be read. Never raises."""
     try:
-        return analyser_voie(texte, base_voies.voies_de(insee), nom_commune, avec_sons=avec_sons)
+        return analyser_voie(
+            texte,
+            base_voies.voies_de(insee),
+            nom_commune,
+            avec_sons=avec_sons,
+            autres_communes=autres_communes,
+        )
     except FileNotFoundError:
         # A department whose file is not in the image: the call goes on exactly
         # as before this module existed.
@@ -236,7 +248,13 @@ def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list
     voie = None
     if voies and base is not None and (insee := _commune_sure(lecture, trace_communes)):
         commune = base.commune(insee)
-        voie = _lire_voie(lu, insee, commune.nom if commune else None, avec_sons)
+        # Les autres villes entendues à ce tour : une ville dont le nom commence
+        # par un type de voie (« Pont-Sainte-Maxence ») ancrait la phrase sur une
+        # rue que personne n'avait nommée.
+        autres = tuple(
+            detection.entendu for detection in lecture.detections if detection.entendu
+        )
+        voie = _lire_voie(lu, insee, commune.nom if commune else None, avec_sons, autres)
 
     if communes and base is not None:
         lu = mentionner(lu, lecture.detections, base)
@@ -413,6 +431,11 @@ class LectureAppelantProcessor(FrameProcessor):
             # The pronunciation engine too: its first start (about 650 ms) would
             # otherwise delay the first address turn of the call (review of 2026-09-17).
             await asyncio.to_thread(precharger_sons)
+            if self._voies:
+                # 🔴 Says ONCE whether the street base is actually in the image.
+                # Without it, a production with no files looks exactly like a
+                # production where no caller ever names a known street.
+                await asyncio.to_thread(base_voies.journaliser_etat)
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[.mark] List of communes not preloaded: {erreur!r}")
 

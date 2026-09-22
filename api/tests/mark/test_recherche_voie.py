@@ -33,6 +33,7 @@ from pathlib import Path
 import pytest
 
 from api.services.communes.base import normaliser
+from api.services.communes.sons import simplifier, sons
 from api.services.voies import base as base_voies
 from api.services.voies.analyse import (
     A_CONFIRMER,
@@ -109,6 +110,15 @@ def test_les_cles_stockees_sont_celles_que_le_code_recalcule():
         coeur = sans_type(normaliser(nom))
         assert voies.cles_sonores[rang] == cle_sonore(coeur), nom
         assert voies.cles_phonetiques[rang] == cle_phonetique(coeur), nom
+    # ⛔ La colonne des SONS aussi : un décalage d'un rang à la génération
+    # donnerait à chaque rue le son d'une autre, et c'est précisément ce qui
+    # fabrique une fausse sûre par le son. Les deux gardes ci-dessus ne le
+    # voyaient pas (trou signalé par la relecture du 22/09).
+    assert len(voies.sons) == len(voies.noms)
+    prononces = sons([sans_type(normaliser(nom)) for nom in voies.noms[:200]])
+    if prononces:  # espeak absent : la garde ne s'applique pas
+        for rang, son in enumerate(prononces):
+            assert voies.sons[rang] == simplifier(son), voies.noms[rang]
 
 
 # --- 2. 🔴 Zéro fausse sûre -----------------------------------------------
@@ -144,6 +154,116 @@ def test_une_phrase_sans_adresse_ne_propose_aucune_rue():
     assert all(_detecter(cas).statut != SURE for cas in sans_adresse)
 
 
+# --- 2 bis. 🔴 Le silence sur ce qui n'est pas une adresse ----------------
+
+
+def test_une_phrase_ordinaire_ne_dit_jamais_rien():
+    """🔴 Le défaut BLOQUANT trouvé par la relecture indépendante du 22/09.
+
+    Sans ancrage, **112 des 120 phrases ordinaires** de ce corpus produisaient
+    « « accord » ne correspond à aucune rue de la commune. Fais épeler le nom de
+    la rue. » — à chaque tour de l'étape d'adresse, ce qui est exactement la
+    boucle que Q4 interdit. L'agent aurait demandé d'épeler une rue à un
+    appelant qui venait de dire « oui d'accord ».
+
+    Ces 120 phrases sont RÉELLES, tirées des runs : des phrases inventées
+    seraient trop polies pour attraper quoi que ce soit.
+    """
+    ordinaires = [cas for cas in CORPUS if cas["famille"] == "ordinaire"]
+    assert len(ordinaires) == 120
+    bavardes = [
+        (cas["phrase"], _detecter(cas).entendu)
+        for cas in ordinaires
+        if _detecter(cas).entendu
+    ]
+    assert bavardes == []
+
+
+@pytest.mark.parametrize("insee,commune", [
+    ("60509", "Pont-Sainte-Maxence"),   # 221 voies
+    ("75056", "Paris"),                 # 5 871 voies
+    ("13055", "Marseille"),             # 6 434 voies
+])
+def test_les_phrases_ordinaires_se_taisent_aussi_dans_les_grandes_villes(insee, commune):
+    """🔑 Le corpus négatif doit tourner contre la commune où les collisions
+    sont les plus probables, pas seulement contre une petite (contre-relecture
+    du 22/09).
+
+    Une première version épargnait les verdicts « sûre » pour garder les
+    réponses courtes (« Victor Hugo »). Éprouvée contre Paris, cette porte a
+    laissé passer trois noms de VILLE : « Strasbourg » devenait « Boulevard de
+    Strasbourg », « sans lis » devenait « Rue de Senlis », « À Saint-Laurent »
+    devenait « Rue Saint-Laurent » — exactement ce qu'un appelant répond à une
+    étape d'adresse. L'exception a été supprimée.
+    """
+    voies = base_voies.voies_de(insee)
+    ordinaires = [cas for cas in CORPUS if cas["famille"] == "ordinaire"]
+    sures = [
+        cas["phrase"] for cas in ordinaires
+        if analyser(cas["phrase"], voies, commune).statut == SURE
+    ]
+    assert sures == []
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "oui d'accord",
+        "c'est bon pour moi",
+        "je suis disponible jeudi",
+        "attendez je regarde",
+        "je vous l'ai déjà dit, c'est un Ventura",   # « dit » n'est pas un type
+        "c'est le bâtiment b au deuxième étage",     # « bâtiment » non plus
+        "un vieux conduit de cheminée",              # « vieux » non plus
+    ],
+)
+def test_aucune_epellation_nest_reclamee_sur_une_phrase_ordinaire(phrase):
+    voies = base_voies.voies_de("60509")  # Pont-Sainte-Maxence
+    assert analyser(phrase, voies, "Pont-Sainte-Maxence").entendu == ""
+
+
+def test_une_adresse_reste_verifiee_malgre_la_regle_dancrage():
+    """⛔ Le silence ne doit pas avaler les vraies adresses."""
+    voies = base_voies.voies_de("60509")
+    assert analyser("c'est au 6 rue Danton", voies, "Pont-Sainte-Maxence").statut == SURE
+    assert analyser("6 Danton", voies, "Pont-Sainte-Maxence").propositions
+
+
+def test_une_reponse_sans_type_ni_numero_nest_pas_verifiee_et_cest_voulu():
+    """⚠️ Le coût assumé de l'ancrage, écrit noir sur blanc.
+
+    « Victor Hugo » répondu à « quelle rue ? » n'est plus vérifié : ni type, ni
+    numéro. Une version antérieure l'épargnait en laissant passer les verdicts
+    « sûre » — et cette porte laissait entrer trois noms de VILLE à Paris
+    (« Strasbourg » → « Boulevard de Strasbourg »). Coût mesuré de la fermeture :
+    0 des 27 rues réelles des runs, 9 des 300 du banc sonore.
+
+    Ce test dit l'état actuel, pas une vérité éternelle : le jour où un essai au
+    casque montre que les appelants répondent souvent sans type, il change.
+    """
+    voies = base_voies.voies_de("60509")
+    assert analyser("Victor Hugo", voies, "Pont-Sainte-Maxence").entendu == ""
+
+
+def test_la_mention_cite_le_passage_entendu_pas_le_premier_mot():
+    """⛔ « « accord » », « « n » peut être Rue Danton » : le modèle lisait le
+    premier mot de la phrase, jamais ce qui avait été entendu."""
+    voies = base_voies.voies_de("60509")
+    detection = analyser("c'est au 6 rue Danton", voies, "Pont-Sainte-Maxence")
+    assert detection.entendu == "danton"
+
+
+def test_un_lieu_dit_reste_une_adresse(monkeypatch):
+    """Q3 a fait entrer les lieux-dits exprès : l'Oise rurale en est pleine, et
+    « au lieu-dit les Granges » ne porte aucun type de voie. Le retrait de
+    « dit » de la liste des types ne doit pas les avoir emportés avec lui —
+    c'est la paire « lieu dit » qui ancre désormais."""
+    voies = base_voies.voies_de("23096")  # Creuse, très rurale
+    detection = analyser("au lieu dit les Granges", voies, None)
+    assert detection.statut != INTROUVABLE
+    assert detection.propositions
+
+
 # --- 3. Ce qui est retrouvé, chiffré --------------------------------------
 
 
@@ -173,8 +293,11 @@ def test_le_corpus_sonore_reste_au_niveau_mesure_le_22_09():
     transcrites : un banc PLUS DUR que le casque, qui sert à comparer deux
     versions du lecteur, pas à annoncer un taux au client.
 
-    Mesuré le 22/09 : 234 retrouvées (135 sûres, 99 en tête d'un « à confirmer »).
-    Ce test rougit si une modification fait retomber le lecteur.
+    Mesuré le 22/09, règle d'ancrage comprise : 191 retrouvées (128 sûres,
+    63 en tête d'un « à confirmer »). ⚠️ C'était 234 avant l'ancrage : les 43
+    de différence ne sont pas perdues pour l'appel, elles sont **non vérifiées**,
+    comme avant le chantier. L'arbitrage est assumé — une question absurde posée
+    à un appelant coûte plus cher qu'un rattrapage manqué.
     """
     sonores = [cas for cas in CORPUS if cas["famille"] == "sonore"]
     assert len(sonores) == 300
@@ -184,7 +307,7 @@ def test_le_corpus_sonore_reste_au_niveau_mesure_le_22_09():
         tete = detection.propositions[0].nom if detection.propositions else ""
         if tete and _meme(tete, cas["attendu"]):
             trouvees += 1
-    assert trouvees >= 225, f"{trouvees} retrouvées, 234 le 22/09"
+    assert trouvees >= 185, f"{trouvees} retrouvées, 191 le 22/09"
 
 
 # --- 4. Les règles payées par un défaut mesuré ----------------------------
@@ -322,5 +445,7 @@ def test_une_mention_suppose_toujours_une_detection_et_reciproquement():
         avec_mention += porte_mention
         sures += detection.statut == SURE
     # Et ces totaux ne sont pas zéro.
-    assert avec_mention >= 400
-    assert sures >= 150
+    # ⚠️ Bien plus bas qu'avant l'ancrage, et c'est le but : les phrases
+    # ordinaires du corpus se taisent maintenant toutes.
+    assert avec_mention >= 300
+    assert sures >= 140

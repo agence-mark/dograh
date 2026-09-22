@@ -525,6 +525,846 @@
   "attendu": ""
  },
  {
+  "famille": "ordinaire",
+  "phrase": "Non non non, c'est loisolé.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Saint Ledeseran soixante-trois cinq-cent-quarante.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Bonjour, je voudrais faire ramoner mon poêle à bois.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Non, je ne suis pas moyen.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Quatre vingt quinze mille huit cent vingt.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui bonjour, j'aimerais savoir où elle en est la commande que j'ai passée chez vous s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, c'est monsieur Loiselé.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "C'est la commande soixante mille trois cents.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "06 33 44 55 66",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Zero six trente-neuf quatre-vingt-dix-huit douze quarante-sept.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Cet automne",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "c'est le zéro sept quatre vingt huit vingt six quatorze zéro neuf.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "J'habite à Chambly, soixante deux cent trente.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, c'est un Nord pace.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui bonjour. Alors en fait j'ai un poêle à granulés et j'aimerais savoir si vous proposez des services d'entretien ramonage s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Non, ce n'est pas ça, mais ce n'est pas grave.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Non, c'est un novice et il a été entretenu en juin deux mille vingt cinq.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Le feu est eteint, les pompiers sont passes, mais le conduit est noirci et on n'ose plus rien rallumer.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Pont-Sainte-Maxence, soixante mille sept cents.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "À Clermont-Ferrand.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Donnez-moi les horaires du samedi s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Je ne sais plus, je crois que c'était cette année au mois de juin.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Accueil soixante cents",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Vous me conseillez quoi, du bois ou du granulé ?",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui bonjour, je souhaiterais prendre un rendez-vous pour faire ramoner mon poêle à bois s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui bonjour, j'aimerais faire amener mon poil s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Le zéro sept soixante dix huit cinquante deux soixante treize quarante neuf.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "06 12 34 56 78",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "C'est un novice.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "C'est dans le quatre-vingt-quinze.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui j'aimerais savoir vos horaires d'ouverture le samedi.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Non, elle fait partie de ma maison.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "J'ai déjà dit mon numéro, c'est le zéro sept soixante dix huit cinquante deux soixante treize quarante neuf.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Alors oui, c'est ça. En fait, j'ai une ligne que je ne comprends pas sur ma facture. J'ai un excédent de huit cents euros et j'aimerais savoir pourquoi s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Je n'ai pas compris votre question.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "C'est-à-dire",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui la marque c'est et puis je l'ai depuis cinq ans.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Ouais, je pense que c'est ça ouais.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "s e n l i s.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Clairement Ferrand.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Le devis d deux mille vingt six zéro quarante deux.\nzéro zéro quarante deux.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Cent lits soixante trois cents.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Attention, la propriété est difficile d'accès, il faut prévenir avant de venir pour qu'on ouvre le portail.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, c'est un contourat.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, c'est l'oiselet.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Non, ce n'est pas pour un entretien régulier c'est juste pour faire ramonner mon poêle.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, c'est ça.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "À Brel dans l'Oise.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "C'est à Bové.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Non c'est tout. Au revoir.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "C'est le bâtiment b au deuxième étage.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Moi, d'ici la fin de l'année,",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Ouais, un vieux conduit de cheminée et je ne sais pas s'il est en règle.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "D'accord, merci. Au revoir.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui c'est",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Ouais, j'aimerais faire un un projet pour la granulée, mais voilà, je voulais voir les marques que vous distribuez et c'est pour ça que je veux venir samedi.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Alors comme je vous l'ai déjà dit, c'est monsieur Boussajon, b o u s s a g e o n.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "C'est à Bovet.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, c'est monsieur Carpaccio.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "C'est dans le soixante.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Compiègne soixante deux cents",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Mon nom c'est monsieur Clément.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Non, mon nom mon nom c'est monsieur Flamand.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "zéro six douze trente quatre cinquante six soixante dix huit.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Bonjour, j'ai un poele qui a quelques annees et les plaques thermiques sont fissurees, je voudrais savoir le prix pour les remplacer.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "J'habite à Amiens quatre-vingt-mille.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "sur courrier hôtel.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui c'est bien ca.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Depuis deux, trois jours.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Passe au prochain.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Bressle.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Bressel.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Non en fait c'est pour un poêle à granulés s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Je, je, je, je ne sais pas encore, c'est pour ça que j'aimerais faire, faire un devis s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, c'est monsieur Loiselet.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Non parce qu'en fait j'ai un, j'ai j'ai mes plaques thermiques dans le poêle qui se sont fissurées et je voudrais savoir combien ça coûterait de les remplacer",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "C'est dans le quatre vingt quinze.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Je suis à Bury, soixante mille deux cent cinquante.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Monsieur Petit",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Ok, ça marche.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Mouy, soixante mille deux cent cinquante.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, il me semble que c'était l'année dernière.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, c'est bien ça.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "au zéro sept quatre vingt huit vingt six quatorze zéro neuf.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "À Crépy envallois, soixante huit cents.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Bonjour, je fais construire, je voudrais savoir pour mettre un poêle",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Il affiche un code erreur A zero deux et il se coupe tout seul.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Il est complètement arrêté.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Non, c'est bon pour moi.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Voici 60.\nOk.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "facture deux mille vingt six tiret huit cent quarante sept.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Normalement vous avez mon numéro, c'est le zéro sept quatre vingt huit vingt six quatorze zéro neuf.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "J'habite à Crail.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Ouais, c'est la référence des trois cent quarante neuf tiret zéro trente huit.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "sans lis.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Bonjour, je vous appelle pour faire entretenir mon coin la bois.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Le zéro sept soixante-dix-huit cinquante-deux soixante-treize quarante-neuf.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "J'aimerais prendre un rendez-vous d'entretien s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Bonjour, j'aimerais prendre un rendez-vous pour un devis.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Non, c'est tout.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, j'aurais aimé savoir vos horaires d'ouverture pour le vendredi s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "06 77 88 99 00",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "À Saint-Laurent.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Strasbourg,",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Bonjour, j'ai reçu une ma facture et il y a une ligne que je ne comprends pas dessus.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Madame Girard",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Elle s'appelle madame Houdaille.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Et vous pourriez intervenir quand a peu pres ?",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Alors mon numéro, c'est le zéro sept quatre vingt dix huit soixante trois quarante six vingt et un.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, c'est simple code de le code d'erreur sur le pôle.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Trois-mille-cinq-cents euros.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Soixante mille deux cents.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Bonjour, j'appelle pour ma mère, elle voudrait faire entretenir son poêle.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Je vous l'ai déjà dit, c'est un Ventura.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "zéro trois quarante quatre vingt deux dix soixante.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Grandvilliers soixante deux cent dix.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui bonjour, j'aimerais prendre un rendez-vous pour faire ramoner mon poêle à granulés s'il vous plaît.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "Oui, c'est l'oiseaulet.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "ordinaire",
+  "phrase": "C'était en deux mille vingt quatre.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
   "famille": "inventee",
   "phrase": "j'habite allée Sylvestre Boulanger à Soissons",
   "insee": "02722",

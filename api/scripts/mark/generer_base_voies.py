@@ -146,7 +146,17 @@ def ecrire(departement: str, voies: dict[str, dict[str, set[str]]], export: str,
     prononces: list[str] = []
     for debut in range(0, len(lignes), PAQUET_SONS):
         paquet = [ligne[2] for ligne in lignes[debut:debut + PAQUET_SONS]]
-        prononces += sons(paquet) or [""] * len(paquet)
+        rendu = sons(paquet) or [""] * len(paquet)
+        # 🔴 A list SHORTER than the batch would shift every following street by
+        # one rank: each one would get another street's sound. A shifted sound
+        # key is exactly what produces a wrong "sure" through the sounds, and no
+        # test would see it — the key check compares spelling keys only.
+        if len(rendu) != len(paquet):
+            raise RuntimeError(
+                f"sons() a rendu {len(rendu)} sons pour {len(paquet)} voies : "
+                f"l'index serait décalé, département abandonné"
+            )
+        prononces += rendu
 
     connexion.executemany(
         "insert into voies values(?,?,?,?,?,?,?)",

@@ -68,13 +68,41 @@ PROPOSITIONS_MAXIMUM = 3
 # Two diverging lists cost us a wrong sure in silence: "cour" was missing from
 # the script's list, so "Cour d'Alger" kept its type in its key while "Rue
 # d'Alger" did not, and the wrong one was announced sure.
+# ⛔ Only words that ANNOUNCE a street. Several were removed on 2026-09-22 after
+# they anchored ordinary sentences on a street nobody had named:
+#   - "dit": « je vous l'ai déjà **dit** », the most common French filler there
+#     is. It was in the list for "lieu-dit", now handled as a pair below;
+#   - "vieux": « un **vieux** conduit de cheminée »;
+#   - "batiment": « le **bâtiment** B au deuxième étage ».
+# ⚠️ Adjectives ("grande", "petite", "vieille") are NOT types either: they belong
+# to the name ("Grande Rue"), and ``sans_type`` keeps them on both sides.
 TYPES = frozenset(
-    ["rue", "ruelle", "avenue", "av", "boulevard", "bd", "chemin", "allee", "impasse", "place", "placette", "route", "quai", "square", "residence", "lotissement", "cours", "cour", "passage", "sentier", "sente", "venelle", "voie", "hameau", "lieu", "dit", "chaussee", "cite", "clos", "mail", "parvis", "promenade", "rond", "point", "faubourg", "fg", "montee", "cote", "descente", "esplanade", "traverse", "villa", "domaine", "parc", "ferme", "berge", "digue", "liaison", "rampe", "terrasse", "porte", "pont", "carrefour", "giratoire", "batiment", "grande", "grand", "petite", "petit", "vieille", "vieux", "ancienne", "ancien"]
+    [
+        "rue", "ruelle", "avenue", "av", "boulevard", "bd", "chemin", "allee", "impasse",
+        "place", "placette", "route", "quai", "square", "residence", "lotissement",
+        "cours", "cour", "passage", "sentier", "sente", "venelle", "voie", "hameau",
+        "chaussee", "cite", "clos", "mail", "parvis", "promenade", "rond", "point",
+        "faubourg", "fg", "montee", "cote", "descente", "esplanade", "traverse",
+        "villa", "domaine", "parc", "ferme", "berge", "digue", "liaison", "rampe",
+        "terrasse", "porte", "pont", "carrefour", "giratoire",
+        # Zones d'activité: the BAN writes them as a prefix ("ZI la Grand
+        # Colle"), and the same street also exists without it ("La Grand
+        # Colle"). Without them the two keys differ, the search separates two
+        # names of the same place, and announces one of them SURE.
+        "zi", "za", "zac", "zone", "lieudit",
+    ]
 )
+# "au lieu-dit les Granges" carries no street type: the pair itself is the anchor.
+LIEU_DIT = ("lieu", "dit")
 ARTICLES = frozenset(["de", "du", "des", "la", "le", "les", "l", "d"])
 # Words of a caller's answer that never belong to a street name.
 MOTS_OUTILS = frozenset(
-    ["j", "habite", "c", "est", "au", "a", "oui", "euh", "alors", "donc", "le", "numero", "moi", "je", "suis", "bah", "ben", "voila", "merci", "l", "adresse", "mon", "ma", "et", "ca", "non", "bien", "sur", "dans", "il", "y", "pas"]
+    [
+        "j", "habite", "c", "est", "au", "a", "oui", "euh", "alors", "donc", "le",
+        "numero", "moi", "je", "suis", "bah", "ben", "voila", "voici", "merci", "l",
+        "adresse", "mon", "ma", "et", "ca", "non", "bien", "sur", "dans", "il", "y",
+        "pas", "ok", "ouais", "accord", "parfait", "exactement", "effectivement",
+    ]
 )
 
 NUMERO = re.compile(r"\b(\d+)\s*(bis|ter|quater)?\b", re.IGNORECASE)
@@ -123,15 +151,45 @@ def sans_type(norme: str) -> str:
     return " ".join(reste) if reste else " ".join(mots)
 
 
-def _fenetres(norme: str, commune: str | None) -> tuple[list[str], str | None]:
-    """The passages to compare, and the street type said if there is one."""
+def _fenetres(
+    norme: str, commune: str | None, autres_communes: tuple[str, ...] = ()
+) -> tuple[list[str], str | None, bool]:
+    """The passages to compare, the street type said, and whether the sentence
+    is ANCHORED on an address.
+
+    🔴 The anchor is what separates an address from an ordinary sentence, and
+    its absence was a blocking defect (independent review, 2026-09-22):
+    **112 of 120 real ordinary sentences** produced a note asking the caller to
+    spell a street. "oui d'accord" came back as « « accord » ne correspond à
+    aucune rue de la commune. Fais épeler le nom de la rue. » — at every turn of
+    the address step, which is exactly the loop Q4 forbids.
+
+    A sentence is anchored when it says a street type ("rue", "chemin"), or a
+    number followed by a word ("6 Danton"). Same rule as the town check, which
+    learned it on 2026-09-16: reading a whole sentence gave 20 false sure towns
+    on 64 sentences.
+    """
     norme = CODE_POSTAL.sub(" ", norme)
     if commune:
         norme = re.sub(rf"\b{re.escape(normaliser(commune))}\b", " ", norme)
     mots = norme.split()
 
     place = next((rang + 1 for rang, mot in enumerate(mots) if est_type(mot)), None)
+    if place is None:
+        paire = next(
+            (rang for rang in range(len(mots) - 1) if tuple(mots[rang:rang + 2]) == LIEU_DIT),
+            None,
+        )
+        place = paire + 2 if paire is not None else None
     type_dit = mots[place - 1] if place else None
+    numero_suivi = any(
+        mot.isdigit()
+        and rang + 1 < len(mots)
+        and not mots[rang + 1].isdigit()
+        and mots[rang + 1] not in MOTS_OUTILS
+        for rang, mot in enumerate(mots)
+    )
+    ancre = place is not None or numero_suivi
     zone = mots[place:] if place is not None else mots
     # ⛔ Tool words go even AFTER a street type: "allée des Mésanges Dorées à
     # Bury" left a stray "a" that made one more window, and the short window won.
@@ -139,13 +197,13 @@ def _fenetres(norme: str, commune: str | None) -> tuple[list[str], str | None]:
     while zone and zone[0] in ARTICLES:
         zone = zone[1:]
     if not zone:
-        return [], type_dit
+        return [], type_dit, ancre
 
     return [
         " ".join(zone[debut:fin])
         for debut in range(min(2, len(zone)))
         for fin in range(debut + 1, min(len(zone), debut + 6) + 1)
-    ], type_dit
+    ], type_dit, ancre
 
 
 def analyser(
@@ -153,9 +211,14 @@ def analyser(
     voies: VoiesCommune,
     commune: str | None = None,
     avec_sons: bool = True,
+    autres_communes: tuple[str, ...] = (),
 ) -> Detection:
-    """The verdict for the street named in ``texte``. Blocking: worker thread."""
-    fenetres, type_dit = _fenetres(normaliser(texte), commune)
+    """The verdict for the street named in ``texte``. Blocking: worker thread.
+
+    ``autres_communes``: the other town names heard in this same turn, which the
+    town check found. They are removed like the settled one.
+    """
+    fenetres, type_dit, ancre = _fenetres(normaliser(texte), commune, autres_communes)
     if not len(voies) or not fenetres:
         return Detection(INTROUVABLE, "")
 
@@ -163,20 +226,27 @@ def analyser(
     mots_zone = max(len(f.split()) for f in fenetres)
     penalites = np.array([[PENALITE_MOT * (mots_zone - len(f.split()))] for f in fenetres], dtype=float)
 
-    def meilleur(gauche: list[str], droite: tuple[str, ...]) -> np.ndarray:
-        matrice = process.cdist(gauche, droite, scorer=fuzz.ratio, workers=-1).astype(float)
-        return (matrice - penalites).max(axis=0)
+    def matrice_de(gauche: list[str], droite: tuple[str, ...]) -> np.ndarray:
+        """Windows x streets, penalty applied. ⛔ Kept as a matrix: reducing it
+        here lost which window won, and the note quoted the first word of the
+        sentence instead ("« accord »", "« n »") — never what was heard."""
+        brute = process.cdist(gauche, droite, scorer=fuzz.ratio, workers=-1).astype(float)
+        return brute - penalites
 
-    scores = meilleur([cle_sonore(f) for f in fenetres], voies.cles_sonores)
-    scores = np.maximum(scores, meilleur([cle_phonetique(f) for f in fenetres], voies.cles_phonetiques))
+    matrice = matrice_de([cle_sonore(f) for f in fenetres], voies.cles_sonores)
+    matrice = np.maximum(matrice, matrice_de([cle_phonetique(f) for f in fenetres], voies.cles_phonetiques))
 
     par_son = False
     if avec_sons:
         prononces = sons(fenetres)
         if prononces:
-            par_les_sons = meilleur([simplifier(p) for p in prononces], voies.sons)
-            par_son = bool(par_les_sons.max() > scores.max())
-            scores = np.maximum(scores, par_les_sons)
+            par_les_sons = matrice_de([simplifier(p) for p in prononces], voies.sons)
+            par_son = bool(par_les_sons.max() > matrice.max())
+            matrice = np.maximum(matrice, par_les_sons)
+
+    scores = matrice.max(axis=0)
+    # The window that actually won, for the note to quote it.
+    fenetre_gagnante = fenetres[int(matrice.max(axis=1).argmax())]
 
     if type_dit:
         racine = type_dit[:-1] if type_dit.endswith("s") and type_dit[:-1] in TYPES else type_dit
@@ -197,12 +267,36 @@ def analyser(
         for rang in ordre
         if scores[rang] >= SEUIL_PROPOSITION
     )
-    entendu = fenetres[0]
+    premiere = propositions[0] if propositions else None
+    suivante = propositions[1].score if len(propositions) > 1 else 0.0
+    sure = (
+        premiere is not None
+        and premiere.score >= SEUIL_SURE
+        and premiere.score - suivante >= ECART_SURE
+    )
+
+    # 🔴 Nothing is said about a sentence that is not anchored on an address.
+    # NO exception — not even for a sure verdict. A first version spared the
+    # sure ones, so that a short answer to "quelle rue ?" ("Victor Hugo") would
+    # still be checked; the counter-review of 2026-09-22 asked for that door to
+    # be tried against the BIGGEST commune, where collisions are likeliest, and
+    # it let three through in Paris: "Strasbourg" became SURE as "Boulevard de
+    # Strasbourg", "sans lis" as "Rue de Senlis", "À Saint-Laurent" as "Rue
+    # Saint-Laurent". All three are TOWN names — exactly what a caller answers
+    # at an address step.
+    # Measured cost of closing the door: 0 of the 27 real streets of the runs,
+    # 9 of the 300 of the sound bench. Cheap, against the one rule that outranks
+    # everything here.
+    if not ancre:
+        return Detection(INTROUVABLE, "", (), par_son)
 
     if not propositions:
-        return Detection(INTROUVABLE, entendu, (), par_son)
-    premiere = propositions[0]
-    suivante = propositions[1].score if len(propositions) > 1 else 0.0
-    if premiere.score >= SEUIL_SURE and premiere.score - suivante >= ECART_SURE:
-        return Detection(SURE, entendu, propositions, par_son)
-    return Detection(A_CONFIRMER, entendu, propositions, par_son)
+        # 🔴 « Introuvable » fait réclamer une épellation (Q4). On ne la réclame
+        # que si l'appelant a DIT un type de voie : c'est le seul mot qui affirme
+        # qu'il parle d'une rue. Un numéro suffit à comparer, jamais à exiger.
+        # Sans cette règle, « c'est le bâtiment B au deuxième étage » et un
+        # numéro de téléphone dicté faisaient demander d'épeler une rue.
+        return Detection(INTROUVABLE, fenetre_gagnante if type_dit else "", (), par_son)
+    if sure:
+        return Detection(SURE, fenetre_gagnante, propositions, par_son)
+    return Detection(A_CONFIRMER, fenetre_gagnante, propositions, par_son)

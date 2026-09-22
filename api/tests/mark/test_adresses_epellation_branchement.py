@@ -315,6 +315,49 @@ async def test_le_processeur_traverse_un_vrai_contexte():
     assert registre.lire(CLE_TRACE_VOIES)
 
 
+# --- 5 bis. La base de rues elle-même ------------------------------------
+
+
+def test_letat_de_la_base_de_rues_est_dit_au_demarrage(monkeypatch, tmp_path, caplog):
+    """🔴 Une production SANS aucun fichier de rues est autrement invisible :
+    les tests pointent leur propre dossier et restent verts, chaque tour
+    d'adresse lève, le lecteur avale l'erreur, et l'écran continue d'offrir un
+    interrupteur pour quelque chose qui ne tourne jamais."""
+    monkeypatch.setattr(base_voies, "DOSSIER_BASE", tmp_path / "vide")
+    combien, souci = base_voies.base_disponible()
+    assert combien == 0
+    assert souci and "absent" in souci
+
+    (tmp_path / "vide").mkdir()
+    combien, souci = base_voies.base_disponible()
+    assert combien == 0
+    assert souci and "aucun fichier" in souci
+
+    # Le vrai dossier de test, lui, répond présent.
+    monkeypatch.setattr(base_voies, "DOSSIER_BASE", DONNEES / "voies")
+    monkeypatch.setattr(base_voies, "EXPORT", "test-2026-09-16")
+    combien, souci = base_voies.base_disponible()
+    assert combien == 11
+    assert souci is None
+
+
+def test_un_fichier_de_rues_abime_est_refait_au_lieu_detre_servi(monkeypatch, tmp_path):
+    """⛔ Sans ce contrôle, un fichier tronqué une seule fois faisait échouer
+    TOUTES les lectures suivantes jusqu'au redéploiement, en silence."""
+    monkeypatch.setattr(base_voies, "DOSSIER_BASE", DONNEES / "voies")
+    monkeypatch.setattr(base_voies, "EXPORT", "test-2026-09-16")
+    monkeypatch.setattr(base_voies, "DOSSIER_TRAVAIL", tmp_path / "voies")
+    base_voies.voies_de.cache_clear()
+
+    bon = base_voies.fichier_departement("60")
+    assert bon.exists()
+    bon.write_bytes(b"ceci n'est pas une base SQLite")
+
+    base_voies.voies_de.cache_clear()
+    voies = base_voies.voies_de("60509")
+    assert len(voies) > 100, "le fichier abîmé aurait dû être refait"
+
+
 # --- 6. Le clavier du labo (R5) -------------------------------------------
 
 
