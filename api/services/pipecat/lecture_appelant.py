@@ -163,6 +163,34 @@ def _trace_nombre(nombre, choix, etape: str | None) -> dict:
     }
 
 
+def _hors_epellation(detections: list, epellations: list) -> list:
+    """Les villes trouvées AILLEURS que dans des lettres épelées.
+
+    🔴 Sur le tour d'épellation que Q4 fabrique exprès, la vérification des
+    communes lisait les lettres comme un nom de ville : « oui, rue Lavoira,
+    L A V O I R A » faisait demander « êtes-vous à **Voires, dans le Doubs** ? »
+    à un appelant de Creil dont la commune était déjà tranchée. Mesuré :
+    **18 notes de commune sur les 136 cas** du corpus d'épellation — « g e o »
+    devenait Gaillon, « bois » devenait Bois (Charente-Maritime).
+
+    ⛔ Le défaut est antérieur à ce chantier, mais ce chantier **fabrique** ce
+    tour : le motif se ferme des DEUX côtés ou il ne se ferme pas
+    (contre-relecture n° 6).
+
+    ⚠️ Une ville épelée EXPRÈS reste lue : « c'est à Beauvais, B E A U V A I S »
+    garde sa détection, parce que « beauvais » n'apparaît pas dans « b e a u v
+    a i s ». Seul ce qui est lu DANS les lettres est écarté.
+    """
+    if not epellations or not detections:
+        return detections
+    passages = [e.entendu.lower() for e in epellations]
+    return [
+        detection
+        for detection in detections
+        if not any((detection.entendu or "").lower() in passage for passage in passages)
+    ]
+
+
 def _commune_sure(lecture: LectureMessage, trace_communes: list | None) -> str | None:
     """The INSEE code of the town to search the street in, or None.
 
@@ -282,7 +310,7 @@ def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list
             voie = None
 
     if communes and base is not None:
-        lu = mentionner(lu, lecture.detections, base)
+        lu = mentionner(lu, _hors_epellation(lecture.detections, epellations), base)
     if voie is not None:
         lu = mentionner_voie(lu, voie)
     if epellations:

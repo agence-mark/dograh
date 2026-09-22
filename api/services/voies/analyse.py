@@ -106,11 +106,19 @@ TYPES = frozenset(
 #
 # ⛔ A sentence that really names one of these still anchors through its number:
 # "j'habite 12 villa des Roses".
+#
+# ⚠️ Réduite au strict nécessaire le 22/09 (contre-relecture n° 6, mesure sur
+# 1 245 rues réelles de Beauvais, Creil et Pont-Sainte-Maxence). **« place » en
+# est sortie** : à elle seule elle pesait 772 des 1 404 voies à type ambigu de
+# l'Oise, et la garder rendait muettes « Place de la Claie », « Place des
+# Étuves », « Place du Grugeoire ». La sortir récupère 13 rues **sans une seule
+# fausse sûre ni un bavardage de plus** — ce sont les deux autres gardes (la
+# coupe sur toute commune connue, et « rien avant le marqueur ») qui ferment le
+# défaut, pas cette liste.
 TYPES_AMBIGUS = frozenset(
     [
-        "villa", "domaine", "parc", "ferme", "zone", "porte", "pont", "point",
-        "terrasse", "place", "cour", "voie", "clos", "mail", "berge", "digue",
-        "liaison", "rampe", "cite", "hameau",
+        "villa", "domaine", "parc", "zone", "porte", "pont", "point",
+        "terrasse", "cour", "mail", "berge", "digue", "liaison", "rampe",
     ]
 )
 TYPES_QUI_ANCRENT = TYPES - TYPES_AMBIGUS

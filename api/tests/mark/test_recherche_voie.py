@@ -67,8 +67,32 @@ def index_de_test(monkeypatch, tmp_path):
     base_voies.voies_de.cache_clear()
 
 
+_COMMUNES = None
+
+
+def _est_une_commune(mot: str) -> bool:
+    """Le prédicat que la production passe au lecteur."""
+    global _COMMUNES
+    if _COMMUNES is None:
+        from api.services.communes.base import charger_base
+
+        _COMMUNES = charger_base()
+    return bool(_COMMUNES.par_nom.get(mot))
+
+
 def _detecter(cas: dict) -> Detection:
-    return analyser(cas["phrase"], base_voies.voies_de(cas["insee"]), cas.get("commune"))
+    """⛔ Avec le prédicat des communes, comme en appel.
+
+    Sans lui, les 558 cas tournaient dans une configuration **plus faible que la
+    production** : retirer le prédicat de `_lire` — le mode de panne du 14/09 —
+    aurait laissé tout le corpus vert (contre-relecture n° 6).
+    """
+    return analyser(
+        cas["phrase"],
+        base_voies.voies_de(cas["insee"]),
+        cas.get("commune"),
+        est_une_commune=_est_une_commune,
+    )
 
 
 def _meme(a: str, b: str) -> bool:
@@ -119,6 +143,23 @@ def test_les_cles_stockees_sont_celles_que_le_code_recalcule():
     if prononces:  # espeak absent : la garde ne s'applique pas
         for rang, son in enumerate(prononces):
             assert voies.sons[rang] == simplifier(son), voies.noms[rang]
+
+
+def test_le_vrai_dossier_dannuaires_correspond_a_la_constante(monkeypatch):
+    """🔑 Le SEUL test qui regarde `api/assets/voies/`, pas l'index de test.
+
+    Il ferme le piège que le LISEZ-MOI met en garde : une mise à jour qui bouge
+    `EXPORT` sans remplacer les fichiers (ou l'inverse) ne se signalait que par
+    un `logger.error` au démarrage, que personne ne lit avant qu'un appel parte
+    sans vérification (contre-relecture n° 6).
+
+    ⛔ Ne lit AUCUN fichier : `base_disponible` fait un `is_dir` et deux `glob`.
+    """
+    monkeypatch.undo()  # sortir de l'index de test, regarder le vrai dossier
+    base_voies.voies_de.cache_clear()
+    combien, souci = base_voies.base_disponible()
+    assert souci is None, souci
+    assert combien == 109, f"{combien} fichiers pour l'export {base_voies.EXPORT}"
 
 
 # --- 2. 🔴 Zéro fausse sûre -----------------------------------------------
@@ -369,7 +410,7 @@ def test_le_corpus_sonore_reste_au_niveau_mesure_le_22_09():
     transcrites : un banc PLUS DUR que le casque, qui sert à comparer deux
     versions du lecteur, pas à annoncer un taux au client.
 
-    Mesuré le 22/09, toutes gardes comprises : **186 retrouvées**. ⚠️ C'était 234
+    Mesuré le 22/09, toutes gardes comprises : **192 retrouvées**. ⚠️ C'était 234
     avant l'ancrage, 191 avant les gardes de la contre-relecture n° 5. Ces
     différences ne sont pas des rues perdues pour l'appel : elles sont **non
     vérifiées**, comme avant le chantier. L'arbitrage est assumé à chaque fois —
@@ -384,7 +425,7 @@ def test_le_corpus_sonore_reste_au_niveau_mesure_le_22_09():
         tete = detection.propositions[0].nom if detection.propositions else ""
         if tete and _meme(tete, cas["attendu"]):
             trouvees += 1
-    assert trouvees >= 175, f"{trouvees} retrouvées, 186 le 22/09"
+    assert trouvees >= 185, f"{trouvees} retrouvées, 192 le 22/09"
 
 
 # --- 4. Les règles payées par un défaut mesuré ----------------------------
