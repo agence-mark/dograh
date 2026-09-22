@@ -136,10 +136,26 @@ async def _lu(processeur, texte):
 # --------------------------------------------------------------------------- #
 
 
-def test_deux_interrupteurs_eteints_aucune_etape():
+def test_tous_les_interrupteurs_eteints_aucune_etape():
+    """⚠️ TROIS interrupteurs depuis le 22/09, plus deux.
+
+    La lecture de l'épellation (Q8) agit **à toute étape** et sort allumée :
+    elle suffit donc à elle seule à justifier l'étape. La garantie protégée ne
+    change pas — tout éteint, la chaîne est exactement celle d'avant — mais
+    elle se vérifie maintenant sur les trois.
+    """
     composants = _composants()
-    etape = creer_lecture_appelant(
+    assert creer_lecture_appelant(
         {"conversion_nombres_transcription": False, "verification_communes": False},
+        STT_FRANCAIS, None, lambda: None,
+    ) is not None, "l'épellation seule justifie l'étape"
+
+    etape = creer_lecture_appelant(
+        {
+            "conversion_nombres_transcription": False,
+            "verification_communes": False,
+            "lecture_epellation": False,
+        },
         STT_FRANCAIS, None, lambda: None,
     )
     assert etape is None

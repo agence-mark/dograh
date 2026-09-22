@@ -1,0 +1,934 @@
+[
+ {
+  "famille": "reel",
+  "phrase": "c a b v",
+  "attendu": [
+   "Cabv"
+  ],
+  "run": 260
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est Loisolé, l o i s e l e t.",
+  "attendu": [
+   "Loiselet"
+  ],
+  "run": 270
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est la facture de référence deux mille vingt six tiret huit cent quarante sept.",
+  "attendu": [],
+  "run": 270
+ },
+ {
+  "famille": "reel",
+  "phrase": "d a n t o n.",
+  "attendu": [
+   "Danton"
+  ],
+  "run": 271
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est au nom l'oiseaulet, l o i s e l e t.",
+  "attendu": [
+   "Loiselet"
+  ],
+  "run": 273
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est la facture deux mille vingt six tiret huit cent quarante sept.",
+  "attendu": [],
+  "run": 273
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, c'est soixante mille sept cents à Ponce accent.",
+  "attendu": [],
+  "run": 311
+ },
+ {
+  "famille": "reel",
+  "phrase": "d a n t o n.",
+  "attendu": [
+   "Danton"
+  ],
+  "run": 315
+ },
+ {
+  "famille": "reel",
+  "phrase": "Excusez-moi, c'est monsieur Flamand, f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 319
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, je suis monsieur Loiselé, l o i s e l e t.",
+  "attendu": [
+   "Loiselet"
+  ],
+  "run": 320
+ },
+ {
+  "famille": "reel",
+  "phrase": "Bon ok, on va faire comme ça. Mon nom, c'est l'oiselet.",
+  "attendu": [],
+  "run": 321
+ },
+ {
+  "famille": "reel",
+  "phrase": "c'est l'oiseaulet.\nl o i s e l e t",
+  "attendu": [
+   "Loiselet"
+  ],
+  "run": 322
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est Marc point ferrand arobase example point com.",
+  "attendu": [],
+  "run": 324
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est monsieur Loiselé, l o i s e l e t.",
+  "attendu": [
+   "Loiselet"
+  ],
+  "run": 325
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est au nom Boussageon.\nb o u s s a g e o n",
+  "attendu": [
+   "Boussageon"
+  ],
+  "run": 327
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui oui, j'ai un poêle à bois comme je vous l'ai dit. C'est un dermatech.",
+  "attendu": [],
+  "run": 328
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, la marque, c'est TERmatec, t e r m a t e c h.",
+  "attendu": [
+   "Termatech"
+  ],
+  "run": 328
+ },
+ {
+  "famille": "reel",
+  "phrase": "Ouais, alors c'est marqué dès deux mille vingt six tiret zéro quarante sept.",
+  "attendu": [],
+  "run": 329
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est Marc point v d k arobase example point f r.",
+  "attendu": [
+   "marc.vdk@example.fr"
+  ],
+  "run": 330
+ },
+ {
+  "famille": "reel",
+  "phrase": "La référence c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 333
+ },
+ {
+  "famille": "reel",
+  "phrase": "La référence c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 343
+ },
+ {
+  "famille": "reel",
+  "phrase": "La référence c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 353
+ },
+ {
+  "famille": "reel",
+  "phrase": "La référence c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 360
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, non, non, C'est f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 377
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, non, non, C'est f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 378
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, non, non, C'est f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 379
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, non, non, C'est f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 380
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, non, non, C'est f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 381
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est pour un ramonage et je m'appelle l'oiseaulet, l o i s e l e t.",
+  "attendu": [
+   "Loiselet"
+  ],
+  "run": 382
+ },
+ {
+  "famille": "reel",
+  "phrase": "Alors c'est pour un ramonage et c'est monsieur flamand f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 383
+ },
+ {
+  "famille": "reel",
+  "phrase": "Alors la ville c'est Ponce accent et le code postal soixante mille sept cent.",
+  "attendu": [],
+  "run": 383
+ },
+ {
+  "famille": "reel",
+  "phrase": "f l a m a n t",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 391
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est le deux mille vingt six tiret cinq cent soixante huit.",
+  "attendu": [],
+  "run": 392
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est monsieur flammant f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 397
+ },
+ {
+  "famille": "reel",
+  "phrase": "Ouais, c'est la référence des trois cent quarante neuf tiret zéro trente huit.",
+  "attendu": [],
+  "run": 399
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, c'est pour samedi parce qu'en fait j'aimerais prendre rendez-vous et venir vous voir en magasin samedi. Mais comme j'habite à deux heures de route, je ne veux pas me déplacer pour rien. Donc voilà, c'était pour ça, c'était possible de prendre un rendez-vous.",
+  "attendu": [],
+  "run": 401
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 407
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 410
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 420
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 430
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 440
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 450
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 461
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 471
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 481
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 507
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 519
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est f l a m a n",
+  "attendu": [
+   "Flaman"
+  ],
+  "run": 536
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, le six rue Danton, d a n t o n.",
+  "attendu": [
+   "Danton"
+  ],
+  "run": 537
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, mon nom de, mon nom c'est monsieur flammant f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 539
+ },
+ {
+  "famille": "reel",
+  "phrase": "s e n l i s.",
+  "attendu": [
+   "Senlis"
+  ],
+  "run": 542
+ },
+ {
+  "famille": "reel",
+  "phrase": "Ça pareil, je ne sais pas trop. Comme je viens d'acheter la maison, je je ne sais pas trop.",
+  "attendu": [],
+  "run": 543
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est flamand f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 544
+ },
+ {
+  "famille": "reel",
+  "phrase": "Alors oui, la la référence c'est d deux mille vingt six tiret zéro cinquante six.",
+  "attendu": [],
+  "run": 545
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est monsieur flammant, f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 545
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est la facture des, de référence des deux mille vingt six tiret zéro cinq cent trois.",
+  "attendu": [],
+  "run": 546
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, en fait comme je vous l'ai dit, j'ai, j'ai acheté chez vous un poêle à bois il y a quelques années et là j'aimerais juste le tarif des plaques thermiques parce que les miennes se sont fissurées et j'aimerais pouvoir l'échanger. Donc je vous appelle parce que comme je l'ai appelé chez vous,",
+  "attendu": [],
+  "run": 552
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 554
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 564
+ },
+ {
+  "famille": "reel",
+  "phrase": "Alors c'est f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 573
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 575
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 590
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est deux mille vingt six tiret zéro zéro soixante treize.",
+  "attendu": [],
+  "run": 600
+ },
+ {
+  "famille": "reel",
+  "phrase": "La reference c'est d deux mille vingt-six tiret zero zero soixante-treize.",
+  "attendu": [],
+  "run": 609
+ },
+ {
+  "famille": "reel",
+  "phrase": "La facture c'est la reference deux mille vingt-cinq tiret zero six cent douze, je ne comprends pas le montant.",
+  "attendu": [],
+  "run": 615
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 616
+ },
+ {
+  "famille": "reel",
+  "phrase": "La reference c'est d deux mille vingt-six tiret zero zero soixante-treize.",
+  "attendu": [],
+  "run": 621
+ },
+ {
+  "famille": "reel",
+  "phrase": "La facture c'est la reference deux mille vingt-cinq tiret zero six cent douze, je ne comprends pas le montant.",
+  "attendu": [],
+  "run": 627
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 628
+ },
+ {
+  "famille": "reel",
+  "phrase": "La reference c'est d deux mille vingt-six tiret zero zero soixante-treize.",
+  "attendu": [],
+  "run": 633
+ },
+ {
+  "famille": "reel",
+  "phrase": "La facture c'est la reference deux mille vingt-cinq tiret zero six cent douze, je ne comprends pas le montant.",
+  "attendu": [],
+  "run": 639
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 640
+ },
+ {
+  "famille": "reel",
+  "phrase": "La reference c'est d deux mille vingt-six tiret zero zero soixante-treize.",
+  "attendu": [],
+  "run": 643
+ },
+ {
+  "famille": "reel",
+  "phrase": "La reference c'est d deux mille vingt-six tiret zero zero soixante-treize.",
+  "attendu": [],
+  "run": 649
+ },
+ {
+  "famille": "reel",
+  "phrase": "La reference c'est d deux mille vingt-six tiret zero zero soixante-treize.",
+  "attendu": [],
+  "run": 655
+ },
+ {
+  "famille": "reel",
+  "phrase": "La reference c'est d deux mille vingt-six tiret zero zero soixante-treize.",
+  "attendu": [],
+  "run": 664
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 667
+ },
+ {
+  "famille": "reel",
+  "phrase": "La reference c'est d deux mille vingt-six tiret zero zero soixante-treize.",
+  "attendu": [],
+  "run": 670
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 673
+ },
+ {
+  "famille": "reel",
+  "phrase": "La reference c'est d deux mille vingt-six tiret zero zero soixante-treize.",
+  "attendu": [],
+  "run": 676
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 679
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 681
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 683
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 685
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 687
+ },
+ {
+  "famille": "reel",
+  "phrase": "La reference c'est d deux mille vingt-six tiret zero zero soixante-treize.",
+  "attendu": [],
+  "run": 689
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 693
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 697
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 701
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 705
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 709
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 713
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 717
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 721
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 725
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 729
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 733
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est w a t t e b l e d.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 740
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, ce n'est pas ce que vous avez note. Je vous l'epelle : W A T T E B L E D.",
+  "attendu": [
+   "Wattebled"
+  ],
+  "run": 745
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est flamand f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 749
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est le maître l e m a i t r e.",
+  "attendu": [
+   "Lemaitre"
+  ],
+  "run": 750
+ },
+ {
+  "famille": "reel",
+  "phrase": "Alors comme je vous l'ai déjà dit, c'est monsieur Boussajon, b o u s s a g e o n.",
+  "attendu": [
+   "Boussageon"
+  ],
+  "run": 751
+ },
+ {
+  "famille": "reel",
+  "phrase": "Alors c'est b o u s s a g e o n.",
+  "attendu": [
+   "Boussageon"
+  ],
+  "run": 753
+ },
+ {
+  "famille": "reel",
+  "phrase": "Donc c'est con si, c o n c y.",
+  "attendu": [
+   "Concy"
+  ],
+  "run": 754
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est Marando, m a r a n d e a u.",
+  "attendu": [
+   "Marandeau"
+  ],
+  "run": 756
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est monsieur flamand f l a m a n t.",
+  "attendu": [
+   "Flamant"
+  ],
+  "run": 757
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "F comme François, L comme Louis, A comme Anatole",
+  "attendu": [
+   "Fla"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "f l a m a n t",
+  "attendu": [
+   "Flamant"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "W A T T E B L E D",
+  "attendu": [
+   "Wattebled"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "c'est L O I S E L E T",
+  "attendu": [
+   "Loiselet"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "g a r n i e r tiret d u m o n t",
+  "attendu": [
+   "Garnier-Dumont"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "v a n espace h e c k e",
+  "attendu": [
+   "Van Hecke"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "d u p o n avec deux t",
+  "attendu": [
+   "Dupontt"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "b a r b e accent aigu",
+  "attendu": [
+   "Barbé"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "m a t h i l d e accent grave",
+  "attendu": [
+   "Mathildè"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "f r a n c cédille o i s",
+  "attendu": [
+   "François"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "n o e tréma l",
+  "attendu": [
+   "Noël"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "double vé a t t",
+  "attendu": [
+   "Watt"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "l e r o y",
+  "attendu": [
+   "Leroy"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "m a r c point v d k arobase example point f r",
+  "attendu": [
+   "marc.vdk@example.fr"
+  ]
+ },
+ {
+  "famille": "ecrit",
+  "phrase": "m a r i e tiret bas d u p o n t arobase example point com",
+  "attendu": [
+   "marie_dupont@example.com"
+  ]
+ },
+ {
+  "famille": "negatif",
+  "phrase": "il y a un souci avec mon poêle",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "c'est à Creil, dans l'Oise",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "je n'ai pas d'accès à la chaudière",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "oui, c'est ça",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "euh, attendez, je regarde",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "bonjour, je voudrais faire ramoner mon poêle",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "douze rue de la République",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "c'est un Edilkamin, je crois",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "on a déjà fait appel à vous l'année dernière",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "je vous rappelle demain, d'accord ?",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "a b",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "j'ai eu Marie au téléphone",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "le numéro c'est zéro six douze trente-quatre",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "mon mari s'appelle Jean-Pierre",
+  "attendu": []
+ },
+ {
+  "famille": "negatif",
+  "phrase": "c'est urgent, il y a de la fumée",
+  "attendu": []
+ }
+]

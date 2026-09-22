@@ -116,8 +116,16 @@ def test_interrupteur_allume_par_defaut_eteint_sur_demande():
         construite = creer_lecture_appelant(configuration, STT_FRANCAIS, None, etape)
         assert isinstance(construite, LectureAppelantProcessor)
         assert construite._verification is True
-    # Off, with the conversion off by default: no step at all.
-    assert creer_lecture_appelant({"verification_communes": False}, STT_FRANCAIS, None, etape) is None
+    # Off, with the conversion AND the spelling reader off: no step at all.
+    # ⚠️ The spelling reader (Q8, 2026-09-22) is on by default and acts at every
+    # step, so it alone keeps the step alive — what is checked here is that the
+    # town check is really off, not that the step disappears.
+    eteint = creer_lecture_appelant({"verification_communes": False}, STT_FRANCAIS, None, etape)
+    assert isinstance(eteint, LectureAppelantProcessor)
+    assert eteint._verification is False
+    assert creer_lecture_appelant(
+        {"verification_communes": False, "lecture_epellation": False}, STT_FRANCAIS, None, etape
+    ) is None
 
 
 def test_linterrupteur_ne_relit_que_sa_cle():

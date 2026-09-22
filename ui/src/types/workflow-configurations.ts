@@ -76,6 +76,8 @@ export const DEFAUTS_PIPECAT = {
     // 🆕 The sounds (espeak-ng) are what the fork runs on today; the two
     // switches (L18 of 2026-09-17) exist to measure what they bring.
     sons_communes: true,
+    verification_voies: true,
+    lecture_epellation: true,
     // ⚠️ ON (L2 of 2026-09-16): an organization that filled a trade vocabulary
     // wants every agent to use it.
     lexique_metier: true,
@@ -244,6 +246,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     verification_communes: boolean;  // Town the caller names checked against the list of communes
     variables_commune: string;  // Extraction variables that trigger it, comma separated, final * = starts with
     sons_communes: boolean;  // The pronunciation library used to recognise towns
+    verification_voies: boolean;  // Street the caller names checked against the streets of their commune
+    lecture_epellation: boolean;  // Letters the caller spells out, read and copied exactly
     lexique_metier: boolean;  // The organization's trade vocabulary: listened for, corrected, pronounced
     sons_lexique: boolean;  // The pronunciation library used to recognise the trade names
     user_speech_timeout: number;  // Seconds the caller may pause before the agent answers

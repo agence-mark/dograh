@@ -508,9 +508,11 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
         )
     # 32 until 2026-09-17, then 35: the trade vocabulary and the two sound
     # switches (plan lexique-metier, L2 and L18). Then 37 on 2026-09-22: the
-    # two switches that forbid saying the caller's name and title.
-    assert len(ecran) == 37, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 37. "
+    # two switches that forbid saying the caller's name and title. Then 39 the
+    # same day: the street check and the spelling reader (plan
+    # adresses-et-epellation, Q11).
+    assert len(ecran) == 39, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 39. "
         f"A setting added on one side only renders and is then dropped."
     )
 

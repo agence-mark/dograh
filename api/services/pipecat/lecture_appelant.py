@@ -51,13 +51,15 @@ from __future__ import annotations
 import asyncio
 from typing import Callable
 
-from loguru import logger
-
 from api.schemas.organization_preferences import AdresseEtablissement
+from api.services.communes.analyse import SURE as SURE_COMMUNE
 from api.services.communes.base import charger_base, obtenir_base
 from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
 from api.services.communes.mention import mentionner
 from api.services.communes.sons import precharger as precharger_sons
+from api.services.epellation.lecture import lire as lire_epellations
+from api.services.epellation.mention import deja_mentionne as epellation_deja_mentionnee
+from api.services.epellation.mention import mentionner_epellations
 from api.services.lexique.correction import MARQUE as MARQUE_LEXIQUE
 from api.services.nombres import lecture as lecteur
 from api.services.nombres.lecture import (
@@ -75,14 +77,26 @@ from api.services.pipecat.conversion_nombres import (
 )
 from api.services.pipecat.verification_communes import (
     CLE_TRACE,
+    CLE_TRACE_EPELLATIONS,
+    CLE_TRACE_VOIES,
     VARIABLES_PAR_DEFAUT,
     annoter_texte,
+    epellation_allumee,
     etape_concernee,
     interrupteur_allume,
     sons_allumes,
     trace_de,
     variables_commune,
+    voies_allumees,
 )
+from api.services.voies import base as base_voies
+from api.services.voies.analyse import SURE as VOIE_SURE
+from api.services.voies.analyse import Detection as DetectionVoie
+from api.services.voies.analyse import analyser as analyser_voie
+from api.services.voies.mention import deja_mentionne as voie_deja_mentionnee
+from api.services.voies.mention import mentionner_voie
+from loguru import logger
+
 from pipecat.frames.frames import Frame, LLMContextFrame, StartFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
@@ -99,6 +113,34 @@ def etape_reference(noeud) -> bool:
 
 def _nom_etape(noeud) -> str | None:
     return getattr(noeud, "name", None)
+
+
+def _trace_voie(detection: DetectionVoie, etape: str | None) -> dict:
+    """What the bench reads back for one street (plan, lot 5).
+
+    ⚠️ ``numero_present`` is recorded and NEVER said to the model (Q5): an
+    incomplete base must not make a caller repeat their own number.
+    """
+    return {
+        "etape": etape,
+        "entendu": detection.entendu,
+        "statut": detection.statut,
+        "voie_retenue": detection.retenue or None,
+        "propositions": [
+            {"nom": p.nom, "score": round(p.score, 1), "numero_present": p.numero_present}
+            for p in detection.propositions
+        ],
+        "par_son": detection.par_son,
+    }
+
+
+def _trace_epellation(epellation, etape: str | None) -> dict:
+    """What the bench reads back for one spelling.
+
+    🔑 ``entendu`` is what the other session's name filter needs to compare the
+    HEARD form as well as the extracted one (point I1 of the plan, section 5).
+    """
+    return {"etape": etape, "entendu": epellation.entendu, "epele": epellation.epele}
 
 
 def _trace_nombre(nombre, choix, etape: str | None) -> dict:
@@ -121,10 +163,98 @@ def _trace_nombre(nombre, choix, etape: str | None) -> dict:
     }
 
 
+def _hors_epellation(detections: list, epellations: list) -> list:
+    """Les villes trouvées AILLEURS que dans des lettres épelées.
+
+    🔴 Sur le tour d'épellation que Q4 fabrique exprès, la vérification des
+    communes lisait les lettres comme un nom de ville : « oui, rue Lavoira,
+    L A V O I R A » faisait demander « êtes-vous à **Voires, dans le Doubs** ? »
+    à un appelant de Creil dont la commune était déjà tranchée. Mesuré :
+    **18 notes de commune sur les 136 cas** du corpus d'épellation — « g e o »
+    devenait Gaillon, « bois » devenait Bois (Charente-Maritime).
+
+    ⛔ Le défaut est antérieur à ce chantier, mais ce chantier **fabrique** ce
+    tour : le motif se ferme des DEUX côtés ou il ne se ferme pas
+    (contre-relecture n° 6).
+
+    ⚠️ Une ville épelée EXPRÈS reste lue : « c'est à Beauvais, B E A U V A I S »
+    garde sa détection, parce que « beauvais » n'apparaît pas dans « b e a u v
+    a i s ». Seul ce qui est lu DANS les lettres est écarté.
+    """
+    if not epellations or not detections:
+        return detections
+    passages = [e.entendu.lower() for e in epellations]
+    return [
+        detection
+        for detection in detections
+        if not any((detection.entendu or "").lower() in passage for passage in passages)
+    ]
+
+
+def _commune_sure(lecture: LectureMessage, trace_communes: list | None) -> str | None:
+    """The INSEE code of the town to search the street in, or None.
+
+    🔑 **This turn first, then the earlier ones.** The street reader needs a
+    commune, and your agents ask for the postal code and the town BEFORE the
+    street (Q6): most of the time the town was settled at an earlier turn and
+    is not repeated with the street. Reading only the current turn would leave
+    the street unchecked on exactly the turns that carry one.
+
+    ⛔ Only a town settled SURE counts: searching the streets of a town that is
+    still "to confirm" would look for a street in the wrong commune.
+    """
+    for detection in lecture.detections:
+        if detection.statut == SURE_COMMUNE and detection.lectures:
+            return detection.lectures[0].commune.insee
+    # The most recent settled town of the call, latest first.
+    for entree in reversed(trace_communes or []):
+        if not isinstance(entree, dict) or entree.get("statut") != "sure":
+            continue
+        retenue = entree.get("commune_retenue") or {}
+        if insee := retenue.get("code_insee"):
+            return insee
+    return None
+
+
+def _lire_voie(
+    texte: str,
+    insee: str,
+    nom_commune: str | None,
+    avec_sons: bool,
+    autres_communes: tuple[str, ...] = (),
+    est_une_commune=None,
+) -> DetectionVoie | None:
+    """The street verdict, or None when it could not be read. Never raises."""
+    try:
+        return analyser_voie(
+            texte,
+            base_voies.voies_de(insee),
+            nom_commune,
+            avec_sons=avec_sons,
+            autres_communes=autres_communes,
+            est_une_commune=est_une_commune,
+        )
+    except FileNotFoundError:
+        # A department whose file is not in the image: the call goes on exactly
+        # as before this module existed.
+        logger.warning(f"[.mark] No street base for {insee}, street not checked")
+    except Exception as erreur:  # noqa: BLE001 -- the call must go on
+        logger.warning(f"[.mark] Street check failed, message kept as is: {erreur!r}")
+    return None
+
+
 def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list, conversion: bool,
           communes: bool, references: bool, etape_adresse: bool = True, trace_nombres: list | None = None,
-          avec_sons: bool = True):
-    """Blocking: runs in a worker thread. Returns (text for the model, town records, number records)."""
+          avec_sons: bool = True, voies: bool = False, epellation: bool = False):
+    """Blocking: runs in a worker thread. Returns (text for the model, records...).
+
+    🔑 The order is the plan's (lot 5), and each step of it was bought:
+    1. **spelling FIRST**, before the numbers — otherwise "deux T" becomes "2 T"
+       and the spelling is lost;
+    2. numbers, towns, then the street, which needs the town the analysis settled.
+    The notes are glued in this order: towns, street, spelling, numbers.
+    """
+    epellations = lire_epellations(texte) if epellation else []
     try:
         base = charger_base()
         magasin = base.coordonnees(adresse.code_insee) if adresse else None
@@ -138,12 +268,56 @@ def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list
         logger.warning(f"[.mark] Town analysis failed, numbers read without it: {erreur!r}")
         base = None
         lecture = LectureMessage(nombres=lecteur.lire_nombres(texte), detections=[], choix={})
+
     lu = reecrire(texte, lecture.nombres, lecture.choix_cp) if conversion else texte
+
+    # 🔑 La rue est cherchée sur le texte APRÈS la conversion des nombres, et
+    # l'épellation AVANT : chacun a besoin de l'autre forme. « c'est au six rue
+    # Danton » ne laissait vérifier aucun numéro tant que « six » restait en
+    # lettres, et la base écrit « Rue des 3 Ponts » quand l'appelant dit
+    # « des trois ponts ».
+    voie = None
+    if voies and base is not None and (insee := _commune_sure(lecture, trace_communes)):
+        commune = base.commune(insee)
+        # Les autres villes entendues à ce tour : une ville dont le nom commence
+        # par un type de voie (« Pont-Sainte-Maxence ») ancrait la phrase sur une
+        # rue que personne n'avait nommée.
+        # ⛔ Les villes TRANCHÉES seulement, jamais les candidates : la
+        # vérification des communes propose Tende, Hatten et Andé sur le mot
+        # « attendez ». Une candidate approchée servant de point de coupe
+        # tronquerait un nom de rue réel, sans trace (contre-relecture du 22/09).
+        autres = tuple(
+            detection.entendu
+            for detection in lecture.detections
+            if detection.entendu and detection.statut == SURE_COMMUNE
+        )
+        voie = _lire_voie(
+            lu, insee, commune.nom if commune else None, avec_sons, autres,
+            # La liste nationale des communes, que cette étape a déjà chargée :
+            # elle sert à reconnaître « à <ville> » même quand la ville n'est pas
+            # celle de l'appelant.
+            lambda mot: bool(base.par_nom.get(mot)),
+        )
+        if epellations and voie is not None and voie.statut != VOIE_SURE:
+            # 🔴 LA boucle que Q4 interdit, fermée par le CODE et non par une
+            # phrase. Q4 fabrique exprès le tour « rue introuvable → fais
+            # épeler » ; au tour suivant l'appelant épelle, le lecteur de rue
+            # analyse les lettres, n'y retrouve rien, et **redemande une
+            # épellation**. Mesuré : « oui, rue Lavoira, L A V O I R A » ressortait
+            # avec « « lavoira v o i r » ne correspond à aucune rue… fais épeler ».
+            # ⛔ Une épellation lue sur ce tour EST la réponse : la note de rue se
+            # tait, celle de l'épellation dit au modèle quoi noter.
+            voie = None
+
     if communes and base is not None:
-        lu = mentionner(lu, lecture.detections, base)
+        lu = mentionner(lu, _hors_epellation(lecture.detections, epellations), base)
+    if voie is not None:
+        lu = mentionner_voie(lu, voie)
+    if epellations:
+        lu = mentionner_epellations(lu, epellations)
     if conversion:
         lu = mentionner_nombres(lu, lecture.nombres, avec_references=references)
-    return lu, lecture, base
+    return lu, lecture, base, voie, epellations
 
 
 async def lire_texte(
@@ -158,6 +332,8 @@ async def lire_texte(
     provisoire: bool = False,
     variables: tuple[str, ...] = VARIABLES_PAR_DEFAUT,
     avec_sons: bool = True,
+    voies: bool = False,
+    epellation: bool = False,
 ) -> str:
     """``texte`` as the model must read it, or ``texte`` unchanged. Never raises.
 
@@ -180,6 +356,8 @@ async def lire_texte(
         provisoire=provisoire,
         variables=variables,
         avec_sons=avec_sons,
+        voies=voies,
+        epellation=epellation,
     )
     return f"{lu} {mention_lexique}" if mention_lexique else lu
 
@@ -202,12 +380,23 @@ async def _lire_texte_de_lappelant(
     provisoire: bool = False,
     variables: tuple[str, ...] = VARIABLES_PAR_DEFAUT,
     avec_sons: bool = True,
+    voies: bool = False,
+    epellation: bool = False,
 ) -> str:
     try:
-        if not texte or commune_deja_mentionnee(texte) or nombres_deja_mentionnes(texte):
+        if (
+            not texte
+            or commune_deja_mentionnee(texte)
+            or nombres_deja_mentionnes(texte)
+            or voie_deja_mentionnee(texte)
+            or epellation_deja_mentionnee(texte)
+        ):
             return texte
         etape_adresse = etape_concernee(noeud, variables)
         communes = verification and etape_adresse
+        # Q7: the street check runs at the same steps as the town check, by the
+        # same setting, and needs it — there is no street list without a commune.
+        voies = voies and communes
         etape = _nom_etape(noeud)
         if not langue_francaise:
             # The reader is French only: the town check of 2026-09-16, unchanged.
@@ -217,20 +406,25 @@ async def _lire_texte_de_lappelant(
                 texte, adresse, etape, (lambda e: consigner(e, CLE_TRACE)) if consigner else None, provisoire,
                 avec_sons,
             )
-        if not conversion and not communes:
+        # ⚠️ ``epellation`` alone is enough to run: a caller spells a name at any
+        # step (Q8), including when neither conversion nor the town check apply.
+        if not conversion and not communes and not epellation:
             return texte
         lire_trace = getattr(consigner, "lire", None)
         trace_communes = lire_trace(CLE_TRACE) if callable(lire_trace) else []
         # V4 (plan voix-et-communes): a postal code said at an earlier turn.
         trace_nombres = lire_trace(CLE_TRACE_NOMBRES) if callable(lire_trace) else []
-        lu, lecture, base = await asyncio.to_thread(
+        lu, lecture, base, voie, epellations = await asyncio.to_thread(
             _lire, texte, adresse, trace_communes, conversion, communes, etape_reference(noeud),
-            etape_adresse, trace_nombres, avec_sons,
+            etape_adresse, trace_nombres, avec_sons, voies, epellation,
         )
         if consigner is not None:
             entrees: list[tuple[str, dict]] = []
             if communes:
                 entrees += [(CLE_TRACE, trace_de(d, base, etape)) for d in lecture.detections]
+            if voie is not None:
+                entrees.append((CLE_TRACE_VOIES, _trace_voie(voie, etape)))
+            entrees += [(CLE_TRACE_EPELLATIONS, _trace_epellation(e, etape)) for e in epellations]
             if conversion:
                 entrees += [
                     (CLE_TRACE_NOMBRES, _trace_nombre(n, lecture.choix.get(n.debut), etape))
@@ -265,11 +459,15 @@ class LectureAppelantProcessor(FrameProcessor):
         consigner: Callable[..., None] | None = None,
         variables: tuple[str, ...] = VARIABLES_PAR_DEFAUT,
         avec_sons: bool = True,
+        voies: bool = False,
+        epellation: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self._variables = variables
         self._avec_sons = avec_sons
+        self._voies = voies
+        self._epellation = epellation
         self._conversion = conversion
         self._verification = verification
         self._langue_francaise = langue_francaise
@@ -286,6 +484,11 @@ class LectureAppelantProcessor(FrameProcessor):
             # The pronunciation engine too: its first start (about 650 ms) would
             # otherwise delay the first address turn of the call (review of 2026-09-17).
             await asyncio.to_thread(precharger_sons)
+            if self._voies:
+                # 🔴 Says ONCE whether the street base is actually in the image.
+                # Without it, a production with no files looks exactly like a
+                # production where no caller ever names a known street.
+                await asyncio.to_thread(base_voies.journaliser_etat)
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[.mark] List of communes not preloaded: {erreur!r}")
 
@@ -313,6 +516,8 @@ class LectureAppelantProcessor(FrameProcessor):
             provisoire=frame.speculation,
             variables=self._variables,
             avec_sons=self._avec_sons,
+            voies=self._voies,
+            epellation=self._epellation,
         )
         # Marked AFTER the reading: an interruption that cancels this task
         # during the await leaves the message unmarked, so the next context
@@ -345,7 +550,10 @@ def creer_lecture_appelant(
     """The step for this agent, or ``None`` when both switches are off (T3)."""
     conversion = conversion_allumee(run_configs)
     verification = interrupteur_allume(run_configs)
-    if not conversion and not verification:
+    epellation = epellation_allumee(run_configs)
+    # ⚠️ The spelling reader alone justifies the step: a caller spells a name
+    # at any step (Q8), with or without the two older switches.
+    if not conversion and not verification and not epellation:
         return None
     return LectureAppelantProcessor(
         conversion=conversion,
@@ -356,6 +564,8 @@ def creer_lecture_appelant(
         consigner=consigner,
         variables=variables_commune(run_configs),
         avec_sons=sons_allumes(run_configs),
+        voies=voies_allumees(run_configs),
+        epellation=epellation,
     )
 
 
@@ -379,6 +589,8 @@ async def lire_message_tape(
             consigner=consigner,
             variables=variables_commune(run_configs),
             avec_sons=sons_allumes(run_configs),
+            voies=voies_allumees(run_configs),
+            epellation=epellation_allumee(run_configs),
         )
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[.mark] Caller reading failed on the keyboard, message kept: {erreur!r}")

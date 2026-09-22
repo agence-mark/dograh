@@ -76,6 +76,12 @@ from api.services.communes.mention import deja_mentionne, mentionner
 CLE_INTERRUPTEUR = "verification_communes"
 CLE_TRACE = "communes_verifiees"
 CLE_VARIABLES = "variables_commune"
+# Plan adresses-et-epellation (2026-09-22): the two switches of Q11 and their
+# records, kept here with the town check's because the same step reads them all.
+CLE_VOIES = "verification_voies"
+CLE_EPELLATION = "lecture_epellation"
+CLE_TRACE_VOIES = "voies_verifiees"
+CLE_TRACE_EPELLATIONS = "epellations_lues"
 
 # The names of the default setting, ready to compare.
 VARIABLES_PAR_DEFAUT = decouper_variables_commune(DEFAULT_VARIABLES_COMMUNE)
@@ -134,6 +140,32 @@ def sons_allumes(run_configs: dict | None, cle: str = "sons_communes") -> bool:
         )
     except Exception as erreur:  # noqa: BLE001 -- the call must go on
         logger.warning(f"[.mark] Sound switch « {cle} » unreadable, left on: {erreur!r}")
+        return True
+
+
+def voies_allumees(run_configs: dict | None) -> bool:
+    """The street check's switch, read ALONE like the others (Q11).
+
+    ⛔ Read alone, never through the whole configuration: any other setting
+    stored out of bounds would kill the call (counter-review of 2026-09-15).
+    """
+    try:
+        return WorkflowConfigurationDefaults.model_validate(
+            {CLE_VOIES: (run_configs or {}).get(CLE_VOIES)}
+        ).verification_voies
+    except Exception as erreur:  # noqa: BLE001 -- the call must go on
+        logger.warning(f"[.mark] Street check switch unreadable, left on: {erreur!r}")
+        return True
+
+
+def epellation_allumee(run_configs: dict | None) -> bool:
+    """The spelling reader's switch, read ALONE like the others (Q11)."""
+    try:
+        return WorkflowConfigurationDefaults.model_validate(
+            {CLE_EPELLATION: (run_configs or {}).get(CLE_EPELLATION)}
+        ).lecture_epellation
+    except Exception as erreur:  # noqa: BLE001 -- the call must go on
+        logger.warning(f"[.mark] Spelling switch unreadable, left on: {erreur!r}")
         return True
 
 
