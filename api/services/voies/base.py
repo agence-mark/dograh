@@ -81,8 +81,14 @@ class VoiesCommune:
 
 
 def departement_de(insee: str) -> str:
-    """"60175" -> "60", "97411" -> "974". The file is named after it."""
-    return insee[:3] if insee.startswith("97") else insee[:2]
+    """"60175" -> "60", "97411" -> "974", "98818" -> "988".
+
+    ⛔ The 98 prefix counts too: New Caledonia, French Polynesia, Wallis and
+    Futuna and the TAAF are numbered 984 to 989. Reading only "97" sent their
+    90 communes to a file named "98" that does not exist — the error was
+    swallowed and the street simply never checked (counter-review of 2026-09-22).
+    """
+    return insee[:3] if insee[:2] in ("97", "98") else insee[:2]
 
 
 def base_disponible() -> tuple[int, str | None]:

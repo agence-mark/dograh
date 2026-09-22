@@ -31,3 +31,7 @@ node_modules/
 .superpowers/
 docs/superpowers/
 .gstack/
+
+# [.mark] Où la génération de l'annuaire des rues télécharge la BAN (~1 Go de
+# CSV). ⛔ Jamais dans le dépôt, qui est public, ni dans le contexte Docker.
+api/assets/_ban/

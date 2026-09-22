@@ -90,6 +90,7 @@ from api.services.pipecat.verification_communes import (
     voies_allumees,
 )
 from api.services.voies import base as base_voies
+from api.services.voies.analyse import SURE as VOIE_SURE
 from api.services.voies.analyse import Detection as DetectionVoie
 from api.services.voies.analyse import analyser as analyser_voie
 from api.services.voies.mention import deja_mentionne as voie_deja_mentionnee
@@ -193,6 +194,7 @@ def _lire_voie(
     nom_commune: str | None,
     avec_sons: bool,
     autres_communes: tuple[str, ...] = (),
+    est_une_commune=None,
 ) -> DetectionVoie | None:
     """The street verdict, or None when it could not be read. Never raises."""
     try:
@@ -202,6 +204,7 @@ def _lire_voie(
             nom_commune,
             avec_sons=avec_sons,
             autres_communes=autres_communes,
+            est_une_commune=est_une_commune,
         )
     except FileNotFoundError:
         # A department whose file is not in the image: the call goes on exactly
@@ -260,7 +263,23 @@ def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list
             for detection in lecture.detections
             if detection.entendu and detection.statut == SURE_COMMUNE
         )
-        voie = _lire_voie(lu, insee, commune.nom if commune else None, avec_sons, autres)
+        voie = _lire_voie(
+            lu, insee, commune.nom if commune else None, avec_sons, autres,
+            # La liste nationale des communes, que cette étape a déjà chargée :
+            # elle sert à reconnaître « à <ville> » même quand la ville n'est pas
+            # celle de l'appelant.
+            lambda mot: bool(base.par_nom.get(mot)),
+        )
+        if epellations and voie is not None and voie.statut != VOIE_SURE:
+            # 🔴 LA boucle que Q4 interdit, fermée par le CODE et non par une
+            # phrase. Q4 fabrique exprès le tour « rue introuvable → fais
+            # épeler » ; au tour suivant l'appelant épelle, le lecteur de rue
+            # analyse les lettres, n'y retrouve rien, et **redemande une
+            # épellation**. Mesuré : « oui, rue Lavoira, L A V O I R A » ressortait
+            # avec « « lavoira v o i r » ne correspond à aucune rue… fais épeler ».
+            # ⛔ Une épellation lue sur ce tour EST la réponse : la note de rue se
+            # tait, celle de l'épellation dit au modèle quoi noter.
+            voie = None
 
     if communes and base is not None:
         lu = mentionner(lu, lecture.detections, base)

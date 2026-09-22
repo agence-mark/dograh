@@ -32,9 +32,11 @@ What the corpora taught
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import numpy as np
+from api.services.communes.analyse import MOTS_FACTURATION
 from api.services.communes.base import cle_phonetique, cle_sonore, normaliser
 from api.services.communes.sons import simplifier, sons
 from api.services.voies.base import VoiesCommune
@@ -92,6 +94,27 @@ TYPES = frozenset(
         "zi", "za", "zac", "zone", "lieudit",
     ]
 )
+# 🔴 Words that are ALSO ordinary French nouns. They stay in ``TYPES`` — the
+# index is built with it and the two must never diverge — but they do NOT anchor
+# a sentence on an address.
+#
+# Measured on 2026-09-22 (counter-review n° 5): « on a une **villa** à Chantilly »
+# came back SURE as « Route de Chantilly », on 7 of 12 communes tested, "Paris"
+# among the towns that trigger it. The caller had named no street at all. Same
+# mechanism turned every dictated e-mail into an address, because "point" is a
+# type (for "rond-point") and an address contains one or two.
+#
+# ⛔ A sentence that really names one of these still anchors through its number:
+# "j'habite 12 villa des Roses".
+TYPES_AMBIGUS = frozenset(
+    [
+        "villa", "domaine", "parc", "ferme", "zone", "porte", "pont", "point",
+        "terrasse", "place", "cour", "voie", "clos", "mail", "berge", "digue",
+        "liaison", "rampe", "cite", "hameau",
+    ]
+)
+TYPES_QUI_ANCRENT = TYPES - TYPES_AMBIGUS
+
 # "au lieu-dit les Granges" carries no street type: the pair itself is the anchor.
 LIEU_DIT = ("lieu", "dit")
 # What introduces the TOWN after the street: everything past it is the town,
@@ -137,8 +160,17 @@ class Detection:
 
 
 def est_type(mot: str) -> bool:
-    """"rue", "rues", "impasses": the transcription writes plurals."""
+    """"rue", "rues", "impasses": the transcription writes plurals.
+
+    ⛔ Used by ``sans_type``, so by the generation script too: the two must stay
+    identical. To ask whether a word ANNOUNCES an address, use ``ancre_sur``.
+    """
     return mot in TYPES or (mot.endswith("s") and mot[:-1] in TYPES)
+
+
+def ancre_sur(mot: str) -> bool:
+    """Does this word announce an address? Stricter than ``est_type``."""
+    return mot in TYPES_QUI_ANCRENT or (mot.endswith("s") and mot[:-1] in TYPES_QUI_ANCRENT)
 
 
 def sans_type(norme: str) -> str:
@@ -156,7 +188,10 @@ def sans_type(norme: str) -> str:
 
 
 def _fenetres(
-    norme: str, commune: str | None, autres_communes: tuple[str, ...] = ()
+    norme: str,
+    commune: str | None,
+    autres_communes: tuple[str, ...] = (),
+    est_une_commune: Callable[[str], bool] | None = None,
 ) -> tuple[list[tuple[str, int]], str | None, bool]:
     """The passages to compare — each with the length of the reading it comes
     from — the street type said, and whether the sentence is ANCHORED.
@@ -190,7 +225,7 @@ def _fenetres(
         for mot in normaliser(nom).split():
             masques = ["" if m == mot else m for m in masques]
 
-    place = next((rang + 1 for rang, mot in enumerate(masques) if est_type(mot)), None)
+    place = next((rang + 1 for rang, mot in enumerate(masques) if ancre_sur(mot)), None)
     if place is None:
         paire = next(
             (rang for rang in range(len(masques) - 1) if tuple(masques[rang:rang + 2]) == LIEU_DIT),
@@ -198,12 +233,17 @@ def _fenetres(
         )
         place = paire + 2 if paire is not None else None
     type_dit = masques[place - 1] if place else None
+    # ⛔ Un montant n'est pas une adresse : « 3500 **euros** » s'ancrait sur son
+    # nombre et proposait « Avenue de l'Europe » (contre-relecture n° 5). La
+    # liste des mots de facturation est celle que la vérification des communes
+    # s'était déjà donnée, pour exactement la même raison.
     numero_suivi = any(
         mot.isdigit()
         and rang + 1 < len(masques)
         and masques[rang + 1]
         and not masques[rang + 1].isdigit()
         and masques[rang + 1] not in MOTS_OUTILS
+        and masques[rang + 1] not in MOTS_FACTURATION
         for rang, mot in enumerate(masques)
     )
     ancre = place is not None or numero_suivi
@@ -220,18 +260,33 @@ def _fenetres(
     mots_de_ville = {
         mot for nom in (commune, *autres_communes) if nom for mot in normaliser(nom).split()
     }
+
+    def est_une_ville(mot: str) -> bool:
+        # 🔴 TOUTE commune connue, pas seulement celles entendues à ce tour.
+        # « on a une résidence à Paris » ressortait SÛRE sur « Rue de Paris »,
+        # dans une commune qui n'était pas Paris : le marqueur était là, mais
+        # « Paris » n'étant pas la ville de l'appelant, rien ne coupait
+        # (contre-relecture n° 5). L'appelant avait nommé une VILLE, pas une rue.
+        return mot in mots_de_ville or bool(est_une_commune and est_une_commune(mot))
+
     coupe = next(
         (
             rang
             for rang, mot in enumerate(zone)
-            if rang > 0
-            and mot in MARQUEURS_DE_LIEU
-            and rang + 1 < len(zone)
-            and zone[rang + 1] in mots_de_ville
+            if mot in MARQUEURS_DE_LIEU and rang + 1 < len(zone) and est_une_ville(zone[rang + 1])
         ),
         None,
     )
-    lectures = [zone] if coupe is None else [zone[:coupe], zone]
+    if coupe is None:
+        lectures = [zone]
+    elif coupe > 0:
+        lectures = [zone[:coupe], zone]
+    else:
+        # ⛔ Rien AVANT le marqueur : « on a une résidence **à Paris** » ne nomme
+        # aucune rue, seulement une ville. Garder la lecture entière ramenait
+        # « paris » et l'annonçait SÛRE comme « Rue de Paris », dans une commune
+        # qui n'est pas Paris (contre-relecture n° 5).
+        lectures = []
 
     fenetres: dict[str, int] = {}
     for rang_lecture, lecture in enumerate(lectures):
@@ -271,13 +326,18 @@ def analyser(
     commune: str | None = None,
     avec_sons: bool = True,
     autres_communes: tuple[str, ...] = (),
+    est_une_commune: Callable[[str], bool] | None = None,
 ) -> Detection:
     """The verdict for the street named in ``texte``. Blocking: worker thread.
 
     ``autres_communes``: the other town names heard in this same turn, which the
-    town check found. They are removed like the settled one.
+    town check found. They are masked for the anchor like the settled one.
+    ``est_une_commune``: "is this word the name of a French commune?" — the
+    caller passes the national list it already holds.
     """
-    lues, type_dit, ancre = _fenetres(normaliser(texte), commune, autres_communes)
+    lues, type_dit, ancre = _fenetres(
+        normaliser(texte), commune, autres_communes, est_une_commune
+    )
     if not len(voies) or not lues:
         return Detection(INTROUVABLE, "")
 
@@ -315,22 +375,28 @@ def analyser(
                 scores[rang] += BONUS_TYPE
                 matrice[:, rang] += BONUS_TYPE
 
-    # The window that actually won, for the note to quote it. ⛔ Chosen AFTER
-    # the type bonus: the bonus can change which street wins, and the note would
-    # then name one street while quoting the passage that won for another.
-    fenetre_gagnante = fenetres[int(matrice.max(axis=1).argmax())]
-
     # 🔴 A street whose name IS the commune's name can never be "sure".
     # Hamlets carry their commune's name in the BAN ("Neuilly En Thelle" in
     # Neuilly-en-Thelle), so a caller who just says where they live came back
     # with « utilise ce nom » on a street they never named — the more so once
     # the number conversion ate a word ("rue des Quatre Vents" -> "rue des 4
     # Vents" -> only "vents" left to compare). It stays proposable, never sure.
+    # ⛔ ÉCARTÉE, pas plafonnée. Plafonner sous le seuil évitait la fausse sûre
+    # mais laissait la voie en TÊTE des propositions : l'agent demandait
+    # « est-ce que c'est Neuilly En Thelle ? » à quelqu'un qui habite
+    # Neuilly-en-Thelle (contre-relecture n° 5). Une question absurde de moins.
     if commune:
         nom_commune = normaliser(commune)
         for rang, nom in enumerate(voies.noms):
             if sans_type(normaliser(nom)) == nom_commune or normaliser(nom) == nom_commune:
-                scores[rang] = min(scores[rang], SEUIL_SURE - 1)
+                scores[rang] = 0.0
+                matrice[:, rang] = 0.0
+
+    # The window that actually won, for the note to quote it. ⛔ Chosen AFTER the
+    # type bonus AND after the commune's namesake is set aside: both can change
+    # which street wins, and the note would then name one street while quoting
+    # the passage that won for another.
+    fenetre_gagnante = fenetres[int(matrice.max(axis=1).argmax())]
 
     numero = NUMERO.search(texte)
     dit = (numero.group(1) + (numero.group(2) or "")).lower() if numero else None

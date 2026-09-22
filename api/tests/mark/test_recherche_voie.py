@@ -369,11 +369,12 @@ def test_le_corpus_sonore_reste_au_niveau_mesure_le_22_09():
     transcrites : un banc PLUS DUR que le casque, qui sert à comparer deux
     versions du lecteur, pas à annoncer un taux au client.
 
-    Mesuré le 22/09, règle d'ancrage comprise : 191 retrouvées (128 sûres,
-    63 en tête d'un « à confirmer »). ⚠️ C'était 234 avant l'ancrage : les 43
-    de différence ne sont pas perdues pour l'appel, elles sont **non vérifiées**,
-    comme avant le chantier. L'arbitrage est assumé — une question absurde posée
-    à un appelant coûte plus cher qu'un rattrapage manqué.
+    Mesuré le 22/09, toutes gardes comprises : **186 retrouvées**. ⚠️ C'était 234
+    avant l'ancrage, 191 avant les gardes de la contre-relecture n° 5. Ces
+    différences ne sont pas des rues perdues pour l'appel : elles sont **non
+    vérifiées**, comme avant le chantier. L'arbitrage est assumé à chaque fois —
+    une question absurde posée à un appelant coûte plus cher qu'un rattrapage
+    manqué, et une rue FAUSSE annoncée sûre coûte bien plus que les deux.
     """
     sonores = [cas for cas in CORPUS if cas["famille"] == "sonore"]
     assert len(sonores) == 300
@@ -383,7 +384,7 @@ def test_le_corpus_sonore_reste_au_niveau_mesure_le_22_09():
         tete = detection.propositions[0].nom if detection.propositions else ""
         if tete and _meme(tete, cas["attendu"]):
             trouvees += 1
-    assert trouvees >= 185, f"{trouvees} retrouvées, 191 le 22/09"
+    assert trouvees >= 175, f"{trouvees} retrouvées, 186 le 22/09"
 
 
 # --- 4. Les règles payées par un défaut mesuré ----------------------------

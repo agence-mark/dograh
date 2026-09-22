@@ -18,6 +18,7 @@ en sort.
 | 6 | Le **clavier du labo** traité comme un appel (R5) |
 """
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -170,6 +171,75 @@ async def test_lepellation_elle_agit_a_toute_etape():
     """Q8 : on épelle un nom à n'importe quel moment de l'appel."""
     lu = await _lu("c'est monsieur f l a m a n t", noeud=NOEUD_ACCUEIL)
     assert MARQUE_EPELLATION in lu
+
+
+# --- 2 bis. 🔴 Le silence, mesuré par la VRAIE route ----------------------
+
+
+async def test_les_phrases_ordinaires_se_taisent_en_passant_par_la_chaine():
+    """🔴 Mesuré par `lire_texte`, pas par `analyser`.
+
+    La contre-relecture du 22/09 l'a montré : le corpus tournait sur la phrase
+    **brute**, alors que la production analyse le texte **après conversion des
+    nombres**. Or l'ancrage se déclenche aussi sur « un chiffre suivi d'un mot »,
+    condition qui n'existe qu'APRÈS la conversion — « Trois-mille-cinq-cents
+    euros » devenait « 3500 euros » et proposait « Avenue de l'Europe ».
+    Le « 0 sur 120 » était mesuré sur la mauvaise entrée.
+    """
+    corpus = json.loads(
+        (DONNEES / "voies_corpus_2026-09-22.json").read_text(encoding="utf-8")
+    )
+    ordinaires = [cas for cas in corpus if cas["famille"] == "ordinaire"]
+    assert len(ordinaires) == 120
+
+    bavardes = []
+    for cas in ordinaires:
+        registre = _commune_deja_vue(cas["insee"], cas["commune"])
+        lu = await _lu(cas["phrase"], consigner=registre)
+        if MARQUE_VOIE in lu:
+            bavardes.append((cas["phrase"], lu[len(cas["phrase"]):][:120]))
+    assert bavardes == []
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "j'ai une villa à Chantilly",
+        "on a une résidence à Paris",
+        "le siège est à Paris",
+        "on a un domaine à Compiègne",
+        "Trois-mille-cinq-cents euros.",
+        "Oui, c'est Marc point v d k arobase example point f r.",
+    ],
+)
+async def test_une_ville_ou_un_courriel_ne_fait_jamais_noter_une_rue(phrase):
+    """🔴 Les deux motifs que la contre-relecture a trouvés, par la vraie route.
+
+    « on a une villa à Chantilly » ressortait SÛRE sur « Route de Chantilly »,
+    sur 7 communes de 12 testées, « Paris » comprise. Et « point » étant un type
+    de voie (pour « rond-point »), tout courriel dicté faisait demander d'épeler
+    une rue.
+    """
+    registre = _commune_deja_vue("60057", "Beauvais")
+    lu = await _lu(phrase, consigner=registre)
+    assert MARQUE_VOIE not in lu
+
+
+async def test_une_rue_epelee_ne_fait_jamais_redemander_une_epellation():
+    """🔴 LA boucle que Q4 interdit, fermée par le code.
+
+    Q4 fabrique exprès le tour « rue introuvable → fais épeler ». Au tour
+    suivant l'appelant épelle : le lecteur de rue analysait les lettres, n'y
+    retrouvait rien, et **redemandait une épellation**.
+    """
+    for texte in [
+        "oui, rue Lavoira, L A V O I R A",
+        "alors ma rue c'est L A V O I R A",
+        "la rue s'écrit L A V O I R A",
+    ]:
+        registre = _commune_deja_vue("60185", "Crouy-en-Thelle")
+        lu = await _lu(texte, consigner=registre)
+        assert "épeler" not in lu, lu
 
 
 # --- 3. Les interrupteurs (Q11) -------------------------------------------
