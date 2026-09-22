@@ -157,9 +157,9 @@ def sans_type(norme: str) -> str:
 
 def _fenetres(
     norme: str, commune: str | None, autres_communes: tuple[str, ...] = ()
-) -> tuple[list[str], str | None, bool]:
-    """The passages to compare, the street type said, and whether the sentence
-    is ANCHORED on an address.
+) -> tuple[list[tuple[str, int]], str | None, bool]:
+    """The passages to compare — each with the length of the reading it comes
+    from — the street type said, and whether the sentence is ANCHORED.
 
     🔴 The anchor is what separates an address from an ordinary sentence, and
     its absence was a blocking defect (independent review, 2026-09-22):
@@ -208,12 +208,15 @@ def _fenetres(
     )
     ancre = place is not None or numero_suivi
     zone = mots[place:] if place is not None else list(mots)
-    # 🔑 The town comes AFTER the street, introduced by "à": everything past it
-    # belongs to the town, not to the street name. Cutting there is what lets a
-    # street keep a town's name ("12 rue de Creil à Creil").
-    # ⛔ Only when the marker is followed by a town actually heard: plenty of
-    # real streets carry one of these words ("Rue aux Fleurs", "Chemin sur les
-    # Monts"), and cutting on the word alone truncated them.
+
+    # 🔑 The town comes AFTER the street, introduced by "à": "12 rue des
+    # Tilleuls à Beauvais". Comparing the whole tail penalises the right window
+    # ("tilleuls" leaves 3 words out, at PENALITE_MOT each), so the tail is cut.
+    # ⛔ But a street name can CONTAIN that same form — the BAN is full of old
+    # roads named after both ends ("Chemin … de Warluis à Montreuil-sur-Thérain",
+    # 566 such names in four departments). So nothing is thrown away: BOTH
+    # readings are compared, each penalised against its own length, and the
+    # better one wins (counter-review of 2026-09-22).
     mots_de_ville = {
         mot for nom in (commune, *autres_communes) if nom for mot in normaliser(nom).split()
     }
@@ -228,21 +231,33 @@ def _fenetres(
         ),
         None,
     )
-    if coupe is not None:
-        zone = zone[:coupe]
-    # ⛔ Tool words go even AFTER a street type: "allée des Mésanges Dorées à
-    # Bury" left a stray "a" that made one more window, and the short window won.
-    zone = [mot for mot in zone if mot not in MOTS_OUTILS and not mot.isdigit()]
-    while zone and zone[0] in ARTICLES:
-        zone = zone[1:]
-    if not zone:
-        return [], type_dit, ancre
+    lectures = [zone] if coupe is None else [zone[:coupe], zone]
 
-    return [
-        " ".join(zone[debut:fin])
-        for debut in range(min(2, len(zone)))
-        for fin in range(debut + 1, min(len(zone), debut + 6) + 1)
-    ], type_dit, ancre
+    fenetres: dict[str, int] = {}
+    for rang_lecture, lecture in enumerate(lectures):
+        # ⛔ Tool words go even AFTER a street type: "allée des Mésanges Dorées à
+        # Bury" left a stray "a" that made one more window, and the short one won.
+        propre = [mot for mot in lecture if mot not in MOTS_OUTILS and not mot.isdigit()]
+        while propre and propre[0] in ARTICLES:
+            propre = propre[1:]
+        if not propre:
+            continue
+        if rang_lecture and len(lectures) > 1:
+            # ⛔ From the UNCUT reading, only the whole passage. Its sub-windows
+            # would include the town alone, and a hamlet named after its own
+            # commune ("Neuilly En Thelle" in Neuilly-en-Thelle) then came back
+            # SURE on "rue des Quatre Vents à Neuilly-en-Thelle". The uncut
+            # reading exists for one case only: a street name that CONTAINS
+            # "à <town>", and that case needs the whole passage.
+            fenetres.setdefault(" ".join(propre), len(propre))
+            continue
+        for debut in range(min(2, len(propre))):
+            for fin in range(debut + 1, min(len(propre), debut + 6) + 1):
+                # 🔑 Each window carries the length of ITS OWN reading: the
+                # penalty for leaving words out is relative to the reading it
+                # comes from, or the cut one would be crushed by the whole one.
+                fenetres.setdefault(" ".join(propre[debut:fin]), len(propre))
+    return list(fenetres.items()), type_dit, ancre
 
 
 def analyser(
@@ -257,13 +272,16 @@ def analyser(
     ``autres_communes``: the other town names heard in this same turn, which the
     town check found. They are removed like the settled one.
     """
-    fenetres, type_dit, ancre = _fenetres(normaliser(texte), commune, autres_communes)
-    if not len(voies) or not fenetres:
+    lues, type_dit, ancre = _fenetres(normaliser(texte), commune, autres_communes)
+    if not len(voies) or not lues:
         return Detection(INTROUVABLE, "")
 
+    fenetres = [fenetre for fenetre, _ in lues]
     # A window that leaves words out is penalised, BEFORE the max between windows.
-    mots_zone = max(len(f.split()) for f in fenetres)
-    penalites = np.array([[PENALITE_MOT * (mots_zone - len(f.split()))] for f in fenetres], dtype=float)
+    penalites = np.array(
+        [[PENALITE_MOT * (longueur - len(fenetre.split()))] for fenetre, longueur in lues],
+        dtype=float,
+    )
 
     def matrice_de(gauche: list[str], droite: tuple[str, ...]) -> np.ndarray:
         """Windows x streets, penalty applied. ⛔ Kept as a matrix: reducing it
@@ -292,6 +310,18 @@ def analyser(
         for rang, type_voie in enumerate(voies.types):
             if type_voie.startswith(racine[:3]):
                 scores[rang] += BONUS_TYPE
+
+    # 🔴 A street whose name IS the commune's name can never be "sure".
+    # Hamlets carry their commune's name in the BAN ("Neuilly En Thelle" in
+    # Neuilly-en-Thelle), so a caller who just says where they live came back
+    # with « utilise ce nom » on a street they never named — the more so once
+    # the number conversion ate a word ("rue des Quatre Vents" -> "rue des 4
+    # Vents" -> only "vents" left to compare). It stays proposable, never sure.
+    if commune:
+        nom_commune = normaliser(commune)
+        for rang, nom in enumerate(voies.noms):
+            if sans_type(normaliser(nom)) == nom_commune or normaliser(nom) == nom_commune:
+                scores[rang] = min(scores[rang], SEUIL_SURE - 1)
 
     numero = NUMERO.search(texte)
     dit = (numero.group(1) + (numero.group(2) or "")).lower() if numero else None

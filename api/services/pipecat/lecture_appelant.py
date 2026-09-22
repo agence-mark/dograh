@@ -251,8 +251,14 @@ def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list
         # Les autres villes entendues à ce tour : une ville dont le nom commence
         # par un type de voie (« Pont-Sainte-Maxence ») ancrait la phrase sur une
         # rue que personne n'avait nommée.
+        # ⛔ Les villes TRANCHÉES seulement, jamais les candidates : la
+        # vérification des communes propose Tende, Hatten et Andé sur le mot
+        # « attendez ». Une candidate approchée servant de point de coupe
+        # tronquerait un nom de rue réel, sans trace (contre-relecture du 22/09).
         autres = tuple(
-            detection.entendu for detection in lecture.detections if detection.entendu
+            detection.entendu
+            for detection in lecture.detections
+            if detection.entendu and detection.statut == SURE_COMMUNE
         )
         voie = _lire_voie(lu, insee, commune.nom if commune else None, avec_sons, autres)
 

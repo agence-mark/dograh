@@ -285,6 +285,42 @@ def test_une_rue_qui_porte_le_nom_de_sa_commune_est_quand_meme_trouvee(
     assert _meme(detection.retenue, attendue)
 
 
+def test_une_voie_dont_le_nom_contient_a_plus_une_ville_est_trouvee():
+    """🔴 La BAN est pleine de vieilles routes nommées d'après leurs deux bouts :
+    « Chemin Vicinal Ordinaire n°4 de Warluis à Montreuil-sur-Thérain », et
+    566 noms du même genre sur quatre départements. Couper au « à » les
+    amputait. Les deux lectures — coupée et entière — sont donc comparées, et
+    la meilleure gagne (contre-relecture du 22/09).
+    """
+    # « Route Rd 60a des Pennes a Bouc », aux Pennes-Mirabeau : le mot qui suit
+    # le marqueur ("bouc") n'est pas la commune, donc rien n'est coupé et le nom
+    # entier est comparé.
+    detection = analyser(
+        "c'est la route des Pennes a Bouc",
+        base_voies.voies_de("13019"),
+        "Les Pennes-Mirabeau",
+        autres_communes=("Les Pennes-Mirabeau",),
+    )
+    assert detection.propositions
+    assert "Bouc" in detection.propositions[0].nom
+
+
+def test_une_voie_qui_porte_le_nom_de_sa_commune_nest_jamais_sure():
+    """🔴 Les lieux-dits portent le nom de leur commune dans la BAN
+    (« Neuilly En Thelle » à Neuilly-en-Thelle). Un appelant qui dit seulement
+    où il habite se voyait répondre « utilise ce nom » sur une rue qu'il n'avait
+    pas nommée — d'autant plus vite que la conversion des nombres avait mangé un
+    mot (« rue des Quatre Vents » → « rue des 4 Vents » → « vents » seul).
+    Elle reste proposable, jamais sûre.
+    """
+    detection = analyser(
+        "j'habite rue des 4 Vents à Neuilly-en-Thelle",
+        base_voies.voies_de("60450"),
+        "Neuilly-en-Thelle",
+    )
+    assert detection.statut != SURE
+
+
 def test_un_marqueur_de_lieu_qui_nest_pas_suivi_dune_ville_ne_coupe_rien():
     """« Rue aux Fleurs » : « aux » appartient au nom, pas à la ville."""
     from api.services.voies.analyse import _fenetres
