@@ -1,0 +1,3368 @@
+[
+ {
+  "famille": "reel",
+  "phrase": "12 rue des Tilleuls à Beauvais",
+  "insee": "60057",
+  "commune": "Beauvais",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "8 rue du Moulin à Creil",
+  "insee": "60175",
+  "commune": "Creil",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est au vingt six rue de Bauvet,\nà saint maximum.",
+  "insee": "60589",
+  "commune": "Saint-Maximin",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Douze rue des Lilas à Beaufort.",
+  "insee": "73034",
+  "commune": "Beaufort",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "12 rue de Beaufort.",
+  "insee": "89442",
+  "commune": "Vernoy",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, 12 rue de Bovet à Vernoy en allate",
+  "insee": "89442",
+  "commune": "Vernoy",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "c'est au douze rue de la gare.",
+  "insee": "60584",
+  "commune": "Saint-Leu-d'Esserent",
+  "attendu": "Avenue de la Gare"
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est la maison au bout du chemin.",
+  "insee": "60584",
+  "commune": "Saint-Leu-d'Esserent",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est la maison au bout du chemin.",
+  "insee": "60670",
+  "commune": "Verneuil-en-Halatte",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est la résidence des Charmilles.",
+  "insee": "60670",
+  "commune": "Verneuil-en-Halatte",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est la maison au bout du chemin.",
+  "insee": "95487",
+  "commune": "Persan",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est la résidence Lécharmier.",
+  "insee": "95487",
+  "commune": "Persan",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Au fond de l'impasse des Roses,",
+  "insee": "95487",
+  "commune": "Persan",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est au douze rue de la gare.",
+  "insee": "80021",
+  "commune": "Amiens",
+  "attendu": "Avenue de la Gare"
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est à la maison au bout du chemin.",
+  "insee": "80021",
+  "commune": "Amiens",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "L'y en cours.",
+  "insee": "80021",
+  "commune": "Amiens",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est la résidence Les Charmilles.",
+  "insee": "80021",
+  "commune": "Amiens",
+  "attendu": "Résidence des Charmilles"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Au fond de l'impasse des Roses.",
+  "insee": "80021",
+  "commune": "Amiens",
+  "attendu": "Cité des Roses"
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est la maison au bout du chemin.",
+  "insee": "80021",
+  "commune": "Amiens",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est à lit en cours soixante cent quarante.",
+  "insee": "80021",
+  "commune": "Amiens",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Cinq rue du Général Leclerc.",
+  "insee": "60439",
+  "commune": "Mouy",
+  "attendu": "Rue du Général Leclerc"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Trois impasse du Moulin.",
+  "insee": "60103",
+  "commune": "Bresles",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Deux rue de la Faïencerie.",
+  "insee": "60175",
+  "commune": "Creil",
+  "attendu": "Allée de la Faïencerie"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Vingt-six, rue des Hauts-de-France.",
+  "insee": "60670",
+  "commune": "Verneuil-en-Halatte",
+  "attendu": "Rue des Hauts de France"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Alors je suis au six rue Danton.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": "Rue Danton"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est le vingt six rue John Fitzgerald Kennedy.",
+  "insee": "60103",
+  "commune": "Bresles",
+  "attendu": "Rue John-Fitzgerald Kennedy"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non non pas du tout, je suis de lit en cours soixante mille cent quarante.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Alors je suis au quarante cinq avenue du général de Gaulle.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": "Rue du General de Gaulle"
+ },
+ {
+  "famille": "reel",
+  "phrase": "J'habite à Lyon-Cours soixante mille cent quarante.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non non, je n'ai pas l'adresse mail.",
+  "insee": "60141",
+  "commune": "Chantilly",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Non, c'est pour samedi parce qu'en fait j'aimerais prendre rendez-vous et venir vous voir en magasin samedi. Mais comme j'habite à deux heures de route, je ne veux pas me déplacer pour rien. Donc voilà, c'était pour ça, c'était possible de prendre un rendez-vous.",
+  "insee": "02722",
+  "commune": "Soissons",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Douze rue de la Mairie.",
+  "insee": "60116",
+  "commune": "Bury",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Trois impasse du Moulin. Attention, la propriété est difficile d'accès, il faut prévenir avant de venir pour qu'on ouvre le portail.",
+  "insee": "60103",
+  "commune": "Bresles",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Trente rue des Carrières.",
+  "insee": "60589",
+  "commune": "Saint-Maximin",
+  "attendu": "Rue des Carrières"
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est le six rue Danton.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": "Rue Danton"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Alors c'est le lien cours soixante cent quarante.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "au vingt cinq rue Jones-phyrole-Canédie.",
+  "insee": "60175",
+  "commune": "Creil",
+  "attendu": "Rue John Kennedy"
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est le vingt-six rue des Hauts-de-France.",
+  "insee": "60670",
+  "commune": "Verneuil-en-Halatte",
+  "attendu": "Rue des Hauts de France"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, j'habite à Chantilly au vingt six, rue Victor Hugo.",
+  "insee": "60141",
+  "commune": "Chantilly",
+  "attendu": "Rue Victor Hugo"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est le vingt sept, rue John Fitzgerald Kennedy.",
+  "insee": "78168",
+  "commune": "Coignières",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "c'est le dix-neuf rue des des chenêts.",
+  "insee": "78133",
+  "commune": "Chambourcy",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Je suis au quatre rue Robespierre.",
+  "insee": "60175",
+  "commune": "Creil",
+  "attendu": "Allée Robespierre"
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est le vingt-sept rue Danton.",
+  "insee": "60141",
+  "commune": "Chantilly",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est le trente-sept rue Robespierre.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est au vingt-six rue d'antan.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, le six rue Danton, d a n t o n.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, je suis aussi rue Danton.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Je suis au siruent denton à lit en cours.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "J'habite à Lyon-Cours dans l'ouest.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est le vingt six rue Danton.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Je suis au quatre rue Robespierre.\nDonc",
+  "insee": "60175",
+  "commune": "Creil",
+  "attendu": "Allée Robespierre"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Au vingt cinq, rue Victor Hugo.",
+  "insee": "60612",
+  "commune": "Senlis",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Le vingt-cinq rue Danton.",
+  "insee": "60141",
+  "commune": "Chantilly",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "vingt-six rue Victor Hugo.",
+  "insee": "60175",
+  "commune": "Creil",
+  "attendu": "Rue Victor Hugo"
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est le sept cent trente trois rue du Lavoira.",
+  "insee": "60185",
+  "commune": "Crouy-en-Thelle",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est le vingt six rue Danton.",
+  "insee": "60175",
+  "commune": "Creil",
+  "attendu": "Allée Danton"
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est le vingt-six rue Robespierre.",
+  "insee": "60175",
+  "commune": "Créil",
+  "attendu": "Allée Robespierre"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Quatorze rue des Jardiniers.",
+  "insee": "60612",
+  "commune": "Senlis",
+  "attendu": "Rue des Jardiniers"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Onze chemin des Vignes.",
+  "insee": "60116",
+  "commune": "Bury",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Quarante-sept route de Beauvais.",
+  "insee": "60157",
+  "commune": "Clermont",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Dix-huit rue de Senlis.",
+  "insee": "60450",
+  "commune": "Neuilly-en-Thelle",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Quatre rue Victor Hugo.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": "Rue Victor Hugo"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui c'est une maison, on est en rez-de-chaussee plus un etage.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Six quai de la Pecherie.",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": "Quai de la Pêcherie"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Quinze rue de la Liberation.",
+  "insee": "60414",
+  "commune": "Montataire",
+  "attendu": "Avenue de la Liberation"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Je suis au onze chemin des vignes.",
+  "insee": "60116",
+  "commune": "Bury",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "C'est le quatre rue Victor Hugo.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": "Rue Victor Hugo"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Au vingt-six rue Robespierre.",
+  "insee": "60175",
+  "commune": "Creil",
+  "attendu": "Allée Robespierre"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Alors je suis un lit en cours soixante mille cent quarante.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, c'est bien ça et je suis au vingt cinq, rue du général de Gaulle.",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": "Rue du General de Gaulle"
+ },
+ {
+  "famille": "reel",
+  "phrase": "Je suis au six rue Danton.",
+  "insee": "60612",
+  "commune": "Senlis",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Je suis au six rue Danton.",
+  "insee": "60524",
+  "commune": "Rantigny",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "au six rue Robespierre.",
+  "insee": "60172",
+  "commune": "Coye-la-Forêt",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Oui, il y a déjà un conduit de cheminée en place, oui.",
+  "insee": "60106",
+  "commune": "Breuil-le-Sec",
+  "attendu": ""
+ },
+ {
+  "famille": "reel",
+  "phrase": "Je suis au quarante trois, rue Victor Hugo.",
+  "insee": "60106",
+  "commune": "Breuil-le-Sec",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite allée Sylvestre Boulanger à Soissons",
+  "insee": "02722",
+  "commune": "Soissons",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin des Quenouilles Vertes à Soissons",
+  "insee": "02722",
+  "commune": "Soissons",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue des Quatre Vents à Beauvais",
+  "insee": "60057",
+  "commune": "Beauvais",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue Barnabé Vaugirard à Beauvais",
+  "insee": "60057",
+  "commune": "Beauvais",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue du Pont Neuf à Bresles",
+  "insee": "60103",
+  "commune": "Bresles",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue Barnabé Vaugirard à Bresles",
+  "insee": "60103",
+  "commune": "Bresles",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue des Quatre Vents à Bresles",
+  "insee": "60103",
+  "commune": "Bresles",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue Barnabé Vaugirard à Breuil-le-Sec",
+  "insee": "60106",
+  "commune": "Breuil-le-Sec",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin des Quenouilles Vertes à Breuil-le-Sec",
+  "insee": "60106",
+  "commune": "Breuil-le-Sec",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite allée Sylvestre Boulanger à Breuil-le-Sec",
+  "insee": "60106",
+  "commune": "Breuil-le-Sec",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue Barnabé Vaugirard à Bury",
+  "insee": "60116",
+  "commune": "Bury",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue du Pont Neuf à Bury",
+  "insee": "60116",
+  "commune": "Bury",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue des Quatre Vents à Bury",
+  "insee": "60116",
+  "commune": "Bury",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite allée Sylvestre Boulanger à Chantilly",
+  "insee": "60141",
+  "commune": "Chantilly",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin des Quenouilles Vertes à Chantilly",
+  "insee": "60141",
+  "commune": "Chantilly",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite impasse Théodule Marchand à Chantilly",
+  "insee": "60141",
+  "commune": "Chantilly",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin des Quenouilles Vertes à Clermont",
+  "insee": "60157",
+  "commune": "Clermont",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite allée des Mésanges Dorées à Clermont",
+  "insee": "60157",
+  "commune": "Clermont",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite place Ambroise Tanneguy à Coye-la-Forêt",
+  "insee": "60172",
+  "commune": "Coye-la-Forêt",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite allée Sylvestre Boulanger à Coye-la-Forêt",
+  "insee": "60172",
+  "commune": "Coye-la-Forêt",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue du Pont Neuf à Coye-la-Forêt",
+  "insee": "60172",
+  "commune": "Coye-la-Forêt",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue Barnabé Vaugirard à Creil",
+  "insee": "60175",
+  "commune": "Creil",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite impasse Théodule Marchand à Creil",
+  "insee": "60175",
+  "commune": "Creil",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite impasse des Sorbiers Bleus à Creil",
+  "insee": "60175",
+  "commune": "Creil",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue Barnabé Vaugirard à Créil",
+  "insee": "60175",
+  "commune": "Créil",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue des Quatre Vents à Crouy-en-Thelle",
+  "insee": "60185",
+  "commune": "Crouy-en-Thelle",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue Barnabé Vaugirard à Crouy-en-Thelle",
+  "insee": "60185",
+  "commune": "Crouy-en-Thelle",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin des Quenouilles Vertes à Crouy-en-Thelle",
+  "insee": "60185",
+  "commune": "Crouy-en-Thelle",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite place Ambroise Tanneguy à Liancourt",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite impasse des Sorbiers Bleus à Liancourt",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite allée des Mésanges Dorées à Liancourt",
+  "insee": "60360",
+  "commune": "Liancourt",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin de la Fontaine Rouge à Montataire",
+  "insee": "60414",
+  "commune": "Montataire",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin de la Fontaine Rouge à Mouy",
+  "insee": "60439",
+  "commune": "Mouy",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue des Quatre Vents à Mouy",
+  "insee": "60439",
+  "commune": "Mouy",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite allée des Mésanges Dorées à Mouy",
+  "insee": "60439",
+  "commune": "Mouy",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin des Quenouilles Vertes à Neuilly-en-Thelle",
+  "insee": "60450",
+  "commune": "Neuilly-en-Thelle",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue Aristide Perrin à Neuilly-en-Thelle",
+  "insee": "60450",
+  "commune": "Neuilly-en-Thelle",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue des Quatre Vents à Neuilly-en-Thelle",
+  "insee": "60450",
+  "commune": "Neuilly-en-Thelle",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite allée des Mésanges Dorées à Pont-Sainte-Maxence",
+  "insee": "60509",
+  "commune": "Pont-Sainte-Maxence",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin de la Fontaine Rouge à Rantigny",
+  "insee": "60524",
+  "commune": "Rantigny",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite place du Vieux Tilleul Blanc à Rantigny",
+  "insee": "60524",
+  "commune": "Rantigny",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite impasse des Sorbiers Bleus à Rantigny",
+  "insee": "60524",
+  "commune": "Rantigny",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite impasse des Sorbiers Bleus à Saint-Leu-d'Esserent",
+  "insee": "60584",
+  "commune": "Saint-Leu-d'Esserent",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue des Quatre Vents à Saint-Leu-d'Esserent",
+  "insee": "60584",
+  "commune": "Saint-Leu-d'Esserent",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue Aristide Perrin à Saint-Leu-d'Esserent",
+  "insee": "60584",
+  "commune": "Saint-Leu-d'Esserent",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin de la Fontaine Rouge à Saint-Maximin",
+  "insee": "60589",
+  "commune": "Saint-Maximin",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin des Quenouilles Vertes à Saint-Maximin",
+  "insee": "60589",
+  "commune": "Saint-Maximin",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite place Ambroise Tanneguy à Senlis",
+  "insee": "60612",
+  "commune": "Senlis",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite impasse Théodule Marchand à Verneuil-en-Halatte",
+  "insee": "60670",
+  "commune": "Verneuil-en-Halatte",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue Barnabé Vaugirard à Verneuil-en-Halatte",
+  "insee": "60670",
+  "commune": "Verneuil-en-Halatte",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite place Ambroise Tanneguy à Beaufort",
+  "insee": "73034",
+  "commune": "Beaufort",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite avenue du Général Leclerc Nord à Beaufort",
+  "insee": "73034",
+  "commune": "Beaufort",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite place Ambroise Tanneguy à Chambourcy",
+  "insee": "78133",
+  "commune": "Chambourcy",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite avenue du Général Leclerc Nord à Chambourcy",
+  "insee": "78133",
+  "commune": "Chambourcy",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin des Quenouilles Vertes à Coignières",
+  "insee": "78168",
+  "commune": "Coignières",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite rue de la Pierre Fendue à Coignières",
+  "insee": "78168",
+  "commune": "Coignières",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite avenue du Général Leclerc Nord à Coignières",
+  "insee": "78168",
+  "commune": "Coignières",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite impasse des Sorbiers Bleus à Amiens",
+  "insee": "80021",
+  "commune": "Amiens",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite impasse Théodule Marchand à Amiens",
+  "insee": "80021",
+  "commune": "Amiens",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite allée Sylvestre Boulanger à Vernoy",
+  "insee": "89442",
+  "commune": "Vernoy",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite impasse des Sorbiers Bleus à Vernoy",
+  "insee": "89442",
+  "commune": "Vernoy",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite allée Sylvestre Boulanger à Persan",
+  "insee": "95487",
+  "commune": "Persan",
+  "attendu": ""
+ },
+ {
+  "famille": "inventee",
+  "phrase": "j'habite chemin des Quenouilles Vertes à Persan",
+  "insee": "95487",
+  "commune": "Persan",
+  "attendu": ""
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est de Zoli Ronsard.",
+  "insee": "60282",
+  "commune": null,
+  "attendu": "Allee Ronsard",
+  "dit": "l'adresse c'est 2 Allee Ronsard"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 80 une rue de Valmy.",
+  "insee": "60589",
+  "commune": null,
+  "attendu": "Rue de Valmy",
+  "dit": "alors c'est 81 Rue de Valmy"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite trois places, George Rayet.",
+  "insee": "60139",
+  "commune": null,
+  "attendu": "Place Georges Rayer",
+  "dit": "j'habite 3 Place Georges Rayer"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est une rue de la carrière ou d'un ?",
+  "insee": "60695",
+  "commune": null,
+  "attendu": "Rue de la Carrière aux Daims",
+  "dit": "alors c'est 1 Rue de la Carrière aux Daims"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est Siru André Noyel.",
+  "insee": "60135",
+  "commune": null,
+  "attendu": "Rue André Noyelle",
+  "dit": "l'adresse c'est 6 Rue André Noyelle"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors, c'est 24 grande rue ?",
+  "insee": "60614",
+  "commune": null,
+  "attendu": "Grande Rue",
+  "dit": "alors c'est 24 Grande Rue"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au Saint-Cru de l'Église.",
+  "insee": "60085",
+  "commune": null,
+  "attendu": "Rue de l'Eglise",
+  "dit": "c'est au 5 Rue de l'Eglise"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 42 rue de Gournet.",
+  "insee": "60122",
+  "commune": null,
+  "attendu": "Rue de Gournay",
+  "dit": "l'adresse c'est 42 Rue de Gournay"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 2001 chemin de la Fontaine au Claire.",
+  "insee": "60661",
+  "commune": null,
+  "attendu": "Chemin de la Fontaine aux Clercs",
+  "dit": "alors c'est 2001 Chemin de la Fontaine aux Clercs"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au lieu d'y le plier.",
+  "insee": "60629",
+  "commune": null,
+  "attendu": "Lieu Dit le Ply",
+  "dit": "c'est au 1 Lieu Dit le Ply"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est de ces rues de hermes.",
+  "insee": "60041",
+  "commune": null,
+  "attendu": "Rue de Hermes",
+  "dit": "l'adresse c'est 2c Rue de Hermes"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 12 Rubelvue.",
+  "insee": "60157",
+  "commune": null,
+  "attendu": "Rue Bellevue",
+  "dit": "j'habite 12 Rue Bellevue"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 4 rue du transformateur.",
+  "insee": "60203",
+  "commune": null,
+  "attendu": "Rue du Transformateur",
+  "dit": "c'est au 4 Rue du Transformateur"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est neuf rues joli au curi ?",
+  "insee": "60636",
+  "commune": null,
+  "attendu": "Rue Joliot-Curie",
+  "dit": "alors c'est 9 Rue Joliot-Curie"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "74 rue Robert-Neret",
+  "insee": "60129",
+  "commune": null,
+  "attendu": "Rue Robert Néret",
+  "dit": "74 Rue Robert Néret"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 105 le Bosque et Balin.",
+  "insee": "60048",
+  "commune": null,
+  "attendu": "Le Bosquet Ballin",
+  "dit": "l'adresse c'est 105 Le Bosquet Ballin"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite quatre rumeilles à Ouattébole-Edé.",
+  "insee": "60463",
+  "commune": null,
+  "attendu": "Rue Maillet Wattebled",
+  "dit": "j'habite 4 Rue Maillet Wattebled"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 9 rues de bruit.",
+  "insee": "60523",
+  "commune": null,
+  "attendu": "Rue de Bray",
+  "dit": "l'adresse c'est 9 Rue de Bray"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 25 Terre-Rue-Raubert-Garland",
+  "insee": "60102",
+  "commune": null,
+  "attendu": "Rue Robert Guerlin",
+  "dit": "j'habite 25ter Rue Robert Guerlin"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 183 rue du Mouliné.",
+  "insee": "60119",
+  "commune": null,
+  "attendu": "Rue du Moulinet",
+  "dit": "l'adresse c'est 183 Rue du Moulinet"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite de Zoli de la Terre hier.",
+  "insee": "60584",
+  "commune": null,
+  "attendu": "Allee de la Terriere",
+  "dit": "j'habite 2 Allee de la Terriere"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 19 à Rue Jean-Cocteau.",
+  "insee": "60103",
+  "commune": null,
+  "attendu": "Rue Jean Cocteau",
+  "dit": "l'adresse c'est 19a Rue Jean Cocteau"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 35 rues du bas poil barbe.",
+  "insee": "60471",
+  "commune": null,
+  "attendu": "Rue du Bas Poil Barbe",
+  "dit": "alors c'est 35 Rue du Bas Poil Barbe"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 23 dessous les vignettes.",
+  "insee": "60241",
+  "commune": null,
+  "attendu": "Dessous les Vignettes",
+  "dit": "alors c'est 23 Dessous les Vignettes"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 29 rues de lois.",
+  "insee": "60508",
+  "commune": null,
+  "attendu": "Rue de l'Oise",
+  "dit": "alors c'est 29 Rue de l'Oise"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Trois rues Alexandre Merelle",
+  "insee": "60370",
+  "commune": null,
+  "attendu": "Rue Alexandre Merelle",
+  "dit": "3 Rue Alexandre Merelle"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 23 rue du Clos Saint-Paul.",
+  "insee": "60409",
+  "commune": null,
+  "attendu": "Rue du Clos Saint-paul",
+  "dit": "l'adresse c'est 23 Rue du Clos Saint-paul"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 105ème avenue.",
+  "insee": "60346",
+  "commune": null,
+  "attendu": "5e Avenue",
+  "dit": "j'habite 106 5e Avenue"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 296 les 60 Arpons.",
+  "insee": "60587",
+  "commune": null,
+  "attendu": "Les 60 Arpents",
+  "dit": "l'adresse c'est 296 Les 60 Arpents"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 18 rue de Marseille.",
+  "insee": "60235",
+  "commune": null,
+  "attendu": "Rue de Marseille",
+  "dit": "j'habite 18 Rue de Marseille"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 105 un passe des sablons ?",
+  "insee": "60007",
+  "commune": null,
+  "attendu": "Impasse des Sablons",
+  "dit": "c'est au 105 Impasse des Sablons"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habituerai Victor Hugo.",
+  "insee": "60277",
+  "commune": null,
+  "attendu": "Rue Victor Hugo",
+  "dit": "j'habite 8 Rue Victor Hugo"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 23 rue Pierre du Chemin.",
+  "insee": "60632",
+  "commune": null,
+  "attendu": "Rue Pierre Duchemin",
+  "dit": "j'habite 23 Rue Pierre Duchemin"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "4. Le bois d'amont c'est élevé.",
+  "insee": "60581",
+  "commune": null,
+  "attendu": "Le Bois d'Amoncelve",
+  "dit": "4 Le Bois d'Amoncelve"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 14 rue de la chapelle.",
+  "insee": "60575",
+  "commune": null,
+  "attendu": "Rue de la Chapelle",
+  "dit": "c'est au 14 Rue de la Chapelle"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite un terre-rue du bois jaune.",
+  "insee": "60209",
+  "commune": null,
+  "attendu": "Rue du Bois Jaune",
+  "dit": "j'habite 1ter Rue du Bois Jaune"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 49 rue Jean-Billy on dit.",
+  "insee": "60346",
+  "commune": null,
+  "attendu": "Rue Jean Biondi",
+  "dit": "alors c'est 49 Rue Jean Biondi"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Une rue du Pont du Roi.",
+  "insee": "60141",
+  "commune": null,
+  "attendu": "Rue du Pont du Roi",
+  "dit": "1 Rue du Pont du Roi"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "9 rue Jules Magniers",
+  "insee": "60471",
+  "commune": null,
+  "attendu": "Rue Jules Magnier",
+  "dit": "9 Rue Jules Magnier"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 136 rue Bonnier",
+  "insee": "60428",
+  "commune": null,
+  "attendu": "Rue Bonnier",
+  "dit": "l'adresse c'est 136 Rue Bonnier"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Une ferme de marrant de île.",
+  "insee": "60622",
+  "commune": null,
+  "attendu": "Ferme de Marendeuil",
+  "dit": "1 Ferme de Marendeuil"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "5 au lit des boulots.",
+  "insee": "60346",
+  "commune": null,
+  "attendu": "Allee des Bouleaux",
+  "dit": "5 Allee des Bouleaux"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 79 rues de la mairie.",
+  "insee": "60383",
+  "commune": null,
+  "attendu": "Rue de la Mairie",
+  "dit": "alors c'est 79 Rue de la Mairie"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors ces deux impasses des tours.",
+  "insee": "60684",
+  "commune": null,
+  "attendu": "Impasse des Tours",
+  "dit": "alors c'est 2 Impasse des Tours"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 75 rue des prêtres.",
+  "insee": "60492",
+  "commune": null,
+  "attendu": "Rue des Prêtres",
+  "dit": "j'habite 75 Rue des Prêtres"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est aux deux rues des vignes.",
+  "insee": "60517",
+  "commune": null,
+  "attendu": "Rue des Vignes",
+  "dit": "c'est au 2 Rue des Vignes"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est aux 9 voies communales à mot de Perule.",
+  "insee": "60044",
+  "commune": null,
+  "attendu": "Voie Communale Hameau de Pérel",
+  "dit": "c'est au 9 Voie Communale Hameau de Pérel"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est nœuvreuse des trois ponts.",
+  "insee": "60105",
+  "commune": null,
+  "attendu": "Rue des 3 Ponts",
+  "dit": "l'adresse c'est 9 Rue des 3 Ponts"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 14 bisruits désentes ?",
+  "insee": "60676",
+  "commune": null,
+  "attendu": "Rue des Antes",
+  "dit": "alors c'est 14bis Rue des Antes"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "4 rues du pont Manseille",
+  "insee": "60494",
+  "commune": null,
+  "attendu": "Rue du Pont Mançay",
+  "dit": "4 Rue du Pont Mançay"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est cette rue de Bernappere ?",
+  "insee": "60545",
+  "commune": null,
+  "attendu": "Rue de Bernapre",
+  "dit": "l'adresse c'est 7 Rue de Bernapre"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "de rue du Maréchal Jauvre.",
+  "insee": "60636",
+  "commune": null,
+  "attendu": "Rue du Maréchal Joffre",
+  "dit": "2 Rue du Maréchal Joffre"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est aussi un passe des peupliers ?",
+  "insee": "60012",
+  "commune": null,
+  "attendu": "Impasse des Peupliers",
+  "dit": "c'est au 6 Impasse des Peupliers"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite un chemin des broches.",
+  "insee": "60521",
+  "commune": null,
+  "attendu": "Chemin des Broches",
+  "dit": "j'habite 1 Chemin des Broches"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est cette chemin de bulles ?",
+  "insee": "60535",
+  "commune": null,
+  "attendu": "Chemin de Bulles",
+  "dit": "alors c'est 7 Chemin de Bulles"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est aux deux rues Claude.",
+  "insee": "60480",
+  "commune": null,
+  "attendu": "Rue Claude",
+  "dit": "c'est au 2 Rue Claude"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 78 rue de Clermont.",
+  "insee": "60057",
+  "commune": null,
+  "attendu": "Rue de Clermont",
+  "dit": "l'adresse c'est 78 Rue de Clermont"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 40 rubières de l'Araami.",
+  "insee": "60471",
+  "commune": null,
+  "attendu": "Rue Pierre de la Ramee",
+  "dit": "alors c'est 40 Rue Pierre de la Ramee"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse s'est centrente-huit du Marais.",
+  "insee": "60671",
+  "commune": null,
+  "attendu": "Rue du Marais",
+  "dit": "l'adresse c'est 130 Rue du Marais"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est vain rue du Claude et Vigne.",
+  "insee": "60402",
+  "commune": null,
+  "attendu": "Rue du Clos des Vignes",
+  "dit": "l'adresse c'est 20 Rue du Clos des Vignes"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "68 Avenues d'Ivry",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Avenue d'Ivry",
+  "dit": "68 Avenue d'Ivry"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Une voix à barre obliques 6.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Voie A/6",
+  "dit": "1 Voie A/6"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Une rue de Nancy",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue de Nancy",
+  "dit": "1 Rue de Nancy"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 22 Avenues de la Porte de Saint-Clou.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Avenue de la Porte de Saint-Cloud",
+  "dit": "l'adresse c'est 22 Avenue de la Porte de Saint-Cloud"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est une voix à un bar oblique 13 ?",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Voie Aa/13",
+  "dit": "alors c'est 1 Voie Aa/13"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 3 vile à main de cam.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Villa Montcalm",
+  "dit": "alors c'est 3 Villa Montcalm"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est une rue des Glaiol.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue des Glaïeuls",
+  "dit": "alors c'est 1 Rue des Glaïeuls"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 26 rue René Boulanger",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue René Boulanger",
+  "dit": "j'habite 26 Rue René Boulanger"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 88 Kepanar et le Vassor.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Quai Panhard et Levassor",
+  "dit": "j'habite 88 Quai Panhard et Levassor"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 37 rue de Beaune.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue de Beaune",
+  "dit": "alors c'est 37 Rue de Beaune"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 4 passage Montsé.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Passage Moncey",
+  "dit": "c'est au 4 Passage Moncey"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 3S, Charles Dickens.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Square Charles Dickens",
+  "dit": "l'adresse c'est 3 Square Charles Dickens"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est Divina des 3 couronnes.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Villa des 3 Couronnes",
+  "dit": "alors c'est 10 Villa des 3 Couronnes"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors ces deux rues de l'heure.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue de l'Eure",
+  "dit": "alors c'est 2 Rue de l'Eure"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 129 Avenues humaines.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Avenue du Maine",
+  "dit": "alors c'est 129 Avenue du Maine"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est-o une place de Rio de Janeiro ?",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Place de Rio de Janeiro",
+  "dit": "c'est au 1 Place de Rio de Janeiro"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 28 rue Bézou.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Bezout",
+  "dit": "c'est au 28 Rue Bezout"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "2 impassements à 500",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Impasse Saint-Vincent",
+  "dit": "2 Impasse Saint-Vincent"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors ces quatre impasses de l'eau née.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Impasse Delaunay",
+  "dit": "alors c'est 4 Impasse Delaunay"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 12e rue Capron.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Capron",
+  "dit": "c'est au 12z Rue Capron"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "34 rue Dauphine.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Dauphine",
+  "dit": "34 Rue Dauphine"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 4B rue Simonet.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Simonet",
+  "dit": "c'est au 4b Rue Simonet"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "27 en passe, Marto.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Impasse Marteau",
+  "dit": "27 Impasse Marteau"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "De cours d'Alger",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Cour d'Alger",
+  "dit": "2 Cour d'Alger"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "11 rue René Bazan",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue René Bazin",
+  "dit": "11 Rue René Bazin"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors ces deux aides places du ciel ?",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Place Jussieu",
+  "dit": "alors c'est 2z Place Jussieu"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 19 Rue Pierre Gourdo.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Pierre Gourdault",
+  "dit": "j'habite 19 Rue Pierre Gourdault"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 35 crues perneauties.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Pernety",
+  "dit": "l'adresse c'est 35 Rue Pernety"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 61 B Rue Bonaparte.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Bonaparte",
+  "dit": "l'adresse c'est 61b Rue Bonaparte"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 15 rue Élisa Le Monnier.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Élisa Lemonnier",
+  "dit": "c'est au 15 Rue Élisa Lemonnier"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habituerai Charles-Nicolle.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Charles Nicolle",
+  "dit": "j'habite 8 Rue Charles Nicolle"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "de rue Cybourg.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Sibour",
+  "dit": "2 Rue Sibour"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 19 rues d'écloir.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue des Cloÿs",
+  "dit": "alors c'est 19 Rue des Cloÿs"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 15 voix assez barre oblique 18.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Voie Ac/18",
+  "dit": "c'est au 15 Voie Ac/18"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 12Z Passage de Gérgogvi.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Passage de Gergovie",
+  "dit": "c'est au 12z Passage de Gergovie"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Cette rue molitorre.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Molitor",
+  "dit": "7 Rue Molitor"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est Siru Kamitaon.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Camille Tahan",
+  "dit": "l'adresse c'est 6 Rue Camille Tahan"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est s'incrue Jean Carrier.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Jean Carriès",
+  "dit": "l'adresse c'est 5 Rue Jean Carriès"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habitons ce passage donné.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Passage Daunay",
+  "dit": "j'habite 11 Passage Daunay"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est Saint-Cru Francis de Pré-Sancé.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Francis de Pressensé",
+  "dit": "alors c'est 5 Rue Francis de Pressensé"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "4B rue Carcel",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Carcel",
+  "dit": "4b Rue Carcel"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 15 rue Hippolyte-le-Bas.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Hippolyte Lebas",
+  "dit": "alors c'est 15 Rue Hippolyte Lebas"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite une cité Volteur.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Cité Voltaire",
+  "dit": "j'habite 1 Cité Voltaire"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors ces quatre places, Charles Garnier ?",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Place Charles Garnier",
+  "dit": "alors c'est 4 Place Charles Garnier"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "On va aller louis la B.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Allée Louise Labé",
+  "dit": "11 Allée Louise Labé"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 61 tonnes de place du général Patton.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Place du Général Patton",
+  "dit": "c'est au 61t Place du Général Patton"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au une rue Pauline Cargomard.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Pauline Kergomard",
+  "dit": "c'est au 1 Rue Pauline Kergomard"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "24 ans passe Sainte-Marthe",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Impasse Sainte-Marthe",
+  "dit": "24 Impasse Sainte-Marthe"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 46 Péru du Nord",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue du Nord",
+  "dit": "j'habite 46p Rue du Nord"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est un pays un avenu du président Wilson.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Avenue du Président Wilson",
+  "dit": "alors c'est 1p1 Avenue du Président Wilson"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est de rue du Boulouan.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue du Bouloi",
+  "dit": "l'adresse c'est 2 Rue du Bouloi"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 17 un passvolteur.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Impasse Voltaire",
+  "dit": "alors c'est 17 Impasse Voltaire"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "D'ici rue Héctor Guimar.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Hector Guimard",
+  "dit": "18 Rue Hector Guimard"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 21 rue de la classe.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue de l'Atlas",
+  "dit": "j'habite 21 Rue de l'Atlas"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 23 rue Merkeur.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Mercoeur",
+  "dit": "c'est au 23 Rue Mercoeur"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est une rubée l'homme ?",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Belhomme",
+  "dit": "alors c'est 1 Rue Belhomme"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est cette rue Pierre-Arès ?",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Pierre Haret",
+  "dit": "alors c'est 7 Rue Pierre Haret"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "135 Avenues de Malakhov",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Avenue de Malakoff",
+  "dit": "135 Avenue de Malakoff"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "16 z-rules courbes.",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Rue Lecourbe",
+  "dit": "16z Rue Lecourbe"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "400 abigots",
+  "insee": "75056",
+  "commune": null,
+  "attendu": "Sente à Bigot",
+  "dit": "4 Sente à Bigot"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 24, allez des lourriers roses.",
+  "insee": "13110",
+  "commune": null,
+  "attendu": "Allée des Lauriers Roses",
+  "dit": "l'adresse c'est 24 Allée des Lauriers Roses"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 131 Avenue Marius Jolie.",
+  "insee": "13110",
+  "commune": null,
+  "attendu": "Avenue Marius Joly",
+  "dit": "alors c'est 131 Avenue Marius Joly"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 2e passe du Levant ?",
+  "insee": "13045",
+  "commune": null,
+  "attendu": "Impasse du Levant",
+  "dit": "c'est au 2 Impasse du Levant"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 200 une impasse de la chaude.",
+  "insee": "13086",
+  "commune": null,
+  "attendu": "Impasse de la Chaux",
+  "dit": "l'adresse c'est 201 Impasse de la Chaux"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors ces neufs a venu des frères Lumière.",
+  "insee": "13056",
+  "commune": null,
+  "attendu": "Avenue des Frères Lumière",
+  "dit": "alors c'est 9 Avenue des Frères Lumière"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite deux chemins des Bignonia.",
+  "insee": "13117",
+  "commune": null,
+  "attendu": "Chemin des Bignonias",
+  "dit": "j'habite 2 Chemin des Bignonias"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est un rue Charles Pégui.",
+  "insee": "13084",
+  "commune": null,
+  "attendu": "rue Charles Péguy",
+  "dit": "alors c'est 1 rue Charles Péguy"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 5 places Castellane.",
+  "insee": "13055",
+  "commune": null,
+  "attendu": "Place castellane",
+  "dit": "alors c'est 5 Place castellane"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 93 impasse du sourire.",
+  "insee": "13031",
+  "commune": null,
+  "attendu": "Impasse du Souriet",
+  "dit": "alors c'est 93 Impasse du Souriet"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 14 Avenues des figues IRS.",
+  "insee": "13033",
+  "commune": null,
+  "attendu": "Avenue des Figuieres",
+  "dit": "j'habite 14 Avenue des Figuieres"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 31 Runeuve.",
+  "insee": "13036",
+  "commune": null,
+  "attendu": "Rue Neuve",
+  "dit": "alors c'est 31 Rue Neuve"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est douze impasses Jean-Baptiste Uli.",
+  "insee": "13043",
+  "commune": null,
+  "attendu": "Impasse Jean Baptiste Lully",
+  "dit": "alors c'est 12 Impasse Jean Baptiste Lully"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 95° travers de la sorbière.",
+  "insee": "13007",
+  "commune": null,
+  "attendu": "Traverse de la Sorbière",
+  "dit": "l'adresse c'est 95 Traverse de la Sorbière"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 36 chemins des Amandiers.",
+  "insee": "13101",
+  "commune": null,
+  "attendu": "Chemin des Amandiers",
+  "dit": "alors c'est 36 Chemin des Amandiers"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au neuf rue de la fonderie.",
+  "insee": "13001",
+  "commune": null,
+  "attendu": "Rue de la Fonderie",
+  "dit": "c'est au 9 Rue de la Fonderie"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 37 rue de la souvestre.",
+  "insee": "13103",
+  "commune": null,
+  "attendu": "Rue de la Souvestre",
+  "dit": "c'est au 37 Rue de la Souvestre"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 161 routes de Liton.",
+  "insee": "13112",
+  "commune": null,
+  "attendu": "Route de l'Étang",
+  "dit": "l'adresse c'est 161 Route de l'Étang"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 28 rue de Dublant ?",
+  "insee": "13103",
+  "commune": null,
+  "attendu": "Rue de Dublin",
+  "dit": "c'est au 28 Rue de Dublin"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Trois rues Frédéric Mistral",
+  "insee": "13062",
+  "commune": null,
+  "attendu": "Rue Frédéric Mistral",
+  "dit": "3 Rue Frédéric Mistral"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 40 chemins de la Terranque ?",
+  "insee": "13057",
+  "commune": null,
+  "attendu": "Chemin de la Terrenque",
+  "dit": "alors c'est 40 Chemin de la Terrenque"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "À le trouver.",
+  "insee": "13040",
+  "commune": null,
+  "attendu": "le Tuve",
+  "dit": "1 le Tuve"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est cette ronde d'octe.",
+  "insee": "13047",
+  "commune": null,
+  "attendu": "Ronde d’Oc",
+  "dit": "l'adresse c'est 7 Ronde d’Oc"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "7.29, allez des MIMOSA ?",
+  "insee": "13022",
+  "commune": null,
+  "attendu": "Allée des Mimosas",
+  "dit": "c'est au 29 Allée des Mimosas"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Vain résoudance la bastide du tronc ?",
+  "insee": "13054",
+  "commune": null,
+  "attendu": "Residence la Bastide du Tron",
+  "dit": "20 Residence la Bastide du Tron"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "295 rue d'Andoum.",
+  "insee": "13055",
+  "commune": null,
+  "attendu": "Rue d'endoume",
+  "dit": "295 Rue d'endoume"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "une impasse des cigales",
+  "insee": "13020",
+  "commune": null,
+  "attendu": "Impasse des Cigales",
+  "dit": "1 Impasse des Cigales"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite une rue Sidney-Béchet.",
+  "insee": "13117",
+  "commune": null,
+  "attendu": "Rue Sydney Béchet",
+  "dit": "j'habite 1 Rue Sydney Béchet"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 32 Montémourène.",
+  "insee": "13055",
+  "commune": null,
+  "attendu": "Montée mouren",
+  "dit": "j'habite 32 Montée mouren"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au sein cru des charpentiers ?",
+  "insee": "13108",
+  "commune": null,
+  "attendu": "Rue des Charpentiers",
+  "dit": "c'est au 5 Rue des Charpentiers"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 24 rue Faramon.",
+  "insee": "13097",
+  "commune": null,
+  "attendu": "Rue Faraman",
+  "dit": "alors c'est 24 Rue Faraman"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 925 chemins de Poupaille.",
+  "insee": "13064",
+  "commune": null,
+  "attendu": "Chemin de Poupaille",
+  "dit": "l'adresse c'est 925 Chemin de Poupaille"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite un chemin des charotiers.",
+  "insee": "13085",
+  "commune": null,
+  "attendu": "Chemin des Charretiers",
+  "dit": "j'habite 1 Chemin des Charretiers"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 50 rue Saint-Jean du désert.",
+  "insee": "13055",
+  "commune": null,
+  "attendu": "Rue saint jean du desert",
+  "dit": "l'adresse c'est 50 Rue saint jean du desert"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Cet Odise impasse des écureuils.",
+  "insee": "13028",
+  "commune": null,
+  "attendu": "Impasse des Ecureuils",
+  "dit": "c'est au 10 Impasse des Ecureuils"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 362 chemin de la Cabraau.",
+  "insee": "13010",
+  "commune": null,
+  "attendu": "Chemin de la Cabro",
+  "dit": "c'est au 362 Chemin de la Cabro"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 23 rue de la Calbas.",
+  "insee": "13055",
+  "commune": null,
+  "attendu": "Rue de la calebasse",
+  "dit": "alors c'est 23 Rue de la calebasse"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 34 à 1 passe du billard.",
+  "insee": "13043",
+  "commune": null,
+  "attendu": "Impasse du Billard",
+  "dit": "alors c'est 34a Impasse du Billard"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 11e passe Jean Rochefort.",
+  "insee": "13056",
+  "commune": null,
+  "attendu": "Impasse Jean Rochefort",
+  "dit": "c'est au 11 Impasse Jean Rochefort"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "9 rues elles a triolé",
+  "insee": "13085",
+  "commune": null,
+  "attendu": "Rue Elsa Triolet",
+  "dit": "9 Rue Elsa Triolet"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "1423 Javelin",
+  "insee": "13082",
+  "commune": null,
+  "attendu": "Jas Blanc",
+  "dit": "1423 Jas Blanc"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est cet lotissement les prés Saint-Roch.",
+  "insee": "13018",
+  "commune": null,
+  "attendu": "Lotissement les Prés Saint-Roch",
+  "dit": "alors c'est 7 Lotissement les Prés Saint-Roch"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 326 rue Adolf Monticelli.",
+  "insee": "13007",
+  "commune": null,
+  "attendu": "Rue Adolphe Monticelli",
+  "dit": "c'est au 326 Rue Adolphe Monticelli"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 680 routes des Cayades.",
+  "insee": "13108",
+  "commune": null,
+  "attendu": "Route des Cayades",
+  "dit": "alors c'est 680 Route des Cayades"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "12 places de la picoline",
+  "insee": "13037",
+  "commune": null,
+  "attendu": "Place de la Picholine",
+  "dit": "12 Place de la Picholine"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est Avenue X Corfons.",
+  "insee": "13055",
+  "commune": null,
+  "attendu": "Avenue excoffon",
+  "dit": "7 Avenue excoffon"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors ces trois impasses des albisias ?",
+  "insee": "13113",
+  "commune": null,
+  "attendu": "Impasse des Albizzias",
+  "dit": "alors c'est 3 Impasse des Albizzias"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 19 impasses campagne Ugelly.",
+  "insee": "13019",
+  "commune": null,
+  "attendu": "Impasse Campagne Gele",
+  "dit": "alors c'est 19 Impasse Campagne Gele"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "9 chemins de cruvelier",
+  "insee": "13042",
+  "commune": null,
+  "attendu": "Chemin de Cruvelier",
+  "dit": "9 Chemin de Cruvelier"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Sainte route de l'affaire ?",
+  "insee": "13118",
+  "commune": null,
+  "attendu": "Route de la Fare",
+  "dit": "5 Route de la Fare"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 37 boulevard Canlon.",
+  "insee": "13055",
+  "commune": null,
+  "attendu": "Boulevard canlong",
+  "dit": "j'habite 37 Boulevard canlong"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 16Z, il a grand col.",
+  "insee": "13077",
+  "commune": null,
+  "attendu": "ZI la Grand Colle",
+  "dit": "c'est au 16 ZI la Grand Colle"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 17 à rue Adrienne Isnardon.",
+  "insee": "13088",
+  "commune": null,
+  "attendu": "Rue Adrien Isnardon",
+  "dit": "j'habite 17a Rue Adrien Isnardon"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 3-OLY-DÉ-MILLE-FLUR",
+  "insee": "13047",
+  "commune": null,
+  "attendu": "Allee des 1000 Fleurs",
+  "dit": "l'adresse c'est 3 Allee des 1000 Fleurs"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 17 clos du rajol.",
+  "insee": "13107",
+  "commune": null,
+  "attendu": "Clos du Rajol",
+  "dit": "c'est au 17 Clos du Rajol"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "80 impasse impasse Jean-Pierre Tenevant",
+  "insee": "13001",
+  "commune": null,
+  "attendu": "Impasse  Impasse Jean-Pierre Tennevin",
+  "dit": "80 Impasse  Impasse Jean-Pierre Tennevin"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 105 chemins du Brau.",
+  "insee": "13034",
+  "commune": null,
+  "attendu": "Chemin du Braou",
+  "dit": "alors c'est 105 Chemin du Braou"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "77 impasse du Cap Canaille",
+  "insee": "13022",
+  "commune": null,
+  "attendu": "Impasse du Cap Canaille",
+  "dit": "77 Impasse du Cap Canaille"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "25 impasse Jean Moulin 2",
+  "insee": "13081",
+  "commune": null,
+  "attendu": "Impasse Jean Moulin II",
+  "dit": "25 Impasse Jean Moulin II"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "518 chemins des Matlots",
+  "insee": "13073",
+  "commune": null,
+  "attendu": "Chemin des Matelots",
+  "dit": "518 Chemin des Matelots"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 14 bislottissements Pascaréens.",
+  "insee": "13046",
+  "commune": null,
+  "attendu": "Lotissement Pascaret 1",
+  "dit": "j'habite 14bis Lotissement Pascaret 1"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est syncrue Louis de Broglie.",
+  "insee": "59346",
+  "commune": null,
+  "attendu": "Rue Louis de Broglie",
+  "dit": "l'adresse c'est 5 Rue Louis de Broglie"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "4 rues serra fine Louis",
+  "insee": "59271",
+  "commune": null,
+  "attendu": "Rue Séraphine Louis",
+  "dit": "4 Rue Séraphine Louis"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est deux rues de la touraille.",
+  "insee": "59586",
+  "commune": null,
+  "attendu": "Rue de la Touraille",
+  "dit": "alors c'est 2 Rue de la Touraille"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 12 à rue de la place.",
+  "insee": "59618",
+  "commune": null,
+  "attendu": "Rue de la Place",
+  "dit": "c'est au 12a Rue de la Place"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au aroute des tailles.",
+  "insee": "59022",
+  "commune": null,
+  "attendu": "route des tailles",
+  "dit": "c'est au 1 route des tailles"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 54 rue Henri Poissonnier ?",
+  "insee": "59410",
+  "commune": null,
+  "attendu": "Rue Henri Poissonnier",
+  "dit": "alors c'est 54 Rue Henri Poissonnier"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Une rue des fondeurs.",
+  "insee": "59400",
+  "commune": null,
+  "attendu": "Rue des Fondeurs",
+  "dit": "1 Rue des Fondeurs"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors ces quatre rues de l'oreille du bois ?",
+  "insee": "59159",
+  "commune": null,
+  "attendu": "Rue de l’Orée du Bois",
+  "dit": "alors c'est 4 Rue de l’Orée du Bois"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est trois chemins du col en son.",
+  "insee": "59231",
+  "commune": null,
+  "attendu": "Chemin du Colenson",
+  "dit": "alors c'est 3 Chemin du Colenson"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite cette rue de l'Église.",
+  "insee": "59463",
+  "commune": null,
+  "attendu": "Rue de l'Eglise",
+  "dit": "j'habite 7 Rue de l'Eglise"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "388 rue Ludwig van Beethoven",
+  "insee": "59178",
+  "commune": null,
+  "attendu": "Rue Ludwig Van Beethoven",
+  "dit": "388 Rue Ludwig Van Beethoven"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "170 d'hier route Popeye incrouille ses strates.",
+  "insee": "59535",
+  "commune": null,
+  "attendu": "Route Popering Cruyssestraete",
+  "dit": "170 Route Popering Cruyssestraete"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite cette rue Jean-Jacques Rousseau.",
+  "insee": "59650",
+  "commune": null,
+  "attendu": "Rue Jean-Jacques Rousseau",
+  "dit": "j'habite 7 Rue Jean-Jacques Rousseau"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 18 rue du Moulin Antoine.",
+  "insee": "59244",
+  "commune": null,
+  "attendu": "Rue du Moulin Antoine",
+  "dit": "alors c'est 18 Rue du Moulin Antoine"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 14 rue Denis-Cordonnier.",
+  "insee": "59653",
+  "commune": null,
+  "attendu": "Rue Denis Cordonnier",
+  "dit": "l'adresse c'est 14 Rue Denis Cordonnier"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 5 fermes de l'épine.",
+  "insee": "59555",
+  "commune": null,
+  "attendu": "Ferme de l’Epine",
+  "dit": "l'adresse c'est 5 Ferme de l’Epine"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est neuf rues du tissage.",
+  "insee": "59363",
+  "commune": null,
+  "attendu": "Rue du Tissage",
+  "dit": "alors c'est 9 Rue du Tissage"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 149 voies communales chez EPSTRAAT.",
+  "insee": "59516",
+  "commune": null,
+  "attendu": "Voie Communale Schaepe Straete",
+  "dit": "c'est au 149 Voie Communale Schaepe Straete"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est Saint-Crisis de Nisbourg-Gogne.",
+  "insee": "59172",
+  "commune": null,
+  "attendu": "Residence Bourgogne",
+  "dit": "alors c'est 5 Residence Bourgogne"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "50 rue de Mons.",
+  "insee": "59606",
+  "commune": null,
+  "attendu": "Rue de Mons",
+  "dit": "50 Rue de Mons"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 281 rue Jean-Jaurès.",
+  "insee": "59388",
+  "commune": null,
+  "attendu": "Rue Jean Jaurès",
+  "dit": "j'habite 281 Rue Jean Jaurès"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 1479, route de Bourbourg.",
+  "insee": "59669",
+  "commune": null,
+  "attendu": "Route de Bourbourg",
+  "dit": "c'est au 1479 Route de Bourbourg"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 170 dieu rue de Montigny.",
+  "insee": "59345",
+  "commune": null,
+  "attendu": "Rue de Montigny",
+  "dit": "c'est au 170 Rue de Montigny"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 4 bis-rues de la Cossette-V.",
+  "insee": "59375",
+  "commune": null,
+  "attendu": "Rue de la Cossetterie",
+  "dit": "c'est au 4bis Rue de la Cossetterie"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 181 chemins de bord.",
+  "insee": "59120",
+  "commune": null,
+  "attendu": "Chemin de Borre",
+  "dit": "alors c'est 180 Chemin de Borre"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Trois routes douane ?",
+  "insee": "59633",
+  "commune": null,
+  "attendu": "Route d'Ohain",
+  "dit": "3 Route d'Ohain"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est si rue des chaînes.",
+  "insee": "59207",
+  "commune": null,
+  "attendu": "Rue des Chênes",
+  "dit": "l'adresse c'est 6 Rue des Chênes"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "4 raisons de la clé des chants",
+  "insee": "59052",
+  "commune": null,
+  "attendu": "Residence La Clé des Champs",
+  "dit": "4 Residence La Clé des Champs"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite deux rues de Wawrashen-Sofolk.",
+  "insee": "59455",
+  "commune": null,
+  "attendu": "Rue de Wavrechain sous Faulx",
+  "dit": "j'habite 2 Rue de Wavrechain sous Faulx"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 12 cours Saint Louis.",
+  "insee": "59350",
+  "commune": null,
+  "attendu": "Cour Saint-Louis",
+  "dit": "j'habite 12 Cour Saint-Louis"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 27N6C2P.",
+  "insee": "59170",
+  "commune": null,
+  "attendu": "N Cite Croix de Pierre",
+  "dit": "l'adresse c'est 27 N Cite Croix de Pierre"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "69, Claude Richebourg.",
+  "insee": "59606",
+  "commune": null,
+  "attendu": "Clos Richebourg",
+  "dit": "69 Clos Richebourg"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 10 à rue Henri Barbus.",
+  "insee": "59603",
+  "commune": null,
+  "attendu": "Rue Henri Barbusse",
+  "dit": "alors c'est 10a Rue Henri Barbusse"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 31 au sud du Marais.",
+  "insee": "59476",
+  "commune": null,
+  "attendu": "Au Sud du Marais",
+  "dit": "l'adresse c'est 31 Au Sud du Marais"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 6 impasse de la Hague d'Orne.",
+  "insee": "59295",
+  "commune": null,
+  "attendu": "Impasse de l’Haeghedoorn",
+  "dit": "j'habite 6 Impasse de l’Haeghedoorn"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est Die rue du Béry ?",
+  "insee": "59319",
+  "commune": null,
+  "attendu": "Rue du Berry",
+  "dit": "alors c'est 10 Rue du Berry"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est cette couronche à sœurs.",
+  "insee": "59172",
+  "commune": null,
+  "attendu": "Coron Chasseur",
+  "dit": "l'adresse c'est 7 Coron Chasseur"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 44 rues de l'égalité.",
+  "insee": "59286",
+  "commune": null,
+  "attendu": "Rue de l'Égalité",
+  "dit": "l'adresse c'est 44 Rue de l'Égalité"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "17 rue Pablo Picasso.",
+  "insee": "59155",
+  "commune": null,
+  "attendu": "Rue Pablo Picasso",
+  "dit": "17 Rue Pablo Picasso"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite en Square, Jules Guède.",
+  "insee": "59271",
+  "commune": null,
+  "attendu": "Square Jules Guesde",
+  "dit": "j'habite 11 Square Jules Guesde"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 5 clous du vende automne.",
+  "insee": "59257",
+  "commune": null,
+  "attendu": "Clos du Vent d’Automne",
+  "dit": "l'adresse c'est 5 Clos du Vent d’Automne"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Cette rue Philippe de Stavell.",
+  "insee": "59212",
+  "commune": null,
+  "attendu": "Rue Philippe de Stavèle",
+  "dit": "7 Rue Philippe de Stavèle"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 43 kF.",
+  "insee": "59183",
+  "commune": null,
+  "attendu": "Quai aux Fleurs",
+  "dit": "l'adresse c'est 43 Quai aux Fleurs"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "4 rues Georges de Rudran",
+  "insee": "59260",
+  "commune": null,
+  "attendu": "Rue Georges Dereudre",
+  "dit": "4 Rue Georges Dereudre"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est une rue du 8 mai.",
+  "insee": "59430",
+  "commune": null,
+  "attendu": "Rue du 8 Mai",
+  "dit": "alors c'est 1 Rue du 8 Mai"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 6 centiés du prix.",
+  "insee": "59620",
+  "commune": null,
+  "attendu": "Sentier du Pre",
+  "dit": "l'adresse c'est 6 Sentier du Pre"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors ces trois allées Gabriel Forêt ?",
+  "insee": "59588",
+  "commune": null,
+  "attendu": "Allée Gabriel Fauré",
+  "dit": "alors c'est 3 Allée Gabriel Fauré"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est huit rues du 19 mars 1962.",
+  "insee": "59504",
+  "commune": null,
+  "attendu": "Rue du 19 Mars 1962",
+  "dit": "alors c'est 8 Rue du 19 Mars 1962"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite une rue la Cordaire",
+  "insee": "59410",
+  "commune": null,
+  "attendu": "Rue Lacordaire",
+  "dit": "j'habite 1 Rue Lacordaire"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 11Rubalzak",
+  "insee": "59650",
+  "commune": null,
+  "attendu": "Rue Balzac",
+  "dit": "l'adresse c'est 11 Rue Balzac"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est aux 34 rues Elmenvue ?",
+  "insee": "59606",
+  "commune": null,
+  "attendu": "Ruelle Menneveux",
+  "dit": "c'est au 34 Ruelle Menneveux"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 46 rue Benjamin Caillier ?",
+  "insee": "59359",
+  "commune": null,
+  "attendu": "Rue Benjamin Cailliet",
+  "dit": "c'est au 46 Rue Benjamin Cailliet"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 14 rue Jacques Duclos.",
+  "insee": "59037",
+  "commune": null,
+  "attendu": "Rue Jacques Duclos",
+  "dit": "l'adresse c'est 14 Rue Jacques Duclos"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 69 rue de Saint-Amont",
+  "insee": "59375",
+  "commune": null,
+  "attendu": "Rue de Saint Amand",
+  "dit": "j'habite 69 Rue de Saint Amand"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 200 à un chemin rural sorti de rêve.",
+  "insee": "59043",
+  "commune": null,
+  "attendu": "Chemin Rural Feuter Dreve",
+  "dit": "alors c'est 201 Chemin Rural Feuter Dreve"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 56 au lit des Amandiers.",
+  "insee": "59052",
+  "commune": null,
+  "attendu": "Allee des Amandiers",
+  "dit": "j'habite 56 Allee des Amandiers"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est si rue Albert-Donquan.",
+  "insee": "59449",
+  "commune": null,
+  "attendu": "Rue Albert Dancoisne",
+  "dit": "alors c'est 6 Rue Albert Dancoisne"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 34 rue de Mont-Roy.",
+  "insee": "59311",
+  "commune": null,
+  "attendu": "Rue de Maurois",
+  "dit": "j'habite 34 Rue de Maurois"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite trois chemins de la prairie.",
+  "insee": "59602",
+  "commune": null,
+  "attendu": "Chemin de la Prairie",
+  "dit": "j'habite 3 Chemin de la Prairie"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 182 rue du Fête",
+  "insee": "59442",
+  "commune": null,
+  "attendu": "Rue du Fayt",
+  "dit": "l'adresse c'est 192 Rue du Fayt"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est douban ex.",
+  "insee": "23240",
+  "commune": null,
+  "attendu": "Baneix",
+  "dit": "l'adresse c'est 2 Baneix"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 4, ça zéro.",
+  "insee": "23006",
+  "commune": null,
+  "attendu": "Sazeirat",
+  "dit": "c'est au 4 Sazeirat"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 4 rues du four.",
+  "insee": "23096",
+  "commune": null,
+  "attendu": "Rue du Four",
+  "dit": "alors c'est 4 Rue du Four"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite quatre chemins, Julio Joanno.",
+  "insee": "23051",
+  "commune": null,
+  "attendu": "Chemin Juliot Jouannaud",
+  "dit": "j'habite 4 Chemin Juliot Jouannaud"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite d'hylétriaxe.",
+  "insee": "23097",
+  "commune": null,
+  "attendu": "Létrieix",
+  "dit": "j'habite 10 Létrieix"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse s'incrue Henri Delanois.",
+  "insee": "23096",
+  "commune": null,
+  "attendu": "Rue Henri Delannoy",
+  "dit": "l'adresse c'est 5 Rue Henri Delannoy"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 37 le bourg.",
+  "insee": "23128",
+  "commune": null,
+  "attendu": "Le Bourg",
+  "dit": "alors c'est 37 Le Bourg"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite à Le Pô.",
+  "insee": "23106",
+  "commune": null,
+  "attendu": "Le Poux",
+  "dit": "j'habite 1 Le Poux"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse c'est 8 à ruban li.",
+  "insee": "23008",
+  "commune": null,
+  "attendu": "Rue Branly",
+  "dit": "l'adresse c'est 8a Rue Branly"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "13 bords de soul",
+  "insee": "23219",
+  "commune": null,
+  "attendu": "Bordessoule",
+  "dit": "13 Bordessoule"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est qu'à tout le monde mal à visa ?",
+  "insee": "23151",
+  "commune": null,
+  "attendu": "le Mont Malavisat",
+  "dit": "alors c'est 4 le Mont Malavisat"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 5 malgré de haut.",
+  "insee": "23099",
+  "commune": null,
+  "attendu": "Malleret de Haut",
+  "dit": "j'habite 5 Malleret de Haut"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 14 rue de la Boucherie.",
+  "insee": "23001",
+  "commune": null,
+  "attendu": "Rue de la Boucherie",
+  "dit": "alors c'est 14 Rue de la Boucherie"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "27 Lascaux",
+  "insee": "23086",
+  "commune": null,
+  "attendu": "Lascaux",
+  "dit": "27 Lascaux"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 5e planchage à dos.",
+  "insee": "23232",
+  "commune": null,
+  "attendu": "Planchadeau",
+  "dit": "c'est au 5 Planchadeau"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est troie le fourrayau.",
+  "insee": "23116",
+  "commune": null,
+  "attendu": "Le Fourayaud",
+  "dit": "l'adresse c'est 3 Le Fourayaud"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est une rue des Abrevoirs.",
+  "insee": "23131",
+  "commune": null,
+  "attendu": "Rue des abreuvoirs",
+  "dit": "l'adresse c'est 1 Rue des abreuvoirs"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse s'éteint le moulin de l'âge.",
+  "insee": "23038",
+  "commune": null,
+  "attendu": "le Moulin de l'Âge",
+  "dit": "l'adresse c'est 1 le Moulin de l'Âge"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est nos flages.",
+  "insee": "23039",
+  "commune": null,
+  "attendu": "L’Age",
+  "dit": "alors c'est 9 L’Age"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite en Lavirol.",
+  "insee": "23144",
+  "commune": null,
+  "attendu": "la Virolle",
+  "dit": "j'habite 1 la Virolle"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "de l'Egyptarde.",
+  "insee": "23120",
+  "commune": null,
+  "attendu": "Les Gibardes",
+  "dit": "2 Les Gibardes"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "24 rue de Ville Alliée",
+  "insee": "23068",
+  "commune": null,
+  "attendu": "Rue de Villalier",
+  "dit": "24 Rue de Villalier"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 21 pass de la marre.",
+  "insee": "23169",
+  "commune": null,
+  "attendu": "Impasse de La Mare",
+  "dit": "l'adresse c'est 20 Impasse de La Mare"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite qu'à tout la maison neuve.",
+  "insee": "23041",
+  "commune": null,
+  "attendu": "La Maison Neuve",
+  "dit": "j'habite 4 La Maison Neuve"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au un chemin du monastère.",
+  "insee": "23137",
+  "commune": null,
+  "attendu": "Chemin du Monastére",
+  "dit": "c'est au 1 Chemin du Monastére"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 3 rue Pierre-Corneille.",
+  "insee": "23096",
+  "commune": null,
+  "attendu": "Rue Pierre Corneille",
+  "dit": "j'habite 3 Rue Pierre Corneille"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "27 rue Marcel Châteauvieu",
+  "insee": "23096",
+  "commune": null,
+  "attendu": "Rue Marcel Chateauvieux",
+  "dit": "27 Rue Marcel Chateauvieux"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est de la Borde.",
+  "insee": "23041",
+  "commune": null,
+  "attendu": "la Borde",
+  "dit": "alors c'est 2 la Borde"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 19 rue du Barry, Pige-Roll.",
+  "insee": "23090",
+  "commune": null,
+  "attendu": "Rue du Barry, Pigerolles",
+  "dit": "c'est au 19 Rue du Barry, Pigerolles"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite à Le Mazé.",
+  "insee": "23247",
+  "commune": null,
+  "attendu": "Le Mazet",
+  "dit": "j'habite 1 Le Mazet"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 15 manned toys.",
+  "insee": "23192",
+  "commune": null,
+  "attendu": "Montoys",
+  "dit": "l'adresse c'est 15 Montoys"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite de la roussade.",
+  "insee": "23089",
+  "commune": null,
+  "attendu": "La Roussède.",
+  "dit": "j'habite 2 La Roussède."
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au sein cru de la République.",
+  "insee": "23111",
+  "commune": null,
+  "attendu": "Rue de la République",
+  "dit": "c'est au 5 Rue de la République"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est de la viale.",
+  "insee": "23223",
+  "commune": null,
+  "attendu": "la Vialle",
+  "dit": "alors c'est 2 la Vialle"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au une rue du 8 mai.",
+  "insee": "23089",
+  "commune": null,
+  "attendu": "Rue du 8 Mai",
+  "dit": "c'est au 1 Rue du 8 Mai"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 25 rue du Puy de la Belle.",
+  "insee": "23081",
+  "commune": null,
+  "attendu": "rue du puy de la belle",
+  "dit": "j'habite 25 rue du puy de la belle"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite qu'un tour le plus haut.",
+  "insee": "23112",
+  "commune": null,
+  "attendu": "Le Cluzeau",
+  "dit": "j'habite 4 Le Cluzeau"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est un Liborderie ?",
+  "insee": "23148",
+  "commune": null,
+  "attendu": "Les Borderies",
+  "dit": "alors c'est 1 Les Borderies"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "4 routes de Saint-Disier-les-Rennes",
+  "insee": "23099",
+  "commune": null,
+  "attendu": "Route de St Dizier Leyrenne",
+  "dit": "4 Route de St Dizier Leyrenne"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est deux les angles.",
+  "insee": "23148",
+  "commune": null,
+  "attendu": "Les Angles",
+  "dit": "alors c'est 2 Les Angles"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "2 frais de valent.",
+  "insee": "23083",
+  "commune": null,
+  "attendu": "Fredeval",
+  "dit": "2 Fredeval"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est nous la Chassagne.",
+  "insee": "23088",
+  "commune": null,
+  "attendu": "La Chassagne",
+  "dit": "alors c'est 11 La Chassagne"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 12 la roche blonde ?",
+  "insee": "23087",
+  "commune": null,
+  "attendu": "La Roche Blond",
+  "dit": "c'est au 12 La Roche Blond"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Douce le bourg.",
+  "insee": "23222",
+  "commune": null,
+  "attendu": "Le Bourg",
+  "dit": "12 Le Bourg"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habitain les armelles.",
+  "insee": "23204",
+  "commune": null,
+  "attendu": "Les Armelles",
+  "dit": "j'habite 1 Les Armelles"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite un second ZAR.",
+  "insee": "23119",
+  "commune": null,
+  "attendu": "Ségonzat",
+  "dit": "j'habite 1 Ségonzat"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est deux lieux d'Himarnia.",
+  "insee": "23156",
+  "commune": null,
+  "attendu": "Lieu-dit Margnat",
+  "dit": "alors c'est 2 Lieu-dit Margnat"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au Deux-Colombaux.",
+  "insee": "23168",
+  "commune": null,
+  "attendu": "Colombourg",
+  "dit": "c'est au 2 Colombourg"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est 15 rouilles.",
+  "insee": "23191",
+  "commune": null,
+  "attendu": "Drouille",
+  "dit": "alors c'est 15 Drouille"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Alors c'est un le bigur ?",
+  "insee": "23095",
+  "commune": null,
+  "attendu": "Le Bigueur",
+  "dit": "alors c'est 1 Le Bigueur"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite si vu des roses.",
+  "insee": "23077",
+  "commune": null,
+  "attendu": "Rue des Roses",
+  "dit": "j'habite 6 Rue des Roses"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est toi un pradina ?",
+  "insee": "23091",
+  "commune": null,
+  "attendu": "Pradinas",
+  "dit": "c'est au 1 Pradinas"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse est 4 chers du montail.",
+  "insee": "23180",
+  "commune": null,
+  "attendu": "Cher Dumonteil",
+  "dit": "l'adresse c'est 4 Cher Dumonteil"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Allez fourche !",
+  "insee": "23145",
+  "commune": null,
+  "attendu": "les Fourches",
+  "dit": "1 les Fourches"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Six chemins de l'école",
+  "insee": "23230",
+  "commune": null,
+  "attendu": "Chemin de l’Ecole",
+  "dit": "6 Chemin de l’Ecole"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "Sainte le pré-chaseau.",
+  "insee": "23061",
+  "commune": null,
+  "attendu": "Le Pre Chazot",
+  "dit": "5 Le Pre Chazot"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 12 Chaboutex.",
+  "insee": "23164",
+  "commune": null,
+  "attendu": "Chabouteix",
+  "dit": "j'habite 12 Chabouteix"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "L'adresse s'est deux-un passe des coutures.",
+  "insee": "23209",
+  "commune": null,
+  "attendu": "Impasse des Coutures",
+  "dit": "l'adresse c'est 2 Impasse des Coutures"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "C'est au 3 le Prate.",
+  "insee": "23210",
+  "commune": null,
+  "attendu": "le Prat",
+  "dit": "c'est au 3 le Prat"
+ },
+ {
+  "famille": "sonore",
+  "phrase": "J'habite 15 L'autissement de l'Arboréthome.",
+  "insee": "23174",
+  "commune": null,
+  "attendu": "Lotissement de l’Arboretum",
+  "dit": "j'habite 15 Lotissement de l’Arboretum"
+ }
+]
