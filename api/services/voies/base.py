@@ -22,7 +22,7 @@ department, the largest 2.6 MB. Nothing to host beside the service.
 🔑 The three comparison keys are computed ONCE, by the generation script, and
 stored. Computing them on the call cost 1.9 s for Paris; reading them back, 64 ms.
 ⛔ Change ``sans_type``, ``normaliser`` or the sound keys and the files must be
-regenerated: ``test_base_voies.py`` compares stored and recomputed keys.
+regenerated: ``test_recherche_voie.py`` compares stored and recomputed keys.
 
 ⛔ Never on the event loop: a department is decompressed once, on first use, and
 a commune is read from SQLite — both belong in a worker thread.
@@ -37,8 +37,6 @@ import threading
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-
-from loguru import logger
 
 from api.services.communes.base import normaliser
 
@@ -130,13 +128,11 @@ def _premier_mot(nom: str) -> str:
     return mots[0] if mots else ""
 
 
-def precharger(insee: str) -> None:
-    """Read a commune ahead of the turn that will need it. Blocking, fail-open.
-
-    Called right after the town check found a commune: the streets are loaded
-    while the model answers, so the address turn pays nothing (plan, section 6).
-    """
-    try:
-        voies_de(insee)
-    except Exception as erreur:  # noqa: BLE001 -- the call must go on
-        logger.warning(f"[.mark] Streets of {insee} not preloaded: {erreur!r}")
+# ⛔ No ``precharger`` here, on purpose. The plan foresaw loading a commune's
+# streets at the turn that settles the town, to make the address turn free. It
+# turns out the two are the SAME turn: a step that collects ``commune`` is a
+# step that collects an address (Q7), so the streets are already loaded there —
+# in a worker thread, never on the audio loop — and every later turn of the call
+# hits the cache. A preload function would only be dead code pretending the
+# problem was handled. Measured 2026-09-22: 2-9 ms for an Oise commune, 64 ms
+# for Paris, once per commune per process.

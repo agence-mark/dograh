@@ -51,14 +51,15 @@ from __future__ import annotations
 import asyncio
 from typing import Callable
 
-from loguru import logger
-
 from api.schemas.organization_preferences import AdresseEtablissement
 from api.services.communes.analyse import SURE as SURE_COMMUNE
 from api.services.communes.base import charger_base, obtenir_base
 from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
 from api.services.communes.mention import mentionner
 from api.services.communes.sons import precharger as precharger_sons
+from api.services.epellation.lecture import lire as lire_epellations
+from api.services.epellation.mention import deja_mentionne as epellation_deja_mentionnee
+from api.services.epellation.mention import mentionner_epellations
 from api.services.lexique.correction import MARQUE as MARQUE_LEXIQUE
 from api.services.nombres import lecture as lecteur
 from api.services.nombres.lecture import (
@@ -74,9 +75,6 @@ from api.services.pipecat.conversion_nombres import (
     conversion_allumee,
     langue_agent_francaise,
 )
-from api.services.epellation.lecture import lire as lire_epellations
-from api.services.epellation.mention import deja_mentionne as epellation_deja_mentionnee
-from api.services.epellation.mention import mentionner_epellations
 from api.services.pipecat.verification_communes import (
     CLE_TRACE,
     CLE_TRACE_EPELLATIONS,
@@ -96,6 +94,8 @@ from api.services.voies.analyse import Detection as DetectionVoie
 from api.services.voies.analyse import analyser as analyser_voie
 from api.services.voies.mention import deja_mentionne as voie_deja_mentionnee
 from api.services.voies.mention import mentionner_voie
+from loguru import logger
+
 from pipecat.frames.frames import Frame, LLMContextFrame, StartFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 

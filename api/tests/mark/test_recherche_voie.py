@@ -45,7 +45,6 @@ from api.services.voies.analyse import (
     sans_type,
 )
 from api.services.voies.mention import (
-    MARQUE,
     deja_mentionne,
     mentionner_voie,
     phrase_de_mention,
@@ -228,7 +227,7 @@ def test_la_commune_est_retiree_du_passage_compare():
 def test_le_numero_dit_est_verifie_sur_la_voie_retenue():
     voies = base_voies.voies_de("60057")
     rang = next(r for r, nom in enumerate(voies.noms) if voies.numeros[r])
-    numero = sorted(voies.numeros[rang])[0]
+    numero = min(voies.numeros[rang])
     detection = analyser(f"{numero} {voies.noms[rang]}", voies, None)
     assert detection.propositions
     assert detection.propositions[0].numero_present is True

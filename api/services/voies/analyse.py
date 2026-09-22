@@ -35,11 +35,10 @@ import re
 from dataclasses import dataclass, field
 
 import numpy as np
-from rapidfuzz import fuzz, process
-
 from api.services.communes.base import cle_phonetique, cle_sonore, normaliser
 from api.services.communes.sons import simplifier, sons
 from api.services.voies.base import VoiesCommune
+from rapidfuzz import fuzz, process
 
 SURE = "sure"
 A_CONFIRMER = "a_confirmer"
@@ -70,18 +69,12 @@ PROPOSITIONS_MAXIMUM = 3
 # the script's list, so "Cour d'Alger" kept its type in its key while "Rue
 # d'Alger" did not, and the wrong one was announced sure.
 TYPES = frozenset(
-    """rue ruelle avenue av boulevard bd chemin allee impasse place placette route quai
-    square residence lotissement cours cour passage sentier sente venelle voie hameau
-    lieu dit chaussee cite clos mail parvis promenade rond point faubourg fg montee cote
-    descente esplanade traverse villa domaine parc ferme berge digue liaison rampe
-    terrasse porte pont carrefour giratoire batiment
-    grande grand petite petit vieille vieux ancienne ancien""".split()
+    ["rue", "ruelle", "avenue", "av", "boulevard", "bd", "chemin", "allee", "impasse", "place", "placette", "route", "quai", "square", "residence", "lotissement", "cours", "cour", "passage", "sentier", "sente", "venelle", "voie", "hameau", "lieu", "dit", "chaussee", "cite", "clos", "mail", "parvis", "promenade", "rond", "point", "faubourg", "fg", "montee", "cote", "descente", "esplanade", "traverse", "villa", "domaine", "parc", "ferme", "berge", "digue", "liaison", "rampe", "terrasse", "porte", "pont", "carrefour", "giratoire", "batiment", "grande", "grand", "petite", "petit", "vieille", "vieux", "ancienne", "ancien"]
 )
-ARTICLES = frozenset("de du des la le les l d".split())
+ARTICLES = frozenset(["de", "du", "des", "la", "le", "les", "l", "d"])
 # Words of a caller's answer that never belong to a street name.
 MOTS_OUTILS = frozenset(
-    """j habite c est au a oui euh alors donc le numero moi je suis bah ben voila merci
-    l adresse mon ma et ca non bien sur dans il y pas""".split()
+    ["j", "habite", "c", "est", "au", "a", "oui", "euh", "alors", "donc", "le", "numero", "moi", "je", "suis", "bah", "ben", "voila", "merci", "l", "adresse", "mon", "ma", "et", "ca", "non", "bien", "sur", "dans", "il", "y", "pas"]
 )
 
 NUMERO = re.compile(r"\b(\d+)\s*(bis|ter|quater)?\b", re.IGNORECASE)
