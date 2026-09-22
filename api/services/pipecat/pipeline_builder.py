@@ -49,6 +49,7 @@ def build_pipeline(
     *,
     lecture_appelant=None,
     reconnaissance_lexique=None,
+    filtre_nom_civilite=None,
 ):
     """Build the main pipeline with all components.
 
@@ -109,11 +110,17 @@ def build_pipeline(
     if lecture_appelant:
         processors.append(lecture_appelant)
 
+    # [.mark] Juste AVANT la voix, et après le routeur d'enregistrements : le
+    # filtre du nom recompose la phrase que le modèle envoie par morceaux, la
+    # nettoie, et la transmet. Placé là, ce qu'il retire ne revient pas non plus
+    # dans la mémoire du modèle, qui se construit en aval de la voix.
+    voix = ([filtre_nom_civilite] if filtre_nom_civilite else []) + [tts]
+
     processors.extend(
         [
             llm,  # LLM
             *post_llm,
-            tts,  # TTS
+            *voix,  # [.mark] filtre du nom, puis TTS
             transport.output(),  # Transport bot output
             audio_buffer,  # AudioBufferProcessor - records both input and output audio
             assistant_context_aggregator,  # Assistant spoken responses

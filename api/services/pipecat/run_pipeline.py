@@ -68,6 +68,7 @@ from api.services.pipecat.realtime_feedback_observer import (
     RealtimeFeedbackObserver,
     register_turn_log_handlers,
 )
+from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
 from api.services.pipecat.reconnaissance_lexique import (
     CLE_TRACE_LEXIQUE,
     creer_reconnaissance_lexique,
@@ -1437,6 +1438,13 @@ async def _run_pipeline_impl(
                 lexique_metier,
                 lambda: engine._current_node,
                 consigner_dans(lambda: engine._gathered_context),
+            ),
+            # [.mark] Interdire de PRONONCER le nom et la civilité. L'état est
+            # vivant : le nom n'est pas connu au montage du pipeline, il arrive
+            # avec l'extraction, pendant l'appel.
+            filtre_nom_civilite=creer_filtre_nom_civilite(
+                run_configs,
+                lambda: engine._gathered_context.get("extracted_variables", {}),
             ),
         )
 
