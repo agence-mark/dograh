@@ -257,6 +257,11 @@ def _fenetres(
                 # penalty for leaving words out is relative to the reading it
                 # comes from, or the cut one would be crushed by the whole one.
                 fenetres.setdefault(" ".join(propre[debut:fin]), len(propre))
+    # ⚠️ Invariant qui porte la justesse de la pénalité : une même fenêtre ne
+    # peut pas venir des DEUX lectures, parce que la lecture entière n'apporte
+    # que son passage complet. Si elle rendait un jour ses sous-fenêtres, la
+    # longueur retenue serait celle de la première insertion et la pénalité
+    # serait fausse — en silence.
     return list(fenetres.items()), type_dit, ancre
 
 
@@ -302,14 +307,18 @@ def analyser(
             matrice = np.maximum(matrice, par_les_sons)
 
     scores = matrice.max(axis=0)
-    # The window that actually won, for the note to quote it.
-    fenetre_gagnante = fenetres[int(matrice.max(axis=1).argmax())]
 
     if type_dit:
         racine = type_dit[:-1] if type_dit.endswith("s") and type_dit[:-1] in TYPES else type_dit
         for rang, type_voie in enumerate(voies.types):
             if type_voie.startswith(racine[:3]):
                 scores[rang] += BONUS_TYPE
+                matrice[:, rang] += BONUS_TYPE
+
+    # The window that actually won, for the note to quote it. ⛔ Chosen AFTER
+    # the type bonus: the bonus can change which street wins, and the note would
+    # then name one street while quoting the passage that won for another.
+    fenetre_gagnante = fenetres[int(matrice.max(axis=1).argmax())]
 
     # 🔴 A street whose name IS the commune's name can never be "sure".
     # Hamlets carry their commune's name in the BAN ("Neuilly En Thelle" in
