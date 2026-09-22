@@ -94,6 +94,10 @@ TYPES = frozenset(
 )
 # "au lieu-dit les Granges" carries no street type: the pair itself is the anchor.
 LIEU_DIT = ("lieu", "dit")
+# What introduces the TOWN after the street: everything past it is the town,
+# not the street's name. Cutting there is what lets the street keep a town's
+# name ("12 rue de Creil à Creil").
+MARQUEURS_DE_LIEU = frozenset(["a", "au", "aux", "sur", "pres", "vers", "commune", "ville"])
 ARTICLES = frozenset(["de", "du", "des", "la", "le", "les", "l", "d"])
 # Words of a caller's answer that never belong to a street name.
 MOTS_OUTILS = frozenset(
@@ -169,28 +173,63 @@ def _fenetres(
     learned it on 2026-09-16: reading a whole sentence gave 20 false sure towns
     on 64 sentences.
     """
-    norme = CODE_POSTAL.sub(" ", norme)
-    if commune:
-        norme = re.sub(rf"\b{re.escape(normaliser(commune))}\b", " ", norme)
-    mots = norme.split()
+    mots = CODE_POSTAL.sub(" ", norme).split()
 
-    place = next((rang + 1 for rang, mot in enumerate(mots) if est_type(mot)), None)
+    # 🔴 The town names are blanked FOR THE ANCHOR ONLY, never in the compared
+    # passage. A town whose name starts with a street type
+    # ("**Pont**-Sainte-Maxence") anchored a sentence on a street nobody named;
+    # but removing town names from the passage itself deleted the STREET when
+    # the street carries a town's name — "12 rue de Creil à Creil" came back
+    # with nothing left to compare, silently (counter-review of 2026-09-22).
+    # "rue de Paris", "avenue de Strasbourg", "rue d'Amiens": a very large and
+    # very French family.
+    masques = list(mots)
+    for nom in (commune, *autres_communes):
+        if not nom:
+            continue
+        for mot in normaliser(nom).split():
+            masques = ["" if m == mot else m for m in masques]
+
+    place = next((rang + 1 for rang, mot in enumerate(masques) if est_type(mot)), None)
     if place is None:
         paire = next(
-            (rang for rang in range(len(mots) - 1) if tuple(mots[rang:rang + 2]) == LIEU_DIT),
+            (rang for rang in range(len(masques) - 1) if tuple(masques[rang:rang + 2]) == LIEU_DIT),
             None,
         )
         place = paire + 2 if paire is not None else None
-    type_dit = mots[place - 1] if place else None
+    type_dit = masques[place - 1] if place else None
     numero_suivi = any(
         mot.isdigit()
-        and rang + 1 < len(mots)
-        and not mots[rang + 1].isdigit()
-        and mots[rang + 1] not in MOTS_OUTILS
-        for rang, mot in enumerate(mots)
+        and rang + 1 < len(masques)
+        and masques[rang + 1]
+        and not masques[rang + 1].isdigit()
+        and masques[rang + 1] not in MOTS_OUTILS
+        for rang, mot in enumerate(masques)
     )
     ancre = place is not None or numero_suivi
-    zone = mots[place:] if place is not None else mots
+    zone = mots[place:] if place is not None else list(mots)
+    # 🔑 The town comes AFTER the street, introduced by "à": everything past it
+    # belongs to the town, not to the street name. Cutting there is what lets a
+    # street keep a town's name ("12 rue de Creil à Creil").
+    # ⛔ Only when the marker is followed by a town actually heard: plenty of
+    # real streets carry one of these words ("Rue aux Fleurs", "Chemin sur les
+    # Monts"), and cutting on the word alone truncated them.
+    mots_de_ville = {
+        mot for nom in (commune, *autres_communes) if nom for mot in normaliser(nom).split()
+    }
+    coupe = next(
+        (
+            rang
+            for rang, mot in enumerate(zone)
+            if rang > 0
+            and mot in MARQUEURS_DE_LIEU
+            and rang + 1 < len(zone)
+            and zone[rang + 1] in mots_de_ville
+        ),
+        None,
+    )
+    if coupe is not None:
+        zone = zone[:coupe]
     # ⛔ Tool words go even AFTER a street type: "allée des Mésanges Dorées à
     # Bury" left a stray "a" that made one more window, and the short window won.
     zone = [mot for mot in zone if mot not in MOTS_OUTILS and not mot.isdigit()]

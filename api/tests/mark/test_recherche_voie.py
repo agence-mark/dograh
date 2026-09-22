@@ -253,6 +253,46 @@ def test_la_mention_cite_le_passage_entendu_pas_le_premier_mot():
     assert detection.entendu == "danton"
 
 
+@pytest.mark.parametrize(
+    "insee,commune,phrase,attendue",
+    [
+        ("59350", "Lille", "12 rue Alain de Lille à Lille", "Rue Alain de Lille"),
+        ("60057", "Beauvais", "12 rue Vincent de Beauvais à Beauvais", "Rue Vincent de Beauvais"),
+    ],
+)
+def test_une_rue_qui_porte_le_nom_de_sa_commune_est_quand_meme_trouvee(
+    insee, commune, phrase, attendue
+):
+    """🔴 Le défaut trouvé par la contre-relecture du 22/09.
+
+    Une première correction retirait du passage comparé **tous** les noms de
+    ville entendus, pour qu'une ville commençant par un type de voie
+    (« **Pont**-Sainte-Maxence ») n'ancre plus la phrase. Elle effaçait du même
+    coup le nom de la RUE quand la rue porte un nom de ville — et la famille est
+    large et très française : rue de Paris, avenue de Strasbourg, rue d'Amiens,
+    place de Verdun. « 12 rue de Creil à Creil » ne laissait **rien** à comparer,
+    en silence.
+
+    Les noms de ville ne sont plus masqués que pour décider de l'ancrage ; le
+    passage comparé, lui, est coupé au « à » qui introduit la ville — et
+    seulement quand ce qui suit est bien une ville entendue, sinon « Rue aux
+    Fleurs » se ferait tronquer.
+    """
+    detection = analyser(
+        phrase, base_voies.voies_de(insee), commune, autres_communes=(commune,)
+    )
+    assert detection.statut == SURE
+    assert _meme(detection.retenue, attendue)
+
+
+def test_un_marqueur_de_lieu_qui_nest_pas_suivi_dune_ville_ne_coupe_rien():
+    """« Rue aux Fleurs » : « aux » appartient au nom, pas à la ville."""
+    from api.services.voies.analyse import _fenetres
+
+    fenetres, _, _ = _fenetres(normaliser("12 rue aux Fleurs à Creil"), "Creil", ("Creil",))
+    assert any("fleurs" in f for f in fenetres)
+
+
 def test_un_lieu_dit_reste_une_adresse(monkeypatch):
     """Q3 a fait entrer les lieux-dits exprès : l'Oise rurale en est pleine, et
     « au lieu-dit les Granges » ne porte aucun type de voie. Le retrait de
