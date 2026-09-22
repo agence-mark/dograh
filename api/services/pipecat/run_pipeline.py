@@ -95,6 +95,7 @@ from api.services.pipecat.service_factory import (
     stamp_prompt_cache_key,
     stamp_sampling_settings,
     stamp_transcription_settings,
+    stamp_voice_settings,
     stt_uses_external_turns,
 )
 from api.services.pipecat.termination_funnel_processor import (
@@ -1044,6 +1045,12 @@ async def _run_pipeline_impl(
         # The keyboard bench is excluded elsewhere -- it lives in
         # `text_chat_runner`, which simply never calls this.
         stamp_transcription_settings(runtime_configuration, user_config.stt)
+        # [.mark] Same guard, same reason on the other side of the pipeline: a
+        # realtime call has no separate synthesis service, so `user_config.tts`
+        # says nothing about how it was played. Without this stamp two voices
+        # of one provider are indistinguishable after the fact and no voice
+        # bench is verifiable (§5.4 of `18-ajout-fournisseur.md`).
+        stamp_voice_settings(runtime_configuration, user_config.tts)
         # [.mark] Same guard, other reason: the cache key is only handed to the
         # conversation LLM built in the non-realtime branch above.
         stamp_prompt_cache_key(
