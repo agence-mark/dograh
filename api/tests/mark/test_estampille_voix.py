@@ -100,6 +100,71 @@ def test_une_adresse_deepgram_sans_schema_est_estampillee_normalisee():
     assert stampe["tts_settings"]["endpoint"] == "https://api.deepgram.com"
 
 
+def test_une_adresse_mistral_VIDE_est_estampillee_MONDIALE():
+    """🔴 Le cas qui compte le plus, et celui qu'un schéma ne dit pas.
+
+    Vidé à l'écran, le champ ne fait pas partir la voix "nulle part" : le SDK
+    Mistral repart sur son point d'entrée MONDIAL. Or le traitement en Europe
+    est une condition de l'offre, pas une préférence (`mistral_tts.py` l'écrit
+    en tête). Estampiller "rien" laisserait lire "pas d'adresse" là où l'appel
+    est parti aux États-Unis -- exactement la fiche qui ment.
+    """
+    stampe = stamp_voice_settings(
+        _configuration_de_base(),
+        MistralTTSConfiguration(api_key="k", base_url=""),
+    )
+
+    assert stampe["tts_settings"]["endpoint"] == "https://api.mistral.ai"
+
+
+def test_une_adresse_mistral_europeenne_est_estampillee_europeenne():
+    """Le défaut du schéma, qui est celui de tous nos appels."""
+    stampe = stamp_voice_settings(
+        _configuration_de_base(), MistralTTSConfiguration(api_key="k")
+    )
+
+    assert stampe["tts_settings"]["endpoint"] == "https://api.eu.mistral.ai"
+
+
+def test_une_passerelle_mistral_est_estampillee_telle_quelle():
+    """Une adresse que Mistral ne publie pas est transmise au SDK telle
+    quelle : la fiche doit dire la même chose que la requête."""
+    stampe = stamp_voice_settings(
+        _configuration_de_base(),
+        MistralTTSConfiguration(api_key="k", base_url="https://passerelle.interne/v1"),
+    )
+
+    assert stampe["tts_settings"]["endpoint"] == "https://passerelle.interne"
+
+
+def test_la_voix_elevenlabs_ENVOYEE_est_celle_qui_est_estampillee():
+    """⛔ §5.4 dans les deux sens : ce commit a déplacé la normalisation de la
+    voix ElevenLabs hors de la fabrique, et c'est la SEULE ligne de production
+    qu'il change. Sans cette assertion, quelqu'un qui déciderait plus tard
+    d'estampiller le nom lisible ferait envoyer "Marie - abc123" comme
+    identifiant de voix -- plus aucune voix sur les configurations héritées, et
+    la suite resterait verte. ElevenLabs est le défaut du produit.
+    """
+    from types import SimpleNamespace as Config
+
+    from api.services.pipecat.audio_config import AudioConfig
+    from api.services.pipecat.service_factory import create_tts_service
+
+    configuration = ElevenlabsTTSConfiguration(api_key="cle", voice="Marie - abc123")
+    service = create_tts_service(
+        Config(tts=configuration),
+        AudioConfig(transport_in_sample_rate=16000, transport_out_sample_rate=24000),
+    )
+
+    envoyee = service._settings.voice
+    estampillee = stamp_voice_settings(_configuration_de_base(), configuration)[
+        "tts_settings"
+    ]["voice"]
+
+    assert envoyee == "abc123"
+    assert estampillee == envoyee
+
+
 def test_elevenlabs_estampille_lidentifiant_reellement_envoye():
     """⛔ §5.4: the stamp and the request go through the SAME function.
 
@@ -113,6 +178,35 @@ def test_elevenlabs_estampille_lidentifiant_reellement_envoye():
     )
 
     assert stampe["tts_settings"]["voice"] == "abc123"
+
+
+def test_la_casse_de_la_voix_sarvam_est_la_meme_des_deux_cotes():
+    """⛔ Le défaut §5.4 laissé sur le champ voisin.
+
+    La fabrique Sarvam met la voix en minuscules avant de l'envoyer. Une
+    estampille qui garderait la majuscule attribuerait à l'appel une voix que
+    le fournisseur n'a pas reçue -- petit écart, même défaut que celui que ce
+    patch existe pour fermer.
+    """
+    from types import SimpleNamespace as Config
+
+    from api.services.configuration.registry import SarvamTTSConfiguration
+    from api.services.pipecat.audio_config import AudioConfig
+    from api.services.pipecat.service_factory import create_tts_service
+
+    configuration = SarvamTTSConfiguration(api_key="cle", voice=" Anushka ")
+    service = create_tts_service(
+        Config(tts=configuration),
+        AudioConfig(transport_in_sample_rate=16000, transport_out_sample_rate=24000),
+    )
+
+    envoyee = service._settings.voice
+    estampillee = stamp_voice_settings(_configuration_de_base(), configuration)[
+        "tts_settings"
+    ]["voice"]
+
+    assert envoyee == "anushka"
+    assert estampillee == envoyee
 
 
 def test_un_fournisseur_sans_voix_declaree_nest_pas_estampille_a_vide():
@@ -180,25 +274,37 @@ def test_la_voix_est_estampillee_DANS_le_bloc_hors_temps_reel():
     """⛔ A realtime call has no ``user_config.tts`` at all.
 
     Stamped outside the guard, a speech-to-speech run would either crash at
-    assembly or stamp a synthesis service that played no part in it. The
-    transcription stamp sits inside that same guard, for the same reason, so
-    the check is: both lines live at the same indentation level.
+    assembly or stamp a synthesis service that played no part in it.
+
+    ⛔ The check is membership of the guard's block, NOT "same indentation as
+    its neighbour": a refactor that moved BOTH stamps out would keep them
+    aligned with each other and leave such a test green (family ③ of §7, the
+    proof that is not one). Raised by the independent review of 2026-09-22.
     """
     from api.services.pipecat import run_pipeline
 
     lignes = inspect.getsource(run_pipeline).splitlines()
 
-    def _indentation(prefixe: str) -> int:
-        for ligne in lignes:
-            if ligne.lstrip().startswith(prefixe):
-                return len(ligne) - len(ligne.lstrip())
-        raise AssertionError(f"ligne introuvable : {prefixe}")
+    garde = next(
+        (i for i, l in enumerate(lignes) if l.strip() == "if not is_realtime:"), None
+    )
+    assert garde is not None, "la garde `if not is_realtime:` a disparu de run_pipeline"
+    retrait_garde = len(lignes[garde]) - len(lignes[garde].lstrip())
 
-    assert _indentation("stamp_voice_settings(runtime_configuration") == _indentation(
-        "stamp_transcription_settings(runtime_configuration"
-    ), (
-        "the voice stamp left the `if not is_realtime` block: a realtime run "
-        "would be stamped with a synthesis service it never used."
+    dans_le_bloc = False
+    for ligne in lignes[garde + 1 :]:
+        if not ligne.strip():
+            continue
+        # Le bloc s'arrête à la première ligne revenue au retrait de la garde.
+        if len(ligne) - len(ligne.lstrip()) <= retrait_garde:
+            break
+        if ligne.lstrip().startswith("stamp_voice_settings(runtime_configuration"):
+            dans_le_bloc = True
+            break
+
+    assert dans_le_bloc, (
+        "the voice stamp is not inside the `if not is_realtime` block: a "
+        "realtime run would be stamped with a synthesis service it never used."
     )
 
 

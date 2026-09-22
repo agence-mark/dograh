@@ -35,6 +35,7 @@ from api.services.pipecat.gemini_json_schema_adapter import (
 from api.services.pipecat.minimax_tts import MiniMaxOwnedSessionTTSService
 from api.services.pipecat.mistral_tts import (
     MistralRegionalTTSService,
+    point_entree_mistral,
     resolve_mistral_endpoint,
 )
 from api.services.lexique.ecoute import regles_de_prononciation
@@ -1260,9 +1261,9 @@ def create_tts_service(
         language = getattr(user_config.tts, "language", None)
         pipecat_language = language_mapping.get(language, Language.HI)
 
-        voice = (
-            getattr(user_config.tts, "voice", None) or ""
-        ).strip().lower() or "anushka"
+        # [.mark] Même fonction que l'estampille (§5.4) ; le repli reste ici,
+        # il appartient à la branche et n'a pas à être recopié ailleurs.
+        voice = _voix_jouee(user_config.tts) or "anushka"
         speed = getattr(user_config.tts, "speed", None)
         settings_kwargs = {
             "model": user_config.tts.model,
@@ -1550,6 +1551,12 @@ def _voix_jouee(tts_config) -> str | None:
     is sent -- so stamping the configured string would attribute to the call a
     voice name the provider never saw.
 
+    Sarvam is the second: it lowercases the voice before sending it, so a stamp
+    that kept the capital would attribute to the call a voice the provider
+    never received. Same defect, one field over -- family ② of §7, the case
+    corrected instead of the motive. Raised by the independent review of
+    2026-09-22.
+
     ⛔ What this deliberately does NOT do: reproduce the per-branch fallbacks
     ("Ashley" for Inworld, "anushka" for Sarvam, "eve" for xAI...). They apply
     when the configuration declares nothing, and a second list of them would be
@@ -1560,32 +1567,49 @@ def _voix_jouee(tts_config) -> str | None:
     voix = (getattr(tts_config, "voice", None) or "").strip()
     if not voix:
         return None
-    if getattr(tts_config, "provider", None) == ServiceProviders.ELEVENLABS.value:
+    fournisseur = getattr(tts_config, "provider", None)
+    if fournisseur == ServiceProviders.ELEVENLABS.value:
         # Backward compatible with older configuration "Name - voice_id"
         try:
             return voix.split(" - ")[1]
         except IndexError:
             return voix
+    if fournisseur == ServiceProviders.SARVAM.value:
+        return voix.lower()
     return voix
 
 
 def _point_entree_voix(tts_config) -> str | None:
-    """[.mark] The endpoint the spoken text was really sent to.
+    """[.mark] The HOST the spoken text was sent to.
 
-    🚨 RESOLVED, not read off the schema -- the same reasoning as the
-    turn-stop timeout. An empty ``base_url`` is not "no endpoint": Deepgram
-    falls back to Europe in :func:`_deepgram_base_url`, and a configuration
-    saved before that field was opened arrives empty. Stamped from the schema,
-    such a call would claim an endpoint it did not use.
+    🚨 RESOLVED for the two providers whose empty field means something other
+    than "nowhere", and each through the very function that builds ITS request,
+    so the stamp cannot drift from what went out:
 
-    The endpoint is what decides which jurisdiction synthesises the sentences
-    said to the caller, which is the residency question transcription already
-    answers on every run.
+    · **Deepgram** -- :func:`_deepgram_base_url`, which falls back to Europe;
+    · **Mistral** -- :func:`point_entree_mistral`, whose empty field falls back
+      to the GLOBAL endpoint. It is our production voice, and EU processing is
+      a contractual condition rather than a preference, so this is the single
+      most important thing this stamp records.
+
+    ⚠️ For the fifteen other providers this is the address AS CONFIGURED, and
+    the docstring says so rather than promising more: their branches add paths
+    (MiniMax appends ``/t2a_v2``), read an address from the environment
+    (Dograh) or decide the jurisdiction by a region rather than a URL (Google,
+    Azure). Reproducing those transforms here would be the parallel list §5.4
+    forbids; claiming they are resolved would be the lie §7 ② warns about.
+
+    ⛔ Read an absent ``endpoint`` as "the configuration declared none", never
+    as "the call reached no endpoint".
     """
-    if getattr(tts_config, "provider", None) == ServiceProviders.DEEPGRAM.value:
+    fournisseur = getattr(tts_config, "provider", None)
+    if fournisseur == ServiceProviders.DEEPGRAM.value:
         # The very function the factory calls three lines before building the
-        # request, so the two cannot drift.
+        # request, so the two cannot drift. The host is stamped, while the
+        # request goes out on `wss://` with the connector's own path appended.
         return _deepgram_base_url(tts_config)
+    if fournisseur == ServiceProviders.MISTRAL.value:
+        return point_entree_mistral(getattr(tts_config, "base_url", None))
     adresse = (getattr(tts_config, "base_url", None) or "").strip()
     return adresse or None
 
