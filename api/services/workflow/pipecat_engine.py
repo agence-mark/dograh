@@ -63,6 +63,11 @@ from api.services.workflow.disposition_mapping import (
     apply_disposition_mapping,
     get_disposition_mapping,
 )
+from api.services.workflow.fiche_au_fil_de_leau import (
+    ReglagesFiche,
+    brancher_noter_information,
+    suivre_les_tours,
+)
 from api.services.workflow.initial_context import GREETING_OVERRIDE_CONTEXT_KEY
 from api.services.workflow.mcp_tool_session import McpToolSession
 from api.services.workflow.pipecat_engine_context_composer import (
@@ -135,8 +140,14 @@ class PipecatEngine:
         context_compaction_enabled: bool = False,
         run_transition_variable_extraction_in_background: bool = True,
         call_dispositions: Sequence[CallDispositionOption] | None = None,
+        fiche: Optional[ReglagesFiche] = None,
     ):
         self.task = task
+        # [.mark] La fiche au fil de l'eau : None = interrupteur éteint, rien ne change.
+        self._fiche = fiche
+        self._tours_fiche = (
+            suivre_les_tours(llm) if fiche is not None and llm is not None else None
+        )
         self.llm = llm
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
@@ -410,6 +421,13 @@ class PipecatEngine:
 
                 properties = FunctionCallResultProperties(
                     on_context_updated=on_context_updated,
+                    # [.mark] Fiche : dans un tour avec une note, seul le dernier
+                    # résultat relance ; None = regroupement de Pipecat, inchangé.
+                    run_llm=self._tours_fiche.relance(
+                        function_call_params.tool_call_id
+                    )
+                    if self._tours_fiche is not None
+                    else None,
                 )
 
                 # Call results callback from the pipecat framework
@@ -521,6 +539,10 @@ class PipecatEngine:
         """
         if not (node and node.extraction_enabled and node.extraction_variables):
             return
+        # [.mark] D28 : interrupteur allumé, la fiche s'écrit par l'outil ; la
+        # relecture étape par étape réécrirait une correction déjà notée.
+        if self._fiche is not None:
+            return None
 
         # Capture the current turn context for otel tracing
         # before creating the background task.
@@ -727,6 +749,18 @@ class PipecatEngine:
             node=node,
             custom_tool_manager=self._custom_tool_manager,
         )
+        # [.mark] D12 : l'outil de la fiche n'existe que si l'interrupteur est
+        # allumé. Pas sur une étape de fin (comme au lot 0).
+        if self._fiche is not None and not node.is_end:
+            functions.append(
+                brancher_noter_information(
+                    self._fiche,
+                    self.llm,
+                    lambda: self._gathered_context,
+                    lambda: self.context.get_messages() if self.context else [],
+                    self._tours_fiche,
+                )
+            )
         await self._update_llm_context(system_prompt, functions)
 
     async def set_node(self, node_id: str, emit_transition_event: bool = True):

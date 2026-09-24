@@ -1,0 +1,379 @@
+"""[.mark] La fiche au fil de l'eau (plan 2026-09-23, `Labo-agent-vocal/plans/`).
+
+Un outil, `noter_information`, que le modèle appelle à n'importe quelle étape
+pour écrire ou corriger un champ de la fiche de l'appel.
+
+Tout le dispositif vit ici, hors du moteur, pour que la prochaine montée de
+version de Dograh ne rencontre que des points d'accroche courts (D39) :
+
+- ``ReglagesFiche`` : l'interrupteur et les champs, lus dans la configuration
+  de l'agent. ``None`` quand l'interrupteur est éteint : l'outil n'existe pas (D12).
+- ``ecrire_dans_la_fiche`` : LE point d'écriture unique (D35). L'outil l'appelle ;
+  le balayage de fin d'appel et un futur « greffier » l'appelleront. Les contrôles
+  vivent ici et nulle part ailleurs, sinon deux copies divergent en silence.
+- ``brancher_noter_information`` : le schéma de l'outil (D3) et son gestionnaire.
+
+🔑 Une seule relance du modèle par tour, dans tous les ordres (D40, T1.5).
+Le regroupement de Pipecat NE SUFFIT PAS : il ne compte comme « en cours » qu'une
+fonction déjà signalée à l'agrégateur, et la note, instantanée, finit avant que
+la porte le soit -- Pipecat relance alors deux fois (prouvé par T1.4, 24/09).
+``SuiviDesTours`` relève donc la composition du tour AVANT que la moindre
+fonction ne démarre : dans un tour qui contient une note, seul le DERNIER
+résultat du tour relance le modèle, note ou porte. Une note seule relance donc
+(Mistral ne parle jamais en appelant un outil : sans relance, l'agent resterait
+muet). Avec une autre fonction dans le tour, ou sans note : Pipecat, inchangé.
+"""
+
+from __future__ import annotations
+
+import re
+import unicodedata
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
+from typing import Any
+
+from loguru import logger
+from pipecat.adapters.schemas.function_schema import FunctionSchema
+from pipecat.frames.frames import FunctionCallResultProperties
+from pipecat.services.llm_service import FunctionCallParams
+
+from api.schemas.fiche_agent import ChampFiche, OrigineChamp, verifier_champs
+
+NOM_OUTIL = "noter_information"
+CLE_INTERRUPTEUR = "fiche_au_fil_de_leau"
+CLE_CHAMPS = "fiche_champs"
+CLE_ETAT = "fiche_etat"
+CLE_JOURNAL = "fiche_journal"
+
+# Écrite au mot au lot 0 (outil Dograh `e42be297`, 20 appels), reprise telle
+# quelle (plan, « Description de l'outil »). ⛔ Ne pas la retoucher sans essai.
+DESCRIPTION_OUTIL = (
+    "Note dans la fiche de l'appel une information que la personne vient de "
+    "donner, ou corrige une information déjà notée. Appelle cet outil à chaque "
+    "fois que la personne donne ou corrige une information, à n'importe quel "
+    "moment de l'appel et quelle que soit l'étape. Il ne fait changer d'étape en "
+    "aucun cas : si une sortie d'étape s'applique aussi, appelle les deux dans le "
+    "même tour. Remplis uniquement les champs que la personne vient de donner, "
+    "laisse les autres vides. Écris la valeur telle que la personne l'a dite, "
+    "sans rien compléter ni inventer. Exemples : la personne dit « c'est à Creil, "
+    "60100 » → commune = « Creil », code_postal = « 60100 ». La personne dit "
+    "« non pardon, c'est au 14 rue de la République, pas au 12 » → "
+    "adresse_intervention = « 14 rue de la République ». La personne dit « c'est "
+    "un Godin, il fume dès que je l'allume » → marque_appareil = « Godin », "
+    "symptome = « il fume dès que je l'allume ». La personne dit « je suis Mme "
+    "Lefèvre, L E F E V R E » → nom = « LEFEVRE ». Après l'appel de l'outil, "
+    "poursuis la conversation normalement."
+)
+
+
+@dataclass(frozen=True)
+class ReglagesFiche:
+    champs: tuple[ChampFiche, ...]
+
+    @property
+    def par_nom(self) -> dict[str, ChampFiche]:
+        return {champ.nom: champ for champ in self.champs}
+
+    @classmethod
+    def depuis(
+        cls, run_configs: dict | None, *, is_realtime: bool = False
+    ) -> ReglagesFiche | None:
+        """Les réglages de l'appel, ou ``None`` : interrupteur éteint (le défaut),
+        mode temps réel, ou aucun champ lisible. ``None`` = comportement d'avant."""
+        run_configs = run_configs or {}
+        if is_realtime or not run_configs.get(CLE_INTERRUPTEUR):
+            return None
+        champs: list[ChampFiche] = []
+        for brut in run_configs.get(CLE_CHAMPS) or []:
+            try:
+                champs.append(ChampFiche.model_validate(brut))
+            except Exception as erreur:  # noqa: BLE001 -- un champ illisible ne coûte pas l'appel
+                logger.warning(f"[fiche] champ illisible ignoré : {brut!r} ({erreur})")
+        try:
+            verifier_champs(champs)
+        except ValueError as erreur:
+            logger.warning(f"[fiche] fiche refusée, outil non proposé : {erreur}")
+            return None
+        if not champs:
+            logger.warning(
+                "[fiche] interrupteur allumé mais aucun champ : outil non proposé"
+            )
+            return None
+        return cls(champs=tuple(champs))
+
+
+# --- Le contrôle de citation (D5, précisé par D41) ---------------------------
+
+
+def _mots(texte: str) -> list[str]:
+    sans_accents = "".join(
+        c
+        for c in unicodedata.normalize("NFKD", str(texte))
+        if not unicodedata.combining(c)
+    )
+    return re.findall(r"[a-z0-9]+", sans_accents.lower())
+
+
+def _suites(mots: list[str]) -> list[str]:
+    """Les mots courts consécutifs recollés : une épellation (« l e f e v r e »)
+    ou des chiffres dits par paquets (« 06 12 34 56 78 », « 60 100 »)."""
+    suites: list[str] = []
+    courant: list[str] = []
+    for mot in mots + [""]:
+        if mot and (len(mot) <= 2 or mot.isdigit()):
+            courant.append(mot)
+            continue
+        if len(courant) >= 2:
+            suites.append("".join(courant))
+        courant = []
+    return suites
+
+
+def est_cite(valeur: Any, paroles: Iterable[str]) -> bool:
+    """Chaque mot de la valeur a-t-il été dit par l'appelant, à un moment de
+    l'appel, tel que le modèle l'a lu ? Accents et casse ignorés (D41)."""
+    mots_valeur = _mots(str(valeur))
+    if not mots_valeur:
+        return False
+    dits: set[str] = set()
+    suites: list[str] = []
+    for parole in paroles:
+        mots = _mots(parole)
+        dits.update(mots)
+        suites.extend(_suites(mots))
+    return all(
+        mot in dits or (len(mot) >= 2 and any(mot in suite for suite in suites))
+        for mot in mots_valeur
+    )
+
+
+def paroles_de_l_appelant(messages: Iterable[dict]) -> list[str]:
+    """Ce que l'appelant a dit, tel que le modèle l'a lu (après la réécriture
+    des modules, jamais la transcription brute : D24)."""
+    paroles: list[str] = []
+    for message in messages:
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        contenu = message.get("content")
+        if isinstance(contenu, str):
+            paroles.append(contenu)
+        elif isinstance(contenu, list):
+            paroles.extend(
+                partie.get("text", "")
+                for partie in contenu
+                if isinstance(partie, dict) and partie.get("type") == "text"
+            )
+    return paroles
+
+
+# --- Le point d'écriture unique (D35) ----------------------------------------
+
+
+@dataclass(frozen=True)
+class Verdict:
+    champ: str
+    statut: str  # "ecrit" | "refuse" | "ignore"
+    raison: str | None = None
+
+
+def _est_vide(valeur: Any) -> bool:
+    return valeur is None or (isinstance(valeur, str) and not valeur.strip())
+
+
+def ecrire_dans_la_fiche(
+    fiche: dict,
+    reglages: ReglagesFiche,
+    champ: str,
+    valeur: Any,
+    *,
+    sure: bool = True,
+    source: str = "outil",
+    paroles: Iterable[str] = (),
+    seulement_si_vide: bool = False,
+) -> Verdict:
+    """Écrit un champ dans la fiche de l'appel, ou dit pourquoi non.
+
+    Chaque champ est traité seul. Chaque écriture et chaque refus sont
+    consignés, avec leur raison, dans le journal de la fiche et les logs.
+    """
+    definition = reglages.par_nom.get(champ)
+    if isinstance(valeur, str):
+        valeur = valeur.strip()
+
+    if definition is None:
+        verdict = Verdict(champ, "refuse", "champ_inconnu")
+    elif _est_vide(valeur):
+        verdict = Verdict(champ, "ignore", "valeur_vide")
+    elif definition.origine == OrigineChamp.dicte and not est_cite(valeur, paroles):
+        verdict = Verdict(champ, "refuse", "non_dit")
+    else:
+        etat = fiche.setdefault(CLE_ETAT, {})
+        precedent = etat.get(champ)
+        if seulement_si_vide and not _est_vide(fiche.get(champ)):
+            verdict = Verdict(champ, "ignore", "deja_rempli")
+        elif precedent and precedent.get("sure") and not sure:
+            # D6 : une valeur non sûre n'écrase jamais une valeur sûre.
+            verdict = Verdict(champ, "refuse", "non_sure_sur_sure")
+        else:
+            fiche[champ] = valeur
+            fiche.setdefault("extracted_variables", {})[champ] = valeur
+            etat[champ] = {"sure": sure, "source": source}
+            verdict = Verdict(champ, "ecrit")
+
+    fiche.setdefault(CLE_JOURNAL, []).append(
+        {
+            "champ": champ,
+            "valeur": valeur,
+            "statut": verdict.statut,
+            "raison": verdict.raison,
+            "source": source,
+            "sure": sure,
+        }
+    )
+    logger.info(
+        f"[fiche] {source} {champ}={valeur!r} -> {verdict.statut}"
+        + (f" ({verdict.raison})" if verdict.raison else "")
+    )
+    return verdict
+
+
+# --- Une seule relance par tour ----------------------------------------------
+
+
+@dataclass
+class _Tour:
+    restants: set[str]
+    avec_autre: bool
+
+
+class SuiviDesTours:
+    """La composition de chaque tour de fonctions qui contient une note,
+    relevée à son départ."""
+
+    def __init__(self, est_porte: Callable[[str], bool]):
+        self._est_porte = est_porte
+        self._tours: dict[str, _Tour] = {}
+
+    def enregistrer(self, appels: Iterable[Any]) -> None:
+        # Mistral redétecte les appels déjà joués (filtre du service) : un
+        # identifiant déjà connu garde son tour.
+        nouveaux = [a for a in appels if a.tool_call_id not in self._tours]
+        if not any(a.function_name == NOM_OUTIL for a in nouveaux):
+            return
+        tour = _Tour(
+            restants={a.tool_call_id for a in nouveaux},
+            avec_autre=any(
+                a.function_name != NOM_OUTIL and not self._est_porte(a.function_name)
+                for a in nouveaux
+            ),
+        )
+        for appel in nouveaux:
+            self._tours[appel.tool_call_id] = tour
+
+    def relance(self, tool_call_id: str) -> bool | None:
+        """``True`` pour le dernier résultat du tour, ``False`` pour les autres,
+        ``None`` hors d'un tour à note (le comportement de Pipecat, inchangé).
+
+        Pipecat, quand plusieurs résultats se suivent, ne relance que sur le
+        dernier arrivé : c'est donc lui, note ou porte, qui doit porter la relance.
+        """
+        tour = self._tours.pop(tool_call_id, None)
+        if tour is None or tour.avec_autre:
+            return None
+        tour.restants.discard(tool_call_id)
+        return not tour.restants
+
+
+def suivre_les_tours(llm: Any) -> SuiviDesTours:
+    """Branche le suivi sur le service du modèle, AVANT l'exécution des fonctions.
+
+    ⚠️ L'événement ``on_function_calls_started`` de Pipecat part dans une tâche à
+    part : il peut arriver après les fonctions. D'où l'enveloppe synchrone.
+    """
+
+    def est_porte(nom: str) -> bool:
+        return bool(llm._function_is_node_transition(nom))
+
+    suivi = SuiviDesTours(est_porte)
+    lancer = llm.run_function_calls
+
+    async def run_function_calls(function_calls):
+        suivi.enregistrer(function_calls or [])
+        return await lancer(function_calls)
+
+    llm.run_function_calls = run_function_calls
+    return suivi
+
+
+# --- L'outil -----------------------------------------------------------------
+
+
+def schema_outil(reglages: ReglagesFiche) -> FunctionSchema:
+    """Un paramètre facultatif par champ de la fiche (D3)."""
+    return FunctionSchema(
+        name=NOM_OUTIL,
+        description=DESCRIPTION_OUTIL,
+        properties={
+            champ.nom: {
+                "type": champ.type,
+                "description": champ.description or champ.nom,
+            }
+            for champ in reglages.champs
+        },
+        required=[],
+    )
+
+
+def creer_gestionnaire(
+    reglages: ReglagesFiche,
+    fiche: Callable[[], dict],
+    messages: Callable[[], Iterable[dict]],
+    suivi: SuiviDesTours | None = None,
+):
+    async def noter_information(params: FunctionCallParams) -> None:
+        try:
+            paroles = paroles_de_l_appelant(messages())
+            ecrits: list[str] = []
+            refuses: list[dict] = []
+            # Plusieurs notes d'un même tour : appliquées dans l'ordre d'arrivée,
+            # chaque champ seul.
+            for champ, valeur in dict(params.arguments or {}).items():
+                verdict = ecrire_dans_la_fiche(
+                    fiche(), reglages, champ, valeur, paroles=paroles
+                )
+                if verdict.statut == "ecrit":
+                    ecrits.append(champ)
+                elif verdict.statut == "refuse":
+                    refuses.append({"champ": champ, "raison": verdict.raison})
+            resultat: dict = {"statut": "note" if ecrits else "rien_note"}
+            if ecrits:
+                resultat["ecrits"] = ecrits
+            if refuses:
+                resultat["refuses"] = refuses
+        except Exception as erreur:  # noqa: BLE001 -- une note ne coûte jamais l'appel
+            logger.error(f"[fiche] {NOM_OUTIL} a échoué : {erreur}")
+            resultat = {"statut": "erreur"}
+        # Une seule relance par tour : voir l'en-tête du module.
+        relance = suivi.relance(params.tool_call_id) if suivi else None
+        await params.result_callback(
+            resultat,
+            properties=None
+            if relance is None
+            else FunctionCallResultProperties(run_llm=relance),
+        )
+
+    return noter_information
+
+
+def brancher_noter_information(
+    reglages: ReglagesFiche,
+    llm: Any,
+    fiche: Callable[[], dict],
+    messages: Callable[[], Iterable[dict]],
+    suivi: SuiviDesTours | None = None,
+) -> FunctionSchema:
+    """Enregistre le gestionnaire auprès du modèle et rend le schéma à proposer."""
+    llm.register_function(
+        NOM_OUTIL, creer_gestionnaire(reglages, fiche, messages, suivi)
+    )
+    return schema_outil(reglages)

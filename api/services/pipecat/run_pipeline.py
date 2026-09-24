@@ -115,6 +115,7 @@ from api.services.workflow.answer_classification_service import (
     AnswerClassificationService,
 )
 from api.services.workflow.dto import ReactFlowDTO
+from api.services.workflow.fiche_au_fil_de_leau import ReglagesFiche
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.services.workflow.workflow_graph import WorkflowGraph
@@ -1208,6 +1209,8 @@ async def _run_pipeline_impl(
         is_realtime=is_realtime,
         context_compaction_enabled=context_compaction_enabled,
         call_dispositions=call_dispositions,
+        # [.mark] La fiche au fil de l'eau (plan 2026-09-23) : None si éteinte.
+        fiche=ReglagesFiche.depuis(run_configs, is_realtime=is_realtime),
     )
 
     # Create pipeline components

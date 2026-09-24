@@ -15,6 +15,7 @@ from api.constants import (
     MIN_TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
     TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
 )
+from api.schemas.fiche_agent import ChampFiche, verifier_champs
 from api.schemas.organization_preferences import AdresseEtablissement
 
 DEFAULT_MAX_CALL_DURATION_SECONDS = 300
@@ -674,6 +675,26 @@ class WorkflowConfigurationDefaults(BaseModel):
             "of it: either can be used alone."
         ),
     )
+    # [.mark] La fiche au fil de l'eau (plan 2026-09-23, lots 1 et suivants).
+    fiche_au_fil_de_leau: bool = Field(
+        default=False,
+        description=(
+            "Give the model a noter_information tool it can call at any step to "
+            "write or correct a field of the call record below. Off: the tool "
+            "is not offered at all and the agent behaves exactly as before. On: "
+            "the step-by-step extraction is switched off, the record is filled "
+            "by the tool. No effect in realtime mode."
+        ),
+    )
+    fiche_champs: list[ChampFiche] = Field(
+        default_factory=list,
+        max_length=60,
+        description=(
+            "The fields of the call record the tool can write: name, type, "
+            "dictated or deduced, and a hint for the model. A dictated value "
+            "is written only if the caller said it."
+        ),
+    )
     tts_replacements: list[str] = Field(
         default_factory=list,
         max_length=200,
@@ -745,6 +766,12 @@ class WorkflowConfigurationDefaults(BaseModel):
                 f"{MAX_CALL_DISPOSITION_DESCRIPTIONS_TOTAL_LENGTH} characters"
             )
         return value
+
+    @field_validator("fiche_champs")
+    @classmethod
+    def fiche_champs_valides(cls, value: list[ChampFiche]) -> list[ChampFiche]:
+        """[.mark] A reserved or duplicated field name is refused (422 on save)."""
+        return verifier_champs(value)
 
     @field_validator("variables_commune", mode="before")
     @classmethod
