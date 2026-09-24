@@ -32,16 +32,18 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from loguru import logger
+from pipecat.adapters.schemas.function_schema import FunctionSchema
+from pipecat.frames.frames import FunctionCallResultProperties
+from pipecat.services.llm_service import FunctionCallParams
+
 from api.schemas.fiche_agent import (
     ChampFiche,
     OrigineChamp,
     cle_insee,
     verifier_champs,
 )
-from loguru import logger
-from pipecat.adapters.schemas.function_schema import FunctionSchema
-from pipecat.frames.frames import FunctionCallResultProperties
-from pipecat.services.llm_service import FunctionCallParams
+from api.services.workflow.dto import ExtractionVariableDTO
 
 NOM_OUTIL = "noter_information"
 CLE_INTERRUPTEUR = "fiche_au_fil_de_leau"
@@ -450,6 +452,57 @@ def _ecrire(
         suite=None if sure else (lecture.suite if lecture else None),
         options=lecture.options if lecture and not sure else (),
     )
+
+
+# --- Le balayage de fin d'appel (D11) ----------------------------------------
+
+CONSIGNE_BALAYAGE = (
+    "Remplis une variable seulement si la personne a donné cette information "
+    "pendant l'appel. Recopie ses mots, sans rien compléter ni déduire. Sinon, "
+    "ne mets pas la variable."
+)
+
+
+async def balayer_la_fiche(
+    reglages: ReglagesFiche,
+    extraire: Callable[[list[ExtractionVariableDTO], str], Any],
+    fiche: dict,
+    messages: Iterable[dict],
+) -> dict:
+    """Le filet contre l'oubli d'appeler l'outil : relit la conversation pour les
+    SEULS champs restés vides, et les écrit par le point d'écriture unique, donc
+    avec les mêmes contrôles (D35). N'écrase jamais ce que l'outil a écrit."""
+    vides = [c for c in reglages.champs if _est_vide(fiche.get(c.nom))]
+    if not vides:
+        return {}
+    trouve = await extraire(
+        [
+            ExtractionVariableDTO(
+                name=c.nom, type=c.type, prompt=c.description or c.nom
+            )
+            for c in vides
+        ],
+        CONSIGNE_BALAYAGE,
+    )
+    if not isinstance(trouve, dict):
+        return {}
+    paroles = paroles_de_l_appelant(messages)
+    ecrits = {}
+    for champ in vides:
+        if champ.nom not in trouve:
+            continue
+        verdict = ecrire_dans_la_fiche(
+            fiche,
+            reglages,
+            champ.nom,
+            trouve[champ.nom],
+            source="balayage",
+            paroles=paroles,
+            seulement_si_vide=True,
+        )
+        if verdict.statut == "ecrit":
+            ecrits[champ.nom] = verdict.valeur
+    return ecrits
 
 
 # --- Une seule relance par tour ----------------------------------------------

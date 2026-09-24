@@ -65,6 +65,7 @@ from api.services.workflow.disposition_mapping import (
 )
 from api.services.workflow.fiche_au_fil_de_leau import (
     ReglagesFiche,
+    balayer_la_fiche,
     brancher_noter_information,
     suivre_les_tours,
 )
@@ -541,6 +542,7 @@ class PipecatEngine:
             return
         # [.mark] D28 : interrupteur allumé, la fiche s'écrit par l'outil ; la
         # relecture étape par étape réécrirait une correction déjà notée.
+        # ⛔ Signature inchangée : des doublures de test de l'amont l'enveloppent.
         if self._fiche is not None:
             return None
 
@@ -690,10 +692,34 @@ class PipecatEngine:
         failed transfer can return control to the agent and gather more input.
         """
         await self._await_pending_extractions()
+        # [.mark] D11 : interrupteur allumé, la relecture de toute la conversation
+        # (fin d'appel, routage de transfert) ne remplit que les champs vides de
+        # la fiche. Avec le D28 ci-dessus, ce sont les deux seuls points où le
+        # moteur décide de relire la conversation (D36).
+        if self._fiche is not None:
+            return await self._balayer_la_fiche()
         return await self._perform_variable_extraction_if_needed(
             self._current_node,
             run_in_background=False,
         )
+
+    async def _balayer_la_fiche(self) -> Optional[dict]:
+        """[.mark] D11 : le filet de fin d'appel, par le point d'écriture unique."""
+        parent_context = self._get_otel_context()
+        try:
+            return await balayer_la_fiche(
+                self._fiche,
+                lambda variables, consigne: (
+                    self._variable_extraction_manager._perform_extraction(
+                        variables, parent_context, consigne
+                    )
+                ),
+                self._gathered_context,
+                self.context.get_messages() if self.context else [],
+            )
+        except Exception as e:
+            logger.error(f"[fiche] Balayage de fin d'appel en échec : {e}")
+            return None
 
     async def perform_final_variable_extraction(self) -> None:
         """Perform the one-shot variable extraction used during call disposal.
