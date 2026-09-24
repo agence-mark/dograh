@@ -645,6 +645,12 @@ class SuiviDesTours:
     def __init__(self, est_porte: Callable[[str], bool]):
         self._est_porte = est_porte
         self._tours: dict[str, _Tour] = {}
+        # Tout identifiant déjà vu, pour toujours : Mistral redétecte un appel
+        # déjà joué dans la réponse suivante (filtre de son service), et `relance`
+        # l'a déjà retiré de `_tours`. Sans ce registre, [note redétectée, porte]
+        # formait un tour neuf dont la note ne répondrait jamais : la porte ne
+        # relançait pas, agent muet (relevé par la revue du 25/09).
+        self._vus: set[str] = set()
         # A1 : le texte que la réponse en cours a déjà envoyé à la voix, et les
         # appels dont la réponse contenait une question.
         self.texte_de_la_reponse = ""
@@ -663,7 +669,8 @@ class SuiviDesTours:
     def enregistrer(self, appels: Iterable[Any]) -> None:
         # Mistral redétecte les appels déjà joués (filtre du service) : un
         # identifiant déjà connu garde son tour.
-        nouveaux = [a for a in appels if a.tool_call_id not in self._tours]
+        nouveaux = [a for a in appels if a.tool_call_id not in self._vus]
+        self._vus.update(a.tool_call_id for a in nouveaux)
         if not any(a.function_name == NOM_OUTIL for a in nouveaux):
             return
         tour = _Tour(

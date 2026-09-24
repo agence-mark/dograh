@@ -503,6 +503,18 @@ async def test_A1_un_simple_accuse_et_une_note_relance_pour_continuer(
     assert llm.get_current_step() == 2
 
 
+def test_revue_une_note_redetectee_ne_bloque_pas_la_porte():
+    """Mistral redétecte un appel déjà joué ; son service ne le rejoue pas. Le
+    lot [note déjà jouée, porte] ne doit pas attendre la note : la porte relance."""
+    suivi = SuiviDesTours(lambda nom: nom == "porte")
+    note = SimpleNamespace(function_name=NOM_OUTIL, tool_call_id="n1")
+    suivi.enregistrer([note])
+    assert suivi.relance("n1") is True
+    porte = SimpleNamespace(function_name="porte", tool_call_id="p1")
+    suivi.enregistrer([note, porte])
+    assert suivi.relance("p1") is None  # hors d'un tour à note : Pipecat décide
+
+
 def test_A1_une_question_ne_vaut_que_pour_sa_reponse():
     suivi = SuiviDesTours(lambda nom: nom == "porte")
     note = SimpleNamespace(function_name=NOM_OUTIL, tool_call_id="n1")
