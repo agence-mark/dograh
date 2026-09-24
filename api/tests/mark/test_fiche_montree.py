@@ -2,14 +2,15 @@
 
 La question à laquelle ce fichier répond, et elle seule :
 
-    À chaque requête de conversation, le modèle voit-il ce qu'il a déjà noté et
-    ce qui manque, sans que le prompt système ni l'historique ne changent ?
+    À chaque requête de conversation, le modèle voit-il ce qu'il a déjà noté,
+    sans que le prompt système ni l'historique ne changent ?
 
 | # | Ce qu'il prouve |
 |---|---|
 | T6.1 | L'état montré reflète la fiche **au tour en cours** |
 | T6.2 | Le prompt système **n'est pas modifié**, l'historique non plus |
 | D43 | L'état est placé **juste avant la dernière parole de l'appelant** |
+| A7 | L'état ne liste **jamais ce qui manque** (run 835 : une liste de questions) |
 
 Les requêtes sont celles qui PARTENT : le vrai service Mistral du fork, son
 adaptateur de messages, le client intercepté au dernier moment. T6.3 (la part
@@ -84,7 +85,7 @@ def _moteur(workflow, llm, context, fiche=None) -> PipecatEngine:
 # --- Ce que le modèle lit ----------------------------------------------------
 
 
-def test_etat_noté_à_confirmer_et_manquant_dans_l_ordre_de_la_fiche():
+def test_etat_noté_et_à_confirmer_dans_l_ordre_de_la_fiche():
     fiche = {
         "nom": "Dupont",
         "commune": "Creil",
@@ -99,14 +100,18 @@ def test_etat_noté_à_confirmer_et_manquant_dans_l_ordre_de_la_fiche():
         ENTETE_ETAT,
         "Noté : nom = « Dupont » ; motif = « panne »",
         "À confirmer : commune = « Creil »",
-        "Manque : telephone, dernier_entretien",
     ]
 
 
-def test_fiche_vide_tout_manque_une_valeur_sans_etat_n_est_pas_dite_sure():
-    assert etat_de_la_fiche(_reglages(), {}).splitlines()[1:] == [
-        "Manque : nom, commune, telephone, dernier_entretien, motif"
-    ]
+def test_A7_rien_de_note_rien_a_montrer_et_jamais_ce_qui_manque():
+    assert etat_de_la_fiche(_reglages(), {}) is None
+    etat = etat_de_la_fiche(
+        _reglages(), {"nom": "Dupont", CLE_ETAT: {"nom": {"sure": True}}}
+    )
+    assert "Manque" not in etat and "telephone" not in etat
+
+
+def test_une_valeur_sans_etat_n_est_pas_dite_sure():
     # Une valeur venue d'ailleurs que la fiche (aucun état) : à confirmer.
     assert "À confirmer : nom = « Dupont »" in etat_de_la_fiche(
         _reglages(), {"nom": "Dupont"}
@@ -157,19 +162,23 @@ async def test_T6_1_T6_2_l_etat_suit_la_fiche_le_prompt_et_l_historique_intacts(
     )
     engine = _moteur(three_node_workflow, llm, context, _reglages())
 
+    # Rien de noté : rien d'ajouté (A7).
     envoyes = await _requete(llm, context)
-    assert envoyes[0] == {"role": "system", "content": PROMPT}  # T6.2
-    assert envoyes[-1]["content"] == PAROLE  # D43
-    assert envoyes[-2]["content"].startswith(ENTETE_ETAT)
-    assert "Manque : nom, commune" in envoyes[-2]["content"]
+    assert envoyes == [
+        {"role": "system", "content": PROMPT},
+        {"role": "assistant", "content": "Bonjour, je vous écoute."},
+        {"role": "user", "content": PAROLE},
+    ]
 
     # Le modèle note : la requête suivante montre la fiche de CE tour (T6.1).
     ecrire_dans_la_fiche(
         engine._gathered_context, _reglages(), "nom", "Dupont", paroles=[PAROLE]
     )
     envoyes = await _requete(llm, context)
+    assert envoyes[0] == {"role": "system", "content": PROMPT}  # T6.2
+    assert envoyes[-1]["content"] == PAROLE  # D43
+    assert envoyes[-2]["content"].startswith(ENTETE_ETAT)
     assert "Noté : nom = « Dupont »" in envoyes[-2]["content"]
-    assert "Manque : commune" in envoyes[-2]["content"]
 
     # T6.2 : rien n'est entré dans l'historique, ni dans le prompt système.
     assert context.get_messages() == [
@@ -195,7 +204,10 @@ async def test_D43_apres_une_note_le_modele_continue_sa_reponse(three_node_workf
         {"role": "assistant", "content": None, "tool_calls": [appel]},
         {"role": "tool", "tool_call_id": "n1", "content": '{"statut": "note"}'},
     )
-    _moteur(three_node_workflow, llm, context, _reglages())
+    engine = _moteur(three_node_workflow, llm, context, _reglages())
+    ecrire_dans_la_fiche(
+        engine._gathered_context, _reglages(), "nom", "Dupont", paroles=[PAROLE]
+    )
     envoyes = await _requete(llm, context)
     roles = [m["role"] for m in envoyes]
     assert roles == ["system", "user", "user", "assistant", "tool", "assistant"]
@@ -211,7 +223,10 @@ async def test_les_relectures_hors_conversation_ne_voient_pas_l_etat(
     constructeur de requête : ils restent inchangés."""
     llm = _mistral()
     context = _contexte({"role": "user", "content": PAROLE})
-    _moteur(three_node_workflow, llm, context, _reglages())
+    engine = _moteur(three_node_workflow, llm, context, _reglages())
+    ecrire_dans_la_fiche(
+        engine._gathered_context, _reglages(), "nom", "Dupont", paroles=[PAROLE]
+    )
     reponse = SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(content="{}"))]
     )

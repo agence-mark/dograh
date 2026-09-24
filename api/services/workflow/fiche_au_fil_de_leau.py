@@ -12,8 +12,9 @@ version de Dograh ne rencontre que des points d'accroche courts (D39) :
   le balayage de fin d'appel et un futur « greffier » l'appelleront. Les contrôles
   vivent ici et nulle part ailleurs, sinon deux copies divergent en silence.
 - ``brancher_noter_information`` : le schéma de l'outil (D3) et son gestionnaire.
-- ``montrer_la_fiche`` : l'état de la fiche ajouté à chaque requête de
-  conversation, juste avant la dernière parole de l'appelant (D14, D43).
+- ``montrer_la_fiche`` : l'état de la fiche (ce qui est noté) ajouté à chaque
+  requête de conversation, juste avant la dernière parole de l'appelant (D14,
+  D43), sans la liste de ce qui manque (A7).
 
 🔑 Une seule relance du modèle par tour, dans tous les ordres (D40, T1.5).
 Le regroupement de Pipecat NE SUFFIT PAS : il ne compte comme « en cours » qu'une
@@ -702,15 +703,19 @@ def _abregee(valeur: Any) -> str:
     return f"« {texte} »"
 
 
-def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str:
-    """Ce que le modèle a déjà, sûr ou à faire confirmer, et ce qui manque,
-    dans l'ordre des champs de la fiche."""
+def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str | None:
+    """Ce que le modèle a déjà, sûr ou à faire confirmer, dans l'ordre des
+    champs de la fiche. ``None`` tant que rien n'est noté.
+
+    ⛔ Pas de liste de ce qui manque (A7, run 835) : sous les yeux de l'accueil,
+    « Manque : numero_dicte, commune… » s'est lu comme une liste de questions,
+    et l'accueil a mené tout l'appel. Ce qu'une étape demande reste à son prompt.
+    """
     etat = fiche.get(CLE_ETAT) or {}
-    notes, a_confirmer, manque = [], [], []
+    notes, a_confirmer = [], []
     for champ in reglages.champs:
         valeur = fiche.get(champ.nom)
         if _est_vide(valeur):
-            manque.append(champ.nom)
             continue
         ligne = f"{champ.nom} = {_abregee(valeur)}"
         # Une valeur sans état n'a pas été écrite par la fiche : on ne la dit
@@ -719,13 +724,13 @@ def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str:
             notes.append(ligne)
         else:
             a_confirmer.append(ligne)
+    if not (notes or a_confirmer):
+        return None
     lignes = [ENTETE_ETAT]
     if notes:
         lignes.append("Noté : " + " ; ".join(notes))
     if a_confirmer:
         lignes.append("À confirmer : " + " ; ".join(a_confirmer))
-    if manque:
-        lignes.append("Manque : " + ", ".join(manque))
     return "\n".join(lignes)
 
 
@@ -777,9 +782,9 @@ def montrer_la_fiche(
         params = construire(params_from_context)
         if en_conversation.get():
             try:
-                params["messages"] = inserer_l_etat(
-                    list(params["messages"]), etat_de_la_fiche(reglages, fiche())
-                )
+                texte = etat_de_la_fiche(reglages, fiche())
+                if texte:
+                    params["messages"] = inserer_l_etat(list(params["messages"]), texte)
             except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais l'appel
                 logger.error(f"[fiche] état non montré : {erreur}")
         return params
