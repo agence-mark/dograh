@@ -12,6 +12,8 @@ version de Dograh ne rencontre que des points d'accroche courts (D39) :
   le balayage de fin d'appel et un futur « greffier » l'appelleront. Les contrôles
   vivent ici et nulle part ailleurs, sinon deux copies divergent en silence.
 - ``brancher_noter_information`` : le schéma de l'outil (D3) et son gestionnaire.
+- ``montrer_la_fiche`` : l'état de la fiche ajouté à chaque requête de
+  conversation, juste avant la dernière parole de l'appelant (D14, D43).
 
 🔑 Une seule relance du modèle par tour, dans tous les ordres (D40, T1.5).
 Le regroupement de Pipecat NE SUFFIT PAS : il ne compte comme « en cours » qu'une
@@ -29,6 +31,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Callable, Iterable
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
@@ -681,3 +684,106 @@ def brancher_noter_information(
         NOM_OUTIL, creer_gestionnaire(reglages, fiche, messages, suivi)
     )
     return schema_outil(reglages)
+
+
+# --- Montrer la fiche au modèle (D14, D43) -----------------------------------
+
+ENTETE_ETAT = (
+    "[Fiche de l'appel : pour toi seulement, tu ne la lis jamais à voix haute. "
+    "Elle se remplit par noter_information.]"
+)
+LONGUEUR_MAX_VALEUR = 120
+
+
+def _abregee(valeur: Any) -> str:
+    texte = " ".join(str(valeur).split())
+    if len(texte) > LONGUEUR_MAX_VALEUR:
+        texte = texte[: LONGUEUR_MAX_VALEUR - 1].rstrip() + "…"
+    return f"« {texte} »"
+
+
+def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str:
+    """Ce que le modèle a déjà, sûr ou à faire confirmer, et ce qui manque,
+    dans l'ordre des champs de la fiche."""
+    etat = fiche.get(CLE_ETAT) or {}
+    notes, a_confirmer, manque = [], [], []
+    for champ in reglages.champs:
+        valeur = fiche.get(champ.nom)
+        if _est_vide(valeur):
+            manque.append(champ.nom)
+            continue
+        ligne = f"{champ.nom} = {_abregee(valeur)}"
+        # Une valeur sans état n'a pas été écrite par la fiche : on ne la dit
+        # pas sûre.
+        if (etat.get(champ.nom) or {}).get("sure"):
+            notes.append(ligne)
+        else:
+            a_confirmer.append(ligne)
+    lignes = [ENTETE_ETAT]
+    if notes:
+        lignes.append("Noté : " + " ; ".join(notes))
+    if a_confirmer:
+        lignes.append("À confirmer : " + " ; ".join(a_confirmer))
+    if manque:
+        lignes.append("Manque : " + ", ".join(manque))
+    return "\n".join(lignes)
+
+
+def inserer_l_etat(messages: list, texte: str) -> list:
+    """D43 : juste avant la dernière parole de l'appelant, dans une COPIE de la
+    liste. Sans parole de l'appelant (l'accueil), rien n'est ajouté."""
+    for i in range(len(messages) - 1, -1, -1):
+        if messages[i].get("role") == "user":
+            return [*messages[:i], {"role": "user", "content": texte}, *messages[i:]]
+    return messages
+
+
+def montrer_la_fiche(
+    llm: Any, reglages: ReglagesFiche, fiche: Callable[[], dict]
+) -> bool:
+    """Ajoute l'état de la fiche à chaque requête de CONVERSATION du modèle.
+
+    🔑 Rien n'entre dans l'historique ni dans le prompt système (D14, T6.2) :
+    l'état est calculé à la requête, sur la fiche du moment (T6.1), puis oublié.
+    Le début de la requête ne change donc pas, et le cache le sert toujours.
+
+    ⚠️ Les relectures hors conversation (balayage, extraction) passent par le
+    même constructeur de requête sur le même objet : seule une requête née de
+    ``get_chat_completions`` est marquée, par une variable de contexte propre à
+    la tâche en cours.
+    """
+    if not (
+        hasattr(llm, "get_chat_completions")
+        and hasattr(llm, "build_chat_completion_params")
+    ):
+        logger.warning(
+            "[fiche] service sans requête de conversation : fiche non montrée"
+        )
+        return False
+    en_conversation: ContextVar[bool] = ContextVar(
+        "fiche_en_conversation", default=False
+    )
+    obtenir = llm.get_chat_completions
+    construire = llm.build_chat_completion_params
+
+    async def get_chat_completions(context):
+        jeton = en_conversation.set(True)
+        try:
+            return await obtenir(context)
+        finally:
+            en_conversation.reset(jeton)
+
+    def build_chat_completion_params(params_from_context):
+        params = construire(params_from_context)
+        if en_conversation.get():
+            try:
+                params["messages"] = inserer_l_etat(
+                    list(params["messages"]), etat_de_la_fiche(reglages, fiche())
+                )
+            except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais l'appel
+                logger.error(f"[fiche] état non montré : {erreur}")
+        return params
+
+    llm.get_chat_completions = get_chat_completions
+    llm.build_chat_completion_params = build_chat_completion_params
+    return True

@@ -67,6 +67,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     ReglagesFiche,
     balayer_la_fiche,
     brancher_noter_information,
+    montrer_la_fiche,
     suivre_les_tours,
 )
 from api.services.workflow.initial_context import GREETING_OVERRIDE_CONTEXT_KEY
@@ -149,6 +150,9 @@ class PipecatEngine:
         self._tours_fiche = (
             suivre_les_tours(llm) if fiche is not None and llm is not None else None
         )
+        if fiche is not None and llm is not None:
+            # D14 : l'état de la fiche, montré à chaque requête de conversation.
+            montrer_la_fiche(llm, fiche, lambda: self._gathered_context)
         self.llm = llm
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
