@@ -79,6 +79,16 @@ CONSIGNE_ECRITURE_RETENUE = (
     "Noté sous son écriture officielle. Tu ne la redis pas et tu ne la fais pas "
     "confirmer ; si tu dois la redire plus tard, utilise cette écriture."
 )
+# A3 (runs 831, 835) : les descriptions des champs, lues avant par la seule
+# extraction, sont sous les yeux du modèle qui parle depuis que l'outil existe ;
+# « code, étage, animal » s'y est lu comme une liste de questions (« Y a-t-il un
+# animal ? »), alors que le prompt de l'étape interdisait toute question d'accès.
+NOTE_DESCRIPTIONS = (
+    "Les descriptions des champs disent seulement ce que chaque champ contient : "
+    "elles sont à lire uniquement, ce ne sont jamais des questions à poser. Ce que "
+    "tu demandes à la personne, c'est le prompt de l'étape qui le dit."
+)
+
 # A5 (runs 831, 837) : un refus rendu sans consigne a poussé le modèle à faire
 # confirmer SA version (« c'est bien en 2025 ? ») jusqu'à l'entendre dite : quatre
 # tours pour une année au run 837, « ça casse le naturel » (Evan).
@@ -89,6 +99,7 @@ CONSIGNE_NON_DIT = (
 
 # Écrite au mot au lot 0 (outil Dograh `e42be297`, 20 appels), reprise telle
 # quelle (plan, « Description de l'outil »). ⛔ Ne pas la retoucher sans essai.
+# A3 (runs 831, 835) : la dernière phrase est ajoutée ; le banc de sortie l'essaie.
 DESCRIPTION_OUTIL = (
     "Note dans la fiche de l'appel une information que la personne vient de "
     "donner, ou corrige une information déjà notée. Appelle cet outil à chaque "
@@ -104,7 +115,7 @@ DESCRIPTION_OUTIL = (
     "un Godin, il fume dès que je l'allume » → marque_appareil = « Godin », "
     "symptome = « il fume dès que je l'allume ». La personne dit « je suis Mme "
     "Lefèvre, L E F E V R E » → nom = « LEFEVRE ». Après l'appel de l'outil, "
-    "poursuis la conversation normalement."
+    "poursuis la conversation normalement. " + NOTE_DESCRIPTIONS
 )
 
 

@@ -38,6 +38,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_JOURNAL,
     CONSIGNE_NON_DIT,
     NOM_OUTIL,
+    NOTE_DESCRIPTIONS,
     ReglagesFiche,
     creer_gestionnaire,
     ecrire_dans_la_fiche,
@@ -129,6 +130,9 @@ def test_schema_un_parametre_facultatif_par_champ():
     }
     assert schema.required == []
     assert schema.properties["nom"]["description"] == "Nom de famille"
+    # A3 : la description de l'outil dit que celles des champs sont à lire.
+    assert schema.description.endswith(NOTE_DESCRIPTIONS)
+    assert "jamais des questions à poser" in NOTE_DESCRIPTIONS
 
 
 # --- Le contrôle de citation (D5, D41) ---------------------------------------
