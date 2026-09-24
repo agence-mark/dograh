@@ -634,6 +634,8 @@ async def balayer_la_fiche(
 class _Tour:
     restants: set[str]
     avec_autre: bool
+    avec_porte: bool = False
+    question_posee: bool = False
 
 
 class SuiviDesTours:
@@ -643,6 +645,20 @@ class SuiviDesTours:
     def __init__(self, est_porte: Callable[[str], bool]):
         self._est_porte = est_porte
         self._tours: dict[str, _Tour] = {}
+        # A1 : le texte que la réponse en cours a déjà envoyé à la voix, et les
+        # appels dont la réponse contenait une question.
+        self.texte_de_la_reponse = ""
+        self._apres_une_question: set[str] = set()
+
+    def reponse_commencee(self) -> None:
+        self.texte_de_la_reponse = ""
+
+    def appels_emis(self, appels: Iterable[Any]) -> None:
+        """La réponse du modèle s'achève sur ces appels : a-t-elle posé une
+        question à voix haute avant eux ?"""
+        if "?" in self.texte_de_la_reponse:
+            self._apres_une_question.update(a.tool_call_id for a in appels)
+        self.texte_de_la_reponse = ""
 
     def enregistrer(self, appels: Iterable[Any]) -> None:
         # Mistral redétecte les appels déjà joués (filtre du service) : un
@@ -656,7 +672,12 @@ class SuiviDesTours:
                 a.function_name != NOM_OUTIL and not self._est_porte(a.function_name)
                 for a in nouveaux
             ),
+            avec_porte=any(self._est_porte(a.function_name) for a in nouveaux),
+            question_posee=any(
+                a.tool_call_id in self._apres_une_question for a in nouveaux
+            ),
         )
+        self._apres_une_question.difference_update(a.tool_call_id for a in nouveaux)
         for appel in nouveaux:
             self._tours[appel.tool_call_id] = tour
 
@@ -671,6 +692,11 @@ class SuiviDesTours:
         if tour is None or tour.avec_autre:
             return None
         tour.restants.discard(tool_call_id)
+        if tour.question_posee and not tour.avec_porte:
+            # A1 (runs 832, 837) : le modèle a posé sa question ET noté dans la
+            # même réponse. Relancé, il reparlait sans attendre la réponse : deux
+            # questions d'affilée, une porte prise avant la réponse. On attend.
+            return False
         return not tour.restants
 
 
@@ -692,6 +718,37 @@ def suivre_les_tours(llm: Any) -> SuiviDesTours:
         return await lancer(function_calls)
 
     llm.run_function_calls = run_function_calls
+
+    # A1 : ce que la réponse a dit avant ses appels. Trois points d'accroche du
+    # service OpenAI de Pipecat, dont Mistral hérite ; absents (autre
+    # fournisseur), rien n'est su et la relance reste celle de D40.
+    if all(
+        hasattr(llm, nom)
+        for nom in (
+            "_process_context",
+            "_push_llm_text",
+            "_run_or_defer_function_calls",
+        )
+    ):
+        traiter = llm._process_context
+        pousser = llm._push_llm_text
+        emettre = llm._run_or_defer_function_calls
+
+        async def _process_context(context):
+            suivi.reponse_commencee()
+            return await traiter(context)
+
+        async def _push_llm_text(text):
+            suivi.texte_de_la_reponse += text
+            return await pousser(text)
+
+        async def _run_or_defer_function_calls(function_calls, **kwargs):
+            suivi.appels_emis(function_calls or [])
+            return await emettre(function_calls, **kwargs)
+
+        llm._process_context = _process_context
+        llm._push_llm_text = _push_llm_text
+        llm._run_or_defer_function_calls = _run_or_defer_function_calls
     return suivi
 
 

@@ -16,6 +16,7 @@ des fonctions d'un même tour), pas sur une valeur de retour.
 """
 
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -40,6 +41,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     NOM_OUTIL,
     NOTE_DESCRIPTIONS,
     ReglagesFiche,
+    SuiviDesTours,
     creer_gestionnaire,
     ecrire_dans_la_fiche,
     est_cite,
@@ -460,6 +462,64 @@ async def test_T1_5_note_seule_une_relance_pour_parler(
     assert engine._gathered_context["nom"] == "Dupont"
     assert engine._current_node.id == "start"
     assert llm.get_current_step() == 2
+
+
+@pytest.mark.asyncio
+async def test_A1_question_et_note_dans_la_meme_reponse_on_attend(
+    three_node_workflow, no_disposition_mapping
+):
+    """Runs 832 et 837 : « L'adresse, c'est bien le 8 rue Danton ? » ET la note
+    dans la même réponse ; relancé, le modèle prenait la porte de fin avant la
+    réponse. Après une question, la note ne relance plus : on attend."""
+    etapes = [
+        MockLLMService.create_mixed_chunks(
+            "L'adresse, c'est bien le 8 rue Danton ?",
+            NOM_OUTIL,
+            {"nom": "Dupont"},
+            "note_1",
+        ),
+        MockLLMService.create_text_chunks("RELANCE EN TROP"),
+    ]
+    engine, llm, _, _ = await _jouer(three_node_workflow, _reglages(), etapes)
+    assert engine._gathered_context["nom"] == "Dupont"
+    assert llm.get_current_step() == 1
+
+
+@pytest.mark.asyncio
+async def test_A1_un_simple_accuse_et_une_note_relance_pour_continuer(
+    three_node_workflow, no_disposition_mapping
+):
+    """Sans question, l'agent qui a dit « C'est noté » en notant doit continuer :
+    sans relance, il resterait muet face à une personne qui attend."""
+    etapes = [
+        MockLLMService.create_mixed_chunks(
+            "C'est noté.", NOM_OUTIL, {"nom": "Dupont"}, "note_1"
+        ),
+        MockLLMService.create_text_chunks("Et votre numéro ?"),
+        MockLLMService.create_text_chunks("RELANCE EN TROP"),
+    ]
+    engine, llm, _, _ = await _jouer(three_node_workflow, _reglages(), etapes)
+    assert engine._gathered_context["nom"] == "Dupont"
+    assert llm.get_current_step() == 2
+
+
+def test_A1_une_question_ne_vaut_que_pour_sa_reponse():
+    suivi = SuiviDesTours(lambda nom: nom == "porte")
+    note = SimpleNamespace(function_name=NOM_OUTIL, tool_call_id="n1")
+    # Une question dans une réponse SANS appel, puis une note seule : on relance.
+    suivi.reponse_commencee()
+    suivi.texte_de_la_reponse = "Vous êtes bien à Creil ?"
+    suivi.reponse_commencee()
+    suivi.appels_emis([note])
+    suivi.enregistrer([note])
+    assert suivi.relance("n1") is True
+    # Question + note + porte dans la même réponse : la porte décide (D40).
+    porte = SimpleNamespace(function_name="porte", tool_call_id="p2")
+    note2 = SimpleNamespace(function_name=NOM_OUTIL, tool_call_id="n2")
+    suivi.texte_de_la_reponse = "C'est bien ça ?"
+    suivi.appels_emis([note2, porte])
+    suivi.enregistrer([note2, porte])
+    assert suivi.relance("n2") is False and suivi.relance("p2") is True
 
 
 @pytest.mark.asyncio
