@@ -440,6 +440,9 @@ def ecrire_dans_la_fiche(
             and not epele
             and dit is None
             and definition.origine == OrigineChamp.dicte
+            # Revue du 25/09 : un oui/non n'est jamais « dit » tel quel (la
+            # personne ne prononce pas « true ») ; il se juge comme un déduit.
+            and definition.type != "boolean"
             and not est_cite(valeur, paroles)
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)

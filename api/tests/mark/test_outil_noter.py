@@ -203,6 +203,20 @@ def test_T1_3_valeur_jamais_dite_refusee_et_journalisee():
     assert fiche[CLE_JOURNAL][-1]["raison"] == "non_dit"
 
 
+def test_revue_un_oui_non_dicte_n_est_pas_refuse():
+    reglages = ReglagesFiche.depuis(
+        {
+            "fiche_au_fil_de_leau": True,
+            "fiche_champs": [{"nom": "acces_difficile", "type": "boolean"}],
+        }
+    )
+    fiche: dict = {}
+    verdict = ecrire_dans_la_fiche(
+        fiche, reglages, "acces_difficile", True, paroles=["il y a un escalier"]
+    )
+    assert verdict.statut == "ecrit" and fiche["acces_difficile"] is True
+
+
 def test_champ_deduit_sans_controle_de_citation():
     fiche: dict = {}
     verdict = ecrire_dans_la_fiche(
