@@ -63,6 +63,13 @@ from api.services.workflow.disposition_mapping import (
     apply_disposition_mapping,
     get_disposition_mapping,
 )
+from api.services.workflow.fiche_au_fil_de_leau import (
+    ReglagesFiche,
+    balayer_la_fiche,
+    brancher_noter_information,
+    montrer_la_fiche,
+    suivre_les_tours,
+)
 from api.services.workflow.initial_context import GREETING_OVERRIDE_CONTEXT_KEY
 from api.services.workflow.mcp_tool_session import McpToolSession
 from api.services.workflow.pipecat_engine_context_composer import (
@@ -135,8 +142,17 @@ class PipecatEngine:
         context_compaction_enabled: bool = False,
         run_transition_variable_extraction_in_background: bool = True,
         call_dispositions: Sequence[CallDispositionOption] | None = None,
+        fiche: Optional[ReglagesFiche] = None,
     ):
         self.task = task
+        # [.mark] La fiche au fil de l'eau : None = interrupteur éteint, rien ne change.
+        self._fiche = fiche
+        self._tours_fiche = (
+            suivre_les_tours(llm) if fiche is not None and llm is not None else None
+        )
+        if fiche is not None and llm is not None:
+            # D14 : l'état de la fiche, montré à chaque requête de conversation.
+            montrer_la_fiche(llm, fiche, lambda: self._gathered_context)
         self.llm = llm
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
@@ -410,6 +426,13 @@ class PipecatEngine:
 
                 properties = FunctionCallResultProperties(
                     on_context_updated=on_context_updated,
+                    # [.mark] Fiche : dans un tour avec une note, seul le dernier
+                    # résultat relance ; None = regroupement de Pipecat, inchangé.
+                    run_llm=self._tours_fiche.relance(
+                        function_call_params.tool_call_id
+                    )
+                    if self._tours_fiche is not None
+                    else None,
                 )
 
                 # Call results callback from the pipecat framework
@@ -422,7 +445,18 @@ class PipecatEngine:
             except Exception as e:
                 logger.error(f"Error in transition function {name}: {str(e)}")
                 error_result = {"status": "error", "error": str(e)}
-                await function_call_params.result_callback(error_result)
+                # [.mark] Fiche : une porte en erreur ferme aussi son tour.
+                relance = (
+                    self._tours_fiche.relance(function_call_params.tool_call_id)
+                    if self._tours_fiche is not None
+                    else None
+                )
+                await function_call_params.result_callback(
+                    error_result,
+                    properties=None
+                    if relance is None
+                    else FunctionCallResultProperties(run_llm=relance),
+                )
 
         return transition_func
 
@@ -521,6 +555,11 @@ class PipecatEngine:
         """
         if not (node and node.extraction_enabled and node.extraction_variables):
             return
+        # [.mark] D28 : interrupteur allumé, la fiche s'écrit par l'outil ; la
+        # relecture étape par étape réécrirait une correction déjà notée.
+        # ⛔ Signature inchangée : des doublures de test de l'amont l'enveloppent.
+        if self._fiche is not None:
+            return None
 
         # Capture the current turn context for otel tracing
         # before creating the background task.
@@ -668,10 +707,34 @@ class PipecatEngine:
         failed transfer can return control to the agent and gather more input.
         """
         await self._await_pending_extractions()
+        # [.mark] D11 : interrupteur allumé, la relecture de toute la conversation
+        # (fin d'appel, routage de transfert) ne remplit que les champs vides de
+        # la fiche. Avec le D28 ci-dessus, ce sont les deux seuls points où le
+        # moteur décide de relire la conversation (D36).
+        if self._fiche is not None:
+            return await self._balayer_la_fiche()
         return await self._perform_variable_extraction_if_needed(
             self._current_node,
             run_in_background=False,
         )
+
+    async def _balayer_la_fiche(self) -> Optional[dict]:
+        """[.mark] D11 : le filet de fin d'appel, par le point d'écriture unique."""
+        parent_context = self._get_otel_context()
+        try:
+            return await balayer_la_fiche(
+                self._fiche,
+                lambda variables, consigne: (
+                    self._variable_extraction_manager._perform_extraction(
+                        variables, parent_context, consigne
+                    )
+                ),
+                self._gathered_context,
+                self.context.get_messages() if self.context else [],
+            )
+        except Exception as e:
+            logger.error(f"[fiche] Balayage de fin d'appel en échec : {e}")
+            return None
 
     async def perform_final_variable_extraction(self) -> None:
         """Perform the one-shot variable extraction used during call disposal.
@@ -727,6 +790,18 @@ class PipecatEngine:
             node=node,
             custom_tool_manager=self._custom_tool_manager,
         )
+        # [.mark] D12 : l'outil de la fiche n'existe que si l'interrupteur est
+        # allumé. Pas sur une étape de fin (comme au lot 0).
+        if self._fiche is not None and not node.is_end:
+            functions.append(
+                brancher_noter_information(
+                    self._fiche,
+                    self.llm,
+                    lambda: self._gathered_context,
+                    lambda: self.context.get_messages() if self.context else [],
+                    self._tours_fiche,
+                )
+            )
         await self._update_llm_context(system_prompt, functions)
 
     async def set_node(self, node_id: str, emit_transition_event: bool = True):

@@ -1688,6 +1688,9 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "conversion_nombres_transcription",
     "verification_communes",
     "variables_commune",
+    "variables_reference",
+    "fiche_au_fil_de_leau",
+    "fiche_champs",
     "lexique_metier",
     "sons_communes",
     "sons_lexique",
@@ -1737,6 +1740,10 @@ def stamp_pipeline_settings(
     # pipeline read -- including for a key the client never touched.
     effectifs = WorkflowConfigurationDefaults.model_validate(run_configs or {})
     reglages = {cle: getattr(effectifs, cle) for cle in REGLAGES_PIPECAT_ESTAMPILLES}
+    # [.mark] La fiche est une liste d'objets : écrite en JSON, comme en base.
+    reglages["fiche_champs"] = [
+        champ.model_dump(mode="json") for champ in effectifs.fiche_champs
+    ]
     if user_turn_stop_timeout is not None:
         reglages["user_turn_stop_timeout"] = user_turn_stop_timeout
     runtime_configuration["pipeline_settings"] = reglages

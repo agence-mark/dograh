@@ -15,6 +15,7 @@ from api.constants import (
     MIN_TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
     TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
 )
+from api.schemas.fiche_agent import ChampFiche, verifier_champs
 from api.schemas.organization_preferences import AdresseEtablissement
 
 DEFAULT_MAX_CALL_DURATION_SECONDS = 300
@@ -104,14 +105,22 @@ DEFAULT_VARIABLES_COMMUNE = "commune, commune_*, adresse*"
 _NOM_VARIABLE_COMMUNE = re.compile(r"^(?:[\w-]+|[\w-]{3,}\*)$")
 
 
-def decouper_variables_commune(valeur: str | None) -> tuple[str, ...]:
+# [.mark] Same kind of setting for the reference reader (plan fiche-au-fil-de-leau,
+# lot 2, D9). 🔒 Reproduces the rule written in the code until then: a variable
+# whose name starts with `reference`.
+DEFAULT_VARIABLES_REFERENCE = "reference*"
+
+
+def decouper_variables_commune(
+    valeur: str | None, defaut: str = DEFAULT_VARIABLES_COMMUNE
+) -> tuple[str, ...]:
     """``"Ville, adresse*"`` -> ``("ville", "adresse*")``. Blank -> the default.
 
     Case and spaces around a name do not count, empty items (a trailing comma)
     are ignored. ⛔ Raises ``ValueError`` naming the first invalid name.
     """
     if valeur is None or not valeur.strip():
-        valeur = DEFAULT_VARIABLES_COMMUNE
+        valeur = defaut
     noms = tuple(nom.strip().lower() for nom in valeur.split(",") if nom.strip())
     for nom in noms:
         if not _NOM_VARIABLE_COMMUNE.match(nom):
@@ -568,6 +577,14 @@ class WorkflowConfigurationDefaults(BaseModel):
             "commune, commune_*, adresse*."
         ),
     )
+    variables_reference: str = Field(
+        default=DEFAULT_VARIABLES_REFERENCE,
+        max_length=500,
+        description=(
+            "The extraction variables that trigger the reference reader (invoice, "
+            "quote or order numbers), same format as above. Empty: reference*."
+        ),
+    )
     horaires_ouverture: str | None = Field(
         default=DEFAULT_HORAIRES_OUVERTURE,
         max_length=4000,
@@ -674,6 +691,26 @@ class WorkflowConfigurationDefaults(BaseModel):
             "of it: either can be used alone."
         ),
     )
+    # [.mark] La fiche au fil de l'eau (plan 2026-09-23, lots 1 et suivants).
+    fiche_au_fil_de_leau: bool = Field(
+        default=False,
+        description=(
+            "Give the model a noter_information tool it can call at any step to "
+            "write or correct a field of the call record below. Off: the tool "
+            "is not offered at all and the agent behaves exactly as before. On: "
+            "the step-by-step extraction is switched off, the record is filled "
+            "by the tool. No effect in realtime mode."
+        ),
+    )
+    fiche_champs: list[ChampFiche] = Field(
+        default_factory=list,
+        max_length=60,
+        description=(
+            "The fields of the call record the tool can write: name, type, "
+            "dictated or deduced, and a hint for the model. A dictated value "
+            "is written only if the caller said it."
+        ),
+    )
     tts_replacements: list[str] = Field(
         default_factory=list,
         max_length=200,
@@ -746,6 +783,12 @@ class WorkflowConfigurationDefaults(BaseModel):
             )
         return value
 
+    @field_validator("fiche_champs")
+    @classmethod
+    def fiche_champs_valides(cls, value: list[ChampFiche]) -> list[ChampFiche]:
+        """[.mark] A reserved or duplicated field name is refused (422 on save)."""
+        return verifier_champs(value)
+
     @field_validator("variables_commune", mode="before")
     @classmethod
     def variables_commune_valides(cls, value: object) -> object:
@@ -759,6 +802,17 @@ class WorkflowConfigurationDefaults(BaseModel):
             if not value.strip():
                 return DEFAULT_VARIABLES_COMMUNE
             decouper_variables_commune(value)
+            return value.strip()
+        return value
+
+    @field_validator("variables_reference", mode="before")
+    @classmethod
+    def variables_reference_valides(cls, value: object) -> object:
+        """[.mark] Blank means the default; an invalid name is refused (422 on save)."""
+        if isinstance(value, str):
+            if not value.strip():
+                return DEFAULT_VARIABLES_REFERENCE
+            decouper_variables_commune(value, DEFAULT_VARIABLES_REFERENCE)
             return value.strip()
         return value
 
