@@ -43,11 +43,13 @@ class ChampFiche(BaseModel):
     # ⛔ Gardé VIDE en base, jamais remplacé par sa valeur déduite : l'écran
     # comparerait ce qu'il a envoyé à ce qu'il relit et se croirait modifié, et
     # un champ renommé garderait le lecteur de son ancien nom (constaté le 24/09).
-    lecteur: Literal["commune", "rue", "aucun"] | None = Field(
+    lecteur: Literal["commune", "rue", "date", "aucun"] | None = Field(
         default=None,
         description=(
             "Which reader checks the value: town (official name and INSEE code), "
-            "street (official street name), or none. Empty: from the field name."
+            "street (official street name), date (a relative date such as 'last "
+            "year' computed on the day of the call, the caller's words kept), or "
+            "none. Empty: from the field name."
         ),
     )
 
@@ -57,17 +59,25 @@ class ChampFiche(BaseModel):
 
 
 def lecteur_par_defaut(nom: str) -> str:
-    """D42 : ``commune*`` -> commune ; ``adresse*`` et ``rue*`` -> rue ; sinon aucun."""
+    """D42 : ``commune*`` -> commune ; ``adresse*`` et ``rue*`` -> rue ; D46 :
+    ``*date*``, ``dernier_*`` et ``annee*`` -> date ; sinon aucun."""
     if nom.startswith("commune"):
         return "commune"
     if nom.startswith(("adresse", "rue")):
         return "rue"
+    if "date" in nom or nom.startswith(("dernier_", "annee")):
+        return "date"
     return "aucun"
 
 
 def cle_insee(nom: str) -> str:
     """Où le code INSEE d'une commune sûre est écrit, à côté de son nom."""
     return f"{nom}_insee"
+
+
+def cle_dit(nom: str) -> str:
+    """D46 : où les mots de la personne sont gardés, à côté de la date calculée."""
+    return f"{nom}_dit"
 
 
 # Clés que le moteur et les modules écrivent eux-mêmes dans la fiche de l'appel.
@@ -102,10 +112,16 @@ def verifier_champs(champs: list[ChampFiche]) -> list[ChampFiche]:
     """Refuse un nom réservé ou un nom en double (422 à l'enregistrement)."""
     vus: set[str] = set()
     insee = {cle_insee(c.nom) for c in champs if c.lecteur_effectif == "commune"}
+    dits = {cle_dit(c.nom) for c in champs if c.lecteur_effectif == "date"}
     for champ in champs:
         if champ.nom in insee:
             raise ValueError(
                 f"fiche field name '{champ.nom}' is where a town's INSEE code is written"
+            )
+        if champ.nom in dits:
+            raise ValueError(
+                f"fiche field name '{champ.nom}' is where the caller's words for a "
+                "date are kept"
             )
         if champ.nom in NOMS_RESERVES:
             raise ValueError(f"fiche field name '{champ.nom}' is reserved")

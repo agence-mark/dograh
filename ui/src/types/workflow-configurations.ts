@@ -214,7 +214,7 @@ export interface ChampFiche {
     origine: "dicte" | "deduit";
     description: string;
     // Empty (null): deduced from the name, as the server does.
-    lecteur: "commune" | "rue" | "aucun" | null;
+    lecteur: "commune" | "rue" | "date" | "aucun" | null;
 }
 
 export type WorkflowConfigurations = WorkflowConfigurationBase & {

@@ -202,12 +202,15 @@ describe("[.mark] Call Record rules mirror the server", () => {
         ["adresse_intervention", "rue"],
         ["rue", "rue"],
         ["nom", "aucun"],
+        ["dernier_entretien", "date"],
+        ["date_installation", "date"],
+        ["annee_pose", "date"],
     ])("reader from the name: %s -> %s", (nom, lecteur) => {
         expect(lecteurParDefaut(nom)).toBe(lecteur);
     });
 
     it("refuses bad, reserved, duplicated and INSEE names", () => {
-        const champ = (nom: string, lecteur: "commune" | "aucun" | null = null) => ({
+        const champ = (nom: string, lecteur: "commune" | "date" | "aucun" | null = null) => ({
             nom,
             type: "string" as const,
             origine: "dicte" as const,
@@ -218,6 +221,9 @@ describe("[.mark] Call Record rules mirror the server", () => {
         expect(erreursDesChamps([champ("nodes_visited")])[0]).toMatch(/agent itself/i);
         expect(erreursDesChamps([champ("nom"), champ("nom")])[1]).toMatch(/twice/i);
         expect(erreursDesChamps([champ("commune"), champ("commune_insee", "aucun")])[1]).toMatch(/INSEE/);
+        expect(
+            erreursDesChamps([champ("dernier_entretien"), champ("dernier_entretien_dit", "aucun")])[1],
+        ).toMatch(/words for a date/);
         expect(erreursDesChamps([champ("nom"), champ("commune")])).toEqual({});
     });
 });

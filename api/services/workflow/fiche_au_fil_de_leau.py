@@ -34,6 +34,7 @@ import unicodedata
 from collections.abc import Callable, Iterable
 from contextvars import ContextVar
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from loguru import logger
@@ -44,9 +45,11 @@ from pipecat.services.llm_service import FunctionCallParams
 from api.schemas.fiche_agent import (
     ChampFiche,
     OrigineChamp,
+    cle_dit,
     cle_insee,
     verifier_champs,
 )
+from api.services.workflow.dates_relatives import lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
 
 NOM_OUTIL = "noter_information"
@@ -376,6 +379,7 @@ def ecrire_dans_la_fiche(
     source: str = "outil",
     paroles: Iterable[str] = (),
     seulement_si_vide: bool = False,
+    jour: datetime | None = None,
 ) -> Verdict:
     """Écrit un champ dans la fiche de l'appel, ou dit pourquoi non.
 
@@ -386,12 +390,15 @@ def ecrire_dans_la_fiche(
     module (commune, rue) doit correspondre à ce que le module a trouvé, sinon il
     est écrit NON SÛR et à faire confirmer (D37) ; un champ sans module doit
     figurer dans ce que l'appelant a dit (D41). Une épellation lue par le code
-    est écrite telle qu'épelée, pour tout champ dicté.
+    est écrite telle qu'épelée, pour tout champ dicté. Un champ de date (D46)
+    reçoit la date calculée à partir des mots dits, qui sont gardés à côté.
     """
     definition = reglages.par_nom.get(champ)
     if isinstance(valeur, str):
         valeur = valeur.strip()
+    paroles = list(paroles)
     lecture: Lecture | None = None
+    dit: str | None = None
 
     if definition is None:
         verdict = Verdict(champ, "refuse", "champ_inconnu")
@@ -411,9 +418,15 @@ def ecrire_dans_la_fiche(
             lecture = lire_rue(valeur, fiche)
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
+        if definition.lecteur_effectif == "date" and not epele:
+            date = lire_date(str(valeur), paroles, jour)
+            # « 2025 » trouvé dans ses paroles, ou « l'année dernière » dit tel quel.
+            if date and (date.depuis_les_paroles or est_cite(valeur, paroles)):
+                valeur, dit = date.valeur, date.dit
         if (
             lecture is None
             and not epele
+            and dit is None
             and definition.origine == OrigineChamp.dicte
             and not est_cite(valeur, paroles)
         ):
@@ -422,6 +435,14 @@ def ecrire_dans_la_fiche(
             verdict = _ecrire(
                 fiche, champ, valeur, sure, source, seulement_si_vide, lecture
             )
+            if verdict.statut == "ecrit" and definition.lecteur_effectif == "date":
+                extraites = fiche.setdefault("extracted_variables", {})
+                if dit is not None:
+                    fiche[cle_dit(champ)] = extraites[cle_dit(champ)] = dit
+                else:
+                    # Une date écrite telle que dite ne garde pas les mots d'une autre.
+                    fiche.pop(cle_dit(champ), None)
+                    extraites.pop(cle_dit(champ), None)
 
     fiche.setdefault(CLE_JOURNAL, []).append(
         {
@@ -432,6 +453,7 @@ def ecrire_dans_la_fiche(
             "source": source,
             "sure": sure,
             **({"suite": verdict.suite} if verdict.suite else {}),
+            **({"dit": dit} if dit is not None else {}),
         }
     )
     logger.info(

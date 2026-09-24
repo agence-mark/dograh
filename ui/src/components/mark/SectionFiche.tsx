@@ -79,12 +79,14 @@ export const NOMS_RESERVES = [
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */
-export const lecteurParDefaut = (nom: string): "commune" | "rue" | "aucun" =>
+export const lecteurParDefaut = (nom: string): "commune" | "rue" | "date" | "aucun" =>
     nom.startsWith("commune")
         ? "commune"
         : nom.startsWith("adresse") || nom.startsWith("rue")
           ? "rue"
-          : "aucun";
+          : nom.includes("date") || nom.startsWith("dernier_") || nom.startsWith("annee")
+            ? "date"
+            : "aucun";
 
 /** The first problem of each field, by index: what the server would refuse. */
 export const erreursDesChamps = (champs: ChampFiche[]): Record<number, string> => {
@@ -95,6 +97,12 @@ export const erreursDesChamps = (champs: ChampFiche[]): Record<number, string> =
             .filter((c) => (c.lecteur ?? lecteurParDefaut(c.nom)) === "commune")
             .map((c) => `${c.nom}_insee`),
     );
+    // Mirrors `cle_dit` (D46): where the caller's words for a date are kept.
+    const dits = new Set(
+        champs
+            .filter((c) => (c.lecteur ?? lecteurParDefaut(c.nom)) === "date")
+            .map((c) => `${c.nom}_dit`),
+    );
     champs.forEach((champ, i) => {
         if (!NOM_CHAMP.test(champ.nom)) {
             erreurs[i] = "Lowercase letters, digits and _, starting with a letter.";
@@ -104,6 +112,8 @@ export const erreursDesChamps = (champs: ChampFiche[]): Record<number, string> =
             erreurs[i] = "This name is used twice.";
         } else if (insee.has(champ.nom)) {
             erreurs[i] = "This is where a town's INSEE code is written.";
+        } else if (dits.has(champ.nom)) {
+            erreurs[i] = "This is where the caller's words for a date are kept.";
         }
         vus.add(champ.nom);
     });
@@ -279,9 +289,12 @@ export const SectionFiche = ({
                             street, brand). <strong>Deduced</strong>: the model sums it up
                             (reason for the call, urgency). The <strong>reader</strong> checks a
                             town against the list of communes, or a street against the streets of
-                            the town; &quot;From the name&quot; picks it as the server does
+                            the town, or computes a <strong>date</strong> said as &quot;last
+                            year&quot; on the day of the call (the caller&apos;s words are kept
+                            next to it); &quot;From the name&quot; picks it as the server does
                             (<code>commune…</code> → town, <code>adresse…</code> or{" "}
-                            <code>rue…</code> → street).
+                            <code>rue…</code> → street, <code>…date…</code>,{" "}
+                            <code>dernier_…</code> or <code>annee…</code> → date).
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex-1 space-y-3 overflow-y-auto pr-1">
@@ -350,6 +363,7 @@ export const SectionFiche = ({
                                                 </SelectItem>
                                                 <SelectItem value="commune">Town</SelectItem>
                                                 <SelectItem value="rue">Street</SelectItem>
+                                                <SelectItem value="date">Date</SelectItem>
                                                 <SelectItem value="aucun">None</SelectItem>
                                             </SelectContent>
                                         </Select>
