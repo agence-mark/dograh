@@ -76,6 +76,13 @@ CONSIGNE_ECRITURE_RETENUE = (
     "Noté sous son écriture officielle. Tu ne la redis pas et tu ne la fais pas "
     "confirmer ; si tu dois la redire plus tard, utilise cette écriture."
 )
+# A5 (runs 831, 837) : un refus rendu sans consigne a poussé le modèle à faire
+# confirmer SA version (« c'est bien en 2025 ? ») jusqu'à l'entendre dite : quatre
+# tours pour une année au run 837, « ça casse le naturel » (Evan).
+CONSIGNE_NON_DIT = (
+    "Pas noté : {champs} n'a pas été dit tel quel par la personne. Note ses mots "
+    "exacts ; ne lui fais pas confirmer ta version et ne repose pas la question."
+)
 
 # Écrite au mot au lot 0 (outil Dograh `e42be297`, 20 appels), reprise telle
 # quelle (plan, « Description de l'outil »). ⛔ Ne pas la retoucher sans essai.
@@ -664,6 +671,9 @@ def creer_gestionnaire(
                     if a_confirmer
                     else CONSIGNE_ECRITURE_RETENUE
                 )
+            non_dits = [r["champ"] for r in refuses if r["raison"] == "non_dit"]
+            if non_dits:
+                consignes.append(CONSIGNE_NON_DIT.format(champs=", ".join(non_dits)))
             if consignes:
                 resultat["consigne"] = " ".join(consignes)
             if refuses:

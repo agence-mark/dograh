@@ -36,6 +36,7 @@ from api.services.workflow import pipecat_engine
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_ETAT,
     CLE_JOURNAL,
+    CONSIGNE_NON_DIT,
     NOM_OUTIL,
     ReglagesFiche,
     creer_gestionnaire,
@@ -276,6 +277,21 @@ async def test_gestionnaire_chaque_champ_seul_et_aucun_run_llm():
     assert {r["champ"] for r in resultat["refuses"]} == {"commune", "inconnu"}
     # D40 : jamais de `run_llm` fixé par la note.
     assert properties is None
+
+
+@pytest.mark.asyncio
+async def test_A5_un_refus_non_dit_porte_une_consigne():
+    """Runs 831, 837 : sans consigne, le refus poussait le modèle à faire confirmer
+    sa version. Le refus dit quoi faire : noter les mots de la personne."""
+    fiche: dict = {}
+    messages = [{"role": "user", "content": "Monsieur Dupont, à Creil"}]
+    gestionnaire = creer_gestionnaire(_reglages(), lambda: fiche, lambda: messages)
+    params = _Params({"commune": "Lyon 5ᵉ", "inconnu": "x"})
+    await gestionnaire(params)
+    ((resultat, _),) = params.resultats
+    assert resultat["statut"] == "rien_note"
+    assert resultat["consigne"] == CONSIGNE_NON_DIT.format(champs="commune")
+    assert "ne lui fais pas confirmer ta version" in resultat["consigne"]
 
 
 # --- Branchement dans le moteur, sur le vrai pipeline ------------------------
