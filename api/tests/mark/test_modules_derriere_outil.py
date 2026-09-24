@@ -371,6 +371,8 @@ async def test_run_828_le_modele_recoit_l_ecriture_officielle():
     assert resultat["statut"] == "note"
     assert resultat["ecriture_retenue"] == {"commune": "Pont-Sainte-Maxence"}
     assert "officielle" in resultat["consigne"]
+    # A6 : la consigne ne pousse plus à redire ni à faire confirmer.
+    assert "Tu ne la redis pas et tu ne la fais pas confirmer" in resultat["consigne"]
     # Une valeur écrite telle que donnée n'est pas répétée au modèle.
     assert "code_postal" not in resultat["ecriture_retenue"]
 

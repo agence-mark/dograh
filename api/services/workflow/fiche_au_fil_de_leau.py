@@ -69,9 +69,12 @@ CONSIGNE_AMBIGU = (
 # Maxence, la fiche l'écrit juste... et l'agent redit « Ponce-Alpes-Maxence » : depuis
 # que les notes entre crochets ont disparu (D13), rien ne lui donnait l'écriture
 # retenue. Le résultat de l'outil la lui rend.
+# A6 (runs 830 à 837) : « quand tu redis… » s'est lu comme « redis-la » : commune
+# redite six fois sur dix, refaite confirmer deux fois. La consigne dit d'abord de
+# NE PAS la redire, et seulement ensuite comment l'écrire si c'est nécessaire.
 CONSIGNE_ECRITURE_RETENUE = (
-    "La fiche a retenu l'écriture officielle : quand tu redis ces informations, "
-    "utilise celle-ci."
+    "Noté sous son écriture officielle. Tu ne la redis pas et tu ne la fais pas "
+    "confirmer ; si tu dois la redire plus tard, utilise cette écriture."
 )
 
 # Écrite au mot au lot 0 (outil Dograh `e42be297`, 20 appels), reprise telle
