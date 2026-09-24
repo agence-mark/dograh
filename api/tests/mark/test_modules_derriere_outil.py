@@ -37,7 +37,9 @@ from api.services.pipecat.verification_communes import consigner_dans
 from api.services.voies import base as base_voies
 from api.services.voies.mention import MARQUE as MARQUE_VOIE
 from api.services.workflow.fiche_au_fil_de_leau import (
+    CONSIGNE_A_CONFIRMER,
     CONSIGNE_AMBIGU,
+    CONSIGNE_ECRITURE_RETENUE,
     ReglagesFiche,
     creer_gestionnaire,
     ecrire_dans_la_fiche,
@@ -375,6 +377,34 @@ async def test_run_828_le_modele_recoit_l_ecriture_officielle():
     assert "Tu ne la redis pas et tu ne la fais pas confirmer" in resultat["consigne"]
     # Une valeur écrite telle que donnée n'est pas répétée au modèle.
     assert "code_postal" not in resultat["ecriture_retenue"]
+
+
+@pytest.mark.asyncio
+async def test_A2_commune_retenue_et_rue_a_confirmer_les_deux_consignes():
+    """Run 832 : la commune est retenue sous son écriture officielle, la rue n'a
+    pas de trace (D37, à confirmer) : le modèle reçoit les deux consignes."""
+    fiche, _ = await _appel("j'habite à Ponce-Alpes-Maxence, soixante mille sept cents")
+    resultats = []
+
+    async def rappel(resultat, *, properties=None):
+        resultats.append(resultat)
+
+    gestionnaire = creer_gestionnaire(_reglages(), lambda: fiche, list)
+    await gestionnaire(
+        SimpleNamespace(
+            arguments={
+                "commune": "Ponce-Alpes-Maxence",
+                "adresse_intervention": "Siru Danton",
+            },
+            tool_call_id="n1",
+            result_callback=rappel,
+        )
+    )
+    (resultat,) = resultats
+    assert resultat["statut"] == "a_confirmer"
+    assert resultat["ecriture_retenue"] == {"commune": "Pont-Sainte-Maxence"}
+    assert resultat["consigne"].startswith(CONSIGNE_A_CONFIRMER)
+    assert f"Pour commune : {CONSIGNE_ECRITURE_RETENUE}" in resultat["consigne"]
 
 
 def test_la_trace_la_plus_recente_gagne():

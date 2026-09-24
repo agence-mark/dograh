@@ -646,19 +646,26 @@ def creer_gestionnaire(
                 elif verdict.statut == "refuse":
                     refuses.append({"champ": champ, "raison": verdict.raison})
             resultat: dict = {"statut": "note" if ecrits else "rien_note"}
+            # A2 (run 832) : une consigne ne remplace plus l'autre. Commune
+            # retenue ET adresse à confirmer dans la même note : les deux.
+            consignes: list[str] = []
             if ecrits:
                 resultat["ecrits"] = ecrits
-            if retenus:
-                resultat["ecriture_retenue"] = retenus
-                resultat["consigne"] = CONSIGNE_ECRITURE_RETENUE
             if a_confirmer:
                 # D7 : c'est le modèle, relancé, qui pose la question.
                 ambigu = any("options" in c for c in a_confirmer)
                 resultat["statut"] = "ambigu" if ambigu else "a_confirmer"
                 resultat["a_confirmer"] = a_confirmer
-                resultat["consigne"] = (
-                    CONSIGNE_AMBIGU if ambigu else CONSIGNE_A_CONFIRMER
+                consignes.append(CONSIGNE_AMBIGU if ambigu else CONSIGNE_A_CONFIRMER)
+            if retenus:
+                resultat["ecriture_retenue"] = retenus
+                consignes.append(
+                    f"Pour {', '.join(retenus)} : {CONSIGNE_ECRITURE_RETENUE}"
+                    if a_confirmer
+                    else CONSIGNE_ECRITURE_RETENUE
                 )
+            if consignes:
+                resultat["consigne"] = " ".join(consignes)
             if refuses:
                 resultat["refuses"] = refuses
         except Exception as erreur:  # noqa: BLE001 -- une note ne coûte jamais l'appel
