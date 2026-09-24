@@ -32,18 +32,33 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from api.schemas.fiche_agent import (
+    ChampFiche,
+    OrigineChamp,
+    cle_insee,
+    verifier_champs,
+)
 from loguru import logger
 from pipecat.adapters.schemas.function_schema import FunctionSchema
 from pipecat.frames.frames import FunctionCallResultProperties
 from pipecat.services.llm_service import FunctionCallParams
-
-from api.schemas.fiche_agent import ChampFiche, OrigineChamp, verifier_champs
 
 NOM_OUTIL = "noter_information"
 CLE_INTERRUPTEUR = "fiche_au_fil_de_leau"
 CLE_CHAMPS = "fiche_champs"
 CLE_ETAT = "fiche_etat"
 CLE_JOURNAL = "fiche_journal"
+# Les traces que les modules écrivent déjà dans la fiche de l'appel (lecture_appelant).
+TRACE_COMMUNES = "communes_verifiees"
+TRACE_VOIES = "voies_verifiees"
+TRACE_EPELLATIONS = "epellations_lues"
+
+CONSIGNE_A_CONFIRMER = (
+    "Noté, mais pas vérifié : fais confirmer cette information à la personne."
+)
+CONSIGNE_AMBIGU = (
+    "Noté, mais plusieurs possibilités : demande à la personne laquelle est la bonne."
+)
 
 # Écrite au mot au lot 0 (outil Dograh `e42be297`, 20 appels), reprise telle
 # quelle (plan, « Description de l'outil »). ⛔ Ne pas la retoucher sans essai.
@@ -166,6 +181,150 @@ def paroles_de_l_appelant(messages: Iterable[dict]) -> list[str]:
     return paroles
 
 
+# --- Ce que les modules ont déjà trouvé (D23, D42) ---------------------------
+#
+# ⛔ L'outil ne ré-analyse rien : il reprend les traces que les modules ont
+# écrites sur les phrases entières de l'appelant (« Chantilly, 60560 » tranché
+# par le code postal, même si le modèle ne note que « Chantilly »).
+
+
+@dataclass(frozen=True)
+class Lecture:
+    valeur: Any
+    sure: bool
+    suite: str | None = None  # "a_confirmer" | "ambigu"
+    options: tuple[str, ...] = ()
+    code_insee: str | None = None
+
+
+def _memes_mots(a: Any, b: Any) -> bool:
+    mots = _mots(str(a or ""))
+    return bool(mots) and mots == _mots(str(b or ""))
+
+
+def _entrees(fiche: dict, cle: str) -> list[dict]:
+    """Les traces d'un module, la plus récente d'abord."""
+    return [t for t in reversed(fiche.get(cle) or []) if isinstance(t, dict)]
+
+
+def _suite(options: tuple[str, ...]) -> str:
+    return "ambigu" if len(options) > 1 else "a_confirmer"
+
+
+def lire_epellation(valeur: Any, fiche: dict) -> str | None:
+    """Le mot épelé que le code a lu, si la valeur est cette épellation."""
+    compacte = "".join(_mots(str(valeur)))
+    for trace in _entrees(fiche, TRACE_EPELLATIONS):
+        epele = trace.get("epele")
+        if not epele:
+            continue
+        if compacte and compacte in (
+            "".join(_mots(trace.get("entendu") or "")),
+            "".join(_mots(epele)),
+        ):
+            return epele
+    return None
+
+
+def _option_commune(proposition: dict) -> str:
+    nom, dep = proposition.get("nom") or "", proposition.get("departement")
+    return f"{nom} ({dep})" if dep else nom
+
+
+def lire_commune(valeur: Any, fiche: dict) -> Lecture:
+    for trace in _entrees(fiche, TRACE_COMMUNES):
+        retenue = trace.get("commune_retenue") or {}
+        propositions = [
+            p for p in trace.get("propositions") or [] if isinstance(p, dict)
+        ]
+        noms = [retenue.get("nom"), *(p.get("nom") for p in propositions)]
+        if not (
+            _memes_mots(valeur, trace.get("entendu"))
+            or any(_memes_mots(valeur, nom) for nom in noms)
+        ):
+            continue
+        if trace.get("statut") == "sure" and retenue.get("nom"):
+            return Lecture(retenue["nom"], True, code_insee=retenue.get("code_insee"))
+        options = tuple(_option_commune(p) for p in propositions)
+        choisie = next(
+            (p for p in propositions if _memes_mots(valeur, p.get("nom"))), None
+        )
+        return Lecture(
+            choisie["nom"] if choisie else valeur, False, _suite(options), options
+        )
+    # D37 : aucune trace du module pour cette valeur.
+    return Lecture(valeur, False, "a_confirmer")
+
+
+_MOT = re.compile(r"[^\W_]+")
+_NUMERO = {"bis", "ter", "quater"}
+
+
+def _trouver(valeur: str, phrase: str) -> tuple[int, int] | None:
+    """La portée (début, fin) des mots de ``phrase`` dans ``valeur``, accents
+    et casse ignorés. Le numéro en tête de ``phrase`` est essayé avec et sans."""
+    mots = list(_MOT.finditer(valeur))
+    formes = ["".join(_mots(m.group())) for m in mots]
+    cible = _mots(phrase)
+    essais = [cible]
+    sans_numero = cible
+    while sans_numero and (sans_numero[0].isdigit() or sans_numero[0] in _NUMERO):
+        sans_numero = sans_numero[1:]
+    if sans_numero != cible:
+        essais.append(sans_numero)
+    for essai in essais:
+        n = len(essai)
+        for i in range(len(formes) - n + 1) if n else ():
+            if formes[i : i + n] == essai:
+                return mots[i].start(), mots[i + n - 1].end()
+    return None
+
+
+def _avec_le_type_de_voie(
+    valeur: str, portee: tuple[int, int], nom_officiel: str
+) -> tuple[int, int]:
+    """Le module note la rue entendue SANS son type (« danton ») : la portée
+    s'étend aux mots qui la précèdent quand ils ouvrent le nom officiel
+    (« rue » de « Rue Danton »), sinon on écrirait « 6 rue Rue Danton »."""
+    tete = _mots(nom_officiel)
+    avant = list(_MOT.finditer(valeur[: portee[0]]))
+    for n in range(min(len(avant), len(tete)), 0, -1):
+        mots = avant[-n:]
+        if ["".join(_mots(m.group())) for m in mots] == tete[:n]:
+            return mots[0].start(), portee[1]
+    return portee
+
+
+def _remplacer(valeur: str, portee: tuple[int, int], par: str) -> str:
+    return f"{valeur[: portee[0]]}{par}{valeur[portee[1] :]}"
+
+
+def lire_rue(valeur: Any, fiche: dict) -> Lecture:
+    texte = str(valeur)
+    for trace in _entrees(fiche, TRACE_VOIES):
+        retenue = trace.get("voie_retenue")
+        propositions = tuple(
+            p.get("nom")
+            for p in trace.get("propositions") or []
+            if isinstance(p, dict) and p.get("nom")
+        )
+        portee = _trouver(texte, trace.get("entendu") or "")
+        choisie = None
+        if portee is None:
+            for nom in (retenue, *propositions):
+                if nom and (portee := _trouver(texte, nom)) is not None:
+                    choisie = nom
+                    break
+        if portee is None:
+            continue
+        if trace.get("statut") == "sure" and retenue:
+            portee = _avec_le_type_de_voie(texte, portee, retenue)
+            return Lecture(_remplacer(texte, portee, retenue), True)
+        nouvelle = _remplacer(texte, portee, choisie) if choisie else texte
+        return Lecture(nouvelle, False, _suite(propositions), propositions)
+    return Lecture(texte, False, "a_confirmer")
+
+
 # --- Le point d'écriture unique (D35) ----------------------------------------
 
 
@@ -174,6 +333,9 @@ class Verdict:
     champ: str
     statut: str  # "ecrit" | "refuse" | "ignore"
     raison: str | None = None
+    valeur: Any = None
+    suite: str | None = None  # "a_confirmer" | "ambigu" : faire confirmer
+    options: tuple[str, ...] = ()
 
 
 def _est_vide(valeur: Any) -> bool:
@@ -195,30 +357,47 @@ def ecrire_dans_la_fiche(
 
     Chaque champ est traité seul. Chaque écriture et chaque refus sont
     consignés, avec leur raison, dans le journal de la fiche et les logs.
+
+    Contrôle « a-t-il été dit ? » en deux régimes (D24) : un champ lu par un
+    module (commune, rue) doit correspondre à ce que le module a trouvé, sinon il
+    est écrit NON SÛR et à faire confirmer (D37) ; un champ sans module doit
+    figurer dans ce que l'appelant a dit (D41). Une épellation lue par le code
+    est écrite telle qu'épelée, pour tout champ dicté.
     """
     definition = reglages.par_nom.get(champ)
     if isinstance(valeur, str):
         valeur = valeur.strip()
+    lecture: Lecture | None = None
 
     if definition is None:
         verdict = Verdict(champ, "refuse", "champ_inconnu")
     elif _est_vide(valeur):
         verdict = Verdict(champ, "ignore", "valeur_vide")
-    elif definition.origine == OrigineChamp.dicte and not est_cite(valeur, paroles):
-        verdict = Verdict(champ, "refuse", "non_dit")
     else:
-        etat = fiche.setdefault(CLE_ETAT, {})
-        precedent = etat.get(champ)
-        if seulement_si_vide and not _est_vide(fiche.get(champ)):
-            verdict = Verdict(champ, "ignore", "deja_rempli")
-        elif precedent and precedent.get("sure") and not sure:
-            # D6 : une valeur non sûre n'écrase jamais une valeur sûre.
-            verdict = Verdict(champ, "refuse", "non_sure_sur_sure")
+        epele = (
+            lire_epellation(valeur, fiche)
+            if definition.origine == OrigineChamp.dicte
+            else None
+        )
+        if epele:
+            valeur = epele
+        if definition.lecteur == "commune":
+            lecture = lire_commune(valeur, fiche)
+        elif definition.lecteur == "rue":
+            lecture = lire_rue(valeur, fiche)
+        if lecture is not None:
+            valeur, sure = lecture.valeur, sure and lecture.sure
+        if (
+            lecture is None
+            and not epele
+            and definition.origine == OrigineChamp.dicte
+            and not est_cite(valeur, paroles)
+        ):
+            verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:
-            fiche[champ] = valeur
-            fiche.setdefault("extracted_variables", {})[champ] = valeur
-            etat[champ] = {"sure": sure, "source": source}
-            verdict = Verdict(champ, "ecrit")
+            verdict = _ecrire(
+                fiche, champ, valeur, sure, source, seulement_si_vide, lecture
+            )
 
     fiche.setdefault(CLE_JOURNAL, []).append(
         {
@@ -228,13 +407,49 @@ def ecrire_dans_la_fiche(
             "raison": verdict.raison,
             "source": source,
             "sure": sure,
+            **({"suite": verdict.suite} if verdict.suite else {}),
         }
     )
     logger.info(
         f"[fiche] {source} {champ}={valeur!r} -> {verdict.statut}"
         + (f" ({verdict.raison})" if verdict.raison else "")
+        + (f" [{verdict.suite}]" if verdict.suite else "")
     )
     return verdict
+
+
+def _ecrire(
+    fiche: dict,
+    champ: str,
+    valeur: Any,
+    sure: bool,
+    source: str,
+    seulement_si_vide: bool,
+    lecture: Lecture | None,
+) -> Verdict:
+    etat = fiche.setdefault(CLE_ETAT, {})
+    precedent = etat.get(champ)
+    if seulement_si_vide and not _est_vide(fiche.get(champ)):
+        return Verdict(champ, "ignore", "deja_rempli", valeur)
+    if precedent and precedent.get("sure") and not sure:
+        # D6 : une valeur non sûre n'écrase jamais une valeur sûre.
+        return Verdict(champ, "refuse", "non_sure_sur_sure", valeur)
+    extraites = fiche.setdefault("extracted_variables", {})
+    fiche[champ] = extraites[champ] = valeur
+    etat[champ] = {"sure": sure, "source": source}
+    if lecture is not None and lecture.code_insee and sure:
+        fiche[cle_insee(champ)] = extraites[cle_insee(champ)] = lecture.code_insee
+    elif lecture is not None:
+        # Une commune non sûre ne garde pas le code d'une autre.
+        fiche.pop(cle_insee(champ), None)
+        extraites.pop(cle_insee(champ), None)
+    return Verdict(
+        champ,
+        "ecrit",
+        valeur=valeur,
+        suite=None if sure else (lecture.suite if lecture else None),
+        options=lecture.options if lecture and not sure else (),
+    )
 
 
 # --- Une seule relance par tour ----------------------------------------------
@@ -335,6 +550,7 @@ def creer_gestionnaire(
             paroles = paroles_de_l_appelant(messages())
             ecrits: list[str] = []
             refuses: list[dict] = []
+            a_confirmer: list[dict] = []
             # Plusieurs notes d'un même tour : appliquées dans l'ordre d'arrivée,
             # chaque champ seul.
             for champ, valeur in dict(params.arguments or {}).items():
@@ -343,11 +559,31 @@ def creer_gestionnaire(
                 )
                 if verdict.statut == "ecrit":
                     ecrits.append(champ)
+                    if verdict.suite:
+                        a_confirmer.append(
+                            {
+                                "champ": champ,
+                                "valeur": verdict.valeur,
+                                **(
+                                    {"options": list(verdict.options)}
+                                    if verdict.options
+                                    else {}
+                                ),
+                            }
+                        )
                 elif verdict.statut == "refuse":
                     refuses.append({"champ": champ, "raison": verdict.raison})
             resultat: dict = {"statut": "note" if ecrits else "rien_note"}
             if ecrits:
                 resultat["ecrits"] = ecrits
+            if a_confirmer:
+                # D7 : c'est le modèle, relancé, qui pose la question.
+                ambigu = any("options" in c for c in a_confirmer)
+                resultat["statut"] = "ambigu" if ambigu else "a_confirmer"
+                resultat["a_confirmer"] = a_confirmer
+                resultat["consigne"] = (
+                    CONSIGNE_AMBIGU if ambigu else CONSIGNE_A_CONFIRMER
+                )
             if refuses:
                 resultat["refuses"] = refuses
         except Exception as erreur:  # noqa: BLE001 -- une note ne coûte jamais l'appel

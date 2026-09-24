@@ -54,7 +54,9 @@ CONFIG_ALLUMEE = {
     "fiche_au_fil_de_leau": True,
     "fiche_champs": [
         {"nom": "nom", "origine": "dicte", "description": "Nom de famille"},
-        {"nom": "commune", "origine": "dicte"},
+        # Lot 1 : le chemin générique, sans module. Le lecteur « commune » (D42)
+        # est éprouvé dans `test_modules_derriere_outil.py`.
+        {"nom": "commune", "origine": "dicte", "lecteur": "aucun"},
         {"nom": "telephone", "origine": "dicte"},
         {"nom": "dernier_entretien", "origine": "dicte"},
         {"nom": "motif", "origine": "deduit"},

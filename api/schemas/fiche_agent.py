@@ -8,7 +8,7 @@ aucune migration de base (D32).
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class OrigineChamp(str, Enum):
@@ -39,6 +39,34 @@ class ChampFiche(BaseModel):
         max_length=500,
         description="Hint given to the model for this parameter.",
     )
+    # D42 : quel module lit ce champ. Vide = déduit du nom (``lecteur_par_defaut``).
+    lecteur: Literal["commune", "rue", "aucun"] | None = Field(
+        default=None,
+        description=(
+            "Which reader checks the value: town (official name and INSEE code), "
+            "street (official street name), or none. Empty: from the field name."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _lecteur_deduit(self) -> "ChampFiche":
+        if self.lecteur is None:
+            self.lecteur = lecteur_par_defaut(self.nom)
+        return self
+
+
+def lecteur_par_defaut(nom: str) -> str:
+    """D42 : ``commune*`` -> commune ; ``adresse*`` et ``rue*`` -> rue ; sinon aucun."""
+    if nom.startswith("commune"):
+        return "commune"
+    if nom.startswith(("adresse", "rue")):
+        return "rue"
+    return "aucun"
+
+
+def cle_insee(nom: str) -> str:
+    """Où le code INSEE d'une commune sûre est écrit, à côté de son nom."""
+    return f"{nom}_insee"
 
 
 # Clés que le moteur et les modules écrivent eux-mêmes dans la fiche de l'appel.
@@ -72,7 +100,12 @@ NOMS_RESERVES = frozenset(
 def verifier_champs(champs: list[ChampFiche]) -> list[ChampFiche]:
     """Refuse un nom réservé ou un nom en double (422 à l'enregistrement)."""
     vus: set[str] = set()
+    insee = {cle_insee(c.nom) for c in champs if c.lecteur == "commune"}
     for champ in champs:
+        if champ.nom in insee:
+            raise ValueError(
+                f"fiche field name '{champ.nom}' is where a town's INSEE code is written"
+            )
         if champ.nom in NOMS_RESERVES:
             raise ValueError(f"fiche field name '{champ.nom}' is reserved")
         if champ.nom in vus:

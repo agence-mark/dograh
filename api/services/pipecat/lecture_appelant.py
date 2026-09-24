@@ -299,7 +299,8 @@ def _lire_voie(
 
 def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list, conversion: bool,
           communes: bool, references: bool, etape_adresse: bool = True, trace_nombres: list | None = None,
-          avec_sons: bool = True, voies: bool = False, epellation: bool = False):
+          avec_sons: bool = True, voies: bool = False, epellation: bool = False,
+          annoter: bool = True):
     """Blocking: runs in a worker thread. Returns (text for the model, records...).
 
     🔑 The order is the plan's (lot 5), and each step of it was bought:
@@ -363,6 +364,10 @@ def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list
             # tait, celle de l'épellation dit au modèle quoi noter.
             voie = None
 
+    if not annoter:
+        # D13 (fiche au fil de l'eau) : les modules ne parlent plus au modèle, ils
+        # répondent à l'outil par leurs traces. La RÉÉCRITURE ci-dessus reste.
+        return lu, lecture, base, voie, epellations
     if communes and base is not None:
         lu = mentionner(lu, _hors_epellation(lecture.detections, epellations), base)
     if voie is not None:
@@ -416,6 +421,8 @@ async def lire_texte(
         voies=voies,
         epellation=epellation,
         variables_ref=variables_ref,
+        # D13 : fiche allumée, aucune note ; la réécriture des nombres reste.
+        annoter=champs_fiche is None,
     )
     return f"{lu} {mention_lexique}" if mention_lexique else lu
 
@@ -441,6 +448,7 @@ async def _lire_texte_de_lappelant(
     voies: bool = False,
     epellation: bool = False,
     variables_ref: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT,
+    annoter: bool = True,
 ) -> str:
     try:
         if (
@@ -475,7 +483,7 @@ async def _lire_texte_de_lappelant(
         trace_nombres = lire_trace(CLE_TRACE_NOMBRES) if callable(lire_trace) else []
         lu, lecture, base, voie, epellations = await asyncio.to_thread(
             _lire, texte, adresse, trace_communes, conversion, communes, etape_reference(noeud, variables_ref),
-            etape_adresse, trace_nombres, avec_sons, voies, epellation,
+            etape_adresse, trace_nombres, avec_sons, voies, epellation, annoter,
         )
         if consigner is not None:
             entrees: list[tuple[str, dict]] = []
