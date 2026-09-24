@@ -11,6 +11,7 @@ La question à laquelle ce fichier répond, et elle seule :
 | T6.2 | Le prompt système **n'est pas modifié**, l'historique non plus |
 | D43 | L'état est placé **juste avant la dernière parole de l'appelant** |
 | A7 | L'état ne liste **jamais ce qui manque** (run 835 : une liste de questions) |
+| A8 | Un numéro de la fiche qui diffère du **dernier numéro dicté** est signalé (run 837) |
 
 Les requêtes sont celles qui PARTENT : le vrai service Mistral du fork, son
 adaptateur de messages, le client intercepté au dernier moment. T6.3 (la part
@@ -33,6 +34,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     etat_de_la_fiche,
     inserer_l_etat,
     montrer_la_fiche,
+    numeros_en_conflit,
 )
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.tests.mark.test_outil_noter import CONFIG_ALLUMEE
@@ -255,3 +257,36 @@ def test_un_service_sans_requete_de_conversation_n_est_pas_touche():
     llm = SimpleNamespace(run_inference=None)
     assert montrer_la_fiche(llm, _reglages(), dict) is False
     assert vars(llm) == {"run_inference": None}
+
+
+# --- A8 : le numéro corrigé que le modèle n'a pas noté (run 837) ------------
+
+# Les traces du module des nombres au run 837, telles qu'enregistrées.
+TRACES_837 = [
+    {"etape": "qualif_entretien", "type": "autre", "ecrit": "2025"},
+    {"etape": "nom_et_rappel", "type": "telephone", "ecrit": "06 12 34 56 68"},
+    {"etape": "nom_et_rappel", "type": "telephone", "ecrit": "06 12 34 56 78"},
+    {"etape": "adresse", "type": "code_postal", "ecrit": "60700"},
+]
+
+
+def test_A8_run_837_le_numero_corrige_non_note_est_signale():
+    fiche = {
+        "telephone": "0612345668",
+        CLE_ETAT: {"telephone": {"sure": True}},
+        "nombres_lus": TRACES_837,
+    }
+    assert numeros_en_conflit(_reglages(), fiche) == [("telephone", "0612345678")]
+    etat = etat_de_la_fiche(_reglages(), fiche)
+    assert "le dernier numéro dicté par la personne est 06 12 34 56 78" in etat
+    assert "Si c'est une correction, note le nouveau numéro." in etat
+
+
+def test_A8_numero_note_a_jour_rien_a_signaler():
+    fiche = {
+        "telephone": "0612345678",
+        CLE_ETAT: {"telephone": {"sure": True}},
+        "nombres_lus": TRACES_837,
+    }
+    assert numeros_en_conflit(_reglages(), fiche) == []
+    assert "Attention" not in etat_de_la_fiche(_reglages(), fiche)

@@ -261,3 +261,22 @@ def test_l_interrupteur_et_la_fiche_sont_estampilles_en_json():
     json.dumps(estampille)  # stocké en base : doit passer en JSON
     eteint = stamp_pipeline_settings({}, {})["pipeline_settings"]
     assert eteint["fiche_au_fil_de_leau"] is False and eteint["fiche_champs"] == []
+
+
+@pytest.mark.asyncio
+async def test_A8_en_fin_d_appel_le_numero_en_conflit_est_marque_a_verifier():
+    """Run 837 : la fiche gardait 06 12 34 56 68, la personne avait dicté le 78
+    en dernier. Le balayage ne l'écrase pas (D11), il le marque à vérifier."""
+    fiche = {
+        "telephone": "0612345668",
+        "fiche_etat": {"telephone": {"sure": True, "source": "outil"}},
+        "nombres_lus": [
+            {"type": "telephone", "ecrit": "06 12 34 56 68"},
+            {"type": "telephone", "ecrit": "06 12 34 56 78"},
+        ],
+    }
+    await balayer_la_fiche(_reglages(), Extracteur({}), fiche, MESSAGES)
+    assert fiche["telephone"] == "0612345668"
+    assert fiche["fiche_etat"]["telephone"]["sure"] is False
+    (entree,) = [e for e in fiche[CLE_JOURNAL] if e["statut"] == "a_verifier"]
+    assert entree["dernier_dicte"] == "0612345678"

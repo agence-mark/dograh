@@ -61,6 +61,7 @@ CLE_JOURNAL = "fiche_journal"
 TRACE_COMMUNES = "communes_verifiees"
 TRACE_VOIES = "voies_verifiees"
 TRACE_EPELLATIONS = "epellations_lues"
+TRACE_NOMBRES = "nombres_lus"
 
 CONSIGNE_A_CONFIRMER = (
     "Noté, mais pas vérifié : fais confirmer cette information à la personne."
@@ -542,6 +543,29 @@ def _recopie_d_un_autre_champ(
     return None
 
 
+def _marquer_les_numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> None:
+    """A8 : en fin d'appel, un numéro qui diffère encore du dernier numéro dicté
+    devient NON SÛR, et le journal dit pourquoi. Le balayage n'écrase jamais un
+    champ rempli (D11) : c'est au magasin de trancher, pas au code."""
+    for champ, dernier in numeros_en_conflit(reglages, fiche):
+        etat = fiche.setdefault(CLE_ETAT, {}).setdefault(champ, {})
+        etat["sure"] = False
+        fiche.setdefault(CLE_JOURNAL, []).append(
+            {
+                "champ": champ,
+                "valeur": fiche.get(champ),
+                "statut": "a_verifier",
+                "raison": "autre_numero_dicte_en_dernier",
+                "dernier_dicte": dernier,
+                "source": "balayage",
+                "sure": False,
+            }
+        )
+        logger.warning(
+            f"[fiche] {champ} diffère du dernier numéro dicté : marqué à vérifier"
+        )
+
+
 async def balayer_la_fiche(
     reglages: ReglagesFiche,
     extraire: Callable[[list[ExtractionVariableDTO], str], Any],
@@ -551,6 +575,7 @@ async def balayer_la_fiche(
     """Le filet contre l'oubli d'appeler l'outil : relit la conversation pour les
     SEULS champs restés vides, et les écrit par le point d'écriture unique, donc
     avec les mêmes contrôles (D35). N'écrase jamais ce que l'outil a écrit."""
+    _marquer_les_numeros_en_conflit(reglages, fiche)
     vides = [c for c in reglages.champs if _est_vide(fiche.get(c.nom))]
     if not vides:
         return {}
@@ -798,6 +823,39 @@ def _abregee(valeur: Any) -> str:
     return f"« {texte} »"
 
 
+def _chiffres(valeur: Any) -> str:
+    return "".join(c for c in str(valeur) if c.isdigit())
+
+
+def _par_paires(chiffres: str) -> str:
+    return " ".join(chiffres[i : i + 2] for i in range(0, len(chiffres), 2))
+
+
+def numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> list[tuple[str, str]]:
+    """A8 (run 837) : les champs qui gardent un numéro de téléphone différent du
+    DERNIER numéro que la personne a dicté, selon le module des nombres :
+    [(champ, dernier numéro dicté)].
+
+    Au run 837, la personne corrige « soixante-huit » en « soixante-dix-huit »,
+    l'agent relit le bon numéro… et ne le note jamais : la fiche sort fausse.
+    """
+    dictes = [
+        _chiffres(t.get("ecrit"))
+        for t in fiche.get(TRACE_NOMBRES) or []
+        if t.get("type") == "telephone"
+    ]
+    dictes = [d for d in dictes if len(d) == 10]
+    if not dictes:
+        return []
+    dernier = dictes[-1]
+    conflits = []
+    for champ in reglages.champs:
+        chiffres = _chiffres(fiche.get(champ.nom) or "")
+        if len(chiffres) == 10 and chiffres != dernier:
+            conflits.append((champ.nom, dernier))
+    return conflits
+
+
 def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str | None:
     """Ce que le modèle a déjà, sûr ou à faire confirmer, dans l'ordre des
     champs de la fiche. ``None`` tant que rien n'est noté.
@@ -826,6 +884,12 @@ def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str | None:
         lignes.append("Noté : " + " ; ".join(notes))
     if a_confirmer:
         lignes.append("À confirmer : " + " ; ".join(a_confirmer))
+    for champ, dernier in numeros_en_conflit(reglages, fiche):
+        lignes.append(
+            f"Attention : le dernier numéro dicté par la personne est "
+            f"{_par_paires(dernier)}, la fiche a un autre numéro dans {champ}. "
+            "Si c'est une correction, note le nouveau numéro."
+        )
     return "\n".join(lignes)
 
 
