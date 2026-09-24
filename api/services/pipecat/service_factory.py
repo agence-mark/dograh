@@ -1688,6 +1688,7 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "conversion_nombres_transcription",
     "verification_communes",
     "variables_commune",
+    "variables_reference",
     "lexique_metier",
     "sons_communes",
     "sons_lexique",

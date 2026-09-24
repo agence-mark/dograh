@@ -27,7 +27,11 @@ What the model reads (who does what, by switch)
   by the agent's variable names (``variables_commune``, 2026-09-17): the call
   and the keyboard read the same setting.
 - Reference notes only at steps that collect a variable starting with
-  ``reference`` (N4). Digits at every step.
+  ``reference`` (N4), now the agent's setting ``variables_reference``. Digits at
+  every step.
+- Plan fiche-au-fil-de-leau, lot 2 (D9): with the record switched on, the two
+  triggers read the fields of the AGENT's record instead of the current step's
+  variables, so a town given at any step is checked. Off: exactly as before.
 - 🔒 N1: the recorded transcript keeps the caller's WORDS. The aggregator
   records the text it wrote before this step changes the context message;
   the model, the variable extraction and the call's context read the digits.
@@ -49,9 +53,15 @@ What the model reads (who does what, by switch)
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 from typing import Callable
 
 from api.schemas.organization_preferences import AdresseEtablissement
+from api.schemas.workflow_configurations import (
+    DEFAULT_VARIABLES_REFERENCE,
+    WorkflowConfigurationDefaults,
+    decouper_variables_commune,
+)
 from api.services.communes.analyse import SURE as SURE_COMMUNE
 from api.services.communes.base import charger_base, obtenir_base
 from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
@@ -103,12 +113,56 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 CLE_TRACE_NOMBRES = "nombres_lus"
 
 
-def etape_reference(noeud) -> bool:
-    """Does this step collect a reference? (N4) By variable name, like the towns."""
-    for variable in getattr(noeud, "extraction_variables", None) or []:
-        if (getattr(variable, "name", None) or "").strip().lower().startswith("reference"):
-            return True
-    return False
+VARIABLES_REFERENCE_PAR_DEFAUT = decouper_variables_commune(
+    DEFAULT_VARIABLES_REFERENCE, DEFAULT_VARIABLES_REFERENCE
+)
+
+
+def etape_reference(noeud, variables: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT) -> bool:
+    """Does this step collect a reference? (N4) By variable name, like the towns.
+
+    The default (``reference*``) is the rule written here until the lot 2 of
+    fiche-au-fil-de-leau: a name that starts with ``reference``.
+    """
+    return etape_concernee(noeud, variables)
+
+
+def variables_reference(run_configs: dict | None) -> tuple[str, ...]:
+    """The agent's reference variable names, read alone (null or blank = default).
+
+    An unreadable value falls back to the default with a warning, like the towns.
+    """
+    try:
+        valeur = WorkflowConfigurationDefaults.model_validate(
+            {"variables_reference": (run_configs or {}).get("variables_reference")}
+        ).variables_reference
+        return decouper_variables_commune(valeur, DEFAULT_VARIABLES_REFERENCE)
+    except Exception as erreur:  # noqa: BLE001 -- the call must go on
+        logger.warning(
+            f"[.mark] Reference variable names unreadable, default used "
+            f"({DEFAULT_VARIABLES_REFERENCE}): {erreur!r}"
+        )
+        return VARIABLES_REFERENCE_PAR_DEFAUT
+
+
+def champs_de_la_fiche(run_configs: dict | None) -> tuple[str, ...] | None:
+    """The fields of the agent's record when the switch is on, else ``None``."""
+    from api.services.workflow.fiche_au_fil_de_leau import ReglagesFiche
+
+    reglages = ReglagesFiche.depuis(run_configs)
+    return None if reglages is None else tuple(c.nom for c in reglages.champs)
+
+
+def etape_vue_par_la_fiche(noeud, champs: tuple[str, ...] | None):
+    """D9: with the record on, the triggers see the record's fields as the
+    step's variables, whatever the step. The step keeps its NAME, for the
+    traces. ``None`` = the real step, unchanged."""
+    if champs is None:
+        return noeud
+    return SimpleNamespace(
+        name=getattr(noeud, "name", None),
+        extraction_variables=[SimpleNamespace(name=nom) for nom in champs],
+    )
 
 
 def _nom_etape(noeud) -> str | None:
@@ -334,6 +388,8 @@ async def lire_texte(
     avec_sons: bool = True,
     voies: bool = False,
     epellation: bool = False,
+    variables_ref: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT,
+    champs_fiche: tuple[str, ...] | None = None,
 ) -> str:
     """``texte`` as the model must read it, or ``texte`` unchanged. Never raises.
 
@@ -351,13 +407,15 @@ async def lire_texte(
         verification=verification,
         langue_francaise=langue_francaise,
         adresse=adresse,
-        noeud=noeud,
+        # D9: the ONE place where the record replaces the step for the triggers.
+        noeud=etape_vue_par_la_fiche(noeud, champs_fiche),
         consigner=consigner,
         provisoire=provisoire,
         variables=variables,
         avec_sons=avec_sons,
         voies=voies,
         epellation=epellation,
+        variables_ref=variables_ref,
     )
     return f"{lu} {mention_lexique}" if mention_lexique else lu
 
@@ -382,6 +440,7 @@ async def _lire_texte_de_lappelant(
     avec_sons: bool = True,
     voies: bool = False,
     epellation: bool = False,
+    variables_ref: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT,
 ) -> str:
     try:
         if (
@@ -415,7 +474,7 @@ async def _lire_texte_de_lappelant(
         # V4 (plan voix-et-communes): a postal code said at an earlier turn.
         trace_nombres = lire_trace(CLE_TRACE_NOMBRES) if callable(lire_trace) else []
         lu, lecture, base, voie, epellations = await asyncio.to_thread(
-            _lire, texte, adresse, trace_communes, conversion, communes, etape_reference(noeud),
+            _lire, texte, adresse, trace_communes, conversion, communes, etape_reference(noeud, variables_ref),
             etape_adresse, trace_nombres, avec_sons, voies, epellation,
         )
         if consigner is not None:
@@ -461,9 +520,13 @@ class LectureAppelantProcessor(FrameProcessor):
         avec_sons: bool = True,
         voies: bool = False,
         epellation: bool = False,
+        variables_ref: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT,
+        champs_fiche: tuple[str, ...] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self._variables_ref = variables_ref
+        self._champs_fiche = champs_fiche
         self._variables = variables
         self._avec_sons = avec_sons
         self._voies = voies
@@ -518,6 +581,8 @@ class LectureAppelantProcessor(FrameProcessor):
             avec_sons=self._avec_sons,
             voies=self._voies,
             epellation=self._epellation,
+            variables_ref=self._variables_ref,
+            champs_fiche=self._champs_fiche,
         )
         # Marked AFTER the reading: an interruption that cancels this task
         # during the await leaves the message unmarked, so the next context
@@ -566,6 +631,8 @@ def creer_lecture_appelant(
         avec_sons=sons_allumes(run_configs),
         voies=voies_allumees(run_configs),
         epellation=epellation,
+        variables_ref=variables_reference(run_configs),
+        champs_fiche=champs_de_la_fiche(run_configs),
     )
 
 
@@ -591,6 +658,8 @@ async def lire_message_tape(
             avec_sons=sons_allumes(run_configs),
             voies=voies_allumees(run_configs),
             epellation=epellation_allumee(run_configs),
+            variables_ref=variables_reference(run_configs),
+            champs_fiche=champs_de_la_fiche(run_configs),
         )
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[.mark] Caller reading failed on the keyboard, message kept: {erreur!r}")
