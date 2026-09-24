@@ -123,12 +123,16 @@ async def _appel(*phrases: str, reglages: dict = REGLAGES) -> tuple[dict, list[s
     ],
 )
 def test_lecteur_deduit_du_nom(nom, lecteur):
-    assert ChampFiche(nom=nom).lecteur == lecteur
+    champ = ChampFiche(nom=nom)
+    assert champ.lecteur_effectif == lecteur
+    # ⛔ Gardé vide : relu par l'écran, il doit revenir tel qu'envoyé (24/09).
+    assert champ.lecteur is None
+    assert ChampFiche.model_validate(champ.model_dump(mode="json")) == champ
 
 
 def test_lecteur_explicite_garde():
-    assert ChampFiche(nom="ville", lecteur="commune").lecteur == "commune"
-    assert ChampFiche(nom="commune", lecteur="aucun").lecteur == "aucun"
+    assert ChampFiche(nom="ville", lecteur="commune").lecteur_effectif == "commune"
+    assert ChampFiche(nom="commune", lecteur="aucun").lecteur_effectif == "aucun"
 
 
 def test_un_champ_ne_peut_pas_s_appeler_comme_le_code_insee_d_une_commune():
@@ -343,6 +347,32 @@ def test_rue_hesitante_remplacee_par_la_proposition_nommee():
         False,
         ("Avenue Foch",),
     )
+
+
+@pytest.mark.asyncio
+async def test_run_828_le_modele_recoit_l_ecriture_officielle():
+    """L'appelant dit « Ponce-Alpes-Maxence », le module tranche Pont-Sainte-Maxence :
+    le résultat de l'outil le dit au modèle, qui ne voit plus de note entre crochets."""
+    fiche, _ = await _appel("j'habite à Ponce-Alpes-Maxence, soixante mille sept cents")
+    resultats = []
+
+    async def rappel(resultat, *, properties=None):
+        resultats.append(resultat)
+
+    gestionnaire = creer_gestionnaire(_reglages(), lambda: fiche, lambda: [])
+    await gestionnaire(
+        SimpleNamespace(
+            arguments={"commune": "Ponce-Alpes-Maxence", "code_postal": "60700"},
+            tool_call_id="n1",
+            result_callback=rappel,
+        )
+    )
+    (resultat,) = resultats
+    assert resultat["statut"] == "note"
+    assert resultat["ecriture_retenue"] == {"commune": "Pont-Sainte-Maxence"}
+    assert "officielle" in resultat["consigne"]
+    # Une valeur écrite telle que donnée n'est pas répétée au modèle.
+    assert "code_postal" not in resultat["ecriture_retenue"]
 
 
 def test_la_trace_la_plus_recente_gagne():

@@ -85,6 +85,7 @@ export const CLES_TRANSCRIPTION = [
     "conversion_nombres_transcription",
     "verification_communes",
     "variables_commune",
+    "variables_reference",
     "sons_communes",
     "verification_voies",
     "lecture_epellation",
@@ -280,7 +281,12 @@ export const SectionReglagesPipecat = ({
         } as Record<string, unknown>);
         // A name the server would refuse (422) blocks the button the same way.
         const variables = erreurVariablesCommune(reglagesTranscription.variables_commune);
-        return variables ? { ...messages, variables_commune: variables } : messages;
+        const references = erreurVariablesCommune(reglagesTranscription.variables_reference);
+        return {
+            ...messages,
+            ...(variables ? { variables_commune: variables } : {}),
+            ...(references ? { variables_reference: references } : {}),
+        };
     }, [reglagesTourDeParole, reglagesRelance, reglagesVoix, reglagesTranscription]);
     const nombreDeFautifs = Object.keys(fautifs).length;
 

@@ -50,6 +50,7 @@ import { describe, expect, it, vi } from "vitest";
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { ID_SECTION_ADRESSE_ETABLISSEMENT } from "./SectionAdresseEtablissement";
+import { ID_SECTION_FICHE } from "./SectionFiche";
 import { ID_SECTION_HORAIRES_OUVERTURE } from "./SectionHorairesOuverture";
 import { ID_SECTION_REGLAGES_PIPECAT } from "./SectionReglagesPipecat";
 
@@ -246,6 +247,31 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
                 "utf8",
             ),
         ).not.toThrow();
+    });
+
+    it("[call record] the card is really mounted, with its switch, its field editor, its Save button and its sidebar entry", async () => {
+        // Plan fiche au fil de l'eau, lot 5: a switch nobody can reach is a
+        // switch nobody turns on.
+        const { container } = await rendreLaPage();
+        const carte = container.querySelector(`#${ID_SECTION_FICHE}`);
+        expect(carte).not.toBeNull();
+        expect(document.getElementById("fiche_au_fil_de_leau")?.getAttribute("aria-checked")).toBe("false");
+        expect(screen.getByRole("button", { name: /edit fields/i })).toBeTruthy();
+        expect(screen.getByRole("button", { name: /save call record/i })).toBeTruthy();
+        const entree = container.querySelector(`a[href="#${ID_SECTION_FICHE}"]`);
+        expect(entree?.textContent).toContain("Call Record");
+        // Right after Speech Tuning, before the opening hours.
+        expect(carte?.nextElementSibling).toBe(container.querySelector(`#${ID_SECTION_HORAIRES_OUVERTURE}`));
+    });
+
+    it("[reference reader] its trigger names are on the page when the number conversion is on", async () => {
+        await rendreLaPage();
+        // Off by default: the field appears with the switch.
+        expect(document.getElementById("variables_reference")).toBeNull();
+        const conversion = document.getElementById("conversion_nombres_transcription") as HTMLElement;
+        conversion.click();
+        const champ = (await screen.findByLabelText(/variables that trigger the reference reader/i)) as HTMLInputElement;
+        expect(champ.value).toBe("reference*");
     });
 
     it("[opening hours] the card is really mounted, with its field, its Save button and its sidebar entry", async () => {

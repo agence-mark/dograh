@@ -73,6 +73,9 @@ export const DEFAUTS_PIPECAT = {
     // The names of the extraction variables that get the town check; a final *
     // means "starts with". Same rule as before the setting existed (2026-09-17).
     variables_commune: 'commune, commune_*, adresse*',
+    // [.mark] Same kind of setting for the reference reader (fiche au fil de
+    // l'eau, lot 2): the rule written in the code until then.
+    variables_reference: 'reference*',
     // 🆕 The sounds (espeak-ng) are what the fork runs on today; the two
     // switches (L18 of 2026-09-17) exist to measure what they bring.
     sons_communes: true,
@@ -204,6 +207,16 @@ type WorkflowConfigurationBase = Omit<
     | "external_pbx_lead_headers"
 >;
 
+/** [.mark] One field of the agent's call record (`api/schemas/fiche_agent.py`). */
+export interface ChampFiche {
+    nom: string;
+    type: "string" | "number" | "boolean";
+    origine: "dicte" | "deduit";
+    description: string;
+    // Empty (null): deduced from the name, as the server does.
+    lecteur: "commune" | "rue" | "aucun" | null;
+}
+
 export type WorkflowConfigurations = WorkflowConfigurationBase & {
     ambient_noise_configuration: AmbientNoiseConfiguration;
     max_call_duration: number;  // Maximum call duration in seconds
@@ -227,6 +240,10 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Business address for this agent. Empty (null): the organization's
     // address is used.
     adresse_etablissement?: AdresseEtablissement | null;
+    // [.mark] The call record filled by the noter_information tool (fiche au
+    // fil de l'eau). Off by default: the tool is not offered at all.
+    fiche_au_fil_de_leau?: boolean;
+    fiche_champs?: ChampFiche[];
     // [.mark] Pipecat settings this fork exposes on the agent. Every default
     // reproduces the value the pipeline hardcodes TODAY: an agent that fills in
     // nothing behaves exactly as before.
@@ -245,6 +262,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     conversion_nombres_transcription: boolean;  // Dictated numbers reach the model as digits
     verification_communes: boolean;  // Town the caller names checked against the list of communes
     variables_commune: string;  // Extraction variables that trigger it, comma separated, final * = starts with
+    variables_reference: string;  // Same, for the reference reader (invoice, quote, order numbers)
     sons_communes: boolean;  // The pronunciation library used to recognise towns
     verification_voies: boolean;  // Street the caller names checked against the streets of their commune
     lecture_epellation: boolean;  // Letters the caller spells out, read and copied exactly
@@ -302,7 +320,7 @@ type ReglagesPipecatResolus = {
     -readonly [K in keyof typeof DEFAUTS_PIPECAT]: K extends "tts_replacements"
         ? string[]
         // Free text: its default must not narrow the type to that one literal.
-        : K extends "variables_commune"
+        : K extends "variables_commune" | "variables_reference"
           ? string
           : (typeof DEFAUTS_PIPECAT)[K];
 };

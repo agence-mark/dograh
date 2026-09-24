@@ -8,7 +8,7 @@ aucune migration de base (D32).
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 class OrigineChamp(str, Enum):
@@ -39,7 +39,10 @@ class ChampFiche(BaseModel):
         max_length=500,
         description="Hint given to the model for this parameter.",
     )
-    # D42 : quel module lit ce champ. Vide = déduit du nom (``lecteur_par_defaut``).
+    # D42 : quel module lit ce champ. Vide = déduit du nom (``lecteur_effectif``).
+    # ⛔ Gardé VIDE en base, jamais remplacé par sa valeur déduite : l'écran
+    # comparerait ce qu'il a envoyé à ce qu'il relit et se croirait modifié, et
+    # un champ renommé garderait le lecteur de son ancien nom (constaté le 24/09).
     lecteur: Literal["commune", "rue", "aucun"] | None = Field(
         default=None,
         description=(
@@ -48,11 +51,9 @@ class ChampFiche(BaseModel):
         ),
     )
 
-    @model_validator(mode="after")
-    def _lecteur_deduit(self) -> "ChampFiche":
-        if self.lecteur is None:
-            self.lecteur = lecteur_par_defaut(self.nom)
-        return self
+    @property
+    def lecteur_effectif(self) -> str:
+        return self.lecteur or lecteur_par_defaut(self.nom)
 
 
 def lecteur_par_defaut(nom: str) -> str:
@@ -100,7 +101,7 @@ NOMS_RESERVES = frozenset(
 def verifier_champs(champs: list[ChampFiche]) -> list[ChampFiche]:
     """Refuse un nom réservé ou un nom en double (422 à l'enregistrement)."""
     vus: set[str] = set()
-    insee = {cle_insee(c.nom) for c in champs if c.lecteur == "commune"}
+    insee = {cle_insee(c.nom) for c in champs if c.lecteur_effectif == "commune"}
     for champ in champs:
         if champ.nom in insee:
             raise ValueError(

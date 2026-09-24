@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { ArrowLeft, BookA, Brain, CalendarIcon, Clipboard, Clock, Download, ExternalLink, FileDown, Fingerprint, Loader2, MapPin, Mic, Pause, PhoneOff, Play, Plus, Rocket, Settings, SlidersHorizontal, Trash2Icon, Upload, Variable, X } from "lucide-react";
+import { ArrowLeft, BookA, Brain, CalendarIcon, Clipboard, ClipboardList, Clock, Download, ExternalLink, FileDown, Fingerprint, Loader2, MapPin, Mic, Pause, PhoneOff, Play, Plus, Rocket, Settings, SlidersHorizontal, Trash2Icon, Upload, Variable, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -28,6 +28,7 @@ import { FlowEdge, FlowNode } from "@/components/flow/types";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
 import { PerServiceModelOverride } from "@/components/mark/PerServiceModelOverride";
 import { ID_SECTION_ADRESSE_ETABLISSEMENT, SectionAdresseEtablissement } from "@/components/mark/SectionAdresseEtablissement";
+import { ID_SECTION_FICHE, SectionFiche } from "@/components/mark/SectionFiche";
 import { ID_SECTION_HORAIRES_OUVERTURE, SectionHorairesOuverture } from "@/components/mark/SectionHorairesOuverture";
 import { ID_SECTION_REGLAGES_PIPECAT, SectionReglagesPipecat } from "@/components/mark/SectionReglagesPipecat";
 import SpinLoader from "@/components/SpinLoader";
@@ -87,6 +88,8 @@ const NAV_ITEMS = [
     // [.mark] Our Pipecat settings section. The id MUST match the card id, or the
     // intersection observer below never highlights this entry.
     { id: ID_SECTION_REGLAGES_PIPECAT, label: "Speech Tuning", icon: SlidersHorizontal },
+    // [.mark] The call record (fiche au fil de l'eau), same rule: the id is the card's.
+    { id: ID_SECTION_FICHE, label: "Call Record", icon: ClipboardList },
     // [.mark] Opening hours, same rule: the id is the card's.
     { id: ID_SECTION_HORAIRES_OUVERTURE, label: "Opening Hours", icon: Clock },
     // [.mark] Business address, same rule: the id is the card's.
@@ -1737,6 +1740,13 @@ function WorkflowSettingsInner({
 
                             {/* [.mark] Speech Tuning */}
                             <SectionReglagesPipecat
+                                workflowConfigurations={resolvedWorkflowConfigurationsForRender}
+                                workflowName={workflowName || workflow.name}
+                                onSave={saveWorkflowConfigurations}
+                            />
+
+                            {/* [.mark] Call Record (fiche au fil de l'eau) */}
+                            <SectionFiche
                                 workflowConfigurations={resolvedWorkflowConfigurationsForRender}
                                 workflowName={workflowName || workflow.name}
                                 onSave={saveWorkflowConfigurations}

@@ -61,6 +61,14 @@ CONSIGNE_A_CONFIRMER = (
 CONSIGNE_AMBIGU = (
     "Noté, mais plusieurs possibilités : demande à la personne laquelle est la bonne."
 )
+# Run 828 : la personne dit « Ponce-Alpes-Maxence », le module tranche Pont-Sainte-
+# Maxence, la fiche l'écrit juste... et l'agent redit « Ponce-Alpes-Maxence » : depuis
+# que les notes entre crochets ont disparu (D13), rien ne lui donnait l'écriture
+# retenue. Le résultat de l'outil la lui rend.
+CONSIGNE_ECRITURE_RETENUE = (
+    "La fiche a retenu l'écriture officielle : quand tu redis ces informations, "
+    "utilise celle-ci."
+)
 
 # Écrite au mot au lot 0 (outil Dograh `e42be297`, 20 appels), reprise telle
 # quelle (plan, « Description de l'outil »). ⛔ Ne pas la retoucher sans essai.
@@ -383,9 +391,9 @@ def ecrire_dans_la_fiche(
         )
         if epele:
             valeur = epele
-        if definition.lecteur == "commune":
+        if definition.lecteur_effectif == "commune":
             lecture = lire_commune(valeur, fiche)
-        elif definition.lecteur == "rue":
+        elif definition.lecteur_effectif == "rue":
             lecture = lire_rue(valeur, fiche)
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
@@ -602,6 +610,7 @@ def creer_gestionnaire(
         try:
             paroles = paroles_de_l_appelant(messages())
             ecrits: list[str] = []
+            retenus: dict[str, Any] = {}
             refuses: list[dict] = []
             a_confirmer: list[dict] = []
             # Plusieurs notes d'un même tour : appliquées dans l'ordre d'arrivée,
@@ -612,6 +621,9 @@ def creer_gestionnaire(
                 )
                 if verdict.statut == "ecrit":
                     ecrits.append(champ)
+                    if _mots(str(verdict.valeur)) != _mots(str(valeur)):
+                        # Le module a changé l'écriture (commune, rue, épellation).
+                        retenus[champ] = verdict.valeur
                     if verdict.suite:
                         a_confirmer.append(
                             {
@@ -629,6 +641,9 @@ def creer_gestionnaire(
             resultat: dict = {"statut": "note" if ecrits else "rien_note"}
             if ecrits:
                 resultat["ecrits"] = ecrits
+            if retenus:
+                resultat["ecriture_retenue"] = retenus
+                resultat["consigne"] = CONSIGNE_ECRITURE_RETENUE
             if a_confirmer:
                 # D7 : c'est le modèle, relancé, qui pose la question.
                 ambigu = any("options" in c for c in a_confirmer)

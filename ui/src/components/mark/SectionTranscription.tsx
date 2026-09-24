@@ -32,6 +32,7 @@ export interface ReglagesTranscription {
     conversion_nombres_transcription: boolean;
     verification_communes: boolean;
     variables_commune: string;
+    variables_reference: string;
     sons_communes: boolean;
     verification_voies: boolean;
     lecture_epellation: boolean;
@@ -100,6 +101,32 @@ export const SectionTranscription = ({ reglages, onChange }: SectionTranscriptio
                 The recorded transcript keeps the caller&apos;s words.
             </p>
             <p className="text-xs text-muted-foreground">French only. No effect in realtime mode.</p>
+
+            {reglages.conversion_nombres_transcription && (
+                <div className="space-y-2 pt-2">
+                    <Label htmlFor="variables_reference" className="text-xs">
+                        Variables that trigger the reference reader
+                    </Label>
+                    <Input
+                        id="variables_reference"
+                        {...attributDeLongueur("variables_reference")}
+                        aria-invalid={erreurVariablesCommune(reglages.variables_reference) ? true : undefined}
+                        value={reglages.variables_reference}
+                        onChange={(e) => onChange({ ...reglages, variables_reference: e.target.value })}
+                    />
+                    {erreurVariablesCommune(reglages.variables_reference) && (
+                        <p className="text-xs text-destructive">
+                            {erreurVariablesCommune(reglages.variables_reference)}
+                        </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                        The steps where an invoice, quote or order number is read as a reference.
+                        Same format as the town variables below. Empty: <code>reference*</code>.
+                        With the call record switched on, these names are matched against the
+                        record&apos;s fields instead of the step&apos;s variables.
+                    </p>
+                </div>
+            )}
         </div>
 
         <div className="space-y-2">

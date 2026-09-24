@@ -220,7 +220,8 @@ def test_l_interrupteur_et_la_fiche_sont_estampilles_en_json():
         "telephone",
         "motif",
     ]
-    assert estampille["fiche_champs"][0]["lecteur"] == "aucun"
+    # Estampillé tel que réglé : vide = « d'après le nom ».
+    assert estampille["fiche_champs"][0]["lecteur"] is None
     json.dumps(estampille)  # stocké en base : doit passer en JSON
     eteint = stamp_pipeline_settings({}, {})["pipeline_settings"]
     assert eteint["fiche_au_fil_de_leau"] is False and eteint["fiche_champs"] == []
