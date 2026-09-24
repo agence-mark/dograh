@@ -27,6 +27,7 @@ from pipecat.services.mistral.llm import MistralLLMSettings
 
 from api.services.pipecat.service_factory import DograhMistralLLMService
 from api.services.workflow.fiche_au_fil_de_leau import (
+    ACCROCHES,
     CLE_ETAT,
     ENTETE_ETAT,
     ReglagesFiche,
@@ -257,6 +258,20 @@ def test_un_service_sans_requete_de_conversation_n_est_pas_touche():
     llm = SimpleNamespace(run_inference=None)
     assert montrer_la_fiche(llm, _reglages(), dict) is False
     assert vars(llm) == {"run_inference": None}
+
+
+# --- Les points d'accroche sur le service du modèle -------------------------
+
+
+def test_les_points_d_accroche_existent_chez_mistral():
+    """Relevé par la revue du 25/09 : la fiche enveloppe des méthodes du service,
+    dont trois privées. Une montée de Pipecat qui en renomme une couperait une
+    correction sans un mot ; ce test le dit avant."""
+    manquantes = [nom for nom in ACCROCHES if not hasattr(DograhMistralLLMService, nom)]
+    assert manquantes == [], (
+        f"Pipecat n'a plus {manquantes} : la fiche ne s'y accroche plus. Revoir "
+        "`suivre_les_tours` et `montrer_la_fiche` avant de monter de version."
+    )
 
 
 # --- A8 : le numéro corrigé que le modèle n'a pas noté (run 837) ------------

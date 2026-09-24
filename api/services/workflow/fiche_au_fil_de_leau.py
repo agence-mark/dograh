@@ -707,6 +707,19 @@ class SuiviDesTours:
         return not tour.restants
 
 
+# Les méthodes du service du modèle que la fiche enveloppe (dont trois privées,
+# propres à la copie de Pipecat de Dograh). Une montée de Pipecat qui en renomme
+# une coupe une correction en silence : un test les vérifie sur le vrai service.
+ACCROCHES_A1 = ("_process_context", "_push_llm_text", "_run_or_defer_function_calls")
+ACCROCHES = (
+    "run_function_calls",
+    "get_chat_completions",
+    "build_chat_completion_params",
+    "_function_is_node_transition",
+    *ACCROCHES_A1,
+)
+
+
 def suivre_les_tours(llm: Any) -> SuiviDesTours:
     """Branche le suivi sur le service du modèle, AVANT l'exécution des fonctions.
 
@@ -728,15 +741,15 @@ def suivre_les_tours(llm: Any) -> SuiviDesTours:
 
     # A1 : ce que la réponse a dit avant ses appels. Trois points d'accroche du
     # service OpenAI de Pipecat, dont Mistral hérite ; absents (autre
-    # fournisseur), rien n'est su et la relance reste celle de D40.
-    if all(
-        hasattr(llm, nom)
-        for nom in (
-            "_process_context",
-            "_push_llm_text",
-            "_run_or_defer_function_calls",
+    # fournisseur, ou montée de Pipecat qui les a renommés), rien n'est su et la
+    # relance reste celle de D40 -- et on le DIT, pour ne pas le découvrir en appel.
+    # ⚠️ Tenu par `test_les_points_d_accroche_existent_chez_mistral`.
+    if not all(hasattr(llm, nom) for nom in ACCROCHES_A1):
+        logger.warning(
+            f"[fiche] {type(llm).__name__} sans {', '.join(ACCROCHES_A1)} : "
+            "l'agent pourra reparler après une question posée en notant (A1)"
         )
-    ):
+    else:
         traiter = llm._process_context
         pousser = llm._push_llm_text
         emettre = llm._run_or_defer_function_calls
