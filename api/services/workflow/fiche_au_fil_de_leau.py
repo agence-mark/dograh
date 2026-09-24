@@ -468,11 +468,16 @@ def ecrire_dans_la_fiche(
             **({"dit": dit} if dit is not None else {}),
         }
     )
+    # Relevé par la revue du 25/09 : la valeur (nom, téléphone, adresse de
+    # l'appelant) ne part pas dans les journaux de Railway en `info`. Le journal
+    # de la fiche, rangé avec l'appel, suffit à la traçabilité ; la valeur ne
+    # s'écrit qu'en `debug`, comme les valeurs extraites de l'amont.
     logger.info(
-        f"[fiche] {source} {champ}={valeur!r} -> {verdict.statut}"
+        f"[fiche] {source} {champ} -> {verdict.statut}"
         + (f" ({verdict.raison})" if verdict.raison else "")
         + (f" [{verdict.suite}]" if verdict.suite else "")
     )
+    logger.debug(f"[fiche] {source} {champ}={valeur!r}")
     return verdict
 
 
