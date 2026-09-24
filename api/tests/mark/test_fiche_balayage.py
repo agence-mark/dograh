@@ -144,6 +144,42 @@ async def test_fiche_pleine_aucun_appel_au_modele():
     assert extraire.appels == []
 
 
+@pytest.mark.asyncio
+async def test_A4_un_champ_deduit_qui_recopie_un_autre_champ_est_refuse():
+    """Run 837 : `symptome` recevait la phrase d'appel, déjà notée dans
+    `verbatim_demande`. Un champ déduit n'a pas de contrôle de citation : la
+    recopie d'un champ déjà rempli est refusée, et le refus est au journal."""
+    fiche = {"telephone": "0612345678"}
+    reglages = ReglagesFiche.depuis(
+        {
+            "fiche_au_fil_de_leau": True,
+            "fiche_champs": [
+                {"nom": "verbatim", "origine": "dicte"},
+                {"nom": "telephone", "origine": "dicte"},
+                {"nom": "symptome", "origine": "deduit"},
+            ],
+        }
+    )
+    ecrire_dans_la_fiche(
+        fiche,
+        reglages,
+        "verbatim",
+        "J'appelle pour l'entretien de mon poêle à granulés",
+        paroles=["J'appelle pour l'entretien de mon poêle à granulés"],
+    )
+    extraire = Extracteur(
+        {"symptome": "J'appelle pour l'entretien de mon poêle à granulés"}
+    )
+    assert await balayer_la_fiche(reglages, extraire, fiche, MESSAGES) == {}
+    assert "symptome" not in fiche
+    assert fiche[CLE_JOURNAL][-1]["raison"] == "recopie_de_verbatim"
+
+
+def test_A4_la_consigne_du_balayage_ecarte_ce_qui_ne_correspond_pas():
+    assert "« tout fonctionne » ne décrit aucun problème" in CONSIGNE_BALAYAGE
+    assert "Ne mets jamais la même phrase dans deux variables" in CONSIGNE_BALAYAGE
+
+
 # --- Le déclenchement, par le moteur (D36) -----------------------------------
 
 

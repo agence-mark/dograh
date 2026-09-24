@@ -511,11 +511,35 @@ def _ecrire(
 
 # --- Le balayage de fin d'appel (D11) ----------------------------------------
 
+# A4 (runs 828 à 837, 10 sur 10) : le balayage remplissait les champs déduits de
+# ce qui ne leur correspond pas (`symptome` = « il fonctionne normalement », ou la
+# phrase d'appel recopiée ; `type_logement` inventé). Un champ déduit n'a pas de
+# contrôle de citation (D4) : la consigne est seule à le tenir, plus la règle de
+# code ci-dessous contre la recopie d'un autre champ.
 CONSIGNE_BALAYAGE = (
-    "Remplis une variable seulement si la personne a donné cette information "
-    "pendant l'appel. Recopie ses mots, sans rien compléter ni déduire. Sinon, "
-    "ne mets pas la variable."
+    "Remplis une variable seulement si la personne a donné, pendant l'appel, "
+    "l'information que la variable décrit. Une phrase qui dit le contraire ou "
+    "qui parle d'autre chose ne la remplit pas : « tout fonctionne » ne décrit "
+    "aucun problème. Ne mets jamais la même phrase dans deux variables. Recopie "
+    "ses mots, sans rien compléter ni déduire. Dans le doute, ne mets pas la "
+    "variable."
 )
+
+
+def _recopie_d_un_autre_champ(
+    reglages: ReglagesFiche, fiche: dict, champ: str, valeur: Any
+) -> str | None:
+    """A4 : le champ déjà rempli dont cette valeur n'est qu'une recopie (tous ses
+    mots y figurent), ou ``None``. Run 837 : `symptome` = le verbatim de la demande."""
+    mots = set(_mots(str(valeur)))
+    if not mots:
+        return None
+    for autre in reglages.champs:
+        if autre.nom == champ or _est_vide(fiche.get(autre.nom)):
+            continue
+        if mots <= set(_mots(str(fiche[autre.nom]))):
+            return autre.nom
+    return None
 
 
 async def balayer_la_fiche(
@@ -545,6 +569,24 @@ async def balayer_la_fiche(
     ecrits = {}
     for champ in vides:
         if champ.nom not in trouve:
+            continue
+        copie = (
+            _recopie_d_un_autre_champ(reglages, fiche, champ.nom, trouve[champ.nom])
+            if champ.origine == OrigineChamp.deduit
+            else None
+        )
+        if copie:
+            fiche.setdefault(CLE_JOURNAL, []).append(
+                {
+                    "champ": champ.nom,
+                    "valeur": trouve[champ.nom],
+                    "statut": "refuse",
+                    "raison": f"recopie_de_{copie}",
+                    "source": "balayage",
+                    "sure": True,
+                }
+            )
+            logger.info(f"[fiche] balayage {champ.nom} refusé : recopie de {copie}")
             continue
         verdict = ecrire_dans_la_fiche(
             fiche,
