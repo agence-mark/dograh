@@ -448,6 +448,29 @@ async def test_T1_4_T1_5_note_et_porte_une_seule_relance(
 
 
 @pytest.mark.asyncio
+async def test_revue_une_porte_en_erreur_ferme_son_tour(
+    three_node_workflow, no_disposition_mapping
+):
+    """Relevé par la revue du 25/09 : le chemin d'erreur d'une porte ne fermait
+    pas le tour de la note. Pipecat relançait quand même le modèle (vérifié : ce
+    test passe sans la correction sur ce point) ; le tour, lui, restait ouvert."""
+    changer = PipecatEngine.set_node
+
+    async def set_node(self, node_id, *args, **kwargs):
+        if node_id == "agent":
+            raise RuntimeError("porte en panne")
+        return await changer(self, node_id, *args, **kwargs)
+
+    with patch.object(PipecatEngine, "set_node", set_node):
+        engine, llm, _, _ = await _jouer(
+            three_node_workflow, _reglages(), _note_et_porte(["note", "porte"])
+        )
+    assert engine._gathered_context["nom"] == "Dupont"
+    assert llm.get_current_step() == 2
+    assert engine._tours_fiche._tours == {}
+
+
+@pytest.mark.asyncio
 async def test_T1_5_note_seule_une_relance_pour_parler(
     three_node_workflow, no_disposition_mapping
 ):

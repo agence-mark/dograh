@@ -445,7 +445,18 @@ class PipecatEngine:
             except Exception as e:
                 logger.error(f"Error in transition function {name}: {str(e)}")
                 error_result = {"status": "error", "error": str(e)}
-                await function_call_params.result_callback(error_result)
+                # [.mark] Fiche : une porte en erreur ferme aussi son tour.
+                relance = (
+                    self._tours_fiche.relance(function_call_params.tool_call_id)
+                    if self._tours_fiche is not None
+                    else None
+                )
+                await function_call_params.result_callback(
+                    error_result,
+                    properties=None
+                    if relance is None
+                    else FunctionCallResultProperties(run_llm=relance),
+                )
 
         return transition_func
 
