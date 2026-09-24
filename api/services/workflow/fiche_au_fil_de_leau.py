@@ -887,6 +887,11 @@ def _abregee(valeur: Any) -> str:
     return f"« {texte} »"
 
 
+# Un numéro de téléphone français tel que la fiche l'écrit : 0 puis 9 chiffres,
+# espaces ou points permis. Une référence « F0612345678 » n'en est pas un.
+_TELEPHONE = re.compile(r"0[1-9](?:[ .]?\d){8}")
+
+
 def _chiffres(valeur: Any) -> str:
     return "".join(c for c in str(valeur) if c.isdigit())
 
@@ -902,6 +907,11 @@ def numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> list[tuple[str, 
 
     Au run 837, la personne corrige « soixante-huit » en « soixante-dix-huit »,
     l'agent relit le bon numéro… et ne le note jamais : la fiche sort fausse.
+
+    Resserré par la revue du 25/09 : seul compte un champ qui tient un numéro
+    de téléphone, et qui est UN numéro dicté plus tôt. Deux champs téléphone
+    remplis (fixe et portable) : on ne sait pas lequel corriger, rien n'est dit.
+    Une référence ou une facture à dix chiffres n'est pas un téléphone.
     """
     dictes = [
         _chiffres(t.get("ecrit"))
@@ -911,13 +921,18 @@ def numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> list[tuple[str, 
     dictes = [d for d in dictes if len(d) == 10]
     if not dictes:
         return []
-    dernier = dictes[-1]
-    conflits = []
-    for champ in reglages.champs:
-        chiffres = _chiffres(fiche.get(champ.nom) or "")
-        if len(chiffres) == 10 and chiffres != dernier:
-            conflits.append((champ.nom, dernier))
-    return conflits
+    dernier, anciens = dictes[-1], set(dictes[:-1])
+    telephones = [
+        (champ.nom, _chiffres(fiche[champ.nom]))
+        for champ in reglages.champs
+        if _TELEPHONE.fullmatch(str(fiche.get(champ.nom) or "").strip())
+    ]
+    if len(telephones) != 1:
+        return []
+    champ, chiffres = telephones[0]
+    if chiffres != dernier and chiffres in anciens:
+        return [(champ, dernier)]
+    return []
 
 
 def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str | None:

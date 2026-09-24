@@ -282,6 +282,36 @@ def test_A8_run_837_le_numero_corrige_non_note_est_signale():
     assert "Si c'est une correction, note le nouveau numéro." in etat
 
 
+def test_revue_A8_ni_deux_telephones_ni_une_reference_a_dix_chiffres():
+    """Relevé par la revue du 25/09 : le contrôle ne vaut que pour un seul champ
+    téléphone, qui tient un numéro dicté plus tôt."""
+    reglages = ReglagesFiche.depuis(
+        {
+            "fiche_au_fil_de_leau": True,
+            "fiche_champs": [
+                {"nom": "telephone_portable"},
+                {"nom": "telephone_fixe"},
+                {"nom": "facture"},
+            ],
+        }
+    )
+    traces = {"nombres_lus": TRACES_837}
+    # Fixe et portable : lequel serait « corrigé » ? Rien n'est dit.
+    deux = {
+        **traces,
+        "telephone_portable": "0612345668",
+        "telephone_fixe": "0612345678",
+    }
+    assert numeros_en_conflit(reglages, deux) == []
+    # Une facture à dix chiffres jamais dictée comme téléphone : pas un conflit.
+    facture = {**traces, "facture": "F0612345668"}
+    assert numeros_en_conflit(reglages, facture) == []
+    un_seul = {**traces, "telephone_portable": "06 12 34 56 68"}
+    assert numeros_en_conflit(reglages, un_seul) == [
+        ("telephone_portable", "0612345678")
+    ]
+
+
 def test_A8_numero_note_a_jour_rien_a_signaler():
     fiche = {
         "telephone": "0612345678",
