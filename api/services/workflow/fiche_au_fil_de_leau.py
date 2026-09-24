@@ -558,7 +558,17 @@ def _marquer_les_numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> Non
     for champ, dernier in numeros_en_conflit(reglages, fiche):
         etat = fiche.setdefault(CLE_ETAT, {}).setdefault(champ, {})
         etat["sure"] = False
-        fiche.setdefault(CLE_JOURNAL, []).append(
+        journal = fiche.setdefault(CLE_JOURNAL, [])
+        # Revue du 25/09 : le balayage repasse à chaque vidage (routage d'un
+        # transfert compris) ; un même conflit ne s'écrit qu'une fois.
+        if any(
+            e.get("statut") == "a_verifier"
+            and e.get("champ") == champ
+            and e.get("dernier_dicte") == dernier
+            for e in journal
+        ):
+            continue
+        journal.append(
             {
                 "champ": champ,
                 "valeur": fiche.get(champ),
@@ -670,7 +680,12 @@ class SuiviDesTours:
     def appels_emis(self, appels: Iterable[Any]) -> None:
         """La réponse du modèle s'achève sur ces appels : a-t-elle posé une
         question à voix haute avant eux ?"""
-        if "?" in self.texte_de_la_reponse:
+        appels = list(appels)
+        # Seul un lot qui contient une note est concerné (et le registre ne
+        # garde rien d'autre).
+        if "?" in self.texte_de_la_reponse and any(
+            a.function_name == NOM_OUTIL for a in appels
+        ):
             self._apres_une_question.update(a.tool_call_id for a in appels)
         self.texte_de_la_reponse = ""
 

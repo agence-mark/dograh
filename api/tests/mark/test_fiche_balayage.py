@@ -280,3 +280,6 @@ async def test_A8_en_fin_d_appel_le_numero_en_conflit_est_marque_a_verifier():
     assert fiche["fiche_etat"]["telephone"]["sure"] is False
     (entree,) = [e for e in fiche[CLE_JOURNAL] if e["statut"] == "a_verifier"]
     assert entree["dernier_dicte"] == "0612345678"
+    # Un deuxième passage (routage d'un transfert) ne double pas le journal.
+    await balayer_la_fiche(_reglages(), Extracteur({}), fiche, MESSAGES)
+    assert len([e for e in fiche[CLE_JOURNAL] if e["statut"] == "a_verifier"]) == 1
