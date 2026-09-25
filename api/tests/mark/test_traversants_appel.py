@@ -220,7 +220,8 @@ async def _appeler(
 ):
     """Joue un appel : accueil, puis chaque parole attend la réponse du modèle.
 
-    Rend (la fausse voix, la tâche). ``apres(tache)`` s'exécute avant l'arrêt.
+    Rend (la fausse voix, la tâche). ``apres(tache, agregateur, voix)``
+    s'exécute pendant l'appel, avant l'arrêt.
     """
     run, user, workflow = montage
     voix: list = []
@@ -230,14 +231,20 @@ async def _appeler(
     )
     vraie_fabrique_de_voix = service_factory.create_tts_service
     tache = None
-    try:
-        with (
-            patch_run_pipeline_externals(capture, llm=llm),
-            # La VRAIE fabrique de voix (le harnais la remplace), seul le
-            # fournisseur est faux.
-            patch("api.services.pipecat.run_pipeline.create_tts_service", vraie_fabrique_de_voix),
-            patch.object(service_factory, "CartesiaTTSService", _fausse_cartesia(voix)),
-        ):
+    appel = None
+    # ⛔ Tout, y compris l'ARRÊT, se joue à l'intérieur des doublures : un appel
+    # arrêté après leur retrait met de vrais travaux en file et appelle de vrais
+    # services (relecture du 25/09). Et l'appel est ATTENDU jusqu'au bout : une
+    # exception de fin d'appel (un finaliseur .mark qui casse) doit faire échouer
+    # le test, pas se perdre dans la boucle partagée de la session.
+    with (
+        patch_run_pipeline_externals(capture, llm=llm),
+        # La VRAIE fabrique de voix (le harnais la remplace), seul le
+        # fournisseur est faux.
+        patch("api.services.pipecat.run_pipeline.create_tts_service", vraie_fabrique_de_voix),
+        patch.object(service_factory, "CartesiaTTSService", _fausse_cartesia(voix)),
+    ):
+        try:
             appel = asyncio.create_task(
                 _run_pipeline(
                     transport=transport,
@@ -270,15 +277,17 @@ async def _appeler(
                 await _reponse_finie(llm)
 
             if apres is not None:
-                await apres(tache, agregateur)
+                await apres(tache, agregateur, voix[0])
             if fin_attendue:
                 await asyncio.wait_for(appel, timeout=10.0)
-    finally:
-        if tache is not None and not tache.has_finished():
-            try:
+        finally:
+            if tache is not None and not tache.has_finished():
                 await asyncio.wait_for(tache.cancel(), timeout=3.0)
-            except Exception as erreur:  # noqa: BLE001 -- nettoyage au mieux
-                print(f"arrêt du montage incomplet : {erreur!r}")
+            if appel is not None:
+                try:
+                    await asyncio.wait_for(appel, timeout=5.0)
+                except asyncio.CancelledError:
+                    pass  # l'arrêt demandé ci-dessus, rien d'autre
     return (voix[0] if voix else None), tache
 
 
@@ -298,6 +307,7 @@ async def _reponse_finie(llm, calme_s: float = 0.8, delai: float = 8.0) -> None:
             derniere, depuis = llm.get_current_step(), asyncio.get_event_loop().time()
         elif asyncio.get_event_loop().time() - depuis >= calme_s:
             return
+    raise AssertionError(f"le modèle produisait encore après {delai} s")
 
 
 def _derniere_parole_recue(llm) -> str:
@@ -397,8 +407,13 @@ async def test_la_voix_dit_les_nombres_en_mots_et_jamais_un_appel_de_fonction(
         ],
         chunk_delay=0.001,
     )
-    voix, _ = await _appeler(montage, llm, ["combien pour le ramonage ?"])
-    await _attendre(lambda: any("je vous passe" in t for t in voix.received_texts), 5.0)
+    async def tout_dit(_tache, _agregateur, voix):
+        # PENDANT l'appel : la dernière phrase doit avoir atteint la voix.
+        assert await _attendre(
+            lambda: any("Noté" in t for t in voix.received_texts), 5.0
+        ), "la réponse n'a jamais atteint la voix"
+
+    voix, _ = await _appeler(montage, llm, ["combien pour le ramonage ?"], apres=tout_dit)
     dit = " ".join(voix.received_texts)
     assert "trois cent cinquante" in dit, dit
     assert "350" not in dit, dit
@@ -457,7 +472,7 @@ async def test_la_relance_d_inactivite_de_l_agent_atteint_le_modele(db_session, 
     )
     llm = ContextCapturingMockLLM(mock_steps=[_texte("Vous êtes toujours là ?")], chunk_delay=0.001)
 
-    async def silence(_tache, _agregateur):
+    async def silence(_tache, _agregateur, _voix):
         assert await _attendre(lambda: llm.captured_contexts, 8.0), "aucune relance"
 
     await _appeler(montage, llm, [], apres=silence)
@@ -481,7 +496,7 @@ async def test_la_coupure_du_micro_reglee_arrive_dans_l_agregateur_de_l_appel(
     llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
     trouvees = []
 
-    async def relever(_tache, agregateur):
+    async def relever(_tache, agregateur, _voix):
         trouvees.extend(agregateur._params.user_mute_strategies)
 
     await _appeler(montage, llm, [], apres=relever)
