@@ -473,8 +473,10 @@ def _designe(valeur: Any, trace: dict) -> bool:
 # ne désigne pas ne s'impose que si la valeur lui RESSEMBLE au son. Seuil mesuré
 # sur les paires du banc : « Sans-Lisle »/« sans lice » 92, « Bouvet »/« Bovet »
 # 86 passent ; « Beauvais »/Grandrû (« granulés ») 0, « Bovais-Nord »/Hanvec
-# (« avec ») 20, « Liancourt »/Senlis 31 ne passent pas.
-SEUIL_PROCHE = 80
+# (« avec ») 20, « Liancourt »/Senlis 31 ne passent pas. Relevé par la seconde
+# revue : deux vraies voisines, Chambly/Chantilly 80 et « de la gare »/« de la
+# mare » 83 ; le seuil passe à 85, sous la plus basse des vraies paires (86).
+SEUIL_PROCHE = 85
 
 
 def _cle(texte: Any) -> str:
@@ -498,7 +500,13 @@ def _communes_distinctes(traces: Iterable[dict]) -> dict[str, dict]:
     return distinctes
 
 
-def lire_commune(valeur: Any, fiche: dict) -> Lecture:
+def _est_une_commune(valeur: Any) -> bool:
+    """La valeur est-elle exactement le nom d'une commune de la liste (chargée) ?"""
+    base = base_si_chargee()
+    return base is not None and normaliser(str(valeur or "")) in base.par_nom
+
+
+def lire_commune(valeur: Any, fiche: dict, paroles: Iterable[str] = ()) -> Lecture:
     """La commune que les modules ont trouvée pour cette valeur.
 
     C2 (PB4, run 845) : le module avait Senlis SÛRE sur « sans lice », le modèle
@@ -511,7 +519,10 @@ def lire_commune(valeur: Any, fiche: dict) -> Lecture:
 
     Revue du 25/09 : la trace ne s'impose que si la valeur lui ressemble au son
     (``est_proche``). Sinon elle est seulement proposée : le module a entendu
-    autre chose que ce que le modèle écrit, la personne tranche.
+    autre chose que ce que le modèle écrit, la personne tranche. Une valeur qui
+    est elle-même une commune de la liste ne se voit jamais imposer une voisine
+    (Chantilly notée, Chambly entendue), et une valeur DITE par la personne
+    n'est pas remplacée par une proposition sans rapport.
     """
     sures = [
         t
@@ -538,7 +549,8 @@ def lire_commune(valeur: Any, fiche: dict) -> Lecture:
     proches = _communes_distinctes(
         t
         for t in sures
-        if est_proche(valeur, t.get("entendu"), t["commune_retenue"]["nom"])
+        if not _est_une_commune(valeur)
+        and est_proche(valeur, t.get("entendu"), t["commune_retenue"]["nom"])
     )
     if len(proches) == 1:
         return _commune_sure(next(iter(proches.values())))
@@ -561,8 +573,11 @@ def lire_commune(valeur: Any, fiche: dict) -> Lecture:
         return Lecture(
             choisie["nom"] if choisie else valeur, False, _suite(options), options
         )
-    # PB5 (remplace D37) : aucune trace du module pour cette valeur. Les communes
-    # sûres du dernier tour qui ne lui ressemblent pas sont proposées.
+    # PB5 (remplace D37) : aucune trace du module pour cette valeur. Dite, elle
+    # est écrite à confirmer ; sinon les communes sûres du dernier tour, qui ne
+    # lui ressemblent pas, sont proposées.
+    if est_cite(valeur, paroles):
+        return Lecture(valeur, False, "a_confirmer", trouvee=False)
     options = tuple(_option_commune(r) for r in _communes_distinctes(sures).values())
     return Lecture(valeur, False, _suite(options), options, trouvee=False)
 
@@ -1025,8 +1040,11 @@ def lire_rue(
             return Lecture(_remplacer(texte, portee, option), True)
         nouvelle = _remplacer(texte, portee, choisie) if choisie else texte
         return Lecture(nouvelle, False, _suite(propositions), propositions)
-    # PB5 (remplace D37) : aucune trace du module pour cette valeur. Les voies
-    # sûres du dernier tour qui ne lui ressemblent pas sont proposées.
+    # PB5 (remplace D37) : aucune trace du module pour cette valeur. Dite, elle
+    # est écrite à confirmer ; sinon les voies sûres du dernier tour, qui ne lui
+    # ressemblent pas, sont proposées.
+    if est_cite(texte, paroles):
+        return Lecture(texte, False, "a_confirmer", trouvee=False)
     options = tuple(dict.fromkeys(t["voie_retenue"] for t in sures))
     return Lecture(texte, False, _suite(options), options, trouvee=False)
 
@@ -1098,7 +1116,7 @@ def ecrire_dans_la_fiche(
         if epele:
             valeur = epele
         if definition.lecteur_effectif == "commune":
-            lecture = lire_commune(valeur, fiche)
+            lecture = lire_commune(valeur, fiche, paroles)
         elif definition.lecteur_effectif == "rue":
             lecture = lire_rue(valeur, fiche, paroles, champ)
         elif definition.lecteur_effectif == "lexique":
@@ -1109,12 +1127,15 @@ def ecrire_dans_la_fiche(
                 valeur = garder_le_numero(valeur, fiche.get(champ), fiche)
             if (
                 not lecture.trouvee
-                and not lecture.options
                 and definition.lecteur_effectif == "commune"
                 and (proposees := communes_du_code_postal_lu(fiche))
             ):
-                # C3 (PB6) : rien trouvé, mais un code postal a été lu.
-                lecture = replace(lecture, suite="a_proposer", options=proposees)
+                # C3 (PB6) : rien trouvé, mais un code postal a été lu. Ses
+                # communes passent avant les communes sûres sans rapport (revue).
+                options = proposees + tuple(
+                    o for o in lecture.options if o not in proposees
+                )
+                lecture = replace(lecture, suite="a_proposer", options=options)
             elif not lecture.trouvee and lecture.options:
                 # C2 : plusieurs voies ou communes sûres au même tour.
                 lecture = replace(lecture, suite="a_proposer")

@@ -642,7 +642,73 @@ def test_revue_A_run_838_beauvais_au_tour_de_grandru_n_ecrit_pas_grandru():
     )
     assert fiche["commune"] == "Beauvais"
     assert fiche["fiche_etat"]["commune"]["sure"] is False
-    assert (verdict.suite, verdict.options) == ("a_proposer", ("Grandrû",))
+    # Seconde revue : Beauvais a été dite, Grandrû n'est pas proposée à sa place.
+    assert (verdict.suite, verdict.options) == ("a_confirmer", ())
+
+
+def _grandru_sure_au_tour_2() -> dict:
+    return {
+        "tour_appelant": 2,
+        "communes_verifiees": [
+            {
+                "entendu": "granulés",
+                "statut": "sure",
+                "commune_retenue": {"nom": "Grandrû", "code_insee": "60285"},
+                "propositions": [],
+                "tour": 2,
+            }
+        ],
+    }
+
+
+def test_revue_A_une_commune_non_dite_fait_proposer_la_commune_sure_du_tour():
+    fiche = _grandru_sure_au_tour_2()
+    verdict = ecrire_dans_la_fiche(
+        fiche, _reglages(), "commune", "Liancourt", paroles=["c'est à côté"]
+    )
+    assert (verdict.statut, verdict.suite, verdict.options) == (
+        "refuse",
+        "a_proposer",
+        ("Grandrû",),
+    )
+
+
+def test_revue_A_les_communes_du_code_postal_passent_avant():
+    """Une commune sûre sans rapport ne masque pas les communes du code postal
+    lu (PB6)."""
+    charger_base()
+    fiche = _grandru_sure_au_tour_2()
+    fiche["nombres_lus"] = [{"type": "code_postal", "retenu": "60300", "tour": 1}]
+    verdict = ecrire_dans_la_fiche(
+        fiche, _reglages(), "commune", "Lisle", paroles=["le 60300"]
+    )
+    assert verdict.suite == "a_proposer"
+    assert verdict.options[:3] == (
+        "Senlis (Oise)",
+        "Chamant (Oise)",
+        "Avilly-Saint-Léonard (Oise)",
+    )
+    assert verdict.options[-1] == "Grandrû"
+
+
+def test_revue_A_une_vraie_commune_notee_ne_se_voit_pas_imposer_sa_voisine():
+    """Chambly / Chantilly font 80 au son : Chantilly notée n'est jamais
+    remplacée par Chambly entendue."""
+    charger_base()
+    fiche = {
+        "tour_appelant": 3,
+        "communes_verifiees": [
+            {
+                "entendu": "chambly",
+                "statut": "sure",
+                "commune_retenue": {"nom": "Chambly", "code_insee": "60139"},
+                "propositions": [],
+                "tour": 3,
+            }
+        ],
+    }
+    lecture = lire_commune("Chantilly", fiche, ["à Chantilly"])
+    assert (lecture.valeur, lecture.sure) == ("Chantilly", False)
 
 
 def test_revue_A_la_mesure_au_son_sur_les_paires_du_banc():
