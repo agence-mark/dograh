@@ -201,6 +201,51 @@ def est_cite(valeur: Any, paroles: Iterable[str]) -> bool:
     )
 
 
+# C13 (PB2) : les mots qui ne portent rien. Un déduit ancré sur « pour » ou
+# « avec » ne serait ancré sur rien.
+MOTS_VIDES = frozenset(
+    {
+        "alors", "apres", "assez", "aussi", "autre", "autres", "avant", "avec",
+        "avez", "avoir", "bien", "cela", "celle", "celui", "cette", "ceux",
+        "chez", "comme", "comment", "dans", "deja", "depuis", "donc", "elle",
+        "elles", "encore", "entre", "etait", "etre", "fait", "leur",
+        "leurs", "mais", "meme", "moins", "notre", "nous", "parce", "pour",
+        "pourquoi", "quand", "quel", "quelle", "quelque", "sans", "sont",
+        "sous", "tous", "tout", "toute", "toutes", "tres", "vers", "voila",
+        "voici", "votre", "vous", "avait", "juste", "ouais", "merci", "bonjour",
+    }
+)
+
+
+def _porteurs(texte: Any) -> set[str]:
+    """Les mots porteurs d'un texte : 4 caractères ou plus, hors mots vides,
+    accents et casse ignorés, pluriel ramené au singulier (« poêles » = « poêle »)."""
+    porteurs = set()
+    for mot in _mots(str(texte)):
+        if len(mot) < 4 or mot in MOTS_VIDES:
+            continue
+        if len(mot) > 4 and mot[-1] in "sx":
+            mot = mot[:-1]
+        porteurs.add(mot)
+    return porteurs
+
+
+def est_ancre(valeur: Any, paroles: Iterable[str]) -> bool:
+    """C13 (PB2, run 852) : un déduit contient-il au moins un mot porteur que
+    l'appelant a dit ? « Maison » jamais dit n'est ancré sur rien."""
+    dits: set[str] = set()
+    for parole in paroles:
+        dits |= _porteurs(parole)
+    return bool(_porteurs(valeur) & dits)
+
+
+def valeur_de_la_liste(valeur: Any, valeurs: Iterable[str]) -> str | None:
+    """PB3 : la valeur déclarée que ``valeur`` désigne (casse, accents et
+    ponctuation ignorés), sous sa forme déclarée ; ``None`` hors de la liste."""
+    mots = _mots(str(valeur))
+    return next((v for v in valeurs if mots and _mots(v) == mots), None)
+
+
 def paroles_de_l_appelant(messages: Iterable[dict]) -> list[str]:
     """Ce que l'appelant a dit, tel que le modèle l'a lu (après la réécriture
     des modules, jamais la transcription brute : D24)."""
@@ -416,7 +461,12 @@ def ecrire_dans_la_fiche(
         verdict = Verdict(champ, "refuse", "champ_inconnu")
     elif _est_vide(valeur):
         verdict = Verdict(champ, "ignore", "valeur_vide")
+    elif definition.valeurs and valeur_de_la_liste(valeur, definition.valeurs) is None:
+        # PB3 : hors de la liste fermée, d'où que vienne la valeur.
+        verdict = Verdict(champ, "refuse", "hors_liste", valeur)
     else:
+        if definition.valeurs:
+            valeur = valeur_de_la_liste(valeur, definition.valeurs)
         epele = (
             lire_epellation(valeur, fiche)
             if definition.origine == OrigineChamp.dicte
@@ -556,6 +606,30 @@ def _recopie_d_un_autre_champ(
     return None
 
 
+def _refus_d_un_deduit(
+    reglages: ReglagesFiche,
+    fiche: dict,
+    champ: ChampFiche,
+    valeur: Any,
+    paroles: list[str],
+) -> str | None:
+    """Pourquoi le balayage refuse ce déduit, ou ``None``.
+
+    C13 (PB2, run 852 : `type_logement` = « Maison », jamais dit) : un déduit
+    doit contenir au moins un mot porteur que l'appelant a dit. Exemptés : un
+    oui/non (la personne ne dit pas « true »), et un champ à liste fermée (PB3),
+    que la liste tient déjà.
+    """
+    copie = _recopie_d_un_autre_champ(reglages, fiche, champ.nom, valeur)
+    if copie:
+        return f"recopie_de_{copie}"
+    if champ.type == "boolean" or champ.valeurs:
+        return None
+    if not est_ancre(valeur, paroles):
+        return "non_ancre"
+    return None
+
+
 def _marquer_les_numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> None:
     """A8 : en fin d'appel, un numéro qui diffère encore du dernier numéro dicté
     devient NON SÛR, et le journal dit pourquoi. Le balayage n'écrase jamais un
@@ -618,23 +692,24 @@ async def balayer_la_fiche(
     for champ in vides:
         if champ.nom not in trouve:
             continue
-        copie = (
-            _recopie_d_un_autre_champ(reglages, fiche, champ.nom, trouve[champ.nom])
+        refus = (
+            _refus_d_un_deduit(reglages, fiche, champ, trouve[champ.nom], paroles)
             if champ.origine == OrigineChamp.deduit
+            and not _est_vide(trouve[champ.nom])
             else None
         )
-        if copie:
+        if refus:
             fiche.setdefault(CLE_JOURNAL, []).append(
                 {
                     "champ": champ.nom,
                     "valeur": trouve[champ.nom],
                     "statut": "refuse",
-                    "raison": f"recopie_de_{copie}",
+                    "raison": refus,
                     "source": "balayage",
                     "sure": True,
                 }
             )
-            logger.info(f"[fiche] balayage {champ.nom} refusé : recopie de {copie}")
+            logger.info(f"[fiche] balayage {champ.nom} refusé ({refus})")
             continue
         verdict = ecrire_dans_la_fiche(
             fiche,

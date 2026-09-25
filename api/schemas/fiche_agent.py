@@ -8,7 +8,11 @@ aucune migration de base (D32).
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+# PB3 : les bornes d'une liste fermée de valeurs (reprises par l'écran).
+MAX_VALEURS = 20
+MAX_LONGUEUR_VALEUR = 40
 
 
 class OrigineChamp(str, Enum):
@@ -52,6 +56,34 @@ class ChampFiche(BaseModel):
             "none. Empty: from the field name."
         ),
     )
+
+    # PB3 (patch du banc, 25/09) : une liste fermée de valeurs. Le champ n'accepte
+    # qu'une d'elles, écrite sous la forme déclarée, d'où que vienne la valeur ;
+    # et un champ déduit qui en déclare une est exempté de l'ancrage (PB2).
+    # Vide = aucune liste. Rangée dans le JSON de l'agent : aucune migration.
+    valeurs: list[str] | None = Field(
+        default=None,
+        description=(
+            "Allowed values: the field only accepts one of them (case and accents "
+            "ignored), written as declared. Empty: any value."
+        ),
+    )
+
+    @field_validator("valeurs")
+    @classmethod
+    def _valeurs_lisibles(cls, valeurs: list[str] | None) -> list[str] | None:
+        if valeurs is None:
+            return None
+        propres = [v.strip() for v in valeurs if v and v.strip()]
+        if len(propres) > MAX_VALEURS:
+            raise ValueError(f"at most {MAX_VALEURS} allowed values")
+        for valeur in propres:
+            if len(valeur) > MAX_LONGUEUR_VALEUR:
+                raise ValueError(
+                    f"allowed value '{valeur[:20]}…' is longer than "
+                    f"{MAX_LONGUEUR_VALEUR} characters"
+                )
+        return propres or None
 
     @property
     def lecteur_effectif(self) -> str:
