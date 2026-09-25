@@ -33,7 +33,7 @@ import re
 import unicodedata
 from collections.abc import Callable, Iterable
 from contextvars import ContextVar
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any
 
@@ -49,6 +49,7 @@ from api.schemas.fiche_agent import (
     cle_insee,
     verifier_champs,
 )
+from api.schemas.lexique_metier import normaliser_terme
 from api.services.communes.base import base_si_chargee, cle_sonore
 from api.services.nombres.lecture import lire_nombres, reecrire
 from api.services.workflow.dates_relatives import est_une_date, lire_date
@@ -64,6 +65,7 @@ TRACE_COMMUNES = "communes_verifiees"
 TRACE_VOIES = "voies_verifiees"
 TRACE_EPELLATIONS = "epellations_lues"
 TRACE_NOMBRES = "nombres_lus"
+TRACE_LEXIQUE = "lexique_reconnu"
 # C2 : le numéro du dernier message de l'appelant lu par les modules, et que
 # chacune de leurs traces porte (`verification_communes.CLE_TOUR`, tenu égal
 # par un test : importer le module des communes ici bouclerait les imports).
@@ -137,6 +139,9 @@ DESCRIPTION_OUTIL = (
 @dataclass(frozen=True)
 class ReglagesFiche:
     champs: tuple[ChampFiche, ...]
+    # C10 (PB12) : les termes du lexique de l'organisation, par forme comparée
+    # (`normaliser_terme`), avec leur écriture officielle. Variantes comprises.
+    termes_du_lexique: dict[str, str] = field(default_factory=dict)
 
     @property
     def par_nom(self) -> dict[str, ChampFiche]:
@@ -144,7 +149,11 @@ class ReglagesFiche:
 
     @classmethod
     def depuis(
-        cls, run_configs: dict | None, *, is_realtime: bool = False
+        cls,
+        run_configs: dict | None,
+        *,
+        is_realtime: bool = False,
+        lexique: Any = None,
     ) -> ReglagesFiche | None:
         """Les réglages de l'appel, ou ``None`` : interrupteur éteint (le défaut),
         mode temps réel, ou aucun champ lisible. ``None`` = comportement d'avant."""
@@ -167,7 +176,20 @@ class ReglagesFiche:
                 "[fiche] interrupteur allumé mais aucun champ : outil non proposé"
             )
             return None
-        return cls(champs=tuple(champs))
+        return cls(champs=tuple(champs), termes_du_lexique=_termes(lexique))
+
+
+def _termes(lexique: Any) -> dict[str, str]:
+    """Chaque écriture d'un terme du lexique (terme et variantes) -> le terme."""
+    termes: dict[str, str] = {}
+    try:
+        for terme in getattr(lexique, "termes", None) or []:
+            for forme in (terme.terme, *(terme.variantes or [])):
+                if forme and (cle := normaliser_terme(forme)):
+                    termes.setdefault(cle, terme.terme)
+    except Exception as erreur:  # noqa: BLE001 -- le lexique ne coûte jamais l'appel
+        logger.warning(f"[fiche] lexique illisible pour la fiche : {erreur!r}")
+    return termes
 
 
 # --- Le contrôle de citation (D5, précisé par D41) ---------------------------
@@ -440,6 +462,30 @@ def lire_commune(valeur: Any, fiche: dict) -> Lecture:
             choisie["nom"] if choisie else valeur, False, _suite(options), options
         )
     # PB5 (remplace D37) : aucune trace du module pour cette valeur.
+    return Lecture(valeur, False, "a_confirmer", trouvee=False)
+
+
+def lire_lexique(valeur: Any, fiche: dict, termes: dict[str, str]) -> Lecture:
+    """C10 (PB12, run 849) : « Palazzetti » transcrit « paradis éthique », noté
+    « Paradis Éthique »... et écrit SÛR : une marque n'avait aucun lecteur.
+
+    Sûre si le lexique l'a reconnue sûre (son terme officiel est écrit), ou si
+    elle est exactement un terme du lexique ; sinon à confirmer. Un terme que le
+    lexique a seulement PROPOSÉ (run 840 : « éthique à main » → Edilkamin ?) reste
+    à confirmer même écrit tel quel.
+    """
+    for trace in _entrees(fiche, TRACE_LEXIQUE):
+        terme = trace.get("terme")
+        if not terme or not (
+            _memes_mots(valeur, trace.get("entendu")) or _memes_mots(valeur, terme)
+        ):
+            continue
+        if trace.get("statut") == "sure":
+            return Lecture(terme, True)
+        return Lecture(terme, False, "a_confirmer")
+    officiel = termes.get(normaliser_terme(str(valeur)))
+    if officiel:
+        return Lecture(officiel, True)
     return Lecture(valeur, False, "a_confirmer", trouvee=False)
 
 
@@ -838,6 +884,8 @@ def ecrire_dans_la_fiche(
             lecture = lire_commune(valeur, fiche)
         elif definition.lecteur_effectif == "rue":
             lecture = lire_rue(valeur, fiche, paroles, champ)
+        elif definition.lecteur_effectif == "lexique":
+            lecture = lire_lexique(valeur, fiche, reglages.termes_du_lexique)
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
             if definition.lecteur_effectif == "rue":

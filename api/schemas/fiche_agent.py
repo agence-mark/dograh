@@ -47,13 +47,14 @@ class ChampFiche(BaseModel):
     # ⛔ Gardé VIDE en base, jamais remplacé par sa valeur déduite : l'écran
     # comparerait ce qu'il a envoyé à ce qu'il relit et se croirait modifié, et
     # un champ renommé garderait le lecteur de son ancien nom (constaté le 24/09).
-    lecteur: Literal["commune", "rue", "date", "aucun"] | None = Field(
+    lecteur: Literal["commune", "rue", "date", "lexique", "aucun"] | None = Field(
         default=None,
         description=(
             "Which reader checks the value: town (official name and INSEE code), "
             "street (official street name), date (a relative date such as 'last "
-            "year' computed on the day of the call, the caller's words kept), or "
-            "none. Empty: from the field name."
+            "year' computed on the day of the call, the caller's words kept), "
+            "trade vocabulary (a name of the organization's vocabulary, sure only "
+            "when recognised), or none. Empty: from the field name."
         ),
     )
 
@@ -92,9 +93,12 @@ class ChampFiche(BaseModel):
 
 def lecteur_par_defaut(nom: str) -> str:
     """D42 : ``commune*`` -> commune ; ``adresse*`` et ``rue*`` -> rue ; D46 :
-    ``*date*``, ``dernier_*`` et ``annee*`` -> date ; sinon aucun."""
+    ``*date*``, ``dernier_*`` et ``annee*`` -> date ; C10 (PB12) : ``marque*``
+    -> lexique ; sinon aucun."""
     if nom.startswith("commune"):
         return "commune"
+    if nom.startswith("marque"):
+        return "lexique"
     if nom.startswith(("adresse", "rue")):
         return "rue"
     if "date" in nom or nom.startswith(("dernier_", "annee")):

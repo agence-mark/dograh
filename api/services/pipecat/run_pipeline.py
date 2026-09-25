@@ -1210,7 +1210,10 @@ async def _run_pipeline_impl(
         context_compaction_enabled=context_compaction_enabled,
         call_dispositions=call_dispositions,
         # [.mark] La fiche au fil de l'eau (plan 2026-09-23) : None si éteinte.
-        fiche=ReglagesFiche.depuis(run_configs, is_realtime=is_realtime),
+        # C10 : avec le lexique de l'organisation, pour le lecteur des marques.
+        fiche=ReglagesFiche.depuis(
+            run_configs, is_realtime=is_realtime, lexique=lexique_metier
+        ),
     )
 
     # Create pipeline components

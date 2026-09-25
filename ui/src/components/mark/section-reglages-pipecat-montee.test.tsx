@@ -44,7 +44,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
@@ -270,6 +270,17 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         (await screen.findByRole("button", { name: /add field/i })).click();
         expect(await screen.findByLabelText("Allowed values")).toBe(
             document.getElementById("fiche_valeurs_0"),
+        );
+    });
+
+    it("[call record] a brand field of the MOUNTED card is read by the trade vocabulary (C10)", async () => {
+        await rendreLaPage();
+        screen.getByRole("button", { name: /edit fields/i }).click();
+        (await screen.findByRole("button", { name: /add field/i })).click();
+        const nom = (await screen.findByLabelText("Name")) as HTMLInputElement;
+        fireEvent.change(nom, { target: { value: "marque_appareil" } });
+        expect(document.getElementById("fiche_lecteur_0")?.textContent).toContain(
+            "From the name (lexique)",
         );
     });
 

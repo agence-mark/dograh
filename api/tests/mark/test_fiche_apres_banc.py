@@ -19,14 +19,17 @@ test dans l'autre sens : ce qui doit toujours être refusé (PB15).
 | C6 | Une voie notée sans numéro garde le numéro déjà noté pour la même voie |
 | C7 | « il y a trois ans » dit, lu « il y a 3 ans » par le modèle, est accepté (cause établie sur le 847) |
 | C8 | Un champ de date refuse ce qui n'est pas une date (« annuel ») |
+| C10 | Une marque n'est sûre que reconnue par le lexique (ou terme exact) ; sinon à confirmer |
 """
 
 from datetime import datetime
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from api.schemas.fiche_agent import ChampFiche
+from api.schemas.lexique_metier import LexiqueMetier, TermeLexique
 from api.services.communes.base import charger_base
 from api.services.pipecat import verification_communes
 from api.services.pipecat.lecture_appelant import lire_message_tape
@@ -1014,3 +1017,119 @@ def test_C8_hors_d_un_champ_de_date_annuel_reste_une_valeur():
         {}, _reglages(), "motif", "entretien annuel", paroles=PAROLES_852
     )
     assert verdict.statut == "ecrit"
+
+
+# --- C10 : la marque passe par le lexique (PB12) ------------------------------
+
+LEXIQUE = LexiqueMetier(
+    termes=[
+        TermeLexique(terme="Jotul", variantes=["Jøtul"], type="nom", categorie="marque"),
+        TermeLexique(terme="Invicta", type="nom", categorie="marque"),
+        TermeLexique(terme="Palazzetti", type="nom", categorie="marque"),
+        TermeLexique(terme="Edilkamin", type="nom", categorie="marque"),
+    ]
+)
+
+
+def _reglages_avec_lexique() -> ReglagesFiche:
+    champs = [{"nom": nom, "origine": origine} for nom, origine in CHAMPS_26]
+    reglages = ReglagesFiche.depuis(
+        {"fiche_au_fil_de_leau": True, "fiche_champs": champs}, lexique=LEXIQUE
+    )
+    assert reglages is not None
+    return reglages
+
+
+def _marque(fiche: dict, valeur: str, *paroles: str):
+    return ecrire_dans_la_fiche(
+        fiche,
+        _reglages_avec_lexique(),
+        "marque_appareil",
+        valeur,
+        paroles=list(paroles),
+    )
+
+
+def test_C10_le_champ_marque_est_lu_par_le_lexique():
+    assert ChampFiche(nom="marque_appareil").lecteur_effectif == "lexique"
+    assert ChampFiche(nom="marque").lecteur_effectif == "lexique"
+    assert ChampFiche(nom="marque", lecteur="aucun").lecteur_effectif == "aucun"
+
+
+def test_C10_run_849_paradis_ethique_n_est_plus_sur():
+    """Run 849 : « Palazzetti » transcrit « paradis éthique », le lexique n'a rien
+    reconnu (aucune trace), le modèle note « Paradis Éthique » : écrit SÛR et
+    redit à la clôture. Désormais à confirmer."""
+    fiche: dict = {}
+    verdict = _marque(fiche, "Paradis Éthique", "C'est un paradis éthique.")
+    assert (verdict.statut, verdict.suite) == ("ecrit", "a_confirmer")
+    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is False
+
+
+def test_C10_run_841_jotul_reconnu_sur_par_le_lexique():
+    """Run 841 : « Oui, c'est un joutule. » → le lexique tranche Jotul, sûre."""
+    fiche = {
+        "lexique_reconnu": [
+            {"etape": "qualif_entretien", "entendu": "joutule", "statut": "sure",
+             "terme": "Jotul", "propositions": [{"terme": "Jotul"}]}
+        ]
+    }
+    verdict = _marque(fiche, "joutule", "Oui, c'est un Jotul.")
+    assert (verdict.statut, fiche["marque_appareil"]) == ("ecrit", "Jotul")
+    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is True
+
+
+def test_C10_run_847_invicta_dit_tel_quel_est_sur():
+    fiche = {
+        "lexique_reconnu": [
+            {"etape": "accueil", "entendu": "Invicta", "statut": "sure",
+             "terme": "Invicta", "propositions": [{"terme": "Invicta"}]}
+        ]
+    }
+    _marque(fiche, "Invicta", "Non pardon, c'est un Invicta.")
+    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is True
+
+
+def test_C10_un_terme_du_lexique_ecrit_tel_quel_est_sur_meme_sans_trace():
+    fiche: dict = {}
+    _marque(fiche, "jøtul", "c'est un jøtul")
+    assert fiche["marque_appareil"] == "Jotul"
+    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is True
+
+
+def test_C10_run_840_un_terme_seulement_propose_reste_a_confirmer():
+    """Run 840 : « éthique à main » → le lexique PROPOSE Edilkamin, à confirmer ;
+    le modèle qui note « Edilkamin » avant la réponse n'en fait pas une marque sûre."""
+    fiche = {
+        "lexique_reconnu": [
+            {"etape": "accueil", "entendu": "éthique à main", "statut": "a_confirmer",
+             "terme": "Edilkamin", "propositions": [{"terme": "Edilkamin"}]}
+        ]
+    }
+    verdict = _marque(fiche, "Edilkamin", "c'est un éthique à main")
+    assert (verdict.statut, verdict.suite) == ("ecrit", "a_confirmer")
+    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is False
+
+
+def test_C10_une_marque_ni_dite_ni_connue_reste_refusee():
+    fiche: dict = {}
+    verdict = _marque(fiche, "Supra", "c'est un poêle à bois")
+    assert (verdict.statut, verdict.raison) == ("refuse", "non_dit")
+
+
+def test_C10_sans_lexique_aucun_terme_n_est_sur_d_office():
+    fiche: dict = {}
+    ecrire_dans_la_fiche(
+        fiche, _reglages(), "marque_appareil", "Invicta", paroles=["un Invicta"]
+    )
+    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is False
+
+
+def test_C10_l_appel_donne_son_lexique_a_la_fiche():
+    """⚠️ Contrôle du SOURCE : `run_pipeline` ne se monte pas en test ; la
+    construction de la fiche avec le lexique est jouée au-dessus."""
+    source = (
+        Path(__file__).parents[2] / "services" / "pipecat" / "run_pipeline.py"
+    ).read_text(encoding="utf-8")
+    appel = source.split("fiche=ReglagesFiche.depuis(")[1].split(")")[0]
+    assert "lexique=lexique_metier" in appel

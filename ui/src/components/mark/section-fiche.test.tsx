@@ -234,6 +234,26 @@ describe("[.mark] Call Record: allowed values (PB3, patch after the bench)", () 
     });
 });
 
+describe("[.mark] Call Record: the trade vocabulary reader (C10, patch after the bench)", () => {
+    it("reads a brand field with the trade vocabulary, from its name, and says so", async () => {
+        ouvrir({ fiche_champs: CHAMPS });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        fireEvent.change(document.getElementById("fiche_nom_1") as HTMLInputElement, {
+            target: { value: "marque_appareil" },
+        });
+        expect(document.getElementById("fiche_lecteur_1")?.textContent).toContain(
+            "From the name (lexique)",
+        );
+        expect(within(dialogue).getByText(/brand is sure only when/i)).toBeTruthy();
+    });
+
+    it("the server knows the reader the screen offers", () => {
+        const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
+        expect(schema).toMatch(/lecteur: Literal\["commune", "rue", "date", "lexique", "aucun"\]/);
+    });
+});
+
 describe("[.mark] Call Record rules mirror the server", () => {
     it("bounds the allowed values where the server does", () => {
         const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
@@ -266,6 +286,8 @@ describe("[.mark] Call Record rules mirror the server", () => {
         ["dernier_entretien", "date"],
         ["date_installation", "date"],
         ["annee_pose", "date"],
+        ["marque_appareil", "lexique"],
+        ["marque", "lexique"],
     ])("reader from the name: %s -> %s", (nom, lecteur) => {
         expect(lecteurParDefaut(nom)).toBe(lecteur);
     });

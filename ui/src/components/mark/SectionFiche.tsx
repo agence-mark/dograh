@@ -80,14 +80,16 @@ export const NOMS_RESERVES = [
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */
-export const lecteurParDefaut = (nom: string): "commune" | "rue" | "date" | "aucun" =>
+export const lecteurParDefaut = (nom: string): "commune" | "rue" | "date" | "lexique" | "aucun" =>
     nom.startsWith("commune")
         ? "commune"
-        : nom.startsWith("adresse") || nom.startsWith("rue")
-          ? "rue"
-          : nom.includes("date") || nom.startsWith("dernier_") || nom.startsWith("annee")
-            ? "date"
-            : "aucun";
+        : nom.startsWith("marque")
+          ? "lexique"
+          : nom.startsWith("adresse") || nom.startsWith("rue")
+            ? "rue"
+            : nom.includes("date") || nom.startsWith("dernier_") || nom.startsWith("annee")
+              ? "date"
+              : "aucun";
 
 /** `MAX_VALEURS` and `MAX_LONGUEUR_VALEUR` on the server; a test compares them. */
 export const NOMBRE_MAX_VALEURS = 20;
@@ -365,7 +367,9 @@ export const SectionFiche = ({
                             next to it); &quot;From the name&quot; picks it as the server does
                             (<code>commune…</code> → town, <code>adresse…</code> or{" "}
                             <code>rue…</code> → street, <code>…date…</code>,{" "}
-                            <code>dernier_…</code> or <code>annee…</code> → date).
+                            <code>dernier_…</code> or <code>annee…</code> → date,{" "}
+                            <code>marque…</code> → trade vocabulary: a brand is sure only when the
+                            organization&apos;s vocabulary recognises it, otherwise it is to confirm).
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex-1 space-y-3 overflow-y-auto pr-1">
@@ -435,6 +439,7 @@ export const SectionFiche = ({
                                                 <SelectItem value="commune">Town</SelectItem>
                                                 <SelectItem value="rue">Street</SelectItem>
                                                 <SelectItem value="date">Date</SelectItem>
+                                                <SelectItem value="lexique">Trade vocabulary</SelectItem>
                                                 <SelectItem value="aucun">None</SelectItem>
                                             </SelectContent>
                                         </Select>
