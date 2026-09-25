@@ -310,3 +310,26 @@ describe("[.mark] Call Record rules mirror the server", () => {
         expect(erreursDesChamps([champ("nom"), champ("commune")])).toEqual({});
     });
 });
+
+describe("[.mark] fields sent without their defaulted keys (regenerated client, upstream rise 4e6cb22b)", () => {
+    it("completes each field with the server's defaults and never changes a given value", () => {
+        const resolu = resolveWorkflowConfigurations(null, {
+            fiche_champs: [{ nom: "commune" }, { nom: "motif", type: "number", origine: "deduit" }],
+        } as never);
+        expect(resolu.fiche_champs).toEqual([
+            { nom: "commune", type: "string", origine: "dicte", description: "", lecteur: null },
+            { nom: "motif", type: "number", origine: "deduit", description: "", lecteur: null },
+        ]);
+    });
+
+    it("keeps the agent's own fields over the defaults, as the spreads always did", () => {
+        const resolu = resolveWorkflowConfigurations(
+            { fiche_champs: [{ nom: "rue", lecteur: "rue" }] } as never,
+            { fiche_champs: [{ nom: "commune" }] } as never,
+        );
+        expect(resolu.fiche_champs).toEqual([
+            { nom: "rue", type: "string", origine: "dicte", description: "", lecteur: "rue" },
+        ]);
+        expect(resolveWorkflowConfigurations(null).fiche_champs).toBeUndefined();
+    });
+});

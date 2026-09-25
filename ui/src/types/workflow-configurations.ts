@@ -219,6 +219,25 @@ export interface ChampFiche {
     valeurs?: string[] | null;
 }
 
+/**
+ * [.mark] A record field as the server may send it: every key but the name has
+ * a default in `api/schemas/fiche_agent.py`, so the generated client types
+ * them optional. Completed here with exactly those defaults, so the screen
+ * always handles whole fields; a value that is there is never changed.
+ */
+export const completerChampsFiche = <T,>(
+    champs: T,
+): T | ChampFiche[] => {
+    if (!Array.isArray(champs)) return champs;
+    return champs.map((champ: Partial<ChampFiche> & { nom: string }) => ({
+        type: "string",
+        origine: "dicte",
+        description: "",
+        lecteur: null,
+        ...champ,
+    })) as ChampFiche[];
+};
+
 export type WorkflowConfigurations = WorkflowConfigurationBase & {
     ambient_noise_configuration: AmbientNoiseConfiguration;
     max_call_duration: number;  // Maximum call duration in seconds
@@ -410,6 +429,10 @@ export function resolveWorkflowConfigurations(
         // JSON nulls for keys the client never touched, and spreading them would
         // draw an empty field where the pipeline runs a value.
         ...resoudreReglagesPipecat(configurations, defaults),
+        // [.mark] Same value the spreads above chose, completed field by field.
+        fiche_champs: completerChampsFiche(
+            { ...defaults, ...configurations }.fiche_champs,
+        ) as ChampFiche[] | undefined,
         transcript_configuration: {
             ...DEFAULT_TRANSCRIPT_CONFIGURATION,
             ...(defaults?.transcript_configuration as Partial<TranscriptConfiguration> | undefined),
