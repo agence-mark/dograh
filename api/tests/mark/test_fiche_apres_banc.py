@@ -1626,3 +1626,10 @@ def test_revue_un_message_relu_garde_son_numero_de_tour():
     assert consignation.nouveau_tour(message) == 1
     assert consignation.nouveau_tour((2, "oui")) == 2
     assert consignation.nouveau_tour() == 3
+
+
+def test_revue_les_valeurs_permises_en_double_n_en_font_qu_une():
+    champ = ChampFiche(
+        nom="degre_urgence", valeurs=["Panne", "panne", "Pânne", "Urgent"]
+    )
+    assert champ.valeurs == ["Panne", "Urgent"]

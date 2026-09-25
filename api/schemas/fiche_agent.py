@@ -5,6 +5,7 @@ dicté ou déduit, indice. Rangée dans `workflow_configurations` (colonne JSON)
 aucune migration de base (D32).
 """
 
+import unicodedata
 from enum import Enum
 from typing import Literal
 
@@ -75,7 +76,20 @@ class ChampFiche(BaseModel):
     def _valeurs_lisibles(cls, valeurs: list[str] | None) -> list[str] | None:
         if valeurs is None:
             return None
-        propres = [v.strip() for v in valeurs if v and v.strip()]
+        propres: list[str] = []
+        vues: set[str] = set()
+        for brute in valeurs:
+            valeur = (brute or "").strip()
+            # Revue du 25/09 : « Panne, panne » est une seule valeur (la fiche
+            # compare sans casse ni accents) ; la première écriture est gardée.
+            forme = "".join(
+                c
+                for c in unicodedata.normalize("NFKD", valeur.casefold())
+                if not unicodedata.combining(c)
+            )
+            if valeur and forme not in vues:
+                vues.add(forme)
+                propres.append(valeur)
         if len(propres) > MAX_VALEURS:
             raise ValueError(f"at most {MAX_VALEURS} allowed values")
         for valeur in propres:
