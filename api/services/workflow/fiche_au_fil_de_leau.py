@@ -424,17 +424,14 @@ def lire_commune(valeur: Any, fiche: dict) -> Lecture:
     # Une commune déjà tranchée SÛRE plus tôt, que la valeur désigne : le modèle
     # la renote. Run 842 : « Avec un y » donnait Hanvec (Finistère), sûre, au
     # tour d'après Beauvais ; renoter « Beauvais » à ce tour-là n'écrit pas Hanvec.
-    anterieure = next(
-        (
-            t
-            for t in _entrees(fiche, TRACE_COMMUNES)
-            if t.get("statut") == "sure"
-            and (t.get("commune_retenue") or {}).get("nom")
-            and _designe(valeur, t)
-        ),
-        None,
-    )
-    if anterieure is not None:
+    # Revue du 25/09 : seulement si c'est la trace la PLUS RÉCENTE que la valeur
+    # désigne ; une trace plus récente, même hésitante, garde le dernier mot.
+    anterieure = next((t for t in _entrees(fiche, TRACE_COMMUNES) if _designe(valeur, t)), None)
+    if (
+        anterieure is not None
+        and anterieure.get("statut") == "sure"
+        and (anterieure.get("commune_retenue") or {}).get("nom")
+    ):
         return _commune_sure(anterieure["commune_retenue"])
     if sures:
         distinctes: dict[str, dict] = {}
@@ -722,6 +719,18 @@ def _avec_le_numero(valeur: str, voie: str) -> str:
     return f"{numero} {voie}" if numero else voie
 
 
+def _voie_designee(texte: str, trace: dict) -> bool:
+    """La valeur désigne-t-elle cette trace (ce qu'elle a entendu, ou une voie
+    qu'elle nomme) ?"""
+    noms = [
+        trace.get("voie_retenue"),
+        *(p.get("nom") for p in trace.get("propositions") or [] if isinstance(p, dict)),
+    ]
+    return _trouver(texte, trace.get("entendu") or "") is not None or any(
+        n and _trouver(texte, n) is not None for n in noms
+    )
+
+
 def _option_du_type_dit(
     texte: str,
     propositions: tuple[str, ...],
@@ -764,11 +773,19 @@ def lire_rue(
     sures = [t for t in _du_dernier_tour(fiche, TRACE_VOIES) if t.get("voie_retenue")]
     # Une voie sûre du dernier tour que la valeur désigne, sinon une voie sûre
     # plus ancienne qu'elle désigne (le modèle la renote), sinon PB4.
-    anterieures = [
-        t
-        for t in _entrees(fiche, TRACE_VOIES)
-        if t.get("statut") == "sure" and t.get("voie_retenue")
-    ]
+    # Revue du 25/09 : une voie sûre plus ancienne ne compte que si c'est la
+    # trace la PLUS RÉCENTE que la valeur désigne (sinon « 12 route de Paris »,
+    # corrigé après « Rue de Paris » sûre, ressortait « 12 route Rue de Paris »).
+    anterieure = next(
+        (t for t in _entrees(fiche, TRACE_VOIES) if _voie_designee(texte, t)), None
+    )
+    anterieures = (
+        [anterieure]
+        if anterieure is not None
+        and anterieure.get("statut") == "sure"
+        and anterieure.get("voie_retenue")
+        else []
+    )
     for trace in [*sures, *anterieures]:
         portee = _trouver(texte, trace.get("entendu") or "") or _trouver(
             texte, trace["voie_retenue"]
@@ -989,7 +1006,9 @@ def _code_postal_de_la_commune(
     donne à son champ de code postal (``commune…`` -> ``code_postal…``, même
     suite) s'il est vide ou non sûr. Au 851, Compiègne était sûre et le code
     postal, jamais dit, restait vide. ⛔ Un code postal sûr n'est jamais écrasé."""
-    if len(lecture.codes_postaux) != 1:
+    # Revue du 25/09 : un champ à lecteur « commune » nommé autrement (« ville »)
+    # n'a pas de champ de code postal qui lui corresponde.
+    if len(lecture.codes_postaux) != 1 or not champ.startswith("commune"):
         return
     cible = "code_postal" + champ[len("commune") :]
     if cible not in reglages.par_nom:
@@ -1444,7 +1463,8 @@ def creer_gestionnaire(
             if a_proposer:
                 # C3 (PB6) : les possibilités, à proposer une par une.
                 resultat["a_proposer"] = a_proposer
-                if resultat["statut"] in ("note", "rien_note"):
+                # Revue du 25/09 : ce qui a été noté reste « note ».
+                if resultat["statut"] == "rien_note":
                     resultat["statut"] = "a_proposer"
                 consignes.append(
                     CONSIGNE_A_PROPOSER.format(

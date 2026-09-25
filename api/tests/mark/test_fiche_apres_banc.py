@@ -1258,3 +1258,83 @@ def test_C12_une_commune_non_sure_ne_donne_rien():
     )
     assert fiche["fiche_etat"]["commune"]["sure"] is False
     assert "code_postal" not in fiche
+
+
+# --- Revue du 25/09 : ce que la relecture indépendante a rattrapé -------------
+
+
+def test_revue_une_voie_sure_plus_ancienne_ne_passe_pas_devant_une_plus_recente():
+    """« Rue de Paris » sûre au tour 3, puis la personne corrige « route de Paris »
+    et le module hésite (tour 5) : la fiche écrivait « 12 route Rue de Paris »,
+    sûre. La trace la plus récente garde le dernier mot : « ambigu »."""
+    fiche = {
+        "tour_appelant": 5,
+        "voies_verifiees": [
+            {
+                "entendu": "de paris",
+                "statut": "sure",
+                "voie_retenue": "Rue de Paris",
+                "propositions": [{"nom": "Rue de Paris"}],
+                "tour": 3,
+            },
+            {
+                "entendu": "de paris",
+                "statut": "a_confirmer",
+                "voie_retenue": None,
+                "propositions": [{"nom": "Rue de Paris"}, {"nom": "Route de Paris"}],
+                "tour": 5,
+            },
+        ],
+    }
+    lecture = lire_rue("12 route de Paris", fiche, ["non, c'est 12 route de Paris"])
+    assert "Rue de Paris" not in lecture.valeur.replace("Route de Paris", "")
+    assert lecture.valeur != "12 route Rue de Paris"
+
+
+def test_revue_une_commune_sure_plus_ancienne_ne_passe_pas_devant_une_plus_recente():
+    fiche = {
+        "tour_appelant": 5,
+        "communes_verifiees": [
+            {
+                "entendu": "creil",
+                "statut": "sure",
+                "tour": 3,
+                "propositions": [],
+                "commune_retenue": {"nom": "Creil", "code_insee": "60175"},
+            },
+            {
+                "entendu": "creil",
+                "statut": "a_confirmer",
+                "tour": 4,
+                "commune_retenue": None,
+                "propositions": [
+                    {"nom": "Creil", "code_insee": "60175"},
+                    {"nom": "Crécy", "code_insee": "60182"},
+                ],
+            },
+        ],
+    }
+    assert lire_commune("creil", fiche).sure is False
+
+
+def test_revue_un_champ_commune_nomme_autrement_ne_donne_aucun_code_postal():
+    reglages = ReglagesFiche.depuis(
+        {
+            "fiche_au_fil_de_leau": True,
+            "fiche_champs": [
+                {"nom": "ville", "lecteur": "commune"},
+                {"nom": "code_postal"},
+            ],
+        }
+    )
+    fiche = _commune_sure_au_tour(COMPIEGNE, "Compiègne")
+    ecrire_dans_la_fiche(fiche, reglages, "ville", "Compiègne", paroles=[])
+    assert fiche["ville"] == "Compiègne" and "code_postal" not in fiche
+
+
+@pytest.mark.asyncio
+async def test_revue_ce_qui_est_note_reste_note_quand_une_commune_est_a_proposer():
+    fiche, messages = _jusqu_au_tour(TOURS_845, 9)
+    resultat = await _noter(fiche, messages, commune="Lisle", code_postal="60300")
+    assert resultat["statut"] == "note"
+    assert resultat["a_proposer"] and resultat["ecrits"] == ["code_postal"]
