@@ -71,7 +71,10 @@ fi
 # Install dograh API requirements first so pipecat's extras win on any
 # shared transitive dependencies (matches api/Dockerfile and CI workflow).
 echo "Installing dograh API requirements..."
-uv pip install -r api/requirements.txt
+# [.mark] -c api/constraints.txt : les versions exactes de l'image (E3, 25/09).
+# L'etape dev ci-dessous n'en prend PAS : api/requirements.dev.txt fige
+# watchfiles en 1.1.1, l'image en 1.3.0, les deux ensemble seraient refuses.
+uv pip install -r api/requirements.txt -c api/constraints.txt
 
 if [ "$DEV_MODE" -eq 1 ]; then
     echo "Installing dograh API dev requirements..."
@@ -91,6 +94,6 @@ if [ "$DEV_MODE" -eq 1 ]; then
     # override pipecat's protobuf version constraint.
     pipecat_install_args+=(--group pipecat/pyproject.toml:dev)
 fi
-uv pip install "${pipecat_install_args[@]}"
+uv pip install "${pipecat_install_args[@]}" -c api/constraints.txt
 
 echo "Setup complete! Requirements are installed."
