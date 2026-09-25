@@ -710,9 +710,7 @@ def _numero(valeur: str) -> str:
     mots = _MOT.findall(valeur)
     numero = []
     for mot in mots:
-        if mot.isdigit() and not numero:
-            numero.append(mot)
-        elif numero and mot.lower() in _NUMERO:
+        if (mot.isdigit() and not numero) or (numero and mot.lower() in _NUMERO):
             numero.append(mot)
         else:
             break

@@ -107,27 +107,40 @@ def _refus(fiche: dict, champ: str) -> str | None:
         (
             841,
             {"motif": "Prendre rendez-vous pour l'entretien annuel d'un poêle à bois"},
-            ["Oui bonjour, je vous appelle pour prendre rendez-vous pour "
-             "l'entretien annuel de mon poêle à bois."],
+            [
+                (
+                    "Oui bonjour, je vous appelle pour prendre rendez-vous pour "
+                    "l'entretien annuel de mon poêle à bois."
+                )
+            ],
             {"appareil": "poêle à bois"},
         ),
         (
             843,
             {"motif": "Panne sur un poêle à granulés"},
-            ["Ouais bonjour, je vous appelle parce que mon poêle à granulés, il "
-             "est en panne."],
+            [
+                (
+                    "Ouais bonjour, je vous appelle parce que mon poêle à granulés, "
+                    "il est en panne."
+                )
+            ],
             {"appareil": "poêle à granulés", "degre_urgence": "panne"},
         ),
         (
             845,
             {
                 "motif": "Projet d'installation d'un insert à bois",
-                "verbatim_demande": "elle voudrait installer un poêle à bois, un "
-                "insert à bois pardon",
+                "verbatim_demande": (
+                    "elle voudrait installer un poêle à bois, un insert à bois pardon"
+                ),
             },
-            ["Oui bonjour Julien Masson à l'appareil. J'appelle pour ma mère, elle "
-             "voudrait installer un poêle à bois, un insert à bois pardon. Il y a "
-             "déjà un conduit."],
+            [
+                (
+                    "Oui bonjour Julien Masson à l'appareil. J'appelle pour ma mère, "
+                    "elle voudrait installer un poêle à bois, un insert à bois pardon. "
+                    "Il y a déjà un conduit."
+                )
+            ],
             {"appareil": "insert", "projet": "installer un insert à bois"},
         ),
     ],
@@ -177,11 +190,15 @@ async def test_C1_casse_accents_et_ponctuation_ne_font_pas_une_autre_phrase():
 # --- C13 : un déduit du balayage doit s'ancrer sur ce qui a été dit (PB2) ------
 
 PAROLES_852 = [
-    "Oui bonjour, j'aimerais faire l'entretien annuel de mon poêle à bois s'il "
-    "vous plaît.",
-    "Je, excusez-moi, mais je veux, je je veux juste faire l'entretien de mon "
-    "poêle à bois là. Est-ce que je pourrais prendre un rendez-vous d'entretien "
-    "s'il vous plaît?",
+    (
+        "Oui bonjour, j'aimerais faire l'entretien annuel de mon poêle à bois s'il "
+        "vous plaît."
+    ),
+    (
+        "Je, excusez-moi, mais je veux, je je veux juste faire l'entretien de mon "
+        "poêle à bois là. Est-ce que je pourrais prendre un rendez-vous d'entretien "
+        "s'il vous plaît?"
+    ),
     "Oui, c'est madame Fontaine, f o n t a i n e.",
     "Ouais, c'est Noyon 60400 et j'habite aux 8 rues de Paris.",
 ]
@@ -414,7 +431,10 @@ def _jusqu_au_tour(tours: dict, dernier: int) -> tuple[dict, list[dict]]:
 
 
 async def _noter(
-    fiche: dict, messages: list[dict], reglages: ReglagesFiche | None = None, **arguments
+    fiche: dict,
+    messages: list[dict],
+    reglages: ReglagesFiche | None = None,
+    **arguments,
 ) -> dict:
     resultats = []
 
@@ -898,7 +918,7 @@ def test_C6_aucun_numero_invente(ancienne, nouvelle):
 
 # --- C7 et C8 : les dates (PB10, PB11) ----------------------------------------
 
-JOUR_DU_BANC = datetime(2026, 9, 25, 10, 30)
+JOUR_DU_BANC = datetime(2026, 9, 25, 10, 30)  # noqa: DTZ001
 PHRASE_847 = (
     "Ouais bonjour, c'est madame Lambert. Je vous appelle parce que j'ai un problème "
     "avec mon insert. Il a un problème de ventilateur depuis une semaine et c'est un "
@@ -922,7 +942,7 @@ async def _lu_par_le_modele(phrase: str) -> str:
         SimpleNamespace(language="fr", language_hints=None),
         None,
         SimpleNamespace(name="accueil", extraction_variables=[]),
-        consigner_dans(lambda: {}),
+        consigner_dans(dict),
     )
 
 
@@ -978,7 +998,9 @@ async def test_C7_run_847_il_y_a_trois_ans_est_accepte(source):
         (829, "2025", "Le dernier entretien, c'était l'année dernière.", "2025"),
     ],
 )
-async def test_C7_les_dates_qui_passaient_passent_toujours(run, valeur, phrase, attendu):
+async def test_C7_les_dates_qui_passaient_passent_toujours(
+    run, valeur, phrase, attendu
+):
     verdict, fiche = _date(valeur, await _lu_par_le_modele(phrase))
     assert (verdict.statut, fiche.get("dernier_entretien")) == ("ecrit", attendu), run
 
@@ -1024,7 +1046,9 @@ def test_C8_hors_d_un_champ_de_date_annuel_reste_une_valeur():
 
 LEXIQUE = LexiqueMetier(
     termes=[
-        TermeLexique(terme="Jotul", variantes=["Jøtul"], type="nom", categorie="marque"),
+        TermeLexique(
+            terme="Jotul", variantes=["Jøtul"], type="nom", categorie="marque"
+        ),
         TermeLexique(terme="Invicta", type="nom", categorie="marque"),
         TermeLexique(terme="Palazzetti", type="nom", categorie="marque"),
         TermeLexique(terme="Edilkamin", type="nom", categorie="marque"),
@@ -1071,8 +1095,13 @@ def test_C10_run_841_jotul_reconnu_sur_par_le_lexique():
     """Run 841 : « Oui, c'est un joutule. » → le lexique tranche Jotul, sûre."""
     fiche = {
         "lexique_reconnu": [
-            {"etape": "qualif_entretien", "entendu": "joutule", "statut": "sure",
-             "terme": "Jotul", "propositions": [{"terme": "Jotul"}]}
+            {
+                "etape": "qualif_entretien",
+                "entendu": "joutule",
+                "statut": "sure",
+                "terme": "Jotul",
+                "propositions": [{"terme": "Jotul"}],
+            }
         ]
     }
     verdict = _marque(fiche, "joutule", "Oui, c'est un Jotul.")
@@ -1083,8 +1112,13 @@ def test_C10_run_841_jotul_reconnu_sur_par_le_lexique():
 def test_C10_run_847_invicta_dit_tel_quel_est_sur():
     fiche = {
         "lexique_reconnu": [
-            {"etape": "accueil", "entendu": "Invicta", "statut": "sure",
-             "terme": "Invicta", "propositions": [{"terme": "Invicta"}]}
+            {
+                "etape": "accueil",
+                "entendu": "Invicta",
+                "statut": "sure",
+                "terme": "Invicta",
+                "propositions": [{"terme": "Invicta"}],
+            }
         ]
     }
     _marque(fiche, "Invicta", "Non pardon, c'est un Invicta.")
@@ -1103,8 +1137,13 @@ def test_C10_run_840_un_terme_seulement_propose_reste_a_confirmer():
     le modèle qui note « Edilkamin » avant la réponse n'en fait pas une marque sûre."""
     fiche = {
         "lexique_reconnu": [
-            {"etape": "accueil", "entendu": "éthique à main", "statut": "a_confirmer",
-             "terme": "Edilkamin", "propositions": [{"terme": "Edilkamin"}]}
+            {
+                "etape": "accueil",
+                "entendu": "éthique à main",
+                "statut": "a_confirmer",
+                "terme": "Edilkamin",
+                "propositions": [{"terme": "Edilkamin"}],
+            }
         ]
     }
     verdict = _marque(fiche, "Edilkamin", "c'est un éthique à main")
@@ -1150,8 +1189,14 @@ def _commune_sure_au_tour(retenue: dict, entendu: str) -> dict:
     return {
         "tour_appelant": 9,
         "communes_verifiees": [
-            {"etape": "adresse", "entendu": entendu, "statut": "sure",
-             "commune_retenue": retenue, "propositions": [retenue], "tour": 9}
+            {
+                "etape": "adresse",
+                "entendu": entendu,
+                "statut": "sure",
+                "commune_retenue": retenue,
+                "propositions": [retenue],
+                "tour": 9,
+            }
         ],
     }
 
