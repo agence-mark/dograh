@@ -1613,3 +1613,16 @@ async def test_revue_ce_qui_est_note_reste_note_quand_une_commune_est_a_proposer
     resultat = await _noter(fiche, messages, commune="Lisle", code_postal="60300")
     assert resultat["statut"] == "note"
     assert resultat["a_proposer"] and resultat["ecrits"] == ["code_postal"]
+
+
+def test_revue_un_message_relu_garde_son_numero_de_tour():
+    """Seconde revue : une lecture annulée par une interruption puis relancée
+    comptait deux tours pour un seul message ; « depuis l'ambigu » débordait
+    alors sur le message d'avant."""
+    contexte: dict = {}
+    consignation = consigner_dans(lambda: contexte)
+    message = (1, "c'est une rue")
+    assert consignation.nouveau_tour(message) == 1
+    assert consignation.nouveau_tour(message) == 1
+    assert consignation.nouveau_tour((2, "oui")) == 2
+    assert consignation.nouveau_tour() == 3
