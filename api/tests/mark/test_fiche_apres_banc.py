@@ -1259,8 +1259,9 @@ def test_C8_une_date_ecrite_dite_passe_toujours(valeur, paroles):
     [
         "l'hiver dernier",
         "cet été",
+        "Été dernier",
         "Noël dernier",
-        "à la Toussaint",
+        "la rentrée dernière",
         "début d'année",
         "12/03",
     ],
@@ -1272,7 +1273,18 @@ def test_revue_une_date_dite_avec_un_repere_du_calendrier_n_est_pas_refusee(vale
     assert verdict.statut == "ecrit"
 
 
-@pytest.mark.parametrize("valeur", ["a été fait", "tous les ans", "jamais"])
+@pytest.mark.parametrize(
+    "valeur",
+    [
+        "a été fait",
+        "tous les ans",
+        "jamais",
+        "chaque année",
+        "tous les mois",
+        "tous les hivers",
+        "une fois par an",
+    ],
+)
 def test_revue_ce_qui_n_a_aucun_repere_du_calendrier_reste_refuse(valeur):
     verdict, _ = _date(valeur, f"il {valeur}")
     assert (verdict.statut, verdict.raison) == ("refuse", "pas_une_date")
