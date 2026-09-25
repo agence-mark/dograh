@@ -14,6 +14,7 @@ test dans l'autre sens : ce qui doit toujours être refusé (PB15).
 | PB3 | Un champ à liste fermée n'accepte qu'une de ses valeurs, et échappe à l'ancrage |
 | C2 | Une commune ou une rue SÛRE du dernier tour de l'appelant l'emporte ; ni dite ni trouvée = refusée |
 | C3 | Une commune refusée ou introuvable renvoie les communes du code postal lu, à proposer une par une |
+| C5 | Un type de voie au pluriel (« rues », liaison entendue) vaut le singulier |
 """
 
 from types import SimpleNamespace
@@ -34,6 +35,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     creer_gestionnaire,
     ecrire_dans_la_fiche,
     lire_commune,
+    lire_rue,
 )
 from api.tests.mark.test_fiche_balayage import Extracteur
 
@@ -622,3 +624,64 @@ async def test_C2_fiche_eteinte_aucune_marque_de_tour():
     )
     assert "tour_appelant" not in fiche
     assert all("tour" not in t for t in fiche["communes_verifiees"])
+
+
+# --- C5 : un type de voie au pluriel vaut le singulier (PB8) ------------------
+
+
+def test_C5_run_850_quatre_rues_carnau_devient_4_rue_carnot():
+    """Run 850 : « Je suis quatre rues Carnau à Bovet soixante mille. » Le module
+    tranche Rue Carnot, sûre ; la fiche écrivait « 4 rues Rue Carnot »."""
+    fiche = {
+        "tour_appelant": 8,
+        "voies_verifiees": [
+            {
+                "etape": "adresse",
+                "entendu": "carnau",
+                "statut": "sure",
+                "voie_retenue": "Rue Carnot",
+                "propositions": [{"nom": "Rue Carnot"}, {"nom": "Rue Arnaud Bisson"}],
+                "tour": 8,
+            }
+        ],
+    }
+    verdict = ecrire_dans_la_fiche(
+        fiche,
+        _reglages(),
+        "adresse_intervention",
+        "4 rues Carnau",
+        paroles=["Je suis 4 rues Carnau à Bovet 60000."],
+    )
+    assert (verdict.statut, fiche["adresse_intervention"]) == ("ecrit", "4 Rue Carnot")
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
+
+
+def test_C5_le_pluriel_se_lit_aussi_dans_la_recherche():
+    """« 8 rues de Paris » retrouve la voie nommée « Rue de Paris »."""
+    fiche = {
+        "voies_verifiees": [
+            {
+                "entendu": "de paris",
+                "statut": "sure",
+                "voie_retenue": "Rue de Paris",
+                "propositions": [{"nom": "Rue de Paris"}],
+            }
+        ],
+    }
+    lecture = lire_rue("8 rues de Paris", fiche)
+    assert (lecture.valeur, lecture.sure) == ("8 Rue de Paris", True)
+
+
+def test_C5_un_mot_qui_n_est_pas_un_type_garde_son_s():
+    """« cours » est un type en soi ; « Rue des Trois Places » garde ses mots."""
+    fiche = {
+        "voies_verifiees": [
+            {
+                "entendu": "des 3 places",
+                "statut": "sure",
+                "voie_retenue": "Rue des 3 Places",
+                "propositions": [{"nom": "Rue des 3 Places"}],
+            }
+        ],
+    }
+    assert lire_rue("2 rue des 3 places", fiche).valeur == "2 Rue des 3 Places"

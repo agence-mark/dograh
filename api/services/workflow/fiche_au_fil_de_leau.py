@@ -465,13 +465,33 @@ def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]
 _MOT = re.compile(r"[^\W_]+")
 _NUMERO = {"bis", "ter", "quater"}
 
+# PB7 : les types de voie que la personne peut dire pour départager des voies
+# de même nom (proposition d'Evan, 25/09), accents et casse ôtés.
+TYPES_DE_VOIE = (
+    "rue", "avenue", "boulevard", "place", "cite", "chemin", "impasse", "allee",
+    "route", "voie", "quai", "square", "residence", "sentier", "passage", "cours",
+    "faubourg", "hameau", "lotissement", "promenade", "rond point", "sente",
+    "venelle", "villa",
+)
+_MOTS_DE_TYPE = frozenset(m for t in TYPES_DE_VOIE for m in t.split())
+
+
+def _forme(mot: str) -> str:
+    """C5 (PB8, runs 850, 852) : un type au pluriel vaut le singulier. La liaison
+    s'entend (« quatre rues Carnau », « huit rues de Paris ») et la transcription
+    l'écrit : « 4 rues Rue Carnot » sortait de la fiche."""
+    mot = "".join(_mots(mot))
+    if mot[-1:] in ("s", "x") and mot[:-1] in _MOTS_DE_TYPE:
+        return mot[:-1]
+    return mot
+
 
 def _trouver(valeur: str, phrase: str) -> tuple[int, int] | None:
     """La portée (début, fin) des mots de ``phrase`` dans ``valeur``, accents
     et casse ignorés. Le numéro en tête de ``phrase`` est essayé avec et sans."""
     mots = list(_MOT.finditer(valeur))
-    formes = ["".join(_mots(m.group())) for m in mots]
-    cible = _mots(phrase)
+    formes = [_forme(m.group()) for m in mots]
+    cible = [_forme(m) for m in _mots(phrase)]
     essais = [cible]
     sans_numero = cible
     while sans_numero and (sans_numero[0].isdigit() or sans_numero[0] in _NUMERO):
@@ -492,11 +512,11 @@ def _avec_le_type_de_voie(
     """Le module note la rue entendue SANS son type (« danton ») : la portée
     s'étend aux mots qui la précèdent quand ils ouvrent le nom officiel
     (« rue » de « Rue Danton »), sinon on écrirait « 6 rue Rue Danton »."""
-    tete = _mots(nom_officiel)
+    tete = [_forme(m) for m in _mots(nom_officiel)]
     avant = list(_MOT.finditer(valeur[: portee[0]]))
     for n in range(min(len(avant), len(tete)), 0, -1):
         mots = avant[-n:]
-        if ["".join(_mots(m.group())) for m in mots] == tete[:n]:
+        if [_forme(m.group()) for m in mots] == tete[:n]:
             return mots[0].start(), portee[1]
     return portee
 
