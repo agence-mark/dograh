@@ -1,0 +1,119 @@
+# [.mark] Nos contrôles de CI, regroupés dans un fichier à nous (décision D4 du
+# chantier durcissement-outils-fork, 25/09/2026) : les fichiers de CI de l'amont
+# gardent leur déclenchement d'origine, et une remise à niveau ne rencontre ici
+# aucun conflit.
+#
+# Pourquoi ce fichier existe :
+#   • T1 : l'écran n'était vérifié par AUCUNE machine. Un test d'écran est resté
+#     rouge du 17/09 au 25/09 sans que rien ne le signale.
+#   • T3/T4 : les réflexes R2 (Pipecat des deux côtés) et R3 (nom non défini)
+#     ne tenaient qu'à la discipline ; la mise en forme de l'amont ne tournait
+#     jamais chez nous.
+#
+# Bloquant = le travail passe au rouge, et la procédure du fork interdit de
+# fusionner une branche dont la CI n'est pas verte. Informatif = le résultat
+# s'affiche, le travail reste vert.
+
+name: "[.mark] Garde-fous"
+
+on:
+  push:
+    branches:
+      - "chantier/**"
+      - "mark/deploiement"
+  workflow_dispatch:
+
+# Lecture seule : ces contrôles n'écrivent jamais dans le dépôt (relecture du 25/09).
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ecran:
+    name: Écran (typage, tests, lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Typage (bloquant)
+        run: npx tsc --noEmit
+
+      # ⛔ UN test de l'amont est exclu, par son nom exact, et c'est une décision
+      # d'Evan (25/09/2026, option A, `reference/17-decisions.md`) : un réglage
+      # masqué pour le modèle choisi GARDE sa valeur. Ce test exige l'inverse ;
+      # l'adopter ferait perdre en silence, à un client qui change de modèle
+      # Deepgram, la valeur de 16 champs. Le fichier de test de l'amont n'est
+      # pas touché. Toute autre exclusion est interdite : un test rouge se
+      # répare ou se tranche, il ne se cache pas.
+      - name: Tests d'écran (bloquant)
+        # Tourne même si un contrôle précédent a échoué : tous les défauts d'un coup.
+        if: ${{ !cancelled() }}
+        run: npx vitest run -t '^(?!.*switches to Live under the same provider and saves its relevant settings)'
+
+      - name: Lint (informatif)
+        # Tourne même si un contrôle précédent a échoué : tous les défauts d'un coup.
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: npm run lint
+
+  garde-fous:
+    name: Réflexes R2 et R3, mise en forme
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Sans les sous-modules : le contrôle de Pipecat lit le commit épinglé
+      # dans les objets git, jamais l'arbre du sous-module.
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Version de ruff tenue ici : celle que résout l'environnement de
+      # développement du 25/09 (groupe dev de Pipecat). À relever avec lui.
+      - run: pip install ruff==0.16.9
+
+      - name: R3 · aucun nom non défini (bloquant)
+        run: ruff check api --select F821
+
+      - name: R2 · Pipecat au même commit dans le sous-module et le Dockerfile (bloquant)
+        # Tourne même si un contrôle précédent a échoué : tous les défauts d'un coup.
+        if: ${{ !cancelled() }}
+        run: node scripts/mark/verifier-pipecat-epingle.mjs
+
+      - name: R5 · chaque dépendance directe de l'image est figée (bloquant)
+        if: ${{ !cancelled() }}
+        run: node scripts/mark/verifier-contraintes.mjs
+
+      # E4 (25/09) : informative d'abord. Mesure du 25/09 : 81 fichiers seraient
+      # reformatés, presque tous à nous. On mesure l'écart avant d'en décider.
+      - name: Mise en forme de l'amont (informatif)
+        # Tourne même si un contrôle précédent a échoué : tous les défauts d'un coup.
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        # Les deux mesures s'affichent toujours : la première en échec
+        # n'arrête plus la seconde (constaté au premier passage, 25/09).
+        run: |
+          statut=0
+          ruff check api --select I --select F401 --statistics || statut=1
+          ruff format --check api || statut=1
+          exit $statut

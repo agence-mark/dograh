@@ -27,13 +27,18 @@ RUN python -m venv "$VIRTUAL_ENV"
 # ("other mount types are not supported"). Un COPY fait le meme travail,
 # en Docker standard. Voir agence-mark/socle-agent-vocal, forks/REGISTRE.md.
 COPY api/requirements.txt /tmp/req.txt
+# [.mark] Versions exactes de TOUTES les bibliotheques (dependances des
+# dependances comprises), generees par scripts/mark/generer-contraintes.sh.
+# Sans elles, une bibliotheque tiree par une autre changeait seule a la
+# construction suivante (OpenTelemetry 1.45, 25/09/2026). Registre du socle.
+COPY api/constraints.txt /tmp/constraints.txt
 # [.mark] Montage de cache de construction RETIRE : le constructeur de Railway
 # exige un id prefixe par l'identifiant du SERVICE Railway, valeur propre a une
 # installation, qui rendrait cette recette non reproductible chez un autre.
 # Sans cache, la recette est du Docker standard. Cout : constructions plus
 # lentes, aucun effet a l'execution. Voir socle, forks/REGISTRE.md.
 RUN \
-    uv pip install -r /tmp/req.txt
+    uv pip install -r /tmp/req.txt -c /tmp/constraints.txt
 
 # Layer 2: pipecat deps. Cache invalidates when pipecat source changes.
 # After installing pipecat, two hardening tweaks:
@@ -63,9 +68,9 @@ RUN \
 # ⛔ On ne retire jamais un extra de l'amont : un extra absent n'empeche pas
 # un usage, il empeche l'API de DEMARRER.
 RUN \
-    uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic] @ git+https://github.com/dograh-hq/pipecat.git@70385ad8a5204458a241e60287289932e3eb3ae2' \
+    uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic] @ git+https://github.com/dograh-hq/pipecat.git@70385ad8a5204458a241e60287289932e3eb3ae2' -c /tmp/constraints.txt \
  && uv pip uninstall opencv-python \
- && uv pip install opencv-python-headless \
+ && uv pip install opencv-python-headless -c /tmp/constraints.txt \
  && python -c "import nltk; nltk.download('punkt_tab', download_dir='/opt/venv/nltk_data', quiet=True)"
 
 # Strip cache files, test/example dirs, and type stubs from the venv
