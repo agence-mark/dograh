@@ -49,7 +49,7 @@ from api.schemas.fiche_agent import (
     cle_insee,
     verifier_champs,
 )
-from api.services.communes.base import base_si_chargee
+from api.services.communes.base import base_si_chargee, cle_sonore
 from api.services.workflow.dates_relatives import lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
 
@@ -525,6 +525,88 @@ def _remplacer(valeur: str, portee: tuple[int, int], par: str) -> str:
     return f"{valeur[: portee[0]]}{par}{valeur[portee[1] :]}"
 
 
+def _type_et_nom(voie: str) -> tuple[str | None, tuple[str, ...]]:
+    """« 11 rue Louis Blanc » -> ("rue", ("louis", "blanc")) : le type de voie
+    en tête (numéro ôté, pluriel ramené), et le reste du nom."""
+    mots = [_forme(m) for m in _mots(voie)]
+    while mots and (mots[0].isdigit() or mots[0] in _NUMERO):
+        mots.pop(0)
+    for type_voie in sorted(TYPES_DE_VOIE, key=lambda t: -len(t.split())):
+        tete = type_voie.split()
+        if mots[: len(tete)] == tete:
+            return type_voie, tuple(mots[len(tete) :])
+    return None, tuple(mots)
+
+
+def type_entendu(type_voie: str, textes: Iterable[str]) -> bool:
+    """C4 (PB7, proposition d'Evan) : ce type de voie figure-t-il dans ces
+    textes, par comparaison PHONÉTIQUE (« places », « plasse » = place) ?
+
+    ⚠️ Un type dont le son tient en deux lettres ou moins (rue, quai, allée) ne
+    se compare qu'écrit : « que » sonne comme quai, « aller » comme allée."""
+    cible = type_voie.split()
+    son = cle_sonore(type_voie)
+    for texte in textes:
+        mots = [_forme(m) for m in _mots(texte)]
+        for i in range(len(mots) - len(cible) + 1):
+            fenetre = mots[i : i + len(cible)]
+            if fenetre == cible or (
+                len(son) >= 3 and cle_sonore(" ".join(fenetre)) == son
+            ):
+                return True
+    return False
+
+
+def choisir_par_le_type(
+    valeur: str, options: Iterable[str], textes: Iterable[str]
+) -> str | None:
+    """C4 (PB7, runs 841, 847, 852) : parmi des voies qui ne diffèrent que par
+    leur type (Rue / Impasse / Cité Louis Blanc), celle dont la personne a dit le
+    type ; ``None`` si aucun ou plusieurs de ces types ont été dits.
+
+    Des options qui diffèrent aussi par le nom (Rue de Paris, Route de Paris,
+    Place du Parvis) : seules comptent celles qui portent le nom de la valeur."""
+    textes = list(textes)
+    groupes: dict[tuple[str, ...], list[tuple[str, str | None]]] = {}
+    for option in options:
+        type_voie, nom = _type_et_nom(option)
+        groupes.setdefault(nom, []).append((option, type_voie))
+    if len(groupes) == 1:
+        groupe = next(iter(groupes.values()))
+    else:
+        groupe = groupes.get(_type_et_nom(valeur)[1], [])
+    if len(groupe) < 2:
+        return None
+    dits = [
+        (option, type_voie)
+        for option, type_voie in groupe
+        if type_voie and type_entendu(type_voie, textes)
+    ]
+    if len({type_voie for _, type_voie in dits}) != 1:
+        return None
+    return dits[0][0]
+
+
+def _avec_un_type_dit(valeur: str, portee: tuple[int, int]) -> tuple[int, int]:
+    """La portée étendue au type de voie qui la précède, quel qu'il soit : « 5
+    rue Jeanne Achète », la personne ayant dit « place », devient « 5 Place
+    Jeanne Hachette » et non « 5 rue Place Jeanne Hachette »."""
+    avant = list(_MOT.finditer(valeur[: portee[0]]))
+    for n in (2, 1):
+        mots = avant[-n:] if len(avant) >= n else []
+        if mots and " ".join(_forme(m.group()) for m in mots) in TYPES_DE_VOIE:
+            return mots[0].start(), portee[1]
+    return portee
+
+
+def _tour_du_dernier_ambigu(fiche: dict, champ: str | None) -> int | None:
+    """Le tour où ce champ a été renvoyé « ambigu » pour la dernière fois."""
+    for entree in reversed(fiche.get(CLE_JOURNAL) or []):
+        if entree.get("champ") == champ and entree.get("suite") == "ambigu":
+            return entree.get("tour") or fiche.get(CLE_TOUR) or 0
+    return None
+
+
 def _numero(valeur: str) -> str:
     """Le numéro en tête d'une adresse (« 7 », « 12 bis »), ou ""."""
     mots = _MOT.findall(valeur)
@@ -544,7 +626,38 @@ def _avec_le_numero(valeur: str, voie: str) -> str:
     return f"{numero} {voie}" if numero else voie
 
 
-def lire_rue(valeur: Any, fiche: dict) -> Lecture:
+def _option_du_type_dit(
+    texte: str,
+    propositions: tuple[str, ...],
+    fiche: dict,
+    paroles: Iterable[str],
+    champ: str | None,
+) -> str | None:
+    """C4 (PB7) : l'option que le type de voie dit désigne, écrite SÛRE.
+
+    Une option renvoyée telle quelle après un « ambigu » (runs 841, 847 : la
+    confirmation ne pouvait jamais être enregistrée) est sûre si son type
+    figure dans ce que la personne a dit depuis. Sinon, le type dit dans la
+    valeur ou dans le dernier message de la personne choisit l'option.
+    """
+    paroles = list(paroles)
+    tour_ambigu = _tour_du_dernier_ambigu(fiche, champ)
+    renvoyee = next(
+        (p for p in propositions if _type_et_nom(p) == _type_et_nom(texte)), None
+    )
+    if renvoyee is not None and tour_ambigu is not None:
+        # Le type de la valeur vient alors des options, pas de la personne.
+        type_voie = _type_et_nom(renvoyee)[0]
+        depuis = max(1, int(fiche.get(CLE_TOUR) or 0) - int(tour_ambigu) + 1)
+        if type_voie and type_entendu(type_voie, paroles[-depuis:]):
+            return renvoyee
+        return None
+    return choisir_par_le_type(texte, propositions, [texte, *paroles[-1:]])
+
+
+def lire_rue(
+    valeur: Any, fiche: dict, paroles: Iterable[str] = (), champ: str | None = None
+) -> Lecture:
     """La voie que le module a trouvée pour cette valeur.
 
     C2 (PB4, run 845) : une voie SÛRE trouvée sur le dernier tour de l'appelant
@@ -591,6 +704,12 @@ def lire_rue(valeur: Any, fiche: dict) -> Lecture:
         if trace.get("statut") == "sure" and retenue:
             portee = _avec_le_type_de_voie(texte, portee, retenue)
             return Lecture(_remplacer(texte, portee, retenue), True)
+        option = _option_du_type_dit(texte, propositions, fiche, paroles, champ)
+        if option is not None:
+            portee = _avec_un_type_dit(
+                texte, _avec_le_type_de_voie(texte, portee, option)
+            )
+            return Lecture(_remplacer(texte, portee, option), True)
         nouvelle = _remplacer(texte, portee, choisie) if choisie else texte
         return Lecture(nouvelle, False, _suite(propositions), propositions)
     # PB5 (remplace D37) : aucune trace du module pour cette valeur.
@@ -665,7 +784,7 @@ def ecrire_dans_la_fiche(
         if definition.lecteur_effectif == "commune":
             lecture = lire_commune(valeur, fiche)
         elif definition.lecteur_effectif == "rue":
-            lecture = lire_rue(valeur, fiche)
+            lecture = lire_rue(valeur, fiche, paroles, champ)
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
             if (
@@ -728,6 +847,8 @@ def ecrire_dans_la_fiche(
             "sure": sure,
             **({"suite": verdict.suite} if verdict.suite else {}),
             **({"dit": dit} if dit is not None else {}),
+            # C4 : le tour de l'appelant, pour lire « ce qu'il a dit depuis ».
+            **({"tour": fiche[CLE_TOUR]} if fiche.get(CLE_TOUR) else {}),
         }
     )
     # Relevé par la revue du 25/09 : la valeur (nom, téléphone, adresse de

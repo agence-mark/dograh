@@ -14,6 +14,7 @@ test dans l'autre sens : ce qui doit toujours être refusé (PB15).
 | PB3 | Un champ à liste fermée n'accepte qu'une de ses valeurs, et échappe à l'ancrage |
 | C2 | Une commune ou une rue SÛRE du dernier tour de l'appelant l'emporte ; ni dite ni trouvée = refusée |
 | C3 | Une commune refusée ou introuvable renvoie les communes du code postal lu, à proposer une par une |
+| C4 | Le type de voie dit (comparé au son) choisit entre des voies de même nom ; une option confirmée s'enregistre |
 | C5 | Un type de voie au pluriel (« rues », liaison entendue) vaut le singulier |
 """
 
@@ -36,6 +37,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     ecrire_dans_la_fiche,
     lire_commune,
     lire_rue,
+    type_entendu,
 )
 from api.tests.mark.test_fiche_balayage import Extracteur
 
@@ -685,3 +687,155 @@ def test_C5_un_mot_qui_n_est_pas_un_type_garde_son_s():
         ],
     }
     assert lire_rue("2 rue des 3 places", fiche).valeur == "2 Rue des 3 Places"
+
+
+# --- C4 : le type de voie dit départage (PB7, proposition d'Evan) --------------
+
+LOUIS_BLANC = {
+    "etape": "adresse",
+    "entendu": "louis blanc",
+    "statut": "a_confirmer",
+    "voie_retenue": None,
+    "propositions": [
+        {"nom": "Rue Louis Blanc", "score": 100.0},
+        {"nom": "Impasse Louis Blanc", "score": 100.0},
+        {"nom": "Cité Louis Blanc", "score": 100.0},
+    ],
+}
+JEANNE_HACHETTE = {
+    "etape": "nom_et_rappel",
+    "entendu": "jeanne achete",
+    "statut": "a_confirmer",
+    "voie_retenue": None,
+    "propositions": [
+        {"nom": "Place Jeanne Hachette", "score": 103.0},
+        {"nom": "Résidence Jeanne Hachette", "score": 100.0},
+        {"nom": "Rue Jeanne Hachette", "score": 100.0},
+    ],
+}
+DE_PARIS = {
+    "etape": "accueil",
+    "entendu": "paris",
+    "statut": "a_confirmer",
+    "voie_retenue": None,
+    "propositions": [
+        {"nom": "Rue de Paris"},
+        {"nom": "Route de Paris"},
+        {"nom": "Place du Parvis"},
+    ],
+}
+
+
+def _voie_au_tour(tour: int, *traces: dict) -> dict:
+    return {
+        "tour_appelant": tour,
+        "voies_verifiees": [{**t, "tour": tour} for t in traces],
+    }
+
+
+def _adresse(fiche: dict, valeur: str, *paroles: str):
+    return ecrire_dans_la_fiche(
+        fiche, _reglages(), "adresse_intervention", valeur, paroles=list(paroles)
+    )
+
+
+def test_C4_run_841_rue_dite_choisit_rue_louis_blanc():
+    """Run 841 : « Alors j'habite au onze rue Louis blanc à Montaterre » ; trois
+    voies Louis Blanc à Montataire, l'outil répondait « ambigu » trois fois."""
+    fiche = _voie_au_tour(7, LOUIS_BLANC)
+    verdict = _adresse(
+        fiche,
+        "11 rue Louis Blanc",
+        "Alors j'habite au 11 rue Louis blanc à Montaterre 60160.",
+    )
+    assert (verdict.statut, verdict.suite) == ("ecrit", None)
+    assert fiche["adresse_intervention"] == "11 Rue Louis Blanc"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
+
+
+def test_C4_run_847_places_dit_choisit_place_jeanne_hachette():
+    """Run 847 : « Ouais, c'est cinq places Jeanne achète. » (liaison au pluriel)."""
+    fiche = _voie_au_tour(5, JEANNE_HACHETTE)
+    _adresse(
+        fiche,
+        "5 places Jeanne Achète",
+        "Ouais, c'est 5 places Jeanne achète.",
+    )
+    assert fiche["adresse_intervention"] == "5 Place Jeanne Hachette"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
+
+
+@pytest.mark.parametrize("valeur", ["8 rue de Paris", "8 rues de Paris"])
+def test_C4_C5_run_852_rue_de_paris_parmi_route_et_parvis(valeur):
+    """Run 852 : « j'habite aux huit rues de Paris » ; options Rue de Paris, Route
+    de Paris, Place du Parvis ; « avec un s à rues ? » redemandé trois fois."""
+    fiche = _voie_au_tour(9, DE_PARIS)
+    _adresse(fiche, valeur, "Ouais, c'est noyon 60400 et j'habite aux 8 rues de Paris.")
+    assert fiche["adresse_intervention"] == "8 Rue de Paris"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
+
+
+def test_C4_l_option_renvoyee_apres_un_ambigu_est_sure_si_le_type_a_ete_dit():
+    """Run 841 : après « ambigu », « Oui, c'est bien un monte-à-terre et c'est une
+    rue. » ; le modèle renvoie la rue : la confirmation est enfin enregistrée."""
+    fiche = _voie_au_tour(7, LOUIS_BLANC)
+    # Au tour 7, la personne n'a dit aucun type : « ambigu », comme au banc.
+    verdict = _adresse(fiche, "11 Louis Blanc", "j'habite au 11 Louis blanc")
+    assert verdict.suite == "ambigu"
+    fiche["tour_appelant"] = 8
+    verdict = _adresse(
+        fiche,
+        "11 Rue Louis Blanc",
+        "j'habite au 11 Louis blanc",
+        "Oui, c'est bien un monte-à-terre et c'est une rue.",
+    )
+    assert fiche["adresse_intervention"] == "11 Rue Louis Blanc"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
+
+
+def test_C4_l_option_renvoyee_sans_que_son_type_ait_ete_dit_reste_ambigue():
+    fiche = _voie_au_tour(7, LOUIS_BLANC)
+    _adresse(fiche, "11 Louis Blanc", "j'habite au 11 Louis blanc")
+    fiche["tour_appelant"] = 8
+    verdict = _adresse(
+        fiche, "11 Cité Louis Blanc", "j'habite au 11 Louis blanc", "oui c'est ça"
+    )
+    assert verdict.suite == "ambigu"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is False
+
+
+def test_C4_des_voies_dont_le_nom_differe_restent_ambigues():
+    fiche = _voie_au_tour(
+        3,
+        {
+            "entendu": "monot",
+            "statut": "a_confirmer",
+            "voie_retenue": None,
+            "propositions": [{"nom": "Rue Monet"}, {"nom": "Rue Odent"}],
+        },
+    )
+    verdict = _adresse(fiche, "2 rue Monot", "c'est au 2 rue Monot")
+    assert verdict.suite == "ambigu"
+
+
+def test_C4_deux_types_dits_ne_departagent_rien():
+    fiche = _voie_au_tour(7, LOUIS_BLANC)
+    verdict = _adresse(
+        fiche, "11 rue Louis Blanc", "c'est la rue, ou l'impasse, 11 Louis Blanc"
+    )
+    assert verdict.suite == "ambigu"
+
+
+@pytest.mark.parametrize(
+    "type_voie, texte, entendu",
+    [
+        ("place", "c'est la plasse", True),
+        ("impasse", "les impasses", True),
+        ("rue", "rues", True),
+        ("quai", "il faut que je", False),
+        ("allee", "je vais aller voir", False),
+        ("rond point", "au rond-point", True),
+    ],
+)
+def test_C4_le_type_se_compare_par_le_son(type_voie, texte, entendu):
+    assert type_entendu(type_voie, [texte]) is entendu
