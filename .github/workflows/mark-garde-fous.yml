@@ -94,6 +94,10 @@ jobs:
       # reformatés, presque tous à nous. On mesure l'écart avant d'en décider.
       - name: Mise en forme de l'amont (informatif)
         continue-on-error: true
+        # Les deux mesures s'affichent toujours : la première en échec
+        # n'arrête plus la seconde (constaté au premier passage, 25/09).
         run: |
-          ruff check api --select I --select F401
-          ruff format --check api
+          statut=0
+          ruff check api --select I --select F401 --statistics || statut=1
+          ruff format --check api || statut=1
+          exit $statut
