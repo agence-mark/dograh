@@ -204,3 +204,6 @@ describe("Le message affiche sous un champ hors bornes", () => {
         ).toEqual(["vad_confidence", "vad_stop_secs"]);
     });
 });
+
+import { expect as _expect, test as _test } from "vitest";
+_test("[.mark] SABOTAGE VOLONTAIRE (preuve D3)", () => { _expect(1).toBe(2); });

@@ -73,3 +73,8 @@ async def nombres_en_mots(texte: str, _type: str = "*") -> str:
     except Exception as erreur:  # noqa: BLE001 -- the voice must go on
         logger.warning(f"[.mark] Numbers not written in words for the voice: {erreur!r}")
         return texte
+
+
+def _sabotage_preuve_d3():
+    """[.mark] SABOTAGE VOLONTAIRE (preuve D3, branche jetable) : nom non défini."""
+    return nom_qui_n_existe_pas

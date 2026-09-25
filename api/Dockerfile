@@ -68,7 +68,7 @@ RUN \
 # ⛔ On ne retire jamais un extra de l'amont : un extra absent n'empeche pas
 # un usage, il empeche l'API de DEMARRER.
 RUN \
-    uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic] @ git+https://github.com/dograh-hq/pipecat.git@70385ad8a5204458a241e60287289932e3eb3ae2' -c /tmp/constraints.txt \
+    uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic] @ git+https://github.com/dograh-hq/pipecat.git@70385ad8a5204458a241e60287289932e3eb3ae3' -c /tmp/constraints.txt \
  && uv pip uninstall opencv-python \
  && uv pip install opencv-python-headless -c /tmp/constraints.txt \
  && python -c "import nltk; nltk.download('punkt_tab', download_dir='/opt/venv/nltk_data', quiet=True)"

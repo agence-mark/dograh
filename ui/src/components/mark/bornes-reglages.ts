@@ -151,3 +151,6 @@ export const messagesHorsBornes = (
     }
     return messages;
 };
+
+// [.mark] SABOTAGE VOLONTAIRE (preuve D3, branche jetable) : erreur de type.
+export const _sabotageType: number = "pas un nombre";
