@@ -41,6 +41,16 @@ _ACCUEIL_NON_INTERRUPTIBLE = (
     "la coupure de l'amont, ces 141 tests passent tous."
 )
 
+# [.mark] E3 (25/09/2026) : l'export BigQuery neutralise.
+_BIGQUERY_NEUTRALISE = (
+    "[.mark] Decision d'Evan du 25/09/2026 (E3, reference/17-decisions.md, "
+    "« un gros non ») : l'export des evenements d'appel vers BigQuery, seule "
+    "destination de l'amont (0d5b68fb), est refuse cote serveur quelle que "
+    "soit la configuration (registration() et l'entree de l'envoi). Ces tests "
+    "de l'amont enregistrent ou envoient vers BigQuery. Prouve le 26/09 : "
+    "garde retiree, les 24 tests des deux fichiers passent."
+)
+
 DIVERGENCES_ASSUMEES = {
     "tests/test_deepgram_endpoint_service_factory.py": {
         "test_unset_endpoint_falls_back_to_the_default_host": (
@@ -92,5 +102,15 @@ DIVERGENCES_ASSUMEES = {
             "False-True-FunctionCallUserMuteStrategy": _ACCUEIL_NON_INTERRUPTIBLE,
             "True-True-FunctionCallUserMuteStrategy": _ACCUEIL_NON_INTERRUPTIBLE,
         },
+    },
+    "tests/integrations/test_call_events.py": {
+        "test_completed_call_exports_events_without_persisting_them": _BIGQUERY_NEUTRALISE,
+    },
+    "tests/test_call_event_sinks.py": {
+        "test_settings_org_isolation_secret_roundtrip_and_validation": _BIGQUERY_NEUTRALISE,
+        "test_partial_preferences_updates_preserve_legacy_settings_and_sink": _BIGQUERY_NEUTRALISE,
+        "test_delivery_retries_only_failed_rows_and_honors_revocation": _BIGQUERY_NEUTRALISE,
+        "test_delivery_retry_preserves_identity": _BIGQUERY_NEUTRALISE,
+        "test_shutdown_drains_and_closes_submission": _BIGQUERY_NEUTRALISE,
     },
 }

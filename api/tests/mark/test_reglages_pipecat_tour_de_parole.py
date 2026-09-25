@@ -519,9 +519,11 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     # two switches that forbid saying the caller's name and title. Then 39 the
     # same day: the street check and the spelling reader (plan
     # adresses-et-epellation, Q11). Then 40 on 2026-09-24: the names that
-    # trigger the reference reader (plan fiche-au-fil-de-leau, lot 2).
-    assert len(ecran) == 40, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 40. "
+    # trigger the reference reader (plan fiche-au-fil-de-leau, lot 2). Then 43
+    # on 2026-09-26: the greeting (E1, two settings) and the agent-silence
+    # hang-up (E2), rise to upstream 4e6cb22b.
+    assert len(ecran) == 43, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 43. "
         f"A setting added on one side only renders and is then dropped."
     )
 

@@ -2,6 +2,8 @@
 
 import asyncio
 
+from loguru import logger
+
 from api.db import db_client
 from api.enums import OrganizationConfigurationKey
 from api.schemas.call_events import CallEventsSettings
@@ -11,7 +13,17 @@ MASKED_SECRET = "********"
 CONFIG_KEY = OrganizationConfigurationKey.CALL_EVENTS.value
 
 
+# [.mark] E3 (decision of Evan, 25/09/2026, "un gros non"): the BigQuery export
+# can never be switched on. Every path to a destination -- saving it, testing
+# the connection, delivering events -- goes through `registration`, so refusing
+# here refuses it whatever a stored configuration asks.
+DESTINATIONS_REFUSEES = frozenset({"bigquery"})
+
+
 def registration(sink_type: str):
+    if sink_type in DESTINATIONS_REFUSEES:
+        logger.warning(f"[.mark] BigQuery export refused (destination {sink_type!r})")
+        raise ValueError("Unsupported call-event destination")
     package = get_package(sink_type)
     if package is None or package.call_event_sink is None:
         raise ValueError("Unsupported call-event destination")

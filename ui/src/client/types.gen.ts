@@ -8804,6 +8804,24 @@ export type WorkflowConfigurationDefaults = {
      */
     mute_until_first_bot_complete?: boolean;
     /**
+     * Accueil Interruptible
+     *
+     * Let the caller cut the agent's greeting by speaking. Off: the greeting is always heard to the end, as until now. On: the protection of the opening sentence above is lifted for this agent, and the greeting stops once the caller has said the number of words below.
+     */
+    accueil_interruptible?: boolean;
+    /**
+     * Accueil Mots Minimum
+     *
+     * How many words the caller must say to cut the greeting. Only used when the switch above is on. 2 keeps a cough or a lone 'hello' from cutting it.
+     */
+    accueil_mots_minimum?: number;
+    /**
+     * Raccrochage Silence Agent S
+     *
+     * Seconds the call waits for the agent's answer, with no sound at all, before hanging up. Protects the caller from a frozen agent. While a tool runs, the wait is 180 s whatever this says.
+     */
+    raccrochage_silence_agent_s?: number;
+    /**
      * Mute During Function Call
      *
      * Keep the caller from interrupting while the agent is running a tool, such as a transfer or a lookup.

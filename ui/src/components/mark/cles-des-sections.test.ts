@@ -37,6 +37,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAUTS_PIPECAT } from "@/types/workflow-configurations";
 
 import {
+    CLES_ACCUEIL,
     CLES_COUPURE,
     CLES_RELANCE,
     CLES_TOUR_DE_PAROLE,
@@ -50,6 +51,7 @@ const TOUTES = [
     ...CLES_RELANCE,
     ...CLES_VOIX,
     ...CLES_COUPURE,
+    ...CLES_ACCUEIL,
 ] as string[];
 
 describe("Les cles des sections de la fenetre de configuration", () => {

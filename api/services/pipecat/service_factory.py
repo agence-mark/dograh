@@ -1721,6 +1721,10 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "mute_engine_callback",
     "mute_first_speech",
     "mute_always",
+    # [.mark] E1 and E2 (25/09/2026)
+    "accueil_interruptible",
+    "accueil_mots_minimum",
+    "raccrochage_silence_agent_s",
     "conversion_nombres_transcription",
     "verification_communes",
     "variables_commune",

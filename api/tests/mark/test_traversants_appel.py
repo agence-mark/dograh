@@ -506,3 +506,91 @@ async def test_la_coupure_du_micro_reglee_arrive_dans_l_agregateur_de_l_appel(
     await _appeler(montage, llm, [], apres=relever)
     presente = any(isinstance(s, AlwaysUserMuteStrategy) for s in trouvees)
     assert presente is regle, trouvees
+
+
+# --------------------------------------------------------------------------- #
+# Décisions d'Evan du 25/09/2026, remise à niveau sur l'amont 4e6cb22b
+# --------------------------------------------------------------------------- #
+
+
+def _espion_mots_minimum(installees: list):
+    """Remplace, dans le contrôleur d'accueil de l'amont, la stratégie « N mots »
+    par une enveloppe qui note N à chaque installation."""
+    from api.services.pipecat import greeting as module_accueil
+
+    vraie = module_accueil.MinWordsUserTurnStartStrategy
+
+    def enveloppe(*args, **kwargs):
+        installees.append(kwargs.get("min_words"))
+        return vraie(*args, **kwargs)
+
+    return patch.object(module_accueil, "MinWordsUserTurnStartStrategy", enveloppe)
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_E1_accueil_eteint_par_defaut_la_premiere_phrase_reste_protegee(
+    db_session, async_session
+):
+    """Défaut (E1 éteint) : la coupure « jusqu'à la fin de la première phrase »
+    est dans l'agrégateur réel, et le contrôleur d'accueil de l'amont n'installe
+    JAMAIS sa stratégie « N mots » : la production du 25/09, à l'identique."""
+    from pipecat.turns.user_mute import MuteUntilFirstBotCompleteUserMuteStrategy
+
+    montage = await _monter(db_session, async_session, {})
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    installees, coupures = [], []
+
+    async def relever(_tache, agregateur, _voix):
+        coupures.extend(agregateur._params.user_mute_strategies)
+
+    with _espion_mots_minimum(installees):
+        await _appeler(montage, llm, [], apres=relever)
+    assert any(isinstance(s, MuteUntilFirstBotCompleteUserMuteStrategy) for s in coupures)
+    assert installees == [], installees
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_E1_accueil_allume_l_appelant_le_coupe_a_N_mots(db_session, async_session):
+    """Allumé : la protection de la première phrase est retirée pour cet agent,
+    et le contrôleur d'accueil installe « N mots » avec le N réglé en base."""
+    from pipecat.turns.user_mute import MuteUntilFirstBotCompleteUserMuteStrategy
+
+    montage = await _monter(
+        db_session,
+        async_session,
+        {"accueil_interruptible": True, "accueil_mots_minimum": 3},
+    )
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    installees, coupures = [], []
+
+    async def relever(_tache, agregateur, _voix):
+        coupures.extend(agregateur._params.user_mute_strategies)
+
+    with _espion_mots_minimum(installees):
+        await _appeler(montage, llm, [], apres=relever)
+    assert not any(isinstance(s, MuteUntilFirstBotCompleteUserMuteStrategy) for s in coupures)
+    assert installees and set(installees) == {3}, installees
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reglage,attendu", [(None, 35.0), (47, 47.0)])
+@_borne
+async def test_E2_le_raccrochage_regle_arrive_au_moniteur_de_l_appel(
+    db_session, async_session, reglage, attendu
+):
+    """Le délai de silence de l'agent avant raccrochage est celui de la base,
+    35 s sans réglage (la valeur de l'amont), dans le moniteur que l'appel a
+    réellement construit."""
+    configuration = {} if reglage is None else {"raccrochage_silence_agent_s": reglage}
+    montage = await _monter(db_session, async_session, configuration)
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    delais = []
+
+    async def relever(tache, _agregateur, _voix):
+        moniteur = _trouver(tache, "CallMonitorProcessor")
+        delais.append(moniteur.response_timeout if moniteur else None)
+
+    await _appeler(montage, llm, [], apres=relever)
+    assert delais == [attendu]

@@ -67,6 +67,11 @@ export const DEFAUTS_PIPECAT = {
     mute_engine_callback: true,
     mute_first_speech: false,
     mute_always: false,
+    // [.mark] E1 and E2 (decisions of Evan, 25/09/2026): the greeting is not
+    // interruptible, 2 words when it is; hang up after 35 s of agent silence.
+    accueil_interruptible: false,
+    accueil_mots_minimum: 2,
+    raccrochage_silence_agent_s: 35,
     conversion_nombres_transcription: false,
     // ⚠️ ON (decision D5 of 2026-09-16): acts only at steps that collect a town.
     verification_communes: true,
@@ -283,6 +288,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     mute_engine_callback: boolean;
     mute_first_speech: boolean;
     mute_always: boolean;
+    accueil_interruptible: boolean;  // [.mark] E1: the caller can cut the greeting
+    accueil_mots_minimum: number;  // [.mark] E1: words needed to cut it
+    raccrochage_silence_agent_s: number;  // [.mark] E2: agent silence before hanging up
     conversion_nombres_transcription: boolean;  // Dictated numbers reach the model as digits
     verification_communes: boolean;  // Town the caller names checked against the list of communes
     variables_commune: string;  // Extraction variables that trigger it, comma separated, final * = starts with

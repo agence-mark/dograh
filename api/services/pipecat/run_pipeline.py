@@ -87,6 +87,7 @@ from api.services.pipecat.reglages_tour_de_parole import (
     appliquer_latence_de_transcription,
     collecter_reglages_tour_de_parole,
     collecter_strategies_de_coupure,
+    reglages_accueil_et_silence,
 )
 from api.services.pipecat.service_factory import (
     cle_de_cache,
@@ -1272,8 +1273,20 @@ async def _run_pipeline_impl(
     # [.mark] Notre collecteur, pas leur liste figee : les cinq strategies
     # viennent des reglages de l'agent, DANS L'ORDRE. Le seul apport de leur
     # fonction est repris par `supervision_decroche_active`.
+    # [.mark] E1 (decision of Evan, 25/09/2026). Off (the default): the opening
+    # sentence stays protected by the mute strategies, and upstream's greeting
+    # controller leaves the strategies alone -- the production of 25/09 exactly.
+    # On: that protection is lifted FOR THIS AGENT ONLY and the controller lets
+    # the caller cut the greeting after N words. Cascade calls only: a realtime
+    # call has no greeting controller.
+    accueil_interruptible, accueil_mots_minimum, raccrochage_silence_agent_s = (
+        reglages_accueil_et_silence(run_configs)
+    )
+    accueil_ouvert = accueil_interruptible and not is_realtime
     user_mute_strategies = collecter_strategies_de_coupure(
-        run_configs,
+        {**(run_configs or {}), "mute_until_first_bot_complete": False}
+        if accueil_ouvert
+        else run_configs,
         should_mute_callback=engine.should_mute_user,
         supervision_decroche_active=answer_supervisor is not None,
     )
@@ -1356,6 +1369,9 @@ async def _run_pipeline_impl(
                 realtime_service_mode=False,
             )
         )
+        engine.greeting.regler(  # [.mark] E1
+            interruptible=accueil_ouvert, mots_minimum=accueil_mots_minimum
+        )
         engine.greeting.bind(user_context_aggregator)
 
     # Every cascade call runs the split pipeline: everything call-scoped stays
@@ -1370,6 +1386,9 @@ async def _run_pipeline_impl(
     # One call monitor owns user-idle, response and duration limits in both shapes.
     call_monitor_processor = engine.call_monitor
     call_monitor_processor.max_call_duration_seconds = max_call_duration_seconds
+    # [.mark] E2 (decision of Evan, 25/09/2026): how long the agent may stay
+    # silent while it owes an answer before the call hangs up (35 s upstream).
+    call_monitor_processor.response_timeout = raccrochage_silence_agent_s
     call_monitor_processor.bind_user(
         user_context_aggregator, idle_timeout=max_user_idle_timeout
     )

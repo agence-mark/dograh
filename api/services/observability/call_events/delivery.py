@@ -5,6 +5,7 @@ import asyncio
 from loguru import logger
 
 from .configuration import (
+    DESTINATIONS_REFUSEES,
     CallEventsSettings,
     load_settings,
     registration,
@@ -26,6 +27,13 @@ def submit(
     size_bytes: int,
 ) -> bool:
     global _pending_bytes
+    # [.mark] E3: a refused destination is never even queued.
+    if settings.sink_type in DESTINATIONS_REFUSEES:
+        logger.warning(
+            f"[.mark] BigQuery export refused: {len(events)} events of org "
+            f"{organization_id} not sent"
+        )
+        return False
     if not events:
         return True
     if (

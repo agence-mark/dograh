@@ -278,3 +278,29 @@ def collecter_strategies_de_coupure(
     if _booleen(run_configs, "mute_always", DEFAULT_MUTE_ALWAYS):
         strategies.append(AlwaysUserMuteStrategy())
     return strategies
+
+
+def reglages_accueil_et_silence(run_configs: dict | None) -> tuple[bool, int, float]:
+    """[.mark] E1 and E2 (decisions of Evan, 25/09/2026, rise to 4e6cb22b).
+
+    Returns (greeting interruptible, words needed to cut it, seconds of agent
+    silence before hanging up). ⛔ A stored JSON null means "not filled in":
+    it falls back to the default, never to False or 0.
+    """
+    from api.schemas.workflow_configurations import (
+        DEFAULT_ACCUEIL_INTERRUPTIBLE,
+        DEFAULT_ACCUEIL_MOTS_MINIMUM,
+        DEFAULT_RACCROCHAGE_SILENCE_AGENT_S,
+    )
+
+    run_configs = run_configs or {}
+
+    def lire(cle, defaut):
+        valeur = run_configs.get(cle)
+        return defaut if valeur is None else valeur
+
+    return (
+        bool(lire("accueil_interruptible", DEFAULT_ACCUEIL_INTERRUPTIBLE)),
+        int(lire("accueil_mots_minimum", DEFAULT_ACCUEIL_MOTS_MINIMUM)),
+        float(lire("raccrochage_silence_agent_s", DEFAULT_RACCROCHAGE_SILENCE_AGENT_S)),
+    )

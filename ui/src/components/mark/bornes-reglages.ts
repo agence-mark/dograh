@@ -69,6 +69,9 @@ export const BORNES: Record<string, Borne> = {
     tts_silence_time_s: { min: 0, minStrict: false, max: 10 },
     // Idle prompts
     user_idle_max_prompts: { min: 0, minStrict: false, max: 10 },
+    // Greeting and silence (E1, E2)
+    accueil_mots_minimum: { min: 1, minStrict: false, max: 10 },
+    raccrochage_silence_agent_s: { min: 10, minStrict: false, max: 120 },
 };
 
 /**

@@ -206,6 +206,23 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         ).toBeTruthy();
     });
 
+    it("[greeting and silence, E1 E2 of 25/09] shows the three settings, off and 2 and 35 by default", async () => {
+        // Decisions of Evan for the rise to upstream 4e6cb22b: a setting is only
+        // real if it can be seen and touched on the page.
+        await rendreLaPage();
+        const accueil = screen.getByRole("switch", { name: /caller can cut the greeting/i });
+        expect(accueil.getAttribute("aria-checked")).toBe("false");
+        const mots = document.getElementById("accueil_mots_minimum") as HTMLInputElement;
+        const silence = document.getElementById("raccrochage_silence_agent_s") as HTMLInputElement;
+        expect(mots.value).toBe("2");
+        expect(silence.value).toBe("35");
+        // The bounds are shown, and the word count is inert while the greeting
+        // cannot be cut.
+        expect(document.body.textContent).toContain("1 to 10");
+        expect(document.body.textContent).toContain("10 to 120");
+        expect(mots.disabled).toBe(true);
+    });
+
     it("carries its own Save button on the page (existence only -- it is disabled until something changes)", async () => {
         // Honest title: this asserts the button EXISTS, not that a save round
         // trip works. It is disabled at this instant, nothing having changed.

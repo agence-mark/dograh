@@ -19,6 +19,10 @@ import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { messagesHorsBornes } from "./bornes-reglages";
 import {
+    type ReglagesAccueilEtSilence,
+    SectionAccueilEtSilence,
+} from "./SectionAccueilEtSilence";
+import {
     type ReglagesCoupureMicro,
     SectionCoupureMicro,
 } from "./SectionCoupureMicro";
@@ -101,6 +105,13 @@ export const CLES_COUPURE = [
     "mute_always",
 ] as const;
 
+// [.mark] E1 and E2 (decisions of Evan, 25/09/2026, rise to 4e6cb22b).
+export const CLES_ACCUEIL = [
+    "accueil_interruptible",
+    "accueil_mots_minimum",
+    "raccrochage_silence_agent_s",
+] as const;
+
 export const CLES_VOIX = [
     "tts_markdown_filter_enabled",
     "tts_push_silence_after_stop",
@@ -149,6 +160,13 @@ const extraireCoupure = (
     Object.fromEntries(
         CLES_COUPURE.map((cle) => [cle, (configurations as Record<string, unknown>)[cle]]),
     ) as unknown as ReglagesCoupureMicro;
+
+const extraireAccueil = (
+    configurations: WorkflowConfigurations,
+): ReglagesAccueilEtSilence =>
+    Object.fromEntries(
+        CLES_ACCUEIL.map((cle) => [cle, (configurations as Record<string, unknown>)[cle]]),
+    ) as unknown as ReglagesAccueilEtSilence;
 
 const extraireVoix = (configurations: WorkflowConfigurations): ReglagesVoix =>
     Object.fromEntries(
@@ -217,6 +235,9 @@ export const SectionReglagesPipecat = ({
     const [reglagesCoupure, setReglagesCoupure] = useState<ReglagesCoupureMicro>(
         () => extraireCoupure(workflowConfigurations),
     );
+    const [reglagesAccueil, setReglagesAccueil] = useState<ReglagesAccueilEtSilence>(
+        () => extraireAccueil(workflowConfigurations),
+    );
     const [reglagesRelance, setReglagesRelance] = useState<ReglagesRelance>(
         () => extraireRelance(workflowConfigurations),
     );
@@ -246,6 +267,7 @@ export const SectionReglagesPipecat = ({
         const enregistre = {
             ...extraireTourDeParole(workflowConfigurations),
             ...extraireCoupure(workflowConfigurations),
+            ...extraireAccueil(workflowConfigurations),
             ...extraireRelance(workflowConfigurations),
             ...extraireVoix(workflowConfigurations),
             ...extraireTranscription(workflowConfigurations),
@@ -253,6 +275,7 @@ export const SectionReglagesPipecat = ({
         const courant = {
             ...reglagesTourDeParole,
             ...reglagesCoupure,
+            ...reglagesAccueil,
             ...reglagesRelance,
             ...reglagesVoix,
             ...reglagesTranscription,
@@ -262,6 +285,7 @@ export const SectionReglagesPipecat = ({
         workflowConfigurations,
         reglagesTourDeParole,
         reglagesCoupure,
+        reglagesAccueil,
         reglagesRelance,
         reglagesVoix,
         reglagesTranscription,
@@ -276,6 +300,7 @@ export const SectionReglagesPipecat = ({
     const fautifs = useMemo(() => {
         const messages = messagesHorsBornes({
             ...reglagesTourDeParole,
+            ...reglagesAccueil,
             ...reglagesRelance,
             ...reglagesVoix,
         } as Record<string, unknown>);
@@ -287,7 +312,13 @@ export const SectionReglagesPipecat = ({
             ...(variables ? { variables_commune: variables } : {}),
             ...(references ? { variables_reference: references } : {}),
         };
-    }, [reglagesTourDeParole, reglagesRelance, reglagesVoix, reglagesTranscription]);
+    }, [
+        reglagesTourDeParole,
+        reglagesAccueil,
+        reglagesRelance,
+        reglagesVoix,
+        reglagesTranscription,
+    ]);
     const nombreDeFautifs = Object.keys(fautifs).length;
 
     useUnsavedChanges(ID_SECTION_REGLAGES_PIPECAT, isDirty);
@@ -305,6 +336,7 @@ export const SectionReglagesPipecat = ({
                     ...workflowConfigurations,
                     ...reglagesTourDeParole,
                     ...reglagesCoupure,
+                    ...reglagesAccueil,
                     ...reglagesRelance,
                     ...reglagesVoix,
                     ...reglagesTranscription,
@@ -354,6 +386,10 @@ export const SectionReglagesPipecat = ({
                 <SectionCoupureMicro
                     reglages={reglagesCoupure}
                     onChange={setReglagesCoupure}
+                />
+                <SectionAccueilEtSilence
+                    reglages={reglagesAccueil}
+                    onChange={setReglagesAccueil}
                 />
                 <SectionRelance reglages={reglagesRelance} onChange={setReglagesRelance} />
                 <SectionVoix reglages={reglagesVoix} onChange={setReglagesVoix} />

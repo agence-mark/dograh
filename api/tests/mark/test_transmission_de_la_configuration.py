@@ -54,7 +54,11 @@ TRANSMISSIONS = [
         "the idle prompts and how many times they are sent before hanging up",
     ),
     (
-        r"collecter_strategies_de_coupure\(\s*run_configs,",
+        # E1 (25/09/2026): the agent's configuration, with only the opening
+        # sentence protection lifted when its greeting is interruptible.
+        r"collecter_strategies_de_coupure\(\s*\{\*\*\(run_configs or \{\}\), "
+        r"\"mute_until_first_bot_complete\": False\}\s*if accueil_ouvert\s*"
+        r"else run_configs,",
         "which strategies may mute the caller's microphone",
     ),
     (

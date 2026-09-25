@@ -185,6 +185,10 @@ DEFAULT_MUTE_DURING_FUNCTION_CALL = True
 DEFAULT_MUTE_ENGINE_CALLBACK = True
 DEFAULT_MUTE_FIRST_SPEECH = False
 DEFAULT_MUTE_ALWAYS = False
+# [.mark] Decisions of Evan, 25/09/2026 (upstream rise to 4e6cb22b), E1 and E2.
+DEFAULT_ACCUEIL_INTERRUPTIBLE = False
+DEFAULT_ACCUEIL_MOTS_MINIMUM = 2
+DEFAULT_RACCROCHAGE_SILENCE_AGENT_S = 35.0
 MAX_CALL_DISPOSITIONS = 50
 MAX_CALL_DISPOSITION_CODE_LENGTH = 64
 MAX_CALL_DISPOSITION_DESCRIPTION_LENGTH = 1_000
@@ -610,6 +614,41 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Keep the caller from interrupting the agent's opening sentence. "
             "On until now, and this is the one that keeps a greeting from "
             "being cut in half by a hello."
+        ),
+    )
+    # [.mark] E1 (decision of Evan, 25/09/2026): upstream 4e6cb22b lets the
+    # caller cut the greeting after 2 words. Here it is a setting, OFF by
+    # default: off, the opening sentence is protected exactly as before.
+    accueil_interruptible: bool = Field(
+        default=DEFAULT_ACCUEIL_INTERRUPTIBLE,
+        description=(
+            "Let the caller cut the agent's greeting by speaking. Off: the "
+            "greeting is always heard to the end, as until now. On: the "
+            "protection of the opening sentence above is lifted for this agent, "
+            "and the greeting stops once the caller has said the number of "
+            "words below."
+        ),
+    )
+    accueil_mots_minimum: int = Field(
+        default=DEFAULT_ACCUEIL_MOTS_MINIMUM,
+        ge=1,
+        le=10,
+        description=(
+            "How many words the caller must say to cut the greeting. Only "
+            "used when the switch above is on. 2 keeps a cough or a lone "
+            "'hello' from cutting it."
+        ),
+    )
+    # [.mark] E2 (decision of Evan, 25/09/2026): upstream's call monitor hangs
+    # up when the agent owes an answer and no sound comes out for 35 s.
+    raccrochage_silence_agent_s: float = Field(
+        default=DEFAULT_RACCROCHAGE_SILENCE_AGENT_S,
+        ge=10,
+        le=120,
+        description=(
+            "Seconds the call waits for the agent's answer, with no sound at "
+            "all, before hanging up. Protects the caller from a frozen agent. "
+            "While a tool runs, the wait is 180 s whatever this says."
         ),
     )
     mute_during_function_call: bool = Field(

@@ -40,6 +40,17 @@ class GreetingController:
         self._speech_start: Frame | None = None
         self._playback.on_greeting_finished = self._finished
         self.log_generated_speech: Callable[[str], Awaitable[None]] | None = None
+        # [.mark] E1 (decision of Evan, 25/09/2026). Upstream's behaviour is the
+        # class default; the pipeline sets the agent's own through `regler`.
+        self._interruptible = True
+        self._mots_minimum = 2
+
+    def regler(self, *, interruptible: bool, mots_minimum: int) -> None:
+        """[.mark] Whether the caller may cut the greeting, and after how many
+        words. Not interruptible: the strategies are never touched (the
+        greeting is protected by the mute strategies, as before 4e6cb22b)."""
+        self._interruptible = interruptible
+        self._mots_minimum = mots_minimum
 
     def bind(self, user: LLMUserAggregator) -> None:
         self._user = user
@@ -49,10 +60,14 @@ class GreetingController:
     async def _update_strategies(self, user: LLMUserAggregator, frame: Frame) -> None:
         if isinstance(frame, StartFrame):
             return
+        if not self._interruptible:  # [.mark] E1 off: strategies untouched
+            return
         controller = user.user_turn_controller
         if self._playback.greeting_pending and self._normal_strategies is None:
             self._normal_strategies = controller.user_turn_strategies
-            greeting_strategy = MinWordsUserTurnStartStrategy(min_words=2)
+            greeting_strategy = MinWordsUserTurnStartStrategy(
+                min_words=self._mots_minimum  # [.mark] E1, N words
+            )
             self._turn_text = asyncio.get_running_loop().create_future()
             await controller.update_strategies(
                 UserTurnStrategies(
