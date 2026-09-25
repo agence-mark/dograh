@@ -599,6 +599,45 @@ def _avec_un_type_dit(valeur: str, portee: tuple[int, int]) -> tuple[int, int]:
     return portee
 
 
+def _meme_voie(ancienne: str, nouvelle: str, fiche: dict) -> bool:
+    """Les deux valeurs désignent-elles la même voie ? Même nom (le type et le
+    numéro mis à part), ou la nouvelle est une voie que le module a proposée
+    pour ce que l'ancienne a entendu (« 5 places Jeanne Achète » puis « Place
+    Jeanne Hachette »)."""
+    type_a, nom_a = _type_et_nom(ancienne)
+    type_n, nom_n = _type_et_nom(nouvelle)
+    if nom_a and nom_a == nom_n and (type_a == type_n or None in (type_a, type_n)):
+        return True
+    for trace in _entrees(fiche, TRACE_VOIES):
+        noms = [
+            trace.get("voie_retenue"),
+            *(
+                p.get("nom")
+                for p in trace.get("propositions") or []
+                if isinstance(p, dict)
+            ),
+        ]
+        noms = [n for n in noms if n]
+        if any(_type_et_nom(n) == (type_n, nom_n) for n in noms) and (
+            _trouver(ancienne, trace.get("entendu") or "") is not None
+            or any(_trouver(ancienne, n) is not None for n in noms)
+        ):
+            return True
+    return False
+
+
+def garder_le_numero(nouvelle: Any, ancienne: Any, fiche: dict) -> Any:
+    """C6 (PB9, run 847) : une voie notée SANS numéro, alors que le champ tient
+    déjà la même voie AVEC un numéro, garde ce numéro. Au 847, le modèle a
+    renvoyé « Place Jeanne Hachette » seule : le 5 dit par la personne a disparu."""
+    if _est_vide(ancienne) or _numero(str(nouvelle)):
+        return nouvelle
+    numero = _numero(str(ancienne))
+    if numero and _meme_voie(str(ancienne), str(nouvelle), fiche):
+        return f"{numero} {nouvelle}"
+    return nouvelle
+
+
 def _tour_du_dernier_ambigu(fiche: dict, champ: str | None) -> int | None:
     """Le tour où ce champ a été renvoyé « ambigu » pour la dernière fois."""
     for entree in reversed(fiche.get(CLE_JOURNAL) or []):
@@ -787,6 +826,8 @@ def ecrire_dans_la_fiche(
             lecture = lire_rue(valeur, fiche, paroles, champ)
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
+            if definition.lecteur_effectif == "rue":
+                valeur = garder_le_numero(valeur, fiche.get(champ), fiche)
             if (
                 not lecture.trouvee
                 and not lecture.options

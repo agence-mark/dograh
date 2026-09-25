@@ -16,6 +16,7 @@ test dans l'autre sens : ce qui doit toujours être refusé (PB15).
 | C3 | Une commune refusée ou introuvable renvoie les communes du code postal lu, à proposer une par une |
 | C4 | Le type de voie dit (comparé au son) choisit entre des voies de même nom ; une option confirmée s'enregistre |
 | C5 | Un type de voie au pluriel (« rues », liaison entendue) vaut le singulier |
+| C6 | Une voie notée sans numéro garde le numéro déjà noté pour la même voie |
 """
 
 from types import SimpleNamespace
@@ -35,6 +36,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     balayer_la_fiche,
     creer_gestionnaire,
     ecrire_dans_la_fiche,
+    garder_le_numero,
     lire_commune,
     lire_rue,
     type_entendu,
@@ -839,3 +841,48 @@ def test_C4_deux_types_dits_ne_departagent_rien():
 )
 def test_C4_le_type_se_compare_par_le_son(type_voie, texte, entendu):
     assert type_entendu(type_voie, [texte]) is entendu
+
+
+# --- C6 : le numéro de rue déjà noté est gardé (PB9) --------------------------
+
+
+def test_C6_run_847_place_jeanne_hachette_garde_son_5():
+    """Run 847, T6 puis T7 : la personne dit « cinq places Jeanne achète », puis
+    le modèle renvoie « Place Jeanne Hachette » seule. La fiche finissait sur
+    « Place Jeanne Hachette », non sûre, sans le 5."""
+    fiche = _voie_au_tour(5, JEANNE_HACHETTE)
+    _adresse(fiche, "5 places Jeanne Achète", "Ouais, c'est 5 places Jeanne achète.")
+    fiche["tour_appelant"] = 6
+    verdict = _adresse(
+        fiche,
+        "Place Jeanne Hachette",
+        "Ouais, c'est 5 places Jeanne achète.",
+        "Ouais, c'est ça, ouais.",
+    )
+    assert verdict.statut == "ecrit"
+    assert fiche["adresse_intervention"] == "5 Place Jeanne Hachette"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
+
+
+def test_C6_le_numero_suit_la_meme_voie_ecrite_autrement():
+    fiche = {"adresse_intervention": "7 rue de Maud"}
+    assert garder_le_numero("Rue de Maud", fiche["adresse_intervention"], fiche) == (
+        "7 Rue de Maud"
+    )
+    fiche = _voie_au_tour(5, JEANNE_HACHETTE)
+    assert (
+        garder_le_numero("Place Jeanne Hachette", "5 places Jeanne Achète", fiche)
+        == "5 Place Jeanne Hachette"
+    )
+
+
+@pytest.mark.parametrize(
+    "ancienne, nouvelle",
+    [
+        ("4 rue Pasteur", "Rue Carnot"),  # une autre voie
+        ("4 rue Carnot", "14 rue Carnot"),  # un numéro corrigé (run 850)
+        ("rue Carnot", "Rue Carnot"),  # aucun numéro à garder
+    ],
+)
+def test_C6_aucun_numero_invente(ancienne, nouvelle):
+    assert garder_le_numero(nouvelle, ancienne, {}) == nouvelle
