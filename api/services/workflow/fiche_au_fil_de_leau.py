@@ -177,7 +177,18 @@ class ReglagesFiche:
                 "[fiche] interrupteur allumé mais aucun champ : outil non proposé"
             )
             return None
-        return cls(champs=tuple(champs), termes_du_lexique=_termes(lexique))
+        termes = _termes(lexique)
+        if not termes:
+            # Revue du 25/09 : sans lexique pour l'appel, un champ ``marque*``
+            # dont le lecteur n'a pas été choisi garde le comportement d'avant
+            # (contrôle de citation) ; sinon toute marque deviendrait non sûre.
+            champs = [
+                c.model_copy(update={"lecteur": "aucun"})
+                if c.lecteur is None and c.lecteur_effectif == "lexique"
+                else c
+                for c in champs
+            ]
+        return cls(champs=tuple(champs), termes_du_lexique=termes)
 
 
 def _termes(lexique: Any) -> dict[str, str]:
@@ -580,10 +591,21 @@ def lire_lexique(
     if officiel:
         # Revue du 25/09 (PB12 resserré) : un terme du lexique n'est sûr que si
         # la personne l'a dit ; jamais dit (« Jotul » sorti du modèle), refusé.
-        if est_cite(valeur, paroles):
+        if _terme_dit(officiel, termes, paroles):
             return Lecture(officiel, True)
         return Lecture(officiel, False, "a_confirmer", trouvee=False)
     return Lecture(valeur, False, "a_confirmer", trouvee=False)
+
+
+def _terme_dit(officiel: str, termes: dict[str, str], paroles: Iterable[str]) -> bool:
+    """Le terme a-t-il été dit sous l'une de ses écritures (terme ou variantes,
+    comparées comme le lexique les compare) ? « Jotul » dit, « Jøtul » noté."""
+    ecritures = [cle for cle, terme in termes.items() if terme == officiel]
+    for parole in paroles:
+        dite = f" {normaliser_terme(str(parole))} "
+        if any(f" {ecriture} " in dite for ecriture in ecritures):
+            return True
+    return False
 
 
 def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]:

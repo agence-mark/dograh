@@ -1310,12 +1310,35 @@ def test_C10_une_marque_ni_dite_ni_connue_reste_refusee():
     assert (verdict.statut, verdict.raison) == ("refuse", "non_dit")
 
 
-def test_C10_sans_lexique_aucun_terme_n_est_sur_d_office():
+def test_revue_sans_lexique_la_marque_garde_le_controle_d_avant():
+    """Relevé par la revue du 25/09 : une organisation sans lexique voyait toute
+    marque devenir non sûre. Sans lexique, un champ ``marque*`` au lecteur non
+    choisi garde le contrôle de citation d'avant ; un lecteur choisi est gardé."""
+    assert _reglages().par_nom["marque_appareil"].lecteur_effectif == "aucun"
     fiche: dict = {}
     ecrire_dans_la_fiche(
         fiche, _reglages(), "marque_appareil", "Invicta", paroles=["un Invicta"]
     )
-    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is False
+    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is True
+    verdict = ecrire_dans_la_fiche(
+        {}, _reglages(), "marque_appareil", "Supra", paroles=["un poêle à bois"]
+    )
+    assert (verdict.statut, verdict.raison) == ("refuse", "non_dit")
+    choisi = ReglagesFiche.depuis(
+        {
+            "fiche_au_fil_de_leau": True,
+            "fiche_champs": [{"nom": "marque_appareil", "lecteur": "lexique"}],
+        }
+    )
+    assert choisi.par_nom["marque_appareil"].lecteur_effectif == "lexique"
+
+
+def test_revue_un_terme_dit_sous_une_autre_ecriture_est_sur():
+    """La personne dit « Jotul », le modèle écrit la variante « Jøtul »."""
+    fiche: dict = {}
+    _marque(fiche, "Jøtul", "c'est un Jotul")
+    assert fiche["marque_appareil"] == "Jotul"
+    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is True
 
 
 def test_C10_l_appel_donne_son_lexique_a_la_fiche():
