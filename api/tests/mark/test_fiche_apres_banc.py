@@ -1057,6 +1057,39 @@ def test_revue_B_apres_un_ambigu_seule_la_reponse_compte():
     assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
 
 
+def test_revue_B_en_reponse_un_type_pris_dans_une_tournure_ne_tranche_rien():
+    """Seconde revue : après « ambigu », « je sais pas, je serai sur place » ne
+    fait pas de la Place Jeanne Hachette la voie de la personne."""
+    fiche = _voie_au_tour(5, JEANNE_HACHETTE)
+    _adresse(fiche, "5 Jeanne Achète", "c'est au 5 Jeanne achète")
+    fiche["tour_appelant"] = 6
+    verdict = _adresse(
+        fiche,
+        "5 Place Jeanne Hachette",
+        "c'est au 5 Jeanne achète",
+        "je sais pas, je serai sur place",
+    )
+    assert verdict.suite == "ambigu"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is False
+
+
+def test_revue_B_la_personne_corrige_le_type_d_une_voie_deja_sure():
+    """« 11 Rue Louis Blanc » sûre, puis « non, c'est une impasse » : la
+    correction est enregistrée, sûre."""
+    fiche = _voie_au_tour(7, LOUIS_BLANC)
+    _adresse(fiche, "11 rue Louis Blanc", "j'habite au 11 rue Louis Blanc")
+    assert fiche["adresse_intervention"] == "11 Rue Louis Blanc"
+    fiche["tour_appelant"] = 8
+    _adresse(
+        fiche,
+        "11 Impasse Louis Blanc",
+        "j'habite au 11 rue Louis Blanc",
+        "non, c'est une impasse",
+    )
+    assert fiche["adresse_intervention"] == "11 Impasse Louis Blanc"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
+
+
 # --- C6 : le numéro de rue déjà noté est gardé (PB9) --------------------------
 
 

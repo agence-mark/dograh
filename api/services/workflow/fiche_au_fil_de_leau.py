@@ -761,10 +761,18 @@ def _meme_son(fenetre: list[str], cible: list[str]) -> bool:
     return len(son) >= 3 and cle_sonore(" ".join(fenetre)) == son
 
 
+# Seconde revue : en réponse à une question, « c'est une rue » tranche, « je
+# serai sur place » non. La différence est grammaticale : un article devant le
+# type. Liste fermée de la grammaire, comme ``MOTS_VIDES``.
+_ARTICLES = frozenset({"un", "une", "le", "la", "l", "les"})
+
+
 def type_entendu(
     type_voie: str,
     textes: Iterable[str],
     devant: Iterable[tuple[str, ...]] = (),
+    *,
+    reponse: bool = False,
 ) -> bool:
     """C4 (PB7, proposition d'Evan) : ce type de voie figure-t-il dans ces
     textes, par comparaison PHONÉTIQUE (« places », « plasse » = place) ?
@@ -775,7 +783,9 @@ def type_entendu(
     Revue du 25/09 (PB7 resserré) : avec ``devant`` (les noms de la voie), le
     type ne compte que dit JUSTE DEVANT l'un d'eux. « Sur place, au 11 Louis
     Blanc » ne dit pas « place Louis Blanc » : c'est la position qui fait le
-    type, pour tous les types, sans liste de mots à surveiller."""
+    type, pour tous les types, sans liste de mots à surveiller. En ``reponse``
+    à une question, un type précédé d'un article compte aussi (« c'est une
+    rue »), jamais un type pris dans une tournure (« sur place », « en route »)."""
     cible = type_voie.split()
     noms = [list(nom) for nom in devant if nom]
     for texte in textes:
@@ -784,9 +794,11 @@ def type_entendu(
             if not _meme_son(mots[i : i + len(cible)], cible):
                 continue
             fin = i + len(cible)
-            if not noms or any(
-                _meme_son(mots[fin : fin + len(nom)], nom) for nom in noms
-            ):
+            if not noms and not reponse:
+                return True
+            if any(_meme_son(mots[fin : fin + len(nom)], nom) for nom in noms):
+                return True
+            if reponse and i > 0 and mots[i - 1] in _ARTICLES:
                 return True
     return False
 
@@ -796,7 +808,7 @@ def choisir_par_le_type(
     options: Iterable[str],
     textes: Iterable[str],
     *,
-    n_importe_ou: bool = False,
+    reponse: bool = False,
 ) -> str | None:
     """C4 (PB7, runs 841, 847, 852) : parmi des voies qui ne diffèrent que par
     leur type (Rue / Impasse / Cité Louis Blanc), celle dont la personne a dit le
@@ -806,8 +818,8 @@ def choisir_par_le_type(
     Place du Parvis) : seules comptent celles qui portent le nom de la valeur.
 
     ``textes`` sont les paroles de la personne, jamais la valeur du modèle. Le
-    type doit y être dit juste devant le nom de la voie, sauf en réponse à un
-    « ambigu » (``n_importe_ou``) : « c'est une rue » tranche alors."""
+    type doit y être dit juste devant le nom de la voie ; en ``reponse`` à une
+    question, précédé d'un article aussi : « c'est une rue » tranche alors."""
     textes = list(textes)
     groupes: dict[tuple[str, ...], list[tuple[str, str | None]]] = {}
     for option in options:
@@ -820,11 +832,11 @@ def choisir_par_le_type(
         nom, groupe = nom_note, groupes.get(nom_note, [])
     if len(groupe) < 2:
         return None
-    devant = () if n_importe_ou else (nom, nom_note)
     dits = [
         (option, type_voie)
         for option, type_voie in groupe
-        if type_voie and type_entendu(type_voie, textes, devant)
+        if type_voie
+        and type_entendu(type_voie, textes, (nom, nom_note), reponse=reponse)
     ]
     if len({type_voie for _, type_voie in dits}) != 1:
         return None
@@ -933,8 +945,8 @@ def _option_du_type_dit(
     écrite SÛRE.
 
     En réponse à un « ambigu » (runs 841, 847 : la confirmation ne pouvait
-    jamais être enregistrée), le type compte où qu'il soit dans ce que la
-    personne a dit APRÈS l'ambigu. Sinon, il doit être dit juste devant le nom
+    jamais être enregistrée), le type compte dans ce que la personne a dit
+    APRÈS l'ambigu, devant le nom de la voie ou précédé d'un article. Sinon, il doit être dit juste devant le nom
     de la voie dans son dernier message. Revue du 25/09 : jamais le type écrit
     par le modèle dans sa valeur.
     """
@@ -947,6 +959,10 @@ def _option_du_type_dit(
         tranchee = next((p for p in propositions if _type_et_nom(p) == deja), None)
         if tranchee is not None and _type_et_nom(texte) == deja:
             return tranchee
+        if deja[1] and _type_et_nom(texte)[1] == deja[1]:
+            # Seconde revue : la personne corrige le type d'une voie déjà sûre
+            # (« non, c'est une impasse ») ; son dernier message est une réponse.
+            return choisir_par_le_type(texte, propositions, paroles[-1:], reponse=True)
     tour_ambigu = _tour_du_dernier_ambigu(fiche, champ)
     if tour_ambigu is None:
         return choisir_par_le_type(texte, propositions, paroles[-1:])
@@ -957,8 +973,14 @@ def _option_du_type_dit(
     )
     if renvoyee is not None:
         type_voie = _type_et_nom(renvoyee)[0]
-        return renvoyee if type_voie and type_entendu(type_voie, reponse) else None
-    return choisir_par_le_type(texte, propositions, reponse, n_importe_ou=True)
+        dit = type_voie and type_entendu(
+            type_voie,
+            reponse,
+            (_type_et_nom(renvoyee)[1],),
+            reponse=True,
+        )
+        return renvoyee if dit else None
+    return choisir_par_le_type(texte, propositions, reponse, reponse=True)
 
 
 def lire_rue(
