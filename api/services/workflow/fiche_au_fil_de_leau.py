@@ -538,15 +538,20 @@ CONSIGNE_BALAYAGE = (
 def _recopie_d_un_autre_champ(
     reglages: ReglagesFiche, fiche: dict, champ: str, valeur: Any
 ) -> str | None:
-    """A4 : le champ déjà rempli dont cette valeur n'est qu'une recopie (tous ses
-    mots y figurent), ou ``None``. Run 837 : `symptome` = le verbatim de la demande."""
-    mots = set(_mots(str(valeur)))
+    """A4 : le champ déjà rempli dont cette valeur est la recopie, ou ``None``.
+    Run 837 : `symptome` = le verbatim de la demande, mot pour mot.
+
+    C1 (PB1, banc du 25/09) : recopie = la MÊME suite de mots (casse, accents,
+    ponctuation ignorés), plus une inclusion. « poêle à granulés », contenu dans
+    le motif « Panne sur un poêle à granulés », était refusé : `appareil`,
+    `symptome`, `degre_urgence`, `projet` perdus sur 6 des 8 runs allumés."""
+    mots = _mots(str(valeur))
     if not mots:
         return None
     for autre in reglages.champs:
         if autre.nom == champ or _est_vide(fiche.get(autre.nom)):
             continue
-        if mots <= set(_mots(str(fiche[autre.nom]))):
+        if mots == _mots(str(fiche[autre.nom])):
             return autre.nom
     return None
 
