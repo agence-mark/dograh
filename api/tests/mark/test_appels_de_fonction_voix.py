@@ -201,6 +201,7 @@ async def test_par_pipecat_une_phrase_qui_n_est_qu_un_appel_n_atteint_pas_la_voi
         ("Je note. demande_entretien(motif=(x))", "Je note."),
         ("le poêle (à bois) fume", "le poêle (à bois) fume"),
         ("à 10h (matin)", "à 10h (matin)"),
+        ("il faut écrire_x()", "il faut écrire_x()"),
     ],
 )
 async def test_revue_un_appel_colle_ou_balise_est_retire(phrase, attendu):

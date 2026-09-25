@@ -46,7 +46,7 @@ from pipecat.utils.text.base_text_filter import BaseTextFilter
 # pas une lettre (« D'accord.•demande_entretien() », « **demande_entretien()** »),
 # arguments avec un niveau de parenthèses (« demande(motif=(x)) »).
 _APPEL = re.compile(
-    r"(?<![A-Za-z0-9_])[•*\-–`]*\s*"
+    r"(?<!\w)[•*\-–`]*\s*"
     r"(?P<nom>[A-Za-z_][A-Za-z0-9_]*)"
     r"\((?P<arguments>(?:[^()]|\([^()]*\))*)\)[`*]*"
 )

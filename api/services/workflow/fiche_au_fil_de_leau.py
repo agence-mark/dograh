@@ -761,10 +761,32 @@ def _meme_son(fenetre: list[str], cible: list[str]) -> bool:
     return len(son) >= 3 and cle_sonore(" ".join(fenetre)) == son
 
 
-# Seconde revue : en réponse à une question, « c'est une rue » tranche, « je
-# serai sur place » non. La différence est grammaticale : un article devant le
-# type. Liste fermée de la grammaire, comme ``MOTS_VIDES``.
-_ARTICLES = frozenset({"un", "une", "le", "la", "l", "les"})
+# Seconde revue : en réponse à une question, « Impasse. », « c'est une rue »
+# tranchent, « je serai sur place » non. La différence est grammaticale : un type
+# pris dans une tournure suit une PRÉPOSITION (« sur place », « en route », « de
+# passage », « au cours »). Liste fermée de la grammaire, comme ``MOTS_VIDES``.
+_PREPOSITIONS = frozenset(
+    {
+        "a",
+        "au",
+        "aux",
+        "sur",
+        "en",
+        "de",
+        "d",
+        "du",
+        "des",
+        "par",
+        "pour",
+        "dans",
+        "vers",
+        "chez",
+        "sans",
+        "avec",
+        "sous",
+        "entre",
+    }
+)
 
 
 def type_entendu(
@@ -784,8 +806,8 @@ def type_entendu(
     type ne compte que dit JUSTE DEVANT l'un d'eux. « Sur place, au 11 Louis
     Blanc » ne dit pas « place Louis Blanc » : c'est la position qui fait le
     type, pour tous les types, sans liste de mots à surveiller. En ``reponse``
-    à une question, un type précédé d'un article compte aussi (« c'est une
-    rue »), jamais un type pris dans une tournure (« sur place », « en route »)."""
+    à une question, le type compte aussi seul (« Impasse. », « c'est une rue »),
+    jamais pris dans une tournure après une préposition (« sur place »)."""
     cible = type_voie.split()
     noms = [list(nom) for nom in devant if nom]
     for texte in textes:
@@ -798,7 +820,7 @@ def type_entendu(
                 return True
             if any(_meme_son(mots[fin : fin + len(nom)], nom) for nom in noms):
                 return True
-            if reponse and i > 0 and mots[i - 1] in _ARTICLES:
+            if reponse and (i == 0 or mots[i - 1] not in _PREPOSITIONS):
                 return True
     return False
 
@@ -819,7 +841,7 @@ def choisir_par_le_type(
 
     ``textes`` sont les paroles de la personne, jamais la valeur du modèle. Le
     type doit y être dit juste devant le nom de la voie ; en ``reponse`` à une
-    question, précédé d'un article aussi : « c'est une rue » tranche alors."""
+    question, aussi seul : « Impasse. », « c'est une rue » tranchent alors."""
     textes = list(textes)
     groupes: dict[tuple[str, ...], list[tuple[str, str | None]]] = {}
     for option in options:
@@ -946,7 +968,8 @@ def _option_du_type_dit(
 
     En réponse à un « ambigu » (runs 841, 847 : la confirmation ne pouvait
     jamais être enregistrée), le type compte dans ce que la personne a dit
-    APRÈS l'ambigu, devant le nom de la voie ou précédé d'un article. Sinon, il doit être dit juste devant le nom
+    APRÈS l'ambigu, seul ou devant le nom de la voie, jamais après une
+    préposition (« sur place »). Sinon, il doit être dit juste devant le nom
     de la voie dans son dernier message. Revue du 25/09 : jamais le type écrit
     par le modèle dans sa valeur.
     """
@@ -962,7 +985,11 @@ def _option_du_type_dit(
         if deja[1] and _type_et_nom(texte)[1] == deja[1]:
             # Seconde revue : la personne corrige le type d'une voie déjà sûre
             # (« non, c'est une impasse ») ; son dernier message est une réponse.
-            return choisir_par_le_type(texte, propositions, paroles[-1:], reponse=True)
+            corrigee = choisir_par_le_type(
+                texte, propositions, paroles[-1:], reponse=True
+            )
+            if corrigee is not None:
+                return corrigee
     tour_ambigu = _tour_du_dernier_ambigu(fiche, champ)
     if tour_ambigu is None:
         return choisir_par_le_type(texte, propositions, paroles[-1:])

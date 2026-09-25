@@ -1090,6 +1090,32 @@ def test_revue_B_la_personne_corrige_le_type_d_une_voie_deja_sure():
     assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
 
 
+@pytest.mark.parametrize("reponse", ["Impasse.", "Impasse, oui", "c'est impasse"])
+def test_revue_B_une_reponse_d_un_seul_mot_tranche_l_ambigu(reponse):
+    """Relecture de contrôle : la réponse la plus naturelle à « rue ou impasse
+    ? » ne tranchait plus rien (la boucle des runs 841 et 847)."""
+    fiche = _voie_au_tour(7, LOUIS_BLANC)
+    _adresse(fiche, "11 Louis Blanc", "j'habite au 11 Louis blanc")
+    fiche["tour_appelant"] = 8
+    _adresse(fiche, "11 Impasse Louis Blanc", "j'habite au 11 Louis blanc", reponse)
+    assert fiche["adresse_intervention"] == "11 Impasse Louis Blanc"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
+
+
+def test_revue_B_non_impasse_corrige_une_voie_deja_sure():
+    fiche = _voie_au_tour(7, LOUIS_BLANC)
+    _adresse(fiche, "11 rue Louis Blanc", "j'habite au 11 rue Louis Blanc")
+    fiche["tour_appelant"] = 8
+    _adresse(
+        fiche,
+        "11 Impasse Louis Blanc",
+        "j'habite au 11 rue Louis Blanc",
+        "non, impasse",
+    )
+    assert fiche["adresse_intervention"] == "11 Impasse Louis Blanc"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
+
+
 # --- C6 : le numéro de rue déjà noté est gardé (PB9) --------------------------
 
 
