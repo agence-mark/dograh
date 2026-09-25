@@ -112,6 +112,27 @@ def _meme_date(valeur: str, calculee: str) -> bool:
     return bool(_ANNEE.match(valeur)) and calculee.endswith(valeur)
 
 
+_MOIS = (
+    "janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre"
+    "|decembre"
+)
+# Une année ou un mois nommé, où qu'ils soient : « 2024 », « fin 2023 »,
+# « mars 2024 », « le 12 mars ». Large exprès : ne refuser que ce qui n'a rien
+# d'une date.
+_TRACE_DE_DATE = re.compile(rf"\b((19|20)\d{{2}}|{_MOIS})\b")
+
+
+def est_une_date(valeur: str, jour: datetime | None = None) -> bool:
+    """C8 (PB11, run 852) : une date écrite, ou une date relative reconnue ?
+    « annuel », écrit par le balayage dans `dernier_entretien`, n'en est pas une."""
+    valeur = str(valeur).strip()
+    if _ANNEE.match(valeur) or _MOIS_ANNEE.match(valeur) or _JOUR.match(valeur):
+        return True
+    if _TRACE_DE_DATE.search(_simple(valeur)):
+        return True
+    return lire_expression(valeur, jour or aujourd_hui()) is not None
+
+
 def lire_date(
     valeur: str, paroles: list[str], jour: datetime | None = None
 ) -> DateDite | None:

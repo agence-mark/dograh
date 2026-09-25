@@ -51,7 +51,7 @@ from api.schemas.fiche_agent import (
 )
 from api.services.communes.base import base_si_chargee, cle_sonore
 from api.services.nombres.lecture import lire_nombres, reecrire
-from api.services.workflow.dates_relatives import lire_date
+from api.services.workflow.dates_relatives import est_une_date, lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
 
 NOM_OUTIL = "noter_information"
@@ -815,6 +815,7 @@ def ecrire_dans_la_fiche(
     paroles = list(paroles)
     lecture: Lecture | None = None
     dit: str | None = None
+    pas_une_date = False
 
     if definition is None:
         verdict = Verdict(champ, "refuse", "champ_inconnu")
@@ -854,6 +855,7 @@ def ecrire_dans_la_fiche(
                 lecture = replace(lecture, suite="a_proposer")
         if definition.lecteur_effectif == "date" and not epele:
             date = lire_date(str(valeur), paroles, jour)
+            pas_une_date = date is None and not est_une_date(str(valeur), jour)
             # « 2025 » trouvé dans ses paroles, ou « l'année dernière » dit tel quel.
             if date and (
                 date.depuis_les_paroles
@@ -861,7 +863,10 @@ def ecrire_dans_la_fiche(
                 or est_cite(_chiffres_comme_lus(str(valeur)), paroles)
             ):
                 valeur, dit = date.valeur, date.dit
-        if (
+        if pas_une_date:
+            # C8 (PB11, run 852) : « annuel » dans `dernier_entretien`.
+            verdict = Verdict(champ, "refuse", "pas_une_date", valeur)
+        elif (
             lecture is not None
             and not lecture.trouvee
             and not est_cite(valeur, paroles)

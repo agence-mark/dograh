@@ -18,6 +18,7 @@ test dans l'autre sens : ce qui doit toujours être refusé (PB15).
 | C5 | Un type de voie au pluriel (« rues », liaison entendue) vaut le singulier |
 | C6 | Une voie notée sans numéro garde le numéro déjà noté pour la même voie |
 | C7 | « il y a trois ans » dit, lu « il y a 3 ans » par le modèle, est accepté (cause établie sur le 847) |
+| C8 | Un champ de date refuse ce qui n'est pas une date (« annuel ») |
 """
 
 from datetime import datetime
@@ -983,3 +984,33 @@ def test_C7_une_autre_date_que_celle_dite_reste_refusee(valeur):
     verdict, fiche = _date(valeur, "il a été fait il y a 3 ans")
     assert (verdict.statut, verdict.raison) == ("refuse", "non_dit")
     assert "dernier_entretien" not in fiche
+
+
+@pytest.mark.parametrize("source", ["outil", "balayage"])
+def test_C8_run_852_annuel_n_est_pas_une_date(source):
+    """Run 852 : le balayage écrivait « annuel » dans `dernier_entretien`
+    (« l'entretien annuel de mon poêle »), jamais demandé."""
+    verdict, fiche = _date("annuel", *PAROLES_852, source=source)
+    assert (verdict.statut, verdict.raison) == ("refuse", "pas_une_date")
+    assert "dernier_entretien" not in fiche
+
+
+@pytest.mark.parametrize(
+    "valeur, paroles",
+    [
+        ("mars 2024", "c'était en mars 2024"),
+        ("le 12 mars", "le 12 mars"),
+        ("fin 2023", "fin 2023 je crois"),
+        ("09/2025", "en 09/2025"),
+    ],
+)
+def test_C8_une_date_ecrite_dite_passe_toujours(valeur, paroles):
+    verdict, fiche = _date(valeur, paroles)
+    assert (verdict.statut, fiche.get("dernier_entretien")) == ("ecrit", valeur)
+
+
+def test_C8_hors_d_un_champ_de_date_annuel_reste_une_valeur():
+    verdict = ecrire_dans_la_fiche(
+        {}, _reglages(), "motif", "entretien annuel", paroles=PAROLES_852
+    )
+    assert verdict.statut == "ecrit"
