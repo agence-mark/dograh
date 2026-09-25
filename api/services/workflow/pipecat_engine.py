@@ -1634,7 +1634,12 @@ class PipecatEngine:
         if self.speech_playback.mutes_user:
             return True
 
-        if self.speech_playback.greeting_pending or self.greeting.awaiting_turn:
+        # [.mark] E1: upstream lifts the mute for the whole greeting. Only when
+        # the greeting is open for this agent; otherwise the greeting keeps the
+        # protection of production (`allow_interrupt=False` below).
+        if self.greeting.interruptible and (
+            self.speech_playback.greeting_pending or self.greeting.awaiting_turn
+        ):
             return False
 
         # Keep caller turns live while a committed answer verdict waits for the

@@ -99,6 +99,11 @@ class GreetingController:
             self._speech_start = None
 
     @property
+    def interruptible(self) -> bool:
+        """[.mark] E1: whether the caller may cut this agent's greeting."""
+        return self._interruptible
+
+    @property
     def awaiting_turn(self) -> bool:
         return (
             self._playback.greeting is not None

@@ -15,7 +15,12 @@ le moniteur rend la main à l'appelant (il attend de nouveau sa parole).
 | Cas | Le tour |
 |---|---|
 | question + deux notes | l'agent parle et note deux fois, les deux notes ne relancent pas |
-| deux notes seules | l'agent note deux fois sans parler ; la dernière relance, l'agent parle |
+| deux notes seules | l'agent note deux fois sans parler (aucun son) ; la dernière relance, l'agent parle |
+| parole finie avant les notes | la question s'entend en entier avant que les résultats reviennent |
+
+Relecture du 26/09 : la relance de chaque note n'est pas posée à la main, elle vient du
+vrai suivi des tours de la fiche (`SuiviDesTours`), comme dans l'appel ; et une
+génération faite seulement d'appels d'outil ne produit aucun son (pas d'`on_output`).
 """
 
 import asyncio
@@ -30,6 +35,7 @@ from pipecat.frames.frames import (
 from pipecat.processors.frame_processor import FrameProcessor
 
 from api.services.pipecat.call_monitor_processor import CallMonitorProcessor
+from api.services.workflow.fiche_au_fil_de_leau import NOM_OUTIL, SuiviDesTours
 
 DELAI_S = 0.3
 
@@ -49,11 +55,34 @@ def _moniteur():
     return moniteur, source, raccroches
 
 
+def _appels(*identifiants):
+    return [
+        FunctionCallFromLLM(
+            function_name=NOM_OUTIL,
+            tool_call_id=i,
+            arguments={"champ": "nom", "valeur": "Dupont"},
+            context=None,
+        )
+        for i in identifiants
+    ]
+
+
+def _tour_de_la_fiche(texte_dit: str, *identifiants) -> SuiviDesTours:
+    """Le suivi des tours tel que la fiche le tient pendant l'appel."""
+    suivi = SuiviDesTours(lambda nom: False)
+    suivi.reponse_commencee()
+    suivi.texte_de_la_reponse = texte_dit
+    appels = _appels(*identifiants)
+    suivi.appels_emis(appels)
+    suivi.enregistrer(appels)
+    return suivi
+
+
 def _notes(*identifiants):
     return FunctionCallsStartedFrame(
         function_calls=[
             FunctionCallFromLLM(
-                function_name="noter_information",
+                function_name=NOM_OUTIL,
                 tool_call_id=i,
                 arguments={"champ": "nom", "valeur": "Dupont"},
                 context=None,
@@ -65,7 +94,7 @@ def _notes(*identifiants):
 
 def _resultat(identifiant, relance: bool):
     return FunctionCallResultFrame(
-        function_name="noter_information",
+        function_name=NOM_OUTIL,
         tool_call_id=identifiant,
         arguments={},
         result={"statut": "noté"},
@@ -87,10 +116,13 @@ def _fin_de_parole(moniteur, scope):
 async def test_question_et_deux_notes_qui_ne_relancent_pas_ne_raccrochent_pas():
     moniteur, source, raccroches = _moniteur()
     moniteur.expect_response(source)  # l'appelant vient de parler
-    _parler(moniteur, source, "s1")  # « Quelle est votre commune ? »
+    suivi = _tour_de_la_fiche("Quelle est votre commune ?", "n1", "n2")
+    _parler(moniteur, source, "s1")
     moniteur._watch_tool(source, _notes("n1", "n2"))
-    moniteur._watch_tool(source, _resultat("n1", relance=False))
-    moniteur._watch_tool(source, _resultat("n2", relance=False))
+    for n in ("n1", "n2"):
+        relance = suivi.relance(n)
+        assert relance is False  # la question est posée : aucune note ne relance
+        moniteur._watch_tool(source, _resultat(n, relance=relance))
     _fin_de_parole(moniteur, "s1")
 
     await asyncio.sleep(3 * DELAI_S)
@@ -102,11 +134,17 @@ async def test_question_et_deux_notes_qui_ne_relancent_pas_ne_raccrochent_pas():
 async def test_deux_notes_seules_puis_la_relance_ne_raccrochent_pas():
     moniteur, source, raccroches = _moniteur()
     moniteur.expect_response(source)
-    _parler(moniteur, source, "g1")  # génération faite seulement d'appels d'outil
+    suivi = _tour_de_la_fiche("", "n1", "n2")
+    # Génération faite seulement d'appels d'outil : elle commence, ne produit
+    # aucun son (pas d'`on_output`), et finit.
+    moniteur.on_response_started(source, "g1")
     moniteur._watch_tool(source, _notes("n1", "n2"))
-    # Ordre d'arrivée défavorable : la note qui relance termine la PREMIÈRE.
-    moniteur._watch_tool(source, _resultat("n2", relance=True))
-    moniteur._watch_tool(source, _resultat("n1", relance=False))
+    # Ordre d'arrivée : n2 revient d'abord et ne relance pas, n1 revient en
+    # dernier et relance (Pipecat ne relance que sur le dernier arrivé).
+    moniteur._watch_tool(source, _resultat("n2", relance=suivi.relance("n2")))
+    derniere = suivi.relance("n1")
+    assert derniere is True
+    moniteur._watch_tool(source, _resultat("n1", relance=derniere))
     _fin_de_parole(moniteur, "g1")
     await asyncio.sleep(DELAI_S / 3)
     _parler(moniteur, source, "s2")  # la relance fait parler l'agent
@@ -114,6 +152,23 @@ async def test_deux_notes_seules_puis_la_relance_ne_raccrochent_pas():
 
     await asyncio.sleep(3 * DELAI_S)
     assert raccroches == [], "raccroché à tort après deux notes et la relance"
+    assert moniteur._response_watch is None and moniteur._waiting_for_user
+
+
+@pytest.mark.asyncio
+async def test_la_question_finie_avant_le_retour_des_notes_ne_raccroche_pas():
+    moniteur, source, raccroches = _moniteur()
+    moniteur.expect_response(source)
+    suivi = _tour_de_la_fiche("Et votre numéro de téléphone ?", "n1", "n2")
+    _parler(moniteur, source, "s1")
+    moniteur._watch_tool(source, _notes("n1", "n2"))
+    _fin_de_parole(moniteur, "s1")  # la question s'entend en entier d'abord
+    await asyncio.sleep(DELAI_S / 3)
+    for n in ("n1", "n2"):
+        moniteur._watch_tool(source, _resultat(n, relance=suivi.relance(n)))
+
+    await asyncio.sleep(3 * DELAI_S)
+    assert raccroches == [], "raccroché à tort : la parole a fini avant les notes"
     assert moniteur._response_watch is None and moniteur._waiting_for_user
 
 
