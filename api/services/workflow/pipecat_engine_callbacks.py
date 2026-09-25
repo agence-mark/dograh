@@ -33,78 +33,43 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 
-class UserIdleHandler:
-    """Helper class to manage user idle retry logic with state.
+async def handle_user_idle(engine: "PipecatEngine", aggregator, attempt: int) -> None:
+    """Execute the monitor's idle decision; timing and retry state live there.
 
-    [.mark] The two instructions and the number of prompts used to be written
-    into this method: both texts in English, and exactly one prompt before the
-    hang-up. Nothing on any screen said so, and a French-speaking client could
-    not change either. They are configured on the agent now, with these very
-    texts as the defaults -- an agent that fills in nothing behaves exactly as
-    before.
+    [.mark] The two instructions and the number of prompts are the agent's own
+    (`user_idle_prompt`, `user_idle_goodbye_prompt`, `user_idle_max_prompts`),
+    read from the settings the call was set up with
+    (`PipecatEngine.regler_relances`). Before, both texts were written here in
+    English with exactly one prompt before the hang-up, and nothing on any
+    screen said so. Their defaults are those very texts and that count: an
+    agent that fills in nothing behaves exactly as upstream.
 
     ⚠️ They are INSTRUCTIONS given to the model, not sentences spoken word for
     word: each one already asks the model to answer in the caller's language.
     """
+    reglages = getattr(engine, "reglages_relances", None) or {}
+    idle_prompt = reglages.get("user_idle_prompt") or DEFAULT_USER_IDLE_PROMPT
+    goodbye_prompt = (
+        reglages.get("user_idle_goodbye_prompt") or DEFAULT_USER_IDLE_GOODBYE_PROMPT
+    )
+    # ⛔ `is None`, not `or`: 0 is a legitimate value (hang up on the first
+    # silence) and `or` would silently turn it back into 1.
+    max_prompts = reglages.get("user_idle_max_prompts")
+    max_prompts = DEFAULT_USER_IDLE_MAX_PROMPTS if max_prompts is None else int(max_prompts)
 
-    def __init__(
-        self,
-        engine: "PipecatEngine",
-        *,
-        idle_prompt: str | None = None,
-        goodbye_prompt: str | None = None,
-        max_prompts: int | None = None,
-    ):
-        self._engine = engine
-        self._retry_count = 0
-        self._idle_prompt = idle_prompt or DEFAULT_USER_IDLE_PROMPT
-        self._goodbye_prompt = goodbye_prompt or DEFAULT_USER_IDLE_GOODBYE_PROMPT
-        # ⛔ `is None`, not `or`: 0 is a legitimate value (hang up on the first
-        # silence) and `or` would silently turn it back into 1.
-        self._max_prompts = (
-            DEFAULT_USER_IDLE_MAX_PROMPTS if max_prompts is None else int(max_prompts)
+    logger.debug(f"Handling user_idle, attempt: {attempt}")
+    if attempt <= max_prompts:
+        await aggregator.push_frame(
+            LLMMessagesAppendFrame(
+                [{"role": "user", "content": idle_prompt}], run_llm=True
+            )
         )
-
-    def reset(self):
-        """Reset the retry count when user becomes active."""
-        self._retry_count = 0
-
-    async def handle_idle(self, aggregator):
-        """Handle user idle event with escalating prompts."""
-        supervisor = getattr(self._engine, "answer_supervisor", None)
-        if supervisor is not None and supervisor.blocks_workflow:
-            return
-        if getattr(self._engine, "transfer_in_progress", False):
-            # The caller is listening to a hold ringer while the next agent is
-            # prepared. Prompting them to speak, and eventually hanging up on
-            # them for not speaking, is exactly wrong here.
-            logger.debug("Suppressing user-idle prompt during an agent handoff")
-            return
-        self._retry_count += 1
-        logger.debug(f"Handling user_idle, attempt: {self._retry_count}")
-
-        if self._retry_count <= self._max_prompts:
-            message = {"role": "user", "content": self._idle_prompt}
-            await aggregator.push_frame(LLMMessagesAppendFrame([message], run_llm=True))
-            return
-
-        message = {"role": "user", "content": self._goodbye_prompt}
-        await aggregator.push_frame(LLMMessagesAppendFrame([message], run_llm=True))
-        await self._engine.end_call_with_reason(
-            EndTaskReason.USER_IDLE_MAX_DURATION_EXCEEDED.value
-        )
-
-
-def create_user_idle_handler(
-    engine: "PipecatEngine", run_configs: dict | None = None
-) -> UserIdleHandler:
-    """Return a UserIdleHandler that manages user-idle timeouts with state."""
-    run_configs = run_configs or {}
-    return UserIdleHandler(
-        engine,
-        idle_prompt=run_configs.get("user_idle_prompt"),
-        goodbye_prompt=run_configs.get("user_idle_goodbye_prompt"),
-        max_prompts=run_configs.get("user_idle_max_prompts"),
+        return
+    await aggregator.push_frame(
+        LLMMessagesAppendFrame([{"role": "user", "content": goodbye_prompt}], run_llm=True)
+    )
+    await engine.end_call_with_reason(
+        EndTaskReason.USER_IDLE_MAX_DURATION_EXCEEDED.value
     )
 
 

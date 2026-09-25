@@ -484,7 +484,8 @@ async def _message_tape_jusquau_modele(texte: str, configuration: dict, noeud=NO
             pass
 
         async def queue_node_opening(self, **k):
-            return "none"
+            # Upstream 4e6cb22b: the opening is an object with its action.
+            return SimpleNamespace(action="none")
 
         def get_node_greeting(self, *_):
             return None

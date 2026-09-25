@@ -144,7 +144,7 @@ def _composants() -> dict:
 
     Since the upstream split per agent (fc76383c) the model and the voice run
     in the agent's own worker: the call pipeline keeps a generation SLOT, here
-    a single processor standing for the model, reached through the call clock.
+    a single processor standing for the model, reached through the call monitor.
     """
     return {
         "transport": _transport(),
@@ -152,7 +152,7 @@ def _composants() -> dict:
         "audio_buffer": FrameProcessor(),
         "user_context_aggregator": FrameProcessor(),
         "assistant_context_aggregator": FrameProcessor(),
-        "call_duration_processor": FrameProcessor(),
+        "call_monitor_processor": FrameProcessor(),
         "generation_stage": [FrameProcessor()],
         "pipeline_metrics_aggregator": FrameProcessor(),
         "termination_funnel": FrameProcessor(),
@@ -165,11 +165,11 @@ def _modele(composants):
 
 
 def _juste_avant_le_modele(processeurs, etape, composants):
-    """Only the call clock (upstream, a timer) sits between ``etape`` and the
+    """Only the call monitor (upstream: timers and deadlines) sits between ``etape`` and the
     generation slot: nothing that reads or rewrites what the caller said."""
     i = processeurs.index(etape)
     return processeurs[i + 1 : processeurs.index(_modele(composants))] == [
-        composants["call_duration_processor"]
+        composants["call_monitor_processor"]
     ]
 
 

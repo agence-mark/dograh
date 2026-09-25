@@ -730,6 +730,10 @@ class WorkflowConfigurationDefaults(BaseModel):
             "(one moment) is still spoken, and stays a matter for the prompt."
         ),
     )
+    tts_cache_enabled: bool = Field(
+        default=False,
+        description="Reuse generated speech for repeated phrases. Supports MiniMax TTS.",
+    )
     call_dispositions: list[CallDispositionOption] = Field(
         default_factory=list,
         max_length=MAX_CALL_DISPOSITIONS,

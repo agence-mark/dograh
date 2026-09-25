@@ -396,5 +396,11 @@ def pytest_collection_modifyitems(config, items):
         except ValueError:
             continue
         raison = DIVERGENCES_ASSUMEES.get(cle, {}).get(item.originalname or item.name)
+        # Une fonction dont seuls CERTAINS jeux de parametres divergent est
+        # declaree cas par cas : {identifiant du jeu: raison}. Les autres jeux
+        # restent des tests ordinaires, qui doivent passer.
+        if isinstance(raison, dict):
+            callspec = getattr(item, "callspec", None)
+            raison = raison.get(callspec.id) if callspec is not None else None
         if raison:
             item.add_marker(pytest.mark.xfail(reason=raison, strict=True))

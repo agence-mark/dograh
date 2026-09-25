@@ -70,11 +70,11 @@ flatbuffers==25.12.19
 fonttools==4.66.0
 frozenlist==1.8.0
 google-api-core==2.39.0
-google-auth==2.58.1
+google-auth==2.53.0
 google-cloud-speech==2.40.0
 google-cloud-texttospeech==2.37.0
 google-crc32c==1.9.0
-google-genai==2.25.0
+google-genai==2.12.1
 googleapis-common-protos==1.75.4
 greenlet==3.5.6
 griffelib==2.3.0

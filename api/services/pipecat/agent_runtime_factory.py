@@ -41,6 +41,7 @@ from api.services.workflow.agent_runtime import AgentRuntime, new_visit_id
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.workflow.run_creation import definition_to_run
 from api.services.workflow.workflow_graph import WorkflowGraph
+from pipecat.observers.base_observer import BaseObserver
 from pipecat.pipeline.worker import PipelineWorker
 
 
@@ -92,6 +93,7 @@ class AgentRuntimeFactory:
         mps_correlation_id: str | None = None,
         on_agent_error: Callable[[AgentRuntime, Any], Any] | None = None,
         use_draft: bool = False,
+        observers: list[BaseObserver] | None = None,
         # [.mark] Keyword-only like every argument here. A later agent is built
         # like the first one: the organization's trade vocabulary for its
         # voice, and the call's live variables for its name filter. None keeps
@@ -111,6 +113,7 @@ class AgentRuntimeFactory:
         self._fetch_recording_audio = fetch_recording_audio
         self._has_recordings = has_recordings
         self._mps_correlation_id = mps_correlation_id
+        self._observers = observers
 
     @property
     def organization_id(self) -> int:
@@ -202,6 +205,8 @@ class AgentRuntimeFactory:
             user_config,
             self._audio_config,
             correlation_id=self._mps_correlation_id,
+            organization_id=self._organization_id,
+            tts_cache_enabled=run_configs.get("tts_cache_enabled") is True,
             run_configs=run_configs,
             lexique=self._lexique_metier,
         )
@@ -226,6 +231,8 @@ class AgentRuntimeFactory:
 
         recording_router = None
         if self._has_recordings and self._fetch_recording_audio is not None:
+            # Starts disabled until destination node preparation determines
+            # whether its formatted prompt uses recording response mode.
             recording_router = RecordingRouterProcessor(
                 audio_sample_rate=(
                     self._audio_config.pipeline_sample_rate
@@ -318,6 +325,7 @@ class AgentRuntimeFactory:
             audio_config=self._audio_config,
             call_tracing_context=call_tracing_context,
             call_worker_name=self._call_worker.name,
+            observers=self._observers,
         )
 
         if self._on_agent_error is not None:

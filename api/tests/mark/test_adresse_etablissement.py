@@ -74,12 +74,62 @@ def _application_organisation() -> FastAPI:
     return app
 
 
-def _enregistrer_preferences(corps: dict):
-    ecriture = AsyncMock(side_effect=lambda _org, preferences: preferences)
-    with patch.object(route_organisation, "upsert_organization_preferences", ecriture):
+def _enregistrer_preferences(corps: dict, deja_enregistre: dict | None = None):
+    """PUT the preferences through the real route AND upstream's partial update
+    (`update_organization_preferences`, 4e6cb22b); only the storage is faked.
+
+    ``deja_enregistre`` is what the organization had stored before.
+    """
+    from api.schemas.call_events import CallEventsSettings
+    from api.schemas.organization_preferences import (
+        OrganizationPreferences,
+        OrganizationPreferencesResponse,
+    )
+    from api.services import organization_preferences as service_preferences
+
+    stockees = {"valeur": OrganizationPreferences.model_validate(deja_enregistre or {})}
+
+    async def ecrire(_org, preferences):
+        stockees["valeur"] = preferences
+        return preferences
+
+    async def relire(_org):
+        return OrganizationPreferencesResponse(
+            **stockees["valeur"].model_dump(exclude={"call_events"}),
+            call_events=CallEventsSettings(),
+        )
+
+    ecriture = AsyncMock(side_effect=ecrire)
+    with (
+        patch.object(
+            service_preferences,
+            "get_organization_preferences",
+            AsyncMock(side_effect=lambda _org: stockees["valeur"]),
+        ),
+        patch.object(service_preferences, "upsert_organization_preferences", ecriture),
+        patch.object(
+            service_preferences,
+            "get_organization_preferences_response",
+            AsyncMock(side_effect=relire),
+        ),
+    ):
         reponse = TestClient(_application_organisation()).put("/organizations/preferences", json=corps)
     ecrit = ecriture.await_args.args[1] if ecriture.await_count else None
     return reponse, ecrit
+
+
+def test_preferences_l_adresse_survit_a_un_enregistrement_qui_ne_l_envoie_pas():
+    """Collision 7 of the 25/09 analysis: upstream now updates the preferences
+    PARTIALLY. An organization's address must survive a save from a screen that
+    only sends the time zone -- and must never be validated again when absent."""
+    reponse, ecrit = _enregistrer_preferences(
+        {"timezone": "Europe/Paris"},
+        deja_enregistre={"adresse_etablissement": SAINT_MAXIMIN},
+    )
+    assert reponse.status_code == 200, reponse.text
+    assert ecrit.adresse_etablissement.model_dump() == SAINT_MAXIMIN
+    assert ecrit.timezone == "Europe/Paris"
+    assert reponse.json()["adresse_etablissement"] == SAINT_MAXIMIN
 
 
 def test_preferences_adresse_valide_relue_a_lidentique():

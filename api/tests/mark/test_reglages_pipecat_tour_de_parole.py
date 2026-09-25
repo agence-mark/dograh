@@ -131,13 +131,17 @@ def test_sans_reglage_smart_turn_est_celui_daujourdhui():
     assert params.stop_secs == 2.0
 
 
+def _DEVRAIT_INTERROMPRE() -> bool:
+    return True
+
+
 def _agregateur(run_configs=None):
     """The parameters the pipeline hands to the user aggregator."""
     return run_pipeline._construire_parametres_agregateur_utilisateur(
         user_turn_strategies=None,
+        should_interrupt=_DEVRAIT_INTERROMPRE,
         user_mute_strategies=[],
         user_turn_stop_timeout=USER_TURN_STOP_TIMEOUT_AVANT,
-        max_user_idle_timeout=10.0,
         user_vad_analyzer=None,
         reglages=collecter_reglages_tour_de_parole(run_configs),
     )
@@ -150,6 +154,10 @@ def test_sans_reglage_lagregateur_est_celui_daujourdhui():
     assert params.audio_idle_timeout == defauts.audio_idle_timeout
     assert params.filter_incomplete_user_turns is False
     assert params.user_turn_completion_config is None
+    # Upstream 4e6cb22b: the call monitor owns idle reminders, Pipecat's own
+    # idle timer stays off, and the engine decides whether a turn interrupts.
+    assert params.user_idle_timeout == 0
+    assert params.should_interrupt is _DEVRAIT_INTERROMPRE
 
 
 def test_les_reglages_de_lagregateur_arrivent():

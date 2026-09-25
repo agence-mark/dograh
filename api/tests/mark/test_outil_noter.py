@@ -117,7 +117,7 @@ def test_nom_en_double_refuse_a_l_enregistrement():
 
 def test_les_noms_reserves_couvrent_les_cles_du_moteur():
     """La liste des noms réservés est écrite à la main : ce test la tient à jour."""
-    assert pipecat_engine._ENGINE_OWNED_CONTEXT_KEYS <= NOMS_RESERVES
+    assert pipecat_engine.ENGINE_OWNED_CONTEXT_KEYS <= NOMS_RESERVES
 
 
 def test_schema_un_parametre_facultatif_par_champ():

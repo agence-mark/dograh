@@ -48,7 +48,9 @@ TRANSMISSIONS = [
         ),
     ),
     (
-        r"create_user_idle_handler\(run_configs\)",
+        # Upstream 4e6cb22b: the call monitor decides, the engine holds the
+        # agent's prompts for it.
+        r"engine\.regler_relances\(run_configs\)",
         "the idle prompts and how many times they are sent before hanging up",
     ),
     (
