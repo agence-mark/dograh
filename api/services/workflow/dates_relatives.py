@@ -116,10 +116,18 @@ _MOIS = (
     "janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre"
     "|decembre"
 )
-# Une année ou un mois nommé, où qu'ils soient : « 2024 », « fin 2023 »,
-# « mars 2024 », « le 12 mars ». Large exprès : ne refuser que ce qui n'a rien
-# d'une date.
-_TRACE_DE_DATE = re.compile(rf"\b((19|20)\d{{2}}|{_MOIS})\b")
+# Les repères du calendrier, où qu'ils soient : une année, un mois nommé, un
+# jour et un mois en chiffres, une saison, une fête, le mot « année » ou
+# « mois » (« fin 2023 », « le 12 mars », « 12/03 », « l'hiver dernier », « à la
+# Toussaint », « début d'année »). Large exprès : ne refuser que ce qui n'a rien
+# d'une date. Revue du 25/09 : « été » seulement précédé d'un déterminant, le
+# participe (« a été fait ») n'est pas une saison.
+_SAISONS_ET_FETES = (
+    r"hiver|printemps|automne|(?:cet|l'|en|de l') ?ete|noel|toussaint|paques"
+)
+_TRACE_DE_DATE = re.compile(
+    rf"\b((19|20)\d{{2}}|{_MOIS}|\d{{1,2}}/\d{{1,2}}|{_SAISONS_ET_FETES}|annee|mois)\b"
+)
 
 
 def est_une_date(valeur: str, jour: datetime | None = None) -> bool:

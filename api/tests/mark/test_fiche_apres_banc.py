@@ -1155,6 +1155,30 @@ def test_C8_une_date_ecrite_dite_passe_toujours(valeur, paroles):
     assert (verdict.statut, fiche.get("dernier_entretien")) == ("ecrit", valeur)
 
 
+@pytest.mark.parametrize(
+    "valeur",
+    [
+        "l'hiver dernier",
+        "cet été",
+        "Noël dernier",
+        "à la Toussaint",
+        "début d'année",
+        "12/03",
+    ],
+)
+def test_revue_une_date_dite_avec_un_repere_du_calendrier_n_est_pas_refusee(valeur):
+    """Relevé par la revue du 25/09 : une saison, une fête, « début d'année »,
+    un jour en chiffres étaient refusés « pas_une_date » alors que dits."""
+    verdict, _ = _date(valeur, f"c'était {valeur}")
+    assert verdict.statut == "ecrit"
+
+
+@pytest.mark.parametrize("valeur", ["a été fait", "tous les ans", "jamais"])
+def test_revue_ce_qui_n_a_aucun_repere_du_calendrier_reste_refuse(valeur):
+    verdict, _ = _date(valeur, f"il {valeur}")
+    assert (verdict.statut, verdict.raison) == ("refuse", "pas_une_date")
+
+
 def test_C8_hors_d_un_champ_de_date_annuel_reste_une_valeur():
     verdict = ecrire_dans_la_fiche(
         {}, _reglages(), "motif", "entretien annuel", paroles=PAROLES_852
