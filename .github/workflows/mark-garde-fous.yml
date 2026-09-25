@@ -23,6 +23,10 @@ on:
       - "mark/deploiement"
   workflow_dispatch:
 
+# Lecture seule : ces contrôles n'écrivent jamais dans le dépôt (relecture du 25/09).
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -95,6 +99,10 @@ jobs:
         # Tourne même si un contrôle précédent a échoué : tous les défauts d'un coup.
         if: ${{ !cancelled() }}
         run: node scripts/mark/verifier-pipecat-epingle.mjs
+
+      - name: R5 · chaque dépendance directe de l'image est figée (bloquant)
+        if: ${{ !cancelled() }}
+        run: node scripts/mark/verifier-contraintes.mjs
 
       # E4 (25/09) : informative d'abord. Mesure du 25/09 : 81 fichiers seraient
       # reformatés, presque tous à nous. On mesure l'écart avant d'en décider.

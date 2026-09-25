@@ -19,6 +19,17 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
+# Les versions se résolvent sur le Pipecat du sous-module : il doit être celui que
+# le dépôt épingle, et sans modification locale (relecture du 25/09).
+if git submodule status pipecat | grep -qE '^[+-U]'; then
+    echo "Le sous-module pipecat n'est pas au commit épinglé (git submodule update pipecat)." >&2
+    exit 1
+fi
+if [ -n "$(git -C pipecat status --porcelain)" ]; then
+    echo "Le sous-module pipecat a des modifications locales : contraintes refusées." >&2
+    exit 1
+fi
+
 # Les extras sont lus dans api/Dockerfile : une seule liste fait foi, jamais une copie.
 EXTRAS=$(grep -oE "pipecat-ai\[[a-z0-9,-]+\]" api/Dockerfile | head -1 | sed -E 's/^pipecat-ai//')
 if [ -z "$EXTRAS" ]; then

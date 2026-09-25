@@ -51,7 +51,10 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
 # Install dograh API requirements first so pipecat's extras win on any
 # shared transitive dependencies (matches api/Dockerfile and CI workflow).
 Write-Host "Installing dograh API requirements..."
-uv pip install -r api/requirements.txt
+# [.mark] -c api/constraints.txt : les versions exactes de l'image (E3, 25/09),
+# comme setup_requirements.sh. L'etape dev n'en prend PAS (watchfiles 1.1.1
+# contre 1.3.0 dans l'image : les deux ensemble seraient refuses).
+uv pip install -r api/requirements.txt -c api/constraints.txt
 
 if ($Dev) {
     Write-Host "Installing dograh API dev requirements..."
@@ -71,6 +74,6 @@ if ($Dev) {
     # override pipecat's protobuf version constraint.
     $PipecatInstallArgs += @('--group', 'pipecat/pyproject.toml:dev')
 }
-uv pip install @PipecatInstallArgs
+uv pip install @PipecatInstallArgs -c api/constraints.txt
 
 Write-Host "Setup complete! Requirements are installed."
