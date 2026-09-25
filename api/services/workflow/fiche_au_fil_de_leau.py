@@ -972,7 +972,45 @@ def ecrire_dans_la_fiche(
         + (f" [{verdict.suite}]" if verdict.suite else "")
     )
     logger.debug(f"[fiche] {source} {champ}={valeur!r}")
+    if (
+        verdict.statut == "ecrit"
+        and definition is not None
+        and definition.lecteur_effectif == "commune"
+        and sure
+        and lecture is not None
+    ):
+        # Après la commune dans le journal : c'est elle qui donne le code.
+        _code_postal_de_la_commune(fiche, reglages, champ, lecture)
     return verdict
+
+
+def _code_postal_de_la_commune(
+    fiche: dict, reglages: ReglagesFiche, champ: str, lecture: Lecture
+) -> None:
+    """C12 (PB13, run 851) : une commune écrite SÛRE qui n'a qu'un code postal le
+    donne à son champ de code postal (``commune…`` -> ``code_postal…``, même
+    suite) s'il est vide ou non sûr. Au 851, Compiègne était sûre et le code
+    postal, jamais dit, restait vide. ⛔ Un code postal sûr n'est jamais écrasé."""
+    if len(lecture.codes_postaux) != 1:
+        return
+    cible = "code_postal" + champ[len("commune") :]
+    if cible not in reglages.par_nom:
+        return
+    if (fiche.get(CLE_ETAT, {}).get(cible) or {}).get("sure"):
+        return
+    code = lecture.codes_postaux[0]
+    verdict = _ecrire(fiche, cible, code, True, "commune", False, None)
+    fiche.setdefault(CLE_JOURNAL, []).append(
+        {
+            "champ": cible,
+            "valeur": code,
+            "statut": verdict.statut,
+            "raison": "code_postal_unique_de_la_commune",
+            "source": "commune",
+            "sure": True,
+        }
+    )
+    logger.info(f"[fiche] commune {cible} -> {verdict.statut} (code postal unique)")
 
 
 def _ecrire(

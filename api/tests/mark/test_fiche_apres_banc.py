@@ -20,6 +20,7 @@ test dans l'autre sens : ce qui doit toujours être refusé (PB15).
 | C7 | « il y a trois ans » dit, lu « il y a 3 ans » par le modèle, est accepté (cause établie sur le 847) |
 | C8 | Un champ de date refuse ce qui n'est pas une date (« annuel ») |
 | C10 | Une marque n'est sûre que reconnue par le lexique (ou terme exact) ; sinon à confirmer |
+| C12 | Une commune sûre à code postal unique remplit le code postal vide ou non sûr |
 """
 
 from datetime import datetime
@@ -1133,3 +1134,82 @@ def test_C10_l_appel_donne_son_lexique_a_la_fiche():
     ).read_text(encoding="utf-8")
     appel = source.split("fiche=ReglagesFiche.depuis(")[1].split(")")[0]
     assert "lexique=lexique_metier" in appel
+
+
+# --- C12 : le code postal d'une commune qui n'en a qu'un (PB13) ---------------
+
+COMPIEGNE = {
+    "nom": "Compiègne",
+    "code_insee": "60159",
+    "departement": "Oise",
+    "codes_postaux": ["60200"],
+}
+
+
+def _commune_sure_au_tour(retenue: dict, entendu: str) -> dict:
+    return {
+        "tour_appelant": 9,
+        "communes_verifiees": [
+            {"etape": "adresse", "entendu": entendu, "statut": "sure",
+             "commune_retenue": retenue, "propositions": [retenue], "tour": 9}
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_C12_run_851_compiegne_donne_60200():
+    """Run 851 : « J'habite au onze rue de Paris à Compiègne. » Compiègne sûre, un
+    seul code postal ; le code postal, jamais dit, restait vide (le balayage
+    refusait 60200, non dit, à raison)."""
+    fiche = _commune_sure_au_tour(COMPIEGNE, "Compiègne")
+    messages = [{"role": "user", "content": "J'habite au 11 rue de Paris à Compiègne."}]
+    await _noter(fiche, messages, commune="Compiègne")
+    assert (fiche["code_postal"], fiche["fiche_etat"]["code_postal"]) == (
+        "60200",
+        {"sure": True, "source": "commune"},
+    )
+    assert fiche["fiche_journal"][-1]["raison"] == "code_postal_unique_de_la_commune"
+    # Le balayage de fin d'appel ne le redemande plus.
+    extraire = Extracteur({})
+    await balayer_la_fiche(_reglages(), extraire, fiche, messages)
+    assert all("code_postal" not in noms for noms, _ in extraire.appels)
+
+
+def test_C12_une_commune_a_plusieurs_codes_postaux_ne_donne_rien():
+    base = charger_base()
+    commune = next(c for c in base.communes if c.nom == "Amiens")
+    assert len(commune.cps) > 1
+    retenue = {
+        "nom": commune.nom,
+        "code_insee": commune.insee,
+        "codes_postaux": list(commune.cps),
+    }
+    fiche = _commune_sure_au_tour(retenue, "Amiens")
+    ecrire_dans_la_fiche(fiche, _reglages(), "commune", "Amiens", paroles=["Amiens"])
+    assert fiche["commune"] == "Amiens" and "code_postal" not in fiche
+
+
+def test_C12_un_code_postal_sur_n_est_jamais_ecrase():
+    fiche = _commune_sure_au_tour(COMPIEGNE, "Compiègne")
+    ecrire_dans_la_fiche(
+        fiche, _reglages(), "code_postal", "60280", paroles=["c'est 60280"]
+    )
+    ecrire_dans_la_fiche(fiche, _reglages(), "commune", "Compiègne", paroles=[])
+    assert fiche["code_postal"] == "60280"
+
+
+def test_C12_un_code_postal_non_sur_recoit_celui_de_la_commune():
+    fiche = _commune_sure_au_tour(COMPIEGNE, "Compiègne")
+    fiche["code_postal"] = "60100"
+    fiche["fiche_etat"] = {"code_postal": {"sure": False, "source": "outil"}}
+    ecrire_dans_la_fiche(fiche, _reglages(), "commune", "Compiègne", paroles=[])
+    assert fiche["code_postal"] == "60200"
+
+
+def test_C12_une_commune_non_sure_ne_donne_rien():
+    fiche: dict = {}
+    ecrire_dans_la_fiche(
+        fiche, _reglages(), "commune", "Compiègne", paroles=["à Compiègne"]
+    )
+    assert fiche["fiche_etat"]["commune"]["sure"] is False
+    assert "code_postal" not in fiche
