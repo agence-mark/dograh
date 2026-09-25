@@ -41,6 +41,7 @@ from api.services.configuration.registry import (
 )
 from api.services.nombres.lecture import _TABLE
 from api.services.nombres.voix import code_postal_en_mots, ecrire_pour_la_voix
+from api.services.pipecat.appels_de_fonction_voix import retirer_appels_de_fonction
 from api.services.pipecat.audio_config import AudioConfig
 from api.services.pipecat.nombres_pour_la_voix import nombres_en_mots
 from api.services.pipecat.service_factory import (
@@ -273,7 +274,11 @@ FOURNISSEURS = {
 def test_chaque_voix_francaise_recoit_la_reecriture(nom):
     user_config = SimpleNamespace(tts=FOURNISSEURS[nom](), stt=STT_FRANCAIS)
     service = create_tts_service(user_config, _audio_config(), run_configs={})
-    assert [t for _, t in service._text_transforms] == [nombres_en_mots]
+    # C14 (patch du banc) : le retrait des appels de fonction passe d'abord.
+    assert [t for _, t in service._text_transforms] == [
+        retirer_appels_de_fonction,
+        nombres_en_mots,
+    ]
     assert nombres_en_mots not in service._text_filters
 
 
@@ -290,7 +295,7 @@ def test_voxtral_garde_le_texte_du_modele_pour_lhistorique():
 def test_une_voix_non_francaise_ne_la_recoit_pas(nom):
     user_config = SimpleNamespace(tts=FOURNISSEURS[nom](), stt=STT_ANGLAIS)
     service = create_tts_service(user_config, _audio_config(), run_configs={})
-    assert service._text_transforms == []
+    assert service._text_transforms == [("*", retirer_appels_de_fonction)]
 
 
 def test_mot_a_mot_ne_la_recoit_pas():

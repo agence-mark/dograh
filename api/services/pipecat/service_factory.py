@@ -27,6 +27,10 @@ from api.services.configuration.registry import (
     MISTRAL_SAMPLING_FIELDS,
     ServiceProviders,
 )
+from api.services.pipecat.appels_de_fonction_voix import (
+    PhraseQuiNEstQuUnAppel,
+    retirer_appels_de_fonction,
+)
 from api.services.pipecat.conversion_nombres import langue_agent_francaise
 from api.services.pipecat.deepgram_endpoints import DEEPGRAM_EU_STT_BASE_URL
 from api.services.pipecat.gemini_json_schema_adapter import (
@@ -900,7 +904,9 @@ def construire_filtres_de_texte_voix(run_configs: dict | None = None) -> list:
     prompt and the dedicated node.
     """
     run_configs = run_configs or {}
-    filtres = [XMLFunctionTagFilter()]
+    # C14 (patch du banc, run 852) : une phrase qui n'est qu'un appel de fonction
+    # écrit n'est jamais dite. Juste après les balises de fonction, même famille.
+    filtres = [XMLFunctionTagFilter(), PhraseQuiNEstQuUnAppel()]
     if run_configs.get(
         "tts_markdown_filter_enabled", DEFAULT_TTS_MARKDOWN_FILTER_ENABLED
     ):
@@ -975,9 +981,15 @@ def reglages_de_voix_communs(
         valeur = run_configs.get(cle)
         return defaut if valeur is None else valeur
 
+    mode = _valeur("tts_text_aggregation_mode", DEFAULT_TTS_TEXT_AGGREGATION_MODE)
+    # C14 (patch du banc, run 852) : un appel de fonction écrit dans une phrase
+    # n'est jamais dit ; EN PREMIER, avant qu'un remplacement ne le touche.
+    # Phrase par phrase seulement : mot à mot, il arrive en morceaux.
+    retrait = [("*", retirer_appels_de_fonction)] if str(mode) == "sentence" else []
     return {
         "text_filters": construire_filtres_de_texte_voix(run_configs),
-        "text_transforms": construire_remplacements_de_voix(run_configs, langue_francaise, lexique),
+        "text_transforms": retrait
+        + construire_remplacements_de_voix(run_configs, langue_francaise, lexique),
         "text_aggregation_mode": TextAggregationMode(
             _valeur("tts_text_aggregation_mode", DEFAULT_TTS_TEXT_AGGREGATION_MODE)
         ),

@@ -50,6 +50,10 @@ from api.services.configuration.registry import (
 )
 from api.services.pipecat import service_factory
 from api.services.pipecat.audio_config import AudioConfig
+from api.services.pipecat.appels_de_fonction_voix import (
+    PhraseQuiNEstQuUnAppel,
+    retirer_appels_de_fonction,
+)
 from api.services.pipecat.service_factory import (
     construire_filtres_de_texte_voix,
     construire_remplacements_de_voix,
@@ -60,7 +64,10 @@ from api.services.pipecat.service_factory import (
 # ⛔ The literal list every provider received before this patch. Comparing
 # against a list re-derived from the code would be tautological: the code is
 # what moves.
-FILTRES_AUJOURDHUI = (XMLFunctionTagFilter,)
+# C14 (patch du banc, 25/09) : + la phrase qui n'est qu'un appel de fonction.
+FILTRES_AUJOURDHUI = (XMLFunctionTagFilter, PhraseQuiNEstQuUnAppel)
+# C14 : la seule transformation que reçoit une voix qui n'a rien réglé.
+TRANSFORMATIONS_AUJOURDHUI = [("*", retirer_appels_de_fonction)]
 
 
 def _audio_config():
@@ -117,7 +124,7 @@ def test_filtre_allume_sur_chaque_fournisseur(nom):
         FOURNISSEURS[nom](), run_configs={"tts_markdown_filter_enabled": True}
     )
     types = [type(f) for f in service._text_filters]
-    assert types == [XMLFunctionTagFilter, MarkdownTextFilter], (
+    assert types == [XMLFunctionTagFilter, PhraseQuiNEstQuUnAppel, MarkdownTextFilter], (
         f"{nom} did not receive the markdown filter. Either its branch still "
         f"builds its own list, or it does not forward text_filters at all."
     )
@@ -127,7 +134,7 @@ def test_lordre_met_le_filtre_de_balises_en_premier():
     """The markdown filter must never see a half-stripped tool call."""
     filtres = construire_filtres_de_texte_voix({"tts_markdown_filter_enabled": True})
     assert isinstance(filtres[0], XMLFunctionTagFilter)
-    assert isinstance(filtres[1], MarkdownTextFilter)
+    assert isinstance(filtres[-1], MarkdownTextFilter)
 
 
 # --------------------------------------------------------------------------- #
@@ -216,7 +223,7 @@ def test_sans_reglage_la_voix_est_construite_comme_avant(nom):
     service = _voix(FOURNISSEURS[nom]())
     assert service._push_silence_after_stop is SILENCE_POUSSE_AVANT
     assert str(service._text_aggregation_mode) == "sentence"
-    assert service._text_transforms == []
+    assert service._text_transforms == TRANSFORMATIONS_AUJOURDHUI
 
 
 def test_le_silence_apres_la_parole_est_eteint_par_defaut():
@@ -342,4 +349,4 @@ def test_un_null_enregistre_ne_tue_pas_la_construction_de_la_voix(run_configs):
     assert communs["silence_time_s"] == 1.0
     assert str(communs["text_aggregation_mode"]) == "sentence"
     assert communs["push_silence_after_stop"] is False
-    assert communs["text_transforms"] == []
+    assert communs["text_transforms"] == TRANSFORMATIONS_AUJOURDHUI
