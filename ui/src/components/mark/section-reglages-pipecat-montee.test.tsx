@@ -264,6 +264,15 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         expect(carte?.nextElementSibling).toBe(container.querySelector(`#${ID_SECTION_HORAIRES_OUVERTURE}`));
     });
 
+    it("[call record] the field editor of the MOUNTED card offers the allowed values (PB3)", async () => {
+        await rendreLaPage();
+        screen.getByRole("button", { name: /edit fields/i }).click();
+        (await screen.findByRole("button", { name: /add field/i })).click();
+        expect(await screen.findByLabelText("Allowed values")).toBe(
+            document.getElementById("fiche_valeurs_0"),
+        );
+    });
+
     it("[reference reader] its trigger names are on the page when the number conversion is on", async () => {
         await rendreLaPage();
         // Off by default: the field appears with the switch.
