@@ -556,7 +556,9 @@ def lire_commune(valeur: Any, fiche: dict) -> Lecture:
     return Lecture(valeur, False, _suite(options), options, trouvee=False)
 
 
-def lire_lexique(valeur: Any, fiche: dict, termes: dict[str, str]) -> Lecture:
+def lire_lexique(
+    valeur: Any, fiche: dict, termes: dict[str, str], paroles: Iterable[str] = ()
+) -> Lecture:
     """C10 (PB12, run 849) : « Palazzetti » transcrit « paradis éthique », noté
     « Paradis Éthique »... et écrit SÛR : une marque n'avait aucun lecteur.
 
@@ -576,7 +578,11 @@ def lire_lexique(valeur: Any, fiche: dict, termes: dict[str, str]) -> Lecture:
         return Lecture(terme, False, "a_confirmer")
     officiel = termes.get(normaliser_terme(str(valeur)))
     if officiel:
-        return Lecture(officiel, True)
+        # Revue du 25/09 (PB12 resserré) : un terme du lexique n'est sûr que si
+        # la personne l'a dit ; jamais dit (« Jotul » sorti du modèle), refusé.
+        if est_cite(valeur, paroles):
+            return Lecture(officiel, True)
+        return Lecture(officiel, False, "a_confirmer", trouvee=False)
     return Lecture(valeur, False, "a_confirmer", trouvee=False)
 
 
@@ -1074,7 +1080,7 @@ def ecrire_dans_la_fiche(
         elif definition.lecteur_effectif == "rue":
             lecture = lire_rue(valeur, fiche, paroles, champ)
         elif definition.lecteur_effectif == "lexique":
-            lecture = lire_lexique(valeur, fiche, reglages.termes_du_lexique)
+            lecture = lire_lexique(valeur, fiche, reglages.termes_du_lexique, paroles)
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
             if definition.lecteur_effectif == "rue":

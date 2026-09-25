@@ -1252,6 +1252,15 @@ def test_C10_un_terme_du_lexique_ecrit_tel_quel_est_sur_meme_sans_trace():
     assert fiche["fiche_etat"]["marque_appareil"]["sure"] is True
 
 
+def test_revue_C_un_terme_du_lexique_jamais_dit_est_refuse():
+    """Un terme du lexique que la personne n'a pas prononcé (le modèle écrit
+    « Jotul » de lui-même) n'est jamais une marque sûre : refusé, non dit."""
+    fiche: dict = {}
+    verdict = _marque(fiche, "Jotul", "c'est un poêle à granulés")
+    assert (verdict.statut, verdict.raison) == ("refuse", "non_dit")
+    assert "marque_appareil" not in fiche
+
+
 def test_C10_run_840_un_terme_seulement_propose_reste_a_confirmer():
     """Run 840 : « éthique à main » → le lexique PROPOSE Edilkamin, à confirmer ;
     le modèle qui note « Edilkamin » avant la réponse n'en fait pas une marque sûre."""
