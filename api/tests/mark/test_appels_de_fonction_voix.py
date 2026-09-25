@@ -120,10 +120,11 @@ async def test_le_filtre_saute_une_phrase_qui_n_est_qu_un_appel(phrase, attendu)
 
 def test_branchement_dans_la_collecte_des_filtres_et_des_transformations():
     filtres = construire_filtres_de_texte_voix(None)
-    assert [type(f) for f in filtres[:2]] == [
-        XMLFunctionTagFilter,
-        PhraseQuiNEstQuUnAppel,
-    ]
+    assert type(filtres[0]) is XMLFunctionTagFilter
+    # En dernier, après le markdown (revue du 25/09).
+    assert type(filtres[-1]) is PhraseQuiNEstQuUnAppel
+    filtres = construire_filtres_de_texte_voix({"tts_markdown_filter_enabled": True})
+    assert type(filtres[-1]) is PhraseQuiNEstQuUnAppel
     transformations = reglages_de_voix_communs(None)["text_transforms"]
     assert transformations == [("*", retirer_appels_de_fonction)]
     transformations = reglages_de_voix_communs(
@@ -188,3 +189,42 @@ async def test_par_pipecat_une_phrase_qui_n_est_qu_un_appel_n_atteint_pas_la_voi
     )
     assert voix.dits and not any("demande_entretien" in d for d in voix.dits)
     assert not any(not d.strip() for d in voix.dits)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "phrase, attendu",
+    [
+        ("D'accord.•demande_entretien()", "D'accord."),
+        ("D'accord. **demande_entretien()**", "D'accord."),
+        ("D'accord. `demande_entretien()`", "D'accord."),
+        ("Je note. demande_entretien(motif=(x))", "Je note."),
+        ("le poêle (à bois) fume", "le poêle (à bois) fume"),
+        ("à 10h (matin)", "à 10h (matin)"),
+    ],
+)
+async def test_revue_un_appel_colle_ou_balise_est_retire(phrase, attendu):
+    assert await retirer_appels_de_fonction(phrase) == attendu
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("phrase", ["**demande_entretien()**", "`demande_entretien()`"])
+async def test_revue_une_phrase_qui_n_est_qu_un_appel_balise_est_sautee(phrase):
+    assert await PhraseQuiNEstQuUnAppel().filter(phrase) == ""
+
+
+@pytest.mark.asyncio
+async def test_revue_un_retrait_n_est_journalise_qu_une_fois():
+    from loguru import logger
+
+    lignes: list[str] = []
+    ident = logger.add(lignes.append, format="{message}", level="WARNING")
+    try:
+        phrase = "D'accord. •demande_entretien()"
+        filtree = await PhraseQuiNEstQuUnAppel().filter(phrase)
+        await retirer_appels_de_fonction(filtree)
+        await PhraseQuiNEstQuUnAppel().filter("•demande_entretien()")
+    finally:
+        logger.remove(ident)
+    retraits = [ligne for ligne in lignes if "retiré de la voix" in ligne]
+    assert len(retraits) == 2

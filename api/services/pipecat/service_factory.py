@@ -904,13 +904,16 @@ def construire_filtres_de_texte_voix(run_configs: dict | None = None) -> list:
     prompt and the dedicated node.
     """
     run_configs = run_configs or {}
-    # C14 (patch du banc, run 852) : une phrase qui n'est qu'un appel de fonction
-    # écrit n'est jamais dite. Juste après les balises de fonction, même famille.
-    filtres = [XMLFunctionTagFilter(), PhraseQuiNEstQuUnAppel()]
+    filtres = [XMLFunctionTagFilter()]
     if run_configs.get(
         "tts_markdown_filter_enabled", DEFAULT_TTS_MARKDOWN_FILTER_ENABLED
     ):
         filtres.append(MarkdownTextFilter())
+    # C14 (patch du banc, run 852) : une phrase qui n'est qu'un appel de fonction
+    # écrit n'est jamais dite. En DERNIER (revue du 25/09) : il juge la phrase
+    # telle qu'elle partirait à la voix, balisage déjà retiré ; placé avant le
+    # markdown, « **demande_entretien()** » passait et la voix recevait un vide.
+    filtres.append(PhraseQuiNEstQuUnAppel())
     return filtres
 
 

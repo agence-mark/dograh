@@ -41,10 +41,14 @@ from loguru import logger
 
 from pipecat.utils.text.base_text_filter import BaseTextFilter
 
-# Un nom de fonction collé à ses parenthèses, et la puce qui le précède.
+# Un nom de fonction collé à ses parenthèses, et la puce ou le balisage qui
+# l'entourent. Revue du 25/09 : précédé de n'importe quel caractère qui n'est
+# pas une lettre (« D'accord.•demande_entretien() », « **demande_entretien()** »),
+# arguments avec un niveau de parenthèses (« demande(motif=(x)) »).
 _APPEL = re.compile(
-    r"(?:(?<=\s)|^)[•*\-–]?\s*"
-    r"(?P<nom>[A-Za-z_][A-Za-z0-9_]*)\((?P<arguments>[^()]*)\)"
+    r"(?<![A-Za-z0-9_])[•*\-–`]*\s*"
+    r"(?P<nom>[A-Za-z_][A-Za-z0-9_]*)"
+    r"\((?P<arguments>(?:[^()]|\([^()]*\))*)\)[`*]*"
 )
 
 
@@ -52,7 +56,7 @@ def _est_un_appel(correspondance: re.Match[str]) -> bool:
     return "_" in correspondance["nom"] or not correspondance["arguments"].strip()
 
 
-def retirer_les_appels(texte: str) -> str:
+def retirer_les_appels(texte: str, *, journaliser: bool = True) -> str:
     """``texte`` sans les appels de fonction écrits, espaces resserrés."""
     retires: list[str] = []
 
@@ -65,10 +69,15 @@ def retirer_les_appels(texte: str) -> str:
     propre = _APPEL.sub(_remplacer, texte)
     if not retires:
         return texte
+    if journaliser:
+        _journaliser(retires)
+    return re.sub(r"[ \t]{2,}", " ", propre).strip()
+
+
+def _journaliser(retires: list[str]) -> None:
     logger.warning(
         f"[.mark] appel de fonction retiré de la voix : {', '.join(retires)}"
     )
-    return re.sub(r"[ \t]{2,}", " ", propre).strip()
 
 
 async def retirer_appels_de_fonction(texte: str, _type: str = "*") -> str:
@@ -82,13 +91,21 @@ async def retirer_appels_de_fonction(texte: str, _type: str = "*") -> str:
 
 class PhraseQuiNEstQuUnAppel(BaseTextFilter):
     """Filtre de la voix : une phrase qui n'est qu'un appel de fonction écrit est
-    sautée (rendue vide) ; toute autre phrase passe intacte. Jamais d'exception."""
+    sautée (rendue vide) ; toute autre phrase passe intacte. Jamais d'exception.
+
+    Placé en DERNIER des filtres (après le markdown) : c'est la phrase telle
+    qu'elle partirait à la voix qu'il juge. Il ne journalise que la phrase qu'il
+    saute ; une phrase mixte l'est par la transformation (une ligne par retrait).
+    """
 
     async def filter(self, text: str) -> str:
         try:
-            reste = retirer_les_appels(text)
+            reste = retirer_les_appels(text, journaliser=False)
             # Rien qu'un appel, ponctuation comprise (« •demande_entretien(). »).
             if reste != text and not re.search(r"[^\W_]", reste):
+                _journaliser(
+                    [m["nom"] for m in _APPEL.finditer(text) if _est_un_appel(m)]
+                )
                 return ""
         except Exception as erreur:  # noqa: BLE001 -- la voix doit continuer
             logger.warning(f"[.mark] appels de fonction non retirés : {erreur!r}")

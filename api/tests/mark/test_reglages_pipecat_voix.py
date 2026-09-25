@@ -124,7 +124,11 @@ def test_filtre_allume_sur_chaque_fournisseur(nom):
         FOURNISSEURS[nom](), run_configs={"tts_markdown_filter_enabled": True}
     )
     types = [type(f) for f in service._text_filters]
-    assert types == [XMLFunctionTagFilter, PhraseQuiNEstQuUnAppel, MarkdownTextFilter], (
+    assert types == [
+        XMLFunctionTagFilter,
+        MarkdownTextFilter,
+        PhraseQuiNEstQuUnAppel,
+    ], (
         f"{nom} did not receive the markdown filter. Either its branch still "
         f"builds its own list, or it does not forward text_filters at all."
     )
@@ -134,7 +138,11 @@ def test_lordre_met_le_filtre_de_balises_en_premier():
     """The markdown filter must never see a half-stripped tool call."""
     filtres = construire_filtres_de_texte_voix({"tts_markdown_filter_enabled": True})
     assert isinstance(filtres[0], XMLFunctionTagFilter)
-    assert isinstance(filtres[-1], MarkdownTextFilter)
+    # C14 : la phrase qui n'est qu'un appel est jugée en dernier, après le markdown.
+    assert [type(f) for f in filtres[1:]] == [
+        MarkdownTextFilter,
+        PhraseQuiNEstQuUnAppel,
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -256,7 +264,7 @@ def test_le_mot_a_mot_arrive_sur_chaque_fournisseur(nom):
 
 @pytest.mark.asyncio
 async def test_un_remplacement_transforme_le_texte_envoye_a_la_voix():
-    (_, transformation), = construire_remplacements_de_voix(
+    ((_, transformation),) = construire_remplacements_de_voix(
         {"tts_replacements": ["SAV:S. A. V."]}
     )
     assert await transformation("Appelez le SAV demain", "*") == (
@@ -271,7 +279,7 @@ async def test_un_remplacement_est_litteral_et_non_une_expression():
     Left as a regular expression, a dot typed in "M." would match any
     character and "(" would raise at the first call of the day.
     """
-    (_, transformation), = construire_remplacements_de_voix(
+    ((_, transformation),) = construire_remplacements_de_voix(
         {"tts_replacements": ["M.:Monsieur"]}
     )
     assert await transformation("M. Martin et Mx Durand", "*") == (
@@ -286,7 +294,10 @@ def test_une_entree_mal_formee_est_ignoree_et_ne_casse_rien():
 
     An empty left side would rewrite every character of every answer.
     """
-    assert construire_remplacements_de_voix({"tts_replacements": ["sans deux points"]}) == []
+    assert (
+        construire_remplacements_de_voix({"tts_replacements": ["sans deux points"]})
+        == []
+    )
     assert construire_remplacements_de_voix({"tts_replacements": [":prononce"]}) == []
     assert construire_remplacements_de_voix({"tts_replacements": [None, 42]}) == []
 
