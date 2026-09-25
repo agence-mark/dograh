@@ -41,6 +41,7 @@ from loguru import logger
 from pipecat.adapters.schemas.function_schema import FunctionSchema
 from pipecat.frames.frames import FunctionCallResultProperties
 from pipecat.services.llm_service import FunctionCallParams
+from rapidfuzz import fuzz
 
 from api.schemas.fiche_agent import (
     ChampFiche,
@@ -50,7 +51,7 @@ from api.schemas.fiche_agent import (
     verifier_champs,
 )
 from api.schemas.lexique_metier import normaliser_terme
-from api.services.communes.base import base_si_chargee, cle_sonore
+from api.services.communes.base import base_si_chargee, cle_sonore, normaliser
 from api.services.nombres.lecture import lire_nombres, reecrire
 from api.services.workflow.dates_relatives import est_une_date, lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
@@ -241,14 +242,68 @@ def est_cite(valeur: Any, paroles: Iterable[str]) -> bool:
 # « avec » ne serait ancré sur rien.
 MOTS_VIDES = frozenset(
     {
-        "alors", "apres", "assez", "aussi", "autre", "autres", "avant", "avec",
-        "avez", "avoir", "bien", "cela", "celle", "celui", "cette", "ceux",
-        "chez", "comme", "comment", "dans", "deja", "depuis", "donc", "elle",
-        "elles", "encore", "entre", "etait", "etre", "fait", "leur",
-        "leurs", "mais", "meme", "moins", "notre", "nous", "parce", "pour",
-        "pourquoi", "quand", "quel", "quelle", "quelque", "sans", "sont",
-        "sous", "tous", "tout", "toute", "toutes", "tres", "vers", "voila",
-        "voici", "votre", "vous", "avait", "juste", "ouais", "merci", "bonjour",
+        "alors",
+        "apres",
+        "assez",
+        "aussi",
+        "autre",
+        "autres",
+        "avant",
+        "avec",
+        "avez",
+        "avoir",
+        "bien",
+        "cela",
+        "celle",
+        "celui",
+        "cette",
+        "ceux",
+        "chez",
+        "comme",
+        "comment",
+        "dans",
+        "deja",
+        "depuis",
+        "donc",
+        "elle",
+        "elles",
+        "encore",
+        "entre",
+        "etait",
+        "etre",
+        "fait",
+        "leur",
+        "leurs",
+        "mais",
+        "meme",
+        "moins",
+        "notre",
+        "nous",
+        "parce",
+        "pour",
+        "pourquoi",
+        "quand",
+        "quel",
+        "quelle",
+        "quelque",
+        "sans",
+        "sont",
+        "sous",
+        "tous",
+        "tout",
+        "toute",
+        "toutes",
+        "tres",
+        "vers",
+        "voila",
+        "voici",
+        "votre",
+        "vous",
+        "avait",
+        "juste",
+        "ouais",
+        "merci",
+        "bonjour",
     }
 )
 
@@ -403,6 +458,35 @@ def _designe(valeur: Any, trace: dict) -> bool:
     )
 
 
+# Revue du 25/09 (PB4 resserré) : une trace sûre du dernier tour que la valeur
+# ne désigne pas ne s'impose que si la valeur lui RESSEMBLE au son. Seuil mesuré
+# sur les paires du banc : « Sans-Lisle »/« sans lice » 92, « Bouvet »/« Bovet »
+# 86 passent ; « Beauvais »/Grandrû (« granulés ») 0, « Bovais-Nord »/Hanvec
+# (« avec ») 20, « Liancourt »/Senlis 31 ne passent pas.
+SEUIL_PROCHE = 80
+
+
+def _cle(texte: Any) -> str:
+    return cle_sonore(normaliser(str(texte or "")))
+
+
+def est_proche(valeur: Any, *noms: Any) -> bool:
+    """La valeur ressemble-t-elle au son à l'un de ces noms (ce que le module a
+    entendu, ce qu'il a retenu) ?"""
+    cle = _cle(valeur)
+    return bool(cle) and any(
+        (autre := _cle(nom)) and fuzz.ratio(cle, autre) >= SEUIL_PROCHE for nom in noms
+    )
+
+
+def _communes_distinctes(traces: Iterable[dict]) -> dict[str, dict]:
+    distinctes: dict[str, dict] = {}
+    for trace in traces:
+        retenue = trace["commune_retenue"]
+        distinctes.setdefault(retenue.get("code_insee") or retenue["nom"], retenue)
+    return distinctes
+
+
 def lire_commune(valeur: Any, fiche: dict) -> Lecture:
     """La commune que les modules ont trouvée pour cette valeur.
 
@@ -413,9 +497,14 @@ def lire_commune(valeur: Any, fiche: dict) -> Lecture:
     différentes : « ambigu ». Une trace sûre du tour que la valeur désigne passe
     d'abord (run 838 : « granulés » donnait aussi Grandrû, sûre, au même tour
     que Clermont).
+
+    Revue du 25/09 : la trace ne s'impose que si la valeur lui ressemble au son
+    (``est_proche``). Sinon elle est seulement proposée : le module a entendu
+    autre chose que ce que le modèle écrit, la personne tranche.
     """
     sures = [
-        t for t in _du_dernier_tour(fiche, TRACE_COMMUNES)
+        t
+        for t in _du_dernier_tour(fiche, TRACE_COMMUNES)
         if (t.get("commune_retenue") or {}).get("nom")
     ]
     designee = next((t for t in sures if _designe(valeur, t)), None)
@@ -426,21 +515,24 @@ def lire_commune(valeur: Any, fiche: dict) -> Lecture:
     # tour d'après Beauvais ; renoter « Beauvais » à ce tour-là n'écrit pas Hanvec.
     # Revue du 25/09 : seulement si c'est la trace la PLUS RÉCENTE que la valeur
     # désigne ; une trace plus récente, même hésitante, garde le dernier mot.
-    anterieure = next((t for t in _entrees(fiche, TRACE_COMMUNES) if _designe(valeur, t)), None)
+    anterieure = next(
+        (t for t in _entrees(fiche, TRACE_COMMUNES) if _designe(valeur, t)), None
+    )
     if (
         anterieure is not None
         and anterieure.get("statut") == "sure"
         and (anterieure.get("commune_retenue") or {}).get("nom")
     ):
         return _commune_sure(anterieure["commune_retenue"])
-    if sures:
-        distinctes: dict[str, dict] = {}
-        for trace in sures:
-            retenue = trace["commune_retenue"]
-            distinctes.setdefault(retenue.get("code_insee") or retenue["nom"], retenue)
-        if len(distinctes) == 1:
-            return _commune_sure(next(iter(distinctes.values())))
-        options = tuple(_option_commune(r) for r in distinctes.values())
+    proches = _communes_distinctes(
+        t
+        for t in sures
+        if est_proche(valeur, t.get("entendu"), t["commune_retenue"]["nom"])
+    )
+    if len(proches) == 1:
+        return _commune_sure(next(iter(proches.values())))
+    if proches:
+        options = tuple(_option_commune(r) for r in proches.values())
         return Lecture(valeur, False, "ambigu", options, trouvee=False)
     for trace in _entrees(fiche, TRACE_COMMUNES):
         if not _designe(valeur, trace):
@@ -458,8 +550,10 @@ def lire_commune(valeur: Any, fiche: dict) -> Lecture:
         return Lecture(
             choisie["nom"] if choisie else valeur, False, _suite(options), options
         )
-    # PB5 (remplace D37) : aucune trace du module pour cette valeur.
-    return Lecture(valeur, False, "a_confirmer", trouvee=False)
+    # PB5 (remplace D37) : aucune trace du module pour cette valeur. Les communes
+    # sûres du dernier tour qui ne lui ressemblent pas sont proposées.
+    options = tuple(_option_commune(r) for r in _communes_distinctes(sures).values())
+    return Lecture(valeur, False, _suite(options), options, trouvee=False)
 
 
 def lire_lexique(valeur: Any, fiche: dict, termes: dict[str, str]) -> Lecture:
@@ -510,7 +604,8 @@ def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]
     # Sans la liste chargée : ce que le module a proposé pour ce code.
     for trace in _entrees(fiche, TRACE_COMMUNES):
         propositions = [
-            p for p in trace.get("propositions") or []
+            p
+            for p in trace.get("propositions") or []
             if isinstance(p, dict) and code in (p.get("codes_postaux") or [])
         ]
         if trace.get("code_postal_entendu") and propositions:
@@ -524,10 +619,30 @@ _NUMERO = {"bis", "ter", "quater"}
 # PB7 : les types de voie que la personne peut dire pour départager des voies
 # de même nom (proposition d'Evan, 25/09), accents et casse ôtés.
 TYPES_DE_VOIE = (
-    "rue", "avenue", "boulevard", "place", "cite", "chemin", "impasse", "allee",
-    "route", "voie", "quai", "square", "residence", "sentier", "passage", "cours",
-    "faubourg", "hameau", "lotissement", "promenade", "rond point", "sente",
-    "venelle", "villa",
+    "rue",
+    "avenue",
+    "boulevard",
+    "place",
+    "cite",
+    "chemin",
+    "impasse",
+    "allee",
+    "route",
+    "voie",
+    "quai",
+    "square",
+    "residence",
+    "sentier",
+    "passage",
+    "cours",
+    "faubourg",
+    "hameau",
+    "lotissement",
+    "promenade",
+    "rond point",
+    "sente",
+    "venelle",
+    "villa",
 )
 _MOTS_DE_TYPE = frozenset(m for t in TYPES_DE_VOIE for m in t.split())
 
@@ -767,7 +882,8 @@ def lire_rue(
 
     C2 (PB4, run 845) : une voie SÛRE trouvée sur le dernier tour de l'appelant
     est écrite, avec le numéro que le modèle a noté, quoi qu'il ait écrit de la
-    voie (« 7 rue de Maud » → « 7 Rue de Meaux »).
+    voie (« 7 rue de Maud » → « 7 Rue de Meaux »). Revue du 25/09 : seulement
+    si la voie notée lui ressemble au son (``est_proche``), sinon proposée.
     """
     texte = str(valeur)
     sures = [t for t in _du_dernier_tour(fiche, TRACE_VOIES) if t.get("voie_retenue")]
@@ -793,7 +909,20 @@ def lire_rue(
         if portee is not None:
             portee = _avec_le_type_de_voie(texte, portee, trace["voie_retenue"])
             return Lecture(_remplacer(texte, portee, trace["voie_retenue"]), True)
-    voies = list(dict.fromkeys(t["voie_retenue"] for t in sures))
+    # Revue du 25/09 : PB4 seulement si la voie notée ressemble au son à ce que
+    # le module a entendu ou retenu (numéro et type de voie ôtés des deux côtés).
+    nom_note = " ".join(_type_et_nom(texte)[1])
+    voies = list(
+        dict.fromkeys(
+            t["voie_retenue"]
+            for t in sures
+            if est_proche(
+                nom_note,
+                " ".join(_type_et_nom(t.get("entendu") or "")[1]),
+                " ".join(_type_et_nom(t["voie_retenue"])[1]),
+            )
+        )
+    )
     if len(voies) == 1:
         return Lecture(_avec_le_numero(texte, voies[0]), True)
     if voies:
@@ -825,8 +954,10 @@ def lire_rue(
             return Lecture(_remplacer(texte, portee, option), True)
         nouvelle = _remplacer(texte, portee, choisie) if choisie else texte
         return Lecture(nouvelle, False, _suite(propositions), propositions)
-    # PB5 (remplace D37) : aucune trace du module pour cette valeur.
-    return Lecture(texte, False, "a_confirmer", trouvee=False)
+    # PB5 (remplace D37) : aucune trace du module pour cette valeur. Les voies
+    # sûres du dernier tour qui ne lui ressemblent pas sont proposées.
+    options = tuple(dict.fromkeys(t["voie_retenue"] for t in sures))
+    return Lecture(texte, False, _suite(options), options, trouvee=False)
 
 
 # --- Le point d'écriture unique (D35) ----------------------------------------
@@ -1190,8 +1321,7 @@ async def balayer_la_fiche(
             continue
         refus = (
             _refus_d_un_deduit(reglages, fiche, champ, trouve[champ.nom], paroles)
-            if champ.origine == OrigineChamp.deduit
-            and not _est_vide(trouve[champ.nom])
+            if champ.origine == OrigineChamp.deduit and not _est_vide(trouve[champ.nom])
             else None
         )
         if refus:

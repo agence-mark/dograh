@@ -583,8 +583,14 @@ def test_C2_run_842_renoter_beauvais_au_tour_de_hanvec_n_ecrit_pas_hanvec():
         ],
     }
     assert lire_commune("Beauvais", fiche).valeur == "Beauvais"
-    # Sans rien qui désigne la commune d'avant, le dernier tour l'emporte (PB4).
-    assert lire_commune("Bovais-Nord", fiche).valeur == "Hanvec"
+    # Revue du 25/09 : « Bovais-Nord » ne ressemble pas à Hanvec (« avec ») :
+    # Hanvec n'est plus écrite sûre, elle est seulement proposée.
+    lecture = lire_commune("Bovais-Nord", fiche)
+    assert (lecture.valeur, lecture.sure, lecture.options) == (
+        "Bovais-Nord",
+        False,
+        ("Hanvec",),
+    )
 
 
 def test_C2_deux_communes_sures_differentes_au_meme_tour_sont_a_proposer():
@@ -607,9 +613,82 @@ def test_C2_deux_communes_sures_differentes_au_meme_tour_sont_a_proposer():
             },
         ],
     }
-    verdict = ecrire_dans_la_fiche(fiche, _reglages(), "commune", "Bouvet")
+    # Une valeur qui ne ressemble à aucune : les deux sont proposées.
+    verdict = ecrire_dans_la_fiche(fiche, _reglages(), "commune", "Compiègne")
     assert (verdict.statut, verdict.suite) == ("refuse", "a_proposer")
     assert verdict.options == ("Hanvec", "Beauvais")
+    # « Bouvet » ressemble à « Bovet » : Beauvais, sûre.
+    lecture = lire_commune("Bouvet", fiche)
+    assert (lecture.valeur, lecture.sure) == ("Beauvais", True)
+
+
+def test_revue_A_run_838_beauvais_au_tour_de_grandru_n_ecrit_pas_grandru():
+    """Run 838 : « granulés » donnait Grandrû, SÛRE, au dernier tour. Le modèle
+    qui note « Beauvais » n'y ressemble pas : Grandrû n'est jamais écrite sûre."""
+    fiche = {
+        "tour_appelant": 2,
+        "communes_verifiees": [
+            {
+                "entendu": "granulés",
+                "statut": "sure",
+                "commune_retenue": {"nom": "Grandrû", "code_insee": "60285"},
+                "propositions": [],
+                "tour": 2,
+            }
+        ],
+    }
+    verdict = ecrire_dans_la_fiche(
+        fiche, _reglages(), "commune", "Beauvais", paroles=["c'est à Beauvais"]
+    )
+    assert fiche["commune"] == "Beauvais"
+    assert fiche["fiche_etat"]["commune"]["sure"] is False
+    assert (verdict.suite, verdict.options) == ("a_proposer", ("Grandrû",))
+
+
+def test_revue_A_la_mesure_au_son_sur_les_paires_du_banc():
+    for valeur, entendu, nom in [
+        ("Sans-Lisle", "sans lice", "Senlis"),
+        ("Senlisse", "cent lisses", "Senlis"),
+        ("Bouvet", "Bovet", "Beauvais"),
+        ("Montaterre", "Montaterre", "Montataire"),
+        ("Crail", "Crail", "Creil"),
+        ("de maud", "de maud", "de Meaux"),
+        ("carnau", "carnau", "Carnot"),
+    ]:
+        assert fiche_au_fil_de_leau.est_proche(valeur, entendu, nom), valeur
+    for valeur, entendu, nom in [
+        ("Beauvais", "granulés", "Grandrû"),
+        ("Clermont", "granulés", "Grandrû"),
+        ("Bovais-Nord", "avec", "Hanvec"),
+        ("Compiègne", "appareil", "La Hérelle"),
+        ("Liancourt", "sans lice", "Senlis"),
+    ]:
+        assert not fiche_au_fil_de_leau.est_proche(valeur, entendu, nom), valeur
+
+
+def test_revue_A_une_voie_sure_du_tour_qui_ne_ressemble_pas_est_proposee():
+    fiche = {
+        "tour_appelant": 4,
+        "voies_verifiees": [
+            {
+                "entendu": "de maud",
+                "statut": "sure",
+                "voie_retenue": "Rue de Meaux",
+                "propositions": [],
+                "tour": 4,
+            },
+        ],
+    }
+    # « rue de Maux » ressemble : la voie du module, sûre, avec le numéro noté.
+    lecture = lire_rue("7 rue de Maux", fiche)
+    assert (lecture.valeur, lecture.sure) == ("7 Rue de Meaux", True)
+    # « avenue Carnot » ne ressemble pas : proposée, jamais écrite sûre.
+    lecture = lire_rue("12 avenue Carnot", fiche)
+    assert (lecture.valeur, lecture.sure, lecture.options) == (
+        "12 avenue Carnot",
+        False,
+        ("Rue de Meaux",),
+    )
 
 
 def test_C2_la_marque_du_tour_est_la_meme_des_deux_cotes():
