@@ -709,49 +709,79 @@ def _type_et_nom(voie: str) -> tuple[str | None, tuple[str, ...]]:
     return None, tuple(mots)
 
 
-def type_entendu(type_voie: str, textes: Iterable[str]) -> bool:
+def _meme_son(fenetre: list[str], cible: list[str]) -> bool:
+    """Les mots se valent écrits, ou au son quand il tient en trois lettres ou
+    plus (« places », « plasse » = place)."""
+    if fenetre == cible:
+        return True
+    son = cle_sonore(" ".join(cible))
+    return len(son) >= 3 and cle_sonore(" ".join(fenetre)) == son
+
+
+def type_entendu(
+    type_voie: str,
+    textes: Iterable[str],
+    devant: Iterable[tuple[str, ...]] = (),
+) -> bool:
     """C4 (PB7, proposition d'Evan) : ce type de voie figure-t-il dans ces
     textes, par comparaison PHONÉTIQUE (« places », « plasse » = place) ?
 
     ⚠️ Un type dont le son tient en deux lettres ou moins (rue, quai, allée) ne
-    se compare qu'écrit : « que » sonne comme quai, « aller » comme allée."""
+    se compare qu'écrit : « que » sonne comme quai, « aller » comme allée.
+
+    Revue du 25/09 (PB7 resserré) : avec ``devant`` (les noms de la voie), le
+    type ne compte que dit JUSTE DEVANT l'un d'eux. « Sur place, au 11 Louis
+    Blanc » ne dit pas « place Louis Blanc » : c'est la position qui fait le
+    type, pour tous les types, sans liste de mots à surveiller."""
     cible = type_voie.split()
-    son = cle_sonore(type_voie)
+    noms = [list(nom) for nom in devant if nom]
     for texte in textes:
         mots = [_forme(m) for m in _mots(texte)]
         for i in range(len(mots) - len(cible) + 1):
-            fenetre = mots[i : i + len(cible)]
-            if fenetre == cible or (
-                len(son) >= 3 and cle_sonore(" ".join(fenetre)) == son
+            if not _meme_son(mots[i : i + len(cible)], cible):
+                continue
+            fin = i + len(cible)
+            if not noms or any(
+                _meme_son(mots[fin : fin + len(nom)], nom) for nom in noms
             ):
                 return True
     return False
 
 
 def choisir_par_le_type(
-    valeur: str, options: Iterable[str], textes: Iterable[str]
+    valeur: str,
+    options: Iterable[str],
+    textes: Iterable[str],
+    *,
+    n_importe_ou: bool = False,
 ) -> str | None:
     """C4 (PB7, runs 841, 847, 852) : parmi des voies qui ne diffèrent que par
     leur type (Rue / Impasse / Cité Louis Blanc), celle dont la personne a dit le
     type ; ``None`` si aucun ou plusieurs de ces types ont été dits.
 
     Des options qui diffèrent aussi par le nom (Rue de Paris, Route de Paris,
-    Place du Parvis) : seules comptent celles qui portent le nom de la valeur."""
+    Place du Parvis) : seules comptent celles qui portent le nom de la valeur.
+
+    ``textes`` sont les paroles de la personne, jamais la valeur du modèle. Le
+    type doit y être dit juste devant le nom de la voie, sauf en réponse à un
+    « ambigu » (``n_importe_ou``) : « c'est une rue » tranche alors."""
     textes = list(textes)
     groupes: dict[tuple[str, ...], list[tuple[str, str | None]]] = {}
     for option in options:
         type_voie, nom = _type_et_nom(option)
         groupes.setdefault(nom, []).append((option, type_voie))
+    nom_note = _type_et_nom(valeur)[1]
     if len(groupes) == 1:
-        groupe = next(iter(groupes.values()))
+        nom, groupe = next(iter(groupes.items()))
     else:
-        groupe = groupes.get(_type_et_nom(valeur)[1], [])
+        nom, groupe = nom_note, groupes.get(nom_note, [])
     if len(groupe) < 2:
         return None
+    devant = () if n_importe_ou else (nom, nom_note)
     dits = [
         (option, type_voie)
         for option, type_voie in groupe
-        if type_voie and type_entendu(type_voie, textes)
+        if type_voie and type_entendu(type_voie, textes, devant)
     ]
     if len({type_voie for _, type_voie in dits}) != 1:
         return None
@@ -810,9 +840,12 @@ def garder_le_numero(nouvelle: Any, ancienne: Any, fiche: dict) -> Any:
 
 
 def _tour_du_dernier_ambigu(fiche: dict, champ: str | None) -> int | None:
-    """Le tour où ce champ a été renvoyé « ambigu » pour la dernière fois."""
+    """Le tour où ce champ a été renvoyé « ambigu », si c'est la dernière
+    réponse de l'outil pour ce champ (sinon la personne ne répond plus à ça)."""
     for entree in reversed(fiche.get(CLE_JOURNAL) or []):
-        if entree.get("champ") == champ and entree.get("suite") == "ambigu":
+        if entree.get("champ") == champ:
+            if entree.get("suite") != "ambigu":
+                return None
             return entree.get("tour") or fiche.get(CLE_TOUR) or 0
     return None
 
@@ -853,26 +886,36 @@ def _option_du_type_dit(
     paroles: Iterable[str],
     champ: str | None,
 ) -> str | None:
-    """C4 (PB7) : l'option que le type de voie dit désigne, écrite SÛRE.
+    """C4 (PB7) : l'option que le type de voie dit par la personne désigne,
+    écrite SÛRE.
 
-    Une option renvoyée telle quelle après un « ambigu » (runs 841, 847 : la
-    confirmation ne pouvait jamais être enregistrée) est sûre si son type
-    figure dans ce que la personne a dit depuis. Sinon, le type dit dans la
-    valeur ou dans le dernier message de la personne choisit l'option.
+    En réponse à un « ambigu » (runs 841, 847 : la confirmation ne pouvait
+    jamais être enregistrée), le type compte où qu'il soit dans ce que la
+    personne a dit APRÈS l'ambigu. Sinon, il doit être dit juste devant le nom
+    de la voie dans son dernier message. Revue du 25/09 : jamais le type écrit
+    par le modèle dans sa valeur.
     """
     paroles = list(paroles)
+    # La voie déjà écrite SÛRE dans ce champ, que la valeur renomme : le type a
+    # été tranché par la personne à ce moment-là (run 847 : « Place Jeanne
+    # Hachette » renotée seule après « 5 places Jeanne achète »).
+    if champ and (fiche.get(CLE_ETAT, {}).get(champ) or {}).get("sure"):
+        deja = _type_et_nom(str(fiche.get(champ) or ""))
+        tranchee = next((p for p in propositions if _type_et_nom(p) == deja), None)
+        if tranchee is not None and _type_et_nom(texte) == deja:
+            return tranchee
     tour_ambigu = _tour_du_dernier_ambigu(fiche, champ)
+    if tour_ambigu is None:
+        return choisir_par_le_type(texte, propositions, paroles[-1:])
+    depuis = int(fiche.get(CLE_TOUR) or 0) - int(tour_ambigu)
+    reponse = paroles[-depuis:] if depuis > 0 else []
     renvoyee = next(
         (p for p in propositions if _type_et_nom(p) == _type_et_nom(texte)), None
     )
-    if renvoyee is not None and tour_ambigu is not None:
-        # Le type de la valeur vient alors des options, pas de la personne.
+    if renvoyee is not None:
         type_voie = _type_et_nom(renvoyee)[0]
-        depuis = max(1, int(fiche.get(CLE_TOUR) or 0) - int(tour_ambigu) + 1)
-        if type_voie and type_entendu(type_voie, paroles[-depuis:]):
-            return renvoyee
-        return None
-    return choisir_par_le_type(texte, propositions, [texte, *paroles[-1:]])
+        return renvoyee if type_voie and type_entendu(type_voie, reponse) else None
+    return choisir_par_le_type(texte, propositions, reponse, n_importe_ou=True)
 
 
 def lire_rue(

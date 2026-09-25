@@ -950,6 +950,47 @@ def test_C4_le_type_se_compare_par_le_son(type_voie, texte, entendu):
     assert type_entendu(type_voie, [texte]) is entendu
 
 
+def test_revue_B_un_type_dit_ailleurs_que_devant_le_nom_ne_tranche_rien():
+    """« Sur place, au 11 Louis Blanc » : « place » n'est pas le type de la voie."""
+    fiche = _voie_au_tour(7, LOUIS_BLANC)
+    verdict = _adresse(fiche, "11 Louis Blanc", "je suis sur place, au 11 Louis Blanc")
+    assert verdict.suite == "ambigu"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is False
+
+
+def test_revue_B_le_type_ecrit_par_le_modele_ne_tranche_rien():
+    """La personne a dit « au 11 Louis Blanc » ; le modèle écrit « rue » de lui-même."""
+    fiche = _voie_au_tour(7, LOUIS_BLANC)
+    verdict = _adresse(fiche, "11 rue Louis Blanc", "j'habite au 11 Louis Blanc")
+    assert verdict.suite == "ambigu"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is False
+
+
+def test_revue_B_apres_un_ambigu_seule_la_reponse_compte():
+    """« place » dit au tour de l'ambigu (hors position) ne tranche pas au tour
+    suivant ; « c'est une impasse » dans la réponse, si."""
+    fiche = _voie_au_tour(7, LOUIS_BLANC)
+    _adresse(fiche, "11 Louis Blanc", "je suis sur place, au 11 Louis Blanc")
+    fiche["tour_appelant"] = 8
+    verdict = _adresse(
+        fiche,
+        "11 Place Louis Blanc",
+        "je suis sur place, au 11 Louis Blanc",
+        "oui voilà",
+    )
+    assert verdict.suite == "ambigu"
+    fiche["tour_appelant"] = 9
+    _adresse(
+        fiche,
+        "11 Louis Blanc",
+        "je suis sur place, au 11 Louis Blanc",
+        "oui voilà",
+        "non, c'est une impasse",
+    )
+    assert fiche["adresse_intervention"] == "11 Impasse Louis Blanc"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
+
+
 # --- C6 : le numéro de rue déjà noté est gardé (PB9) --------------------------
 
 
