@@ -214,7 +214,9 @@ export interface ChampFiche {
     origine: "dicte" | "deduit";
     description: string;
     // Empty (null): deduced from the name, as the server does.
-    lecteur: "commune" | "rue" | "date" | "aucun" | null;
+    lecteur: "commune" | "rue" | "date" | "lexique" | "aucun" | null;
+    // [.mark] PB3: the only values the field accepts. Empty (null or absent): any.
+    valeurs?: string[] | null;
 }
 
 export type WorkflowConfigurations = WorkflowConfigurationBase & {

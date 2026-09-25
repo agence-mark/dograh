@@ -69,7 +69,12 @@ from api.schemas.workflow_configurations import (
     WorkflowConfigurationDefaults,
     decouper_variables_commune,
 )
-from api.services.communes.analyse import SURE, Detection, analyser, propositions_fondees
+from api.services.communes.analyse import (
+    SURE,
+    Detection,
+    analyser,
+    propositions_fondees,
+)
 from api.services.communes.base import BaseCommunes, charger_base
 from api.services.communes.mention import deja_mentionne, mentionner
 
@@ -81,6 +86,8 @@ CLE_VARIABLES = "variables_commune"
 CLE_VOIES = "verification_voies"
 CLE_EPELLATION = "lecture_epellation"
 CLE_TRACE_VOIES = "voies_verifiees"
+# [.mark] C2: the number of the caller's message last read, fiche switched on only.
+CLE_TOUR = "tour_appelant"
 CLE_TRACE_EPELLATIONS = "epellations_lues"
 
 # The names of the default setting, ready to compare.
@@ -134,12 +141,16 @@ def sons_allumes(run_configs: dict | None, cle: str = "sons_communes") -> bool:
     try:
         return bool(
             getattr(
-                WorkflowConfigurationDefaults.model_validate({cle: (run_configs or {}).get(cle)}),
+                WorkflowConfigurationDefaults.model_validate(
+                    {cle: (run_configs or {}).get(cle)}
+                ),
                 cle,
             )
         )
     except Exception as erreur:  # noqa: BLE001 -- the call must go on
-        logger.warning(f"[.mark] Sound switch « {cle} » unreadable, left on: {erreur!r}")
+        logger.warning(
+            f"[.mark] Sound switch « {cle} » unreadable, left on: {erreur!r}"
+        )
         return True
 
 
@@ -200,22 +211,34 @@ def trace_de(detection: Detection, base: BaseCommunes, etape: str | None) -> dic
         "etape": etape,
         "entendu": detection.entendu,
         "statut": "sure" if detection.statut == SURE else "a_confirmer",
-        "commune_retenue": _lecture(detection, base, 0) if detection.statut == SURE else None,
-        "propositions": [_lecture(detection, base, i) for i in range(min(3, len(detection.lectures)))],
+        "commune_retenue": _lecture(detection, base, 0)
+        if detection.statut == SURE
+        else None,
+        "propositions": [
+            _lecture(detection, base, i) for i in range(min(3, len(detection.lectures)))
+        ],
         # L18: did the pronounced sounds decide the reading kept? Without it an
         # A/B of the sounds cannot be read back.
         "par_son": bool(detection.lectures[0].par_son) if detection.lectures else False,
         # Present only when the words heard were a postal code (plan nombres-dictes):
         # its proposals must not confirm that same code on a later turn.
-        **({"code_postal_entendu": True} if getattr(detection, "code_postal_entendu", False) else {}),
+        **(
+            {"code_postal_entendu": True}
+            if getattr(detection, "code_postal_entendu", False)
+            else {}
+        ),
     }
 
 
-def _analyser_et_mentionner(texte: str, adresse: AdresseEtablissement | None, avec_sons: bool = True):
+def _analyser_et_mentionner(
+    texte: str, adresse: AdresseEtablissement | None, avec_sons: bool = True
+):
     """Blocking: runs in a worker thread. Returns (annotated text, detections, base)."""
     base = charger_base()
     magasin = base.coordonnees(adresse.code_insee) if adresse else None
-    detections = propositions_fondees(texte, analyser(texte, base, magasin, avec_sons=avec_sons), base)
+    detections = propositions_fondees(
+        texte, analyser(texte, base, magasin, avec_sons=avec_sons), base
+    )
     return mentionner(texte, detections, base), detections, base
 
 
@@ -261,12 +284,31 @@ class Consignation:
 
     def __init__(self, contexte_recueilli: Callable[[], dict]):
         self._contexte_recueilli = contexte_recueilli
+        # The message the current turn was counted for (kept in memory only).
+        self._message_du_tour: object = None
 
     def __call__(self, entree: dict, cle: str = CLE_TRACE) -> None:
         self._contexte_recueilli().setdefault(cle, []).append(entree)
 
     def lire(self, cle: str = CLE_TRACE) -> list:
         return list(self._contexte_recueilli().get(cle) or [])
+
+    def nouveau_tour(self, message: object = None) -> int:
+        """[.mark] C2 (patch du banc, 25/09): a new caller message is read.
+
+        The traces of this reading carry the number, so the record's tool can
+        tell what the modules found on the caller's LAST turn from what they
+        found earlier. Counted in the gathered context, under ``CLE_TOUR``.
+
+        Review of 2026-09-25: the same ``message`` read again (a reading
+        cancelled by an interruption, then run again) keeps its number.
+        """
+        contexte = self._contexte_recueilli()
+        if message is not None and message == self._message_du_tour:
+            return int(contexte.get(CLE_TOUR) or 0)
+        self._message_du_tour = message
+        contexte[CLE_TOUR] = int(contexte.get(CLE_TOUR) or 0) + 1
+        return contexte[CLE_TOUR]
 
 
 def consigner_dans(contexte_recueilli: Callable[[], dict]) -> Consignation:

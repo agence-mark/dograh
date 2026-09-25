@@ -19,7 +19,10 @@ import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 import {
     erreursDesChamps,
     lecteurParDefaut,
+    lireLesValeurs,
+    LONGUEUR_MAX_VALEUR,
     NOMBRE_MAX_CHAMPS,
+    NOMBRE_MAX_VALEURS,
     NOMS_RESERVES,
     SectionFiche,
 } from "./SectionFiche";
@@ -179,7 +182,85 @@ describe("[.mark] Call Record card", () => {
     });
 });
 
+describe("[.mark] Call Record: allowed values (PB3, patch after the bench)", () => {
+    it("types a closed list as comma-separated values, and carries it out on save", async () => {
+        const onSave = ouvrir({ fiche_champs: CHAMPS });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        const champ = document.getElementById("fiche_valeurs_1") as HTMLInputElement;
+        expect(within(dialogue).getAllByText("Allowed values")).toHaveLength(2);
+        fireEvent.change(champ, { target: { value: "danger," } });
+        // The comma stays while typing, or the next value could never be typed.
+        expect(champ.value).toBe("danger,");
+        fireEvent.change(champ, { target: { value: "danger, panne , normal" } });
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        fireEvent.click(boutonEnregistrer());
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        const [nom, commune] = onSave.mock.calls[0][0].fiche_champs;
+        expect(commune.valeurs).toEqual(["danger", "panne", "normal"]);
+        // A field left alone leaves as it came.
+        expect(nom.valeurs).toBeUndefined();
+    });
+
+    it("an emptied list is no list: the saved record is not dirty", async () => {
+        ouvrir({ fiche_champs: CHAMPS });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        const champ = document.getElementById("fiche_valeurs_0") as HTMLInputElement;
+        fireEvent.change(champ, { target: { value: "a" } });
+        fireEvent.change(champ, { target: { value: " , " } });
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        expect(boutonEnregistrer().disabled).toBe(true);
+    });
+
+    it("locks the Save button past the server's bounds, and says why", async () => {
+        ouvrir({ fiche_champs: CHAMPS });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        const champ = document.getElementById("fiche_valeurs_0") as HTMLInputElement;
+        fireEvent.change(champ, {
+            target: { value: Array.from({ length: 21 }, (_, i) => `v${i}`).join(",") },
+        });
+        expect(within(dialogue).getByText(/at most 20 allowed values/i)).toBeTruthy();
+        fireEvent.change(champ, { target: { value: "x".repeat(41) } });
+        expect(within(dialogue).getByText(/longer than 40 characters/i)).toBeTruthy();
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        expect(boutonEnregistrer().disabled).toBe(true);
+    });
+
+    it("reads the typed text the way the server keeps it", () => {
+        expect(lireLesValeurs(" danger ,, panne ")).toEqual(["danger", "panne"]);
+        expect(lireLesValeurs(" , ")).toBeNull();
+    });
+});
+
+describe("[.mark] Call Record: the trade vocabulary reader (C10, patch after the bench)", () => {
+    it("reads a brand field with the trade vocabulary, from its name, and says so", async () => {
+        ouvrir({ fiche_champs: CHAMPS });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        fireEvent.change(document.getElementById("fiche_nom_1") as HTMLInputElement, {
+            target: { value: "marque_appareil" },
+        });
+        expect(document.getElementById("fiche_lecteur_1")?.textContent).toContain(
+            "From the name (lexique)",
+        );
+        expect(within(dialogue).getByText(/brand is sure only when/i)).toBeTruthy();
+    });
+
+    it("the server knows the reader the screen offers", () => {
+        const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
+        expect(schema).toMatch(/lecteur: Literal\["commune", "rue", "date", "lexique", "aucun"\]/);
+    });
+});
+
 describe("[.mark] Call Record rules mirror the server", () => {
+    it("bounds the allowed values where the server does", () => {
+        const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
+        expect(Number(/^MAX_VALEURS = (\d+)/m.exec(schema)?.[1])).toBe(NOMBRE_MAX_VALEURS);
+        expect(Number(/^MAX_LONGUEUR_VALEUR = (\d+)/m.exec(schema)?.[1])).toBe(LONGUEUR_MAX_VALEUR);
+    });
+
     const serveur = (fichier: string) =>
         readFileSync(join(__dirname, "../../../../api/schemas", fichier), "utf8");
 
@@ -205,6 +286,8 @@ describe("[.mark] Call Record rules mirror the server", () => {
         ["dernier_entretien", "date"],
         ["date_installation", "date"],
         ["annee_pose", "date"],
+        ["marque_appareil", "lexique"],
+        ["marque", "lexique"],
     ])("reader from the name: %s -> %s", (nom, lecteur) => {
         expect(lecteurParDefaut(nom)).toBe(lecteur);
     });

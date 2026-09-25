@@ -112,6 +112,42 @@ def _meme_date(valeur: str, calculee: str) -> bool:
     return bool(_ANNEE.match(valeur)) and calculee.endswith(valeur)
 
 
+_MOIS = (
+    "janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre"
+    "|decembre"
+)
+# Les repères du calendrier, où qu'ils soient : une année, un mois nommé, un
+# jour et un mois en chiffres, une saison, le mot « année » ou « mois », ou tout
+# nom suivi de « dernier » / « passé » (« fin 2023 », « le 12 mars », « 12/03 »,
+# « l'hiver dernier », « Noël dernier », « la rentrée dernière », « début
+# d'année »). Large exprès : ne refuser que ce qui n'a rien d'une date.
+# Revue du 25/09 : pas de liste de fêtes (forcément incomplète) mais la
+# tournure « … dernier » ; « été » seul ou en tête de valeur, jamais le
+# participe (« a été fait »).
+_SAISONS = r"hiver|printemps|automne|(?<!a )(?<!ont )(?<!avait )ete"
+_TRACE_DE_DATE = re.compile(
+    rf"\b((19|20)\d{{2}}|{_MOIS}|\d{{1,2}}/\d{{1,2}}|{_SAISONS}|annee|mois"
+    r"|\w+ (dernier|derniere|derniers|dernieres|passe|passee))\b"
+)
+# Une FRÉQUENCE n'est pas une date (run 852 : « annuel ») : « chaque année »,
+# « tous les mois », « tous les hivers », « une fois par an ».
+_FREQUENCE = re.compile(r"\b(chaque|tous les|toutes les|par)\b")
+
+
+def est_une_date(valeur: str, jour: datetime | None = None) -> bool:
+    """C8 (PB11, run 852) : une date écrite, ou une date relative reconnue ?
+    « annuel », écrit par le balayage dans `dernier_entretien`, n'en est pas une."""
+    valeur = str(valeur).strip()
+    if _ANNEE.match(valeur) or _MOIS_ANNEE.match(valeur) or _JOUR.match(valeur):
+        return True
+    simple = _simple(valeur)
+    if _FREQUENCE.search(simple):
+        return False
+    if _TRACE_DE_DATE.search(simple):
+        return True
+    return lire_expression(valeur, jour or aujourd_hui()) is not None
+
+
 def lire_date(
     valeur: str, paroles: list[str], jour: datetime | None = None
 ) -> DateDite | None:

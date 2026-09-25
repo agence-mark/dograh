@@ -76,17 +76,37 @@ export const NOMS_RESERVES = [
     "lexique_metier",
     "fiche_etat",
     "fiche_journal",
+    "tour_appelant",
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */
-export const lecteurParDefaut = (nom: string): "commune" | "rue" | "date" | "aucun" =>
+export const lecteurParDefaut = (nom: string): "commune" | "rue" | "date" | "lexique" | "aucun" =>
     nom.startsWith("commune")
         ? "commune"
-        : nom.startsWith("adresse") || nom.startsWith("rue")
-          ? "rue"
-          : nom.includes("date") || nom.startsWith("dernier_") || nom.startsWith("annee")
-            ? "date"
-            : "aucun";
+        : nom.startsWith("marque")
+          ? "lexique"
+          : nom.startsWith("adresse") || nom.startsWith("rue")
+            ? "rue"
+            : nom.includes("date") || nom.startsWith("dernier_") || nom.startsWith("annee")
+              ? "date"
+              : "aucun";
+
+/** `MAX_VALEURS` and `MAX_LONGUEUR_VALEUR` on the server; a test compares them. */
+export const NOMBRE_MAX_VALEURS = 20;
+export const LONGUEUR_MAX_VALEUR = 40;
+
+/** "danger, panne , normal" -> ["danger", "panne", "normal"]; nothing -> null. */
+export const lireLesValeurs = (texte: string): string[] | null => {
+    const valeurs = texte
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+    return valeurs.length ? valeurs : null;
+};
+
+/** The same record, with "no list" written one way only, to compare two records. */
+const pourComparer = (champs: ChampFiche[]) =>
+    champs.map((c) => ({ ...c, valeurs: c.valeurs?.length ? c.valeurs : null }));
 
 /** The first problem of each field, by index: what the server would refuse. */
 export const erreursDesChamps = (champs: ChampFiche[]): Record<number, string> => {
@@ -114,6 +134,10 @@ export const erreursDesChamps = (champs: ChampFiche[]): Record<number, string> =
             erreurs[i] = "This is where a town's INSEE code is written.";
         } else if (dits.has(champ.nom)) {
             erreurs[i] = "This is where the caller's words for a date are kept.";
+        } else if ((champ.valeurs?.length ?? 0) > NOMBRE_MAX_VALEURS) {
+            erreurs[i] = `At most ${NOMBRE_MAX_VALEURS} allowed values.`;
+        } else if (champ.valeurs?.some((v) => v.length > LONGUEUR_MAX_VALEUR)) {
+            erreurs[i] = `An allowed value is longer than ${LONGUEUR_MAX_VALEUR} characters.`;
         }
         vus.add(champ.nom);
     });
@@ -127,6 +151,55 @@ const nouveauChamp = (): ChampFiche => ({
     description: "",
     lecteur: null,
 });
+
+/**
+ * PB3: the closed list of a field, typed as comma-separated values.
+ *
+ * ⚠️ The text typed is kept as typed: rebuilt from the parsed list, "danger,"
+ * would lose its comma and the next value could never be typed. It is taken
+ * from the record again only when the record says something else (a field
+ * removed above shifts the rows).
+ */
+const ValeursPermises = ({
+    index,
+    valeurs,
+    onChange,
+}: {
+    index: number;
+    valeurs: string[] | null;
+    onChange: (valeurs: string[] | null) => void;
+}) => {
+    const [texte, setTexte] = useState((valeurs ?? []).join(", "));
+    const cle = JSON.stringify(valeurs ?? null);
+    useEffect(() => {
+        setTexte((avant) =>
+            JSON.stringify(lireLesValeurs(avant)) === cle
+                ? avant
+                : ((JSON.parse(cle) as string[] | null) ?? []).join(", "),
+        );
+    }, [cle]);
+    return (
+        <div className="space-y-1">
+            <Label htmlFor={`fiche_valeurs_${index}`} className="text-xs">
+                Allowed values
+            </Label>
+            <Input
+                id={`fiche_valeurs_${index}`}
+                value={texte}
+                placeholder="Any value"
+                onChange={(e) => {
+                    setTexte(e.target.value);
+                    onChange(lireLesValeurs(e.target.value));
+                }}
+            />
+            <p className="text-xs text-muted-foreground">
+                Separated by commas, up to {NOMBRE_MAX_VALEURS}. The field then only accepts one of
+                them, written as typed here, and a deduced field no longer has to use the
+                caller&apos;s words.
+            </p>
+        </div>
+    );
+};
 
 interface SectionFicheProps {
     /** The RESOLVED configuration, as the page hands it to every other section. */
@@ -170,7 +243,7 @@ export const SectionFiche = ({
     const nombreDErreurs = Object.keys(erreurs).length;
     const isDirty =
         actif !== actifEnregistre ||
-        JSON.stringify(champs) !== JSON.stringify(champsEnregistres);
+        JSON.stringify(pourComparer(champs)) !== JSON.stringify(pourComparer(champsEnregistres));
     const maximum = NOMBRE_MAX_CHAMPS;
 
     useUnsavedChanges(ID_SECTION_FICHE, isDirty);
@@ -294,7 +367,9 @@ export const SectionFiche = ({
                             next to it); &quot;From the name&quot; picks it as the server does
                             (<code>commune…</code> → town, <code>adresse…</code> or{" "}
                             <code>rue…</code> → street, <code>…date…</code>,{" "}
-                            <code>dernier_…</code> or <code>annee…</code> → date).
+                            <code>dernier_…</code> or <code>annee…</code> → date,{" "}
+                            <code>marque…</code> → trade vocabulary: a brand is sure only when the
+                            organization&apos;s vocabulary recognises it, otherwise it is to confirm).
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex-1 space-y-3 overflow-y-auto pr-1">
@@ -364,6 +439,7 @@ export const SectionFiche = ({
                                                 <SelectItem value="commune">Town</SelectItem>
                                                 <SelectItem value="rue">Street</SelectItem>
                                                 <SelectItem value="date">Date</SelectItem>
+                                                <SelectItem value="lexique">Trade vocabulary</SelectItem>
                                                 <SelectItem value="aucun">None</SelectItem>
                                             </SelectContent>
                                         </Select>
@@ -390,6 +466,11 @@ export const SectionFiche = ({
                                         onChange={(e) => modifier(i, { description: e.target.value })}
                                     />
                                 </div>
+                                <ValeursPermises
+                                    index={i}
+                                    valeurs={champ.valeurs ?? null}
+                                    onChange={(valeurs) => modifier(i, { valeurs })}
+                                />
                                 {erreurs[i] && (
                                     <p className="text-xs text-destructive">{erreurs[i]}</p>
                                 )}

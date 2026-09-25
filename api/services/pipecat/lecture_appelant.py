@@ -118,7 +118,9 @@ VARIABLES_REFERENCE_PAR_DEFAUT = decouper_variables_commune(
 )
 
 
-def etape_reference(noeud, variables: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT) -> bool:
+def etape_reference(
+    noeud, variables: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT
+) -> bool:
     """Does this step collect a reference? (N4) By variable name, like the towns.
 
     The default (``reference*``) is the rule written here until the lot 2 of
@@ -181,7 +183,11 @@ def _trace_voie(detection: DetectionVoie, etape: str | None) -> dict:
         "statut": detection.statut,
         "voie_retenue": detection.retenue or None,
         "propositions": [
-            {"nom": p.nom, "score": round(p.score, 1), "numero_present": p.numero_present}
+            {
+                "nom": p.nom,
+                "score": round(p.score, 1),
+                "numero_present": p.numero_present,
+            }
             for p in detection.propositions
         ],
         "par_son": detection.par_son,
@@ -297,10 +303,20 @@ def _lire_voie(
     return None
 
 
-def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list, conversion: bool,
-          communes: bool, references: bool, etape_adresse: bool = True, trace_nombres: list | None = None,
-          avec_sons: bool = True, voies: bool = False, epellation: bool = False,
-          annoter: bool = True):
+def _lire(
+    texte: str,
+    adresse: AdresseEtablissement | None,
+    trace_communes: list,
+    conversion: bool,
+    communes: bool,
+    references: bool,
+    etape_adresse: bool = True,
+    trace_nombres: list | None = None,
+    avec_sons: bool = True,
+    voies: bool = False,
+    epellation: bool = False,
+    annoter: bool = True,
+):
     """Blocking: runs in a worker thread. Returns (text for the model, records...).
 
     🔑 The order is the plan's (lot 5), and each step of it was bought:
@@ -314,15 +330,24 @@ def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list
         base = charger_base()
         magasin = base.coordonnees(adresse.code_insee) if adresse else None
         lecture = analyser_message(
-            texte, base, magasin, trace_communes, etape_adresse=etape_adresse, trace_nombres=trace_nombres,
+            texte,
+            base,
+            magasin,
+            trace_communes,
+            etape_adresse=etape_adresse,
+            trace_nombres=trace_nombres,
             avec_sons=avec_sons,
         )
     except Exception as erreur:  # noqa: BLE001
         # Without the list of communes (or its analysis), the numbers are still
         # written as digits: the fix of 2026-09-15 does not depend on the towns.
-        logger.warning(f"[.mark] Town analysis failed, numbers read without it: {erreur!r}")
+        logger.warning(
+            f"[.mark] Town analysis failed, numbers read without it: {erreur!r}"
+        )
         base = None
-        lecture = LectureMessage(nombres=lecteur.lire_nombres(texte), detections=[], choix={})
+        lecture = LectureMessage(
+            nombres=lecteur.lire_nombres(texte), detections=[], choix={}
+        )
 
     lu = reecrire(texte, lecture.nombres, lecture.choix_cp) if conversion else texte
 
@@ -347,7 +372,11 @@ def _lire(texte: str, adresse: AdresseEtablissement | None, trace_communes: list
             if detection.entendu and detection.statut == SURE_COMMUNE
         )
         voie = _lire_voie(
-            lu, insee, commune.nom if commune else None, avec_sons, autres,
+            lu,
+            insee,
+            commune.nom if commune else None,
+            avec_sons,
+            autres,
             # La liste nationale des communes, que cette étape a déjà chargée :
             # elle sert à reconnaître « à <ville> » même quand la ville n'est pas
             # celle de l'appelant.
@@ -395,8 +424,12 @@ async def lire_texte(
     epellation: bool = False,
     variables_ref: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT,
     champs_fiche: tuple[str, ...] | None = None,
+    message: object = None,
 ) -> str:
     """``texte`` as the model must read it, or ``texte`` unchanged. Never raises.
+
+    ``message``: what identifies the caller's message (read again, it keeps its
+    turn number).
 
     ``variables``: the agent's names of the variables that collect a town.
 
@@ -423,6 +456,9 @@ async def lire_texte(
         variables_ref=variables_ref,
         # D13 : fiche allumée, aucune note ; la réécriture des nombres reste.
         annoter=champs_fiche is None,
+        # C2 (patch du banc) : fiche allumée, chaque trace porte le tour lu.
+        marquer_le_tour=champs_fiche is not None,
+        message=message,
     )
     return f"{lu} {mention_lexique}" if mention_lexique else lu
 
@@ -449,7 +485,19 @@ async def _lire_texte_de_lappelant(
     epellation: bool = False,
     variables_ref: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT,
     annoter: bool = True,
+    marquer_le_tour: bool = False,
+    message: object = None,
 ) -> str:
+    # C2 (patch du banc, 25/09) : le tour est compté AVANT toute sortie anticipée.
+    # Un message lu sans trace reste un tour : sinon la trace sûre d'un tour
+    # précédent passerait pour celle du dernier.
+    tour = None
+    nouveau_tour = getattr(consigner, "nouveau_tour", None)
+    if marquer_le_tour and callable(nouveau_tour):
+        try:
+            tour = nouveau_tour(message)
+        except Exception as erreur:  # noqa: BLE001 -- a record never costs a call
+            logger.warning(f"[.mark] Caller turn not counted: {erreur!r}")
     try:
         if (
             not texte
@@ -470,7 +518,11 @@ async def _lire_texte_de_lappelant(
             if not communes:
                 return texte
             return await annoter_texte(
-                texte, adresse, etape, (lambda e: consigner(e, CLE_TRACE)) if consigner else None, provisoire,
+                texte,
+                adresse,
+                etape,
+                (lambda e: consigner(e, CLE_TRACE)) if consigner else None,
+                provisoire,
                 avec_sons,
             )
         # ⚠️ ``epellation`` alone is enough to run: a caller spells a name at any
@@ -482,19 +534,38 @@ async def _lire_texte_de_lappelant(
         # V4 (plan voix-et-communes): a postal code said at an earlier turn.
         trace_nombres = lire_trace(CLE_TRACE_NOMBRES) if callable(lire_trace) else []
         lu, lecture, base, voie, epellations = await asyncio.to_thread(
-            _lire, texte, adresse, trace_communes, conversion, communes, etape_reference(noeud, variables_ref),
-            etape_adresse, trace_nombres, avec_sons, voies, epellation, annoter,
+            _lire,
+            texte,
+            adresse,
+            trace_communes,
+            conversion,
+            communes,
+            etape_reference(noeud, variables_ref),
+            etape_adresse,
+            trace_nombres,
+            avec_sons,
+            voies,
+            epellation,
+            annoter,
         )
         if consigner is not None:
             entrees: list[tuple[str, dict]] = []
             if communes:
-                entrees += [(CLE_TRACE, trace_de(d, base, etape)) for d in lecture.detections]
+                entrees += [
+                    (CLE_TRACE, trace_de(d, base, etape)) for d in lecture.detections
+                ]
             if voie is not None:
                 entrees.append((CLE_TRACE_VOIES, _trace_voie(voie, etape)))
-            entrees += [(CLE_TRACE_EPELLATIONS, _trace_epellation(e, etape)) for e in epellations]
+            entrees += [
+                (CLE_TRACE_EPELLATIONS, _trace_epellation(e, etape))
+                for e in epellations
+            ]
             if conversion:
                 entrees += [
-                    (CLE_TRACE_NOMBRES, _trace_nombre(n, lecture.choix.get(n.debut), etape))
+                    (
+                        CLE_TRACE_NOMBRES,
+                        _trace_nombre(n, lecture.choix.get(n.debut), etape),
+                    )
                     for n in lecture.nombres
                 ]
             for cle, entree in entrees:
@@ -503,6 +574,8 @@ async def _lire_texte_de_lappelant(
                         # A provisional context may be followed by the real one:
                         # marked, so a bench does not count the reading twice.
                         entree["provisoire"] = True
+                    if tour is not None:
+                        entree["tour"] = tour
                     consigner(entree, cle)
                 except Exception as erreur:  # noqa: BLE001
                     logger.warning(f"[.mark] Caller reading not recorded: {erreur!r}")
@@ -591,6 +664,7 @@ class LectureAppelantProcessor(FrameProcessor):
             epellation=self._epellation,
             variables_ref=self._variables_ref,
             champs_fiche=self._champs_fiche,
+            message=cle,
         )
         # Marked AFTER the reading: an interruption that cancels this task
         # during the await leaves the message unmarked, so the next context
@@ -605,11 +679,16 @@ class LectureAppelantProcessor(FrameProcessor):
         if isinstance(frame, StartFrame):
             # Read the list before the first turn needs it, off the loop.
             self.create_task(self._precharger())
-        elif isinstance(frame, LLMContextFrame) and direction == FrameDirection.DOWNSTREAM:
+        elif (
+            isinstance(frame, LLMContextFrame)
+            and direction == FrameDirection.DOWNSTREAM
+        ):
             try:
                 await self._lire_contexte(frame)
             except Exception as erreur:  # noqa: BLE001 -- the call must go on
-                logger.warning(f"[.mark] Caller reading failed, context kept as is: {erreur!r}")
+                logger.warning(
+                    f"[.mark] Caller reading failed, context kept as is: {erreur!r}"
+                )
         await self.push_frame(frame, direction)
 
 
@@ -670,5 +749,7 @@ async def lire_message_tape(
             champs_fiche=champs_de_la_fiche(run_configs),
         )
     except Exception as erreur:  # noqa: BLE001
-        logger.warning(f"[.mark] Caller reading failed on the keyboard, message kept: {erreur!r}")
+        logger.warning(
+            f"[.mark] Caller reading failed on the keyboard, message kept: {erreur!r}"
+        )
         return texte

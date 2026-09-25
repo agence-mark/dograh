@@ -300,10 +300,17 @@ async def test_T3_6_le_gestionnaire_renvoie_ambigu_et_laisse_relancer():
     assert properties is None
 
 
-def test_D37_commune_sans_trace_ecrite_non_sure_a_confirmer():
-    """Runs 791 et 792 : une commune notée sans trace du module n'est pas perdue."""
+def test_PB5_commune_sans_trace_ecrite_non_sure_seulement_si_dite():
+    """Runs 791 et 792 : une commune notée sans trace du module n'est pas perdue
+    quand la personne l'a dite (D37). PB5 (patch du banc, run 845) : ni dite ni
+    trouvée, elle est refusée -- « Lyon 5ᵉ » n'a pas été dit tel quel au 791."""
     fiche: dict = {}
     verdict = ecrire_dans_la_fiche(fiche, _reglages(), "commune", "Lyon 5ᵉ")
+    assert (verdict.statut, verdict.raison) == ("refuse", "non_dit")
+    assert "commune" not in fiche
+    verdict = ecrire_dans_la_fiche(
+        fiche, _reglages(), "commune", "Lyon 5ᵉ", paroles=["c'est à Lyon 5ᵉ"]
+    )
     assert verdict.statut == "ecrit" and verdict.suite == "a_confirmer"
     assert fiche["commune"] == "Lyon 5ᵉ"
     assert fiche["fiche_etat"]["commune"]["sure"] is False
@@ -321,7 +328,9 @@ def test_D6_une_commune_non_sure_n_ecrase_pas_une_commune_sure():
         ]
     }
     ecrire_dans_la_fiche(fiche, _reglages(), "commune", "creil")
-    verdict = ecrire_dans_la_fiche(fiche, _reglages(), "commune", "Lyon Court")
+    verdict = ecrire_dans_la_fiche(
+        fiche, _reglages(), "commune", "Lyon Court", paroles=["non, Lyon Court"]
+    )
     assert (verdict.statut, verdict.raison) == ("refuse", "non_sure_sur_sure")
     assert fiche["commune"] == "Creil" and fiche["commune_insee"] == "60175"
 
@@ -382,14 +391,18 @@ async def test_run_828_le_modele_recoit_l_ecriture_officielle():
 @pytest.mark.asyncio
 async def test_A2_commune_retenue_et_rue_a_confirmer_les_deux_consignes():
     """Run 832 : la commune est retenue sous son écriture officielle, la rue n'a
-    pas de trace (D37, à confirmer) : le modèle reçoit les deux consignes."""
-    fiche, _ = await _appel("j'habite à Ponce-Alpes-Maxence, soixante mille sept cents")
+    pas de trace (dite, donc à confirmer : PB5) : le modèle reçoit les deux consignes."""
+    fiche, lus = await _appel(
+        "j'habite à Ponce-Alpes-Maxence, soixante mille sept cents, Siru Danton"
+    )
     resultats = []
 
     async def rappel(resultat, *, properties=None):
         resultats.append(resultat)
 
-    gestionnaire = creer_gestionnaire(_reglages(), lambda: fiche, list)
+    gestionnaire = creer_gestionnaire(
+        _reglages(), lambda: fiche, lambda: [{"role": "user", "content": lus[0]}]
+    )
     await gestionnaire(
         SimpleNamespace(
             arguments={

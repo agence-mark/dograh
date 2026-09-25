@@ -5,10 +5,15 @@ dicté ou déduit, indice. Rangée dans `workflow_configurations` (colonne JSON)
 aucune migration de base (D32).
 """
 
+import unicodedata
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+# PB3 : les bornes d'une liste fermée de valeurs (reprises par l'écran).
+MAX_VALEURS = 20
+MAX_LONGUEUR_VALEUR = 40
 
 
 class OrigineChamp(str, Enum):
@@ -43,15 +48,57 @@ class ChampFiche(BaseModel):
     # ⛔ Gardé VIDE en base, jamais remplacé par sa valeur déduite : l'écran
     # comparerait ce qu'il a envoyé à ce qu'il relit et se croirait modifié, et
     # un champ renommé garderait le lecteur de son ancien nom (constaté le 24/09).
-    lecteur: Literal["commune", "rue", "date", "aucun"] | None = Field(
+    lecteur: Literal["commune", "rue", "date", "lexique", "aucun"] | None = Field(
         default=None,
         description=(
             "Which reader checks the value: town (official name and INSEE code), "
             "street (official street name), date (a relative date such as 'last "
-            "year' computed on the day of the call, the caller's words kept), or "
-            "none. Empty: from the field name."
+            "year' computed on the day of the call, the caller's words kept), "
+            "trade vocabulary (a name of the organization's vocabulary, sure only "
+            "when recognised), or none. Empty: from the field name."
         ),
     )
+
+    # PB3 (patch du banc, 25/09) : une liste fermée de valeurs. Le champ n'accepte
+    # qu'une d'elles, écrite sous la forme déclarée, d'où que vienne la valeur ;
+    # et un champ déduit qui en déclare une est exempté de l'ancrage (PB2).
+    # Vide = aucune liste. Rangée dans le JSON de l'agent : aucune migration.
+    valeurs: list[str] | None = Field(
+        default=None,
+        description=(
+            "Allowed values: the field only accepts one of them (case and accents "
+            "ignored), written as declared. Empty: any value."
+        ),
+    )
+
+    @field_validator("valeurs")
+    @classmethod
+    def _valeurs_lisibles(cls, valeurs: list[str] | None) -> list[str] | None:
+        if valeurs is None:
+            return None
+        propres: list[str] = []
+        vues: set[str] = set()
+        for brute in valeurs:
+            valeur = (brute or "").strip()
+            # Revue du 25/09 : « Panne, panne » est une seule valeur (la fiche
+            # compare sans casse ni accents) ; la première écriture est gardée.
+            forme = "".join(
+                c
+                for c in unicodedata.normalize("NFKD", valeur.casefold())
+                if not unicodedata.combining(c)
+            )
+            if valeur and forme not in vues:
+                vues.add(forme)
+                propres.append(valeur)
+        if len(propres) > MAX_VALEURS:
+            raise ValueError(f"at most {MAX_VALEURS} allowed values")
+        for valeur in propres:
+            if len(valeur) > MAX_LONGUEUR_VALEUR:
+                raise ValueError(
+                    f"allowed value '{valeur[:20]}…' is longer than "
+                    f"{MAX_LONGUEUR_VALEUR} characters"
+                )
+        return propres or None
 
     @property
     def lecteur_effectif(self) -> str:
@@ -60,9 +107,12 @@ class ChampFiche(BaseModel):
 
 def lecteur_par_defaut(nom: str) -> str:
     """D42 : ``commune*`` -> commune ; ``adresse*`` et ``rue*`` -> rue ; D46 :
-    ``*date*``, ``dernier_*`` et ``annee*`` -> date ; sinon aucun."""
+    ``*date*``, ``dernier_*`` et ``annee*`` -> date ; C10 (PB12) : ``marque*``
+    -> lexique ; sinon aucun."""
     if nom.startswith("commune"):
         return "commune"
+    if nom.startswith("marque"):
+        return "lexique"
     if nom.startswith(("adresse", "rue")):
         return "rue"
     if "date" in nom or nom.startswith(("dernier_", "annee")):
@@ -104,6 +154,7 @@ NOMS_RESERVES = frozenset(
         # la fiche elle-même
         "fiche_etat",
         "fiche_journal",
+        "tour_appelant",
     }
 )
 
