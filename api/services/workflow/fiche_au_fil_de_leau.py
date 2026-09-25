@@ -50,6 +50,7 @@ from api.schemas.fiche_agent import (
     verifier_champs,
 )
 from api.services.communes.base import base_si_chargee, cle_sonore
+from api.services.nombres.lecture import lire_nombres, reecrire
 from api.services.workflow.dates_relatives import lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
 
@@ -257,6 +258,18 @@ def valeur_de_la_liste(valeur: Any, valeurs: Iterable[str]) -> str | None:
     ponctuation ignorés), sous sa forme déclarée ; ``None`` hors de la liste."""
     mots = _mots(str(valeur))
     return next((v for v in valeurs if mots and _mots(v) == mots), None)
+
+
+def _chiffres_comme_lus(texte: str) -> str:
+    """C7 (PB10, run 847) : ``texte`` avec ses nombres écrits comme le module des
+    nombres les écrit dans ce que le modèle lit. La personne dit « il y a trois
+    ans », le modèle lit « il y a 3 ans »... et note « il y a trois ans » : le
+    contrôle de citation cherchait « trois » dans « 3 ans ». Jamais d'exception."""
+    try:
+        return reecrire(texte, lire_nombres(texte))
+    except Exception as erreur:  # noqa: BLE001 -- un contrôle ne coûte jamais l'appel
+        logger.warning(f"[fiche] nombres de la date non convertis : {erreur!r}")
+        return texte
 
 
 def paroles_de_l_appelant(messages: Iterable[dict]) -> list[str]:
@@ -842,7 +855,11 @@ def ecrire_dans_la_fiche(
         if definition.lecteur_effectif == "date" and not epele:
             date = lire_date(str(valeur), paroles, jour)
             # « 2025 » trouvé dans ses paroles, ou « l'année dernière » dit tel quel.
-            if date and (date.depuis_les_paroles or est_cite(valeur, paroles)):
+            if date and (
+                date.depuis_les_paroles
+                or est_cite(valeur, paroles)
+                or est_cite(_chiffres_comme_lus(str(valeur)), paroles)
+            ):
                 valeur, dit = date.valeur, date.dit
         if (
             lecture is not None

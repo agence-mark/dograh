@@ -17,8 +17,10 @@ test dans l'autre sens : ce qui doit toujours être refusé (PB15).
 | C4 | Le type de voie dit (comparé au son) choisit entre des voies de même nom ; une option confirmée s'enregistre |
 | C5 | Un type de voie au pluriel (« rues », liaison entendue) vaut le singulier |
 | C6 | Une voie notée sans numéro garde le numéro déjà noté pour la même voie |
+| C7 | « il y a trois ans » dit, lu « il y a 3 ans » par le modèle, est accepté (cause établie sur le 847) |
 """
 
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
@@ -36,6 +38,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     balayer_la_fiche,
     creer_gestionnaire,
     ecrire_dans_la_fiche,
+    est_cite,
     garder_le_numero,
     lire_commune,
     lire_rue,
@@ -886,3 +889,97 @@ def test_C6_le_numero_suit_la_meme_voie_ecrite_autrement():
 )
 def test_C6_aucun_numero_invente(ancienne, nouvelle):
     assert garder_le_numero(nouvelle, ancienne, {}) == nouvelle
+
+
+# --- C7 et C8 : les dates (PB10, PB11) ----------------------------------------
+
+JOUR_DU_BANC = datetime(2026, 9, 25, 10, 30)
+PHRASE_847 = (
+    "Ouais bonjour, c'est madame Lambert. Je vous appelle parce que j'ai un problème "
+    "avec mon insert. Il a un problème de ventilateur depuis une semaine et c'est un "
+    "godin. Non pardon, c'est un Invicta. Donc voilà, j'aimerais savoir comment on "
+    "pourrait régler le problème. Le dernier entretien, il a été fait l'année "
+    "dernière. Non, il a été fait il y a trois ans en fait et je voudrais aussi un "
+    "devis pour le ramonage s'il vous plaît."
+)
+
+
+async def _lu_par_le_modele(phrase: str) -> str:
+    """La phrase telle que le modèle la lit : passée par les vrais modules."""
+    return await lire_message_tape(
+        phrase,
+        {
+            "conversion_nombres_transcription": True,
+            "verification_communes": True,
+            "fiche_au_fil_de_leau": True,
+            "fiche_champs": [{"nom": "dernier_entretien"}],
+        },
+        SimpleNamespace(language="fr", language_hints=None),
+        None,
+        SimpleNamespace(name="accueil", extraction_variables=[]),
+        consigner_dans(lambda: {}),
+    )
+
+
+@pytest.mark.asyncio
+async def test_C7_run_847_la_cause_le_modele_lit_3_ans_et_note_trois_ans():
+    """PB10 : la cause, établie sur la phrase du 847. Le module des nombres a
+    écrit « 3 ans » dans ce que le modèle lit ; le modèle a noté « il y a trois
+    ans » ; le contrôle de citation cherchait « trois » dans « 3 ans »."""
+    lu = await _lu_par_le_modele(PHRASE_847)
+    assert "il y a 3 ans" in lu and "trois" not in lu
+    assert est_cite("il y a trois ans", [lu]) is False
+
+
+def _date(valeur, *paroles, source="outil"):
+    reglages = ReglagesFiche.depuis(
+        {"fiche_au_fil_de_leau": True, "fiche_champs": [{"nom": "dernier_entretien"}]}
+    )
+    fiche: dict = {}
+    verdict = ecrire_dans_la_fiche(
+        fiche,
+        reglages,
+        "dernier_entretien",
+        valeur,
+        source=source,
+        paroles=list(paroles),
+        jour=JOUR_DU_BANC,
+    )
+    return verdict, fiche
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["outil", "balayage"])
+async def test_C7_run_847_il_y_a_trois_ans_est_accepte(source):
+    """Refusé deux fois au 847 (par l'outil puis par le balayage) : 2023, les mots
+    de la personne gardés."""
+    lu = await _lu_par_le_modele(PHRASE_847)
+    verdict, fiche = _date("il y a trois ans", lu, source=source)
+    assert verdict.statut == "ecrit"
+    assert (fiche["dernier_entretien"], fiche["dernier_entretien_dit"]) == (
+        "2023",
+        "il y a trois ans",
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "run, valeur, phrase, attendu",
+    [
+        (841, "2025", "L'année dernière.", "2025"),
+        (841, "l'année dernière", "L'année dernière.", "2025"),
+        (851, "2024", "Il y a deux ans.", "2024"),
+        (851, "il y a deux ans", "Il y a deux ans.", "2024"),
+        (829, "2025", "Le dernier entretien, c'était l'année dernière.", "2025"),
+    ],
+)
+async def test_C7_les_dates_qui_passaient_passent_toujours(run, valeur, phrase, attendu):
+    verdict, fiche = _date(valeur, await _lu_par_le_modele(phrase))
+    assert (verdict.statut, fiche.get("dernier_entretien")) == ("ecrit", attendu), run
+
+
+@pytest.mark.parametrize("valeur", ["il y a quatre ans", "2022"])
+def test_C7_une_autre_date_que_celle_dite_reste_refusee(valeur):
+    verdict, fiche = _date(valeur, "il a été fait il y a 3 ans")
+    assert (verdict.statut, verdict.raison) == ("refuse", "non_dit")
+    assert "dernier_entretien" not in fiche
