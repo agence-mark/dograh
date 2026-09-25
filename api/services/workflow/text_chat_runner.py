@@ -757,7 +757,7 @@ async def execute_text_chat_pending_turn(
     )
     runner_task = asyncio.create_task(run_pipeline_worker(task))
 
-    engine.set_task(task)
+    engine.call_worker = task
     engine.set_audio_config(audio_config)
     engine.set_transport_output(_TaskQueueProxy(task.queue_frame))
     engine.set_fetch_recording_audio(
@@ -813,7 +813,7 @@ async def execute_text_chat_pending_turn(
                 pending_user_message,
                 run_configs,
                 lexique_metier,
-                engine._current_node,
+                engine.active_agent.current_node,
                 consigner_dans(lambda: engine._gathered_context),
             )
             message_pour_le_modele = await lire_message_tape(
@@ -821,7 +821,7 @@ async def execute_text_chat_pending_turn(
                 run_configs,
                 getattr(user_config, "stt", None),
                 adresse_etablissement,
-                engine._current_node,
+                engine.active_agent.current_node,
                 consigner_dans(lambda: engine._gathered_context),
             )
             context.add_message({"role": "user", "content": message_pour_le_modele})
@@ -851,7 +851,7 @@ async def execute_text_chat_pending_turn(
     )
     assistant_created_at = datetime.now(UTC).isoformat()
     usage = pipeline_metrics_aggregator.get_all_usage_metrics_serialized()
-    current_node = getattr(engine, "_current_node", None)
+    current_node = engine.active_agent.current_node
     context_messages = context.get_messages()
     encoded_messages = _serialize_text_chat_checkpoint_messages(context_messages)
     encoded_gathered_context = jsonable_encoder(gathered_context)

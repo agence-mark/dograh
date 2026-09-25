@@ -1305,6 +1305,44 @@ export type CartesiaTtsConfiguration = {
 };
 
 /**
+ * ChampFiche
+ */
+export type ChampFiche = {
+    /**
+     * Nom
+     *
+     * snake_case name of the field, also the tool parameter name.
+     */
+    nom: string;
+    /**
+     * Type
+     */
+    type?: 'string' | 'number' | 'boolean';
+    /**
+     * Dictated: the value must have been said by the caller (name, town, street, number, brand). Deduced: the model sums it up (reason, urgency).
+     */
+    origine?: OrigineChamp;
+    /**
+     * Description
+     *
+     * Hint given to the model for this parameter.
+     */
+    description?: string;
+    /**
+     * Lecteur
+     *
+     * Which reader checks the value: town (official name and INSEE code), street (official street name), date (a relative date such as 'last year' computed on the day of the call, the caller's words kept), trade vocabulary (a name of the organization's vocabulary, sure only when recognised), or none. Empty: from the field name.
+     */
+    lecteur?: 'commune' | 'rue' | 'date' | 'lexique' | 'aucun' | null;
+    /**
+     * Valeurs
+     *
+     * Allowed values: the field only accepts one of them (case and accents ignored), written as declared. Empty: any value.
+     */
+    valeurs?: Array<string> | null;
+};
+
+/**
  * ChunkResponseSchema
  *
  * Response schema for a document chunk.
@@ -1755,7 +1793,7 @@ export type CreateToolRequest = {
      *
      * Tool category. Must match definition.type.
      */
-    category?: 'http_api' | 'end_call' | 'transfer_call' | 'calculator' | 'native' | 'integration' | 'mcp';
+    category?: 'http_api' | 'end_call' | 'transfer_call' | 'transfer_agent' | 'calculator' | 'native' | 'integration' | 'mcp';
     /**
      * Icon
      *
@@ -1780,6 +1818,8 @@ export type CreateToolRequest = {
     } & EndCallToolDefinition) | ({
         type: 'transfer_call';
     } & TransferCallToolDefinition) | ({
+        type: 'transfer_agent';
+    } & TransferAgentToolDefinition) | ({
         type: 'calculator';
     } & CalculatorToolDefinition) | ({
         type: 'mcp';
@@ -4960,6 +5000,13 @@ export type OrganizationSummary = {
 };
 
 /**
+ * OrigineChamp
+ *
+ * D4 : un champ DICTÉ subit le contrôle de citation, un champ DÉDUIT non.
+ */
+export type OrigineChamp = 'dicte' | 'deduit';
+
+/**
  * PhoneNumberCreateRequest
  *
  * Create a new phone number under a telephony configuration.
@@ -7167,6 +7214,61 @@ export type ToolTestResponse = {
 };
 
 /**
+ * TransferAgentConfig
+ *
+ * Configuration for Transfer Agent tools.
+ *
+ * One tool, one destination. An agent that can hand the caller to several
+ * places gets several of these tools, and the model chooses between them the
+ * way it chooses between any other tools -- by their names and descriptions.
+ * That keeps the routing decision in the one place the model already reasons
+ * about, and leaves nothing to configure here but where the call goes.
+ *
+ * Everything about how a handoff sounds is fixed: the caller hears a ringer
+ * while the next agent is prepared, and that agent opens with its own
+ * configured greeting. Only the handover line is configurable, because it is
+ * caller-facing and Dograh runs in more than one language.
+ */
+export type TransferAgentConfig = {
+    /**
+     * Workflow Id
+     *
+     * Id of the Dograh agent to transfer to. Must be in the same organization, and must not be a speech-to-speech agent.
+     */
+    workflow_id: number;
+    /**
+     * Message
+     *
+     * Spoken by the current agent, in its own voice, before the caller is handed over. Supports template variables. Leave empty to hand over without saying anything.
+     */
+    message?: string;
+};
+
+/**
+ * TransferAgentToolDefinition
+ *
+ * Tool definition for Transfer Agent tools.
+ */
+export type TransferAgentToolDefinition = {
+    /**
+     * Schema Version
+     *
+     * Schema version.
+     */
+    schema_version?: number;
+    /**
+     * Type
+     *
+     * Tool type.
+     */
+    type: 'transfer_agent';
+    /**
+     * Transfer Agent configuration.
+     */
+    config: TransferAgentConfig;
+};
+
+/**
  * TransferCallConfig
  *
  * Configuration for Transfer Call tools.
@@ -7554,6 +7656,8 @@ export type UpdateToolRequest = {
     } & EndCallToolDefinition) | ({
         type: 'transfer_call';
     } & TransferCallToolDefinition) | ({
+        type: 'transfer_agent';
+    } & TransferAgentToolDefinition) | ({
         type: 'calculator';
     } & CalculatorToolDefinition) | ({
         type: 'mcp';
@@ -8253,6 +8357,18 @@ export type WorkflowConfigurationDefaults = {
      */
     sons_communes?: boolean;
     /**
+     * Verification Voies
+     *
+     * Matches the street the caller names against the streets of their commune in the national address base, and tells the model the name to use. Needs the town check: without a commune there is no list of streets to search. Acts at the same steps. A street that is not found is spelled out once, never asked again. No effect in realtime mode.
+     */
+    verification_voies?: boolean;
+    /**
+     * Lecture Epellation
+     *
+     * Reads the letters a caller spells out ("f l a m a n t", "F comme François", "deux T", accents, e-mail addresses) and tells the model to copy them exactly. Acts at every step: a name, a street, a brand or an address can be spelled at any moment. No effect in realtime mode.
+     */
+    lecture_epellation?: boolean;
+    /**
      * Sons Lexique
      *
      * Compares how the heard words sound with how each name of the trade vocabulary sounds, in addition to the spelling. A name found by its sound alone is asked for confirmation. Off: spelling only.
@@ -8270,6 +8386,12 @@ export type WorkflowConfigurationDefaults = {
      * The extraction variables that trigger the town check, separated by commas. A final * means every name that starts with it (adresse* covers adresse_chantier). Case and spaces do not count. Empty: commune, commune_*, adresse*.
      */
     variables_commune?: string;
+    /**
+     * Variables Reference
+     *
+     * The extraction variables that trigger the reference reader (invoice, quote or order numbers), same format as above. Empty: reference*.
+     */
+    variables_reference?: string;
     /**
      * Horaires Ouverture
      *
@@ -8340,6 +8462,18 @@ export type WorkflowConfigurationDefaults = {
      * Stop the agent from saying Monsieur, Madame or Mademoiselle. Same mechanism and same limits as the switch above. Independent of it: either can be used alone.
      */
     interdire_civilite_appelant?: boolean;
+    /**
+     * Fiche Au Fil De Leau
+     *
+     * Give the model a noter_information tool it can call at any step to write or correct a field of the call record below. Off: the tool is not offered at all and the agent behaves exactly as before. On: the step-by-step extraction is switched off, the record is filled by the tool. No effect in realtime mode.
+     */
+    fiche_au_fil_de_leau?: boolean;
+    /**
+     * Fiche Champs
+     *
+     * The fields of the call record the tool can write: name, type, dictated or deduced, and a hint for the model. A dictated value is written only if the caller said it.
+     */
+    fiche_champs?: Array<ChampFiche>;
     /**
      * Tts Replacements
      *

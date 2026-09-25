@@ -468,7 +468,8 @@ async def _message_tape_jusquau_modele(texte: str, configuration: dict, noeud=NO
 
     class _Moteur:
         def __init__(self, **kwargs):
-            self._current_node = noeud
+            # Upstream split per agent (fc76383c): the step is on the running agent.
+            self.active_agent = SimpleNamespace(current_node=noeud)
             self._gathered_context = {}
             contexte_capture["contexte"] = kwargs["context"]
             contexte_capture["moteur"] = self
@@ -587,7 +588,7 @@ def test_le_chemin_telephonique_cree_letape_avec_ladresse_et_le_noeud_courant():
     source = inspect.getsource(run_pipeline)
     assert re.search(
         r"lecture_appelant=creer_lecture_appelant\(\s*run_configs,\s*user_config\.stt,\s*adresse_etablissement,"
-        r"\s*lambda: engine\._current_node,\s*consigner_dans\(lambda: engine\._gathered_context\)",
+        r"\s*lambda: engine\.active_agent\.current_node,\s*consigner_dans\(lambda: engine\._gathered_context\)",
         source,
     ), "The phone path no longer builds the caller reading step with the agent's configuration."
     assert len(re.findall(r"creer_lecture_appelant\(", source)) == 1

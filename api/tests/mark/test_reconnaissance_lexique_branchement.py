@@ -140,19 +140,37 @@ def _transport():
 
 
 def _composants() -> dict:
-    """The positional arguments of ``build_pipeline``, as named processors."""
+    """The positional arguments of ``build_pipeline``, as named processors.
+
+    Since the upstream split per agent (fc76383c) the model and the voice run
+    in the agent's own worker: the call pipeline keeps a generation SLOT, here
+    a single processor standing for the model, reached through the call clock.
+    """
     return {
         "transport": _transport(),
         "stt": FrameProcessor(),
         "audio_buffer": FrameProcessor(),
-        "llm": FrameProcessor(),
-        "tts": FrameProcessor(),
         "user_context_aggregator": FrameProcessor(),
         "assistant_context_aggregator": FrameProcessor(),
-        "pipeline_engine_callback_processor": FrameProcessor(),
+        "call_duration_processor": FrameProcessor(),
+        "generation_stage": [FrameProcessor()],
         "pipeline_metrics_aggregator": FrameProcessor(),
         "termination_funnel": FrameProcessor(),
     }
+
+
+def _modele(composants):
+    """Where the model is reached from the call pipeline: the generation slot."""
+    return composants["generation_stage"][0]
+
+
+def _juste_avant_le_modele(processeurs, etape, composants):
+    """Only the call clock (upstream, a timer) sits between ``etape`` and the
+    generation slot: nothing that reads or rewrites what the caller said."""
+    i = processeurs.index(etape)
+    return processeurs[i + 1 : processeurs.index(_modele(composants))] == [
+        composants["call_duration_processor"]
+    ]
 
 
 def test_sans_lexique_la_liste_des_processeurs_est_celle_daujourdhui():
@@ -174,7 +192,7 @@ def test_le_lexique_se_place_juste_avant_la_lecture_de_lappelant_et_le_modele():
         **composants, reconnaissance_lexique=lexique, lecture_appelant=lecture
     ).processors
     assert processeurs.index(lexique) == processeurs.index(lecture) - 1
-    assert processeurs.index(lecture) == processeurs.index(composants["llm"]) - 1
+    assert _juste_avant_le_modele(processeurs, lecture, composants)
     assert processeurs.index(lexique) > processeurs.index(composants["user_context_aggregator"])
     # Counted: exactly one step of each.
     assert sum(1 for p in processeurs if isinstance(p, ReconnaissanceLexiqueProcessor)) == 1
@@ -184,7 +202,7 @@ def test_sans_lecture_de_lappelant_le_lexique_reste_juste_avant_le_modele():
     composants = _composants()
     lexique = _processeur()
     processeurs = build_pipeline(**composants, reconnaissance_lexique=lexique).processors
-    assert processeurs.index(lexique) == processeurs.index(composants["llm"]) - 1
+    assert _juste_avant_le_modele(processeurs, lexique, composants)
 
 
 def test_apres_la_porte_du_superviseur_de_decroche():
@@ -202,7 +220,7 @@ def test_apres_la_porte_du_superviseur_de_decroche():
 def test_le_temps_reel_ne_recoit_pas_le_lexique():
     from api.services.pipecat.pipeline_builder import build_realtime_pipeline
 
-    pipeline = build_realtime_pipeline(_transport(), *[FrameProcessor() for _ in range(7)])
+    pipeline = build_realtime_pipeline(_transport(), *[FrameProcessor() for _ in range(8)])
     assert not any(isinstance(p, ReconnaissanceLexiqueProcessor) for p in pipeline.processors)
     assert "reconnaissance_lexique" not in inspect.signature(build_realtime_pipeline).parameters
 

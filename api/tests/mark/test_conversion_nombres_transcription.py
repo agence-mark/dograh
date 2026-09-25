@@ -99,19 +99,37 @@ def _transport():
 
 
 def _composants():
-    """The positional arguments of ``build_pipeline``, as named processors."""
+    """The positional arguments of ``build_pipeline``, as named processors.
+
+    Since the upstream split per agent (fc76383c) the model and the voice run
+    in the agent's own worker: the call pipeline keeps a generation SLOT, here
+    a single processor standing for the model, reached through the call clock.
+    """
     return {
         "transport": _transport(),
         "stt": FrameProcessor(),
         "audio_buffer": FrameProcessor(),
-        "llm": FrameProcessor(),
-        "tts": FrameProcessor(),
         "user_context_aggregator": FrameProcessor(),
         "assistant_context_aggregator": FrameProcessor(),
-        "pipeline_engine_callback_processor": FrameProcessor(),
+        "call_duration_processor": FrameProcessor(),
+        "generation_stage": [FrameProcessor()],
         "pipeline_metrics_aggregator": FrameProcessor(),
         "termination_funnel": FrameProcessor(),
     }
+
+
+def _modele(composants):
+    """Where the model is reached from the call pipeline: the generation slot."""
+    return composants["generation_stage"][0]
+
+
+def _juste_avant_le_modele(processeurs, etape, composants):
+    """Only the call clock (upstream, a timer) sits between ``etape`` and the
+    generation slot: nothing that reads or rewrites what the caller said."""
+    i = processeurs.index(etape)
+    return processeurs[i + 1 : processeurs.index(_modele(composants))] == [
+        composants["call_duration_processor"]
+    ]
 
 
 def _processeur(noeud, consigner=None, conversion=True, verification=True, langue_francaise=True):
@@ -164,10 +182,12 @@ def test_tous_les_interrupteurs_eteints_aucune_etape():
     # what is compared.
     sans = build_pipeline(**composants).processors[1:-1]
     avec = build_pipeline(**composants, lecture_appelant=etape).processors[1:-1]
-    assert len(sans) == 11
+    # 10 since the split per agent (fc76383c): model, callbacks and voice left
+    # for the agent's worker, the call clock and the generation slot came in.
+    assert len(sans) == 10
     assert avec == sans
     # Nothing .mark between the transcription and the model.
-    entre = avec[avec.index(composants["stt"]) + 1:avec.index(composants["llm"])]
+    entre = avec[avec.index(composants["stt"]) + 1:avec.index(composants["call_duration_processor"])]
     assert entre == [composants["user_context_aggregator"]]
 
 
@@ -197,7 +217,7 @@ def test_letape_est_juste_avant_le_modele_rien_avant_lagregateur(conversion, ver
     assert (etape._conversion, etape._verification) == (conversion, verification)
 
     processeurs = build_pipeline(**composants, lecture_appelant=etape).processors
-    assert processeurs.index(etape) == processeurs.index(composants["llm"]) - 1
+    assert _juste_avant_le_modele(processeurs, etape, composants)
     assert processeurs.index(etape) > processeurs.index(composants["user_context_aggregator"])
     # Counted: exactly one .mark step, and the transcription feeds the aggregator directly.
     assert sum(1 for p in processeurs if isinstance(p, LectureAppelantProcessor)) == 1
@@ -211,12 +231,13 @@ def test_apres_la_porte_du_superviseur_de_decroche():
     superviseur.llm_gate = lambda: porte
     etape = _processeur(NOEUD_COORDONNEES)
     processeurs = build_pipeline(**composants, lecture_appelant=etape, answer_supervisor=superviseur).processors
-    assert processeurs.index(porte) < processeurs.index(etape) == processeurs.index(composants["llm"]) - 1
+    assert processeurs.index(porte) < processeurs.index(etape)
+    assert _juste_avant_le_modele(processeurs, etape, composants)
 
 
 def test_le_pipeline_temps_reel_ne_contient_pas_letape():
     """No transcription step in realtime mode, so nothing to read."""
-    pipeline = build_realtime_pipeline(_transport(), *[FrameProcessor() for _ in range(7)])
+    pipeline = build_realtime_pipeline(_transport(), *[FrameProcessor() for _ in range(8)])
     assert not any(isinstance(p, LectureAppelantProcessor) for p in pipeline.processors)
 
 
