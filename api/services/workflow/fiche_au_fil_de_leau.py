@@ -49,6 +49,7 @@ from api.schemas.fiche_agent import (
     cle_insee,
     verifier_champs,
 )
+from api.services.communes.base import base_si_chargee
 from api.services.workflow.dates_relatives import lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
 
@@ -429,6 +430,38 @@ def lire_commune(valeur: Any, fiche: dict) -> Lecture:
     return Lecture(valeur, False, "a_confirmer", trouvee=False)
 
 
+def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]:
+    """C3 (PB6, run 845) : les communes du DERNIER code postal que le module des
+    nombres a lu dans l'appel, les plus peuplées d'abord. Au 845, « soixante
+    trois cents » donnait Senlis, Chamant, Avilly : aucune n'a été proposée."""
+    code = next(
+        (
+            t.get("retenu") or t.get("ecrit")
+            for t in _entrees(fiche, TRACE_NOMBRES)
+            if t.get("type") == "code_postal"
+            and re.fullmatch(r"\d{5}", str(t.get("retenu") or t.get("ecrit") or ""))
+        ),
+        None,
+    )
+    if code is None:
+        return ()
+    base = base_si_chargee()
+    if base is not None:
+        return tuple(
+            f"{c.nom} ({base.nom_departement(c.dep)})"
+            for c in base.communes_du_code_postal(code)[:maximum]
+        )
+    # Sans la liste chargée : ce que le module a proposé pour ce code.
+    for trace in _entrees(fiche, TRACE_COMMUNES):
+        propositions = [
+            p for p in trace.get("propositions") or []
+            if isinstance(p, dict) and code in (p.get("codes_postaux") or [])
+        ]
+        if trace.get("code_postal_entendu") and propositions:
+            return tuple(_option_commune(p) for p in propositions[:maximum])
+    return ()
+
+
 _MOT = re.compile(r"[^\W_]+")
 _NUMERO = {"bis", "ter", "quater"}
 
@@ -615,7 +648,15 @@ def ecrire_dans_la_fiche(
             lecture = lire_rue(valeur, fiche)
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
-            if not lecture.trouvee and lecture.options:
+            if (
+                not lecture.trouvee
+                and not lecture.options
+                and definition.lecteur_effectif == "commune"
+                and (proposees := communes_du_code_postal_lu(fiche))
+            ):
+                # C3 (PB6) : rien trouvé, mais un code postal a été lu.
+                lecture = replace(lecture, suite="a_proposer", options=proposees)
+            elif not lecture.trouvee and lecture.options:
                 # C2 : plusieurs voies ou communes sûres au même tour.
                 lecture = replace(lecture, suite="a_proposer")
         if definition.lecteur_effectif == "date" and not epele:

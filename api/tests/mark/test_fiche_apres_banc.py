@@ -13,6 +13,7 @@ test dans l'autre sens : ce qui doit toujours être refusé (PB15).
 | C13 | Un déduit écrit par le balayage contient un mot porteur que l'appelant a dit (PB2) |
 | PB3 | Un champ à liste fermée n'accepte qu'une de ses valeurs, et échappe à l'ancrage |
 | C2 | Une commune ou une rue SÛRE du dernier tour de l'appelant l'emporte ; ni dite ni trouvée = refusée |
+| C3 | Une commune refusée ou introuvable renvoie les communes du code postal lu, à proposer une par une |
 """
 
 from types import SimpleNamespace
@@ -20,6 +21,7 @@ from types import SimpleNamespace
 import pytest
 
 from api.schemas.fiche_agent import ChampFiche
+from api.services.communes.base import charger_base
 from api.services.pipecat import verification_communes
 from api.services.pipecat.lecture_appelant import lire_message_tape
 from api.services.pipecat.verification_communes import consigner_dans
@@ -429,6 +431,34 @@ async def test_C2_run_845_T9_liancourt_ni_dit_ni_trouve_est_refuse():
     # La rue, elle, a été dite : écrite, à confirmer.
     assert fiche["adresse_intervention"] == "7 rue de Maud"
     assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("liste_chargee", [True, False])
+async def test_C3_run_845_T10_lisle_refuse_et_les_communes_du_60300_proposees(
+    liste_chargee, monkeypatch
+):
+    if liste_chargee:
+        charger_base()
+    else:
+        monkeypatch.setattr(fiche_au_fil_de_leau, "base_si_chargee", lambda: None)
+    fiche, messages = _jusqu_au_tour(TOURS_845, 9)
+    resultat = await _noter(fiche, messages, commune="Lisle", code_postal="60300")
+    assert "commune" not in fiche
+    assert resultat["a_proposer"] == [
+        {
+            "champ": "commune",
+            "options": [
+                "Senlis (Oise)",
+                "Chamant (Oise)",
+                "Avilly-Saint-Léonard (Oise)",
+            ],
+        }
+    ]
+    assert resultat["consigne"].startswith(CONSIGNE_A_PROPOSER.format(champs="commune"))
+    # Proposer n'est pas « ne repose pas la question ».
+    assert "ne repose pas la question" not in resultat["consigne"]
+    assert fiche["code_postal"] == "60300"
 
 
 @pytest.mark.asyncio
