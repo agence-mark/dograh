@@ -287,7 +287,11 @@ async def _appeler(
                 try:
                     await asyncio.wait_for(appel, timeout=5.0)
                 except asyncio.CancelledError:
-                    pass  # l'arrêt demandé ci-dessus, rien d'autre
+                    # Seul l'arrêt demandé ci-dessus s'avale. L'annulation du
+                    # plafond du test (`_borne`) doit remonter, sinon un test
+                    # bloqué continuerait vers ses assertions (R7, contre-relecture).
+                    if not appel.cancelled():
+                        raise
     return (voix[0] if voix else None), tache
 
 

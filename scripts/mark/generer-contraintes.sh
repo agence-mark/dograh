@@ -21,7 +21,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
 # Les versions se résolvent sur le Pipecat du sous-module : il doit être celui que
 # le dépôt épingle, et sans modification locale (relecture du 25/09).
-if git submodule status pipecat | grep -qE '^[+-U]'; then
+if git submodule status pipecat | grep -qE '^[-+U]'; then
     echo "Le sous-module pipecat n'est pas au commit épinglé (git submodule update pipecat)." >&2
     exit 1
 fi
