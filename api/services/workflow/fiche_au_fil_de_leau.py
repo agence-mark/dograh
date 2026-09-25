@@ -33,7 +33,7 @@ import re
 import unicodedata
 from collections.abc import Callable, Iterable
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any
 
@@ -62,6 +62,10 @@ TRACE_COMMUNES = "communes_verifiees"
 TRACE_VOIES = "voies_verifiees"
 TRACE_EPELLATIONS = "epellations_lues"
 TRACE_NOMBRES = "nombres_lus"
+# C2 : le numéro du dernier message de l'appelant lu par les modules, et que
+# chacune de leurs traces porte (`verification_communes.CLE_TOUR`, tenu égal
+# par un test : importer le module des communes ici bouclerait les imports).
+CLE_TOUR = "tour_appelant"
 
 CONSIGNE_A_CONFIRMER = (
     "Noté, mais pas vérifié : fais confirmer cette information à la personne."
@@ -96,6 +100,14 @@ NOTE_DESCRIPTIONS = (
 CONSIGNE_NON_DIT = (
     "Pas noté : {champs} n'a pas été dit tel quel par la personne. Note ses mots "
     "exacts ; ne lui fais pas confirmer ta version et ne repose pas la question."
+)
+
+# C3 (PB6, run 845) : le module avait Senlis, Chamant, Avilly pour « soixante
+# trois cents » ; rien n'était proposé, l'agent faisait confirmer la commune
+# fausse. L'agent éteint, qui les avait, a trouvé Senlis en un tour (run 846).
+CONSIGNE_A_PROPOSER = (
+    "Pour {champs} : propose à la personne ces possibilités une par une, dans "
+    "l'ordre, en attendant sa réponse à chacune, puis note celle qu'elle reconnaît."
 )
 
 # Écrite au mot au lot 0 (outil Dograh `e42be297`, 20 appels), reprise telle
@@ -279,6 +291,11 @@ class Lecture:
     suite: str | None = None  # "a_confirmer" | "ambigu"
     options: tuple[str, ...] = ()
     code_insee: str | None = None
+    # PB5 : une trace du module correspond-elle à la valeur ? Sans trace, la
+    # valeur n'est écrite que si ses mots ont été dits.
+    trouvee: bool = True
+    # PB13 : les codes postaux de la commune retenue.
+    codes_postaux: tuple[str, ...] = ()
 
 
 def _memes_mots(a: Any, b: Any) -> bool:
@@ -289,6 +306,20 @@ def _memes_mots(a: Any, b: Any) -> bool:
 def _entrees(fiche: dict, cle: str) -> list[dict]:
     """Les traces d'un module, la plus récente d'abord."""
     return [t for t in reversed(fiche.get(cle) or []) if isinstance(t, dict)]
+
+
+def _du_dernier_tour(fiche: dict, cle: str) -> list[dict]:
+    """C2 : les traces SÛRES que le module a laissées sur le dernier message lu
+    de l'appelant, la plus récente d'abord. Sans marque de tour (fiche éteinte
+    à la lecture, ou traces d'avant le patch), aucune."""
+    tour = fiche.get(CLE_TOUR)
+    if not tour:
+        return []
+    return [
+        t
+        for t in _entrees(fiche, cle)
+        if t.get("tour") == tour and t.get("statut") == "sure"
+    ]
 
 
 def _suite(options: tuple[str, ...]) -> str:
@@ -315,20 +346,78 @@ def _option_commune(proposition: dict) -> str:
     return f"{nom} ({dep})" if dep else nom
 
 
+def _commune_sure(retenue: dict) -> Lecture:
+    return Lecture(
+        retenue["nom"],
+        True,
+        code_insee=retenue.get("code_insee"),
+        codes_postaux=tuple(retenue.get("codes_postaux") or ()),
+    )
+
+
+def _designe(valeur: Any, trace: dict) -> bool:
+    """La valeur est-elle ce que la trace a entendu, ou une commune qu'elle nomme ?"""
+    retenue = trace.get("commune_retenue") or {}
+    noms = [
+        retenue.get("nom"),
+        *(p.get("nom") for p in trace.get("propositions") or [] if isinstance(p, dict)),
+    ]
+    return _memes_mots(valeur, trace.get("entendu")) or any(
+        _memes_mots(valeur, nom) for nom in noms
+    )
+
+
 def lire_commune(valeur: Any, fiche: dict) -> Lecture:
+    """La commune que les modules ont trouvée pour cette valeur.
+
+    C2 (PB4, run 845) : le module avait Senlis SÛRE sur « sans lice », le modèle
+    a noté « Sans-Lisle », et les mots différaient : la trace était ignorée et
+    une commune qui n'existe pas écrite. Désormais une trace sûre du DERNIER tour
+    de l'appelant l'emporte sur ce que le modèle écrit ; plusieurs sûres et
+    différentes : « ambigu ». Une trace sûre du tour que la valeur désigne passe
+    d'abord (run 838 : « granulés » donnait aussi Grandrû, sûre, au même tour
+    que Clermont).
+    """
+    sures = [
+        t for t in _du_dernier_tour(fiche, TRACE_COMMUNES)
+        if (t.get("commune_retenue") or {}).get("nom")
+    ]
+    designee = next((t for t in sures if _designe(valeur, t)), None)
+    if designee is not None:
+        return _commune_sure(designee["commune_retenue"])
+    # Une commune déjà tranchée SÛRE plus tôt, que la valeur désigne : le modèle
+    # la renote. Run 842 : « Avec un y » donnait Hanvec (Finistère), sûre, au
+    # tour d'après Beauvais ; renoter « Beauvais » à ce tour-là n'écrit pas Hanvec.
+    anterieure = next(
+        (
+            t
+            for t in _entrees(fiche, TRACE_COMMUNES)
+            if t.get("statut") == "sure"
+            and (t.get("commune_retenue") or {}).get("nom")
+            and _designe(valeur, t)
+        ),
+        None,
+    )
+    if anterieure is not None:
+        return _commune_sure(anterieure["commune_retenue"])
+    if sures:
+        distinctes: dict[str, dict] = {}
+        for trace in sures:
+            retenue = trace["commune_retenue"]
+            distinctes.setdefault(retenue.get("code_insee") or retenue["nom"], retenue)
+        if len(distinctes) == 1:
+            return _commune_sure(next(iter(distinctes.values())))
+        options = tuple(_option_commune(r) for r in distinctes.values())
+        return Lecture(valeur, False, "ambigu", options, trouvee=False)
     for trace in _entrees(fiche, TRACE_COMMUNES):
+        if not _designe(valeur, trace):
+            continue
         retenue = trace.get("commune_retenue") or {}
         propositions = [
             p for p in trace.get("propositions") or [] if isinstance(p, dict)
         ]
-        noms = [retenue.get("nom"), *(p.get("nom") for p in propositions)]
-        if not (
-            _memes_mots(valeur, trace.get("entendu"))
-            or any(_memes_mots(valeur, nom) for nom in noms)
-        ):
-            continue
         if trace.get("statut") == "sure" and retenue.get("nom"):
-            return Lecture(retenue["nom"], True, code_insee=retenue.get("code_insee"))
+            return _commune_sure(retenue)
         options = tuple(_option_commune(p) for p in propositions)
         choisie = next(
             (p for p in propositions if _memes_mots(valeur, p.get("nom"))), None
@@ -336,8 +425,8 @@ def lire_commune(valeur: Any, fiche: dict) -> Lecture:
         return Lecture(
             choisie["nom"] if choisie else valeur, False, _suite(options), options
         )
-    # D37 : aucune trace du module pour cette valeur.
-    return Lecture(valeur, False, "a_confirmer")
+    # PB5 (remplace D37) : aucune trace du module pour cette valeur.
+    return Lecture(valeur, False, "a_confirmer", trouvee=False)
 
 
 _MOT = re.compile(r"[^\W_]+")
@@ -383,8 +472,53 @@ def _remplacer(valeur: str, portee: tuple[int, int], par: str) -> str:
     return f"{valeur[: portee[0]]}{par}{valeur[portee[1] :]}"
 
 
+def _numero(valeur: str) -> str:
+    """Le numéro en tête d'une adresse (« 7 », « 12 bis »), ou ""."""
+    mots = _MOT.findall(valeur)
+    numero = []
+    for mot in mots:
+        if mot.isdigit() and not numero:
+            numero.append(mot)
+        elif numero and mot.lower() in _NUMERO:
+            numero.append(mot)
+        else:
+            break
+    return " ".join(numero)
+
+
+def _avec_le_numero(valeur: str, voie: str) -> str:
+    numero = _numero(valeur)
+    return f"{numero} {voie}" if numero else voie
+
+
 def lire_rue(valeur: Any, fiche: dict) -> Lecture:
+    """La voie que le module a trouvée pour cette valeur.
+
+    C2 (PB4, run 845) : une voie SÛRE trouvée sur le dernier tour de l'appelant
+    est écrite, avec le numéro que le modèle a noté, quoi qu'il ait écrit de la
+    voie (« 7 rue de Maud » → « 7 Rue de Meaux »).
+    """
     texte = str(valeur)
+    sures = [t for t in _du_dernier_tour(fiche, TRACE_VOIES) if t.get("voie_retenue")]
+    # Une voie sûre du dernier tour que la valeur désigne, sinon une voie sûre
+    # plus ancienne qu'elle désigne (le modèle la renote), sinon PB4.
+    anterieures = [
+        t
+        for t in _entrees(fiche, TRACE_VOIES)
+        if t.get("statut") == "sure" and t.get("voie_retenue")
+    ]
+    for trace in [*sures, *anterieures]:
+        portee = _trouver(texte, trace.get("entendu") or "") or _trouver(
+            texte, trace["voie_retenue"]
+        )
+        if portee is not None:
+            portee = _avec_le_type_de_voie(texte, portee, trace["voie_retenue"])
+            return Lecture(_remplacer(texte, portee, trace["voie_retenue"]), True)
+    voies = list(dict.fromkeys(t["voie_retenue"] for t in sures))
+    if len(voies) == 1:
+        return Lecture(_avec_le_numero(texte, voies[0]), True)
+    if voies:
+        return Lecture(texte, False, "ambigu", tuple(voies), trouvee=False)
     for trace in _entrees(fiche, TRACE_VOIES):
         retenue = trace.get("voie_retenue")
         propositions = tuple(
@@ -406,7 +540,8 @@ def lire_rue(valeur: Any, fiche: dict) -> Lecture:
             return Lecture(_remplacer(texte, portee, retenue), True)
         nouvelle = _remplacer(texte, portee, choisie) if choisie else texte
         return Lecture(nouvelle, False, _suite(propositions), propositions)
-    return Lecture(texte, False, "a_confirmer")
+    # PB5 (remplace D37) : aucune trace du module pour cette valeur.
+    return Lecture(texte, False, "a_confirmer", trouvee=False)
 
 
 # --- Le point d'écriture unique (D35) ----------------------------------------
@@ -480,12 +615,25 @@ def ecrire_dans_la_fiche(
             lecture = lire_rue(valeur, fiche)
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
+            if not lecture.trouvee and lecture.options:
+                # C2 : plusieurs voies ou communes sûres au même tour.
+                lecture = replace(lecture, suite="a_proposer")
         if definition.lecteur_effectif == "date" and not epele:
             date = lire_date(str(valeur), paroles, jour)
             # « 2025 » trouvé dans ses paroles, ou « l'année dernière » dit tel quel.
             if date and (date.depuis_les_paroles or est_cite(valeur, paroles)):
                 valeur, dit = date.valeur, date.dit
         if (
+            lecture is not None
+            and not lecture.trouvee
+            and not est_cite(valeur, paroles)
+        ):
+            # PB5 (run 845) : « Liancourt », ni dit ni trouvé, était écrit « à
+            # confirmer » (D37) et l'agent faisait confirmer une commune inventée.
+            verdict = Verdict(
+                champ, "refuse", "non_dit", valeur, lecture.suite, lecture.options
+            )
+        elif (
             lecture is None
             and not epele
             and dit is None
@@ -907,6 +1055,7 @@ def creer_gestionnaire(
             retenus: dict[str, Any] = {}
             refuses: list[dict] = []
             a_confirmer: list[dict] = []
+            a_proposer: list[dict] = []
             # Plusieurs notes d'un même tour : appliquées dans l'ordre d'arrivée,
             # chaque champ seul.
             for champ, valeur in dict(params.arguments or {}).items():
@@ -918,7 +1067,15 @@ def creer_gestionnaire(
                     if _mots(str(verdict.valeur)) != _mots(str(valeur)):
                         # Le module a changé l'écriture (commune, rue, épellation).
                         retenus[champ] = verdict.valeur
-                    if verdict.suite:
+                    if verdict.suite == "a_proposer":
+                        a_proposer.append(
+                            {
+                                "champ": champ,
+                                "valeur": verdict.valeur,
+                                "options": list(verdict.options),
+                            }
+                        )
+                    elif verdict.suite:
                         a_confirmer.append(
                             {
                                 "champ": champ,
@@ -932,6 +1089,10 @@ def creer_gestionnaire(
                         )
                 elif verdict.statut == "refuse":
                     refuses.append({"champ": champ, "raison": verdict.raison})
+                    if verdict.options:
+                        a_proposer.append(
+                            {"champ": champ, "options": list(verdict.options)}
+                        )
             resultat: dict = {"statut": "note" if ecrits else "rien_note"}
             # A2 (run 832) : une consigne ne remplace plus l'autre. Commune
             # retenue ET adresse à confirmer dans la même note : les deux.
@@ -951,7 +1112,22 @@ def creer_gestionnaire(
                     if a_confirmer
                     else CONSIGNE_ECRITURE_RETENUE
                 )
-            non_dits = [r["champ"] for r in refuses if r["raison"] == "non_dit"]
+            if a_proposer:
+                # C3 (PB6) : les possibilités, à proposer une par une.
+                resultat["a_proposer"] = a_proposer
+                if resultat["statut"] in ("note", "rien_note"):
+                    resultat["statut"] = "a_proposer"
+                consignes.append(
+                    CONSIGNE_A_PROPOSER.format(
+                        champs=", ".join(p["champ"] for p in a_proposer)
+                    )
+                )
+            proposes = {p["champ"] for p in a_proposer}
+            non_dits = [
+                r["champ"]
+                for r in refuses
+                if r["raison"] == "non_dit" and r["champ"] not in proposes
+            ]
             if non_dits:
                 consignes.append(CONSIGNE_NON_DIT.format(champs=", ".join(non_dits)))
             if consignes:

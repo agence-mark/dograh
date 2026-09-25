@@ -136,6 +136,7 @@ NOMS_RESERVES = frozenset(
         # la fiche elle-même
         "fiche_etat",
         "fiche_journal",
+        "tour_appelant",
     }
 )
 

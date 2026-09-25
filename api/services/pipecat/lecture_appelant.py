@@ -423,6 +423,8 @@ async def lire_texte(
         variables_ref=variables_ref,
         # D13 : fiche allumée, aucune note ; la réécriture des nombres reste.
         annoter=champs_fiche is None,
+        # C2 (patch du banc) : fiche allumée, chaque trace porte le tour lu.
+        marquer_le_tour=champs_fiche is not None,
     )
     return f"{lu} {mention_lexique}" if mention_lexique else lu
 
@@ -449,7 +451,18 @@ async def _lire_texte_de_lappelant(
     epellation: bool = False,
     variables_ref: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT,
     annoter: bool = True,
+    marquer_le_tour: bool = False,
 ) -> str:
+    # C2 (patch du banc, 25/09) : le tour est compté AVANT toute sortie anticipée.
+    # Un message lu sans trace reste un tour : sinon la trace sûre d'un tour
+    # précédent passerait pour celle du dernier.
+    tour = None
+    nouveau_tour = getattr(consigner, "nouveau_tour", None)
+    if marquer_le_tour and callable(nouveau_tour):
+        try:
+            tour = nouveau_tour()
+        except Exception as erreur:  # noqa: BLE001 -- a record never costs a call
+            logger.warning(f"[.mark] Caller turn not counted: {erreur!r}")
     try:
         if (
             not texte
@@ -503,6 +516,8 @@ async def _lire_texte_de_lappelant(
                         # A provisional context may be followed by the real one:
                         # marked, so a bench does not count the reading twice.
                         entree["provisoire"] = True
+                    if tour is not None:
+                        entree["tour"] = tour
                     consigner(entree, cle)
                 except Exception as erreur:  # noqa: BLE001
                     logger.warning(f"[.mark] Caller reading not recorded: {erreur!r}")

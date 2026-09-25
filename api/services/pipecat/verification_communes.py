@@ -81,6 +81,8 @@ CLE_VARIABLES = "variables_commune"
 CLE_VOIES = "verification_voies"
 CLE_EPELLATION = "lecture_epellation"
 CLE_TRACE_VOIES = "voies_verifiees"
+# [.mark] C2: the number of the caller's message last read, fiche switched on only.
+CLE_TOUR = "tour_appelant"
 CLE_TRACE_EPELLATIONS = "epellations_lues"
 
 # The names of the default setting, ready to compare.
@@ -267,6 +269,17 @@ class Consignation:
 
     def lire(self, cle: str = CLE_TRACE) -> list:
         return list(self._contexte_recueilli().get(cle) or [])
+
+    def nouveau_tour(self) -> int:
+        """[.mark] C2 (patch du banc, 25/09): a new caller message is read.
+
+        The traces of this reading carry the number, so the record's tool can
+        tell what the modules found on the caller's LAST turn from what they
+        found earlier. Counted in the gathered context, under ``CLE_TOUR``.
+        """
+        contexte = self._contexte_recueilli()
+        contexte[CLE_TOUR] = int(contexte.get(CLE_TOUR) or 0) + 1
+        return contexte[CLE_TOUR]
 
 
 def consigner_dans(contexte_recueilli: Callable[[], dict]) -> Consignation:

@@ -12,16 +12,26 @@ test dans l'autre sens : ce qui doit toujours être refusé (PB15).
 | C1 | Un déduit n'est refusé comme recopie que s'il est la MÊME suite de mots qu'un autre champ |
 | C13 | Un déduit écrit par le balayage contient un mot porteur que l'appelant a dit (PB2) |
 | PB3 | Un champ à liste fermée n'accepte qu'une de ses valeurs, et échappe à l'ancrage |
+| C2 | Une commune ou une rue SÛRE du dernier tour de l'appelant l'emporte ; ni dite ni trouvée = refusée |
 """
+
+from types import SimpleNamespace
 
 import pytest
 
 from api.schemas.fiche_agent import ChampFiche
+from api.services.pipecat import verification_communes
+from api.services.pipecat.lecture_appelant import lire_message_tape
+from api.services.pipecat.verification_communes import consigner_dans
+from api.services.workflow import fiche_au_fil_de_leau
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_JOURNAL,
+    CONSIGNE_A_PROPOSER,
     ReglagesFiche,
     balayer_la_fiche,
+    creer_gestionnaire,
     ecrire_dans_la_fiche,
+    lire_commune,
 )
 from api.tests.mark.test_fiche_balayage import Extracteur
 
@@ -285,3 +295,300 @@ def test_PB3_bornes_de_la_liste(valeurs, message):
 def test_PB3_liste_vide_equivaut_a_aucune_liste():
     assert ChampFiche(nom="x", valeurs=["  ", ""]).valeurs is None
     assert ChampFiche(nom="x", valeurs=[" panne "]).valeurs == ["panne"]
+
+
+# --- C2 et C3 : la commune et la rue trouvées par les modules (PB4 à PB6) -----
+#
+# Les traces ci-dessous sont celles du run 845, telles que les modules les ont
+# écrites, chacune rangée au tour de l'appelant qui l'a produite (le 25/09 elles
+# ne portaient pas encore leur tour : c'est ce que le patch ajoute).
+
+SENLIS = {
+    "nom": "Senlis",
+    "code_insee": "60612",
+    "departement": "Oise",
+    "codes_postaux": ["60300"],
+}
+PROPOSITIONS_60300 = [
+    SENLIS,
+    {
+        "nom": "Chamant",
+        "code_insee": "60138",
+        "departement": "Oise",
+        "codes_postaux": ["60300"],
+    },
+    {
+        "nom": "Avilly-Saint-Léonard",
+        "code_insee": "60033",
+        "departement": "Oise",
+        "codes_postaux": ["60300"],
+    },
+]
+TOURS_845 = {
+    # T9 : « Alors l'adresse de ma mère, c'est le sept rue de Maud à cent lice
+    # dans l'oise. » Aucune commune entendue, aucune rue (commune pas tranchée).
+    8: {
+        "parole": "Alors l'adresse de ma mère, c'est le 7 rue de Maud à 100 lice "
+        "dans l'oise.",
+        "nombres_lus": [
+            {"entendu": "sept", "type": "autre", "ecrit": "7"},
+            {"entendu": "cent", "type": "autre", "ecrit": "100"},
+        ],
+    },
+    # T10 : « Non non non non, c'est à cent lisses dans l'oise soixante trois cents. »
+    9: {
+        "parole": "Non non non non, c'est à 100 lisses dans l'oise 60300.",
+        "communes_verifiees": [
+            {
+                "etape": "adresse",
+                "entendu": "soixante trois cents",
+                "statut": "a_confirmer",
+                "commune_retenue": None,
+                "propositions": PROPOSITIONS_60300,
+                "code_postal_entendu": True,
+            }
+        ],
+        "nombres_lus": [
+            {
+                "entendu": "soixante trois cents",
+                "type": "code_postal",
+                "ecrit": "60300",
+                "retenu": "60300",
+                "statut": "sure",
+            },
+        ],
+    },
+    # T11 : « … elle habitait à sans lice dans l'oise, le code postal c'est
+    # soixante trois cents et elle habite au sept rue de Maud. »
+    10: {
+        "parole": "Non non, je écoutez-moi, je vous ai dit qu'elle habitait à sans "
+        "lice dans l'oise, le code postal c'est 60300 et elle habite au 7 rue de Maud.",
+        "communes_verifiees": [
+            {
+                "etape": "adresse",
+                "entendu": "sans lice",
+                "statut": "sure",
+                "commune_retenue": SENLIS,
+                "propositions": PROPOSITIONS_60300[:1],
+            }
+        ],
+        "voies_verifiees": [
+            {
+                "etape": "adresse",
+                "entendu": "maud",
+                "statut": "sure",
+                "voie_retenue": "Rue de Meaux",
+                "propositions": [{"nom": "Rue de Meaux", "score": 103.0}],
+            }
+        ],
+    },
+}
+
+
+def _jusqu_au_tour(tours: dict, dernier: int) -> tuple[dict, list[dict]]:
+    """La fiche et les messages tels qu'au tour ``dernier`` de l'appelant."""
+    fiche: dict = {"tour_appelant": dernier}
+    messages = []
+    for tour in sorted(t for t in tours if t <= dernier):
+        messages.append({"role": "user", "content": tours[tour]["parole"]})
+        for cle, traces in tours[tour].items():
+            if cle != "parole":
+                fiche.setdefault(cle, []).extend({**t, "tour": tour} for t in traces)
+    return fiche, messages
+
+
+async def _noter(
+    fiche: dict, messages: list[dict], reglages: ReglagesFiche | None = None, **arguments
+) -> dict:
+    resultats = []
+
+    async def rappel(resultat, *, properties=None):
+        resultats.append(resultat)
+
+    await creer_gestionnaire(reglages or _reglages(), lambda: fiche, lambda: messages)(
+        SimpleNamespace(arguments=arguments, tool_call_id="n", result_callback=rappel)
+    )
+    (resultat,) = resultats
+    return resultat
+
+
+@pytest.mark.asyncio
+async def test_C2_run_845_T9_liancourt_ni_dit_ni_trouve_est_refuse():
+    fiche, messages = _jusqu_au_tour(TOURS_845, 8)
+    resultat = await _noter(
+        fiche,
+        messages,
+        commune="Liancourt",
+        code_postal="60140",
+        adresse_intervention="7 rue de Maud",
+    )
+    assert {"champ": "commune", "raison": "non_dit"} in resultat["refuses"]
+    assert "commune" not in fiche
+    # Aucun code postal lu avant ce tour : rien à proposer.
+    assert "a_proposer" not in resultat
+    # La rue, elle, a été dite : écrite, à confirmer.
+    assert fiche["adresse_intervention"] == "7 rue de Maud"
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is False
+
+
+@pytest.mark.asyncio
+async def test_C2_run_845_T11_sans_lisle_devient_senlis_sure_et_la_rue_de_meaux():
+    fiche, messages = _jusqu_au_tour(TOURS_845, 10)
+    resultat = await _noter(
+        fiche, messages, commune="Sans-Lisle", adresse_intervention="7 rue de Maud"
+    )
+    assert resultat["statut"] == "note"
+    assert (fiche["commune"], fiche["commune_insee"]) == ("Senlis", "60612")
+    assert fiche["adresse_intervention"] == "7 Rue de Meaux"
+    assert fiche["fiche_etat"]["commune"]["sure"] is True
+    assert fiche["fiche_etat"]["adresse_intervention"]["sure"] is True
+    assert resultat["ecriture_retenue"] == {
+        "commune": "Senlis",
+        "adresse_intervention": "7 Rue de Meaux",
+    }
+
+
+@pytest.mark.asyncio
+async def test_C2_une_trace_sure_d_un_tour_precedent_ne_s_impose_pas():
+    """La trace sûre de Senlis est au tour 10 ; au tour 11 (« au revoir »), une
+    valeur inventée n'est plus remplacée par elle : refusée, non dite."""
+    fiche, messages = _jusqu_au_tour(TOURS_845, 10)
+    fiche["tour_appelant"] = 11
+    messages.append({"role": "user", "content": "Non bon allez c'est bon, au revoir."})
+    resultat = await _noter(fiche, messages, commune="Liancourt")
+    assert {"champ": "commune", "raison": "non_dit"} in resultat["refuses"]
+
+
+def test_C2_run_838_la_valeur_designe_sa_commune_parmi_les_traces_du_tour():
+    fiche = {
+        "tour_appelant": 1,
+        "communes_verifiees": [
+            {
+                "entendu": "granulés",
+                "statut": "a_confirmer",
+                "commune_retenue": None,
+                "propositions": [{"nom": "Grandrû", "code_insee": "60285"}],
+                "tour": 1,
+            },
+            {
+                "entendu": "Clermont",
+                "statut": "sure",
+                "tour": 1,
+                "propositions": [],
+                "commune_retenue": {
+                    "nom": "Clermont",
+                    "code_insee": "60157",
+                    "codes_postaux": ["60600"],
+                },
+            },
+        ],
+    }
+    lecture = lire_commune("Clermont", fiche)
+    assert (lecture.valeur, lecture.sure, lecture.code_insee) == (
+        "Clermont",
+        True,
+        "60157",
+    )
+
+
+BEAUVAIS = {"nom": "Beauvais", "code_insee": "60057", "codes_postaux": ["60000"]}
+HANVEC = {"nom": "Hanvec", "code_insee": "29077", "codes_postaux": ["29460"]}
+
+
+def test_C2_run_842_renoter_beauvais_au_tour_de_hanvec_n_ecrit_pas_hanvec():
+    """Run 842 : « Bovet » → Beauvais, sûre ; au tour suivant, « Avec un y
+    ouais » → Hanvec (Finistère), sûre aussi. Le modèle qui renote « Beauvais » à
+    ce tour-là désigne la commune déjà tranchée : Hanvec ne s'impose pas."""
+    fiche = {
+        "tour_appelant": 6,
+        "communes_verifiees": [
+            {
+                "entendu": "Bovet",
+                "statut": "sure",
+                "commune_retenue": BEAUVAIS,
+                "propositions": [BEAUVAIS],
+                "tour": 5,
+            },
+            {
+                "entendu": "Avec",
+                "statut": "sure",
+                "commune_retenue": HANVEC,
+                "propositions": [HANVEC],
+                "tour": 6,
+            },
+        ],
+    }
+    assert lire_commune("Beauvais", fiche).valeur == "Beauvais"
+    # Sans rien qui désigne la commune d'avant, le dernier tour l'emporte (PB4).
+    assert lire_commune("Bovais-Nord", fiche).valeur == "Hanvec"
+
+
+def test_C2_deux_communes_sures_differentes_au_meme_tour_sont_a_proposer():
+    fiche = {
+        "tour_appelant": 3,
+        "communes_verifiees": [
+            {
+                "entendu": "Bovet",
+                "statut": "sure",
+                "commune_retenue": BEAUVAIS,
+                "propositions": [],
+                "tour": 3,
+            },
+            {
+                "entendu": "Avec",
+                "statut": "sure",
+                "commune_retenue": HANVEC,
+                "propositions": [],
+                "tour": 3,
+            },
+        ],
+    }
+    verdict = ecrire_dans_la_fiche(fiche, _reglages(), "commune", "Bouvet")
+    assert (verdict.statut, verdict.suite) == ("refuse", "a_proposer")
+    assert verdict.options == ("Hanvec", "Beauvais")
+
+
+def test_C2_la_marque_du_tour_est_la_meme_des_deux_cotes():
+    assert fiche_au_fil_de_leau.CLE_TOUR == verification_communes.CLE_TOUR
+
+
+@pytest.mark.asyncio
+async def test_C2_les_vrais_modules_marquent_leurs_traces_du_tour_fiche_allumee():
+    """Le tour est compté par la lecture de l'appelant, sur la vraie chaîne."""
+    fiche: dict = {}
+    reglages = {
+        "conversion_nombres_transcription": True,
+        "verification_communes": True,
+        "fiche_au_fil_de_leau": True,
+        "fiche_champs": [{"nom": "commune"}],
+    }
+    for phrase in ("bonjour", "j'habite à Creil, soixante mille cent"):
+        await lire_message_tape(
+            phrase,
+            reglages,
+            SimpleNamespace(language="fr", language_hints=None),
+            None,
+            SimpleNamespace(name="accueil", extraction_variables=[]),
+            consigner_dans(lambda: fiche),
+        )
+    assert fiche["tour_appelant"] == 2
+    creil = [t for t in fiche["communes_verifiees"] if t["statut"] == "sure"]
+    assert creil and all(t["tour"] == 2 for t in creil)
+    assert lire_commune("Creil", fiche).sure is True
+
+
+@pytest.mark.asyncio
+async def test_C2_fiche_eteinte_aucune_marque_de_tour():
+    fiche: dict = {}
+    await lire_message_tape(
+        "j'habite à Creil, soixante mille cent",
+        {"conversion_nombres_transcription": True, "verification_communes": True},
+        SimpleNamespace(language="fr", language_hints=None),
+        None,
+        SimpleNamespace(
+            name="adresse", extraction_variables=[SimpleNamespace(name="commune")]
+        ),
+        consigner_dans(lambda: fiche),
+    )
+    assert "tour_appelant" not in fiche
+    assert all("tour" not in t for t in fiche["communes_verifiees"])

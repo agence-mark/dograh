@@ -76,6 +76,7 @@ export const NOMS_RESERVES = [
     "lexique_metier",
     "fiche_etat",
     "fiche_journal",
+    "tour_appelant",
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */
