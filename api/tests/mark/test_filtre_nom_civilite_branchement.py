@@ -16,8 +16,6 @@ obtenu **par un test qui joue la chaîne**, jamais par la lecture du code : le
 21/09, une lecture de code avait conclu l'inverse de ce que la sonde a montré.
 """
 
-from types import SimpleNamespace
-
 import pytest
 from pipecat.frames.frames import (
     Frame,

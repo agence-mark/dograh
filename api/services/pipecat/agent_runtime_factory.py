@@ -33,6 +33,9 @@ from api.services.pipecat.service_factory import (
     cle_de_cache,
     create_llm_service,
     create_tts_service,
+    stamp_prompt_cache_key,
+    stamp_sampling_settings,
+    stamp_voice_settings,
 )
 from api.services.workflow.agent_runtime import AgentRuntime, new_visit_id
 from api.services.workflow.dto import ReactFlowDTO
@@ -60,6 +63,17 @@ class AgentGenerationCallbacks:
 
     generation_started: Callable[[], Any]
     llm_text_frame: Callable[[str], Any]
+
+
+def _estampiller_agent(runtime_configuration: dict, user_config, workflow_id: int):
+    """[.mark] The same stamps as the call's first agent (run_pipeline): what
+    this agent's voice, sampling and cache key were, readable after the call."""
+    stamp_sampling_settings(runtime_configuration, user_config.llm)
+    stamp_voice_settings(runtime_configuration, user_config.tts)
+    stamp_prompt_cache_key(
+        runtime_configuration, user_config.llm, cle_de_cache(workflow_id)
+    )
+    return runtime_configuration
 
 
 class AgentRuntimeFactory:
@@ -233,14 +247,18 @@ class AgentRuntimeFactory:
             tts=tts,
             recording_router=recording_router,
             user_config=user_config,
-            runtime_configuration={
-                "stt_provider": user_config.stt.provider,
-                "stt_model": user_config.stt.model,
-                "tts_provider": user_config.tts.provider,
-                "tts_model": user_config.tts.model,
-                "llm_provider": user_config.llm.provider,
-                "llm_model": user_config.llm.model,
-            },
+            runtime_configuration=_estampiller_agent(
+                {
+                    "stt_provider": user_config.stt.provider,
+                    "stt_model": user_config.stt.model,
+                    "tts_provider": user_config.tts.provider,
+                    "tts_model": user_config.tts.model,
+                    "llm_provider": user_config.llm.provider,
+                    "llm_model": user_config.llm.model,
+                },
+                user_config,
+                workflow_id,
+            ),
             is_child=True,
             entered_at=None,
             # [.mark] This agent's own switches, the call's live variables.

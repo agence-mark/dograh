@@ -283,3 +283,25 @@ async def test_A8_en_fin_d_appel_le_numero_en_conflit_est_marque_a_verifier():
     # Un deuxième passage (routage d'un transfert) ne double pas le journal.
     await balayer_la_fiche(_reglages(), Extracteur({}), fiche, MESSAGES)
     assert len([e for e in fiche[CLE_JOURNAL] if e["statut"] == "a_verifier"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_un_agent_recu_par_transfert_garde_l_extraction_de_l_amont(
+    three_node_workflow,
+):
+    """Relecture de la remise à niveau (4e6cb22b), point 1 : la fiche vaut pour
+    l'agent dont le modèle la porte. Un agent reçu par transfert n'a pas
+    `noter_information` : sans l'extraction de l'amont, rien ne serait collecté
+    pendant sa visite, en silence."""
+    engine = _moteur(three_node_workflow, _reglages())
+    engine.active_agent.llm = MockLLMService()  # le modèle d'un autre agent
+    with patch.object(
+        VariableExtractionManager,
+        "_perform_extraction",
+        new_callable=AsyncMock,
+        return_value={},
+    ) as extraction:
+        await engine._perform_variable_extraction_if_needed(
+            engine.active_agent.current_node, run_in_background=False
+        )
+    extraction.assert_called_once()

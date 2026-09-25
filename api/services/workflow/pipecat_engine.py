@@ -640,7 +640,7 @@ class PipecatEngine:
         # [.mark] D28 : interrupteur allumé, la fiche s'écrit par l'outil ; la
         # relecture étape par étape réécrirait une correction déjà notée.
         # ⛔ Signature inchangée : des doublures de test de l'amont l'enveloppent.
-        if self._fiche is not None:
+        if self._fiche_sur_l_agent_actif():
             return None
 
         # Capture the current turn context for otel tracing
@@ -797,11 +797,23 @@ class PipecatEngine:
         # (fin d'appel, routage de transfert) ne remplit que les champs vides de
         # la fiche. Avec le D28 ci-dessus, ce sont les deux seuls points où le
         # moteur décide de relire la conversation (D36).
-        if self._fiche is not None:
+        if self._fiche_sur_l_agent_actif():
             return await self._balayer_la_fiche()
         return await self._perform_variable_extraction_if_needed(
             self.active_agent.current_node,
             run_in_background=False,
+        )
+
+    def _fiche_sur_l_agent_actif(self) -> bool:
+        """[.mark] La fiche vaut pour l'agent dont le modèle la porte.
+
+        Un agent reçu par transfert (découpage par agent de l'amont, fc76383c)
+        n'a ni `noter_information` ni la fiche : pour lui, l'extraction de
+        l'amont reste en place, sinon rien ne serait collecté pendant sa visite.
+        """
+        return (
+            self._fiche is not None
+            and self.active_agent.llm is self._llm_de_la_fiche
         )
 
     async def _balayer_la_fiche(self) -> Optional[dict]:
