@@ -5,11 +5,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
+  budgetLexiqueApiV1OrganizationsLexiqueBudgetPost,
   getLexiqueApiV1OrganizationsLexiqueGet,
   importLexiqueApiV1OrganizationsLexiqueImportPost,
   saveLexiqueApiV1OrganizationsLexiquePut,
 } from "@/client/sdk.gen";
-import type { LexiqueMetier, TermeLexique } from "@/client/types.gen";
+import type { BudgetLexique, LexiqueMetier, TermeLexique } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,11 +43,17 @@ import { useAuth } from "@/lib/auth";
  * gives room for what a list that size needs: a search box, and one click to
  * tick or untick what the search shows (decision of Evan, 2026-09-18). The
  * dialog edits a COPY: closing it changes nothing, saving sends the copy.
+ *
+ * 🆕 26/09 (plan « le lexique », Q2, Q4): two boxes per term, « Listen for it »
+ * (sent to the transcription) and « The business offers it » (what the agent
+ * says the business offers, {{lexique_propose}}). And the budget of the list,
+ * « 212 / 450 tokens (Deepgram) » with the ticked terms left out, is asked of
+ * the API for the organization's provider: ⛔ the screen never counts on its
+ * own, and no ceiling is written here.
  */
 
-/** The budget of the list sent to the transcription (T11, raised on 2026-09-17). */
-const MAX_TERMES_ECOUTES = 120;
-const MAX_CARACTERES_ECOUTES = 1600;
+/** Wait this long after the last change of the draft before asking the budget again. */
+const ATTENTE_BUDGET_MS = 300;
 
 const TERME_VIDE: TermeLexique = {
   terme: "",
@@ -55,6 +62,9 @@ const TERME_VIDE: TermeLexique = {
   type: "nom",
   categorie: null,
   a_ecouter: true,
+  // ⛔ Not offered until someone ticks it: the agent never says the business
+  // offers a name nobody said it does (question 182).
+  propose: false,
 };
 
 function versTexte(variantes: Array<string> | undefined): string {
@@ -98,6 +108,9 @@ export function SectionLexiqueMetier() {
   // La copie de travail du dialogue : fermer la jette, enregistrer l'envoie.
   const [brouillon, setBrouillon] = useState<LexiqueMetier>({ termes: [] });
   const [recherche, setRecherche] = useState("");
+  // Le budget de ce qui est enregistré (la carte) et du brouillon (le dialogue).
+  const [budget, setBudget] = useState<BudgetLexique | null>(null);
+  const [budgetDuBrouillon, setBudgetDuBrouillon] = useState<BudgetLexique | null>(null);
   const fichier = useRef<HTMLInputElement>(null);
   const { user, loading: authLoading } = useAuth();
   const dejaLu = useRef(false);
@@ -135,6 +148,44 @@ export function SectionLexiqueMetier() {
     }
   }
 
+  /** Ask the API what the transcription would receive; null when it cannot say. */
+  async function demanderBudget(pour: LexiqueMetier): Promise<BudgetLexique | null> {
+    try {
+      const reponse = await budgetLexiqueApiV1OrganizationsLexiqueBudgetPost({ body: pour });
+      if (!reponse || reponse.error || !reponse.data) return null;
+      return reponse.data;
+    } catch {
+      return null;
+    }
+  }
+
+  // La carte : le budget de ce qui est enregistré, redemandé à chaque changement.
+  useEffect(() => {
+    if (!lu) return;
+    let actuel = true;
+    void demanderBudget(lexique).then((b) => {
+      if (actuel) setBudget(b);
+    });
+    return () => {
+      actuel = false;
+    };
+  }, [lexique, lu]);
+
+  // Le dialogue : le budget du brouillon, après une courte pause de saisie.
+  useEffect(() => {
+    if (!ouvert) return;
+    let actuel = true;
+    const minuterie = setTimeout(() => {
+      void demanderBudget(brouillon).then((b) => {
+        if (actuel) setBudgetDuBrouillon(b);
+      });
+    }, ATTENTE_BUDGET_MS);
+    return () => {
+      actuel = false;
+      clearTimeout(minuterie);
+    };
+  }, [brouillon, ouvert]);
+
   async function enregistrer(suivant: LexiqueMetier) {
     setEnregistrement(true);
     setErreur(null);
@@ -161,6 +212,7 @@ export function SectionLexiqueMetier() {
       // Une copie profonde : ce qui est modifié dans le dialogue ne touche à
       // rien tant qu'on n'a pas enregistré.
       setBrouillon(JSON.parse(JSON.stringify(lexique)) as LexiqueMetier);
+      setBudgetDuBrouillon(budget);
       setRecherche("");
       setErreur(null);
     }
@@ -199,7 +251,7 @@ export function SectionLexiqueMetier() {
 
   const termes = lexique.termes ?? [];
   const ecoutes = termes.filter((t) => t.a_ecouter);
-  const caracteres = ecoutes.reduce((total, t) => total + t.terme.length, 0);
+  const proposes = termes.filter((t) => t.propose);
   const prononces = termes.filter((t) => t.prononciation).length;
 
   const termesDuBrouillon = useMemo(() => brouillon.termes ?? [], [brouillon]);
@@ -212,6 +264,7 @@ export function SectionLexiqueMetier() {
     [termesDuBrouillon, chercheSansAccent],
   );
   const ecoutesDuBrouillon = termesDuBrouillon.filter((t) => t.a_ecouter).length;
+  const proposesDuBrouillon = termesDuBrouillon.filter((t) => t.propose).length;
 
   /** Coche ou décoche ce que la recherche montre, et rien d'autre (décision d'Evan). */
   function cocherLesAffiches(coche: boolean) {
@@ -268,8 +321,9 @@ export function SectionLexiqueMetier() {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Names and words of this business. Names are recognised and corrected before the model
-        reads them; ticked terms are listened for by the transcription; &quot;Say it as&quot;
-        changes how the voice pronounces them.
+        reads them; terms ticked &quot;Listen for it&quot; are sent to the transcription; terms
+        ticked &quot;The business offers it&quot; are the ones the agent says the business offers;
+        &quot;Say it as&quot; changes how the voice pronounces them.
       </p>
 
       <p className="text-sm">
@@ -277,6 +331,7 @@ export function SectionLexiqueMetier() {
         <span className="text-muted-foreground">
           {" · "}
           {ecoutes.length} listened for{" · "}
+          {proposes.length} offered{" · "}
           {prononces} pronunciations
         </span>
       </p>
@@ -316,18 +371,15 @@ export function SectionLexiqueMetier() {
         </p>
       )}
 
-      <p className="text-xs text-muted-foreground">
-        {ecoutes.length} terms listened for (the agent&apos;s Dictionary comes first;{" "}
-        {MAX_TERMES_ECOUTES} terms / {MAX_CARACTERES_ECOUTES} characters in total), {caracteres}{" "}
-        characters.
-      </p>
+      <BudgetDeLaTranscription budget={budget} />
 
       <Dialog open={ouvert} onOpenChange={ouvrir}>
         <DialogContent className="flex max-h-[85vh] max-w-5xl flex-col">
           <DialogHeader>
             <DialogTitle>Trade vocabulary</DialogTitle>
             <DialogDescription>
-              Ticked terms are listened for by the transcription. Closing without saving changes
+              &quot;Listen for it&quot;: sent to the transcription. &quot;The business offers
+              it&quot;: what the agent says the business offers. Closing without saving changes
               nothing.
             </DialogDescription>
           </DialogHeader>
@@ -342,7 +394,7 @@ export function SectionLexiqueMetier() {
             />
             <span className="text-xs text-muted-foreground" aria-live="polite">
               {affiches.length} shown · {ecoutesDuBrouillon} of {termesDuBrouillon.length} listened
-              for
+              for · {proposesDuBrouillon} offered
             </span>
             <div className="ml-auto flex flex-wrap gap-2">
               <Button
@@ -372,6 +424,8 @@ export function SectionLexiqueMetier() {
             </div>
           </div>
 
+          <BudgetDeLaTranscription budget={budgetDuBrouillon} />
+
           {erreur && <p className="text-xs text-destructive">{erreur}</p>}
 
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
@@ -385,19 +439,20 @@ export function SectionLexiqueMetier() {
               </p>
             ) : (
               <div className="space-y-2">
-                <div className="hidden gap-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[2fr_2fr_2fr_1fr_1fr_auto_auto]">
+                <div className="hidden gap-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[2fr_2fr_2fr_1fr_1fr_auto_auto_auto]">
                   <span>Term</span>
                   <span>Other spellings</span>
                   <span>Say it as</span>
                   <span>Kind</span>
                   <span>Category</span>
-                  <span>Listen for</span>
+                  <span>Listen for it</span>
+                  <span>The business offers it</span>
                   <span />
                 </div>
                 {affiches.map(({ terme, rang }) => (
                   <div
                     key={rang}
-                    className="grid gap-2 md:grid-cols-[2fr_2fr_2fr_1fr_1fr_auto_auto] md:items-center"
+                    className="grid gap-2 md:grid-cols-[2fr_2fr_2fr_1fr_1fr_auto_auto_auto] md:items-center"
                   >
                     <Input
                       aria-label={`Term ${rang + 1}`}
@@ -432,13 +487,24 @@ export function SectionLexiqueMetier() {
                     />
                     <div className="flex items-center gap-2">
                       <Label htmlFor={`a_ecouter_${rang}`} className="text-xs md:hidden">
-                        Listen for
+                        Listen for it
                       </Label>
                       <Switch
                         id={`a_ecouter_${rang}`}
-                        aria-label={`Listen for ${rang + 1}`}
+                        aria-label={`Listen for it ${rang + 1}`}
                         checked={Boolean(terme.a_ecouter)}
                         onCheckedChange={(coche) => modifier(rang, { a_ecouter: coche })}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`propose_${rang}`} className="text-xs md:hidden">
+                        The business offers it
+                      </Label>
+                      <Switch
+                        id={`propose_${rang}`}
+                        aria-label={`The business offers it ${rang + 1}`}
+                        checked={Boolean(terme.propose)}
+                        onCheckedChange={(coche) => modifier(rang, { propose: coche })}
                       />
                     </div>
                     <Button
@@ -475,6 +541,39 @@ export function SectionLexiqueMetier() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/**
+ * « 212 / 450 tokens (Deepgram) » and the ticked terms that would not be sent,
+ * exactly as the API computed them for the organization's provider.
+ */
+function BudgetDeLaTranscription({ budget }: { budget: BudgetLexique | null }) {
+  if (!budget) return null;
+  const nonEnvoyes = budget.non_envoyes ?? [];
+  if (budget.plafond_jetons === null || budget.plafond_jetons === undefined) {
+    return (
+      <p className="text-xs text-muted-foreground" data-testid="budget-lexique">
+        No term is sent to the transcription: its provider
+        {budget.fournisseur ? ` (${budget.fournisseur})` : ""} declares no limit for the list.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-1 text-xs" data-testid="budget-lexique">
+      <p className="text-muted-foreground">
+        <span className="font-medium text-foreground">
+          {budget.jetons} / {budget.plafond_jetons} tokens ({budget.nom_du_plafond})
+        </span>{" "}
+        sent to the transcription. Each agent&apos;s own Dictionary is sent first and takes from
+        the same limit.
+      </p>
+      {nonEnvoyes.length > 0 && (
+        <p className="text-destructive">
+          Not sent ({nonEnvoyes.length}): {nonEnvoyes.join(", ")}
+        </p>
+      )}
     </div>
   );
 }
