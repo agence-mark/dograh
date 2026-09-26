@@ -10,6 +10,11 @@
  *     switch disappear while the switch it depends on is off, keeping its
  *     value?
  *
+ *     🆕 26/09 (plan « le lexique », Q2, Q4): are the two boxes « Listen for
+ *     it » and « The business offers it » there, each saved on its own? Is the
+ *     budget the API computed shown as « N / ceiling tokens (provider) », with
+ *     the terms left out -- and asked again for the draft being edited?
+ *
  * ⛔ .mark rule: a setting we cannot see on screen is a setting we do not
  * touch. And a section that renders is not a section that is MOUNTED: the two
  * last tests render the pages themselves.
@@ -32,6 +37,7 @@ const sdk = vi.hoisted(() => ({
     getLexiqueApiV1OrganizationsLexiqueGet: vi.fn(),
     saveLexiqueApiV1OrganizationsLexiquePut: vi.fn(),
     importLexiqueApiV1OrganizationsLexiqueImportPost: vi.fn(),
+    budgetLexiqueApiV1OrganizationsLexiqueBudgetPost: vi.fn(),
 }));
 vi.mock("@/client/sdk.gen", () => sdk);
 
@@ -69,8 +75,18 @@ const LEXIQUE = {
             type: "nom",
             categorie: "marque",
             a_ecouter: true,
+            propose: true,
         },
     ],
+};
+
+const BUDGET = {
+    fournisseur: "deepgram",
+    nom_du_plafond: "Deepgram",
+    plafond_jetons: 450,
+    jetons: 212,
+    envoyes: ["Edilkamin"],
+    non_envoyes: [],
 };
 
 /** Un lexique de la taille de la vraie vie : c'est lui qui a motivé la modale. */
@@ -98,7 +114,10 @@ const chercher = (texte: string) =>
     fireEvent.change(screen.getByLabelText("Search the vocabulary"), { target: { value: texte } });
 
 const coche = (rang: number) =>
-    screen.getByRole("switch", { name: `Listen for ${rang}` }).getAttribute("aria-checked");
+    screen.getByRole("switch", { name: `Listen for it ${rang}` }).getAttribute("aria-checked");
+
+const offert = (rang: number) =>
+    screen.getByRole("switch", { name: `The business offers it ${rang}` }).getAttribute("aria-checked");
 
 beforeEach(() => {
     toastMock.success.mockClear();
@@ -106,6 +125,8 @@ beforeEach(() => {
     sdk.getLexiqueApiV1OrganizationsLexiqueGet.mockReset();
     sdk.saveLexiqueApiV1OrganizationsLexiquePut.mockReset();
     sdk.importLexiqueApiV1OrganizationsLexiqueImportPost.mockReset();
+    sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost.mockReset();
+    sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost.mockResolvedValue({ data: BUDGET });
     sdk.getLexiqueApiV1OrganizationsLexiqueGet.mockResolvedValue({ data: LEXIQUE });
     sdk.saveLexiqueApiV1OrganizationsLexiquePut.mockImplementation(
         async ({ body }: { body: unknown }) => ({ data: body }),
@@ -137,7 +158,7 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
         expect(document.body.textContent).toMatch(/Names are recognised and corrected/i);
     });
 
-    it("ajoute un terme, coché par défaut, et l'emporte tel quel dans l'enregistrement", async () => {
+    it("ajoute un terme, écouté par défaut mais pas proposé, et l'emporte tel quel", async () => {
         await ouvrirLexique();
         fireEvent.click(screen.getByRole("button", { name: /add term/i }));
         fireEvent.change(screen.getByLabelText("Term 2"), { target: { value: "Jøtul" } });
@@ -154,6 +175,8 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
             type: "nom",
             categorie: null,
             a_ecouter: true,
+            // ⛔ Nobody said the business offers it: the agent must not either.
+            propose: false,
         });
     });
 
@@ -254,11 +277,50 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
         vi.unstubAllGlobals();
     });
 
-    it("compte les termes écoutés et rappelle le budget", async () => {
+    it("affiche le budget calculé par l'API pour le fournisseur, jamais un plafond écrit dans l'écran", async () => {
+        render(<SectionLexiqueMetier />);
+        await screen.findByText(/212 \/ 450 tokens \(Deepgram\)/);
+        expect(document.body.textContent).toMatch(/Dictionary is sent first/);
+        // Asked for what is SAVED: the API is the only one that counts.
+        expect(sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost).toHaveBeenCalledWith({
+            body: LEXIQUE,
+        });
+        expect(document.body.textContent).not.toMatch(/1600|characters in total/);
+    });
+
+    it("nomme les termes cochés qui ne partiraient pas", async () => {
+        sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost.mockResolvedValue({
+            data: { ...BUDGET, jetons: 449, non_envoyes: ["Palazzetti", "Rika"] },
+        });
+        render(<SectionLexiqueMetier />);
+        await screen.findByText(/Not sent \(2\): Palazzetti, Rika/);
+    });
+
+    it("dit qu'aucun terme n'est envoyé quand le fournisseur ne déclare pas de plafond", async () => {
+        sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost.mockResolvedValue({
+            data: {
+                fournisseur: "speechmatics",
+                nom_du_plafond: null,
+                plafond_jetons: null,
+                jetons: 0,
+                envoyes: [],
+                non_envoyes: ["Edilkamin"],
+            },
+        });
+        render(<SectionLexiqueMetier />);
+        await screen.findByText(/No term is sent to the transcription: its provider \(speechmatics\)/);
+    });
+
+    it("sans réponse de l'API, la carte reste utilisable et ne montre aucun chiffre inventé", async () => {
+        sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost.mockResolvedValue({
+            error: { detail: "boom" },
+        });
         render(<SectionLexiqueMetier />);
         await screen.findByRole("button", { name: /open vocabulary/i });
-        expect(document.body.textContent).toMatch(/1 terms listened for/);
-        expect(document.body.textContent).toMatch(/120 terms \/ 1600 characters in total/);
+        await waitFor(() =>
+            expect(sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost).toHaveBeenCalled(),
+        );
+        expect(screen.queryByTestId("budget-lexique")).toBeNull();
     });
 });
 
@@ -448,5 +510,88 @@ describe("Les trois interrupteurs de l'agent", () => {
         expect(texte).toMatch(/Listens for the ticked terms, corrects misheard names/i);
         expect(texte).toMatch(/pronunciation library\), in addition to the spelling/i);
         expect(texte).toMatch(/A name found by its sound alone is asked for confirmation/i);
+    });
+});
+
+// --------------------------------------------------------------------------- //
+// 🆕 26/09 — the second box and the budget of the draft (plan « le lexique »)
+// --------------------------------------------------------------------------- //
+
+describe("Les deux cases « Listen for it » et « The business offers it »", () => {
+    it("montre les deux cases de chaque terme, chacune avec sa valeur", async () => {
+        sdk.getLexiqueApiV1OrganizationsLexiqueGet.mockResolvedValue({
+            data: {
+                ...LEXIQUE_LONG,
+                termes: LEXIQUE_LONG.termes.map((t, i) => ({ ...t, propose: i === 1 })),
+            },
+        });
+        render(<SectionLexiqueMetier />);
+        fireEvent.click(await screen.findByRole("button", { name: /open vocabulary/i }));
+        await screen.findByLabelText("Term 1");
+        // Edilkamin: listened for, not offered. Jøtul: offered, not listened for.
+        expect(coche(1)).toBe("true");
+        expect(offert(1)).toBe("false");
+        expect(coche(2)).toBe("false");
+        expect(offert(2)).toBe("true");
+        expect(document.body.textContent).toMatch(/Listen for it/);
+        expect(document.body.textContent).toMatch(/The business offers it/);
+    });
+
+    it("enregistre chaque case pour elle-même", async () => {
+        await ouvrirLexique();
+        // Untick « listen for it » (to shorten the list) : « offered » must stay.
+        fireEvent.click(screen.getByRole("switch", { name: "Listen for it 1" }));
+        fireEvent.click(screen.getByRole("button", { name: /save trade vocabulary/i }));
+        await waitFor(() => expect(sdk.saveLexiqueApiV1OrganizationsLexiquePut).toHaveBeenCalled());
+        const envoye = charge().termes[0];
+        expect(envoye.a_ecouter).toBe(false);
+        expect(envoye.propose).toBe(true);
+    });
+
+    it("les boutons « Tick / Untick the shown » ne touchent que « Listen for it »", async () => {
+        await ouvrirLexique();
+        fireEvent.click(screen.getByRole("button", { name: /^untick the 1 shown$/i }));
+        expect(coche(1)).toBe("false");
+        expect(offert(1)).toBe("true");
+    });
+
+    it("le résumé de la carte compte les termes proposés", async () => {
+        render(<SectionLexiqueMetier />);
+        await screen.findByRole("button", { name: /open vocabulary/i });
+        expect(document.body.textContent).toMatch(/1 listened for · 1 offered/);
+    });
+
+    it("redemande le budget pour le brouillon quand une case « Listen for it » change", async () => {
+        await ouvrirLexique();
+        sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost.mockClear();
+        sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost.mockResolvedValue({
+            data: { ...BUDGET, jetons: 0, envoyes: [] },
+        });
+        fireEvent.click(screen.getByRole("switch", { name: "Listen for it 1" }));
+        await waitFor(() =>
+            expect(sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost).toHaveBeenCalled(),
+        );
+        const demande = sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost.mock.calls.at(-1)?.[0];
+        expect(demande?.body.termes[0].a_ecouter).toBe(false);
+        await screen.findByText(/0 \/ 450 tokens \(Deepgram\)/);
+    });
+});
+
+// The card really MOUNTED on the Platform Settings page, with its two boxes and its budget.
+const { default: PageReglagesPlateforme } = await import("@/app/settings/page");
+
+describe("[.mark] le lexique, sur la page des réglages de la plateforme", () => {
+    beforeEach(() => {
+        // Un test plus haut retire les globales simulées (export) : la page en a besoin.
+        vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+    });
+
+    it("porte les deux cases et le budget", async () => {
+        render(<PageReglagesPlateforme />);
+        await screen.findByText(/212 \/ 450 tokens \(Deepgram\)/);
+        fireEvent.click(await screen.findByRole("button", { name: /open vocabulary/i }));
+        await screen.findByLabelText("Term 1");
+        expect(screen.getByRole("switch", { name: "Listen for it 1" })).toBeTruthy();
+        expect(screen.getByRole("switch", { name: "The business offers it 1" })).toBeTruthy();
     });
 });

@@ -33,7 +33,7 @@ from api.schemas.ai_model_configuration import (
 )
 from api.schemas.annonce_ouverture import ReglagesAnnonceOuverture
 from api.schemas.call_events import CallEventsConnectionResult, CallEventsSettings
-from api.schemas.lexique_metier import LexiqueMetier, ResultatImport
+from api.schemas.lexique_metier import BudgetLexique, LexiqueMetier, ResultatImport
 from api.schemas.organization_preferences import (
     OrganizationPreferences,
     OrganizationPreferencesResponse,
@@ -90,6 +90,7 @@ from api.services.annonce.stockage import (
     enregistrer_annonce_ouverture,
     lire_annonce_ouverture_strict,
 )
+from api.services.lexique.budget import budget_du_lexique
 from api.services.lexique.stockage import (
     enregistrer_lexique,
     fusionner_import,
@@ -816,6 +817,17 @@ async def save_lexique(
 ):
     """[.mark] Replace the organization's trade vocabulary. Bounds: 422 before writing."""
     return await enregistrer_lexique(user.selected_organization_id, request)
+
+
+@router.post("/lexique/budget", response_model=BudgetLexique)
+async def budget_lexique(
+    request: LexiqueMetier,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] What the transcription would receive from this vocabulary (the draft on screen):
+    tokens used against the ceiling of the organization's provider, and the ticked terms left out.
+    Nothing is written."""
+    return await budget_du_lexique(user.selected_organization_id, request)
 
 
 @router.post("/lexique/import", response_model=ResultatImport)

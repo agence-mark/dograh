@@ -896,6 +896,53 @@ export type BodyTranscribeAudioApiV1WorkflowRecordingsTranscribePost = {
 };
 
 /**
+ * BudgetLexique
+ *
+ * [.mark] What the transcription would receive from this vocabulary (plan « le lexique », Q2).
+ *
+ * Computed by the API for the organization's transcription provider, the SAME
+ * computation as a call (one source of truth); the screen only shows it.
+ */
+export type BudgetLexique = {
+    /**
+     * Fournisseur
+     *
+     * The transcription provider of the organization (its id), None when none is configured.
+     */
+    fournisseur: string | null;
+    /**
+     * Nom Du Plafond
+     *
+     * The provider's name as shown next to its ceiling (« Deepgram »); None: no ceiling declared.
+     */
+    nom_du_plafond: string | null;
+    /**
+     * Plafond Jetons
+     *
+     * The declared ceiling, in tokens; None: nothing is sent.
+     */
+    plafond_jetons: number | null;
+    /**
+     * Jetons
+     *
+     * The prudent estimate of what the terms sent cost, in tokens.
+     */
+    jetons: number;
+    /**
+     * Envoyes
+     *
+     * The terms ticked « listen for » that fit, in order.
+     */
+    envoyes: Array<string>;
+    /**
+     * Non Envoyes
+     *
+     * The terms ticked « listen for » that do not fit (or no ceiling).
+     */
+    non_envoyes: Array<string>;
+};
+
+/**
  * CalculatorToolDefinition
  *
  * Tool definition for Calculator tools.
@@ -7225,6 +7272,12 @@ export type TermeLexique = {
      * Sent to the transcription as a term to listen for (after the agent's Dictionary).
      */
     a_ecouter?: boolean;
+    /**
+     * Propose
+     *
+     * Offered by the business: given to the agent as {{lexique_propose}}, the list it answers « do you offer X? » from.
+     */
+    propose?: boolean;
 };
 
 /**
@@ -13942,6 +13995,45 @@ export type SaveLexiqueApiV1OrganizationsLexiquePutResponses = {
 };
 
 export type SaveLexiqueApiV1OrganizationsLexiquePutResponse = SaveLexiqueApiV1OrganizationsLexiquePutResponses[keyof SaveLexiqueApiV1OrganizationsLexiquePutResponses];
+
+export type BudgetLexiqueApiV1OrganizationsLexiqueBudgetPostData = {
+    body: LexiqueMetier;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/lexique/budget';
+};
+
+export type BudgetLexiqueApiV1OrganizationsLexiqueBudgetPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BudgetLexiqueApiV1OrganizationsLexiqueBudgetPostError = BudgetLexiqueApiV1OrganizationsLexiqueBudgetPostErrors[keyof BudgetLexiqueApiV1OrganizationsLexiqueBudgetPostErrors];
+
+export type BudgetLexiqueApiV1OrganizationsLexiqueBudgetPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: BudgetLexique;
+};
+
+export type BudgetLexiqueApiV1OrganizationsLexiqueBudgetPostResponse = BudgetLexiqueApiV1OrganizationsLexiqueBudgetPostResponses[keyof BudgetLexiqueApiV1OrganizationsLexiqueBudgetPostResponses];
 
 export type ImportLexiqueApiV1OrganizationsLexiqueImportPostData = {
     body: LexiqueMetier;

@@ -184,3 +184,22 @@ class LexiqueMetier(BaseModel):
 class ResultatImport(BaseModel):
     ajoutes: int = Field(description="Terms added to the vocabulary.")
     deja_presents: int = Field(description="Terms left untouched: one of their spellings was already there.")
+
+
+class BudgetLexique(BaseModel):
+    """[.mark] What the transcription would receive from this vocabulary (plan « le lexique », Q2).
+
+    Computed by the API for the organization's transcription provider, the SAME
+    computation as a call (one source of truth); the screen only shows it.
+    """
+
+    fournisseur: str | None = Field(
+        description="The transcription provider of the organization (its id), None when none is configured."
+    )
+    nom_du_plafond: str | None = Field(
+        description="The provider's name as shown next to its ceiling (« Deepgram »); None: no ceiling declared."
+    )
+    plafond_jetons: int | None = Field(description="The declared ceiling, in tokens; None: nothing is sent.")
+    jetons: int = Field(description="The prudent estimate of what the terms sent cost, in tokens.")
+    envoyes: list[str] = Field(description="The terms ticked « listen for » that fit, in order.")
+    non_envoyes: list[str] = Field(description="The terms ticked « listen for » that do not fit (or no ceiling).")
