@@ -20,8 +20,12 @@ What the trial taught, and the code keeps
 - A reading may cover several words ("Edil camin"); function words never start
   or end one.
 - ⛔ Common French words ("royal", "devis", "cheminée") are read as a brand
-  ONLY after a strong cue ("poêle", "marque"...), and a brand made of common
-  words ("Philippe", "Supra") likewise.
+  ONLY after a strong cue, and a brand made of common words ("Philippe",
+  "Supra") likewise. The cues are the language's (« marque », « chez ») and the
+  words of the vocabulary's own terms of type « mot » (« poêle » for a stove
+  maker): none belongs to a trade in the code (question 249).
+- One very frequent word alone (the 100 first of the list: « sont », « fait »)
+  is never a name heard badly; written exactly, it stays read.
 - Three comparisons, the best one counts: the home-made sound key (``_son_mot``),
   the ``phonetic_fr`` key, and the sounds of espeak-ng (T5, L17). 🔑 The sounds
   FIND a name; the spelling DECIDES: a name found by its sound alone is capped
@@ -69,11 +73,18 @@ MOTS_OUTILS = frozenset(
 )
 # A function word that may start a name ("La Nordica", "Le Droff").
 ARTICLES_DE_DEBUT = frozenset({"la", "le"})
-# The words before a name that let a common word be read as one.
-AMORCES_FORTES = frozenset(
-    {"marque", "poele", "poeles", "poil", "insert", "foyer", "chaudiere", "cuisiniere", "modele", "chez",
-     "granules", "bois", "fabricant"}
+# The words before a name that let a common word be read as one (question 249,
+# 2026-09-27). Generic to the language: valid in any trade. ⛔ Never a word of a
+# trade here (« poêle », « vin »): those come from the vocabulary's terms of type
+# « mot », read by ``Index.construire``. Evan's rule: no trade word in the code.
+AMORCES_DE_LA_LANGUE = frozenset(
+    {"marque", "marques", "modele", "modeles", "fabricant", "fabricants", "constructeur", "chez"}
 )
+# A single word among the most frequent of the language is never the approximation
+# of a name (« les poêles sont chers » is not « Sohn »). A name written EXACTLY stays
+# read. Measured on the bench of 2026-09-16: 100 loses nothing, the first word lost
+# above is « juste » (rank 131, for Justus).
+RANG_DES_MOTS_TRES_COURANTS = 100
 MOTS_AVANT = 3
 
 # Q5 (2026-09-26): what announces a person's name, as normalised words. Generic:
@@ -177,15 +188,48 @@ def sons_sans_drapeaux(textes: list[str]) -> list[str] | None:
 
 
 _mots_courants: frozenset[str] | None = None
+_mots_tres_courants: frozenset[str] | None = None
+
+
+def _lignes_des_mots_courants() -> list[str]:
+    """The words of the list, most frequent first (the file is sorted by frequency)."""
+    lignes = FICHIER_MOTS_COURANTS.read_text(encoding="utf-8").splitlines()
+    return [m for m in lignes if m and not m.startswith("#")]
 
 
 def mots_courants() -> frozenset[str]:
     """The common words, normalised like the analysed text (T4). Read once per process."""
     global _mots_courants
     if _mots_courants is None:
-        lignes = FICHIER_MOTS_COURANTS.read_text(encoding="utf-8").splitlines()
-        _mots_courants = frozenset(normaliser_terme(m) for m in lignes if m and not m.startswith("#"))
+        _mots_courants = frozenset(normaliser_terme(m) for m in _lignes_des_mots_courants())
     return _mots_courants
+
+
+def mots_tres_courants() -> frozenset[str]:
+    """The ``RANG_DES_MOTS_TRES_COURANTS`` most frequent words, normalised. Read once per process."""
+    global _mots_tres_courants
+    if _mots_tres_courants is None:
+        premiers = _lignes_des_mots_courants()[:RANG_DES_MOTS_TRES_COURANTS]
+        _mots_tres_courants = frozenset(normaliser_terme(m) for m in premiers)
+    return _mots_tres_courants
+
+
+def amorces_du_lexique(lexique: LexiqueMetier) -> frozenset[str]:
+    """The words before a name that let a common word be read as one.
+
+    The language's own (« marque », « chez »), plus every word of the terms of
+    type « mot » of THIS vocabulary, their spellings and their plural in « s »:
+    a stove maker types « poêle », a restaurant « vin », and nothing is recoded.
+    """
+    amorces = set(AMORCES_DE_LA_LANGUE)
+    for terme in lexique.termes:
+        if terme.type != "mot":
+            continue
+        for ecrit in terme.formes():
+            for mot in normaliser_terme(ecrit).split():
+                if mot not in MOTS_OUTILS and len(mot) > 2:
+                    amorces.update((mot, mot + "s"))
+    return frozenset(amorces)
 
 
 def apres_un_marqueur_de_nom(mots: list[str], i: int) -> bool:
@@ -255,9 +299,14 @@ class Index:
     """The names of a vocabulary, their keys and sounds, ready to compare (T7)."""
 
     def __init__(
-        self, formes: list[Forme], sons_des_formes: list[str] | None, noms_des_communes: Collection[str] | None
+        self,
+        formes: list[Forme],
+        sons_des_formes: list[str] | None,
+        noms_des_communes: Collection[str] | None,
+        amorces: frozenset[str] = AMORCES_DE_LA_LANGUE,
     ):
         self.formes = formes
+        self.amorces = amorces
         self.sons_des_formes = sons_des_formes
         # None: the list of communes could not be read, and nothing is read (T16).
         self.noms_des_communes = noms_des_communes
@@ -319,7 +368,7 @@ class Index:
                     )
                 )
         sons_des_formes = sons_sans_drapeaux([f.norm for f in formes]) if (avec_sons and formes) else None
-        return cls(formes, sons_des_formes, noms_des_communes)
+        return cls(formes, sons_des_formes, noms_des_communes, amorces_du_lexique(lexique))
 
 
 def _passages(mots: list[str], mots_max: int) -> list[tuple[int, int, str]]:
@@ -351,6 +400,7 @@ def analyser(texte: str, index: Index, avec_sons: bool = True) -> list[Detection
     if not passages:
         return []
     courants = mots_courants()
+    tres_courants = mots_tres_courants()
 
     cles = [cle_sonore(p[2]) for p in passages]
     s_sonore = process.cdist(cles, index.cles_sonores, scorer=fuzz.ratio, workers=-1)
@@ -401,10 +451,13 @@ def analyser(texte: str, index: Index, avec_sons: bool = True) -> list[Detection
         second = float(ligne[autres].max()) if autres.any() else None
         exact = passage == forme.norm
         avant = mots[max(0, i - MOTS_AVANT) : i]
-        forte = any(m in AMORCES_FORTES for m in avant)
+        forte = any(m in index.amorces for m in avant)
         banal = all(m in courants for m in passage.split())
         # ⛔ Common words become a name only after a STRONG cue.
         if (banal or forme.banale) and not forte:
+            continue
+        # ⛔ Question 249: one very frequent word alone is never a name heard badly.
+        if not exact and n == 1 and passage in tres_courants:
             continue
         # ⛔ Q5: a person's name is never rewritten into a brand (« Monsieur Baudard »).
         if apres_un_marqueur_de_nom(mots, i):

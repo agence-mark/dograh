@@ -59,7 +59,15 @@ SEUILS = {
 
 @pytest.fixture(scope="module")
 def lexique() -> LexiqueMetier:
-    return LexiqueMetier.model_validate(json.loads((DONNEES / "lexique_poeles_2026-09-16.json").read_text("utf-8")))
+    return lexique_de_la_production()
+
+
+def lexique_de_la_production() -> LexiqueMetier:
+    """The brands of the 2026-09-16 bench, plus the trade words of the socle's stove
+    vocabulary (question 249): the cues before a name come from those words."""
+    brut = json.loads((DONNEES / "lexique_poeles_2026-09-16.json").read_text("utf-8"))
+    mots = json.loads((DONNEES / "lexique_mots_poeles_2026-09-27.json").read_text("utf-8"))["termes"]
+    return LexiqueMetier.model_validate({**brut, "termes": brut["termes"] + mots})
 
 
 @pytest.fixture(scope="module")

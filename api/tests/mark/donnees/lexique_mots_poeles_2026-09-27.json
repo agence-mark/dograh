@@ -1,0 +1,279 @@
+{
+  "_source": "[.mark] Les termes de type « mot » du lexique du socle socle-agent-vocal/dograh/lexiques/poeles-bois-granules.json, recopiés le 2026-09-27 (question 249), avec « poil » en orthographe de « poêle » (décision D2 d'Evan). Joints au lexique des marques du banc du 16/09 : c'est le lexique de la production.",
+  "termes": [
+    {
+      "terme": "poêle à bois",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "poêle à granulés",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "poêle",
+      "variantes": [
+        "poil"
+      ],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "insert",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "foyer fermé",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "cuisinière",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "chaudière granulés",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "conduit",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "tubage",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "boisseau",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "souche",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "sortie de toit",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "chapeau",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "ramonage",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "ramoner",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "entretien annuel",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "certificat de ramonage",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "décendrage",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "joint",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "vitre",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "bûches",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "granulés",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "pellets",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "sac de granulés",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "palette",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "taux d'humidité",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "habillage",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "plaque de sol",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "distance de sécurité",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "arrivée d'air",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "hotte",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "RGE",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "crédit d'impôt",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    },
+    {
+      "terme": "MaPrimeRénov",
+      "variantes": [],
+      "prononciation": null,
+      "type": "mot",
+      "categorie": "mot du métier",
+      "a_ecouter": false
+    }
+  ]
+}

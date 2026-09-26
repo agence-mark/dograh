@@ -55,9 +55,11 @@ def base():
 
 @pytest.fixture(scope="module")
 def index(base) -> Index:
-    lexique = LexiqueMetier.model_validate(
-        json.loads((DONNEES / "lexique_poeles_2026-09-16.json").read_text(encoding="utf-8"))
-    )
+    # The production vocabulary: the brands, plus the trade words that now serve as
+    # cues before a name (question 249, 2026-09-27).
+    brut = json.loads((DONNEES / "lexique_poeles_2026-09-16.json").read_text(encoding="utf-8"))
+    mots = json.loads((DONNEES / "lexique_mots_poeles_2026-09-27.json").read_text(encoding="utf-8"))["termes"]
+    lexique = LexiqueMetier.model_validate({**brut, "termes": brut["termes"] + mots})
     coches = lexique.model_copy(
         update={"termes": [t.model_copy(update={"a_ecouter": True}) for t in lexique.termes]}
     )
