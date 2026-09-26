@@ -112,6 +112,11 @@ from api.services.pipecat.tracing_config import (
 )
 from api.services.pipecat.transcript_log_coordinator import TranscriptLogCoordinator
 from api.services.pipecat.transport_setup import create_webrtc_transport
+from api.services.pipecat.filet_lexique import (
+    armer_filet_lexique,
+    estampille_de_la_liste,
+    noter_le_refus,
+)
 from api.services.pipecat.verification_communes import consigner_dans
 from api.services.pipecat.worker_runner import (
     create_worker_runner,
@@ -998,12 +1003,24 @@ async def _run_pipeline_impl(
             correlation_id=mps_correlation_id,
         )
     else:
+        # [.mark] The safety net of the list (plan « le lexique », L2): a list the
+        # transcription refuses is dropped and the call goes on, stamped.
+        estampille_lexique = estampille_de_la_liste(liste_ecoutee)
         stt = appliquer_latence_de_transcription(
-            create_stt_service(
-                user_config,
-                audio_config,
-                keyterms=keyterms,
-                correlation_id=mps_correlation_id,
+            armer_filet_lexique(
+                create_stt_service(
+                    user_config,
+                    audio_config,
+                    keyterms=keyterms,
+                    correlation_id=mps_correlation_id,
+                ),
+                keyterms,
+                lambda message: noter_le_refus(
+                    estampille_lexique,
+                    message,
+                    consigner_dans(lambda: engine._gathered_context),
+                    CLE_TRACE_LEXIQUE,
+                ),
             ),
             collecter_reglages_tour_de_parole(run_configs).stt_ttfs_p99_latency,
         )
@@ -1069,6 +1086,9 @@ async def _run_pipeline_impl(
         # The keyboard bench is excluded elsewhere -- it lives in
         # `text_chat_runner`, which simply never calls this.
         stamp_transcription_settings(runtime_configuration, user_config.stt)
+        # [.mark] What the transcription was asked to listen for, updated by the
+        # safety net if the list is refused (plan « le lexique », L2).
+        runtime_configuration["lexique_transcription"] = estampille_lexique
         # [.mark] Same guard, same reason on the other side of the pipeline: a
         # realtime call has no separate synthesis service, so `user_config.tts`
         # says nothing about how it was played. Without this stamp two voices

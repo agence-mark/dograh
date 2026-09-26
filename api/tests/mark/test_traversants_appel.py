@@ -29,6 +29,7 @@ la fabrique de voix, elle, est la vraie, avec ses filtres et ses transformations
 | relance | après un silence, le modèle reçoit la consigne de relance de l'agent |
 | micro | `mute_always` réglé en base est dans l'agrégateur réel de l'appel, absent sinon |
 | plafond du lexique | la liste remise à la transcription tient sous le plafond déclaré avec le fournisseur, dictionnaire de l'agent en tête |
+| filet du lexique | une liste refusée par la transcription (HTTP 400) : reconnexion sans la liste, l'appel continue, le refus est estampillé |
 
 ⛔ Chacun a été éprouvé en débranchant sa fonctionnalité : il rougit (journal du
 chantier). Un test traversant qui reste vert fonctionnalité débranchée ne
@@ -642,3 +643,77 @@ async def test_la_liste_remise_a_la_transcription_tient_sous_le_plafond_du_fourn
     assert liste[:3] == ["ramonage", "insert", "Marque000"]
     assert 3 < len(liste) < 402, len(liste)
     assert sum(jetons_du_terme(t, plafond) for t in liste) <= plafond.jetons
+
+
+class _TranscriptionQuiRefuseLaListe:
+    """Une transcription qui se connecte au démarrage comme Flux, et que le
+    fournisseur refuse (HTTP 400) tant que l'adresse porte des termes. Sans
+    connexion, elle fait tomber l'appel, comme le 18/09."""
+
+    def __init__(self, keyterms):
+        from types import SimpleNamespace
+
+        from api.tests.integrations._run_pipeline_helpers import PassthroughProcessor
+
+        adresses = self.adresses = []
+        termes = "".join(f"&keyterm={t}" for t in keyterms or [])
+
+        class Service(PassthroughProcessor):
+            def __init__(self):
+                super().__init__()
+                self._settings = SimpleNamespace(keyterm=list(keyterms or []))
+                self._websocket_url = f"wss://api.eu.deepgram.com/v2/listen?model=flux-general-multi{termes}"
+
+            async def _websocket_connect(self, uri, **_kwargs):
+                from websockets.datastructures import Headers
+                from websockets.exceptions import InvalidStatus
+                from websockets.http11 import Response
+
+                adresses.append(uri)
+                if "keyterm=" in uri:
+                    raise InvalidStatus(Response(400, "Bad Request", Headers(), b""))
+                return "connexion"
+
+            async def process_frame(self, frame, direction):
+                from pipecat.frames.frames import StartFrame
+
+                if isinstance(frame, StartFrame):
+                    await super().process_frame(frame, direction)
+                    try:
+                        await self._websocket_connect(self._websocket_url)
+                    except Exception as erreur:  # noqa: BLE001
+                        await self.push_error(error_msg=f"refusé : {erreur}", fatal=True)
+                    return
+                await super().process_frame(frame, direction)
+
+        self.service = Service()
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_une_liste_refusee_ne_fait_pas_tomber_l_appel(db_session, async_session):
+    """L2 : la transcription refuse la liste (400) ; le filet se reconnecte sans
+    elle, l'appel continue (le modèle répond), et le refus est estampillé."""
+    montage = await _monter(
+        db_session, async_session, {}, lexique={"termes": [{"terme": "Edilkamin", "a_ecouter": True}]}
+    )
+    fausses = []
+
+    def transcription(*_args, keyterms=None, **_kwargs):
+        fausse = _TranscriptionQuiRefuseLaListe(keyterms)
+        fausses.append(fausse)
+        return fausse.service
+
+    llm = ContextCapturingMockLLM(
+        mock_steps=[_texte("Très bien."), _outil("end_call", {}, "fin_1")], chunk_delay=0.001
+    )
+    await _appeler(montage, llm, ["bonjour", "au revoir"], fin_attendue=True, fabrique_stt=transcription)
+
+    adresses = fausses[0].adresses
+    assert len(adresses) == 2 and "keyterm=Edilkamin" in adresses[0]
+    assert "keyterm" not in adresses[1]
+    run = await db_session.get_workflow_run_by_id(montage[0].id)
+    contexte = run.gathered_context
+    estampilles = [v["runtime_configuration"].get("lexique_transcription") for v in contexte["agent_visits"]]
+    assert estampilles and estampilles[-1]["etat"] == "non envoyé : refusé", estampilles
+    assert "400" in estampilles[-1]["refus"]
