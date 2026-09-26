@@ -13,7 +13,8 @@ The questions this file answers:
 Why it exists
 -------------
 Plan ``lexique-metier``, lot 3 (L7, L8, T11; budget raised by Evan on
-2026-09-17, L19). 🔴 A list too long is refused by Deepgram and the call loses
+2026-09-17, L19; ceiling declared with the provider, plan « le lexique » of
+2026-09-26, Q1). 🔴 A list too long is refused by Deepgram and the call loses
 its transcription; a pronunciation applied inside words would turn
 "Scandinave" into something nobody said.
 
@@ -24,10 +25,13 @@ measure in volume decides), nor that the screen shows the vocabulary.
 import pytest
 
 from api.schemas.lexique_metier import LexiqueMetier
+from api.services.configuration.plafond_lexique import (
+    PlafondLexique,
+    jetons_du_terme,
+    plafond_du_lexique,
+)
 from api.services.lexique.ecoute import (
-    MAX_CARACTERES_ECOUTES,
-    MAX_TERMES_ECOUTES,
-    construire_liste_flux,
+    construire_liste_ecoutee,
     regles_de_prononciation,
 )
 from api.services.lexique.reglages import interrupteur_allume, lire_lexique_de_lappel
@@ -50,64 +54,122 @@ LEXIQUE = LexiqueMetier.model_validate(
 
 
 # --------------------------------------------------------------------------- #
-# 1. The terms the transcription listens for
+# 1. The terms the transcription listens for, within the provider's ceiling
 # --------------------------------------------------------------------------- #
+
+DEEPGRAM = plafond_du_lexique("deepgram", "flux-general-multi")
+
+
+def liste(dictionary, lexique, plafond=DEEPGRAM):
+    return construire_liste_ecoutee(dictionary, lexique, plafond)
 
 
 def test_sans_lexique_la_liste_est_celle_daujourdhui():
-    termes, depassement = construire_liste_flux(DICTIONARY, None)
-    assert termes == ["poêle à granulés", "insert", "ramonage"]
-    assert depassement is False
-    assert construire_liste_flux(None, None) == ([], False)
-    assert construire_liste_flux("", LexiqueMetier()) == ([], False)
+    resultat = liste(DICTIONARY, None)
+    assert resultat.termes == ["poêle à granulés", "insert", "ramonage"]
+    assert resultat.tronquee is False
+    assert liste(None, None).termes == []
+    assert liste("", LexiqueMetier()).termes == []
 
 
 def test_le_dictionnaire_passe_devant_puis_les_termes_coches():
-    termes, depassement = construire_liste_flux(DICTIONARY, LEXIQUE)
+    resultat = liste(DICTIONARY, LEXIQUE)
     # "ramonage" is ticked in the vocabulary too: sent once, in the Dictionary's place.
-    assert termes == ["poêle à granulés", "insert", "ramonage", "Edilkamin", "Jøtul", "MCZ"]
-    assert depassement is False
+    assert resultat.termes == ["poêle à granulés", "insert", "ramonage", "Edilkamin", "Jøtul", "MCZ"]
+    assert resultat.tronquee is False
 
 
 def test_un_terme_decoche_nest_pas_envoye():
-    termes, _ = construire_liste_flux(None, LEXIQUE)
-    assert "Scan" not in termes
+    assert "Scan" not in liste(None, LEXIQUE).termes
 
 
 def test_les_doublons_sont_retires_sans_tenir_compte_des_majuscules():
-    termes, _ = construire_liste_flux("EDILKAMIN, insert", LEXIQUE)
+    termes = liste("EDILKAMIN, insert", LEXIQUE).termes
     assert termes.count("EDILKAMIN") == 1
     assert "Edilkamin" not in termes
 
 
-def test_la_liste_sarrete_au_budget_de_termes():
+def test_la_liste_sarrete_au_plafond_du_fournisseur_et_dit_ce_quelle_laisse():
+    """Q1, Q2 (2026-09-26): counted in tokens against the provider's ceiling, the end cut and named."""
     lexique = LexiqueMetier.model_validate(
-        {"termes": [{"terme": f"Marque{i:03d}", "a_ecouter": True} for i in range(200)]}
+        {"termes": [{"terme": f"Marque{i:03d}", "a_ecouter": True} for i in range(400)]}
     )
-    termes, depassement = construire_liste_flux(None, lexique)
-    assert len(termes) == MAX_TERMES_ECOUTES
-    assert depassement is True
+    resultat = liste(None, lexique)
+    assert resultat.tronquee is True
+    assert resultat.jetons <= DEEPGRAM.jetons
+    assert resultat.jetons == sum(jetons_du_terme(t, DEEPGRAM) for t in resultat.termes)
+    # The order is kept: what is sent is the START of the list, what is left out its end.
+    assert resultat.termes == [f"Marque{i:03d}" for i in range(len(resultat.termes))]
+    assert resultat.non_envoyes == [f"Marque{i:03d}" for i in range(len(resultat.termes), 400)]
 
 
-def test_la_liste_sarrete_au_budget_de_caracteres():
-    long = "x" * 78
+def test_un_terme_long_qui_ne_tient_pas_ne_coute_pas_les_courts_derriere():
+    petit = PlafondLexique(fournisseur="Essai", jetons=10, octets_par_jeton=3.0, source="test")
     lexique = LexiqueMetier.model_validate(
-        {"termes": [{"terme": f"{long}{i:02d}", "a_ecouter": True} for i in range(30)]}
+        {"termes": [{"terme": "Aaa", "a_ecouter": True}, {"terme": "B" * 60, "a_ecouter": True},
+                    {"terme": "Ccc", "a_ecouter": True}]}
     )
-    termes, depassement = construire_liste_flux(None, lexique)
-    assert sum(len(t) for t in termes) <= MAX_CARACTERES_ECOUTES
-    assert depassement is True
+    resultat = liste(None, lexique, petit)
+    assert resultat.termes == ["Aaa", "Ccc"]
+    assert resultat.non_envoyes == ["B" * 60]
 
 
-def test_le_dictionnaire_des_agents_daujourdhui_laisse_la_place_aux_marques():
-    """Read on 2026-09-17 on agents 6, 12 and 13: 81 terms, 1 142 characters."""
-    dictionary = ", ".join(f"terme{i:02d}" for i in range(81))
+def test_le_meme_lexique_suit_le_plafond_de_son_fournisseur():
+    """Never one number for every provider: the same list, two ceilings, two cuts."""
     lexique = LexiqueMetier.model_validate(
-        {"termes": [{"terme": f"Marque{i:02d}", "a_ecouter": True} for i in range(27)]}
+        {"termes": [{"terme": f"Marque{i:03d}", "a_ecouter": True} for i in range(400)]}
     )
-    termes, depassement = construire_liste_flux(dictionary, lexique)
-    assert depassement is False
-    assert len([t for t in termes if t.startswith("Marque")]) == 27
+    large = PlafondLexique(fournisseur="Large", jetons=100_000, octets_par_jeton=3.0, source="test")
+    assert liste(None, lexique, large).tronquee is False
+    assert liste(None, lexique, DEEPGRAM).tronquee is True
+
+
+def test_un_fournisseur_sans_plafond_declare_ne_recoit_aucune_liste():
+    """Q1: an unknown limit is a risk of refusal; nothing is sent, and it is said."""
+    assert plafond_du_lexique("speechmatics", "enhanced") is None
+    assert plafond_du_lexique(None, None) is None
+    resultat = liste(DICTIONARY, LEXIQUE, None)
+    assert resultat.termes == []
+    assert resultat.plafond is None
+    assert resultat.non_envoyes[:3] == ["poêle à granulés", "insert", "ramonage"]
+
+
+def test_le_plafond_de_deepgram_vaut_pour_ses_modeles_en_production():
+    for modele in ("flux-general-multi", "flux-general-en", "nova-3", "nova-3-general"):
+        plafond = plafond_du_lexique("deepgram", modele)
+        assert plafond is not None and plafond.fournisseur == "Deepgram", modele
+    # The enum member is accepted as well as its value.
+    from api.services.configuration.registry import ServiceProviders
+
+    assert plafond_du_lexique(ServiceProviders.DEEPGRAM, "nova-3") is not None
+
+
+def test_le_compte_des_jetons_ne_sous_estime_jamais():
+    """The prudent rule: bytes, rounded up, plus one per term."""
+    un = PlafondLexique(fournisseur="Essai", jetons=100, octets_par_jeton=3.0, source="test")
+    assert jetons_du_terme("abc", un) == 2
+    assert jetons_du_terme("abcd", un) == 3
+    # An accent costs two bytes: « Jøtul » is 6 bytes, never counted as 5 characters.
+    assert jetons_du_terme("Jøtul", un) == 3
+
+
+def test_aucun_plafond_nest_ecrit_hors_de_la_declaration_du_fournisseur():
+    """Q1 / cadre: the ceiling lives in ONE place. A second one, anywhere in the code, is the 2026-09-18 defect back."""
+    import re
+    from pathlib import Path
+
+    racine = Path(__file__).resolve().parents[2]
+    declaration = racine / "services" / "configuration" / "plafond_lexique.py"
+    motifs = re.compile(r"MAX_TERMES_ECOUTES|MAX_CARACTERES_ECOUTES|PlafondLexique\(")
+    trouves = [
+        str(fichier.relative_to(racine))
+        for fichier in racine.rglob("*.py")
+        if "tests" not in fichier.parts
+        and ".venv" not in fichier.parts
+        and fichier != declaration
+        and motifs.search(fichier.read_text("utf-8", errors="replace"))
+    ]
+    assert trouves == []
 
 
 # --------------------------------------------------------------------------- #
@@ -307,8 +369,10 @@ def test_la_transcription_recoit_la_liste_construite():
     source = inspect.getsource(
         __import__("api.services.pipecat.run_pipeline", fromlist=["x"])
     )
-    assert "termes_ecoutes, ecoute_tronquee = construire_liste_flux(" in source
-    assert "keyterms = termes_ecoutes or None" in source
+    assert "liste_ecoutee = construire_liste_ecoutee(" in source
+    assert "keyterms = liste_ecoutee.termes or None" in source
+    # Built once the provider is known: the ceiling is the provider's.
+    assert source.index("user_config = resolved_user_config") < source.index("liste_ecoutee = construire_liste_ecoutee(")
     assert "lexique=lexique_metier," in source
 
 

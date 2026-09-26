@@ -3,9 +3,10 @@
 Two uses of the same vocabulary (L4, L7, L8 of 2026-09-16):
 
 - ① the terms ticked « listen for » are sent to the transcription after the
-  agent's own Dictionary, within one budget (T11, raised by Evan on 2026-09-17:
-  120 terms or 1 600 characters, because the Dictionary of the agents already
-  holds 81 terms and 1 142 characters and Deepgram takes it);
+  agent's own Dictionary, within the ceiling DECLARED WITH THE PROVIDER, in
+  tokens (``api/services/configuration/plafond_lexique.py``, Q1 of 2026-09-26:
+  the 120 terms / 1 600 characters of 2026-09-17 were refused by Deepgram and
+  made every agent fall silent on 2026-09-18);
 - ③ the pronunciations are applied to the text sent to the voice, in ONE table
   with the agent's « Pronunciation fixes », the agent winning on the same word.
 
@@ -16,13 +17,12 @@ keeps the official spelling.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from loguru import logger
 
 from api.schemas.lexique_metier import LexiqueMetier, normaliser_terme
-
-MAX_TERMES_ECOUTES = 120
-MAX_CARACTERES_ECOUTES = 1600
+from api.services.configuration.plafond_lexique import PlafondLexique, jetons_du_terme
 
 
 def termes_du_dictionnaire(dictionary: str | None) -> list[str]:
@@ -32,39 +32,79 @@ def termes_du_dictionnaire(dictionary: str | None) -> list[str]:
     return [terme.strip() for terme in dictionary.split(",") if terme.strip()]
 
 
-def construire_liste_flux(
-    dictionary: str | None, lexique: LexiqueMetier | None
-) -> tuple[list[str], bool]:
-    """The terms the transcription listens for, and whether the budget cut the list.
+@dataclass(frozen=True)
+class ListeEcoutee:
+    """The list sent to the transcription, and what the ceiling left out."""
 
-    The agent's Dictionary comes first (it is what the agent's own screen
-    promises), then the ticked terms in the order of the vocabulary. Duplicates
-    are dropped without regard to case; the official spelling is sent, never the
-    other spellings.
-    """
+    termes: list[str]
+    # Asked for but not sent: past the ceiling, or no ceiling declared at all.
+    non_envoyes: list[str]
+    # The prudent estimate of what ``termes`` costs.
+    jetons: int
+    # None: the provider declares no ceiling, and nothing is sent.
+    plafond: PlafondLexique | None
+
+    @property
+    def tronquee(self) -> bool:
+        return bool(self.non_envoyes)
+
+
+def termes_voulus(dictionary: str | None, lexique: LexiqueMetier | None) -> list[str]:
+    """The Dictionary first, then the ticked terms, duplicates dropped whatever their case."""
     voulus = termes_du_dictionnaire(dictionary)
     if lexique is not None:
         voulus += [terme.terme for terme in lexique.termes if terme.a_ecouter]
-    retenus: list[str] = []
+    uniques: list[str] = []
     vus: set[str] = set()
-    caracteres = 0
-    depassement = False
     for terme in voulus:
         empreinte = terme.casefold()
-        if empreinte in vus:
+        if empreinte not in vus:
+            vus.add(empreinte)
+            uniques.append(terme)
+    return uniques
+
+
+def construire_liste_ecoutee(
+    dictionary: str | None,
+    lexique: LexiqueMetier | None,
+    plafond: PlafondLexique | None,
+) -> ListeEcoutee:
+    """The terms the transcription listens for, within the provider's ceiling.
+
+    The agent's Dictionary comes first (it is what the agent's own screen
+    promises), then the ticked terms in the order of the vocabulary; the
+    official spelling is sent, never the other spellings. The END is cut: a
+    term that does not fit is left out and the next ones are tried, so a long
+    name never costs the short ones behind it.
+
+    ⛔ No ceiling declared for the provider: NOTHING is sent (Q1, 2026-09-26),
+    and it is logged. An unknown limit is a risk of refusal.
+    """
+    voulus = termes_voulus(dictionary, lexique)
+    if plafond is None:
+        if voulus:
+            logger.warning(
+                f"[.mark] No term sent to the transcription: its provider declares no ceiling "
+                f"({len(voulus)} asked for). The vocabulary keeps correction and pronunciation."
+            )
+        return ListeEcoutee(termes=[], non_envoyes=voulus, jetons=0, plafond=None)
+    retenus: list[str] = []
+    non_envoyes: list[str] = []
+    jetons = 0
+    for terme in voulus:
+        cout = jetons_du_terme(terme, plafond)
+        if jetons + cout > plafond.jetons:
+            non_envoyes.append(terme)
             continue
-        if len(retenus) >= MAX_TERMES_ECOUTES or caracteres + len(terme) > MAX_CARACTERES_ECOUTES:
-            depassement = True
-            continue
-        vus.add(empreinte)
         retenus.append(terme)
-        caracteres += len(terme)
-    if depassement:
+        jetons += cout
+    if non_envoyes:
         logger.warning(
-            f"[.mark] Terms listened for capped at {len(retenus)} terms / {caracteres} characters: "
-            f"{len(voulus)} were asked for. The ones left out keep correction and pronunciation."
+            f"[.mark] Terms listened for capped at {jetons} / {plafond.jetons} tokens "
+            f"({plafond.fournisseur}): {len(non_envoyes)} of {len(voulus)} left out "
+            f"({', '.join(non_envoyes[:10])}). They keep correction and pronunciation."
         )
-    return retenus, depassement
+    return ListeEcoutee(termes=retenus, non_envoyes=non_envoyes, jetons=jetons, plafond=plafond)
 
 
 def prononciations_du_lexique(lexique: LexiqueMetier | None) -> list[tuple[str, str]]:
