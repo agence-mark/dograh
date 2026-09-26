@@ -93,15 +93,18 @@ def construire_liste_ecoutee(
     jetons = 0
     for terme in voulus:
         cout = jetons_du_terme(terme, plafond)
-        if jetons + cout > plafond.jetons:
+        if (plafond.termes is not None and len(retenus) >= plafond.termes) or (
+            plafond.jetons is not None and jetons + cout > plafond.jetons
+        ):
             non_envoyes.append(terme)
             continue
         retenus.append(terme)
         jetons += cout
     if non_envoyes:
         logger.warning(
-            f"[.mark] Terms listened for capped at {jetons} / {plafond.jetons} tokens "
-            f"({plafond.fournisseur}): {len(non_envoyes)} of {len(voulus)} left out "
+            f"[.mark] Terms listened for capped at {len(retenus)} terms / {jetons} tokens "
+            f"(ceiling {plafond.termes} terms / {plafond.jetons} tokens, {plafond.fournisseur}): "
+            f"{len(non_envoyes)} of {len(voulus)} left out "
             f"({', '.join(non_envoyes[:10])}). They keep correction and pronunciation."
         )
     return ListeEcoutee(termes=retenus, non_envoyes=non_envoyes, jetons=jetons, plafond=plafond)

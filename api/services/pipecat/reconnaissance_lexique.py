@@ -128,6 +128,7 @@ def trace_du_lexique(lexique: LexiqueMetier, liste: ListeEcoutee) -> dict:
         "non_envoyes": list(liste.non_envoyes),
         "jetons": liste.jetons,
         "plafond_jetons": liste.plafond.jetons if liste.plafond else None,
+        "plafond_termes": liste.plafond.termes if liste.plafond else None,
         "fournisseur_du_plafond": liste.plafond.fournisseur if liste.plafond else None,
         "prononciations": len(prononciations_du_lexique(lexique)),
     }

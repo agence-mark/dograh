@@ -202,7 +202,8 @@ def test_le_filet_sarme_sur_les_vrais_services_deepgram():
     )
     original = flux._websocket_connect
     armer_filet_lexique(flux, ["Edilkamin"], None)
-    assert flux._websocket_connect != original
+    assert flux._websocket_connect is not original
+    assert getattr(flux._websocket_connect, "__self__", None) is None  # our wrapper, not a bound method
     assert hasattr(flux, "_websocket_url")
     assert flux._settings.keyterm == ["Edilkamin"]
 
@@ -210,10 +211,31 @@ def test_le_filet_sarme_sur_les_vrais_services_deepgram():
         api_key="cle-de-test",
         settings=DeepgramSTTService.Settings(model="nova-3", keyterm=["Edilkamin"]),
     )
+    # The SDK must hand back the SAME ``listen.v1`` object: otherwise the wrapper
+    # would be set on an object the connection never reads.
+    assert classique._client.listen.v1 is classique._client.listen.v1
     original = classique._client.listen.v1.connect
     armer_filet_lexique(classique, ["Edilkamin"], None)
-    assert classique._client.listen.v1.connect != original
+    assert classique._client.listen.v1.connect is not original
     assert classique._settings.keyterm == ["Edilkamin"]
+
+
+def test_pipecat_passe_bien_par_ce_que_le_filet_enveloppe():
+    """R1 (relecture du 26/09) : les attributs existent ET Pipecat les appelle.
+    Une montée où Flux appellerait ``websocket_connect`` directement, ou où
+    nova-3 ne passerait plus par ``_client.listen.v1.connect``, éteindrait le
+    filet en silence : ce test rougit alors."""
+    import inspect
+
+    from pipecat.services.deepgram.flux.stt import DeepgramFluxSTTService
+    from pipecat.services.deepgram.stt import DeepgramSTTService
+
+    flux = inspect.getsource(DeepgramFluxSTTService._connect_websocket)
+    assert "self._websocket_connect(" in flux and "self._websocket_url" in flux
+    assert "self._build_query_string()" in inspect.getsource(DeepgramFluxSTTService._connect)
+    classique = inspect.getsource(DeepgramSTTService._connection_handler)
+    assert "self._client.listen.v1.connect(" in classique
+    assert "self._build_connect_kwargs()" in classique
 
 
 # --------------------------------------------------------------------------- #
@@ -229,6 +251,7 @@ def test_lestampille_dit_ce_que_la_transcription_a_recu_puis_le_refus():
         "termes": 1,
         "jetons": 2,
         "plafond_jetons": deepgram.jetons,
+        "plafond_termes": deepgram.termes,
         "fournisseur_du_plafond": "Deepgram",
         "non_envoyes": 0,
     }

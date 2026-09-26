@@ -171,6 +171,7 @@ def estampille_de_la_liste(liste) -> dict:
         "termes": len(liste.termes),
         "jetons": liste.jetons,
         "plafond_jetons": liste.plafond.jetons if liste.plafond else None,
+        "plafond_termes": liste.plafond.termes if liste.plafond else None,
         "fournisseur_du_plafond": liste.plafond.fournisseur if liste.plafond else None,
         "non_envoyes": len(liste.non_envoyes),
     }

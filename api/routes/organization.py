@@ -90,7 +90,7 @@ from api.services.annonce.stockage import (
     enregistrer_annonce_ouverture,
     lire_annonce_ouverture_strict,
 )
-from api.services.lexique.budget import budget_du_lexique
+from api.services.lexique.budget import BudgetIndisponible, budget_du_lexique
 from api.services.lexique.stockage import (
     enregistrer_lexique,
     fusionner_import,
@@ -827,7 +827,13 @@ async def budget_lexique(
     """[.mark] What the transcription would receive from this vocabulary (the draft on screen):
     tokens used against the ceiling of the organization's provider, and the ticked terms left out.
     Nothing is written."""
-    return await budget_du_lexique(user.selected_organization_id, request)
+    try:
+        return await budget_du_lexique(user.selected_organization_id, request)
+    except BudgetIndisponible:
+        raise HTTPException(
+            status_code=503,
+            detail="The transcription provider of this organization cannot be read.",
+        ) from None
 
 
 @router.post("/lexique/import", response_model=ResultatImport)

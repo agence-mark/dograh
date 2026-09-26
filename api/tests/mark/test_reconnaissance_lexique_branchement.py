@@ -488,6 +488,7 @@ def test_la_trace_du_lexique_dit_ce_que_lappel_a_utilise():
         "non_envoyes": [],
         "jetons": 9,
         "plafond_jetons": deepgram.jetons,
+        "plafond_termes": deepgram.termes,
         "fournisseur_du_plafond": "Deepgram",
         "prononciations": 0,
     }

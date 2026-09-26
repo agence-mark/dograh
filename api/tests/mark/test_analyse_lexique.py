@@ -224,6 +224,14 @@ def test_apres_un_marqueur_de_nom_aucune_marque(index, texte):
     assert [d for d in analyser(texte, index) if d.entendu.lower().startswith("baudard")] == []
 
 
+@pytest.mark.parametrize(
+    "texte", ["oui madame, c'est Edilcamin", "merci monsieur, c'est un Edilcamin", "madame c'est Edilcamin"]
+)
+def test_une_civilite_adressee_a_lagent_ne_cache_pas_la_marque(index, texte):
+    """Relecture du 26/09 : « madame » dit à l'agent, puis « c'est » + la marque."""
+    assert [d.terme for d in analyser(texte, index)] == ["Edilkamin"]
+
+
 def test_sans_marqueur_le_meme_mot_reste_lu(index):
     """The rule is the marker, not the word: said as a brand, it is still read."""
     assert [d.terme for d in analyser("j'ai un poêle Baudard", index)] == ["Bodart & Gonay"]
