@@ -27,6 +27,7 @@ import {
 import { FlowEdge, FlowNode } from "@/components/flow/types";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
 import { PerServiceModelOverride } from "@/components/mark/PerServiceModelOverride";
+import { PageReglagesAgent } from "@/components/mark/reglages-agent/PageReglagesAgent";
 import { ID_SECTION_ADRESSE_ETABLISSEMENT, SectionAdresseEtablissement } from "@/components/mark/SectionAdresseEtablissement";
 import { ID_SECTION_FICHE, SectionFiche } from "@/components/mark/SectionFiche";
 import { ID_SECTION_HORAIRES_OUVERTURE, SectionHorairesOuverture } from "@/components/mark/SectionHorairesOuverture";
@@ -1659,13 +1660,17 @@ function WorkflowSettingsContent({
     workflow: WorkflowResponse;
     user: { id: string; email?: string };
 }) {
+    // [.mark] The page in 8 themes (chantier reorganisation-ecran-reglages, D2).
+    // Every setting of the cards below is rebuilt there (option B of D6); the
+    // cards stay in this file, unused, so a rise to upstream merges cleanly.
     return (
         <UnsavedChangesProvider>
-            <WorkflowSettingsInner workflow={workflow} user={user} />
+            <PageReglagesAgent workflow={workflow} user={user} />
         </UnsavedChangesProvider>
     );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars -- [.mark] kept for the rises to upstream, see WorkflowSettingsContent
 function WorkflowSettingsInner({
     workflow,
     user,

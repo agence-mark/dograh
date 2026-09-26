@@ -45,12 +45,12 @@ interface SectionAdresseEtablissementProps {
     ) => Promise<void>;
 }
 
-const texteAdresse = (adresse: AdresseEtablissement): string => {
+export const texteAdresse = (adresse: AdresseEtablissement): string => {
     const ville = `${adresse.code_postal} ${adresse.commune}`;
     return adresse.voie ? `${adresse.voie}, ${ville}` : ville;
 };
 
-const memeAdresse = (a: AdresseEtablissement | null, b: AdresseEtablissement | null): boolean =>
+export const memeAdresse = (a: AdresseEtablissement | null, b: AdresseEtablissement | null): boolean =>
     JSON.stringify(a ? { ...a, voie: a.voie ?? null } : null)
     === JSON.stringify(b ? { ...b, voie: b.voie ?? null } : null);
 

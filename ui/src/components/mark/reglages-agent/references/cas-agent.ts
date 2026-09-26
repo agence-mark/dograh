@@ -221,3 +221,27 @@ export const CAS_AGENT: CasAgent[] = [
         { type: "cliquer", nom: "Stub: save widget" },
     ], true),
 ];
+
+/** The theme's title in English: its save button reads « Save <title> » (step 4 on). */
+export const TITRE_ANGLAIS_DU_THEME: Record<ThemeAgent, string> = {
+    agent: "Agent",
+    briques: "Services",
+    ecoute: "Listening",
+    tour: "Turn taking",
+    voix: "Voice",
+    rythme: "Call pacing",
+    donnees: "Call data",
+    etablissement: "Business",
+};
+
+/**
+ * What the themes add around a case's gestures, and only that: a list now
+ * edited in a dialog (convention E4) is opened first and closed with « Done »
+ * after. The gestures themselves are the step-1 ones, untouched.
+ */
+export const AUTOUR_DU_CAS: Record<string, { avant: Geste[]; apres: Geste[] }> = {
+    "pbx-correspondance": { avant: [{ type: "cliquer", nom: "Edit field mappings" }], apres: [{ type: "cliquer", nom: "Done" }] },
+    "pbx-prospect": { avant: [{ type: "cliquer", nom: "Edit lead fields" }], apres: [{ type: "cliquer", nom: "Done" }] },
+    "variable-ajoutee": { avant: [{ type: "cliquer", nom: "Manage variables" }], apres: [{ type: "cliquer", nom: "Done" }] },
+    "variable-en-cours": { avant: [{ type: "cliquer", nom: "Manage variables" }], apres: [{ type: "cliquer", nom: "Done" }] },
+};

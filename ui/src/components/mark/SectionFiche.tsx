@@ -1,7 +1,7 @@
 "use client";
 
 import { ClipboardList, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { detailFromError } from "@/lib/apiError";
 import type { ChampFiche, WorkflowConfigurations } from "@/types/workflow-configurations";
 
+import { type Texte, useLangue } from "./langue/langue";
 import { RAPPEL_PUBLICATION } from "./SectionReglagesPipecat";
 
 /**
@@ -104,13 +105,12 @@ export const lireLesValeurs = (texte: string): string[] | null => {
     return valeurs.length ? valeurs : null;
 };
 
-/** The same record, with "no list" written one way only, to compare two records. */
-const pourComparer = (champs: ChampFiche[]) =>
-    champs.map((c) => ({ ...c, valeurs: c.valeurs?.length ? c.valeurs : null }));
-
-/** The first problem of each field, by index: what the server would refuse. */
-export const erreursDesChamps = (champs: ChampFiche[]): Record<number, string> => {
-    const erreurs: Record<number, string> = {};
+/**
+ * The first problem of each field, by index: what the server would refuse --
+ * in both languages (convention T2).
+ */
+export const texteErreursDesChamps = (champs: ChampFiche[]): Record<number, Texte> => {
+    const erreurs: Record<number, Texte> = {};
     const vus = new Set<string>();
     const insee = new Set(
         champs
@@ -125,24 +125,47 @@ export const erreursDesChamps = (champs: ChampFiche[]): Record<number, string> =
     );
     champs.forEach((champ, i) => {
         if (!NOM_CHAMP.test(champ.nom)) {
-            erreurs[i] = "Lowercase letters, digits and _, starting with a letter.";
+            erreurs[i] = {
+                en: "Lowercase letters, digits and _, starting with a letter.",
+                fr: "Minuscules, chiffres et _, en commençant par une lettre.",
+            };
         } else if (NOMS_RESERVES.includes(champ.nom)) {
-            erreurs[i] = "This name is used by the agent itself.";
+            erreurs[i] = { en: "This name is used by the agent itself.", fr: "Ce nom est utilisé par l'agent lui-même." };
         } else if (vus.has(champ.nom)) {
-            erreurs[i] = "This name is used twice.";
+            erreurs[i] = { en: "This name is used twice.", fr: "Ce nom est utilisé deux fois." };
         } else if (insee.has(champ.nom)) {
-            erreurs[i] = "This is where a town's INSEE code is written.";
+            erreurs[i] = {
+                en: "This is where a town's INSEE code is written.",
+                fr: "C'est là que s'écrit le code INSEE d'une commune.",
+            };
         } else if (dits.has(champ.nom)) {
-            erreurs[i] = "This is where the caller's words for a date are kept.";
+            erreurs[i] = {
+                en: "This is where the caller's words for a date are kept.",
+                fr: "C'est là que sont gardés les mots de l'appelant pour une date.",
+            };
         } else if ((champ.valeurs?.length ?? 0) > NOMBRE_MAX_VALEURS) {
-            erreurs[i] = `At most ${NOMBRE_MAX_VALEURS} allowed values.`;
+            erreurs[i] = {
+                en: `At most ${NOMBRE_MAX_VALEURS} allowed values.`,
+                fr: `Au plus ${NOMBRE_MAX_VALEURS} valeurs permises.`,
+            };
         } else if (champ.valeurs?.some((v) => v.length > LONGUEUR_MAX_VALEUR)) {
-            erreurs[i] = `An allowed value is longer than ${LONGUEUR_MAX_VALEUR} characters.`;
+            erreurs[i] = {
+                en: `An allowed value is longer than ${LONGUEUR_MAX_VALEUR} characters.`,
+                fr: `Une valeur permise dépasse ${LONGUEUR_MAX_VALEUR} caractères.`,
+            };
         }
         vus.add(champ.nom);
     });
     return erreurs;
 };
+
+/** The same problems, in English: what the screen showed before the FR / EN switch. */
+export const erreursDesChamps = (champs: ChampFiche[]): Record<number, string> =>
+    Object.fromEntries(Object.entries(texteErreursDesChamps(champs)).map(([i, texte]) => [i, texte.en]));
+
+/** The same record, with "no list" written one way only, to compare two records. */
+export const pourComparerLaFiche = (champs: ChampFiche[]) =>
+    champs.map((c) => ({ ...c, valeurs: c.valeurs?.length ? c.valeurs : null }));
 
 const nouveauChamp = (): ChampFiche => ({
     nom: "",
@@ -169,6 +192,7 @@ const ValeursPermises = ({
     valeurs: string[] | null;
     onChange: (valeurs: string[] | null) => void;
 }) => {
+    const { t } = useLangue();
     const [texte, setTexte] = useState((valeurs ?? []).join(", "));
     const cle = JSON.stringify(valeurs ?? null);
     useEffect(() => {
@@ -181,21 +205,22 @@ const ValeursPermises = ({
     return (
         <div className="space-y-1">
             <Label htmlFor={`fiche_valeurs_${index}`} className="text-xs">
-                Allowed values
+                {t({ en: "Allowed values", fr: "Valeurs permises" })}
             </Label>
             <Input
                 id={`fiche_valeurs_${index}`}
                 value={texte}
-                placeholder="Any value"
+                placeholder={t({ en: "Any value", fr: "Toute valeur" })}
                 onChange={(e) => {
                     setTexte(e.target.value);
                     onChange(lireLesValeurs(e.target.value));
                 }}
             />
             <p className="text-xs text-muted-foreground">
-                Separated by commas, up to {NOMBRE_MAX_VALEURS}. The field then only accepts one of
-                them, written as typed here, and a deduced field no longer has to use the
-                caller&apos;s words.
+                {t({
+                    en: `Separated by commas, up to ${NOMBRE_MAX_VALEURS}. The field then only accepts one of them, written as typed here, and a deduced field no longer has to use the caller's words.`,
+                    fr: `Séparées par des virgules, jusqu'à ${NOMBRE_MAX_VALEURS}. Le champ n'accepte alors que l'une d'elles, écrite comme ici, et un champ déduit n'a plus à reprendre les mots de l'appelant.`,
+                })}
             </p>
         </div>
     );
@@ -211,11 +236,213 @@ interface SectionFicheProps {
     ) => Promise<void>;
 }
 
+/** The help of the call record switch, in both languages. */
+export const AIDES_FICHE: Texte[] = [
+    {
+        en: "Off: the tool is not offered and the agent behaves exactly as before.",
+        fr: "Éteint : l'outil n'est pas proposé et l'agent se comporte exactement comme avant.",
+    },
+    {
+        en: "On: the step-by-step extraction stops, the record is written by the tool, and a final pass at the end of the call fills only the fields left empty. The town, street and spelling readers stop adding notes to what the model reads and answer the tool instead. A value the caller never said is refused. No effect in realtime mode.",
+        fr: "Allumé : l'extraction étape par étape s'arrête, la fiche est écrite par l'outil, et une passe finale en fin d'appel remplit seulement les champs restés vides. Les lecteurs de commune, de rue et d'épellation n'annotent plus ce que lit le modèle et répondent à l'outil. Une valeur jamais dite par l'appelant est refusée. Sans effet en mode temps réel.",
+    },
+    {
+        en: "⚠️ The agent's prompts must say how the record is filled. Prompts written for step-by-step extraction still ask for a step per piece of information.",
+        fr: "⚠️ Les prompts de l'agent doivent dire comment la fiche est remplie. Des prompts écrits pour l'extraction étape par étape demandent encore une étape par information.",
+    },
+];
+
+/**
+ * The record's fields: how many, and the dialog that edits them (convention
+ * E4: a list is edited in a dialog, directly, closed with « Done »). Used by
+ * the old card and by the theme « Données de l'appel ».
+ */
+export const EditeurChampsFiche = ({
+    actif,
+    champs,
+    onChange,
+}: {
+    actif: boolean;
+    champs: ChampFiche[];
+    onChange: Dispatch<SetStateAction<ChampFiche[]>>;
+}) => {
+    const { t } = useLangue();
+    const [ouvert, setOuvert] = useState(false);
+    const erreurs = useMemo(() => texteErreursDesChamps(champs), [champs]);
+    const nombreDErreurs = Object.keys(erreurs).length;
+    const maximum = NOMBRE_MAX_CHAMPS;
+    const modifier = (i: number, changement: Partial<ChampFiche>) =>
+        onChange((avant) => avant.map((c, j) => (j === i ? { ...c, ...changement } : c)));
+
+    return (
+        <>
+            <div className="flex items-center justify-between gap-4 rounded border p-3">
+                <div className="text-sm">
+                    <span id="fiche_nombre_de_champs">{champs.length}</span>{" "}
+                    {champs.length === 1
+                        ? t({ en: "field in the record", fr: "champ dans la fiche" })
+                        : t({ en: "fields in the record", fr: "champs dans la fiche" })}
+                    {actif && champs.length === 0 && (
+                        <p className="text-xs text-destructive">
+                            {t({ en: "No field: the tool will not be offered.", fr: "Aucun champ : l'outil ne sera pas proposé." })}
+                        </p>
+                    )}
+                </div>
+                <Button variant="outline" onClick={() => setOuvert(true)}>
+                    {t({ en: "Edit fields", fr: "Modifier les champs" })}
+                </Button>
+            </div>
+            {nombreDErreurs > 0 && (
+                <p role="alert" className="text-xs text-destructive">
+                    {t({
+                        en: `${nombreDErreurs} field${nombreDErreurs > 1 ? "s have" : " has"} a problem: open the fields to fix it.`,
+                        fr: `${nombreDErreurs} champ${nombreDErreurs > 1 ? "s ont" : " a"} un problème : ouvrez les champs pour le corriger.`,
+                    })}
+                </p>
+            )}
+
+            <Dialog open={ouvert} onOpenChange={setOuvert}>
+                {/* ⛔ `sm:` : la largeur de base du composant (sm:max-w-lg) l'emporte
+                    sur un `max-w-*` sans préfixe, et les champs se chevauchaient (24/09). */}
+                <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-5xl">
+                    <DialogHeader>
+                        <DialogTitle>{t({ en: "Call record fields", fr: "Champs de la fiche" })}</DialogTitle>
+                        <DialogDescription>
+                            {t({
+                                en: "Each field becomes a parameter of the tool. Dictated: the value must have been said by the caller (name, phone, town, street, brand). Deduced: the model sums it up (reason for the call, urgency). The reader checks a town against the list of communes, or a street against the streets of the town, or computes a date said as \"last year\" on the day of the call (the caller's words are kept next to it); \"From the name\" picks it as the server does (commune… → town, adresse… or rue… → street, …date…, dernier_… or annee… → date, marque… → trade vocabulary: a brand is sure only when the organization's vocabulary recognises it, otherwise it is to confirm).",
+                                fr: "Chaque champ devient un paramètre de l'outil. Dicté : la valeur doit avoir été dite par l'appelant (nom, téléphone, commune, rue, marque). Déduit : le modèle la résume (motif de l'appel, urgence). Le lecteur vérifie une commune dans la liste des communes, ou une rue parmi les rues de la commune, ou calcule une date dite « l'an dernier » au jour de l'appel (les mots de l'appelant sont gardés à côté) ; « D'après le nom » le choisit comme le serveur (commune… → commune, adresse… ou rue… → rue, …date…, dernier_… ou annee… → date, marque… → lexique métier : une marque n'est sûre que si le lexique de l'organisation la reconnaît, sinon elle est à confirmer).",
+                            })}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+                        {champs.map((champ, i) => (
+                            <div key={i} className="space-y-2 rounded border p-3" data-champ={i}>
+                                <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
+                                    <div className="space-y-1 md:col-span-3">
+                                        <Label htmlFor={`fiche_nom_${i}`} className="text-xs">
+                                            {t({ en: "Name", fr: "Nom" })}
+                                        </Label>
+                                        <Input
+                                            id={`fiche_nom_${i}`}
+                                            value={champ.nom}
+                                            maxLength={64}
+                                            aria-invalid={erreurs[i] ? true : undefined}
+                                            onChange={(e) => modifier(i, { nom: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <Label className="text-xs">{t({ en: "Type", fr: "Type" })}</Label>
+                                        <Select
+                                            value={champ.type}
+                                            onValueChange={(v: ChampFiche["type"]) => modifier(i, { type: v })}
+                                        >
+                                            <SelectTrigger id={`fiche_type_${i}`}>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="string">{t({ en: "Text", fr: "Texte" })}</SelectItem>
+                                                <SelectItem value="number">{t({ en: "Number", fr: "Nombre" })}</SelectItem>
+                                                <SelectItem value="boolean">{t({ en: "Yes / no", fr: "Oui / non" })}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <Label className="text-xs">{t({ en: "Origin", fr: "Origine" })}</Label>
+                                        <Select
+                                            value={champ.origine}
+                                            onValueChange={(v: ChampFiche["origine"]) => modifier(i, { origine: v })}
+                                        >
+                                            <SelectTrigger id={`fiche_origine_${i}`}>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="dicte">{t({ en: "Dictated", fr: "Dicté" })}</SelectItem>
+                                                <SelectItem value="deduit">{t({ en: "Deduced", fr: "Déduit" })}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1 md:col-span-4">
+                                        <Label className="text-xs">{t({ en: "Reader", fr: "Lecteur" })}</Label>
+                                        <Select
+                                            value={champ.lecteur ?? "auto"}
+                                            onValueChange={(v) =>
+                                                modifier(i, {
+                                                    lecteur: v === "auto" ? null : (v as ChampFiche["lecteur"]),
+                                                })
+                                            }
+                                        >
+                                            <SelectTrigger id={`fiche_lecteur_${i}`}>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="auto">
+                                                    {t({ en: "From the name", fr: "D'après le nom" })} ({lecteurParDefaut(champ.nom)})
+                                                </SelectItem>
+                                                <SelectItem value="commune">{t({ en: "Town", fr: "Commune" })}</SelectItem>
+                                                <SelectItem value="rue">{t({ en: "Street", fr: "Rue" })}</SelectItem>
+                                                <SelectItem value="date">{t({ en: "Date", fr: "Date" })}</SelectItem>
+                                                <SelectItem value="lexique">{t({ en: "Trade vocabulary", fr: "Lexique métier" })}</SelectItem>
+                                                <SelectItem value="aucun">{t({ en: "None", fr: "Aucun" })}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex items-end justify-end md:col-span-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label={t({
+                                                en: `Remove field ${champ.nom || i + 1}`,
+                                                fr: `Retirer le champ ${champ.nom || i + 1}`,
+                                            })}
+                                            onClick={() => onChange((avant) => avant.filter((_, j) => j !== i))}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor={`fiche_description_${i}`} className="text-xs">
+                                        {t({ en: "Hint for the model", fr: "Indication pour le modèle" })}
+                                    </Label>
+                                    <Input
+                                        id={`fiche_description_${i}`}
+                                        value={champ.description}
+                                        maxLength={500}
+                                        onChange={(e) => modifier(i, { description: e.target.value })}
+                                    />
+                                </div>
+                                <ValeursPermises
+                                    index={i}
+                                    valeurs={champ.valeurs ?? null}
+                                    onChange={(valeurs) => modifier(i, { valeurs })}
+                                />
+                                {erreurs[i] && <p className="text-xs text-destructive">{t(erreurs[i])}</p>}
+                            </div>
+                        ))}
+                    </div>
+                    <DialogFooter className="justify-between sm:justify-between">
+                        <Button
+                            variant="outline"
+                            disabled={champs.length >= maximum}
+                            onClick={() => onChange((avant) => [...avant, nouveauChamp()])}
+                        >
+                            <Plus className="mr-1 h-4 w-4" />
+                            {t({ en: "Add field", fr: "Ajouter un champ" })}
+                        </Button>
+                        <Button onClick={() => setOuvert(false)}>{t({ en: "Done", fr: "Terminé" })}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+};
+
 export const SectionFiche = ({
     workflowConfigurations,
     workflowName,
     onSave,
 }: SectionFicheProps) => {
+    const { t } = useLangue();
     const actifEnregistre = workflowConfigurations.fiche_au_fil_de_leau ?? false;
     const champsEnregistres = useMemo(
         () => workflowConfigurations.fiche_champs ?? [],
@@ -223,7 +450,6 @@ export const SectionFiche = ({
     );
     const [actif, setActif] = useState(actifEnregistre);
     const [champs, setChamps] = useState<ChampFiche[]>(champsEnregistres);
-    const [ouvert, setOuvert] = useState(false);
     const [erreur, setErreur] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -239,17 +465,12 @@ export const SectionFiche = ({
         setChamps(champsRelus);
     }, [cleEnregistree]);
 
-    const erreurs = useMemo(() => erreursDesChamps(champs), [champs]);
-    const nombreDErreurs = Object.keys(erreurs).length;
+    const nombreDErreurs = Object.keys(erreursDesChamps(champs)).length;
     const isDirty =
         actif !== actifEnregistre ||
-        JSON.stringify(pourComparer(champs)) !== JSON.stringify(pourComparer(champsEnregistres));
-    const maximum = NOMBRE_MAX_CHAMPS;
+        JSON.stringify(pourComparerLaFiche(champs)) !== JSON.stringify(pourComparerLaFiche(champsEnregistres));
 
     useUnsavedChanges(ID_SECTION_FICHE, isDirty);
-
-    const modifier = (i: number, changement: Partial<ChampFiche>) =>
-        setChamps((avant) => avant.map((c, j) => (j === i ? { ...c, ...changement } : c)));
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -290,7 +511,7 @@ export const SectionFiche = ({
                 <div className="space-y-2">
                     <div className="flex items-center justify-between gap-4">
                         <Label htmlFor="fiche_au_fil_de_leau" className="text-sm">
-                            Fill the call record with a tool
+                            {t({ en: "Fill the call record with a tool", fr: "Remplir la fiche avec un outil" })}
                         </Label>
                         <Switch
                             id="fiche_au_fil_de_leau"
@@ -298,43 +519,14 @@ export const SectionFiche = ({
                             onCheckedChange={setActif}
                         />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        Off: the tool is not offered and the agent behaves exactly as before.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                        On: the step-by-step extraction stops, the record is written by the tool,
-                        and a final pass at the end of the call fills only the fields left empty.
-                        The town, street and spelling readers stop adding notes to what the model
-                        reads and answer the tool instead. A value the caller never said is
-                        refused. No effect in realtime mode.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                        ⚠️ The agent&apos;s prompts must say how the record is filled. Prompts
-                        written for step-by-step extraction still ask for a step per piece of
-                        information.
-                    </p>
+                    {AIDES_FICHE.map((aide, i) => (
+                        <p key={i} className="text-xs text-muted-foreground">
+                            {t(aide)}
+                        </p>
+                    ))}
                 </div>
 
-                <div className="flex items-center justify-between gap-4 rounded border p-3">
-                    <div className="text-sm">
-                        <span id="fiche_nombre_de_champs">{champs.length}</span>{" "}
-                        {champs.length === 1 ? "field" : "fields"} in the record
-                        {actif && champs.length === 0 && (
-                            <p className="text-xs text-destructive">
-                                No field: the tool will not be offered.
-                            </p>
-                        )}
-                    </div>
-                    <Button variant="outline" onClick={() => setOuvert(true)}>
-                        Edit fields
-                    </Button>
-                </div>
-                {nombreDErreurs > 0 && (
-                    <p role="alert" className="text-xs text-destructive">
-                        {nombreDErreurs} field{nombreDErreurs > 1 ? "s have" : " has"} a problem:
-                        open the fields to fix it.
-                    </p>
-                )}
+                <EditeurChampsFiche actif={actif} champs={champs} onChange={setChamps} />
                 {erreur && (
                     <p role="alert" className="text-xs text-destructive">
                         {erreur}
@@ -349,147 +541,6 @@ export const SectionFiche = ({
                     {isSaving ? "Saving..." : "Save Call Record"}
                 </Button>
             </CardFooter>
-
-            <Dialog open={ouvert} onOpenChange={setOuvert}>
-                {/* ⛔ `sm:` : la largeur de base du composant (sm:max-w-lg) l'emporte
-                    sur un `max-w-*` sans préfixe, et les champs se chevauchaient (24/09). */}
-                <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-5xl">
-                    <DialogHeader>
-                        <DialogTitle>Call record fields</DialogTitle>
-                        <DialogDescription>
-                            Each field becomes a parameter of the tool. <strong>Dictated</strong>:
-                            the value must have been said by the caller (name, phone, town,
-                            street, brand). <strong>Deduced</strong>: the model sums it up
-                            (reason for the call, urgency). The <strong>reader</strong> checks a
-                            town against the list of communes, or a street against the streets of
-                            the town, or computes a <strong>date</strong> said as &quot;last
-                            year&quot; on the day of the call (the caller&apos;s words are kept
-                            next to it); &quot;From the name&quot; picks it as the server does
-                            (<code>commune…</code> → town, <code>adresse…</code> or{" "}
-                            <code>rue…</code> → street, <code>…date…</code>,{" "}
-                            <code>dernier_…</code> or <code>annee…</code> → date,{" "}
-                            <code>marque…</code> → trade vocabulary: a brand is sure only when the
-                            organization&apos;s vocabulary recognises it, otherwise it is to confirm).
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-                        {champs.map((champ, i) => (
-                            <div key={i} className="space-y-2 rounded border p-3" data-champ={i}>
-                                <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
-                                    <div className="space-y-1 md:col-span-3">
-                                        <Label htmlFor={`fiche_nom_${i}`} className="text-xs">
-                                            Name
-                                        </Label>
-                                        <Input
-                                            id={`fiche_nom_${i}`}
-                                            value={champ.nom}
-                                            maxLength={64}
-                                            aria-invalid={erreurs[i] ? true : undefined}
-                                            onChange={(e) => modifier(i, { nom: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <Label className="text-xs">Type</Label>
-                                        <Select
-                                            value={champ.type}
-                                            onValueChange={(v: ChampFiche["type"]) => modifier(i, { type: v })}
-                                        >
-                                            <SelectTrigger id={`fiche_type_${i}`}>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="string">Text</SelectItem>
-                                                <SelectItem value="number">Number</SelectItem>
-                                                <SelectItem value="boolean">Yes / no</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <Label className="text-xs">Origin</Label>
-                                        <Select
-                                            value={champ.origine}
-                                            onValueChange={(v: ChampFiche["origine"]) => modifier(i, { origine: v })}
-                                        >
-                                            <SelectTrigger id={`fiche_origine_${i}`}>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="dicte">Dictated</SelectItem>
-                                                <SelectItem value="deduit">Deduced</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-1 md:col-span-4">
-                                        <Label className="text-xs">Reader</Label>
-                                        <Select
-                                            value={champ.lecteur ?? "auto"}
-                                            onValueChange={(v) =>
-                                                modifier(i, {
-                                                    lecteur: v === "auto" ? null : (v as ChampFiche["lecteur"]),
-                                                })
-                                            }
-                                        >
-                                            <SelectTrigger id={`fiche_lecteur_${i}`}>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="auto">
-                                                    From the name ({lecteurParDefaut(champ.nom)})
-                                                </SelectItem>
-                                                <SelectItem value="commune">Town</SelectItem>
-                                                <SelectItem value="rue">Street</SelectItem>
-                                                <SelectItem value="date">Date</SelectItem>
-                                                <SelectItem value="lexique">Trade vocabulary</SelectItem>
-                                                <SelectItem value="aucun">None</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="flex items-end justify-end md:col-span-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label={`Remove field ${champ.nom || i + 1}`}
-                                            onClick={() => setChamps((avant) => avant.filter((_, j) => j !== i))}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor={`fiche_description_${i}`} className="text-xs">
-                                        Hint for the model
-                                    </Label>
-                                    <Input
-                                        id={`fiche_description_${i}`}
-                                        value={champ.description}
-                                        maxLength={500}
-                                        onChange={(e) => modifier(i, { description: e.target.value })}
-                                    />
-                                </div>
-                                <ValeursPermises
-                                    index={i}
-                                    valeurs={champ.valeurs ?? null}
-                                    onChange={(valeurs) => modifier(i, { valeurs })}
-                                />
-                                {erreurs[i] && (
-                                    <p className="text-xs text-destructive">{erreurs[i]}</p>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                    <DialogFooter className="justify-between sm:justify-between">
-                        <Button
-                            variant="outline"
-                            disabled={champs.length >= maximum}
-                            onClick={() => setChamps((avant) => [...avant, nouveauChamp()])}
-                        >
-                            <Plus className="mr-1 h-4 w-4" />
-                            Add field
-                        </Button>
-                        <Button onClick={() => setOuvert(false)}>Done</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </Card>
     );
 };

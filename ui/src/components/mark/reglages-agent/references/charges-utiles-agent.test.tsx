@@ -33,7 +33,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
-import { BOUTON_DE_LA_CARTE, CAS_AGENT, type CasAgent } from "./cas-agent";
+import { AUTOUR_DU_CAS, CAS_AGENT, type CasAgent, type Geste, type ThemeAgent, TITRE_ANGLAIS_DU_THEME } from "./cas-agent";
 import {
     COMMUNES_DE_REFERENCE,
     CONFIG_DE_REFERENCE,
@@ -189,19 +189,40 @@ m.saveDictionary.mockResolvedValue(undefined);
 
 const ouvrirLaPage = async () => {
     render(<WorkflowSettingsPage />);
-    // The model card loads asynchronously; its switch is the last thing to appear.
-    await screen.findByRole("button", { name: "Save Organization Configuration" });
-    await waitFor(() => expect(document.getElementById("agent-business-address-voie")).toBeTruthy());
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(8));
 };
 
-/** Plays one case on the page as it is, and presses the save it names. */
+/** Opens a theme by its header (the one thing that folds, E1). */
+const ouvrirLeTheme = (theme: ThemeAgent) => {
+    const entete = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded]`) as HTMLButtonElement;
+    if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
+};
+
+/** Waits for what a gesture reaches: the model configuration and the town list load late. */
+const attendreLaCible = async (geste: Geste) => {
+    await waitFor(() => {
+        if (geste.type === "interrupteur" || geste.type === "choisir" || geste.type === "etiquette") {
+            expect(document.getElementById(geste.id)).toBeTruthy();
+        } else if (geste.type === "saisir" && geste.id) {
+            expect(document.getElementById(geste.id)).toBeTruthy();
+        } else if (geste.type === "cliquer") {
+            expect(screen.getByRole("button", { name: geste.nom })).toBeTruthy();
+        }
+    });
+};
+
+/** Plays one case on the themes, and presses the save of its theme. */
 const jouer = async (cas: CasAgent) => {
     await ouvrirLaPage();
-    for (const geste of cas.gestes) jouerGeste(geste);
+    ouvrirLeTheme(cas.theme);
+    const autour = AUTOUR_DU_CAS[cas.id] ?? { avant: [], apres: [] };
+    for (const geste of [...autour.avant, ...cas.gestes, ...autour.apres]) {
+        await attendreLaCible(geste);
+        jouerGeste(geste);
+    }
     if (!cas.enregistreSeul) {
-        const nom = BOUTON_DE_LA_CARTE[cas.carte];
-        if (!nom) throw new Error(`Card ${cas.carte} has no save button.`);
-        const bouton = screen.getByRole("button", { name: nom }) as HTMLButtonElement;
+        const nom = `Save ${TITRE_ANGLAIS_DU_THEME[cas.theme]}`;
+        const bouton = (await screen.findByRole("button", { name: nom })) as HTMLButtonElement;
         expect(bouton.disabled, `${cas.id}: ${nom} must be enabled after the change`).toBe(false);
         fireEvent.click(bouton);
     }
@@ -239,15 +260,16 @@ describe("payload references of the agent settings page", () => {
     });
 
     it("leaves every save button disabled while nothing was touched", async () => {
+        // Step 1 froze the eight card buttons of the old page, all disabled
+        // untouched. The themes that carry a button must be the same.
+        expect(Object.values(references.boutonsInactifsSansModification).every(Boolean)).toBe(true);
         await ouvrirLaPage();
-        const etat: Record<string, boolean> = {};
-        for (const nom of Object.values(BOUTON_DE_LA_CARTE)) {
-            if (!nom) continue;
-            etat[nom] = (screen.getByRole("button", { name: nom }) as HTMLButtonElement).disabled;
+        const themesAvecBouton = (Object.keys(TITRE_ANGLAIS_DU_THEME) as ThemeAgent[]).filter((t) => t !== "briques");
+        for (const theme of themesAvecBouton) {
+            ouvrirLeTheme(theme);
+            const bouton = (await screen.findByRole("button", { name: `Save ${TITRE_ANGLAIS_DU_THEME[theme]}` })) as HTMLButtonElement;
+            expect(bouton.disabled, `${theme} must be disabled untouched`).toBe(true);
         }
-        if (ECRIRE) references.boutonsInactifsSansModification = etat;
-        else expect(etat).toEqual(references.boutonsInactifsSansModification);
-        expect(Object.values(etat).every(Boolean)).toBe(true);
     });
 
     it.each(CAS_AGENT.map((cas) => [cas.id, cas] as const))("case %s sends what the reference froze", async (_id, cas) => {

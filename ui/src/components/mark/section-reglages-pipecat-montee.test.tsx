@@ -44,15 +44,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
-import { ID_SECTION_ADRESSE_ETABLISSEMENT } from "./SectionAdresseEtablissement";
-import { ID_SECTION_FICHE } from "./SectionFiche";
-import { ID_SECTION_HORAIRES_OUVERTURE } from "./SectionHorairesOuverture";
-import { ID_SECTION_REGLAGES_PIPECAT } from "./SectionReglagesPipecat";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -149,33 +145,47 @@ const { default: WorkflowSettingsPage } = await import(
 const rendreLaPage = async () => {
     const rendu = render(<WorkflowSettingsPage />);
     // The page shows a spinner until the workflow fetch resolves.
-    await screen.findByText("Speech Tuning", {}, { timeout: 3000 }).catch(() => null);
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(8), { timeout: 3000 });
     return rendu;
 };
 
-describe("[.mark] the Speech Tuning section is reachable on the settings page", () => {
+/**
+ * [.mark] Since the chantier reorganisation-ecran-reglages (26/09/2026) the
+ * page is 8 themes that fold (convention E1): a setting is reached by opening
+ * its theme. Every question below is the one this file asked of the cards,
+ * asked of the themes -- the setting still has to be REACHABLE by clicking.
+ */
+const ouvrirLeTheme = (id: string) => {
+    const entete = document.querySelector(`[data-theme="${id}"] > button[aria-expanded]`) as HTMLButtonElement;
+    if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
+    return document.getElementById(id) as HTMLElement;
+};
+
+describe("[.mark] our settings are reachable on the settings page", () => {
     it("is really mounted on the page, not merely mentioned in its source", async () => {
         // The assertion the first version of this file was missing. A mount
         // commented out, put behind `{false && …}`, or moved into a
         // sub-component nobody renders fails here.
         const { container } = await rendreLaPage();
-        expect(container.querySelector(`#${ID_SECTION_REGLAGES_PIPECAT}`)).not.toBeNull();
+        for (const id of ["agent", "briques", "ecoute", "tour", "voix", "rythme", "donnees", "etablissement"]) {
+            expect(container.querySelector(`#${id}[data-theme]`), id).not.toBeNull();
+        }
     });
 
-    it("shows the settings themselves, not just an empty card", async () => {
-        // Mounted but handed no configuration would render a card with nothing
+    it("shows the settings themselves, not just an empty theme", async () => {
+        // Mounted but handed no configuration would render a theme with nothing
         // in it -- reachable and useless.
         await rendreLaPage();
+        ouvrirLeTheme("tour");
+        ouvrirLeTheme("rythme");
+        ouvrirLeTheme("voix");
+        ouvrirLeTheme("ecoute");
         expect(document.getElementById("user_speech_timeout")).not.toBeNull();
         expect(document.getElementById("vad_stop_secs")).not.toBeNull();
         expect(document.getElementById("mute_always")).not.toBeNull();
         expect(document.getElementById("user_idle_prompt")).not.toBeNull();
-        expect(
-            screen.getByRole("switch", { name: /strip markdown before speaking/i }),
-        ).toBeTruthy();
-        expect(
-            screen.getByRole("switch", { name: /write dictated numbers as digits/i }),
-        ).toBeTruthy();
+        expect(screen.getByRole("switch", { name: /strip markdown before speaking/i })).toBeTruthy();
+        expect(screen.getByRole("switch", { name: /write dictated numbers as digits/i })).toBeTruthy();
     });
 
     it("[name and title] shows both switches, and its notice, on the page", async () => {
@@ -184,64 +194,58 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         // laisseraient croire qu'on a coupé la prononciation du nom alors que
         // l'agent continue de le dire. Une promesse fausse au client.
         await rendreLaPage();
+        ouvrirLeTheme("voix");
         expect(document.getElementById("interdire_nom_appelant")).not.toBeNull();
         expect(document.getElementById("interdire_civilite_appelant")).not.toBeNull();
-        expect(
-            screen.getByRole("switch", { name: /never say the caller's name/i }),
-        ).toBeTruthy();
+        expect(screen.getByRole("switch", { name: /never say the caller's name/i })).toBeTruthy();
         // Le pense-bête de rédaction : sans lui, la confirmation du nom perd son
         // objet dès que l'interrupteur est allumé.
         expect(document.body.textContent).toContain("SPELLING it back");
     });
 
     it("[trade vocabulary] shows the three switches on the page", async () => {
-        // Same trap as the settings above: a switch that renders in its own
-        // test and is mounted nowhere is a setting nobody can touch.
         await rendreLaPage();
+        ouvrirLeTheme("ecoute");
         expect(document.getElementById("lexique_metier")).not.toBeNull();
         expect(document.getElementById("sons_communes")).not.toBeNull();
         expect(document.getElementById("sons_lexique")).not.toBeNull();
-        expect(
-            screen.getByRole("switch", { name: /use the organization's trade vocabulary/i }),
-        ).toBeTruthy();
+        expect(screen.getByRole("switch", { name: /use the organization's trade vocabulary/i })).toBeTruthy();
     });
 
     it("[greeting and silence, E1 E2 of 25/09] shows the three settings, off and 2 and 35 by default", async () => {
-        // Decisions of Evan for the rise to upstream 4e6cb22b: a setting is only
-        // real if it can be seen and touched on the page.
         await rendreLaPage();
+        ouvrirLeTheme("tour");
+        ouvrirLeTheme("rythme");
         const accueil = screen.getByRole("switch", { name: /caller can cut the greeting/i });
         expect(accueil.getAttribute("aria-checked")).toBe("false");
         const mots = document.getElementById("accueil_mots_minimum") as HTMLInputElement;
         const silence = document.getElementById("raccrochage_silence_agent_s") as HTMLInputElement;
         expect(mots.value).toBe("2");
         expect(silence.value).toBe("35");
-        // The bounds are shown, and the word count is inert while the greeting
-        // cannot be cut.
-        expect(document.body.textContent).toContain("1 to 10");
-        expect(document.body.textContent).toContain("10 to 120");
+        // The bounds are shown (convention E5), and the word count is inert
+        // while the greeting cannot be cut.
+        expect(document.querySelector('[data-reglage="accueil_mots_minimum"]')?.textContent).toContain("≥ 1 · ≤ 10");
+        expect(document.querySelector('[data-reglage="raccrochage_silence_agent_s"]')?.textContent).toContain("≥ 10 · ≤ 120");
         expect(mots.disabled).toBe(true);
     });
 
-    it("carries its own Save button on the page (existence only -- it is disabled until something changes)", async () => {
-        // Honest title: this asserts the button EXISTS, not that a save round
-        // trip works. It is disabled at this instant, nothing having changed.
-        // What saving actually does is `section-reglages-pipecat.test.tsx`.
+    it("carries a Save button per theme on the page (existence only -- disabled until something changes)", async () => {
+        // What saving actually sends is `reglages-agent/references/charges-utiles-agent.test.tsx`.
         await rendreLaPage();
-        expect(screen.getByRole("button", { name: /save speech tuning/i })).toBeTruthy();
+        ouvrirLeTheme("tour");
+        ouvrirLeTheme("ecoute");
+        expect(screen.getByRole("button", { name: "Save Turn taking" })).toBeTruthy();
+        expect(screen.getByRole("button", { name: "Save Listening" })).toBeTruthy();
     });
 
-    it("has its own entry in the sidebar, pointing at the card that exists", async () => {
-        // The sidebar is a list of `<a href="#id">`, and the intersection
-        // observer watches the same ids: an entry whose id no element carries
-        // is an entry that does nothing, silently.
+    it("has an entry per theme in the navigation, pointing at a theme that exists", async () => {
+        // An entry whose id no element carries is an entry that does nothing, silently.
         const { container } = await rendreLaPage();
-        const entree = container.querySelector(
-            `a[href="#${ID_SECTION_REGLAGES_PIPECAT}"]`,
-        );
-        expect(entree).not.toBeNull();
-        expect(entree?.textContent).toContain("Speech Tuning");
-        expect(container.querySelector(`#${ID_SECTION_REGLAGES_PIPECAT}`)).not.toBeNull();
+        for (const id of ["agent", "briques", "ecoute", "tour", "voix", "rythme", "donnees", "etablissement"]) {
+            expect(container.querySelector(`a[href="#${id}"]`), id).not.toBeNull();
+            expect(container.querySelector(`#${id}`), id).not.toBeNull();
+        }
+        expect(container.querySelector('a[href="#tour"]')?.textContent).toContain("Turn taking");
     });
 
     it("sits at the file path Next turns into the route, and the canvas SOURCE pushes to it", async () => {
@@ -266,81 +270,69 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         ).not.toThrow();
     });
 
-    it("[call record] the card is really mounted, with its switch, its field editor, its Save button and its sidebar entry", async () => {
+    it("[call record] is really mounted, with its switch, its field editor, its theme's Save button and navigation entry", async () => {
         // Plan fiche au fil de l'eau, lot 5: a switch nobody can reach is a
         // switch nobody turns on.
         const { container } = await rendreLaPage();
-        const carte = container.querySelector(`#${ID_SECTION_FICHE}`);
-        expect(carte).not.toBeNull();
+        const theme = ouvrirLeTheme("donnees");
+        expect(theme.contains(document.getElementById("fiche_au_fil_de_leau"))).toBe(true);
         expect(document.getElementById("fiche_au_fil_de_leau")?.getAttribute("aria-checked")).toBe("false");
         expect(screen.getByRole("button", { name: /edit fields/i })).toBeTruthy();
-        expect(screen.getByRole("button", { name: /save call record/i })).toBeTruthy();
-        const entree = container.querySelector(`a[href="#${ID_SECTION_FICHE}"]`);
-        expect(entree?.textContent).toContain("Call Record");
-        // Right after Speech Tuning, before the opening hours.
-        expect(carte?.nextElementSibling).toBe(container.querySelector(`#${ID_SECTION_HORAIRES_OUVERTURE}`));
+        expect(screen.getByRole("button", { name: "Save Call data" })).toBeTruthy();
+        expect(container.querySelector('a[href="#donnees"]')?.textContent).toContain("Call data");
     });
 
-    it("[call record] the field editor of the MOUNTED card offers the allowed values (PB3)", async () => {
+    it("[call record] the field editor of the MOUNTED theme offers the allowed values (PB3)", async () => {
         await rendreLaPage();
+        ouvrirLeTheme("donnees");
         screen.getByRole("button", { name: /edit fields/i }).click();
         (await screen.findByRole("button", { name: /add field/i })).click();
-        expect(await screen.findByLabelText("Allowed values")).toBe(
-            document.getElementById("fiche_valeurs_0"),
-        );
+        expect(await screen.findByLabelText("Allowed values")).toBe(document.getElementById("fiche_valeurs_0"));
     });
 
-    it("[call record] a brand field of the MOUNTED card is read by the trade vocabulary (C10)", async () => {
+    it("[call record] a brand field of the MOUNTED theme is read by the trade vocabulary (C10)", async () => {
         await rendreLaPage();
+        ouvrirLeTheme("donnees");
         screen.getByRole("button", { name: /edit fields/i }).click();
         (await screen.findByRole("button", { name: /add field/i })).click();
         const nom = (await screen.findByLabelText("Name")) as HTMLInputElement;
         fireEvent.change(nom, { target: { value: "marque_appareil" } });
-        expect(document.getElementById("fiche_lecteur_0")?.textContent).toContain(
-            "From the name (lexique)",
-        );
+        expect(document.getElementById("fiche_lecteur_0")?.textContent).toContain("From the name (lexique)");
     });
 
     it("[reference reader] its trigger names are on the page when the number conversion is on", async () => {
         await rendreLaPage();
+        ouvrirLeTheme("ecoute");
         // Off by default: the field appears with the switch.
         expect(document.getElementById("variables_reference")).toBeNull();
-        const conversion = document.getElementById("conversion_nombres_transcription") as HTMLElement;
-        conversion.click();
+        (document.getElementById("conversion_nombres_transcription") as HTMLElement).click();
         const champ = (await screen.findByLabelText(/variables that trigger the reference reader/i)) as HTMLInputElement;
         expect(champ.value).toBe("reference*");
     });
 
-    it("[opening hours] the card is really mounted, with its field, its Save button and its sidebar entry", async () => {
-        // Same trap, same guard, for the card added on 2026-09-15: a card that
-        // renders in its own test and is mounted nowhere is hours nobody types.
+    it("[opening hours] are really mounted, with their field, their theme's Save button and navigation entry", async () => {
         const { container } = await rendreLaPage();
-        expect(container.querySelector(`#${ID_SECTION_HORAIRES_OUVERTURE}`)).not.toBeNull();
-        expect(document.getElementById("horaires_ouverture")).not.toBeNull();
-        expect(screen.getByRole("button", { name: /save opening hours/i })).toBeTruthy();
-        const entree = container.querySelector(`a[href="#${ID_SECTION_HORAIRES_OUVERTURE}"]`);
-        expect(entree).not.toBeNull();
-        expect(entree?.textContent).toContain("Opening Hours");
+        const theme = ouvrirLeTheme("etablissement");
+        expect(theme.contains(document.getElementById("horaires_ouverture"))).toBe(true);
+        expect(screen.getByRole("button", { name: "Save Business" })).toBeTruthy();
+        expect(container.querySelector('a[href="#etablissement"]')?.textContent).toContain("Business");
     });
 
-    it("[verification-communes] the business address card is mounted, with its fields, its Save button and its sidebar entry", async () => {
-        const { container } = await rendreLaPage();
-        expect(container.querySelector(`#${ID_SECTION_ADRESSE_ETABLISSEMENT}`)).not.toBeNull();
-        expect(screen.getByText("Business address for this agent")).toBeTruthy();
-        expect(document.getElementById("agent-business-address-code-postal")).not.toBeNull();
+    it("[verification-communes] the business address is mounted, with its fields, right after the opening hours", async () => {
+        await rendreLaPage();
+        ouvrirLeTheme("etablissement");
+        expect(screen.getByRole("heading", { name: "Business address for this agent" })).toBeTruthy();
+        const codePostal = document.getElementById("agent-business-address-code-postal");
+        expect(codePostal).not.toBeNull();
         expect(document.getElementById("agent-business-address-commune")).not.toBeNull();
-        expect(screen.getByRole("button", { name: /save business address/i })).toBeTruthy();
-        const entree = container.querySelector(`a[href="#${ID_SECTION_ADRESSE_ETABLISSEMENT}"]`);
-        expect(entree).not.toBeNull();
-        expect(entree?.textContent).toContain("Business Address");
-        // Right after the opening hours (plan, lot 5).
-        const horaires = container.querySelector(`#${ID_SECTION_HORAIRES_OUVERTURE}`);
-        const adresse = container.querySelector(`#${ID_SECTION_ADRESSE_ETABLISSEMENT}`);
-        expect(horaires?.nextElementSibling).toBe(adresse);
+        // After the opening hours (plan, lot 5).
+        const horaires = document.getElementById("horaires_ouverture") as HTMLElement;
+        expect(horaires.compareDocumentPosition(codePostal as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it("[verification-communes] the town check switch is on the page, ON by default", async () => {
         await rendreLaPage();
+        ouvrirLeTheme("ecoute");
         const interrupteur = screen.getByRole("switch", { name: /recognise the caller's town/i });
         expect(interrupteur.getAttribute("aria-checked")).toBe("true");
     });
@@ -348,18 +340,16 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
     it("[variables-commune] the town variable names are on the page, under the switch, with the default and the notice", async () => {
         // Rendered on the PAGE, not the section alone: the 29 settings of
         // 2026-09-14 rendered perfectly in a file no screen mounted.
-        const { container } = await rendreLaPage();
+        await rendreLaPage();
+        const theme = ouvrirLeTheme("ecoute");
         const interrupteur = screen.getByRole("switch", { name: /recognise the caller's town/i });
         const champ = screen.getByLabelText("Variables that trigger the town check") as HTMLInputElement;
         expect(champ.value).toBe("commune, commune_*, adresse*");
-        // Under the switch, inside the same card.
-        const carte = container.querySelector(`#${ID_SECTION_REGLAGES_PIPECAT}`);
-        expect(carte?.contains(champ)).toBe(true);
-        expect(
-            interrupteur.compareDocumentPosition(champ) & Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy();
+        // Under the switch, inside the same theme.
+        expect(theme.contains(champ)).toBe(true);
+        expect(interrupteur.compareDocumentPosition(champ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         // The notice: where the name is, commas, the final *, an example, empty = default.
-        const texte = carte?.textContent ?? "";
+        const texte = theme.textContent ?? "";
         expect(texte).toMatch(/Variables to Extract and its Variable Name/);
         expect(texte).toMatch(/separate them with commas/);
         expect(texte).toMatch(/A \* at the end means "every name that starts with"/);
@@ -367,20 +357,17 @@ describe("[.mark] the Speech Tuning section is reachable on the settings page", 
         expect(texte).toMatch(/Leave empty to go back to the default: commune, commune_\*, adresse\*/);
     });
 
-    it("[coupure] the section of the moments the agent can't be interrupted carries its new title on the page", async () => {
+    it("[coupure] the group of the moments the agent can't be interrupted carries its title on the page", async () => {
         await rendreLaPage();
-        expect(
-            screen.getByRole("heading", { name: "Moments when the agent can't be interrupted" }),
-        ).toBeTruthy();
+        ouvrirLeTheme("tour");
+        expect(screen.getByRole("heading", { name: "Moments when the agent can't be interrupted" })).toBeTruthy();
         // The old title read as General > Interruption, which is another setting.
         expect(screen.queryByRole("heading", { name: "Interruptions" })).toBeNull();
     });
 
     it("[nombres-dictes] the number switch tells what it now does, on the page", async () => {
-        // The step moved after the aggregator (plan nombres-dictes, N1): the
-        // recorded transcript keeps the words, and postal codes are read both
-        // ways. The old sentence about "minimum words" no longer holds.
         await rendreLaPage();
+        ouvrirLeTheme("ecoute");
         const interrupteur = screen.getByRole("switch", { name: /write dictated numbers as digits/i });
         expect(interrupteur.getAttribute("aria-checked")).toBe("false");
         expect(screen.getByText(/reads postal codes said both ways/i)).toBeTruthy();

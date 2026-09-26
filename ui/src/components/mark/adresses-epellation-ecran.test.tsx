@@ -24,7 +24,7 @@
  * a raison (`test_recherche_voie.py`, `test_lecture_epellation.py`).
  */
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEFAUTS_PIPECAT, resolveWorkflowConfigurations } from "@/types/workflow-configurations";
@@ -114,9 +114,19 @@ const { default: WorkflowSettingsPage } = await import(
     "@/app/workflow/[workflowId]/settings/page"
 );
 
+// Depuis le chantier reorganisation-ecran-reglages (26/09), la page est faite de
+// thèmes repliés : la rue et l'épellation se trouvent en ouvrant « Écoute ».
 const rendreLaPage = async () => {
     const rendu = render(<WorkflowSettingsPage />);
-    await screen.findByText("Speech Tuning", {}, { timeout: 3000 }).catch(() => null);
+    const entete = await waitFor(
+        () => {
+            const trouve = document.querySelector('[data-theme="ecoute"] > button[aria-expanded]');
+            if (!trouve) throw new Error("La page n'est pas encore chargée.");
+            return trouve as HTMLButtonElement;
+        },
+        { timeout: 3000 },
+    );
+    fireEvent.click(entete);
     return rendu;
 };
 
