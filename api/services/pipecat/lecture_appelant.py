@@ -78,6 +78,7 @@ from api.services.nombres.lecture import (
     MONTANT,
     LectureMessage,
     analyser_message,
+    decoller_les_chiffres,
     reecrire,
 )
 from api.services.nombres.mention import deja_mentionne as nombres_deja_mentionnes
@@ -333,6 +334,12 @@ def _lire(
     The notes are glued in this order: towns, street, spelling, numbers.
     """
     epellations = lire_epellations(texte) if epellation else []
+    # N1 (plan « le lexique », 26/09) : les nombres déjà écrits en chiffres par
+    # la transcription, remis dans la forme que la lecture connaît (« 3500€ »,
+    # « 14bis », « +33 6… », « 06.12.34.56.78 »). Sans conversion, le modèle
+    # garde le texte tel qu'il est arrivé.
+    arrive = texte
+    texte = decoller_les_chiffres(texte)
     try:
         base = charger_base()
         magasin = base.coordonnees(adresse.code_insee) if adresse else None
@@ -356,7 +363,7 @@ def _lire(
             nombres=lecteur.lire_nombres(texte), detections=[], choix={}
         )
 
-    lu = reecrire(texte, lecture.nombres, lecture.choix_cp) if conversion else texte
+    lu = reecrire(texte, lecture.nombres, lecture.choix_cp) if conversion else arrive
 
     # 🔑 La rue est cherchée sur le texte APRÈS la conversion des nombres, et
     # l'épellation AVANT : chacun a besoin de l'autre forme. « c'est au six rue
