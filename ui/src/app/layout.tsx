@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import ChatwootWidget from "@/components/ChatwootWidget";
 import { EventBanner } from "@/components/EventBanner";
 import AppLayout from "@/components/layout/AppLayout";
+import { FournisseurLangue } from "@/components/mark/langue/langue";
 import MetaPixel from "@/components/MetaPixel";
 import PostHogIdentify from "@/components/PostHogIdentify";
 import ReoProvider from "@/components/ReoProvider";
@@ -78,6 +79,8 @@ export default function RootLayout({
         {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
         {metaPixelId ? <MetaPixel pixelId={metaPixelId} /> : null}
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+          {/* [.mark] Language of the screen (FR / EN): French until the user chooses. */}
+          <FournisseurLangue>
           <SentryErrorBoundary>
             {/* Above the app chrome on every route (auth pages included). It
                 is sticky at top-0 and publishes --event-banner-h, which the
@@ -103,6 +106,7 @@ export default function RootLayout({
               </AppConfigProvider>
             </AuthProvider>
           </SentryErrorBoundary>
+          </FournisseurLangue>
         </ThemeProvider>
       </body>
     </html>

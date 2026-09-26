@@ -29,6 +29,7 @@ import React from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { SidebarOrganizationSwitcher } from "@/components/layout/SidebarOrganizationSwitcher";
 import { SidebarTeamSwitcher } from "@/components/layout/SidebarTeamSwitcher";
+import { BoutonLangue } from "@/components/mark/langue/BoutonLangue";
 import ThemeToggle from "@/components/ThemeSwitcher";
 import { Button } from "@/components/ui/button";
 import {
@@ -507,7 +508,9 @@ export function AppSidebar() {
             </div>
           )}
 
-          <div className="mt-1 flex justify-center">
+          <div className={cn("mt-1 flex items-center justify-center gap-2", isCollapsed && "flex-col")}>
+            {/* [.mark] FR / EN, next to the theme switch (decision D10). */}
+            <BoutonLangue replie={isCollapsed} />
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="notranslate" translate="no">
