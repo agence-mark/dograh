@@ -195,26 +195,45 @@ def regles_de_prononciation(
     return regles
 
 
+CLE_PROPOSE = "lexique_propose"
+# ⛔ The former name, injected with THE SAME content for as long as an agent
+# reads it (agents 20, 25, 26 and their copies): removing it is a step of its
+# own, on Evan's go (plan « le lexique », rule of safety n° 1).
 CLE_A_ECOUTER = "lexique_a_ecouter"
 
 
-def injecter_lexique_a_ecouter(contexte: dict, termes: list[str]) -> dict:
-    """Return the call context with ``lexique_a_ecouter``: the names, comma separated.
+def termes_proposes(lexique: LexiqueMetier | None) -> list[str]:
+    """The names the business offers, in the order of the vocabulary."""
+    if lexique is None:
+        return []
+    return [terme.terme for terme in lexique.termes if terme.propose]
 
-    The agent answers "which brands do you sell?" from this variable, so a name
-    ticked on screen is said without republishing the agent (Q1 = B).
 
-    - No ticked name: the context is returned unchanged, key absent.
-    - A value already present and non-empty is kept (the pre-call fetch wins).
+def injecter_lexique_propose(contexte: dict, termes: list[str]) -> dict:
+    """Return the call context with ``lexique_propose`` (and its former name
+    ``lexique_a_ecouter``): the names the business offers, comma separated.
+
+    The agent answers "do you offer X?" from this variable, so a name ticked on
+    screen is said without republishing the agent (Q1 = B of 2026-09-16). It
+    reads ONLY the box « the business offers it » (Q4, 2026-09-26): what the
+    transcription listens for is another question.
+
+    - No name offered: the context is returned unchanged, keys absent.
+    - A value already present and non-empty is kept, key by key (the pre-call
+      fetch wins).
     - ⛔ Never raises.
     """
     try:
         if not termes:
             return contexte
-        actuelle = contexte.get(CLE_A_ECOUTER)
-        if actuelle is not None and not (isinstance(actuelle, str) and not actuelle.strip()):
-            return contexte
-        return {**contexte, CLE_A_ECOUTER: ", ".join(termes)}
+        valeur = ", ".join(termes)
+        resultat = dict(contexte)
+        for cle in (CLE_PROPOSE, CLE_A_ECOUTER):
+            actuelle = contexte.get(cle)
+            if actuelle is not None and not (isinstance(actuelle, str) and not actuelle.strip()):
+                continue
+            resultat[cle] = valeur
+        return resultat
     except Exception as erreur:  # noqa: BLE001 -- the call must go on
-        logger.error(f"[.mark] Terms listened for not injected, the call goes on: {erreur!r}")
+        logger.error(f"[.mark] Offered names not injected, the call goes on: {erreur!r}")
         return contexte

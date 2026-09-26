@@ -62,8 +62,8 @@ def fusionner_import(existant: LexiqueMetier, importe: LexiqueMetier) -> tuple[L
     """Add the imported terms that are absent; never change a term already there (T13).
 
     A term is "already there" when ANY of its spellings (normalised) is already
-    carried by the vocabulary: its pronunciation and its « listen for » box, set
-    by the organization, stay as they are. Imported terms arrive unticked.
+    carried by the vocabulary: its pronunciation and its two boxes, set by the
+    organization, stay as they are. Imported terms arrive with both boxes unticked.
 
     Returns (merged vocabulary, added, already there). The merged vocabulary is
     validated again: past the bounds, ``pydantic.ValidationError``.
@@ -78,7 +78,9 @@ def fusionner_import(existant: LexiqueMetier, importe: LexiqueMetier) -> tuple[L
         if formes & formes_presentes:
             deja_presents += 1
             continue
-        ajoutes.append(terme.model_copy(update={"a_ecouter": False}))
+        # Neither listened for nor offered: a template's name is not what this
+        # business sells until someone ticks it.
+        ajoutes.append(terme.model_copy(update={"a_ecouter": False, "propose": False}))
         formes_presentes |= formes
 
     modeles = list(existant.modeles_importes)

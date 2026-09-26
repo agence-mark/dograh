@@ -29,6 +29,7 @@ la fabrique de voix, elle, est la vraie, avec ses filtres et ses transformations
 | relance | après un silence, le modèle reçoit la consigne de relance de l'agent |
 | micro | `mute_always` réglé en base est dans l'agrégateur réel de l'appel, absent sinon |
 | plafond du lexique | la liste remise à la transcription tient sous le plafond déclaré avec le fournisseur, dictionnaire de l'agent en tête |
+| noms proposés | l'agent reçoit `lexique_propose` et `lexique_a_ecouter` (même contenu), tirés de la seule case « l'entreprise le propose » |
 | filet du lexique | une liste refusée par la transcription (HTTP 400) : reconnexion sans la liste, l'appel continue, le refus est estampillé |
 
 ⛔ Chacun a été éprouvé en débranchant sa fonctionnalité : il rougit (journal du
@@ -717,3 +718,29 @@ async def test_une_liste_refusee_ne_fait_pas_tomber_l_appel(db_session, async_se
     estampilles = [v["runtime_configuration"].get("lexique_transcription") for v in contexte["agent_visits"]]
     assert estampilles and estampilles[-1]["etat"] == "non envoyé : refusé", estampilles
     assert "400" in estampilles[-1]["refus"]
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_l_agent_recoit_les_noms_proposes_et_seulement_eux(db_session, async_session):
+    """L3 : la case « l'entreprise le propose » alimente la variable de l'agent,
+    sous son nom et sous l'ancien ; la case « écouter » n'y entre pas."""
+    montage = await _monter(
+        db_session,
+        async_session,
+        {},
+        lexique={
+            "termes": [
+                {"terme": "Edilkamin", "a_ecouter": True, "propose": True},
+                {"terme": "Rika", "a_ecouter": True, "propose": False},
+                {"terme": "Jøtul", "a_ecouter": False, "propose": True},
+                # Enregistré avant la seconde case : il était coché, il reste proposé.
+                {"terme": "Supra", "a_ecouter": True},
+            ]
+        },
+    )
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    await _appeler(montage, llm, ["bonjour"])
+    run = await db_session.get_workflow_run_by_id(montage[0].id)
+    assert run.initial_context["lexique_propose"] == "Edilkamin, Jøtul, Supra"
+    assert run.initial_context["lexique_a_ecouter"] == "Edilkamin, Jøtul, Supra"

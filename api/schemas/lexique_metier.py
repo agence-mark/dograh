@@ -82,6 +82,27 @@ class TermeLexique(BaseModel):
         default=False,
         description="Sent to the transcription as a term to listen for (after the agent's Dictionary).",
     )
+    # [.mark] Plan « le lexique », L3 / Q4 (2026-09-26): « listen for it » and
+    # « the business offers it » are two questions. One box served both, and
+    # unticking it to shorten the transcription's list made the agent say the
+    # business sold brands it does not (question 182).
+    propose: bool = Field(
+        default=False,
+        description=(
+            "Offered by the business: given to the agent as {{lexique_propose}}, "
+            "the list it answers « do you offer X? » from."
+        ),
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _propose_sans_migration(cls, value):
+        """⛔ No migration: a term saved before the second box existed reads it
+        from ``a_ecouter`` -- it WAS that box -- so the screen and the agent show
+        exactly what they showed before."""
+        if isinstance(value, dict) and value.get("propose") is None:
+            return {**value, "propose": bool(value.get("a_ecouter") or False)}
+        return value
 
     @field_validator("terme", "prononciation", "categorie", mode="before")
     @classmethod

@@ -43,7 +43,7 @@ from api.services.communes.adresse import (
     lire_adresse_etablissement,
 )
 from api.services.configuration.registry import ServiceProviders
-from api.services.lexique.ecoute import injecter_lexique_a_ecouter
+from api.services.lexique.ecoute import injecter_lexique_propose, termes_proposes
 from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.pipecat.audio_config import create_audio_config
 from api.services.annonce.stockage import lire_annonce_ouverture
@@ -630,8 +630,8 @@ async def execute_text_chat_pending_turn(
     # the keyboard bench reads a typed message like a call's. Empty when the
     # agent's switch is off, and never raises.
     lexique_metier = await lire_lexique_de_lappel(run_configs, workflow.organization_id)
-    initial_context = injecter_lexique_a_ecouter(
-        initial_context, [t.terme for t in lexique_metier.termes if t.a_ecouter]
+    initial_context = injecter_lexique_propose(
+        initial_context, termes_proposes(lexique_metier)
     )
 
     base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
