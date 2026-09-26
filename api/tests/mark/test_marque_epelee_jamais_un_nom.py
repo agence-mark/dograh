@@ -79,6 +79,14 @@ def test_un_champ_qui_nest_pas_un_nom_recoit_le_terme():
     assert ecrire_dans_la_fiche(fiche, reglages, "modele", "MCZ", paroles=[phrase]).statut == "ecrit"
 
 
+def test_un_champ_de_quantite_nest_pas_un_nom():
+    reglages = ReglagesFiche(champs=(ChampFiche(nom="nombre_appareils"),), termes_du_lexique=TERMES)
+    phrase = "c'est un M C Z"
+    fiche = _fiche_apres(phrase)
+    verdict = ecrire_dans_la_fiche(fiche, reglages, "nombre_appareils", "MCZ", paroles=[phrase])
+    assert verdict.raison != "terme_du_lexique_epele"
+
+
 @pytest.mark.parametrize("champ", ["prenom", "nom_client"])
 def test_un_autre_champ_de_nom_refuse_aussi(champ):
     reglages = ReglagesFiche(champs=(ChampFiche(nom=champ),), termes_du_lexique=TERMES)
