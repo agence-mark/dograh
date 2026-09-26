@@ -23,6 +23,8 @@
  */
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
+import { TraductionDograh } from "./TraductionDograh";
+
 export type Langue = "fr" | "en";
 
 /** A text of our screens, written in both languages (convention T2). */
@@ -92,7 +94,12 @@ export const FournisseurLangue = ({ children }: { children: ReactNode }) => {
 
     const valeur = useMemo(() => ({ langue, choisir, t: traduire(langue) }), [langue, choisir]);
 
-    return <ContexteLangue.Provider value={valeur}>{children}</ContexteLangue.Provider>;
+    return (
+        <ContexteLangue.Provider value={valeur}>
+            <TraductionDograh langue={langue} />
+            {children}
+        </ContexteLangue.Provider>
+    );
 };
 
 export const useLangue = () => useContext(ContexteLangue);

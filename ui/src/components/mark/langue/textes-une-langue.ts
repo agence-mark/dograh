@@ -52,7 +52,14 @@ const dansUnCode = (noeud: ts.Node): boolean => {
 };
 
 export const textesUneLangue = (fichier: string, source: string): TexteUneLangue[] => {
-    const arbre = ts.createSourceFile(fichier, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const arbre = ts.createSourceFile(
+        fichier,
+        source,
+        ts.ScriptTarget.Latest,
+        true,
+        // A `.ts` file read as JSX takes its generics (`Array<Item>`) for tags.
+        /\.tsx$/.test(fichier) ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+    );
     const trouves: TexteUneLangue[] = [];
     const composantDe = (noeud: ts.Node): string | null => {
         let haut = noeud;
