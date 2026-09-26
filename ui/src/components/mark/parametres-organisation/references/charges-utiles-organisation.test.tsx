@@ -8,8 +8,10 @@
  * `charges-utiles-organisation.json`. The page in five themes must send the
  * same, case by case.
  *
- * Rewriting the reference: `ECRIRE_REFERENCES=1 npx vitest run <this file>`,
- * ⛔ only ever on the page as it was.
+ * Since step 5 the cases are played on the themes: each case opens its theme
+ * and saves with the theme's button. ⛔ The reference is never rewritten: it
+ * was written by `ECRIRE_REFERENCES=1` on the page as it was (commit
+ * `13f72590` and before), and that flag now fails the run.
  *
  * Mocked: the API client (its two save routes ARE what is recorded), auth,
  * the timezone picker (a native select, same on both pages), and three
@@ -25,11 +27,7 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { jouerGeste } from "../../reglages-agent/references/jouer";
-import {
-    BOUTON_DE_LA_CARTE_ORGANISATION,
-    CAS_ORGANISATION,
-    type CasOrganisation,
-} from "./cas-organisation";
+import { CAS_ORGANISATION, type CasOrganisation, type ThemeOrganisation } from "./cas-organisation";
 
 const FICHIER = join(
     process.cwd(),
@@ -147,25 +145,57 @@ const relever = (): AppelOrganisation[] =>
         .sort((a, b) => a.ordre - b.ordre)
         .map((a) => a.appel);
 
+const TITRE_ANGLAIS: Record<ThemeOrganisation, string> = {
+    organisation: "Organization",
+    etablissement: "Business",
+    ecoute: "Listening",
+    integrations: "Integrations",
+    developpeurs: "Developers",
+};
+
 const ouvrirLaPage = async () => {
     render(<SettingsPage />);
-    await waitFor(() => expect(document.getElementById("settings-test-phone-number")).toBeTruthy());
-    await waitFor(() => expect(document.getElementById("annonce_fermeture")).toBeTruthy());
-    await waitFor(() => expect(document.getElementById("settings-business-address-voie")).toBeTruthy());
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(5));
+};
+
+const ouvrirLeTheme = async (theme: ThemeOrganisation) => {
+    const entete = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded]`) as HTMLButtonElement;
+    if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
+    // Loaded: the fields replace « Loading... ».
+    await waitFor(() => {
+        if (document.getElementById(theme)?.textContent?.includes("Loading")) throw new Error("still loading");
+    });
 };
 
 const jouer = async (cas: CasOrganisation) => {
     await ouvrirLaPage();
+    await ouvrirLeTheme(cas.theme);
     for (const geste of cas.gestes) jouerGeste(geste);
     if (!cas.enregistreSeul) {
-        const nom = BOUTON_DE_LA_CARTE_ORGANISATION[cas.carte];
-        if (!nom) throw new Error(`Card ${cas.carte} has no save button.`);
+        const nom = `Save ${TITRE_ANGLAIS[cas.theme]}`;
         const bouton = screen.getByRole("button", { name: nom }) as HTMLButtonElement;
         expect(bouton.disabled, `${cas.id}: ${nom} must be enabled`).toBe(false);
         fireEvent.click(bouton);
     }
     await waitFor(() => expect(m.savePreferences.mock.calls.length + m.saveAnnonce.mock.calls.length).toBeGreaterThan(0));
+    // A theme saves its parts one after the other.
+    await new Promise((fin) => setTimeout(fin, 50));
     return relever();
+};
+
+/**
+ * What the case's CARD sent, against the reference; and nothing else, except
+ * the other part of the same theme saved untouched (the Business theme saved
+ * untouched saves both its parts, as each old card's button did alone).
+ */
+const comparer = (cas: CasOrganisation, appels: AppelOrganisation[], reference: { appels: AppelOrganisation[] }) => {
+    const route = cas.carte === "annonce" ? "annonce" : "preferences";
+    expect(appels.filter((a) => a.route === route), cas.id).toEqual(reference.appels);
+    const autres = appels.filter((a) => a.route !== route);
+    if (autres.length === 0) return;
+    expect(cas.gestes, `${cas.id}: another part was saved though something was changed`).toEqual([]);
+    const intact = (references.cas[route === "annonce" ? "preferences-sans-rien" : "annonce-sans-rien"] as { appels: AppelOrganisation[] }).appels;
+    expect(autres, cas.id).toEqual(intact);
 };
 
 const references: { preferences: unknown; annonce: unknown; cas: Record<string, unknown> } =
@@ -184,10 +214,11 @@ describe("payload references of the Platform Settings page", () => {
     it.each(CAS_ORGANISATION.map((cas) => [cas.id, cas] as const))(
         "case %s sends what the reference froze",
         async (_id, cas) => {
+            if (ECRIRE) throw new Error("⛔ The references are only ever written on the page as it was (ef03ef5e).");
             const appels = await jouer(cas);
-            const releve = { carte: cas.carte, theme: cas.theme, appels };
-            if (ECRIRE) references.cas[cas.id] = releve;
-            else expect(releve).toEqual(references.cas[cas.id]);
+            const reference = references.cas[cas.id] as { carte: string; theme: string; appels: AppelOrganisation[] };
+            expect({ carte: cas.carte, theme: cas.theme }).toEqual({ carte: reference.carte, theme: reference.theme });
+            comparer(cas, appels, reference);
         },
         20000,
     );

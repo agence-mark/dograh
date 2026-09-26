@@ -114,7 +114,8 @@ describe("[.mark] the agent page in themes", () => {
                 expect(trouve, `${cle} not found in theme ${entree.theme}`).not.toBeNull();
             });
         }
-    });
+        // Every key of the inventory, one after the other: slow under a full run.
+    }, 30000);
 
     it("hides the turn-taking settings when the transcription drives the turns, and keeps the noise filter", async () => {
         await ouvrir({}, FLUX);
