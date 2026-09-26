@@ -160,7 +160,11 @@ export const ThemeOrganisationGenerale = ({
             erreurs={[]}
             enregistrement={{
                 onEnregistrer: () => void preferences.enregistrer(brouillon, t(PREFERENCES_ENREGISTREES)),
-                enCours: preferences.enCours,
+                // ⛔ Asleep while the row is read (review of 26/09, M1): the PUT
+                // replaces the whole row, sent from the empty defaults it would
+                // clear the mapping, the address and the test number. Dograh's
+                // card showed no button at all while loading.
+                enCours: preferences.enCours || preferences.chargement,
                 actifSansModification: true,
             }}
         >
@@ -289,7 +293,7 @@ export const ThemeEtablissementOrganisation = ({
             erreurs={erreurs}
             enregistrement={{
                 onEnregistrer: () => void enregistrer(),
-                enCours: preferences.enCours || annonce.enregistrement,
+                enCours: preferences.enCours || preferences.chargement || annonce.enregistrement || annonce.chargement,
                 actifSansModification: true,
             }}
         >
@@ -419,7 +423,11 @@ export const ThemeIntegrations = ({
             erreurs={[]}
             enregistrement={{
                 onEnregistrer: () => void preferences.enregistrer(brouillon, t(PREFERENCES_ENREGISTREES)),
-                enCours: preferences.enCours,
+                // ⛔ Asleep while the row is read (review of 26/09, M1): the PUT
+                // replaces the whole row, sent from the empty defaults it would
+                // clear the mapping, the address and the test number. Dograh's
+                // card showed no button at all while loading.
+                enCours: preferences.enCours || preferences.chargement,
                 actifSansModification: true,
             }}
         >

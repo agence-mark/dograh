@@ -93,20 +93,12 @@ export const useEnregistrementTheme = ({
         setEnCours(true);
         const reussies: Partie[] = [];
         try {
-            const charge = chargeDuTheme(resolue, workflowName, parties);
-            if (charge) {
-                try {
-                    await onSave(charge.configurations, charge.nom);
-                    reussies.push(...charge.parties);
-                } catch (erreur) {
-                    throw new EchecPartie(
-                        charge.parties.map((p) => p.nom),
-                        erreur instanceof Error && erreur.message
-                            ? erreur.message
-                            : detailFromError(erreur, "Not saved."),
-                    );
-                }
-            }
+            // ⛔ The other routes FIRST (review of 26/09, B1). Dograh's variables
+            // and dictionary saves send the agent's name as it was when the page
+            // last rendered; sent after a rename, they would put the old name
+            // back on the server. The configuration save, which carries the name
+            // typed, therefore always comes last; it reads the dictionary from
+            // the store, so the order is harmless for Listening.
             for (const partie of parties) {
                 if (!partie.modifie || !partie.enregistrerAutrement) continue;
                 try {
@@ -115,6 +107,20 @@ export const useEnregistrementTheme = ({
                 } catch (erreur) {
                     throw new EchecPartie(
                         [partie.nom],
+                        erreur instanceof Error && erreur.message
+                            ? erreur.message
+                            : detailFromError(erreur, "Not saved."),
+                    );
+                }
+            }
+            const charge = chargeDuTheme(resolue, workflowName, parties);
+            if (charge) {
+                try {
+                    await onSave(charge.configurations, charge.nom);
+                    reussies.push(...charge.parties);
+                } catch (erreur) {
+                    throw new EchecPartie(
+                        charge.parties.map((p) => p.nom),
                         erreur instanceof Error && erreur.message
                             ? erreur.message
                             : detailFromError(erreur, "Not saved."),

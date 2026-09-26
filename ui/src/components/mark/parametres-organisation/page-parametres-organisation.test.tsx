@@ -36,13 +36,14 @@ const ANNONCE = {
 };
 
 const m = vi.hoisted(() => ({
+    getPreferences: vi.fn(),
     getAnnonce: vi.fn(),
     savePreferences: vi.fn(),
     saveAnnonce: vi.fn(),
 }));
 
 vi.mock("@/client/sdk.gen", () => ({
-    getPreferencesApiV1OrganizationsPreferencesGet: () => Promise.resolve({ data: structuredClone(PREFERENCES) }),
+    getPreferencesApiV1OrganizationsPreferencesGet: m.getPreferences,
     savePreferencesApiV1OrganizationsPreferencesPut: m.savePreferences,
     getAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGet: m.getAnnonce,
     saveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePut: m.saveAnnonce,
@@ -79,6 +80,7 @@ vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect()
 const { default: SettingsPage } = await import("@/app/settings/page");
 
 const reinitialiser = () => {
+    m.getPreferences.mockReset().mockImplementation(() => Promise.resolve({ data: structuredClone(PREFERENCES) }));
     m.getAnnonce.mockReset().mockImplementation(() => Promise.resolve({ data: structuredClone(ANNONCE) }));
     m.savePreferences.mockReset().mockImplementation(async ({ body }) => ({ data: body }));
     m.saveAnnonce.mockReset().mockImplementation(async ({ body }) => ({ data: body }));
@@ -123,6 +125,18 @@ describe("[.mark] the Platform Settings page in themes", () => {
         const developpeurs = await ouvrirLeTheme("developpeurs");
         expect(developpeurs.querySelector('[data-testid="mcp"]')).not.toBeNull();
         expect(developpeurs.querySelector('[data-testid="telemetrie"]')).not.toBeNull();
+    });
+
+    it("⛔ keeps the save asleep while the preferences are read (review of 26/09, M1)", async () => {
+        // A PUT sent from the empty defaults would clear the whole row.
+        m.getPreferences.mockReset().mockImplementation(() => new Promise(() => undefined));
+        await ouvrirLaPage();
+        for (const [theme, titre] of [["organisation", "Organization"], ["integrations", "Integrations"], ["etablissement", "Business"]]) {
+            const entete = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded]`) as HTMLButtonElement;
+            fireEvent.click(entete);
+            expect(bouton(`Save ${titre}`).disabled, theme).toBe(true);
+        }
+        expect(m.savePreferences).not.toHaveBeenCalled();
     });
 
     it("names a postal code without its town and blocks the Business theme", async () => {

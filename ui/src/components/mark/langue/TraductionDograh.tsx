@@ -17,12 +17,15 @@
  *   - the workflow editor's canvas (`.react-flow`);
  *   - a transcription or a message: Dograh draws them pre-wrapped
  *     (`.whitespace-pre-wrap`), and so does every multi-line content it shows;
+ *     the recordings list clamps them to a line (`line-clamp-*`);
  *   - anything under `[data-mark-pas-traduire]`.
  *
- * Its limit, said plainly: the match is on the WHOLE text. A name somebody
- * typed that is displayed on its own, outside those zones, and happens to be
- * exactly one of Dograh's English texts (an agent called « Settings ») is
- * shown in French. The data is never changed; only its display is.
+ * Its limit, said plainly (review of 26/09, m1): the match is on the WHOLE
+ * text, so ANY data displayed on its own outside those zones and exactly equal
+ * to one of Dograh's English texts is shown in French: a name somebody typed
+ * (an agent called « Settings »), an extracted value (« No »), a node named
+ * « End Call » listed outside the editor, a `title` carrying a name. The data
+ * is never changed; only its display is. Decided by Evan at the screen check.
  *
  * How it stays compatible with React: it only ever changes the VALUE of a text
  * node or of an attribute, never the tree, so React keeps finding its nodes.
@@ -44,6 +47,9 @@ export const ZONES_EXCLUES = [
     "style",
     ".react-flow",
     ".whitespace-pre-wrap",
+    // The recordings list shows each transcription clamped to one line
+    // (review of 26/09, m1); clamped text is content, not a label.
+    '[class*="line-clamp-"]',
     "[data-mark-pas-traduire]",
 ].join(", ");
 
@@ -65,6 +71,13 @@ export const creerTraducteur = (racine: HTMLElement, dictionnaire: Dictionnaire)
     const textes = new Map<Text, { anglais: string; ecrit: string }>();
     const attributs = new Map<Element, Map<string, { anglais: string; ecrit: string }>>();
     let observateur: MutationObserver | null = null;
+    // Nodes React has removed are forgotten, or the maps would grow for as long
+    // as the page stays in French (review of 26/09, m2). Once per batch that
+    // removed something: a pass over what is remembered, a few thousand nodes.
+    const oublierLesDetaches = () => {
+        for (const noeud of textes.keys()) if (!noeud.isConnected) textes.delete(noeud);
+        for (const element of attributs.keys()) if (!element.isConnected) attributs.delete(element);
+    };
 
     const exclu = (element: Element | null) => !element || element.closest(ZONES_EXCLUES) !== null;
 
@@ -131,6 +144,7 @@ export const creerTraducteur = (racine: HTMLElement, dictionnaire: Dictionnaire)
                 else if (mutation.type === "characterData") traduireTexte(mutation.target as Text);
                 else if (mutation.type === "attributes") traduireAttributs(mutation.target as Element);
             }
+            if (mutations.some((mutation) => mutation.removedNodes.length > 0)) oublierLesDetaches();
         });
         observateur.observe(racine, {
             childList: true,
@@ -157,7 +171,10 @@ export const creerTraducteur = (racine: HTMLElement, dictionnaire: Dictionnaire)
         attributs.clear();
     };
 
-    return { demarrer, arreter };
+    /** How many nodes are remembered (for the tests). */
+    const suivis = () => textes.size + attributs.size;
+
+    return { demarrer, arreter, suivis };
 };
 
 /** Mounted once, by the language provider (which hands it the language). */

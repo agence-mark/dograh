@@ -64,6 +64,7 @@ describe("[.mark] the translator", () => {
                 <input value="Cancel" />
                 <div contenteditable="true">Save</div>
                 <div class="whitespace-pre-wrap break-words rounded-2xl"><div>Cancel</div></div>
+                <p class="text-sm text-muted-foreground line-clamp-1 mb-1">Save</p>
                 <code>Save</code>
                 <pre>Cancel</pre>
                 <div class="react-flow"><div class="react-flow__node">Settings</div></div>
@@ -76,6 +77,21 @@ describe("[.mark] the translator", () => {
         expect(racine.innerHTML).toBe(avant);
         expect((racine.querySelector("input") as HTMLInputElement).value).toBe("Cancel");
         expect((racine.querySelector("textarea") as HTMLTextAreaElement).value).toBe("Save");
+        traducteur.arreter();
+    });
+
+    it("forgets the nodes the page has removed (review of 26/09, m2)", async () => {
+        document.body.innerHTML = `<main id="racine"></main>`;
+        const racine = document.getElementById("racine")!;
+        const traducteur = creerTraducteur(racine, DICO);
+        traducteur.demarrer();
+        racine.innerHTML = Array.from({ length: 1500 }, () => "<button>Save</button>").join("");
+        await attendre();
+        expect(traducteur.suivis()).toBe(1500);
+        racine.innerHTML = "<button>Cancel</button>";
+        await attendre();
+        expect(traducteur.suivis()).toBe(1);
+        expect(racine.textContent).toBe("Annuler");
         traducteur.arreter();
     });
 
