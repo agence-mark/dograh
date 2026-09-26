@@ -39,6 +39,7 @@ describe("[.mark] the translator", () => {
                 <button> Save </button>
                 <input placeholder="Search agents..." />
                 <span title="Settings">Settings</span>
+                <button class="flex *:data-[slot=select-value]:line-clamp-1"><span data-slot="select-value">Cancel</span></button>
                 <p>Save the file</p>
             </main>`;
         const racine = document.getElementById("racine")!;
@@ -50,6 +51,8 @@ describe("[.mark] the translator", () => {
         expect(racine.querySelector("span")!.textContent).toBe("Paramètres");
         // Only a WHOLE text is a text of Dograh's.
         expect(racine.querySelector("p")!.textContent).toBe("Save the file");
+        // The shared select trigger's classes only CONTAIN « line-clamp-1 »: its value is translated.
+        expect(racine.querySelector("[data-slot=select-value]")!.textContent).toBe("Annuler");
 
         traducteur.arreter();
         expect(racine.querySelector("button")!.textContent).toBe(" Save ");

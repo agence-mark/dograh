@@ -49,7 +49,15 @@ export const ZONES_EXCLUES = [
     ".whitespace-pre-wrap",
     // The recordings list shows each transcription clamped to one line
     // (review of 26/09, m1); clamped text is content, not a label.
-    '[class*="line-clamp-"]',
+    // ⛔ Exact classes, never a substring: the shared select trigger carries
+    // `*:data-[slot=select-value]:line-clamp-1`, and every chosen value of
+    // every dropdown would stay English (counter-review of 26/09).
+    ".line-clamp-1",
+    ".line-clamp-2",
+    ".line-clamp-3",
+    ".line-clamp-4",
+    ".line-clamp-5",
+    ".line-clamp-6",
     "[data-mark-pas-traduire]",
 ].join(", ");
 
