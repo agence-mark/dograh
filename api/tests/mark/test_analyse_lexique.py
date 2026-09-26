@@ -203,6 +203,48 @@ def test_cas_reels(index, texte, attendu):
     assert [(d.terme, d.statut) for d in analyser(texte, index)] == attendu
 
 
+# --------------------------------------------------------------------------- #
+# 5 bis. A person's name is never rewritten into a brand (plan « le lexique », Q5)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "texte",
+    [
+        # Run 401 of 2026-09-18: « Baudard » became Bodart & Gonay, sure.
+        "je m'appelle Baudard",
+        "oui c'est Monsieur Baudard",
+        "Madame Baudard, B A U D A R D",
+        "mon nom de famille c'est Baudard",
+        "mon nom est Baudard",
+        "c'est au nom de Baudard",
+    ],
+)
+def test_apres_un_marqueur_de_nom_aucune_marque(index, texte):
+    assert [d for d in analyser(texte, index) if d.entendu.lower().startswith("baudard")] == []
+
+
+def test_sans_marqueur_le_meme_mot_reste_lu(index):
+    """The rule is the marker, not the word: said as a brand, it is still read."""
+    assert [d.terme for d in analyser("j'ai un poêle Baudard", index)] == ["Bodart & Gonay"]
+
+
+def test_un_nom_puis_une_marque_dans_la_meme_phrase(index):
+    lectures = analyser("je m'appelle Dupont et j'ai un Edilcamin", index)
+    assert [(d.terme, d.statut) for d in lectures] == [("Edilkamin", SURE)]
+
+
+def test_les_marqueurs_sont_generiques():
+    """Cadre of 2026-09-26: nothing of one trade or one client in the markers."""
+    from api.services.lexique.analyse import MARQUEURS_DE_NOM
+
+    mots = {mot for marqueur in MARQUEURS_DE_NOM for mot in marqueur}
+    assert mots <= {
+        "m", "t", "appelle", "me", "nomme", "monsieur", "madame", "mademoiselle", "mr", "mme",
+        "mlle", "au", "nom", "de", "d", "est", "c", "famille", "prenom",
+    }
+
+
 def test_easy_flamme_nest_jamais_rhea_flam_sur(index, index_sans_sons):
     """Guard of T5: a name found by its sound alone never becomes sure."""
     for utilise in (index, index_sans_sons):
