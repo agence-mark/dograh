@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { detailFromError } from "@/lib/apiError";
 
+import { useLangue } from "./langue/langue";
+
 /**
  * [.mark] The business address fields: postal code, town, street.
  *
@@ -59,6 +61,7 @@ export const ChampAdresseEtablissement = ({
     const [communes, setCommunes] = useState<CommuneDuCodePostal[]>(
         enregistree ? [{ code_insee: enregistree.code_insee, nom: enregistree.commune }] : [],
     );
+    const { t } = useLangue();
     const [chargement, setChargement] = useState(false);
     const [erreurListe, setErreurListe] = useState<string | null>(null);
     const derniereDemande = useRef<string | null>(null);
@@ -130,7 +133,7 @@ export const ChampAdresseEtablissement = ({
             <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
                 <div className="space-y-1">
                     <Label htmlFor={`${id}-code-postal`} className="text-xs">
-                        Postal code
+                        {t({ en: "Postal code", fr: "Code postal" })}
                     </Label>
                     <Input
                         id={`${id}-code-postal`}
@@ -152,7 +155,7 @@ export const ChampAdresseEtablissement = ({
                 </div>
                 <div className="space-y-1">
                     <Label htmlFor={`${id}-commune`} className="text-xs">
-                        Town
+                        {t({ en: "Town", fr: "Commune" })}
                     </Label>
                     <select
                         id={`${id}-commune`}
@@ -166,10 +169,10 @@ export const ChampAdresseEtablissement = ({
                     >
                         <option value="">
                             {chargement
-                                ? "Loading…"
+                                ? t({ en: "Loading…", fr: "Chargement…" })
                                 : communes.length === 0
-                                  ? "Type a postal code first"
-                                  : "Choose the town"}
+                                  ? t({ en: "Type a postal code first", fr: "Saisissez d'abord un code postal" })
+                                  : t({ en: "Choose the town", fr: "Choisissez la commune" })}
                         </option>
                         {communes.map((c) => (
                             <option key={c.code_insee} value={c.code_insee}>
@@ -181,13 +184,13 @@ export const ChampAdresseEtablissement = ({
             </div>
             <div className="space-y-1">
                 <Label htmlFor={`${id}-voie`} className="text-xs">
-                    Street (optional)
+                    {t({ en: "Street (optional)", fr: "Rue (facultatif)" })}
                 </Label>
                 <Input
                     id={`${id}-voie`}
                     maxLength={200}
                     disabled={desactive}
-                    placeholder="12 rue de la Gare"
+                    placeholder={t({ en: "12 rue de la Gare", fr: "12 rue de la Gare" })}
                     value={voie}
                     onChange={(e) => {
                         setVoie(e.target.value);

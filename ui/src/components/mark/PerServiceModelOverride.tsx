@@ -35,6 +35,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { ModelOverrides, WorkflowConfigurations } from "@/types/workflow-configurations";
 
+import { useLangue } from "./langue/langue";
+
 export interface PerServiceModelOverrideProps {
     workflowConfigurations: WorkflowConfigurations;
     workflowName: string;
@@ -77,6 +79,7 @@ export function PerServiceModelOverride({
     onSave,
     publishReminder,
 }: PerServiceModelOverrideProps) {
+    const { t } = useLangue();
     const savedOverrides = workflowConfigurations.model_overrides;
     const hasFullOverride = Boolean(workflowConfigurations.model_configuration_v2_override);
     const [enabled, setEnabled] = useState(Boolean(savedOverrides));
@@ -88,7 +91,12 @@ export function PerServiceModelOverride({
         // announcing "saved". Deleting is a deliberate act: it has its own
         // button below.
         if (!modelOverrides || Object.keys(modelOverrides).length === 0) {
-            toast.error("Enable at least one service, or use the remove button below.");
+            toast.error(
+                t({
+                    en: "Enable at least one service, or use the remove button below.",
+                    fr: "Activez au moins un service, ou utilisez le bouton de suppression ci-dessous.",
+                }),
+            );
             return;
         }
 
@@ -96,7 +104,7 @@ export function PerServiceModelOverride({
         next.model_overrides = modelOverrides;
         next[DELIBERATE_OVERRIDE_KEY] = true;
         await onSave(next, workflowName);
-        toast.success(`Per-service override saved. ${publishReminder}`);
+        toast.success(`${t({ en: "Per-service override saved.", fr: "Remplacement par service enregistré." })} ${publishReminder}`);
     };
 
     const removeOverrides = async () => {
@@ -104,7 +112,7 @@ export function PerServiceModelOverride({
         try {
             await onSave(withoutAnyOverride(workflowConfigurations), workflowName);
             setEnabled(false);
-            toast.success(`Per-service override removed. ${publishReminder}`);
+            toast.success(`${t({ en: "Per-service override removed.", fr: "Remplacement par service supprimé." })} ${publishReminder}`);
         } finally {
             setIsRemoving(false);
         }
@@ -115,12 +123,18 @@ export function PerServiceModelOverride({
             <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                     <Label htmlFor="per-service-override-toggle" className="text-sm font-medium">
-                        Override individual services
+                        {t({ en: "Override individual services", fr: "Remplacer certains services" })}
                     </Label>
                     <p className="text-xs text-muted-foreground">
                         {enabled
-                            ? "This agent replaces only the services you enable below, and inherits the rest from the organization."
-                            : "Change one service (the voice, say) and keep inheriting everything else from the organization."}
+                            ? t({
+                                  en: "This agent replaces only the services you enable below, and inherits the rest from the organization.",
+                                  fr: "Cet agent remplace seulement les services activés ci-dessous, et hérite du reste de l'organisation.",
+                              })
+                            : t({
+                                  en: "Change one service (the voice, say) and keep inheriting everything else from the organization.",
+                                  fr: "Changez un service (la voix, par exemple) et continuez d'hériter de tout le reste de l'organisation.",
+                              })}
                     </p>
                 </div>
                 <Switch
@@ -134,9 +148,10 @@ export function PerServiceModelOverride({
             {/* 🚨 The silent part, said out loud. */}
             {enabled && hasFullOverride && (
                 <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    This agent currently carries a complete configuration of its own. The two
-                    override formats never coexist: saving here removes that complete
-                    configuration.
+                    {t({
+                        en: "This agent currently carries a complete configuration of its own. The two override formats never coexist: saving here removes that complete configuration.",
+                        fr: "Cet agent porte aujourd'hui une configuration complète qui lui est propre. Les deux formes de remplacement ne coexistent jamais : enregistrer ici supprime cette configuration complète.",
+                    })}
                 </p>
             )}
 
@@ -144,7 +159,7 @@ export function PerServiceModelOverride({
                 <ServiceConfigurationForm
                     mode="override"
                     currentOverrides={savedOverrides}
-                    submitLabel="Save Per-Service Override"
+                    submitLabel={t({ en: "Save Per-Service Override", fr: "Enregistrer le remplacement par service" })}
                     onSave={saveOverrides}
                 />
             )}
@@ -156,7 +171,9 @@ export function PerServiceModelOverride({
                     onClick={removeOverrides}
                     disabled={isRemoving}
                 >
-                    {isRemoving ? "Removing..." : "Remove the saved per-service override"}
+                    {isRemoving
+                        ? t({ en: "Removing...", fr: "Suppression..." })
+                        : t({ en: "Remove the saved per-service override", fr: "Supprimer le remplacement par service enregistré" })}
                 </button>
             )}
         </div>

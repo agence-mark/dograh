@@ -318,6 +318,13 @@ const { default: PageReglagesPlateforme } = await import("@/app/settings/page");
 describe("[.mark] the announcement settings, on the Platform Settings page", () => {
     it("is on the page, and its four settings can be reached there", async () => {
         render(<PageReglagesPlateforme />);
+        // 🆕 Step 5 of reorganisation-ecran-reglages: in the « Business » theme.
+        const entete = await waitFor(() => {
+            const trouve = document.querySelector('[data-theme="etablissement"] > button[aria-expanded]');
+            if (!trouve) throw new Error("page not drawn yet");
+            return trouve as HTMLButtonElement;
+        });
+        fireEvent.click(entete);
         await screen.findByText("Closed-business announcement");
         // The two sentences and the state selector are on the PAGE, not only in
         // the card's own test.
@@ -334,6 +341,8 @@ describe("[.mark] the announcement settings, on the Platform Settings page", () 
         // export (BigQuery, its only destination) is neutralised and absent
         // from the screen; the server refuses it anyway.
         render(<PageReglagesPlateforme />);
+        await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(5));
+        for (const entete of document.querySelectorAll<HTMLButtonElement>("[data-theme] > button[aria-expanded]")) fireEvent.click(entete);
         await screen.findByText("Closed-business announcement");
         expect(screen.queryByText("Call events")).toBeNull();
         expect(document.body.textContent).not.toMatch(/bigquery/i);

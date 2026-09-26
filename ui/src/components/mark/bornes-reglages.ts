@@ -38,6 +38,8 @@
  * put `maxLength=200` on a field where it means something else entirely.
  */
 
+import type { Texte } from "./langue/langue";
+
 export interface Borne {
     /** The lower bound itself. */
     min: number;
@@ -104,31 +106,45 @@ export const attributDeLongueur = (cle: string): { maxLength?: number } => {
 };
 
 /**
- * The message to show under a field, or `null` when the value is acceptable.
+ * The message to show under a field, in both languages, or `null` when the
+ * value is acceptable (convention T2: every text of our screens is written in
+ * English and in French).
  *
  * `null` and `undefined` are acceptable on purpose: two of these settings are
  * legitimately empty (`stt_ttfs_p99_latency`, `user_turn_stop_timeout`), and an
  * empty field must not read as an error.
  */
-export const messageHorsBornes = (
+export const texteHorsBornes = (
     cle: string,
     valeur: number | null | undefined,
-): string | null => {
+): Texte | null => {
     const borne = BORNES[cle];
     if (!borne || valeur === null || valeur === undefined) return null;
-    if (Number.isNaN(valeur)) return "Enter a number.";
+    if (Number.isNaN(valeur)) return { en: "Enter a number.", fr: "Saisissez un nombre." };
 
     const tropBas = borne.minStrict ? valeur <= borne.min : valeur < borne.min;
     if (tropBas) {
         return borne.minStrict
-            ? `Must be greater than ${borne.min} (and at most ${borne.max}).`
-            : `Must be at least ${borne.min} (and at most ${borne.max}).`;
+            ? {
+                  en: `Must be greater than ${borne.min} (and at most ${borne.max}).`,
+                  fr: `Doit être supérieur à ${borne.min} (et au plus ${borne.max}).`,
+              }
+            : {
+                  en: `Must be at least ${borne.min} (and at most ${borne.max}).`,
+                  fr: `Au moins ${borne.min} (et au plus ${borne.max}).`,
+              };
     }
     if (valeur > borne.max) {
-        return `Must be at most ${borne.max}.`;
+        return { en: `Must be at most ${borne.max}.`, fr: `Au plus ${borne.max}.` };
     }
     return null;
 };
+
+/** The same message, in English: what the screen showed before the FR / EN switch. */
+export const messageHorsBornes = (
+    cle: string,
+    valeur: number | null | undefined,
+): string | null => texteHorsBornes(cle, valeur)?.en ?? null;
 
 /** The HTML attributes for a bounded field. Hint only — the check is above. */
 export const attributsDeBorne = (cle: string): { min?: number; max?: number } => {

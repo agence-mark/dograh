@@ -2,6 +2,7 @@
 
 import { ExternalLink } from "lucide-react";
 
+import { PageParametresOrganisation } from "@/components/mark/parametres-organisation/PageParametresOrganisation";
 import { SectionAnnonceOuverture } from "@/components/mark/SectionAnnonceOuverture";
 import { SectionLexiqueMetier } from "@/components/mark/SectionLexiqueMetier";
 import { MCPSection } from "@/components/MCPSection";
@@ -16,6 +17,13 @@ import {
 } from "@/components/ui/card";
 
 export default function SettingsPage() {
+  // [.mark] The page in five themes (chantier reorganisation-ecran-reglages,
+  // step 5). The cards below stay in this file, unused.
+  return <PageParametresOrganisation />;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars
+function SettingsCards() {
   return (
     <div className="flex justify-center py-12 px-4">
       <div className="w-full max-w-2xl space-y-6">

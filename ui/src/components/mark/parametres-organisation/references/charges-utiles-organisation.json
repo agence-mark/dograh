@@ -1,0 +1,298 @@
+{
+  "preferences": {
+    "test_phone_number": "+33344000000",
+    "timezone": "Europe/Paris",
+    "external_pbx_integrations_enabled": false,
+    "disposition_mapping_enabled": true,
+    "disposition_mapping": {
+      "voicemail": "AM"
+    },
+    "adresse_etablissement": {
+      "code_postal": "60000",
+      "code_insee": "60057",
+      "commune": "Beauvais",
+      "voie": "4 rue des Artisans"
+    }
+  },
+  "annonce": {
+    "format": "annonce-ouverture-mark",
+    "version": 1,
+    "annonce_fermeture": "Nous sommes fermés en ce moment[, nous rouvrons {reouverture}].",
+    "annonce_pause": "Nous sommes en pause[, nous revenons {reouverture}].",
+    "etat_force": "OUVERT",
+    "etat_force_jusqu_a": "2026-12-31T10:00:00"
+  },
+  "cas": {
+    "preferences-sans-rien": {
+      "carte": "preferences",
+      "theme": "organisation",
+      "appels": [
+        {
+          "route": "preferences",
+          "corps": {
+            "test_phone_number": "+33344000000",
+            "timezone": "Europe/Paris",
+            "external_pbx_integrations_enabled": false,
+            "disposition_mapping_enabled": true,
+            "disposition_mapping": {
+              "voicemail": "AM"
+            },
+            "adresse_etablissement": {
+              "code_postal": "60000",
+              "code_insee": "60057",
+              "commune": "Beauvais",
+              "voie": "4 rue des Artisans"
+            }
+          }
+        }
+      ]
+    },
+    "telephone": {
+      "carte": "preferences",
+      "theme": "organisation",
+      "appels": [
+        {
+          "route": "preferences",
+          "corps": {
+            "test_phone_number": "+33612345678",
+            "timezone": "Europe/Paris",
+            "external_pbx_integrations_enabled": false,
+            "disposition_mapping_enabled": true,
+            "disposition_mapping": {
+              "voicemail": "AM"
+            },
+            "adresse_etablissement": {
+              "code_postal": "60000",
+              "code_insee": "60057",
+              "commune": "Beauvais",
+              "voie": "4 rue des Artisans"
+            }
+          }
+        }
+      ]
+    },
+    "fuseau": {
+      "carte": "preferences",
+      "theme": "organisation",
+      "appels": [
+        {
+          "route": "preferences",
+          "corps": {
+            "test_phone_number": "+33344000000",
+            "timezone": "America/New_York",
+            "external_pbx_integrations_enabled": false,
+            "disposition_mapping_enabled": true,
+            "disposition_mapping": {
+              "voicemail": "AM"
+            },
+            "adresse_etablissement": {
+              "code_postal": "60000",
+              "code_insee": "60057",
+              "commune": "Beauvais",
+              "voie": "4 rue des Artisans"
+            }
+          }
+        }
+      ]
+    },
+    "adresse-voie": {
+      "carte": "preferences",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "route": "preferences",
+          "corps": {
+            "test_phone_number": "+33344000000",
+            "timezone": "Europe/Paris",
+            "external_pbx_integrations_enabled": false,
+            "disposition_mapping_enabled": true,
+            "disposition_mapping": {
+              "voicemail": "AM"
+            },
+            "adresse_etablissement": {
+              "code_postal": "60000",
+              "code_insee": "60057",
+              "commune": "Beauvais",
+              "voie": "7 rue Neuve"
+            }
+          }
+        }
+      ]
+    },
+    "standard-externe": {
+      "carte": "preferences",
+      "theme": "integrations",
+      "appels": [
+        {
+          "route": "preferences",
+          "corps": {
+            "test_phone_number": "+33344000000",
+            "timezone": "Europe/Paris",
+            "external_pbx_integrations_enabled": true,
+            "disposition_mapping_enabled": true,
+            "disposition_mapping": {
+              "voicemail": "AM"
+            },
+            "adresse_etablissement": {
+              "code_postal": "60000",
+              "code_insee": "60057",
+              "commune": "Beauvais",
+              "voie": "4 rue des Artisans"
+            }
+          }
+        }
+      ]
+    },
+    "correspondance": {
+      "carte": "preferences",
+      "theme": "integrations",
+      "appels": [
+        {
+          "route": "preferences",
+          "corps": {
+            "test_phone_number": "+33344000000",
+            "timezone": "Europe/Paris",
+            "external_pbx_integrations_enabled": false,
+            "disposition_mapping_enabled": false,
+            "disposition_mapping": {
+              "voicemail": "AM"
+            },
+            "adresse_etablissement": {
+              "code_postal": "60000",
+              "code_insee": "60057",
+              "commune": "Beauvais",
+              "voie": "4 rue des Artisans"
+            }
+          }
+        }
+      ]
+    },
+    "correspondance-liste": {
+      "carte": "correspondance",
+      "theme": "integrations",
+      "appels": [
+        {
+          "route": "preferences",
+          "corps": {
+            "test_phone_number": "+33344000000",
+            "timezone": "Europe/Paris",
+            "external_pbx_integrations_enabled": false,
+            "disposition_mapping_enabled": true,
+            "disposition_mapping": {
+              "voicemail": "AM",
+              "no_answer": "NA"
+            },
+            "adresse_etablissement": {
+              "code_postal": "60000",
+              "code_insee": "60057",
+              "commune": "Beauvais",
+              "voie": "4 rue des Artisans"
+            }
+          }
+        }
+      ]
+    },
+    "annonce-sans-rien": {
+      "carte": "annonce",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "route": "annonce",
+          "corps": {
+            "format": "annonce-ouverture-mark",
+            "version": 1,
+            "annonce_fermeture": "Nous sommes fermés en ce moment[, nous rouvrons {reouverture}].",
+            "annonce_pause": "Nous sommes en pause[, nous revenons {reouverture}].",
+            "etat_force": "OUVERT",
+            "etat_force_jusqu_a": "2026-12-31T10:00:00"
+          }
+        }
+      ]
+    },
+    "annonce-fermeture": {
+      "carte": "annonce",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "route": "annonce",
+          "corps": {
+            "format": "annonce-ouverture-mark",
+            "version": 1,
+            "annonce_fermeture": "Nous sommes fermés[, retour {reouverture}].",
+            "annonce_pause": "Nous sommes en pause[, nous revenons {reouverture}].",
+            "etat_force": "OUVERT",
+            "etat_force_jusqu_a": "2026-12-31T10:00:00"
+          }
+        }
+      ]
+    },
+    "annonce-pause": {
+      "carte": "annonce",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "route": "annonce",
+          "corps": {
+            "format": "annonce-ouverture-mark",
+            "version": 1,
+            "annonce_fermeture": "Nous sommes fermés en ce moment[, nous rouvrons {reouverture}].",
+            "annonce_pause": "Petite pause[, retour {reouverture}].",
+            "etat_force": "OUVERT",
+            "etat_force_jusqu_a": "2026-12-31T10:00:00"
+          }
+        }
+      ]
+    },
+    "etat-force": {
+      "carte": "annonce",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "route": "annonce",
+          "corps": {
+            "format": "annonce-ouverture-mark",
+            "version": 1,
+            "annonce_fermeture": "Nous sommes fermés en ce moment[, nous rouvrons {reouverture}].",
+            "annonce_pause": "Nous sommes en pause[, nous revenons {reouverture}].",
+            "etat_force": "FERME",
+            "etat_force_jusqu_a": "2026-12-31T10:00:00"
+          }
+        }
+      ]
+    },
+    "etat-force-jusqua": {
+      "carte": "annonce",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "route": "annonce",
+          "corps": {
+            "format": "annonce-ouverture-mark",
+            "version": 1,
+            "annonce_fermeture": "Nous sommes fermés en ce moment[, nous rouvrons {reouverture}].",
+            "annonce_pause": "Nous sommes en pause[, nous revenons {reouverture}].",
+            "etat_force": "PAUSE",
+            "etat_force_jusqu_a": "2026-12-24T18:00"
+          }
+        }
+      ]
+    },
+    "etat-calcule": {
+      "carte": "annonce",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "route": "annonce",
+          "corps": {
+            "format": "annonce-ouverture-mark",
+            "version": 1,
+            "annonce_fermeture": "Nous sommes fermés en ce moment[, nous rouvrons {reouverture}].",
+            "annonce_pause": "Nous sommes en pause[, nous revenons {reouverture}].",
+            "etat_force": null,
+            "etat_force_jusqu_a": null
+          }
+        }
+      ]
+    }
+  }
+}

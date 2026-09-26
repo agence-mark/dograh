@@ -211,11 +211,30 @@ describe("[.mark] business address field", () => {
 
 const { default: PageReglagesPlateforme } = await import("@/app/settings/page");
 
+/**
+ * 🆕 Chantier reorganisation-ecran-reglages (step 5): the page is in themes.
+ * The address is in « Business », saved by that theme's button; the mapping
+ * in « Integrations »; the vocabulary in « Listening ».
+ */
+const ouvrirLeTheme = async (theme: string) => {
+    const entete = await waitFor(() => {
+        const trouve = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded]`);
+        if (!trouve) throw new Error("page not drawn yet");
+        return trouve as HTMLButtonElement;
+    });
+    if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
+};
+const ouvrirPlateforme = async () => {
+    render(<PageReglagesPlateforme />);
+    await ouvrirLeTheme("etablissement");
+    await waitFor(() => expect(document.getElementById("settings-business-address-code-postal")).not.toBeNull());
+};
+const ENREGISTRER = { name: "Save Business" };
+
 describe("[.mark] business address on the Platform Settings page", () => {
-    it("is on the page, inside the Preferences card", async () => {
-        render(<PageReglagesPlateforme />);
-        const bloc = await screen.findByText("Business address");
-        expect(bloc).toBeTruthy();
+    it("is on the page, in the Business theme", async () => {
+        await ouvrirPlateforme();
+        expect(screen.getByText("Business address")).toBeTruthy();
         expect(document.getElementById("settings-business-address-code-postal")).not.toBeNull();
         expect(document.body.textContent).toMatch(/Helps recognise the towns callers name/);
     });
@@ -224,7 +243,7 @@ describe("[.mark] business address on the Platform Settings page", () => {
         // Same guard as the other cards: a card that renders in its own test and
         // is mounted nowhere is a vocabulary nobody can fill.
         render(<PageReglagesPlateforme />);
-        await screen.findByText("Trade vocabulary");
+        await ouvrirLeTheme("ecoute");
         // 🆕 18/09 : la liste est passée dans une modale, la carte porte le résumé
         // et le bouton qui l'ouvre.
         expect(await screen.findByRole("button", { name: /open vocabulary/i })).toBeTruthy();
@@ -232,11 +251,10 @@ describe("[.mark] business address on the Platform Settings page", () => {
     });
 
     it("sends the chosen address with the other preferences", async () => {
-        render(<PageReglagesPlateforme />);
-        await screen.findByText("Business address");
+        await ouvrirPlateforme();
         taper("settings-business-address", "code-postal", "60740");
         await waitFor(() => expect(liste("settings-business-address").value).toBe("60589"));
-        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+        fireEvent.click(screen.getByRole("button", ENREGISTRER));
 
         await waitFor(() => expect(mocks.savePreferences).toHaveBeenCalledTimes(1));
         const corps = mocks.savePreferences.mock.calls[0][0].body;
@@ -250,11 +268,10 @@ describe("[.mark] business address on the Platform Settings page", () => {
     });
 
     it("keeps Save asleep while a postal code has no town chosen", async () => {
-        render(<PageReglagesPlateforme />);
-        await screen.findByText("Business address");
+        await ouvrirPlateforme();
         taper("settings-business-address", "code-postal", "60300");
         await waitFor(() => expect(liste("settings-business-address").options.length).toBe(3));
-        expect((screen.getByRole("button", { name: /^save$/i }) as HTMLButtonElement).disabled).toBe(true);
+        expect((screen.getByRole("button", ENREGISTRER) as HTMLButtonElement).disabled).toBe(true);
     });
 
     it("shows a 422 refusal under the address fields", async () => {
@@ -262,11 +279,10 @@ describe("[.mark] business address on the Platform Settings page", () => {
             error: { detail: "Saint-Maximin does not have the postal code 60300" },
             response: { status: 422 },
         });
-        render(<PageReglagesPlateforme />);
-        await screen.findByText("Business address");
+        await ouvrirPlateforme();
         taper("settings-business-address", "code-postal", "60740");
         await waitFor(() => expect(liste("settings-business-address").value).toBe("60589"));
-        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+        fireEvent.click(screen.getByRole("button", ENREGISTRER));
         const alerte = await screen.findByRole("alert");
         expect(alerte.textContent).toContain("does not have the postal code 60300");
     });
@@ -279,12 +295,11 @@ describe("[.mark] business address on the Platform Settings page, after the revi
         mocks.getPreferences.mockResolvedValue({
             data: { timezone: "UTC", disposition_mapping: {}, adresse_etablissement: SAINT_MAXIMIN },
         });
-        render(<PageReglagesPlateforme />);
-        await screen.findByText("Business address");
+        await ouvrirPlateforme();
         await waitFor(() => expect(liste("settings-business-address").value).toBe("60589"));
 
         taper("settings-business-address", "code-postal", "");
-        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+        fireEvent.click(screen.getByRole("button", ENREGISTRER));
 
         await waitFor(() => expect(mocks.savePreferences).toHaveBeenCalledTimes(1));
         expect(mocks.savePreferences.mock.calls[0][0].body).not.toHaveProperty("adresse_etablissement");
@@ -294,12 +309,12 @@ describe("[.mark] business address on the Platform Settings page, after the revi
         mocks.getPreferences.mockResolvedValue({
             data: { timezone: "UTC", disposition_mapping_enabled: true, disposition_mapping: {} },
         });
-        render(<PageReglagesPlateforme />);
-        await screen.findByText("Business address");
+        await ouvrirPlateforme();
         taper("settings-business-address", "code-postal", "60740");
         await waitFor(() => expect(liste("settings-business-address").value).toBe("60589"));
 
         // The mapping is saved first, from its own dialog...
+        await ouvrirLeTheme("integrations");
         fireEvent.click(await screen.findByRole("button", { name: "Configure mapping" }));
         fireEvent.change(screen.getByLabelText("Code for do_not_call"), { target: { value: "DNC" } });
         fireEvent.click(screen.getByRole("button", { name: "Save mapping" }));
@@ -308,7 +323,7 @@ describe("[.mark] business address on the Platform Settings page, after the revi
         expect(mocks.savePreferences.mock.calls[0][0].body).not.toHaveProperty("adresse_etablissement");
 
         // ...then the page is saved: the typed address must still be the one sent.
-        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+        fireEvent.click(screen.getByRole("button", ENREGISTRER));
         await waitFor(() => expect(mocks.savePreferences).toHaveBeenCalledTimes(2));
         expect(mocks.savePreferences.mock.calls[1][0].body.adresse_etablissement).toEqual({
             code_postal: "60740",
@@ -323,11 +338,10 @@ describe("[.mark] business address on the Platform Settings page, after the revi
         // a draft the answer did not reset, and the next save cleared the address.
         let terminer: (v: unknown) => void = () => {};
         mocks.savePreferences.mockImplementation(() => new Promise((r) => { terminer = r; }));
-        render(<PageReglagesPlateforme />);
-        await screen.findByText("Business address");
+        await ouvrirPlateforme();
         taper("settings-business-address", "code-postal", "60740");
         await waitFor(() => expect(liste("settings-business-address").value).toBe("60589"));
-        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+        fireEvent.click(screen.getByRole("button", ENREGISTRER));
 
         const codePostal = () => document.getElementById("settings-business-address-code-postal") as HTMLInputElement;
         await waitFor(() => expect(codePostal().disabled).toBe(true));
@@ -342,9 +356,8 @@ describe("[.mark] business address on the Platform Settings page, after the revi
             error: { detail: [{ loc: ["body", "disposition_mapping"], msg: "codes too long" }] },
             response: { status: 422 },
         });
-        render(<PageReglagesPlateforme />);
-        await screen.findByText("Business address");
-        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+        await ouvrirPlateforme();
+        fireEvent.click(screen.getByRole("button", ENREGISTRER));
         await waitFor(() => expect(mocks.savePreferences).toHaveBeenCalledTimes(1));
         await waitFor(() => expect(mocks.toast.error).toHaveBeenCalled());
         expect(screen.queryByRole("alert")).toBeNull();
