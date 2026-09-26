@@ -33,6 +33,10 @@ What the trial taught, and the code keeps
 - 🆕 T16 (2026-09-17): a heard passage that IS the name of a French commune
   ("Chazelles", "Deville", "Barbas") never becomes a brand: "j'habite à
   Chazelles" must stay a town. Without the list of communes, nothing is read.
+- 🆕 Plan « le lexique », Q5 (2026-09-26), valid for EVERY client: the words
+  right after a name marker (« je m'appelle », « Monsieur », « c'est au nom
+  de »…) are never read as a name of the vocabulary: « Monsieur Baudard » is a
+  person, not Bodart & Gonay (run 401).
 
 🔑 Every reading of the sentence is compared in one ``rapidfuzz.process.cdist``
 call per key, and the choices are made on the score matrices (numpy): the
@@ -71,6 +75,34 @@ AMORCES_FORTES = frozenset(
      "granules", "bois", "fabricant"}
 )
 MOTS_AVANT = 3
+
+# Q5 (2026-09-26): what announces a person's name, as normalised words. Generic:
+# nothing here belongs to one trade or one client. The word(s) right after one
+# of these are never read as a name of the vocabulary.
+# ⛔ « c'est », « je suis » are NOT markers: « c'est un Edilkamin », « je suis
+# chez Jøtul » carry brands every day.
+MARQUEURS_DE_NOM: tuple[tuple[str, ...], ...] = (
+    ("m", "appelle"),  # je m'appelle
+    ("t", "appelle"),  # tu t'appelles (a caller quoting the agent)
+    ("me", "nomme"),  # je me nomme
+    ("monsieur",),
+    ("madame",),
+    ("mademoiselle",),
+    ("mr",),
+    ("mme",),
+    ("mlle",),
+    ("au", "nom", "de"),  # c'est au nom de
+    ("au", "nom", "d"),  # au nom d'Hubert
+    ("nom", "est"),  # mon nom est
+    ("nom", "c", "est"),  # mon nom c'est
+    ("nom", "de", "famille"),  # mon nom de famille (c'est)
+    ("prenom", "est"),
+    ("prenom", "c", "est"),
+)
+# ⚠️ « de la part de » is left out on purpose: « j'appelle de la part d'Edilkamin »
+# is a supplier, and its name is a brand.
+# « mon nom de famille c'est Baudard »: the marker may be followed by « c'est » / « est ».
+_LIAISONS_APRES_MARQUEUR = (("c", "est"), ("est",))
 
 SEUIL_SURE = 88
 SEUIL_A_CONFIRMER = 78
@@ -151,6 +183,27 @@ def mots_courants() -> frozenset[str]:
         lignes = FICHIER_MOTS_COURANTS.read_text(encoding="utf-8").splitlines()
         _mots_courants = frozenset(normaliser_terme(m) for m in lignes if m and not m.startswith("#"))
     return _mots_courants
+
+
+def apres_un_marqueur_de_nom(mots: list[str], i: int) -> bool:
+    """Does the word at ``i`` come right after a name marker (Q5)?
+
+    « je m'appelle Baudard », « Monsieur Baudard », « mon nom de famille c'est
+    Baudard »: the words BEFORE ``i`` end with a marker, possibly followed by
+    « c'est » or « est ».
+    """
+    avant = mots[:i]
+    for liaison in ((), *_LIAISONS_APRES_MARQUEUR):
+        if liaison:
+            if tuple(avant[-len(liaison):]) != liaison:
+                continue
+            reste = avant[: len(avant) - len(liaison)]
+        else:
+            reste = avant
+        for marqueur in MARQUEURS_DE_NOM:
+            if len(reste) >= len(marqueur) and tuple(reste[-len(marqueur):]) == marqueur:
+                return True
+    return False
 
 
 def mots_dorigine(texte: str) -> list[tuple[str, int, int]]:
@@ -347,6 +400,9 @@ def analyser(texte: str, index: Index, avec_sons: bool = True) -> list[Detection
         banal = all(m in courants for m in passage.split())
         # ⛔ Common words become a name only after a STRONG cue.
         if (banal or forme.banale) and not forte:
+            continue
+        # ⛔ Q5: a person's name is never rewritten into a brand (« Monsieur Baudard »).
+        if apres_un_marqueur_de_nom(mots, i):
             continue
         cle = cles[j]
         if len(cle) < 3:
