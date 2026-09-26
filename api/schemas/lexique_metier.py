@@ -197,9 +197,12 @@ class BudgetLexique(BaseModel):
         description="The transcription provider of the organization (its id), None when none is configured."
     )
     nom_du_plafond: str | None = Field(
-        description="The provider's name as shown next to its ceiling (« Deepgram »); None: no ceiling declared."
+        description="The provider's name as shown next to its ceiling (« Deepgram »); None: no ceiling declared, nothing is sent."
     )
-    plafond_jetons: int | None = Field(description="The declared ceiling, in tokens; None: nothing is sent.")
+    plafond_jetons: int | None = Field(description="The declared ceiling in tokens; None: not counted in tokens.")
+    plafond_termes: int | None = Field(
+        default=None, description="The declared ceiling in number of terms; None: not counted in terms."
+    )
     jetons: int = Field(description="The prudent estimate of what the terms sent cost, in tokens.")
     envoyes: list[str] = Field(description="The terms ticked « listen for » that fit, in order.")
     non_envoyes: list[str] = Field(description="The terms ticked « listen for » that do not fit (or no ceiling).")

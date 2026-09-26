@@ -120,6 +120,13 @@ def lecteur_par_defaut(nom: str) -> str:
     return "aucun"
 
 
+def est_un_champ_de_nom(champ: "ChampFiche") -> bool:
+    """Q6 (plan « le lexique », 26/09) : un champ qui porte le nom d'une personne,
+    reconnu par son nom (``nom*``, ``prenom*``) comme le lecteur l'est (D42), et
+    lu par aucun module."""
+    return champ.lecteur_effectif == "aucun" and champ.nom.startswith(("nom", "prenom"))
+
+
 def cle_insee(nom: str) -> str:
     """Où le code INSEE d'une commune sûre est écrit, à côté de son nom."""
     return f"{nom}_insee"

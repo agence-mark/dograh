@@ -108,3 +108,26 @@ def test_la_route_figure_dans_la_spec_publiee():
     app.include_router(route_organisation.router)
     chemins = app.openapi()["paths"]
     assert "post" in chemins["/organizations/lexique/budget"]
+
+
+@pytest.mark.asyncio
+async def test_un_fournisseur_illisible_nest_pas_annonce_comme_sans_plafond(monkeypatch):
+    """Relecture du 26/09 : si la configuration ne se lit pas, les appels envoient
+    quand même leur liste ; l'écran ne doit pas dire « rien n'est envoyé »."""
+    from fastapi import HTTPException
+
+    from api.services.lexique import budget as module_budget
+
+    async def panne(**_):
+        raise RuntimeError("panne")
+
+    monkeypatch.setattr(module_budget, "get_resolved_ai_model_configuration", panne)
+    with pytest.raises(HTTPException) as refus:
+        await route_organisation.budget_lexique(request=_lexique(2), user=SimpleNamespace(selected_organization_id=1))
+    assert refus.value.status_code == 503
+
+
+def test_la_route_repond_le_compte_de_flux():
+    from api.schemas.lexique_metier import BudgetLexique
+
+    assert "plafond_termes" in BudgetLexique.model_fields

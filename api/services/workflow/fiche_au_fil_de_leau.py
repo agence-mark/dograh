@@ -44,6 +44,7 @@ from pipecat.services.llm_service import FunctionCallParams
 from rapidfuzz import fuzz
 
 from api.schemas.fiche_agent import (
+    est_un_champ_de_nom,
     ChampFiche,
     OrigineChamp,
     cle_dit,
@@ -1205,9 +1206,11 @@ def ecrire_dans_la_fiche(
                 or est_cite(_chiffres_comme_lus(str(valeur)), paroles)
             ):
                 valeur, dit = date.valeur, date.dit
-        if terme_du_lexique and definition.lecteur_effectif == "aucun":
-            # Q6 : un champ sans lecteur (le nom, le prénom…) ne reçoit jamais
-            # une marque épelée ; la valeur déjà écrite reste.
+        if terme_du_lexique and est_un_champ_de_nom(definition):
+            # Q6 : un champ de nom (``nom*``, ``prenom*``, sans lecteur) ne reçoit
+            # jamais une marque épelée ; la valeur déjà écrite reste. Les autres
+            # champs sans lecteur (``modele``, ``fabricant``…) la reçoivent
+            # (relecture du 26/09).
             verdict = Verdict(champ, "refuse", "terme_du_lexique_epele", valeur)
         elif pas_une_date:
             # C8 (PB11, run 852) : « annuel » dans `dernier_entretien`.

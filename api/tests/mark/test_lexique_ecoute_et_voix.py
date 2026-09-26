@@ -57,11 +57,18 @@ LEXIQUE = LexiqueMetier.model_validate(
 # 1. The terms the transcription listens for, within the provider's ceiling
 # --------------------------------------------------------------------------- #
 
-DEEPGRAM = plafond_du_lexique("deepgram", "flux-general-multi")
+DEEPGRAM = plafond_du_lexique("deepgram", "flux-general-multi")  # the model in production
+NOVA = plafond_du_lexique("deepgram", "nova-3")
 
 
 def liste(dictionary, lexique, plafond=DEEPGRAM):
     return construire_liste_ecoutee(dictionary, lexique, plafond)
+
+
+def _lexique_coche(n: int, longueur: int = 9) -> LexiqueMetier:
+    return LexiqueMetier.model_validate(
+        {"termes": [{"terme": f"M{i:03d}".ljust(longueur, "x"), "a_ecouter": True} for i in range(n)]}
+    )
 
 
 def test_sans_lexique_la_liste_est_celle_daujourdhui():
@@ -89,22 +96,34 @@ def test_les_doublons_sont_retires_sans_tenir_compte_des_majuscules():
     assert "Edilkamin" not in termes
 
 
-def test_la_liste_sarrete_au_plafond_du_fournisseur_et_dit_ce_quelle_laisse():
-    """Q1, Q2 (2026-09-26): counted in tokens against the provider's ceiling, the end cut and named."""
-    lexique = LexiqueMetier.model_validate(
-        {"termes": [{"terme": f"Marque{i:03d}", "a_ecouter": True} for i in range(400)]}
-    )
-    resultat = liste(None, lexique)
+def test_flux_sarrete_a_100_termes_quelle_que_soit_leur_longueur():
+    """Probe of 2026-09-26: Flux refuses the 101st term (« more than the limit of 100 »)."""
+    for longueur in (5, 40):
+        resultat = liste(None, _lexique_coche(150, longueur))
+        assert len(resultat.termes) == 100
+        assert resultat.tronquee is True
+        # The order is kept: the START is sent, the end is named.
+        assert resultat.non_envoyes[0].startswith("M100")
+
+
+def test_le_dictionnaire_des_agents_daujourdhui_passe_entier_sur_flux():
+    """81 terms, 1 142 characters: accepted by Deepgram on 2026-09-17; 19 terms of the vocabulary fit behind."""
+    dictionary = ", ".join(f"t{i:02d}".ljust(14, "x") for i in range(81))
+    resultat = liste(dictionary, _lexique_coche(40))
+    assert resultat.termes[:81] == [f"t{i:02d}".ljust(14, "x") for i in range(81)]
+    assert len(resultat.termes) == 100
+
+
+def test_nova_sarrete_au_plafond_en_jetons():
+    resultat = liste(None, _lexique_coche(200), NOVA)
     assert resultat.tronquee is True
-    assert resultat.jetons <= DEEPGRAM.jetons
-    assert resultat.jetons == sum(jetons_du_terme(t, DEEPGRAM) for t in resultat.termes)
-    # The order is kept: what is sent is the START of the list, what is left out its end.
-    assert resultat.termes == [f"Marque{i:03d}" for i in range(len(resultat.termes))]
-    assert resultat.non_envoyes == [f"Marque{i:03d}" for i in range(len(resultat.termes), 400)]
+    assert resultat.jetons <= NOVA.jetons
+    assert resultat.jetons == sum(jetons_du_terme(t, NOVA) for t in resultat.termes)
+    assert resultat.termes == [f"M{i:03d}".ljust(9, "x") for i in range(len(resultat.termes))]
 
 
 def test_un_terme_long_qui_ne_tient_pas_ne_coute_pas_les_courts_derriere():
-    petit = PlafondLexique(fournisseur="Essai", jetons=10, octets_par_jeton=3.0, source="test")
+    petit = PlafondLexique(fournisseur='Essai', jetons=10, termes=None, octets_par_jeton=3.0, jetons_par_terme=1, source='test')
     lexique = LexiqueMetier.model_validate(
         {"termes": [{"terme": "Aaa", "a_ecouter": True}, {"terme": "B" * 60, "a_ecouter": True},
                     {"terme": "Ccc", "a_ecouter": True}]}
@@ -116,12 +135,11 @@ def test_un_terme_long_qui_ne_tient_pas_ne_coute_pas_les_courts_derriere():
 
 def test_le_meme_lexique_suit_le_plafond_de_son_fournisseur():
     """Never one number for every provider: the same list, two ceilings, two cuts."""
-    lexique = LexiqueMetier.model_validate(
-        {"termes": [{"terme": f"Marque{i:03d}", "a_ecouter": True} for i in range(400)]}
-    )
-    large = PlafondLexique(fournisseur="Large", jetons=100_000, octets_par_jeton=3.0, source="test")
-    assert liste(None, lexique, large).tronquee is False
-    assert liste(None, lexique, DEEPGRAM).tronquee is True
+    large = PlafondLexique(fournisseur='Essai', jetons=100000, termes=None, octets_par_jeton=3.0, jetons_par_terme=1, source='test')
+    assert liste(None, _lexique_coche(150), large).tronquee is False
+    assert liste(None, _lexique_coche(150), DEEPGRAM).tronquee is True
+    # Long terms: nova-3 cuts on tokens well before Flux cuts on the count.
+    assert len(liste(None, _lexique_coche(150, 20), NOVA).termes) < len(liste(None, _lexique_coche(150, 20)).termes) == 100
 
 
 def test_un_fournisseur_sans_plafond_declare_ne_recoit_aucune_liste():
@@ -134,23 +152,26 @@ def test_un_fournisseur_sans_plafond_declare_ne_recoit_aucune_liste():
     assert resultat.non_envoyes[:3] == ["poêle à granulés", "insert", "ramonage"]
 
 
-def test_le_plafond_de_deepgram_vaut_pour_ses_modeles_en_production():
-    for modele in ("flux-general-multi", "flux-general-en", "nova-3", "nova-3-general"):
-        plafond = plafond_du_lexique("deepgram", modele)
-        assert plafond is not None and plafond.fournisseur == "Deepgram", modele
-    # The enum member is accepted as well as its value.
+def test_les_plafonds_de_deepgram_sont_ceux_de_la_sonde():
+    for modele in ("flux-general-multi", "flux-general-en"):
+        assert (plafond_du_lexique("deepgram", modele).termes, plafond_du_lexique("deepgram", modele).jetons) == (100, None)
+    for modele in ("nova-3", "nova-3-general", "nova-2"):
+        assert (plafond_du_lexique("deepgram", modele).termes, plafond_du_lexique("deepgram", modele).jetons) == (None, 500)
     from api.services.configuration.registry import ServiceProviders
 
     assert plafond_du_lexique(ServiceProviders.DEEPGRAM, "nova-3") is not None
 
 
-def test_le_compte_des_jetons_ne_sous_estime_jamais():
-    """The prudent rule: bytes, rounded up, plus one per term."""
-    un = PlafondLexique(fournisseur="Essai", jetons=100, octets_par_jeton=3.0, source="test")
-    assert jetons_du_terme("abc", un) == 2
-    assert jetons_du_terme("abcd", un) == 3
-    # An accent costs two bytes: « Jøtul » is 6 bytes, never counted as 5 characters.
-    assert jetons_du_terme("Jøtul", un) == 3
+def test_le_compte_des_jetons_ne_sous_estime_pas_les_frontieres_mesurees():
+    """The probe measured nova-3's frontier in two orders. The estimate must put
+    the FIRST list refused above 500: otherwise it would send a list Deepgram refuses."""
+    assert jetons_du_terme("abc", NOVA) == 3  # ceil(3 / 3.5) + 2
+    assert jetons_du_terme("Jøtul", NOVA) == 4  # 6 bytes: ceil(6 / 3.5) + 2
+    # 111 terms / 965 characters were refused; 89 terms / 1 123 characters too.
+    refusee_courte = [f"{i:03d}".ljust(9, "a") for i in range(111)]  # ≈ 965 characters
+    assert sum(jetons_du_terme(t, NOVA) for t in refusee_courte) > NOVA.jetons
+    refusee_longue = [f"{i:03d}".ljust(13, "a") for i in range(89)]  # ≈ 1 123 characters
+    assert sum(jetons_du_terme(t, NOVA) for t in refusee_longue) > NOVA.jetons
 
 
 def test_aucun_plafond_nest_ecrit_hors_de_la_declaration_du_fournisseur():

@@ -80,10 +80,12 @@ const LEXIQUE = {
     ],
 };
 
+// nova-3: counted in tokens (probe of 26/09).
 const BUDGET = {
     fournisseur: "deepgram",
     nom_du_plafond: "Deepgram",
-    plafond_jetons: 450,
+    plafond_jetons: 500,
+    plafond_termes: null,
     jetons: 212,
     envoyes: ["Edilkamin"],
     non_envoyes: [],
@@ -279,13 +281,22 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
 
     it("affiche le budget calculé par l'API pour le fournisseur, jamais un plafond écrit dans l'écran", async () => {
         render(<SectionLexiqueMetier />);
-        await screen.findByText(/212 \/ 450 tokens \(Deepgram\)/);
+        await screen.findByText(/212 \/ 500 tokens \(Deepgram\)/);
         expect(document.body.textContent).toMatch(/Dictionary is sent first/);
         // Asked for what is SAVED: the API is the only one that counts.
         expect(sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost).toHaveBeenCalledWith({
             body: LEXIQUE,
         });
         expect(document.body.textContent).not.toMatch(/1600|characters in total/);
+    });
+
+    it("sur Flux, compte en termes : « N / 100 terms »", async () => {
+        sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost.mockResolvedValue({
+            data: { ...BUDGET, plafond_jetons: null, plafond_termes: 100, envoyes: ["A", "B", "C"] },
+        });
+        render(<SectionLexiqueMetier />);
+        await screen.findByText(/3 \/ 100 terms \(Deepgram\)/);
+        expect(document.body.textContent).not.toMatch(/tokens/);
     });
 
     it("nomme les termes cochés qui ne partiraient pas", async () => {
@@ -573,7 +584,7 @@ describe("Les deux cases « Listen for it » et « The business offers it »", (
         );
         const demande = sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost.mock.calls.at(-1)?.[0];
         expect(demande?.body.termes[0].a_ecouter).toBe(false);
-        await screen.findByText(/0 \/ 450 tokens \(Deepgram\)/);
+        await screen.findByText(/0 \/ 500 tokens \(Deepgram\)/);
     });
 });
 
@@ -588,7 +599,7 @@ describe("[.mark] le lexique, sur la page des réglages de la plateforme", () =>
 
     it("porte les deux cases et le budget", async () => {
         render(<PageReglagesPlateforme />);
-        await screen.findByText(/212 \/ 450 tokens \(Deepgram\)/);
+        await screen.findByText(/212 \/ 500 tokens \(Deepgram\)/);
         fireEvent.click(await screen.findByRole("button", { name: /open vocabulary/i }));
         await screen.findByLabelText("Term 1");
         expect(screen.getByRole("switch", { name: "Listen for it 1" })).toBeTruthy();

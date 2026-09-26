@@ -1,6 +1,7 @@
 """[.mark] The budget of the vocabulary as the screen shows it (plan « le lexique », Q2).
 
-« 212 / 450 tokens (Deepgram) », and the ticked terms that would not be sent:
+« 81 / 100 terms (Deepgram) » or « 212 / 500 tokens (Deepgram) », and the
+ticked terms that would not be sent:
 computed HERE with the very functions a call uses (``plafond_du_lexique``,
 ``construire_liste_ecoutee``), for the organization's transcription provider.
 The screen never counts on its own: two counts would drift apart.
@@ -21,6 +22,10 @@ from api.services.configuration.plafond_lexique import plafond_du_lexique
 from api.services.lexique.ecoute import construire_liste_ecoutee
 
 
+class BudgetIndisponible(Exception):
+    """The organization's transcription provider could not be read."""
+
+
 async def budget_du_lexique(organization_id: int | None, lexique: LexiqueMetier) -> BudgetLexique:
     fournisseur = modele = None
     try:
@@ -29,14 +34,18 @@ async def budget_du_lexique(organization_id: int | None, lexique: LexiqueMetier)
         fournisseur = getattr(stt, "provider", None)
         fournisseur = str(getattr(fournisseur, "value", fournisseur)) if fournisseur else None
         modele = getattr(stt, "model", None)
-    except Exception as erreur:  # noqa: BLE001 -- shown as « no provider », never a 500
+    except Exception as erreur:  # noqa: BLE001
+        # ⛔ Not « no ceiling »: the calls still send their list. The route says
+        # it cannot tell, and the screen shows nothing (relecture du 26/09).
         logger.warning(f"[.mark] Transcription provider unreadable for the vocabulary budget: {erreur!r}")
+        raise BudgetIndisponible() from erreur
     plafond = plafond_du_lexique(fournisseur, modele)
     liste = construire_liste_ecoutee(None, lexique, plafond)
     return BudgetLexique(
         fournisseur=fournisseur,
         nom_du_plafond=plafond.fournisseur if plafond else None,
         plafond_jetons=plafond.jetons if plafond else None,
+        plafond_termes=plafond.termes if plafond else None,
         jetons=liste.jetons,
         envoyes=liste.termes,
         non_envoyes=liste.non_envoyes,

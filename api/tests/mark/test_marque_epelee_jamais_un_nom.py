@@ -71,6 +71,22 @@ def test_la_meme_epellation_va_dans_la_marque_sous_son_ecriture_officielle():
     assert fiche["marque"] == "MCZ"
 
 
+def test_un_champ_qui_nest_pas_un_nom_recoit_le_terme():
+    """Relecture du 26/09 : Q6 vise le nom ; un champ `modele` sans lecteur garde la marque."""
+    reglages = ReglagesFiche(champs=(ChampFiche(nom="modele"),), termes_du_lexique=TERMES)
+    phrase = "c'est un M C Z"
+    fiche = _fiche_apres(phrase)
+    assert ecrire_dans_la_fiche(fiche, reglages, "modele", "MCZ", paroles=[phrase]).statut == "ecrit"
+
+
+@pytest.mark.parametrize("champ", ["prenom", "nom_client"])
+def test_un_autre_champ_de_nom_refuse_aussi(champ):
+    reglages = ReglagesFiche(champs=(ChampFiche(nom=champ),), termes_du_lexique=TERMES)
+    phrase = "c'est un M C Z"
+    fiche = _fiche_apres(phrase)
+    assert ecrire_dans_la_fiche(fiche, reglages, champ, "MCZ", paroles=[phrase]).raison == "terme_du_lexique_epele"
+
+
 def test_un_nom_epele_qui_nest_pas_une_marque_secrit_toujours():
     phrase = "je m'appelle Caron, C A R O N"
     fiche = _fiche_apres(phrase)

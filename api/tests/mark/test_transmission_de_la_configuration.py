@@ -86,10 +86,24 @@ TRANSMISSIONS = [
         ),
     ),
     (
-        r'construire_liste_flux\(\s*\(run_configs or \{\}\)\.get\("dictionary"\), lexique_metier\s*\)',
+        r'construire_liste_ecoutee\(\s*\(run_configs or \{\}\)\.get\("dictionary"\),\s*lexique_metier,\s*plafond_du_lexique\(',
         (
-            "the terms the transcription listens for: the ticked names of the "
-            "trade would never reach Deepgram"
+            "the terms the transcription listens for, within the ceiling of its "
+            "provider: the ticked names of the trade would never reach Deepgram"
+        ),
+    ),
+    (
+        r"armer_filet_lexique\(\s*create_stt_service\(",
+        (
+            "the safety net of the list: a list the transcription refuses would "
+            "make the call fall silent again, as on 2026-09-18"
+        ),
+    ),
+    (
+        r"injecter_lexique_propose\(\s*merged_call_context_vars,\s*termes_proposes\(lexique_metier\)",
+        (
+            "the names the business offers: the agent would no longer know "
+            "which brands it may say the business offers"
         ),
     ),
     (

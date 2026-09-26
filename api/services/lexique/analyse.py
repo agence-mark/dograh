@@ -101,8 +101,11 @@ MARQUEURS_DE_NOM: tuple[tuple[str, ...], ...] = (
 )
 # ⚠️ « de la part de » is left out on purpose: « j'appelle de la part d'Edilkamin »
 # is a supplier, and its name is a brand.
-# « mon nom de famille c'est Baudard »: the marker may be followed by « c'est » / « est ».
+# « mon nom de famille c'est Baudard »: a NAME marker may be followed by « c'est » /
+# « est ». ⛔ Never a civility: « oui madame, c'est Edilkamin » is the caller
+# talking to the agent, then a brand (independent review of 2026-09-26).
 _LIAISONS_APRES_MARQUEUR = (("c", "est"), ("est",))
+_CIVILITES = frozenset({("monsieur",), ("madame",), ("mademoiselle",), ("mr",), ("mme",), ("mlle",)})
 
 SEUIL_SURE = 88
 SEUIL_A_CONFIRMER = 78
@@ -201,6 +204,8 @@ def apres_un_marqueur_de_nom(mots: list[str], i: int) -> bool:
         else:
             reste = avant
         for marqueur in MARQUEURS_DE_NOM:
+            if liaison and marqueur in _CIVILITES:
+                continue
             if len(reste) >= len(marqueur) and tuple(reste[-len(marqueur):]) == marqueur:
                 return True
     return False

@@ -47,7 +47,8 @@ import { useAuth } from "@/lib/auth";
  * 🆕 26/09 (plan « le lexique », Q2, Q4): two boxes per term, « Listen for it »
  * (sent to the transcription) and « The business offers it » (what the agent
  * says the business offers, {{lexique_propose}}). And the budget of the list,
- * « 212 / 450 tokens (Deepgram) » with the ticked terms left out, is asked of
+ * « 81 / 100 terms (Deepgram) » on Flux, « 212 / 500 tokens (Deepgram) » on
+ * nova-3 (the probe of 26/09), with the ticked terms left out, is asked of
  * the API for the organization's provider: ⛔ the screen never counts on its
  * own, and no ceiling is written here.
  */
@@ -546,13 +547,16 @@ export function SectionLexiqueMetier() {
 }
 
 /**
- * « 212 / 450 tokens (Deepgram) » and the ticked terms that would not be sent,
- * exactly as the API computed them for the organization's provider.
+ * « 81 / 100 terms (Deepgram) » or « 212 / 500 tokens (Deepgram) », and the
+ * ticked terms that would not be sent, exactly as the API computed them for the
+ * organization's provider.
  */
 function BudgetDeLaTranscription({ budget }: { budget: BudgetLexique | null }) {
   if (!budget) return null;
   const nonEnvoyes = budget.non_envoyes ?? [];
-  if (budget.plafond_jetons === null || budget.plafond_jetons === undefined) {
+  const parTermes = budget.plafond_termes !== null && budget.plafond_termes !== undefined;
+  const parJetons = budget.plafond_jetons !== null && budget.plafond_jetons !== undefined;
+  if (!budget.nom_du_plafond || (!parTermes && !parJetons)) {
     return (
       <p className="text-xs text-muted-foreground" data-testid="budget-lexique">
         No term is sent to the transcription: its provider
@@ -564,7 +568,10 @@ function BudgetDeLaTranscription({ budget }: { budget: BudgetLexique | null }) {
     <div className="space-y-1 text-xs" data-testid="budget-lexique">
       <p className="text-muted-foreground">
         <span className="font-medium text-foreground">
-          {budget.jetons} / {budget.plafond_jetons} tokens ({budget.nom_du_plafond})
+          {parTermes
+            ? `${(budget.envoyes ?? []).length} / ${budget.plafond_termes} terms`
+            : `${budget.jetons} / ${budget.plafond_jetons} tokens`}{" "}
+          ({budget.nom_du_plafond})
         </span>{" "}
         sent to the transcription. Each agent&apos;s own Dictionary is sent first and takes from
         the same limit.

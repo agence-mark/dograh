@@ -913,15 +913,21 @@ export type BudgetLexique = {
     /**
      * Nom Du Plafond
      *
-     * The provider's name as shown next to its ceiling (« Deepgram »); None: no ceiling declared.
+     * The provider's name as shown next to its ceiling (« Deepgram »); None: no ceiling declared, nothing is sent.
      */
     nom_du_plafond: string | null;
     /**
      * Plafond Jetons
      *
-     * The declared ceiling, in tokens; None: nothing is sent.
+     * The declared ceiling in tokens; None: not counted in tokens.
      */
     plafond_jetons: number | null;
+    /**
+     * Plafond Termes
+     *
+     * The declared ceiling in number of terms; None: not counted in terms.
+     */
+    plafond_termes?: number | null;
     /**
      * Jetons
      *
