@@ -49,7 +49,7 @@ from api.schemas.lexique_metier import LexiqueMetier
 from api.schemas.organization_preferences import AdresseEtablissement
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.communes.base import charger_base
-from api.services.lexique.ecoute import CLE_A_ECOUTER, injecter_lexique_a_ecouter
+from api.services.lexique.ecoute import CLE_A_ECOUTER, CLE_PROPOSE, injecter_lexique_propose
 from api.services.pipecat import reconnaissance_lexique as module
 from api.services.pipecat.lecture_appelant import LectureAppelantProcessor
 from api.services.pipecat.pipeline_builder import build_pipeline
@@ -500,28 +500,31 @@ def test_la_trace_du_lexique_dit_ce_que_lappel_a_utilise():
 
 
 # --------------------------------------------------------------------------- #
-# 6. The variable given to the agent (T12, Q1 = B)
+# 6. The variable given to the agent (T12, Q1 = B; plan « le lexique », Q4)
 # --------------------------------------------------------------------------- #
 
 
-def test_la_variable_porte_les_noms_coches():
-    assert injecter_lexique_a_ecouter({}, ["Edilkamin", "Supra"]) == {
-        CLE_A_ECOUTER: "Edilkamin, Supra"
+def test_la_variable_porte_les_noms_proposes_sous_ses_deux_noms():
+    assert injecter_lexique_propose({}, ["Edilkamin", "Supra"]) == {
+        CLE_PROPOSE: "Edilkamin, Supra",
+        CLE_A_ECOUTER: "Edilkamin, Supra",
     }
 
 
-def test_sans_nom_coche_la_cle_est_absente():
+def test_sans_nom_propose_les_cles_sont_absentes():
     contexte = {"direction": "inbound"}
-    assert injecter_lexique_a_ecouter(contexte, []) is contexte
-    assert CLE_A_ECOUTER not in contexte
+    assert injecter_lexique_propose(contexte, []) is contexte
+    assert CLE_PROPOSE not in contexte and CLE_A_ECOUTER not in contexte
 
 
-def test_une_valeur_deja_fournie_est_gardee():
-    assert injecter_lexique_a_ecouter({CLE_A_ECOUTER: "fournie"}, ["Edilkamin"]) == {
-        CLE_A_ECOUTER: "fournie"
+def test_une_valeur_deja_fournie_est_gardee_cle_par_cle():
+    assert injecter_lexique_propose({CLE_PROPOSE: "fournie"}, ["Edilkamin"]) == {
+        CLE_PROPOSE: "fournie",
+        CLE_A_ECOUTER: "Edilkamin",
     }
-    assert injecter_lexique_a_ecouter({CLE_A_ECOUTER: "  "}, ["Edilkamin"]) == {
-        CLE_A_ECOUTER: "Edilkamin"
+    assert injecter_lexique_propose({CLE_A_ECOUTER: "  "}, ["Edilkamin"]) == {
+        CLE_PROPOSE: "Edilkamin",
+        CLE_A_ECOUTER: "Edilkamin",
     }
 
 
@@ -531,7 +534,8 @@ def test_les_deux_chemins_injectent_la_variable():
 
     for module_appel in (run_pipeline, text_chat_runner):
         source = inspect.getsource(module_appel)
-        assert "injecter_lexique_a_ecouter(" in source
+        assert "injecter_lexique_propose(" in source
+        assert "termes_proposes(lexique_metier)" in source
 
 
 # --------------------------------------------------------------------------- #

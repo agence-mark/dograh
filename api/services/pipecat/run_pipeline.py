@@ -29,7 +29,8 @@ from api.services.integrations import (
 )
 from api.services.lexique.ecoute import (
     construire_liste_ecoutee,
-    injecter_lexique_a_ecouter,
+    injecter_lexique_propose,
+    termes_proposes,
 )
 from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.observability.active_calls import (
@@ -916,11 +917,11 @@ async def _run_pipeline_impl(
     # Extract configurations from the version's workflow_configurations
     max_call_duration_seconds = DEFAULT_MAX_CALL_DURATION_SECONDS
     max_user_idle_timeout = DEFAULT_MAX_USER_IDLE_TIMEOUT_SECONDS
-    # [.mark] The ticked names are given to the agent as {{lexique_a_ecouter}}
-    # (Q1 = B): one source for "which brands do you sell?", and a name added on
-    # screen is said without republishing the agent.
-    merged_call_context_vars = injecter_lexique_a_ecouter(
-        merged_call_context_vars, [t.terme for t in lexique_metier.termes if t.a_ecouter]
+    # [.mark] The names the business offers are given to the agent as
+    # {{lexique_propose}} and, for the agents written before, {{lexique_a_ecouter}}
+    # (Q1 = B; plan « le lexique », Q4): only the box « the business offers it ».
+    merged_call_context_vars = injecter_lexique_propose(
+        merged_call_context_vars, termes_proposes(lexique_metier)
     )
     transcript_config = run_configs.get("transcript_configuration") or {}
     include_transcript_end_timestamps = bool(
