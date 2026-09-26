@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost } from "@/client";
 import { Button } from "@/components/ui/button";
 
+import { useLangue } from "./langue/langue";
+
 /**
  * [.mark] Duplicate an agent straight from its row in the list.
  *
@@ -34,7 +36,9 @@ export const BoutonDupliquerAgent = ({
     workflowId,
     onDuplique,
 }: BoutonDupliquerAgentProps) => {
+    const { t } = useLangue();
     const [enCours, setEnCours] = useState(false);
+    const echec = t({ en: "Failed to duplicate agent", fr: "Échec de la duplication de l'agent" });
 
     const dupliquer = async () => {
         // ⛔ Guarded twice: disabled on the button, and checked here. A double
@@ -51,13 +55,18 @@ export const BoutonDupliquerAgent = ({
             // resolves with `{ data, error }`. Without this check a 500 would
             // read as a success and the list would refresh onto nothing.
             if (reponse.error) {
-                toast.error("Failed to duplicate agent");
+                toast.error(echec);
                 return;
             }
-            toast.success("Agent duplicated. The copy is at the root of the list.");
+            toast.success(
+                t({
+                    en: "Agent duplicated. The copy is at the root of the list.",
+                    fr: "Agent dupliqué. La copie est à la racine de la liste.",
+                }),
+            );
             onDuplique();
         } catch {
-            toast.error("Failed to duplicate agent");
+            toast.error(echec);
         } finally {
             setEnCours(false);
         }
@@ -76,7 +85,7 @@ export const BoutonDupliquerAgent = ({
             ) : (
                 <Copy size={16} />
             )}
-            Duplicate
+            {t({ en: "Duplicate", fr: "Dupliquer" })}
         </Button>
     );
 };

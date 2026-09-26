@@ -5,6 +5,8 @@ import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
 
+import { useLangue } from "./langue/langue";
+
 /**
  * [.mark] A list of strings, entered one value at a time.
  *
@@ -42,6 +44,7 @@ export function ChampEtiquettes({
     id,
     maxElements,
 }: ChampEtiquettesProps) {
+    const { t } = useLangue();
     const [saisie, setSaisie] = useState("");
 
     const ajouter = (texte: string) => {
@@ -98,7 +101,11 @@ export function ChampEtiquettes({
             />
             {plein && (
                 <p className="text-xs text-muted-foreground">
-                    {maxElements} entries is the maximum. Remove one to add another.
+                    {maxElements}{" "}
+                    {t({
+                        en: "entries is the maximum. Remove one to add another.",
+                        fr: "entrées au maximum. Retirez-en une pour en ajouter une autre.",
+                    })}
                 </p>
             )}
             {valeurs.length > 0 && (
