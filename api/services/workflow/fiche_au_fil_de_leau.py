@@ -52,6 +52,7 @@ from api.schemas.fiche_agent import (
 )
 from api.schemas.lexique_metier import normaliser_terme
 from api.services.communes.base import base_si_chargee, cle_sonore, normaliser
+from api.services.lexique.epellation import terme_epele
 from api.services.nombres.lecture import lire_nombres, reecrire
 from api.services.workflow.dates_relatives import est_une_date, lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
@@ -1164,6 +1165,12 @@ def ecrire_dans_la_fiche(
         )
         if epele:
             valeur = epele
+        # Q6 (plan « le lexique », 26/09) : des lettres épelées qui SONT un terme
+        # du lexique désignent ce terme -- une marque, jamais un nom (run 803 :
+        # « c'est un M C Z » écrivait `nom = Mcz` à la place de Caron).
+        terme_du_lexique = terme_epele(epele, reglages.termes_du_lexique)
+        if terme_du_lexique and definition.lecteur_effectif == "lexique":
+            valeur = terme_du_lexique
         if definition.lecteur_effectif == "commune":
             lecture = lire_commune(valeur, fiche, paroles)
         elif definition.lecteur_effectif == "rue":
@@ -1198,7 +1205,11 @@ def ecrire_dans_la_fiche(
                 or est_cite(_chiffres_comme_lus(str(valeur)), paroles)
             ):
                 valeur, dit = date.valeur, date.dit
-        if pas_une_date:
+        if terme_du_lexique and definition.lecteur_effectif == "aucun":
+            # Q6 : un champ sans lecteur (le nom, le prénom…) ne reçoit jamais
+            # une marque épelée ; la valeur déjà écrite reste.
+            verdict = Verdict(champ, "refuse", "terme_du_lexique_epele", valeur)
+        elif pas_une_date:
             # C8 (PB11, run 852) : « annuel » dans `dernier_entretien`.
             verdict = Verdict(champ, "refuse", "pas_une_date", valeur)
         elif (

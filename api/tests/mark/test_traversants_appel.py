@@ -744,3 +744,42 @@ async def test_l_agent_recoit_les_noms_proposes_et_seulement_eux(db_session, asy
     run = await db_session.get_workflow_run_by_id(montage[0].id)
     assert run.initial_context["lexique_propose"] == "Edilkamin, Jøtul, Supra"
     assert run.initial_context["lexique_a_ecouter"] == "Edilkamin, Jøtul, Supra"
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_une_marque_epelee_ne_remplace_pas_le_nom(db_session, async_session):
+    """L5 (run 803) : l'appelant épelle sa marque ; le modèle la note dans le nom.
+    La fiche en base garde le nom, et la marque va dans son champ."""
+    montage = await _monter(
+        db_session,
+        async_session,
+        {
+            "fiche_au_fil_de_leau": True,
+            "fiche_champs": [
+                {"nom": "nom", "origine": "dicte", "description": "Nom de famille"},
+                {"nom": "marque", "origine": "dicte", "description": "Marque de l'appareil"},
+            ],
+            "lecture_epellation": True,
+        },
+        lexique={"termes": [{"terme": "MCZ", "categorie": "marque"}]},
+    )
+    llm = ContextCapturingMockLLM(
+        mock_steps=[
+            _outil("noter_information", {"nom": "Caron"}, "note_1"),
+            _texte("Merci. Quelle est la marque ?"),
+            _outil("noter_information", {"nom": "MCZ", "marque": "MCZ"}, "note_2"),
+            _texte("C'est noté."),
+            _outil("end_call", {}, "fin_1"),
+        ],
+        chunk_delay=0.001,
+    )
+    await _appeler(
+        montage, llm, ["je m'appelle Caron", "c'est un M C Z", "au revoir"], fin_attendue=True
+    )
+    run = await db_session.get_workflow_run_by_id(montage[0].id)
+    fiche = run.gathered_context
+    assert fiche.get("nom") == "Caron", fiche.get("fiche_journal")
+    assert fiche.get("marque") == "MCZ", fiche.get("fiche_journal")
+    refus = [e for e in fiche["fiche_journal"] if e.get("raison") == "terme_du_lexique_epele"]
+    assert refus and refus[0]["champ"] == "nom"

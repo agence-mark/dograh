@@ -70,6 +70,7 @@ from api.services.communes.sons import precharger as precharger_sons
 from api.services.epellation.lecture import lire as lire_epellations
 from api.services.epellation.mention import deja_mentionne as epellation_deja_mentionnee
 from api.services.epellation.mention import mentionner_epellations
+from api.services.lexique.epellation import formes_des_termes, terme_epele
 from api.services.lexique.correction import MARQUE as MARQUE_LEXIQUE
 from api.services.nombres import lecture as lecteur
 from api.services.nombres.lecture import (
@@ -194,13 +195,18 @@ def _trace_voie(detection: DetectionVoie, etape: str | None) -> dict:
     }
 
 
-def _trace_epellation(epellation, etape: str | None) -> dict:
+def _trace_epellation(epellation, etape: str | None, termes: dict | None = None) -> dict:
     """What the bench reads back for one spelling.
 
     🔑 ``entendu`` is what the other session's name filter needs to compare the
     HEARD form as well as the extracted one (point I1 of the plan, section 5).
     """
-    return {"etape": etape, "entendu": epellation.entendu, "epele": epellation.epele}
+    trace = {"etape": etape, "entendu": epellation.entendu, "epele": epellation.epele}
+    # Q6 (plan « le lexique ») : ces lettres épellent un terme du lexique.
+    terme = terme_epele(epellation.epele, termes)
+    if terme:
+        trace["terme_du_lexique"] = terme
+    return trace
 
 
 def _trace_nombre(nombre, choix, etape: str | None) -> dict:
@@ -316,6 +322,7 @@ def _lire(
     voies: bool = False,
     epellation: bool = False,
     annoter: bool = True,
+    termes_du_lexique: dict[str, str] | None = None,
 ):
     """Blocking: runs in a worker thread. Returns (text for the model, records...).
 
@@ -402,7 +409,7 @@ def _lire(
     if voie is not None:
         lu = mentionner_voie(lu, voie)
     if epellations:
-        lu = mentionner_epellations(lu, epellations)
+        lu = mentionner_epellations(lu, epellations, termes_du_lexique)
     if conversion:
         lu = mentionner_nombres(lu, lecture.nombres, avec_references=references)
     return lu, lecture, base, voie, epellations
@@ -425,6 +432,7 @@ async def lire_texte(
     variables_ref: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT,
     champs_fiche: tuple[str, ...] | None = None,
     message: object = None,
+    termes_du_lexique: dict[str, str] | None = None,
 ) -> str:
     """``texte`` as the model must read it, or ``texte`` unchanged. Never raises.
 
@@ -459,6 +467,7 @@ async def lire_texte(
         # C2 (patch du banc) : fiche allumée, chaque trace porte le tour lu.
         marquer_le_tour=champs_fiche is not None,
         message=message,
+        termes_du_lexique=termes_du_lexique,
     )
     return f"{lu} {mention_lexique}" if mention_lexique else lu
 
@@ -487,6 +496,7 @@ async def _lire_texte_de_lappelant(
     annoter: bool = True,
     marquer_le_tour: bool = False,
     message: object = None,
+    termes_du_lexique: dict[str, str] | None = None,
 ) -> str:
     # C2 (patch du banc, 25/09) : le tour est compté AVANT toute sortie anticipée.
     # Un message lu sans trace reste un tour : sinon la trace sûre d'un tour
@@ -547,6 +557,7 @@ async def _lire_texte_de_lappelant(
             voies,
             epellation,
             annoter,
+            termes_du_lexique,
         )
         if consigner is not None:
             entrees: list[tuple[str, dict]] = []
@@ -557,7 +568,7 @@ async def _lire_texte_de_lappelant(
             if voie is not None:
                 entrees.append((CLE_TRACE_VOIES, _trace_voie(voie, etape)))
             entrees += [
-                (CLE_TRACE_EPELLATIONS, _trace_epellation(e, etape))
+                (CLE_TRACE_EPELLATIONS, _trace_epellation(e, etape, termes_du_lexique))
                 for e in epellations
             ]
             if conversion:
@@ -603,9 +614,11 @@ class LectureAppelantProcessor(FrameProcessor):
         epellation: bool = False,
         variables_ref: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT,
         champs_fiche: tuple[str, ...] | None = None,
+        termes_du_lexique: dict[str, str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self._termes_du_lexique = termes_du_lexique
         self._variables_ref = variables_ref
         self._champs_fiche = champs_fiche
         self._variables = variables
@@ -665,6 +678,7 @@ class LectureAppelantProcessor(FrameProcessor):
             variables_ref=self._variables_ref,
             champs_fiche=self._champs_fiche,
             message=cle,
+            termes_du_lexique=self._termes_du_lexique,
         )
         # Marked AFTER the reading: an interruption that cancels this task
         # during the await leaves the message unmarked, so the next context
@@ -698,8 +712,12 @@ def creer_lecture_appelant(
     adresse: AdresseEtablissement | None,
     etape_courante: Callable[[], object],
     consigner: Callable[..., None] | None = None,
+    lexique=None,
 ) -> LectureAppelantProcessor | None:
-    """The step for this agent, or ``None`` when both switches are off (T3)."""
+    """The step for this agent, or ``None`` when both switches are off (T3).
+
+    ``lexique``: the call's trade vocabulary, so that spelled letters that are
+    one of its terms are said to be that term (Q6)."""
     conversion = conversion_allumee(run_configs)
     verification = interrupteur_allume(run_configs)
     epellation = epellation_allumee(run_configs)
@@ -720,6 +738,7 @@ def creer_lecture_appelant(
         epellation=epellation,
         variables_ref=variables_reference(run_configs),
         champs_fiche=champs_de_la_fiche(run_configs),
+        termes_du_lexique=formes_des_termes(lexique),
     )
 
 
@@ -730,6 +749,7 @@ async def lire_message_tape(
     adresse: AdresseEtablissement | None,
     noeud,
     consigner: Callable[..., None] | None,
+    lexique=None,
 ) -> str:
     """R5, keyboard bench: the typed message, read like a call's. Never raises."""
     try:
@@ -747,6 +767,7 @@ async def lire_message_tape(
             epellation=epellation_allumee(run_configs),
             variables_ref=variables_reference(run_configs),
             champs_fiche=champs_de_la_fiche(run_configs),
+            termes_du_lexique=formes_des_termes(lexique),
         )
     except Exception as erreur:  # noqa: BLE001
         logger.warning(

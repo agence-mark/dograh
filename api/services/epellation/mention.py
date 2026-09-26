@@ -22,22 +22,37 @@ never annotated twice.
 from __future__ import annotations
 
 from api.services.epellation.lecture import Epellation
+from api.services.lexique.epellation import terme_epele
 
 MARQUE = "[Épellation"
 
 
-def phrase_de_mention(epellation: Epellation) -> str:
+def phrase_de_mention(epellation: Epellation, terme: str | None = None) -> str:
+    """🆕 Q6 (plan « le lexique », 26/09): letters that spell a term of the
+    vocabulary are that term -- a brand, never the person's name (run 803)."""
+    if terme:
+        return (
+            f"{MARQUE} : la personne a épelé « {epellation.epele} », c'est « {terme} » "
+            "(lexique de l'entreprise) : ce n'est jamais le nom de la personne.]"
+        )
     return (
         f"{MARQUE} : la personne a épelé « {epellation.epele} ». "
         "Note exactement ces lettres, sans les corriger et sans les faire répéter.]"
     )
 
 
-def mentionner_epellations(texte: str, epellations: list[Epellation]) -> str:
-    """``texte`` followed by one note per spelling, or ``texte`` unchanged."""
+def mentionner_epellations(
+    texte: str, epellations: list[Epellation], termes: dict[str, str] | None = None
+) -> str:
+    """``texte`` followed by one note per spelling, or ``texte`` unchanged.
+
+    ``termes``: the vocabulary's spellings (normalised -> official), to say when
+    the letters spell one of its terms (Q6)."""
     if not epellations:
         return texte
-    return " ".join([texte, *(phrase_de_mention(e) for e in epellations)])
+    return " ".join(
+        [texte, *(phrase_de_mention(e, terme_epele(e.epele, termes)) for e in epellations)]
+    )
 
 
 def deja_mentionne(texte: str) -> bool:

@@ -863,6 +863,7 @@ async def execute_text_chat_pending_turn(
                 adresse_etablissement,
                 engine.active_agent.current_node,
                 consigner_dans(lambda: engine._gathered_context),
+                lexique=lexique_metier,
             )
             context.add_message({"role": "user", "content": message_pour_le_modele})
             generation_marker = capture_processor.activity_count
