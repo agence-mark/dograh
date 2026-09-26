@@ -270,7 +270,8 @@ describe("payload references of the agent settings page", () => {
             const bouton = (await screen.findByRole("button", { name: `Save ${TITRE_ANGLAIS_DU_THEME[theme]}` })) as HTMLButtonElement;
             expect(bouton.disabled, `${theme} must be disabled untouched`).toBe(true);
         }
-    });
+        // Seven themes opened one after the other: slow under a full run.
+    }, 30000);
 
     it.each(CAS_AGENT.map((cas) => [cas.id, cas] as const))("case %s sends what the reference froze", async (_id, cas) => {
         const appels = await jouer(cas);

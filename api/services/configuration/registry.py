@@ -337,6 +337,74 @@ GOOGLE_VERTEX_REALTIME_PROVIDER_MODEL_CONFIG = provider_model_config(
 )
 DEEPGRAM_PROVIDER_MODEL_CONFIG = provider_model_config("Deepgram")
 ELEVENLABS_PROVIDER_MODEL_CONFIG = provider_model_config("ElevenLabs")
+
+
+# [.mark] The Models screen of our three providers, in groups with readable
+# labels (chantier reorganisation-ecran-reglages, step 6, convention E2).
+#
+# Two keys are added to a field's JSON schema: `mark_groupe` (the sub-menu it
+# goes in) and `mark_libelle` (its label, in English and French). The screen
+# reads them; nothing else does: the factory, the validation and what is saved
+# are untouched. They are added by the class's schema hook rather than field by
+# field, so each provider's screen reads in one table next to the class.
+# ⛔ A field named here that the class does not declare fails at schema
+# generation (KeyError), and `test_schemas_ecran_modeles_a_jour.py` with it.
+EcranMark = dict[str, tuple[str, str, str]]
+
+
+def ecran_mark(config: ConfigDict, champs: EcranMark) -> ConfigDict:
+    extra_fournisseur = dict(config.get("json_schema_extra") or {})
+
+    def completer(schema: dict, _cls: type) -> None:
+        schema.update(extra_fournisseur)
+        for champ, (groupe, en, fr) in champs.items():
+            schema["properties"][champ]["mark_groupe"] = groupe
+            schema["properties"][champ]["mark_libelle"] = {"en": en, "fr": fr}
+
+    return ConfigDict(**{**config, "json_schema_extra": completer})
+
+
+# [.mark] Groups of the Models screen (their titles live in the screen, which
+# holds every text in both languages).
+ECRAN_MISTRAL_LLM: EcranMark = {
+    "temperature": ("generation", "Temperature", "Température"),
+    "top_p": ("generation", "Top p", "Échantillonnage (top p)"),
+    "max_tokens": ("generation", "Max tokens", "Longueur maximale d'une réponse"),
+    "frequency_penalty": ("repetition", "Frequency penalty", "Pénalité de fréquence"),
+    "presence_penalty": ("repetition", "Presence penalty", "Pénalité de présence"),
+    "base_url": ("technique", "Base URL", "Adresse du service"),
+    "seed": ("technique", "Seed", "Graine"),
+}
+ECRAN_ELEVENLABS_TTS: EcranMark = {
+    "voice": ("voix", "Voice", "Voix"),
+    "speed": ("voix", "Speed", "Vitesse"),
+    "base_url": ("technique", "Base URL", "Adresse du service"),
+}
+ECRAN_DEEPGRAM_STT: EcranMark = {
+    "language": ("langue", "Language", "Langue"),
+    "language_hints": ("langue", "Language hints", "Langues à privilégier"),
+    "eot_threshold": ("fin_de_tour", "EOT threshold", "Seuil de fin de tour"),
+    "eager_eot_threshold": ("fin_de_tour", "Eager EOT threshold", "Seuil de fin de tour anticipée"),
+    "eot_timeout_ms": ("fin_de_tour", "EOT timeout (ms)", "Délai maximum de fin de tour (ms)"),
+    "min_confidence": ("fin_de_tour", "Min confidence", "Confiance minimum d'un tour"),
+    "endpointing": ("fin_de_tour", "Endpointing (ms)", "Silence qui termine la parole (ms)"),
+    "utterance_end_ms": ("fin_de_tour", "Utterance end (ms)", "Fin d'énoncé (ms)"),
+    "interim_results": ("fin_de_tour", "Interim results", "Transcriptions partielles"),
+    "punctuate": ("mise_en_forme", "Punctuate", "Ponctuation"),
+    "smart_format": ("mise_en_forme", "Smart format", "Mise en forme intelligente"),
+    "numerals": ("mise_en_forme", "Numerals", "Nombres en chiffres"),
+    "dictation": ("mise_en_forme", "Dictation", "Dictée de la ponctuation"),
+    "replace": ("vocabulaire", "Replace", "Remplacements"),
+    "search": ("vocabulaire", "Search", "Termes suivis"),
+    "keywords": ("vocabulaire", "Keywords", "Mots à renforcer (anciens modèles)"),
+    "base_url": ("hebergement", "Base URL", "Adresse du service"),
+    "region": ("hebergement", "Region", "Région"),
+    "mip_opt_out": ("hebergement", "MIP opt out", "Refus du programme d'amélioration des modèles"),
+    "redact": ("hebergement", "Redact", "Masquer des données sensibles"),
+    "profanity_filter": ("hebergement", "Profanity filter", "Filtrer les grossièretés"),
+    "diarize": ("analyse", "Diarize", "Séparer les voix"),
+    "detect_entities": ("analyse", "Detect entities", "Détecter les entités"),
+}
 CARTESIA_PROVIDER_MODEL_CONFIG = provider_model_config("Cartesia")
 XAI_PROVIDER_MODEL_CONFIG = provider_model_config("xAI")
 LMNT_PROVIDER_MODEL_CONFIG = provider_model_config("LMNT")
@@ -467,7 +535,7 @@ class OpenAILLMService(BaseLLMConfiguration):
 
 @register_llm
 class MistralLLMConfiguration(BaseLLMConfiguration):
-    model_config = MISTRAL_PROVIDER_MODEL_CONFIG
+    model_config = ecran_mark(MISTRAL_PROVIDER_MODEL_CONFIG, ECRAN_MISTRAL_LLM)  # [.mark] écran Modèles
     provider: Literal[ServiceProviders.MISTRAL] = ServiceProviders.MISTRAL
     model: str = Field(
         default="mistral-medium-latest",
@@ -1342,7 +1410,7 @@ ELEVENLABS_TTS_MODELS = ["eleven_flash_v2_5"]
 
 @register_tts
 class ElevenlabsTTSConfiguration(BaseServiceConfiguration):
-    model_config = ELEVENLABS_PROVIDER_MODEL_CONFIG
+    model_config = ecran_mark(ELEVENLABS_PROVIDER_MODEL_CONFIG, ECRAN_ELEVENLABS_TTS)  # [.mark] écran Modèles
     provider: Literal[ServiceProviders.ELEVENLABS] = ServiceProviders.ELEVENLABS
     voice: str = Field(
         default="21m00Tcm4TlvDq8ikWAM",
@@ -1967,7 +2035,7 @@ def _region_deepgram_de_ladresse(base_url: str) -> str:
 
 @register_stt
 class DeepgramSTTConfiguration(BaseSTTConfiguration):
-    model_config = DEEPGRAM_PROVIDER_MODEL_CONFIG
+    model_config = ecran_mark(DEEPGRAM_PROVIDER_MODEL_CONFIG, ECRAN_DEEPGRAM_STT)  # [.mark] écran Modèles
     provider: Literal[ServiceProviders.DEEPGRAM] = ServiceProviders.DEEPGRAM
     model: str = Field(
         default="nova-3-general",

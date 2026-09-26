@@ -14,8 +14,12 @@
  *   - what « Save Configuration » sends untouched;
  *   - what it sends after changing each field that can be typed or switched.
  *
- * Rewriting the reference: `ECRIRE_REFERENCES=1 npx vitest run <this file>`,
- * ⛔ only ever on the form as it was.
+ * Since step 6 the fields are in sub-menus: the untouched payload is taken
+ * with every sub-menu CLOSED (a closed sub-menu keeps its values), then the
+ * sub-menus are opened to list and change the fields. The fields are compared
+ * as a set: putting them in groups is the change, their order is not frozen.
+ * ⛔ The reference is never rewritten: it was written by `ECRIRE_REFERENCES=1`
+ * on the form as it was (before step 6), and that flag now fails the run.
  *
  * Mocked: the voice picker (it calls the provider's API; a plain input with
  * the same callback) and the Radix Select (native, `select-natif.tsx`).
@@ -102,9 +106,18 @@ export const ouvrir = async (situation: (typeof SITUATIONS)[number]) => {
     return onSave;
 };
 
-/** The fields the tab shows, as the form as it was names them (its labels). */
-const champsAffiches = (): string[] =>
-    Array.from(document.querySelectorAll("label.capitalize")).map((l) => (l.textContent ?? "").trim().replace(/ /g, "_"));
+/** Opens every sub-menu of the tab (step 6). */
+export const ouvrirLesSousMenus = () => {
+    for (const bouton of document.querySelectorAll<HTMLButtonElement>('[data-sous-menu] > button[aria-expanded="false"]')) {
+        fireEvent.click(bouton);
+    }
+};
+
+/** The fields the tab shows, every sub-menu open. */
+const champsAffiches = (): string[] => {
+    ouvrirLesSousMenus();
+    return Array.from(document.querySelectorAll("[data-champ]")).map((champ) => champ.getAttribute("data-champ") ?? "");
+};
 
 /** A value inside the field's bounds that differs from its default. */
 const valeurNumerique = (schema: Record<string, unknown>): string => {
@@ -154,16 +167,25 @@ const references: {
 
 describe("references of the Models screen", () => {
     it.each(SITUATIONS.map((s) => [s.id, s] as const))("%s: fields shown, untouched payload, each field's payload", async (_id, situation) => {
+        if (ECRIRE) throw new Error("⛔ The references are only ever written on the form as it was (before step 6).");
+        // Untouched, every sub-menu closed.
         const onSave = await ouvrir(situation);
-        const champs = champsAffiches();
+        expect(document.querySelectorAll('[data-sous-menu] > button[aria-expanded="true"]').length).toBe(0);
         const sansModification = await enregistrer(onSave);
         cleanup();
+        const champs = await (async () => {
+            await ouvrir(situation);
+            const liste = champsAffiches();
+            cleanup();
+            return liste;
+        })();
 
         const modifications: Record<string, unknown> = {};
         const proprietes = SCHEMAS[situation.service][situation.config.provider as string].properties;
         for (const champ of champs) {
             if (champ === "model" || champ === "language") continue;
             const envoi = await ouvrir(situation);
+            ouvrirLesSousMenus();
             const geste = modifierChamp(situation.service, champ, proprietes[champ] ?? {});
             if (geste === null) {
                 modifications[champ] = "not typed (list or read-only)";
@@ -181,9 +203,10 @@ describe("references of the Models screen", () => {
             cleanup();
         }
 
-        const releve = { champs, sansModification, modifications };
-        if (ECRIRE) references.situations[situation.id] = releve;
-        else expect(releve).toEqual(references.situations[situation.id]);
+        const reference = references.situations[situation.id];
+        expect([...champs].sort(), "the same fields, none lost").toEqual([...reference.champs].sort());
+        expect(sansModification).toEqual(reference.sansModification);
+        expect(modifications).toEqual(reference.modifications);
     }, 120000);
 
     it("wrote or matched every situation", () => {

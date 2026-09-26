@@ -39,12 +39,22 @@
         "base_url": {
           "default": "https://api.eu.mistral.ai/v1",
           "description": "Mistral API endpoint. Defaults to the EU endpoint.",
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "Base URL",
+            "fr": "Adresse du service"
+          },
           "title": "Base Url",
           "type": "string"
         },
         "temperature": {
           "default": 0.1,
           "description": "How much randomness goes into each word. Low keeps answers predictable and on-script; high makes them varied and less reliable. Mistral recommends 0.0 to 0.7. Defaults to 0.1, the value that was hardcoded before this field existed.",
+          "mark_groupe": "generation",
+          "mark_libelle": {
+            "en": "Temperature",
+            "fr": "Température"
+          },
           "maximum": 1.5,
           "minimum": 0.0,
           "title": "Temperature",
@@ -62,6 +72,11 @@
           ],
           "default": null,
           "description": "Fixes the draw: two identical calls give back the same conversation. A laboratory tool for comparing two settings, not a production one. Left empty, each call is drawn afresh.",
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "Seed",
+            "fr": "Graine"
+          },
           "title": "Seed"
         },
         "max_tokens": {
@@ -76,6 +91,11 @@
           ],
           "default": null,
           "description": "Longest answer the model may produce, in tokens (a token is roughly three quarters of a word). An answer half as long comes back about twice as fast, which is heard on the phone. WARNING: this ceiling also applies to the out-of-band call that fills in the call report, so a low value can truncate it and leave fields empty. Left empty, the model stops when it has finished.",
+          "mark_groupe": "generation",
+          "mark_libelle": {
+            "en": "Max tokens",
+            "fr": "Longueur maximale d'une réponse"
+          },
           "title": "Max Tokens"
         },
         "top_p": {
@@ -91,6 +111,11 @@
           ],
           "default": null,
           "description": "Restricts the draw to the most likely words: 0.1 keeps only the top 10% of the probability mass. Acts on the same phenomenon as temperature, so Mistral advises changing one or the other, not both. Above 0 and up to 1.",
+          "mark_groupe": "generation",
+          "mark_libelle": {
+            "en": "Top p",
+            "fr": "Échantillonnage (top p)"
+          },
           "title": "Top P"
         },
         "frequency_penalty": {
@@ -106,6 +131,11 @@
           ],
           "default": null,
           "description": "Discourages repeating a word already used often in the answer. From -2 to 2; positive values reduce repetition.",
+          "mark_groupe": "repetition",
+          "mark_libelle": {
+            "en": "Frequency penalty",
+            "fr": "Pénalité de fréquence"
+          },
           "title": "Frequency Penalty"
         },
         "presence_penalty": {
@@ -121,6 +151,11 @@
           ],
           "default": null,
           "description": "Pushes the model towards subjects it has not brought up yet. From -2 to 2; positive values widen the range of topics.",
+          "mark_groupe": "repetition",
+          "mark_libelle": {
+            "en": "Presence penalty",
+            "fr": "Pénalité de présence"
+          },
           "title": "Presence Penalty"
         }
       },
@@ -158,12 +193,22 @@
         "voice": {
           "default": "21m00Tcm4TlvDq8ikWAM",
           "description": "ElevenLabs voice ID from your Voice Library.",
+          "mark_groupe": "voix",
+          "mark_libelle": {
+            "en": "Voice",
+            "fr": "Voix"
+          },
           "title": "Voice",
           "type": "string"
         },
         "speed": {
           "default": 1.0,
           "description": "Speed of the voice.",
+          "mark_groupe": "voix",
+          "mark_libelle": {
+            "en": "Speed",
+            "fr": "Vitesse"
+          },
           "maximum": 2.0,
           "minimum": 0.1,
           "title": "Speed",
@@ -182,6 +227,11 @@
         "base_url": {
           "default": "https://api.elevenlabs.io",
           "description": "ElevenLabs API base URL. Override to use a Data Residency endpoint (e.g. https://api.eu.residency.elevenlabs.io) for GDPR / HIPAA / regional compliance.",
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "Base URL",
+            "fr": "Adresse du service"
+          },
           "title": "Base Url",
           "type": "string"
         }
@@ -316,6 +366,11 @@
             "zh-CN",
             "zh-TW"
           ],
+          "mark_groupe": "langue",
+          "mark_libelle": {
+            "en": "Language",
+            "fr": "Langue"
+          },
           "model_options": {
             "flux-general-en": [
               "en"
@@ -512,6 +567,11 @@
             "https://api.eu.deepgram.com",
             "https://api.au.deepgram.com"
           ],
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Base URL",
+            "fr": "Adresse du service"
+          },
           "title": "Base Url",
           "type": "string"
         },
@@ -532,6 +592,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "fin_de_tour",
+          "mark_libelle": {
+            "en": "Endpointing (ms)",
+            "fr": "Silence qui termine la parole (ms)"
+          },
           "title": "Endpointing"
         },
         "utterance_end_ms": {
@@ -551,6 +616,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "fin_de_tour",
+          "mark_libelle": {
+            "en": "Utterance end (ms)",
+            "fr": "Fin d'énoncé (ms)"
+          },
           "title": "Utterance End Ms"
         },
         "interim_results": {
@@ -568,6 +638,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "fin_de_tour",
+          "mark_libelle": {
+            "en": "Interim results",
+            "fr": "Transcriptions partielles"
+          },
           "title": "Interim Results"
         },
         "keywords": {
@@ -589,6 +664,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "vocabulaire",
+          "mark_libelle": {
+            "en": "Keywords",
+            "fr": "Mots à renforcer (anciens modèles)"
+          },
           "title": "Keywords"
         },
         "punctuate": {
@@ -606,6 +686,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "mise_en_forme",
+          "mark_libelle": {
+            "en": "Punctuate",
+            "fr": "Ponctuation"
+          },
           "title": "Punctuate"
         },
         "smart_format": {
@@ -623,6 +708,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "mise_en_forme",
+          "mark_libelle": {
+            "en": "Smart format",
+            "fr": "Mise en forme intelligente"
+          },
           "title": "Smart Format"
         },
         "numerals": {
@@ -640,6 +730,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "mise_en_forme",
+          "mark_libelle": {
+            "en": "Numerals",
+            "fr": "Nombres en chiffres"
+          },
           "title": "Numerals"
         },
         "dictation": {
@@ -657,6 +752,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "mise_en_forme",
+          "mark_libelle": {
+            "en": "Dictation",
+            "fr": "Dictée de la ponctuation"
+          },
           "title": "Dictation"
         },
         "profanity_filter": {
@@ -674,6 +774,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Profanity filter",
+            "fr": "Filtrer les grossièretés"
+          },
           "title": "Profanity Filter"
         },
         "redact": {
@@ -694,6 +799,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Redact",
+            "fr": "Masquer des données sensibles"
+          },
           "title": "Redact"
         },
         "replace": {
@@ -714,6 +824,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "vocabulaire",
+          "mark_libelle": {
+            "en": "Replace",
+            "fr": "Remplacements"
+          },
           "title": "Replace"
         },
         "search": {
@@ -734,6 +849,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "vocabulaire",
+          "mark_libelle": {
+            "en": "Search",
+            "fr": "Termes suivis"
+          },
           "title": "Search"
         },
         "diarize": {
@@ -751,6 +871,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "analyse",
+          "mark_libelle": {
+            "en": "Diarize",
+            "fr": "Séparer les voix"
+          },
           "title": "Diarize"
         },
         "detect_entities": {
@@ -768,6 +893,11 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_groupe": "analyse",
+          "mark_libelle": {
+            "en": "Detect entities",
+            "fr": "Détecter les entités"
+          },
           "title": "Detect Entities"
         },
         "eot_threshold": {
@@ -783,6 +913,11 @@
           ],
           "default": 0.7,
           "description": "Confidence Flux needs before it declares the turn finished. Low means turns end sooner, so the agent answers faster and cuts in more often; high means it waits for a complete sentence. From 0.5 to 1. Deepgram's default is 0.7, which is also the value that was hardcoded before this field existed.",
+          "mark_groupe": "fin_de_tour",
+          "mark_libelle": {
+            "en": "EOT threshold",
+            "fr": "Seuil de fin de tour"
+          },
           "models": [
             "flux-general-en",
             "flux-general-multi"
@@ -802,6 +937,11 @@
           ],
           "default": 0.5,
           "description": "Confidence at which Flux announces the turn is probably about to end, so the answer can be prepared before the caller has actually stopped. From 0.3 to 0.9, and it must stay at or below the threshold above. Deepgram leaves it off by default; 0.5 is the value that was hardcoded before this field existed.",
+          "mark_groupe": "fin_de_tour",
+          "mark_libelle": {
+            "en": "Eager EOT threshold",
+            "fr": "Seuil de fin de tour anticipée"
+          },
           "models": [
             "flux-general-en",
             "flux-general-multi"
@@ -821,6 +961,11 @@
           ],
           "default": 3000,
           "description": "Silence, in milliseconds, after which Flux finishes the turn whatever its confidence. From 500 to 60000. Deepgram's default is 5000; 3000 is the value that was hardcoded before this field existed.",
+          "mark_groupe": "fin_de_tour",
+          "mark_libelle": {
+            "en": "EOT timeout (ms)",
+            "fr": "Délai maximum de fin de tour (ms)"
+          },
           "models": [
             "flux-general-en",
             "flux-general-multi"
@@ -853,6 +998,11 @@
             "pt",
             "ru"
           ],
+          "mark_groupe": "langue",
+          "mark_libelle": {
+            "en": "Language hints",
+            "fr": "Langues à privilégier"
+          },
           "models": [
             "flux-general-multi"
           ],
@@ -871,6 +1021,11 @@
           ],
           "default": null,
           "description": "Below this confidence, a finished turn is DROPPED and never reaches the agent, which then hears nothing at all. WARNING: this one is not sent to Deepgram; it is a filter applied on our side to what Deepgram returns. Left empty, nothing is dropped, which is today's behaviour.",
+          "mark_groupe": "fin_de_tour",
+          "mark_libelle": {
+            "en": "Min confidence",
+            "fr": "Confiance minimum d'un tour"
+          },
           "models": [
             "flux-general-en",
             "flux-general-multi"
@@ -880,6 +1035,11 @@
         "region": {
           "default": "api.eu.deepgram.com",
           "description": "The Deepgram region the caller's audio is processed in. Derived from the endpoint above rather than chosen: change the endpoint and this follows. Defaults to Europe.",
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Region",
+            "fr": "Région"
+          },
           "readonly": true,
           "title": "Region",
           "type": "string"
@@ -887,6 +1047,11 @@
         "mip_opt_out": {
           "default": true,
           "description": "Refusal to take part in Deepgram's Model Improvement Program, so no call is used to train their models. Locked on: it is a condition of the offer, not an option. Refusing forfeits a discount, and that is accepted.",
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "MIP opt out",
+            "fr": "Refus du programme d'amélioration des modèles"
+          },
           "readonly": true,
           "title": "Mip Opt Out",
           "type": "boolean"

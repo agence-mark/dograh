@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 
 import { getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet } from '@/client/sdk.gen';
 import { ChampEtiquettes } from "@/components/mark/ChampEtiquettes";
+import { grouperChamps, LibelleChamp, SousMenuFournisseur } from "@/components/mark/modeles/GroupesFournisseur";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -57,6 +58,10 @@ interface SchemaProperty {
     // [.mark] Shown, never editable. ⛔ The real lock is server-side; this
     // only stops the screen from suggesting the value is a choice.
     readonly?: boolean;
+    // [.mark] Models screen in groups (reorganisation-ecran-reglages, step 6):
+    // the sub-menu and the readable label, declared in `registry.py`.
+    mark_groupe?: string;
+    mark_libelle?: { en: string; fr: string };
 }
 
 export interface ProviderSchema {
@@ -795,77 +800,13 @@ export function ServiceConfigurationForm({
         });
     };
 
-    const renderServiceFields = (service: ServiceSegment) => {
+    // [.mark] The API keys, drawn under the fields as before, or at the top of
+    // a provider in groups (step 6). Moved here unchanged to serve both.
+    const renderApiKeys = (service: ServiceSegment) => {
         const currentProvider = serviceProviders[service];
         const providerSchema = schemas?.[service]?.[currentProvider];
-        const availableProviders = schemas?.[service] ? Object.keys(schemas[service]) : [];
-        const configFields = getConfigFields(service);
-
         return (
-            <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Provider</Label>
-                        <Select
-                            value={currentProvider}
-                            onValueChange={(providerName) => {
-                                handleProviderChange(service, providerName);
-                            }}
-                        >
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select provider" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {availableProviders.map((provider) => (
-                                    <SelectItem key={provider} value={provider}>
-                                        {getProviderDisplayName(provider, schemas?.[service]?.[provider])}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {(providerSchema?.description || providerSchema?.provider_docs_url) && (
-                            <p className="text-xs text-muted-foreground">
-                                {providerSchema?.description}{" "}
-                                {providerSchema?.provider_docs_url && (
-                                    <a
-                                        href={providerSchema.provider_docs_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-0.5 underline"
-                                    >
-                                        Learn more <ExternalLink className="h-3 w-3" />
-                                    </a>
-                                )}
-                            </p>
-                        )}
-                    </div>
-
-                    {currentProvider && providerSchema && configFields[0] && (
-                        <div className="space-y-2">
-                            <Label className="capitalize">{configFields[0].replace(/_/g, ' ')}</Label>
-                            {renderField(service, configFields[0], providerSchema)}
-                        </div>
-                    )}
-                </div>
-
-                {currentProvider && providerSchema && configFields.length > 1 && (
-                    <div className="grid grid-cols-2 gap-4">
-                        {configFields.slice(1).map((field) => {
-                            const fieldSchema = providerSchema.properties[field];
-                            const actualFieldSchema = fieldSchema?.$ref && providerSchema.$defs
-                                ? providerSchema.$defs[fieldSchema.$ref.split('/').pop() || '']
-                                : fieldSchema;
-                            const fullWidth = actualFieldSchema?.multiline;
-                            return (
-                                <div key={field} className={`space-y-2 ${fullWidth ? "col-span-2" : ""}`}>
-                                    <Label className="capitalize">{field.replace(/_/g, ' ')}</Label>
-                                    {renderField(service, field, providerSchema)}
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-
+            <>
                 {currentProvider && providerSchema && providerSchema.properties.api_key && (
                     <div className="space-y-2">
                         <Label>{mode === 'override' ? 'API Key (leave empty to use global)' : 'API Key(s)'}</Label>
@@ -917,6 +858,142 @@ export function ServiceConfigurationForm({
                         )}
                     </div>
                 )}
+            </>
+        );
+    };
+
+    // [.mark] The provider picker, moved here unchanged to serve both layouts (step 6).
+    const renderProviderSelect = (service: ServiceSegment) => {
+        const currentProvider = serviceProviders[service];
+        const providerSchema = schemas?.[service]?.[currentProvider];
+        const availableProviders = schemas?.[service] ? Object.keys(schemas[service]) : [];
+        return (
+            <div className="space-y-2">
+                <Label>Provider</Label>
+                <Select
+                    value={currentProvider}
+                    onValueChange={(providerName) => {
+                        handleProviderChange(service, providerName);
+                    }}
+                >
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {availableProviders.map((provider) => (
+                            <SelectItem key={provider} value={provider}>
+                                {getProviderDisplayName(provider, schemas?.[service]?.[provider])}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                {(providerSchema?.description || providerSchema?.provider_docs_url) && (
+                    <p className="text-xs text-muted-foreground">
+                        {providerSchema?.description}{" "}
+                        {providerSchema?.provider_docs_url && (
+                            <a
+                                href={providerSchema.provider_docs_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-0.5 underline"
+                            >
+                                Learn more <ExternalLink className="h-3 w-3" />
+                            </a>
+                        )}
+                    </p>
+                )}
+            </div>
+        );
+    };
+
+    // [.mark] A provider whose fields declare groups (Mistral, ElevenLabs,
+    // Deepgram; step 6, convention E2): provider, model and keys at the top,
+    // then the settings in sub-menus. Which fields show is decided by
+    // `getConfigFields` exactly as for every other provider.
+    const renderGroupedFields = (service: ServiceSegment, providerSchema: ProviderSchema, configFields: string[]) => {
+        const schemaDe = (field: string) => {
+            const schema = providerSchema.properties[field];
+            return schema?.$ref && providerSchema.$defs ? providerSchema.$defs[schema.$ref.split('/').pop() || ''] : schema;
+        };
+        const enHaut = configFields.includes("model") ? "model" : configFields[0];
+        const groupes = grouperChamps(configFields.filter((field) => field !== enHaut), schemaDe);
+        const champ = (field: string) => (
+            <div key={field} data-champ={field} className={`space-y-2 ${schemaDe(field)?.multiline ? "col-span-2" : ""}`}>
+                <LibelleChamp
+                    champ={field}
+                    libelle={schemaDe(field)?.mark_libelle ?? (field === "model" ? { en: "Model", fr: "Modèle" } : undefined)}
+                />
+                {renderField(service, field, providerSchema)}
+            </div>
+        );
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                    {renderProviderSelect(service)}
+                    {enHaut && champ(enHaut)}
+                </div>
+                {renderApiKeys(service)}
+                {groupes.map((groupe) =>
+                    groupe.champs.length < 2 ? (
+                        <div key={groupe.id} className="grid grid-cols-2 gap-4">
+                            {groupe.champs.map(champ)}
+                        </div>
+                    ) : (
+                        <SousMenuFournisseur key={groupe.id} id={`${service}.${groupe.id}`} nombre={groupe.champs.length}>
+                            {groupe.champs.map(champ)}
+                        </SousMenuFournisseur>
+                    ),
+                )}
+            </div>
+        );
+    };
+
+    const renderServiceFields = (service: ServiceSegment) => {
+        const currentProvider = serviceProviders[service];
+        const providerSchema = schemas?.[service]?.[currentProvider];
+        const configFields = getConfigFields(service);
+
+        // [.mark] Step 6: a provider that declares groups is drawn in sub-menus.
+        if (currentProvider && providerSchema && configFields.some((field) => {
+            const schema = providerSchema.properties[field];
+            const actual = schema?.$ref && providerSchema.$defs ? providerSchema.$defs[schema.$ref.split('/').pop() || ''] : schema;
+            return Boolean(actual?.mark_groupe);
+        })) {
+            return renderGroupedFields(service, providerSchema, configFields);
+        }
+
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                    {renderProviderSelect(service)}
+
+                    {currentProvider && providerSchema && configFields[0] && (
+                        <div className="space-y-2">
+                            <Label className="capitalize">{configFields[0].replace(/_/g, ' ')}</Label>
+                            {renderField(service, configFields[0], providerSchema)}
+                        </div>
+                    )}
+                </div>
+
+                {currentProvider && providerSchema && configFields.length > 1 && (
+                    <div className="grid grid-cols-2 gap-4">
+                        {configFields.slice(1).map((field) => {
+                            const fieldSchema = providerSchema.properties[field];
+                            const actualFieldSchema = fieldSchema?.$ref && providerSchema.$defs
+                                ? providerSchema.$defs[fieldSchema.$ref.split('/').pop() || '']
+                                : fieldSchema;
+                            const fullWidth = actualFieldSchema?.multiline;
+                            return (
+                                <div key={field} data-champ={field} className={`space-y-2 ${fullWidth ? "col-span-2" : ""}`}>
+                                    <Label className="capitalize">{field.replace(/_/g, ' ')}</Label>
+                                    {renderField(service, field, providerSchema)}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {renderApiKeys(service)}
             </div>
         );
     };
