@@ -131,13 +131,17 @@ def test_sans_reglage_smart_turn_est_celui_daujourdhui():
     assert params.stop_secs == 2.0
 
 
+def _DEVRAIT_INTERROMPRE() -> bool:
+    return True
+
+
 def _agregateur(run_configs=None):
     """The parameters the pipeline hands to the user aggregator."""
     return run_pipeline._construire_parametres_agregateur_utilisateur(
         user_turn_strategies=None,
+        should_interrupt=_DEVRAIT_INTERROMPRE,
         user_mute_strategies=[],
         user_turn_stop_timeout=USER_TURN_STOP_TIMEOUT_AVANT,
-        max_user_idle_timeout=10.0,
         user_vad_analyzer=None,
         reglages=collecter_reglages_tour_de_parole(run_configs),
     )
@@ -150,6 +154,10 @@ def test_sans_reglage_lagregateur_est_celui_daujourdhui():
     assert params.audio_idle_timeout == defauts.audio_idle_timeout
     assert params.filter_incomplete_user_turns is False
     assert params.user_turn_completion_config is None
+    # Upstream 4e6cb22b: the call monitor owns idle reminders, Pipecat's own
+    # idle timer stays off, and the engine decides whether a turn interrupts.
+    assert params.user_idle_timeout == 0
+    assert params.should_interrupt is _DEVRAIT_INTERROMPRE
 
 
 def test_les_reglages_de_lagregateur_arrivent():
@@ -511,9 +519,11 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     # two switches that forbid saying the caller's name and title. Then 39 the
     # same day: the street check and the spelling reader (plan
     # adresses-et-epellation, Q11). Then 40 on 2026-09-24: the names that
-    # trigger the reference reader (plan fiche-au-fil-de-leau, lot 2).
-    assert len(ecran) == 40, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 40. "
+    # trigger the reference reader (plan fiche-au-fil-de-leau, lot 2). Then 43
+    # on 2026-09-26: the greeting (E1, two settings) and the agent-silence
+    # hang-up (E2), rise to upstream 4e6cb22b.
+    assert len(ecran) == 43, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 43. "
         f"A setting added on one side only renders and is then dropped."
     )
 

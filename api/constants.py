@@ -9,8 +9,6 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", Environment.LOCAL.value)
 # when constructing file-system paths elsewhere in the codebase.
 APP_ROOT_DIR: Path = Path(__file__).resolve().parent
 
-FILLER_SOUND_PROBABILITY = 0.0
-
 VOICEMAIL_RECORDING_DURATION = 5.0
 
 # Langfuse Configuration
@@ -97,6 +95,9 @@ ENABLE_DOGRAH_MANAGED_PROVISIONING = (
     os.getenv("ENABLE_DOGRAH_MANAGED_PROVISIONING", "true").lower() == "true"
 )
 DOGRAH_DEVOPS_SECRET = os.getenv("DOGRAH_DEVOPS_SECRET") or None
+ENABLE_PROMETHEUS_METRICS = (
+    os.getenv("ENABLE_PROMETHEUS_METRICS", "false").lower() == "true"
+)
 
 # Storage Configuration
 ENABLE_AWS_S3 = os.getenv("ENABLE_AWS_S3", "false").lower() == "true"

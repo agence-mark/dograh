@@ -89,7 +89,7 @@ async def test_T4_1_une_note_faite_a_une_autre_etape_atteint_son_champ(
         MockLLMService.create_text_chunks("RELANCE EN TROP"),
     ]
     engine, llm, outils_vus, _ = await _jouer(three_node_workflow, _reglages(), etapes)
-    assert engine._current_node.id == "agent"
+    assert engine.active_agent.current_node.id == "agent"
     assert engine._gathered_context["nom"] == "Dupont"
     assert llm.get_current_step() == 3
 
@@ -196,7 +196,7 @@ def _moteur(workflow, fiche):
         fiche=fiche,
     )
     engine._variable_extraction_manager = VariableExtractionManager(engine)
-    engine._current_node = workflow.nodes["agent"]
+    engine.active_agent.current_node = workflow.nodes["agent"]
     return engine
 
 
@@ -224,7 +224,7 @@ async def test_T4_4_allume_un_changement_d_etape_ne_relit_rien(three_node_workfl
         VariableExtractionManager, "_perform_extraction", new_callable=AsyncMock
     ) as extraction:
         await engine._perform_variable_extraction_if_needed(
-            engine._current_node, run_in_background=False
+            engine.active_agent.current_node, run_in_background=False
         )
     extraction.assert_not_called()
 
@@ -283,3 +283,25 @@ async def test_A8_en_fin_d_appel_le_numero_en_conflit_est_marque_a_verifier():
     # Un deuxième passage (routage d'un transfert) ne double pas le journal.
     await balayer_la_fiche(_reglages(), Extracteur({}), fiche, MESSAGES)
     assert len([e for e in fiche[CLE_JOURNAL] if e["statut"] == "a_verifier"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_un_agent_recu_par_transfert_garde_l_extraction_de_l_amont(
+    three_node_workflow,
+):
+    """Relecture de la remise à niveau (4e6cb22b), point 1 : la fiche vaut pour
+    l'agent dont le modèle la porte. Un agent reçu par transfert n'a pas
+    `noter_information` : sans l'extraction de l'amont, rien ne serait collecté
+    pendant sa visite, en silence."""
+    engine = _moteur(three_node_workflow, _reglages())
+    engine.active_agent.llm = MockLLMService()  # le modèle d'un autre agent
+    with patch.object(
+        VariableExtractionManager,
+        "_perform_extraction",
+        new_callable=AsyncMock,
+        return_value={},
+    ) as extraction:
+        await engine._perform_variable_extraction_if_needed(
+            engine.active_agent.current_node, run_in_background=False
+        )
+    extraction.assert_called_once()

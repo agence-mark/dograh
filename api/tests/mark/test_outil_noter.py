@@ -117,7 +117,7 @@ def test_nom_en_double_refuse_a_l_enregistrement():
 
 def test_les_noms_reserves_couvrent_les_cles_du_moteur():
     """La liste des noms réservés est écrite à la main : ce test la tient à jour."""
-    assert pipecat_engine._ENGINE_OWNED_CONTEXT_KEYS <= NOMS_RESERVES
+    assert pipecat_engine.ENGINE_OWNED_CONTEXT_KEYS <= NOMS_RESERVES
 
 
 def test_schema_un_parametre_facultatif_par_champ():
@@ -366,7 +366,7 @@ async def _jouer(workflow, reglages, etapes, *, retard: dict[str, float] | None 
         ]
     )
     task = PipelineWorker(pipeline, params=PipelineParams(), enable_rtvi=False)
-    engine.set_task(task)
+    engine.call_worker = task
     outils_vus: list[list[str]] = []
     mettre_a_jour = engine._update_llm_context
 
@@ -377,9 +377,9 @@ async def _jouer(workflow, reglages, etapes, *, retard: dict[str, float] | None 
     engine._update_llm_context = espion
 
     async def demarrer():
-        await engine.set_node(engine.workflow.start_node_id)
+        await engine.set_node(engine.active_agent.workflow.start_node_id)
         context.add_message({"role": "user", "content": "Bonjour, monsieur Dupont"})
-        await engine.llm.queue_frame(LLMContextFrame(context))
+        await engine.active_agent.llm.queue_frame(LLMContextFrame(context))
 
         async def arreter():
             await asyncio.sleep(1.5)
@@ -429,7 +429,7 @@ async def test_T1_1_eteint_l_outil_n_est_pas_propose(
     etapes = [MockLLMService.create_text_chunks("Bonjour.")]
     engine, _, outils_vus, _ = await _jouer(three_node_workflow, None, etapes)
     assert outils_vus and all(NOM_OUTIL not in noms for noms in outils_vus)
-    assert NOM_OUTIL not in engine.llm._functions
+    assert NOM_OUTIL not in engine.active_agent.llm._functions
 
 
 @pytest.mark.asyncio
@@ -454,7 +454,7 @@ async def test_T1_4_T1_5_note_et_porte_une_seule_relance(
     )
     # T1.4 : la note ET la porte sont honorées.
     assert engine._gathered_context["nom"] == "Dupont"
-    assert engine._current_node.id == "agent"
+    assert engine.active_agent.current_node.id == "agent"
     # T1.5 : une seule relance après le tour (étape 0 = le tour, étape 1 = la relance).
     assert llm.get_current_step() == 2
     # L'outil est proposé à l'étape d'accueil et à l'étape suivante.
@@ -497,7 +497,7 @@ async def test_T1_5_note_seule_une_relance_pour_parler(
     ]
     engine, llm, _, _ = await _jouer(three_node_workflow, _reglages(), etapes)
     assert engine._gathered_context["nom"] == "Dupont"
-    assert engine._current_node.id == "start"
+    assert engine.active_agent.current_node.id == "start"
     assert llm.get_current_step() == 2
 
 
@@ -578,7 +578,7 @@ async def test_D28_allume_l_extraction_par_etape_est_coupee(
     engine, _, _, extraction = await _jouer(
         three_node_workflow, _reglages(), _note_et_porte(["porte"])
     )
-    assert engine._current_node.id == "agent"
+    assert engine.active_agent.current_node.id == "agent"
     extraction.assert_not_called()
     assert "user_name" not in engine._gathered_context
 
@@ -590,7 +590,7 @@ async def test_T1_1_eteint_l_extraction_par_etape_est_inchangee(
     engine, _, _, extraction = await _jouer(
         three_node_workflow, None, _note_et_porte(["porte"])
     )
-    assert engine._current_node.id == "agent"
+    assert engine.active_agent.current_node.id == "agent"
     await engine._await_pending_extractions()
     extraction.assert_called()
 

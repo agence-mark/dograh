@@ -67,6 +67,11 @@ export const DEFAUTS_PIPECAT = {
     mute_engine_callback: true,
     mute_first_speech: false,
     mute_always: false,
+    // [.mark] E1 and E2 (decisions of Evan, 25/09/2026): the greeting is not
+    // interruptible, 2 words when it is; hang up after 35 s of agent silence.
+    accueil_interruptible: false,
+    accueil_mots_minimum: 2,
+    raccrochage_silence_agent_s: 35,
     conversion_nombres_transcription: false,
     // ⚠️ ON (decision D5 of 2026-09-16): acts only at steps that collect a town.
     verification_communes: true,
@@ -137,6 +142,7 @@ export interface VoicemailDetectionConfiguration extends AnswerSupervisorSetting
     provider?: string;
     model?: string;
     api_key?: string;
+    system_prompt?: string;  // Overrides the built-in classifier instructions
 }
 
 export const DEFAULT_VOICEMAIL_DETECTION_CONFIGURATION: VoicemailDetectionConfiguration = {
@@ -201,6 +207,7 @@ type WorkflowConfigurationBase = Omit<
     | "turn_stop_strategy"
     | "dictionary"
     | "context_compaction_enabled"
+    | "tts_cache_enabled"
     | "call_dispositions"
     | "text_chat_inactivity_timeout_seconds"
     | "external_pbx_field_mappings"
@@ -219,6 +226,25 @@ export interface ChampFiche {
     valeurs?: string[] | null;
 }
 
+/**
+ * [.mark] A record field as the server may send it: every key but the name has
+ * a default in `api/schemas/fiche_agent.py`, so the generated client types
+ * them optional. Completed here with exactly those defaults, so the screen
+ * always handles whole fields; a value that is there is never changed.
+ */
+export const completerChampsFiche = <T,>(
+    champs: T,
+): T | ChampFiche[] => {
+    if (!Array.isArray(champs)) return champs;
+    return champs.map((champ: Partial<ChampFiche> & { nom: string }) => ({
+        type: "string",
+        origine: "dicte",
+        description: "",
+        lecteur: null,
+        ...champ,
+    })) as ChampFiche[];
+};
+
 export type WorkflowConfigurations = WorkflowConfigurationBase & {
     ambient_noise_configuration: AmbientNoiseConfiguration;
     max_call_duration: number;  // Maximum call duration in seconds
@@ -231,6 +257,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     voicemail_detection?: VoicemailDetectionConfiguration;
     transcript_configuration: TranscriptConfiguration;
     context_compaction_enabled: boolean;  // Summarize context on node transitions to remove stale tool calls
+    tts_cache_enabled: boolean;
     call_dispositions: CallDispositionOption[];  // Allowed terminal business outcomes
     text_chat_inactivity_timeout_seconds?: number;  // End inactive text chats after this many seconds
     external_pbx_field_mappings: ExternalPBXFieldMapping[];
@@ -261,6 +288,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     mute_engine_callback: boolean;
     mute_first_speech: boolean;
     mute_always: boolean;
+    accueil_interruptible: boolean;  // [.mark] E1: the caller can cut the greeting
+    accueil_mots_minimum: number;  // [.mark] E1: words needed to cut it
+    raccrochage_silence_agent_s: number;  // [.mark] E2: agent silence before hanging up
     conversion_nombres_transcription: boolean;  // Dictated numbers reach the model as digits
     verification_communes: boolean;  // Town the caller names checked against the list of communes
     variables_commune: string;  // Extraction variables that trigger it, comma separated, final * = starts with
@@ -307,6 +337,7 @@ const FALLBACK_WORKFLOW_CONFIGURATIONS: WorkflowConfigurations = {
     dictionary: '',
     transcript_configuration: DEFAULT_TRANSCRIPT_CONFIGURATION,
     context_compaction_enabled: false,
+    tts_cache_enabled: false,
     call_dispositions: [],
     external_pbx_field_mappings: [],
     external_pbx_lead_headers: [],
@@ -389,6 +420,10 @@ export function resolveWorkflowConfigurations(
             configurations?.context_compaction_enabled
             ?? defaults?.context_compaction_enabled
             ?? FALLBACK_WORKFLOW_CONFIGURATIONS.context_compaction_enabled,
+        tts_cache_enabled:
+            configurations?.tts_cache_enabled
+            ?? defaults?.tts_cache_enabled
+            ?? FALLBACK_WORKFLOW_CONFIGURATIONS.tts_cache_enabled,
         call_dispositions:
             configurations?.call_dispositions
             ?? defaults?.call_dispositions
@@ -410,6 +445,10 @@ export function resolveWorkflowConfigurations(
         // JSON nulls for keys the client never touched, and spreading them would
         // draw an empty field where the pipeline runs a value.
         ...resoudreReglagesPipecat(configurations, defaults),
+        // [.mark] Same value the spreads above chose, completed field by field.
+        fiche_champs: completerChampsFiche(
+            { ...defaults, ...configurations }.fiche_champs,
+        ) as ChampFiche[] | undefined,
         transcript_configuration: {
             ...DEFAULT_TRANSCRIPT_CONFIGURATION,
             ...(defaults?.transcript_configuration as Partial<TranscriptConfiguration> | undefined),

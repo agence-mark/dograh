@@ -206,16 +206,22 @@ def _appels(source: str, fonction: str) -> list[tuple[str, str]]:
         # INCHANGE (seul l'appel de conversation porte la cle) ; c'est la cible
         # qui a ete renommee, et ce test est ce qui l'a signale.
         (run_pipeline, {"inference_llm =", "", "classifier_llm ="}),
-        # keyboard: variable extraction
-        (text_chat_runner, {""}),
+        # keyboard: variable extraction, and (upstream 4e6cb22b) the extraction
+        # model of a finished session, which upstream also names `llm`
+        (text_chat_runner, {"", "llm ="}),
     ],
 )
 def test_seul_lappel_de_conversation_recoit_la_cle(module, autres_attendus):
     """D6 in both directions, and counted: the conversation call gets the key,
     every other call site does not, and no call site is left unclassified."""
     appels = _appels(inspect.getsource(module), "create_llm_service")
-    conversation = [texte for cible, texte in appels if cible == "llm ="]
-    autres = [(cible, texte) for cible, texte in appels if cible != "llm ="]
+    # A call made for extraction says so (`usage_context=`): it is never the
+    # conversation, whatever the variable it is assigned to.
+    def de_conversation(cible, texte):
+        return cible == "llm =" and "usage_context=" not in texte
+
+    conversation = [texte for cible, texte in appels if de_conversation(cible, texte)]
+    autres = [(cible, texte) for cible, texte in appels if not de_conversation(cible, texte)]
 
     assert len(conversation) == 1, f"{module.__name__}: {len(conversation)} conversation calls"
     assert "prompt_cache_key=cle_de_cache(workflow_id)" in conversation[0]

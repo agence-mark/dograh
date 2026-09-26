@@ -37,6 +37,12 @@ from api.services.observability.active_calls import (
 from api.services.observability.active_calls import (
     unregister_active_call as unregister_worker_active_call,
 )
+from api.services.pipecat.agent_bridge import AgentBridgeProcessor
+from api.services.pipecat.agent_generation_processor import AgentGenerationProcessor
+from api.services.pipecat.agent_runtime_factory import (
+    AgentGenerationCallbacks,
+    AgentRuntimeFactory,
+)
 from api.services.pipecat.audio_config import AudioConfig, create_audio_config
 from api.services.annonce.stockage import lire_annonce_ouverture
 from api.services.pipecat.etat_ouverture import (
@@ -54,9 +60,6 @@ from api.services.pipecat.pipeline_builder import (
     build_realtime_pipeline,
     create_pipeline_components,
     create_pipeline_task,
-)
-from api.services.pipecat.pipeline_engine_callbacks_processor import (
-    PipelineEngineCallbacksProcessor,
 )
 from api.services.pipecat.pipeline_metrics_aggregator import PipelineMetricsAggregator
 from api.services.pipecat.pre_call_fetch import execute_pre_call_fetch
@@ -84,6 +87,7 @@ from api.services.pipecat.reglages_tour_de_parole import (
     appliquer_latence_de_transcription,
     collecter_reglages_tour_de_parole,
     collecter_strategies_de_coupure,
+    reglages_accueil_et_silence,
 )
 from api.services.pipecat.service_factory import (
     cle_de_cache,
@@ -108,7 +112,10 @@ from api.services.pipecat.tracing_config import (
 from api.services.pipecat.transcript_log_coordinator import TranscriptLogCoordinator
 from api.services.pipecat.transport_setup import create_webrtc_transport
 from api.services.pipecat.verification_communes import consigner_dans
-from api.services.pipecat.worker_runner import run_pipeline_worker
+from api.services.pipecat.worker_runner import (
+    create_worker_runner,
+    run_worker_runner,
+)
 from api.services.pipecat.ws_sender_registry import get_ws_sender
 from api.services.telephony import registry as telephony_registry
 from api.services.workflow.answer_classification_service import (
@@ -213,7 +220,9 @@ def _create_answer_supervisor(
             usage_context="voicemail_detection",
         )
     classifier = AnswerClassificationService(
-        classifier_llm, get_parent_context=get_parent_context
+        classifier_llm,
+        system_prompt=voicemail_config.get("system_prompt"),
+        get_parent_context=get_parent_context,
     )
     return AnswerSupervisor(config, context=context, classify=classifier.classify)
 
@@ -364,9 +373,9 @@ def _create_non_realtime_user_turn_stop_strategies(
 def _construire_parametres_agregateur_utilisateur(
     *,
     user_turn_strategies,
+    should_interrupt,
     user_mute_strategies,
     user_turn_stop_timeout: float,
-    max_user_idle_timeout: float,
     user_vad_analyzer,
     reglages: ReglagesTourDeParole,
 ) -> LLMUserAggregatorParams:
@@ -380,9 +389,12 @@ def _construire_parametres_agregateur_utilisateur(
     """
     return LLMUserAggregatorParams(
         user_turn_strategies=user_turn_strategies,
+        should_interrupt=should_interrupt,
         user_mute_strategies=user_mute_strategies,
         user_turn_stop_timeout=user_turn_stop_timeout,
-        user_idle_timeout=max_user_idle_timeout,
+        # The call monitor owns idle reminders and response deadlines together
+        # (upstream 4e6cb22b): Pipecat's own idle timer stays off.
+        user_idle_timeout=0,
         vad_analyzer=user_vad_analyzer,
         audio_idle_timeout=reglages.audio_idle_timeout,
         filter_incomplete_user_turns=reglages.filter_incomplete_user_turns,
@@ -991,6 +1003,8 @@ async def _run_pipeline_impl(
             user_config,
             audio_config,
             correlation_id=mps_correlation_id,
+            organization_id=workflow.organization_id,
+            tts_cache_enabled=run_configs.get("tts_cache_enabled") is True,
             run_configs=run_configs,
             lexique=lexique_metier,
         )
@@ -1178,8 +1192,8 @@ async def _run_pipeline_impl(
         embeddings_endpoint = getattr(user_config.embeddings, "endpoint", None)
         embeddings_api_version = getattr(user_config.embeddings, "api_version", None)
 
-    # Check if the workflow has any active recordings so the engine can
-    # include recording response mode instructions in all node prompts.
+    # Check organization-level recording availability. Node preparation enables
+    # recording instructions and routing only for prompts that reference them.
     has_recordings = await db_client.has_active_recordings(workflow.organization_id)
 
     context_compaction_enabled = (workflow.workflow_configurations or {}).get(
@@ -1259,8 +1273,20 @@ async def _run_pipeline_impl(
     # [.mark] Notre collecteur, pas leur liste figee : les cinq strategies
     # viennent des reglages de l'agent, DANS L'ORDRE. Le seul apport de leur
     # fonction est repris par `supervision_decroche_active`.
+    # [.mark] E1 (decision of Evan, 25/09/2026). Off (the default): the opening
+    # sentence stays protected by the mute strategies, and upstream's greeting
+    # controller leaves the strategies alone -- the production of 25/09 exactly.
+    # On: that protection is lifted FOR THIS AGENT ONLY and the controller lets
+    # the caller cut the greeting after N words. Cascade calls only: a realtime
+    # call has no greeting controller.
+    accueil_interruptible, accueil_mots_minimum, raccrochage_silence_agent_s = (
+        reglages_accueil_et_silence(run_configs)
+    )
+    accueil_ouvert = accueil_interruptible and not is_realtime
     user_mute_strategies = collecter_strategies_de_coupure(
-        run_configs,
+        {**(run_configs or {}), "mute_until_first_bot_complete": False}
+        if accueil_ouvert
+        else run_configs,
         should_mute_callback=engine.should_mute_user,
         supervision_decroche_active=answer_supervisor is not None,
     )
@@ -1315,31 +1341,56 @@ async def _run_pipeline_impl(
 
     user_params = _construire_parametres_agregateur_utilisateur(
         user_turn_strategies=user_turn_strategies,
+        should_interrupt=engine.should_interrupt_user_turn,
         user_mute_strategies=user_mute_strategies,
         user_turn_stop_timeout=user_turn_stop_timeout,
-        max_user_idle_timeout=max_user_idle_timeout,
+        # The call monitor owns idle reminders and response deadlines together.
         user_vad_analyzer=user_vad_analyzer,
         reglages=reglages_tour,
     )
-    context_aggregator = LLMContextAggregatorPair(
-        context,
-        assistant_params=assistant_params,
-        user_params=user_params,
-        # Live publishes final user transcripts before delegation starts.
-        # Record them immediately, including while the assistant is speaking.
-        realtime_service_mode=is_realtime
-        and not (
-            user_config.realtime.provider == ServiceProviders.OPENAI_REALTIME.value
-            and user_config.realtime.model == "gpt-live-1"
-        ),
-    )
+    if is_realtime:
+        context_aggregator = LLMContextAggregatorPair(
+            context,
+            assistant_params=assistant_params,
+            user_params=user_params,
+            # Live publishes final user transcripts before delegation starts.
+            realtime_service_mode=not (
+                user_config.realtime.provider == ServiceProviders.OPENAI_REALTIME.value
+                and user_config.realtime.model == "gpt-live-1"
+            ),
+        )
+        user_context_aggregator, assistant_context_aggregator = context_aggregator
+    else:
+        user_context_aggregator, assistant_context_aggregator = (
+            LLMContextAggregatorPair(
+                context,
+                user_params=user_params,
+                assistant_params=assistant_params,
+                realtime_service_mode=False,
+            )
+        )
+        engine.greeting.regler(  # [.mark] E1
+            interruptible=accueil_ouvert, mots_minimum=accueil_mots_minimum
+        )
+        engine.greeting.bind(user_context_aggregator)
 
-    # Create usage metrics aggregator with engine's callback
-    pipeline_engine_callback_processor = PipelineEngineCallbacksProcessor(
-        max_call_duration_seconds=max_call_duration_seconds,
-        max_duration_end_task_callback=engine.create_max_duration_callback(),
-        generation_started_callback=engine.create_generation_started_callback(),
-        llm_text_frame_callback=engine.handle_llm_text_frame,
+    # Every cascade call runs the split pipeline: everything call-scoped stays
+    # here and the generation stage (LLM through TTS) runs in a worker per
+    # agent visit, so replacing the agent never touches the transport, the
+    # recording or the conversation. A realtime call has no such stage to lift
+    # out -- the one speech-to-speech service consumes the caller's audio
+    # directly -- so it keeps its own single-worker shape and cannot transfer.
+    worker_runner = create_worker_runner()
+    call_worker_name = f"call-{workflow_run_id}"
+
+    # One call monitor owns user-idle, response and duration limits in both shapes.
+    call_monitor_processor = engine.call_monitor
+    call_monitor_processor.max_call_duration_seconds = max_call_duration_seconds
+    # [.mark] E2 (decision of Evan, 25/09/2026): how long the agent may stay
+    # silent while it owes an answer before the call hangs up (35 s upstream).
+    call_monitor_processor.response_timeout = raccrochage_silence_agent_s
+    call_monitor_processor.bind_user(
+        user_context_aggregator, idle_timeout=max_user_idle_timeout
     )
 
     pipeline_metrics_aggregator = PipelineMetricsAggregator()
@@ -1349,25 +1400,16 @@ async def _run_pipeline_impl(
     # `register_event_handlers` once the task exists.
     termination_funnel = TerminationFunnelProcessor()
 
-    user_context_aggregator = context_aggregator.user()
-    assistant_context_aggregator = context_aggregator.assistant()
-
     if answer_supervisor is not None:
         answer_supervisor.bind(user_context_aggregator)
         engine.set_answer_supervisor(
             answer_supervisor, user_context_aggregator, max_user_idle_timeout
         )
 
-    # Register user idle event handlers
-    user_idle_handler = engine.create_user_idle_handler(run_configs)
-
-    @user_context_aggregator.event_handler("on_user_turn_idle")
-    async def on_user_turn_idle(aggregator):
-        await user_idle_handler.handle_idle(aggregator)
-
-    @user_context_aggregator.event_handler("on_user_turn_started")
-    async def on_user_turn_started(aggregator, strategy):
-        user_idle_handler.reset()
+    # [.mark] The agent's own idle reminders, handed to the upstream call
+    # monitor's decision (collision 4 of the 25/09 analysis): without this the
+    # three settings on screen would have no effect.
+    engine.regler_relances(run_configs)
 
     recording_router = None
 
@@ -1385,7 +1427,8 @@ async def _run_pipeline_impl(
         )
     # Recording router is only meaningful in non-realtime mode (it routes between
     # pre-recorded audio playback and dynamic TTS; realtime LLMs produce audio
-    # directly).
+    # directly). It starts as a passthrough; node preparation enables it using
+    # the same formatted-prompt check that adds recording mode instructions.
     if not is_realtime and has_recordings:
         recording_router = RecordingRouterProcessor(
             audio_sample_rate=audio_config.pipeline_sample_rate,
@@ -1400,6 +1443,11 @@ async def _run_pipeline_impl(
             )
         )
 
+    # [.mark] The call's gathered variables, read live (the name arrives with
+    # the extraction, during the call). Shared by every agent of the call.
+    def variables_appel() -> dict:
+        return engine._gathered_context.get("extracted_variables", {})
+
     # Build the pipeline
     if is_realtime:
         pipeline = build_realtime_pipeline(
@@ -1408,7 +1456,13 @@ async def _run_pipeline_impl(
             audio_buffer,
             user_context_aggregator,
             assistant_context_aggregator,
-            pipeline_engine_callback_processor,
+            call_monitor_processor,
+            # No agent worker to carry it, so the realtime service's own
+            # generation stage reports from the call pipeline.
+            AgentGenerationProcessor(
+                generation_started_callback=engine.create_generation_started_callback(),
+                llm_text_frame_callback=engine.handle_llm_text_frame,
+            ),
             pipeline_metrics_aggregator,
             termination_funnel,
         )
@@ -1417,14 +1471,20 @@ async def _run_pipeline_impl(
             transport,
             stt,
             audio_buffer,
-            llm,
-            tts,
             user_context_aggregator,
             assistant_context_aggregator,
-            pipeline_engine_callback_processor,
+            call_monitor_processor,
+            [
+                AgentBridgeProcessor(
+                    bus=worker_runner.bus,
+                    worker_name=call_worker_name,
+                    selected_visit=lambda: engine.selected_visit_id,
+                    allow_inference=lambda: not engine.transfer_in_progress,
+                    name=f"{call_worker_name}::AgentBridge",
+                )
+            ],
             pipeline_metrics_aggregator,
             termination_funnel,
-            recording_router=recording_router,
             answer_supervisor=answer_supervisor,
             # [.mark] Caller reading (nombres-dictes, one step for numbers and
             # towns): the agent's two switches and language, the business
@@ -1434,7 +1494,7 @@ async def _run_pipeline_impl(
                 run_configs,
                 user_config.stt,
                 adresse_etablissement,
-                lambda: engine._current_node,
+                lambda: engine.active_agent.current_node,
                 consigner_dans(lambda: engine._gathered_context),
             ),
             # [.mark] Trade vocabulary (plan lexique-metier): the names of the
@@ -1442,15 +1502,8 @@ async def _run_pipeline_impl(
             reconnaissance_lexique=creer_reconnaissance_lexique(
                 run_configs,
                 lexique_metier,
-                lambda: engine._current_node,
+                lambda: engine.active_agent.current_node,
                 consigner_dans(lambda: engine._gathered_context),
-            ),
-            # [.mark] Interdire de PRONONCER le nom et la civilité. L'état est
-            # vivant : le nom n'est pas connu au montage du pipeline, il arrive
-            # avec l'extraction, pendant l'appel.
-            filtre_nom_civilite=creer_filtre_nom_civilite(
-                run_configs,
-                lambda: engine._gathered_context.get("extracted_variables", {}),
             ),
         )
 
@@ -1467,7 +1520,12 @@ async def _run_pipeline_impl(
             logger.warning(f"[.mark] Trade vocabulary not recorded: {erreur!r}")
 
     # Create pipeline task with audio configuration
-    task = create_pipeline_task(pipeline, workflow_run_id, audio_config)
+    task = create_pipeline_task(
+        pipeline,
+        workflow_run_id,
+        audio_config,
+        name=call_worker_name,
+    )
     transcript_log_coordinator = TranscriptLogCoordinator(in_memory_logs_buffer)
     if task.turn_tracking_observer is None:
         raise RuntimeError("Transcript logging requires turn tracking to be enabled")
@@ -1484,15 +1542,85 @@ async def _run_pipeline_impl(
         )
 
     # Now set the task and transport output on the engine
-    engine.set_task(task)
+    engine.call_worker = task
     engine.set_transport_output(transport.output())
 
-    # Add the observer before initialization so early ErrorFrames are not missed.
+    from api.services.observability.call_events.runtime import create_session
+
+    call_events_session = await create_session(
+        organization_id=workflow.organization_id,
+        run_id=workflow_run_id,
+        workflow_id=workflow_id,
+        engine=engine,
+    )
+    if call_events_session is not None:
+        call_events_session.attach(
+            task, user_context_aggregator, call_monitor_processor
+        )
+
+    # Share frame-ID deduplication across the call and all agent workers.
     feedback_observer = RealtimeFeedbackObserver(
         ws_sender=ws_sender,
         logs_buffer=in_memory_logs_buffer,
+        selected_visit=lambda: engine.selected_visit_id,
+        call_event_recorder=call_events_session.recorder
+        if call_events_session
+        else None,
     )
     task.add_observer(feedback_observer)
+    engine.greeting.log_generated_speech = feedback_observer.log_speech
+
+    if not is_realtime:
+
+        def _agent_generation_callbacks(visit_id: str) -> AgentGenerationCallbacks:
+            # Tagged with the visit so a retired agent finishing its last
+            # generation cannot corrupt the running agent's transcript
+            # correction, which is call-scoped.
+            return AgentGenerationCallbacks(
+                generation_started=engine.create_generation_started_callback(visit_id),
+                llm_text_frame=engine.create_llm_text_frame_callback(visit_id),
+            )
+
+        agent_factory = AgentRuntimeFactory(
+            organization_id=workflow.organization_id,
+            workflow_run_id=workflow_run_id,
+            call_worker=task,
+            audio_config=audio_config,
+            callbacks_factory=_agent_generation_callbacks,
+            fetch_recording_audio=fetch_audio,
+            has_recordings=has_recordings,
+            mps_correlation_id=mps_correlation_id,
+            on_agent_error=engine.handle_agent_error,
+            use_draft=bool(workflow_run.extra.get("use_draft")),
+            observers=[feedback_observer],
+            # [.mark] What a later agent needs to be built like the first one:
+            # the organization's trade vocabulary (pronunciations of the voice)
+            # and the live gathered variables (name and civility filter).
+            lexique_metier=lexique_metier,
+            variables_appel=variables_appel,
+        )
+        engine.set_agent_factory(agent_factory)
+        # The agent this call starts on. Its services were resolved above from
+        # the run's own pinned definition; a later visit resolves its own the
+        # same way. The worker is attached once the call pipeline is running,
+        # in `PipecatEngine.start_initial_agent`.
+        agent = engine.active_agent
+        agent.workflow_id = workflow_id
+        agent.definition_id = run_definition.id
+        agent.workflow_name = workflow.name
+        agent.tts = tts
+        agent.recording_router = recording_router
+        agent.user_config = user_config
+        agent.runtime_configuration = runtime_configuration
+        agent.is_child = True
+        agent.worker = None
+        # [.mark] Interdire de PRONONCER le nom et la civilité, dans le
+        # sous-circuit de l'agent, juste avant sa voix (découpage par agent de
+        # l'amont, fc76383c). L'état est vivant : le nom n'est pas connu au
+        # montage, il arrive avec l'extraction, pendant l'appel.
+        agent.filtre_nom_civilite = creer_filtre_nom_civilite(
+            run_configs, variables_appel
+        )
 
     # Initialize the engine to set the initial context with
     # System Prompt and Tools
@@ -1592,6 +1720,7 @@ async def _run_pipeline_impl(
         answer_supervisor=answer_supervisor,
         user_provider_id=user_provider_id,
         integration_runtime_sessions=integration_runtime_sessions,
+        call_events_session=call_events_session,
         include_transcript_end_timestamps=include_transcript_end_timestamps,
         reglages_annonce=reglages_annonce,
         direction_appel=call_direction,
@@ -1601,7 +1730,7 @@ async def _run_pipeline_impl(
 
     try:
         # Run the pipeline
-        await run_pipeline_worker(task)
+        await run_worker_runner(worker_runner, task)
         logger.info(f"Task completed for run {workflow_run_id}")
     except asyncio.CancelledError:
         logger.warning("Received CancelledError in _run_pipeline")
@@ -1610,6 +1739,18 @@ async def _run_pipeline_impl(
         # scopes opened by MCPClient.start() in engine.initialize() are
         # task-affine; this finally runs in the same task as initialize(),
         # whereas engine.cleanup() runs in a pipecat event-handler task.
+        if call_events_session is not None:
+            # Fallback for cancellation or failures in unrelated completion
+            # work. Normal completion already sealed this session.
+            try:
+                await call_events_session.finish()
+            except (Exception, asyncio.CancelledError) as exc:
+                # Diagnostic failures must not skip MCP or observer cleanup.
+                logger.warning(
+                    "Error finalizing call events during cleanup for workflow run {} ({})",
+                    workflow_run_id,
+                    type(exc).__name__,
+                )
         await engine.close_mcp_sessions()
         await feedback_observer.cleanup()
         logger.debug(f"Cleaned up context providers for workflow run {workflow_run_id}")

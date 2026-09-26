@@ -48,7 +48,10 @@ class WorkflowRunClient(BaseDBClient):
         queued_run_id: int = None,
         organization_id: int | None = None,
         definition_id: int | None = None,
+        use_draft: bool = False,
+        campaign_traffic_split: dict | None = None,
     ) -> WorkflowRunModel:
+        """Create a run."""
         async with self.async_session() as session:
             workflow_query = (
                 select(WorkflowModel)
@@ -95,6 +98,14 @@ class WorkflowRunClient(BaseDBClient):
                 queued_run_id=queued_run_id,
                 storage_backend=current_backend.value,
                 call_type=call_type.value,
+                extra={
+                    "use_draft": use_draft,
+                    **(
+                        {"campaign_traffic_split": campaign_traffic_split}
+                        if campaign_traffic_split
+                        else {}
+                    ),
+                },
             )
             session.add(new_run)
             try:

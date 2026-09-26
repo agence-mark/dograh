@@ -85,6 +85,8 @@ def test_lestampille_couvre_chaque_reglage_expose():
                 "conversion_nombres",
                 "verification_communes",
                 "variables_commune",
+                "accueil_",
+                "raccrochage_",
             )
         )
     }

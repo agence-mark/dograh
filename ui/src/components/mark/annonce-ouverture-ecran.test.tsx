@@ -329,6 +329,16 @@ describe("[.mark] the announcement settings, on the Platform Settings page", () 
         await waitFor(() => expect(champ("etat_force_jusqu_a")).not.toBeNull());
     });
 
+    it("[E3, 25/09] offers no BigQuery export: the Call events card is not on the page", async () => {
+        // Decision of Evan for the rise to upstream 4e6cb22b: the call-event
+        // export (BigQuery, its only destination) is neutralised and absent
+        // from the screen; the server refuses it anyway.
+        render(<PageReglagesPlateforme />);
+        await screen.findByText("Closed-business announcement");
+        expect(screen.queryByText("Call events")).toBeNull();
+        expect(document.body.textContent).not.toMatch(/bigquery/i);
+    });
+
     it("the agent's Opening Hours card points at it", async () => {
         // Without this line, nobody would know where the sentences went.
         const { SectionHorairesOuverture } = await import("./SectionHorairesOuverture");

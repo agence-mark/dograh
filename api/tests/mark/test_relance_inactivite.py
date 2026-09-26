@@ -19,8 +19,6 @@ that it answers in French. Both instructions already ask it to answer in the
 caller's language; whether it does is heard on a call, not asserted here.
 """
 
-import inspect
-
 import pytest
 
 from api.schemas.workflow_configurations import (
@@ -29,7 +27,8 @@ from api.schemas.workflow_configurations import (
     DEFAULT_USER_IDLE_PROMPT,
     WorkflowConfigurationDefaults,
 )
-from api.services.workflow.pipecat_engine_callbacks import create_user_idle_handler
+from api.services.pipecat.call_monitor_processor import CallMonitorProcessor
+from api.services.workflow.pipecat_engine_callbacks import handle_user_idle
 
 
 class _AgregateurFactice:
@@ -44,8 +43,13 @@ class _AgregateurFactice:
 
 
 class _MoteurFactice:
-    def __init__(self):
+    """Since upstream 4e6cb22b the call monitor counts the silences and hands
+    each one to ``handle_user_idle`` with its number; the agent's settings are
+    those given to ``PipecatEngine.regler_relances`` at call setup."""
+
+    def __init__(self, run_configs=None):
         self.raccroche = None
+        self.reglages_relances = dict(run_configs or {})
 
     async def end_call_with_reason(self, reason):
         self.raccroche = reason
@@ -53,11 +57,10 @@ class _MoteurFactice:
 
 async def _jouer(run_configs, silences: int):
     """Play `silences` consecutive idle events and report what came out."""
-    moteur = _MoteurFactice()
-    handler = create_user_idle_handler(moteur, run_configs)
+    moteur = _MoteurFactice(run_configs)
     agregateur = _AgregateurFactice()
-    for _ in range(silences):
-        await handler.handle_idle(agregateur)
+    for tentative in range(1, silences + 1):
+        await handle_user_idle(moteur, agregateur, tentative)
     return agregateur.consignes, moteur
 
 
@@ -159,18 +162,30 @@ async def test_un_null_enregistre_ne_devient_pas_un_texte_vide():
     assert consignes == [DEFAULT_USER_IDLE_PROMPT, DEFAULT_USER_IDLE_GOODBYE_PROMPT]
 
 
-@pytest.mark.asyncio
-async def test_le_compteur_repart_quand_la_personne_reparle():
-    moteur = _MoteurFactice()
-    handler = create_user_idle_handler(moteur, None)
-    agregateur = _AgregateurFactice()
+def test_le_compteur_repart_quand_la_personne_reparle():
+    """The count now lives in upstream's call monitor: when the caller speaks
+    again it starts over, so the next silence is prompted again rather than
+    answered with the goodbye."""
+    moniteur = CallMonitorProcessor(
+        response_source=lambda: None,
+        on_response_timeout=lambda _source: None,
+        on_user_idle=None,
+        conversation_enabled=lambda: True,
+    )
+    moniteur._retry_count = 1
+    moniteur._user_started()
+    assert moniteur._retry_count == 0
 
-    await handler.handle_idle(agregateur)
-    handler.reset()
-    await handler.handle_idle(agregateur)
 
-    assert agregateur.consignes == [DEFAULT_USER_IDLE_PROMPT, DEFAULT_USER_IDLE_PROMPT]
-    assert moteur.raccroche is None
+def test_la_configuration_de_l_agent_est_donnee_au_moteur_a_l_appel():
+    """Without ``regler_relances`` at call setup, the three settings on screen
+    would have no effect (collision 4 of the 25/09 analysis)."""
+    import inspect
+
+    from api.services.pipecat import run_pipeline
+
+    assert "engine.regler_relances(run_configs)" in inspect.getsource(run_pipeline)
+
 
 # The matching guard -- "does the pipeline actually hand the configuration
 # over" -- lives in test_transmission_de_la_configuration.py, which asserts it

@@ -107,6 +107,9 @@ export default function SettingsPage() {
             <TelemetrySection />
           </CardContent>
         </Card>
+        {/* [.mark] No "Call events" card: its only destination is the
+            BigQuery export, neutralised by decision of Evan (25/09/2026, E3)
+            and refused by the server whatever a configuration asks. */}
       </div>
     </div>
   );

@@ -16,8 +16,6 @@ obtenu **par un test qui joue la chaîne**, jamais par la lecture du code : le
 21/09, une lecture de code avait conclu l'inverse de ce que la sonde a montré.
 """
 
-from types import SimpleNamespace
-
 import pytest
 from pipecat.frames.frames import (
     Frame,
@@ -34,7 +32,7 @@ from api.services.pipecat.filtre_nom_civilite import (
     FiltreNomCiviliteProcessor,
     creer_filtre_nom_civilite,
 )
-from api.services.pipecat.pipeline_builder import build_pipeline
+from api.services.pipecat.pipeline_builder import build_agent_generation_pipeline
 from pipecat.tests import run_test
 
 DEMARRAGE_S = 15
@@ -186,20 +184,14 @@ async def test_ce_qui_est_retire_ne_revient_PAS_dans_la_memoire_du_modele():
 
 
 def _composants():
-    transport = SimpleNamespace(
-        input=lambda: FrameProcessor(), output=lambda: FrameProcessor()
-    )
+    """The arguments of ``build_agent_generation_pipeline``: since the upstream
+    split per agent (fc76383c), the voice runs in the agent's own worker, and
+    so does the filter placed just before it."""
     return {
-        "transport": transport,
-        "stt": FrameProcessor(),
-        "audio_buffer": FrameProcessor(),
         "llm": FrameProcessor(),
         "tts": FrameProcessor(),
-        "user_context_aggregator": FrameProcessor(),
-        "assistant_context_aggregator": FrameProcessor(),
-        "pipeline_engine_callback_processor": FrameProcessor(),
-        "pipeline_metrics_aggregator": FrameProcessor(),
-        "termination_funnel": FrameProcessor(),
+        "generation_callback_processor": FrameProcessor(),
+        "recording_router": FrameProcessor(),
     }
 
 
@@ -207,7 +199,9 @@ def test_le_filtre_se_place_JUSTE_avant_la_voix():
     composants = _composants()
     etape = _filtre()
 
-    processeurs = build_pipeline(**composants, filtre_nom_civilite=etape).processors
+    processeurs = build_agent_generation_pipeline(
+        **composants, filtre_nom_civilite=etape
+    ).processors
 
     assert processeurs[processeurs.index(etape) + 1] is composants["tts"], (
         "le filtre n'est plus immédiatement avant la voix : un processeur "
@@ -220,8 +214,10 @@ def test_sans_filtre_le_pipeline_est_celui_daujourdhui():
     agents existants -- ne doivent RIEN changer à la chaîne."""
     composants = _composants()
 
-    sans = build_pipeline(**composants).processors
-    avec_none = build_pipeline(**composants, filtre_nom_civilite=None).processors
+    sans = build_agent_generation_pipeline(**composants).processors
+    avec_none = build_agent_generation_pipeline(
+        **composants, filtre_nom_civilite=None
+    ).processors
 
     assert [type(p) for p in sans] == [type(p) for p in avec_none]
 
@@ -257,16 +253,25 @@ def test_le_chemin_telephonique_construit_bien_le_filtre():
 
     from api.services.pipecat import run_pipeline
 
+    from api.services.pipecat import agent_runtime_factory
+
     source = inspect.getsource(run_pipeline)
 
-    assert "filtre_nom_civilite=creer_filtre_nom_civilite(" in source, (
-        "run_pipeline ne construit plus le filtre : les deux interrupteurs "
-        "seraient à l'écran et sans effet, ce qui est pire que leur absence."
+    assert "agent.filtre_nom_civilite = creer_filtre_nom_civilite(" in source, (
+        "run_pipeline ne construit plus le filtre du premier agent : les deux "
+        "interrupteurs seraient à l'écran et sans effet, ce qui est pire que "
+        "leur absence."
     )
     assert "extracted_variables" in source, (
         "le filtre ne reçoit plus les variables extraites : il ne connaîtrait "
         "jamais le nom de l'appelant."
     )
+    # Depuis le découpage par agent (fc76383c), le filtre est posé dans le
+    # sous-circuit de l'agent : la fabrique doit le transmettre au montage, et
+    # un agent reçu par transfert doit construire le sien.
+    fabrique = inspect.getsource(agent_runtime_factory)
+    assert "filtre_nom_civilite=runtime.filtre_nom_civilite" in fabrique
+    assert "filtre_nom_civilite=creer_filtre_nom_civilite(" in fabrique
 
 
 # ─── Ce que la relecture indépendante du 22/09 a trouvé ──────────────────────
