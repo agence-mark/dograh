@@ -1525,6 +1525,7 @@ async def _run_pipeline_impl(
                 adresse_etablissement,
                 lambda: engine.active_agent.current_node,
                 consigner_dans(lambda: engine._gathered_context),
+                lexique=lexique_metier,
             ),
             # [.mark] Trade vocabulary (plan lexique-metier): the names of the
             # trade written properly before the numbers and the towns are read.
