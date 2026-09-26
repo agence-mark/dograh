@@ -473,15 +473,30 @@ async def test_les_traces_sont_ecrites():
 
 
 def test_la_trace_du_lexique_dit_ce_que_lappel_a_utilise():
-    trace = trace_du_lexique(LEXIQUE, ["Edilkamin", "Supra"], False)
+    from api.services.configuration.plafond_lexique import plafond_du_lexique
+    from api.services.lexique.ecoute import ListeEcoutee
+
+    deepgram = plafond_du_lexique("deepgram", "flux-general-multi")
+    trace = trace_du_lexique(
+        LEXIQUE, ListeEcoutee(termes=["Edilkamin", "Supra"], non_envoyes=[], jetons=9, plafond=deepgram)
+    )
     assert trace == {
         "termes": 4,
         "noms": 3,
         "envoyes_a_flux": ["Edilkamin", "Supra"],
         "liste_tronquee": False,
+        "non_envoyes": [],
+        "jetons": 9,
+        "plafond_jetons": deepgram.jetons,
+        "fournisseur_du_plafond": "Deepgram",
         "prononciations": 0,
     }
-    assert trace_du_lexique(LEXIQUE, [], True)["liste_tronquee"] is True
+    coupee = trace_du_lexique(
+        LEXIQUE, ListeEcoutee(termes=[], non_envoyes=["Supra"], jetons=0, plafond=None)
+    )
+    assert coupee["liste_tronquee"] is True
+    assert coupee["non_envoyes"] == ["Supra"]
+    assert coupee["plafond_jetons"] is None
 
 
 # --------------------------------------------------------------------------- #

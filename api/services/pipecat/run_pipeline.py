@@ -21,13 +21,14 @@ from api.services.communes.adresse import (
     injecter_adresse_etablissement,
     lire_adresse_etablissement,
 )
+from api.services.configuration.plafond_lexique import plafond_du_lexique
 from api.services.configuration.registry import ServiceProviders
 from api.services.integrations import (
     IntegrationRuntimeContext,
     create_runtime_sessions,
 )
 from api.services.lexique.ecoute import (
-    construire_liste_flux,
+    construire_liste_ecoutee,
     injecter_lexique_a_ecouter,
 )
 from api.services.lexique.reglages import lire_lexique_de_lappel
@@ -910,13 +911,6 @@ async def _run_pipeline_impl(
     # Extract configurations from the version's workflow_configurations
     max_call_duration_seconds = DEFAULT_MAX_CALL_DURATION_SECONDS
     max_user_idle_timeout = DEFAULT_MAX_USER_IDLE_TIMEOUT_SECONDS
-    # [.mark] The agent's Dictionary first, then the terms ticked in the trade
-    # vocabulary, within one budget (L7, T11). Without a vocabulary this is
-    # exactly the list of before.
-    termes_ecoutes, ecoute_tronquee = construire_liste_flux(
-        (run_configs or {}).get("dictionary"), lexique_metier
-    )
-    keyterms = termes_ecoutes or None  # Terms the transcription listens for
     # [.mark] The ticked names are given to the agent as {{lexique_a_ecouter}}
     # (Q1 = B): one source for "which brands do you sell?", and a name added on
     # screen is said without republishing the agent.
@@ -949,6 +943,20 @@ async def _run_pipeline_impl(
         )
     else:
         user_config = resolved_user_config
+
+    # [.mark] The agent's Dictionary first, then the terms ticked in the trade
+    # vocabulary, within the ceiling DECLARED WITH the transcription provider
+    # (plan « le lexique », Q1): built here, once the provider and its model are
+    # known. A provider with no declared ceiling receives no list.
+    liste_ecoutee = construire_liste_ecoutee(
+        (run_configs or {}).get("dictionary"),
+        lexique_metier,
+        plafond_du_lexique(
+            getattr(getattr(user_config, "stt", None), "provider", None),
+            getattr(getattr(user_config, "stt", None), "model", None),
+        ),
+    )
+    keyterms = liste_ecoutee.termes or None  # Terms the transcription listens for
 
     workflow_graph = WorkflowGraph(
         ReactFlowDTO.model_validate(run_workflow_json),
@@ -1513,7 +1521,7 @@ async def _run_pipeline_impl(
     if not is_realtime and lexique_metier.termes:
         try:
             consigner_dans(lambda: engine._gathered_context)(
-                trace_du_lexique(lexique_metier, termes_ecoutes, ecoute_tronquee),
+                trace_du_lexique(lexique_metier, liste_ecoutee),
                 CLE_TRACE_LEXIQUE,
             )
         except Exception as erreur:  # noqa: BLE001 -- a record never costs a call

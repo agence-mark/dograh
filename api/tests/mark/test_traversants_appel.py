@@ -28,6 +28,7 @@ la fabrique de voix, elle, est la vraie, avec ses filtres et ses transformations
 | fiche + nom | `noter_information` écrit le nom dans la fiche de l'appel, en base, et la voix ne le prononce jamais |
 | relance | après un silence, le modèle reçoit la consigne de relance de l'agent |
 | micro | `mute_always` réglé en base est dans l'agrégateur réel de l'appel, absent sinon |
+| plafond du lexique | la liste remise à la transcription tient sous le plafond déclaré avec le fournisseur, dictionnaire de l'agent en tête |
 
 ⛔ Chacun a été éprouvé en débranchant sa fonctionnalité : il rougit (journal du
 chantier). Un test traversant qui reste vert fonctionnalité débranchée ne
@@ -38,6 +39,7 @@ montées de version (règle du 08/09).
 """
 
 import asyncio
+import contextlib
 import copy
 import functools
 import uuid
@@ -217,6 +219,7 @@ async def _appeler(
     *,
     fin_attendue: bool = False,
     apres=None,
+    fabrique_stt=None,
 ):
     """Joue un appel : accueil, puis chaque parole attend la réponse du modèle.
 
@@ -243,6 +246,12 @@ async def _appeler(
         # fournisseur est faux.
         patch("api.services.pipecat.run_pipeline.create_tts_service", vraie_fabrique_de_voix),
         patch.object(service_factory, "CartesiaTTSService", _fausse_cartesia(voix)),
+        # Une transcription à soi (par défaut, celle du harnais : un passe-plat).
+        (
+            patch("api.services.pipecat.run_pipeline.create_stt_service", fabrique_stt)
+            if fabrique_stt is not None
+            else contextlib.nullcontext()
+        ),
     ):
         try:
             appel = asyncio.create_task(
@@ -594,3 +603,42 @@ async def test_E2_le_raccrochage_regle_arrive_au_moniteur_de_l_appel(
 
     await _appeler(montage, llm, [], apres=relever)
     assert delais == [attendu]
+
+
+# --------------------------------------------------------------------------- #
+# Le lexique envoyé à la transcription (plan « le lexique », L1 et L2)
+# --------------------------------------------------------------------------- #
+
+
+def _lexique_coche(n: int) -> dict:
+    return {"termes": [{"terme": f"Marque{i:03d}", "a_ecouter": True} for i in range(n)]}
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_la_liste_remise_a_la_transcription_tient_sous_le_plafond_du_fournisseur(
+    db_session, async_session
+):
+    """Le vrai appel construit la liste avec le plafond du fournisseur de
+    l'organisation (Deepgram, dans la configuration montée) : dictionnaire de
+    l'agent en tête, puis les termes cochés, la fin coupée."""
+    from api.services.configuration.plafond_lexique import jetons_du_terme, plafond_du_lexique
+    from api.tests.integrations._run_pipeline_helpers import PassthroughProcessor
+
+    montage = await _monter(
+        db_session, async_session, {"dictionary": "ramonage, insert"}, lexique=_lexique_coche(400)
+    )
+    recues = []
+
+    def transcription(*_args, keyterms=None, **_kwargs):
+        recues.append(list(keyterms or []))
+        return PassthroughProcessor()
+
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    await _appeler(montage, llm, ["bonjour"], fabrique_stt=transcription)
+    plafond = plafond_du_lexique("deepgram", USER_CONFIGURATION["stt"]["model"])
+    assert len(recues) == 1
+    liste = recues[0]
+    assert liste[:3] == ["ramonage", "insert", "Marque000"]
+    assert 3 < len(liste) < 402, len(liste)
+    assert sum(jetons_du_terme(t, plafond) for t in liste) <= plafond.jetons

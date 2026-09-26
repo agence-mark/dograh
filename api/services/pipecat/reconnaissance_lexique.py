@@ -41,7 +41,7 @@ from api.services.lexique.correction import (
     partie_de_lappelant,
     reecrire,
 )
-from api.services.lexique.ecoute import prononciations_du_lexique
+from api.services.lexique.ecoute import ListeEcoutee, prononciations_du_lexique
 from api.services.lexique.reglages import interrupteur_allume
 from api.services.pipecat.verification_communes import sons_allumes
 from pipecat.frames.frames import Frame, LLMContextFrame, StartFrame
@@ -117,15 +117,18 @@ def _trace(detection, etape: str | None) -> dict:
     }
 
 
-def trace_du_lexique(
-    lexique: LexiqueMetier, envoyes_a_flux: list[str], liste_tronquee: bool
-) -> dict:
-    """What the call ran with (T10): sizes, and the terms sent to the transcription."""
+def trace_du_lexique(lexique: LexiqueMetier, liste: ListeEcoutee) -> dict:
+    """What the call ran with (T10): sizes, the terms sent to the transcription,
+    and the ceiling they were counted against (plan « le lexique », Q1, Q2)."""
     return {
         "termes": len(lexique.termes),
         "noms": len(noms_a_reconnaitre(lexique)),
-        "envoyes_a_flux": list(envoyes_a_flux),
-        "liste_tronquee": bool(liste_tronquee),
+        "envoyes_a_flux": list(liste.termes),
+        "liste_tronquee": liste.tronquee,
+        "non_envoyes": list(liste.non_envoyes),
+        "jetons": liste.jetons,
+        "plafond_jetons": liste.plafond.jetons if liste.plafond else None,
+        "fournisseur_du_plafond": liste.plafond.fournisseur if liste.plafond else None,
         "prononciations": len(prononciations_du_lexique(lexique)),
     }
 
