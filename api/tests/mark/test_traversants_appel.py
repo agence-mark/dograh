@@ -783,3 +783,16 @@ async def test_une_marque_epelee_ne_remplace_pas_le_nom(db_session, async_sessio
     assert fiche.get("marque") == "MCZ", fiche.get("fiche_journal")
     refus = [e for e in fiche["fiche_journal"] if e.get("raison") == "terme_du_lexique_epele"]
     assert refus and refus[0]["champ"] == "nom"
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_un_telephone_ecrit_en_chiffres_arrive_au_modele_sans_fausse_reference(
+    db_session, async_session
+):
+    """N1 : la transcription a écrit le téléphone avec des points. Le modèle le
+    reçoit comme un téléphone, sans la fausse note « référence 06 » d'avant."""
+    montage = await _monter(db_session, async_session, {"conversion_nombres_transcription": True})
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    await _appeler(montage, llm, ["mon numéro c'est 06.12.34.56.78"])
+    assert _derniere_parole_recue(llm) == "mon numéro c'est 06 12 34 56 78"

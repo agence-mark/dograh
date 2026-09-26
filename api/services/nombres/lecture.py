@@ -278,6 +278,17 @@ class _Phrase:
         entre = self.texte[self.jetons[i].fin:self.jetons[i + 1].debut]
         return re.fullmatch(r"\s*,\s*", entre) is not None
 
+    def decimales_apres(self, fin: int) -> bool:
+        """N1: is the run ending at ``fin`` followed by the decimals of an amount
+        written in digits (« 3 500,50 € »)? The comma is not a clause there."""
+        if fin <= 0 or fin >= len(self.jetons):
+            return False
+        return (
+            self.mots[fin - 1].isdigit()
+            and re.fullmatch(r"\d{1,2}", self.mots[fin]) is not None
+            and self.texte[self.jetons[fin - 1].fin:self.jetons[fin].debut] == ","
+        )
+
     def elide(self, i: int) -> bool:
         fin = self.jetons[i].fin
         return self.texte[fin:fin + 1] in tuple(_APOSTROPHES) if fin < len(self.texte) else False
@@ -344,7 +355,13 @@ def _est_telephone(p: _Phrase, debut: int, fin: int) -> bool:
     return (
         debut > 0
         and p.mots[debut - 1] == "plus"
-        and p.mots[debut:debut + 2] == ["trente", "trois"]
+        and (
+            p.mots[debut:debut + 2] == ["trente", "trois"]
+            # N1 (plan « le lexique », 26/09): the same, written in digits by the
+            # transcription (« +33 6 12 34 56 78 », « +33612345678 »).
+            or p.mots[debut] == "33"
+            or (len(chiffres) == 11 and chiffres.startswith("33"))
+        )
     )
 
 
@@ -533,8 +550,10 @@ def lire_nombres(
             lus.append(NombreLu(d, f0, p.extrait(d, f0), TELEPHONE, _alpha2digit(p.extrait(d, f0))))
             continue
 
-        # 2. Amount.
+        # 2. Amount. N1: « 3 500,50 € » -- the amount word comes after the decimals.
         debut_avant = d0 - len(avant3)
+        if p.decimales_apres(f0):
+            apres2 = apres2 + p.apres(f0 + 1, 2)
         if (
             any(m in _APRES_MONTANT for m in apres2)
             or any(
@@ -597,6 +616,40 @@ def lire_nombres(
         occupes = {k for n in lus for k in range(n.debut, n.fin)}
         lus.extend(_departements_nommes(p, departements, occupes))
     return sorted(lus, key=lambda n: n.debut)
+
+
+# --------------------------------------------------------------------------- #
+# N1 (plan « le lexique », 2026-09-26): numbers the transcription already wrote
+# in digits are read like the same numbers said in words.
+# --------------------------------------------------------------------------- #
+
+# Each rule puts a space, or a word, where the transcription glued what the
+# reader needs apart. Nothing else of the sentence changes.
+_DECOLLAGES: tuple[tuple[re.Pattern, str], ...] = (
+    # « 3500€ », « 20% » -> « 3500 € », « 20 % »: the unit is a word of its own.
+    (re.compile(r"(\d)(€|%)"), r"\1 \2"),
+    # « 14bis » -> « 14 bis », as it is said.
+    (re.compile(r"\b(\d+)(bis|ter|quater)\b", re.IGNORECASE), r"\1 \2"),
+    # « n°14 » -> « n° 14 »: « n° » announces the number, as « numéro » does.
+    (re.compile(r"\b([nN][°º])(\d)"), r"\1 \2"),
+    # « +33 6 12… », « +33612345678 » -> « plus 33 … », as it is said.
+    (re.compile(r"\+\s?33(?=\s?\d)"), "plus 33"),
+)
+# « 06.12.34.56.78 »: the dots of a phone are not the end of a sentence.
+_TELEPHONE_A_POINTS = re.compile(r"\b0\d(?:\.\d{2}){4}\b")
+
+
+def decoller_les_chiffres(texte: str) -> str:
+    """``texte`` with the numbers written in digits laid out as the reader reads
+    them in words. ⛔ Never raises: on any error, ``texte`` unchanged."""
+    try:
+        if not texte or not any(c.isdigit() for c in texte):
+            return texte
+        for motif, remplacement in _DECOLLAGES:
+            texte = motif.sub(remplacement, texte)
+        return _TELEPHONE_A_POINTS.sub(lambda m: m.group().replace(".", " "), texte)
+    except Exception:  # noqa: BLE001 -- the reading never costs a turn
+        return texte
 
 
 def reecrire(texte: str, nombres: list[NombreLu], choix_cp: dict[int, str] | None = None) -> str:
