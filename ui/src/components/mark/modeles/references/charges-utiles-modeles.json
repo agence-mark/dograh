@@ -1,0 +1,732 @@
+{
+  "situations": {
+    "mistral": {
+      "champs": [
+        "model",
+        "base_url",
+        "temperature",
+        "seed",
+        "max_tokens",
+        "top_p",
+        "frequency_penalty",
+        "presence_penalty"
+      ],
+      "sansModification": {
+        "llm": {
+          "provider": "mistral",
+          "api_key": [
+            "cle-llm"
+          ],
+          "model": "mistral-large-2512",
+          "base_url": "https://api.eu.mistral.ai/v1",
+          "temperature": 0.1
+        },
+        "tts": {
+          "provider": "elevenlabs",
+          "api_key": [
+            "cle-tts"
+          ],
+          "model": "eleven_flash_v2_5",
+          "voice": "21m00Tcm4TlvDq8ikWAM",
+          "speed": 1,
+          "base_url": "https://api.elevenlabs.io"
+        },
+        "stt": {
+          "provider": "deepgram",
+          "api_key": [
+            "cle-stt"
+          ],
+          "model": "nova-3-general",
+          "language": "multi",
+          "base_url": "https://api.eu.deepgram.com",
+          "endpointing": 100,
+          "interim_results": true,
+          "punctuate": true,
+          "profanity_filter": false,
+          "eot_threshold": 0.7,
+          "eager_eot_threshold": 0.5,
+          "eot_timeout_ms": 3000
+        },
+        "is_realtime": false
+      },
+      "modifications": {
+        "base_url": {
+          "geste": "texte",
+          "modifiees": {
+            "base_url": "https://essai.example"
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "temperature": {
+          "geste": "nombre",
+          "modifiees": {
+            "temperature": 0.75
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "seed": {
+          "geste": "nombre",
+          "modifiees": {
+            "seed": 5
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "max_tokens": {
+          "geste": "nombre",
+          "modifiees": {
+            "max_tokens": 6
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "top_p": {
+          "geste": "nombre",
+          "modifiees": {
+            "top_p": 0.5
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "frequency_penalty": {
+          "geste": "nombre",
+          "modifiees": {
+            "frequency_penalty": 0
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "presence_penalty": {
+          "geste": "nombre",
+          "modifiees": {
+            "presence_penalty": 0
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        }
+      }
+    },
+    "elevenlabs": {
+      "champs": [
+        "voice",
+        "speed",
+        "model",
+        "base_url"
+      ],
+      "sansModification": {
+        "llm": {
+          "provider": "mistral",
+          "api_key": [
+            "cle-llm"
+          ],
+          "model": "mistral-large-2512",
+          "base_url": "https://api.eu.mistral.ai/v1",
+          "temperature": 0.1
+        },
+        "tts": {
+          "provider": "elevenlabs",
+          "api_key": [
+            "cle-tts"
+          ],
+          "model": "eleven_flash_v2_5",
+          "voice": "21m00Tcm4TlvDq8ikWAM",
+          "speed": 1,
+          "base_url": "https://api.elevenlabs.io"
+        },
+        "stt": {
+          "provider": "deepgram",
+          "api_key": [
+            "cle-stt"
+          ],
+          "model": "nova-3-general",
+          "language": "multi",
+          "base_url": "https://api.eu.deepgram.com",
+          "endpointing": 100,
+          "interim_results": true,
+          "punctuate": true,
+          "profanity_filter": false,
+          "eot_threshold": 0.7,
+          "eager_eot_threshold": 0.5,
+          "eot_timeout_ms": 3000
+        },
+        "is_realtime": false
+      },
+      "modifications": {
+        "voice": {
+          "geste": "voix",
+          "modifiees": {
+            "voice": "voix-essai"
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "speed": {
+          "geste": "nombre",
+          "modifiees": {
+            "speed": 1.05
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "base_url": {
+          "geste": "texte",
+          "modifiees": {
+            "base_url": "https://essai.example"
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        }
+      }
+    },
+    "deepgram-nova-3": {
+      "champs": [
+        "model",
+        "language",
+        "base_url",
+        "endpointing",
+        "utterance_end_ms",
+        "interim_results",
+        "punctuate",
+        "smart_format",
+        "numerals",
+        "dictation",
+        "profanity_filter",
+        "redact",
+        "replace",
+        "search",
+        "diarize",
+        "detect_entities",
+        "region",
+        "mip_opt_out"
+      ],
+      "sansModification": {
+        "llm": {
+          "provider": "mistral",
+          "api_key": [
+            "cle-llm"
+          ],
+          "model": "mistral-large-2512",
+          "base_url": "https://api.eu.mistral.ai/v1",
+          "temperature": 0.1
+        },
+        "tts": {
+          "provider": "elevenlabs",
+          "api_key": [
+            "cle-tts"
+          ],
+          "model": "eleven_flash_v2_5",
+          "voice": "21m00Tcm4TlvDq8ikWAM",
+          "speed": 1,
+          "base_url": "https://api.elevenlabs.io"
+        },
+        "stt": {
+          "provider": "deepgram",
+          "api_key": [
+            "cle-stt"
+          ],
+          "model": "nova-3-general",
+          "language": "fr",
+          "base_url": "https://api.eu.deepgram.com",
+          "endpointing": 100,
+          "interim_results": true,
+          "punctuate": true,
+          "profanity_filter": false,
+          "eot_threshold": 0.7,
+          "eager_eot_threshold": 0.5,
+          "eot_timeout_ms": 3000
+        },
+        "is_realtime": false
+      },
+      "modifications": {
+        "base_url": "not typed (list or read-only)",
+        "endpointing": {
+          "geste": "nombre",
+          "modifiees": {
+            "endpointing": 30000
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "utterance_end_ms": {
+          "geste": "nombre",
+          "modifiees": {
+            "utterance_end_ms": 3000
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "interim_results": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "interim_results": false
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "punctuate": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "punctuate": false
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "smart_format": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "smart_format": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "numerals": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "numerals": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "dictation": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "dictation": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "profanity_filter": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "profanity_filter": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "redact": {
+          "geste": "etiquette",
+          "modifiees": {
+            "redact": [
+              "essai"
+            ]
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "replace": {
+          "geste": "etiquette",
+          "modifiees": {
+            "replace": [
+              "essai"
+            ]
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "search": {
+          "geste": "etiquette",
+          "modifiees": {
+            "search": [
+              "essai"
+            ]
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "diarize": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "diarize": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "detect_entities": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "detect_entities": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "region": "not typed (list or read-only)",
+        "mip_opt_out": "not typed (list or read-only)"
+      }
+    },
+    "deepgram-flux-multi": {
+      "champs": [
+        "model",
+        "language",
+        "base_url",
+        "eot_threshold",
+        "eager_eot_threshold",
+        "eot_timeout_ms",
+        "language_hints",
+        "min_confidence",
+        "region",
+        "mip_opt_out"
+      ],
+      "sansModification": {
+        "llm": {
+          "provider": "mistral",
+          "api_key": [
+            "cle-llm"
+          ],
+          "model": "mistral-large-2512",
+          "base_url": "https://api.eu.mistral.ai/v1",
+          "temperature": 0.1
+        },
+        "tts": {
+          "provider": "elevenlabs",
+          "api_key": [
+            "cle-tts"
+          ],
+          "model": "eleven_flash_v2_5",
+          "voice": "21m00Tcm4TlvDq8ikWAM",
+          "speed": 1,
+          "base_url": "https://api.elevenlabs.io"
+        },
+        "stt": {
+          "provider": "deepgram",
+          "api_key": [
+            "cle-stt"
+          ],
+          "model": "flux-general-multi",
+          "language": "fr",
+          "base_url": "https://api.eu.deepgram.com",
+          "endpointing": 100,
+          "interim_results": true,
+          "punctuate": true,
+          "profanity_filter": false,
+          "eot_threshold": 0.7,
+          "eager_eot_threshold": 0.5,
+          "eot_timeout_ms": 3000
+        },
+        "is_realtime": false
+      },
+      "modifications": {
+        "base_url": "not typed (list or read-only)",
+        "eot_threshold": {
+          "geste": "nombre",
+          "modifiees": {
+            "eot_threshold": 0.75
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "eager_eot_threshold": {
+          "geste": "nombre",
+          "modifiees": {
+            "eager_eot_threshold": 0.6
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "eot_timeout_ms": {
+          "geste": "nombre",
+          "modifiees": {
+            "eot_timeout_ms": 30250
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "language_hints": {
+          "geste": "etiquette",
+          "modifiees": {
+            "language_hints": [
+              "essai"
+            ]
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "min_confidence": {
+          "geste": "nombre",
+          "modifiees": {
+            "min_confidence": 0.5
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "region": "not typed (list or read-only)",
+        "mip_opt_out": "not typed (list or read-only)"
+      }
+    },
+    "deepgram-flux-en": {
+      "champs": [
+        "model",
+        "language",
+        "base_url",
+        "eot_threshold",
+        "eager_eot_threshold",
+        "eot_timeout_ms",
+        "min_confidence",
+        "region",
+        "mip_opt_out"
+      ],
+      "sansModification": {
+        "llm": {
+          "provider": "mistral",
+          "api_key": [
+            "cle-llm"
+          ],
+          "model": "mistral-large-2512",
+          "base_url": "https://api.eu.mistral.ai/v1",
+          "temperature": 0.1
+        },
+        "tts": {
+          "provider": "elevenlabs",
+          "api_key": [
+            "cle-tts"
+          ],
+          "model": "eleven_flash_v2_5",
+          "voice": "21m00Tcm4TlvDq8ikWAM",
+          "speed": 1,
+          "base_url": "https://api.elevenlabs.io"
+        },
+        "stt": {
+          "provider": "deepgram",
+          "api_key": [
+            "cle-stt"
+          ],
+          "model": "flux-general-en",
+          "language": "en",
+          "base_url": "https://api.eu.deepgram.com",
+          "endpointing": 100,
+          "interim_results": true,
+          "punctuate": true,
+          "profanity_filter": false,
+          "eot_threshold": 0.7,
+          "eager_eot_threshold": 0.5,
+          "eot_timeout_ms": 3000
+        },
+        "is_realtime": false
+      },
+      "modifications": {
+        "base_url": "not typed (list or read-only)",
+        "eot_threshold": {
+          "geste": "nombre",
+          "modifiees": {
+            "eot_threshold": 0.75
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "eager_eot_threshold": {
+          "geste": "nombre",
+          "modifiees": {
+            "eager_eot_threshold": 0.6
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "eot_timeout_ms": {
+          "geste": "nombre",
+          "modifiees": {
+            "eot_timeout_ms": 30250
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "min_confidence": {
+          "geste": "nombre",
+          "modifiees": {
+            "min_confidence": 0.5
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "region": "not typed (list or read-only)",
+        "mip_opt_out": "not typed (list or read-only)"
+      }
+    },
+    "deepgram-nova-2": {
+      "champs": [
+        "model",
+        "language",
+        "base_url",
+        "endpointing",
+        "utterance_end_ms",
+        "interim_results",
+        "keywords",
+        "punctuate",
+        "smart_format",
+        "numerals",
+        "dictation",
+        "profanity_filter",
+        "redact",
+        "replace",
+        "search",
+        "diarize",
+        "detect_entities",
+        "region",
+        "mip_opt_out"
+      ],
+      "sansModification": {
+        "llm": {
+          "provider": "mistral",
+          "api_key": [
+            "cle-llm"
+          ],
+          "model": "mistral-large-2512",
+          "base_url": "https://api.eu.mistral.ai/v1",
+          "temperature": 0.1
+        },
+        "tts": {
+          "provider": "elevenlabs",
+          "api_key": [
+            "cle-tts"
+          ],
+          "model": "eleven_flash_v2_5",
+          "voice": "21m00Tcm4TlvDq8ikWAM",
+          "speed": 1,
+          "base_url": "https://api.elevenlabs.io"
+        },
+        "stt": {
+          "provider": "deepgram",
+          "api_key": [
+            "cle-stt"
+          ],
+          "model": "nova-2-general",
+          "language": "fr",
+          "base_url": "https://api.eu.deepgram.com",
+          "endpointing": 100,
+          "interim_results": true,
+          "punctuate": true,
+          "profanity_filter": false,
+          "eot_threshold": 0.7,
+          "eager_eot_threshold": 0.5,
+          "eot_timeout_ms": 3000
+        },
+        "is_realtime": false
+      },
+      "modifications": {
+        "base_url": "not typed (list or read-only)",
+        "endpointing": {
+          "geste": "nombre",
+          "modifiees": {
+            "endpointing": 30000
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "utterance_end_ms": {
+          "geste": "nombre",
+          "modifiees": {
+            "utterance_end_ms": 3000
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "interim_results": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "interim_results": false
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "keywords": {
+          "geste": "etiquette",
+          "modifiees": {
+            "keywords": [
+              "essai"
+            ]
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "punctuate": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "punctuate": false
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "smart_format": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "smart_format": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "numerals": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "numerals": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "dictation": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "dictation": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "profanity_filter": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "profanity_filter": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "redact": {
+          "geste": "etiquette",
+          "modifiees": {
+            "redact": [
+              "essai"
+            ]
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "replace": {
+          "geste": "etiquette",
+          "modifiees": {
+            "replace": [
+              "essai"
+            ]
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "search": {
+          "geste": "etiquette",
+          "modifiees": {
+            "search": [
+              "essai"
+            ]
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "diarize": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "diarize": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "detect_entities": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "detect_entities": true
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "region": "not typed (list or read-only)",
+        "mip_opt_out": "not typed (list or read-only)"
+      }
+    }
+  }
+}

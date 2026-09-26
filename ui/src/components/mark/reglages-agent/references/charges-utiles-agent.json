@@ -1,0 +1,1305 @@
+{
+  "base": {
+    "ambient_noise_configuration": {
+      "enabled": true,
+      "volume": 0.4
+    },
+    "max_call_duration": 480,
+    "max_user_idle_timeout": 12,
+    "smart_turn_stop_secs": 2.5,
+    "turn_start_strategy": "min_words",
+    "turn_start_min_words": 4,
+    "turn_stop_strategy": "turn_analyzer",
+    "dictionary": "poêle à granulés, insert",
+    "transcript_configuration": {
+      "include_end_timestamps": false
+    },
+    "context_compaction_enabled": false,
+    "tts_cache_enabled": false,
+    "call_dispositions": [
+      {
+        "code": "rappel",
+        "description": "Le client demande à être rappelé."
+      },
+      {
+        "code": "hors_zone",
+        "description": "Chantier hors de la zone d'intervention."
+      }
+    ],
+    "external_pbx_field_mappings": [
+      {
+        "context_path": "qualified",
+        "destination_field": "address3"
+      }
+    ],
+    "external_pbx_lead_headers": [
+      "first_name"
+    ],
+    "user_speech_timeout": 0.7,
+    "stt_ttfs_p99_latency": null,
+    "user_turn_stop_timeout": null,
+    "turn_wait_for_transcript": true,
+    "turn_start_use_interim": true,
+    "vad_confidence": 0.7,
+    "vad_start_secs": 0.2,
+    "vad_stop_secs": 0.2,
+    "vad_min_volume": 0.6,
+    "smart_turn_pre_speech_ms": 500,
+    "smart_turn_max_duration_secs": 8,
+    "audio_idle_timeout": 1,
+    "filter_incomplete_user_turns": true,
+    "incomplete_short_timeout": 5,
+    "incomplete_long_timeout": 10,
+    "audio_in_noise_filter": "none",
+    "user_idle_prompt": "The user has been quiet. Politely and briefly ask if they're still there in the language that the user has been speaking so far.",
+    "user_idle_goodbye_prompt": "The user has been quiet. We will be disconnecting the call now. Wish them a good day in the language that the user has been speaking so far.",
+    "user_idle_max_prompts": 2,
+    "tts_push_silence_after_stop": true,
+    "tts_silence_time_s": 1.5,
+    "tts_text_aggregation_mode": "sentence",
+    "tts_replacements": [
+      "SAV:S. A. V."
+    ],
+    "tts_markdown_filter_enabled": false,
+    "interdire_nom_appelant": false,
+    "interdire_civilite_appelant": false,
+    "mute_until_first_bot_complete": true,
+    "mute_during_function_call": true,
+    "mute_engine_callback": true,
+    "mute_first_speech": false,
+    "mute_always": false,
+    "accueil_interruptible": true,
+    "accueil_mots_minimum": 2,
+    "raccrochage_silence_agent_s": 30,
+    "conversion_nombres_transcription": true,
+    "verification_communes": true,
+    "variables_commune": "commune, commune_*, adresse*",
+    "variables_reference": "reference*",
+    "sons_communes": true,
+    "verification_voies": true,
+    "lecture_epellation": true,
+    "lexique_metier": true,
+    "sons_lexique": true,
+    "voicemail_detection": {
+      "enabled": true,
+      "use_workflow_llm": true,
+      "voicemail_action": "hangup",
+      "screening_message": {
+        "text": "Bonjour, ici l'accueil."
+      }
+    },
+    "fiche_au_fil_de_leau": true,
+    "fiche_champs": [
+      {
+        "type": "string",
+        "origine": "dicte",
+        "description": "Nom de famille de l'appelant",
+        "lecteur": null,
+        "nom": "nom",
+        "valeurs": null
+      }
+    ],
+    "horaires_ouverture": "lundi : 10:00-18:30\nmardi : 10:00-18:30\nmercredi : 10:00-18:30\njeudi : 10:00-18:30\nvendredi : 10:00-18:30\nsamedi : 10:00-18:00\ndimanche : fermé",
+    "adresse_etablissement": {
+      "code_postal": "60000",
+      "code_insee": "60057",
+      "commune": "Beauvais",
+      "voie": "4 rue des Artisans"
+    },
+    "model_overrides": {
+      "tts": {
+        "provider": "elevenlabs",
+        "model": "eleven_flash_v2_5"
+      }
+    }
+  },
+  "nom": "Accueil de référence",
+  "variables": {
+    "nom_entreprise": "Nuances de Feu"
+  },
+  "communes": [
+    {
+      "code_insee": "60057",
+      "nom": "Beauvais"
+    }
+  ],
+  "boutonsInactifsSansModification": {
+    "Save General Settings": true,
+    "Save Speech Tuning": true,
+    "Save Call Record": true,
+    "Save Opening Hours": true,
+    "Save Business Address": true,
+    "Save Variables": true,
+    "Save Dictionary": true,
+    "Save Voicemail Settings": true
+  },
+  "cas": {
+    "nom": {
+      "carte": "general",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil modifié",
+          "modifiees": {},
+          "retirees": []
+        }
+      ]
+    },
+    "ambiance": {
+      "carte": "general",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "ambient_noise_configuration": {
+              "enabled": false,
+              "volume": 0.4
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "ambiance-volume": {
+      "carte": "general",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "ambient_noise_configuration": {
+              "enabled": true,
+              "volume": 0.7
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "fin-de-tour": {
+      "carte": "general",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "turn_stop_strategy": "transcription"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "smart-turn-delai": {
+      "carte": "general",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "smart_turn_stop_secs": 3
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "interruption": {
+      "carte": "general",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "turn_start_strategy": "default"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "interruption-mots": {
+      "carte": "general",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "turn_start_min_words": 5
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "transcription-horodatee": {
+      "carte": "general",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "transcript_configuration": {
+              "include_end_timestamps": true
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "compaction": {
+      "carte": "general",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "context_compaction_enabled": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "cache-voix": {
+      "carte": "general",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "tts_cache_enabled": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "issues-eteintes": {
+      "carte": "general",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "call_dispositions": []
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "duree-max": {
+      "carte": "general",
+      "theme": "rythme",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "max_call_duration": 900
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "silence-relance": {
+      "carte": "general",
+      "theme": "rythme",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "max_user_idle_timeout": 15
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "pbx-correspondance": {
+      "carte": "general",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "external_pbx_field_mappings": [
+              {
+                "context_path": "urgence",
+                "destination_field": "address3"
+              }
+            ]
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "pbx-prospect": {
+      "carte": "general",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "external_pbx_lead_headers": [
+              "last_name"
+            ]
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "nombres": {
+      "carte": "speech-tuning",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "conversion_nombres_transcription": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "variables-reference": {
+      "carte": "speech-tuning",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "variables_reference": "reference*, facture"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "communes": {
+      "carte": "speech-tuning",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "verification_communes": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "variables-commune": {
+      "carte": "speech-tuning",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "variables_commune": "ville, adresse*"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "sons-communes": {
+      "carte": "speech-tuning",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "sons_communes": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "voies": {
+      "carte": "speech-tuning",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "verification_voies": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "epellation": {
+      "carte": "speech-tuning",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "lecture_epellation": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "lexique": {
+      "carte": "speech-tuning",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "lexique_metier": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "sons-lexique": {
+      "carte": "speech-tuning",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "sons_lexique": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "bruit-entree": {
+      "carte": "speech-tuning",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "audio_in_noise_filter": "rnnoise"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "pause": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "user_speech_timeout": 0.8
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "latence-transcription": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "stt_ttfs_p99_latency": 0.4
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "plafond-transcription": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "user_turn_stop_timeout": 6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "attendre-transcription": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "turn_wait_for_transcript": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "transcriptions-partielles": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "turn_start_use_interim": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "vad-confiance": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "vad_confidence": 0.6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "vad-debut": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "vad_start_secs": 0.3
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "vad-fin": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "vad_stop_secs": 0.3
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "vad-volume": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "vad_min_volume": 0.5
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "aucun-son": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "audio_idle_timeout": 2
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "smart-turn-avant": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "smart_turn_pre_speech_ms": 600
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "smart-turn-duree": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "smart_turn_max_duration_secs": 10
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "phrase-inachevee": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "filter_incomplete_user_turns": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "attente-coupee": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "incomplete_short_timeout": 6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "attente-temps": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "incomplete_long_timeout": 12
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "muet-accueil": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "mute_until_first_bot_complete": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "muet-outil": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "mute_during_function_call": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "muet-workflow": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "mute_engine_callback": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "muet-premiere": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "mute_first_speech": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "muet-toujours": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "mute_always": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "accueil-coupable": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "accueil_interruptible": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "accueil-mots": {
+      "carte": "speech-tuning",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "accueil_mots_minimum": 3
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "raccrochage-agent": {
+      "carte": "speech-tuning",
+      "theme": "rythme",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "raccrochage_silence_agent_s": 40
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "relance-texte": {
+      "carte": "speech-tuning",
+      "theme": "rythme",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "user_idle_prompt": "Relance modifiée."
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "relances-nombre": {
+      "carte": "speech-tuning",
+      "theme": "rythme",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "user_idle_max_prompts": 3
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "au-revoir": {
+      "carte": "speech-tuning",
+      "theme": "rythme",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "user_idle_goodbye_prompt": "Au revoir modifié."
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "markdown": {
+      "carte": "speech-tuning",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "tts_markdown_filter_enabled": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "envoi-voix": {
+      "carte": "speech-tuning",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "tts_text_aggregation_mode": "token"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "silence-apres": {
+      "carte": "speech-tuning",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "tts_push_silence_after_stop": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "silence-duree": {
+      "carte": "speech-tuning",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "tts_silence_time_s": 2
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "nom-appelant": {
+      "carte": "speech-tuning",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "interdire_nom_appelant": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "civilite": {
+      "carte": "speech-tuning",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "interdire_civilite_appelant": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "prononciation": {
+      "carte": "speech-tuning",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "tts_replacements": [
+              "SAV:S. A. V.",
+              "RGE:R. G. E."
+            ]
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "fiche": {
+      "carte": "call-record",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_au_fil_de_leau": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "fiche-champ": {
+      "carte": "call-record",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_champs": [
+              {
+                "type": "string",
+                "origine": "dicte",
+                "description": "Nom de famille de l'appelant",
+                "lecteur": null,
+                "nom": "nom_appelant",
+                "valeurs": null
+              }
+            ]
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "horaires": {
+      "carte": "opening-hours",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "horaires_ouverture": "lundi : 9:00-18:00\nmardi : 9:00-18:00\nmercredi : 9:00-18:00\njeudi : 9:00-18:00\nvendredi : 9:00-18:00\nsamedi : fermé\ndimanche : fermé"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "adresse-voie": {
+      "carte": "business-address",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "adresse_etablissement": {
+              "code_postal": "60000",
+              "code_insee": "60057",
+              "commune": "Beauvais",
+              "voie": "7 rue Neuve"
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "adresse-organisation": {
+      "carte": "business-address",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "adresse_etablissement": null
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "configuration-organisation": {
+      "carte": "models",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {},
+          "retirees": [
+            "model_overrides"
+          ]
+        }
+      ]
+    },
+    "configuration-complete": {
+      "carte": "models",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "model_configuration_v2_override": {
+              "llm": {
+                "provider": "mistral",
+                "model": "mistral-large-2512"
+              }
+            }
+          },
+          "retirees": [
+            "model_overrides"
+          ]
+        }
+      ]
+    },
+    "par-service": {
+      "carte": "models",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "model_overrides": {
+              "llm": {
+                "provider": "mistral",
+                "model": "mistral-large-2512"
+              }
+            },
+            "mark_per_service_override": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "par-service-retire": {
+      "carte": "models",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {},
+          "retirees": [
+            "model_overrides"
+          ]
+        }
+      ]
+    },
+    "variable-ajoutee": {
+      "carte": "variables",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveTemplateContextVariables",
+          "variables": {
+            "nom_entreprise": "Nuances de Feu",
+            "ville_siege": "Beauvais"
+          }
+        }
+      ]
+    },
+    "variable-en-cours": {
+      "carte": "variables",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveTemplateContextVariables",
+          "variables": {
+            "nom_entreprise": "Nuances de Feu",
+            "telephone": "0344000000"
+          }
+        }
+      ]
+    },
+    "dictionnaire": {
+      "carte": "dictionary",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveDictionary",
+          "dictionnaire": "poêle à granulés, insert, tubage"
+        }
+      ]
+    },
+    "messagerie": {
+      "carte": "voicemail",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "voicemail_detection": {
+              "voicemail_action": "hangup",
+              "screening_message": {
+                "text": "Bonjour, ici l'accueil."
+              },
+              "enabled": false,
+              "use_workflow_llm": true
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "messagerie-message": {
+      "carte": "voicemail",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "voicemail_detection": {
+              "voicemail_action": "leave_message",
+              "voicemail_message": {
+                "text": "Bonjour, rappelez-nous."
+              },
+              "screening_message": {
+                "text": "Bonjour, ici l'accueil."
+              },
+              "enabled": true,
+              "use_workflow_llm": true
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "messagerie-filtrage": {
+      "carte": "voicemail",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "voicemail_detection": {
+              "voicemail_action": "hangup",
+              "screening_message": {
+                "text": "Bonjour, ici le standard."
+              },
+              "enabled": true,
+              "use_workflow_llm": true
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "messagerie-attente": {
+      "carte": "voicemail",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "voicemail_detection": {
+              "screening_wait_ms": 20000,
+              "voicemail_action": "hangup",
+              "screening_message": {
+                "text": "Bonjour, ici l'accueil."
+              },
+              "enabled": true,
+              "use_workflow_llm": true
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "messagerie-modele": {
+      "carte": "voicemail",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "voicemail_detection": {
+              "voicemail_action": "hangup",
+              "screening_message": {
+                "text": "Bonjour, ici l'accueil."
+              },
+              "enabled": true,
+              "use_workflow_llm": false,
+              "provider": "openai",
+              "model": "gpt-4.1",
+              "api_key": ""
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "messagerie-consignes": {
+      "carte": "voicemail",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "voicemail_detection": {
+              "voicemail_action": "hangup",
+              "screening_message": {
+                "text": "Bonjour, ici l'accueil."
+              },
+              "enabled": true,
+              "use_workflow_llm": true,
+              "system_prompt": "Consignes du classificateur modifiées."
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "module-site": {
+      "carte": "deployment",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "embed": {
+              "stub": true
+            }
+          },
+          "retirees": []
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,902 @@
+{
+  "llm": {
+    "mistral": {
+      "description": "Mistral AI chat and Voxtral text-to-speech.",
+      "properties": {
+        "provider": {
+          "const": "mistral",
+          "default": "mistral",
+          "title": "Provider",
+          "type": "string"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Api Key"
+        },
+        "model": {
+          "allow_custom_input": true,
+          "default": "mistral-medium-latest",
+          "description": "Mistral chat model to use.",
+          "examples": [
+            "mistral-medium-latest",
+            "mistral-large-latest",
+            "mistral-small-latest",
+            "magistral-medium-latest"
+          ],
+          "title": "Model",
+          "type": "string"
+        },
+        "base_url": {
+          "default": "https://api.eu.mistral.ai/v1",
+          "description": "Mistral API endpoint. Defaults to the EU endpoint.",
+          "title": "Base Url",
+          "type": "string"
+        },
+        "temperature": {
+          "default": 0.1,
+          "description": "How much randomness goes into each word. Low keeps answers predictable and on-script; high makes them varied and less reliable. Mistral recommends 0.0 to 0.7. Defaults to 0.1, the value that was hardcoded before this field existed.",
+          "maximum": 1.5,
+          "minimum": 0.0,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fixes the draw: two identical calls give back the same conversation. A laboratory tool for comparing two settings, not a production one. Left empty, each call is drawn afresh.",
+          "title": "Seed"
+        },
+        "max_tokens": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Longest answer the model may produce, in tokens (a token is roughly three quarters of a word). An answer half as long comes back about twice as fast, which is heard on the phone. WARNING: this ceiling also applies to the out-of-band call that fills in the call report, so a low value can truncate it and leave fields empty. Left empty, the model stops when it has finished.",
+          "title": "Max Tokens"
+        },
+        "top_p": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "maximum": 1.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Restricts the draw to the most likely words: 0.1 keeps only the top 10% of the probability mass. Acts on the same phenomenon as temperature, so Mistral advises changing one or the other, not both. Above 0 and up to 1.",
+          "title": "Top P"
+        },
+        "frequency_penalty": {
+          "anyOf": [
+            {
+              "maximum": 2.0,
+              "minimum": -2.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Discourages repeating a word already used often in the answer. From -2 to 2; positive values reduce repetition.",
+          "title": "Frequency Penalty"
+        },
+        "presence_penalty": {
+          "anyOf": [
+            {
+              "maximum": 2.0,
+              "minimum": -2.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pushes the model towards subjects it has not brought up yet. From -2 to 2; positive values widen the range of topics.",
+          "title": "Presence Penalty"
+        }
+      },
+      "provider_docs_url": "https://docs.mistral.ai/",
+      "required": [
+        "api_key"
+      ],
+      "title": "Mistral",
+      "type": "object"
+    }
+  },
+  "tts": {
+    "elevenlabs": {
+      "properties": {
+        "provider": {
+          "const": "elevenlabs",
+          "default": "elevenlabs",
+          "title": "Provider",
+          "type": "string"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Api Key"
+        },
+        "voice": {
+          "default": "21m00Tcm4TlvDq8ikWAM",
+          "description": "ElevenLabs voice ID from your Voice Library.",
+          "title": "Voice",
+          "type": "string"
+        },
+        "speed": {
+          "default": 1.0,
+          "description": "Speed of the voice.",
+          "maximum": 2.0,
+          "minimum": 0.1,
+          "title": "Speed",
+          "type": "number"
+        },
+        "model": {
+          "allow_custom_input": true,
+          "default": "eleven_flash_v2_5",
+          "description": "ElevenLabs TTS model.",
+          "examples": [
+            "eleven_flash_v2_5"
+          ],
+          "title": "Model",
+          "type": "string"
+        },
+        "base_url": {
+          "default": "https://api.elevenlabs.io",
+          "description": "ElevenLabs API base URL. Override to use a Data Residency endpoint (e.g. https://api.eu.residency.elevenlabs.io) for GDPR / HIPAA / regional compliance.",
+          "title": "Base Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api_key"
+      ],
+      "title": "ElevenLabs",
+      "type": "object"
+    }
+  },
+  "stt": {
+    "deepgram": {
+      "properties": {
+        "provider": {
+          "const": "deepgram",
+          "default": "deepgram",
+          "title": "Provider",
+          "type": "string"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Api Key"
+        },
+        "model": {
+          "allow_custom_input": true,
+          "default": "nova-3-general",
+          "description": "Deepgram STT model.",
+          "examples": [
+            "nova-3-general",
+            "nova-3-medical",
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Model",
+          "type": "string"
+        },
+        "language": {
+          "allow_custom_input": true,
+          "default": "multi",
+          "description": "Language code. 'multi' enables Nova-3 auto-detect and omits language hints for Flux multilingual auto-detect.",
+          "examples": [
+            "multi",
+            "ar",
+            "ar-AE",
+            "ar-SA",
+            "ar-QA",
+            "ar-KW",
+            "ar-SY",
+            "ar-LB",
+            "ar-PS",
+            "ar-JO",
+            "ar-EG",
+            "ar-SD",
+            "ar-TD",
+            "ar-MA",
+            "ar-DZ",
+            "ar-TN",
+            "ar-IQ",
+            "ar-IR",
+            "be",
+            "bn",
+            "bs",
+            "bg",
+            "ca",
+            "cs",
+            "da",
+            "da-DK",
+            "de",
+            "de-CH",
+            "el",
+            "en",
+            "en-US",
+            "en-AU",
+            "en-GB",
+            "en-IN",
+            "en-NZ",
+            "es",
+            "es-419",
+            "et",
+            "fa",
+            "fi",
+            "fr",
+            "fr-CA",
+            "he",
+            "hi",
+            "hr",
+            "hu",
+            "id",
+            "it",
+            "ja",
+            "kn",
+            "ko",
+            "ko-KR",
+            "lt",
+            "lv",
+            "mk",
+            "mr",
+            "ms",
+            "nl",
+            "nl-BE",
+            "no",
+            "pl",
+            "pt",
+            "pt-BR",
+            "pt-PT",
+            "ro",
+            "ru",
+            "sk",
+            "sl",
+            "sr",
+            "sv",
+            "sv-SE",
+            "ta",
+            "te",
+            "th",
+            "tl",
+            "tr",
+            "uk",
+            "ur",
+            "vi",
+            "zh-CN",
+            "zh-TW"
+          ],
+          "model_options": {
+            "flux-general-en": [
+              "en"
+            ],
+            "flux-general-multi": [
+              "multi",
+              "de",
+              "en",
+              "es",
+              "fr",
+              "hi",
+              "it",
+              "ja",
+              "nl",
+              "pt",
+              "ru"
+            ],
+            "nova-3-general": [
+              "multi",
+              "ar",
+              "ar-AE",
+              "ar-SA",
+              "ar-QA",
+              "ar-KW",
+              "ar-SY",
+              "ar-LB",
+              "ar-PS",
+              "ar-JO",
+              "ar-EG",
+              "ar-SD",
+              "ar-TD",
+              "ar-MA",
+              "ar-DZ",
+              "ar-TN",
+              "ar-IQ",
+              "ar-IR",
+              "be",
+              "bn",
+              "bs",
+              "bg",
+              "ca",
+              "cs",
+              "da",
+              "da-DK",
+              "de",
+              "de-CH",
+              "el",
+              "en",
+              "en-US",
+              "en-AU",
+              "en-GB",
+              "en-IN",
+              "en-NZ",
+              "es",
+              "es-419",
+              "et",
+              "fa",
+              "fi",
+              "fr",
+              "fr-CA",
+              "he",
+              "hi",
+              "hr",
+              "hu",
+              "id",
+              "it",
+              "ja",
+              "kn",
+              "ko",
+              "ko-KR",
+              "lt",
+              "lv",
+              "mk",
+              "mr",
+              "ms",
+              "nl",
+              "nl-BE",
+              "no",
+              "pl",
+              "pt",
+              "pt-BR",
+              "pt-PT",
+              "ro",
+              "ru",
+              "sk",
+              "sl",
+              "sr",
+              "sv",
+              "sv-SE",
+              "ta",
+              "te",
+              "th",
+              "tl",
+              "tr",
+              "uk",
+              "ur",
+              "vi",
+              "zh-CN",
+              "zh-TW"
+            ],
+            "nova-3-medical": [
+              "multi",
+              "ar",
+              "ar-AE",
+              "ar-SA",
+              "ar-QA",
+              "ar-KW",
+              "ar-SY",
+              "ar-LB",
+              "ar-PS",
+              "ar-JO",
+              "ar-EG",
+              "ar-SD",
+              "ar-TD",
+              "ar-MA",
+              "ar-DZ",
+              "ar-TN",
+              "ar-IQ",
+              "ar-IR",
+              "be",
+              "bn",
+              "bs",
+              "bg",
+              "ca",
+              "cs",
+              "da",
+              "da-DK",
+              "de",
+              "de-CH",
+              "el",
+              "en",
+              "en-US",
+              "en-AU",
+              "en-GB",
+              "en-IN",
+              "en-NZ",
+              "es",
+              "es-419",
+              "et",
+              "fa",
+              "fi",
+              "fr",
+              "fr-CA",
+              "he",
+              "hi",
+              "hr",
+              "hu",
+              "id",
+              "it",
+              "ja",
+              "kn",
+              "ko",
+              "ko-KR",
+              "lt",
+              "lv",
+              "mk",
+              "mr",
+              "ms",
+              "nl",
+              "nl-BE",
+              "no",
+              "pl",
+              "pt",
+              "pt-BR",
+              "pt-PT",
+              "ro",
+              "ru",
+              "sk",
+              "sl",
+              "sr",
+              "sv",
+              "sv-SE",
+              "ta",
+              "te",
+              "th",
+              "tl",
+              "tr",
+              "uk",
+              "ur",
+              "vi",
+              "zh-CN",
+              "zh-TW"
+            ]
+          },
+          "title": "Language",
+          "type": "string"
+        },
+        "base_url": {
+          "allow_custom_input": true,
+          "default": "https://api.eu.deepgram.com",
+          "description": "The Deepgram endpoint the caller's audio is sent to, and therefore the jurisdiction that processes it. Defaults to Europe and can be changed: upstream defaults it to the global endpoint, .mark defaults it to the EU one. Leaving it empty also sends the audio to Europe.",
+          "examples": [
+            "https://api.deepgram.com",
+            "https://api.eu.deepgram.com",
+            "https://api.au.deepgram.com"
+          ],
+          "title": "Base Url",
+          "type": "string"
+        },
+        "endpointing": {
+          "anyOf": [
+            {
+              "maximum": 60000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 100,
+          "description": "Silence, in milliseconds, after which Deepgram declares the speech finished. This is the setting that decides when the agent takes the floor, so it caps the responsiveness of the whole chain: too low and the agent cuts the caller off, too high and it leaves a blank. Deepgram's own default is 10 ms; 100 ms is the value that was hardcoded before this field existed. Deepgram also accepts 'false' to switch endpointing off entirely, which this field does not offer.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Endpointing"
+        },
+        "utterance_end_ms": {
+          "anyOf": [
+            {
+              "maximum": 5000,
+              "minimum": 1000,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Silence, in milliseconds, after which Deepgram emits an end-of-utterance event. From 1000 to 5000. WARNING: requires interim results to be on; without them Deepgram sends nothing. Left empty, no such event is requested, which is today's behaviour.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Utterance End Ms"
+        },
+        "interim_results": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": true,
+          "description": "Sends partial transcriptions as the caller speaks, instead of only the finished sentence. On today by way of the connector's own default, and required by the end-of-utterance setting above.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Interim Results"
+        },
+        "keywords": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Words to boost, written 'word' or 'word:intensifier'. NOT supported from nova-3 onwards, where Deepgram replaced it with keyterm prompting — which is what the agent's Dictionary already feeds. Only shown when an older model is selected.",
+          "hidden_for_models": [
+            "nova-3",
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Keywords"
+        },
+        "punctuate": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": true,
+          "description": "Adds punctuation and capitalisation to the transcript. On today by way of the connector's own default. Required for dictation below to have any effect.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Punctuate"
+        },
+        "smart_format": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Formats dates, times, phone numbers and amounts for readability. Includes the numerals setting below. Off today by way of the connector's own default.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Smart Format"
+        },
+        "numerals": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Writes spoken numbers as digits ('twenty three' becomes '23'). Off today by way of the connector's own default.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Numerals"
+        },
+        "dictation": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Turns spoken punctuation commands into characters ('comma' becomes ','). WARNING: English only, and has no effect unless punctuation is on. Off today by way of the connector's own default.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Dictation"
+        },
+        "profanity_filter": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": false,
+          "description": "Replaces or removes coarse language in the transcript. Off is the value that was hardcoded before this field existed: what the caller said reaches the agent as they said it.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Profanity Filter"
+        },
+        "redact": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Removes sensitive information from the transcript before it reaches us. Categories such as pci, pii, phi, numbers, aggressive_numbers, or an individual entity type. WARNING: outside English, only numbers are redacted. Left empty, nothing is redacted, which is today's behaviour.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Redact"
+        },
+        "replace": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Replacement rules, written 'term heard:term written'. Useful for a trade word the model mishears consistently. One rule per entry; the colon separates the two halves.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Replace"
+        },
+        "search": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Terms Deepgram reports the position and confidence of, without changing the transcript. WARNING: nothing in the agent reads those results today, so this is an observation aid, not a behaviour.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Search"
+        },
+        "diarize": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Labels the transcript by speaker. WARNING: Deepgram marks this parameter deprecated in favour of diarize_model, which the connector does not carry; it still works and routes to the v1 diarizer. On a telephone call the agent and the caller are already on separate channels, so there is little to gain.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Diarize"
+        },
+        "detect_entities": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Marks names, dates, amounts and the like in the transcript. WARNING: nothing in the agent reads those markers today. Off by way of the connector's own default.",
+          "hidden_for_models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Detect Entities"
+        },
+        "eot_threshold": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.5,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.7,
+          "description": "Confidence Flux needs before it declares the turn finished. Low means turns end sooner, so the agent answers faster and cuts in more often; high means it waits for a complete sentence. From 0.5 to 1. Deepgram's default is 0.7, which is also the value that was hardcoded before this field existed.",
+          "models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Eot Threshold"
+        },
+        "eager_eot_threshold": {
+          "anyOf": [
+            {
+              "maximum": 0.9,
+              "minimum": 0.3,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.5,
+          "description": "Confidence at which Flux announces the turn is probably about to end, so the answer can be prepared before the caller has actually stopped. From 0.3 to 0.9, and it must stay at or below the threshold above. Deepgram leaves it off by default; 0.5 is the value that was hardcoded before this field existed.",
+          "models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Eager Eot Threshold"
+        },
+        "eot_timeout_ms": {
+          "anyOf": [
+            {
+              "maximum": 60000,
+              "minimum": 500,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 3000,
+          "description": "Silence, in milliseconds, after which Flux finishes the turn whatever its confidence. From 500 to 60000. Deepgram's default is 5000; 3000 is the value that was hardcoded before this field existed.",
+          "models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Eot Timeout Ms"
+        },
+        "language_hints": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Languages to bias multilingual detection towards. Only the multilingual Flux model reads them. Left empty, the hint is derived from the language chosen above, which is what happens today; filled in, it replaces that derivation.",
+          "examples": [
+            "de",
+            "en",
+            "es",
+            "fr",
+            "hi",
+            "it",
+            "ja",
+            "nl",
+            "pt",
+            "ru"
+          ],
+          "models": [
+            "flux-general-multi"
+          ],
+          "title": "Language Hints"
+        },
+        "min_confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Below this confidence, a finished turn is DROPPED and never reaches the agent, which then hears nothing at all. WARNING: this one is not sent to Deepgram; it is a filter applied on our side to what Deepgram returns. Left empty, nothing is dropped, which is today's behaviour.",
+          "models": [
+            "flux-general-en",
+            "flux-general-multi"
+          ],
+          "title": "Min Confidence"
+        },
+        "region": {
+          "default": "api.eu.deepgram.com",
+          "description": "The Deepgram region the caller's audio is processed in. Derived from the endpoint above rather than chosen: change the endpoint and this follows. Defaults to Europe.",
+          "readonly": true,
+          "title": "Region",
+          "type": "string"
+        },
+        "mip_opt_out": {
+          "default": true,
+          "description": "Refusal to take part in Deepgram's Model Improvement Program, so no call is used to train their models. Locked on: it is a condition of the offer, not an option. Refusing forfeits a discount, and that is accepted.",
+          "readonly": true,
+          "title": "Mip Opt Out",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "api_key"
+      ],
+      "title": "Deepgram",
+      "type": "object"
+    }
+  }
+}
