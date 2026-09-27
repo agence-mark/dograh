@@ -142,6 +142,16 @@
   opacity: 1;
 }
 
+/* A full red surface in dark: white text on --destructive (#f16a6e) reads at ~3:1.
+   The filled surfaces (buttons, "broken" labels) take a deeper red (~5.8:1);
+   red text and borders keep --destructive. */
+.dark [class~="bg-destructive"] {
+  background-color: #c4383d;
+}
+.dark [class~="bg-destructive"]:hover {
+  background-color: #b33338;
+}
+
 /* ---- Removed (D8) -------------------------------------------------------- */
 
 /* Paper-tinted main area and its watermark: plain page background. */

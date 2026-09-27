@@ -52,23 +52,23 @@ export default function RootLayout({
   const showEventBanner = process.env.NEXT_PUBLIC_EVENT_BANNER?.trim() === "1";
 
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Inline script to prevent flash of light theme - runs before React hydrates.
-            Dark is the locked default: only an explicit stored 'light' opts out. */}
+        {/* Inline script to prevent a flash of the wrong theme - runs before React hydrates.
+            [.mark] Light is the default: only an explicit stored 'dark' opts in. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
                   var theme = localStorage.getItem('theme');
-                  if (theme === 'light') {
-                    document.documentElement.classList.remove('dark');
-                  } else {
+                  if (theme === 'dark') {
                     document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
                   }
                 } catch (e) {
-                  document.documentElement.classList.add('dark');
+                  document.documentElement.classList.remove('dark');
                 }
               })();
             `,

@@ -55,8 +55,6 @@ const FICHIERS_EXCLUS = new Set([
     "app/reports/components/DispositionChart.tsx",
 ]);
 
-const COULEURS_DES_OUTILS = new Set(["#3b82f6", "#ef4444", "#10b981", "#0ea5e9", "#f59e0b", "#8b5cf6", "#6b7280"]);
-
 /**
  * Hex values that are data, not look. Each one is saved somewhere and read back
  * by something that is not this screen; changing it changes the data.
@@ -66,20 +64,20 @@ const HEX_DONNEES: Record<string, { valeurs: Set<string>; pourquoi: string }> = 
         valeurs: new Set(["#10b981"]),
         pourquoi: "default colour of the widget button put on the client's own website, saved in its settings",
     },
-    // A tool's `iconColor` is saved as `icon_color` when the tool is created, and
-    // read back before anything else: left as Dograh wrote it (decision for Evan).
-    "app/tools/config.tsx": { valeurs: COULEURS_DES_OUTILS, pourquoi: "saved as icon_color" },
-    "app/tools/page.tsx": { valeurs: COULEURS_DES_OUTILS, pourquoi: "saved as icon_color" },
-    "app/tools/[toolUuid]/page.tsx": { valeurs: COULEURS_DES_OUTILS, pourquoi: "fallback of icon_color" },
-    "components/flow/ToolSelector.tsx": { valeurs: COULEURS_DES_OUTILS, pourquoi: "fallback of icon_color" },
 };
 
 /**
- * Files whose hex values must be hex (a third-party parser) and so are aligned
- * on the .mark palette instead of a token.
+ * Files whose hex values must be hex (a third-party parser, or a value saved as
+ * data) and so are aligned on the .mark palette instead of a token.
  */
 const HEX_ALIGNES_SUR_LA_PALETTE = new Set([
     "app/handler/[...stack]/stack-theme.ts", // Stack Auth's theme parser takes hex only
+    // A tool's `iconColor` is saved as `icon_color` when the tool is created (Evan,
+    // 27/09: grey for new tools, and the existing ones set to grey in the database).
+    "app/tools/config.tsx",
+    "app/tools/page.tsx",
+    "app/tools/[toolUuid]/page.tsx",
+    "components/flow/ToolSelector.tsx",
 ]);
 
 const PALETTES =
@@ -174,8 +172,8 @@ describe("[.mark] no colour written by hand (D11, D12)", () => {
         expect(couleursEnDur("x.tsx", vert).map((t) => t.valeur)).toEqual(["#3B82F6"]);
         expect(couleursEnDur("app/handler/[...stack]/stack-theme.ts", 'primary: "#0a0a0a",')).toEqual([]);
         expect(couleursEnDur("app/handler/[...stack]/stack-theme.ts", 'primary: "#fbbf24",')).toHaveLength(1);
-        expect(couleursEnDur("app/tools/config.tsx", 'iconColor: "#3B82F6",')).toEqual([]);
-        expect(couleursEnDur("app/tools/config.tsx", 'iconColor: "#123456",')).toHaveLength(1);
+        expect(couleursEnDur("app/tools/config.tsx", 'iconColor: "#2a2a2a",')).toEqual([]);
+        expect(couleursEnDur("app/tools/config.tsx", 'iconColor: "#3B82F6",')).toHaveLength(1);
     });
 
     it("ui/src holds no colour outside the .mark tokens", () => {

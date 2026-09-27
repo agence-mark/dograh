@@ -36,6 +36,11 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
     it("the screen opens in light by default (D4)", () => {
         const fournisseur = layout().match(/<ThemeProvider\b[^>]*>/)?.[0] ?? "";
         expect(fournisseur).toMatch(/defaultTheme="light"/);
+        // The anti-flash script agrees: only a stored 'dark' opts in, never the default.
+        const script = layout().match(/__html:\s*`([\s\S]*?)`/)?.[1] ?? "";
+        expect(script).toMatch(/theme === 'dark'\)\s*\{\s*document\.documentElement\.classList\.add\('dark'\)/);
+        expect(script).not.toMatch(/theme === 'light'/);
+        expect(layout()).not.toMatch(/<html[^>]*className="dark"/);
     });
 
     it("mark-theme.css removes the watermark, the card weave and the sidebar scrollbar (D8)", () => {

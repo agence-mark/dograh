@@ -201,7 +201,7 @@ export function ToolSelector({
                                         <div
                                             className="w-6 h-6 rounded flex items-center justify-center shrink-0"
                                             style={{
-                                                backgroundColor: tool.icon_color || "#3B82F6",
+                                                backgroundColor: tool.icon_color || "#2a2a2a",
                                             }}
                                         >
                                             {renderToolIcon(tool.category, "h-3 w-3 text-white")}
@@ -240,7 +240,7 @@ export function ToolSelector({
                                             <div
                                                 className="w-6 h-6 rounded flex items-center justify-center shrink-0"
                                                 style={{
-                                                    backgroundColor: tool.icon_color || "#8B5CF6",
+                                                    backgroundColor: tool.icon_color || "#2a2a2a",
                                                 }}
                                             >
                                                 {renderToolIcon(tool.category, "h-3 w-3 text-white")}

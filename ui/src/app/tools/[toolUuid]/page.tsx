@@ -947,7 +947,7 @@ const data = await response.json();`;
                                 <div
                                     className="w-10 h-10 rounded-lg flex items-center justify-center"
                                     style={{
-                                        backgroundColor: tool.icon_color || categoryConfig?.iconColor || "#3B82F6",
+                                        backgroundColor: tool.icon_color || categoryConfig?.iconColor || "#2a2a2a",
                                     }}
                                 >
                                     {renderToolIcon(tool.category)}
