@@ -324,11 +324,11 @@ export const WorkflowEditorHeader = ({
                 {/* Version history button */}
                 <button
                     onClick={onHistoryClick}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border hover:bg-accent transition-colors cursor-pointer"
+                    className="flex h-9 shrink-0 items-center gap-2 px-3 rounded-md border border-border bg-background hover:bg-(--surface) hover:border-(--border-strong) transition-colors cursor-pointer"
                 >
                     <History className="w-4 h-4 text-muted-foreground" />
                     {activeVersionLabel && !isViewingHistoricalVersion && (
-                        <span className="text-sm text-muted-foreground">{activeVersionLabel}</span>
+                        <span className="text-sm font-medium text-foreground whitespace-nowrap">{activeVersionLabel}</span>
                     )}
                 </button>
 

@@ -21,13 +21,13 @@ export const BaseNode = forwardRef<
             "border-border",
             className,
             // Selected state - prominent halo effect
-            selected ? "border-foreground" : "",
+            selected ? "border-(--acc) shadow-[0_0_0_3px_var(--acc-soft)]" : "",
             // Invalid state
             invalid ? "border-destructive" : "",
             // Hovered through edge takes precedence over selected through edge
-            hovered_through_edge ? "border-foreground/60" : "",
-            !hovered_through_edge && selected_through_edge ? "border-foreground/40" : "",
-            runtimeActive ? "ring-2 ring-ring" : "",
+            hovered_through_edge ? "border-(--acc)/70" : "",
+            !hovered_through_edge && selected_through_edge ? "border-(--acc)/45" : "",
+            runtimeActive ? "ring-2 ring-foreground/60" : "",
             !selected_through_edge && !hovered_through_edge && "hover:border-(--border-strong)",
         )}
         tabIndex={0}

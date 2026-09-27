@@ -12,7 +12,7 @@ export function NodeTransitionMarker({ nodeName }: NodeTransitionMarkerProps) {
             <div className="h-px flex-1 bg-border" />
             <div className="inline-flex items-center gap-1.5 px-2 py-1 text-xs">
                 <GitBranch className="h-3 w-3 text-muted-foreground" />
-                <span className="font-medium text-muted-foreground">{nodeName}</span>
+                <span className="font-mono font-medium text-(--acc-text)">{nodeName}</span>
             </div>
             <div className="h-px flex-1 bg-border" />
         </div>

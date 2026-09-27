@@ -274,10 +274,10 @@ export default function CustomEdge(props: CustomEdgeProps) {
                     style={{
                         ...style,
                         stroke: selected
-                            ? 'var(--foreground)'
+                            ? 'var(--acc)'
                             : isHovered
-                                ? 'var(--muted-foreground)'
-                                : data?.invalid ? 'var(--destructive)' : 'var(--ring)',
+                                ? 'var(--acc)'
+                                : data?.invalid ? 'var(--destructive)' : 'var(--acc-line)',
                         strokeWidth: selected ? 4 : isHovered ? 3 : 2.5,
                         filter: selected
                             ? 'none'
@@ -312,7 +312,7 @@ export default function CustomEdge(props: CustomEdgeProps) {
                             data?.invalid
                                 ? "border-destructive shadow-md"
                                 : selected
-                                    ? "border-foreground shadow-md"
+                                    ? "border-(--acc) shadow-md"
                                     : "border-border shadow-md"
                         )}>
                             {/* Header with label */}
@@ -356,7 +356,7 @@ export default function CustomEdge(props: CustomEdgeProps) {
                             "transition-all duration-200",
                             data?.invalid
                                 ? "bg-destructive text-white"
-                                : "border border-border bg-secondary text-secondary-foreground"
+                                : "border border-(--acc)/45 bg-(--acc-soft) text-(--acc-text)"
                         )}>
                             {data?.label || data?.condition || 'No condition'}
                         </div>

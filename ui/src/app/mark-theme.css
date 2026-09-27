@@ -2,8 +2,10 @@
    [.mark] The .mark look on top of Dograh's screen (chantier
    refonte-design-dograh, 27/09/2026).
 
-   Black, white and grey, no accent colour, modelled on ElevenLabs. Colour is
-   kept for signals only (a dot, an icon): the --signal-* tokens.
+   Black, white and grey, modelled on ElevenLabs, with ONE blue accent (Evan,
+   27/09) for what is selected or switched on: gates of the graph, switches,
+   checked boxes, active tab, menu and choice, focus. Buttons stay neutral.
+   Signals (a dot, an icon) keep their own colours: the --signal-* tokens.
 
    Loaded by ONE line of app/layout.tsx, right after globals.css. Dograh's
    globals.css is never edited, so its upstream updates do not overwrite this.
@@ -35,7 +37,7 @@
   --destructive: #d93036;
   --border: #ebebeb;
   --input: #e5e5e5;
-  --ring: #a3a3a3;
+  --ring: #2974ed;
 
   --sidebar: #fafafa;
   --sidebar-foreground: #0a0a0a;
@@ -44,7 +46,7 @@
   --sidebar-accent: #efefef;
   --sidebar-accent-foreground: #0a0a0a;
   --sidebar-border: #ebebeb;
-  --sidebar-ring: #a3a3a3;
+  --sidebar-ring: #2974ed;
 
   /* Dograh's orange call to action, now black. */
   --cta: #0a0a0a;
@@ -60,6 +62,15 @@
   --bubble-agent: #0a0a0a;
   --primary-disabled: #a3a3a3;
   --primary-disabled-foreground: #fafafa;
+
+  /* The blue accent: --acc (lines, borders, icons), --acc-soft (tinted ground),
+     --acc-text (text on the tinted ground), --acc-fill (full surface under white text),
+     --acc-line (the gates' lines, lighter than a selected one). */
+  --acc: #2974ed;
+  --acc-soft: #eaf1fd;
+  --acc-text: #1f5fc8;
+  --acc-fill: #2974ed;
+  --acc-line: color-mix(in oklab, #2974ed 55%, transparent);
 
   /* The giant faded "dograh" wordmark, removed (D8). */
   --brand-imprint: none;
@@ -83,7 +94,7 @@
   --destructive: #f16a6e;
   --border: #242424;
   --input: #2c2c2c;
-  --ring: #5c5c5c;
+  --ring: #5b97f5;
 
   --sidebar: #0a0a0a;
   --sidebar-foreground: #f5f5f5;
@@ -92,7 +103,7 @@
   --sidebar-accent: #222222;
   --sidebar-accent-foreground: #f5f5f5;
   --sidebar-border: #242424;
-  --sidebar-ring: #5c5c5c;
+  --sidebar-ring: #5b97f5;
 
   --cta: #f5f5f5;
   --cta-foreground: #0e0e0e;
@@ -107,12 +118,20 @@
   --primary-disabled: #3a3a3a;
   --primary-disabled-foreground: #9a9a9a;
 
+  --acc: #5b97f5;
+  --acc-soft: #17243a;
+  --acc-text: #8ab5f8;
+  --acc-fill: #2f6fe0;
+  --acc-line: color-mix(in oklab, #5b97f5 55%, transparent);
+
   --brand-imprint: none;
 }
 
 /* ---- Page titles (D5) ---------------------------------------------------- */
 
-.app-surface h1 {
+/* Page titles only: the agent's name in the editor bar is an h1 too (`text-base`)
+   and keeps its size. */
+.app-surface h1:is([class~="text-2xl"], [class~="text-3xl"], [class~="text-4xl"]) {
   font-size: 1.875rem;
   line-height: 2.25rem;
   font-weight: 400;

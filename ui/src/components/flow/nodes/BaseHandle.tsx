@@ -25,7 +25,7 @@ export const BaseHandle = forwardRef<HTMLDivElement, BaseHandleProps>(
                 )}
                 style={{
                     border: 'none',
-                    background: 'var(--ring)',
+                    background: 'var(--muted-foreground)',
                     ...props.style,
                 }}
             >

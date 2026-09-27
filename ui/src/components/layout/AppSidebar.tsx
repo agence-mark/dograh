@@ -16,7 +16,7 @@ import {
   LogOut,
   type LucideIcon,
   Megaphone,
-  MessageCircle,
+  Phone,
   Settings,
   Smartphone,
   UserRound,
@@ -139,7 +139,7 @@ const NAV_SECTIONS: SidebarNavSection[] = [
       {
         title: "Agent Runs",
         url: "/usage",
-        icon: MessageCircle,
+        icon: Phone,
       },
       {
         title: "Billing",
@@ -217,9 +217,9 @@ export function AppSidebar() {
         asChild
         tooltip={tooltip}
         className={cn(
-          "rounded-xl transition-colors hover:bg-accent hover:text-accent-foreground",
+          "rounded-xl transition-colors hover:bg-sidebar-accent/70 hover:text-foreground",
           isItemActive &&
-            "bg-cta/15 font-semibold text-foreground hover:bg-cta/20 hover:text-foreground"
+            "bg-(--acc-soft) font-medium text-(--acc-text) hover:bg-(--acc-soft) hover:text-(--acc-text)"
         )}
       >
         <Link
@@ -230,14 +230,14 @@ export function AppSidebar() {
         >
           {isItemActive && !isCollapsed && (
             <span
-              className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-cta"
+              className="hidden"
               aria-hidden
             />
           )}
           <Icon
             className={cn(
               "h-4 w-4 shrink-0",
-              isItemActive && "text-foreground"
+              isItemActive && "text-(--acc)"
             )}
           />
           <span

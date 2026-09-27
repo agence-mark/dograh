@@ -51,6 +51,13 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
         expect(css).toMatch(/\[data-slot="sidebar-content"\]::-webkit-scrollbar[^{]*\{[^}]*display:\s*none/);
     });
 
+    it("the 30 px page titles never reach the agent's name in the editor bar (text-base)", () => {
+        const css = sansCommentaires(theme());
+        const regles = [...css.matchAll(/([^{}]*\bh1\b[^{}]*)\{[^}]*font-size/g)].map((m) => m[1].trim());
+        expect(regles.length).toBeGreaterThan(0);
+        for (const selecteur of regles) expect(selecteur).toMatch(/\[class~="text-2xl"\]/);
+    });
+
     it("mark-theme.css writes its rules outside any @layer, so they win over Tailwind (D10)", () => {
         expect(sansCommentaires(theme())).not.toMatch(/@layer\b/);
     });
@@ -60,5 +67,21 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
         const bloc = (selecteur: RegExp) => css.match(selecteur)?.[0] ?? "";
         expect(bloc(/:root\s*\{[^}]*\}/)).toMatch(/--cta:\s*#0a0a0a/);
         expect(bloc(/\.dark\s*\{[^}]*\}/)).toMatch(/--cta:\s*#f5f5f5/);
+    });
+
+    it("the blue accent exists in both themes, and focus follows it (Evan, 27/09)", () => {
+        const css = sansCommentaires(theme());
+        const bloc = (selecteur: RegExp) => css.match(selecteur)?.[0] ?? "";
+        const clair = bloc(/:root\s*\{[^}]*\}/);
+        const sombre = bloc(/\.dark\s*\{[^}]*\}/);
+        for (const jeton of ["--acc", "--acc-soft", "--acc-text", "--acc-fill", "--acc-line"]) {
+            expect(clair).toMatch(new RegExp(`${jeton}:`));
+            expect(sombre).toMatch(new RegExp(`${jeton}:`));
+        }
+        expect(clair).toMatch(/--acc:\s*#2974ed/);
+        expect(sombre).toMatch(/--acc:\s*#5b97f5/);
+        expect(clair).toMatch(/--ring:\s*#2974ed/);
+        expect(clair).toMatch(/--sidebar-ring:\s*#2974ed/);
+        expect(sombre).toMatch(/--ring:\s*#5b97f5/);
     });
 });
