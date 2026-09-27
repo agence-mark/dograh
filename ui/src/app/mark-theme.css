@@ -121,9 +121,10 @@
 
 /* ---- Shapes (D6) --------------------------------------------------------- */
 
-/* Fields: 44 px high, 12 px corners. Small selects (data-size="sm") keep theirs. */
-[data-slot="input"],
-[data-slot="select-trigger"][data-size="default"] {
+/* Fields: 44 px high, 12 px corners. Small selects (data-size="sm") and the
+   compact fields Dograh sets on purpose (`h-8`, next to small selects) keep theirs. */
+[data-slot="input"]:not([class~="h-8"]),
+[data-slot="select-trigger"][data-size="default"]:not([class~="h-8"]) {
   height: 2.75rem;
 }
 [data-slot="input"],
@@ -132,8 +133,10 @@
   border-radius: var(--radius);
 }
 
-/* The main button, disabled: flat grey rather than a faded black. */
-[data-slot="button"][class*="bg-primary"]:disabled {
+/* The main button, disabled: flat grey rather than a faded black. The WHOLE
+   class is compared: a calendar day carries `data-[selected-single=true]:bg-primary`
+   and is disabled when out of range; it must keep its own look. */
+[data-slot="button"][class~="bg-primary"]:disabled {
   background-color: var(--primary-disabled);
   color: var(--primary-disabled-foreground);
   opacity: 1;
@@ -188,8 +191,8 @@
 svg.lucide {
   stroke-width: 1.6;
 }
-/* Menu icons at 18 px. */
-[data-slot="sidebar-menu-button"] > svg {
+/* Menu icons at 18 px (the first icon only: the telephony warning keeps its size). */
+[data-slot="sidebar-menu-button"] > svg:first-of-type {
   width: 18px;
   height: 18px;
 }
@@ -227,7 +230,7 @@ svg.lucide {
 
 /* Notifications (sonner, D7): white card, thin border, soft shadow; the icon is
    red on an error, grey otherwise. */
-[data-sonner-toast] {
+[data-sonner-toast][data-styled="true"] {
   border-radius: var(--radius);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.06);
 }

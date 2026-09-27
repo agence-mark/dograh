@@ -22,10 +22,14 @@
  *     `hover:bg-gray-100`, `border-emerald-500/40`);
  *   - a hexadecimal colour in a string or an arbitrary value (`"#3B82F6"`,
  *     `bg-[#1a1a1a]`);
- *   - an `rgb()` / `rgba()` literal that is not a grey (a black shadow is fine).
+ *   - an `rgb()` / `rgba()` literal that is not a grey (a black shadow is fine),
+ *     an `hsl()` with a saturation, an `oklch()` with a chroma.
  *
  * Kept on purpose (D11): the two report charts (series must stay apart), the
- * test files, and hex values that are DATA rather than look (see EXCEPTIONS).
+ * test files, and hex values that are DATA rather than look (see HEX_DONNEES).
+ *
+ * Not covered: `.css` files. Dograh's `globals.css` is left untouched on
+ * purpose (D10) and keeps its own colours; `mark-theme.css` overrides them.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -51,6 +55,8 @@ const FICHIERS_EXCLUS = new Set([
     "app/reports/components/DispositionChart.tsx",
 ]);
 
+const COULEURS_DES_OUTILS = new Set(["#3b82f6", "#ef4444", "#10b981", "#0ea5e9", "#f59e0b", "#8b5cf6", "#6b7280"]);
+
 /**
  * Hex values that are data, not look. Each one is saved somewhere and read back
  * by something that is not this screen; changing it changes the data.
@@ -60,18 +66,20 @@ const HEX_DONNEES: Record<string, { valeurs: Set<string>; pourquoi: string }> = 
         valeurs: new Set(["#10b981"]),
         pourquoi: "default colour of the widget button put on the client's own website, saved in its settings",
     },
+    // A tool's `iconColor` is saved as `icon_color` when the tool is created, and
+    // read back before anything else: left as Dograh wrote it (decision for Evan).
+    "app/tools/config.tsx": { valeurs: COULEURS_DES_OUTILS, pourquoi: "saved as icon_color" },
+    "app/tools/page.tsx": { valeurs: COULEURS_DES_OUTILS, pourquoi: "saved as icon_color" },
+    "app/tools/[toolUuid]/page.tsx": { valeurs: COULEURS_DES_OUTILS, pourquoi: "fallback of icon_color" },
+    "components/flow/ToolSelector.tsx": { valeurs: COULEURS_DES_OUTILS, pourquoi: "fallback of icon_color" },
 };
 
 /**
- * Files whose hex values must be hex (a third-party parser, or a value saved
- * as data) and so are aligned on the .mark palette instead of a token.
+ * Files whose hex values must be hex (a third-party parser) and so are aligned
+ * on the .mark palette instead of a token.
  */
 const HEX_ALIGNES_SUR_LA_PALETTE = new Set([
     "app/handler/[...stack]/stack-theme.ts", // Stack Auth's theme parser takes hex only
-    "app/tools/config.tsx", // `iconColor` is saved as `icon_color` when a tool is created
-    "app/tools/page.tsx",
-    "app/tools/[toolUuid]/page.tsx",
-    "components/flow/ToolSelector.tsx", // fallback of the saved `icon_color`
 ]);
 
 const PALETTES =
@@ -80,9 +88,13 @@ const CLASSE_PALETTE = new RegExp(
     `(?<![\\w-])(?:bg|text|border|border-[trblxyse]|ring|ring-offset|from|to|via|fill|stroke|outline|divide|shadow|decoration|placeholder|caret|accent)-(?:${PALETTES})-(?:50|[1-9]00|950)(?![\\w-])`,
     "g",
 );
-// A hex colour opens a string or an arbitrary value: never `React #300`, never `&#9888;`.
-const HEX = /(?<=["'`[(:,]\s?)(?<![&\w])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![0-9a-zA-Z_])/g;
+// A hex colour opens a string, an arbitrary value or a CSS value (`1px solid #fff`);
+// never an HTML entity (`&#9888;`). A `#300` in prose is kept out by stripping comments.
+const HEX = /(?<=["'`[(:,\s])(?<![&\w])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![0-9a-zA-Z_])/g;
 const RGB = /rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/g;
+// hsl() with a saturation, oklch() with a chroma: a colour, not a grey.
+const HSL = /hsla?\(\s*[\d.]+(?:deg)?[\s,]+([\d.]+)%/g;
+const OKLCH = /oklch\(\s*[\d.]+%?\s+([\d.]+)/g;
 
 export type Trouvaille = { fichier: string; ligne: number; valeur: string };
 
@@ -99,9 +111,10 @@ const estUnTest = (chemin: string) => /\.test\.(ts|tsx)$/.test(chemin) || chemin
 /** Every hand-written colour of one file's source. Exported for the test's own proof. */
 export function couleursEnDur(fichier: string, source: string): Trouvaille[] {
     const trouve: Trouvaille[] = [];
-    source.split("\n").forEach((texte, i) => {
-        // A line comment is not paint: `// blue-500 when selected`.
-        const code = texte.replace(/(^|[^:"'`])\/\/.*$/, "$1");
+    // Windows checkouts end lines with \r\n: a `.` never crosses the \r, so split on both.
+    source.split(/\r?\n/).forEach((texte, i) => {
+        // A comment is not paint: `// blue-500 when selected`, `{/* issue #300 */}`.
+        const code = texte.replace(/\/\*.*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/, "$1");
         const noter = (valeur: string) => trouve.push({ fichier, ligne: i + 1, valeur });
         for (const m of code.matchAll(CLASSE_PALETTE)) noter(m[0]);
         for (const m of code.matchAll(HEX)) {
@@ -114,6 +127,8 @@ export function couleursEnDur(fichier: string, source: string): Trouvaille[] {
             if (m[1] === m[2] && m[2] === m[3]) continue; // a grey or a black shadow
             noter(m[0] + ")");
         }
+        for (const m of code.matchAll(HSL)) if (parseFloat(m[1]) > 0) noter(m[0] + ")");
+        for (const m of code.matchAll(OKLCH)) if (parseFloat(m[1]) > 0) noter(m[0] + ")");
     });
     return trouve;
 }
@@ -134,14 +149,22 @@ describe("[.mark] no colour written by hand (D11, D12)", () => {
             "stroke: '#3B82F6',",
             "boxShadow: '0 0 0 2px rgba(59,130,246,0.5)'",
             "iconColor: \"#8B5CF6\",",
+            'border: "1px solid #3B82F6"',
+            "boxShadow: `0 0 8px #3b82f6`",
+            "color: 'hsl(217 91% 60%)'",
+            "color: 'oklch(0.6 0.2 250)'",
         ].join("\n");
         expect(couleursEnDur("x.tsx", rouge).map((t) => t.valeur)).toEqual([
             "text-blue-600", "bg-gray-100", "border-emerald-500",
             "#1a1a1a", "#2a2a2a", "#3B82F6", "rgba(59,130,246)", "#8B5CF6",
+            "#3B82F6", "#3b82f6", "hsl(217 91%)", "oklch(0.6 0.2)",
         ]);
         const vert = [
             'className="text-muted-foreground bg-(--surface) border-border"',
             "// another tab) its re-render throws React #300",
+            "{/* see issue #300 */}",
+            "color: 'oklch(0.5 0 0)'",
+            "background: 'hsl(var(--sidebar-border))'",
             "&#9888; Off until",
             "? '#3B82F6'  // blue-500 when selected",
             "boxShadow: '0 1px 2px rgb(0 0 0 / 0.1)'",
@@ -149,8 +172,10 @@ describe("[.mark] no colour written by hand (D11, D12)", () => {
         ].join("\n");
         // Line 4 holds a real hex before its comment: only the comment is ignored.
         expect(couleursEnDur("x.tsx", vert).map((t) => t.valeur)).toEqual(["#3B82F6"]);
-        expect(couleursEnDur("app/tools/config.tsx", 'iconColor: "#0a0a0a",')).toEqual([]);
-        expect(couleursEnDur("app/tools/config.tsx", 'iconColor: "#3B82F6",')).toHaveLength(1);
+        expect(couleursEnDur("app/handler/[...stack]/stack-theme.ts", 'primary: "#0a0a0a",')).toEqual([]);
+        expect(couleursEnDur("app/handler/[...stack]/stack-theme.ts", 'primary: "#fbbf24",')).toHaveLength(1);
+        expect(couleursEnDur("app/tools/config.tsx", 'iconColor: "#3B82F6",')).toEqual([]);
+        expect(couleursEnDur("app/tools/config.tsx", 'iconColor: "#123456",')).toHaveLength(1);
     });
 
     it("ui/src holds no colour outside the .mark tokens", () => {
