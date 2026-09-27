@@ -258,7 +258,7 @@ export const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                 <span className="flex min-w-0 items-center gap-2">
                     <span className="truncate font-medium">{triggerLabel}</span>
                     {triggerTraits && (
-                        <span className="truncate text-xs text-muted-foreground">{triggerTraits}</span>
+                        <span className="truncate text-xs text-primary-foreground/70">{triggerTraits}</span>
                     )}
                 </span>
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />

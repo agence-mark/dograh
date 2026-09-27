@@ -438,7 +438,7 @@ export const RecordingsDialog = ({
                                 disabled={isBusy}
                             >
                                 <Upload className="w-4 h-4 mr-2 shrink-0" />
-                                <span className="text-muted-foreground">Choose audio files (max 5MB each)</span>
+                                <span className="text-primary-foreground/70">Choose audio files (max 5MB each)</span>
                             </Button>
                             {recordingStep === "idle" && (
                                 <Button

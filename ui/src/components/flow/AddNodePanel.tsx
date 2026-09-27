@@ -74,14 +74,14 @@ function NodeSection({
                             }
                         >
                             <div className="flex items-center">
-                                <div className="bg-muted p-2 rounded-lg mr-3 border border-border">
+                                <div className="bg-primary-foreground/10 p-2 rounded-lg mr-3 border border-primary-foreground/20">
                                     <Icon className="h-5 w-5" />
                                 </div>
                                 <div className="flex flex-col items-start text-left min-w-0">
                                     <span className="font-medium text-sm">
                                         {spec.display_name}
                                     </span>
-                                    <span className="text-xs text-muted-foreground whitespace-normal">
+                                    <span className="text-xs text-primary-foreground/70 whitespace-normal">
                                         {spec.description}
                                     </span>
                                 </div>
