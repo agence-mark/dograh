@@ -42,22 +42,22 @@ export function ToolCallCard({
                 <Collapsible
                     open={hasDetails ? open : false}
                     onOpenChange={hasDetails ? setOpen : undefined}
-                    className="rounded-2xl border border-amber-500/20 bg-amber-500/10"
+                    className="rounded-2xl border border-border bg-card"
                 >
                     <div className="flex items-start gap-2 px-3.5 py-3 text-sm">
-                        <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                        <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                         <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-mono text-xs text-amber-700 dark:text-amber-400">
+                                <span className="font-mono text-xs text-muted-foreground">
                                     {functionName}()
                                 </span>
                                 <Badge
                                     variant="outline"
                                     className={cn(
-                                        "h-5 px-1.5 text-[10px] uppercase tracking-[0.14em]",
+                                        "h-5 gap-1.5 px-1.5 text-[10px] uppercase tracking-[0.14em] before:size-1.5 before:shrink-0 before:rounded-full before:content-['']",
                                         status === "running"
-                                            ? "border-amber-400/60 text-amber-700 dark:text-amber-300"
-                                            : "border-emerald-500/30 text-emerald-700 dark:text-emerald-300",
+                                            ? "before:bg-foreground"
+                                            : "before:bg-(--signal-ok)",
                                     )}
                                 >
                                     {status === "running" ? "Running" : "Completed"}
@@ -84,14 +84,14 @@ export function ToolCallCard({
                         </div>
                     </div>
                     {hasDetails ? (
-                        <CollapsibleContent className="border-t border-amber-500/20 px-3.5 py-3">
+                        <CollapsibleContent className="border-t border-border px-3.5 py-3">
                             <div className="space-y-3">
                                 {hasArguments ? (
                                     <div className="space-y-1">
                                         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                                             Arguments
                                         </p>
-                                        <pre className="overflow-x-auto rounded-xl bg-background/70 p-3 text-xs leading-5 text-foreground">
+                                        <pre className="overflow-x-auto rounded-xl bg-muted p-3 text-xs leading-5 text-foreground">
                                             {formatConversationValue(argumentsValue)}
                                         </pre>
                                     </div>
@@ -101,7 +101,7 @@ export function ToolCallCard({
                                         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                                             Result
                                         </p>
-                                        <pre className="overflow-x-auto rounded-xl bg-background/70 p-3 text-xs leading-5 text-foreground">
+                                        <pre className="overflow-x-auto rounded-xl bg-muted p-3 text-xs leading-5 text-foreground">
                                             {formatConversationValue(resultValue)}
                                         </pre>
                                     </div>

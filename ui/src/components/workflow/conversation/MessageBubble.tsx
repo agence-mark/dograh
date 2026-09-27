@@ -36,12 +36,12 @@ export function MessageBubble({
                 ) : null}
                 <div
                     className={cn(
-                        "whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm",
+                        "whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-relaxed",
                         isUser
-                            ? "rounded-br-md bg-primary text-primary-foreground"
+                            ? "rounded-br-md bg-muted text-foreground"
                             : isMuted
                                 ? "rounded-bl-md border border-dashed border-border bg-background text-muted-foreground"
-                                : "rounded-bl-md border border-slate-200/80 bg-muted text-foreground",
+                                : "rounded-bl-md bg-(--bubble-agent) text-white",
                         !final && "opacity-70",
                     )}
                 >
@@ -50,7 +50,7 @@ export function MessageBubble({
                         <div
                             className={cn(
                                 "mt-1 text-[10px] italic",
-                                isUser ? "text-primary-foreground/70" : "text-muted-foreground",
+                                isUser ? "opacity-70" : "opacity-70",
                             )}
                         >
                             speaking...

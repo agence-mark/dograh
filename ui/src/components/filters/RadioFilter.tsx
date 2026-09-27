@@ -38,7 +38,7 @@ export const RadioFilter: React.FC<RadioFilterProps> = ({
       </RadioGroup>
 
       {error && (
-        <p className="text-sm text-red-500 mt-1">{error}</p>
+        <p className="text-sm text-destructive mt-1">{error}</p>
       )}
     </div>
   );

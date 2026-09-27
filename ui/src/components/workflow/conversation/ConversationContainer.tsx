@@ -18,17 +18,17 @@ const STATUS_CONFIG = {
     ready: {
         icon: MicOff,
         label: "Ready",
-        className: "bg-muted text-muted-foreground",
+        className: "border border-border bg-background text-foreground before:bg-(--signal-idle) before:size-1.5 before:shrink-0 before:rounded-full before:content-['']",
     },
     live: {
         icon: Mic,
         label: "Live",
-        className: "bg-green-500/10 text-green-600 dark:text-green-400",
+        className: "border border-border bg-background text-foreground before:bg-foreground before:size-1.5 before:shrink-0 before:rounded-full before:content-['']",
     },
     ended: {
         icon: MicOff,
         label: "Ended",
-        className: "bg-muted text-muted-foreground",
+        className: "border border-border bg-background text-foreground before:bg-(--signal-idle) before:size-1.5 before:shrink-0 before:rounded-full before:content-['']",
     },
 } satisfies Record<ConversationStatus, { icon: typeof Mic; label: string; className: string }>;
 

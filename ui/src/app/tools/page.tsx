@@ -322,7 +322,7 @@ export default function ToolsPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "active":
-                return <Badge className="bg-green-500">Active</Badge>;
+                return <Badge className="border-border bg-background text-foreground before:mr-1.5 before:size-1.5 before:shrink-0 before:rounded-full before:bg-(--signal-ok) before:content-['']">Active</Badge>;
             case "draft":
                 return <Badge variant="secondary">Draft</Badge>;
             case "archived":
