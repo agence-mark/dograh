@@ -115,10 +115,25 @@ def test_un_terme_enregistre_avant_la_case_la_lit_decochee():
         "le joint philippe l'a changé",
         "pour l'entretien royal service",
         "le conduit passe par le toit supra rapide",
+        # Found by the second review: every word of a ticked term was a cue
+        # (« fermé » of « foyer fermé », « bois » of « poêle à bois »).
+        "la ferme royal",
+        "c'est fermé juste le lundi",
+        "je brûle du bois juste un peu humide",
+        "du bois philippe me l'a livré",
+        "j'ai du bois supra sec",
     ],
 )
 async def test_les_mots_dun_travail_nannoncent_aucune_marque(texte):
     assert await _corrige(texte, _lexique_de_la_production()) == texte
+
+
+@pytest.mark.parametrize(
+    ("texte", "attendu"),
+    [("un poêle à bois royal", "un poêle à bois Royal"), ("un foyer fermé supra", "un foyer fermé Supra")],
+)
+async def test_le_premier_mot_dun_terme_coche_annonce(texte, attendu):
+    assert await _corrige(texte, _lexique_de_la_production()) == attendu
 
 
 async def test_le_pluriel_du_mot_coche_annonce_aussi():
@@ -263,8 +278,6 @@ def test_les_exceptions_connues_existent_encore():
     # An exception whose word has left the code must leave this list too.
     for relatif, terme in EXCEPTIONS_CONNUES:
         assert terme in normaliser_terme((API / relatif).read_text("utf-8")), (relatif, terme)
-
-
 
 
 ANCIENNE_LISTE = (

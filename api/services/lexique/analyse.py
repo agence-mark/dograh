@@ -219,6 +219,8 @@ def singulier_et_pluriel(mot: str) -> set[str]:
 
     « poele » → poeles; « granules » → granule; « chapeau » → chapeaux; « bois »
     stays « bois ». Only a rule of French spelling, no word of a trade.
+    ⚠️ An approximation: « cheval » gives « chevals », « chevaux » gives
+    « chevau ». Harmless here: a wrong form is a cue nobody says, never a cue lost.
     """
     formes = {mot}
     if mot.endswith(("s", "x", "z")):
@@ -241,15 +243,18 @@ def amorces_du_lexique(lexique: LexiqueMetier) -> frozenset[str]:
     spellings, singular and plural. ⛔ A word merely listed is not enough: the
     wording of a job (« ramonage », « sortie de toit ») announces no brand, and
     made the agent read one sure in « le ramonage c'est juste obligatoire ».
+    ⛔ Of a term of several words, only its FIRST word, the thing itself
+    (Evan, 2026-09-27): « foyer fermé » gives « foyer », never « fermé » (« la
+    ferme royal » became Royal); « poêle à bois » gives « poêle », never « bois ».
     """
     amorces = set(AMORCES_DE_LA_LANGUE)
     for terme in lexique.termes:
         if terme.type != "mot" or not terme.annonce_marque:
             continue
         for ecrit in terme.formes():
-            for mot in normaliser_terme(ecrit).split():
-                if mot not in MOTS_OUTILS and len(mot) > 2:
-                    amorces.update(singulier_et_pluriel(mot))
+            mots = [m for m in normaliser_terme(ecrit).split() if m not in MOTS_OUTILS and len(m) > 2]
+            if mots:
+                amorces.update(singulier_et_pluriel(mots[0]))
     return frozenset(amorces)
 
 

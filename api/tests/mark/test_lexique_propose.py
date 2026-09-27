@@ -96,6 +96,25 @@ def test_un_modele_importe_arrive_les_deux_cases_decochees():
     assert (importe.terme, importe.a_ecouter, importe.propose) == ("Palazzetti", False, False)
 
 
+def test_un_mot_importe_garde_la_case_annonce_une_marque_du_modele():
+    # Question 249: the template says which words announce a brand (D6).
+    modele = LexiqueMetier.model_validate(
+        {"termes": [{"terme": "insert", "type": "mot", "annonce_marque": True, "a_ecouter": True}]}
+    )
+    fusion, ajoutes, _ = fusionner_import(LEXIQUE, modele)
+    assert ajoutes == 1
+    importe = fusion.termes[-1]
+    assert (importe.terme, importe.annonce_marque, importe.a_ecouter) == ("insert", True, False)
+
+
+def test_un_mot_deja_present_garde_sa_propre_case_a_limport():
+    existant = LexiqueMetier.model_validate({"termes": [{"terme": "poêle", "type": "mot"}]})
+    modele = LexiqueMetier.model_validate({"termes": [{"terme": "poêle", "type": "mot", "annonce_marque": True}]})
+    fusion, ajoutes, deja = fusionner_import(existant, modele)
+    assert (ajoutes, deja) == (0, 1)
+    assert fusion.termes[0].annonce_marque is False
+
+
 @pytest.mark.asyncio
 async def test_au_clavier_lagent_recoit_les_noms_proposes_sous_les_deux_noms():
     from api.services.workflow import text_chat_runner
