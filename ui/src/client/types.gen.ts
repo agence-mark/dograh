@@ -7253,7 +7253,7 @@ export type TermeLexique = {
     /**
      * Variantes
      *
-     * Other spellings of the same name (« Jotul », « Godin »).
+     * Other spellings of the same term, as the transcription may write it.
      */
     variantes?: Array<string>;
     /**
@@ -7284,6 +7284,12 @@ export type TermeLexique = {
      * Offered by the business: given to the agent as {{lexique_propose}}, the list it answers « do you offer X? » from.
      */
     propose?: boolean;
+    /**
+     * Annonce Marque
+     *
+     * Only for a word: a name heard right after it may be read even when made of common words (a word saying what the caller owns).
+     */
+    annonce_marque?: boolean;
 };
 
 /**

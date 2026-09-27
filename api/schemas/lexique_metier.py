@@ -63,7 +63,7 @@ class TermeLexique(BaseModel):
     variantes: list[str] = Field(
         default_factory=list,
         max_length=MAX_VARIANTES,
-        description="Other spellings of the same name (« Jotul », « Godin »).",
+        description="Other spellings of the same term, as the transcription may write it.",
     )
     prononciation: str | None = Field(
         default=None,
@@ -91,6 +91,18 @@ class TermeLexique(BaseModel):
         description=(
             "Offered by the business: given to the agent as {{lexique_propose}}, "
             "the list it answers « do you offer X? » from."
+        ),
+    )
+
+    # [.mark] Question 249, option A (Evan, 2026-09-27): the trade words that
+    # announce a brand (« un poêle Royal ») are chosen on the screen, never
+    # written in the code. Only a word (type « mot ») can announce one. Off by
+    # default and without migration: a term saved before reads False.
+    annonce_marque: bool = Field(
+        default=False,
+        description=(
+            "Only for a word: a name heard right after it may be read even when "
+            "made of common words (a word saying what the caller owns)."
         ),
     )
 
@@ -133,6 +145,13 @@ class TermeLexique(BaseModel):
                     f"The spelling « {variante[:30]}… » is longer than {MAX_LONGUEUR_TERME} characters."
                 )
         return value
+
+    @model_validator(mode="after")
+    def _seul_un_mot_annonce_une_marque(self):
+        """A name never announces another name: the box is dropped on a name."""
+        if self.type != "mot" and self.annonce_marque:
+            self.annonce_marque = False
+        return self
 
     @model_validator(mode="after")
     def _formes_lisibles(self):

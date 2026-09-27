@@ -179,6 +179,8 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
             a_ecouter: true,
             // ⛔ Nobody said the business offers it: the agent must not either.
             propose: false,
+            // Question 249: a new term announces no brand until ticked.
+            annonce_marque: false,
         });
     });
 
@@ -585,6 +587,48 @@ describe("Les deux cases « Listen for it » et « The business offers it »", (
         const demande = sdk.budgetLexiqueApiV1OrganizationsLexiqueBudgetPost.mock.calls.at(-1)?.[0];
         expect(demande?.body.termes[0].a_ecouter).toBe(false);
         await screen.findByText(/0 \/ 500 tokens \(Deepgram\)/);
+    });
+});
+
+// --------------------------------------------------------------------------- //
+// 🆕 27/09 — question 249, option A: the box « Announces a brand »
+// --------------------------------------------------------------------------- //
+
+describe("La case « Announces a brand » (question 249)", () => {
+    async function ouvrirLeLexiqueLong() {
+        sdk.getLexiqueApiV1OrganizationsLexiqueGet.mockResolvedValue({ data: LEXIQUE_LONG });
+        render(<SectionLexiqueMetier />);
+        fireEvent.click(await screen.findByRole("button", { name: /open vocabulary/i }));
+        await screen.findByLabelText("Term 1");
+    }
+
+    it("n'existe que sur un mot, décochée par défaut", async () => {
+        await ouvrirLeLexiqueLong();
+        // Term 5 is « ramonage », a word; terms 1 to 4 are names.
+        expect(
+            screen.getByRole("switch", { name: "Announces a brand 5" }).getAttribute("aria-checked"),
+        ).toBe("false");
+        expect(screen.queryByRole("switch", { name: "Announces a brand 1" })).toBeNull();
+        expect(document.body.textContent).toMatch(/Announces a brand/);
+    });
+
+    it("enregistre la case cochée", async () => {
+        await ouvrirLeLexiqueLong();
+        fireEvent.click(screen.getByRole("switch", { name: "Announces a brand 5" }));
+        fireEvent.click(screen.getByRole("button", { name: /save trade vocabulary/i }));
+        await waitFor(() => expect(sdk.saveLexiqueApiV1OrganizationsLexiquePut).toHaveBeenCalled());
+        expect(charge().termes[4].annonce_marque).toBe(true);
+        expect(charge().termes[0].annonce_marque).toBeFalsy();
+    });
+
+    it("disparaît, décochée, quand le mot devient un nom", async () => {
+        await ouvrirLeLexiqueLong();
+        fireEvent.click(screen.getByRole("switch", { name: "Announces a brand 5" }));
+        fireEvent.change(screen.getByLabelText("Kind 5"), { target: { value: "nom" } });
+        expect(screen.queryByRole("switch", { name: "Announces a brand 5" })).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: /save trade vocabulary/i }));
+        await waitFor(() => expect(sdk.saveLexiqueApiV1OrganizationsLexiquePut).toHaveBeenCalled());
+        expect(charge().termes[4].annonce_marque).toBe(false);
     });
 });
 

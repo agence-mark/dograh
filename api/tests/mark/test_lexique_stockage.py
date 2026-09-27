@@ -53,11 +53,13 @@ LEXIQUE = {
     "modeles_importes": [{"nom": "poeles-bois-granules", "date": "2026-09-16"}],
     "termes": [
         {"terme": "Edilkamin", "variantes": ["Edil Kamin"], "prononciation": "édile kamine",
-         "type": "nom", "categorie": "marque", "a_ecouter": True, "propose": True},
+         "type": "nom", "categorie": "marque", "a_ecouter": True, "propose": True,
+         "annonce_marque": False},
         {"terme": "Jøtul", "variantes": [], "prononciation": None, "type": "nom",
-         "categorie": "marque", "a_ecouter": False, "propose": True},
+         "categorie": "marque", "a_ecouter": False, "propose": True, "annonce_marque": False},
         {"terme": "ramoner", "variantes": [], "prononciation": None, "type": "mot",
-         "categorie": None, "a_ecouter": True, "propose": False},
+         "categorie": None, "a_ecouter": True, "propose": False,
+         "annonce_marque": True},
     ],
 }
 

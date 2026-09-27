@@ -66,6 +66,8 @@ const TERME_VIDE: TermeLexique = {
   // ⛔ Not offered until someone ticks it: the agent never says the business
   // offers a name nobody said it does (question 182).
   propose: false,
+  // Question 249: a word announces a brand only once someone ticks it.
+  annonce_marque: false,
 };
 
 function versTexte(variantes: Array<string> | undefined): string {
@@ -324,7 +326,9 @@ export function SectionLexiqueMetier() {
         Names and words of this business. Names are recognised and corrected before the model
         reads them; terms ticked &quot;Listen for it&quot; are sent to the transcription; terms
         ticked &quot;The business offers it&quot; are the ones the agent says the business offers;
-        &quot;Say it as&quot; changes how the voice pronounces them.
+        &quot;Say it as&quot; changes how the voice pronounces them. A word ticked &quot;Announces a
+        brand&quot; (the thing a caller owns or wants) lets a name made of common words be read
+        right after it; any other word never does.
       </p>
 
       <p className="text-sm">
@@ -440,7 +444,7 @@ export function SectionLexiqueMetier() {
               </p>
             ) : (
               <div className="space-y-2">
-                <div className="hidden gap-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[2fr_2fr_2fr_1fr_1fr_auto_auto_auto]">
+                <div className="hidden gap-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[2fr_2fr_2fr_1fr_1fr_auto_auto_auto_auto]">
                   <span>Term</span>
                   <span>Other spellings</span>
                   <span>Say it as</span>
@@ -448,12 +452,13 @@ export function SectionLexiqueMetier() {
                   <span>Category</span>
                   <span>Listen for it</span>
                   <span>The business offers it</span>
+                  <span>Announces a brand</span>
                   <span />
                 </div>
                 {affiches.map(({ terme, rang }) => (
                   <div
                     key={rang}
-                    className="grid gap-2 md:grid-cols-[2fr_2fr_2fr_1fr_1fr_auto_auto_auto] md:items-center"
+                    className="grid gap-2 md:grid-cols-[2fr_2fr_2fr_1fr_1fr_auto_auto_auto_auto] md:items-center"
                   >
                     <Input
                       aria-label={`Term ${rang + 1}`}
@@ -474,9 +479,11 @@ export function SectionLexiqueMetier() {
                       aria-label={`Kind ${rang + 1}`}
                       className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                       value={terme.type ?? "nom"}
-                      onChange={(e) =>
-                        modifier(rang, { type: e.target.value as TermeLexique["type"] })
-                      }
+                      onChange={(e) => {
+                        const type = e.target.value as TermeLexique["type"];
+                        // Only a word announces a brand: the box goes with the kind.
+                        modifier(rang, type === "mot" ? { type } : { type, annonce_marque: false });
+                      }}
                     >
                       <option value="nom">Name</option>
                       <option value="mot">Word</option>
@@ -508,6 +515,21 @@ export function SectionLexiqueMetier() {
                         onCheckedChange={(coche) => modifier(rang, { propose: coche })}
                       />
                     </div>
+                    {terme.type === "mot" ? (
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`annonce_marque_${rang}`} className="text-xs md:hidden">
+                          Announces a brand
+                        </Label>
+                        <Switch
+                          id={`annonce_marque_${rang}`}
+                          aria-label={`Announces a brand ${rang + 1}`}
+                          checked={Boolean(terme.annonce_marque)}
+                          onCheckedChange={(coche) => modifier(rang, { annonce_marque: coche })}
+                        />
+                      </div>
+                    ) : (
+                      <span aria-hidden="true" />
+                    )}
                     <Button
                       type="button"
                       variant="ghost"

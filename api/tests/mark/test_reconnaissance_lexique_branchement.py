@@ -80,6 +80,8 @@ LEXIQUE = LexiqueMetier.model_validate(
             {"terme": "Supra", "categorie": "marque", "a_ecouter": True},
             {"terme": "Deville", "categorie": "marque", "a_ecouter": False},
             {"terme": "ramonage", "type": "mot", "a_ecouter": True},
+            # Question 249: « un poêle Supra » is read because « poêle » announces a brand.
+            {"terme": "poêle", "type": "mot", "annonce_marque": True},
         ]
     }
 )
@@ -481,7 +483,7 @@ def test_la_trace_du_lexique_dit_ce_que_lappel_a_utilise():
         LEXIQUE, ListeEcoutee(termes=["Edilkamin", "Supra"], non_envoyes=[], jetons=9, plafond=deepgram)
     )
     assert trace == {
-        "termes": 4,
+        "termes": 5,
         "noms": 3,
         "envoyes_a_flux": ["Edilkamin", "Supra"],
         "liste_tronquee": False,

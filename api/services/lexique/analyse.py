@@ -22,8 +22,8 @@ What the trial taught, and the code keeps
 - ⛔ Common French words ("royal", "devis", "cheminée") are read as a brand
   ONLY after a strong cue, and a brand made of common words ("Philippe",
   "Supra") likewise. The cues are the language's (« marque », « chez ») and the
-  words of the vocabulary's own terms of type « mot » (« poêle » for a stove
-  maker): none belongs to a trade in the code (question 249).
+  words of the vocabulary ticked « announces a brand » on the screen (« poêle »
+  for a stove maker): none belongs to a trade in the code (question 249).
 - One very frequent word alone (the 100 first of the list: « sont », « fait »)
   is never a name heard badly; written exactly, it stays read.
 - Three comparisons, the best one counts: the home-made sound key (``_son_mot``),
@@ -75,8 +75,8 @@ MOTS_OUTILS = frozenset(
 ARTICLES_DE_DEBUT = frozenset({"la", "le"})
 # The words before a name that let a common word be read as one (question 249,
 # 2026-09-27). Generic to the language: valid in any trade. ⛔ Never a word of a
-# trade here (« poêle », « vin »): those come from the vocabulary's terms of type
-# « mot », read by ``Index.construire``. Evan's rule: no trade word in the code.
+# trade here: those are the vocabulary's words ticked « announces a brand » on
+# the screen, read by ``Index.construire``. Evan's rule: no trade word in the code.
 AMORCES_DE_LA_LANGUE = frozenset(
     {"marque", "marques", "modele", "modeles", "fabricant", "fabricants", "constructeur", "chez"}
 )
@@ -214,21 +214,42 @@ def mots_tres_courants() -> frozenset[str]:
     return _mots_tres_courants
 
 
+def singulier_et_pluriel(mot: str) -> set[str]:
+    """A normalised word, its singular and its plural, by the rules of the language.
+
+    « poele » → poeles; « granules » → granule; « chapeau » → chapeaux; « bois »
+    stays « bois ». Only a rule of French spelling, no word of a trade.
+    """
+    formes = {mot}
+    if mot.endswith(("s", "x", "z")):
+        if mot.endswith(("aux", "eux", "eaux")) and len(mot) > 3:
+            formes.add(mot[:-1])  # chapeaux → chapeau, feux → feu
+        elif mot.endswith("s") and not mot.endswith(("ss", "is", "os", "us")) and len(mot) > 4:
+            formes.add(mot[:-1])  # granules → granule
+    elif mot.endswith(("au", "eu")):
+        formes.add(mot + "x")
+    else:
+        formes.add(mot + "s")
+    return formes
+
+
 def amorces_du_lexique(lexique: LexiqueMetier) -> frozenset[str]:
     """The words before a name that let a common word be read as one.
 
-    The language's own (« marque », « chez »), plus every word of the terms of
-    type « mot » of THIS vocabulary, their spellings and their plural in « s »:
-    a stove maker types « poêle », a restaurant « vin », and nothing is recoded.
+    The language's own (« marque », « chez »), plus the words of THIS
+    vocabulary ticked « announces a brand » (question 249, option A), their
+    spellings, singular and plural. ⛔ A word merely listed is not enough: the
+    wording of a job (« ramonage », « sortie de toit ») announces no brand, and
+    made the agent read one sure in « le ramonage c'est juste obligatoire ».
     """
     amorces = set(AMORCES_DE_LA_LANGUE)
     for terme in lexique.termes:
-        if terme.type != "mot":
+        if terme.type != "mot" or not terme.annonce_marque:
             continue
         for ecrit in terme.formes():
             for mot in normaliser_terme(ecrit).split():
                 if mot not in MOTS_OUTILS and len(mot) > 2:
-                    amorces.update((mot, mot + "s"))
+                    amorces.update(singulier_et_pluriel(mot))
     return frozenset(amorces)
 
 
