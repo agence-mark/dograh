@@ -229,8 +229,9 @@ svg.lucide {
 }
 
 /* Notifications (sonner, D7): white card, thin border, soft shadow; the icon is
-   red on an error, grey otherwise. */
-[data-sonner-toast][data-styled="true"] {
+   red on an error, grey otherwise. Sonner appends its own sheet at the end of
+   <head>, after ours: the toaster prefix makes our selector outweigh its own. */
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
   border-radius: var(--radius);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.06);
 }
