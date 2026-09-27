@@ -224,3 +224,16 @@ svg.lucide {
     box-shadow: 0 0 0 3px color-mix(in oklab, var(--foreground) 40%, transparent);
   }
 }
+
+/* Notifications (sonner, D7): white card, thin border, soft shadow; the icon is
+   red on an error, grey otherwise. */
+[data-sonner-toast] {
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.06);
+}
+[data-sonner-toast] [data-icon] {
+  color: var(--muted-foreground);
+}
+[data-sonner-toast][data-type="error"] [data-icon] {
+  color: var(--destructive);
+}
