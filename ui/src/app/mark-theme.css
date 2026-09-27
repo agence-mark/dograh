@@ -3,8 +3,10 @@
    refonte-design-dograh, 27/09/2026).
 
    Black, white and grey, modelled on ElevenLabs, with ONE blue accent (Evan,
-   27/09) for what is selected or switched on: gates of the graph, switches,
-   checked boxes, active tab, menu and choice, focus. Buttons stay neutral.
+   27/09) for what is selected or switched on: gates of the graph (full blue,
+   white text), switches, checked boxes, menu and choice, focus. Buttons are
+   black on light and white on dark, bordered ones included (Evan, 27/09).
+   Node types in the graph: start green, end red, global violet (--node-*).
    Signals (a dot, an icon) keep their own colours: the --signal-* tokens.
 
    Loaded by ONE line of app/layout.tsx, right after globals.css. Dograh's
@@ -69,8 +71,13 @@
   --acc: #2974ed;
   --acc-soft: #eaf1fd;
   --acc-text: #1f5fc8;
-  --acc-fill: #2974ed;
+  --acc-fill: #2268d8;
   --acc-line: color-mix(in oklab, #2974ed 55%, transparent);
+
+  /* Node types in the graph (Evan, 27/09): start green, end red, global violet, white text. */
+  --node-start: #15803d;
+  --node-end: #c62f35;
+  --node-global: #7c3aed;
 
   /* The giant faded "dograh" wordmark, removed (D8). */
   --brand-imprint: none;
@@ -92,8 +99,8 @@
   --accent: #1a1a1a;
   --accent-foreground: #f5f5f5;
   --destructive: #f16a6e;
-  --border: #242424;
-  --input: #2c2c2c;
+  --border: #333333;
+  --input: #3a3a3a;
   --ring: #5b97f5;
 
   --sidebar: #0a0a0a;
@@ -102,14 +109,14 @@
   --sidebar-primary-foreground: #0e0e0e;
   --sidebar-accent: #222222;
   --sidebar-accent-foreground: #f5f5f5;
-  --sidebar-border: #242424;
+  --sidebar-border: #333333;
   --sidebar-ring: #5b97f5;
 
   --cta: #f5f5f5;
   --cta-foreground: #0e0e0e;
 
   --surface: #121212;
-  --border-strong: #3a3a3a;
+  --border-strong: #4a4a4a;
   --signal-ok: #3ecf7a;
   --signal-warn: #f0a93a;
   --signal-danger: #f16a6e;
@@ -158,6 +165,7 @@
 [data-slot="button"][class~="bg-primary"]:disabled {
   background-color: var(--primary-disabled);
   color: var(--primary-disabled-foreground);
+  border-color: var(--primary-disabled);
   opacity: 1;
 }
 

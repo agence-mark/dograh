@@ -664,7 +664,7 @@ function RenderWorkflow({
                                                             variant="outline"
                                                             size="icon"
                                                             onClick={() => router.push(`/workflow/${workflowId}/settings`)}
-                                                            className="bg-background shadow-sm"
+                                                            className="shadow-sm"
                                                         >
                                                             <Settings className="h-4 w-4" />
                                                         </Button>
@@ -688,7 +688,7 @@ function RenderWorkflow({
                                                 variant="outline"
                                                 size="icon"
                                                 onClick={() => rfInstance.current?.zoomIn()}
-                                                className="bg-background shadow-sm h-8 w-8"
+                                                className="shadow-sm h-8 w-8"
                                             >
                                                 <Plus className="h-4 w-4" />
                                             </Button>
@@ -704,7 +704,7 @@ function RenderWorkflow({
                                                 variant="outline"
                                                 size="icon"
                                                 onClick={() => rfInstance.current?.zoomOut()}
-                                                className="bg-background shadow-sm h-8 w-8"
+                                                className="shadow-sm h-8 w-8"
                                             >
                                                 <Minus className="h-4 w-4" />
                                             </Button>
@@ -720,7 +720,7 @@ function RenderWorkflow({
                                                 variant="outline"
                                                 size="icon"
                                                 onClick={() => rfInstance.current?.fitView()}
-                                                className="bg-background shadow-sm h-8 w-8"
+                                                className="shadow-sm h-8 w-8"
                                             >
                                                 <Maximize2 className="h-4 w-4" />
                                             </Button>
@@ -740,7 +740,7 @@ function RenderWorkflow({
                                                         setNodes(layoutNodes(nodes, edges, 'TB', rfInstance));
                                                         setIsDirty(true);
                                                     }}
-                                                    className="bg-background shadow-sm h-8 w-8"
+                                                    className="shadow-sm h-8 w-8"
                                                 >
                                                     <BrushCleaning className="h-4 w-4" />
                                                 </Button>

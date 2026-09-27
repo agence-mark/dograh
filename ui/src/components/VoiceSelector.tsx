@@ -282,7 +282,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                         aria-expanded={isOpen}
                         className={cn(
                             "w-full justify-between",
-                            !value && "text-muted-foreground"
+                            !value && "text-primary-foreground/70"
                         )}
                         disabled={isLoading}
                     >

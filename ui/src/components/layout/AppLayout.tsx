@@ -77,7 +77,7 @@ function BackendStatusBanner() {
           size="sm"
           onClick={() => void refresh()}
           disabled={loading}
-          className="h-8 shrink-0 border-border bg-transparent text-foreground hover:bg-muted"
+          className="h-8 shrink-0 border-border"
         >
           <RefreshCw className="h-4 w-4" />
           Retry

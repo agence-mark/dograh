@@ -450,8 +450,8 @@ function SplitTracksSection({
                             className={cn(
                                 'gap-1.5',
                                 userTrackActive
-                                    ? 'bg-muted text-foreground hover:bg-muted'
-                                    : 'text-muted-foreground opacity-60'
+                                    ? ''
+                                    : 'text-primary-foreground/70 opacity-60'
                             )}
                         >
                             <UserRound className="h-4 w-4" />
@@ -468,8 +468,8 @@ function SplitTracksSection({
                             className={cn(
                                 'gap-1.5',
                                 botTrackActive
-                                    ? 'bg-muted text-foreground hover:bg-muted'
-                                    : 'text-muted-foreground opacity-60'
+                                    ? ''
+                                    : 'text-primary-foreground/70 opacity-60'
                             )}
                         >
                             <Bot className="h-4 w-4" />

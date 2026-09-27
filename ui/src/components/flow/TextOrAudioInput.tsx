@@ -134,7 +134,7 @@ export function RecordingSelect({ value, onChange, recordings }: RecordingSelect
                     >
                         {selected ? (
                             <span className="flex items-center gap-2 text-left">
-                                <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono shrink-0">
+                                <code className="text-xs bg-primary-foreground/10 px-1 py-0.5 rounded font-mono shrink-0">
                                     {selected.recording_id}
                                 </code>
                                 <span className="text-sm">
@@ -144,7 +144,7 @@ export function RecordingSelect({ value, onChange, recordings }: RecordingSelect
                                 </span>
                             </span>
                         ) : (
-                            <span className="text-muted-foreground">Select a recording</span>
+                            <span className="text-primary-foreground/70">Select a recording</span>
                         )}
                         <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>

@@ -175,7 +175,7 @@ export const WorkflowVersionDiffDialog = ({
                                         size="icon"
                                         aria-label="Go to previous change"
                                         onClick={handlePreviousChange}
-                                        className="h-7 w-7 border-border bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
+                                        className="h-7 w-7 border-border text-primary-foreground/70"
                                     >
                                         <ChevronsLeft className="h-3.5 w-3.5" />
                                     </Button>
@@ -185,7 +185,7 @@ export const WorkflowVersionDiffDialog = ({
                                         size="icon"
                                         aria-label="Go to next change"
                                         onClick={handleNextChange}
-                                        className="h-7 w-7 border-border bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
+                                        className="h-7 w-7 border-border text-primary-foreground/70"
                                     >
                                         <ChevronsRight className="h-3.5 w-3.5" />
                                     </Button>
