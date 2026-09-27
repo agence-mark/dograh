@@ -71,6 +71,7 @@ const HEX_ALIGNES_SUR_LA_PALETTE = new Set([
     "app/tools/config.tsx", // `iconColor` is saved as `icon_color` when a tool is created
     "app/tools/page.tsx",
     "app/tools/[toolUuid]/page.tsx",
+    "components/flow/ToolSelector.tsx", // fallback of the saved `icon_color`
 ]);
 
 const PALETTES =

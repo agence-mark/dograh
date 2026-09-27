@@ -80,7 +80,7 @@ export const Pastilles = ({ modifie, enErreur }: { modifie: boolean; enErreur: b
                     aria-label={t(TEXTES_THEME.modifie)}
                     title={t(TEXTES_THEME.modifie)}
                     data-pastille="modifie"
-                    className="h-2 w-2 shrink-0 rounded-full bg-orange-500"
+                    className="h-2 w-2 shrink-0 rounded-full bg-(--signal-warn)"
                 />
             )}
             {enErreur && (
@@ -89,7 +89,7 @@ export const Pastilles = ({ modifie, enErreur }: { modifie: boolean; enErreur: b
                     aria-label={t(TEXTES_THEME.enErreur)}
                     title={t(TEXTES_THEME.enErreur)}
                     data-pastille="erreur"
-                    className="h-2 w-2 shrink-0 rounded-full bg-red-500"
+                    className="h-2 w-2 shrink-0 rounded-full bg-destructive"
                 />
             )}
         </>

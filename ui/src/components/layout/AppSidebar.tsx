@@ -4,22 +4,22 @@ import {
   AlertTriangle,
   ArrowUpCircle,
   AudioLines,
-  Brain,
+  ChartColumn,
   ChevronLeft,
   ChevronRight,
-  CircleDollarSign,
-  Database,
-  FileText,
-  Home,
-  Key,
+  CircleUserRound,
+  Cpu,
+  CreditCard,
+  Folder,
+  House,
+  KeyRound,
   LogOut,
   type LucideIcon,
   Megaphone,
-  Phone,
+  MessageCircle,
   Settings,
-  TrendingUp,
+  Smartphone,
   UserRound,
-  Workflow,
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
@@ -83,7 +83,7 @@ const NAV_SECTIONS: SidebarNavSection[] = [
       {
         title: "Overview",
         url: "/overview",
-        icon: Home,
+        icon: House,
       },
     ],
   },
@@ -93,7 +93,7 @@ const NAV_SECTIONS: SidebarNavSection[] = [
       {
         title: "Voice Agents",
         url: "/workflow",
-        icon: Workflow,
+        icon: CircleUserRound,
       },
       {
         title: "Campaigns",
@@ -103,12 +103,12 @@ const NAV_SECTIONS: SidebarNavSection[] = [
       {
         title: "Models",
         url: "/model-configurations",
-        icon: Brain,
+        icon: Cpu,
       },
       {
         title: "Telephony",
         url: "/telephony-configurations",
-        icon: Phone,
+        icon: Smartphone,
         showsTelephonyWarning: true,
       },
       {
@@ -119,7 +119,7 @@ const NAV_SECTIONS: SidebarNavSection[] = [
       {
         title: "Files",
         url: "/files",
-        icon: Database,
+        icon: Folder,
       },
       {
         title: "Recordings",
@@ -129,7 +129,7 @@ const NAV_SECTIONS: SidebarNavSection[] = [
       {
         title: "Developers",
         url: "/api-keys",
-        icon: Key,
+        icon: KeyRound,
       },
     ],
   },
@@ -139,17 +139,17 @@ const NAV_SECTIONS: SidebarNavSection[] = [
       {
         title: "Agent Runs",
         url: "/usage",
-        icon: TrendingUp,
+        icon: MessageCircle,
       },
       {
         title: "Billing",
         url: "/billing",
-        icon: CircleDollarSign,
+        icon: CreditCard,
       },
       {
         title: "Reports",
         url: "/reports",
-        icon: FileText,
+        icon: ChartColumn,
       }
     ],
   },
@@ -197,7 +197,7 @@ export function AppSidebar() {
         <div className="notranslate" translate="no">
           <p>{item.title}</p>
           {showWarningDot && (
-            <p className="text-amber-600 dark:text-amber-400">{TELEPHONY_WARNING_COPY}</p>
+            <p className="text-foreground">{TELEPHONY_WARNING_COPY}</p>
           )}
         </div>
       ),
@@ -206,7 +206,7 @@ export function AppSidebar() {
       <AlertTriangle
         aria-label="Action required on a telephony configuration"
         className={cn(
-          "text-amber-500",
+          "text-(--signal-warn)",
           isCollapsed ? "absolute -right-0.5 -top-0.5 h-3 w-3" : "ml-auto h-3.5 w-3.5"
         )}
       />
@@ -237,7 +237,7 @@ export function AppSidebar() {
           <Icon
             className={cn(
               "h-4 w-4 shrink-0",
-              isItemActive && "text-cta drop-shadow-[0_0_6px_rgba(240,170,70,0.8)]"
+              isItemActive && "text-foreground"
             )}
           />
           <span
@@ -346,7 +346,7 @@ export function AppSidebar() {
                     href="https://docs.dograh.com/deployment/update"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-md border bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-900 transition-opacity hover:opacity-80 dark:bg-amber-950 dark:text-amber-200"
+                    className="inline-flex items-center gap-1 rounded-md border bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-none text-foreground transition-opacity hover:opacity-80"
                   >
                     <ArrowUpCircle className="h-3 w-3" />
                     Update
@@ -360,7 +360,7 @@ export function AppSidebar() {
             {isLatest && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-flex items-center rounded-md border bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium leading-none text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+                  <span className="inline-flex items-center rounded-md border bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-none text-foreground">
                     Latest
                   </span>
                 </TooltipTrigger>

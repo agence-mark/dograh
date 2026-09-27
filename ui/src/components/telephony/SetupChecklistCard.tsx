@@ -62,7 +62,7 @@ export function SetupChecklistCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {!checklist.ready_for_outbound && (
-          <div className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          <div className="flex items-start gap-3 rounded-md bg-muted p-4 text-foreground">
             <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
             <div className="space-y-1 text-sm">
               <p className="font-medium">Outbound calls will not work yet</p>
@@ -80,9 +80,9 @@ export function SetupChecklistCard({
                   aria-hidden
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                     step.complete
-                      ? "border-green-600 bg-green-600 text-white"
+                      ? "border-(--signal-ok) text-(--signal-ok)"
                       : blocking
-                        ? "border-amber-500 text-amber-600"
+                        ? "border-(--signal-warn) text-(--signal-warn)"
                         : "border-muted-foreground/40 text-muted-foreground"
                   }`}
                 >

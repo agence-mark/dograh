@@ -947,7 +947,7 @@ const data = await response.json();`;
                                 <div
                                     className="w-10 h-10 rounded-lg flex items-center justify-center"
                                     style={{
-                                        backgroundColor: tool.icon_color || categoryConfig?.iconColor || "#3B82F6",
+                                        backgroundColor: tool.icon_color || categoryConfig?.iconColor || "#2a2a2a",
                                     }}
                                 >
                                     {renderToolIcon(tool.category)}
@@ -1195,7 +1195,7 @@ const data = await response.json();`;
                     )}
 
                     {saveSuccess && (
-                        <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-600">
+                        <div className="mt-4 p-4 bg-muted rounded-lg text-foreground">
                             Tool saved successfully!
                         </div>
                     )}

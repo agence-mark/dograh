@@ -140,9 +140,9 @@ export function FolderSection({
                             />
                             {isFolder ? (
                                 open ? (
-                                    <FolderOpen size={17} className="shrink-0 text-amber-500" />
+                                    <FolderOpen size={17} className="shrink-0 text-muted-foreground" />
                                 ) : (
-                                    <FolderIcon size={17} className="shrink-0 text-amber-500" />
+                                    <FolderIcon size={17} className="shrink-0 text-muted-foreground" />
                                 )
                             ) : isArchived ? (
                                 <Archive size={16} className="shrink-0 text-muted-foreground" />

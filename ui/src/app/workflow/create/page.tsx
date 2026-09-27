@@ -145,7 +145,7 @@ export default function CreateWorkflowPage() {
                         </div>
 
                         {error && (
-                            <p className="text-sm text-red-500">{error}</p>
+                            <p className="text-sm text-destructive">{error}</p>
                         )}
 
                         <div className="pt-4">
@@ -190,7 +190,7 @@ export default function CreateWorkflowPage() {
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 text-(--signal-ok)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             Workflow Created Successfully!

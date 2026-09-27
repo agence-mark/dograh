@@ -28,7 +28,7 @@ export function AuthEnterpriseCTA() {
       <Button
         variant="outline"
         onClick={openModal}
-        className="w-full border-white/20 bg-white/5 text-zinc-100 hover:bg-white/10 hover:text-white"
+        className="w-full border-border bg-muted text-foreground hover:bg-accent hover:text-foreground"
       >
         Enterprise Enquiry
       </Button>
