@@ -27,7 +27,7 @@ export const BaseNode = forwardRef<
             // Hovered through edge takes precedence over selected through edge
             hovered_through_edge ? "border-(--acc)/70" : "",
             !hovered_through_edge && selected_through_edge ? "border-(--acc)/45" : "",
-            runtimeActive ? "ring-2 ring-ring" : "",
+            runtimeActive ? "ring-2 ring-foreground/60" : "",
             !selected_through_edge && !hovered_through_edge && "hover:border-(--border-strong)",
         )}
         tabIndex={0}

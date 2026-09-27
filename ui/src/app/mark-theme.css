@@ -46,7 +46,7 @@
   --sidebar-accent: #efefef;
   --sidebar-accent-foreground: #0a0a0a;
   --sidebar-border: #ebebeb;
-  --sidebar-ring: #a3a3a3;
+  --sidebar-ring: #2974ed;
 
   /* Dograh's orange call to action, now black. */
   --cta: #0a0a0a;
@@ -103,7 +103,7 @@
   --sidebar-accent: #222222;
   --sidebar-accent-foreground: #f5f5f5;
   --sidebar-border: #242424;
-  --sidebar-ring: #5c5c5c;
+  --sidebar-ring: #5b97f5;
 
   --cta: #f5f5f5;
   --cta-foreground: #0e0e0e;

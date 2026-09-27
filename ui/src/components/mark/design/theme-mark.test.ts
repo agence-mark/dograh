@@ -51,6 +51,13 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
         expect(css).toMatch(/\[data-slot="sidebar-content"\]::-webkit-scrollbar[^{]*\{[^}]*display:\s*none/);
     });
 
+    it("the 30 px page titles never reach the agent's name in the editor bar (text-base)", () => {
+        const css = sansCommentaires(theme());
+        const regles = [...css.matchAll(/([^{}]*\bh1\b[^{}]*)\{[^}]*font-size/g)].map((m) => m[1].trim());
+        expect(regles.length).toBeGreaterThan(0);
+        for (const selecteur of regles) expect(selecteur).toMatch(/\[class~="text-2xl"\]/);
+    });
+
     it("mark-theme.css writes its rules outside any @layer, so they win over Tailwind (D10)", () => {
         expect(sansCommentaires(theme())).not.toMatch(/@layer\b/);
     });
@@ -74,6 +81,7 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
         expect(clair).toMatch(/--acc:\s*#2974ed/);
         expect(sombre).toMatch(/--acc:\s*#5b97f5/);
         expect(clair).toMatch(/--ring:\s*#2974ed/);
+        expect(clair).toMatch(/--sidebar-ring:\s*#2974ed/);
         expect(sombre).toMatch(/--ring:\s*#5b97f5/);
     });
 });
