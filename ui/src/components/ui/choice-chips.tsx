@@ -22,7 +22,7 @@ export function ChoiceChips({ options, value, onChange, className }: ChoiceChips
                     className={cn(
                         "px-4 py-2 rounded-full text-sm font-medium transition-all",
                         value === option.value
-                            ? "bg-primary text-primary-foreground"
+                            ? "bg-(--acc-soft) text-(--acc-text) ring-1 ring-(--acc)/45"
                             : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                     )}
                 >

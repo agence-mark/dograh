@@ -61,4 +61,19 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
         expect(bloc(/:root\s*\{[^}]*\}/)).toMatch(/--cta:\s*#0a0a0a/);
         expect(bloc(/\.dark\s*\{[^}]*\}/)).toMatch(/--cta:\s*#f5f5f5/);
     });
+
+    it("the blue accent exists in both themes, and focus follows it (Evan, 27/09)", () => {
+        const css = sansCommentaires(theme());
+        const bloc = (selecteur: RegExp) => css.match(selecteur)?.[0] ?? "";
+        const clair = bloc(/:root\s*\{[^}]*\}/);
+        const sombre = bloc(/\.dark\s*\{[^}]*\}/);
+        for (const jeton of ["--acc", "--acc-soft", "--acc-text", "--acc-fill", "--acc-line"]) {
+            expect(clair).toMatch(new RegExp(`${jeton}:`));
+            expect(sombre).toMatch(new RegExp(`${jeton}:`));
+        }
+        expect(clair).toMatch(/--acc:\s*#2974ed/);
+        expect(sombre).toMatch(/--acc:\s*#5b97f5/);
+        expect(clair).toMatch(/--ring:\s*#2974ed/);
+        expect(sombre).toMatch(/--ring:\s*#5b97f5/);
+    });
 });
