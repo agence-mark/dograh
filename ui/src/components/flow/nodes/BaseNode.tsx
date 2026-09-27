@@ -21,14 +21,14 @@ export const BaseNode = forwardRef<
             "border-border",
             className,
             // Selected state - prominent halo effect
-            selected ? "border-primary ring-2 ring-primary/40 shadow-[0_0_20px_rgba(59,130,246,0.5)]" : "",
+            selected ? "border-foreground" : "",
             // Invalid state
-            invalid ? "border-destructive shadow-[0_0_10px_rgba(239,68,68,0.3)]" : "",
+            invalid ? "border-destructive" : "",
             // Hovered through edge takes precedence over selected through edge
-            hovered_through_edge ? "ring-2 ring-primary/60 shadow-[0_0_12px_rgba(96,165,250,0.3)]" : "",
-            !hovered_through_edge && selected_through_edge ? "ring-1 ring-primary/50 shadow-[0_0_8px_rgba(59,130,246,0.2)]" : "",
-            runtimeActive ? "ring-2 ring-sky-400/60 shadow-[0_0_0_1px_rgba(56,189,248,0.18),0_0_24px_rgba(14,165,233,0.18)]" : "",
-            !selected_through_edge && !hovered_through_edge && "hover:border-muted-foreground/50",
+            hovered_through_edge ? "border-foreground/60" : "",
+            !hovered_through_edge && selected_through_edge ? "border-foreground/40" : "",
+            runtimeActive ? "ring-2 ring-ring" : "",
+            !selected_through_edge && !hovered_through_edge && "hover:border-(--border-strong)",
         )}
         tabIndex={0}
         {...props}

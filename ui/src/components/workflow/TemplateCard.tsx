@@ -63,7 +63,7 @@ export function DuplicateWorkflowTemplate({ id, title, description, serverAccess
     };
 
     return (
-        <div className="bg-white border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow p-4">
+        <div className="bg-card border border-border rounded-xl overflow-hidden transition-colors p-4 hover:bg-(--surface) hover:border-(--border-strong)">
             <div>
                 <h3 className="text-lg font-semibold mb-2">{title}</h3>
                 <p className="text-muted-foreground mb-4">{description}</p>

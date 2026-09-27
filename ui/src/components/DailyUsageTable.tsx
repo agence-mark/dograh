@@ -56,7 +56,7 @@ export function DailyUsageTable({ data, isLoading }: DailyUsageTableProps) {
                 <CardDescription>Last 7 days of usage</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="bg-white border rounded-lg overflow-hidden shadow-sm">
+                <div className="bg-card border border-border rounded-xl overflow-hidden">
                     <Table>
                         <TableHeader>
                             <TableRow className="bg-muted">

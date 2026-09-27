@@ -21,7 +21,7 @@ export function WorkflowCard({ id, name, createdAt }: WorkflowCardProps) {
 
     return (
         <div
-            className="bg-white border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 p-4 cursor-pointer transform hover:-translate-y-1"
+            className="bg-card border border-border rounded-xl overflow-hidden transition-all duration-200 p-4 cursor-pointer hover:bg-(--surface) hover:border-(--border-strong)"
             onClick={handleClick}
         >
             <div>

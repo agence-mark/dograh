@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
  */
 export function StaticTextWarning() {
     return (
-        <div className="flex items-start gap-2 rounded-md bg-amber-50 p-2 text-xs text-amber-700 border border-amber-200">
+        <div className="flex items-start gap-2 rounded-md bg-muted p-2 text-xs text-foreground">
             <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
             <span>
                 This text is spoken as-is. For multilingual workflows, choose your phrasing carefully.

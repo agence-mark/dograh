@@ -28,9 +28,9 @@ const statusLabel: Record<string, string> = {
 };
 
 const statusColor: Record<string, string> = {
-    draft: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-    published: "bg-green-500/20 text-green-400 border-green-500/30",
-    archived: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+    draft: "border-border bg-background text-foreground before:bg-(--signal-warn) before:mr-1.5 before:inline-block before:size-1.5 before:rounded-full before:align-middle before:content-['']",
+    published: "border-border bg-background text-foreground before:bg-(--signal-ok) before:mr-1.5 before:inline-block before:size-1.5 before:rounded-full before:align-middle before:content-['']",
+    archived: "border-border bg-background text-muted-foreground before:bg-(--signal-idle) before:mr-1.5 before:inline-block before:size-1.5 before:rounded-full before:align-middle before:content-['']",
 };
 
 export const VersionHistoryPanel = ({
@@ -58,13 +58,13 @@ export const VersionHistoryPanel = ({
 
     return (
         <div
-            className={`fixed z-51 right-0 top-0 h-full w-80 bg-[#1a1a1a] border-l border-[#2a2a2a] shadow-lg transform transition-transform duration-300 ease-in-out ${
+            className={`fixed z-51 right-0 top-0 h-full w-80 bg-card border-l border-border shadow-lg transform transition-transform duration-300 ease-in-out ${
                 isOpen ? "translate-x-0" : "translate-x-full"
             }`}
         >
             <div className="p-4 h-full overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-lg font-semibold text-white">
+                    <h2 className="text-lg font-semibold text-foreground">
                         Version History
                     </h2>
                     <Button
@@ -72,7 +72,7 @@ export const VersionHistoryPanel = ({
                         size="icon"
                         aria-label="Close version history"
                         onClick={onClose}
-                        className="text-gray-400 hover:text-white hover:bg-[#2a2a2a]"
+                        className="text-muted-foreground hover:text-foreground hover:bg-accent"
                     >
                         <X className="w-5 h-5" />
                     </Button>
@@ -80,10 +80,10 @@ export const VersionHistoryPanel = ({
 
                 {loading ? (
                     <div className="flex items-center justify-center py-12">
-                        <LoaderCircle className="w-6 h-6 text-gray-400 animate-spin" />
+                        <LoaderCircle className="w-6 h-6 text-muted-foreground animate-spin" />
                     </div>
                 ) : versions.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-8">
+                    <p className="text-sm text-muted-foreground text-center py-8">
                         No versions found.
                     </p>
                 ) : (
@@ -101,19 +101,19 @@ export const VersionHistoryPanel = ({
                                     key={version.id}
                                     className={`flex w-full overflow-hidden rounded-lg border transition-colors ${
                                         isActive
-                                            ? "border-teal-500/50 bg-teal-500/10"
-                                            : "border-[#2a2a2a] bg-[#222]"
+                                            ? "border-border bg-muted"
+                                            : "border-border bg-muted"
                                     }`}
                                 >
                                     <button
                                         type="button"
                                         onClick={() => onSelectVersion(version)}
-                                        className="min-w-0 flex-1 cursor-pointer p-3 text-left transition-colors hover:bg-[#2a2a2a]"
+                                        className="min-w-0 flex-1 cursor-pointer p-3 text-left transition-colors hover:bg-accent"
                                     >
                                         <div className="mb-1.5 flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <FileText className="h-4 w-4 text-gray-400" />
-                                                <span className="text-sm font-medium text-white">
+                                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                                <span className="text-sm font-medium text-foreground">
                                                     v{version.version_number}
                                                 </span>
                                             </div>
@@ -127,7 +127,7 @@ export const VersionHistoryPanel = ({
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-xs text-gray-500">
+                                        <p className="text-xs text-muted-foreground">
                                             {formatDistanceToNow(new Date(date), {
                                                 addSuffix: true,
                                             })}
@@ -142,7 +142,7 @@ export const VersionHistoryPanel = ({
                                             aria-label={compareLabel}
                                             disabled={comparingVersionId !== null}
                                             onClick={() => onCompareVersion(version)}
-                                            className="mr-2 h-7 w-7 shrink-0 self-center rounded-md border border-[#3a3a3a] text-gray-400 hover:bg-[#303030] hover:text-white"
+                                            className="mr-2 h-7 w-7 shrink-0 self-center rounded-md border border-border text-muted-foreground hover:bg-accent hover:text-foreground"
                                         >
                                             {comparingVersionId === version.id ? (
                                                 <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -159,7 +159,7 @@ export const VersionHistoryPanel = ({
                                 variant="ghost"
                                 onClick={onLoadMore}
                                 disabled={loadingMore}
-                                className="w-full text-sm text-gray-300 hover:text-white hover:bg-[#2a2a2a]"
+                                className="w-full text-sm text-muted-foreground hover:text-foreground hover:bg-accent"
                             >
                                 {loadingMore ? (
                                     <LoaderCircle className="w-4 h-4 animate-spin" />
