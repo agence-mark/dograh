@@ -106,7 +106,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
                 variant="outline"
                 className={cn(
                   "w-full justify-start text-left font-normal",
-                  !value.from && "text-muted-foreground"
+                  !value.from && "text-primary-foreground/70"
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -145,7 +145,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
                 variant="outline"
                 className={cn(
                   "w-full justify-start text-left font-normal",
-                  !value.to && "text-muted-foreground"
+                  !value.to && "text-primary-foreground/70"
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />

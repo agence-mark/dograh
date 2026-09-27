@@ -289,7 +289,7 @@ export default function TelephonyConfigurationsPage() {
                         {!item.inactive && item.is_ready_for_outbound === false && (
                           <Badge
                             variant="outline"
-                            className="gap-1 border-border text-foreground"
+                            className="gap-1 border-border"
                           >
                             <AlertTriangle className="h-3 w-3" />
                             Setup incomplete

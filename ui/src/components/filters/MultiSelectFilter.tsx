@@ -67,7 +67,7 @@ export const MultiSelectFilter: React.FC<MultiSelectFilterProps> = ({
             aria-expanded={isOpen}
             className={cn(
               "w-full justify-between",
-              value.codes.length === 0 && "text-muted-foreground"
+              value.codes.length === 0 && "text-primary-foreground/70"
             )}
           >
             <span className="truncate">{getDisplayText()}</span>

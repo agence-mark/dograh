@@ -64,7 +64,7 @@ function NodeSection({
                         <Button
                             key={spec.name}
                             variant="outline"
-                            className="w-full justify-start p-4 h-auto hover:bg-accent/50 transition-colors"
+                            className="w-full justify-start p-4 h-auto transition-colors"
                             onClick={() => onNodeSelect(spec.name as NodeType)}
                             disabled={disabled}
                             title={

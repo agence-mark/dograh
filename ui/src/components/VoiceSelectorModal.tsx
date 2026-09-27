@@ -252,7 +252,7 @@ export const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
             <Button
                 type="button"
                 variant="outline"
-                className={cn("w-full justify-between", !value && "text-muted-foreground")}
+                className={cn("w-full justify-between", !value && "text-primary-foreground/70")}
                 onClick={openModal}
             >
                 <span className="flex min-w-0 items-center gap-2">

@@ -324,11 +324,11 @@ export const WorkflowEditorHeader = ({
                 {/* Version history button */}
                 <button
                     onClick={onHistoryClick}
-                    className="flex h-9 shrink-0 items-center gap-2 px-3 rounded-md border border-border bg-background hover:bg-(--surface) hover:border-(--border-strong) transition-colors cursor-pointer"
+                    className="flex h-9 shrink-0 items-center gap-2 px-3 rounded-md border border-primary bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
                 >
-                    <History className="w-4 h-4 text-muted-foreground" />
+                    <History className="w-4 h-4 text-primary-foreground/70" />
                     {activeVersionLabel && !isViewingHistoricalVersion && (
-                        <span className="text-sm font-medium text-foreground whitespace-nowrap">{activeVersionLabel}</span>
+                        <span className="text-sm font-medium whitespace-nowrap">{activeVersionLabel}</span>
                     )}
                 </button>
 
@@ -392,7 +392,7 @@ export const WorkflowEditorHeader = ({
                         onClick={handlePublish}
                         disabled={isDirty || publishing || hasValidationErrors}
                         variant="outline"
-                        className="border-border bg-transparent hover:bg-accent text-foreground px-4"
+                        className="border-border px-4"
                     >
                         {publishing ? (
                             <>
@@ -411,7 +411,7 @@ export const WorkflowEditorHeader = ({
                 {!isViewingHistoricalVersion && (
                     <Button
                         variant="outline"
-                        className="flex items-center gap-2 bg-transparent border-border hover:bg-accent text-foreground"
+                        className="flex items-center gap-2 border-border"
                         disabled={isCallDisabled}
                         onClick={onPhoneCallClick}
                     >
@@ -422,7 +422,7 @@ export const WorkflowEditorHeader = ({
 
                 <Button
                     variant="outline"
-                    className="flex items-center gap-2 bg-transparent border-border hover:bg-accent text-foreground"
+                    className="flex items-center gap-2 border-border"
                     onClick={onTestAgentClick}
                 >
                     <Bot className="w-4 h-4" />

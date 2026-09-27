@@ -312,7 +312,7 @@ export default function CustomEdge(props: CustomEdgeProps) {
                             data?.invalid
                                 ? "border-destructive shadow-md"
                                 : selected
-                                    ? "border-(--acc) shadow-md"
+                                    ? "border-foreground shadow-md"
                                     : "border-border shadow-md"
                         )}>
                             {/* Header with label */}
@@ -356,7 +356,7 @@ export default function CustomEdge(props: CustomEdgeProps) {
                             "transition-all duration-200",
                             data?.invalid
                                 ? "bg-destructive text-white"
-                                : "border border-(--acc)/45 bg-(--acc-soft) text-(--acc-text)"
+                                : "border border-(--acc-fill) bg-(--acc-fill) text-white"
                         )}>
                             {data?.label || data?.condition || 'No condition'}
                         </div>

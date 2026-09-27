@@ -72,6 +72,11 @@
   --acc-fill: #2974ed;
   --acc-line: color-mix(in oklab, #2974ed 55%, transparent);
 
+  /* Node types in the graph (Evan, 27/09): start green, end red, global violet, white text. */
+  --node-start: #15803d;
+  --node-end: #c62f35;
+  --node-global: #7c3aed;
+
   /* The giant faded "dograh" wordmark, removed (D8). */
   --brand-imprint: none;
 }
@@ -92,8 +97,8 @@
   --accent: #1a1a1a;
   --accent-foreground: #f5f5f5;
   --destructive: #f16a6e;
-  --border: #242424;
-  --input: #2c2c2c;
+  --border: #333333;
+  --input: #3a3a3a;
   --ring: #5b97f5;
 
   --sidebar: #0a0a0a;
@@ -102,7 +107,7 @@
   --sidebar-primary-foreground: #0e0e0e;
   --sidebar-accent: #222222;
   --sidebar-accent-foreground: #f5f5f5;
-  --sidebar-border: #242424;
+  --sidebar-border: #333333;
   --sidebar-ring: #5b97f5;
 
   --cta: #f5f5f5;

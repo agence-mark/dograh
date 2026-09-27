@@ -158,13 +158,13 @@ function getBadgeForSpec(
 
     switch (variant) {
         case "start":
-            return { label: "Start Node", className: "bg-primary text-primary-foreground" };
+            return { label: "Start Node", className: "bg-(--node-start) text-white" };
         case "agent":
             return { label: "Agent Node", className: "bg-secondary text-secondary-foreground" };
         case "end":
-            return { label: "End Node", className: "bg-primary text-primary-foreground" };
+            return { label: "End Node", className: "bg-(--node-end) text-white" };
         case "global":
-            return { label: "Global Node", className: "bg-primary text-primary-foreground" };
+            return { label: "Global Node", className: "bg-(--node-global) text-white" };
         case "trigger":
             return { label: "API Trigger", className: "bg-secondary text-secondary-foreground" };
         case "webhook":
