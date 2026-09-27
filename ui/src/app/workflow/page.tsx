@@ -28,7 +28,7 @@ async function WorkflowList() {
         } else {
             // For OSS mode, this shouldn't happen as token is auto-generated
             return (
-                <div className="text-red-500">
+                <div className="text-destructive">
                     Authentication required. Please refresh the page.
                 </div>
             );
@@ -98,7 +98,7 @@ async function WorkflowList() {
     } catch (err) {
         logger.error(`Error fetching workflows: ${err}`);
         return (
-            <div className="text-red-500">
+            <div className="text-destructive">
                 Failed to load Workflows. Please Try Again Later.
             </div>
         );

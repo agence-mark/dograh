@@ -30,7 +30,7 @@ export function AuthShell({
           clip. Carries the giant faded "dograh" imprint along its bottom. */}
       <main className="auth-imprint flex min-h-screen flex-col overflow-y-auto">
         <div className="flex min-h-full items-center justify-center p-6 sm:p-10">
-          <div className="w-full max-w-md space-y-6 rounded-2xl border border-border/60 bg-card p-6 shadow-lg sm:p-8">
+          <div className="w-full max-w-md space-y-6 rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
             {/* Mobile-only wordmark (brand panel is hidden) */}
             <div className="lg:hidden">
               <BrandLogo className="h-7" />
@@ -41,7 +41,7 @@ export function AuthShell({
       </main>
 
       {/* Brand / value panel (RIGHT) — hidden on mobile */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden border-l border-border/60 bg-zinc-950 p-10 lg:flex xl:p-14">
+      <aside className="dark relative hidden flex-col justify-between overflow-hidden border-l border-border bg-background text-foreground p-10 lg:flex xl:p-14">
         {/* Ambient depth: soft radial glow behind the content */}
         <div
           aria-hidden
@@ -54,14 +54,14 @@ export function AuthShell({
         </div>
 
         <div className="relative max-w-md space-y-5">
-          <h1 className="text-3xl font-semibold leading-tight tracking-tight text-zinc-50 xl:text-4xl">
+          <h1 className="text-3xl font-semibold leading-tight tracking-tight text-foreground xl:text-4xl">
             The open-source voice AI platform.
           </h1>
           <ul className="flex flex-wrap gap-2">
             {HIGHLIGHTS.map((point) => (
               <li
                 key={point}
-                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-zinc-300"
+                className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
               >
                 {point}
               </li>
@@ -71,11 +71,11 @@ export function AuthShell({
 
         {/* Enterprise CTA block (Bland-style) — bottom margin lifts it off the
             viewport edge while justify-between keeps the column layout */}
-        <div className="relative mb-12 max-w-md space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-5 xl:mb-16">
-          <h2 className="text-sm font-semibold text-zinc-100">
+        <div className="relative mb-12 max-w-md space-y-3 rounded-xl border border-border bg-card p-5 xl:mb-16">
+          <h2 className="text-sm font-semibold text-foreground">
             Need on-prem, data residency &amp; a data perimeter?
           </h2>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             We deploy Dograh inside your environment for regulated and
             high-scale teams.
           </p>

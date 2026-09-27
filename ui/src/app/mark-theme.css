@@ -1,0 +1,253 @@
+/* ===========================================================================
+   [.mark] The .mark look on top of Dograh's screen (chantier
+   refonte-design-dograh, 27/09/2026).
+
+   Black, white and grey, no accent colour, modelled on ElevenLabs. Colour is
+   kept for signals only (a dot, an icon): the --signal-* tokens.
+
+   Loaded by ONE line of app/layout.tsx, right after globals.css. Dograh's
+   globals.css is never edited, so its upstream updates do not overwrite this.
+   Every rule here is written OUTSIDE any @layer, like the un-layered block at
+   the end of globals.css: un-layered author CSS beats Tailwind's utilities.
+
+   Guarded by components/mark/design/theme-mark.test.ts.
+   =========================================================================== */
+
+/* ---- Tokens (plan D3) ---------------------------------------------------- */
+
+:root {
+  --radius: 0.75rem;
+
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f4;
+  --secondary-foreground: #0a0a0a;
+  --muted: #f4f4f4;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
+  --accent-foreground: #0a0a0a;
+  --destructive: #d93036;
+  --border: #ebebeb;
+  --input: #e5e5e5;
+  --ring: #a3a3a3;
+
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #0a0a0a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #efefef;
+  --sidebar-accent-foreground: #0a0a0a;
+  --sidebar-border: #ebebeb;
+  --sidebar-ring: #a3a3a3;
+
+  /* Dograh's orange call to action, now black. */
+  --cta: #0a0a0a;
+  --cta-foreground: #ffffff;
+
+  /* New .mark tokens, used as bg-(--surface), text-(--signal-ok), ... */
+  --surface: #fafafa;
+  --border-strong: #d4d4d4;
+  --signal-ok: #22a355;
+  --signal-warn: #e08a00;
+  --signal-danger: #e5484d;
+  --signal-idle: #b4b4b4;
+  --bubble-agent: #0a0a0a;
+  --primary-disabled: #a3a3a3;
+  --primary-disabled-foreground: #fafafa;
+
+  /* The giant faded "dograh" wordmark, removed (D8). */
+  --brand-imprint: none;
+}
+
+.dark {
+  --background: #0e0e0e;
+  --foreground: #f5f5f5;
+  --card: #141414;
+  --card-foreground: #f5f5f5;
+  --popover: #141414;
+  --popover-foreground: #f5f5f5;
+  --primary: #f5f5f5;
+  --primary-foreground: #0e0e0e;
+  --secondary: #1f1f1f;
+  --secondary-foreground: #f5f5f5;
+  --muted: #1f1f1f;
+  --muted-foreground: #9a9a9a;
+  --accent: #1a1a1a;
+  --accent-foreground: #f5f5f5;
+  --destructive: #f16a6e;
+  --border: #242424;
+  --input: #2c2c2c;
+  --ring: #5c5c5c;
+
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #f5f5f5;
+  --sidebar-primary: #f5f5f5;
+  --sidebar-primary-foreground: #0e0e0e;
+  --sidebar-accent: #222222;
+  --sidebar-accent-foreground: #f5f5f5;
+  --sidebar-border: #242424;
+  --sidebar-ring: #5c5c5c;
+
+  --cta: #f5f5f5;
+  --cta-foreground: #0e0e0e;
+
+  --surface: #121212;
+  --border-strong: #3a3a3a;
+  --signal-ok: #3ecf7a;
+  --signal-warn: #f0a93a;
+  --signal-danger: #f16a6e;
+  --signal-idle: #5c5c5c;
+  --bubble-agent: #2a2a2a;
+  --primary-disabled: #3a3a3a;
+  --primary-disabled-foreground: #9a9a9a;
+
+  --brand-imprint: none;
+}
+
+/* ---- Page titles (D5) ---------------------------------------------------- */
+
+.app-surface h1 {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+/* ---- Shapes (D6) --------------------------------------------------------- */
+
+/* Fields: 44 px high, 12 px corners. Small selects (data-size="sm") and the
+   compact fields Dograh sets on purpose (`h-8`, next to small selects) keep theirs. */
+[data-slot="input"]:not([class~="h-8"]),
+[data-slot="select-trigger"][data-size="default"]:not([class~="h-8"]) {
+  height: 2.75rem;
+}
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"] {
+  border-radius: var(--radius);
+}
+
+/* The main button, disabled: flat grey rather than a faded black. The WHOLE
+   class is compared: a calendar day carries `data-[selected-single=true]:bg-primary`
+   and is disabled when out of range; it must keep its own look. */
+[data-slot="button"][class~="bg-primary"]:disabled {
+  background-color: var(--primary-disabled);
+  color: var(--primary-disabled-foreground);
+  opacity: 1;
+}
+
+/* A full red surface in dark: white text on --destructive (#f16a6e) reads at ~3:1.
+   The filled surfaces (buttons, "broken" labels) take a deeper red (~5.8:1);
+   red text and borders keep --destructive. */
+.dark [class~="bg-destructive"] {
+  background-color: #c4383d;
+}
+.dark [class~="bg-destructive"]:hover {
+  background-color: #b33338;
+}
+
+/* ---- Removed (D8) -------------------------------------------------------- */
+
+/* Paper-tinted main area and its watermark: plain page background. */
+.app-surface,
+.dark .app-surface {
+  background-color: var(--background);
+  background-image: none;
+}
+.auth-imprint {
+  background-image: none;
+}
+
+/* The twill weave on every card, and its bright top edge in dark. */
+.card-weave,
+.dark .card-weave {
+  background-image: none;
+  border-top-color: var(--border);
+}
+
+/* The floating rounded sidebar: a flat panel against the left edge. */
+.app-sidebar-dock[data-slot="sidebar-container"] {
+  padding: 0;
+}
+.app-sidebar-dock [data-slot="sidebar-inner"],
+.dark .app-sidebar-dock [data-slot="sidebar-inner"] {
+  border-radius: 0;
+  border: 0;
+  border-right: 1px solid var(--sidebar-border);
+  background-color: var(--sidebar);
+  box-shadow: none;
+}
+.app-sidebar-dock [data-slot="sidebar-header"] {
+  padding-top: 1rem;
+}
+
+/* The sidebar's scrollbar is hidden; scrolling stays (wheel, touchpad, keys). */
+[data-slot="sidebar-content"] {
+  scrollbar-width: none;
+}
+[data-slot="sidebar-content"]::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---- Icons (D14) --------------------------------------------------------- */
+
+/* A finer stroke everywhere (Dograh draws in 2). */
+svg.lucide {
+  stroke-width: 1.6;
+}
+/* Menu icons at 18 px (the first icon only: the telephony warning keeps its size). */
+[data-slot="sidebar-menu-button"] > svg:first-of-type {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---- Signals ------------------------------------------------------------- */
+
+/* The onboarding pulse was blue: the same pulse, in the text colour. */
+@keyframes onboarding-pulse {
+  0% {
+    box-shadow:
+      0 0 0 3px color-mix(in oklab, var(--foreground) 55%, transparent),
+      0 0 0 3px color-mix(in oklab, var(--foreground) 40%, transparent);
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.04);
+  }
+  70% {
+    box-shadow:
+      0 0 0 3px color-mix(in oklab, var(--foreground) 55%, transparent),
+      0 0 0 18px color-mix(in oklab, var(--foreground) 0%, transparent);
+    transform: scale(1);
+  }
+  100% {
+    box-shadow:
+      0 0 0 3px color-mix(in oklab, var(--foreground) 55%, transparent),
+      0 0 0 18px color-mix(in oklab, var(--foreground) 0%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-pulse {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--foreground) 40%, transparent);
+  }
+}
+
+/* Notifications (sonner, D7): white card, thin border, soft shadow; the icon is
+   red on an error, grey otherwise. Sonner appends its own sheet at the end of
+   <head>, after ours: the toaster prefix makes our selector outweigh its own. */
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.06);
+}
+[data-sonner-toast] [data-icon] {
+  color: var(--muted-foreground);
+}
+[data-sonner-toast][data-type="error"] [data-icon] {
+  color: var(--destructive);
+}

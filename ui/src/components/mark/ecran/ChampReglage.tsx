@@ -94,7 +94,7 @@ export const ChampReglage = ({
                     {children}
                 </>
             )}
-            {note && <p className="text-xs text-amber-600 dark:text-amber-400">{t(note)}</p>}
+            {note && <p className="text-xs text-foreground">{t(note)}</p>}
             {erreur && <p className="text-xs text-destructive">{t(erreur)}</p>}
             {aides.map((aide, i) => (
                 <p key={i} className="text-xs text-muted-foreground">

@@ -307,7 +307,7 @@ export function ConfigFormDialog({
                 href={currentProvider.docs_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-blue-600 underline"
+                className="inline-flex items-center gap-1 text-xs text-foreground underline"
               >
                 {currentProvider.display_name} docs <ExternalLink className="h-3 w-3" />
               </a>

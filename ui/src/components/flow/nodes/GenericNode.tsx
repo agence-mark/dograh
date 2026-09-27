@@ -153,26 +153,26 @@ function getBadgeForSpec(
     variant: NodeStyleVariant,
 ): { label: string; className: string } {
     if (!spec) {
-        return { label: "Node", className: "bg-zinc-500 text-white" };
+        return { label: "Node", className: "bg-secondary text-secondary-foreground" };
     }
 
     switch (variant) {
         case "start":
-            return { label: "Start Node", className: "bg-emerald-500 text-white" };
+            return { label: "Start Node", className: "bg-primary text-primary-foreground" };
         case "agent":
-            return { label: "Agent Node", className: "bg-blue-500 text-white" };
+            return { label: "Agent Node", className: "bg-secondary text-secondary-foreground" };
         case "end":
-            return { label: "End Node", className: "bg-rose-500 text-white" };
+            return { label: "End Node", className: "bg-primary text-primary-foreground" };
         case "global":
-            return { label: "Global Node", className: "bg-amber-500 text-white" };
+            return { label: "Global Node", className: "bg-primary text-primary-foreground" };
         case "trigger":
-            return { label: "API Trigger", className: "bg-purple-500 text-white" };
+            return { label: "API Trigger", className: "bg-secondary text-secondary-foreground" };
         case "webhook":
-            return { label: "Webhook", className: "bg-indigo-500 text-white" };
+            return { label: "Webhook", className: "bg-secondary text-secondary-foreground" };
         case "qa":
-            return { label: "QA Analysis", className: "bg-teal-500 text-white" };
+            return { label: "QA Analysis", className: "bg-secondary text-secondary-foreground" };
         case "integration":
-            return { label: spec.display_name, className: "bg-cyan-600 text-white" };
+            return { label: spec.display_name, className: "bg-secondary text-secondary-foreground" };
     }
 }
 
@@ -326,8 +326,8 @@ function StatusDot({ enabled }: { enabled: boolean }) {
             <Circle
                 className={`h-2 w-2 ${
                     enabled
-                        ? "fill-green-500 text-green-500"
-                        : "fill-gray-400 text-gray-400"
+                        ? "fill-(--signal-ok) text-(--signal-ok)"
+                        : "fill-muted-foreground text-muted-foreground"
                 }`}
             />
             <span className="text-xs text-muted-foreground">

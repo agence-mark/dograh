@@ -526,7 +526,7 @@ export default function TelephonyConfigurationDetailPage() {
                           <span
                             className={
                               (config.trunks?.length ?? 0) > 1
-                                ? "text-amber-600 dark:text-amber-500"
+                                ? "text-foreground"
                                 : undefined
                             }
                           >

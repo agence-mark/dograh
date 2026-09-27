@@ -144,12 +144,12 @@ export const AudioControls = ({
                     <button
                         onClick={start}
                         disabled={isStarting}
-                        className="group relative h-20 w-20 rounded-full bg-emerald-600 hover:bg-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        className="group relative h-20 w-20 rounded-full bg-primary hover:bg-primary/90 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         aria-label="Start Call"
                     >
-                        <div className="absolute inset-0 rounded-full bg-emerald-600 animate-ping opacity-25"></div>
+                        <div className="absolute inset-0 rounded-full bg-primary animate-ping opacity-25"></div>
                         <div className="relative flex items-center justify-center h-full">
-                            <Phone className="h-8 w-8 text-white" />
+                            <Phone className="h-8 w-8 text-primary-foreground" />
                         </div>
                     </button>
                     <p className="text-sm font-medium text-foreground">Start Call</p>
@@ -159,11 +159,11 @@ export const AudioControls = ({
                     <p className="text-sm text-muted-foreground">Call in progress</p>
                     <button
                         onClick={stop}
-                        className="group relative h-20 w-20 rounded-full bg-destructive hover:bg-destructive/90 transition-all duration-200 shadow-lg hover:shadow-xl"
+                        className="group relative h-20 w-20 rounded-full bg-destructive hover:bg-destructive/90 transition-all duration-200 shadow-sm hover:shadow-md"
                         aria-label="End Call"
                     >
                         <div className="relative flex items-center justify-center h-full">
-                            <PhoneOff className="h-8 w-8 text-destructive-foreground" />
+                            <PhoneOff className="h-8 w-8 text-white" />
                         </div>
                     </button>
                     <p className="text-sm font-medium text-foreground">End Call</p>

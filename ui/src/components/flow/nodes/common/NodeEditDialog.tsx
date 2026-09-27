@@ -107,7 +107,7 @@ export const NodeEditDialog = ({
                         Configure the settings for this node in your workflow.
                     </DialogDescription>
                     {nodeData.invalid && nodeData.validationMessage && (
-                        <div className="mt-2 flex items-center gap-2 rounded-md bg-red-50 p-2 text-sm text-red-500 border border-red-200">
+                        <div className="mt-2 flex items-center gap-2 rounded-md bg-muted p-2 text-sm text-destructive">
                             <AlertCircle className="h-4 w-4" />
                             <span>{nodeData.validationMessage}</span>
                         </div>
@@ -117,7 +117,7 @@ export const NodeEditDialog = ({
                     {children}
                 </div>
                 {error && (
-                    <div className="flex items-center gap-2 rounded-md bg-red-50 p-3 text-sm text-red-600 border border-red-200">
+                    <div className="flex items-center gap-2 rounded-md bg-muted p-3 text-sm text-destructive">
                         <AlertCircle className="h-4 w-4 flex-shrink-0" />
                         <span>{error}</span>
                     </div>
@@ -150,7 +150,7 @@ export const NodeEditDialog = ({
                         <AlertDialogCancel>Keep Editing</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleConfirmDiscard}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="bg-destructive text-white hover:bg-destructive/90"
                         >
                             Discard
                         </AlertDialogAction>

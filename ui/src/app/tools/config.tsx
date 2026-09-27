@@ -100,7 +100,7 @@ export const TOOL_CATEGORIES: ToolCategoryConfig[] = [
         description: "Make HTTP requests to external APIs",
         icon: Globe,
         iconName: "globe",
-        iconColor: "#3B82F6",
+        iconColor: "#2a2a2a",
     },
     {
         value: "end_call",
@@ -108,7 +108,7 @@ export const TOOL_CATEGORIES: ToolCategoryConfig[] = [
         description: "End the call when conditions are met",
         icon: PhoneOff,
         iconName: "phone-off",
-        iconColor: "#EF4444",
+        iconColor: "#2a2a2a",
         autoFill: {
             name: "End Call",
             description: "End the call when either user asks to disconnect the call, or when you believe its time to end the conversation",
@@ -120,7 +120,7 @@ export const TOOL_CATEGORIES: ToolCategoryConfig[] = [
         description: "Transfer the call to another phone number (Twilio, Plivo)",
         icon: PhoneForwarded,
         iconName: "phone-forwarded",
-        iconColor: "#10B981",
+        iconColor: "#2a2a2a",
         autoFill: {
             name: "Transfer Call",
             description: "Transfer the caller to another phone number when requested",
@@ -132,7 +132,7 @@ export const TOOL_CATEGORIES: ToolCategoryConfig[] = [
         description: "Hand the live call to another Dograh agent, without dropping the caller",
         icon: ArrowLeftRight,
         iconName: "arrow-left-right",
-        iconColor: "#0EA5E9",
+        iconColor: "#2a2a2a",
         autoFill: {
             name: "Transfer To Agent",
             description: "Transfer the caller to a specialist agent when their question is outside what you handle",
@@ -144,7 +144,7 @@ export const TOOL_CATEGORIES: ToolCategoryConfig[] = [
         description: "Built-in calculator for arithmetic operations",
         icon: Calculator,
         iconName: "calculator",
-        iconColor: "#F59E0B",
+        iconColor: "#2a2a2a",
         autoFill: {
             name: "Calculator",
             description: "Perform arithmetic calculations (supports +, -, *, /, **, %, and parentheses)",
@@ -156,7 +156,7 @@ export const TOOL_CATEGORIES: ToolCategoryConfig[] = [
         description: "Connect a customer MCP server; its tools become available to the agent",
         icon: Puzzle,
         iconName: "puzzle",
-        iconColor: "#8B5CF6",
+        iconColor: "#2a2a2a",
     },
     {
         value: "native",
@@ -164,7 +164,7 @@ export const TOOL_CATEGORIES: ToolCategoryConfig[] = [
         description: "Built-in tools like call transfer, DTMF input",
         icon: Cog,
         iconName: "cog",
-        iconColor: "#6B7280",
+        iconColor: "#2a2a2a",
         disabled: true,
     },
     {
@@ -173,7 +173,7 @@ export const TOOL_CATEGORIES: ToolCategoryConfig[] = [
         description: "Third-party integrations like Google Calendar",
         icon: Puzzle,
         iconName: "puzzle",
-        iconColor: "#8B5CF6",
+        iconColor: "#2a2a2a",
         disabled: true,
     },
 ];
@@ -189,7 +189,7 @@ export function getToolIcon(category: string): LucideIcon {
 
 export function getToolIconColor(category: string, fallbackColor?: string): string {
     const config = TOOL_CATEGORIES.find(c => c.value === category);
-    return config?.iconColor ?? fallbackColor ?? "#3B82F6";
+    return config?.iconColor ?? fallbackColor ?? "#2a2a2a";
 }
 
 export function renderToolIcon(category: string, className: string = "w-5 h-5 text-white"): ReactNode {

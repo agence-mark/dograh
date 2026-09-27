@@ -126,7 +126,7 @@ export default function ModelConfigurationV2({ docsUrl }: { docsUrl?: string }) 
                 </div>
             )}
             {notice && (
-                <div className="rounded-md border border-green-500/40 bg-green-500/10 px-4 py-3 text-sm text-green-700 dark:text-green-300">
+                <div className="rounded-md bg-muted px-4 py-3 text-sm text-foreground">
                     {notice}
                 </div>
             )}

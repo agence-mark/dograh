@@ -33,7 +33,7 @@ export const ApiKeyErrorDialog = ({
         : isServiceKeyOrgMismatch
             ? "Service Token Account Mismatch"
             : "API Configuration Error";
-    const icon = isQuotaError ? <CreditCard className="h-5 w-5 text-orange-500" /> : <Key className="h-5 w-5 text-red-500" />;
+    const icon = isQuotaError ? <CreditCard className="h-5 w-5 text-(--signal-warn)" /> : <Key className="h-5 w-5 text-destructive" />;
     const buttonText = isBillingCreditsError
         ? "Go to Billing"
         : isServiceKeyOrgMismatch

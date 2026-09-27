@@ -8,12 +8,12 @@ import { cn } from "@/lib/utils";
 
 export function DisabledNotice({ reason }: { reason: string }) {
     return (
-        <div className="rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="rounded-lg bg-muted px-3 py-2.5 text-sm text-foreground">
             <div className="flex items-start gap-3">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <div className="space-y-0.5">
                     <p className="font-medium">Testing is paused</p>
-                    <p className="text-amber-800/90 dark:text-amber-300">{reason}</p>
+                    <p className="text-foreground">{reason}</p>
                 </div>
             </div>
         </div>

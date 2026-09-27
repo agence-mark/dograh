@@ -140,9 +140,9 @@ export function FolderSection({
                             />
                             {isFolder ? (
                                 open ? (
-                                    <FolderOpen size={17} className="shrink-0 text-amber-500" />
+                                    <FolderOpen size={17} className="shrink-0 text-muted-foreground" />
                                 ) : (
-                                    <FolderIcon size={17} className="shrink-0 text-amber-500" />
+                                    <FolderIcon size={17} className="shrink-0 text-muted-foreground" />
                                 )
                             ) : isArchived ? (
                                 <Archive size={16} className="shrink-0 text-muted-foreground" />
@@ -241,7 +241,7 @@ export function FolderSection({
                                         handleDelete();
                                     }}
                                     disabled={isDeleting}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    className="bg-destructive text-white hover:bg-destructive/90"
                                 >
                                     {isDeleting ? 'Deleting...' : 'Delete folder'}
                                 </AlertDialogAction>

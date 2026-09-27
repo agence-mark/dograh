@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./mark-theme.css";
 
 import { GoogleTagManager } from "@next/third-parties/google";
 import type { Metadata } from "next";
@@ -51,23 +52,23 @@ export default function RootLayout({
   const showEventBanner = process.env.NEXT_PUBLIC_EVENT_BANNER?.trim() === "1";
 
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Inline script to prevent flash of light theme - runs before React hydrates.
-            Dark is the locked default: only an explicit stored 'light' opts out. */}
+        {/* Inline script to prevent a flash of the wrong theme - runs before React hydrates.
+            [.mark] Light is the default: only an explicit stored 'dark' opts in. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
                   var theme = localStorage.getItem('theme');
-                  if (theme === 'light') {
-                    document.documentElement.classList.remove('dark');
-                  } else {
+                  if (theme === 'dark') {
                     document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
                   }
                 } catch (e) {
-                  document.documentElement.classList.add('dark');
+                  document.documentElement.classList.remove('dark');
                 }
               })();
             `,
@@ -78,7 +79,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
         {metaPixelId ? <MetaPixel pixelId={metaPixelId} /> : null}
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           {/* [.mark] Language of the screen (FR / EN): French until the user chooses. */}
           <FournisseurLangue>
           <SentryErrorBoundary>

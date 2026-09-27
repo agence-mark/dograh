@@ -19,7 +19,7 @@ export const WorkflowConfigErrorDialog = ({
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Workflow Error</DialogTitle>
-                    <DialogDescription className="text-red-500 whitespace-pre-line">
+                    <DialogDescription className="text-destructive whitespace-pre-line">
                         {error}
                     </DialogDescription>
                 </DialogHeader>

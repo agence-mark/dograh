@@ -76,7 +76,7 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave }: EdgeDetailsDial
                 <DialogHeader>
                     <DialogTitle>Edit Condition</DialogTitle>
                     {data?.invalid && data.validationMessage && (
-                        <div className="mt-2 flex items-center gap-2 rounded-md bg-red-50 p-2 text-sm text-red-500 border border-red-200">
+                        <div className="mt-2 flex items-center gap-2 rounded-md bg-muted p-2 text-sm text-destructive">
                             <AlertCircle className="h-4 w-4" />
                             <span>{data.validationMessage}</span>
                         </div>
@@ -274,15 +274,15 @@ export default function CustomEdge(props: CustomEdgeProps) {
                     style={{
                         ...style,
                         stroke: selected
-                            ? '#3B82F6'  // blue-500 when selected
+                            ? 'var(--foreground)'
                             : isHovered
-                                ? '#60A5FA'  // blue-400 when hovered
-                                : data?.invalid ? '#EF4444' : '#94A3B8',
+                                ? 'var(--muted-foreground)'
+                                : data?.invalid ? 'var(--destructive)' : 'var(--ring)',
                         strokeWidth: selected ? 4 : isHovered ? 3 : 2.5,
                         filter: selected
-                            ? 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.6))'
+                            ? 'none'
                             : isHovered
-                                ? 'drop-shadow(0 0 6px rgba(96, 165, 250, 0.4))'
+                                ? 'none'
                                 : 'none',
                         transition: 'stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease',
                     }}
@@ -310,10 +310,10 @@ export default function CustomEdge(props: CustomEdgeProps) {
                             "flex flex-col gap-2 bg-card rounded-lg border min-w-[220px]",
                             "animate-in fade-in zoom-in duration-200",
                             data?.invalid
-                                ? "border-destructive/50 shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                                ? "border-destructive shadow-md"
                                 : selected
-                                    ? "border-primary ring-2 ring-primary/40 shadow-[0_0_20px_rgba(59,130,246,0.5)]"
-                                    : "border-border shadow-xl"
+                                    ? "border-foreground shadow-md"
+                                    : "border-border shadow-md"
                         )}>
                             {/* Header with label */}
                             <div className={cn(
@@ -352,11 +352,11 @@ export default function CustomEdge(props: CustomEdgeProps) {
                     ) : (
                         /* Simple label shown by default - amber/orange colored pill style */
                         <div className={cn(
-                            "px-3 py-1.5 rounded-full text-xs font-medium shadow-md",
+                            "px-3 py-1.5 rounded-full text-xs font-medium shadow-sm",
                             "transition-all duration-200",
                             data?.invalid
-                                ? "bg-destructive text-destructive-foreground"
-                                : "bg-amber-500 text-amber-950"
+                                ? "bg-destructive text-white"
+                                : "border border-border bg-secondary text-secondary-foreground"
                         )}>
                             {data?.label || data?.condition || 'No condition'}
                         </div>
