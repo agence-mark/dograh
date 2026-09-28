@@ -1297,13 +1297,22 @@ def _confirmee_par_un_oui(
 SEUIL_EPELLATION = 60
 
 
-def epellation_du_tour(valeur: Any, fiche: dict) -> str | None:
+def epellation_du_tour(
+    valeur: Any, fiche: dict, paroles: Iterable[str] = ()
+) -> str | None:
     """Le mot que le module a lu épelé au DERNIER tour de l'appelant, si la valeur
     écrite par le modèle en est une autre lecture. Une valeur qui porte des
-    chiffres (une référence) n'est jamais remplacée."""
-    compacte = "".join(_mots(str(valeur)))
+    chiffres (une référence) n'est jamais remplacée.
+
+    Revue du 28/09 : ni une valeur de plusieurs mots (« Jean Martin » perdait son
+    prénom), ni quand le mot épelé a été DIT en entier par la personne : il
+    confirme alors ce mot-là (« Martine Martin, M A R T I N » écrivait le prénom
+    MARTIN). Les cas réels ne le disent pas : « Delacres » épelé DELATTRE (863),
+    « fort f a u r e » (879)."""
+    mots = _mots(str(valeur))
+    compacte = "".join(mots)
     tour = fiche.get(CLE_TOUR)
-    if not tour or not compacte.isalpha():
+    if not tour or len(mots) != 1 or not compacte.isalpha():
         return None
     meilleur, score_max = None, 0.0
     for trace in _entrees(fiche, TRACE_EPELLATIONS):
@@ -1313,6 +1322,12 @@ def epellation_du_tour(valeur: Any, fiche: dict) -> str | None:
         score = fuzz.ratio(compacte, "".join(_mots(epele)))
         if score >= SEUIL_EPELLATION and score > score_max:
             meilleur, score_max = epele, score
+    # Dit en entier, comme un mot, et non lettre par lettre (``est_cite`` recolle
+    # les lettres : « f a u r e » y compte pour « faure »).
+    if meilleur and _mots(meilleur) != mots and any(
+        "".join(_mots(meilleur)) in _mots(str(parole)) for parole in paroles
+    ):
+        return None
     return meilleur
 
 
@@ -1416,7 +1431,7 @@ def ecrire_dans_la_fiche(
         ):
             # Runs 863, 879 : le module a lu l'épellation de ce tour, le modèle
             # a écrit autre chose (« DELACRES », « FORTEFAURE ») : la lecture prime.
-            epele = epellation_du_tour(valeur, fiche)
+            epele = epellation_du_tour(valeur, fiche, paroles)
         if epele:
             valeur = epele
         # Q6 (plan « le lexique », 26/09) : des lettres épelées qui SONT un terme
@@ -1963,6 +1978,13 @@ def _propriete(champ: ChampFiche) -> dict:
     description = champ.description or champ.nom
     if not champ.valeurs:
         return {"type": champ.type, "description": description}
+    if champ.type != "string":
+        # Revue du 28/09 : ``enum`` porte des chaînes ; sur un nombre ou un oui/non,
+        # le schéma deviendrait incohérent. La description garde les valeurs.
+        return {
+            "type": champ.type,
+            "description": f"{description} Valeurs permises : {', '.join(champ.valeurs)}.",
+        }
     return {
         "type": champ.type,
         "description": f"{description} Valeurs permises : {', '.join(champ.valeurs)}.",

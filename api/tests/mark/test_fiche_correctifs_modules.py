@@ -222,6 +222,26 @@ async def test_l_epellation_d_un_tour_passe_ne_s_impose_pas():
     assert appel.fiche["nom"] == "Delacroix"
 
 
+@pytest.mark.asyncio
+async def test_l_epellation_d_un_nom_ne_remplace_pas_le_prenom_voisin():
+    """Revue du 28/09 : « Martine Martin, M A R T I N » écrivait le prénom MARTIN.
+    Le mot épelé est dit en entier : il confirme ce mot-là, pas le prénom."""
+    appel = Appel(_reglages({"nom": "prenom", "origine": "dicte"}, NOM))
+    appel.dit("Martine Martin, m a r t i n")
+    appel.trace("epellations_lues", entendu="m a r t i n", epele="Martin")
+    await appel.note(prenom="Martine", nom="Martin")
+    assert (appel.fiche["prenom"], appel.fiche["nom"]) == ("Martine", "Martin")
+
+
+@pytest.mark.asyncio
+async def test_l_epellation_ne_remplace_pas_une_valeur_de_plusieurs_mots():
+    appel = Appel(_reglages(NOM))
+    appel.dit("Jean Martin, m a r t i n")
+    appel.trace("epellations_lues", entendu="m a r t i n", epele="Martin")
+    await appel.note(nom="Jean Martin")
+    assert appel.fiche["nom"] == "Jean Martin"
+
+
 # --- D7 : le champ cumulatif --------------------------------------------------
 
 
@@ -269,3 +289,13 @@ def test_les_valeurs_d_une_liste_fermee_sont_montrees_dans_le_schema_de_l_outil(
     propriete = schema_outil(reglages).properties["urgence"]
     assert propriete["enum"] == ["danger", "normal"]
     assert "danger" in propriete["description"] and "normal" in propriete["description"]
+
+
+def test_une_liste_fermee_sur_un_nombre_ne_porte_pas_d_enum():
+    """Revue du 28/09 : ``enum`` (des chaînes) sur un champ nombre rendait le schéma
+    de l'outil incohérent. La description garde les valeurs permises."""
+    proprietes = schema_outil(
+        _reglages({"nom": "pieces", "origine": "dicte", "type": "number", "valeurs": ["1", "2"]})
+    ).properties
+    assert "enum" not in proprietes["pieces"]
+    assert "Valeurs permises : 1, 2." in proprietes["pieces"]["description"]

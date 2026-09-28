@@ -5,9 +5,9 @@ Plan : ``Labo-agent-vocal/plans/correctifs-modules/2026-09-28-plan-correctifs-mo
 Réglage d'agent ``generer_schema_parcours`` (« Generate the flow map »), éteint par
 défaut. Allumé, chaque enregistrement de l'agent lit son graphe et écrit :
 
-- à la fin du prompt global, un bloc ``<parcours>`` : chaque étape, et sous elle
+- à la fin du prompt global, un bloc ``<parcours_genere>`` : chaque étape, et sous elle
   ses portes (le nom de la fonction que le modèle appelle → l'étape d'arrivée) ;
-- à la fin du prompt de chaque étape, ``<position>Tu es ici : <étape></position>``.
+- à la fin du prompt de chaque étape, ``<position_generee>Tu es ici : <étape></position_generee>``.
 
 Pourquoi dans le code : écrit à la main (le ``schema.js`` des agents de la
 refonte), le schéma finit faux dès qu'une porte change. Généré à l'enregistrement,
@@ -24,14 +24,16 @@ from __future__ import annotations
 
 import copy
 import re
-from typing import Any
 
 from api.services.workflow.workflow_graph import transition_tool_name
 
 CLE_REGLAGE = "generer_schema_parcours"
 
-DEBUT_PARCOURS, FIN_PARCOURS = "<parcours>", "</parcours>"
-DEBUT_POSITION, FIN_POSITION = "<position>", "</position>"
+# ⛔ Des repères propres au code (revue du 28/09) : ``<parcours>`` est ce qu'écrit
+# à la main le ``schema.js`` des agents de la refonte (n° 34). Des repères
+# identiques effaçaient ce texte à tout enregistrement, case éteinte.
+DEBUT_PARCOURS, FIN_PARCOURS = "<parcours_genere>", "</parcours_genere>"
+DEBUT_POSITION, FIN_POSITION = "<position_generee>", "</position_generee>"
 # Les étapes d'un appel ; le nœud global, les déclencheurs et les webhooks n'en sont pas.
 TYPES_ETAPE = ("startCall", "agentNode", "endCall")
 TYPE_GLOBAL = "globalNode"
@@ -74,7 +76,7 @@ def _ordre_des_etapes(etapes: list[dict], edges: list[dict]) -> list[dict]:
 
 
 def parcours(definition: dict) -> str:
-    """Le bloc ``<parcours>`` du graphe."""
+    """Le bloc ``<parcours_genere>`` du graphe."""
     noeuds = definition.get("nodes") or []
     edges = definition.get("edges") or []
     etapes = [n for n in noeuds if n.get("type") in TYPES_ETAPE]

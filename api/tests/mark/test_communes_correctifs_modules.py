@@ -238,3 +238,25 @@ async def test_la_commune_dite_apres_la_rue_ne_pese_plus_sur_la_rue():
 def test_la_lecture_de_l_appelant_est_la_meme_fonction_au_clavier():
     """Le clavier passe par ``lire_texte`` : même lecture, sans question d'avant."""
     assert callable(lire_texte)
+
+
+@pytest.mark.asyncio
+async def test_fiche_eteinte_aucune_force_et_le_verdict_d_avant():
+    """D4 ne vaut que fiche allumée : éteinte, la trace n'a pas de force et le
+    verdict est celui de la production (« depuis » reste lu comme avant)."""
+    fiche: dict = {}
+    processeur = LectureAppelantProcessor(
+        conversion=True,
+        verification=True,
+        langue_francaise=True,
+        adresse=MAGASIN,
+        etape_courante=lambda: SimpleNamespace(name="etape", extraction_variables=[SimpleNamespace(name="commune")]),
+        consigner=consigner_dans(lambda: fiche),
+        voies=True,
+        epellation=True,
+    )
+    messages = [{"role": "user", "content": "depuis deux jours."}]
+    await processeur._lire_contexte(SimpleNamespace(context=SimpleNamespace(messages=messages), speculation=False))
+    traces = fiche.get("communes_verifiees") or []
+    assert traces and all("force" not in t for t in traces), traces
+    assert [t["statut"] for t in traces] == ["sure"], traces

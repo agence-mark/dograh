@@ -3,7 +3,7 @@
 Plan : ``Labo-agent-vocal/plans/correctifs-modules/2026-09-28-plan-correctifs-modules.md``.
 Réglage d'agent « Generate the flow map » (``generer_schema_parcours``), éteint par
 défaut. Allumé : à chaque enregistrement, le code lit le graphe et écrit un bloc
-``<parcours>`` à la fin du prompt global et « Tu es ici : <étape> » dans le prompt de
+``<parcours_genere>`` à la fin du prompt global et « Tu es ici : <étape> » dans le prompt de
 chaque étape. Blocs délimités, remplacés à chaque enregistrement, jamais empilés ;
 seuls les noms d'étapes et de portes y entrent.
 
@@ -105,11 +105,11 @@ def _prompt(definition: dict, identifiant: str) -> str:
 def test_allume_le_parcours_et_la_position_sont_ecrits():
     d = appliquer(_definition(), True)
     parcours = _prompt(d, "global")
-    assert parcours.startswith(GLOBAL + "\n\n<parcours>") and parcours.endswith("</parcours>")
+    assert parcours.startswith(GLOBAL + "\n\n<parcours_genere>") and parcours.endswith("</parcours_genere>")
     assert "Accueil\n  aller_a_la_demande → Demande" in parcours
     assert "Demande\n  end_call → Fin" in parcours
-    assert _prompt(d, "demande") == "Note la demande.\n\n<position>Tu es ici : Demande</position>"
-    assert _prompt(d, "start").endswith("<position>Tu es ici : Accueil</position>")
+    assert _prompt(d, "demande") == "Note la demande.\n\n<position_generee>Tu es ici : Demande</position_generee>"
+    assert _prompt(d, "start").endswith("<position_generee>Tu es ici : Accueil</position_generee>")
 
 
 def test_deux_enregistrements_ne_font_aucun_doublon():
@@ -127,7 +127,7 @@ def test_une_etape_renommee_ou_une_porte_ajoutee_met_le_bloc_a_jour():
     parcours = _prompt(d, "global")
     assert "Demande" not in parcours and "aller_a_la_demande → Dossier" in parcours
     assert "raccrocher → Fin" in parcours
-    assert _prompt(d, "demande").count("<position>") == 1 and "Tu es ici : Dossier" in _prompt(d, "demande")
+    assert _prompt(d, "demande").count("<position_generee>") == 1 and "Tu es ici : Dossier" in _prompt(d, "demande")
 
 
 def test_eteint_rien_ne_change_et_les_blocs_laisses_sont_retires():
@@ -139,7 +139,20 @@ def test_le_texte_ecrit_a_la_main_n_est_jamais_touche():
     d = _definition()
     d["nodes"][0]["data"]["prompt"] = GLOBAL + "\n\nMa note : parcours à revoir."
     allume = appliquer(d, True)
-    assert _prompt(allume, "global").startswith(GLOBAL + "\n\nMa note : parcours à revoir.\n\n<parcours>")
+    assert _prompt(allume, "global").startswith(GLOBAL + "\n\nMa note : parcours à revoir.\n\n<parcours_genere>")
+    assert appliquer(allume, False) == d
+
+
+def test_un_parcours_ecrit_a_la_main_survit_case_eteinte_comme_allumee():
+    """Revue du 28/09 (bloquant) : l'agent n° 34 porte un ``<parcours>`` écrit par
+    ``schema.js``. Des repères identiques l'effaçaient à tout enregistrement, case
+    éteinte. Les repères du code ne peuvent pas être ceux d'un texte écrit à la main."""
+    d = _definition()
+    main = GLOBAL + "\n\n<parcours>\naccueil : comprendre la demande\n</parcours>"
+    d["nodes"][0]["data"]["prompt"] = main
+    assert appliquer(d, False) == d
+    allume = appliquer(d, True)
+    assert _prompt(allume, "global").startswith(main + "\n\n")
     assert appliquer(allume, False) == d
 
 
@@ -203,7 +216,7 @@ async def test_traversant_la_route_ecrit_le_parcours_et_le_modele_le_recoit(
 
     brouillon = await db_session.get_draft_version(workflow.id)
     enregistre = brouillon.workflow_json
-    assert _prompt(enregistre, "global").count("<parcours>") == 1
+    assert _prompt(enregistre, "global").count("<parcours_genere>") == 1
     assert "Tu es ici : Accueil" in _prompt(enregistre, "start")
 
     publiee = await db_session.publish_workflow_draft(workflow.id)
@@ -219,7 +232,7 @@ async def test_traversant_la_route_ecrit_le_parcours_et_le_modele_le_recoit(
     # Le prompt de l'étape arrive au modèle comme consigne système (``system_prompt``).
     recu = llm.captured_contexts[0]
     systeme = str(recu["system_prompt"]) + str(recu["messages"])
-    assert "<parcours>" in systeme and "aller_a_la_demande → Demande" in systeme
+    assert "<parcours_genere>" in systeme and "aller_a_la_demande → Demande" in systeme
     assert "Tu es ici : Accueil" in systeme
 
 
@@ -231,7 +244,7 @@ async def test_traversant_la_case_seule_enregistree_met_le_graphe_a_jour_et_etei
     async with test_client_factory(user) as client:
         await _enregistrer(client, workflow.id, {"workflow_configurations": {"generer_schema_parcours": True}})
         allume = (await db_session.get_draft_version(workflow.id)).workflow_json
-        assert "<parcours>" in _prompt(allume, "global")
+        assert "<parcours_genere>" in _prompt(allume, "global")
         await _enregistrer(client, workflow.id, {"workflow_configurations": {"generer_schema_parcours": False}})
     eteint = (await db_session.get_draft_version(workflow.id)).workflow_json
     assert _prompt(eteint, "global") == GLOBAL and _prompt(eteint, "demande") == "Note la demande."
@@ -284,4 +297,4 @@ async def test_traversant_l_outil_mcp_ecrit_aussi_le_parcours(db_session, async_
     assert resultat["saved"] is True, resultat
     enregistre = (await db_session.get_draft_version(workflow.id)).workflow_json
     accueil = next(n for n in enregistre["nodes"] if n["type"] == "startCall")
-    assert accueil["data"]["prompt"].endswith("<position>Tu es ici : Accueil</position>")
+    assert accueil["data"]["prompt"].endswith("<position_generee>Tu es ici : Accueil</position_generee>")

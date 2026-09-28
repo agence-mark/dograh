@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from api.constants import DEPLOYMENT_MODE
 from api.db import db_client
-from api.services.workflow import schema_du_parcours
 from api.db.agent_trigger_client import TriggerPathConflictError
 from api.db.models import UserModel
 from api.db.workflow_template_client import WorkflowTemplateClient
@@ -54,6 +53,7 @@ from api.services.pipecat.etat_ouverture import HorairesInvalides, vers_expressi
 from api.services.posthog_client import capture_event
 from api.services.reports import generate_workflow_report_csv
 from api.services.storage import storage_fs
+from api.services.workflow import schema_du_parcours
 from api.services.workflow.configuration_policy import (
     ExternalPBXConfigurationDisabledError,
     WorkflowConfigurationNotFoundError,
