@@ -91,10 +91,11 @@ NOM = {"nom": "nom", "origine": "dicte"}
 
 
 async def _marque_a_confirmer() -> Appel:
+    """Une marque hors du lexique : notée, elle est à faire confirmer (depuis D3,
+    une marque RECOMMANDÉE par le lexique est retenue sans question)."""
     appel = Appel(_reglages(MARQUE))
-    appel.dit("j'ai un poêle et dite camain")
-    appel.trace("lexique_reconnu", entendu="dite camain", statut="a_confirmer", terme="Edilkamin")
-    r = await appel.note(marque="dite camain")
+    appel.dit("j'ai un appareil Zorvex")
+    r = await appel.note(marque="Zorvex")
     assert _a_faire_confirmer(r) == {"marque"} and not appel.sure("marque")
     return appel
 
@@ -102,17 +103,17 @@ async def _marque_a_confirmer() -> Appel:
 @pytest.mark.asyncio
 async def test_un_oui_leve_la_confirmation_d_une_valeur_renvoyee_a_l_identique():
     appel = await _marque_a_confirmer()
-    appel.dit("Oui, c'est ça.", agent_avant="C'est bien de la marque Edilkamin ?")
-    r = await appel.note(marque="Edilkamin")
+    appel.dit("Oui, c'est ça.", agent_avant="C'est bien de la marque Zorvex ?")
+    r = await appel.note(marque="Zorvex")
     assert not _a_faire_confirmer(r), r
-    assert appel.sure("marque") and appel.fiche["marque"] == "Edilkamin"
+    assert appel.sure("marque") and appel.fiche["marque"] == "Zorvex"
 
 
 @pytest.mark.asyncio
 async def test_un_non_ne_leve_rien():
     appel = await _marque_a_confirmer()
-    appel.dit("Non, pas du tout.", agent_avant="C'est bien de la marque Edilkamin ?")
-    r = await appel.note(marque="Edilkamin")
+    appel.dit("Non, pas du tout.", agent_avant="C'est bien de la marque Zorvex ?")
+    r = await appel.note(marque="Zorvex")
     assert not appel.sure("marque"), r
 
 
@@ -120,7 +121,7 @@ async def test_un_non_ne_leve_rien():
 async def test_un_oui_sur_une_autre_valeur_ne_leve_rien():
     appel = await _marque_a_confirmer()
     appel.dit("Oui, c'est une Nordica en fait.")
-    await appel.note(marque="Edilkamin")
+    await appel.note(marque="Zorvex")
     assert not appel.sure("marque")
 
 

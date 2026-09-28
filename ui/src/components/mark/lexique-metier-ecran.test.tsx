@@ -147,6 +147,28 @@ function charge() {
     return sdk.saveLexiqueApiV1OrganizationsLexiquePut.mock.calls[0][0].body;
 }
 
+describe("[.mark] le seuil des mots courants (correctifs-modules, décision du 28/09)", () => {
+    it("montre le réglage dans le dialogue, au défaut du serveur, et l'enregistre", async () => {
+        await ouvrirLexique();
+        const champ = screen.getByLabelText(/common words never read as a name/i) as HTMLInputElement;
+        expect(champ.value).toBe("10000");
+        fireEvent.change(champ, { target: { value: "15000" } });
+        fireEvent.click(screen.getByRole("button", { name: /save trade vocabulary/i }));
+        await waitFor(() => expect(sdk.saveLexiqueApiV1OrganizationsLexiquePut).toHaveBeenCalled());
+        expect(charge().seuil_mots_courants).toBe(15000);
+    });
+
+    it("porte les bornes du serveur", async () => {
+        const { readFileSync } = await import("node:fs");
+        const { join } = await import("node:path");
+        const schema = readFileSync(join(__dirname, "../../../../api/schemas/lexique_metier.py"), "utf8");
+        await ouvrirLexique();
+        const champ = screen.getByLabelText(/common words never read as a name/i) as HTMLInputElement;
+        expect(Number(champ.min)).toBe(Number(/^SEUIL_MOTS_COURANTS_MIN = ([\d_]+)/m.exec(schema)?.[1].replace(/_/g, "")));
+        expect(Number(champ.max)).toBe(Number(/^SEUIL_MOTS_COURANTS_MAX = ([\d_]+)/m.exec(schema)?.[1].replace(/_/g, "")));
+    });
+});
+
 describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
     it("affiche le lexique de l'organisation, avec ses colonnes", async () => {
         await ouvrirLexique();

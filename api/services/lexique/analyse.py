@@ -19,9 +19,21 @@ What the trial taught, and the code keeps
 -----------------------------------------
 - A reading may cover several words ("Edil camin"); function words never start
   or end one.
-- ⛔ Common French words ("royal", "devis", "cheminée") are read as a brand
-  ONLY after a strong cue ("poêle", "marque"...), and a brand made of common
-  words ("Philippe", "Supra") likewise.
+- ⛔ Chantier correctifs-modules (D2, 28/09): the "strong cues" that used to
+  let a common word be read as a brand were words of one trade, written in the
+  code (rule of Evan: no trade vocabulary in the code); they are gone. In their
+  place, the frequency of the word in French: the N most frequent words
+  (« quand », « marque », « royal »…) are never read, nor a brand made of them
+  -- heard as it is spelled, the model reads it right and the record recognises
+  it when it is noted. A rarer word of the list (« Rica » for Rika, run 871) may
+  be RECOMMENDED, never sure. N is a setting of the organization, stored with its
+  vocabulary (``LexiqueMetier.seuil_mots_courants``, default 10 000), so that
+  another trade adjusts it on the screen, never by a patch (decision of Evan,
+  28/09). Gone with the cues: « marque » → Hark, « quand » → Scan (runs 862,
+  873, 875, 880).
+- A brand said letter by letter (« m c z ») is read when the letters are
+  EXACTLY one of its spellings (run 869); letters that spell nothing of the
+  vocabulary are left alone (a spelled name).
 - Three comparisons, the best one counts: the home-made sound key (``_son_mot``),
   the ``phonetic_fr`` key, and the sounds of espeak-ng (T5, L17). 🔑 The sounds
   FIND a name; the spelling DECIDES: a name found by its sound alone is capped
@@ -48,13 +60,18 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Collection
 
 import numpy as np
 from rapidfuzz import fuzz, process
 
-from api.schemas.lexique_metier import LexiqueMetier, normaliser_terme
+from api.schemas.lexique_metier import (
+    SEUIL_MOTS_COURANTS_DEFAUT,
+    LexiqueMetier,
+    normaliser_terme,
+)
 from api.services.communes.base import cle_phonetique
 from api.services.communes.sons import sons
 
@@ -69,12 +86,6 @@ MOTS_OUTILS = frozenset(
 )
 # A function word that may start a name ("La Nordica", "Le Droff").
 ARTICLES_DE_DEBUT = frozenset({"la", "le"})
-# The words before a name that let a common word be read as one.
-AMORCES_FORTES = frozenset(
-    {"marque", "poele", "poeles", "poil", "insert", "foyer", "chaudiere", "cuisiniere", "modele", "chez",
-     "granules", "bois", "fabricant"}
-)
-MOTS_AVANT = 3
 
 # Q5 (2026-09-26): what announces a person's name, as normalised words. Generic:
 # nothing here belongs to one trade or one client. The word(s) right after one
@@ -211,6 +222,14 @@ def apres_un_marqueur_de_nom(mots: list[str], i: int) -> bool:
     return False
 
 
+@lru_cache(maxsize=8)
+def mots_frequents(seuil: int) -> frozenset[str]:
+    """The ``seuil`` most frequent words of the list (it is sorted by frequency):
+    never read as a name (setting of the organization, ``seuil_mots_courants``)."""
+    lignes = [m for m in FICHIER_MOTS_COURANTS.read_text(encoding="utf-8").splitlines() if m and not m.startswith("#")]
+    return frozenset(normaliser_terme(m) for m in lignes[:seuil])
+
+
 def mots_dorigine(texte: str) -> list[tuple[str, int, int]]:
     """The normalised words of a sentence, each with its span in the ORIGINAL sentence."""
     mots = []
@@ -261,6 +280,8 @@ class Index:
         self.sons_des_formes = sons_des_formes
         # None: the list of communes could not be read, and nothing is read (T16).
         self.noms_des_communes = noms_des_communes
+        # Never read as a name; set by ``construire`` from the organization's setting.
+        self.frequents = mots_frequents(SEUIL_MOTS_COURANTS_DEFAUT)
         self.cles_sonores = [f.cle_sonore for f in formes]
         self.cles_phonetiques = [f.cle_phonetique for f in formes]
         self.longueurs = np.array([len(k) for k in self.cles_sonores], dtype=np.int32)
@@ -319,7 +340,9 @@ class Index:
                     )
                 )
         sons_des_formes = sons_sans_drapeaux([f.norm for f in formes]) if (avec_sons and formes) else None
-        return cls(formes, sons_des_formes, noms_des_communes)
+        index = cls(formes, sons_des_formes, noms_des_communes)
+        index.frequents = mots_frequents(lexique.seuil_mots_courants)
+        return index
 
 
 def _passages(mots: list[str], mots_max: int) -> list[tuple[int, int, str]]:
@@ -349,8 +372,9 @@ def analyser(texte: str, index: Index, avec_sons: bool = True) -> list[Detection
     mots = [m for m, _, _ in mots_et_places]
     passages = _passages(mots, index.mots_max)
     if not passages:
-        return []
+        return [c[-1] for c in _lettres(mots, mots_et_places, texte, index)]
     courants = mots_courants()
+    frequents = index.frequents
 
     cles = [cle_sonore(p[2]) for p in passages]
     s_sonore = process.cdist(cles, index.cles_sonores, scorer=fuzz.ratio, workers=-1)
@@ -400,11 +424,13 @@ def analyser(texte: str, index: Index, avec_sons: bool = True) -> list[Detection
         score = float(ligne[meilleure])
         second = float(ligne[autres].max()) if autres.any() else None
         exact = passage == forme.norm
-        avant = mots[max(0, i - MOTS_AVANT) : i]
-        forte = any(m in AMORCES_FORTES for m in avant)
         banal = all(m in courants for m in passage.split())
-        # ⛔ Common words become a name only after a STRONG cue.
-        if (banal or forme.banale) and not forte:
+        # ⛔ A frequent word is never a name, nor a name made of frequent words
+        # (setting of the organization, 28/09). A rarer common word, or a name
+        # made of rarer common words, may be recommended, never sure (below).
+        if all(m in frequents for m in passage.split()) or all(
+            m in frequents for m in forme.norm.split()
+        ):
             continue
         # ⛔ Q5: a person's name is never rewritten into a brand (« Monsieur Baudard »).
         if apres_un_marqueur_de_nom(mots, i):
@@ -415,7 +441,8 @@ def analyser(texte: str, index: Index, avec_sons: bool = True) -> list[Detection
         # Comparable length: no 3-sound name in a 12-sound reading.
         if abs(len(cle) - len(forme.cle_sonore)) > max(3, len(forme.cle_sonore) // 2):
             continue
-        if exact or (score >= SEUIL_SURE and (second is None or score - second >= MARGE_SURE)):
+        # A word of the list, or a brand made of its words: recommended, never sure.
+        if not (banal or forme.banale) and (exact or (score >= SEUIL_SURE and (second is None or score - second >= MARGE_SURE))):
             statut = SURE
         elif score >= SEUIL_A_CONFIRMER:
             statut = A_CONFIRMER
@@ -446,6 +473,8 @@ def analyser(texte: str, index: Index, avec_sons: bool = True) -> list[Detection
             )
         )
 
+    candidats += _lettres(mots, mots_et_places, texte, index)
+
     # The best readings that do not overlap; a commune's name claims its words first.
     candidats.sort(key=lambda c: (not c[0], not c[1], -c[2], -c[3]))
     pris: set[int] = set()
@@ -456,6 +485,38 @@ def analyser(texte: str, index: Index, avec_sons: bool = True) -> list[Detection
         pris.update(range(i, i + n))
         retenues.append(detection)
     return retenues
+
+
+def _lettres(mots, mots_et_places, texte, index: Index) -> list:
+    """Run 869 : a brand said letter by letter (« m c z »). Two or more single
+    letters in a row, glued, that are EXACTLY one of a name's spellings: sure.
+    Nothing else is read in letters (a spelled person's name stays a name)."""
+    formes = {f.norm.replace(" ", ""): f for f in index.formes}
+    candidats = []
+    i = 0
+    while i < len(mots):
+        j = i
+        while j < len(mots) and len(mots[j]) == 1 and mots[j].isalpha():
+            j += 1
+        if j - i >= 2 and not apres_un_marqueur_de_nom(mots, i):
+            forme = formes.get("".join(mots[i:j]))
+            if forme is not None:
+                debut, fin = mots_et_places[i][1], mots_et_places[j - 1][2]
+                detection = Detection(
+                    entendu=texte[debut:fin],
+                    debut=debut,
+                    fin=fin,
+                    statut=SURE,
+                    terme=forme.terme,
+                    categorie=forme.categorie,
+                    score=100.0,
+                    propositions=(Proposition(forme.terme, forme.categorie, 100.0),),
+                    par_son=False,
+                    exact=True,
+                )
+                candidats.append((False, True, 100.0, j - i, i, detection))
+        i = max(j, i + 1)
+    return candidats
 
 
 def _propositions(ligne: np.ndarray, index: Index, meilleure: int) -> tuple[Proposition, ...]:

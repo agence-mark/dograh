@@ -53,6 +53,11 @@ import { useAuth } from "@/lib/auth";
  * own, and no ceiling is written here.
  */
 
+/** Mirrors `api/schemas/lexique_metier.py` (tenu égal par un test d'écran). */
+const SEUIL_MOTS_COURANTS_DEFAUT = 10_000;
+const SEUIL_MOTS_COURANTS_MIN = 1_000;
+const SEUIL_MOTS_COURANTS_MAX = 31_796;
+
 /** Wait this long after the last change of the draft before asking the budget again. */
 const ATTENTE_BUDGET_MS = 300;
 
@@ -426,6 +431,34 @@ export function SectionLexiqueMetier() {
           </div>
 
           <BudgetDeLaTranscription budget={budgetDuBrouillon} />
+
+          <div className="space-y-1">
+            <Label htmlFor="seuil_mots_courants" className="text-xs">
+              Common words never read as a name
+            </Label>
+            <Input
+              id="seuil_mots_courants"
+              type="number"
+              className="w-32"
+              min={SEUIL_MOTS_COURANTS_MIN}
+              max={SEUIL_MOTS_COURANTS_MAX}
+              step={1000}
+              value={brouillon.seuil_mots_courants ?? SEUIL_MOTS_COURANTS_DEFAUT}
+              onChange={(e) =>
+                setBrouillon((actuel) => ({
+                  ...actuel,
+                  seuil_mots_courants: Number(e.target.value) || SEUIL_MOTS_COURANTS_DEFAUT,
+                }))
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              The {SEUIL_MOTS_COURANTS_DEFAUT.toLocaleString("en")} most frequent French words (the default) are
+              never read as a name of this vocabulary, nor a name made of them. A rarer word may only be suggested
+              to the agent, never taken as sure. Raise it if everyday words are read as names; lower it if names
+              that sound like words are missed. From {SEUIL_MOTS_COURANTS_MIN.toLocaleString("en")} to{" "}
+              {SEUIL_MOTS_COURANTS_MAX.toLocaleString("en")} (the whole list).
+            </p>
+          </div>
 
           {erreur && <p className="text-xs text-destructive">{erreur}</p>}
 

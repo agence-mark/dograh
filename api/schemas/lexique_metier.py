@@ -33,6 +33,16 @@ MAX_LONGUEUR_PRONONCIATION = 120
 MAX_LONGUEUR_CATEGORIE = 30
 MAX_MODELES_IMPORTES = 50
 MAX_LONGUEUR_NOM_MODELE = 100
+# Chantier correctifs-modules, décision d'Evan du 28/09 : les N mots les plus
+# fréquents du français ne sont jamais lus comme un nom du lexique ; un mot plus
+# rare de la liste peut être recommandé, jamais sûr. Un réglage de l'organisation,
+# pour qu'un autre secteur l'ajuste à l'écran et jamais par un patch. Le défaut
+# est celui mesuré sur les appels 861 à 881 (zéro perte, run 871 « Rica »).
+SEUIL_MOTS_COURANTS_DEFAUT = 10_000
+SEUIL_MOTS_COURANTS_MIN = 1_000
+# La taille de la liste de fréquence (``assets/lexique/mots-courants-fr-2026-09.txt``),
+# tenue égale par un test : au-delà, toute la liste est protégée.
+SEUIL_MOTS_COURANTS_MAX = 31_796
 
 
 def normaliser_terme(texte: str) -> str:
@@ -163,6 +173,15 @@ class LexiqueMetier(BaseModel):
     version: Literal[1] = 1
     modeles_importes: list[ModeleImporte] = Field(default_factory=list, max_length=MAX_MODELES_IMPORTES)
     termes: list[TermeLexique] = Field(default_factory=list, max_length=MAX_TERMES)
+    seuil_mots_courants: int = Field(
+        default=SEUIL_MOTS_COURANTS_DEFAUT,
+        ge=SEUIL_MOTS_COURANTS_MIN,
+        le=SEUIL_MOTS_COURANTS_MAX,
+        description=(
+            "The N most frequent French words are never read as a name of the "
+            "vocabulary; a rarer common word may only be recommended, never sure."
+        ),
+    )
 
     @model_validator(mode="after")
     def _aucune_forme_partagee(self):

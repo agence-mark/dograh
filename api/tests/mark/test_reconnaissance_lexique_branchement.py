@@ -241,7 +241,8 @@ async def test_le_nom_sur_est_ecrit_proprement_pour_le_modele():
         {"role": "user", "content": "c'est un Edilcamin"},
     )
     await _faire_passer(_processeur(), LLMContextFrame(context=contexte))
-    assert contexte.messages[-1]["content"] == "c'est un Edilkamin"
+    # D2 (correctifs-modules, 28/09) : les mots restent intacts, le nom est recommandé.
+    assert contexte.messages[-1]["content"] == "c'est un Edilcamin [Lexique, pour toi seulement, jamais dit à voix haute : la personne a dit Edilkamin.]"
     assert contexte.messages[0] == {"role": "assistant", "content": "Quelle marque ?"}
 
 
@@ -249,8 +250,8 @@ async def test_le_nom_sur_est_ecrit_proprement_pour_le_modele():
 async def test_un_nom_douteux_donne_une_mention():
     contexte = _contexte({"role": "user", "content": "c'est un poêle édile camembert"})
     await _faire_passer(_processeur(), LLMContextFrame(context=contexte))
-    assert contexte.messages[-1]["content"].startswith("c'est un poêle édile camembert [Lexique : ")
-    assert "Edilkamin (marque)" in contexte.messages[-1]["content"]
+    assert contexte.messages[-1]["content"].startswith("c'est un poêle édile camembert [Lexique")
+    assert "peut-être dit Edilkamin" in contexte.messages[-1]["content"]
 
 
 @pytest.mark.asyncio
@@ -258,7 +259,7 @@ async def test_un_contexte_renvoye_deux_fois_est_corrige_une_seule_fois():
     contexte = _contexte({"role": "user", "content": "c'est un poêle édile camembert"})
     processeur = _processeur()
     await _faire_passer(processeur, LLMContextFrame(context=contexte), LLMContextFrame(context=contexte))
-    assert contexte.messages[-1]["content"].count("[Lexique :") == 1
+    assert contexte.messages[-1]["content"].count("[Lexique") == 1
 
 
 @pytest.mark.asyncio
@@ -268,7 +269,7 @@ async def test_un_cadre_provisoire_est_traite_et_marque_dans_la_trace():
     trame = LLMContextFrame(context=contexte)
     trame.speculation = True
     await _faire_passer(_processeur(consigner=consigner_dans(lambda: recueilli)), trame)
-    assert contexte.messages[-1]["content"].count("[Lexique :") == 1
+    assert contexte.messages[-1]["content"].count("[Lexique") == 1
     assert recueilli[CLE_TRACE][0]["provisoire"] is True
 
 
@@ -285,7 +286,7 @@ async def test_une_analyse_interrompue_ne_marque_pas_le_message_examine():
     assert contexte.messages[-1]["content"] == "c'est un Edilcamin"
     with patch.object(module, "corriger_texte", side_effect=vrai):
         await processeur._lire_contexte(LLMContextFrame(context=contexte))
-    assert contexte.messages[-1]["content"] == "c'est un Edilkamin"
+    assert contexte.messages[-1]["content"] == "c'est un Edilcamin [Lexique, pour toi seulement, jamais dit à voix haute : la personne a dit Edilkamin.]"
 
 
 @pytest.mark.asyncio
@@ -356,7 +357,7 @@ async def test_la_transcription_enregistree_garde_les_mots_le_modele_lit_la_corr
         start_timeout=DEMARRAGE_S,
     )
     lu = [m for m in contexte.messages if m.get("role") == "user"]
-    assert lu and lu[-1]["content"] == "c'est un Edilkamin"
+    assert lu and lu[-1]["content"] == "c'est un Edilcamin [Lexique, pour toi seulement, jamais dit à voix haute : la personne a dit Edilkamin.]"
 
 
 @pytest.mark.asyncio
@@ -441,15 +442,15 @@ async def test_la_mention_du_lexique_passe_apres_celle_des_communes():
     contexte = _contexte({"role": "user", "content": deja})
     await _faire_passer(_processeur(), LLMContextFrame(context=contexte))
     contenu = contexte.messages[-1]["content"]
-    assert contenu.index("[Vérification de la commune") < contenu.index("[Lexique :")
-    assert contenu.endswith("Fais confirmer ce nom avant de le noter.]")
+    assert contenu.index("[Vérification de la commune") < contenu.index("[Lexique")
+    assert contenu.endswith("la personne a peut-être dit Edilkamin.]")
     # Et la lecture de l'appelant, qui découpe au premier « [Lexique : », voit
     # toujours la note de commune : elle ne la réécrit pas une seconde fois.
     from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
     from api.services.pipecat.lecture_appelant import _separer_mention_lexique
 
     avant_la_mention, mention = _separer_mention_lexique(contenu)
-    assert mention.startswith("[Lexique :")
+    assert mention.startswith("[Lexique")
     assert commune_deja_mentionnee(avant_la_mention)
 
 
@@ -550,7 +551,7 @@ async def test_le_message_tape_est_corrige_comme_un_appel():
     corrige = await annoter_message_tape(
         "c'est un Edilcamin", {}, LEXIQUE, NOEUD, consigner_dans(lambda: recueilli)
     )
-    assert corrige == "c'est un Edilkamin"
+    assert corrige == "c'est un Edilcamin [Lexique, pour toi seulement, jamais dit à voix haute : la personne a dit Edilkamin.]"
     assert recueilli[CLE_TRACE][0]["terme"] == "Edilkamin"
 
 

@@ -43,17 +43,24 @@ from api.services.lexique.analyse import (
 from api.services.lexique.correction import (
     corriger,
     deja_mentionne,
+    mentions,
     partie_de_lappelant,
 )
 
 DONNEES = Path(__file__).parent / "donnees"
 # Measured on the port, 2026-09-17 (L20): the trial's figures minus what the two
 # rules the plan adds cost (language marks removed, towns never rewritten).
+# Chantier correctifs-modules (28/09) : le lexique ne réécrit plus, il RECOMMANDE
+# (D2, D3) ; une lecture sûre et une lecture « peut-être » donnent toutes deux une
+# recommandation, et la fiche retient le terme noté. Ce qui compte est donc le nom
+# JUSTE lu, sûr ou recommandé. Mesuré le 28/09 : production (c9d22a18) 189, 159,
+# 188, 157 ; cette branche 188, 156, 187, 154 (amorces de métier retirées, seuil
+# des mots courants de l'organisation à 10 000). Fausses sûres : 2 → 1.
 SEUILS = {
-    ("large-v3", True): 157,
-    ("small", True): 129,
-    ("large-v3", False): 156,
-    ("small", False): 127,
+    ("large-v3", True): 188,
+    ("small", True): 156,
+    ("large-v3", False): 187,
+    ("small", False): 154,
 }
 
 
@@ -128,7 +135,7 @@ def _jouer_le_banc(index: Index, phrases: list[dict], avec_sons: bool) -> dict:
 def test_le_banc_avec_les_sons(index, banc, taille):
     compte = _jouer_le_banc(index, banc["avec_marque"][taille], avec_sons=True)
     assert compte["lues"] == 272
-    assert compte["sure_juste"] >= SEUILS[(taille, True)], compte
+    assert compte["sure_juste"] + compte["a_confirmer_juste"] >= SEUILS[(taille, True)], compte
     assert compte["fausse_sure"] <= 1, compte
 
 
@@ -138,7 +145,7 @@ def test_le_banc_sans_la_bibliotheque_de_prononciation(index_sans_sons, banc, ta
     monkeypatch.setattr(module_analyse, "sons", lambda textes: None)
     compte = _jouer_le_banc(index_sans_sons, banc["avec_marque"][taille], avec_sons=True)
     assert compte["lues"] == 272
-    assert compte["sure_juste"] >= SEUILS[(taille, False)], compte
+    assert compte["sure_juste"] + compte["a_confirmer_juste"] >= SEUILS[(taille, False)], compte
     assert compte["fausse_sure"] <= 1, compte
 
 
@@ -168,14 +175,24 @@ def test_aucune_marque_inventee_sur_les_phrases_sans_marque(index, banc):
             else:
                 inventees.append((texte, detection.entendu, detection.terme, detection.statut))
     assert lues == 81
-    # The three real brands of these sentences are read; nothing else is.
-    assert inventees == []
+    # The three real brands of these sentences are read. Décision d'Evan du 28/09
+    # (seuil des mots courants) : un mot rare de la liste peut être RECOMMANDÉ,
+    # jamais sûr ; « devis » → peut-être Deville est la limite annoncée ce jour-là.
+    assert all(statut != SURE for *_, statut in inventees), inventees
+    assert {(entendu.lower(), terme) for _, entendu, terme, _ in inventees} <= LIMITES_CONNUES
     assert all(compte >= 1 for compte in vraies.values()), vraies
+
+
+LIMITES_CONNUES = {("devis", "Deville")}
 
 
 @pytest.mark.parametrize("texte", ["la cheminée est bloquée", "le conduit est bouché", "c'est pour un devis"])
 def test_des_mots_courants_ne_deviennent_pas_une_marque(index, texte):
-    assert analyser(texte, index) == []
+    """Jamais une marque sûre ; « devis » (mot rare de la liste) peut seulement être
+    recommandé (limite connue, décision du 28/09)."""
+    lues = analyser(texte, index)
+    assert all(d.statut != SURE for d in lues), lues
+    assert {(d.entendu.lower(), d.terme) for d in lues} <= LIMITES_CONNUES
 
 
 # --------------------------------------------------------------------------- #
@@ -187,7 +204,8 @@ CAS_REELS = {
     "edilcamin": ("c'est un Edilcamin", [("Edilkamin", SURE)]),
     "edil-camin": ("un Edil camin à granulés", [("Edilkamin", SURE)]),
     "edile-camembert": ("C'est un poêle édile camembert", [("Edilkamin", A_CONFIRMER)]),
-    "devis": ("c'est pour un devis, une sortie de toit", []),
+    # Limite connue du seuil des mots courants (28/09) : recommandé, jamais sûr.
+    "devis": ("c'est pour un devis, une sortie de toit", [("Deville", A_CONFIRMER)]),
     "royal": ("c'est royal, merci beaucoup", []),
     "philippe": ("je suis Philippe Martin", []),
     "scandinave": ("un poêle scandinave", []),
@@ -281,17 +299,22 @@ def test_les_sons_nont_pas_de_drapeau_de_langue():
 # --------------------------------------------------------------------------- #
 
 
-def test_le_nom_sur_est_remplace_dans_le_texte(index):
+def test_le_nom_sur_n_est_jamais_reecrit_il_est_recommande(index):
+    """D2 (28/09) : les mots de l'appelant restent intacts ; le nom sûr est recommandé."""
     texte = "bonjour, c'est un Edilcamin qui se met en erreur"
-    assert corriger(texte, analyser(texte, index)) == "bonjour, c'est un Edilkamin qui se met en erreur"
+    assert corriger(texte, analyser(texte, index)) == (
+        "bonjour, c'est un Edilcamin qui se met en erreur "
+        "[Lexique, pour toi seulement, jamais dit à voix haute : la personne a dit Edilkamin.]"
+    )
 
 
-def test_le_nom_douteux_donne_une_mention_au_texte_exact(index):
+def test_le_nom_douteux_donne_une_recommandation_au_texte_exact(index):
+    """D3 (28/09) : « peut-être », jamais « fais confirmer »."""
     texte = "C'est un poêle édile camembert"
     corrige = corriger(texte, analyser(texte, index))
     assert corrige == (
         "C'est un poêle édile camembert "
-        "[Lexique : « édile camembert » peut être Edilkamin (marque). Fais confirmer ce nom avant de le noter.]"
+        "[Lexique, pour toi seulement, jamais dit à voix haute : la personne a peut-être dit Edilkamin.]"
     )
 
 
@@ -306,30 +329,30 @@ def test_la_mention_enumere_jusqua_trois_noms(index):
             propositions=tuple(Proposition(t, c, 80.0) for t, c in propositions), par_son=False, exact=False,
         )
 
+    # D3 (28/09) : au plus deux noms, « deux marques possibles » ; jamais « fais confirmer ».
+    entete = "[Lexique, pour toi seulement, jamais dit à voix haute :"
     assert phrase_de_mention(detection([("Edilkamin", "marque")])) == (
-        "[Lexique : « édile camembert » peut être Edilkamin (marque). Fais confirmer ce nom avant de le noter.]"
+        f"{entete} la personne a peut-être dit Edilkamin.]"
     )
     assert phrase_de_mention(detection([("Edilkamin", "marque"), ("Ecoforest", "marque")])) == (
-        "[Lexique : « édile camembert » peut être Edilkamin (marque) ou Ecoforest (marque). "
-        "Fais confirmer ce nom avant de le noter.]"
+        f"{entete} la personne a peut-être dit Edilkamin ou Ecoforest.]"
     )
     trois = detection([("Edilkamin", "marque"), ("Ecoforest", "marque"), ("Invicta", None)])
-    assert phrase_de_mention(trois) == (
-        "[Lexique : « édile camembert » peut être Edilkamin (marque), Ecoforest (marque) ou Invicta. "
-        "Fais confirmer ce nom avant de le noter.]"
-    )
+    assert phrase_de_mention(trois) == f"{entete} la personne a peut-être dit Edilkamin ou Ecoforest.]"
 
 
 def test_sans_lecture_le_texte_ne_bouge_pas_et_la_correction_est_idempotente(index):
     assert corriger("bonjour, je voudrais un rendez-vous", []) == "bonjour, je voudrais un rendez-vous"
+    # D2 : le texte ne bouge plus ; un message déjà recommandé est reconnu (la
+    # lecture de l'appelant ne le relit pas) et ses mots se retrouvent intacts.
     texte = "c'est un Edilcamin"
     une_fois = corriger(texte, analyser(texte, index))
-    assert corriger(une_fois, analyser(une_fois, index)) == une_fois
+    assert deja_mentionne(une_fois) and partie_de_lappelant(une_fois)[0] == texte
     doute = "C'est un poêle édile camembert"
     avec_mention = corriger(doute, analyser(doute, index))
     assert deja_mentionne(avec_mention)
     appelant, notes = partie_de_lappelant(avec_mention)
-    assert appelant == doute and notes.startswith("[Lexique :")
+    assert appelant == doute and notes.startswith("[Lexique")
 
 
 def test_deux_noms_dans_un_message_sont_corriges_chacun(index):
@@ -340,7 +363,10 @@ def test_deux_noms_dans_un_message_sont_corriges_chacun(index):
         ("Edil camin", "Edilkamin", SURE),
         ("Piazetta", "Piazzetta", SURE),
     ]
-    assert corriger(texte, lectures) == "c'est un Edilkamin et avant j'avais un poêle Piazzetta"
+    entete = "[Lexique, pour toi seulement, jamais dit à voix haute :"
+    assert corriger(texte, lectures) == (
+        f"{texte} {entete} la personne a dit Edilkamin.] {entete} la personne a dit Piazzetta.]"
+    )
 
 
 @pytest.mark.parametrize(
@@ -359,7 +385,9 @@ def test_les_mentions_des_autres_lecteurs_ne_sont_pas_analysees(index):
     texte = "je suis à Deville [Vérification de la commune : « Deville » correspond à Déville-lès-Rouen (76250, Seine-Maritime). Utilise ce nom sans le faire répéter.]"
     appelant, notes = partie_de_lappelant(texte)
     assert appelant == "je suis à Deville"
-    assert analyser(notes, index) == []
+    # Lues quand même, les notes ne donneraient aucune recommandation : « Deville »
+    # y est une commune (homonyme, qui n'ajoute rien, 28/09 : plus aucune réécriture).
+    assert mentions(analyser(notes, index)) == []
 
 
 # --------------------------------------------------------------------------- #

@@ -45,15 +45,16 @@ from pipecat.services.llm_service import FunctionCallParams
 from rapidfuzz import fuzz
 
 from api.schemas.fiche_agent import (
-    est_un_champ_de_nom,
     ChampFiche,
     OrigineChamp,
     cle_dit,
     cle_insee,
+    est_un_champ_de_nom,
     verifier_champs,
 )
 from api.schemas.lexique_metier import normaliser_terme
 from api.services.communes.base import base_si_chargee, cle_sonore, normaliser
+from api.services.lexique.analyse import SEUIL_A_CONFIRMER
 from api.services.lexique.epellation import terme_epele
 from api.services.nombres.lecture import lire_nombres, reecrire
 from api.services.nombres.voix import en_mots
@@ -632,7 +633,14 @@ def lire_lexique(
             continue
         if trace.get("statut") == "sure":
             return Lecture(terme, True)
-        return Lecture(terme, False, "a_confirmer")
+        # D3 (chantier correctifs-modules, 28/09) : le lexique a recommandé ce
+        # terme ; noté, il est retenu sans question. Seules deux marques
+        # possibles font poser UNE question (runs 875, 881 : « Victa », « dite
+        # camain » faisaient reconfirmer une marque juste).
+        possibles = _termes_possibles(trace)
+        if len(possibles) > 1:
+            return Lecture(valeur, False, "ambigu", tuple(possibles))
+        return Lecture(terme, True)
     officiel = termes.get(normaliser_terme(str(valeur)))
     if officiel:
         # Revue du 25/09 (PB12 resserré) : un terme du lexique n'est sûr que si
@@ -641,6 +649,21 @@ def lire_lexique(
             return Lecture(officiel, True)
         return Lecture(officiel, False, "a_confirmer", trouvee=False)
     return Lecture(valeur, False, "a_confirmer", trouvee=False)
+
+
+def _termes_possibles(trace: dict) -> list[str]:
+    """Le terme retenu par le lexique et, s'il en propose un second assez proche
+    pour être aussi probable, celui-là (même règle que la note du lexique)."""
+    possibles = [trace["terme"]]
+    for proposition in (trace.get("propositions") or [])[1:2]:
+        if (
+            isinstance(proposition, dict)
+            and (proposition.get("score") or 0) >= SEUIL_A_CONFIRMER
+            and proposition.get("terme")
+            and proposition["terme"] not in possibles
+        ):
+            possibles.append(proposition["terme"])
+    return possibles
 
 
 def _terme_dit(officiel: str, termes: dict[str, str], paroles: Iterable[str]) -> bool:

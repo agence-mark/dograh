@@ -4120,6 +4120,12 @@ export type LexiqueMetier = {
      * Termes
      */
     termes?: Array<TermeLexique>;
+    /**
+     * Seuil Mots Courants
+     *
+     * The N most frequent French words are never read as a name of the vocabulary; a rarer common word may only be recommended, never sure.
+     */
+    seuil_mots_courants?: number;
 };
 
 /**

@@ -59,6 +59,9 @@ LEXIQUE = {
         {"terme": "ramoner", "variantes": [], "prononciation": None, "type": "mot",
          "categorie": None, "a_ecouter": True, "propose": False},
     ],
+    # Chantier correctifs-modules (28/09) : le seuil des mots courants, réglage
+    # de l'organisation rangé avec son lexique.
+    "seuil_mots_courants": 12000,
 }
 
 

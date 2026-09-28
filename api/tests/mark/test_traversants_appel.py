@@ -386,7 +386,9 @@ async def test_lecture_eteinte_les_paroles_arrivent_telles_quelles(db_session, a
 
 @pytest.mark.asyncio
 @_borne
-async def test_le_lexique_de_l_organisation_corrige_avant_le_modele(db_session, async_session):
+async def test_le_lexique_de_l_organisation_recommande_avant_le_modele(db_session, async_session):
+    """D2 (correctifs-modules, 28/09) : les mots de l'appelant arrivent intacts au
+    modèle, suivis de la recommandation du lexique."""
     lexique = {
         "termes": [
             {"terme": "Edilkamin", "variantes": ["Edil Kamin"], "categorie": "marque", "a_ecouter": True}
@@ -395,7 +397,10 @@ async def test_le_lexique_de_l_organisation_corrige_avant_le_modele(db_session, 
     montage = await _monter(db_session, async_session, {}, lexique=lexique)
     llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
     await _appeler(montage, llm, ["c'est un Edilcamin"])
-    assert _derniere_parole_recue(llm) == "c'est un Edilkamin"
+    assert _derniere_parole_recue(llm) == (
+        "c'est un Edilcamin "
+        "[Lexique, pour toi seulement, jamais dit à voix haute : la personne a dit Edilkamin.]"
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -474,9 +479,9 @@ async def test_la_fiche_note_le_nom_en_base_et_la_voix_ne_le_dit_jamais(
 @pytest.mark.asyncio
 @_borne
 async def test_correctifs_modules_un_oui_leve_la_confirmation_en_base(db_session, async_session):
-    """Chantier correctifs-modules, D6 (runs 869 à 881) : la marque lue « à
-    confirmer » par le lexique, renvoyée par le modèle juste après le oui de la
-    personne, est SÛRE dans la fiche enregistrée avec l'appel."""
+    """Chantier correctifs-modules, D6 (runs 869 à 881) : une marque hors du
+    lexique, notée « à confirmer », renvoyée par le modèle juste après le oui de
+    la personne, est SÛRE dans la fiche enregistrée avec l'appel."""
     montage = await _monter(
         db_session,
         async_session,
@@ -489,9 +494,9 @@ async def test_correctifs_modules_un_oui_leve_la_confirmation_en_base(db_session
     )
     llm = ContextCapturingMockLLM(
         mock_steps=[
-            _outil("noter_information", {"marque": "dite camain"}, "note_1"),
-            _texte("C'est bien de la marque Edilkamin ?"),
-            _outil("noter_information", {"marque": "Edilkamin"}, "note_2"),
+            _outil("noter_information", {"marque": "Zorvex"}, "note_1"),
+            _texte("C'est bien de la marque Zorvex ?"),
+            _outil("noter_information", {"marque": "Zorvex"}, "note_2"),
             _texte("Très bien."),
             _outil("end_call", {}, "fin_1"),
         ],
@@ -500,14 +505,14 @@ async def test_correctifs_modules_un_oui_leve_la_confirmation_en_base(db_session
     await _appeler(
         montage,
         llm,
-        ["j'ai un poêle et dite camain", "Oui, c'est ça.", "au revoir"],
+        ["j'ai un appareil Zorvex", "Oui, c'est ça.", "au revoir"],
         fin_attendue=True,
     )
     run = await db_session.get_workflow_run_by_id(montage[0].id)
     fiche = run.gathered_context
     premiere = next(e for e in fiche["fiche_journal"] if e["champ"] == "marque")
     assert premiere.get("suite") == "a_confirmer", fiche["fiche_journal"]
-    assert fiche.get("marque") == "Edilkamin", fiche
+    assert fiche.get("marque") == "Zorvex", fiche
     assert fiche["fiche_etat"]["marque"]["sure"] is True, fiche["fiche_journal"]
 
 

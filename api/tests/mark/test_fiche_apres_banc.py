@@ -1426,9 +1426,13 @@ def test_revue_C_un_terme_du_lexique_jamais_dit_est_refuse():
     assert "marque_appareil" not in fiche
 
 
-def test_C10_run_840_un_terme_seulement_propose_reste_a_confirmer():
-    """Run 840 : « éthique à main » → le lexique PROPOSE Edilkamin, à confirmer ;
-    le modèle qui note « Edilkamin » avant la réponse n'en fait pas une marque sûre."""
+def test_C10_run_840_un_terme_recommande_et_note_est_retenu():
+    """Run 840 : « éthique à main » → le lexique PROPOSE Edilkamin.
+
+    Remplacé par D3 (chantier correctifs-modules, décision d'Evan du 28/09) : le
+    lexique recommande, et le terme recommandé que le modèle note est RETENU, sans
+    question ; seule une recommandation entre deux marques en fait poser une.
+    Avant, il restait à confirmer, d'où une question à chaque marque (runs 875, 881)."""
     fiche = {
         "lexique_reconnu": [
             {
@@ -1441,8 +1445,8 @@ def test_C10_run_840_un_terme_seulement_propose_reste_a_confirmer():
         ]
     }
     verdict = _marque(fiche, "Edilkamin", "c'est un éthique à main")
-    assert (verdict.statut, verdict.suite) == ("ecrit", "a_confirmer")
-    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is False
+    assert (verdict.statut, verdict.suite) == ("ecrit", None)
+    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is True
 
 
 def test_C10_une_marque_ni_dite_ni_connue_reste_refusee():
