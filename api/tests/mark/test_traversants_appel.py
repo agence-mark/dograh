@@ -460,6 +460,46 @@ async def test_la_fiche_note_le_nom_en_base_et_la_voix_ne_le_dit_jamais(
     assert fiche["extracted_variables"]["nom"] == "Dupont"
 
 
+@pytest.mark.asyncio
+@_borne
+async def test_correctifs_modules_un_oui_leve_la_confirmation_en_base(db_session, async_session):
+    """Chantier correctifs-modules, D6 (runs 869 à 881) : la marque lue « à
+    confirmer » par le lexique, renvoyée par le modèle juste après le oui de la
+    personne, est SÛRE dans la fiche enregistrée avec l'appel."""
+    montage = await _monter(
+        db_session,
+        async_session,
+        {
+            "fiche_au_fil_de_leau": True,
+            "fiche_champs": [{"nom": "marque", "origine": "dicte", "lecteur": "lexique"}],
+            "lexique_metier": True,
+        },
+        lexique={"termes": [{"terme": "Edilkamin", "type": "nom"}, {"terme": "Nordica", "type": "nom"}]},
+    )
+    llm = ContextCapturingMockLLM(
+        mock_steps=[
+            _outil("noter_information", {"marque": "dite camain"}, "note_1"),
+            _texte("C'est bien de la marque Edilkamin ?"),
+            _outil("noter_information", {"marque": "Edilkamin"}, "note_2"),
+            _texte("Très bien."),
+            _outil("end_call", {}, "fin_1"),
+        ],
+        chunk_delay=0.001,
+    )
+    await _appeler(
+        montage,
+        llm,
+        ["j'ai un poêle et dite camain", "Oui, c'est ça.", "au revoir"],
+        fin_attendue=True,
+    )
+    run = await db_session.get_workflow_run_by_id(montage[0].id)
+    fiche = run.gathered_context
+    premiere = next(e for e in fiche["fiche_journal"] if e["champ"] == "marque")
+    assert premiere.get("suite") == "a_confirmer", fiche["fiche_journal"]
+    assert fiche.get("marque") == "Edilkamin", fiche
+    assert fiche["fiche_etat"]["marque"]["sure"] is True, fiche["fiche_journal"]
+
+
 # --------------------------------------------------------------------------- #
 # Tour de parole
 # --------------------------------------------------------------------------- #

@@ -1385,6 +1385,12 @@ export type ChampFiche = {
      * Allowed values: the field only accepts one of them (case and accents ignored), written as declared. Empty: any value.
      */
     valeurs?: Array<string> | null;
+    /**
+     * Cumulatif
+     *
+     * Cumulative: each note is added to what the field already holds, nothing is overwritten; not checked against the caller's exact words.
+     */
+    cumulatif?: boolean;
 };
 
 /**

@@ -71,6 +71,18 @@ class ChampFiche(BaseModel):
         ),
     )
 
+    # D7 (chantier correctifs-modules, 28/09) : un champ où chaque note s'ajoute
+    # à ce qu'il tient déjà, sans rien écraser (un 2e motif, un symptôme complété :
+    # run 879). Exempt du contrôle « dit tel quel ». Faux par défaut : aucun
+    # changement pour un agent qui ne le déclare pas.
+    cumulatif: bool = Field(
+        default=False,
+        description=(
+            "Cumulative: each note is added to what the field already holds, "
+            "nothing is overwritten; not checked against the caller's exact words."
+        ),
+    )
+
     @field_validator("valeurs")
     @classmethod
     def _valeurs_lisibles(cls, valeurs: list[str] | None) -> list[str] | None:

@@ -1195,10 +1195,14 @@ async def _lu_par_le_modele(phrase: str) -> str:
 async def test_C7_run_847_la_cause_le_modele_lit_3_ans_et_note_trois_ans():
     """PB10 : la cause, établie sur la phrase du 847. Le module des nombres a
     écrit « 3 ans » dans ce que le modèle lit ; le modèle a noté « il y a trois
-    ans » ; le contrôle de citation cherchait « trois » dans « 3 ans »."""
+    ans » ; le contrôle de citation cherchait « trois » dans « 3 ans ».
+
+    Chantier correctifs-modules, D8 (28/09) : le contrôle compare désormais
+    aussi après normalisation des nombres, des deux côtés ; la cause est levée
+    pour tout champ, plus seulement pour les dates (C7)."""
     lu = await _lu_par_le_modele(PHRASE_847)
     assert "il y a 3 ans" in lu and "trois" not in lu
-    assert est_cite("il y a trois ans", [lu]) is False
+    assert est_cite("il y a trois ans", [lu]) is True
 
 
 def _date(valeur, *paroles, source="outil"):

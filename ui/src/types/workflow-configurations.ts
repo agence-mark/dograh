@@ -224,6 +224,8 @@ export interface ChampFiche {
     lecteur: "commune" | "rue" | "date" | "lexique" | "aucun" | null;
     // [.mark] PB3: the only values the field accepts. Empty (null or absent): any.
     valeurs?: string[] | null;
+    // [.mark] D7 (correctifs-modules): each note is added, nothing overwritten. Absent: false.
+    cumulatif?: boolean;
 }
 
 /**

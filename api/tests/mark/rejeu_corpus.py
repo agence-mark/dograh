@@ -36,7 +36,7 @@ from api.schemas.organization_preferences import AdresseEtablissement
 from api.services.communes.base import charger_base
 from api.services.pipecat.lecture_appelant import creer_lecture_appelant
 from api.services.pipecat.reconnaissance_lexique import creer_reconnaissance_lexique
-from api.services.pipecat.verification_communes import consigner_dans, sons_allumes
+from api.services.pipecat.verification_communes import consigner_dans
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_ETAT,
     ReglagesFiche,
