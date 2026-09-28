@@ -1195,10 +1195,14 @@ async def _lu_par_le_modele(phrase: str) -> str:
 async def test_C7_run_847_la_cause_le_modele_lit_3_ans_et_note_trois_ans():
     """PB10 : la cause, établie sur la phrase du 847. Le module des nombres a
     écrit « 3 ans » dans ce que le modèle lit ; le modèle a noté « il y a trois
-    ans » ; le contrôle de citation cherchait « trois » dans « 3 ans »."""
+    ans » ; le contrôle de citation cherchait « trois » dans « 3 ans ».
+
+    Chantier correctifs-modules, D8 (28/09) : le contrôle compare désormais
+    aussi après normalisation des nombres, des deux côtés ; la cause est levée
+    pour tout champ, plus seulement pour les dates (C7)."""
     lu = await _lu_par_le_modele(PHRASE_847)
     assert "il y a 3 ans" in lu and "trois" not in lu
-    assert est_cite("il y a trois ans", [lu]) is False
+    assert est_cite("il y a trois ans", [lu]) is True
 
 
 def _date(valeur, *paroles, source="outil"):
@@ -1422,9 +1426,13 @@ def test_revue_C_un_terme_du_lexique_jamais_dit_est_refuse():
     assert "marque_appareil" not in fiche
 
 
-def test_C10_run_840_un_terme_seulement_propose_reste_a_confirmer():
-    """Run 840 : « éthique à main » → le lexique PROPOSE Edilkamin, à confirmer ;
-    le modèle qui note « Edilkamin » avant la réponse n'en fait pas une marque sûre."""
+def test_C10_run_840_un_terme_recommande_et_note_est_retenu():
+    """Run 840 : « éthique à main » → le lexique PROPOSE Edilkamin.
+
+    Remplacé par D3 (chantier correctifs-modules, décision d'Evan du 28/09) : le
+    lexique recommande, et le terme recommandé que le modèle note est RETENU, sans
+    question ; seule une recommandation entre deux marques en fait poser une.
+    Avant, il restait à confirmer, d'où une question à chaque marque (runs 875, 881)."""
     fiche = {
         "lexique_reconnu": [
             {
@@ -1437,8 +1445,8 @@ def test_C10_run_840_un_terme_seulement_propose_reste_a_confirmer():
         ]
     }
     verdict = _marque(fiche, "Edilkamin", "c'est un éthique à main")
-    assert (verdict.statut, verdict.suite) == ("ecrit", "a_confirmer")
-    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is False
+    assert (verdict.statut, verdict.suite) == ("ecrit", None)
+    assert fiche["fiche_etat"]["marque_appareil"]["sure"] is True
 
 
 def test_C10_une_marque_ni_dite_ni_connue_reste_refusee():

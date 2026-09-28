@@ -33,6 +33,16 @@ MAX_LONGUEUR_PRONONCIATION = 120
 MAX_LONGUEUR_CATEGORIE = 30
 MAX_MODELES_IMPORTES = 50
 MAX_LONGUEUR_NOM_MODELE = 100
+# Chantier correctifs-modules, décision d'Evan du 28/09 : les N mots les plus
+# fréquents du français ne sont jamais lus comme un nom du lexique ; un mot plus
+# rare de la liste peut être recommandé, jamais sûr. Un réglage de l'organisation,
+# pour qu'un autre secteur l'ajuste à l'écran et jamais par un patch. Le défaut
+# est celui mesuré sur les appels 861 à 881 (zéro perte, run 871 « Rica »).
+SEUIL_MOTS_COURANTS_DEFAUT = 10_000
+SEUIL_MOTS_COURANTS_MIN = 1_000
+# La taille de la liste de fréquence (``assets/lexique/mots-courants-fr-2026-09.txt``),
+# tenue égale par un test : au-delà, toute la liste est protégée.
+SEUIL_MOTS_COURANTS_MAX = 31_796
 
 
 def normaliser_terme(texte: str) -> str:
@@ -82,6 +92,27 @@ class TermeLexique(BaseModel):
         default=False,
         description="Sent to the transcription as a term to listen for (after the agent's Dictionary).",
     )
+    # [.mark] Plan « le lexique », L3 / Q4 (2026-09-26): « listen for it » and
+    # « the business offers it » are two questions. One box served both, and
+    # unticking it to shorten the transcription's list made the agent say the
+    # business sold brands it does not (question 182).
+    propose: bool = Field(
+        default=False,
+        description=(
+            "Offered by the business: given to the agent as {{lexique_propose}}, "
+            "the list it answers « do you offer X? » from."
+        ),
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _propose_sans_migration(cls, value):
+        """⛔ No migration: a term saved before the second box existed reads it
+        from ``a_ecouter`` -- it WAS that box -- so the screen and the agent show
+        exactly what they showed before."""
+        if isinstance(value, dict) and value.get("propose") is None:
+            return {**value, "propose": bool(value.get("a_ecouter") or False)}
+        return value
 
     @field_validator("terme", "prononciation", "categorie", mode="before")
     @classmethod
@@ -142,6 +173,15 @@ class LexiqueMetier(BaseModel):
     version: Literal[1] = 1
     modeles_importes: list[ModeleImporte] = Field(default_factory=list, max_length=MAX_MODELES_IMPORTES)
     termes: list[TermeLexique] = Field(default_factory=list, max_length=MAX_TERMES)
+    seuil_mots_courants: int = Field(
+        default=SEUIL_MOTS_COURANTS_DEFAUT,
+        ge=SEUIL_MOTS_COURANTS_MIN,
+        le=SEUIL_MOTS_COURANTS_MAX,
+        description=(
+            "The N most frequent French words are never read as a name of the "
+            "vocabulary; a rarer common word may only be recommended, never sure."
+        ),
+    )
 
     @model_validator(mode="after")
     def _aucune_forme_partagee(self):
@@ -163,3 +203,25 @@ class LexiqueMetier(BaseModel):
 class ResultatImport(BaseModel):
     ajoutes: int = Field(description="Terms added to the vocabulary.")
     deja_presents: int = Field(description="Terms left untouched: one of their spellings was already there.")
+
+
+class BudgetLexique(BaseModel):
+    """[.mark] What the transcription would receive from this vocabulary (plan « le lexique », Q2).
+
+    Computed by the API for the organization's transcription provider, the SAME
+    computation as a call (one source of truth); the screen only shows it.
+    """
+
+    fournisseur: str | None = Field(
+        description="The transcription provider of the organization (its id), None when none is configured."
+    )
+    nom_du_plafond: str | None = Field(
+        description="The provider's name as shown next to its ceiling (« Deepgram »); None: no ceiling declared, nothing is sent."
+    )
+    plafond_jetons: int | None = Field(description="The declared ceiling in tokens; None: not counted in tokens.")
+    plafond_termes: int | None = Field(
+        default=None, description="The declared ceiling in number of terms; None: not counted in terms."
+    )
+    jetons: int = Field(description="The prudent estimate of what the terms sent cost, in tokens.")
+    envoyes: list[str] = Field(description="The terms ticked « listen for » that fit, in order.")
+    non_envoyes: list[str] = Field(description="The terms ticked « listen for » that do not fit (or no ceiling).")

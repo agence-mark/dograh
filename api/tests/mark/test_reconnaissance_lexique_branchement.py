@@ -49,7 +49,7 @@ from api.schemas.lexique_metier import LexiqueMetier
 from api.schemas.organization_preferences import AdresseEtablissement
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.communes.base import charger_base
-from api.services.lexique.ecoute import CLE_A_ECOUTER, injecter_lexique_a_ecouter
+from api.services.lexique.ecoute import CLE_A_ECOUTER, CLE_PROPOSE, injecter_lexique_propose
 from api.services.pipecat import reconnaissance_lexique as module
 from api.services.pipecat.lecture_appelant import LectureAppelantProcessor
 from api.services.pipecat.pipeline_builder import build_pipeline
@@ -241,7 +241,8 @@ async def test_le_nom_sur_est_ecrit_proprement_pour_le_modele():
         {"role": "user", "content": "c'est un Edilcamin"},
     )
     await _faire_passer(_processeur(), LLMContextFrame(context=contexte))
-    assert contexte.messages[-1]["content"] == "c'est un Edilkamin"
+    # D2 (correctifs-modules, 28/09) : les mots restent intacts, le nom est recommandé.
+    assert contexte.messages[-1]["content"] == "c'est un Edilcamin [Lexique, pour toi seulement, jamais dit à voix haute : la personne a dit Edilkamin.]"
     assert contexte.messages[0] == {"role": "assistant", "content": "Quelle marque ?"}
 
 
@@ -249,8 +250,8 @@ async def test_le_nom_sur_est_ecrit_proprement_pour_le_modele():
 async def test_un_nom_douteux_donne_une_mention():
     contexte = _contexte({"role": "user", "content": "c'est un poêle édile camembert"})
     await _faire_passer(_processeur(), LLMContextFrame(context=contexte))
-    assert contexte.messages[-1]["content"].startswith("c'est un poêle édile camembert [Lexique : ")
-    assert "Edilkamin (marque)" in contexte.messages[-1]["content"]
+    assert contexte.messages[-1]["content"].startswith("c'est un poêle édile camembert [Lexique")
+    assert "peut-être dit Edilkamin" in contexte.messages[-1]["content"]
 
 
 @pytest.mark.asyncio
@@ -258,7 +259,7 @@ async def test_un_contexte_renvoye_deux_fois_est_corrige_une_seule_fois():
     contexte = _contexte({"role": "user", "content": "c'est un poêle édile camembert"})
     processeur = _processeur()
     await _faire_passer(processeur, LLMContextFrame(context=contexte), LLMContextFrame(context=contexte))
-    assert contexte.messages[-1]["content"].count("[Lexique :") == 1
+    assert contexte.messages[-1]["content"].count("[Lexique") == 1
 
 
 @pytest.mark.asyncio
@@ -268,7 +269,7 @@ async def test_un_cadre_provisoire_est_traite_et_marque_dans_la_trace():
     trame = LLMContextFrame(context=contexte)
     trame.speculation = True
     await _faire_passer(_processeur(consigner=consigner_dans(lambda: recueilli)), trame)
-    assert contexte.messages[-1]["content"].count("[Lexique :") == 1
+    assert contexte.messages[-1]["content"].count("[Lexique") == 1
     assert recueilli[CLE_TRACE][0]["provisoire"] is True
 
 
@@ -285,7 +286,7 @@ async def test_une_analyse_interrompue_ne_marque_pas_le_message_examine():
     assert contexte.messages[-1]["content"] == "c'est un Edilcamin"
     with patch.object(module, "corriger_texte", side_effect=vrai):
         await processeur._lire_contexte(LLMContextFrame(context=contexte))
-    assert contexte.messages[-1]["content"] == "c'est un Edilkamin"
+    assert contexte.messages[-1]["content"] == "c'est un Edilcamin [Lexique, pour toi seulement, jamais dit à voix haute : la personne a dit Edilkamin.]"
 
 
 @pytest.mark.asyncio
@@ -356,7 +357,7 @@ async def test_la_transcription_enregistree_garde_les_mots_le_modele_lit_la_corr
         start_timeout=DEMARRAGE_S,
     )
     lu = [m for m in contexte.messages if m.get("role") == "user"]
-    assert lu and lu[-1]["content"] == "c'est un Edilkamin"
+    assert lu and lu[-1]["content"] == "c'est un Edilcamin [Lexique, pour toi seulement, jamais dit à voix haute : la personne a dit Edilkamin.]"
 
 
 @pytest.mark.asyncio
@@ -441,15 +442,15 @@ async def test_la_mention_du_lexique_passe_apres_celle_des_communes():
     contexte = _contexte({"role": "user", "content": deja})
     await _faire_passer(_processeur(), LLMContextFrame(context=contexte))
     contenu = contexte.messages[-1]["content"]
-    assert contenu.index("[Vérification de la commune") < contenu.index("[Lexique :")
-    assert contenu.endswith("Fais confirmer ce nom avant de le noter.]")
+    assert contenu.index("[Vérification de la commune") < contenu.index("[Lexique")
+    assert contenu.endswith("la personne a peut-être dit Edilkamin.]")
     # Et la lecture de l'appelant, qui découpe au premier « [Lexique : », voit
     # toujours la note de commune : elle ne la réécrit pas une seconde fois.
     from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
     from api.services.pipecat.lecture_appelant import _separer_mention_lexique
 
     avant_la_mention, mention = _separer_mention_lexique(contenu)
-    assert mention.startswith("[Lexique :")
+    assert mention.startswith("[Lexique")
     assert commune_deja_mentionnee(avant_la_mention)
 
 
@@ -473,40 +474,59 @@ async def test_les_traces_sont_ecrites():
 
 
 def test_la_trace_du_lexique_dit_ce_que_lappel_a_utilise():
-    trace = trace_du_lexique(LEXIQUE, ["Edilkamin", "Supra"], False)
+    from api.services.configuration.plafond_lexique import plafond_du_lexique
+    from api.services.lexique.ecoute import ListeEcoutee
+
+    deepgram = plafond_du_lexique("deepgram", "flux-general-multi")
+    trace = trace_du_lexique(
+        LEXIQUE, ListeEcoutee(termes=["Edilkamin", "Supra"], non_envoyes=[], jetons=9, plafond=deepgram)
+    )
     assert trace == {
         "termes": 4,
         "noms": 3,
         "envoyes_a_flux": ["Edilkamin", "Supra"],
         "liste_tronquee": False,
+        "non_envoyes": [],
+        "jetons": 9,
+        "plafond_jetons": deepgram.jetons,
+        "plafond_termes": deepgram.termes,
+        "fournisseur_du_plafond": "Deepgram",
         "prononciations": 0,
     }
-    assert trace_du_lexique(LEXIQUE, [], True)["liste_tronquee"] is True
+    coupee = trace_du_lexique(
+        LEXIQUE, ListeEcoutee(termes=[], non_envoyes=["Supra"], jetons=0, plafond=None)
+    )
+    assert coupee["liste_tronquee"] is True
+    assert coupee["non_envoyes"] == ["Supra"]
+    assert coupee["plafond_jetons"] is None
 
 
 # --------------------------------------------------------------------------- #
-# 6. The variable given to the agent (T12, Q1 = B)
+# 6. The variable given to the agent (T12, Q1 = B; plan « le lexique », Q4)
 # --------------------------------------------------------------------------- #
 
 
-def test_la_variable_porte_les_noms_coches():
-    assert injecter_lexique_a_ecouter({}, ["Edilkamin", "Supra"]) == {
-        CLE_A_ECOUTER: "Edilkamin, Supra"
+def test_la_variable_porte_les_noms_proposes_sous_ses_deux_noms():
+    assert injecter_lexique_propose({}, ["Edilkamin", "Supra"]) == {
+        CLE_PROPOSE: "Edilkamin, Supra",
+        CLE_A_ECOUTER: "Edilkamin, Supra",
     }
 
 
-def test_sans_nom_coche_la_cle_est_absente():
+def test_sans_nom_propose_les_cles_sont_absentes():
     contexte = {"direction": "inbound"}
-    assert injecter_lexique_a_ecouter(contexte, []) is contexte
-    assert CLE_A_ECOUTER not in contexte
+    assert injecter_lexique_propose(contexte, []) is contexte
+    assert CLE_PROPOSE not in contexte and CLE_A_ECOUTER not in contexte
 
 
-def test_une_valeur_deja_fournie_est_gardee():
-    assert injecter_lexique_a_ecouter({CLE_A_ECOUTER: "fournie"}, ["Edilkamin"]) == {
-        CLE_A_ECOUTER: "fournie"
+def test_une_valeur_deja_fournie_est_gardee_cle_par_cle():
+    assert injecter_lexique_propose({CLE_PROPOSE: "fournie"}, ["Edilkamin"]) == {
+        CLE_PROPOSE: "fournie",
+        CLE_A_ECOUTER: "Edilkamin",
     }
-    assert injecter_lexique_a_ecouter({CLE_A_ECOUTER: "  "}, ["Edilkamin"]) == {
-        CLE_A_ECOUTER: "Edilkamin"
+    assert injecter_lexique_propose({CLE_A_ECOUTER: "  "}, ["Edilkamin"]) == {
+        CLE_PROPOSE: "Edilkamin",
+        CLE_A_ECOUTER: "Edilkamin",
     }
 
 
@@ -516,7 +536,8 @@ def test_les_deux_chemins_injectent_la_variable():
 
     for module_appel in (run_pipeline, text_chat_runner):
         source = inspect.getsource(module_appel)
-        assert "injecter_lexique_a_ecouter(" in source
+        assert "injecter_lexique_propose(" in source
+        assert "termes_proposes(lexique_metier)" in source
 
 
 # --------------------------------------------------------------------------- #
@@ -530,7 +551,7 @@ async def test_le_message_tape_est_corrige_comme_un_appel():
     corrige = await annoter_message_tape(
         "c'est un Edilcamin", {}, LEXIQUE, NOEUD, consigner_dans(lambda: recueilli)
     )
-    assert corrige == "c'est un Edilkamin"
+    assert corrige == "c'est un Edilcamin [Lexique, pour toi seulement, jamais dit à voix haute : la personne a dit Edilkamin.]"
     assert recueilli[CLE_TRACE][0]["terme"] == "Edilkamin"
 
 

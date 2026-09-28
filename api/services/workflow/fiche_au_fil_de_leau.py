@@ -35,6 +35,7 @@ from collections.abc import Callable, Iterable
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from datetime import datetime
+from functools import lru_cache
 from typing import Any
 
 from loguru import logger
@@ -48,11 +49,15 @@ from api.schemas.fiche_agent import (
     OrigineChamp,
     cle_dit,
     cle_insee,
+    est_un_champ_de_nom,
     verifier_champs,
 )
 from api.schemas.lexique_metier import normaliser_terme
 from api.services.communes.base import base_si_chargee, cle_sonore, normaliser
+from api.services.lexique.analyse import SEUIL_A_CONFIRMER
+from api.services.lexique.epellation import terme_epele
 from api.services.nombres.lecture import lire_nombres, reecrire
+from api.services.nombres.voix import en_mots
 from api.services.workflow.dates_relatives import est_une_date, lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
 
@@ -231,22 +236,48 @@ def _suites(mots: list[str]) -> list[str]:
     return suites
 
 
+def _singulier(mot: str) -> str:
+    """D8 : « places » vaut « place », « Merles » vaut « Merle » (des deux côtés)."""
+    return mot[:-1] if len(mot) > 3 and mot[-1] in "sx" else mot
+
+
 def est_cite(valeur: Any, paroles: Iterable[str]) -> bool:
     """Chaque mot de la valeur a-t-il été dit par l'appelant, à un moment de
-    l'appel, tel que le modèle l'a lu ? Accents et casse ignorés (D41)."""
-    mots_valeur = _mots(str(valeur))
-    if not mots_valeur:
+    l'appel, tel que le modèle l'a lu ? Accents et casse ignorés (D41).
+
+    D8 (chantier correctifs-modules, run 870) : la comparaison se fait aussi après
+    normalisation, des deux côtés : pluriel ramené au singulier, nombres écrits en
+    chiffres. « 2 place Victor Hugo » est dit dans « deux places Victor Hugo »."""
+    texte = str(valeur)
+    essais = [_mots(texte)]
+    # Les nombres des deux façons : la personne dit « deux places », le module
+    # des nombres ne le réécrit pas (« deux places » peut être un compte), le
+    # modèle note « 2 place ».
+    for forme in (
+        _mots(_chiffres_comme_lus(texte)),
+        _mots(re.sub(r"\d+", lambda m: f" {en_mots(m.group())} ", texte)),
+    ):
+        if forme not in essais:
+            essais.append(forme)
+    if not essais[0]:
         return False
     dits: set[str] = set()
     suites: list[str] = []
     for parole in paroles:
-        mots = _mots(parole)
-        dits.update(mots)
-        suites.extend(_suites(mots))
-    return all(
-        mot in dits or (len(mot) >= 2 and any(mot in suite for suite in suites))
-        for mot in mots_valeur
-    )
+        for forme in dict.fromkeys((parole, _chiffres_comme_lus(parole))):
+            mots = _mots(forme)
+            dits.update(mots)
+            dits.update(_singulier(m) for m in mots)
+            suites.extend(_suites(mots))
+
+    def dit(mot: str) -> bool:
+        return (
+            mot in dits
+            or _singulier(mot) in dits
+            or (len(mot) >= 2 and any(mot in suite for suite in suites))
+        )
+
+    return any(essai and all(dit(mot) for mot in essai) for essai in essais)
 
 
 # C13 (PB2) : les mots qui ne portent rien. Un déduit ancré sur « pour » ou
@@ -348,6 +379,7 @@ def valeur_de_la_liste(valeur: Any, valeurs: Iterable[str]) -> str | None:
     return next((v for v in valeurs if mots and _mots(v) == mots), None)
 
 
+@lru_cache(maxsize=1024)
 def _chiffres_comme_lus(texte: str) -> str:
     """C7 (PB10, run 847) : ``texte`` avec ses nombres écrits comme le module des
     nombres les écrit dans ce que le modèle lit. La personne dit « il y a trois
@@ -566,6 +598,12 @@ def lire_commune(valeur: Any, fiche: dict, paroles: Iterable[str] = ()) -> Lectu
         ]
         if trace.get("statut") == "sure" and retenue.get("nom"):
             return _commune_sure(retenue)
+        # D4 ② (chantier correctifs-modules) : un nom de commune écrit exactement,
+        # sans signe de lieu, est une recommandation ; noté, il est retenu sans question.
+        if trace.get("force") == "nom":
+            exacte = [p for p in propositions if _memes_mots(valeur, p.get("nom"))]
+            if len(exacte) == 1:
+                return _commune_sure(exacte[0])
         options = tuple(_option_commune(p) for p in propositions)
         choisie = next(
             (p for p in propositions if _memes_mots(valeur, p.get("nom"))), None
@@ -601,7 +639,14 @@ def lire_lexique(
             continue
         if trace.get("statut") == "sure":
             return Lecture(terme, True)
-        return Lecture(terme, False, "a_confirmer")
+        # D3 (chantier correctifs-modules, 28/09) : le lexique a recommandé ce
+        # terme ; noté, il est retenu sans question. Seules deux marques
+        # possibles font poser UNE question (runs 875, 881 : « Victa », « dite
+        # camain » faisaient reconfirmer une marque juste).
+        possibles = _termes_possibles(trace)
+        if len(possibles) > 1:
+            return Lecture(valeur, False, "ambigu", tuple(possibles))
+        return Lecture(terme, True)
     officiel = termes.get(normaliser_terme(str(valeur)))
     if officiel:
         # Revue du 25/09 (PB12 resserré) : un terme du lexique n'est sûr que si
@@ -610,6 +655,21 @@ def lire_lexique(
             return Lecture(officiel, True)
         return Lecture(officiel, False, "a_confirmer", trouvee=False)
     return Lecture(valeur, False, "a_confirmer", trouvee=False)
+
+
+def _termes_possibles(trace: dict) -> list[str]:
+    """Le terme retenu par le lexique et, s'il en propose un second assez proche
+    pour être aussi probable, celui-là (même règle que la note du lexique)."""
+    possibles = [trace["terme"]]
+    for proposition in (trace.get("propositions") or [])[1:2]:
+        if (
+            isinstance(proposition, dict)
+            and (proposition.get("score") or 0) >= SEUIL_A_CONFIRMER
+            and proposition.get("terme")
+            and proposition["terme"] not in possibles
+        ):
+            possibles.append(proposition["terme"])
+    return possibles
 
 
 def _terme_dit(officiel: str, termes: dict[str, str], paroles: Iterable[str]) -> bool:
@@ -1098,6 +1158,193 @@ def lire_rue(
     return Lecture(texte, False, _suite(options), options, trouvee=False)
 
 
+# --- Chantier correctifs-modules : confirmation, épellation, cumul -----------
+
+# D6 : ce qu'une personne dit pour confirmer, en tête de sa réponse. Des mots de
+# la langue, jamais d'un métier.
+_OUI = (
+    "oui",
+    "ouais",
+    "exactement",
+    "exact",
+    "voila",
+    "tout a fait",
+    "absolument",
+    "effectivement",
+    "bien sur",
+    "c est ca",
+    "c est bien ca",
+    "c est exact",
+    "c est bien",
+)
+# Ce qui fait d'un « oui » le début d'une correction (« oui mais c'est… »,
+# « oui, en fait c'est… », « oui pardon, non… »).
+_CORRECTION = frozenset({"non", "pas", "mais", "pardon", "plutot"})
+
+
+def est_un_oui(parole: str) -> bool:
+    """La personne confirme-t-elle ce qu'on vient de lui demander ?"""
+    mots = _mots(parole)
+    if not mots or _CORRECTION & set(mots) or "en fait" in " ".join(mots):
+        return False
+    debut = " ".join(mots[:4])
+    return any(debut == oui or debut.startswith(oui + " ") for oui in _OUI)
+
+
+def _sans_complement(texte: Any) -> str:
+    """« Pont-Sainte-Maxence (Oise) » -> « Pont-Sainte-Maxence »."""
+    return re.sub(r"\s*\([^)]*\)\s*$", "", str(texte or "")).strip()
+
+
+def _meme_valeur(a: Any, b: Any) -> bool:
+    """Mêmes mots (casse, accents, ponctuation), complément ôté, singulier."""
+    mots_a = [_singulier(m) for m in _mots(_sans_complement(a))]
+    return bool(mots_a) and mots_a == [
+        _singulier(m) for m in _mots(_sans_complement(b))
+    ]
+
+
+def _deja_confirmee(fiche: dict, definition: ChampFiche, valeur: Any) -> Any:
+    """D8 : la valeur SÛRE du champ, si la nouvelle la redit ; sinon ``None``."""
+    if definition.cumulatif:
+        return None
+    etat = (fiche.get(CLE_ETAT) or {}).get(definition.nom) or {}
+    ancienne = fiche.get(definition.nom)
+    if etat.get("sure") and not _est_vide(ancienne) and _meme_valeur(valeur, ancienne):
+        return ancienne
+    return None
+
+
+def _derniere_note(fiche: dict, champ: str) -> dict | None:
+    return next(
+        (e for e in reversed(fiche.get(CLE_JOURNAL) or []) if e.get("champ") == champ),
+        None,
+    )
+
+
+def _proposition_de_commune(fiche: dict, option: Any) -> dict | None:
+    """La commune retenue ou proposée par le module que cette option désigne
+    (nom, et département quand l'option le porte)."""
+    nom = _sans_complement(option)
+    complement = re.search(r"\(([^)]*)\)\s*$", str(option))
+    for trace in _entrees(fiche, TRACE_COMMUNES):
+        for p in [trace.get("commune_retenue") or {}, *(trace.get("propositions") or [])]:
+            if not isinstance(p, dict) or not _memes_mots(p.get("nom"), nom):
+                continue
+            if complement and not _memes_mots(p.get("departement"), complement.group(1)):
+                continue
+            return p
+    return None
+
+
+def _confirmee_par_un_oui(
+    fiche: dict, definition: ChampFiche, valeur: Any, paroles: list[str]
+) -> tuple[Any, Lecture | None] | None:
+    """D6 (runs 869, 871, 873, 879, 881) : la valeur à écrire SÛRE, et sa lecture,
+    quand le champ était à faire confirmer au tour précédent, que la personne
+    vient de dire oui, et que le modèle renvoie cette valeur ou l'une des options
+    proposées (avec ou sans son complément : « Pont-Sainte-Maxence (Oise) »).
+    Sinon ``None`` : le chemin ordinaire décide."""
+    tour = fiche.get(CLE_TOUR)
+    precedente = _derniere_note(fiche, definition.nom)
+    if (
+        not tour
+        or not paroles
+        or precedente is None
+        or not precedente.get("suite")
+        or precedente.get("tour") != tour - 1
+        or not est_un_oui(paroles[-1])
+    ):
+        return None
+    ancienne = fiche.get(definition.nom)
+    etat = (fiche.get(CLE_ETAT) or {}).get(definition.nom) or {}
+    tenue = ancienne if not _est_vide(ancienne) and not etat.get("sure") else None
+    option = next(
+        (o for o in precedente.get("options") or [] if _meme_valeur(valeur, o)), None
+    )
+    lecteur = definition.lecteur_effectif
+    if option is not None:
+        choisie = _sans_complement(option)
+        if lecteur == "rue":
+            return _avec_le_numero(str(tenue or valeur), choisie), None
+        if lecteur == "commune":
+            proposition = _proposition_de_commune(fiche, option)
+            if proposition is None:
+                return None
+            return proposition["nom"], _commune_sure(proposition)
+        return choisie, None
+    for candidate in (tenue, precedente.get("valeur")):
+        if _est_vide(candidate) or not _meme_valeur(valeur, candidate):
+            continue
+        if lecteur == "commune":
+            # La liste des communes est complète : on ne confirme qu'une commune.
+            proposition = _proposition_de_commune(fiche, candidate)
+            if proposition is not None:
+                return proposition["nom"], _commune_sure(proposition)
+            if not _est_une_commune(candidate):
+                return None
+        # L'écriture tenue (officielle, accentuée) si seuls la casse et les
+        # accents diffèrent ; sinon celle du modèle, normalisée (run 863 :
+        # « 3 rues des Merles » transcrit, « 3 rue des Merles » renvoyé).
+        return (candidate if _mots(str(candidate)) == _mots(str(valeur)) else valeur), None
+    return None
+
+
+# Chantier correctifs-modules (runs 863, 879) : au-dessus de ce score, les lettres
+# que le module a lues au tour et la valeur du modèle désignent le même nom.
+# « delacres »/« delattre » et « fortefaure »/« faure » passent ; deux noms sans
+# rapport (« lambert »/« mcz ») non.
+SEUIL_EPELLATION = 60
+
+
+def epellation_du_tour(
+    valeur: Any, fiche: dict, paroles: Iterable[str] = ()
+) -> str | None:
+    """Le mot que le module a lu épelé au DERNIER tour de l'appelant, si la valeur
+    écrite par le modèle en est une autre lecture. Une valeur qui porte des
+    chiffres (une référence) n'est jamais remplacée.
+
+    Revue du 28/09 : ni une valeur de plusieurs mots (« Jean Martin » perdait son
+    prénom), ni quand le mot épelé a été DIT en entier par la personne : il
+    confirme alors ce mot-là (« Martine Martin, M A R T I N » écrivait le prénom
+    MARTIN). Les cas réels ne le disent pas : « Delacres » épelé DELATTRE (863),
+    « fort f a u r e » (879)."""
+    mots = _mots(str(valeur))
+    compacte = "".join(mots)
+    tour = fiche.get(CLE_TOUR)
+    if not tour or len(mots) != 1 or not compacte.isalpha():
+        return None
+    meilleur, score_max = None, 0.0
+    for trace in _entrees(fiche, TRACE_EPELLATIONS):
+        epele = trace.get("epele")
+        if trace.get("tour") != tour or not epele:
+            continue
+        score = fuzz.ratio(compacte, "".join(_mots(epele)))
+        if score >= SEUIL_EPELLATION and score > score_max:
+            meilleur, score_max = epele, score
+    # Dit en entier, comme un mot, et non lettre par lettre (``est_cite`` recolle
+    # les lettres : « f a u r e » y compte pour « faure »).
+    if meilleur and _mots(meilleur) != mots and any(
+        "".join(_mots(meilleur)) in _mots(str(parole)) for parole in paroles
+    ):
+        return None
+    return meilleur
+
+
+def cumuler(ancienne: Any, nouvelle: Any) -> Any:
+    """D7 : ce que tient un champ cumulatif après une note. La note qui reprend
+    tout l'ancien texte le remplace ; celle qui y est déjà ne change rien ; sinon
+    elle s'ajoute."""
+    if _est_vide(ancienne):
+        return nouvelle
+    mots_ancienne, mots_nouvelle = set(_mots(str(ancienne))), set(_mots(str(nouvelle)))
+    if mots_ancienne <= mots_nouvelle:
+        return nouvelle
+    if mots_nouvelle <= mots_ancienne:
+        return ancienne
+    return f"{ancienne} ; {nouvelle}"
+
+
 # --- Le point d'écriture unique (D35) ----------------------------------------
 
 
@@ -1154,6 +1401,20 @@ def ecrire_dans_la_fiche(
     elif definition.valeurs and valeur_de_la_liste(valeur, definition.valeurs) is None:
         # PB3 : hors de la liste fermée, d'où que vienne la valeur.
         verdict = Verdict(champ, "refuse", "hors_liste", valeur)
+    elif (deja := _deja_confirmee(fiche, definition, valeur)) is not None:
+        # D8 : une valeur confirmée, renvoyée, n'est jamais redemandée.
+        valeur = deja
+        verdict = Verdict(champ, "ecrit", "deja_confirmee", valeur)
+    elif (
+        confirmee := _confirmee_par_un_oui(fiche, definition, valeur, paroles)
+    ) is not None:
+        # D6 : la personne vient de dire oui à la valeur qu'on lui faisait confirmer.
+        valeur, lecture = confirmee
+        sure = True
+        verdict = replace(
+            _ecrire(fiche, champ, valeur, True, source, seulement_si_vide, lecture),
+            raison="confirmee_par_la_personne",
+        )
     else:
         if definition.valeurs:
             valeur = valeur_de_la_liste(valeur, definition.valeurs)
@@ -1162,8 +1423,23 @@ def ecrire_dans_la_fiche(
             if definition.origine == OrigineChamp.dicte
             else None
         )
+        if (
+            not epele
+            and definition.origine == OrigineChamp.dicte
+            and definition.lecteur_effectif == "aucun"
+            and definition.type == "string"
+        ):
+            # Runs 863, 879 : le module a lu l'épellation de ce tour, le modèle
+            # a écrit autre chose (« DELACRES », « FORTEFAURE ») : la lecture prime.
+            epele = epellation_du_tour(valeur, fiche, paroles)
         if epele:
             valeur = epele
+        # Q6 (plan « le lexique », 26/09) : des lettres épelées qui SONT un terme
+        # du lexique désignent ce terme -- une marque, jamais un nom (run 803 :
+        # « c'est un M C Z » écrivait `nom = Mcz` à la place de Caron).
+        terme_du_lexique = terme_epele(epele, reglages.termes_du_lexique)
+        if terme_du_lexique and definition.lecteur_effectif == "lexique":
+            valeur = terme_du_lexique
         if definition.lecteur_effectif == "commune":
             lecture = lire_commune(valeur, fiche, paroles)
         elif definition.lecteur_effectif == "rue":
@@ -1198,7 +1474,13 @@ def ecrire_dans_la_fiche(
                 or est_cite(_chiffres_comme_lus(str(valeur)), paroles)
             ):
                 valeur, dit = date.valeur, date.dit
-        if pas_une_date:
+        if terme_du_lexique and est_un_champ_de_nom(definition):
+            # Q6 : un champ de nom (``nom*``, ``prenom*``, sans lecteur) ne reçoit
+            # jamais une marque épelée ; la valeur déjà écrite reste. Les autres
+            # champs sans lecteur (``modele``, ``fabricant``…) la reçoivent
+            # (relecture du 26/09).
+            verdict = Verdict(champ, "refuse", "terme_du_lexique_epele", valeur)
+        elif pas_une_date:
             # C8 (PB11, run 852) : « annuel » dans `dernier_entretien`.
             verdict = Verdict(champ, "refuse", "pas_une_date", valeur)
         elif (
@@ -1216,6 +1498,8 @@ def ecrire_dans_la_fiche(
             and not epele
             and dit is None
             and definition.origine == OrigineChamp.dicte
+            # D7 : un champ cumulatif n'est pas comparé aux mots exacts.
+            and not definition.cumulatif
             # Revue du 25/09 : un oui/non n'est jamais « dit » tel quel (la
             # personne ne prononce pas « true ») ; il se juge comme un déduit.
             and definition.type != "boolean"
@@ -1223,6 +1507,8 @@ def ecrire_dans_la_fiche(
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:
+            if definition.cumulatif:
+                valeur = cumuler(fiche.get(champ), valeur)
             verdict = _ecrire(
                 fiche, champ, valeur, sure, source, seulement_si_vide, lecture
             )
@@ -1244,6 +1530,9 @@ def ecrire_dans_la_fiche(
             "source": source,
             "sure": sure,
             **({"suite": verdict.suite} if verdict.suite else {}),
+            # D6 : les possibilités proposées, pour reconnaître celle que la
+            # personne confirme au tour suivant.
+            **({"options": list(verdict.options)} if verdict.options else {}),
             **({"dit": dit} if dit is not None else {}),
             # C4 : le tour de l'appelant, pour lire « ce qu'il a dit depuis ».
             **({"tour": fiche[CLE_TOUR]} if fiche.get(CLE_TOUR) else {}),
@@ -1398,6 +1687,39 @@ def _refus_d_un_deduit(
     return None
 
 
+def _refus_du_balayage(
+    reglages: ReglagesFiche,
+    fiche: dict,
+    champ: ChampFiche,
+    valeur: Any,
+    paroles: list[str],
+) -> str | None:
+    """Pourquoi le balayage refuse cette valeur, ou ``None``.
+
+    D9 (chantier correctifs-modules, runs 864, 865, 870, 879 à 881) : la passe ne
+    remplit un champ vide ni avec la valeur déjà notée dans un AUTRE champ (la
+    référence de facture recopiée dans la commande, le code postal dans la
+    commune), ni, pour un champ qui a sa liste (le lexique, les communes), avec
+    une valeur que cette liste ne reconnaît pas (« insert » dans la marque).
+    Un déduit garde en plus ses règles (C13).
+    """
+    if champ.origine == OrigineChamp.deduit:
+        return _refus_d_un_deduit(reglages, fiche, champ, valeur, paroles)
+    copie = _recopie_d_un_autre_champ(reglages, fiche, champ.nom, valeur)
+    if copie:
+        return f"recopie_de_{copie}"
+    lecteur = champ.lecteur_effectif
+    if lecteur == "lexique":
+        lecture = lire_lexique(valeur, fiche, reglages.termes_du_lexique, paroles)
+        if not lecture.sure and valeur_de_la_liste(valeur, tuple(reglages.termes_du_lexique.values())) is None:
+            return "hors_de_sa_liste"
+    elif lecteur == "commune":
+        lecture = lire_commune(valeur, fiche, paroles)
+        if not lecture.trouvee and not _est_une_commune(valeur):
+            return "hors_de_sa_liste"
+    return None
+
+
 def _marquer_les_numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> None:
     """A8 : en fin d'appel, un numéro qui diffère encore du dernier numéro dicté
     devient NON SÛR, et le journal dit pourquoi. Le balayage n'écrase jamais un
@@ -1446,8 +1768,10 @@ async def balayer_la_fiche(
         return {}
     trouve = await extraire(
         [
+            # D9 (chantier correctifs-modules) : les valeurs des listes fermées,
+            # comme l'outil les montre (run 866 : l'urgence rendue hors liste).
             ExtractionVariableDTO(
-                name=c.nom, type=c.type, prompt=c.description or c.nom
+                name=c.nom, type=c.type, prompt=_propriete(c)["description"]
             )
             for c in vides
         ],
@@ -1461,8 +1785,8 @@ async def balayer_la_fiche(
         if champ.nom not in trouve:
             continue
         refus = (
-            _refus_d_un_deduit(reglages, fiche, champ, trouve[champ.nom], paroles)
-            if champ.origine == OrigineChamp.deduit and not _est_vide(trouve[champ.nom])
+            _refus_du_balayage(reglages, fiche, champ, trouve[champ.nom], paroles)
+            if not _est_vide(trouve[champ.nom])
             else None
         )
         if refus:
@@ -1645,18 +1969,35 @@ def suivre_les_tours(llm: Any) -> SuiviDesTours:
 # --- L'outil -----------------------------------------------------------------
 
 
+def _propriete(champ: ChampFiche) -> dict:
+    """Le paramètre de l'outil pour ce champ.
+
+    Chantier correctifs-modules (runs 863, 866 à 868) : les valeurs d'une liste
+    fermée sont montrées à qui écrit, depuis la déclaration du champ (« poêle »
+    refusé hors liste, jamais redemandé ; l'urgence jamais notée)."""
+    description = champ.description or champ.nom
+    if not champ.valeurs:
+        return {"type": champ.type, "description": description}
+    if champ.type != "string":
+        # Revue du 28/09 : ``enum`` porte des chaînes ; sur un nombre ou un oui/non,
+        # le schéma deviendrait incohérent. La description garde les valeurs.
+        return {
+            "type": champ.type,
+            "description": f"{description} Valeurs permises : {', '.join(champ.valeurs)}.",
+        }
+    return {
+        "type": champ.type,
+        "description": f"{description} Valeurs permises : {', '.join(champ.valeurs)}.",
+        "enum": list(champ.valeurs),
+    }
+
+
 def schema_outil(reglages: ReglagesFiche) -> FunctionSchema:
     """Un paramètre facultatif par champ de la fiche (D3)."""
     return FunctionSchema(
         name=NOM_OUTIL,
         description=DESCRIPTION_OUTIL,
-        properties={
-            champ.nom: {
-                "type": champ.type,
-                "description": champ.description or champ.nom,
-            }
-            for champ in reglages.champs
-        },
+        properties={champ.nom: _propriete(champ) for champ in reglages.champs},
         required=[],
     )
 

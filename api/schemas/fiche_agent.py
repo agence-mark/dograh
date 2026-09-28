@@ -71,6 +71,18 @@ class ChampFiche(BaseModel):
         ),
     )
 
+    # D7 (chantier correctifs-modules, 28/09) : un champ où chaque note s'ajoute
+    # à ce qu'il tient déjà, sans rien écraser (un 2e motif, un symptôme complété :
+    # run 879). Exempt du contrôle « dit tel quel ». Faux par défaut : aucun
+    # changement pour un agent qui ne le déclare pas.
+    cumulatif: bool = Field(
+        default=False,
+        description=(
+            "Cumulative: each note is added to what the field already holds, "
+            "nothing is overwritten; not checked against the caller's exact words."
+        ),
+    )
+
     @field_validator("valeurs")
     @classmethod
     def _valeurs_lisibles(cls, valeurs: list[str] | None) -> list[str] | None:
@@ -118,6 +130,17 @@ def lecteur_par_defaut(nom: str) -> str:
     if "date" in nom or nom.startswith(("dernier_", "annee")):
         return "date"
     return "aucun"
+
+
+def est_un_champ_de_nom(champ: "ChampFiche") -> bool:
+    """Q6 (plan « le lexique », 26/09) : un champ qui porte le nom d'une personne,
+    reconnu par son nom (``nom``, ``nom_*``, ``prenom*``) comme le lecteur l'est
+    (D42), et lu par aucun module. ⚠️ Pas ``nom*`` : ``nombre_appareils`` n'est pas
+    un nom (contre-relecture du 26/09)."""
+    nom = champ.nom
+    return champ.lecteur_effectif == "aucun" and (
+        nom == "nom" or nom.startswith("nom_") or nom.startswith("prenom")
+    )
 
 
 def cle_insee(nom: str) -> str:

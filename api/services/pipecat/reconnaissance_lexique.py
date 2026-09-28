@@ -1,16 +1,18 @@
-"""[.mark] Correct the names of the trade in the caller's message, before anything reads it.
+"""[.mark] Recommend the names of the trade heard in the caller's message, before the model reads it.
 
 Why this step, and why HERE
 ---------------------------
 The transcription writes "édile camembert" and the model repeats it. This step
 compares the caller's words with the organization's trade vocabulary
-(``api/services/lexique/``): a sure name is written properly, a doubtful one
-gets a note asking the agent to confirm it (L5).
+(``api/services/lexique/``) and adds a recommendation for the model only
+(« la personne a peut-être dit Edilkamin »). ⛔ Chantier correctifs-modules,
+D2 (28/09): the caller's words are never rewritten any more, for the model nor
+for the readers after this one.
 
 It sits right AFTER the user aggregator and its gate, and right BEFORE
-``lecture_appelant`` (T8): the names are written properly before the numbers
-and the towns are read, so "Supra" or "Royal" never become communes, and the
-notes those two add are never read as brand names (T17).
+``lecture_appelant`` (T8): its recommendation is glued after the caller's
+words, and ``lecture_appelant`` sets it aside before reading (T17), so a brand
+named in it is never read as a town.
 
 ⛔ What it must never do
 - Hold the audio: the analysis runs in a worker thread (T6).
@@ -39,9 +41,8 @@ from api.services.lexique.correction import (
     deja_mentionne,
     mentions,
     partie_de_lappelant,
-    reecrire,
 )
-from api.services.lexique.ecoute import prononciations_du_lexique
+from api.services.lexique.ecoute import ListeEcoutee, prononciations_du_lexique
 from api.services.lexique.reglages import interrupteur_allume
 from api.services.pipecat.verification_communes import sons_allumes
 from pipecat.frames.frames import Frame, LLMContextFrame, StartFrame
@@ -117,15 +118,19 @@ def _trace(detection, etape: str | None) -> dict:
     }
 
 
-def trace_du_lexique(
-    lexique: LexiqueMetier, envoyes_a_flux: list[str], liste_tronquee: bool
-) -> dict:
-    """What the call ran with (T10): sizes, and the terms sent to the transcription."""
+def trace_du_lexique(lexique: LexiqueMetier, liste: ListeEcoutee) -> dict:
+    """What the call ran with (T10): sizes, the terms sent to the transcription,
+    and the ceiling they were counted against (plan « le lexique », Q1, Q2)."""
     return {
         "termes": len(lexique.termes),
         "noms": len(noms_a_reconnaitre(lexique)),
-        "envoyes_a_flux": list(envoyes_a_flux),
-        "liste_tronquee": bool(liste_tronquee),
+        "envoyes_a_flux": list(liste.termes),
+        "liste_tronquee": liste.tronquee,
+        "non_envoyes": list(liste.non_envoyes),
+        "jetons": liste.jetons,
+        "plafond_jetons": liste.plafond.jetons if liste.plafond else None,
+        "plafond_termes": liste.plafond.termes if liste.plafond else None,
+        "fournisseur_du_plafond": liste.plafond.fournisseur if liste.plafond else None,
         "prononciations": len(prononciations_du_lexique(lexique)),
     }
 
@@ -139,7 +144,7 @@ async def corriger_texte(
     avec_sons: bool = True,
     provisoire: bool = False,
 ) -> str:
-    """``texte`` with the trade names written properly, or ``texte`` unchanged. Never raises."""
+    """``texte`` followed by the vocabulary's recommendations, or ``texte`` unchanged. Never raises."""
     try:
         if not texte or index is None or index.vide or deja_mentionne(texte):
             return texte
@@ -149,12 +154,11 @@ async def corriger_texte(
         lectures = await asyncio.to_thread(analyser, appelant, index, avec_sons)
         if not lectures:
             return texte
-        # ⛔ L'ordre : les mots de l'appelant corrigés, PUIS les notes des autres
-        # lecteurs telles quelles, PUIS les nôtres. Une note du lexique glissée
-        # avant celle des communes empêchait la lecture suivante de voir cette
-        # dernière, et le modèle recevait deux fois la même consigne de ville
-        # (relecture indépendante du 17/09).
-        corrige = reecrire(appelant, lectures)
+        # ⛔ L'ordre : les mots de l'appelant INTACTS (D2), PUIS les notes des
+        # autres lecteurs telles quelles, PUIS les nôtres. Une note du lexique
+        # glissée avant celle des communes empêchait la lecture suivante de voir
+        # cette dernière (relecture indépendante du 17/09).
+        corrige = appelant
         notes_du_lexique = mentions(lectures)
         if consigner is not None:
             for detection in lectures:

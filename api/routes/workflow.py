@@ -53,6 +53,7 @@ from api.services.pipecat.etat_ouverture import HorairesInvalides, vers_expressi
 from api.services.posthog_client import capture_event
 from api.services.reports import generate_workflow_report_csv
 from api.services.storage import storage_fs
+from api.services.workflow import schema_du_parcours
 from api.services.workflow.configuration_policy import (
     ExternalPBXConfigurationDisabledError,
     WorkflowConfigurationNotFoundError,
@@ -1341,6 +1342,18 @@ async def update_workflow(
                     **workflow_configurations,
                     "model_overrides": enriched_overrides,
                 }
+
+        # [.mark] Chantier correctifs-modules, lot 4 bis : « Generate the flow
+        # map ». The blocks follow the graph at every save; off, nothing changes.
+        workflow_definition = (
+            await schema_du_parcours.a_l_enregistrement(
+                workflow_id,
+                user.selected_organization_id,
+                workflow_definition,
+                workflow_configurations,
+            )
+            or workflow_definition
+        )
 
         # Reject upfront if any new trigger path collides with another
         # workflow's trigger — keeps the workflow record from

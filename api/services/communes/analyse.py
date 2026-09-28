@@ -70,6 +70,10 @@ AMORCES = {"a", "sur", "vers", "commune", "ville", "habite", "habitons", "habite
 TYPES_VOIE = {"rue", "avenue", "av", "boulevard", "bd", "chemin", "allee", "impasse", "place", "route",
               "quai", "square", "residence", "lotissement", "cours", "passage", "sentier", "ruelle",
               "voie", "zac", "za", "lieu", "dit"}
+# Chantier correctifs-modules, lot 3 (runs 862, 863) : la transcription écrit les
+# types au pluriel (« trois rues des Merles », « deux places Victor Hugo ») et
+# « Merles », « Hugo » étaient lus comme des communes.
+TYPES_VOIE |= {t + "s" for t in TYPES_VOIE if t not in ("lieu", "dit", "cours", "av", "bd", "za", "zac")}
 ARTICLES = {"la", "le", "les", "l"}
 # Words that do not make an answer longer: "oui c'est à Sanlis" is a short answer.
 MOTS_VIDES_REPONSE = {"oui", "non", "alors", "euh", "ben", "bah", "c", "est", "ca", "je", "j", "suis",
@@ -143,6 +147,9 @@ class Detection:
     # The words heard are a postal code, not a name: the note then asks for the
     # town only (asking for "the town or its postal code" gets the same code again).
     code_postal_entendu: bool = False
+    # D4 (chantier correctifs-modules) : « lieu », « nom » ou « son », posée par
+    # ``communes.force`` quand la fiche est allumée ; None sinon.
+    force: str | None = None
 
 
 def _extrait_dorigine(texte: str, debut: int, fin: int, mots_normalises: list[str]) -> str:

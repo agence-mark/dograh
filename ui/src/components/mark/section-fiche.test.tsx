@@ -122,6 +122,27 @@ describe("[.mark] Call Record card", () => {
         expect(toastMock.success).toHaveBeenCalled();
     });
 
+    it("declares a cumulative field (D7) and carries it out on save", async () => {
+        const onSave = ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: CHAMPS });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        const cumulatif = document.getElementById("fiche_cumulatif_0") as HTMLElement;
+        expect(cumulatif.getAttribute("aria-checked")).toBe("false");
+        expect(within(dialogue).getAllByText(/cumulative/i).length).toBeGreaterThan(0);
+        fireEvent.click(cumulatif);
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        fireEvent.click(boutonEnregistrer());
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        const [nom, commune] = onSave.mock.calls[0][0].fiche_champs;
+        expect(nom.cumulatif).toBe(true);
+        expect(commune.cumulatif ?? false).toBe(false);
+    });
+
+    it("the server knows the cumulative attribute the screen offers", () => {
+        const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
+        expect(schema).toContain("cumulatif: bool = Field(");
+    });
+
     it("removes a field", async () => {
         const onSave = ouvrir({ fiche_champs: CHAMPS });
         ouvrirLesChamps();

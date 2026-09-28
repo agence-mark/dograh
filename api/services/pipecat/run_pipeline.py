@@ -21,14 +21,16 @@ from api.services.communes.adresse import (
     injecter_adresse_etablissement,
     lire_adresse_etablissement,
 )
+from api.services.configuration.plafond_lexique import plafond_du_lexique
 from api.services.configuration.registry import ServiceProviders
 from api.services.integrations import (
     IntegrationRuntimeContext,
     create_runtime_sessions,
 )
 from api.services.lexique.ecoute import (
-    construire_liste_flux,
-    injecter_lexique_a_ecouter,
+    construire_liste_ecoutee,
+    injecter_lexique_propose,
+    termes_proposes,
 )
 from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.observability.active_calls import (
@@ -111,6 +113,11 @@ from api.services.pipecat.tracing_config import (
 )
 from api.services.pipecat.transcript_log_coordinator import TranscriptLogCoordinator
 from api.services.pipecat.transport_setup import create_webrtc_transport
+from api.services.pipecat.filet_lexique import (
+    armer_filet_lexique,
+    estampille_de_la_liste,
+    noter_le_refus,
+)
 from api.services.pipecat.verification_communes import consigner_dans
 from api.services.pipecat.worker_runner import (
     create_worker_runner,
@@ -910,18 +917,11 @@ async def _run_pipeline_impl(
     # Extract configurations from the version's workflow_configurations
     max_call_duration_seconds = DEFAULT_MAX_CALL_DURATION_SECONDS
     max_user_idle_timeout = DEFAULT_MAX_USER_IDLE_TIMEOUT_SECONDS
-    # [.mark] The agent's Dictionary first, then the terms ticked in the trade
-    # vocabulary, within one budget (L7, T11). Without a vocabulary this is
-    # exactly the list of before.
-    termes_ecoutes, ecoute_tronquee = construire_liste_flux(
-        (run_configs or {}).get("dictionary"), lexique_metier
-    )
-    keyterms = termes_ecoutes or None  # Terms the transcription listens for
-    # [.mark] The ticked names are given to the agent as {{lexique_a_ecouter}}
-    # (Q1 = B): one source for "which brands do you sell?", and a name added on
-    # screen is said without republishing the agent.
-    merged_call_context_vars = injecter_lexique_a_ecouter(
-        merged_call_context_vars, [t.terme for t in lexique_metier.termes if t.a_ecouter]
+    # [.mark] The names the business offers are given to the agent as
+    # {{lexique_propose}} and, for the agents written before, {{lexique_a_ecouter}}
+    # (Q1 = B; plan « le lexique », Q4): only the box « the business offers it ».
+    merged_call_context_vars = injecter_lexique_propose(
+        merged_call_context_vars, termes_proposes(lexique_metier)
     )
     transcript_config = run_configs.get("transcript_configuration") or {}
     include_transcript_end_timestamps = bool(
@@ -949,6 +949,20 @@ async def _run_pipeline_impl(
         )
     else:
         user_config = resolved_user_config
+
+    # [.mark] The agent's Dictionary first, then the terms ticked in the trade
+    # vocabulary, within the ceiling DECLARED WITH the transcription provider
+    # (plan « le lexique », Q1): built here, once the provider and its model are
+    # known. A provider with no declared ceiling receives no list.
+    liste_ecoutee = construire_liste_ecoutee(
+        (run_configs or {}).get("dictionary"),
+        lexique_metier,
+        plafond_du_lexique(
+            getattr(getattr(user_config, "stt", None), "provider", None),
+            getattr(getattr(user_config, "stt", None), "model", None),
+        ),
+    )
+    keyterms = liste_ecoutee.termes or None  # Terms the transcription listens for
 
     workflow_graph = WorkflowGraph(
         ReactFlowDTO.model_validate(run_workflow_json),
@@ -990,12 +1004,24 @@ async def _run_pipeline_impl(
             correlation_id=mps_correlation_id,
         )
     else:
+        # [.mark] The safety net of the list (plan « le lexique », L2): a list the
+        # transcription refuses is dropped and the call goes on, stamped.
+        estampille_lexique = estampille_de_la_liste(liste_ecoutee)
         stt = appliquer_latence_de_transcription(
-            create_stt_service(
-                user_config,
-                audio_config,
-                keyterms=keyterms,
-                correlation_id=mps_correlation_id,
+            armer_filet_lexique(
+                create_stt_service(
+                    user_config,
+                    audio_config,
+                    keyterms=keyterms,
+                    correlation_id=mps_correlation_id,
+                ),
+                keyterms,
+                lambda message: noter_le_refus(
+                    estampille_lexique,
+                    message,
+                    consigner_dans(lambda: engine._gathered_context),
+                    CLE_TRACE_LEXIQUE,
+                ),
             ),
             collecter_reglages_tour_de_parole(run_configs).stt_ttfs_p99_latency,
         )
@@ -1061,6 +1087,9 @@ async def _run_pipeline_impl(
         # The keyboard bench is excluded elsewhere -- it lives in
         # `text_chat_runner`, which simply never calls this.
         stamp_transcription_settings(runtime_configuration, user_config.stt)
+        # [.mark] What the transcription was asked to listen for, updated by the
+        # safety net if the list is refused (plan « le lexique », L2).
+        runtime_configuration["lexique_transcription"] = estampille_lexique
         # [.mark] Same guard, same reason on the other side of the pipeline: a
         # realtime call has no separate synthesis service, so `user_config.tts`
         # says nothing about how it was played. Without this stamp two voices
@@ -1496,6 +1525,7 @@ async def _run_pipeline_impl(
                 adresse_etablissement,
                 lambda: engine.active_agent.current_node,
                 consigner_dans(lambda: engine._gathered_context),
+                lexique=lexique_metier,
             ),
             # [.mark] Trade vocabulary (plan lexique-metier): the names of the
             # trade written properly before the numbers and the towns are read.
@@ -1513,7 +1543,7 @@ async def _run_pipeline_impl(
     if not is_realtime and lexique_metier.termes:
         try:
             consigner_dans(lambda: engine._gathered_context)(
-                trace_du_lexique(lexique_metier, termes_ecoutes, ecoute_tronquee),
+                trace_du_lexique(lexique_metier, liste_ecoutee),
                 CLE_TRACE_LEXIQUE,
             )
         except Exception as erreur:  # noqa: BLE001 -- a record never costs a call

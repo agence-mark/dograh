@@ -165,7 +165,7 @@ export const erreursDesChamps = (champs: ChampFiche[]): Record<number, string> =
 
 /** The same record, with "no list" written one way only, to compare two records. */
 export const pourComparerLaFiche = (champs: ChampFiche[]) =>
-    champs.map((c) => ({ ...c, valeurs: c.valeurs?.length ? c.valeurs : null }));
+    champs.map((c) => ({ ...c, valeurs: c.valeurs?.length ? c.valeurs : null, cumulatif: c.cumulatif ?? false }));
 
 const nouveauChamp = (): ChampFiche => ({
     nom: "",
@@ -416,6 +416,24 @@ export const EditeurChampsFiche = ({
                                     valeurs={champ.valeurs ?? null}
                                     onChange={(valeurs) => modifier(i, { valeurs })}
                                 />
+                                <div className="flex items-start gap-2">
+                                    <Switch
+                                        id={`fiche_cumulatif_${i}`}
+                                        checked={champ.cumulatif ?? false}
+                                        onCheckedChange={(coche) => modifier(i, { cumulatif: coche })}
+                                    />
+                                    <div className="space-y-1">
+                                        <Label htmlFor={`fiche_cumulatif_${i}`} className="text-xs">
+                                            {t({ en: "Cumulative", fr: "Cumulatif" })}
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            {t({
+                                                en: "Each note is added to what the field already holds, nothing is overwritten (a second request, a symptom completed). Not checked against the caller's exact words.",
+                                                fr: "Chaque note s'ajoute à ce que le champ tient déjà, rien n'est écrasé (une deuxième demande, un symptôme complété). Pas comparé aux mots exacts de l'appelant.",
+                                            })}
+                                        </p>
+                                    </div>
+                                </div>
                                 {erreurs[i] && <p className="text-xs text-destructive">{t(erreurs[i])}</p>}
                             </div>
                         ))}

@@ -1300,6 +1300,20 @@
           "retirees": []
         }
       ]
+    },
+    "schema-parcours": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "generer_schema_parcours": true
+          },
+          "retirees": []
+        }
+      ]
     }
   }
 }

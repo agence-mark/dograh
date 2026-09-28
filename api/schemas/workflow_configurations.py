@@ -730,6 +730,17 @@ class WorkflowConfigurationDefaults(BaseModel):
             "of it: either can be used alone."
         ),
     )
+    # [.mark] Chantier correctifs-modules, lot 4 bis : le schéma du parcours.
+    generer_schema_parcours: bool = Field(
+        default=False,
+        description=(
+            "At every save, write the flow map at the end of the global prompt "
+            "(each step and its exits: exit name to arrival step) and 'Tu es ici' "
+            "with the step's name at the end of each step's prompt. Only step and "
+            "exit names; the blocks are replaced at each save, never stacked. "
+            "Off: blocks left by an earlier save are removed, nothing else changes."
+        ),
+    )
     # [.mark] La fiche au fil de l'eau (plan 2026-09-23, lots 1 et suivants).
     fiche_au_fil_de_leau: bool = Field(
         default=False,

@@ -227,6 +227,8 @@ def trace_de(detection: Detection, base: BaseCommunes, etape: str | None) -> dic
             if getattr(detection, "code_postal_entendu", False)
             else {}
         ),
+        # D4 (chantier correctifs-modules) : présente seulement fiche allumée.
+        **({"force": detection.force} if getattr(detection, "force", None) else {}),
     }
 
 

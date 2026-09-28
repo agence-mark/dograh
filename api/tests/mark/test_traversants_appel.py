@@ -28,6 +28,9 @@ la fabrique de voix, elle, est la vraie, avec ses filtres et ses transformations
 | fiche + nom | `noter_information` écrit le nom dans la fiche de l'appel, en base, et la voix ne le prononce jamais |
 | relance | après un silence, le modèle reçoit la consigne de relance de l'agent |
 | micro | `mute_always` réglé en base est dans l'agrégateur réel de l'appel, absent sinon |
+| plafond du lexique | la liste remise à la transcription tient sous le plafond déclaré avec le fournisseur, dictionnaire de l'agent en tête |
+| noms proposés | l'agent reçoit `lexique_propose` et `lexique_a_ecouter` (même contenu), tirés de la seule case « l'entreprise le propose » |
+| filet du lexique | une liste refusée par la transcription (HTTP 400) : reconnexion sans la liste, l'appel continue, le refus est estampillé |
 
 ⛔ Chacun a été éprouvé en débranchant sa fonctionnalité : il rougit (journal du
 chantier). Un test traversant qui reste vert fonctionnalité débranchée ne
@@ -38,6 +41,7 @@ montées de version (règle du 08/09).
 """
 
 import asyncio
+import contextlib
 import copy
 import functools
 import uuid
@@ -217,6 +221,7 @@ async def _appeler(
     *,
     fin_attendue: bool = False,
     apres=None,
+    fabrique_stt=None,
 ):
     """Joue un appel : accueil, puis chaque parole attend la réponse du modèle.
 
@@ -243,6 +248,12 @@ async def _appeler(
         # fournisseur est faux.
         patch("api.services.pipecat.run_pipeline.create_tts_service", vraie_fabrique_de_voix),
         patch.object(service_factory, "CartesiaTTSService", _fausse_cartesia(voix)),
+        # Une transcription à soi (par défaut, celle du harnais : un passe-plat).
+        (
+            patch("api.services.pipecat.run_pipeline.create_stt_service", fabrique_stt)
+            if fabrique_stt is not None
+            else contextlib.nullcontext()
+        ),
     ):
         try:
             appel = asyncio.create_task(
@@ -375,7 +386,9 @@ async def test_lecture_eteinte_les_paroles_arrivent_telles_quelles(db_session, a
 
 @pytest.mark.asyncio
 @_borne
-async def test_le_lexique_de_l_organisation_corrige_avant_le_modele(db_session, async_session):
+async def test_le_lexique_de_l_organisation_recommande_avant_le_modele(db_session, async_session):
+    """D2 (correctifs-modules, 28/09) : les mots de l'appelant arrivent intacts au
+    modèle, suivis de la recommandation du lexique."""
     lexique = {
         "termes": [
             {"terme": "Edilkamin", "variantes": ["Edil Kamin"], "categorie": "marque", "a_ecouter": True}
@@ -384,7 +397,10 @@ async def test_le_lexique_de_l_organisation_corrige_avant_le_modele(db_session, 
     montage = await _monter(db_session, async_session, {}, lexique=lexique)
     llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
     await _appeler(montage, llm, ["c'est un Edilcamin"])
-    assert _derniere_parole_recue(llm) == "c'est un Edilkamin"
+    assert _derniere_parole_recue(llm) == (
+        "c'est un Edilcamin "
+        "[Lexique, pour toi seulement, jamais dit à voix haute : la personne a dit Edilkamin.]"
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -458,6 +474,46 @@ async def test_la_fiche_note_le_nom_en_base_et_la_voix_ne_le_dit_jamais(
     fiche = run.gathered_context
     assert fiche.get("nom") == "Dupont", fiche
     assert fiche["extracted_variables"]["nom"] == "Dupont"
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_correctifs_modules_un_oui_leve_la_confirmation_en_base(db_session, async_session):
+    """Chantier correctifs-modules, D6 (runs 869 à 881) : une marque hors du
+    lexique, notée « à confirmer », renvoyée par le modèle juste après le oui de
+    la personne, est SÛRE dans la fiche enregistrée avec l'appel."""
+    montage = await _monter(
+        db_session,
+        async_session,
+        {
+            "fiche_au_fil_de_leau": True,
+            "fiche_champs": [{"nom": "marque", "origine": "dicte", "lecteur": "lexique"}],
+            "lexique_metier": True,
+        },
+        lexique={"termes": [{"terme": "Edilkamin", "type": "nom"}, {"terme": "Nordica", "type": "nom"}]},
+    )
+    llm = ContextCapturingMockLLM(
+        mock_steps=[
+            _outil("noter_information", {"marque": "Zorvex"}, "note_1"),
+            _texte("C'est bien de la marque Zorvex ?"),
+            _outil("noter_information", {"marque": "Zorvex"}, "note_2"),
+            _texte("Très bien."),
+            _outil("end_call", {}, "fin_1"),
+        ],
+        chunk_delay=0.001,
+    )
+    await _appeler(
+        montage,
+        llm,
+        ["j'ai un appareil Zorvex", "Oui, c'est ça.", "au revoir"],
+        fin_attendue=True,
+    )
+    run = await db_session.get_workflow_run_by_id(montage[0].id)
+    fiche = run.gathered_context
+    premiere = next(e for e in fiche["fiche_journal"] if e["champ"] == "marque")
+    assert premiere.get("suite") == "a_confirmer", fiche["fiche_journal"]
+    assert fiche.get("marque") == "Zorvex", fiche
+    assert fiche["fiche_etat"]["marque"]["sure"] is True, fiche["fiche_journal"]
 
 
 # --------------------------------------------------------------------------- #
@@ -594,3 +650,194 @@ async def test_E2_le_raccrochage_regle_arrive_au_moniteur_de_l_appel(
 
     await _appeler(montage, llm, [], apres=relever)
     assert delais == [attendu]
+
+
+# --------------------------------------------------------------------------- #
+# Le lexique envoyé à la transcription (plan « le lexique », L1 et L2)
+# --------------------------------------------------------------------------- #
+
+
+def _lexique_coche(n: int) -> dict:
+    return {"termes": [{"terme": f"Marque{i:03d}", "a_ecouter": True} for i in range(n)]}
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_la_liste_remise_a_la_transcription_tient_sous_le_plafond_du_fournisseur(
+    db_session, async_session
+):
+    """Le vrai appel construit la liste avec le plafond du fournisseur de
+    l'organisation (Deepgram, dans la configuration montée) : dictionnaire de
+    l'agent en tête, puis les termes cochés, la fin coupée."""
+    from api.services.configuration.plafond_lexique import jetons_du_terme, plafond_du_lexique
+    from api.tests.integrations._run_pipeline_helpers import PassthroughProcessor
+
+    montage = await _monter(
+        db_session, async_session, {"dictionary": "ramonage, insert"}, lexique=_lexique_coche(400)
+    )
+    recues = []
+
+    def transcription(*_args, keyterms=None, **_kwargs):
+        recues.append(list(keyterms or []))
+        return PassthroughProcessor()
+
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    await _appeler(montage, llm, ["bonjour"], fabrique_stt=transcription)
+    plafond = plafond_du_lexique("deepgram", USER_CONFIGURATION["stt"]["model"])
+    assert len(recues) == 1
+    liste = recues[0]
+    assert liste[:3] == ["ramonage", "insert", "Marque000"]
+    assert 3 < len(liste) < 402, len(liste)
+    assert sum(jetons_du_terme(t, plafond) for t in liste) <= plafond.jetons
+
+
+class _TranscriptionQuiRefuseLaListe:
+    """Une transcription qui se connecte au démarrage comme Flux, et que le
+    fournisseur refuse (HTTP 400) tant que l'adresse porte des termes. Sans
+    connexion, elle fait tomber l'appel, comme le 18/09."""
+
+    def __init__(self, keyterms):
+        from types import SimpleNamespace
+
+        from api.tests.integrations._run_pipeline_helpers import PassthroughProcessor
+
+        adresses = self.adresses = []
+        termes = "".join(f"&keyterm={t}" for t in keyterms or [])
+
+        class Service(PassthroughProcessor):
+            def __init__(self):
+                super().__init__()
+                self._settings = SimpleNamespace(keyterm=list(keyterms or []))
+                self._websocket_url = f"wss://api.eu.deepgram.com/v2/listen?model=flux-general-multi{termes}"
+
+            async def _websocket_connect(self, uri, **_kwargs):
+                from websockets.datastructures import Headers
+                from websockets.exceptions import InvalidStatus
+                from websockets.http11 import Response
+
+                adresses.append(uri)
+                if "keyterm=" in uri:
+                    raise InvalidStatus(Response(400, "Bad Request", Headers(), b""))
+                return "connexion"
+
+            async def process_frame(self, frame, direction):
+                from pipecat.frames.frames import StartFrame
+
+                if isinstance(frame, StartFrame):
+                    await super().process_frame(frame, direction)
+                    try:
+                        await self._websocket_connect(self._websocket_url)
+                    except Exception as erreur:  # noqa: BLE001
+                        await self.push_error(error_msg=f"refusé : {erreur}", fatal=True)
+                    return
+                await super().process_frame(frame, direction)
+
+        self.service = Service()
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_une_liste_refusee_ne_fait_pas_tomber_l_appel(db_session, async_session):
+    """L2 : la transcription refuse la liste (400) ; le filet se reconnecte sans
+    elle, l'appel continue (le modèle répond), et le refus est estampillé."""
+    montage = await _monter(
+        db_session, async_session, {}, lexique={"termes": [{"terme": "Edilkamin", "a_ecouter": True}]}
+    )
+    fausses = []
+
+    def transcription(*_args, keyterms=None, **_kwargs):
+        fausse = _TranscriptionQuiRefuseLaListe(keyterms)
+        fausses.append(fausse)
+        return fausse.service
+
+    llm = ContextCapturingMockLLM(
+        mock_steps=[_texte("Très bien."), _outil("end_call", {}, "fin_1")], chunk_delay=0.001
+    )
+    await _appeler(montage, llm, ["bonjour", "au revoir"], fin_attendue=True, fabrique_stt=transcription)
+
+    adresses = fausses[0].adresses
+    assert len(adresses) == 2 and "keyterm=Edilkamin" in adresses[0]
+    assert "keyterm" not in adresses[1]
+    run = await db_session.get_workflow_run_by_id(montage[0].id)
+    contexte = run.gathered_context
+    estampilles = [v["runtime_configuration"].get("lexique_transcription") for v in contexte["agent_visits"]]
+    assert estampilles and estampilles[-1]["etat"] == "non envoyé : refusé", estampilles
+    assert "400" in estampilles[-1]["refus"]
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_l_agent_recoit_les_noms_proposes_et_seulement_eux(db_session, async_session):
+    """L3 : la case « l'entreprise le propose » alimente la variable de l'agent,
+    sous son nom et sous l'ancien ; la case « écouter » n'y entre pas."""
+    montage = await _monter(
+        db_session,
+        async_session,
+        {},
+        lexique={
+            "termes": [
+                {"terme": "Edilkamin", "a_ecouter": True, "propose": True},
+                {"terme": "Rika", "a_ecouter": True, "propose": False},
+                {"terme": "Jøtul", "a_ecouter": False, "propose": True},
+                # Enregistré avant la seconde case : il était coché, il reste proposé.
+                {"terme": "Supra", "a_ecouter": True},
+            ]
+        },
+    )
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    await _appeler(montage, llm, ["bonjour"])
+    run = await db_session.get_workflow_run_by_id(montage[0].id)
+    assert run.initial_context["lexique_propose"] == "Edilkamin, Jøtul, Supra"
+    assert run.initial_context["lexique_a_ecouter"] == "Edilkamin, Jøtul, Supra"
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_une_marque_epelee_ne_remplace_pas_le_nom(db_session, async_session):
+    """L5 (run 803) : l'appelant épelle sa marque ; le modèle la note dans le nom.
+    La fiche en base garde le nom, et la marque va dans son champ."""
+    montage = await _monter(
+        db_session,
+        async_session,
+        {
+            "fiche_au_fil_de_leau": True,
+            "fiche_champs": [
+                {"nom": "nom", "origine": "dicte", "description": "Nom de famille"},
+                {"nom": "marque", "origine": "dicte", "description": "Marque de l'appareil"},
+            ],
+            "lecture_epellation": True,
+        },
+        lexique={"termes": [{"terme": "MCZ", "categorie": "marque"}]},
+    )
+    llm = ContextCapturingMockLLM(
+        mock_steps=[
+            _outil("noter_information", {"nom": "Caron"}, "note_1"),
+            _texte("Merci. Quelle est la marque ?"),
+            _outil("noter_information", {"nom": "MCZ", "marque": "MCZ"}, "note_2"),
+            _texte("C'est noté."),
+            _outil("end_call", {}, "fin_1"),
+        ],
+        chunk_delay=0.001,
+    )
+    await _appeler(
+        montage, llm, ["je m'appelle Caron", "c'est un M C Z", "au revoir"], fin_attendue=True
+    )
+    run = await db_session.get_workflow_run_by_id(montage[0].id)
+    fiche = run.gathered_context
+    assert fiche.get("nom") == "Caron", fiche.get("fiche_journal")
+    assert fiche.get("marque") == "MCZ", fiche.get("fiche_journal")
+    refus = [e for e in fiche["fiche_journal"] if e.get("raison") == "terme_du_lexique_epele"]
+    assert refus and refus[0]["champ"] == "nom"
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_un_telephone_ecrit_en_chiffres_arrive_au_modele_sans_fausse_reference(
+    db_session, async_session
+):
+    """N1 : la transcription a écrit le téléphone avec des points. Le modèle le
+    reçoit comme un téléphone, sans la fausse note « référence 06 » d'avant."""
+    montage = await _monter(db_session, async_session, {"conversion_nombres_transcription": True})
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    await _appeler(montage, llm, ["mon numéro c'est 06.12.34.56.78"])
+    assert _derniere_parole_recue(llm) == "mon numéro c'est 06 12 34 56 78"
