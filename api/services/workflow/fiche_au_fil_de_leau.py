@@ -1672,6 +1672,39 @@ def _refus_d_un_deduit(
     return None
 
 
+def _refus_du_balayage(
+    reglages: ReglagesFiche,
+    fiche: dict,
+    champ: ChampFiche,
+    valeur: Any,
+    paroles: list[str],
+) -> str | None:
+    """Pourquoi le balayage refuse cette valeur, ou ``None``.
+
+    D9 (chantier correctifs-modules, runs 864, 865, 870, 879 à 881) : la passe ne
+    remplit un champ vide ni avec la valeur déjà notée dans un AUTRE champ (la
+    référence de facture recopiée dans la commande, le code postal dans la
+    commune), ni, pour un champ qui a sa liste (le lexique, les communes), avec
+    une valeur que cette liste ne reconnaît pas (« insert » dans la marque).
+    Un déduit garde en plus ses règles (C13).
+    """
+    if champ.origine == OrigineChamp.deduit:
+        return _refus_d_un_deduit(reglages, fiche, champ, valeur, paroles)
+    copie = _recopie_d_un_autre_champ(reglages, fiche, champ.nom, valeur)
+    if copie:
+        return f"recopie_de_{copie}"
+    lecteur = champ.lecteur_effectif
+    if lecteur == "lexique":
+        lecture = lire_lexique(valeur, fiche, reglages.termes_du_lexique, paroles)
+        if not lecture.sure and valeur_de_la_liste(valeur, tuple(reglages.termes_du_lexique.values())) is None:
+            return "hors_de_sa_liste"
+    elif lecteur == "commune":
+        lecture = lire_commune(valeur, fiche, paroles)
+        if not lecture.trouvee and not _est_une_commune(valeur):
+            return "hors_de_sa_liste"
+    return None
+
+
 def _marquer_les_numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> None:
     """A8 : en fin d'appel, un numéro qui diffère encore du dernier numéro dicté
     devient NON SÛR, et le journal dit pourquoi. Le balayage n'écrase jamais un
@@ -1720,8 +1753,10 @@ async def balayer_la_fiche(
         return {}
     trouve = await extraire(
         [
+            # D9 (chantier correctifs-modules) : les valeurs des listes fermées,
+            # comme l'outil les montre (run 866 : l'urgence rendue hors liste).
             ExtractionVariableDTO(
-                name=c.nom, type=c.type, prompt=c.description or c.nom
+                name=c.nom, type=c.type, prompt=_propriete(c)["description"]
             )
             for c in vides
         ],
@@ -1735,8 +1770,8 @@ async def balayer_la_fiche(
         if champ.nom not in trouve:
             continue
         refus = (
-            _refus_d_un_deduit(reglages, fiche, champ, trouve[champ.nom], paroles)
-            if champ.origine == OrigineChamp.deduit and not _est_vide(trouve[champ.nom])
+            _refus_du_balayage(reglages, fiche, champ, trouve[champ.nom], paroles)
+            if not _est_vide(trouve[champ.nom])
             else None
         )
         if refus:
