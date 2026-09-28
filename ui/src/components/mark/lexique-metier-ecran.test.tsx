@@ -599,6 +599,14 @@ describe("[.mark] le lexique, sur la page des réglages de la plateforme", () =>
 
     it("porte les deux cases et le budget", async () => {
         render(<PageReglagesPlateforme />);
+        // Depuis la réorganisation de l'écran (d0bc5376), la carte vit dans le
+        // thème « écoute », fermé par défaut.
+        const entete = await waitFor(() => {
+            const bouton = document.querySelector('[data-theme="ecoute"] > button[aria-expanded]');
+            if (!bouton) throw new Error("thème écoute absent");
+            return bouton as HTMLButtonElement;
+        });
+        if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
         await screen.findByText(/212 \/ 500 tokens \(Deepgram\)/);
         fireEvent.click(await screen.findByRole("button", { name: /open vocabulary/i }));
         await screen.findByLabelText("Term 1");
