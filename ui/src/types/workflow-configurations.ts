@@ -275,6 +275,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // fil de l'eau). Off by default: the tool is not offered at all.
     fiche_au_fil_de_leau?: boolean;
     fiche_champs?: ChampFiche[];
+    // [.mark] Chantier correctifs-modules, lot 4 bis: write the flow map into the
+    // prompts at every save. Off by default: the save is unchanged.
+    generer_schema_parcours?: boolean;
     // [.mark] Pipecat settings this fork exposes on the agent. Every default
     // reproduces the value the pipeline hardcodes TODAY: an agent that fills in
     // nothing behaves exactly as before.

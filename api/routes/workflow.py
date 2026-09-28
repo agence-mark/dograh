@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from api.constants import DEPLOYMENT_MODE
 from api.db import db_client
+from api.services.workflow import schema_du_parcours
 from api.db.agent_trigger_client import TriggerPathConflictError
 from api.db.models import UserModel
 from api.db.workflow_template_client import WorkflowTemplateClient
@@ -1341,6 +1342,18 @@ async def update_workflow(
                     **workflow_configurations,
                     "model_overrides": enriched_overrides,
                 }
+
+        # [.mark] Chantier correctifs-modules, lot 4 bis : « Generate the flow
+        # map ». The blocks follow the graph at every save; off, nothing changes.
+        workflow_definition = (
+            await schema_du_parcours.a_l_enregistrement(
+                workflow_id,
+                user.selected_organization_id,
+                workflow_definition,
+                workflow_configurations,
+            )
+            or workflow_definition
+        )
 
         # Reject upfront if any new trigger path collides with another
         # workflow's trigger — keeps the workflow record from

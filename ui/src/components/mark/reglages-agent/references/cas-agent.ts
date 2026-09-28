@@ -22,7 +22,10 @@ export type CarteOrigine =
     | "variables"
     | "dictionary"
     | "voicemail"
-    | "deployment";
+    | "deployment"
+    // A setting added AFTER the reorganisation (chantier correctifs-modules):
+    // there was no original card. Its payload is the theme's, frozen once.
+    | "ajout-mark";
 
 export type ThemeAgent =
     | "agent"
@@ -69,6 +72,7 @@ export const BOUTON_DE_LA_CARTE: Record<CarteOrigine, string | null> = {
     dictionary: "Save Dictionary",
     voicemail: "Save Voicemail Settings",
     deployment: null,
+    "ajout-mark": null,
 };
 
 const inter = (id: string): Geste => ({ type: "interrupteur", id });
@@ -87,6 +91,7 @@ const c = (
 export const CAS_AGENT: CasAgent[] = [
     // ---- General (Dograh) -------------------------------------------------
     c("nom", "general", "agent", ["name"], [saisir("workflow_name", "Accueil modifié")]),
+    c("schema-parcours", "ajout-mark", "agent", ["generer_schema_parcours"], [inter("generer_schema_parcours")]),
     c("ambiance", "general", "voix", ["ambient_noise_configuration.enabled"], [inter("ambient-noise-enabled")]),
     c("ambiance-volume", "general", "voix", ["ambient_noise_configuration.volume"], [saisir("ambient-volume", "0.7")]),
     c("fin-de-tour", "general", "tour", ["turn_stop_strategy"], [choisir("turn_stop_strategy", "transcription")]),

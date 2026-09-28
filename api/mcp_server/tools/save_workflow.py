@@ -33,6 +33,7 @@ from api.mcp_server.tools._workflow_projection import (
 )
 from api.mcp_server.tracing import traced_tool
 from api.mcp_server.ts_bridge import TsBridgeError, parse_code
+from api.services.workflow import schema_du_parcours
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.workflow.layout import reconcile_positions
 from api.services.workflow.tool_name_validation import (
@@ -168,6 +169,16 @@ async def save_workflow(workflow_id: int, code: str) -> dict[str, Any]:
             workflow_configurations=None,
             organization_id=user.selected_organization_id,
         )
+
+    # [.mark] Chantier correctifs-modules, lot 4 bis: the flow map follows the
+    # graph on this save path too (agents are edited through this tool), with
+    # the setting the agent has saved. Off: the payload is unchanged.
+    payload = (
+        await schema_du_parcours.a_l_enregistrement(
+            workflow_id, user.selected_organization_id, payload, None
+        )
+        or payload
+    )
 
     # 4b. Save as a new draft (existing published version stays intact).
     draft = await db_client.save_workflow_draft(

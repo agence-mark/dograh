@@ -8947,6 +8947,12 @@ export type WorkflowConfigurationDefaults = {
      */
     interdire_civilite_appelant?: boolean;
     /**
+     * Generer Schema Parcours
+     *
+     * At every save, write the flow map at the end of the global prompt (each step and its exits: exit name to arrival step) and 'Tu es ici' with the step's name at the end of each step's prompt. Only step and exit names; the blocks are replaced at each save, never stacked. Off: blocks left by an earlier save are removed, nothing else changes.
+     */
+    generer_schema_parcours?: boolean;
+    /**
      * Fiche Au Fil De Leau
      *
      * Give the model a noter_information tool it can call at any step to write or correct a field of the call record below. Off: the tool is not offered at all and the agent behaves exactly as before. On: the step-by-step extraction is switched off, the record is filled by the tool. No effect in realtime mode.

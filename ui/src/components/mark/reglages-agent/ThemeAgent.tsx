@@ -9,6 +9,9 @@
  * directly, closed with « Done », convention E4), « Add to Website »,
  * « Recordings » and « Report ». Same controls, same texts, same saves: the name
  * goes with the configuration save, the variables with their own function.
+ *
+ * Chantier correctifs-modules, lot 4 bis: « Generate the flow map », a setting
+ * added after the reorganisation, saved with the configuration like the name.
  */
 import { format } from "date-fns";
 import { Bot, CalendarIcon, Clipboard, Download, ExternalLink, Trash2Icon } from "lucide-react";
@@ -24,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { SETTINGS_DOCUMENTATION_URLS } from "@/constants/documentation";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import logger from "@/lib/logger";
@@ -189,6 +193,9 @@ export const ThemeAgent = ({
     const [newKey, setNewKey] = useState("");
     const [newValue, setNewValue] = useState("");
     const [fenetreVariables, setFenetreVariables] = useState(false);
+    const schemaEnregistre = resolue.generer_schema_parcours ?? false;
+    const [schema, setSchema] = useState(schemaEnregistre);
+    const schemaModifie = schema !== schemaEnregistre;
 
     // Dograh's rule: a pair typed but not added yet is part of what is saved.
     const variablesAEnregistrer = useMemo(
@@ -197,7 +204,7 @@ export const ThemeAgent = ({
     );
     const nomModifie = nom !== workflowName;
     const variablesModifiees = differe(variablesAEnregistrer, variablesEnregistrees);
-    const modifie = nomModifie || variablesModifiees;
+    const modifie = nomModifie || variablesModifiees || schemaModifie;
     useEtatTheme(ID_THEME_AGENT, modifie, false);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -207,6 +214,11 @@ export const ThemeAgent = ({
         onSave,
         parties: [
             { nom: { en: "Agent name", fr: "Nom de l'agent" }, modifie: nomModifie, nomAgent: () => nom },
+            {
+                nom: { en: "Flow map", fr: "Schéma du parcours" },
+                modifie: schemaModifie,
+                config: () => ({ generer_schema_parcours: schema }),
+            },
             {
                 nom: { en: "Template variables", fr: "Variables du modèle" },
                 modifie: variablesModifiees,
@@ -233,7 +245,11 @@ export const ThemeAgent = ({
             icone={Bot}
             titre={TITRE_AGENT}
             description={{ en: "Name, ID, variables, deployment and report.", fr: "Nom, identifiant, variables, diffusion et rapport." }}
-            resume={[nom, `${nombreDeVariables} ${t({ en: "variables", fr: "variables" })}`]}
+            resume={[
+                nom,
+                `${nombreDeVariables} ${t({ en: "variables", fr: "variables" })}`,
+                ...(schema ? [t({ en: "Flow map on", fr: "Schéma du parcours allumé" })] : []),
+            ]}
             ouvert={ouvert}
             onBasculer={onBasculer}
             modifie={modifie}
@@ -281,6 +297,27 @@ export const ThemeAgent = ({
                     </ChampReglage>
                 </Intertitre>
             )}
+
+            <Intertitre id="agent-schema-parcours" titre={{ en: "Flow map", fr: "Schéma du parcours" }}>
+                <ChampReglage
+                    cle="generer_schema_parcours"
+                    idControle="generer_schema_parcours"
+                    libelle={{ en: "Generate the flow map", fr: "Générer le schéma du parcours" }}
+                    aides={[
+                        {
+                            en: "At every save, writes at the end of the global prompt each step with its exits (exit name → arrival step), and « Tu es ici » with the step's name at the end of each step's prompt. Only step and exit names; the blocks are replaced at each save, never stacked, and never touch the text you wrote.",
+                            fr: "À chaque enregistrement, écrit à la fin du prompt global chaque étape avec ses sorties (nom de la sortie → étape d'arrivée), et « Tu es ici » avec le nom de l'étape à la fin du prompt de chaque étape. Seuls les noms d'étapes et de sorties ; les blocs sont remplacés à chaque enregistrement, jamais empilés, et ne touchent jamais le texte que vous avez écrit.",
+                        },
+                        {
+                            en: "Off by default. Turned off, the blocks written earlier are removed at the next save.",
+                            fr: "Éteint par défaut. Éteint, les blocs écrits auparavant sont retirés au prochain enregistrement.",
+                        },
+                    ]}
+                    disposition="ligne"
+                >
+                    <Switch id="generer_schema_parcours" checked={schema} onCheckedChange={setSchema} />
+                </ChampReglage>
+            </Intertitre>
 
             <Intertitre id="agent-variables" titre={{ en: "Template Variables", fr: "Variables du modèle" }}>
                 <ChampReglage
