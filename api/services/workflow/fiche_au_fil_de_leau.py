@@ -598,6 +598,12 @@ def lire_commune(valeur: Any, fiche: dict, paroles: Iterable[str] = ()) -> Lectu
         ]
         if trace.get("statut") == "sure" and retenue.get("nom"):
             return _commune_sure(retenue)
+        # D4 ② (chantier correctifs-modules) : un nom de commune écrit exactement,
+        # sans signe de lieu, est une recommandation ; noté, il est retenu sans question.
+        if trace.get("force") == "nom":
+            exacte = [p for p in propositions if _memes_mots(valeur, p.get("nom"))]
+            if len(exacte) == 1:
+                return _commune_sure(exacte[0])
         options = tuple(_option_commune(p) for p in propositions)
         choisie = next(
             (p for p in propositions if _memes_mots(valeur, p.get("nom"))), None

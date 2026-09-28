@@ -53,6 +53,7 @@ What the model reads (who does what, by switch)
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Callable
 
@@ -64,6 +65,7 @@ from api.schemas.workflow_configurations import (
 )
 from api.services.communes.analyse import SURE as SURE_COMMUNE
 from api.services.communes.base import charger_base, obtenir_base
+from api.services.communes.force import appliquer_la_force, signe_de_lieu
 from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
 from api.services.communes.mention import mentionner
 from api.services.communes.sons import precharger as precharger_sons
@@ -324,8 +326,16 @@ def _lire(
     epellation: bool = False,
     annoter: bool = True,
     termes_du_lexique: dict[str, str] | None = None,
+    forces: bool = False,
+    question_avant: str | None = None,
+    avant_dans_le_tour: str = "",
 ):
     """Blocking: runs in a worker thread. Returns (text for the model, records...).
+
+    Chantier correctifs-modules, lot 3 (fiche allumée, ``forces``) : chaque commune
+    reçoit sa force (D4, ``communes.force``) d'après le tour entier
+    (``avant_dans_le_tour`` : les morceaux du même tour déjà lus) et la dernière
+    réplique de l'agent (``question_avant``).
 
     🔑 The order is the plan's (lot 5), and each step of it was bought:
     1. **spelling FIRST**, before the numbers — otherwise "deux T" becomes "2 T"
@@ -363,6 +373,23 @@ def _lire(
             nombres=lecteur.lire_nombres(texte), detections=[], choix={}
         )
 
+    if forces and base is not None:
+        codes_dits = {
+            cp for n in lecture.nombres if n.type == CODE_POSTAL for cp in n.lectures_cp
+        }
+        signe = signe_de_lieu(
+            f"{avant_dans_le_tour} {texte}", question_avant, code_postal_dit=bool(codes_dits)
+        )
+        lecture = replace(
+            lecture,
+            detections=appliquer_la_force(
+                lecture.detections,
+                base,
+                signe,
+                codes_dits | lecteur._codes_retenus(trace_nombres),
+            ),
+        )
+
     lu = reecrire(texte, lecture.nombres, lecture.choix_cp) if conversion else arrive
 
     # 🔑 La rue est cherchée sur le texte APRÈS la conversion des nombres, et
@@ -386,7 +413,9 @@ def _lire(
             if detection.entendu and detection.statut == SURE_COMMUNE
         )
         voie = _lire_voie(
-            lu,
+            # Lot 3 (run 869) : un tour arrivé en deux messages, la rue dans le
+            # premier, la commune dans le second ; la rue se lit sur le tour entier.
+            f"{avant_dans_le_tour} {lu}" if avant_dans_le_tour else lu,
             insee,
             commune.nom if commune else None,
             avec_sons,
@@ -396,6 +425,10 @@ def _lire(
             # celle de l'appelant.
             lambda mot: bool(base.par_nom.get(mot)),
         )
+        if voie is not None and not voie.entendu:
+            # Lot 3 : aucune rue dans la phrase, aucune trace (« Non, c'est bon. »
+            # laissait une rue « introuvable » à chaque tour).
+            voie = None
         if epellations and voie is not None and voie.statut != VOIE_SURE:
             # 🔴 LA boucle que Q4 interdit, fermée par le CODE et non par une
             # phrase. Q4 fabrique exprès le tour « rue introuvable → fais
@@ -440,8 +473,13 @@ async def lire_texte(
     champs_fiche: tuple[str, ...] | None = None,
     message: object = None,
     termes_du_lexique: dict[str, str] | None = None,
+    question_avant: str | None = None,
+    avant_dans_le_tour: str = "",
 ) -> str:
     """``texte`` as the model must read it, or ``texte`` unchanged. Never raises.
+
+    ``question_avant``: the agent's last line; ``avant_dans_le_tour``: the
+    caller's earlier messages of the same turn (lot 3, record on only).
 
     ``message``: what identifies the caller's message (read again, it keeps its
     turn number).
@@ -475,6 +513,8 @@ async def lire_texte(
         marquer_le_tour=champs_fiche is not None,
         message=message,
         termes_du_lexique=termes_du_lexique,
+        question_avant=question_avant,
+        avant_dans_le_tour=avant_dans_le_tour,
     )
     return f"{lu} {mention_lexique}" if mention_lexique else lu
 
@@ -504,6 +544,8 @@ async def _lire_texte_de_lappelant(
     marquer_le_tour: bool = False,
     message: object = None,
     termes_du_lexique: dict[str, str] | None = None,
+    question_avant: str | None = None,
+    avant_dans_le_tour: str = "",
 ) -> str:
     # C2 (patch du banc, 25/09) : le tour est compté AVANT toute sortie anticipée.
     # Un message lu sans trace reste un tour : sinon la trace sûre d'un tour
@@ -565,6 +607,10 @@ async def _lire_texte_de_lappelant(
             epellation,
             annoter,
             termes_du_lexique,
+            # D4 : la force des communes, fiche allumée seulement ; éteinte, rien ne change.
+            marquer_le_tour,
+            question_avant,
+            avant_dans_le_tour if marquer_le_tour else "",
         )
         if consigner is not None:
             entrees: list[tuple[str, dict]] = []
@@ -601,6 +647,38 @@ async def _lire_texte_de_lappelant(
     except Exception as erreur:  # noqa: BLE001 -- the call must go on
         logger.warning(f"[.mark] Caller reading failed, message kept as is: {erreur!r}")
         return texte
+
+
+def _question_avant(messages: list, rang: int) -> str | None:
+    """The agent's last line before the caller's turn that ends at ``rang``."""
+    for message in reversed(messages[:rang]):
+        if not isinstance(message, dict):
+            continue
+        if message.get("role") == "assistant" and isinstance(message.get("content"), str):
+            return message["content"]
+    return None
+
+
+def _avant_dans_le_tour(messages: list, rang: int) -> str:
+    """The caller's messages right before ``rang``, same turn (run 869: the street
+    in the first one, the town in the second). A message carrying a note is left out."""
+    morceaux: list[str] = []
+    for message in reversed(messages[:rang]):
+        if not (isinstance(message, dict) and message.get("role") == "user"):
+            break
+        contenu = message.get("content")
+        if not isinstance(contenu, str) or MARQUE_LEXIQUE in contenu or any(
+            deja(contenu)
+            for deja in (
+                commune_deja_mentionnee,
+                nombres_deja_mentionnes,
+                voie_deja_mentionnee,
+                epellation_deja_mentionnee,
+            )
+        ):
+            break
+        morceaux.insert(0, contenu)
+    return " ".join(morceaux)
 
 
 class LectureAppelantProcessor(FrameProcessor):
@@ -658,7 +736,8 @@ class LectureAppelantProcessor(FrameProcessor):
 
     async def _lire_contexte(self, frame: LLMContextFrame):
         messages = frame.context.messages
-        for message in reversed(messages):
+        for rang in range(len(messages) - 1, -1, -1):
+            message = messages[rang]
             if isinstance(message, dict) and message.get("role") == "user":
                 break
         else:
@@ -686,6 +765,8 @@ class LectureAppelantProcessor(FrameProcessor):
             champs_fiche=self._champs_fiche,
             message=cle,
             termes_du_lexique=self._termes_du_lexique,
+            question_avant=_question_avant(messages, rang),
+            avant_dans_le_tour=_avant_dans_le_tour(messages, rang),
         )
         # Marked AFTER the reading: an interruption that cancels this task
         # during the await leaves the message unmarked, so the next context

@@ -46,6 +46,9 @@ REFERENCE = "reference"
 CODE_POSTAL = "code_postal"
 DEPARTEMENT = "departement"
 AUTRE = "autre"
+# Lot 3 du chantier correctifs-modules : un nombre ordinaire lu DANS le nom d'une
+# commune (« cent lits » → Senlis) ; il reste en lettres.
+DANS_UNE_COMMUNE = "dans_une_commune"
 
 # Same separators as ``communes.analyse``: one original token = one word of
 # ``normaliser(texte).split()``, so word positions mean the same in both.
@@ -666,6 +669,8 @@ def reecrire(texte: str, nombres: list[NombreLu], choix_cp: dict[int, str] | Non
             ecrit = choix_cp.get(n.debut, n.ecrit)
         elif n.type == REFERENCE:
             ecrit = n.ecrit
+        elif n.type == DANS_UNE_COMMUNE:
+            ecrit = texte[p.jetons[n.debut].debut:p.jetons[n.fin - 1].fin]
         else:
             continue
         remplaces.append((p.jetons[n.debut].debut, p.jetons[n.fin - 1].fin, ecrit))
@@ -886,8 +891,16 @@ def _analyser_avec_noms_a_nombre(texte, base, magasin, spans, departements, mots
     analysis only when the number word is spelled with the rest of the name,
     exactly: "le cinq rue des Lilas" never reads Cinqueux, "vers vingt heures"
     never Vervins.
+
+    Chantier correctifs-modules, lot 3 (run 868) : « j'habite à cent lits » est
+    Senlis. Un passage qui commence par un nombre ordinaire est aussi pris quand
+    il suit directement une amorce (« à ») dans une phrase qui dit un lieu
+    (« j'habite », ``communes.force.signe_de_lieu``) ; il reste à confirmer s'il
+    ne ressemble pas assez, et n'est jamais sûr par cette porte. « vers vingt
+    heures » ne dit aucun lieu.
     """
-    from api.services.communes.analyse import MOTS_OUTILS, analyser
+    from api.services.communes.analyse import AMORCES, MOTS_OUTILS, analyser
+    from api.services.communes.force import signe_de_lieu
 
     detections = analyser(
         texte, base, magasin, codes_postaux=spans, departements=departements,
@@ -896,19 +909,32 @@ def _analyser_avec_noms_a_nombre(texte, base, magasin, spans, departements, mots
     if not mots_autres:
         return detections
     mots = normaliser(texte).split()
+    lieu_dit = signe_de_lieu(texte)
     retenues = []
     for d in analyser(texte, base, magasin, codes_postaux=spans, departements=departements,
                       mots_nombres=mots_nombres, avec_sons=avec_sons):
         positions = range(d.debut, d.fin)
         top = d.lectures[0]
+        nombre_dans_le_nom = (
+            set(normaliser(top.commune.nom).split()) & set(MOTS_NOMBRE)
+            and top.ortho >= ORTHO_NOM_A_NOMBRE
+        )
+        apres_une_amorce = lieu_dit and d.debut > 0 and mots[d.debut - 1] in AMORCES
         if not (
             any(k in mots_autres for k in positions)
             and any(k not in mots_autres and mots[k] not in MOTS_OUTILS for k in positions)
-            and set(normaliser(top.commune.nom).split()) & set(MOTS_NOMBRE)
-            and top.ortho >= ORTHO_NOM_A_NOMBRE
+            and (nombre_dans_le_nom or apres_une_amorce)
         ):
             continue
         detections = [x for x in detections if x.fin <= d.debut or x.debut >= d.fin]
+        if not nombre_dans_le_nom:
+            # ⛔ Jamais sûre par cette porte : près d'une boutique des Yvelines,
+            # « cent lits » rendait Senlisse sûre (corpus réel, Senlis voulue).
+            from dataclasses import replace as remplacer
+
+            from api.services.communes.analyse import A_CONFIRMER as COMMUNE_A_CONFIRMER
+
+            d = remplacer(d, statut=COMMUNE_A_CONFIRMER)
         retenues.append(d)
     return sorted(detections + retenues, key=lambda x: x.debut) if retenues else detections
 
@@ -1001,6 +1027,71 @@ def _codes_retenus(trace_nombres) -> set[str]:
         if entree.get("statut") == SURE and entree.get("retenu"):
             return {entree["retenu"]}
         return set(entree.get("lectures") or [])
+    return set()
+
+
+def _code_postal_tranche(detections, codes):
+    """D5 (chantier correctifs-modules, 28/09) : le code postal tranche.
+
+    Run 863 : « soixante mille six cents Brûle-Vert » restait à confirmer entre
+    trois communes, dont une seule, Breuil-le-Vert, porte le 60600. Une commune à
+    confirmer dont UNE SEULE lecture porte un code dit (ou retenu plus tôt dans
+    l'appel) est retenue d'office, sûre.
+
+    ⛔ Seulement si une seule détection du message est dans ce cas, et si aucune
+    autre ne porte déjà ce code : deux candidates, la question reste.
+    """
+    from dataclasses import replace
+
+    from api.services.communes.analyse import A_CONFIRMER as COMMUNE_A_CONFIRMER
+    from api.services.communes.analyse import MOTS_CONVERSATION, MOTS_OUTILS, SEUIL_PHON
+    from api.services.communes.analyse import SURE as COMMUNE_SURE
+
+    if not codes:
+        return detections
+    tranchees = []
+    for d in detections:
+        if d.statut != COMMUNE_A_CONFIRMER or d.code_postal_entendu:
+            continue
+        # ⛔ Une commune venue du seul code, sans ressemblance au nom dit, n'est pas
+        # tranchée : « d'accord quatre-vingt mille six cent quatre-vingt » rendait
+        # Hébécourt sûre (balayage des amorces, 97 fausses sûres).
+        portent = [
+            l for l in d.lectures if set(l.commune.cps) & codes and (l.phon_nom or 0) >= SEUIL_PHON
+        ]
+        # ⛔ Ni sur des mots de conversation (« je crois que c'est 60120 » rendait
+        # Broyes sûre), ni quand une commune ÉCRITE comme dite ne porte pas le code :
+        # « Chantilly 60230 » n'est pas Chambly, le nom est juste et le code faux
+        # (même règle que ``_ville_par_code``).
+        mots = normaliser(d.entendu).split()
+        if all(m in MOTS_CONVERSATION or m in MOTS_OUTILS for m in mots) or any(
+            l.ortho >= ORTHO_NOM_A_NOMBRE and not set(l.commune.cps) & codes for l in d.lectures
+        ):
+            continue
+        if len(portent) == 1:
+            tranchees.append((d, portent[0]))
+    if len(tranchees) != 1:
+        return detections
+    d, lecture = tranchees[0]
+    codes_de_la_commune = set(lecture.commune.cps) & codes
+    if any(
+        autre is not d and autre.lectures and set(autre.lectures[0].commune.cps) & codes_de_la_commune
+        for autre in detections
+    ):
+        return detections
+    autres = tuple(l for l in d.lectures if l is not lecture)
+    tranchee = replace(
+        d, statut=COMMUNE_SURE, lectures=(lecture, *autres), codes_postaux_dits=frozenset(codes_de_la_commune)
+    )
+    return [tranchee if x is d else x for x in detections]
+
+
+def _codes_retenus_surs(trace_nombres) -> set[str]:
+    """The postal code of the call's last postal code, only when it was sure."""
+    for entree in reversed(trace_nombres or []):
+        if not isinstance(entree, dict) or entree.get("provisoire") or entree.get("type") != CODE_POSTAL:
+            continue
+        return {entree["retenu"]} if entree.get("statut") == SURE and entree.get("retenu") else set()
     return set()
 
 
@@ -1122,6 +1213,11 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
             texte, base, detections, candidats, mots_nombres | _mots_de(nombres), trace_appel, trace_nombres,
             avec_sons,
         )
+        # D5 : avant le choix du code, pour que le code suive la commune tranchée.
+        codes_dits = {cp for n in candidats if n.type == CODE_POSTAL for cp in n.lectures_cp}
+        detections = _code_postal_tranche(
+            detections, codes_dits or _codes_retenus_surs(trace_nombres)
+        )
     # A town said is one that will be proposed: a parasite dropped below must not
     # silence the note of a postal code said alone (« C'est la maison au bout du
     # chemin, soixante mille. », review of 2026-09-17).
@@ -1166,4 +1262,12 @@ def analyser_message(texte: str, base, magasin=None, trace_appel=None, etape_adr
     # Decision of Evan, 2026-09-17: no commune proposed on words that resemble it
     # badly. Last, so the postal codes above were chosen with every reading.
     detections = propositions_fondees(texte, detections, base)
+    # Lot 3 (run 868) : les mots d'un nombre ordinaire DANS une commune lue restent
+    # en lettres ; « 100 lits » ne se lisait plus comme Senlis.
+    nombres = [
+        replace(n, type=DANS_UNE_COMMUNE)
+        if n.type == AUTRE and any(d.debut <= n.debut and n.fin <= d.fin for d in detections if d.debut >= 0)
+        else n
+        for n in nombres
+    ]
     return LectureMessage(nombres=nombres, detections=detections, choix=choix)

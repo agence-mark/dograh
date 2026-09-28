@@ -285,6 +285,21 @@ def _fenetres(
         ),
         None,
     )
+    # Chantier correctifs-modules, lot 3 (runs 862, 866) : la commune de
+    # l'appelant dite juste après la rue, sans « à » (« cinq places de la gare,
+    # Chantilly », « places Victor Hugo, Nogent-sur-Oise ») pesait sur le
+    # passage et la rue restait à confirmer. ⛔ Seulement les communes
+    # entendues ou tranchées, jamais une ville quelconque ; la lecture entière
+    # reste comparée (« rue de Creil » à Creil).
+    # La plus tôt des deux coupes : « Nogent-sur-Oise » coupait sur son « sur ».
+    sans_marqueur = next(
+        # ⛔ Pas après un article : « rue Vincent de Beauvais » à Beauvais.
+        (rang for rang, mot in enumerate(zone) if rang > 0 and mot in mots_de_ville
+         and mot not in ARTICLES and mot not in MARQUEURS_DE_LIEU and zone[rang - 1] not in ARTICLES),
+        None,
+    )
+    if sans_marqueur is not None and (coupe is None or sans_marqueur < coupe):
+        coupe = sans_marqueur
     if coupe is None:
         lectures = [zone]
     elif coupe > 0:
