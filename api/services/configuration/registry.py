@@ -2891,6 +2891,18 @@ class SonioxSTTConfiguration(BaseSTTConfiguration):
         return valeur
 
     @model_validator(mode="after")
+    def _uniquement_une_langue_designee(self):
+        """[.mark] Decision of Evan and Pierre, 2026-09-29: « only this
+        language » with ``multi`` names no language at all, and Soniox's
+        documentation does not say what it does with that. Refused on save,
+        so nothing unknown leaves."""
+        if self.language_hints_strict and self.language == "multi":
+            raise ValueError(
+                "Only this language needs a language: choose one instead of multi."
+            )
+        return self
+
+    @model_validator(mode="after")
     def _la_region_suit_ladresse(self):
         """A mirror, realigned rather than refused (same as Deepgram)."""
         region_attendue = region_soniox(self.base_url)

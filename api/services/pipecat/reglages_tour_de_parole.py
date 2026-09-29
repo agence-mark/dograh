@@ -167,7 +167,9 @@ def collecter_reglages_tour_de_parole(
     )
 
 
-def appliquer_latence_de_transcription(service_stt, latence: float | None):
+def appliquer_latence_de_transcription(
+    service_stt, latence: float | None, *, pilote_les_tours: bool = False
+):
     """Apply the agent's transcription-latency setting to the STT service.
 
     Why here, and after construction rather than through the constructor:
@@ -186,10 +188,15 @@ def appliquer_latence_de_transcription(service_stt, latence: float | None):
     decides the turn boundary there, Pipecat reports 0, and writing a value
     would claim a wait that never happens. The screen hides the whole section
     in that case, so this is a second net, not the first one.
+
+    ⛔ ``pilote_les_tours`` (exposition-soniox, relecture du 29/09): Soniox
+    keeps ``supports_ttfs`` true even when it decides the end of the turn, so
+    the service alone cannot tell. The caller passes the SAME rule the screen
+    and the turn strategies use (``stt_uses_external_turns``).
     """
     if latence is None or service_stt is None:
         return service_stt
-    if not getattr(service_stt, "supports_ttfs", False):
+    if pilote_les_tours or not getattr(service_stt, "supports_ttfs", False):
         logger.info(
             "[.mark] stt_ttfs_p99_latency ignored: this transcription service "
             "defines the turn boundary itself, so the pipeline waits for no "

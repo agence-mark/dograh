@@ -26,6 +26,7 @@ from api.services.configuration.registry import (
     DEEPGRAM_STT_FIELDS,
     MISTRAL_SAMPLING_FIELDS,
     ServiceProviders,
+    SonioxSTTConfiguration,
     adresse_soniox,
 )
 from api.services.configuration.plafond_lexique import plafond_du_lexique
@@ -213,12 +214,16 @@ DEEPGRAM_FLUX_LANGUAGE_HINTS = {
 }
 
 
-# [.mark] The three settings Soniox only reads when it decides the end of the
-# turn itself -- the same list the screen hides on `visible_when` (E8).
-SONIOX_FIN_DE_TOUR_FIELDS = (
-    "max_endpoint_delay_ms",
-    "endpoint_sensitivity",
-    "endpoint_latency_adjustment_level",
+# [.mark] The settings Soniox only reads when it decides the end of the turn
+# itself. ⛔ DERIVED from the declaration, never written a second time: the
+# screen hides exactly the fields that carry `visible_when`, so the factory
+# drops exactly those (E8). A list typed here could miss a fourth one, hidden
+# on screen and still sent (family ② of 18-ajout-fournisseur.md, relecture du
+# 29/09).
+SONIOX_FIN_DE_TOUR_FIELDS = tuple(
+    nom
+    for nom, champ in SonioxSTTConfiguration.model_fields.items()
+    if (champ.json_schema_extra or {}).get("visible_when") == {"endpoint_detection": True}
 )
 
 

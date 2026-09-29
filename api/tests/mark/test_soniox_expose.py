@@ -456,3 +456,60 @@ def test_lextra_soniox_est_dans_chaque_chemin_dinstallation(chemin):
     assert listes, f"no pipecat install list found in {chemin}"
     for liste in listes:
         assert "soniox" in liste.split(","), f"soniox missing from {chemin}"
+
+
+# --------------------------------------------------------------------------- #
+# 9. Added after the independent review of 2026-09-29
+# --------------------------------------------------------------------------- #
+
+# What Pipecat's Soniox settings carry and is deliberately NOT a field here,
+# each with its reason. Anything else Pipecat adds must be exposed, or listed.
+NON_EXPOSES_ET_POURQUOI = {
+    "model": "the model field, at the top of the provider",
+    "language": "Pipecat's generic language; Soniox reads language_hints, fed by our `language`",
+    "language_hints": "fed by our `language` field (upstream's name)",
+    "context": "fed by the agent's lexicon, never typed here, and none sent before the probe",
+    "client_reference_id": "an internal trace identifier, not a setting",
+}
+
+
+def test_chaque_reglage_de_pipecat_est_expose_ou_ecarte_par_ecrit():
+    """The sweep of the plan (lot 1): a setting Pipecat gains at the next
+    version bump fails here instead of leaving the screen in silence."""
+    import dataclasses
+
+    from pipecat.services.soniox.stt import SonioxSTTSettings
+    from pipecat.services.stt_service import STTSettings
+
+    herites = {champ.name for champ in dataclasses.fields(STTSettings)}
+    propres = {champ.name for champ in dataclasses.fields(SonioxSTTSettings)} - herites
+    declares = set(_classe().model_fields)
+    manquants = propres - declares - set(NON_EXPOSES_ET_POURQUOI)
+    assert not manquants, f"Pipecat's Soniox settings not exposed and not listed: {sorted(manquants)}"
+
+
+def test_la_fabrique_masque_exactement_ce_que_lecran_masque():
+    from api.services.pipecat.service_factory import SONIOX_FIN_DE_TOUR_FIELDS
+
+    assert set(SONIOX_FIN_DE_TOUR_FIELDS) == set(REGLAGES_FIN_DE_TOUR)
+
+
+def test_uniquement_cette_langue_est_refuse_sans_langue():
+    with pytest.raises(ValidationError):
+        _config(language="multi", language_hints_strict=True)
+    assert _config(language="fr", language_hints_strict=True).language_hints_strict is True
+
+
+def test_la_latence_de_transcription_est_ignoree_quand_soniox_decide():
+    from api.services.pipecat.reglages_tour_de_parole import (
+        appliquer_latence_de_transcription,
+    )
+
+    service = _service()
+    avant = service._ttfs_p99_latency
+    appliquer_latence_de_transcription(service, 0.9, pilote_les_tours=True)
+    assert service._ttfs_p99_latency == avant
+
+    local = _service(endpoint_detection=False)
+    appliquer_latence_de_transcription(local, 0.9, pilote_les_tours=False)
+    assert local._ttfs_p99_latency == 0.9
