@@ -850,6 +850,10 @@ class PipecatEngine:
         if self._variable_extraction_manager is None:
             self._variable_extraction_manager = VariableExtractionManager(self)
         self.active_agent.current_node = node
+        # [.mark] C8 (correctifs-banc-34): a keyboard chat closed without a
+        # transition ends like a call, by the record's end-of-call pass.
+        if self._fiche_sur_l_agent_actif():
+            return await self._balayer_la_fiche()
         return await self._perform_variable_extraction_if_needed(
             node, run_in_background=False
         )

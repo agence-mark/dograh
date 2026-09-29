@@ -59,6 +59,11 @@ from api.services.pipecat.pipeline_metrics_aggregator import (
 )
 from api.services.pipecat.pre_call_fetch import execute_pre_call_fetch
 from api.services.pipecat.reconnaissance_lexique import annoter_message_tape
+from api.services.workflow.fiche_au_fil_de_leau import (
+    CLE_ETAT,
+    CLE_JOURNAL,
+    ReglagesFiche,
+)
 from api.services.pipecat.recording_audio_cache import create_recording_audio_fetcher
 from api.services.pipecat.service_factory import (
     cle_de_cache,
@@ -744,6 +749,11 @@ async def execute_text_chat_pending_turn(
         # Each text turn owns a short-lived pipeline. Complete extraction before
         # leaving a node so teardown cannot discard the result before checkpointing.
         run_transition_variable_extraction_in_background=False,
+        # [.mark] C8 (correctifs-banc-34): the keyboard builds the call like the
+        # voice path (`run_pipeline.py`): the record, its `noter_information`
+        # tool and the end-of-call pass. Without it the keyboard measured an
+        # agent that is not the one callers reach (run 896).
+        fiche=ReglagesFiche.depuis(run_configs, lexique=lexique_metier),
     )
     engine._gathered_context = dict(base_checkpoint["gathered_context"])
     capture_processor = _TextChatCaptureProcessor(response_window, context, engine)
@@ -1015,7 +1025,14 @@ async def extract_text_chat_final_variables(
             skip_instance_constraints_for={"trigger"},
         )
         node = workflow_graph.nodes.get(current_node_id)
-        if not (node and node.extraction_enabled and node.extraction_variables):
+        run_configs = workflow_run.definition.workflow_configurations or {}
+        # [.mark] C8: with the record on, the end of the chat runs the record's
+        # end-of-call pass (like `_end_call` on a voice call), whatever the node
+        # declares; the node's own extraction is off under the record (D28).
+        fiche_allumee = bool(ReglagesFiche.depuis(run_configs))
+        if not node or not (
+            fiche_allumee or (node.extraction_enabled and node.extraction_variables)
+        ):
             return {}
 
         from api.services.configuration.ai_model_configuration import (
@@ -1026,7 +1043,6 @@ async def extract_text_chat_final_variables(
         # the turn path does for every other text-chat span.
         set_current_org_id(organization_id)
 
-        run_configs = workflow_run.definition.workflow_configurations or {}
         user_config = await get_effective_ai_model_configuration_for_workflow(
             organization_id=organization_id,
             workflow_configurations=run_configs,
@@ -1055,11 +1071,32 @@ async def extract_text_chat_final_variables(
             workflow=workflow_graph,
             call_context_vars=initial_context,
             workflow_run_id=workflow_run_id,
+            fiche=(
+                ReglagesFiche.depuis(
+                    run_configs,
+                    lexique=await lire_lexique_de_lappel(run_configs, organization_id),
+                )
+                if fiche_allumee
+                else None
+            ),
         )
         engine._gathered_context = dict(base_checkpoint["gathered_context"])
 
         async with asyncio.timeout(FINAL_EXTRACTION_TIMEOUT_SECONDS):
             extracted = await engine.extract_variables_standalone(node)
+        if fiche_allumee:
+            # [.mark] C8: the pass writes into the record in place, with its
+            # journal; hand back what it wrote AND the record's own trail, or
+            # the top-level completion merge would drop them.
+            recueilli = await engine.get_gathered_context()
+            extracted = {
+                **(extracted or {}),
+                **{
+                    cle: recueilli[cle]
+                    for cle in (CLE_ETAT, CLE_JOURNAL)
+                    if cle in recueilli
+                },
+            }
         if not extracted:
             return {}
 
