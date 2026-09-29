@@ -3,7 +3,8 @@
  *
  * Why the screen needs to know
  * ---------------------------
- * When it does (Deepgram Flux, Cartesia ink-2), the pipeline does not build
+ * When it does (Deepgram Flux, Cartesia ink-2, Soniox unless switched to the
+ * local detector), the pipeline does not build
  * the turn strategies at all: it follows the signals the provider sends, and
  * every turn-taking setting is inert.
  *
@@ -50,6 +51,9 @@ export const MODELES_QUI_PILOTENT_LES_TOURS: Record<string, readonly string[]> =
 interface ConfigurationTranscription {
     provider?: string;
     model?: string;
+    // [.mark] Soniox only (exposition-soniox): on, or absent, Soniox decides the
+    // end of the turn, as `stt_uses_external_turns` says on the server.
+    endpoint_detection?: boolean;
 }
 
 export interface EntreesDeResolution {
@@ -67,8 +71,8 @@ const lireStt = (valeur: unknown): ConfigurationTranscription | null => {
     if (!valeur || typeof valeur !== "object") return null;
     const stt = (valeur as { stt?: unknown }).stt;
     if (!stt || typeof stt !== "object") return null;
-    const { provider, model } = stt as ConfigurationTranscription;
-    return { provider, model };
+    const { provider, model, endpoint_detection } = stt as ConfigurationTranscription;
+    return { provider, model, endpoint_detection };
 };
 
 /** The transcription service an agent actually runs with. */
@@ -87,12 +91,16 @@ export const transcriptionEffective = ({
     return {
         provider: surcharge?.provider ?? base?.provider,
         model: surcharge?.model ?? base?.model,
+        endpoint_detection: surcharge?.endpoint_detection ?? base?.endpoint_detection,
     };
 };
 
 /** True when the turn-taking settings play no part in this agent's calls. */
 export const transcriptionPiloteLesTours = (entrees: EntreesDeResolution): boolean => {
     const stt = transcriptionEffective(entrees);
+    // [.mark] Soniox decides by its switch, not by its model (exposition-soniox).
+    // ⛔ The server applies the same rule in `stt_uses_external_turns`.
+    if (stt?.provider === "soniox") return stt.endpoint_detection !== false;
     if (!stt?.provider || !stt.model) return false;
     const modeles = MODELES_QUI_PILOTENT_LES_TOURS[stt.provider];
     return Boolean(modeles?.includes(stt.model));

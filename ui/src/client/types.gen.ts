@@ -737,6 +737,8 @@ export type ByokPipelineAiModelConfiguration = {
     } & AssemblyAisttConfiguration) | ({
         provider: 'gladia';
     } & GladiaSttConfiguration) | ({
+        provider: 'soniox';
+    } & SonioxSttConfiguration) | ({
         provider: 'azure_speech';
     } & AzureSpeechSttConfiguration) | ({
         provider: 'smallest';
@@ -6540,6 +6542,86 @@ export type SmallestAittsConfiguration = {
      * Speech speed multiplier (0.5 to 2.0).
      */
     speed?: number;
+};
+
+/**
+ * Soniox
+ */
+export type SonioxSttConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'soniox';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Soniox real-time STT model.
+     */
+    model?: string;
+    /**
+     * Language
+     *
+     * ISO 639-1 language code, sent as a language hint. 'multi' sends no hint and lets Soniox auto-detect the language.
+     */
+    language?: string;
+    /**
+     * Language Hints Strict
+     *
+     * Transcribe only in the language above. Left unset, Soniox's own default applies.
+     */
+    language_hints_strict?: boolean | null;
+    /**
+     * Enable Language Identification
+     *
+     * Tag each word with the language Soniox heard.
+     */
+    enable_language_identification?: boolean;
+    /**
+     * Endpoint Detection
+     *
+     * On: Soniox decides when the caller has finished, from pauses, intonation and meaning, like Deepgram Flux. Off: the local voice detector ends the turn and Soniox only writes the words; the three settings below then play no part and are hidden.
+     */
+    endpoint_detection?: boolean;
+    /**
+     * Max Endpoint Delay Ms
+     *
+     * Longest wait before Soniox closes a turn, in milliseconds. Left unset, Soniox's default applies (2000).
+     */
+    max_endpoint_delay_ms?: number | null;
+    /**
+     * Endpoint Sensitivity
+     *
+     * How readily Soniox closes a turn: higher closes sooner. Left unset, Soniox's default applies.
+     */
+    endpoint_sensitivity?: number | null;
+    /**
+     * Endpoint Latency Adjustment Level
+     *
+     * Reduces the end-of-turn latency against Soniox's default: higher is faster. Left unset, Soniox's default applies.
+     */
+    endpoint_latency_adjustment_level?: number | null;
+    /**
+     * Enable Speaker Diarization
+     *
+     * Tag each word with the voice that said it.
+     */
+    enable_speaker_diarization?: boolean;
+    /**
+     * Base Url
+     *
+     * The Soniox endpoint the caller's audio is sent to, and therefore the jurisdiction that processes it. Defaults to Europe, which Soniox enables per project on request; leaving it empty also sends the audio to Europe.
+     */
+    base_url?: string;
+    /**
+     * Region
+     *
+     * Where the caller's audio is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.
+     */
+    region?: string;
 };
 
 /**

@@ -1062,6 +1062,269 @@
       ],
       "title": "Deepgram",
       "type": "object"
+    },
+    "soniox": {
+      "properties": {
+        "provider": {
+          "const": "soniox",
+          "default": "soniox",
+          "title": "Provider",
+          "type": "string"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Api Key"
+        },
+        "model": {
+          "allow_custom_input": true,
+          "default": "stt-rt-v5",
+          "description": "Soniox real-time STT model.",
+          "examples": [
+            "stt-rt-v5"
+          ],
+          "title": "Model",
+          "type": "string"
+        },
+        "language": {
+          "default": "fr",
+          "description": "ISO 639-1 language code, sent as a language hint. 'multi' sends no hint and lets Soniox auto-detect the language.",
+          "docs_url": "https://soniox.com/docs/stt/concepts/supported-languages",
+          "examples": [
+            "multi",
+            "af",
+            "ar",
+            "az",
+            "be",
+            "bg",
+            "bn",
+            "bs",
+            "ca",
+            "cs",
+            "cy",
+            "da",
+            "de",
+            "el",
+            "en",
+            "es",
+            "et",
+            "eu",
+            "fa",
+            "fi",
+            "fr",
+            "gl",
+            "gu",
+            "he",
+            "hi",
+            "hr",
+            "hu",
+            "id",
+            "it",
+            "ja",
+            "kk",
+            "kn",
+            "ko",
+            "lt",
+            "lv",
+            "mk",
+            "ml",
+            "mr",
+            "ms",
+            "nl",
+            "no",
+            "pa",
+            "pl",
+            "pt",
+            "ro",
+            "ru",
+            "sk",
+            "sl",
+            "sq",
+            "sr",
+            "sv",
+            "sw",
+            "ta",
+            "te",
+            "th",
+            "tl",
+            "tr",
+            "uk",
+            "ur",
+            "vi",
+            "zh"
+          ],
+          "mark_groupe": "langue",
+          "mark_libelle": {
+            "en": "Language",
+            "fr": "Langue"
+          },
+          "title": "Language",
+          "type": "string"
+        },
+        "language_hints_strict": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Transcribe only in the language above. Left unset, Soniox's own default applies.",
+          "mark_groupe": "langue",
+          "mark_libelle": {
+            "en": "Only this language",
+            "fr": "Uniquement cette langue"
+          },
+          "title": "Language Hints Strict"
+        },
+        "enable_language_identification": {
+          "default": false,
+          "description": "Tag each word with the language Soniox heard.",
+          "mark_groupe": "langue",
+          "mark_libelle": {
+            "en": "Language identification",
+            "fr": "Identifier la langue"
+          },
+          "title": "Enable Language Identification",
+          "type": "boolean"
+        },
+        "endpoint_detection": {
+          "default": true,
+          "description": "On: Soniox decides when the caller has finished, from pauses, intonation and meaning, like Deepgram Flux. Off: the local voice detector ends the turn and Soniox only writes the words; the three settings below then play no part and are hidden.",
+          "mark_groupe": "fin_de_tour",
+          "mark_libelle": {
+            "en": "Soniox decides the end of turn",
+            "fr": "Soniox décide de la fin de tour"
+          },
+          "title": "Endpoint Detection",
+          "type": "boolean"
+        },
+        "max_endpoint_delay_ms": {
+          "anyOf": [
+            {
+              "maximum": 3000,
+              "minimum": 500,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Longest wait before Soniox closes a turn, in milliseconds. Left unset, Soniox's default applies (2000).",
+          "mark_groupe": "fin_de_tour",
+          "mark_libelle": {
+            "en": "Max end of turn delay (ms)",
+            "fr": "Délai maximum de fin de tour (ms)"
+          },
+          "title": "Max Endpoint Delay Ms",
+          "visible_when": {
+            "endpoint_detection": true
+          }
+        },
+        "endpoint_sensitivity": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": -1,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How readily Soniox closes a turn: higher closes sooner. Left unset, Soniox's default applies.",
+          "mark_groupe": "fin_de_tour",
+          "mark_libelle": {
+            "en": "End of turn sensitivity",
+            "fr": "Sensibilité de la fin de tour"
+          },
+          "title": "Endpoint Sensitivity",
+          "visible_when": {
+            "endpoint_detection": true
+          }
+        },
+        "endpoint_latency_adjustment_level": {
+          "anyOf": [
+            {
+              "maximum": 3,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reduces the end-of-turn latency against Soniox's default: higher is faster. Left unset, Soniox's default applies.",
+          "mark_groupe": "fin_de_tour",
+          "mark_libelle": {
+            "en": "End of turn latency reduction",
+            "fr": "Réduction de latence de la fin de tour"
+          },
+          "title": "Endpoint Latency Adjustment Level",
+          "visible_when": {
+            "endpoint_detection": true
+          }
+        },
+        "enable_speaker_diarization": {
+          "default": false,
+          "description": "Tag each word with the voice that said it.",
+          "mark_groupe": "analyse",
+          "mark_libelle": {
+            "en": "Diarize",
+            "fr": "Séparer les voix"
+          },
+          "title": "Enable Speaker Diarization",
+          "type": "boolean"
+        },
+        "base_url": {
+          "allow_custom_input": true,
+          "default": "wss://stt-rt.eu.soniox.com/transcribe-websocket",
+          "description": "The Soniox endpoint the caller's audio is sent to, and therefore the jurisdiction that processes it. Defaults to Europe, which Soniox enables per project on request; leaving it empty also sends the audio to Europe.",
+          "examples": [
+            "wss://stt-rt.eu.soniox.com/transcribe-websocket",
+            "wss://stt-rt.soniox.com/transcribe-websocket"
+          ],
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Base URL",
+            "fr": "Adresse du service"
+          },
+          "title": "Base Url",
+          "type": "string"
+        },
+        "region": {
+          "default": "eu",
+          "description": "Where the caller's audio is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.",
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Region",
+            "fr": "Région"
+          },
+          "readonly": true,
+          "title": "Region",
+          "type": "string"
+        }
+      },
+      "provider_docs_url": "https://soniox.com/docs/stt/rt/real-time-transcription",
+      "required": [
+        "api_key"
+      ],
+      "title": "Soniox",
+      "type": "object"
     }
   }
 }

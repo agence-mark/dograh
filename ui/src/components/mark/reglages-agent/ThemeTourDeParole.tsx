@@ -14,7 +14,7 @@
  * another card; the pipeline reads them only with Smart Turn on (E8).
  *
  * ⛔ Hidden for an agent whose transcription drives the turns (Deepgram Flux,
- * Cartesia ink-2) or runs a realtime model: the SAME rule as the pipeline,
+ * Cartesia ink-2, Soniox unless switched off) or runs a realtime model: the SAME rule as the pipeline,
  * `transcriptionPiloteLesTours`, never a list of its own (E8).
  */
 import { Repeat } from "lucide-react";
@@ -219,8 +219,8 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                 {tourPiloteAilleurs && (
                     <p className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground" data-note="tour-pilote">
                         {t({
-                            en: "Pause settings hidden for this agent: its transcription service decides the turn boundaries itself (Deepgram Flux, Cartesia ink-2), or it runs a realtime model that does. The pipeline follows those signals and builds none of these settings, so showing them here would show values that play no part in the call.",
-                            fr: "Réglages de pause masqués pour cet agent : sa transcription décide elle-même des fins de tour (Deepgram Flux, Cartesia ink-2), ou il tourne sur un modèle temps réel. Le pipeline suit ces signaux et ne construit aucun de ces réglages : les afficher montrerait des valeurs qui ne jouent aucun rôle dans l'appel.",
+                            en: "Pause settings hidden for this agent: its transcription service decides the turn boundaries itself (Deepgram Flux, Cartesia ink-2, Soniox), or it runs a realtime model that does. The pipeline follows those signals and builds none of these settings, so showing them here would show values that play no part in the call.",
+                            fr: "Réglages de pause masqués pour cet agent : sa transcription décide elle-même des fins de tour (Deepgram Flux, Cartesia ink-2, Soniox), ou il tourne sur un modèle temps réel. Le pipeline suit ces signaux et ne construit aucun de ces réglages : les afficher montrerait des valeurs qui ne jouent aucun rôle dans l'appel.",
                         })}
                     </p>
                 )}

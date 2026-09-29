@@ -62,6 +62,12 @@ interface SchemaProperty {
     // the sub-menu and the readable label, declared in `registry.py`.
     mark_groupe?: string;
     mark_libelle?: { en: string; fr: string };
+    // [.mark] Chantier exposition-soniox (2026-09-29): shown only while other
+    // fields of the SAME provider hold these values, e.g. Soniox's three
+    // end-of-turn settings, read only when Soniox decides the end of the turn.
+    // ⛔ The factory drops the value on the same rule (E8). Hiding is not
+    // erasing: the value stays in the form and is saved, like the model rule.
+    visible_when?: Record<string, unknown>;
 }
 
 export interface ProviderSchema {
@@ -259,6 +265,17 @@ function isVisibleForModel(schema: SchemaProperty | undefined, model?: string): 
 //     les champs Flux, sinon revenir sur Flux remettrait trois seuils a zero
 //     en silence. Regle du 11/09, et c'est `masquage-par-modele.test.tsx` qui
 //     la garde.
+// [.mark] Chantier exposition-soniox. `lire` returns the current value of
+// another field of the provider, or its schema default when the form has none.
+function estVisibleSelonLesAutresChamps(
+    schema: SchemaProperty | undefined,
+    lire: (champ: string) => unknown,
+): boolean {
+    const conditions = schema?.visible_when;
+    if (!conditions) return true;
+    return Object.entries(conditions).every(([champ, attendu]) => lire(champ) === attendu);
+}
+
 function estApplicablePourLeModele(schema: SchemaProperty | undefined, model?: string): boolean {
     if (!schema?.visible_for_models) return true;
     return schema.visible_for_models.includes(model || "");
@@ -917,7 +934,13 @@ export function ServiceConfigurationForm({
         };
         const enHaut = configFields.includes("model") ? "model" : configFields[0];
         const groupes = grouperChamps(configFields.filter((field) => field !== enHaut), schemaDe);
-        const champ = (field: string) => (
+        // [.mark] A field hidden by `visible_when` still COUNTS in its group, so
+        // the sub-menu does not jump when the switch it depends on moves (E2).
+        const lire = (autre: string) => {
+            const valeur = watch(`${service}_${autre}`);
+            return valeur === undefined || valeur === null ? schemaDe(autre)?.default : valeur;
+        };
+        const champ = (field: string) => !estVisibleSelonLesAutresChamps(schemaDe(field), lire) ? null : (
             <div key={field} data-champ={field} className={`space-y-2 ${schemaDe(field)?.multiline ? "col-span-2" : ""}`}>
                 <LibelleChamp
                     champ={field}
@@ -983,6 +1006,13 @@ export function ServiceConfigurationForm({
                                 ? providerSchema.$defs[fieldSchema.$ref.split('/').pop() || '']
                                 : fieldSchema;
                             const fullWidth = actualFieldSchema?.multiline;
+                            // [.mark] Same rule as the grouped screen (exposition-soniox).
+                            const lire = (autre: string) => {
+                                const valeur = watch(`${service}_${autre}`);
+                                const schemaAutre = providerSchema.properties[autre];
+                                return valeur === undefined || valeur === null ? schemaAutre?.default : valeur;
+                            };
+                            if (!estVisibleSelonLesAutresChamps(actualFieldSchema, lire)) return null;
                             return (
                                 <div key={field} data-champ={field} className={`space-y-2 ${fullWidth ? "col-span-2" : ""}`}>
                                     <Label className="capitalize">{field.replace(/_/g, ' ')}</Label>

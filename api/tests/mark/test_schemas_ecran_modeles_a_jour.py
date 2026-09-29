@@ -26,6 +26,7 @@ FOURNISSEURS = [
     ("llm", ServiceType.LLM, "mistral"),
     ("tts", ServiceType.TTS, "elevenlabs"),
     ("stt", ServiceType.STT, "deepgram"),
+    ("stt", ServiceType.STT, "soniox"),
 ]
 
 
