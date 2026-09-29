@@ -112,6 +112,14 @@ CONSIGNE_NON_DIT = (
     "exacts ; ne lui fais pas confirmer ta version et ne repose pas la question."
 )
 
+# C1 (chantier correctifs-banc-34, run 887) : un numéro à 11 chiffres entrait dans
+# la fiche. Le refus ne dit pas « pas dit tel quel » (ce serait faux, et pousserait à
+# relire la version du modèle) : il fait redonner la valeur en entier.
+CONSIGNE_NOMBRE_DE_CHIFFRES = (
+    "Pas noté : il manque ou il y a trop de chiffres dans {champs}. Fais redonner "
+    "le numéro en entier ; ne relis pas ta version."
+)
+
 # C3 (PB6, run 845) : le module avait Senlis, Chamant, Avilly pour « soixante
 # trois cents » ; rien n'était proposé, l'agent faisait confirmer la commune
 # fausse. L'agent éteint, qui les avait, a trouvé Senlis en un tour (run 846).
@@ -1362,6 +1370,11 @@ def _est_vide(valeur: Any) -> bool:
     return valeur is None or (isinstance(valeur, str) and not valeur.strip())
 
 
+def _nombre_de_chiffres(valeur: Any) -> int:
+    """C1 : les chiffres de la valeur, espaces, points et signes ignorés."""
+    return sum(1 for c in str(valeur) if c.isdigit())
+
+
 def ecrire_dans_la_fiche(
     fiche: dict,
     reglages: ReglagesFiche,
@@ -1401,6 +1414,9 @@ def ecrire_dans_la_fiche(
     elif definition.valeurs and valeur_de_la_liste(valeur, definition.valeurs) is None:
         # PB3 : hors de la liste fermée, d'où que vienne la valeur.
         verdict = Verdict(champ, "refuse", "hors_liste", valeur)
+    elif definition.chiffres and _nombre_de_chiffres(valeur) != definition.chiffres:
+        # C1 : d'où que vienne la valeur (outil, passe de fin d'appel).
+        verdict = Verdict(champ, "refuse", "nombre_de_chiffres", valeur)
     elif (deja := _deja_confirmee(fiche, definition, valeur)) is not None:
         # D8 : une valeur confirmée, renvoyée, n'est jamais redemandée.
         valeur = deja
@@ -1976,6 +1992,9 @@ def _propriete(champ: ChampFiche) -> dict:
     fermée sont montrées à qui écrit, depuis la déclaration du champ (« poêle »
     refusé hors liste, jamais redemandé ; l'urgence jamais notée)."""
     description = champ.description or champ.nom
+    if champ.chiffres:
+        # C1 : le nombre attendu, sous les yeux de qui écrit.
+        description = f"{description} Exactement {champ.chiffres} chiffres."
     if not champ.valeurs:
         return {"type": champ.type, "description": description}
     if champ.type != "string":
@@ -2048,7 +2067,15 @@ def creer_gestionnaire(
                             }
                         )
                 elif verdict.statut == "refuse":
-                    refuses.append({"champ": champ, "raison": verdict.raison})
+                    refuses.append(
+                        {"champ": champ, "raison": verdict.raison}
+                        if verdict.raison != "nombre_de_chiffres"
+                        else {
+                            "champ": champ,
+                            "raison": verdict.raison,
+                            "chiffres_attendus": reglages.par_nom[champ].chiffres,
+                        }
+                    )
                     if verdict.options:
                         a_proposer.append(
                             {"champ": champ, "options": list(verdict.options)}
@@ -2091,6 +2118,13 @@ def creer_gestionnaire(
             ]
             if non_dits:
                 consignes.append(CONSIGNE_NON_DIT.format(champs=", ".join(non_dits)))
+            mal_comptes = [
+                r["champ"] for r in refuses if r["raison"] == "nombre_de_chiffres"
+            ]
+            if mal_comptes:
+                consignes.append(
+                    CONSIGNE_NOMBRE_DE_CHIFFRES.format(champs=", ".join(mal_comptes))
+                )
             if consignes:
                 resultat["consigne"] = " ".join(consignes)
             if refuses:

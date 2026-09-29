@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field, field_validator
 # PB3 : les bornes d'une liste fermée de valeurs (reprises par l'écran).
 MAX_VALEURS = 20
 MAX_LONGUEUR_VALEUR = 40
+# C1 : la borne haute du nombre de chiffres déclarable (reprise par l'écran).
+MAX_CHIFFRES = 30
 
 
 class OrigineChamp(str, Enum):
@@ -80,6 +82,20 @@ class ChampFiche(BaseModel):
         description=(
             "Cumulative: each note is added to what the field already holds, "
             "nothing is overwritten; not checked against the caller's exact words."
+        ),
+    )
+
+    # C1 (chantier correctifs-banc-34, 29/09, run 887) : le nombre de chiffres que
+    # la valeur doit compter, espaces et signes ignorés. Vide = aucun contrôle (le
+    # défaut) : rien ne change pour un agent qui ne le déclare pas.
+    chiffres: int | None = Field(
+        default=None,
+        ge=1,
+        le=MAX_CHIFFRES,
+        description=(
+            "Digits: how many digits the value must hold (spaces and signs "
+            "ignored); a value with more or fewer is refused and the caller is "
+            "asked for it again in full. Empty: no check."
         ),
     )
 

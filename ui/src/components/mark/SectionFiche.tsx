@@ -95,6 +95,8 @@ export const lecteurParDefaut = (nom: string): "commune" | "rue" | "date" | "lex
 /** `MAX_VALEURS` and `MAX_LONGUEUR_VALEUR` on the server; a test compares them. */
 export const NOMBRE_MAX_VALEURS = 20;
 export const LONGUEUR_MAX_VALEUR = 40;
+/** C1: `MAX_CHIFFRES` on the server; a test compares them. */
+export const NOMBRE_MAX_CHIFFRES = 30;
 
 /** "danger, panne , normal" -> ["danger", "panne", "normal"]; nothing -> null. */
 export const lireLesValeurs = (texte: string): string[] | null => {
@@ -148,6 +150,14 @@ export const texteErreursDesChamps = (champs: ChampFiche[]): Record<number, Text
                 en: `At most ${NOMBRE_MAX_VALEURS} allowed values.`,
                 fr: `Au plus ${NOMBRE_MAX_VALEURS} valeurs permises.`,
             };
+        } else if (
+            champ.chiffres != null &&
+            !(Number.isInteger(champ.chiffres) && champ.chiffres >= 1 && champ.chiffres <= NOMBRE_MAX_CHIFFRES)
+        ) {
+            erreurs[i] = {
+                en: `Digits: a whole number from 1 to ${NOMBRE_MAX_CHIFFRES}, or empty for no check.`,
+                fr: `Chiffres : un nombre entier de 1 à ${NOMBRE_MAX_CHIFFRES}, ou vide pour aucun contrôle.`,
+            };
         } else if (champ.valeurs?.some((v) => v.length > LONGUEUR_MAX_VALEUR)) {
             erreurs[i] = {
                 en: `An allowed value is longer than ${LONGUEUR_MAX_VALEUR} characters.`,
@@ -165,7 +175,12 @@ export const erreursDesChamps = (champs: ChampFiche[]): Record<number, string> =
 
 /** The same record, with "no list" written one way only, to compare two records. */
 export const pourComparerLaFiche = (champs: ChampFiche[]) =>
-    champs.map((c) => ({ ...c, valeurs: c.valeurs?.length ? c.valeurs : null, cumulatif: c.cumulatif ?? false }));
+    champs.map((c) => ({
+        ...c,
+        valeurs: c.valeurs?.length ? c.valeurs : null,
+        cumulatif: c.cumulatif ?? false,
+        chiffres: c.chiffres ?? null,
+    }));
 
 const nouveauChamp = (): ChampFiche => ({
     nom: "",
@@ -416,6 +431,31 @@ export const EditeurChampsFiche = ({
                                     valeurs={champ.valeurs ?? null}
                                     onChange={(valeurs) => modifier(i, { valeurs })}
                                 />
+                                <div className="space-y-1">
+                                    <Label htmlFor={`fiche_chiffres_${i}`} className="text-xs">
+                                        {t({ en: "Digits", fr: "Chiffres" })}
+                                    </Label>
+                                    <Input
+                                        id={`fiche_chiffres_${i}`}
+                                        type="number"
+                                        min={1}
+                                        max={NOMBRE_MAX_CHIFFRES}
+                                        step={1}
+                                        className="w-28"
+                                        value={champ.chiffres ?? ""}
+                                        onChange={(e) =>
+                                            modifier(i, {
+                                                chiffres: e.target.value === "" ? null : Number(e.target.value),
+                                            })
+                                        }
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        {t({
+                                            en: "How many digits the value must hold (spaces ignored). A value with more or fewer is refused and the agent asks for it again in full. Empty: no check.",
+                                            fr: "Nombre de chiffres que la valeur doit compter (espaces ignorés). Une valeur qui en a plus ou moins est refusée et l'agent la fait redonner en entier. Vide : aucun contrôle.",
+                                        })}
+                                    </p>
+                                </div>
                                 <div className="flex items-start gap-2">
                                     <Switch
                                         id={`fiche_cumulatif_${i}`}

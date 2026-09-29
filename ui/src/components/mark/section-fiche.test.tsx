@@ -22,6 +22,7 @@ import {
     lireLesValeurs,
     LONGUEUR_MAX_VALEUR,
     NOMBRE_MAX_CHAMPS,
+    NOMBRE_MAX_CHIFFRES,
     NOMBRE_MAX_VALEURS,
     NOMS_RESERVES,
     SectionFiche,
@@ -141,6 +142,49 @@ describe("[.mark] Call Record card", () => {
     it("the server knows the cumulative attribute the screen offers", () => {
         const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
         expect(schema).toContain("cumulatif: bool = Field(");
+    });
+
+    it("declares how many digits a field holds (C1) and carries it out on save", async () => {
+        const onSave = ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: CHAMPS });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        const chiffres = document.getElementById("fiche_chiffres_0") as HTMLInputElement;
+        expect(chiffres.value).toBe("");
+        expect(within(dialogue).getAllByText(/digits/i).length).toBeGreaterThan(0);
+        fireEvent.change(chiffres, { target: { value: "10" } });
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        fireEvent.click(boutonEnregistrer());
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        const [nom, commune] = onSave.mock.calls[0][0].fiche_champs;
+        expect(nom.chiffres).toBe(10);
+        expect(commune.chiffres ?? null).toBeNull();
+    });
+
+    it("an emptied digit count means no check (null), never 0", async () => {
+        const onSave = ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: [{ ...CHAMPS[0], chiffres: 10 }] });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        const chiffres = document.getElementById("fiche_chiffres_0") as HTMLInputElement;
+        expect(chiffres.value).toBe("10");
+        fireEvent.change(chiffres, { target: { value: "" } });
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        fireEvent.click(boutonEnregistrer());
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        expect(onSave.mock.calls[0][0].fiche_champs[0].chiffres).toBeNull();
+    });
+
+    it("names a digit count the server would refuse", () => {
+        const base = CHAMPS[0] as never as Parameters<typeof erreursDesChamps>[0][number];
+        expect(erreursDesChamps([{ ...base, chiffres: 0 }])[0]).toMatch(/digits/i);
+        expect(erreursDesChamps([{ ...base, chiffres: NOMBRE_MAX_CHIFFRES + 1 }])[0]).toMatch(/digits/i);
+        expect(erreursDesChamps([{ ...base, chiffres: 2.5 }])[0]).toMatch(/digits/i);
+        expect(erreursDesChamps([{ ...base, chiffres: 10 }])[0]).toBeUndefined();
+    });
+
+    it("the server knows the digit count the screen offers, with the same upper bound", () => {
+        const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
+        expect(schema).toContain("chiffres: int | None = Field(");
+        expect(schema).toContain(`MAX_CHIFFRES = ${NOMBRE_MAX_CHIFFRES}`);
     });
 
     it("removes a field", async () => {

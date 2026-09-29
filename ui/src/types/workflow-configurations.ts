@@ -226,6 +226,8 @@ export interface ChampFiche {
     valeurs?: string[] | null;
     // [.mark] D7 (correctifs-modules): each note is added, nothing overwritten. Absent: false.
     cumulatif?: boolean;
+    // [.mark] C1 (correctifs-banc-34): how many digits the value must hold. Empty (null or absent): no check.
+    chiffres?: number | null;
 }
 
 /**
