@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useWorkflow, useWorkflowOptional } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowStore";
 import { StaticTextWarning, TextOrAudioInput } from "@/components/flow/TextOrAudioInput";
+import { ChampsRequisSortie } from "@/components/mark/ChampsRequisSortie";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,10 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave }: EdgeDetailsDial
     const [transitionSpeech, setTransitionSpeech] = useState(data?.transition_speech ?? '');
     const [transitionSpeechType, setTransitionSpeechType] = useState<'text' | 'audio'>(data?.transition_speech_type ?? 'text');
     const [transitionSpeechRecordingId, setTransitionSpeechRecordingId] = useState(data?.transition_speech_recording_id ?? '');
+    // [.mark] C6: the call-record fields this pathway requires (empty = no check).
+    const [champsRequis, setChampsRequis] = useState<string[] | undefined>(data?.champs_requis);
+    const configurations = useWorkflowStore((state) => state.workflowConfigurations);
+    const champsDeLaFiche = (configurations?.fiche_champs ?? []).map((champ) => champ.nom);
 
     // Update form state when data changes (e.g., from undo/redo)
     useEffect(() => {
@@ -40,6 +45,7 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave }: EdgeDetailsDial
             setTransitionSpeech(data?.transition_speech ?? '');
             setTransitionSpeechType(data?.transition_speech_type ?? 'text');
             setTransitionSpeechRecordingId(data?.transition_speech_recording_id ?? '');
+            setChampsRequis(data?.champs_requis);
         }
     }, [data, open]);
 
@@ -50,9 +56,10 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave }: EdgeDetailsDial
             transition_speech: transitionSpeechType === 'text' ? (transitionSpeech || undefined) : undefined,
             transition_speech_type: transitionSpeechType,
             transition_speech_recording_id: transitionSpeechType === 'audio' ? (transitionSpeechRecordingId || undefined) : undefined,
+            champs_requis: champsRequis,
         });
         onOpenChange(false);
-    }, [condition, label, transitionSpeech, transitionSpeechType, transitionSpeechRecordingId, onSave, onOpenChange]);
+    }, [condition, label, transitionSpeech, transitionSpeechType, transitionSpeechRecordingId, champsRequis, onSave, onOpenChange]);
 
     // Handle Cmd+S / Ctrl+S keyboard shortcut to save
     useEffect(() => {
@@ -131,6 +138,14 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave }: EdgeDetailsDial
                             </>
                         </TextOrAudioInput>
                     </div>
+                    {/* [.mark] C6: required call-record fields, checked by the code. */}
+                    <ChampsRequisSortie
+                        valeur={champsRequis}
+                        onChange={setChampsRequis}
+                        champs={champsDeLaFiche}
+                        ficheAllumee={Boolean(configurations?.fiche_au_fil_de_leau)}
+                        readOnly={readOnly}
+                    />
                 </div>
                 <DialogFooter>
                     <div className="flex items-center gap-2">

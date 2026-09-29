@@ -1591,6 +1591,10 @@ def ecrire_dans_la_fiche(
             verdict = _ecrire(
                 fiche, champ, valeur, sure, source, seulement_si_vide, lecture
             )
+            if verdict.statut == "ecrit" and epele:
+                # C6 (run 882) : la fiche sait qu'une valeur a été ÉPELÉE (lue par le
+                # module d'épellation), pas seulement dite.
+                fiche[CLE_ETAT][champ]["epele"] = True
             if verdict.statut == "ecrit" and definition.lecteur_effectif == "date":
                 extraites = fiche.setdefault("extracted_variables", {})
                 if dit is not None:
@@ -1637,6 +1641,51 @@ def ecrire_dans_la_fiche(
         # Après la commune dans le journal : c'est elle qui donne le code.
         _code_postal_de_la_commune(fiche, reglages, champ, lecture)
     return verdict
+
+
+# C6 (chantier correctifs-banc-34, runs 882 et 884) : la consigne d'une sortie
+# refusée. Le modèle reste à l'étape et demande ce qui manque.
+CONSIGNE_SORTIE_REFUSEE = (
+    "Pas encore : cette sortie demande que la fiche tienne {champs}. Demande à la "
+    "personne ce qui manque, note-le, puis reprends cette sortie."
+)
+_RAISONS_MANQUANT = {
+    "vide": "{champ}",
+    "a_confirmer": "{champ} confirmé",
+    "non_epele": "{champ} épelé lettre par lettre",
+}
+
+
+def champs_manquants(
+    reglages: ReglagesFiche, fiche: dict, requis: Iterable[str]
+) -> list[tuple[str, str]]:
+    """C6 : les champs requis par une sortie que la fiche ne tient pas encore, avec
+    la raison : ``vide``, ``a_confirmer`` (écrit non sûr), ``non_epele`` (un champ de
+    nom écrit sans épellation lue). Un nom inconnu de la fiche est ignoré (la fiche
+    a pu changer depuis la déclaration de la sortie)."""
+    etat = fiche.get(CLE_ETAT) or {}
+    manquants: list[tuple[str, str]] = []
+    for nom in requis:
+        definition = reglages.par_nom.get(nom)
+        if definition is None:
+            continue
+        propre = etat.get(nom) or {}
+        if _est_vide(fiche.get(nom)):
+            manquants.append((nom, "vide"))
+        elif not propre.get("sure"):
+            manquants.append((nom, "a_confirmer"))
+        elif est_un_champ_de_nom(definition) and not propre.get("epele"):
+            manquants.append((nom, "non_epele"))
+    return manquants
+
+
+def consigne_de_sortie(manquants: list[tuple[str, str]]) -> str:
+    """C6 : la consigne rendue au modèle quand une sortie est refusée."""
+    return CONSIGNE_SORTIE_REFUSEE.format(
+        champs=", ".join(
+            _RAISONS_MANQUANT[raison].format(champ=champ) for champ, raison in manquants
+        )
+    )
 
 
 def relire_les_rues(fiche: dict, reglages: ReglagesFiche) -> dict[str, str]:
@@ -1752,8 +1801,13 @@ def _ecrire(
         # D6 : une valeur non sûre n'écrase jamais une valeur sûre.
         return Verdict(champ, "refuse", "non_sure_sur_sure", valeur)
     extraites = fiche.setdefault("extracted_variables", {})
+    # C6 : un nom épelé le reste tant que sa valeur ne change pas (un oui qui le
+    # confirme, une note qui le redit).
+    epele = bool(precedent and precedent.get("epele")) and _memes_mots(
+        valeur, fiche.get(champ)
+    )
     fiche[champ] = extraites[champ] = valeur
-    etat[champ] = {"sure": sure, "source": source}
+    etat[champ] = {"sure": sure, "source": source, **({"epele": True} if epele else {})}
     if lecture is not None and lecture.code_insee and sure:
         fiche[cle_insee(champ)] = extraites[cle_insee(champ)] = lecture.code_insee
     elif lecture is not None:
@@ -2490,3 +2544,4 @@ def montrer_la_fiche(
     llm.get_chat_completions = get_chat_completions
     llm.build_chat_completion_params = build_chat_completion_params
     return True
+

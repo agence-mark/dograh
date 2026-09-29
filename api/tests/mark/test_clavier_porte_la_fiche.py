@@ -82,7 +82,7 @@ FICHE = {
 }
 
 
-async def _monter(db_session, async_session, configurations: dict):
+async def _monter(db_session, async_session, configurations: dict, definition: dict = DEFINITION):
     """Organisation française, agent publié AVEC sa configuration (comme l'écran)."""
     suffixe = uuid.uuid4().hex[:10]
     org = OrganizationModel(provider_id=f"test-org-clavier-fiche-{suffixe}")
@@ -110,12 +110,12 @@ async def _monter(db_session, async_session, configurations: dict):
     )
     workflow = await db_session.create_workflow(
         name="Clavier fiche",
-        workflow_definition=DEFINITION,
+        workflow_definition=definition,
         user_id=user.id,
         organization_id=org.id,
     )
     await db_session.save_workflow_draft(
-        workflow.id, workflow_definition=DEFINITION, workflow_configurations=configurations
+        workflow.id, workflow_definition=definition, workflow_configurations=configurations
     )
     await db_session.publish_workflow_draft(workflow.id)
     return user, workflow

@@ -1077,6 +1077,10 @@ class EdgeDataDTO(BaseModel):
     transition_speech: Optional[str] = None
     transition_speech_type: Optional[str] = None  # 'text' or 'audio'
     transition_speech_recording_id: Optional[str] = None
+    # [.mark] C6 (chantier correctifs-banc-34) : les champs de la fiche que cette
+    # sortie exige, notés et sûrs (un nom : épelé), avant d'être prise. Vide = aucune
+    # vérification. Ignoré quand la fiche est éteinte.
+    champs_requis: Optional[List[str]] = None
 
 
 class RFEdgeDTO(BaseModel):
