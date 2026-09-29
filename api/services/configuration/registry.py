@@ -61,6 +61,8 @@ from api.services.configuration.options import (
     SMALLEST_TTS_MODELS,
     SMALLEST_TTS_PRO_VOICES,
     SMALLEST_TTS_VOICES,
+    SONIOX_STT_LANGUAGES,
+    SONIOX_STT_MODELS,
     SPEECHMATICS_STT_LANGUAGES,
 )
 from api.services.configuration.options.google import (
@@ -115,6 +117,7 @@ class ServiceProviders(str, Enum):
     LMNT = "lmnt"
     MISTRAL = "mistral"
     SPEECHIFY = "speechify"
+    SONIOX = "soniox"
 
 
 class BaseServiceConfiguration(BaseModel):
@@ -151,6 +154,7 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.LMNT,
         ServiceProviders.MISTRAL,
         ServiceProviders.SPEECHIFY,
+        ServiceProviders.SONIOX,
     ]
     api_key: str | list[str]
 
@@ -405,7 +409,22 @@ ECRAN_DEEPGRAM_STT: EcranMark = {
     "diarize": ("analyse", "Diarize", "Séparer les voix"),
     "detect_entities": ("analyse", "Detect entities", "Détecter les entités"),
 }
+ECRAN_SONIOX_STT: EcranMark = {
+    "language": ("langue", "Language", "Langue"),
+    "language_hints_strict": ("langue", "Only this language", "Uniquement cette langue"),
+    "enable_language_identification": ("langue", "Language identification", "Identifier la langue"),
+    "endpoint_detection": ("fin_de_tour", "Soniox decides the end of turn", "Soniox décide de la fin de tour"),
+    "max_endpoint_delay_ms": ("fin_de_tour", "Max end of turn delay (ms)", "Délai maximum de fin de tour (ms)"),
+    "endpoint_sensitivity": ("fin_de_tour", "End of turn sensitivity", "Sensibilité de la fin de tour"),
+    "endpoint_latency_adjustment_level": ("fin_de_tour", "End of turn latency reduction", "Réduction de latence de la fin de tour"),
+    "enable_speaker_diarization": ("analyse", "Diarize", "Séparer les voix"),
+    "base_url": ("hebergement", "Base URL", "Adresse du service"),
+    "region": ("hebergement", "Region", "Région"),
+}
 CARTESIA_PROVIDER_MODEL_CONFIG = provider_model_config("Cartesia")
+SONIOX_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "Soniox", provider_docs_url="https://soniox.com/docs/stt/rt/real-time-transcription"
+)
 XAI_PROVIDER_MODEL_CONFIG = provider_model_config("xAI")
 LMNT_PROVIDER_MODEL_CONFIG = provider_model_config("LMNT")
 SPEECHIFY_PROVIDER_MODEL_CONFIG = provider_model_config(
@@ -2702,6 +2721,184 @@ class GladiaSTTConfiguration(BaseSTTConfiguration):
     )
 
 
+# [.mark] Soniox (chantier exposition-soniox, 2026-09-29). Upstream added a
+# minimal Soniox in 3e66307b (model and language only, its end of turn switched
+# off, the global address, the dictionary sent with no ceiling). The names are
+# upstream's -- `soniox`, this class, `options/soniox.py`, `language` -- so the
+# next version bump merges instead of doubling. What is ours:
+#
+# - every setting the connector accepts is on screen (plan, D4: no value chosen
+#   here, Soniox's own default applies);
+# - Soniox decides the end of the turn by default (D3), which is the only reason
+#   to prefer it to Flux; switched off, Pipecat's local detector decides, and
+#   the three end-of-turn settings are hidden AND not sent (E8);
+# - the European address by default (D5); an empty one also goes to Europe;
+# - `context` is NOT a field: the list of terms is fed by the agent's lexicon,
+#   and no ceiling is declared until Soniox is probed (D7), so none is sent.
+SONIOX_ADRESSE_EUROPE = "wss://stt-rt.eu.soniox.com/transcribe-websocket"
+SONIOX_ADRESSE_MONDIALE = "wss://stt-rt.soniox.com/transcribe-websocket"
+
+
+def adresse_soniox(base_url: str | None) -> str:
+    """[.mark] The address the connector dials: the configured one, or Europe.
+
+    Shared by the factory, the stamp, the region mirror and the key check, so
+    the four can never disagree about where the audio goes.
+    """
+    adresse = (base_url or "").strip()
+    return adresse or SONIOX_ADRESSE_EUROPE
+
+
+def region_soniox(base_url: str | None) -> str:
+    """[.mark] ``eu``, ``global``, or the host of a custom address."""
+    hote = adresse_soniox(base_url).split("://", 1)[-1].split("/", 1)[0].strip()
+    if ".eu." in f".{hote}":
+        return "eu"
+    if hote == "stt-rt.soniox.com":
+        return "global"
+    return hote or "eu"
+
+
+# [.mark] The three settings Soniox only reads when it decides the end of the
+# turn itself. The screen hides them on this rule and the factory drops them
+# on the same one (E8).
+_SONIOX_FIN_DE_TOUR = {"visible_when": {"endpoint_detection": True}}
+
+
+@register_stt
+class SonioxSTTConfiguration(BaseSTTConfiguration):
+    model_config = ecran_mark(SONIOX_PROVIDER_MODEL_CONFIG, ECRAN_SONIOX_STT)  # [.mark] écran Modèles
+    provider: Literal[ServiceProviders.SONIOX] = ServiceProviders.SONIOX
+    model: str = Field(
+        default="stt-rt-v5",
+        description="Soniox real-time STT model.",
+        json_schema_extra={"examples": SONIOX_STT_MODELS, "allow_custom_input": True},
+    )
+    language: str = Field(
+        default="fr",
+        description=(
+            "ISO 639-1 language code, sent as a language hint. 'multi' sends no "
+            "hint and lets Soniox auto-detect the language."
+        ),
+        json_schema_extra={
+            "examples": SONIOX_STT_LANGUAGES,
+            "docs_url": "https://soniox.com/docs/stt/concepts/supported-languages",
+        },
+    )
+    language_hints_strict: bool | None = Field(
+        default=None,
+        description=(
+            "Transcribe only in the language above. Left unset, Soniox's own "
+            "default applies."
+        ),
+    )
+    enable_language_identification: bool = Field(
+        default=False,
+        description="Tag each word with the language Soniox heard.",
+    )
+    endpoint_detection: bool = Field(
+        default=True,
+        description=(
+            "On: Soniox decides when the caller has finished, from pauses, "
+            "intonation and meaning, like Deepgram Flux. Off: the local voice "
+            "detector ends the turn and Soniox only writes the words; the three "
+            "settings below then play no part and are hidden."
+        ),
+    )
+    max_endpoint_delay_ms: int | None = Field(
+        default=None,
+        ge=500,
+        le=3000,
+        description=(
+            "Longest wait before Soniox closes a turn, in milliseconds. Left "
+            "unset, Soniox's default applies (2000)."
+        ),
+        json_schema_extra=_SONIOX_FIN_DE_TOUR,
+    )
+    endpoint_sensitivity: float | None = Field(
+        default=None,
+        ge=-1,
+        le=1,
+        description=(
+            "How readily Soniox closes a turn: higher closes sooner. Left unset, "
+            "Soniox's default applies."
+        ),
+        json_schema_extra=_SONIOX_FIN_DE_TOUR,
+    )
+    endpoint_latency_adjustment_level: int | None = Field(
+        default=None,
+        ge=0,
+        le=3,
+        description=(
+            "Reduces the end-of-turn latency against Soniox's default: higher "
+            "is faster. Left unset, Soniox's default applies."
+        ),
+        json_schema_extra=_SONIOX_FIN_DE_TOUR,
+    )
+    enable_speaker_diarization: bool = Field(
+        default=False,
+        description="Tag each word with the voice that said it.",
+    )
+    base_url: str = Field(
+        default=SONIOX_ADRESSE_EUROPE,
+        json_schema_extra={
+            "examples": [SONIOX_ADRESSE_EUROPE, SONIOX_ADRESSE_MONDIALE],
+            "allow_custom_input": True,
+        },
+        description=(
+            "The Soniox endpoint the caller's audio is sent to, and therefore "
+            "the jurisdiction that processes it. Defaults to Europe, which "
+            "Soniox enables per project on request; leaving it empty also "
+            "sends the audio to Europe."
+        ),
+    )
+    region: str = Field(
+        default="eu",
+        json_schema_extra={"readonly": True},
+        description=(
+            "Where the caller's audio is processed. Derived from the endpoint "
+            "above rather than chosen: change the endpoint and this follows."
+        ),
+    )
+
+    @field_validator("language")
+    @classmethod
+    def _une_langue_que_soniox_connait(cls, valeur: str) -> str:
+        """[.mark] The factory turns the code into a Pipecat ``Language``; an
+        unknown one would fail when the call starts, so it fails on save."""
+        if valeur not in SONIOX_STT_LANGUAGES:
+            raise ValueError(f"Unsupported Soniox language: {valeur}")
+        return valeur
+
+    @field_validator("base_url")
+    @classmethod
+    def _une_adresse_de_websocket(cls, valeur: str) -> str:
+        """[.mark] Refused at the door rather than mid-call.
+
+        ⛔ The factory's URL check does nothing in an ``oss`` deployment (ours),
+        and the connector dials whatever it is given, so a wrong address would
+        cost the call its transcription. Empty stays allowed: it means Europe.
+        """
+        adresse = (valeur or "").strip()
+        if not adresse:
+            return valeur
+        schema, _, reste = adresse.partition("://")
+        if schema not in ("ws", "wss") or not reste.split("/", 1)[0].strip():
+            raise ValueError(
+                "The Soniox address must be a ws:// or wss:// URL, for example "
+                f"{SONIOX_ADRESSE_EUROPE}"
+            )
+        return valeur
+
+    @model_validator(mode="after")
+    def _la_region_suit_ladresse(self):
+        """A mirror, realigned rather than refused (same as Deepgram)."""
+        region_attendue = region_soniox(self.base_url)
+        if self.region != region_attendue:
+            object.__setattr__(self, "region", region_attendue)
+        return self
+
+
 @register_stt
 class AzureSpeechSTTConfiguration(BaseSTTConfiguration):
     model_config = AZURE_SPEECH_PROVIDER_MODEL_CONFIG
@@ -2830,6 +3027,7 @@ STTConfig = Annotated[
         HuggingFaceSTTConfiguration,
         AssemblyAISTTConfiguration,
         GladiaSTTConfiguration,
+        SonioxSTTConfiguration,
         AzureSpeechSTTConfiguration,
         SmallestAISTTConfiguration,
         ElevenlabsSTTConfiguration,

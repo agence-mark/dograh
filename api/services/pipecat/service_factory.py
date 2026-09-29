@@ -26,7 +26,9 @@ from api.services.configuration.registry import (
     DEEPGRAM_STT_FIELDS,
     MISTRAL_SAMPLING_FIELDS,
     ServiceProviders,
+    adresse_soniox,
 )
+from api.services.configuration.plafond_lexique import plafond_du_lexique
 from api.services.pipecat.appels_de_fonction_voix import (
     PhraseQuiNEstQuUnAppel,
     retirer_appels_de_fonction,
@@ -121,6 +123,11 @@ from pipecat.services.smallest.tts import SmallestTTSService, SmallestTTSSetting
 from pipecat.services.speaches.llm import SpeachesLLMService, SpeachesLLMSettings
 from pipecat.services.speaches.stt import SpeachesSTTService, SpeachesSTTSettings
 from pipecat.services.speaches.tts import SpeachesTTSService, SpeachesTTSSettings
+from pipecat.services.soniox.stt import (
+    SonioxContextObject,
+    SonioxSTTService,
+    SonioxSTTSettings,
+)
 from pipecat.services.speechmatics.stt import (
     SpeechmaticsSTTService,
     SpeechmaticsSTTSettings,
@@ -204,6 +211,45 @@ DEEPGRAM_FLUX_LANGUAGE_HINTS = {
     "pt": Language.PT,
     "ru": Language.RU,
 }
+
+
+# [.mark] The three settings Soniox only reads when it decides the end of the
+# turn itself -- the same list the screen hides on `visible_when` (E8).
+SONIOX_FIN_DE_TOUR_FIELDS = (
+    "max_endpoint_delay_ms",
+    "endpoint_sensitivity",
+    "endpoint_latency_adjustment_level",
+)
+
+
+def _reglages_soniox(stt_config) -> dict:
+    """[.mark] What Soniox is sent, read ONCE for the factory and the stamp.
+
+    ⛔ Unset fields are left out: the connector then writes ``null`` and Soniox
+    applies its own default, which is what an untouched screen means.
+    ⛔ The three end-of-turn settings are dropped when Soniox does not decide
+    the end of the turn: the screen hides them on that rule, so sending them
+    would send values nobody can see (E8).
+    """
+    decide = bool(getattr(stt_config, "endpoint_detection", True))
+    langue = getattr(stt_config, "language", None) or "multi"
+    reglages = {
+        "base_url": adresse_soniox(getattr(stt_config, "base_url", None)),
+        "endpoint_detection": decide,
+        "language_hints": [] if langue == "multi" else [langue],
+    }
+    champs = [
+        "language_hints_strict",
+        "enable_language_identification",
+        "enable_speaker_diarization",
+    ]
+    if decide:
+        champs += list(SONIOX_FIN_DE_TOUR_FIELDS)
+    for champ in champs:
+        valeur = getattr(stt_config, champ, None)
+        if valeur is not None:
+            reglages[champ] = valeur
+    return reglages
 
 
 def _reglages_classiques(stt_config) -> dict:
@@ -325,6 +371,9 @@ def stt_uses_external_turns(user_config) -> bool:
         return dograh_stt_uses_flux_language(getattr(user_config.stt, "language", None))
     if user_config.stt.provider == ServiceProviders.CARTESIA.value:
         return user_config.stt.model == "ink-2"
+    if user_config.stt.provider == ServiceProviders.SONIOX.value:
+        # [.mark] Soniox decides the end of the turn unless switched off (D3).
+        return bool(getattr(user_config.stt, "endpoint_detection", True))
     return False
 
 
@@ -794,6 +843,33 @@ def create_stt_service(
         return AssemblyAISTTService(
             api_key=user_config.stt.api_key,
             settings=AssemblyAISTTSettings(**settings_kwargs),
+            sample_rate=audio_config.transport_in_sample_rate,
+        )
+    elif user_config.stt.provider == ServiceProviders.SONIOX.value:
+        # [.mark] Chantier exposition-soniox. Upstream builds Soniox with
+        # `vad_force_turn_endpoint=True` (its end of turn switched off) and the
+        # global address; ours follows the configuration, Europe by default.
+        reglages = _reglages_soniox(user_config.stt)
+        adresse = reglages.pop("base_url")
+        _validate_runtime_service_url(adresse, "base_url")
+        decide = reglages.pop("endpoint_detection")
+        langues = reglages.pop("language_hints")
+        settings_kwargs = {"model": user_config.stt.model, **reglages}
+        if langues:
+            settings_kwargs["language_hints"] = [Language(code) for code in langues]
+        # ⛔ The list of terms leaves only once Soniox has a declared ceiling
+        # (rule Q1 of the lexicon, question n° 250). None is declared until
+        # Soniox is probed (decision of 2026-09-29), so none leaves -- even if
+        # a list is handed over.
+        if keyterms and plafond_du_lexique(
+            user_config.stt.provider, user_config.stt.model
+        ):
+            settings_kwargs["context"] = SonioxContextObject(terms=keyterms)
+        return SonioxSTTService(
+            api_key=user_config.stt.api_key,
+            url=adresse,
+            settings=SonioxSTTSettings(**settings_kwargs),
+            vad_force_turn_endpoint=not decide,
             sample_rate=audio_config.transport_in_sample_rate,
         )
     elif user_config.stt.provider == ServiceProviders.GLADIA.value:
@@ -1565,7 +1641,9 @@ def stamp_transcription_settings(runtime_configuration: dict, stt_config) -> dic
     # ⛔ "A stamp that lies is worse than no stamp" is written three lines
     # below; it has to be true of this function too. Raised by the second
     # review of 2026-09-11.
-    if getattr(stt_config, "model", None) in DEEPGRAM_FLUX_MODELS:
+    if getattr(stt_config, "provider", None) == ServiceProviders.SONIOX.value:
+        reglages = _reglages_soniox(stt_config)
+    elif getattr(stt_config, "model", None) in DEEPGRAM_FLUX_MODELS:
         reglages = _reglages_flux(stt_config)
     else:
         reglages = _reglages_classiques(stt_config)
