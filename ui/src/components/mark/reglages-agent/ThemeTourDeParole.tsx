@@ -13,9 +13,17 @@
  * used to follow the SAVED strategy, only because the strategy lived in
  * another card; the pipeline reads them only with Smart Turn on (E8).
  *
- * ⛔ Hidden for an agent whose transcription drives the turns (Deepgram Flux,
- * Cartesia ink-2, Soniox unless switched off) or runs a realtime model: the SAME rule as the pipeline,
+ * ⛔ For an agent whose transcription drives the turns (Deepgram Flux,
+ * Cartesia ink-2, Soniox unless switched off): the SAME rule as the pipeline,
  * `transcriptionPiloteLesTours`, never a list of its own (E8).
+ *
+ * 🔑 C9 (chantier correctifs-banc-34, question n° 272): under such a
+ * transcription only what plays no part is hidden (pause, transcription
+ * latency, wait for the transcript, interim transcripts, Smart Turn). The voice
+ * detector, the idle timeout, the turn stop timeout and the unfinished sentence
+ * play on every call and stay shown, each saying what it commands then; the two
+ * strategies stay shown with "no effect for this agent" (D-C9-2, D-C9-4). The
+ * table is frozen on the real call in `api/tests/mark/test_traversants_appel.py`.
  */
 import { Repeat } from "lucide-react";
 
@@ -217,16 +225,30 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                     </ChampReglage>
                 )}
                 {tourPiloteAilleurs && (
+                    <p className="text-xs font-medium text-foreground" data-note="sans-effet-fin-de-tour">
+                        {t({
+                            en: "No effect for this agent: its transcription decides the end of the turn itself. This choice plays with a transcription that does not (Deepgram nova-3, Soniox in local detection).",
+                            fr: "Sans effet pour cet agent : sa transcription décide elle-même de la fin du tour. Ce choix joue avec une transcription qui ne la décide pas (Deepgram nova-3, Soniox en détection locale).",
+                        })}
+                    </p>
+                )}
+                {tourPiloteAilleurs && (
+                    // [.mark] C9 (correctifs-banc-34, question n° 272): the list of what is
+                    // hidden, and only that. The earlier sentence said the pipeline "builds
+                    // none of these settings": false for the voice detector, the idle
+                    // timeout, the turn stop timeout and the unfinished sentence, which
+                    // play on every call (`api/tests/mark/test_traversants_appel.py`).
                     <p className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground" data-note="tour-pilote">
                         {t({
-                            en: "Pause settings hidden for this agent: its transcription service decides the turn boundaries itself (Deepgram Flux, Cartesia ink-2, Soniox), or it runs a realtime model that does. The pipeline follows those signals and builds none of these settings, so showing them here would show values that play no part in the call.",
-                            fr: "Réglages de pause masqués pour cet agent : sa transcription décide elle-même des fins de tour (Deepgram Flux, Cartesia ink-2, Soniox), ou il tourne sur un modèle temps réel. Le pipeline suit ces signaux et ne construit aucun de ces réglages : les afficher montrerait des valeurs qui ne jouent aucun rôle dans l'appel.",
+                            en: "This agent's transcription decides the turns itself (Deepgram Flux, Cartesia ink-2, Soniox deciding the end of the turn). Hidden because they play no part then: the pause, the transcription latency, the wait for the transcript, interim transcripts and the Smart Turn settings. Everything else in this theme still plays.",
+                            fr: "La transcription de cet agent décide elle-même des tours (Deepgram Flux, Cartesia ink-2, Soniox qui décide de la fin du tour). Masqués parce qu'ils ne jouent alors aucun rôle : la pause, la latence de la transcription, l'attente de la transcription, les transcriptions partielles et les réglages Smart Turn. Tout le reste de ce thème joue.",
                         })}
                     </p>
                 )}
                 {r("user_speech_timeout", !tourPiloteAilleurs)}
                 {r("stt_ttfs_p99_latency", !tourPiloteAilleurs)}
-                {r("user_turn_stop_timeout", !tourPiloteAilleurs)}
+                {/* C9: plays under any transcription (empty = 30 s when the transcription decides the turns). */}
+                {r("user_turn_stop_timeout")}
                 {r("turn_wait_for_transcript", !tourPiloteAilleurs)}
             </Intertitre>
 
@@ -286,6 +308,14 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                         />
                     </ChampReglage>
                 )}
+                {tourPiloteAilleurs && (
+                    <p className="text-xs font-medium text-foreground" data-note="sans-effet-interruption">
+                        {t({
+                            en: "No effect for this agent: when the transcription decides the turns, the caller's turn always starts on its signal. This choice plays with a transcription that does not (Deepgram nova-3, Soniox in local detection).",
+                            fr: "Sans effet pour cet agent : quand la transcription décide des tours, le tour de l'appelant commence toujours à son signal. Ce choix joue avec une transcription qui ne les décide pas (Deepgram nova-3, Soniox en détection locale).",
+                        })}
+                    </p>
+                )}
                 {r("turn_start_use_interim", !tourPiloteAilleurs)}
             </Intertitre>
 
@@ -302,9 +332,18 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                 {r("accueil_mots_minimum", true, !brouillon.accueil_interruptible)}
             </Intertitre>
 
-            {groupeVisible(detecteur, !tourPiloteAilleurs) && (
+            {/* C9 (D-C9-1): the voice detector is built on every call, whoever decides the turns. */}
+            {groupeVisible(detecteur, true) && (
                 <Intertitre id="tour-detecteur" titre={{ en: "Voice detector", fr: "Détecteur de voix" }}>
-                    {detecteur.map((cle) => r(cle, !tourPiloteAilleurs))}
+                    {tourPiloteAilleurs && (
+                        <p className="text-xs text-muted-foreground" data-note="detecteur-sous-tours-externes">
+                            {t({
+                                en: "With this agent's transcription, the detector does not decide the end of the turn. It still tells that the caller is speaking: for the interruptible greeting, the answer check, and the start of the latency measurement.",
+                                fr: "Avec la transcription de cet agent, le détecteur ne décide pas de la fin du tour. Il sert toujours à savoir que l'appelant parle : pour l'accueil interruptible, la vérification du décroché et le départ de la mesure de latence.",
+                            })}
+                        </p>
+                    )}
+                    {detecteur.map((cle) => r(cle))}
                 </Intertitre>
             )}
 
@@ -314,11 +353,20 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                 </Intertitre>
             )}
 
-            {groupeVisible(inachevee, !tourPiloteAilleurs) && (
+            {/* C9 (D-C9-3): built under any transcription; what it does there is frozen by a test. */}
+            {groupeVisible(inachevee, true) && (
                 <Intertitre id="tour-inachevee" titre={{ en: "Unfinished sentence", fr: "Phrase inachevée" }}>
-                    {r("filter_incomplete_user_turns", !tourPiloteAilleurs)}
-                    {r("incomplete_short_timeout", !tourPiloteAilleurs && Boolean(brouillon.filter_incomplete_user_turns))}
-                    {r("incomplete_long_timeout", !tourPiloteAilleurs && Boolean(brouillon.filter_incomplete_user_turns))}
+                    {tourPiloteAilleurs && (
+                        <p className="text-xs text-muted-foreground" data-note="inachevee-sous-tours-externes">
+                            {t({
+                                en: "With this agent's transcription, switched on: the end of turn it signals only wakes the model, which then decides whether the caller has finished.",
+                                fr: "Avec la transcription de cet agent, allumée : la fin de tour qu'elle signale ne fait que réveiller le modèle, qui décide alors si l'appelant a fini.",
+                            })}
+                        </p>
+                    )}
+                    {r("filter_incomplete_user_turns")}
+                    {r("incomplete_short_timeout", Boolean(brouillon.filter_incomplete_user_turns))}
+                    {r("incomplete_long_timeout", Boolean(brouillon.filter_incomplete_user_turns))}
                 </Intertitre>
             )}
         </Theme>

@@ -117,49 +117,77 @@ describe("[.mark] the agent page in themes", () => {
         // Every key of the inventory, one after the other: slow under a full run.
     }, 30000);
 
-    it("hides the turn-taking settings when the transcription drives the turns, and keeps the noise filter", async () => {
-        await ouvrir({}, FLUX);
-        const tour = ouvrirLeTheme("tour");
-        expect(tour.querySelector('[data-note="tour-pilote"]')).not.toBeNull();
-        for (const id of ["user_speech_timeout", "stt_ttfs_p99_latency", "user_turn_stop_timeout", "turn_wait_for_transcript", "turn_start_use_interim", "vad_confidence", "audio_idle_timeout", "filter_incomplete_user_turns"]) {
-            expect(document.getElementById(id), id).toBeNull();
-        }
-        // What does not depend on who drives the turns stays.
-        expect(document.getElementById("turn_stop_strategy")).not.toBeNull();
-        expect(document.getElementById("mute_always")).not.toBeNull();
-        ouvrirLeTheme("ecoute");
-        expect(document.getElementById("audio_in_noise_filter")).not.toBeNull();
-    });
+    // C9 (chantier correctifs-banc-34, question n° 272): under a transcription
+    // that decides the turns, the screen shows what plays and hides what does
+    // not -- the table frozen in `api/tests/mark/test_traversants_appel.py`.
+    const JOUENT = [
+        "vad_confidence",
+        "vad_start_secs",
+        "vad_stop_secs",
+        "vad_min_volume",
+        "audio_idle_timeout",
+        "user_turn_stop_timeout",
+        "filter_incomplete_user_turns",
+    ];
+    const NE_JOUENT_PAS = ["user_speech_timeout", "stt_ttfs_p99_latency", "turn_wait_for_transcript", "turn_start_use_interim"];
+    const SONIOX_DECIDE = { stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: true } };
+
+    for (const [nom, transcription] of [["Flux", FLUX], ["Soniox deciding", SONIOX_DECIDE]] as const) {
+        it(`${nom}: shows the settings that play, hides the ones that do not, and says which is which`, async () => {
+            await ouvrir({ turn_stop_strategy: "turn_analyzer", turn_start_strategy: "min_words" }, transcription);
+            const tour = ouvrirLeTheme("tour");
+            for (const id of JOUENT) expect(document.getElementById(id), id).not.toBeNull();
+            for (const id of [...NE_JOUENT_PAS, "smart_turn_pre_speech_ms", "smart_turn_max_duration_secs"]) {
+                expect(document.getElementById(id), id).toBeNull();
+            }
+            const note = tour.querySelector('[data-note="tour-pilote"]');
+            expect(note).not.toBeNull();
+            expect(note?.textContent).not.toMatch(/builds none|ne construit aucun/i);
+            // D-C9-2 and D-C9-4: the two strategies stay, each saying it has no effect here.
+            expect(document.getElementById("turn_stop_strategy")).not.toBeNull();
+            expect(document.getElementById("turn_start_strategy")).not.toBeNull();
+            expect(tour.querySelector('[data-note="sans-effet-fin-de-tour"]')).not.toBeNull();
+            expect(tour.querySelector('[data-note="sans-effet-interruption"]')).not.toBeNull();
+            // D-C9-1: the voice detector says what it still commands.
+            expect(tour.querySelector('[data-note="detecteur-sous-tours-externes"]')).not.toBeNull();
+            expect(document.getElementById("mute_always")).not.toBeNull();
+            ouvrirLeTheme("ecoute");
+            expect(document.getElementById("audio_in_noise_filter")).not.toBeNull();
+        });
+    }
 
     it("shows them for an agent on nova, the same rule the other way", async () => {
         await ouvrir({}, NOVA);
         const tour = ouvrirLeTheme("tour");
         expect(tour.querySelector('[data-note="tour-pilote"]')).toBeNull();
+        expect(tour.querySelector('[data-note="sans-effet-fin-de-tour"]')).toBeNull();
+        expect(tour.querySelector('[data-note="sans-effet-interruption"]')).toBeNull();
         expect(document.getElementById("user_speech_timeout")).not.toBeNull();
         expect(document.getElementById("vad_confidence")).not.toBeNull();
     });
 
     it("names a value out of range that another choice hides, blocks the theme, and « show » reveals it", async () => {
-        await ouvrir({ vad_confidence: 2 }, FLUX);
+        // C9: the detector is shown under Flux now; the pause stays hidden there.
+        await ouvrir({ user_speech_timeout: 11 }, FLUX);
         // The red dot, on the theme and in the navigation, before anything is opened.
         expect(document.querySelector('[data-theme="tour"] [data-pastille="erreur"]')).not.toBeNull();
         await waitFor(() => expect(document.querySelector('[data-navigation="tour"] [data-pastille="erreur"]')).not.toBeNull());
 
         ouvrirLeTheme("tour");
-        expect(document.getElementById("vad_confidence")).toBeNull();
+        expect(document.getElementById("user_speech_timeout")).toBeNull();
         const alerte = screen.getByRole("alert");
-        expect(alerte.textContent).toContain("Confidence required");
-        expect(alerte.textContent).toContain("vad_confidence");
-        expect(alerte.textContent).toContain("Must be at most 1.");
+        expect(alerte.textContent).toContain("Pause before the agent answers");
+        expect(alerte.textContent).toContain("user_speech_timeout");
+        expect(alerte.textContent).toContain("at most 10");
         expect((screen.getByRole("button", { name: "Save Turn taking" }) as HTMLButtonElement).disabled).toBe(true);
 
         fireEvent.click(screen.getByRole("button", { name: "show" }));
         const champ = await waitFor(() => {
-            const trouve = document.getElementById("vad_confidence");
+            const trouve = document.getElementById("user_speech_timeout");
             if (!trouve) throw new Error("not revealed yet");
             return trouve as HTMLInputElement;
         });
-        expect(document.querySelector('[data-reglage="vad_confidence"]')?.textContent).toContain("shown here only so its value can be fixed");
+        expect(document.querySelector('[data-reglage="user_speech_timeout"]')?.textContent).toContain("shown here only so its value can be fixed");
 
         // Fixed, the theme can be saved.
         fireEvent.change(champ, { target: { value: "0.8" } });

@@ -132,7 +132,7 @@ PLAFOND_S = 40.0
 # --------------------------------------------------------------------------- #
 
 
-async def _monter(db_session, async_session, configurations: dict, *, lexique=None):
+async def _monter(db_session, async_session, configurations: dict, *, lexique=None, modele_stt=None):
     """Organisation, agent français, workflow publié AVEC sa configuration, run."""
     suffixe = uuid.uuid4().hex[:10]
     org = OrganizationModel(provider_id=f"test-org-traversant-{suffixe}")
@@ -146,6 +146,9 @@ async def _monter(db_session, async_session, configurations: dict, *, lexique=No
 
     modeles = copy.deepcopy(USER_CONFIGURATION)
     modeles["stt"]["language"] = "fr"  # la langue de l'agent vient d'ici (lecture, voix)
+    if modele_stt:
+        # C9 (correctifs-banc-34) : une transcription qui décide des tours (Flux).
+        modeles["stt"]["model"] = modele_stt
     await db_session.upsert_configuration(
         org.id,
         OrganizationConfigurationKey.MODEL_CONFIGURATION_V2.value,
@@ -841,3 +844,73 @@ async def test_un_telephone_ecrit_en_chiffres_arrive_au_modele_sans_fausse_refer
     llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
     await _appeler(montage, llm, ["mon numéro c'est 06.12.34.56.78"])
     assert _derniere_parole_recue(llm) == "mon numéro c'est 06 12 34 56 78"
+
+
+# --------------------------------------------------------------------------- #
+# C9, chantier correctifs-banc-34 (29/09/2026) : ce qui joue sous une
+# transcription qui décide des tours. Question du labo n° 272.
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_C9_sous_flux_les_reglages_qui_jouent_arrivent_a_l_agregateur(
+    db_session, async_session
+):
+    """La table de C9, figée sur l'appel réellement construit (Flux).
+
+    JOUENT (l'écran doit les montrer) : le détecteur de voix (Silero, construit à
+    chaque appel), `audio_idle_timeout`, `user_turn_stop_timeout`, la phrase
+    inachevée. NE JOUENT PAS : la stratégie de fin de tour (fin toujours externe),
+    la stratégie d'interruption et ses mots minimum (début toujours externe).
+
+    D-C9-3, constaté : sous Flux, la phrase inachevée ENVELOPPE la fin externe.
+    La fin signalée par Flux ne fait plus que déclencher le modèle ; c'est le
+    modèle qui finalise le tour (signe de complétude en tête de réponse)."""
+    from pipecat.turns.user_start import ExternalUserTurnStartStrategy
+    from pipecat.turns.user_stop import (
+        ExternalUserTurnStopStrategy,
+        LLMTurnCompletionUserTurnStopStrategy,
+    )
+
+    montage = await _monter(
+        db_session,
+        async_session,
+        {
+            "vad_confidence": 0.55,
+            "vad_start_secs": 0.3,
+            "audio_idle_timeout": 2.5,
+            "user_turn_stop_timeout": 12.0,
+            "filter_incomplete_user_turns": True,
+            "incomplete_short_timeout": 4.0,
+            "turn_stop_strategy": "turn_analyzer",
+            "turn_start_strategy": "min_words",
+            "turn_start_min_words": 4,
+        },
+        modele_stt="flux-general-multi",
+    )
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    releve = {}
+
+    async def relever(_tache, agregateur, _voix):
+        releve["params"] = agregateur._params
+
+    await _appeler(montage, llm, [], apres=relever)
+    params = releve["params"]
+    # Jouent.
+    assert params.vad_analyzer is not None
+    assert params.vad_analyzer.params.confidence == pytest.approx(0.55)
+    assert params.vad_analyzer.params.start_secs == pytest.approx(0.3)
+    assert params.audio_idle_timeout == pytest.approx(2.5)
+    assert params.user_turn_stop_timeout == pytest.approx(12.0)
+    assert params.filter_incomplete_user_turns is True
+    strategies = params.user_turn_strategies
+    # Ne jouent pas : début et fin externes, quoi que demandent les stratégies.
+    assert all(isinstance(s, ExternalUserTurnStartStrategy) for s in strategies.start), strategies.start
+    arret = [type(s).__name__ for s in strategies.stop]
+    assert "TurnAnalyzerUserTurnStopStrategy" not in arret, arret
+    # D-C9-3 : la phrase inachevée enveloppe la fin externe (le modèle finalise).
+    assert any(isinstance(s, LLMTurnCompletionUserTurnStopStrategy) for s in strategies.stop), arret
+    assert any(
+        isinstance(getattr(s, "inner", s), ExternalUserTurnStopStrategy) for s in strategies.stop
+    ), arret
