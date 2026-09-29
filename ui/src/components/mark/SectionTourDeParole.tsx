@@ -155,7 +155,7 @@ export const SectionTourDeParole = ({
                     <h3 className="text-sm font-semibold mb-1">Turn taking</h3>
                     <p className="text-xs text-muted-foreground">
                         Hidden for this agent: its transcription service decides the turn
-                        boundaries itself (Deepgram Flux, Cartesia ink-2), or it runs a
+                        boundaries itself (Deepgram Flux, Cartesia ink-2, Soniox), or it runs a
                         realtime model that does. The pipeline follows those signals and
                         builds none of these settings, so showing them here would show
                         values that play no part in the call.

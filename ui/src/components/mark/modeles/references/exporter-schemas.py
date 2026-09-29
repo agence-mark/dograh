@@ -23,7 +23,7 @@ from api.services.configuration.registry import REGISTRY, ServiceType  # noqa: E
 FOURNISSEURS = {
     "llm": (ServiceType.LLM, ["mistral"]),
     "tts": (ServiceType.TTS, ["elevenlabs"]),
-    "stt": (ServiceType.STT, ["deepgram"]),
+    "stt": (ServiceType.STT, ["deepgram", "soniox"]),
 }
 
 SORTIE = Path(__file__).with_name("schemas-fournisseurs.json")

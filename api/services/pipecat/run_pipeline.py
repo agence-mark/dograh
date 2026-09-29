@@ -1024,6 +1024,7 @@ async def _run_pipeline_impl(
                 ),
             ),
             collecter_reglages_tour_de_parole(run_configs).stt_ttfs_p99_latency,
+            pilote_les_tours=stt_uses_external_turns(user_config),
         )
         tts = create_tts_service(
             user_config,

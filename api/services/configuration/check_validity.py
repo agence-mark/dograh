@@ -16,6 +16,7 @@ from api.services.configuration.registry import (
     MISTRAL_EU_BASE_URL,
     ServiceConfig,
     ServiceProviders,
+    region_soniox,
 )
 from api.services.mps_service_key_client import mps_service_key_client
 from api.utils.url_security import validate_user_configured_service_url
@@ -58,6 +59,7 @@ class UserConfigurationValidator:
             ServiceProviders.CAMB.value: self._check_camb_api_key,
             ServiceProviders.AWS_BEDROCK.value: self._check_aws_bedrock_api_key,
             ServiceProviders.SPEACHES.value: self._check_speaches_api_key,
+            ServiceProviders.SONIOX.value: self._check_soniox_api_key,
             ServiceProviders.HUGGINGFACE.value: self._check_huggingface_api_key,
             ServiceProviders.GOOGLE_VERTEX.value: self._check_google_vertex_llm_api_key,
             ServiceProviders.OPENAI_REALTIME.value: self._check_openai_api_key,
@@ -247,9 +249,51 @@ class UserConfigurationValidator:
             ServiceProviders.ATLASCLOUD.value,
             ServiceProviders.OPENAI_REALTIME.value,
             ServiceProviders.MISTRAL.value,
+            ServiceProviders.SONIOX.value,
         ):
             return validator(provider, api_key, service_config)
         return validator(provider, api_key)
+
+    def _check_soniox_api_key(
+        self,
+        provider: str,
+        api_key: str,
+        service_config: Optional[ServiceConfig] = None,
+    ) -> bool:
+        """[.mark] Check a Soniox key against the API of the address's region.
+
+        Upstream checks every key against api.soniox.com; a key of a project
+        Soniox has moved to Europe may be refused there. Decision of Evan and
+        Pierre, 2026-09-29: the European API when the address is European
+        (the default, and an empty address), the global one otherwise. Only
+        the key leaves, never audio.
+        """
+        base_url = getattr(service_config, "base_url", None) if service_config else None
+        hote = "api.eu.soniox.com" if region_soniox(base_url) == "eu" else "api.soniox.com"
+        try:
+            response = httpx.get(
+                f"https://{hote}/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            return True
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in (401, 403):
+                raise ValueError(
+                    "Invalid Soniox API key. The key was rejected by the Soniox API "
+                    f"({hote}). Please verify that your API key is correct and active, "
+                    "and that its project is in the region of the address."
+                ) from exc
+            raise ValueError(
+                "The Soniox API returned an error while validating the API key. "
+                "Please try again later."
+            ) from exc
+        except httpx.RequestError as exc:
+            raise ValueError(
+                "Could not connect to the Soniox API. Please check your network "
+                "connection and try again."
+            ) from exc
 
     def _check_mistral_api_key(
         self,

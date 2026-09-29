@@ -59,6 +59,7 @@ from .smallest import (
     SMALLEST_TTS_PRO_VOICES,
     SMALLEST_TTS_VOICES,
 )
+from .soniox import SONIOX_STT_LANGUAGES, SONIOX_STT_MODELS
 from .speechmatics import SPEECHMATICS_STT_LANGUAGES
 
 __all__ = [
@@ -113,5 +114,7 @@ __all__ = [
     "SMALLEST_TTS_MODELS",
     "SMALLEST_TTS_PRO_VOICES",
     "SMALLEST_TTS_VOICES",
+    "SONIOX_STT_LANGUAGES",
+    "SONIOX_STT_MODELS",
     "SPEECHMATICS_STT_LANGUAGES",
 ]

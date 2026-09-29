@@ -87,7 +87,7 @@ echo "Installing pipecat dependencies..."
 # extras `mistral` et `rnnoise` y sont rajoutes. ⛔ Cette liste doit rester
 # IDENTIQUE a celle de `api/Dockerfile` : le 08/09/2026, `mistral` manquait dans
 # ce second chemin d'installation (celui de la CI) et la suite entiere tombait.
-pipecat_install_args=(-e './pipecat[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic]')
+pipecat_install_args=(-e './pipecat[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic,soniox]')
 
 if [ "$DEV_MODE" -eq 1 ]; then
     # Resolve dev tools with runtime dependencies so grpcio-tools cannot
