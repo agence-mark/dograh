@@ -288,6 +288,25 @@ def est_cite(valeur: Any, paroles: Iterable[str]) -> bool:
     return any(essai and all(dit(mot) for mot in essai) for essai in essais)
 
 
+# D-C5 (chantier correctifs-banc-34, run 883) : à partir de ce nombre de mots, une
+# valeur est une phrase, et une phrase se dit d'un tenant.
+MOTS_D_UNE_PHRASE = 4
+
+
+def est_dit_tel_quel(valeur: Any, paroles: Iterable[str]) -> bool:
+    """Le contrôle « dit tel quel » d'un champ dicté sans module.
+
+    D-C5 (formulaire d'Evan, 29/09) : une phrase (``MOTS_D_UNE_PHRASE`` mots ou plus)
+    doit avoir tous ses mots dans UNE même réplique de l'appelant, dans n'importe
+    quel ordre. Au run 883, « poêle », dit au tour 3, faisait accepter au tour 6 une
+    phrase du tour 2 où il n'était pas. En dessous, la règle d'avant : chaque mot dit
+    à un moment de l'appel (un nom, une référence dictés en plusieurs fois)."""
+    paroles = list(paroles)
+    if len(_mots(str(valeur))) < MOTS_D_UNE_PHRASE:
+        return est_cite(valeur, paroles)
+    return any(est_cite(valeur, [parole]) for parole in paroles)
+
+
 # C13 (PB2) : les mots qui ne portent rien. Un déduit ancré sur « pour » ou
 # « avec » ne serait ancré sur rien.
 MOTS_VIDES = frozenset(
@@ -1519,7 +1538,8 @@ def ecrire_dans_la_fiche(
             # Revue du 25/09 : un oui/non n'est jamais « dit » tel quel (la
             # personne ne prononce pas « true ») ; il se juge comme un déduit.
             and definition.type != "boolean"
-            and not est_cite(valeur, paroles)
+            # D-C5 : une phrase se dit dans une même réplique.
+            and not est_dit_tel_quel(valeur, paroles)
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:
@@ -1658,6 +1678,12 @@ CONSIGNE_BALAYAGE = (
 )
 
 
+def _est_un_morceau(mots: list[str], dans: list[str]) -> bool:
+    """D-C3bis : ``mots`` se lit d'un seul tenant dans ``dans``."""
+    n = len(mots)
+    return any(dans[i : i + n] == mots for i in range(len(dans) - n + 1))
+
+
 def _recopie_d_un_autre_champ(
     reglages: ReglagesFiche, fiche: dict, champ: str, valeur: Any
 ) -> str | None:
@@ -1674,7 +1700,23 @@ def _recopie_d_un_autre_champ(
     for autre in reglages.champs:
         if autre.nom == champ or _est_vide(fiche.get(autre.nom)):
             continue
-        if mots == _mots(str(fiche[autre.nom])):
+        mots_de_l_autre = _mots(str(fiche[autre.nom]))
+        if mots == mots_de_l_autre:
+            return autre.nom
+        # D-C3bis (formulaire d'Evan, 29/09, runs 864, 873, 883, 892) : une PHRASE
+        # DÉDUITE qui est un MORCEAU d'un seul tenant d'un champ DICTÉ est une
+        # recopie des mots de la personne, pas un résumé (le symptôme rempli avec la
+        # demande tronquée). Resserrée au rejeu, trois vraies valeurs gardées : entre
+        # deux déduits (le motif du 875 dans le symptôme), entre deux dictés
+        # (l'appelant du 884 dans la demande), et un résumé dont les mots sont dans
+        # la demande sans en être un morceau (le projet du 845). En dessous d'une
+        # phrase, l'inclusion reste permise (PB1 : « poêle à granulés » dans le motif).
+        if (
+            len(mots) >= MOTS_D_UNE_PHRASE
+            and reglages.par_nom[champ].origine == OrigineChamp.deduit
+            and autre.origine == OrigineChamp.dicte
+            and _est_un_morceau(mots, mots_de_l_autre)
+        ):
             return autre.nom
     return None
 
@@ -1721,6 +1763,12 @@ def _refus_du_balayage(
     """
     if champ.origine == OrigineChamp.deduit:
         return _refus_d_un_deduit(reglages, fiche, champ, valeur, paroles)
+    if champ.valeurs:
+        # D-C3 (formulaire d'Evan, 29/09, runs 881 et 893) : un champ DICTÉ à liste
+        # (« oui » / « non ») ne s'écrit qu'au moment de la réponse, par l'outil. La
+        # passe de fin n'a plus la question sous les yeux : un « oui » dit à autre
+        # chose y devenait la réponse.
+        return "dicte_a_liste_hors_outil"
     copie = _recopie_d_un_autre_champ(reglages, fiche, champ.nom, valeur)
     if copie:
         return f"recopie_de_{copie}"
