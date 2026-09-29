@@ -1,0 +1,234 @@
+{
+ "mesures": {
+  "882": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "numero_dicte": "faux"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "granulés->a_confirmer",
+    "l'appareil->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "883": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "numero_dicte": "juste_sur",
+    "dernier_entretien": "faux"
+   },
+   "confirmations_demandees": 2,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "bois->a_confirmer",
+    "novembre de l'an->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "884": {
+   "cibles": {
+    "nom": "juste_sur",
+    "commune": "vide",
+    "code_postal": "vide",
+    "adresse_intervention": "vide",
+    "numero_dicte": "juste_sur",
+    "type_logement": "juste_sur",
+    "conduit_existant": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "granulés->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  },
+  "885": {
+   "cibles": {
+    "nom": "juste_sur",
+    "reference_facture": "juste_sur",
+    "reference_commande": "juste_sur",
+    "numero_dicte": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "la f->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  },
+  "887": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "numero_dicte": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "Colin->a_confirmer",
+    "l'allumage->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  },
+  "888": {
+   "cibles": {
+    "nom": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "numero_dicte": "juste_sur",
+    "type_logement": "faux"
+   },
+   "confirmations_demandees": 1,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [],
+   "tours_avec_note_du_lexique": 0
+  },
+  "889": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "numero_dicte": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "noircit->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "890": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "numero_dicte": "juste_sur",
+    "dernier_entretien": "juste_sur"
+   },
+   "confirmations_demandees": 1,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [
+    "Ferry->Ferroli"
+   ],
+   "communes_hors_cible": [
+    "granulés->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "891": {
+   "cibles": {
+    "nom": "faux",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "numero_dicte": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "Edil->a_confirmer",
+    "granulés->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  },
+  "892": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "numero_dicte": "juste_sur",
+    "reference_facture": "juste_sur",
+    "symptome": "faux"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "brousse->a_confirmer",
+    "l'hiver->a_confirmer",
+    "ça et remonte->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "893": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_a_confirmer",
+    "numero_dicte": "juste_sur",
+    "conduit_existant": "faux"
+   },
+   "confirmations_demandees": 3,
+   "confirmations_apres_un_oui": [
+    "11:adresse_intervention"
+   ],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "granulés fait->a_confirmer",
+    "quelqu->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "894": {
+   "cibles": {},
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [],
+   "tours_avec_note_du_lexique": 0
+  },
+  "895": {
+   "cibles": {},
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "pardon->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  }
+ },
+ "ecarts_a_la_production": [],
+ "resume": {
+  "cibles": {
+   "juste_sur": 57,
+   "faux": 6,
+   "vide": 3,
+   "juste_a_confirmer": 1
+  },
+  "confirmations_demandees": 7,
+  "confirmations_apres_un_oui": 1,
+  "marques_hors_cible": 1,
+  "communes_hors_cible": 18,
+  "tours_avec_note_du_lexique": 6,
+  "ecarts_a_la_production": 0
+ }
+}

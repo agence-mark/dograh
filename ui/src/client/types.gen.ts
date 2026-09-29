@@ -1446,6 +1446,12 @@ export type ChampFiche = {
      * Cumulative: each note is added to what the field already holds, nothing is overwritten; not checked against the caller's exact words.
      */
     cumulatif?: boolean;
+    /**
+     * Chiffres
+     *
+     * Digits: how many digits the value must hold (spaces and signs ignored); a value with more or fewer is refused and the caller is asked for it again in full. Empty: no check.
+     */
+    chiffres?: number | null;
 };
 
 /**

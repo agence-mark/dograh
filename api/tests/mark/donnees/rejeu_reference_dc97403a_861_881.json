@@ -1,0 +1,397 @@
+{
+ "mesures": {
+  "861": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "arrivé hier->a_confirmer",
+    "granulés->a_confirmer",
+    "i r e->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "862": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "L'an->a_confirmer",
+    "bois->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 2
+  },
+  "863": {
+   "cibles": {
+    "nom": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "granulés->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  },
+  "864": {
+   "cibles": {
+    "nom": "juste_sur",
+    "reference_facture": "juste_sur",
+    "reference_commande": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [],
+   "tours_avec_note_du_lexique": 0
+  },
+  "865": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "vide",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "faux"
+   },
+   "confirmations_demandees": 2,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "aussi->a_confirmer",
+    "l'allumage->a_confirmer",
+    "roux, r o u->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  },
+  "866": {
+   "cibles": {
+    "nom": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "toujours->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  },
+  "867": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "depuis->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  },
+  "868": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur"
+   },
+   "confirmations_demandees": 1,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "cent lits->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "869": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "numero_dicte": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "depuis->a_confirmer",
+    "granulés->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "870": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "faux",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "faux",
+    "reference_facture": "juste_sur",
+    "reference_commande": "juste_sur"
+   },
+   "confirmations_demandees": 1,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "Bonne->a_confirmer",
+    "bois->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  },
+  "871": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "granulés->a_confirmer",
+    "quelqu->a_confirmer",
+    "toujours->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "872": {
+   "cibles": {},
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [],
+   "tours_avec_note_du_lexique": 0
+  },
+  "873": {
+   "cibles": {
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "granulés->a_confirmer",
+    "l i e r->a_confirmer",
+    "la marque->a_confirmer",
+    "mars->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 2
+  },
+  "874": {
+   "cibles": {},
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [],
+   "tours_avec_note_du_lexique": 0
+  },
+  "875": {
+   "cibles": {
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "Depuis->a_confirmer",
+    "Donc ok->a_confirmer",
+    "bois->a_confirmer",
+    "juste->a_confirmer",
+    "l'allumage->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "876": {
+   "cibles": {
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "Okay->a_confirmer",
+    "granulés->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  },
+  "877": {
+   "cibles": {
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "numero_dicte": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "Okay,\nd'accord->a_confirmer",
+    "granulés->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "878": {
+   "cibles": {
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "numero_dicte": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "granulé->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "879": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "reference_facture": "juste_sur",
+    "reference_commande": "juste_sur"
+   },
+   "confirmations_demandees": 0,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "L'an->a_confirmer",
+    "bois->a_confirmer",
+    "fort f->a_confirmer",
+    "u r e->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  },
+  "880": {
+   "cibles": {
+    "nom": "juste_sur",
+    "commune": "vide",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "reference_facture": "juste_sur",
+    "reference_commande": "juste_sur"
+   },
+   "confirmations_demandees": 1,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [
+    "Nobis->Nobis"
+   ],
+   "communes_hors_cible": [
+    "Nobis->a_confirmer",
+    "bois->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 0
+  },
+  "881": {
+   "cibles": {
+    "nom": "juste_sur",
+    "marque_appareil": "juste_sur",
+    "commune": "juste_sur",
+    "code_postal": "juste_sur",
+    "adresse_intervention": "juste_sur",
+    "reference_facture": "juste_sur",
+    "reference_commande": "juste_sur"
+   },
+   "confirmations_demandees": 2,
+   "confirmations_apres_un_oui": [],
+   "marques_hors_cible": [],
+   "communes_hors_cible": [
+    "bois->a_confirmer",
+    "sorte->a_confirmer"
+   ],
+   "tours_avec_note_du_lexique": 1
+  }
+ },
+ "ecarts_a_la_production": [
+  "862:4 a_confirmer -> rien_note",
+  "862:9 ambigu -> note",
+  "863:fiche commune 'Brûle-Vert' -> 'Breuil-le-Vert'",
+  "863:10 ambigu -> note",
+  "863:11 ambigu -> note",
+  "864:fiche reference_commande 'FA20457' -> None",
+  "865:fiche marque_appareil 'insert' -> None",
+  "866:7 ambigu -> note",
+  "866:8 ambigu -> note",
+  "869:2 a_confirmer -> note",
+  "869:3 a_confirmer -> note",
+  "870:fiche reference_commande 'FA31208' -> None",
+  "870:fiche adresse_intervention 'aux deux places Victor Hugo 60180, nos gens sûroises' -> '2 Place Victor Hugo, Nogent-sur-Oise'",
+  "870:7 rien_note -> note",
+  "871:fiche verbatim_demande 'mon poêle à granulés Rika fait un bruit bizarre' -> None",
+  "871:8 a_confirmer -> note",
+  "871:9 a_confirmer -> note",
+  "873:3 a_confirmer -> note",
+  "873:9 ambigu -> note",
+  "873:10 ambigu -> note",
+  "873:11 ambigu -> note",
+  "875:6 a_confirmer -> note",
+  "875:7 a_confirmer -> note",
+  "875:8 a_confirmer -> note",
+  "875:13 a_confirmer -> note",
+  "875:14 ambigu -> note",
+  "879:fiche reference_commande 'FA40712' -> None",
+  "879:5 rien_note -> note",
+  "879:10 ambigu -> note",
+  "879:11 ambigu -> note",
+  "880:fiche reference_commande 'FA40712' -> None",
+  "880:fiche commune '60700' -> None",
+  "880:11 a_confirmer -> note",
+  "881:fiche reference_commande 'FA2050' -> None",
+  "881:2 a_confirmer -> note",
+  "881:3 a_confirmer -> note",
+  "881:10 a_confirmer -> note"
+ ],
+ "resume": {
+  "cibles": {
+   "juste_sur": 88,
+   "vide": 2,
+   "faux": 3
+  },
+  "confirmations_demandees": 7,
+  "confirmations_apres_un_oui": 0,
+  "marques_hors_cible": 1,
+  "communes_hors_cible": 41,
+  "tours_avec_note_du_lexique": 13,
+  "ecarts_a_la_production": 37
+ }
+}

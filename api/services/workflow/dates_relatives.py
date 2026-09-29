@@ -49,6 +49,29 @@ _TOURNURES: list[tuple[re.Pattern[str], Callable[[re.Match[str]], str]]] = [
     (re.compile(r"(?<!avant-)\bhier\b"), lambda m: "hier"),
     (re.compile(r"\bcette annee\b"), lambda m: "cette année"),
 ]
+# C4 (chantier correctifs-banc-34, run 883) : « novembre de l'an dernier » était
+# repéré par sa fin et calculé en année seule (« 2025 ») : le mois dit était perdu.
+# Un mois nommé devant l'année relative garde sa précision : « 11/2025 ».
+_NOMS_DES_MOIS = (
+    "janvier",
+    "fevrier",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "aout",
+    "septembre",
+    "octobre",
+    "novembre",
+    "decembre",
+)
+_MOIS_DE_L_ANNEE = re.compile(
+    rf"\b({'|'.join(_NOMS_DES_MOIS)}) (?:de )?(?:(l'(?:annee|an) (?:derniere|dernier|passee|passe))|(cette annee))\b"
+)
+_MOIS_NOMME_ANNEE = re.compile(
+    rf"^({'|'.join(_NOMS_DES_MOIS)}) ((?:19|20)\d{{2}})$"
+)
 _ANNEE = re.compile(r"^(19|20)\d{2}$")
 _MOIS_ANNEE = re.compile(r"^(0?[1-9]|1[0-2])/(19|20)\d{2}$")
 _JOUR = re.compile(r"^\d{1,2}/\d{1,2}/(19|20)\d{2}$")
@@ -84,27 +107,55 @@ def _format(expression: str, date: datetime) -> str:
     return f"{date.day:02d}/{date.month:02d}/{date.year}"
 
 
+def _calculer(expression: str, jour: datetime) -> str | None:
+    date = dateparser.parse(
+        expression,
+        languages=LANGUES,
+        settings={"RELATIVE_BASE": jour, "PREFER_DATES_FROM": "past"},
+    )
+    return None if date is None else _format(expression, date)
+
+
+def _mois_de_l_annee(m: re.Match[str], jour: datetime) -> str:
+    """C4 : le mois nommé, dans l'année dite (dernière ou celle-ci)."""
+    annee = jour.year - 1 if m[2] else jour.year
+    return f"{_NOMS_DES_MOIS.index(m[1]) + 1:02d}/{annee}"
+
+
 def lire_expression(texte: str, jour: datetime) -> tuple[str, str] | None:
-    """La première date relative du texte : (mots dits, date calculée)."""
+    """La première date relative du texte : (mots dits, date calculée).
+
+    À la même position, la tournure la plus longue gagne : « novembre de l'an
+    dernier » passe avant « l'an dernier », qu'elle contient (C4)."""
     simple = _simple(texte)
     trouvees = sorted(
-        (m.start(), m.end(), calcul(m))
-        for motif, calcul in _TOURNURES
-        for m in motif.finditer(simple)
+        [
+            (m.start(), -m.end(), m.end(), lambda m=m: _mois_de_l_annee(m, jour))
+            for m in _MOIS_DE_L_ANNEE.finditer(simple)
+        ]
+        + [
+            (m.start(), -m.end(), m.end(), lambda e=calcul(m): _calculer(e, jour))
+            for motif, calcul in _TOURNURES
+            for m in motif.finditer(simple)
+        ],
+        key=lambda t: (t[0], t[1]),
     )
-    for debut, fin, expression in trouvees:
-        date = dateparser.parse(
-            expression,
-            languages=LANGUES,
-            settings={"RELATIVE_BASE": jour, "PREFER_DATES_FROM": "past"},
-        )
-        if date is not None:
-            return texte[debut:fin], _format(expression, date)
+    for debut, _, fin, calcul in trouvees:
+        valeur = calcul()
+        if valeur is not None:
+            return texte[debut:fin], valeur
     return None
+
+
+def _en_chiffres(valeur: str) -> str:
+    """C4 : « novembre 2025 », écrit par le modèle, se compare en « 11/2025 »."""
+    m = _MOIS_NOMME_ANNEE.match(_simple(valeur))
+    return f"{_NOMS_DES_MOIS.index(m[1]) + 1:02d}/{m[2]}" if m else valeur
 
 
 def _meme_date(valeur: str, calculee: str) -> bool:
     """La valeur du modèle dit-elle la même chose que la date calculée ?"""
+    valeur = _en_chiffres(valeur)
     if valeur == calculee:
         return True
     # Une année seule vaut pour toute date de cette année : « 2025 » pour
@@ -164,7 +215,8 @@ def lire_date(
     trouve = lire_expression(valeur, jour)
     if trouve:
         return DateDite(valeur=trouve[1], dit=valeur, depuis_les_paroles=False)
-    if not (_ANNEE.match(valeur) or _MOIS_ANNEE.match(valeur) or _JOUR.match(valeur)):
+    ecrite = _en_chiffres(valeur)
+    if not (_ANNEE.match(ecrite) or _MOIS_ANNEE.match(ecrite) or _JOUR.match(ecrite)):
         return None
     for parole in reversed(paroles):
         trouve = lire_expression(parole, jour)

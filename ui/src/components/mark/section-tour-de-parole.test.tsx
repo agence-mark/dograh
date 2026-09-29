@@ -159,7 +159,7 @@ describe("Section Tour de parole", () => {
         afficher({}, { tourPiloteAilleurs: true });
         expect(champ("user_speech_timeout")).toBeNull();
         expect(document.body.textContent).toMatch(
-            /decides the turn boundaries itself/i,
+            /decides the turns itself/i,
         );
     });
 });

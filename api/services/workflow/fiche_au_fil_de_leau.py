@@ -29,6 +29,7 @@ muet). Avec une autre fonction dans le tour, ou sans note : Pipecat, inchangé.
 
 from __future__ import annotations
 
+import asyncio
 import re
 import unicodedata
 from collections.abc import Callable, Iterable
@@ -58,6 +59,9 @@ from api.services.lexique.analyse import SEUIL_A_CONFIRMER
 from api.services.lexique.epellation import terme_epele
 from api.services.nombres.lecture import lire_nombres, reecrire
 from api.services.nombres.voix import en_mots
+from api.services.voies import base as base_voies
+from api.services.voies.analyse import SURE as VOIE_SURE
+from api.services.voies.analyse import analyser as analyser_voie
 from api.services.workflow.dates_relatives import est_une_date, lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
 
@@ -110,6 +114,14 @@ NOTE_DESCRIPTIONS = (
 CONSIGNE_NON_DIT = (
     "Pas noté : {champs} n'a pas été dit tel quel par la personne. Note ses mots "
     "exacts ; ne lui fais pas confirmer ta version et ne repose pas la question."
+)
+
+# C1 (chantier correctifs-banc-34, run 887) : un numéro à 11 chiffres entrait dans
+# la fiche. Le refus ne dit pas « pas dit tel quel » (ce serait faux, et pousserait à
+# relire la version du modèle) : il fait redonner la valeur en entier.
+CONSIGNE_NOMBRE_DE_CHIFFRES = (
+    "Pas noté : il manque ou il y a trop de chiffres dans {champs}. Fais redonner "
+    "le numéro en entier ; ne relis pas ta version."
 )
 
 # C3 (PB6, run 845) : le module avait Senlis, Chamant, Avilly pour « soixante
@@ -280,6 +292,31 @@ def est_cite(valeur: Any, paroles: Iterable[str]) -> bool:
     return any(essai and all(dit(mot) for mot in essai) for essai in essais)
 
 
+# D-C5 (chantier correctifs-banc-34, run 883) : à partir de ce nombre de mots, une
+# valeur est une phrase, et une phrase se dit d'un tenant.
+MOTS_D_UNE_PHRASE = 4
+
+
+def est_dit_tel_quel(valeur: Any, paroles: Iterable[str]) -> bool:
+    """Le contrôle « dit tel quel » d'un champ dicté sans module.
+
+    D-C5 (formulaire d'Evan, 29/09) : une phrase (``MOTS_D_UNE_PHRASE`` mots ou plus)
+    doit avoir tous ses mots dans UNE même réplique de l'appelant, dans n'importe
+    quel ordre. Au run 883, « poêle », dit au tour 3, faisait accepter au tour 6 une
+    phrase du tour 2 où il n'était pas. En dessous, la règle d'avant : chaque mot dit
+    à un moment de l'appel (un nom, une référence dictés en plusieurs fois)."""
+    paroles = list(paroles)
+    # Revue du 29/09 : seuls les MOTS comptent (un jeton qui porte une lettre).
+    # Un numéro ou une référence se dictent souvent en plusieurs répliques
+    # (« c'est le 06 12 34 », « 56 78 ») : leurs chiffres gardent la règle d'avant.
+    mots = [m for m in _mots(str(valeur)) if any(c.isalpha() for c in m)]
+    if len(mots) < MOTS_D_UNE_PHRASE:
+        return est_cite(valeur, paroles)
+    return est_cite(valeur, paroles) and any(
+        est_cite(" ".join(mots), [parole]) for parole in paroles
+    )
+
+
 # C13 (PB2) : les mots qui ne portent rien. Un déduit ancré sur « pour » ou
 # « avec » ne serait ancré sur rien.
 MOTS_VIDES = frozenset(
@@ -409,6 +446,30 @@ def paroles_de_l_appelant(messages: Iterable[dict]) -> list[str]:
                 if isinstance(partie, dict) and partie.get("type") == "text"
             )
     return paroles
+
+
+def derniere_question(messages: Iterable[dict]) -> str | None:
+    """C2 (run 893) : la dernière réplique de l'agent AVANT la dernière réplique de
+    l'appelant, c'est-à-dire la question à laquelle il vient de répondre."""
+    question: str | None = None
+    vue: str | None = None
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        contenu = message.get("content")
+        if isinstance(contenu, list):
+            contenu = " ".join(
+                partie.get("text", "")
+                for partie in contenu
+                if isinstance(partie, dict) and partie.get("type") == "text"
+            )
+        if not isinstance(contenu, str):
+            continue
+        if message.get("role") == "assistant" and contenu.strip():
+            vue = contenu
+        elif message.get("role") == "user":
+            question = vue
+    return question
 
 
 # --- Ce que les modules ont déjà trouvé (D23, D42) ---------------------------
@@ -980,6 +1041,8 @@ def _tour_du_dernier_ambigu(fiche: dict, champ: str | None) -> int | None:
     """Le tour où ce champ a été renvoyé « ambigu », si c'est la dernière
     réponse de l'outil pour ce champ (sinon la personne ne répond plus à ça)."""
     for entree in reversed(fiche.get(CLE_JOURNAL) or []):
+        if entree.get("sortie"):
+            continue  # C6 : une décision de sortie, pas une note de champ
         if entree.get("champ") == champ:
             if entree.get("suite") != "ambigu":
                 return None
@@ -1238,13 +1301,22 @@ def _proposition_de_commune(fiche: dict, option: Any) -> dict | None:
 
 
 def _confirmee_par_un_oui(
-    fiche: dict, definition: ChampFiche, valeur: Any, paroles: list[str]
+    fiche: dict,
+    definition: ChampFiche,
+    valeur: Any,
+    paroles: list[str],
+    question: str | None = None,
 ) -> tuple[Any, Lecture | None] | None:
     """D6 (runs 869, 871, 873, 879, 881) : la valeur à écrire SÛRE, et sa lecture,
     quand le champ était à faire confirmer au tour précédent, que la personne
     vient de dire oui, et que le modèle renvoie cette valeur ou l'une des options
     proposées (avec ou sans son complément : « Pont-Sainte-Maxence (Oise) »).
-    Sinon ``None`` : le chemin ordinaire décide."""
+    Sinon ``None`` : le chemin ordinaire décide.
+
+    C2 (chantier correctifs-banc-34, run 893) : « au tour précédent » ne suffit pas
+    quand une autre question s'intercale (la commune, puis le récapitulatif de
+    l'adresse). Un oui compte aussi quand la question à laquelle il répond REDIT
+    cette valeur : l'agent vient de la faire confirmer."""
     tour = fiche.get(CLE_TOUR)
     precedente = _derniere_note(fiche, definition.nom)
     if (
@@ -1252,8 +1324,11 @@ def _confirmee_par_un_oui(
         or not paroles
         or precedente is None
         or not precedente.get("suite")
-        or precedente.get("tour") != tour - 1
         or not est_un_oui(paroles[-1])
+    ):
+        return None
+    if precedente.get("tour") != tour - 1 and not (
+        question and est_cite(valeur, [question])
     ):
         return None
     ancienne = fiche.get(definition.nom)
@@ -1362,6 +1437,11 @@ def _est_vide(valeur: Any) -> bool:
     return valeur is None or (isinstance(valeur, str) and not valeur.strip())
 
 
+def _nombre_de_chiffres(valeur: Any) -> int:
+    """C1 : les chiffres de la valeur, espaces, points et signes ignorés."""
+    return sum(1 for c in str(valeur) if c.isdigit())
+
+
 def ecrire_dans_la_fiche(
     fiche: dict,
     reglages: ReglagesFiche,
@@ -1373,6 +1453,7 @@ def ecrire_dans_la_fiche(
     paroles: Iterable[str] = (),
     seulement_si_vide: bool = False,
     jour: datetime | None = None,
+    question: str | None = None,
 ) -> Verdict:
     """Écrit un champ dans la fiche de l'appel, ou dit pourquoi non.
 
@@ -1401,12 +1482,17 @@ def ecrire_dans_la_fiche(
     elif definition.valeurs and valeur_de_la_liste(valeur, definition.valeurs) is None:
         # PB3 : hors de la liste fermée, d'où que vienne la valeur.
         verdict = Verdict(champ, "refuse", "hors_liste", valeur)
+    elif definition.chiffres and _nombre_de_chiffres(valeur) != definition.chiffres:
+        # C1 : d'où que vienne la valeur (outil, passe de fin d'appel).
+        verdict = Verdict(champ, "refuse", "nombre_de_chiffres", valeur)
     elif (deja := _deja_confirmee(fiche, definition, valeur)) is not None:
         # D8 : une valeur confirmée, renvoyée, n'est jamais redemandée.
         valeur = deja
         verdict = Verdict(champ, "ecrit", "deja_confirmee", valeur)
     elif (
-        confirmee := _confirmee_par_un_oui(fiche, definition, valeur, paroles)
+        confirmee := _confirmee_par_un_oui(
+            fiche, definition, valeur, paroles, question
+        )
     ) is not None:
         # D6 : la personne vient de dire oui à la valeur qu'on lui faisait confirmer.
         valeur, lecture = confirmee
@@ -1503,7 +1589,8 @@ def ecrire_dans_la_fiche(
             # Revue du 25/09 : un oui/non n'est jamais « dit » tel quel (la
             # personne ne prononce pas « true ») ; il se juge comme un déduit.
             and definition.type != "boolean"
-            and not est_cite(valeur, paroles)
+            # D-C5 : une phrase se dit dans une même réplique.
+            and not est_dit_tel_quel(valeur, paroles)
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:
@@ -1512,6 +1599,10 @@ def ecrire_dans_la_fiche(
             verdict = _ecrire(
                 fiche, champ, valeur, sure, source, seulement_si_vide, lecture
             )
+            if verdict.statut == "ecrit" and epele:
+                # C6 (run 882) : la fiche sait qu'une valeur a été ÉPELÉE (lue par le
+                # module d'épellation), pas seulement dite.
+                fiche[CLE_ETAT][champ]["epele"] = True
             if verdict.statut == "ecrit" and definition.lecteur_effectif == "date":
                 extraites = fiche.setdefault("extracted_variables", {})
                 if dit is not None:
@@ -1558,6 +1649,187 @@ def ecrire_dans_la_fiche(
         # Après la commune dans le journal : c'est elle qui donne le code.
         _code_postal_de_la_commune(fiche, reglages, champ, lecture)
     return verdict
+
+
+# C6 (chantier correctifs-banc-34, runs 882 et 884) : la consigne d'une sortie
+# refusée. Le modèle reste à l'étape et demande ce qui manque.
+CONSIGNE_SORTIE_REFUSEE = (
+    "Pas encore : cette sortie demande que la fiche tienne {champs}. Demande à la "
+    "personne ce qui manque, note-le, puis reprends cette sortie."
+)
+_RAISONS_MANQUANT = {
+    "vide": "{champ}",
+    "a_confirmer": "{champ} confirmé",
+    "non_epele": "{champ} épelé lettre par lettre",
+}
+
+
+def champs_manquants(
+    reglages: ReglagesFiche, fiche: dict, requis: Iterable[str]
+) -> list[tuple[str, str]]:
+    """C6 : les champs requis par une sortie que la fiche ne tient pas encore, avec
+    la raison : ``vide``, ``a_confirmer`` (écrit non sûr), ``non_epele`` (un champ de
+    nom écrit sans épellation lue). Un nom inconnu de la fiche est ignoré (la fiche
+    a pu changer depuis la déclaration de la sortie)."""
+    etat = fiche.get(CLE_ETAT) or {}
+    manquants: list[tuple[str, str]] = []
+    for nom in requis:
+        definition = reglages.par_nom.get(nom)
+        if definition is None:
+            continue
+        propre = etat.get(nom) or {}
+        if _est_vide(fiche.get(nom)):
+            manquants.append((nom, "vide"))
+        elif not propre.get("sure"):
+            manquants.append((nom, "a_confirmer"))
+        elif est_un_champ_de_nom(definition) and not propre.get("epele"):
+            manquants.append((nom, "non_epele"))
+    return manquants
+
+
+# D-C6-secours (Evan, 29/09, relecture) : au-delà de ce nombre de refus d'une même
+# sortie dans l'appel, elle passe, notée au journal. Un appelant qui ne sait pas
+# épeler (ou une épellation que le module ne lit pas) n'est jamais bloqué en boucle.
+REFUS_AVANT_SORTIE_FORCEE = 2
+
+
+def decider_la_sortie(
+    fiche: dict, sortie: str, manquants: list[tuple[str, str]]
+) -> str:
+    """C6 : ``"refusee"`` ou ``"forcee"`` pour une sortie à qui il manque des
+    champs, et la décision consignée au journal de la fiche (qui garde le compte
+    d'un tour à l'autre, clavier compris)."""
+    journal = fiche.setdefault(CLE_JOURNAL, [])
+    deja = sum(
+        1
+        for e in journal
+        if e.get("sortie") == sortie and e.get("statut") == "sortie_refusee"
+    )
+    statut = "sortie_forcee" if deja >= REFUS_AVANT_SORTIE_FORCEE else "sortie_refusee"
+    journal.append(
+        {
+            "champ": None,
+            "sortie": sortie,
+            "statut": statut,
+            "raison": "champs_requis_manquants",
+            "manquants": [f"{champ} ({raison})" for champ, raison in manquants],
+            **({"tour": fiche[CLE_TOUR]} if fiche.get(CLE_TOUR) else {}),
+        }
+    )
+    logger.info(
+        f"[fiche] sortie {sortie} -> {statut}, manque : "
+        + ", ".join(f"{c} ({r})" for c, r in manquants)
+    )
+    return "forcee" if statut == "sortie_forcee" else "refusee"
+
+
+def consigne_de_sortie(manquants: list[tuple[str, str]]) -> str:
+    """C6 : la consigne rendue au modèle quand une sortie est refusée."""
+    return CONSIGNE_SORTIE_REFUSEE.format(
+        champs=", ".join(
+            _RAISONS_MANQUANT[raison].format(champ=champ) for champ, raison in manquants
+        )
+    )
+
+
+@dataclass(frozen=True)
+class RueARelire:
+    """C2 : une rue « à confirmer » à relire dans les rues d'une commune devenue sûre."""
+
+    champ: str
+    texte: str
+    insee: str
+    commune: str | None
+
+
+def rues_a_relire(fiche: dict, reglages: ReglagesFiche) -> list[RueARelire]:
+    """C2 (chantier correctifs-banc-34, run 893) : les rues à relire quand la
+    commune devient sûre. Rapide, dans la boucle de l'appel.
+
+    La rue n'est lue par le module qu'au tour où une commune SÛRE est connue ; une
+    rue dite avec une commune entendue de travers (« Lyon-Cours »), puis la commune
+    confirmée au tour suivant, n'était jamais relue. ⚠️ Exception assumée à « l'outil
+    ne ré-analyse rien » (D23) : la phrase est celle que le modèle a notée, la base
+    est celle du module, et seul un verdict SÛR écrit quelque chose.
+
+    Une seule commune déclarée dans la fiche, sinon rien (on ne sait pas laquelle vaut).
+    """
+    communes = [c.nom for c in reglages.champs if c.lecteur_effectif == "commune"]
+    if len(communes) != 1:
+        return []
+    commune = communes[0]
+    etat = fiche.get(CLE_ETAT) or {}
+    insee = fiche.get(cle_insee(commune))
+    if not insee or not (etat.get(commune) or {}).get("sure"):
+        return []
+    return [
+        RueARelire(
+            champ.nom,
+            str(fiche.get(champ.nom)),
+            str(insee),
+            str(fiche.get(commune) or "") or None,
+        )
+        for champ in reglages.champs
+        if champ.lecteur_effectif == "rue"
+        and not _est_vide(fiche.get(champ.nom))
+        and not (etat.get(champ.nom) or {}).get("sure")
+    ]
+
+
+def analyser_les_rues(rues: list[RueARelire]) -> list[tuple[RueARelire, str]]:
+    """C2 : le CALCUL seul, bloquant (base des rues), à lancer hors de la boucle.
+    Rend chaque rue trouvée SÛRE avec son écriture officielle. N'écrit rien
+    (revue du 29/09 : la fiche ne s'écrit que dans la boucle de l'appel)."""
+    trouvees: list[tuple[RueARelire, str]] = []
+    for rue in rues:
+        try:
+            detection = analyser_voie(
+                rue.texte, base_voies.voies_de(rue.insee), rue.commune
+            )
+        except Exception as erreur:  # noqa: BLE001 -- une relecture ne coûte jamais l'appel
+            logger.warning(f"[fiche] rue non relue : {erreur!r}")
+            continue
+        if detection.statut != VOIE_SURE or not detection.retenue:
+            continue
+        portee = _trouver(rue.texte, detection.entendu or "") or _trouver(
+            rue.texte, detection.retenue
+        )
+        if portee is None:
+            continue
+        portee = _avec_le_type_de_voie(rue.texte, portee, detection.retenue)
+        trouvees.append((rue, _remplacer(rue.texte, portee, detection.retenue)))
+    return trouvees
+
+
+def ecrire_les_rues_relues(
+    fiche: dict, reglages: ReglagesFiche, trouvees: list[tuple[RueARelire, str]]
+) -> dict[str, str]:
+    """C2 : l'écriture, de retour dans la boucle, seulement si rien n'a bougé
+    pendant le calcul (même commune, même rue, toujours non sûre)."""
+    relues: dict[str, str] = {}
+    encore = {(r.champ, r.texte, r.insee) for r in rues_a_relire(fiche, reglages)}
+    for rue, nouvelle in trouvees:
+        if (rue.champ, rue.texte, rue.insee) not in encore:
+            logger.info(
+                f"[fiche] rue {rue.champ} non réécrite : la fiche a changé pendant la relecture"
+            )
+            continue
+        verdict = _ecrire(fiche, rue.champ, nouvelle, True, "rue", False, None)
+        fiche.setdefault(CLE_JOURNAL, []).append(
+            {
+                "champ": rue.champ,
+                "valeur": nouvelle,
+                "statut": verdict.statut,
+                "raison": "rue_relue_apres_la_commune",
+                "source": "rue",
+                "sure": True,
+                **({"tour": fiche[CLE_TOUR]} if fiche.get(CLE_TOUR) else {}),
+            }
+        )
+        logger.info(f"[fiche] rue {rue.champ} -> {verdict.statut} (relue après la commune)")
+        if verdict.statut == "ecrit":
+            relues[rue.champ] = nouvelle
+    return relues
 
 
 def _code_postal_de_la_commune(
@@ -1608,8 +1880,13 @@ def _ecrire(
         # D6 : une valeur non sûre n'écrase jamais une valeur sûre.
         return Verdict(champ, "refuse", "non_sure_sur_sure", valeur)
     extraites = fiche.setdefault("extracted_variables", {})
+    # C6 : un nom épelé le reste tant que sa valeur ne change pas (un oui qui le
+    # confirme, une note qui le redit).
+    epele = bool(precedent and precedent.get("epele")) and _memes_mots(
+        valeur, fiche.get(champ)
+    )
     fiche[champ] = extraites[champ] = valeur
-    etat[champ] = {"sure": sure, "source": source}
+    etat[champ] = {"sure": sure, "source": source, **({"epele": True} if epele else {})}
     if lecture is not None and lecture.code_insee and sure:
         fiche[cle_insee(champ)] = extraites[cle_insee(champ)] = lecture.code_insee
     elif lecture is not None:
@@ -1642,6 +1919,12 @@ CONSIGNE_BALAYAGE = (
 )
 
 
+def _est_un_morceau(mots: list[str], dans: list[str]) -> bool:
+    """D-C3bis : ``mots`` se lit d'un seul tenant dans ``dans``."""
+    n = len(mots)
+    return any(dans[i : i + n] == mots for i in range(len(dans) - n + 1))
+
+
 def _recopie_d_un_autre_champ(
     reglages: ReglagesFiche, fiche: dict, champ: str, valeur: Any
 ) -> str | None:
@@ -1658,7 +1941,23 @@ def _recopie_d_un_autre_champ(
     for autre in reglages.champs:
         if autre.nom == champ or _est_vide(fiche.get(autre.nom)):
             continue
-        if mots == _mots(str(fiche[autre.nom])):
+        mots_de_l_autre = _mots(str(fiche[autre.nom]))
+        if mots == mots_de_l_autre:
+            return autre.nom
+        # D-C3bis (formulaire d'Evan, 29/09, runs 864, 873, 883, 892) : une PHRASE
+        # DÉDUITE qui est un MORCEAU d'un seul tenant d'un champ DICTÉ est une
+        # recopie des mots de la personne, pas un résumé (le symptôme rempli avec la
+        # demande tronquée). Resserrée au rejeu, trois vraies valeurs gardées : entre
+        # deux déduits (le motif du 875 dans le symptôme), entre deux dictés
+        # (l'appelant du 884 dans la demande), et un résumé dont les mots sont dans
+        # la demande sans en être un morceau (le projet du 845). En dessous d'une
+        # phrase, l'inclusion reste permise (PB1 : « poêle à granulés » dans le motif).
+        if (
+            len(mots) >= MOTS_D_UNE_PHRASE
+            and reglages.par_nom[champ].origine == OrigineChamp.deduit
+            and autre.origine == OrigineChamp.dicte
+            and _est_un_morceau(mots, mots_de_l_autre)
+        ):
             return autre.nom
     return None
 
@@ -1705,6 +2004,12 @@ def _refus_du_balayage(
     """
     if champ.origine == OrigineChamp.deduit:
         return _refus_d_un_deduit(reglages, fiche, champ, valeur, paroles)
+    if champ.valeurs:
+        # D-C3 (formulaire d'Evan, 29/09, runs 881 et 893) : un champ DICTÉ à liste
+        # (« oui » / « non ») ne s'écrit qu'au moment de la réponse, par l'outil. La
+        # passe de fin n'a plus la question sous les yeux : un « oui » dit à autre
+        # chose y devenait la réponse.
+        return "dicte_a_liste_hors_outil"
     copie = _recopie_d_un_autre_champ(reglages, fiche, champ.nom, valeur)
     if copie:
         return f"recopie_de_{copie}"
@@ -1825,6 +2130,10 @@ class _Tour:
     avec_autre: bool
     avec_porte: bool = False
     question_posee: bool = False
+    # Revue du 29/09 (C6) : les notes du lot encore en cours, et le signal de
+    # leur fin, qu'une porte du même lot attend avant de lire la fiche.
+    notes: set[str] = field(default_factory=set)
+    notes_finies: asyncio.Event = field(default_factory=asyncio.Event)
 
 
 class SuiviDesTours:
@@ -1878,9 +2187,34 @@ class SuiviDesTours:
                 a.tool_call_id in self._apres_une_question for a in nouveaux
             ),
         )
+        tour.notes = {a.tool_call_id for a in nouveaux if a.function_name == NOM_OUTIL}
         self._apres_une_question.difference_update(a.tool_call_id for a in nouveaux)
         for appel in nouveaux:
             self._tours[appel.tool_call_id] = tour
+
+    def note_terminee(self, tool_call_id: str) -> None:
+        """Revue du 29/09 : cette note a fini d'écrire dans la fiche."""
+        tour = self._tours.get(tool_call_id)
+        if tour is None:
+            return
+        tour.notes.discard(tool_call_id)
+        if not tour.notes:
+            tour.notes_finies.set()
+
+    async def attendre_les_notes(self, tool_call_id: str, delai: float = 5.0) -> None:
+        """Revue du 29/09 (C6) : Pipecat lance en parallèle les fonctions d'une même
+        réponse. Une porte du lot [note, porte] vérifiait la fiche pendant que la
+        note écrivait encore (relecture de la rue) : elle attend la fin des notes
+        de SON lot, jamais plus de ``delai`` secondes."""
+        tour = self._tours.get(tool_call_id)
+        if tour is None or not tour.notes:
+            return
+        try:
+            await asyncio.wait_for(tour.notes_finies.wait(), delai)
+        except TimeoutError:
+            logger.warning(
+                "[fiche] porte : notes du même lot toujours en cours, fiche lue telle quelle"
+            )
 
     def relance(self, tool_call_id: str) -> bool | None:
         """``True`` pour le dernier résultat du tour, ``False`` pour les autres,
@@ -1976,6 +2310,9 @@ def _propriete(champ: ChampFiche) -> dict:
     fermée sont montrées à qui écrit, depuis la déclaration du champ (« poêle »
     refusé hors liste, jamais redemandé ; l'urgence jamais notée)."""
     description = champ.description or champ.nom
+    if champ.chiffres:
+        # C1 : le nombre attendu, sous les yeux de qui écrit.
+        description = f"{description} Exactement {champ.chiffres} chiffres."
     if not champ.valeurs:
         return {"type": champ.type, "description": description}
     if champ.type != "string":
@@ -2010,7 +2347,10 @@ def creer_gestionnaire(
 ):
     async def noter_information(params: FunctionCallParams) -> None:
         try:
-            paroles = paroles_de_l_appelant(messages())
+            lus = list(messages())
+            paroles = paroles_de_l_appelant(lus)
+            # C2 (run 893) : la question à laquelle la personne vient de répondre.
+            question = derniere_question(lus)
             ecrits: list[str] = []
             retenus: dict[str, Any] = {}
             refuses: list[dict] = []
@@ -2020,7 +2360,7 @@ def creer_gestionnaire(
             # chaque champ seul.
             for champ, valeur in dict(params.arguments or {}).items():
                 verdict = ecrire_dans_la_fiche(
-                    fiche(), reglages, champ, valeur, paroles=paroles
+                    fiche(), reglages, champ, valeur, paroles=paroles, question=question
                 )
                 if verdict.statut == "ecrit":
                     ecrits.append(champ)
@@ -2048,11 +2388,39 @@ def creer_gestionnaire(
                             }
                         )
                 elif verdict.statut == "refuse":
-                    refuses.append({"champ": champ, "raison": verdict.raison})
+                    refuses.append(
+                        {"champ": champ, "raison": verdict.raison}
+                        if verdict.raison != "nombre_de_chiffres"
+                        else {
+                            "champ": champ,
+                            "raison": verdict.raison,
+                            "chiffres_attendus": reglages.par_nom[champ].chiffres,
+                        }
+                    )
                     if verdict.options:
                         a_proposer.append(
                             {"champ": champ, "options": list(verdict.options)}
                         )
+            if any(
+                c in reglages.par_nom
+                and reglages.par_nom[c].lecteur_effectif == "commune"
+                for c in ecrits
+            ):
+                # C2 : une commune vient d'être écrite ; la rue notée avant elle
+                # est relue dans ses rues, hors de la boucle de l'appel (base).
+                a_relire = rues_a_relire(fiche(), reglages)
+                trouvees = (
+                    await asyncio.to_thread(analyser_les_rues, a_relire)
+                    if a_relire
+                    else []
+                )
+                for champ, relue in ecrire_les_rues_relues(
+                    fiche(), reglages, trouvees
+                ).items():
+                    retenus[champ] = relue
+                    a_confirmer = [c for c in a_confirmer if c["champ"] != champ]
+                    if champ not in ecrits:
+                        ecrits.append(champ)
             resultat: dict = {"statut": "note" if ecrits else "rien_note"}
             # A2 (run 832) : une consigne ne remplace plus l'autre. Commune
             # retenue ET adresse à confirmer dans la même note : les deux.
@@ -2091,6 +2459,13 @@ def creer_gestionnaire(
             ]
             if non_dits:
                 consignes.append(CONSIGNE_NON_DIT.format(champs=", ".join(non_dits)))
+            mal_comptes = [
+                r["champ"] for r in refuses if r["raison"] == "nombre_de_chiffres"
+            ]
+            if mal_comptes:
+                consignes.append(
+                    CONSIGNE_NOMBRE_DE_CHIFFRES.format(champs=", ".join(mal_comptes))
+                )
             if consignes:
                 resultat["consigne"] = " ".join(consignes)
             if refuses:
@@ -2098,6 +2473,9 @@ def creer_gestionnaire(
         except Exception as erreur:  # noqa: BLE001 -- une note ne coûte jamais l'appel
             logger.error(f"[fiche] {NOM_OUTIL} a échoué : {erreur}")
             resultat = {"statut": "erreur"}
+        if suivi:
+            # Revue du 29/09 : une porte du même lot attend cette fin.
+            suivi.note_terminee(params.tool_call_id)
         # Une seule relance par tour : voir l'en-tête du module.
         relance = suivi.relance(params.tool_call_id) if suivi else None
         await params.result_callback(

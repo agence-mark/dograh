@@ -154,11 +154,14 @@ export const SectionTourDeParole = ({
                 <div>
                     <h3 className="text-sm font-semibold mb-1">Turn taking</h3>
                     <p className="text-xs text-muted-foreground">
-                        Hidden for this agent: its transcription service decides the turn
-                        boundaries itself (Deepgram Flux, Cartesia ink-2, Soniox), or it runs a
-                        realtime model that does. The pipeline follows those signals and
-                        builds none of these settings, so showing them here would show
-                        values that play no part in the call.
+                        {/* [.mark] C9 (correctifs-banc-34): this card is no longer on the page;
+                            the sentence it carried was false and is corrected here too. */}
+                        This agent&apos;s transcription decides the turns itself (Deepgram Flux,
+                        Cartesia ink-2, Soniox deciding the end of the turn). The voice
+                        detector, the idle timeout, the turn stop timeout and the unfinished
+                        sentence still play: set them in the &quot;Turn taking&quot; theme of the
+                        agent page. The pause, the transcription latency, the wait for the
+                        transcript, interim transcripts and Smart Turn play no part.
                     </p>
                 </div>
                 {bruit}
