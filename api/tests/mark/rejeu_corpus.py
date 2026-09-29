@@ -20,7 +20,8 @@ Le rejeu, tour par tour, fait ce que fait un appel :
 production ; un correctif qui lui aurait fait noter autre chose, ou poser d'autres questions,
 n'est pas mesuré ici. Le banc vocal le mesure.
 
-Lancé seul, il écrit la mesure (``python -m api.tests.mark.rejeu_corpus [sortie.json]``).
+Lancé seul, il écrit la mesure (``python -m api.tests.mark.rejeu_corpus [sortie.json] [corpus.json]``) ;
+le corpus par défaut est celui des runs 861 à 881 (celui des runs 882 à 895 : ``donnees/rejeu_runs_882_895.json``).
 """
 
 from __future__ import annotations
@@ -54,8 +55,8 @@ JUSTE_SUR, JUSTE_A_CONFIRMER, VIDE, FAUX = 3, 2, 1, 0
 NOMS_DES_RANGS = {JUSTE_SUR: "juste_sur", JUSTE_A_CONFIRMER: "juste_a_confirmer", VIDE: "vide", FAUX: "faux"}
 
 
-def charger() -> dict:
-    return json.loads(CORPUS.read_text(encoding="utf-8"))
+def charger(chemin: Path = CORPUS) -> dict:
+    return json.loads(chemin.read_text(encoding="utf-8"))
 
 
 def _pareil(a, b) -> bool:
@@ -270,7 +271,8 @@ def resume(resultat: dict) -> dict:
 if __name__ == "__main__":
     from api.tests.mark.boucle_isolee import executer_sans_toucher_la_boucle_courante
 
-    sortie = executer_sans_toucher_la_boucle_courante(rejouer_tout())
+    corpus = charger(Path(sys.argv[2])) if len(sys.argv) > 2 else None
+    sortie = executer_sans_toucher_la_boucle_courante(rejouer_tout(corpus))
     sortie["resume"] = resume(sortie)
     texte = json.dumps(sortie, ensure_ascii=False, indent=1)
     if len(sys.argv) > 1:
