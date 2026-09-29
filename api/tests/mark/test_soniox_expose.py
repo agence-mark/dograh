@@ -434,3 +434,25 @@ def test_flux_pilote_toujours_ses_tours():
     nova = DeepgramSTTConfiguration(api_key="k", model="nova-3-general")
     assert stt_uses_external_turns(SimpleNamespace(stt=flux)) is True
     assert stt_uses_external_turns(SimpleNamespace(stt=nova)) is False
+
+
+# --------------------------------------------------------------------------- #
+# 8. Installed on every path (§4.4 of 18-ajout-fournisseur.md)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "chemin", ["api/Dockerfile", "scripts/setup_requirements.sh", "scripts/setup_requirements.ps1"]
+)
+def test_lextra_soniox_est_dans_chaque_chemin_dinstallation(chemin):
+    """Empty in Pipecat 49ba358, declared anyway: on 2026-09-08 an extra fixed on
+    one path only made the whole suite fall at collection."""
+    import re
+    from pathlib import Path
+
+    texte = (Path(__file__).resolve().parents[3] / chemin).read_text(encoding="utf-8")
+    listes = re.findall(r"pipecat(?:-ai)?\[([a-z0-9,\-]+)\]", texte)
+    listes = [liste for liste in listes if "deepgram" in liste]
+    assert listes, f"no pipecat install list found in {chemin}"
+    for liste in listes:
+        assert "soniox" in liste.split(","), f"soniox missing from {chemin}"

@@ -67,7 +67,7 @@ Write-Host "Installing pipecat dependencies..."
 # `scripts/AGENTS.md` : on edite les deux scripts dans le meme changement).
 # ⛔ Les trois listes d'extras doivent rester IDENTIQUES : le 08/09/2026,
 # `mistral` manquait dans un seul des chemins d'installation et la suite tombait.
-$PipecatInstallArgs = @('-e', './pipecat[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic]')
+$PipecatInstallArgs = @('-e', './pipecat[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic,soniox]')
 
 if ($Dev) {
     # Resolve dev tools with runtime dependencies so grpcio-tools cannot

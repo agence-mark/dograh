@@ -69,8 +69,11 @@ RUN \
 # (amont `4e6cb22b`) ; l'amont n'a ajoute aucun extra.
 # ⛔ On ne retire jamais un extra de l'amont : un extra absent n'empeche pas
 # un usage, il empeche l'API de DEMARRER.
+# [.mark] 2026-09-29 (chantier exposition-soniox) : extra `soniox` ajoute. Il est
+# VIDE dans Pipecat 49ba358 (aucune bibliotheque installee) ; il est declare pour
+# que la liste dise la verite le jour ou l'amont le remplit.
 RUN \
-    uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic] @ git+https://github.com/dograh-hq/pipecat.git@49ba358f956b5503f358d5898121809b8c5d168b' -c /tmp/constraints.txt \
+    uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic,soniox] @ git+https://github.com/dograh-hq/pipecat.git@49ba358f956b5503f358d5898121809b8c5d168b' -c /tmp/constraints.txt \
  && uv pip uninstall opencv-python \
  && uv pip install opencv-python-headless -c /tmp/constraints.txt \
  && python -c "import nltk; nltk.download('punkt_tab', download_dir='/opt/venv/nltk_data', quiet=True)"
