@@ -143,3 +143,29 @@ async def test_C6_au_clavier_rien_de_declare_la_sortie_est_prise_comme_avant(
         "c'est tout pour moi",
     )
     assert charge["checkpoint"]["current_node_id"] == "end", charge["checkpoint"]
+
+
+@pytest.mark.asyncio
+async def test_C6_secours_une_sortie_refusee_deux_fois_passe_a_la_troisieme(
+    db_session, async_session, test_client_factory
+):
+    """D-C6-secours (Evan, 29/09) : un appelant qui ne sait pas épeler n'est jamais
+    bloqué en boucle. Deux refus, puis la sortie passe, notée au journal."""
+    user, workflow = await _monter(db_session, async_session, FICHE, _definition_avec_requis(["numero_rappel"]))
+    charge, _ = await _converser(
+        test_client_factory,
+        user,
+        workflow,
+        [
+            MockLLMService.create_function_call_chunks("fin", {}, tool_call_id="porte_1"),
+            MockLLMService.create_function_call_chunks("fin", {}, tool_call_id="porte_2"),
+            MockLLMService.create_function_call_chunks("fin", {}, tool_call_id="porte_3"),
+            MockLLMService.create_text_chunks("Au revoir."),
+        ],
+        "je ne veux pas donner mon numéro",
+    )
+    assert charge["checkpoint"]["current_node_id"] == "end", charge["checkpoint"]
+    sorties = [
+        e["statut"] for e in charge["checkpoint"]["gathered_context"]["fiche_journal"] if e.get("sortie") == "fin"
+    ]
+    assert sorties == ["sortie_refusee", "sortie_refusee", "sortie_forcee"], sorties

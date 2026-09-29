@@ -76,6 +76,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     brancher_noter_information,
     champs_manquants,
     consigne_de_sortie,
+    decider_la_sortie,
     montrer_la_fiche,
     suivre_les_tours,
 )
@@ -464,11 +465,11 @@ class PipecatEngine:
                 manquants = champs_manquants(
                     self._fiche, self._gathered_context, champs_requis
                 )
-                if manquants:
-                    logger.info(
-                        f"[fiche] sortie {name} refusée, manque : "
-                        + ", ".join(f"{c} ({r})" for c, r in manquants)
-                    )
+                if (
+                    manquants
+                    and decider_la_sortie(self._gathered_context, name, manquants)
+                    == "refusee"
+                ):
                     relance = (
                         self._tours_fiche.relance(function_call_params.tool_call_id)
                         if self._tours_fiche is not None

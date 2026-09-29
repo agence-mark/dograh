@@ -1041,6 +1041,8 @@ def _tour_du_dernier_ambigu(fiche: dict, champ: str | None) -> int | None:
     """Le tour où ce champ a été renvoyé « ambigu », si c'est la dernière
     réponse de l'outil pour ce champ (sinon la personne ne répond plus à ça)."""
     for entree in reversed(fiche.get(CLE_JOURNAL) or []):
+        if entree.get("sortie"):
+            continue  # C6 : une décision de sortie, pas une note de champ
         if entree.get("champ") == champ:
             if entree.get("suite") != "ambigu":
                 return None
@@ -1683,6 +1685,42 @@ def champs_manquants(
         elif est_un_champ_de_nom(definition) and not propre.get("epele"):
             manquants.append((nom, "non_epele"))
     return manquants
+
+
+# D-C6-secours (Evan, 29/09, relecture) : au-delà de ce nombre de refus d'une même
+# sortie dans l'appel, elle passe, notée au journal. Un appelant qui ne sait pas
+# épeler (ou une épellation que le module ne lit pas) n'est jamais bloqué en boucle.
+REFUS_AVANT_SORTIE_FORCEE = 2
+
+
+def decider_la_sortie(
+    fiche: dict, sortie: str, manquants: list[tuple[str, str]]
+) -> str:
+    """C6 : ``"refusee"`` ou ``"forcee"`` pour une sortie à qui il manque des
+    champs, et la décision consignée au journal de la fiche (qui garde le compte
+    d'un tour à l'autre, clavier compris)."""
+    journal = fiche.setdefault(CLE_JOURNAL, [])
+    deja = sum(
+        1
+        for e in journal
+        if e.get("sortie") == sortie and e.get("statut") == "sortie_refusee"
+    )
+    statut = "sortie_forcee" if deja >= REFUS_AVANT_SORTIE_FORCEE else "sortie_refusee"
+    journal.append(
+        {
+            "champ": None,
+            "sortie": sortie,
+            "statut": statut,
+            "raison": "champs_requis_manquants",
+            "manquants": [f"{champ} ({raison})" for champ, raison in manquants],
+            **({"tour": fiche[CLE_TOUR]} if fiche.get(CLE_TOUR) else {}),
+        }
+    )
+    logger.info(
+        f"[fiche] sortie {sortie} -> {statut}, manque : "
+        + ", ".join(f"{c} ({r})" for c, r in manquants)
+    )
+    return "forcee" if statut == "sortie_forcee" else "refusee"
 
 
 def consigne_de_sortie(manquants: list[tuple[str, str]]) -> str:
