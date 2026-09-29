@@ -179,3 +179,23 @@ async def test_C3bis_run_884_un_dicte_contenu_dans_un_autre_dicte_reste():
         _messages(verbatim),
     )
     assert fiche["appelant"] == "j'appelle pour mon père"
+
+
+# --- Revue indépendante du 29/09 ---------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "valeur, repliques",
+    [
+        ("06 12 34 56 78", ["c'est le 06 12 34", "56 78"]),
+        ("AB 123 CD 45", ["c'est AB 123", "CD 45"]),
+    ],
+)
+async def test_C5_revue_un_numero_dicte_en_deux_repliques_reste_accepte(valeur, repliques):
+    """Les groupes de chiffres ne comptent pas dans la règle de la même réplique."""
+    appel = Appel(_reglages({"nom": "numero_rappel", "origine": "dicte"}))
+    for replique in repliques:
+        appel.dit(replique)
+    await appel.note(numero_rappel=valeur)
+    assert appel.fiche["numero_rappel"] == valeur

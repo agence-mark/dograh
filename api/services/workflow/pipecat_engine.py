@@ -456,6 +456,11 @@ class PipecatEngine:
             # (notés, sûrs, un nom épelé). Sinon l'agent reste à l'étape, avec la
             # consigne de demander ce qui manque. Le 100 % passe par le code.
             if champs_requis and self._fiche_sur_l_agent_actif():
+                if self._tours_fiche is not None:
+                    # Revue du 29/09 : les notes du même lot d'abord.
+                    await self._tours_fiche.attendre_les_notes(
+                        function_call_params.tool_call_id
+                    )
                 manquants = champs_manquants(
                     self._fiche, self._gathered_context, champs_requis
                 )

@@ -306,9 +306,15 @@ def est_dit_tel_quel(valeur: Any, paroles: Iterable[str]) -> bool:
     phrase du tour 2 où il n'était pas. En dessous, la règle d'avant : chaque mot dit
     à un moment de l'appel (un nom, une référence dictés en plusieurs fois)."""
     paroles = list(paroles)
-    if len(_mots(str(valeur))) < MOTS_D_UNE_PHRASE:
+    # Revue du 29/09 : seuls les MOTS comptent (un jeton qui porte une lettre).
+    # Un numéro ou une référence se dictent souvent en plusieurs répliques
+    # (« c'est le 06 12 34 », « 56 78 ») : leurs chiffres gardent la règle d'avant.
+    mots = [m for m in _mots(str(valeur)) if any(c.isalpha() for c in m)]
+    if len(mots) < MOTS_D_UNE_PHRASE:
         return est_cite(valeur, paroles)
-    return any(est_cite(valeur, [parole]) for parole in paroles)
+    return est_cite(valeur, paroles) and any(
+        est_cite(" ".join(mots), [parole]) for parole in paroles
+    )
 
 
 # C13 (PB2) : les mots qui ne portent rien. Un déduit ancré sur « pour » ou
@@ -1688,9 +1694,19 @@ def consigne_de_sortie(manquants: list[tuple[str, str]]) -> str:
     )
 
 
-def relire_les_rues(fiche: dict, reglages: ReglagesFiche) -> dict[str, str]:
-    """C2 (chantier correctifs-banc-34, run 893) : la rue relue quand la commune
-    devient sûre. Rend les champs de rue écrits SÛRS, sous leur nom officiel.
+@dataclass(frozen=True)
+class RueARelire:
+    """C2 : une rue « à confirmer » à relire dans les rues d'une commune devenue sûre."""
+
+    champ: str
+    texte: str
+    insee: str
+    commune: str | None
+
+
+def rues_a_relire(fiche: dict, reglages: ReglagesFiche) -> list[RueARelire]:
+    """C2 (chantier correctifs-banc-34, run 893) : les rues à relire quand la
+    commune devient sûre. Rapide, dans la boucle de l'appel.
 
     La rue n'est lue par le module qu'au tour où une commune SÛRE est connue ; une
     rue dite avec une commune entendue de travers (« Lyon-Cours »), puis la commune
@@ -1698,47 +1714,72 @@ def relire_les_rues(fiche: dict, reglages: ReglagesFiche) -> dict[str, str]:
     ne ré-analyse rien » (D23) : la phrase est celle que le modèle a notée, la base
     est celle du module, et seul un verdict SÛR écrit quelque chose.
 
-    Bloquant (base des rues) : à lancer hors de la boucle de l'appel. Une seule
-    commune déclarée dans la fiche, sinon rien (on ne sait pas laquelle vaut).
+    Une seule commune déclarée dans la fiche, sinon rien (on ne sait pas laquelle vaut).
     """
     communes = [c.nom for c in reglages.champs if c.lecteur_effectif == "commune"]
     if len(communes) != 1:
-        return {}
+        return []
     commune = communes[0]
     etat = fiche.get(CLE_ETAT) or {}
     insee = fiche.get(cle_insee(commune))
     if not insee or not (etat.get(commune) or {}).get("sure"):
-        return {}
-    relues: dict[str, str] = {}
-    for champ in reglages.champs:
-        valeur = fiche.get(champ.nom)
-        if (
-            champ.lecteur_effectif != "rue"
-            or _est_vide(valeur)
-            or (etat.get(champ.nom) or {}).get("sure")
-        ):
-            continue
-        texte = str(valeur)
+        return []
+    return [
+        RueARelire(
+            champ.nom,
+            str(fiche.get(champ.nom)),
+            str(insee),
+            str(fiche.get(commune) or "") or None,
+        )
+        for champ in reglages.champs
+        if champ.lecteur_effectif == "rue"
+        and not _est_vide(fiche.get(champ.nom))
+        and not (etat.get(champ.nom) or {}).get("sure")
+    ]
+
+
+def analyser_les_rues(rues: list[RueARelire]) -> list[tuple[RueARelire, str]]:
+    """C2 : le CALCUL seul, bloquant (base des rues), à lancer hors de la boucle.
+    Rend chaque rue trouvée SÛRE avec son écriture officielle. N'écrit rien
+    (revue du 29/09 : la fiche ne s'écrit que dans la boucle de l'appel)."""
+    trouvees: list[tuple[RueARelire, str]] = []
+    for rue in rues:
         try:
             detection = analyser_voie(
-                texte, base_voies.voies_de(insee), str(fiche.get(commune) or "") or None
+                rue.texte, base_voies.voies_de(rue.insee), rue.commune
             )
         except Exception as erreur:  # noqa: BLE001 -- une relecture ne coûte jamais l'appel
             logger.warning(f"[fiche] rue non relue : {erreur!r}")
             continue
         if detection.statut != VOIE_SURE or not detection.retenue:
             continue
-        portee = _trouver(texte, detection.entendu or "") or _trouver(
-            texte, detection.retenue
+        portee = _trouver(rue.texte, detection.entendu or "") or _trouver(
+            rue.texte, detection.retenue
         )
         if portee is None:
             continue
-        portee = _avec_le_type_de_voie(texte, portee, detection.retenue)
-        nouvelle = _remplacer(texte, portee, detection.retenue)
-        verdict = _ecrire(fiche, champ.nom, nouvelle, True, "rue", False, None)
+        portee = _avec_le_type_de_voie(rue.texte, portee, detection.retenue)
+        trouvees.append((rue, _remplacer(rue.texte, portee, detection.retenue)))
+    return trouvees
+
+
+def ecrire_les_rues_relues(
+    fiche: dict, reglages: ReglagesFiche, trouvees: list[tuple[RueARelire, str]]
+) -> dict[str, str]:
+    """C2 : l'écriture, de retour dans la boucle, seulement si rien n'a bougé
+    pendant le calcul (même commune, même rue, toujours non sûre)."""
+    relues: dict[str, str] = {}
+    encore = {(r.champ, r.texte, r.insee) for r in rues_a_relire(fiche, reglages)}
+    for rue, nouvelle in trouvees:
+        if (rue.champ, rue.texte, rue.insee) not in encore:
+            logger.info(
+                f"[fiche] rue {rue.champ} non réécrite : la fiche a changé pendant la relecture"
+            )
+            continue
+        verdict = _ecrire(fiche, rue.champ, nouvelle, True, "rue", False, None)
         fiche.setdefault(CLE_JOURNAL, []).append(
             {
-                "champ": champ.nom,
+                "champ": rue.champ,
                 "valeur": nouvelle,
                 "statut": verdict.statut,
                 "raison": "rue_relue_apres_la_commune",
@@ -1747,9 +1788,9 @@ def relire_les_rues(fiche: dict, reglages: ReglagesFiche) -> dict[str, str]:
                 **({"tour": fiche[CLE_TOUR]} if fiche.get(CLE_TOUR) else {}),
             }
         )
-        logger.info(f"[fiche] rue {champ.nom} -> {verdict.statut} (relue après la commune)")
+        logger.info(f"[fiche] rue {rue.champ} -> {verdict.statut} (relue après la commune)")
         if verdict.statut == "ecrit":
-            relues[champ.nom] = nouvelle
+            relues[rue.champ] = nouvelle
     return relues
 
 
@@ -2051,6 +2092,10 @@ class _Tour:
     avec_autre: bool
     avec_porte: bool = False
     question_posee: bool = False
+    # Revue du 29/09 (C6) : les notes du lot encore en cours, et le signal de
+    # leur fin, qu'une porte du même lot attend avant de lire la fiche.
+    notes: set[str] = field(default_factory=set)
+    notes_finies: asyncio.Event = field(default_factory=asyncio.Event)
 
 
 class SuiviDesTours:
@@ -2104,9 +2149,34 @@ class SuiviDesTours:
                 a.tool_call_id in self._apres_une_question for a in nouveaux
             ),
         )
+        tour.notes = {a.tool_call_id for a in nouveaux if a.function_name == NOM_OUTIL}
         self._apres_une_question.difference_update(a.tool_call_id for a in nouveaux)
         for appel in nouveaux:
             self._tours[appel.tool_call_id] = tour
+
+    def note_terminee(self, tool_call_id: str) -> None:
+        """Revue du 29/09 : cette note a fini d'écrire dans la fiche."""
+        tour = self._tours.get(tool_call_id)
+        if tour is None:
+            return
+        tour.notes.discard(tool_call_id)
+        if not tour.notes:
+            tour.notes_finies.set()
+
+    async def attendre_les_notes(self, tool_call_id: str, delai: float = 5.0) -> None:
+        """Revue du 29/09 (C6) : Pipecat lance en parallèle les fonctions d'une même
+        réponse. Une porte du lot [note, porte] vérifiait la fiche pendant que la
+        note écrivait encore (relecture de la rue) : elle attend la fin des notes
+        de SON lot, jamais plus de ``delai`` secondes."""
+        tour = self._tours.get(tool_call_id)
+        if tour is None or not tour.notes:
+            return
+        try:
+            await asyncio.wait_for(tour.notes_finies.wait(), delai)
+        except TimeoutError:
+            logger.warning(
+                "[fiche] porte : notes du même lot toujours en cours, fiche lue telle quelle"
+            )
 
     def relance(self, tool_call_id: str) -> bool | None:
         """``True`` pour le dernier résultat du tour, ``False`` pour les autres,
@@ -2300,8 +2370,14 @@ def creer_gestionnaire(
             ):
                 # C2 : une commune vient d'être écrite ; la rue notée avant elle
                 # est relue dans ses rues, hors de la boucle de l'appel (base).
-                for champ, relue in (
-                    await asyncio.to_thread(relire_les_rues, fiche(), reglages)
+                a_relire = rues_a_relire(fiche(), reglages)
+                trouvees = (
+                    await asyncio.to_thread(analyser_les_rues, a_relire)
+                    if a_relire
+                    else []
+                )
+                for champ, relue in ecrire_les_rues_relues(
+                    fiche(), reglages, trouvees
                 ).items():
                     retenus[champ] = relue
                     a_confirmer = [c for c in a_confirmer if c["champ"] != champ]
@@ -2359,6 +2435,9 @@ def creer_gestionnaire(
         except Exception as erreur:  # noqa: BLE001 -- une note ne coûte jamais l'appel
             logger.error(f"[fiche] {NOM_OUTIL} a échoué : {erreur}")
             resultat = {"statut": "erreur"}
+        if suivi:
+            # Revue du 29/09 : une porte du même lot attend cette fin.
+            suivi.note_terminee(params.tool_call_id)
         # Une seule relance par tour : voir l'en-tête du module.
         relance = suivi.relance(params.tool_call_id) if suivi else None
         await params.result_callback(
@@ -2544,4 +2623,3 @@ def montrer_la_fiche(
     llm.get_chat_completions = get_chat_completions
     llm.build_chat_completion_params = build_chat_completion_params
     return True
-

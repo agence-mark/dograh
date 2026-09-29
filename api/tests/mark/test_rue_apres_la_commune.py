@@ -95,3 +95,48 @@ async def test_C2_un_oui_a_une_autre_question_ne_leve_rien():
     appel.dit("Oui.", agent_avant="Est-ce qu'il y a autre chose que je peux faire pour vous ?")
     await appel.note(adresse_intervention="5 rue Carnot")
     assert not appel.sure("adresse_intervention")
+
+
+def test_C2_revue_la_rue_relue_n_est_pas_ecrite_si_la_fiche_a_change_pendant_le_calcul():
+    """Le calcul se fait hors de la boucle ; l'écriture, au retour, vérifie que la
+    commune et la rue n'ont pas bougé entre-temps."""
+    from api.services.workflow.fiche_au_fil_de_leau import (
+        CLE_ETAT,
+        RueARelire,
+        ecrire_les_rues_relues,
+    )
+
+    reglages = _reglages(COMMUNE, ADRESSE)
+    fiche = {
+        "commune": "Creil",
+        "commune_insee": "60175",
+        "adresse_intervention": "12 rue Pasteur",
+        CLE_ETAT: {"commune": {"sure": True}, "adresse_intervention": {"sure": False}},
+    }
+    calculee = [(RueARelire("adresse_intervention", "12 rue Pasteur", "60360", "Liancourt"), "12 Rue Pasteur")]
+    assert ecrire_les_rues_relues(fiche, reglages, calculee) == {}
+    assert fiche["adresse_intervention"] == "12 rue Pasteur"
+    fiche["commune_insee"] = "60360"
+    assert ecrire_les_rues_relues(fiche, reglages, calculee) == {"adresse_intervention": "12 Rue Pasteur"}
+
+
+@pytest.mark.asyncio
+async def test_C6_revue_une_porte_attend_les_notes_de_son_lot():
+    """Pipecat lance en parallèle les fonctions d'une même réponse : la porte du lot
+    [note, porte] ne lit la fiche qu'une fois la note terminée."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from api.services.workflow.fiche_au_fil_de_leau import NOM_OUTIL, SuiviDesTours
+
+    suivi = SuiviDesTours(lambda nom: nom == "porte")
+    suivi.enregistrer(
+        [SimpleNamespace(function_name=NOM_OUTIL, tool_call_id="n1"), SimpleNamespace(function_name="porte", tool_call_id="p1")]
+    )
+    attente = asyncio.create_task(suivi.attendre_les_notes("p1"))
+    await asyncio.sleep(0.05)
+    assert not attente.done()
+    suivi.note_terminee("n1")
+    await asyncio.wait_for(attente, 1.0)
+    # Une porte seule n'attend rien.
+    await asyncio.wait_for(suivi.attendre_les_notes("inconnue"), 0.1)
