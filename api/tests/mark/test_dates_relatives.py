@@ -85,7 +85,9 @@ def test_une_date_relative_est_calculee_au_jour_de_l_appel(texte, dit, date):
         "Alors j'habite au six rue Danton, à Ponce-Alpes-Maxence, soixante mille sept cents.",
         "Oui, les lunettes la dernière, oui.",  # 837, transcription ratée
         "Godin",
-        "en mars dernier",  # hors de la liste : laissé tel quel, jamais deviné
+        "l'hiver dernier",  # hors de la liste : laissé tel quel, jamais deviné
+        # « en mars dernier » était ici jusqu'au 30/09 : lu depuis K3 (décision D-K3 d'Evan),
+        # voir test_dates_mois_dernier.py.
     ],
 )
 def test_rien_d_autre_ne_devient_une_date(texte):

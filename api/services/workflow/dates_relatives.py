@@ -69,6 +69,12 @@ _NOMS_DES_MOIS = (
 _MOIS_DE_L_ANNEE = re.compile(
     rf"\b({'|'.join(_NOMS_DES_MOIS)}) (?:de )?(?:(l'(?:annee|an) (?:derniere|dernier|passee|passe))|(cette annee))\b"
 )
+# K3 (chantier correctifs-apres-figeage, run 910) : « janvier dernier » restait en mots,
+# sans date. Un mois nommé suivi de « dernier » ou « passé » est le dernier mois de ce
+# nom AVANT le mois de l'appel (le 30/09/2026 : janvier → 01/2026, septembre → 09/2025).
+_MOIS_DERNIER = re.compile(
+    rf"\b({'|'.join(_NOMS_DES_MOIS)}) (?:dernier|passe)\b"
+)
 _MOIS_NOMME_ANNEE = re.compile(
     rf"^({'|'.join(_NOMS_DES_MOIS)}) ((?:19|20)\d{{2}})$"
 )
@@ -122,6 +128,12 @@ def _mois_de_l_annee(m: re.Match[str], jour: datetime) -> str:
     return f"{_NOMS_DES_MOIS.index(m[1]) + 1:02d}/{annee}"
 
 
+def _mois_dernier(m: re.Match[str], jour: datetime) -> str:
+    """K3 : le dernier mois de ce nom avant le mois de l'appel."""
+    mois = _NOMS_DES_MOIS.index(m[1]) + 1
+    return f"{mois:02d}/{jour.year if mois < jour.month else jour.year - 1}"
+
+
 def lire_expression(texte: str, jour: datetime) -> tuple[str, str] | None:
     """La première date relative du texte : (mots dits, date calculée).
 
@@ -132,6 +144,10 @@ def lire_expression(texte: str, jour: datetime) -> tuple[str, str] | None:
         [
             (m.start(), -m.end(), m.end(), lambda m=m: _mois_de_l_annee(m, jour))
             for m in _MOIS_DE_L_ANNEE.finditer(simple)
+        ]
+        + [
+            (m.start(), -m.end(), m.end(), lambda m=m: _mois_dernier(m, jour))
+            for m in _MOIS_DERNIER.finditer(simple)
         ]
         + [
             (m.start(), -m.end(), m.end(), lambda e=calcul(m): _calculer(e, jour))
