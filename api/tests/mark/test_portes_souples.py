@@ -13,7 +13,7 @@ Ces tests passent par les VRAIES routes HTTP du clavier, sur la base de test ; s
 
 | Test | Ce qu'il prouve |
 |---|---|
-| run 906 | nom dit, puis épelé à la réplique suivante, puis la porte : elle est prise, la fiche garde le nom tel qu'épelé |
+| run 906 | nom dit, puis épelé à la réplique suivante, puis la porte : elle est prise, la fiche garde le nom |
 | fiche vide | une porte prise sans rien noter est prise |
 | donnée ancienne | un agent enregistré avec `champs_requis` sur une flèche se charge sans erreur, la porte est prise |
 """
@@ -116,7 +116,7 @@ async def test_run_906_nom_dit_puis_epele_la_porte_est_prise(
     )
     assert charge["checkpoint"]["current_node_id"] == "end", charge["checkpoint"]
     contexte = charge["checkpoint"]["gathered_context"]
-    assert str(contexte.get("nom")).lower() == "chevalier", contexte
+    assert contexte.get("nom") == "Chevalier", contexte
 
 
 @pytest.mark.asyncio
