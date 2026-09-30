@@ -174,7 +174,7 @@ def _sample_edge_value(field_name: str, annotation: Any) -> Any:
         return True
     if inner in (int, float):
         return 1
-    # [.mark] C6 (correctifs-banc-34): `champs_requis` is a list of names.
+    # [.mark] An edge field may be a list of strings (e.g. a list of names).
     if get_origin(inner) is list and get_args(inner) == (str,):
         return [f"{field_name}_value"]
     raise AssertionError(

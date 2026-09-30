@@ -146,9 +146,7 @@ DESCRIPTION_OUTIL = (
     "sans rien compléter ni inventer. Exemples : la personne dit « c'est à Creil, "
     "60100 » → commune = « Creil », code_postal = « 60100 ». La personne dit "
     "« non pardon, c'est au 14 rue de la République, pas au 12 » → "
-    "adresse_intervention = « 14 rue de la République ». La personne dit « c'est "
-    "un Godin, il fume dès que je l'allume » → marque_appareil = « Godin », "
-    "symptome = « il fume dès que je l'allume ». La personne dit « je suis Mme "
+    "adresse_intervention = « 14 rue de la République ». La personne dit « je suis Mme "
     "Lefèvre, L E F E V R E » → nom = « LEFEVRE ». Après l'appel de l'outil, "
     "poursuis la conversation normalement. " + NOTE_DESCRIPTIONS
 )
@@ -1041,8 +1039,6 @@ def _tour_du_dernier_ambigu(fiche: dict, champ: str | None) -> int | None:
     """Le tour où ce champ a été renvoyé « ambigu », si c'est la dernière
     réponse de l'outil pour ce champ (sinon la personne ne répond plus à ça)."""
     for entree in reversed(fiche.get(CLE_JOURNAL) or []):
-        if entree.get("sortie"):
-            continue  # C6 : une décision de sortie, pas une note de champ
         if entree.get("champ") == champ:
             if entree.get("suite") != "ambigu":
                 return None
@@ -1599,10 +1595,6 @@ def ecrire_dans_la_fiche(
             verdict = _ecrire(
                 fiche, champ, valeur, sure, source, seulement_si_vide, lecture
             )
-            if verdict.statut == "ecrit" and epele:
-                # C6 (run 882) : la fiche sait qu'une valeur a été ÉPELÉE (lue par le
-                # module d'épellation), pas seulement dite.
-                fiche[CLE_ETAT][champ]["epele"] = True
             if verdict.statut == "ecrit" and definition.lecteur_effectif == "date":
                 extraites = fiche.setdefault("extracted_variables", {})
                 if dit is not None:
@@ -1649,124 +1641,6 @@ def ecrire_dans_la_fiche(
         # Après la commune dans le journal : c'est elle qui donne le code.
         _code_postal_de_la_commune(fiche, reglages, champ, lecture)
     return verdict
-
-
-# C6 (chantier correctifs-banc-34, runs 882 et 884) : la consigne d'une sortie
-# refusée. Le modèle reste à l'étape et demande ce qui manque.
-# D2 (chantier correctifs-second-banc-34, run 904) : l'agent épelait le nom lui-même
-# et le faisait confirmer ; le code ne le comptait pas (à raison) et l'agent redemandait
-# la même confirmation en boucle. La consigne dit qui épelle, et quoi faire d'un refus.
-# ⛔ Rien de propre à un métier : le POURQUOI se dit avec les mots de l'étape (écran).
-CONSIGNE_SORTIE_REFUSEE = (
-    "Pas encore : cette sortie demande que la fiche tienne {champs}. Demande à la "
-    "personne ce qui manque, note-le, puis reprends cette sortie. Si la personne "
-    "refuse de les donner, dis-lui une fois pourquoi tu en as besoin, puis reprends "
-    "cette sortie."
-)
-_RAISONS_MANQUANT = {
-    "vide": "{champ}",
-    "a_confirmer": "{champ} confirmé",
-    "non_epele": (
-        "{champ} épelé par la personne elle-même, lettre par lettre "
-        "(tu ne l'épelles jamais à sa place)"
-    ),
-}
-
-
-def champs_manquants(
-    reglages: ReglagesFiche, fiche: dict, requis: Iterable[str]
-) -> list[tuple[str, str]]:
-    """C6 : les champs requis par une sortie que la fiche ne tient pas encore, avec
-    la raison : ``vide``, ``a_confirmer`` (écrit non sûr), ``non_epele`` (un champ de
-    nom écrit sans épellation lue). Un nom inconnu de la fiche est ignoré (la fiche
-    a pu changer depuis la déclaration de la sortie)."""
-    etat = fiche.get(CLE_ETAT) or {}
-    manquants: list[tuple[str, str]] = []
-    for nom in requis:
-        definition = reglages.par_nom.get(nom)
-        if definition is None:
-            continue
-        propre = etat.get(nom) or {}
-        if _est_vide(fiche.get(nom)):
-            manquants.append((nom, "vide"))
-        elif not propre.get("sure"):
-            manquants.append((nom, "a_confirmer"))
-        elif est_un_champ_de_nom(definition) and not propre.get("epele"):
-            manquants.append((nom, "non_epele"))
-    return manquants
-
-
-# D-C6-secours (Evan, 29/09, relecture) : au-delà de ce nombre de refus d'une même
-# sortie dans l'appel, elle passe, notée au journal. Un appelant qui ne sait pas
-# épeler (ou une épellation que le module ne lit pas) n'est jamais bloqué en boucle.
-REFUS_AVANT_SORTIE_FORCEE = 2
-
-
-def _sans_progres(refus: dict, manquants: list[str], tour: Any) -> bool:
-    """D1 (Evan, 30/09, run 904 : le modèle n'a jamais tenté la sortie une 3e fois) :
-    une nouvelle tentative, à un AUTRE tour de la personne, à qui il manque exactement
-    les mêmes champs qu'au refus précédent, passe : la personne a refusé, l'agent a dit
-    pourquoi, on enchaîne. Au même tour (le modèle qui retente sans avoir rien demandé),
-    ou quand quelque chose a avancé, la sortie reste refusée (jusqu'au plafond)."""
-    return (
-        tour is not None
-        and refus.get("tour") is not None
-        and refus["tour"] != tour
-        and refus.get("manquants") == manquants
-    )
-
-
-def decider_la_sortie(
-    fiche: dict,
-    sortie: str,
-    manquants: list[tuple[str, str]],
-    tour: Any = None,
-) -> str:
-    """C6 : ``"refusee"`` ou ``"forcee"`` pour une sortie à qui il manque des
-    champs, et la décision consignée au journal de la fiche (qui garde le compte
-    d'un tour à l'autre, clavier compris)."""
-    journal = fiche.setdefault(CLE_JOURNAL, [])
-    refus = [
-        e
-        for e in journal
-        if e.get("sortie") == sortie and e.get("statut") == "sortie_refusee"
-    ]
-    decrits = [f"{champ} ({raison})" for champ, raison in manquants]
-    # Relecture du 30/09 (M2) : le tour de la réponse du modèle, relevé AVANT
-    # l'attente des notes du lot ; à défaut, le tour courant.
-    tour = fiche.get(CLE_TOUR) if tour is None else tour
-    # Relecture du 30/09 (M1) : le banc doit pouvoir dire ce qui a fait passer.
-    motif = None
-    if len(refus) >= REFUS_AVANT_SORTIE_FORCEE:
-        motif = "plafond"
-    elif refus and _sans_progres(refus[-1], decrits, tour):
-        motif = "sans_progres"
-    statut = "sortie_forcee" if motif else "sortie_refusee"
-    journal.append(
-        {
-            "champ": None,
-            "sortie": sortie,
-            "statut": statut,
-            "raison": "champs_requis_manquants",
-            "manquants": decrits,
-            **({"motif": motif} if motif else {}),
-            **({"tour": tour} if tour else {}),
-        }
-    )
-    logger.info(
-        f"[fiche] sortie {sortie} -> {statut}, manque : "
-        + ", ".join(f"{c} ({r})" for c, r in manquants)
-    )
-    return "forcee" if statut == "sortie_forcee" else "refusee"
-
-
-def consigne_de_sortie(manquants: list[tuple[str, str]]) -> str:
-    """C6 : la consigne rendue au modèle quand une sortie est refusée."""
-    return CONSIGNE_SORTIE_REFUSEE.format(
-        champs=", ".join(
-            _RAISONS_MANQUANT[raison].format(champ=champ) for champ, raison in manquants
-        )
-    )
 
 
 @dataclass(frozen=True)
@@ -1917,13 +1791,8 @@ def _ecrire(
         # D6 : une valeur non sûre n'écrase jamais une valeur sûre.
         return Verdict(champ, "refuse", "non_sure_sur_sure", valeur)
     extraites = fiche.setdefault("extracted_variables", {})
-    # C6 : un nom épelé le reste tant que sa valeur ne change pas (un oui qui le
-    # confirme, une note qui le redit).
-    epele = bool(precedent and precedent.get("epele")) and _memes_mots(
-        valeur, fiche.get(champ)
-    )
     fiche[champ] = extraites[champ] = valeur
-    etat[champ] = {"sure": sure, "source": source, **({"epele": True} if epele else {})}
+    etat[champ] = {"sure": sure, "source": source}
     if lecture is not None and lecture.code_insee and sure:
         fiche[cle_insee(champ)] = extraites[cle_insee(champ)] = lecture.code_insee
     elif lecture is not None:
@@ -2173,10 +2042,6 @@ class _Tour:
     avec_autre: bool
     avec_porte: bool = False
     question_posee: bool = False
-    # Revue du 29/09 (C6) : les notes du lot encore en cours, et le signal de
-    # leur fin, qu'une porte du même lot attend avant de lire la fiche.
-    notes: set[str] = field(default_factory=set)
-    notes_finies: asyncio.Event = field(default_factory=asyncio.Event)
 
 
 class SuiviDesTours:
@@ -2230,34 +2095,9 @@ class SuiviDesTours:
                 a.tool_call_id in self._apres_une_question for a in nouveaux
             ),
         )
-        tour.notes = {a.tool_call_id for a in nouveaux if a.function_name == NOM_OUTIL}
         self._apres_une_question.difference_update(a.tool_call_id for a in nouveaux)
         for appel in nouveaux:
             self._tours[appel.tool_call_id] = tour
-
-    def note_terminee(self, tool_call_id: str) -> None:
-        """Revue du 29/09 : cette note a fini d'écrire dans la fiche."""
-        tour = self._tours.get(tool_call_id)
-        if tour is None:
-            return
-        tour.notes.discard(tool_call_id)
-        if not tour.notes:
-            tour.notes_finies.set()
-
-    async def attendre_les_notes(self, tool_call_id: str, delai: float = 5.0) -> None:
-        """Revue du 29/09 (C6) : Pipecat lance en parallèle les fonctions d'une même
-        réponse. Une porte du lot [note, porte] vérifiait la fiche pendant que la
-        note écrivait encore (relecture de la rue) : elle attend la fin des notes
-        de SON lot, jamais plus de ``delai`` secondes."""
-        tour = self._tours.get(tool_call_id)
-        if tour is None or not tour.notes:
-            return
-        try:
-            await asyncio.wait_for(tour.notes_finies.wait(), delai)
-        except TimeoutError:
-            logger.warning(
-                "[fiche] porte : notes du même lot toujours en cours, fiche lue telle quelle"
-            )
 
     def relance(self, tool_call_id: str) -> bool | None:
         """``True`` pour le dernier résultat du tour, ``False`` pour les autres,
@@ -2516,9 +2356,6 @@ def creer_gestionnaire(
         except Exception as erreur:  # noqa: BLE001 -- une note ne coûte jamais l'appel
             logger.error(f"[fiche] {NOM_OUTIL} a échoué : {erreur}")
             resultat = {"statut": "erreur"}
-        if suivi:
-            # Revue du 29/09 : une porte du même lot attend cette fin.
-            suivi.note_terminee(params.tool_call_id)
         # Une seule relance par tour : voir l'en-tête du module.
         relance = suivi.relance(params.tool_call_id) if suivi else None
         await params.result_callback(

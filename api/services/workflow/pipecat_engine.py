@@ -71,13 +71,9 @@ from api.services.workflow.disposition_mapping import (
     get_disposition_mapping,
 )
 from api.services.workflow.fiche_au_fil_de_leau import (
-    CLE_TOUR,
     ReglagesFiche,
     balayer_la_fiche,
     brancher_noter_information,
-    champs_manquants,
-    consigne_de_sortie,
-    decider_la_sortie,
     montrer_la_fiche,
     suivre_les_tours,
 )
@@ -441,7 +437,6 @@ class PipecatEngine:
         transition_speech_recording_id: Optional[str] = None,
         *,
         agent: AgentRuntime | None = None,
-        champs_requis: Optional[list[str]] = None,
     ):
         agent = agent or self.active_agent
 
@@ -452,46 +447,6 @@ class PipecatEngine:
                 f"Function: {name} -> transitioning to node: {transition_to_node}"
             )
             logger.info(f"Arguments: {function_call_params.arguments}")
-
-            # [.mark] C6 (correctifs-banc-34, runs 882 et 884) : une sortie qui
-            # déclare ses champs requis n'est prise que quand la fiche les tient
-            # (notés, sûrs, un nom épelé). Sinon l'agent reste à l'étape, avec la
-            # consigne de demander ce qui manque. Le 100 % passe par le code.
-            if champs_requis and self._fiche_sur_l_agent_actif():
-                # Relecture du 30/09 (M2) : le tour auquel le modèle répondait,
-                # avant l'attente des notes (la personne peut parler pendant).
-                tour_de_la_reponse = self._gathered_context.get(CLE_TOUR)
-                if self._tours_fiche is not None:
-                    # Revue du 29/09 : les notes du même lot d'abord.
-                    await self._tours_fiche.attendre_les_notes(
-                        function_call_params.tool_call_id
-                    )
-                manquants = champs_manquants(
-                    self._fiche, self._gathered_context, champs_requis
-                )
-                if (
-                    manquants
-                    and decider_la_sortie(
-                        self._gathered_context, name, manquants, tour_de_la_reponse
-                    )
-                    == "refusee"
-                ):
-                    relance = (
-                        self._tours_fiche.relance(function_call_params.tool_call_id)
-                        if self._tours_fiche is not None
-                        else None
-                    )
-                    await function_call_params.result_callback(
-                        {
-                            "status": "refuse",
-                            "manquants": [champ for champ, _ in manquants],
-                            "consigne": consigne_de_sortie(manquants),
-                        },
-                        properties=None
-                        if relance is None
-                        else FunctionCallResultProperties(run_llm=relance),
-                    )
-                    return
 
             try:
                 # Perform variable extraction before transitioning to new node
@@ -589,7 +544,6 @@ class PipecatEngine:
         transition_speech_recording_id: Optional[str] = None,
         *,
         agent: AgentRuntime | None = None,
-        champs_requis: Optional[list[str]] = None,
     ):
         agent = agent or self.active_agent
         logger.debug(
@@ -604,7 +558,6 @@ class PipecatEngine:
             transition_speech_type,
             transition_speech_recording_id,
             agent=agent,
-            champs_requis=champs_requis,
         )
 
         # Register function with LLM
@@ -936,8 +889,6 @@ class PipecatEngine:
                     edge.data.transition_speech_type,
                     edge.data.transition_speech_recording_id,
                     agent=agent,
-                    # [.mark] C6 : les champs de la fiche que la sortie exige.
-                    champs_requis=getattr(edge.data, "champs_requis", None),
                 )
         if node.tool_uuids and manager:
             await manager.register_handlers(
