@@ -73,7 +73,7 @@ class TermeLexique(BaseModel):
     variantes: list[str] = Field(
         default_factory=list,
         max_length=MAX_VARIANTES,
-        description="Other spellings of the same name (« Jotul », « Godin »).",
+        description="Other spellings of the same term.",
     )
     prononciation: str | None = Field(
         default=None,
