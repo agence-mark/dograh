@@ -146,9 +146,7 @@ DESCRIPTION_OUTIL = (
     "sans rien compléter ni inventer. Exemples : la personne dit « c'est à Creil, "
     "60100 » → commune = « Creil », code_postal = « 60100 ». La personne dit "
     "« non pardon, c'est au 14 rue de la République, pas au 12 » → "
-    "adresse_intervention = « 14 rue de la République ». La personne dit « c'est "
-    "un Godin, il fume dès que je l'allume » → marque_appareil = « Godin », "
-    "symptome = « il fume dès que je l'allume ». La personne dit « je suis Mme "
+    "adresse_intervention = « 14 rue de la République ». La personne dit « je suis Mme "
     "Lefèvre, L E F E V R E » → nom = « LEFEVRE ». Après l'appel de l'outil, "
     "poursuis la conversation normalement. " + NOTE_DESCRIPTIONS
 )
