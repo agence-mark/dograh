@@ -11,6 +11,9 @@ joue-t-il quand la transcription (Flux) décide des tours ? Joué sur la VRAIE s
 | deux mots | témoin : deux mots coupent l'accueil (le réglage fait ce qu'il annonce) |
 | écho provisoire | une transcription provisoire de 3 mots coupe, même si la finale n'en garde qu'un : c'est la cause probable du 909 (l'écho de l'agent au navigateur), pas un défaut du mécanisme |
 
+Que `GreetingController` installe bien cette stratégie, avec le nombre de mots réglé sur l'agent, est prouvé à part
+par `test_traversants_appel.py` (`test_E1_accueil_allume_l_appelant_le_coupe_a_N_mots`).
+
 ⚠️ Tient aussi une montée de Pipecat : si la stratégie changeait de nom ou de comportement, ces tests rougissent.
 """
 

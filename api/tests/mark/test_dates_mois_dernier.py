@@ -39,6 +39,17 @@ def test_K3_un_mois_suivi_de_dernier_devient_mois_et_annee(texte, dit, attendu):
     assert lire_expression(texte, JOUR) == (dit, attendu)
 
 
+@pytest.mark.parametrize(
+    "texte",
+    ["le 3 mars dernier", "Le 12 janvier dernier.", "le premier mars dernier", "le 1er mars dernier",
+     "le vingt-trois janvier dernier", "le trente et un mars dernier", "le douze mai dernier"],
+)
+def test_K3_relecture_un_jour_devant_le_mois_laisse_la_phrase_telle_quelle(texte):
+    """Relecture du 30/09 : « le 3 mars dernier » aurait été écrit 03/2026, jour perdu ; avant K3 la fiche
+    gardait la phrase entière. Avec un jour, la tournure ne joue pas (comportement d'avant)."""
+    assert lire_expression(texte, JOUR) is None
+
+
 def test_K3_la_regle_C4_ne_change_pas():
     assert lire_expression("En novembre de l'an dernier.", JOUR) == ("novembre de l'an dernier", "11/2025")
 

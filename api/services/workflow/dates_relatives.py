@@ -128,6 +128,17 @@ def _mois_de_l_annee(m: re.Match[str], jour: datetime) -> str:
     return f"{_NOMS_DES_MOIS.index(m[1]) + 1:02d}/{annee}"
 
 
+# Relecture du 30/09 : « le 3 mars dernier » garde son jour. Un jour dit devant le mois
+# (en chiffres ou en lettres) laisse la phrase telle quelle, comme avant K3.
+_UNITES_DU_JOUR = (
+    "un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize"
+)
+_JOUR_DEVANT = re.compile(
+    rf"(?:\b\d{{1,2}}|\b1er|\bpremier|\b(?:{_UNITES_DU_JOUR})"
+    rf"|\b(?:dix|vingt|trente)(?:[- ](?:et[- ])?(?:{_UNITES_DU_JOUR}))?) $"
+)
+
+
 def _mois_dernier(m: re.Match[str], jour: datetime) -> str:
     """K3 : le dernier mois de ce nom avant le mois de l'appel."""
     mois = _NOMS_DES_MOIS.index(m[1]) + 1
@@ -148,6 +159,7 @@ def lire_expression(texte: str, jour: datetime) -> tuple[str, str] | None:
         + [
             (m.start(), -m.end(), m.end(), lambda m=m: _mois_dernier(m, jour))
             for m in _MOIS_DERNIER.finditer(simple)
+            if not _JOUR_DEVANT.search(simple[: m.start()])
         ]
         + [
             (m.start(), -m.end(), m.end(), lambda e=calcul(m): _calculer(e, jour))
