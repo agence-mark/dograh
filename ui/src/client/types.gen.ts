@@ -7359,7 +7359,7 @@ export type TermeLexique = {
     /**
      * Variantes
      *
-     * Other spellings of the same name (« Jotul », « Godin »).
+     * Other spellings of the same term.
      */
     variantes?: Array<string>;
     /**
