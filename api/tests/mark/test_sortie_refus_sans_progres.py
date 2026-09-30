@@ -43,6 +43,25 @@ def test_D1_run_904_sans_progres_a_un_autre_tour_la_sortie_passe():
     fiche[CLE_TOUR] = 12
     assert decider_la_sortie(fiche, "coordonnees_notees", MANQUANTS) == "forcee"
     assert _statuts(fiche) == ["sortie_refusee", "sortie_forcee"]
+    assert fiche[CLE_JOURNAL][-1]["motif"] == "sans_progres"
+
+
+def test_D1_relecture_M2_le_tour_de_la_reponse_prime_sur_le_tour_courant():
+    """La personne a parlé pendant l'attente des notes : le compteur a avancé, mais le
+    modèle répondait au tour du refus. La sortie reste refusée."""
+    fiche = {CLE_TOUR: 9}
+    assert decider_la_sortie(fiche, "coordonnees_notees", MANQUANTS) == "refusee"
+    fiche[CLE_TOUR] = 10
+    assert decider_la_sortie(fiche, "coordonnees_notees", MANQUANTS, 9) == "refusee"
+
+
+def test_D1_relecture_M4_sans_tour_compte_l_ancien_comportement():
+    """Vocal, modules éteints : aucun tour compté. Refusée, refusée, puis le plafond."""
+    fiche = {}
+    assert decider_la_sortie(fiche, "coordonnees_notees", MANQUANTS) == "refusee"
+    assert decider_la_sortie(fiche, "coordonnees_notees", MANQUANTS) == "refusee"
+    assert decider_la_sortie(fiche, "coordonnees_notees", MANQUANTS) == "forcee"
+    assert fiche[CLE_JOURNAL][-1]["motif"] == "plafond"
 
 
 def test_D1_au_meme_tour_la_sortie_reste_refusee():
@@ -72,7 +91,7 @@ def test_D2_la_consigne_dit_qui_epelle_et_quoi_faire_d_un_refus():
     consigne = consigne_de_sortie(MANQUANTS)
     assert "nom épelé par la personne elle-même, lettre par lettre" in consigne
     assert "tu ne l'épelles jamais à sa place" in consigne
-    assert "Si la personne refuse de le donner, dis-lui une fois pourquoi" in consigne
+    assert "Si la personne refuse de les donner, dis-lui une fois pourquoi" in consigne
 
 
 def _definition_avec_requis(requis):

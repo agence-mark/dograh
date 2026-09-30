@@ -1660,7 +1660,7 @@ def ecrire_dans_la_fiche(
 CONSIGNE_SORTIE_REFUSEE = (
     "Pas encore : cette sortie demande que la fiche tienne {champs}. Demande à la "
     "personne ce qui manque, note-le, puis reprends cette sortie. Si la personne "
-    "refuse de le donner, dis-lui une fois pourquoi tu en as besoin, puis reprends "
+    "refuse de les donner, dis-lui une fois pourquoi tu en as besoin, puis reprends "
     "cette sortie."
 )
 _RAISONS_MANQUANT = {
@@ -1717,7 +1717,10 @@ def _sans_progres(refus: dict, manquants: list[str], tour: Any) -> bool:
 
 
 def decider_la_sortie(
-    fiche: dict, sortie: str, manquants: list[tuple[str, str]]
+    fiche: dict,
+    sortie: str,
+    manquants: list[tuple[str, str]],
+    tour: Any = None,
 ) -> str:
     """C6 : ``"refusee"`` ou ``"forcee"`` pour une sortie à qui il manque des
     champs, et la décision consignée au journal de la fiche (qui garde le compte
@@ -1729,12 +1732,16 @@ def decider_la_sortie(
         if e.get("sortie") == sortie and e.get("statut") == "sortie_refusee"
     ]
     decrits = [f"{champ} ({raison})" for champ, raison in manquants]
-    statut = (
-        "sortie_forcee"
-        if len(refus) >= REFUS_AVANT_SORTIE_FORCEE
-        or (refus and _sans_progres(refus[-1], decrits, fiche.get(CLE_TOUR)))
-        else "sortie_refusee"
-    )
+    # Relecture du 30/09 (M2) : le tour de la réponse du modèle, relevé AVANT
+    # l'attente des notes du lot ; à défaut, le tour courant.
+    tour = fiche.get(CLE_TOUR) if tour is None else tour
+    # Relecture du 30/09 (M1) : le banc doit pouvoir dire ce qui a fait passer.
+    motif = None
+    if len(refus) >= REFUS_AVANT_SORTIE_FORCEE:
+        motif = "plafond"
+    elif refus and _sans_progres(refus[-1], decrits, tour):
+        motif = "sans_progres"
+    statut = "sortie_forcee" if motif else "sortie_refusee"
     journal.append(
         {
             "champ": None,
@@ -1742,7 +1749,8 @@ def decider_la_sortie(
             "statut": statut,
             "raison": "champs_requis_manquants",
             "manquants": decrits,
-            **({"tour": fiche[CLE_TOUR]} if fiche.get(CLE_TOUR) else {}),
+            **({"motif": motif} if motif else {}),
+            **({"tour": tour} if tour else {}),
         }
     )
     logger.info(
