@@ -160,6 +160,27 @@ describe("[.mark] Call Record card", () => {
         expect(commune.chiffres ?? null).toBeNull();
     });
 
+    it("a field is filled at the end of the call by default (D3), and can be switched off", async () => {
+        const onSave = ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: CHAMPS });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        const fin = document.getElementById("fiche_fin_d_appel_0") as HTMLElement;
+        expect(fin.getAttribute("aria-checked")).toBe("true");
+        expect(within(dialogue).getAllByText(/filled at the end of the call/i).length).toBeGreaterThan(0);
+        fireEvent.click(fin);
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        fireEvent.click(boutonEnregistrer());
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        const [nom, commune] = onSave.mock.calls[0][0].fiche_champs;
+        expect(nom.rempli_en_fin_d_appel).toBe(false);
+        expect(commune.rempli_en_fin_d_appel ?? true).toBe(true);
+    });
+
+    it("the server knows the end-of-call attribute the screen offers", () => {
+        const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
+        expect(schema).toContain("rempli_en_fin_d_appel: bool = Field(");
+    });
+
     it("an emptied digit count means no check (null), never 0", async () => {
         const onSave = ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: [{ ...CHAMPS[0], chiffres: 10 }] });
         ouvrirLesChamps();

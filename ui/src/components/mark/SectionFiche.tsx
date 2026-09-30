@@ -180,6 +180,7 @@ export const pourComparerLaFiche = (champs: ChampFiche[]) =>
         valeurs: c.valeurs?.length ? c.valeurs : null,
         cumulatif: c.cumulatif ?? false,
         chiffres: c.chiffres ?? null,
+        rempli_en_fin_d_appel: c.rempli_en_fin_d_appel ?? true,
     }));
 
 const nouveauChamp = (): ChampFiche => ({
@@ -470,6 +471,25 @@ export const EditeurChampsFiche = ({
                                             {t({
                                                 en: "Each note is added to what the field already holds, nothing is overwritten (a second request, a symptom completed). Not checked against the caller's exact words.",
                                                 fr: "Chaque note s'ajoute à ce que le champ tient déjà, rien n'est écrasé (une deuxième demande, un symptôme complété). Pas comparé aux mots exacts de l'appelant.",
+                                            })}
+                                        </p>
+                                    </div>
+                                </div>
+                                {/* [.mark] D3 (correctifs-second-banc-34, runs 900 à 903) */}
+                                <div className="flex items-start gap-2">
+                                    <Switch
+                                        id={`fiche_fin_d_appel_${i}`}
+                                        checked={champ.rempli_en_fin_d_appel ?? true}
+                                        onCheckedChange={(coche) => modifier(i, { rempli_en_fin_d_appel: coche })}
+                                    />
+                                    <div className="space-y-1">
+                                        <Label htmlFor={`fiche_fin_d_appel_${i}`} className="text-xs">
+                                            {t({ en: "Filled at the end of the call", fr: "Rempli en fin d'appel" })}
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            {t({
+                                                en: "If the agent did not note this field during the call, the end-of-call pass may fill it from the conversation. Off: only the agent writes it, while the caller is speaking.",
+                                                fr: "Si l'agent n'a pas noté ce champ pendant l'appel, la passe de fin d'appel peut le remplir en relisant la conversation. Décoché : seul l'agent l'écrit, pendant que la personne parle.",
                                             })}
                                         </p>
                                     </div>

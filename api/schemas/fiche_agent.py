@@ -99,6 +99,19 @@ class ChampFiche(BaseModel):
         ),
     )
 
+    # D3 (chantier correctifs-second-banc-34, 30/09, runs 900 à 903) : la passe de fin
+    # d'appel remplissait `autre` et `symptome` de recopies (la marque, le budget,
+    # l'épellation, deux répliques recollées). Décoché, seul l'outil l'écrit, pendant
+    # l'appel. Coché par défaut : rien ne change pour un agent qui ne le déclare pas.
+    rempli_en_fin_d_appel: bool = Field(
+        default=True,
+        description=(
+            "Filled at the end of the call: if the agent did not note the field during "
+            "the call, the end-of-call pass may fill it from the conversation. Off: only "
+            "the agent writes it, while the caller is speaking."
+        ),
+    )
+
     @field_validator("valeurs")
     @classmethod
     def _valeurs_lisibles(cls, valeurs: list[str] | None) -> list[str] | None:

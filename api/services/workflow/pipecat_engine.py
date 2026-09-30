@@ -71,6 +71,7 @@ from api.services.workflow.disposition_mapping import (
     get_disposition_mapping,
 )
 from api.services.workflow.fiche_au_fil_de_leau import (
+    CLE_TOUR,
     ReglagesFiche,
     balayer_la_fiche,
     brancher_noter_information,
@@ -457,6 +458,9 @@ class PipecatEngine:
             # (notés, sûrs, un nom épelé). Sinon l'agent reste à l'étape, avec la
             # consigne de demander ce qui manque. Le 100 % passe par le code.
             if champs_requis and self._fiche_sur_l_agent_actif():
+                # Relecture du 30/09 (M2) : le tour auquel le modèle répondait,
+                # avant l'attente des notes (la personne peut parler pendant).
+                tour_de_la_reponse = self._gathered_context.get(CLE_TOUR)
                 if self._tours_fiche is not None:
                     # Revue du 29/09 : les notes du même lot d'abord.
                     await self._tours_fiche.attendre_les_notes(
@@ -467,7 +471,9 @@ class PipecatEngine:
                 )
                 if (
                     manquants
-                    and decider_la_sortie(self._gathered_context, name, manquants)
+                    and decider_la_sortie(
+                        self._gathered_context, name, manquants, tour_de_la_reponse
+                    )
                     == "refusee"
                 ):
                     relance = (

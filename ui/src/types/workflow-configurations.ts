@@ -228,6 +228,8 @@ export interface ChampFiche {
     cumulatif?: boolean;
     // [.mark] C1 (correctifs-banc-34): how many digits the value must hold. Empty (null or absent): no check.
     chiffres?: number | null;
+    // [.mark] D3 (correctifs-second-banc-34): the end-of-call pass may fill it. Absent: true.
+    rempli_en_fin_d_appel?: boolean;
 }
 
 /**

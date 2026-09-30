@@ -1653,14 +1653,23 @@ def ecrire_dans_la_fiche(
 
 # C6 (chantier correctifs-banc-34, runs 882 et 884) : la consigne d'une sortie
 # refusée. Le modèle reste à l'étape et demande ce qui manque.
+# D2 (chantier correctifs-second-banc-34, run 904) : l'agent épelait le nom lui-même
+# et le faisait confirmer ; le code ne le comptait pas (à raison) et l'agent redemandait
+# la même confirmation en boucle. La consigne dit qui épelle, et quoi faire d'un refus.
+# ⛔ Rien de propre à un métier : le POURQUOI se dit avec les mots de l'étape (écran).
 CONSIGNE_SORTIE_REFUSEE = (
     "Pas encore : cette sortie demande que la fiche tienne {champs}. Demande à la "
-    "personne ce qui manque, note-le, puis reprends cette sortie."
+    "personne ce qui manque, note-le, puis reprends cette sortie. Si la personne "
+    "refuse de les donner, dis-lui une fois pourquoi tu en as besoin, puis reprends "
+    "cette sortie."
 )
 _RAISONS_MANQUANT = {
     "vide": "{champ}",
     "a_confirmer": "{champ} confirmé",
-    "non_epele": "{champ} épelé lettre par lettre",
+    "non_epele": (
+        "{champ} épelé par la personne elle-même, lettre par lettre "
+        "(tu ne l'épelles jamais à sa place)"
+    ),
 }
 
 
@@ -1693,27 +1702,55 @@ def champs_manquants(
 REFUS_AVANT_SORTIE_FORCEE = 2
 
 
+def _sans_progres(refus: dict, manquants: list[str], tour: Any) -> bool:
+    """D1 (Evan, 30/09, run 904 : le modèle n'a jamais tenté la sortie une 3e fois) :
+    une nouvelle tentative, à un AUTRE tour de la personne, à qui il manque exactement
+    les mêmes champs qu'au refus précédent, passe : la personne a refusé, l'agent a dit
+    pourquoi, on enchaîne. Au même tour (le modèle qui retente sans avoir rien demandé),
+    ou quand quelque chose a avancé, la sortie reste refusée (jusqu'au plafond)."""
+    return (
+        tour is not None
+        and refus.get("tour") is not None
+        and refus["tour"] != tour
+        and refus.get("manquants") == manquants
+    )
+
+
 def decider_la_sortie(
-    fiche: dict, sortie: str, manquants: list[tuple[str, str]]
+    fiche: dict,
+    sortie: str,
+    manquants: list[tuple[str, str]],
+    tour: Any = None,
 ) -> str:
     """C6 : ``"refusee"`` ou ``"forcee"`` pour une sortie à qui il manque des
     champs, et la décision consignée au journal de la fiche (qui garde le compte
     d'un tour à l'autre, clavier compris)."""
     journal = fiche.setdefault(CLE_JOURNAL, [])
-    deja = sum(
-        1
+    refus = [
+        e
         for e in journal
         if e.get("sortie") == sortie and e.get("statut") == "sortie_refusee"
-    )
-    statut = "sortie_forcee" if deja >= REFUS_AVANT_SORTIE_FORCEE else "sortie_refusee"
+    ]
+    decrits = [f"{champ} ({raison})" for champ, raison in manquants]
+    # Relecture du 30/09 (M2) : le tour de la réponse du modèle, relevé AVANT
+    # l'attente des notes du lot ; à défaut, le tour courant.
+    tour = fiche.get(CLE_TOUR) if tour is None else tour
+    # Relecture du 30/09 (M1) : le banc doit pouvoir dire ce qui a fait passer.
+    motif = None
+    if len(refus) >= REFUS_AVANT_SORTIE_FORCEE:
+        motif = "plafond"
+    elif refus and _sans_progres(refus[-1], decrits, tour):
+        motif = "sans_progres"
+    statut = "sortie_forcee" if motif else "sortie_refusee"
     journal.append(
         {
             "champ": None,
             "sortie": sortie,
             "statut": statut,
             "raison": "champs_requis_manquants",
-            "manquants": [f"{champ} ({raison})" for champ, raison in manquants],
-            **({"tour": fiche[CLE_TOUR]} if fiche.get(CLE_TOUR) else {}),
+            "manquants": decrits,
+            **({"motif": motif} if motif else {}),
+            **({"tour": tour} if tour else {}),
         }
     )
     logger.info(
@@ -2068,7 +2105,13 @@ async def balayer_la_fiche(
     SEULS champs restés vides, et les écrit par le point d'écriture unique, donc
     avec les mêmes contrôles (D35). N'écrase jamais ce que l'outil a écrit."""
     _marquer_les_numeros_en_conflit(reglages, fiche)
-    vides = [c for c in reglages.champs if _est_vide(fiche.get(c.nom))]
+    # D3 (correctifs-second-banc-34) : un champ décoché « rempli en fin d'appel »
+    # n'est même pas demandé à la passe.
+    vides = [
+        c
+        for c in reglages.champs
+        if c.rempli_en_fin_d_appel and _est_vide(fiche.get(c.nom))
+    ]
     if not vides:
         return {}
     trouve = await extraire(
