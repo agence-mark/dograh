@@ -1452,6 +1452,12 @@ export type ChampFiche = {
      * Digits: how many digits the value must hold (spaces and signs ignored); a value with more or fewer is refused and the caller is asked for it again in full. Empty: no check.
      */
     chiffres?: number | null;
+    /**
+     * Rempli En Fin D Appel
+     *
+     * Filled at the end of the call: if the agent did not note the field during the call, the end-of-call pass may fill it from the conversation. Off: only the agent writes it, while the caller is speaking.
+     */
+    rempli_en_fin_d_appel?: boolean;
 };
 
 /**

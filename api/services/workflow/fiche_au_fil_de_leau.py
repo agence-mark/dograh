@@ -2097,7 +2097,13 @@ async def balayer_la_fiche(
     SEULS champs restés vides, et les écrit par le point d'écriture unique, donc
     avec les mêmes contrôles (D35). N'écrase jamais ce que l'outil a écrit."""
     _marquer_les_numeros_en_conflit(reglages, fiche)
-    vides = [c for c in reglages.champs if _est_vide(fiche.get(c.nom))]
+    # D3 (correctifs-second-banc-34) : un champ décoché « rempli en fin d'appel »
+    # n'est même pas demandé à la passe.
+    vides = [
+        c
+        for c in reglages.champs
+        if c.rempli_en_fin_d_appel and _est_vide(fiche.get(c.nom))
+    ]
     if not vides:
         return {}
     trouve = await extraire(
