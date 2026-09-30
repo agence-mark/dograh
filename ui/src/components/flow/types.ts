@@ -81,8 +81,6 @@ export type FlowEdgeData = {
     transition_speech?: string;
     transition_speech_type?: 'text' | 'audio';
     transition_speech_recording_id?: string;
-    // [.mark] C6: the call-record fields this pathway requires. Absent: no check.
-    champs_requis?: string[];
     invalid?: boolean;
     validationMessage?: string | null;
 }
