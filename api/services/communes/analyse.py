@@ -179,6 +179,29 @@ def _joints(texte: str, mots: list[str], signes: str = "-’'`") -> set[int]:
     }
 
 
+def _homonyme_plus_proche(base: BaseCommunes, top: Lecture, magasin: tuple[float, float]) -> Commune | None:
+    """B1 : la commune la plus proche de l'établissement dont le nom est celui de
+    ``top`` suivi d'un complément, si elle est au moins DEUX FOIS plus proche que ``top``
+    (comparaison entre les deux, jamais un rayon) ET au moins aussi peuplée ; None
+    sinon. « poêle à bois » pour un établissement de Marseille ne fait pas proposer
+    Bois-d'Amont (400 km) contre Bois (550 km). « Beauvais » reste Beauvais pour un établissement de
+    Marseille, même si Beauvais-sur-Tescou est plus proche (corpus réel : Bordeaux,
+    Beauvais, Soissons). Seulement pour un nom entendu exactement, jamais sur un
+    préfixe générique."""
+    nom = normaliser(top.commune.nom)
+    if not nom or nom in PREFIXES_GENERIQUES or top.ortho < 100:
+        return None
+    debut = nom + " "
+    distance_top = distance_km(top.commune, *magasin)
+    meilleure, meilleure_distance = None, distance_top / 2
+    for j, norm in enumerate(base.norms):
+        if norm.startswith(debut) and base.communes[j].population >= top.commune.population:
+            d = distance_km(base.communes[j], *magasin)
+            if d < meilleure_distance:
+                meilleure, meilleure_distance = base.communes[j], d
+    return meilleure
+
+
 def _lettres_epelees(mots: list[str]) -> set[int]:
     """B3 : les positions des lettres seules qui se suivent à trois ou plus."""
     positions: set[int] = set()
@@ -443,6 +466,16 @@ def analyser(
         # douze" made Maisoncelle-Saint-Pierre sure from the word "donc").
         if sure and codes_postaux is not None and top.par_code and not top.nom_exact:
             sure = False
+        # B1 (chantier fiabilite-fiche-et-renvoi, run 935, D1 d'Evan du 01/10) : un nom
+        # exact n'est plus sûr quand une autre commune, PLUS PROCHE de l'établissement,
+        # porte ce nom suivi d'un complément (« Nogent » : Nogent en Haute-Marne, ou
+        # Nogent-sur-Oise à côté). Les deux sont proposées, la plus proche d'abord.
+        # Comparaison entre les deux communes, jamais un rayon (décision du 17/09).
+        if sure and magasin and not top.par_code:
+            proche = _homonyme_plus_proche(base, top, magasin)
+            if proche is not None:
+                sure = False
+                lectures = [Lecture(proche, top.score, top.phon, top.ortho), *lectures]
         prises.append(Detection(
             entendu=_extrait_dorigine(texte, d, f, mots),
             debut=d,

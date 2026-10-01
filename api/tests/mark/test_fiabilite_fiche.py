@@ -166,3 +166,24 @@ def test_B2_temoin_transcription_propre_inchangee(base, magasin):
     """Témoin : le nom seul, bien transcrit, avec son code : sûr avant comme après."""
     communes, _ = _communes("c'est Montataire, soixante mille cent soixante", base, magasin)
     assert communes == [("Montataire", SURE)]
+
+
+def test_B1_un_nom_porte_aussi_par_une_commune_bien_plus_proche_est_a_confirmer(base, magasin):
+    """Run 935 : « Nogent » seul était Nogent (Haute-Marne), sûr ; Nogent-sur-Oise est à
+    côté de l'établissement. Les deux sont proposées, la plus proche d'abord (D1)."""
+    r = analyser_message("Nogent", base, magasin, [])
+    (d,) = r.detections
+    assert d.statut != SURE
+    assert [l.commune.nom for l in d.lectures[:2]] == ["Nogent-sur-Oise", "Nogent"]
+
+
+@pytest.mark.parametrize("texte, nom", [("je suis à Creil", "Creil"), ("à Senlis", "Senlis"), ("à Clermont", "Clermont")])
+def test_B1_temoins_une_commune_proche_reste_sure(base, magasin, texte, nom):
+    communes, _ = _communes(texte, base, magasin)
+    assert communes == [(nom, SURE)]
+
+
+def test_B1_temoin_la_grande_ville_reste_sure_loin_de_l_etablissement(base):
+    """Corpus réel : « C'est à Bordeaux » pour un établissement de Marseille reste Bordeaux."""
+    communes, _ = _communes("C'est à Bordeaux.", base, base.coordonnees("13055"))
+    assert communes == [("Bordeaux", SURE)]
