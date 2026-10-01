@@ -603,7 +603,7 @@
  },
  {
   "famille": "ordinaire",
-  "phrase": "c'est le zéro sept quatre vingt huit vingt six quatorze zéro neuf.",
+  "phrase": "c'est le zéro six trente neuf quatre vingt dix huit quatorze zéro neuf.",
   "insee": "60509",
   "commune": "Pont-Sainte-Maxence",
   "attendu": ""
@@ -1107,7 +1107,7 @@
  },
  {
   "famille": "ordinaire",
-  "phrase": "au zéro sept quatre vingt huit vingt six quatorze zéro neuf.",
+  "phrase": "au zéro six trente neuf quatre vingt dix huit quatorze zéro neuf.",
   "insee": "60509",
   "commune": "Pont-Sainte-Maxence",
   "attendu": ""
@@ -1163,7 +1163,7 @@
  },
  {
   "famille": "ordinaire",
-  "phrase": "Normalement vous avez mon numéro, c'est le zéro sept quatre vingt huit vingt six quatorze zéro neuf.",
+  "phrase": "Normalement vous avez mon numéro, c'est le zéro six trente neuf quatre vingt dix huit quatorze zéro neuf.",
   "insee": "60509",
   "commune": "Pont-Sainte-Maxence",
   "attendu": ""
