@@ -187,3 +187,67 @@ def test_B1_temoin_la_grande_ville_reste_sure_loin_de_l_etablissement(base):
     """Corpus réel : « C'est à Bordeaux » pour un établissement de Marseille reste Bordeaux."""
     communes, _ = _communes("C'est à Bordeaux.", base, base.coordonnees("13055"))
     assert communes == [("Bordeaux", SURE)]
+
+
+# --------------------------------------------------------------------------- #
+# Lot C : la correction d'un numéro, paire par paire (vraie route du clavier)
+# --------------------------------------------------------------------------- #
+
+import uuid  # noqa: E402
+
+from api.tests.mark.test_portes_souples import _messages  # noqa: E402
+
+NUMERO = {
+    "fiche_au_fil_de_leau": True,
+    # Comme le n° 34 : le module des nombres lit la parole avant le modèle.
+    "conversion_nombres_transcription": True,
+    "fiche_champs": [{"nom": "numero_dicte", "origine": "dicte", "description": "Numéro de rappel", "chiffres": 10}],
+}
+
+
+async def _numero_puis(db_session, async_session, test_client_factory, correction: str, corrige: str):
+    user, workflow = await _monter(db_session, async_session, NUMERO)
+    appel = uuid.uuid4().hex[:6]
+    charge = await _messages(
+        test_client_factory,
+        user,
+        workflow,
+        [
+            (
+                "zéro six douze trente-quatre quarante-sept quatre-vingt-neuf",
+                [_noter({"numero_dicte": "0612344789"}, f"n_{appel}_1"), MockLLMService.create_text_chunks("Je relis.")],
+            ),
+            (
+                correction,
+                [_noter({"numero_dicte": corrige}, f"n_{appel}_2"), MockLLMService.create_text_chunks("Je relis.")],
+            ),
+        ],
+    )
+    return charge["checkpoint"]["gathered_context"]
+
+
+@pytest.mark.asyncio
+async def test_C_une_paire_corrigee_au_milieu_du_numero_est_notee(db_session, async_session, test_client_factory):
+    fiche = await _numero_puis(
+        db_session, async_session, test_client_factory,
+        "non c'est pas quarante-sept c'est soixante-quatorze", "0612347489",
+    )
+    assert fiche.get("numero_dicte") == "0612347489", fiche.get("fiche_journal")
+
+
+@pytest.mark.asyncio
+async def test_C_deux_paires_corrigees_sont_notees(db_session, async_session, test_client_factory):
+    fiche = await _numero_puis(
+        db_session, async_session, test_client_factory,
+        "non c'est trente-cinq soixante-quatorze", "0612357489",
+    )
+    assert fiche.get("numero_dicte") == "0612357489", fiche.get("fiche_journal")
+
+
+@pytest.mark.asyncio
+async def test_C_temoin_une_paire_changee_non_dite_reste_refusee(db_session, async_session, test_client_factory):
+    fiche = await _numero_puis(
+        db_session, async_session, test_client_factory,
+        "non c'est pas quarante-sept c'est soixante-quatorze", "0612347488",
+    )
+    assert fiche.get("numero_dicte") == "0612344789", fiche.get("fiche_journal")

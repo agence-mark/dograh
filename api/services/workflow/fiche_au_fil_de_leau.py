@@ -1467,6 +1467,34 @@ def _est_vide(valeur: Any) -> bool:
     return valeur is None or (isinstance(valeur, str) and not valeur.strip())
 
 
+def corrige_par_paires(definition: ChampFiche, ancienne: Any, valeur: Any, paroles: list[str]) -> bool:
+    """Lot C (chantier fiabilite-fiche-et-renvoi, run 937) : la personne corrige une ou
+    plusieurs paires d'un numéro déjà noté (« c'est pas quarante-sept, c'est
+    soixante-quatorze »), n'importe où dans le numéro. Le numéro complet du modèle
+    n'est pas « dit tel quel » : seule une partie l'a été.
+
+    Acceptée pour un champ à nombre de chiffres fixe qui a déjà une valeur, quand la
+    nouvelle a autant de chiffres et que CHAQUE paire qui change a été dite dans la
+    dernière réplique de la personne ; les autres paires sont celles déjà notées.
+    Un numéro redit en entier passe par le contrôle d'avant (D2)."""
+    if not definition.chiffres or _est_vide(ancienne) or not paroles:
+        return False
+    avant = re.sub(r"\D", "", str(ancienne))
+    apres = re.sub(r"\D", "", str(valeur))
+    if len(avant) != definition.chiffres or len(apres) != definition.chiffres or avant == apres:
+        return False
+    dites: set[str] = set()
+    for mot in _mots(_chiffres_comme_lus(paroles[-1])):
+        if mot.isdigit():
+            dites.add(mot)
+            if len(mot) > 2 and len(mot) % 2 == 0:
+                dites.update(mot[i : i + 2] for i in range(0, len(mot), 2))
+    changees = [
+        apres[i : i + 2] for i in range(0, len(apres), 2) if apres[i : i + 2] != avant[i : i + 2]
+    ]
+    return all(paire in dites for paire in changees)
+
+
 def _nombre_de_chiffres(valeur: Any) -> int:
     """C1 : les chiffres de la valeur, espaces, points et signes ignorés."""
     return sum(1 for c in str(valeur) if c.isdigit())
@@ -1622,6 +1650,8 @@ def ecrire_dans_la_fiche(
             # D-C5 : une phrase se dit dans une même réplique.
             # Lot A : comparé aux paroles, jamais aux notes des modules.
             and not est_dit_tel_quel(valeur, paroles_sans_notes(paroles, fiche))
+            # Lot C : la correction d'une ou plusieurs paires d'un numéro déjà noté.
+            and not corrige_par_paires(definition, fiche.get(champ), valeur, paroles)
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:
