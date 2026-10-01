@@ -27,9 +27,9 @@ from api.services.telephony.factory import get_telephony_provider_for_run
 from api.services.telephony.transfer_event_protocol import TransferContext
 from api.services.workflow.renvoi_en_test import (
     ACCEPTE,
-    MODES_DE_TEST,
     REFUSE,
     attendre_la_decision,
+    est_un_essai,
 )
 from api.services.workflow.tools.calculator import get_calculator_tools, safe_calculator
 from api.services.workflow.tools.custom_tool import (
@@ -657,6 +657,34 @@ class CustomToolManager:
                 workflow_run = await db_client.get_workflow_run_by_id(
                     self._engine._workflow_run_id
                 )
+                # [.mark] Lot D : un essai depuis l'écran simule le renvoi (plus bas) ; un
+                # run du widget public garde l'échec immédiat d'avant, sans téléphonie.
+                essai = await est_un_essai(workflow_run)
+                if not essai and workflow_run.mode == WorkflowRunMode.TEXTCHAT.value:
+                    textchat_error_result = {
+                        "status": "failed",
+                        "message": "I'm sorry, but call transfers are not available in text chat tests.",
+                        "action": "transfer_failed",
+                        "reason": "textchat_not_supported",
+                    }
+                    await self._handle_transfer_result(
+                        textchat_error_result, function_call_params, properties
+                    )
+                    return
+                if not essai and workflow_run.mode in [
+                    WorkflowRunMode.WEBRTC.value,
+                    WorkflowRunMode.SMALLWEBRTC.value,
+                ]:
+                    webrtc_error_result = {
+                        "status": "failed",
+                        "message": "I'm sorry, but call transfers are not available for web calls. Please try a telephony call.",
+                        "action": "transfer_failed",
+                        "reason": "webrtc_not_supported",
+                    }
+                    await self._handle_transfer_result(
+                        webrtc_error_result, function_call_params, properties
+                    )
+                    return
 
                 # Get organization ID for resolver/provider configuration
                 organization_id = await self.get_organization_id()
@@ -734,9 +762,11 @@ class CustomToolManager:
                 # [.mark] Lot D (chantier fiabilite-fiche-et-renvoi) : hors téléphonie
                 # (clavier, casque), le testeur accepte ou refuse le renvoi ; l'agent
                 # reçoit le même résultat que la téléphonie. Rien n'est composé.
-                if workflow_run.mode in MODES_DE_TEST:
+                if essai:
                     await self._simuler_le_renvoi(
+                        workflow_run.mode,
                         config,
+                        resolved_transfer.message,
                         timeout_seconds,
                         configured_call_disposition,
                         function_call_params,
@@ -1000,7 +1030,9 @@ class CustomToolManager:
 
     async def _simuler_le_renvoi(
         self,
+        mode: str,
         config: dict,
+        message: str | None,
         timeout_seconds: float,
         success_disposition: str | None,
         function_call_params,
@@ -1014,18 +1046,20 @@ class CustomToolManager:
         l'outil (D3) : échec, comme une téléphonie qui ne décroche pas.
         """
         run_id = self._engine._workflow_run_id
-        mode = getattr(
-            await db_client.get_workflow_run_by_id(run_id), "mode", None
-        )
         delai = float(timeout_seconds or 30)
         if mode == WorkflowRunMode.TEXTCHAT.value:
-            # Un tour du clavier attend au plus TEXT_CHAT_TURN_TIMEOUT_SECONDS.
+            # Un tour du clavier attend au plus TEXT_CHAT_TURN_TIMEOUT_SECONDS, modèle
+            # compris avant et après l'outil : l'attente garde 25 s de marge (relecture).
             from api.services.workflow.text_chat_runner import (
                 TEXT_CHAT_TURN_TIMEOUT_SECONDS,
             )
 
-            delai = min(delai, TEXT_CHAT_TURN_TIMEOUT_SECONDS - 10)
-        await self._play_config_message(config)
+            delai = min(delai, TEXT_CHAT_TURN_TIMEOUT_SECONDS - 25)
+        # Même message que la téléphonie : celui du resolver quand il en donne un.
+        if message:
+            await self._engine.queue_speech(message)
+        else:
+            await self._play_config_message(config)
         self._engine.set_mute_pipeline(True)
         try:
             decision = await attendre_la_decision(run_id, delai)

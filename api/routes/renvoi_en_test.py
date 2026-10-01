@@ -13,8 +13,8 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.workflow.renvoi_en_test import (
-    MODES_DE_TEST,
     donner_la_decision,
+    est_un_essai,
     renvoi_en_attente,
 )
 
@@ -33,7 +33,8 @@ async def _run_de_test(workflow_id: int, run_id: int, user: UserModel):
     run = await db_client.get_workflow_run(
         run_id, organization_id=user.selected_organization_id
     )
-    if run is None or run.workflow_id != workflow_id or run.mode not in MODES_DE_TEST:
+    # Ni un run d'une autre organisation, ni un appel du widget public (relecture du 01/10).
+    if run is None or run.workflow_id != workflow_id or not await est_un_essai(run):
         raise HTTPException(status_code=404, detail="Run not found")
     return run
 

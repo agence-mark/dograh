@@ -342,7 +342,7 @@ async def _agent_avec_renvoi(db_session, async_session, delai: int):
     return user, workflow
 
 
-async def _renvoi(test_client_factory, user, workflow, decision: bool | None):
+async def _renvoi(test_client_factory, user, workflow, decision: bool | None, avant_message=None):
     """Un message qui fait appeler l'outil de transfert ; pendant que le tour attend, la
     page lit l'attente puis clique (``decision``), ou ne clique pas (None)."""
     appel = uuid.uuid4().hex[:6]
@@ -370,6 +370,8 @@ async def _renvoi(test_client_factory, user, workflow, decision: bool | None):
             session = creee.json()
             run_id = session["workflow_run_id"]
             url = f"/api/v1/workflow/{workflow.id}/runs/{run_id}/renvoi-en-test"
+            if avant_message is not None:
+                await avant_message(run_id)
 
             async def page():
                 nonlocal vu_en_attente
@@ -424,3 +426,44 @@ async def test_D_sans_decision_avant_le_delai_le_renvoi_echoue(db_session, async
     charge, vu = await _renvoi(test_client_factory, user, workflow, None)
     assert vu
     assert charge["is_completed"] is False
+
+
+@pytest.mark.asyncio
+async def test_D_un_appel_du_widget_public_garde_l_echec_immediat(
+    db_session, async_session, test_client_factory
+):
+    """Relecture du 01/10 : un visiteur du widget ne peut pas cliquer. Son appel garde
+    l'échec immédiat d'avant, et personne ne peut décider à sa place."""
+    user, workflow = await _agent_avec_renvoi(db_session, async_session, delai=20)
+    jeton = await db_session.create_embed_token(
+        workflow_id=workflow.id, organization_id=workflow.organization_id, created_by=user.id
+    )
+
+    async def du_widget(run_id):
+        await db_session.create_embed_session(
+            session_token=uuid.uuid4().hex, embed_token_id=jeton.id, workflow_run_id=run_id
+        )
+
+    charge, vu = await _renvoi(test_client_factory, user, workflow, True, avant_message=du_widget)
+    assert vu is False
+    assert charge["is_completed"] is False
+    async with test_client_factory(user) as client:
+        etat = await client.get(
+            f"/api/v1/workflow/{workflow.id}/runs/{charge['workflow_run_id']}/renvoi-en-test"
+        )
+    assert etat.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_D_une_autre_organisation_ne_voit_ni_ne_decide_le_renvoi(
+    db_session, async_session, test_client_factory
+):
+    user, workflow = await _agent_avec_renvoi(db_session, async_session, delai=20)
+    intrus, _ = await _monter(db_session, async_session, {})
+    async with test_client_factory(user) as client:
+        creee = await client.post(f"/api/v1/workflow/{workflow.id}/text-chat/sessions", json={})
+        run_id = creee.json()["workflow_run_id"]
+    url = f"/api/v1/workflow/{workflow.id}/runs/{run_id}/renvoi-en-test"
+    async with test_client_factory(intrus) as client:
+        assert (await client.get(url)).status_code == 404
+        assert (await client.post(url, json={"accepte": True})).status_code == 404

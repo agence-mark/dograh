@@ -21,6 +21,7 @@ import asyncio
 import redis.asyncio as aioredis
 
 from api.constants import REDIS_URL
+from api.db import db_client
 from api.enums import WorkflowRunMode
 
 # Les modes où l'outil de transfert ne peut pas joindre de téléphonie.
@@ -31,6 +32,15 @@ MODES_DE_TEST = frozenset(
         WorkflowRunMode.SMALLWEBRTC.value,
     }
 )
+
+async def est_un_essai(workflow_run) -> bool:
+    """Un essai lancé depuis l'écran (clavier, testeur vocal), jamais un visiteur du
+    widget public : lui ne peut pas cliquer, et un membre de l'organisation ne doit
+    pas pouvoir décider à sa place (relecture du 01/10)."""
+    if workflow_run is None or workflow_run.mode not in MODES_DE_TEST:
+        return False
+    return not await db_client.run_vient_du_widget(workflow_run.id)
+
 
 ACCEPTE = "accepte"
 REFUSE = "refuse"

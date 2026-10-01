@@ -179,6 +179,23 @@ def _joints(texte: str, mots: list[str], signes: str = "-’'`") -> set[int]:
     }
 
 
+_INDEX_PREMIER_MOT: dict[int, dict[str, list[int]]] = {}
+
+
+def _par_premier_mot(base: BaseCommunes) -> dict[str, list[int]]:
+    """B1 (relecture du 01/10) : les communes rangées par premier mot de leur nom,
+    calculé une fois par base, pour ne pas parcourir les 35 000 noms à chaque tour."""
+    index = _INDEX_PREMIER_MOT.get(id(base))
+    if index is None:
+        index = {}
+        for j, norm in enumerate(base.norms):
+            if norm:
+                index.setdefault(norm.split()[0], []).append(j)
+        _INDEX_PREMIER_MOT.clear()
+        _INDEX_PREMIER_MOT[id(base)] = index
+    return index
+
+
 def _homonyme_plus_proche(base: BaseCommunes, top: Lecture, magasin: tuple[float, float]) -> Commune | None:
     """B1 : la commune la plus proche de l'établissement dont le nom est celui de
     ``top`` suivi d'un complément, si elle est au moins DEUX FOIS plus proche que ``top``
@@ -194,7 +211,8 @@ def _homonyme_plus_proche(base: BaseCommunes, top: Lecture, magasin: tuple[float
     debut = nom + " "
     distance_top = distance_km(top.commune, *magasin)
     meilleure, meilleure_distance = None, distance_top / 2
-    for j, norm in enumerate(base.norms):
+    for j in _par_premier_mot(base).get(nom.split()[0], ()):
+        norm = base.norms[j]
         if norm.startswith(debut) and base.communes[j].population >= top.commune.population:
             d = distance_km(base.communes[j], *magasin)
             if d < meilleure_distance:
@@ -475,7 +493,9 @@ def analyser(
             proche = _homonyme_plus_proche(base, top, magasin)
             if proche is not None:
                 sure = False
-                lectures = [Lecture(proche, top.score, top.phon, top.ortho), *lectures]
+                # Le nom dit ouvre exactement celui de la commune proposée : même
+                # règle que plus haut (« Beaumont 95260 » est Beaumont-sur-Oise).
+                lectures = [Lecture(proche, top.score, top.phon, top.ortho, 100.0), *lectures]
         prises.append(Detection(
             entendu=_extrait_dorigine(texte, d, f, mots),
             debut=d,

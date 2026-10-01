@@ -453,6 +453,11 @@ def paroles_sans_notes(paroles: Iterable[str], fiche: dict) -> list[str]:
     la même parole est ajoutée avec l'écriture officielle (« édile kamine » ->
     « Edilkamin »). Une proposition « à confirmer » ne compte jamais."""
     nettes = [_NOTES_DES_MODULES.sub("", str(parole)) for parole in paroles]
+    # Relecture du 01/10 : la note d'épellation portait la reconstitution (« M comme
+    # Marcel », « double L ») ; retirée, ce qu'elle écrit reste une parole.
+    nettes += [
+        str(trace["epele"]) for trace in _entrees(fiche, TRACE_EPELLATIONS) if trace.get("epele")
+    ]
     for trace in _entrees(fiche, TRACE_LEXIQUE):
         if trace.get("statut") != "sure" or not trace.get("entendu") or not trace.get("terme"):
             continue
@@ -1497,7 +1502,12 @@ def corrige_par_paires(definition: ChampFiche, ancienne: Any, valeur: Any, parol
     Acceptée pour un champ à nombre de chiffres fixe qui a déjà une valeur, quand la
     nouvelle a autant de chiffres et que CHAQUE paire qui change a été dite dans la
     dernière réplique de la personne ; les autres paires sont celles déjà notées.
-    Un numéro redit en entier passe par le contrôle d'avant (D2)."""
+    Un numéro redit en entier passe par le contrôle d'avant (D2). ``paroles`` : la
+    dernière réplique SANS les notes des modules (relecture du 01/10 : une note qui
+    porte « 2025 » ne doit pas fournir une paire « dite »).
+
+    ⚠️ Limite connue : un nombre à deux chiffres sans rapport dit dans la même
+    réplique (« au 12 rue… ») suffit si le modèle l'écrit dans le numéro."""
     if not definition.chiffres or _est_vide(ancienne) or not paroles:
         return False
     avant = re.sub(r"\D", "", str(ancienne))
@@ -1675,7 +1685,7 @@ def ecrire_dans_la_fiche(
             # Lot A : comparé aux paroles, jamais aux notes des modules.
             and not est_dit_tel_quel(valeur, paroles_sans_notes(paroles, fiche))
             # Lot C : la correction d'une ou plusieurs paires d'un numéro déjà noté.
-            and not corrige_par_paires(definition, fiche.get(champ), valeur, paroles)
+            and not corrige_par_paires(definition, fiche.get(champ), valeur, paroles_sans_notes(paroles[-1:], fiche))
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:
