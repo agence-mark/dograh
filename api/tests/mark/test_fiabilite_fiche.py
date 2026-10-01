@@ -306,3 +306,121 @@ async def test_C2_temoin_un_numero_sans_ambiguite_reste_sur(db_session, async_se
     fiche = charge["checkpoint"]["gathered_context"]
     assert fiche.get("numero_dicte") == "0637582194"
     assert _etat(fiche, "numero_dicte").get("sure") is True
+
+
+# --------------------------------------------------------------------------- #
+# Lot D : le renvoi d'appel en test (vraie route du clavier + routes de décision)
+# --------------------------------------------------------------------------- #
+
+import asyncio  # noqa: E402
+import copy  # noqa: E402
+from unittest.mock import AsyncMock, patch  # noqa: E402
+
+from api.tests.mark.test_clavier_porte_la_fiche import DEFINITION  # noqa: E402
+
+RENVOI = "transfer_team"
+
+
+async def _agent_avec_renvoi(db_session, async_session, delai: int):
+    user, workflow = await _monter(db_session, async_session, {})
+    outil = await db_session.create_tool(
+        organization_id=workflow.organization_id,
+        user_id=user.id,
+        name="Transfer team",
+        description="Transfer the caller to the team",
+        category="transfer_call",
+        definition={
+            "schema_version": 1,
+            "type": "transfer_call",
+            "config": {"destination": "+33600000000", "timeout": delai},
+        },
+    )
+    definition = copy.deepcopy(DEFINITION)
+    definition["nodes"][0]["data"]["tool_uuids"] = [outil.tool_uuid]
+    await db_session.save_workflow_draft(workflow.id, workflow_definition=definition, workflow_configurations={})
+    await db_session.publish_workflow_draft(workflow.id)
+    return user, workflow
+
+
+async def _renvoi(test_client_factory, user, workflow, decision: bool | None):
+    """Un message qui fait appeler l'outil de transfert ; pendant que le tour attend, la
+    page lit l'attente puis clique (``decision``), ou ne clique pas (None)."""
+    appel = uuid.uuid4().hex[:6]
+    llm = [
+        MockLLMService(mock_steps=[], chunk_delay=0.001),
+        MockLLMService(
+            mock_steps=[
+                MockLLMService.create_function_call_chunks(RENVOI, {}, tool_call_id=f"r_{appel}"),
+                MockLLMService.create_text_chunks("Personne n'est disponible, je prends vos coordonnées."),
+            ],
+            chunk_delay=0.001,
+        ),
+        *[MockLLMService(mock_steps=[], chunk_delay=0.001) for _ in range(3)],
+    ]
+    vu_en_attente = False
+    async with test_client_factory(user) as client:
+        with (
+            patch("api.services.workflow.text_chat_runner.create_llm_service", side_effect=llm),
+            patch(
+                "api.services.workflow.text_chat_runner.db_client.has_active_recordings",
+                new=AsyncMock(return_value=False),
+            ),
+        ):
+            creee = await client.post(f"/api/v1/workflow/{workflow.id}/text-chat/sessions", json={})
+            session = creee.json()
+            run_id = session["workflow_run_id"]
+            url = f"/api/v1/workflow/{workflow.id}/runs/{run_id}/renvoi-en-test"
+
+            async def page():
+                nonlocal vu_en_attente
+                for _ in range(200):
+                    etat = await client.get(url)
+                    if etat.status_code == 200 and etat.json()["en_attente"]:
+                        vu_en_attente = True
+                        if decision is not None:
+                            clic = await client.post(url, json={"accepte": decision})
+                            assert clic.status_code == 200, clic.text
+                        return
+                    await asyncio.sleep(0.1)
+
+            tache = asyncio.create_task(page())
+            reponse = await client.post(
+                f"/api/v1/workflow/{workflow.id}/text-chat/sessions/{run_id}/messages",
+                json={"text": "je voudrais parler à quelqu'un", "expected_revision": session["revision"]},
+            )
+            await tache
+            assert reponse.status_code == 200, reponse.text
+            return reponse.json(), vu_en_attente
+
+
+def _resultat_de_l_outil(charge: dict) -> dict:
+    for tour in charge["session_data"]["turns"]:
+        for e in tour.get("events") or []:
+            if e.get("type") == "tool_call_result" and (e.get("payload") or {}).get("function_name") == RENVOI:
+                return e["payload"].get("result") or {}
+    return {}
+
+
+@pytest.mark.asyncio
+async def test_D_renvoi_accepte_l_agent_se_retire(db_session, async_session, test_client_factory):
+    user, workflow = await _agent_avec_renvoi(db_session, async_session, delai=20)
+    charge, vu = await _renvoi(test_client_factory, user, workflow, True)
+    assert vu
+    assert charge["is_completed"] is True, charge["session_data"]["turns"][-1]
+
+
+@pytest.mark.asyncio
+async def test_D_renvoi_refuse_l_agent_reprend(db_session, async_session, test_client_factory):
+    user, workflow = await _agent_avec_renvoi(db_session, async_session, delai=20)
+    charge, vu = await _renvoi(test_client_factory, user, workflow, False)
+    assert vu
+    assert charge["is_completed"] is False
+    assert "Personne n'est disponible" in (charge["session_data"]["turns"][-1].get("assistant_message") or {}).get("text", "")
+
+
+@pytest.mark.asyncio
+async def test_D_sans_decision_avant_le_delai_le_renvoi_echoue(db_session, async_session, test_client_factory):
+    user, workflow = await _agent_avec_renvoi(db_session, async_session, delai=2)
+    charge, vu = await _renvoi(test_client_factory, user, workflow, None)
+    assert vu
+    assert charge["is_completed"] is False
