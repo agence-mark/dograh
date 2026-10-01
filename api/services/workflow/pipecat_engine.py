@@ -2979,6 +2979,8 @@ class PipecatEngine:
             return False
 
         await self._agent_factory.attach(agent)
+        if agent.worker is None or agent.retired:
+            return False
         # [.mark] Lot 4 d'orchestrateur-trois-cerveaux : le cerveau de fond du premier agent
         # rejoint l'appel avec lui, maintenant que le circuit d'appel tourne.
         if getattr(agent, "travail", None) is not None:
