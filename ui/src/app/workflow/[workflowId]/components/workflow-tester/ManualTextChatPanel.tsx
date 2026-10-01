@@ -2,6 +2,7 @@
 
 import { Loader2, Square } from "lucide-react";
 
+import { BoutonsRenvoiEnTest } from "@/components/mark/BoutonsRenvoiEnTest";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ConversationItem } from "@/components/workflow/conversation";
@@ -102,7 +103,19 @@ export function ManualTextChatPanel({
                             title: "No conversation recorded",
                             subtitle: "Send a message to start the conversation.",
                         }}
-                        pendingIndicator={sendingMessage ? <TypingIndicator /> : null}
+                        pendingIndicator={
+                            sendingMessage ? (
+                                <>
+                                    <TypingIndicator />
+                                    {/* [.mark] Lot D : un renvoi d'appel attend la réponse du testeur. */}
+                                    <BoutonsRenvoiEnTest
+                                        workflowId={workflowId}
+                                        runId={session?.workflow_run_id}
+                                        actif={sendingMessage}
+                                    />
+                                </>
+                            ) : null
+                        }
                         className="py-1"
                         renderItemActions={(item: ConversationItem) => {
                             if (item.kind !== "message" || item.role !== "user" || !item.turnId) {

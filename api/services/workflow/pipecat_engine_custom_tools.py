@@ -25,6 +25,12 @@ from api.services.telephony.call_transfer_manager import get_call_transfer_manag
 from api.services.telephony.external_pbx import resolve_external_pbx_field_mappings
 from api.services.telephony.factory import get_telephony_provider_for_run
 from api.services.telephony.transfer_event_protocol import TransferContext
+from api.services.workflow.renvoi_en_test import (
+    ACCEPTE,
+    REFUSE,
+    attendre_la_decision,
+    est_un_essai,
+)
 from api.services.workflow.tools.calculator import get_calculator_tools, safe_calculator
 from api.services.workflow.tools.custom_tool import (
     execute_http_tool,
@@ -648,11 +654,13 @@ class CustomToolManager:
                     else None
                 ) or None
 
-                # Check if this is a WebRTC call - transfers are not supported
                 workflow_run = await db_client.get_workflow_run_by_id(
                     self._engine._workflow_run_id
                 )
-                if workflow_run.mode == WorkflowRunMode.TEXTCHAT.value:
+                # [.mark] Lot D : un essai depuis l'écran simule le renvoi (plus bas) ; un
+                # run du widget public garde l'échec immédiat d'avant, sans téléphonie.
+                essai = await est_un_essai(workflow_run)
+                if not essai and workflow_run.mode == WorkflowRunMode.TEXTCHAT.value:
                     textchat_error_result = {
                         "status": "failed",
                         "message": "I'm sorry, but call transfers are not available in text chat tests.",
@@ -663,7 +671,7 @@ class CustomToolManager:
                         textchat_error_result, function_call_params, properties
                     )
                     return
-                if workflow_run.mode in [
+                if not essai and workflow_run.mode in [
                     WorkflowRunMode.WEBRTC.value,
                     WorkflowRunMode.SMALLWEBRTC.value,
                 ]:
@@ -748,6 +756,21 @@ class CustomToolManager:
                     }
                     await self._handle_transfer_result(
                         validation_error_result, function_call_params, properties
+                    )
+                    return
+
+                # [.mark] Lot D (chantier fiabilite-fiche-et-renvoi) : hors téléphonie
+                # (clavier, casque), le testeur accepte ou refuse le renvoi ; l'agent
+                # reçoit le même résultat que la téléphonie. Rien n'est composé.
+                if essai:
+                    await self._simuler_le_renvoi(
+                        workflow_run.mode,
+                        config,
+                        resolved_transfer.message,
+                        timeout_seconds,
+                        configured_call_disposition,
+                        function_call_params,
+                        properties,
                     )
                     return
 
@@ -1004,6 +1027,68 @@ class CustomToolManager:
                 )
 
         return transfer_call_handler
+
+    async def _simuler_le_renvoi(
+        self,
+        mode: str,
+        config: dict,
+        message: str | None,
+        timeout_seconds: float,
+        success_disposition: str | None,
+        function_call_params,
+        properties,
+    ) -> None:
+        """[.mark] Lot D : le renvoi en test, décidé par le testeur.
+
+        Même déroulé que la téléphonie : le message d'avant le transfert est dit,
+        l'agent se tait pendant l'attente, puis « destinataire a décroché » (l'agent
+        se retire) ou « échec » (l'agent reprend). Sans décision avant le délai de
+        l'outil (D3) : échec, comme une téléphonie qui ne décroche pas.
+        """
+        run_id = self._engine._workflow_run_id
+        delai = float(timeout_seconds or 30)
+        if mode == WorkflowRunMode.TEXTCHAT.value:
+            # Un tour du clavier attend au plus TEXT_CHAT_TURN_TIMEOUT_SECONDS, modèle
+            # compris avant et après l'outil : l'attente garde 25 s de marge (relecture).
+            from api.services.workflow.text_chat_runner import (
+                TEXT_CHAT_TURN_TIMEOUT_SECONDS,
+            )
+
+            delai = min(delai, TEXT_CHAT_TURN_TIMEOUT_SECONDS - 25)
+        # Même message que la téléphonie : celui du resolver quand il en donne un.
+        if message:
+            await self._engine.queue_speech(message)
+        else:
+            await self._play_config_message(config)
+        self._engine.set_mute_pipeline(True)
+        try:
+            decision = await attendre_la_decision(run_id, delai)
+        finally:
+            self._engine.set_mute_pipeline(False)
+        logger.info(f"[.mark] Test transfer decided: {decision or 'no decision (timeout)'}")
+        if decision == ACCEPTE:
+            await self._handle_transfer_result(
+                {
+                    "status": "success",
+                    "action": "destination_answered",
+                    "message": "Transfer destination answered (test)",
+                    "conference_id": None,
+                },
+                function_call_params,
+                properties,
+                success_disposition=success_disposition,
+            )
+            return
+        await self._handle_transfer_result(
+            {
+                "status": "failed",
+                "message": "I'm sorry, but the call is taking longer than expected to connect. The person might not be available right now. Please try calling back later.",
+                "action": "transfer_failed",
+                "reason": "declined" if decision == REFUSE else "timeout",
+            },
+            function_call_params,
+            properties,
+        )
 
     async def _handle_transfer_result(
         self,

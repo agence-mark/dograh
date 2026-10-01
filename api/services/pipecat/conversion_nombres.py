@@ -2,8 +2,8 @@
 
 Why this module exists
 ----------------------
-On 2026-09-15 a phone number was dictated as "le zéro sept quatre vingt huit
-vingt six quatorze zéro neuf". Deepgram Flux transcribed it correctly, in
+On 2026-09-15 a phone number was dictated in words, like "le zéro six trente neuf
+quatre vingt dix huit quatorze zéro neuf". Deepgram Flux transcribed it correctly, in
 words. Mistral then stitched those words back into eleven wrong digits, twice
 in a row. The transcription was right; the model's arithmetic was not. The fix
 hands the model digits (``text2num``, MIT, local, no network call).

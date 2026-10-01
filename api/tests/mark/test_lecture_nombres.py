@@ -229,7 +229,7 @@ def test_invariant_text2num_hors_codes_postaux_et_references(base):
         "mille mercis",  # "1000 mercis"
     ]
 
-    for phrase in ["le zéro sept quatre vingt huit vingt six quatorze zéro neuf",
+    for phrase in ["le zéro six trente neuf quatre vingt dix huit quatorze zéro neuf",
                    "il me reste deux bûches", "une fois par an", "vingt ans"]:
         assert reecrire(phrase, _lire(phrase, base)) == alpha2digit(phrase, "fr")
 

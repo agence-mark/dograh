@@ -4,6 +4,7 @@ import { Loader2, Phone, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
+import { BoutonsRenvoiEnTest } from "@/components/mark/BoutonsRenvoiEnTest";
 import { Button } from "@/components/ui/button";
 import { RealtimeFeedback } from "@/components/workflow/conversation";
 
@@ -154,6 +155,12 @@ export function EmbeddedVoiceTester({
 
                 <div className="border-t border-border/70 bg-background px-4 py-3">
                     <div className="flex flex-col gap-3">
+                        {/* [.mark] Lot D : un renvoi d'appel attend la réponse du testeur. */}
+                        <BoutonsRenvoiEnTest
+                            workflowId={workflowId}
+                            runId={workflowRunId}
+                            actif={connectionActive && !isCompleted}
+                        />
                         <ConnectionStatus connectionStatus={connectionStatus} />
                         {permissionError ? (
                             <p className="text-center text-sm text-destructive">{permissionError}</p>

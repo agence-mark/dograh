@@ -55,13 +55,18 @@ from api.schemas.fiche_agent import (
 )
 from api.schemas.lexique_metier import normaliser_terme
 from api.services.communes.base import base_si_chargee, cle_sonore, normaliser
+from api.services.communes.mention import MARQUE as MARQUE_COMMUNES
+from api.services.epellation.mention import MARQUE as MARQUE_EPELLATION
 from api.services.lexique.analyse import SEUIL_A_CONFIRMER
+from api.services.lexique.correction import MARQUE as MARQUE_LEXIQUE
 from api.services.lexique.epellation import terme_epele
 from api.services.nombres.lecture import lire_nombres, reecrire
+from api.services.nombres.mention import MARQUE as MARQUE_NOMBRES
 from api.services.nombres.voix import en_mots
 from api.services.voies import base as base_voies
 from api.services.voies.analyse import SURE as VOIE_SURE
 from api.services.voies.analyse import analyser as analyser_voie
+from api.services.voies.mention import MARQUE as MARQUE_VOIES
 from api.services.workflow.dates_relatives import est_une_date, lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
 
@@ -425,6 +430,40 @@ def _chiffres_comme_lus(texte: str) -> str:
     except Exception as erreur:  # noqa: BLE001 -- un contrôle ne coûte jamais l'appel
         logger.warning(f"[fiche] nombres de la date non convertis : {erreur!r}")
         return texte
+
+
+# Lot A (chantier fiabilite-fiche-et-renvoi, 01/10, run 925) : les notes que les modules
+# collent au message de la personne, chacune ouverte par la marque de son module.
+_NOTES_DES_MODULES = re.compile(
+    r"\s*(?:"
+    + "|".join(
+        re.escape(marque)
+        for marque in (MARQUE_LEXIQUE, MARQUE_EPELLATION, MARQUE_COMMUNES, MARQUE_NOMBRES, MARQUE_VOIES)
+    )
+    + r")[^\]]*\]"
+)
+
+
+def paroles_sans_notes(paroles: Iterable[str], fiche: dict) -> list[str]:
+    """Lot A (run 925) : ce que la personne a dit, pour le contrôle « dit tel quel ».
+
+    Les notes des modules ne sont pas des paroles : au 925, « devis » avait fait
+    PROPOSER Deville par le lexique, la note portait « Deville », et le contrôle
+    l'a lue comme dite. Une reconnaissance SÛRE du lexique, elle, est une parole :
+    la même parole est ajoutée avec l'écriture officielle (« édile kamine » ->
+    « Edilkamin »). Une proposition « à confirmer » ne compte jamais."""
+    nettes = [_NOTES_DES_MODULES.sub("", str(parole)) for parole in paroles]
+    # Relecture du 01/10 : la note d'épellation portait la reconstitution (« M comme
+    # Marcel », « double L ») ; retirée, ce qu'elle écrit reste une parole.
+    nettes += [
+        str(trace["epele"]) for trace in _entrees(fiche, TRACE_EPELLATIONS) if trace.get("epele")
+    ]
+    for trace in _entrees(fiche, TRACE_LEXIQUE):
+        if trace.get("statut") != "sure" or not trace.get("entendu") or not trace.get("terme"):
+            continue
+        entendu = re.compile(re.escape(str(trace["entendu"])), re.IGNORECASE)
+        nettes += [entendu.sub(str(trace["terme"]), p) for p in nettes if entendu.search(p)]
+    return nettes
 
 
 def paroles_de_l_appelant(messages: Iterable[dict]) -> list[str]:
@@ -1433,6 +1472,60 @@ def _est_vide(valeur: Any) -> bool:
     return valeur is None or (isinstance(valeur, str) and not valeur.strip())
 
 
+def lire_numero_a_plusieurs_lectures(valeur: Any, fiche: dict) -> Lecture | None:
+    """C2 (chantier fiabilite-fiche-et-renvoi, run 965) : un numéro dont les mots « … cinquante quatre vingt cinq… » : les mots se lisent 50 85 ou 54 25. Le
+    module des nombres rend les deux ; la valeur notée est alors à confirmer, la
+    lecture du modèle d'abord, puis l'autre (D9). Jamais sûre, donc jamais « déjà
+    confirmée » quand la personne redit les mêmes mots après un « non ».
+
+    Seulement sur le DERNIER message lu de la personne, et quand la valeur est une
+    des lectures ; sinon None (rien ne change)."""
+    tour = fiche.get(CLE_TOUR)
+    chiffres = re.sub(r"\D", "", str(valeur))
+    for trace in _entrees(fiche, TRACE_NOMBRES):
+        if trace.get("type") != "telephone" or (tour and trace.get("tour") not in (None, tour)):
+            continue
+        lectures = [str(l) for l in trace.get("lectures") or []]
+        if len(lectures) > 1 and chiffres in lectures:
+            options = tuple([chiffres, *(l for l in lectures if l != chiffres)])
+            return Lecture(chiffres, False, "ambigu", options)
+        return None
+    return None
+
+
+def corrige_par_paires(definition: ChampFiche, ancienne: Any, valeur: Any, paroles: list[str]) -> bool:
+    """Lot C (chantier fiabilite-fiche-et-renvoi, run 937) : la personne corrige une ou
+    plusieurs paires d'un numéro déjà noté (« c'est pas quarante-sept, c'est
+    soixante-quatorze »), n'importe où dans le numéro. Le numéro complet du modèle
+    n'est pas « dit tel quel » : seule une partie l'a été.
+
+    Acceptée pour un champ à nombre de chiffres fixe qui a déjà une valeur, quand la
+    nouvelle a autant de chiffres et que CHAQUE paire qui change a été dite dans la
+    dernière réplique de la personne ; les autres paires sont celles déjà notées.
+    Un numéro redit en entier passe par le contrôle d'avant (D2). ``paroles`` : la
+    dernière réplique SANS les notes des modules (relecture du 01/10 : une note qui
+    porte « 2025 » ne doit pas fournir une paire « dite »).
+
+    ⚠️ Limite connue : un nombre à deux chiffres sans rapport dit dans la même
+    réplique (« au 12 rue… ») suffit si le modèle l'écrit dans le numéro."""
+    if not definition.chiffres or _est_vide(ancienne) or not paroles:
+        return False
+    avant = re.sub(r"\D", "", str(ancienne))
+    apres = re.sub(r"\D", "", str(valeur))
+    if len(avant) != definition.chiffres or len(apres) != definition.chiffres or avant == apres:
+        return False
+    dites: set[str] = set()
+    for mot in _mots(_chiffres_comme_lus(paroles[-1])):
+        if mot.isdigit():
+            dites.add(mot)
+            if len(mot) > 2 and len(mot) % 2 == 0:
+                dites.update(mot[i : i + 2] for i in range(0, len(mot), 2))
+    changees = [
+        apres[i : i + 2] for i in range(0, len(apres), 2) if apres[i : i + 2] != avant[i : i + 2]
+    ]
+    return all(paire in dites for paire in changees)
+
+
 def _nombre_de_chiffres(valeur: Any) -> int:
     """C1 : les chiffres de la valeur, espaces, points et signes ignorés."""
     return sum(1 for c in str(valeur) if c.isdigit())
@@ -1528,6 +1621,9 @@ def ecrire_dans_la_fiche(
             lecture = lire_rue(valeur, fiche, paroles, champ)
         elif definition.lecteur_effectif == "lexique":
             lecture = lire_lexique(valeur, fiche, reglages.termes_du_lexique, paroles)
+        elif definition.chiffres:
+            # C2 : un numéro que les mots disent de plusieurs façons.
+            lecture = lire_numero_a_plusieurs_lectures(valeur, fiche)
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
             if definition.lecteur_effectif == "rue":
@@ -1586,7 +1682,10 @@ def ecrire_dans_la_fiche(
             # personne ne prononce pas « true ») ; il se juge comme un déduit.
             and definition.type != "boolean"
             # D-C5 : une phrase se dit dans une même réplique.
-            and not est_dit_tel_quel(valeur, paroles)
+            # Lot A : comparé aux paroles, jamais aux notes des modules.
+            and not est_dit_tel_quel(valeur, paroles_sans_notes(paroles, fiche))
+            # Lot C : la correction d'une ou plusieurs paires d'un numéro déjà noté.
+            and not corrige_par_paires(definition, fiche.get(champ), valeur, paroles_sans_notes(paroles[-1:], fiche))
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:

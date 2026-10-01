@@ -2200,6 +2200,16 @@ export type DailyUsageItem = {
 };
 
 /**
+ * DecisionDeRenvoi
+ */
+export type DecisionDeRenvoi = {
+    /**
+     * Accepte
+     */
+    accepte: boolean;
+};
+
+/**
  * Deepgram
  */
 export type DeepgramSttConfiguration = {
@@ -3123,6 +3133,16 @@ export type EndTextChatSessionRequest = {
      * Expected Revision
      */
     expected_revision?: number | null;
+};
+
+/**
+ * EtatDuRenvoi
+ */
+export type EtatDuRenvoi = {
+    /**
+     * En Attente
+     */
+    en_attente: boolean;
 };
 
 /**
@@ -11679,6 +11699,102 @@ export type RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRew
 };
 
 export type RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostResponse = RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostResponses[keyof RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRewindPostResponses];
+
+export type EtatDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Run Id
+         */
+        run_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/runs/{run_id}/renvoi-en-test';
+};
+
+export type EtatDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EtatDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestGetError = EtatDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestGetErrors[keyof EtatDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestGetErrors];
+
+export type EtatDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatDuRenvoi;
+};
+
+export type EtatDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestGetResponse = EtatDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestGetResponses[keyof EtatDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestGetResponses];
+
+export type DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostData = {
+    body: DecisionDeRenvoi;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Run Id
+         */
+        run_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/runs/{run_id}/renvoi-en-test';
+};
+
+export type DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostError = DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostErrors[keyof DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostErrors];
+
+export type DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatDuRenvoi;
+};
+
+export type DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostResponse = DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostResponses[keyof DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;

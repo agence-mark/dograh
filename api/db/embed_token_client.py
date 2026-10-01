@@ -282,6 +282,18 @@ class EmbedTokenClient(BaseDBClient):
             )
             return result.scalar_one_or_none()
 
+    async def run_vient_du_widget(self, workflow_run_id: int) -> bool:
+        """[.mark] Lot D (chantier fiabilite-fiche-et-renvoi) : ce run a-t-il été créé par
+        le widget public (une session de widget le porte) ? Un visiteur du widget n'est
+        pas un testeur : le renvoi d'appel n'y est jamais simulé."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(EmbedSessionModel.id)
+                .where(EmbedSessionModel.workflow_run_id == workflow_run_id)
+                .limit(1)
+            )
+            return result.scalar_one_or_none() is not None
+
     async def get_embed_token_by_id(self, token_id: int) -> Optional[EmbedTokenModel]:
         """Get an embed token by ID.
 

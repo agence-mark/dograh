@@ -69,7 +69,7 @@ from api.services.pipecat.realtime_feedback_observer import register_turn_log_ha
 from api.services.pipecat.verification_communes import CLE_TRACE, consigner_dans
 from api.services.workflow.conversation_history import build_conversation_history
 
-PHRASE_DU_15_09 = "le zéro sept quatre vingt huit vingt six quatorze zéro neuf"
+PHRASE_DU_15_09 = "le zéro six trente neuf quatre vingt dix huit quatorze zéro neuf"
 TELEPHONE = "zéro six douze trente-quatre cinquante-six soixante-dix-huit"
 REFERENCE = "facture deux mille vingt-six tiret huit cent quarante-sept"
 MENTION_REFERENCE = (
@@ -422,7 +422,7 @@ async def test_une_autre_langue_aucune_reecriture():
 @pytest.mark.parametrize(
     "phrase,attendu",
     [
-        (PHRASE_DU_15_09, "le 07 88 26 14 09"),
+        (PHRASE_DU_15_09, "le 06 39 98 14 09"),
         ("il me reste deux bûches", "il me reste deux bûches"),
         ("une fois par an", "une fois par an"),
         ("un poêle tout neuf", "un poêle tout neuf"),

@@ -18,6 +18,7 @@ from api.routes.public_agent import router as public_agent_router
 from api.routes.public_download import router as public_download_router
 from api.routes.public_embed import router as public_embed_router
 from api.routes.public_embed_chat import router as public_embed_chat_router
+from api.routes.renvoi_en_test import router as renvoi_en_test_router
 from api.routes.reports import router as reports_router
 from api.routes.s3_signed_url import router as s3_router
 from api.routes.service_keys import router as service_keys_router
@@ -43,6 +44,8 @@ router.include_router(telephony_router)
 router.include_router(superuser_router)
 router.include_router(workflow_router)
 router.include_router(workflow_text_chat_router)
+# [.mark] Lot D : la décision du testeur sur un renvoi d'appel (clavier, casque).
+router.include_router(renvoi_en_test_router)
 router.include_router(user_router)
 router.include_router(campaign_router)
 router.include_router(credentials_router)
