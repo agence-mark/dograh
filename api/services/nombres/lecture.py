@@ -140,6 +140,10 @@ class NombreLu:
     # cents", "soixante deux cents"): a postal code only with a context
     # (decision of Evan, 2026-09-16), decided by ``analyser_message``.
     ordinaire: bool = False
+    # C2 (chantier fiabilite-fiche-et-renvoi, run 965) : un téléphone dont les mots se
+    # découpent en plusieurs numéros (« cinquante quatre vingt cinq » : 50 85 ou 54 25),
+    # la lecture usuelle d'abord ; vide quand il n'y en a qu'une.
+    lectures_tel: tuple[str, ...] = ()
 
     @property
     def montant_ambigu(self) -> bool:
@@ -368,6 +372,44 @@ def _est_telephone(p: _Phrase, debut: int, fin: int) -> bool:
     )
 
 
+# C2 : après « soixante » et « quatre-vingt », ces mots continuent toujours le nombre
+# (soixante-dix-huit, quatre-vingt-douze) : « soixante, dix-huit » n'est pas une lecture.
+_SUITES_DES_DIZAINES = frozenset("dix onze douze treize quatorze quinze seize".split())
+
+
+def _lectures_telephone(mots: tuple[str, ...], usuelle: str) -> tuple[str, ...]:
+    """C2 (run 965) : les numéros à 10 chiffres que les mots disent, groupe par groupe
+    (« zéro sept », puis des nombres de 10 à 99). Plusieurs seulement quand les mots
+    se coupent autrement : « cinquante quatre vingt cinq » est 50 85 ou 54 25.
+    ``usuelle`` (la lecture d'avant) en tête ; () quand il n'y a qu'une lecture."""
+    n = len(mots)
+    trouves: list[str] = []
+
+    def parcourir(i: int, chiffres: str, dernier: int | None) -> None:
+        if len(chiffres) > 10 or len(trouves) > 8:
+            return
+        if i == n:
+            if len(chiffres) == 10 and chiffres not in trouves:
+                trouves.append(chiffres)
+            return
+        if dernier in (60, 80) and mots[i] in _SUITES_DES_DIZAINES:
+            return
+        if mots[i] == "zero" and i + 1 < n:
+            v = _valeur(mots[i + 1:i + 2])
+            if v is not None and 0 <= v[0] <= 9:
+                parcourir(i + 2, chiffres + "0" + v[1], v[0])
+        for j in range(i + 1, min(n, i + 4) + 1):
+            v = _valeur(mots[i:j])
+            if v is not None and 10 <= v[0] <= 99:
+                parcourir(j, chiffres + v[1], v[0])
+
+    if n <= 24:
+        parcourir(0, "", None)
+    if len(trouves) < 2:
+        return ()
+    return tuple(sorted(trouves, key=lambda t: t != usuelle))
+
+
 def _telephones_regroupes(p: _Phrase, suites: list[tuple[int, int]]) -> list[tuple[int, int]]:
     """A phone said with commas ("zéro trois, quarante-quatre, …") is ONE run;
     a run that ends on a phone ("soixante deux cents zéro six …") is cut."""
@@ -550,7 +592,9 @@ def lire_nombres(
         # 1. Phone ("plus trente-trois ..." takes its "plus").
         if _est_telephone(p, d0, f0):
             d = d0 - 1 if d0 > 0 and p.mots[d0 - 1] == "plus" and not p.coupure(d0 - 1) else d0
-            lus.append(NombreLu(d, f0, p.extrait(d, f0), TELEPHONE, _alpha2digit(p.extrait(d, f0))))
+            ecrit = _alpha2digit(p.extrait(d, f0))
+            lectures = () if d != d0 else _lectures_telephone(tuple(p.mots[d0:f0]), _chiffres_de(ecrit))
+            lus.append(NombreLu(d, f0, p.extrait(d, f0), TELEPHONE, ecrit, lectures_tel=lectures))
             continue
 
         # 2. Amount. N1: « 3 500,50 € » -- the amount word comes after the decimals.

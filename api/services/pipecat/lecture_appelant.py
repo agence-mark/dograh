@@ -219,6 +219,9 @@ def _trace_nombre(nombre, choix, etape: str | None) -> dict:
         lectures = list(nombre.lectures_cp)
     elif nombre.type == MONTANT:
         lectures = list(nombre.montants)
+    elif nombre.lectures_tel:
+        # C2 (run 965) : un téléphone que les mots disent de plusieurs façons.
+        lectures = list(nombre.lectures_tel)
     else:
         lectures = []
     return {

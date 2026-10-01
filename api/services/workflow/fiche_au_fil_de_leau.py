@@ -1467,6 +1467,27 @@ def _est_vide(valeur: Any) -> bool:
     return valeur is None or (isinstance(valeur, str) and not valeur.strip())
 
 
+def lire_numero_a_plusieurs_lectures(valeur: Any, fiche: dict) -> Lecture | None:
+    """C2 (chantier fiabilite-fiche-et-renvoi, run 965) : un numéro dont les mots « … cinquante quatre vingt cinq… » : les mots se lisent 50 85 ou 54 25. Le
+    module des nombres rend les deux ; la valeur notée est alors à confirmer, la
+    lecture du modèle d'abord, puis l'autre (D9). Jamais sûre, donc jamais « déjà
+    confirmée » quand la personne redit les mêmes mots après un « non ».
+
+    Seulement sur le DERNIER message lu de la personne, et quand la valeur est une
+    des lectures ; sinon None (rien ne change)."""
+    tour = fiche.get(CLE_TOUR)
+    chiffres = re.sub(r"\D", "", str(valeur))
+    for trace in _entrees(fiche, TRACE_NOMBRES):
+        if trace.get("type") != "telephone" or (tour and trace.get("tour") not in (None, tour)):
+            continue
+        lectures = [str(l) for l in trace.get("lectures") or []]
+        if len(lectures) > 1 and chiffres in lectures:
+            options = tuple([chiffres, *(l for l in lectures if l != chiffres)])
+            return Lecture(chiffres, False, "ambigu", options)
+        return None
+    return None
+
+
 def corrige_par_paires(definition: ChampFiche, ancienne: Any, valeur: Any, paroles: list[str]) -> bool:
     """Lot C (chantier fiabilite-fiche-et-renvoi, run 937) : la personne corrige une ou
     plusieurs paires d'un numéro déjà noté (« c'est pas quarante-sept, c'est
@@ -1590,6 +1611,9 @@ def ecrire_dans_la_fiche(
             lecture = lire_rue(valeur, fiche, paroles, champ)
         elif definition.lecteur_effectif == "lexique":
             lecture = lire_lexique(valeur, fiche, reglages.termes_du_lexique, paroles)
+        elif definition.chiffres:
+            # C2 : un numéro que les mots disent de plusieurs façons.
+            lecture = lire_numero_a_plusieurs_lectures(valeur, fiche)
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
             if definition.lecteur_effectif == "rue":

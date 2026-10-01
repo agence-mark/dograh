@@ -251,3 +251,58 @@ async def test_C_temoin_une_paire_changee_non_dite_reste_refusee(db_session, asy
         "non c'est pas quarante-sept c'est soixante-quatorze", "0612347488",
     )
     assert fiche.get("numero_dicte") == "0612344789", fiche.get("fiche_journal")
+
+
+# --------------------------------------------------------------------------- #
+# Lot C2 : un numéro que les mots disent de deux façons (vraie route du clavier)
+# --------------------------------------------------------------------------- #
+
+AMBIGU = "zéro six trente neuf quatre vingt dix huit cinquante quatre vingt cinq"
+
+
+def _etat(fiche: dict, champ: str) -> dict:
+    return (fiche.get("fiche_etat") or {}).get(champ) or {}
+
+
+@pytest.mark.asyncio
+async def test_C2_un_numero_a_deux_lectures_est_a_confirmer_avec_les_deux(
+    db_session, async_session, test_client_factory
+):
+    """Run 965 : 06 39 98 50 85 dit, les mots se lisent aussi 06 39 98 54 25 ; le « non »
+    qui redit les mêmes mots laissait le faux numéro « déjà confirmé »."""
+    user, workflow = await _monter(db_session, async_session, NUMERO)
+    appel = uuid.uuid4().hex[:6]
+    charge = await _messages(
+        test_client_factory,
+        user,
+        workflow,
+        [
+            (AMBIGU, [_noter({"numero_dicte": "0639985425"}, f"n_{appel}_1"), MockLLMService.create_text_chunks("Je relis.")]),
+            (f"non c'est le {AMBIGU}", [_noter({"numero_dicte": "0639985425"}, f"n_{appel}_2"), MockLLMService.create_text_chunks("Ah.")]),
+        ],
+    )
+    fiche = charge["checkpoint"]["gathered_context"]
+    assert _etat(fiche, "numero_dicte").get("sure") is False, fiche.get("fiche_journal")
+    journal = _journal(fiche, "numero_dicte")
+    assert all(e.get("raison") != "deja_confirmee" for e in journal), journal
+    assert set(journal[-1].get("options") or []) == {"0639985425", "0639985085"}, journal
+
+
+@pytest.mark.asyncio
+async def test_C2_temoin_un_numero_sans_ambiguite_reste_sur(db_session, async_session, test_client_factory):
+    user, workflow = await _monter(db_session, async_session, NUMERO)
+    appel = uuid.uuid4().hex[:6]
+    charge = await _messages(
+        test_client_factory,
+        user,
+        workflow,
+        [
+            (
+                "zéro six trente-sept cinquante-huit vingt et un quatre-vingt-quatorze",
+                [_noter({"numero_dicte": "0637582194"}, f"n_{appel}_1"), MockLLMService.create_text_chunks("Je relis.")],
+            )
+        ],
+    )
+    fiche = charge["checkpoint"]["gathered_context"]
+    assert fiche.get("numero_dicte") == "0637582194"
+    assert _etat(fiche, "numero_dicte").get("sure") is True
