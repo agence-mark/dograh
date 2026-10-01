@@ -114,3 +114,41 @@ async def test_A_transcription_propre_inchangee(db_session, async_session, test_
     )
     fiche = charge["checkpoint"]["gathered_context"]
     assert fiche.get("motif") == "mon poêle Deville ne ferme plus", fiche
+
+
+# --------------------------------------------------------------------------- #
+# Lots B : le module des communes (mécanismes, données seulement)
+# --------------------------------------------------------------------------- #
+
+from api.services.communes.analyse import SURE  # noqa: E402
+from api.services.communes.base import charger_base  # noqa: E402
+from api.services.nombres.lecture import analyser_message  # noqa: E402
+
+SAINT_MAXIMIN = "60589"
+
+
+@pytest.fixture(scope="module")
+def base():
+    return charger_base()
+
+
+@pytest.fixture(scope="module")
+def magasin(base):
+    return base.coordonnees(SAINT_MAXIMIN)
+
+
+def _communes(texte, base, magasin, trace=None):
+    r = analyser_message(texte, base, magasin, trace)
+    return [(d.lectures[0].commune.nom, d.statut) for d in r.detections if not d.code_postal_entendu], r
+
+
+def test_B3_une_epellation_qui_suit_ne_fait_plus_perdre_la_commune(base, magasin):
+    """Run 935 : la commune dite, puis le nom épelé dans la même phrase."""
+    communes, _ = _communes("Oui, Montataire. Et mon nom c'est Meunier, m e u n i e r", base, magasin)
+    assert communes == [("Montataire", SURE)]
+
+
+def test_B3_les_lettres_d_une_elision_comptent_comme_avant(base, magasin):
+    """Témoin (corpus réel) : « l'appel », « d'ouverture » ne sont pas une épellation."""
+    communes, _ = _communes("Allez c'est bon fin de l'appel. fondamental.", base, magasin)
+    assert communes == []

@@ -179,11 +179,32 @@ def _joints(texte: str, mots: list[str], signes: str = "-’'`") -> set[int]:
     }
 
 
+def _lettres_epelees(mots: list[str]) -> set[int]:
+    """B3 : les positions des lettres seules qui se suivent à trois ou plus."""
+    positions: set[int] = set()
+    serie: list[int] = []
+    for k, m in enumerate([*mots, ""]):
+        if len(m) == 1 and m.isalpha():
+            serie.append(k)
+            continue
+        if len(serie) >= 3:
+            positions.update(serie)
+        serie = []
+    return positions
+
+
 def _segments(texte: str, mots: list[str], spans_cp, mots_cp: set[int], avec_lecteur: bool):
     """The readings of a sentence a town may hide in: (start, length, words, after an amorce)."""
     joints = _joints(texte, mots)
     tirets = _joints(texte, mots, "-")
-    reponse_courte = sum(1 for m in mots if m not in MOTS_HORS_COMPTE and not m.isdigit()) <= 5
+    # B3 (chantier fiabilite-fiche-et-renvoi, run 935) : les lettres d'une épellation
+    # (trois lettres seules d'affilée ou plus) ne sont pas des mots de la réponse.
+    # « Oui, Montataire. Et mon nom c'est Meunier, m e u n i e r » comptait les lettres
+    # et perdait « Montataire ». ⛔ Pas les lettres isolées d'une élision (« l'appel »).
+    epelees = _lettres_epelees(mots)
+    reponse_courte = sum(
+        1 for k, m in enumerate(mots) if m not in MOTS_HORS_COMPTE and not m.isdigit() and k not in epelees
+    ) <= 5
     for i in range(len(mots)):
         # A name right after a street type is a street name, not a town.
         avant = mots[max(0, i - 3):i]
