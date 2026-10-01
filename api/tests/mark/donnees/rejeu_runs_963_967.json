@@ -1,0 +1,5025 @@
+{
+ "_lire": "Corpus de rejeu du chantier fiabilite-fiche-et-renvoi (01/10/2026) : les tours réels des runs 963 à 967 (casque, agent n° 34 v9) (entendu exact de la transcription, étape, dernière réplique de l'agent, notes que le modèle a passées à noter_information et leur résultat en production), la fiche et les traces des modules en fin d'appel, les cibles du banc (2026-10-01-scenarios-clavier-contre-casque.md). Numéros remplacés par des numéros fictifs (plage 06 39 98 réservée par l'ARCEP), nom réel remplacé.",
+ "adresse_etablissement": {
+  "code_postal": "60740",
+  "code_insee": "60589",
+  "commune": "Saint-Maximin"
+ },
+ "lexique": {
+  "format": "lexique-mark",
+  "version": 1,
+  "modeles_importes": [
+   {
+    "nom": "poeles-bois-granules",
+    "date": "2026-09-17"
+   },
+   {
+    "nom": "magasin (marques distribuées, relevé du 16/09)",
+    "date": "2026-09-17"
+   }
+  ],
+  "termes": [
+   {
+    "terme": "Aduro",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Alpenwood",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "AMG",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Anselmo Cola",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Arikazan",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Artense",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Atra",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Attika",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Austroflamm",
+    "variantes": [],
+    "prononciation": "aostro-flamme",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Barbas",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Becafire",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Best Fires",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Bodart & Gonay",
+    "variantes": [
+     "Bodart et Gonay",
+     "Bodart"
+    ],
+    "prononciation": "bodar gonè",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Bordelet",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Brisach",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Bronpi",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Cadel",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Camina & Schmid",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Caminetti Montegrappa",
+    "variantes": [
+     "Montegrappa"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Charnwood",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Chaudières Miquée",
+    "variantes": [
+     "Miquée"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Cheminees De Chazelles",
+    "variantes": [
+     "Chazelles",
+     "Cheminées de Chazelles"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Cheminées Godin",
+    "variantes": [
+     "Godin"
+    ],
+    "prononciation": "cheminées godin",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Cheminees Philippe",
+    "variantes": [
+     "Philippe",
+     "Cheminées Philippe"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "CMG",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Contura",
+    "variantes": [],
+    "prononciation": "contoura",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Crown",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "De Dietrich",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Denia",
+    "variantes": [],
+    "prononciation": "dénia",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Deville",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Dik Geurts par Fonte Flamme",
+    "variantes": [
+     "Dik Geurts"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Domusa Teknik",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Dovre",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Drooff",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Dru par Fonte Flamme",
+    "variantes": [
+     "Dru"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Ecoforest",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Edilkamin",
+    "variantes": [],
+    "prononciation": "édile kamine",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Ember",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Extraflame",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Ferroli",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "FF Concept by France Flamme",
+    "variantes": [
+     "France Flamme"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Fireplace",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Fogo Montanha",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Fondis",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Fonte Flamme",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "France Turbo",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Freepoint",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Froling",
+    "variantes": [
+     "Fröling"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Hargassner",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Hase",
+    "variantes": [],
+    "prononciation": "aze",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Herz®",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Hoben",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Hwam / Wiking",
+    "variantes": [
+     "Hwam",
+     "Wiking"
+    ],
+    "prononciation": "vam viking",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "ILD",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Interstoves",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Invicta",
+    "variantes": [],
+    "prononciation": "in-victa",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Izyflam",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Jacobus",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Jide",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Jotul",
+    "variantes": [
+     "Jøtul"
+    ],
+    "prononciation": "yotoul",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Justus",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Klover | Fuoco e Passione",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Kratki",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Kunst",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "KWB",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "La Nordica",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Lacunza",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Laminox Idro",
+    "variantes": [
+     "Laminox"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Lasian",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Leda",
+    "variantes": [],
+    "prononciation": "léda",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Lorflam",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Lotus",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "MCZ",
+    "variantes": [],
+    "prononciation": "aime cé zède",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Morso",
+    "variantes": [
+     "Morsø"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Morvan",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Nobis",
+    "variantes": [],
+    "prononciation": "nobisse",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Nordic Fire",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Nordpeis",
+    "variantes": [],
+    "prononciation": "nordpaïss",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Oertli",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Okofen",
+    "variantes": [
+     "Ökofen"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Oliger",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Oranier",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Palazzetti",
+    "variantes": [],
+    "prononciation": "palatzetti",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Panadero",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Pegaso",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Piazzetta",
+    "variantes": [],
+    "prononciation": "piatzetta",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Rais",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Ravelli",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "RED",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Redpod",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Rhea Flam",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Richard Le Droff",
+    "variantes": [
+     "Richard Le Droff"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Romotop",
+    "variantes": [],
+    "prononciation": "romotop",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Royal",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Ruegg",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Scan",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Schuster",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Seguin Duteriez",
+    "variantes": [
+     "Seguin"
+    ],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Sistemi",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Skia Design",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Solarfocus",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Solzaima",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Spartherm",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Storch",
+    "variantes": [],
+    "prononciation": "storque",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Stoveitalia",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Superior",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Supra",
+    "variantes": [],
+    "prononciation": "supra",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Surdiac",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Thermi Confort",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Thermolab",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Tulikivi",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Turbo Fonte",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Ungaro",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Unical",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Viessmann",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Vivace",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Wanders",
+    "variantes": [],
+    "prononciation": "vandeurse",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Wiesberg",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Windhager",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Wodtke",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Rika",
+    "variantes": [],
+    "prononciation": "rika",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Stûv",
+    "variantes": [],
+    "prononciation": "stuve",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Thermorossi",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Jolly Mec",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Brunner",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Harman",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Haas+Sohn",
+    "variantes": [],
+    "prononciation": "asse zone",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Skantherm",
+    "variantes": [],
+    "prononciation": "skann terme",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Nestor Martin",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Stovax",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Hark",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Olsberg",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Termatech",
+    "variantes": [],
+    "prononciation": "terma tek",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Kalor",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Ferlux",
+    "variantes": [],
+    "prononciation": null,
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Artola",
+    "variantes": [],
+    "prononciation": "artola",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Boley",
+    "variantes": [],
+    "prononciation": "bolé",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "British Fires",
+    "variantes": [],
+    "prononciation": "britiche faillerz",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Color & Fire",
+    "variantes": [],
+    "prononciation": "colore et faillerz",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Finoptim",
+    "variantes": [],
+    "prononciation": "finoptime",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Flamebox",
+    "variantes": [],
+    "prononciation": "flème boxe",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Hoxter",
+    "variantes": [],
+    "prononciation": "oxteur",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Klover",
+    "variantes": [],
+    "prononciation": "clauvère",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "M Design",
+    "variantes": [],
+    "prononciation": "aime dizaïne",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Metal-Fire",
+    "variantes": [],
+    "prononciation": "métal faillerz",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Neverdark",
+    "variantes": [],
+    "prononciation": "néveur darke",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "Saey",
+    "variantes": [],
+    "prononciation": "saï",
+    "type": "nom",
+    "categorie": "marque",
+    "a_ecouter": false
+   },
+   {
+    "terme": "poêle à bois",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "poêle à granulés",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "poêle",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "insert",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "foyer fermé",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "cuisinière",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "chaudière granulés",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "conduit",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "tubage",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "boisseau",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "souche",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "sortie de toit",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "chapeau",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "ramonage",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "ramoner",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "entretien annuel",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "certificat de ramonage",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "décendrage",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "joint",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "vitre",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "bûches",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "granulés",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "pellets",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "sac de granulés",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "palette",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "taux d'humidité",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "habillage",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "plaque de sol",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "distance de sécurité",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "arrivée d'air",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "hotte",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "RGE",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "crédit d'impôt",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   },
+   {
+    "terme": "MaPrimeRénov",
+    "variantes": [],
+    "prononciation": null,
+    "type": "mot",
+    "categorie": "mot du métier",
+    "a_ecouter": false
+   }
+  ]
+ },
+ "agents": {
+  "34": {
+   "conversion_nombres_transcription": true,
+   "verification_communes": true,
+   "verification_voies": true,
+   "lecture_epellation": true,
+   "lexique_metier": true,
+   "sons_communes": true,
+   "sons_lexique": true,
+   "variables_commune": "commune, commune_*, adresse*",
+   "variables_reference": "reference*",
+   "fiche_au_fil_de_leau": true,
+   "fiche_champs": [
+    {
+     "nom": "numero_dicte",
+     "type": "string",
+     "origine": "dicte",
+     "description": "Le numéro de rappel de la personne, au format 06…, sans +33.",
+     "lecteur": null,
+     "chiffres": 10
+    },
+    {
+     "nom": "nom",
+     "type": "string",
+     "origine": "dicte",
+     "description": "Le nom de famille de la personne, tel qu'elle l'a épelé.",
+     "lecteur": null
+    },
+    {
+     "nom": "appelant",
+     "type": "string",
+     "origine": "dicte",
+     "description": "Qui appelle quand ce n'est pas la personne concernée, avec ses mots exacts.",
+     "lecteur": null
+    },
+    {
+     "nom": "motif",
+     "type": "string",
+     "origine": "deduit",
+     "description": "La raison de l'appel, en une phrase courte.",
+     "lecteur": null,
+     "cumulatif": true
+    },
+    {
+     "nom": "verbatim_demande",
+     "type": "string",
+     "origine": "dicte",
+     "description": "La phrase par laquelle la personne expose sa demande, mot pour mot.",
+     "lecteur": null
+    },
+    {
+     "nom": "degre_urgence",
+     "type": "string",
+     "origine": "deduit",
+     "description": "Le degré d'urgence, un de ces trois mots : danger, panne ou normal.",
+     "lecteur": null,
+     "valeurs": [
+      "danger",
+      "panne",
+      "normal"
+     ]
+    },
+    {
+     "nom": "email",
+     "type": "string",
+     "origine": "dicte",
+     "description": "L'adresse électronique de la personne.",
+     "lecteur": null
+    },
+    {
+     "nom": "appareil",
+     "type": "string",
+     "origine": "deduit",
+     "description": "Le type d'appareil, un de ces mots : poêle, poêle à bois, poêle à granulés, insert, cheminée, cuisinière, chaudière.",
+     "lecteur": null,
+     "valeurs": [
+      "poêle",
+      "poêle à bois",
+      "poêle à granulés",
+      "insert",
+      "cheminée",
+      "cuisinière",
+      "chaudière"
+     ]
+    },
+    {
+     "nom": "marque_appareil",
+     "type": "string",
+     "origine": "dicte",
+     "description": "La marque de l'appareil.",
+     "lecteur": "lexique"
+    },
+    {
+     "nom": "dernier_entretien",
+     "type": "string",
+     "origine": "dicte",
+     "description": "La date du dernier entretien de l'appareil.",
+     "lecteur": "date"
+    },
+    {
+     "nom": "symptome",
+     "type": "string",
+     "origine": "deduit",
+     "description": "Ce que fait l'appareil et depuis quand, avec les mots de la personne. Vide pour un entretien ou une question.",
+     "lecteur": null,
+     "cumulatif": true,
+     "rempli_en_fin_d_appel": false
+    },
+    {
+     "nom": "projet",
+     "type": "string",
+     "origine": "deduit",
+     "description": "Ce que la personne envisage d'installer ou de remplacer.",
+     "lecteur": null
+    },
+    {
+     "nom": "type_logement",
+     "type": "string",
+     "origine": "dicte",
+     "description": "Le type de logement, un de ces deux mots : maison ou appartement.",
+     "lecteur": null,
+     "valeurs": [
+      "maison",
+      "appartement"
+     ]
+    },
+    {
+     "nom": "echeance_projet",
+     "type": "string",
+     "origine": "deduit",
+     "description": "L'échéance voulue par la personne pour son projet.",
+     "lecteur": null
+    },
+    {
+     "nom": "montants_evoques",
+     "type": "string",
+     "origine": "dicte",
+     "description": "Les sommes citées par la personne, avec ce à quoi chacune se rapporte.",
+     "lecteur": null
+    },
+    {
+     "nom": "interlocuteur_demande",
+     "type": "string",
+     "origine": "dicte",
+     "description": "Le nom de l'interlocuteur habituel de la personne chez le magasin.",
+     "lecteur": null
+    },
+    {
+     "nom": "reference_commande",
+     "type": "string",
+     "origine": "dicte",
+     "description": "Le numéro d'une commande ou d'un devis signé.",
+     "lecteur": null
+    },
+    {
+     "nom": "reference_facture",
+     "type": "string",
+     "origine": "dicte",
+     "description": "Le numéro d'une facture.",
+     "lecteur": null
+    },
+    {
+     "nom": "date_facture",
+     "type": "string",
+     "origine": "dicte",
+     "description": "La date d'une facture dont la personne n'a pas le numéro.",
+     "lecteur": null
+    },
+    {
+     "nom": "commune",
+     "type": "string",
+     "origine": "dicte",
+     "description": "La commune où se trouve l'appareil.",
+     "lecteur": null
+    },
+    {
+     "nom": "code_postal",
+     "type": "string",
+     "origine": "dicte",
+     "description": "Le code postal de cette commune.",
+     "lecteur": null
+    },
+    {
+     "nom": "adresse_intervention",
+     "type": "string",
+     "origine": "dicte",
+     "description": "Le numéro et la rue où se trouve l'appareil.",
+     "lecteur": null
+    },
+    {
+     "nom": "precisions_acces",
+     "type": "string",
+     "origine": "deduit",
+     "description": "Ce que la personne demande de savoir avant une intervention chez elle.",
+     "lecteur": null
+    },
+    {
+     "nom": "conduit_existant",
+     "type": "string",
+     "origine": "dicte",
+     "description": "Si le logement a déjà un conduit de cheminée, un de ces deux mots : oui ou non.",
+     "lecteur": null,
+     "valeurs": [
+      "oui",
+      "non"
+     ]
+    },
+    {
+     "nom": "autre",
+     "type": "string",
+     "origine": "deduit",
+     "description": "Tout ce que la personne dit d'utile qui n'entre dans aucun autre champ.",
+     "lecteur": null,
+     "cumulatif": true,
+     "rempli_en_fin_d_appel": false
+    }
+   ]
+  }
+ },
+ "runs": [
+  {
+   "id": 963,
+   "agent": 34,
+   "version": null,
+   "cibles": {
+    "nom": "GAUTHIER",
+    "marque_appareil": "Jotul",
+    "commune": "Senlis",
+    "code_postal": "60300",
+    "adresse_intervention": "11 rue de la République",
+    "numero_dicte": "0637582194",
+    "reference_facture": "FA52761"
+   },
+   "tours": [
+    {
+     "tour": 2,
+     "etape": "accueil",
+     "agent_avant": "le magasin bonjour, je suis Marie, l'assistant téléphonique par intelligence artificielle du magasin. Qu'est-ce que je peux faire pour vous ?",
+     "entendu": "Oui bonjour, je voudrais faire ramoner mon poêle à bois, j'otule le dernier entretien, c'était l'hiver dernier.",
+     "notes": [
+      {
+       "id": "GA5UY5tSd",
+       "arguments": {
+        "appareil": "poêle à bois",
+        "marque_appareil": "Jotul",
+        "dernier_entretien": "hiver dernier",
+        "motif": "ramonage du poêle à bois"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['appareil', 'marque_appareil', 'dernier_entretien', 'motif']}"
+      }
+     ]
+    },
+    {
+     "tour": 4,
+     "etape": "entretien",
+     "agent_avant": "Vous êtes toujours là ? Je vais vous transférer vers le magasin.",
+     "entendu": "Oui, je suis toujours là.",
+     "notes": []
+    },
+    {
+     "tour": 6,
+     "etape": "transfert",
+     "agent_avant": "Vous êtes toujours en ligne",
+     "entendu": "Je",
+     "notes": []
+    },
+    {
+     "tour": 7,
+     "etape": "coordonnees",
+     "agent_avant": "Nos équipes sont occupées, je vais prendre vos informations pour qu'on vous rappelle au plus vite.\nVous pouvez me donner votre nom et l'épeler",
+     "entendu": "Ouais, c'est Gauthier, g a u t h i e r.",
+     "notes": [
+      {
+       "id": "uj9lATfTG",
+       "arguments": {
+        "nom": "GAUTHIER"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['nom']}"
+      }
+     ]
+    },
+    {
+     "tour": 8,
+     "etape": "coordonnees",
+     "agent_avant": "Sur quel numéro pouvons-nous vous rappeler ?",
+     "entendu": "C'est le zéro six trente sept cinquante huit vingt et un quatre vingt quatorze.",
+     "notes": [
+      {
+       "id": "uo0m4VmuK",
+       "arguments": {
+        "numero_dicte": "0637582194"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['numero_dicte']}"
+      }
+     ]
+    },
+    {
+     "tour": 9,
+     "etape": "coordonnees",
+     "agent_avant": "Je relis : zéro six, trente-sept, cinquante-huit, vingt-et-un, quatre-vingt-quatorze. C'est bien ça ?",
+     "entendu": "Ouais, c'est ça.",
+     "notes": []
+    },
+    {
+     "tour": 10,
+     "etape": "coordonnees",
+     "agent_avant": "Vous êtes dans quelle commune, et quel est le code postal ?",
+     "entendu": "J'habite au onze rue de la République à cent lits soixante trois cents.",
+     "notes": [
+      {
+       "id": "iBJnfKPUL",
+       "arguments": {
+        "code_postal": "60300",
+        "adresse_intervention": "11 rue de la République",
+        "commune": "Senlis"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['code_postal', 'adresse_intervention', 'commune']}"
+      }
+     ]
+    },
+    {
+     "tour": 11,
+     "etape": "autre_demande",
+     "agent_avant": "Est-ce qu'il y a autre chose que je peux faire pour vous ?",
+     "entendu": "Oui, j'ai aussi une question sur ma facture, je ne comprends pas le montant de la TVA.",
+     "notes": [
+      {
+       "id": "FT3ykmvGF",
+       "arguments": {
+        "verbatim_demande": "je ne comprends pas le montant de la TVA",
+        "motif": "ramonage du poêle à bois et question sur le montant de la TVA d'une facture"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['verbatim_demande', 'motif']}"
+      }
+     ]
+    },
+    {
+     "tour": 12,
+     "etape": "dossier",
+     "agent_avant": "Vous avez le numéro de la facture ?",
+     "entendu": "Ouais, c'est le, c'est la facture f a cinquante deux soixante seize un.",
+     "notes": [
+      {
+       "id": "ZazLWybMg",
+       "arguments": {
+        "reference_facture": "FA52761"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['reference_facture']}"
+      }
+     ]
+    },
+    {
+     "tour": 13,
+     "etape": "dossier",
+     "agent_avant": "Je relis : FA cinquante-deux, soixante-seize, un. C'est bien ça ?",
+     "entendu": "Ouais, c'est ça, ouais.",
+     "notes": [
+      {
+       "id": "zCJGa7pNN",
+       "arguments": {
+        "autre": "question sur le montant de la TVA de la facture FA52761"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['autre']}"
+      }
+     ]
+    },
+    {
+     "tour": 14,
+     "etape": "coordonnees",
+     "agent_avant": "Je vais transmettre votre question sur la facture FA cinquante-deux, soixante-seize, un au magasin. On vous rappellera pour vous expliquer le montant de la TVA. Est-ce qu'il y a autre chose ?",
+     "entendu": "Non, c'est tout.",
+     "notes": []
+    }
+   ],
+   "balayage": {
+    "reference_commande": "FA52761"
+   },
+   "production": {
+    "fiche": {
+     "numero_dicte": "0637582194",
+     "nom": "Gauthier",
+     "motif": "ramonage du poêle à bois et question sur le montant de la TVA d'une facture",
+     "verbatim_demande": "je ne comprends pas le montant de la TVA",
+     "appareil": "poêle à bois",
+     "marque_appareil": "Jotul",
+     "dernier_entretien": "hiver dernier",
+     "reference_facture": "FA52761",
+     "commune": "Senlis",
+     "code_postal": "60300",
+     "adresse_intervention": "11 Rue de la République",
+     "autre": "question sur le montant de la TVA de la facture FA52761"
+    },
+    "etat": {
+     "appareil": {
+      "sure": true,
+      "source": "outil"
+     },
+     "marque_appareil": {
+      "sure": true,
+      "source": "outil"
+     },
+     "dernier_entretien": {
+      "sure": true,
+      "source": "outil"
+     },
+     "motif": {
+      "sure": true,
+      "source": "outil"
+     },
+     "nom": {
+      "sure": true,
+      "source": "outil"
+     },
+     "numero_dicte": {
+      "sure": true,
+      "source": "outil"
+     },
+     "code_postal": {
+      "sure": true,
+      "source": "outil"
+     },
+     "adresse_intervention": {
+      "sure": true,
+      "source": "outil"
+     },
+     "commune": {
+      "sure": true,
+      "source": "outil"
+     },
+     "verbatim_demande": {
+      "sure": true,
+      "source": "outil"
+     },
+     "reference_facture": {
+      "sure": true,
+      "source": "outil"
+     },
+     "autre": {
+      "sure": true,
+      "source": "outil"
+     }
+    },
+    "journal": [
+     {
+      "champ": "appareil",
+      "valeur": "poêle à bois",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "marque_appareil",
+      "valeur": "Jotul",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "dernier_entretien",
+      "valeur": "hiver dernier",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "motif",
+      "valeur": "ramonage du poêle à bois",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "nom",
+      "valeur": "Gauthier",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 4
+     },
+     {
+      "champ": "numero_dicte",
+      "valeur": "0637582194",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 5
+     },
+     {
+      "champ": "code_postal",
+      "valeur": "60300",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 7
+     },
+     {
+      "champ": "adresse_intervention",
+      "valeur": "11 Rue de la République",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 7
+     },
+     {
+      "champ": "commune",
+      "valeur": "Senlis",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 7
+     },
+     {
+      "champ": "verbatim_demande",
+      "valeur": "je ne comprends pas le montant de la TVA",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 8
+     },
+     {
+      "champ": "motif",
+      "valeur": "ramonage du poêle à bois et question sur le montant de la TVA d'une facture",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 8
+     },
+     {
+      "champ": "reference_facture",
+      "valeur": "FA52761",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 9
+     },
+     {
+      "champ": "autre",
+      "valeur": "question sur le montant de la TVA de la facture FA52761",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 10
+     },
+     {
+      "champ": "reference_commande",
+      "valeur": "FA52761",
+      "statut": "refuse",
+      "raison": "recopie_de_reference_facture",
+      "source": "balayage",
+      "sure": true
+     }
+    ],
+    "communes_verifiees": [
+     {
+      "etape": "accueil",
+      "entendu": "bois",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Bois",
+        "code_insee": "17050",
+        "departement": "Charente-Maritime",
+        "codes_postaux": [
+         "17240"
+        ]
+       },
+       {
+        "nom": "Broyes",
+        "code_insee": "60111",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60120"
+        ]
+       },
+       {
+        "nom": "Boissay",
+        "code_insee": "76113",
+        "departement": "Seine-Maritime",
+        "codes_postaux": [
+         "76750"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "nom",
+      "tour": 1
+     },
+     {
+      "etape": "entretien",
+      "entendu": "toujours",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Vaujours",
+        "code_insee": "93074",
+        "departement": "Seine-Saint-Denis",
+        "codes_postaux": [
+         "93410"
+        ]
+       },
+       {
+        "nom": "Toujouse",
+        "code_insee": "32449",
+        "departement": "Gers",
+        "codes_postaux": [
+         "32240"
+        ]
+       },
+       {
+        "nom": "Coubjours",
+        "code_insee": "24136",
+        "departement": "Dordogne",
+        "codes_postaux": [
+         "24390"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "son",
+      "tour": 2
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "cent lits",
+      "statut": "sure",
+      "commune_retenue": {
+       "nom": "Senlis",
+       "code_insee": "60612",
+       "departement": "Oise",
+       "codes_postaux": [
+        "60300"
+       ]
+      },
+      "propositions": [
+       {
+        "nom": "Senlis",
+        "code_insee": "60612",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60300"
+        ]
+       },
+       {
+        "nom": "Senlisse",
+        "code_insee": "78590",
+        "departement": "Yvelines",
+        "codes_postaux": [
+         "78720"
+        ]
+       },
+       {
+        "nom": "Sannois",
+        "code_insee": "95582",
+        "departement": "Val-d'Oise",
+        "codes_postaux": [
+         "95110"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "lieu",
+      "tour": 7
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "tout",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Thou",
+        "code_insee": "45323",
+        "departement": "Loiret",
+        "codes_postaux": [
+         "45420"
+        ]
+       },
+       {
+        "nom": "Thou",
+        "code_insee": "18264",
+        "departement": "Cher",
+        "codes_postaux": [
+         "18260"
+        ]
+       },
+       {
+        "nom": "Thoux",
+        "code_insee": "32444",
+        "departement": "Gers",
+        "codes_postaux": [
+         "32430"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "son",
+      "tour": 11
+     }
+    ],
+    "voies_verifiees": [
+     {
+      "etape": "coordonnees",
+      "entendu": "republique",
+      "statut": "sure",
+      "voie_retenue": "Rue de la République",
+      "propositions": [
+       {
+        "nom": "Rue de la République",
+        "score": 103,
+        "numero_present": true
+       }
+      ],
+      "par_son": false,
+      "tour": 7
+     }
+    ],
+    "lexique_reconnu": [
+     {
+      "etape": "accueil",
+      "entendu": "otule",
+      "statut": "sure",
+      "terme": "Jotul",
+      "propositions": [
+       {
+        "terme": "Jotul",
+        "categorie": "marque",
+        "score": 88.9
+       }
+      ],
+      "par_son": false
+     }
+    ],
+    "epellations_lues": [
+     {
+      "etape": "coordonnees",
+      "entendu": "g a u t h i e r",
+      "epele": "Gauthier",
+      "tour": 4
+     }
+    ]
+   }
+  },
+  {
+   "id": 964,
+   "agent": 34,
+   "version": null,
+   "cibles": {
+    "nom": "GAUTHIER",
+    "commune": "Gouvieux",
+    "code_postal": "60270",
+    "adresse_intervention": "8 rue de Chantilly",
+    "numero_dicte": "0637582194"
+   },
+   "tours": [
+    {
+     "tour": 2,
+     "etape": "accueil",
+     "agent_avant": "le magasin bonjour, je suis Marie, l'assistant téléphonique par intelligence artificielle du magasin. Qu'est-ce que je peux faire pour vous ?",
+     "entendu": "Bonjour, mon poêle a granulé m c z s'arrête tout seul depuis trois jours.",
+     "notes": [
+      {
+       "id": "NWwCRGYT3",
+       "arguments": {
+        "appareil": "poêle à granulés",
+        "marque_appareil": "MCZ",
+        "symptome": "s'arrête tout seul depuis 3 jours",
+        "motif": "panne de poêle à granulés"
+       },
+       "production": "{'statut': 'a_confirmer', 'ecrits': ['appareil', 'marque_appareil', 'symptome', 'motif'], 'a_confirmer': [{'champ': 'marque_appareil', 'valeur': 'MCZ'}], 'consigne': 'Noté, mais pas vérifié : fais confirmer cette information à la personne.'}"
+      }
+     ]
+    },
+    {
+     "tour": 3,
+     "etape": "panne",
+     "agent_avant": "Je note qu'il s'agit d'un poêle à granulés de la marque MCZ, c'est bien ça ?",
+     "entendu": "Ouais.",
+     "notes": [
+      {
+       "id": "tH1XX4m1e",
+       "arguments": {
+        "marque_appareil": "MCZ"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['marque_appareil']}"
+      }
+     ]
+    },
+    {
+     "tour": 4,
+     "etape": "panne",
+     "agent_avant": "D'accord, donc un poêle à granulés\nQu'est-ce qui se passe exactement quand il s'arrête ? Par exemple, est-ce qu'il y a un message d'erreur, un bruit particulier, ou autre chose ?",
+     "entendu": "Non, juste il s'arrête, c'est tout.",
+     "notes": []
+    },
+    {
+     "tour": 5,
+     "etape": "coordonnees",
+     "agent_avant": "Vous pouvez me donner votre nom et l'épeler ?",
+     "entendu": "Ouais, c'est Gauthier, g a u t h i e r.",
+     "notes": [
+      {
+       "id": "trfBVrP9W",
+       "arguments": {
+        "nom": "GAUTHIER"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['nom']}"
+      }
+     ]
+    },
+    {
+     "tour": 6,
+     "etape": "coordonnees",
+     "agent_avant": "Sur quel numéro pouvons-nous vous rappeler ?",
+     "entendu": "Le zéro six trente sept cinquante huit vingt et un quatre vingt quatorze.",
+     "notes": [
+      {
+       "id": "Gew6XEE25",
+       "arguments": {
+        "numero_dicte": "0637582194"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['numero_dicte']}"
+      }
+     ]
+    },
+    {
+     "tour": 7,
+     "etape": "coordonnees",
+     "agent_avant": "Je relis : zéro six, trente-sept, cinquante-huit, vingt-et-un, quatre-vingt-quatorze, c'est bien ça ?",
+     "entendu": "Ouais c'est ça.",
+     "notes": []
+    },
+    {
+     "tour": 8,
+     "etape": "coordonnees",
+     "agent_avant": "Vous êtes dans quelle commune, et quel est le code postal ?",
+     "entendu": "J'habite au huit rue de chantilly à Gouvieu.\nsoixante deux cent soixante-dix",
+     "notes": [
+      {
+       "id": "A0EvOD1rL",
+       "arguments": {
+        "commune": "Gouvieu",
+        "code_postal": "60270",
+        "adresse_intervention": "8 rue de Chantilly"
+       },
+       "production": "{'statut': 'ambigu', 'ecrits': ['commune', 'code_postal', 'adresse_intervention'], 'a_confirmer': [{'champ': 'adresse_intervention', 'valeur': '8 Rue de Chantilly', 'options': ['Rue de Chantilly', 'Route de Chantilly']}], 'ecriture_retenue': {'commune': 'Gouvieux'}, 'consigne': 'Noté, mais plusieurs possibilités : demande à la personne laquelle est la bonne. Pour commune : Noté sous son écriture officielle. Tu ne la redis pas et tu ne la fais pas confirmer ; si tu dois la redire plus tard, utilise cette écriture.'}"
+      }
+     ]
+    },
+    {
+     "tour": 9,
+     "etape": "coordonnees",
+     "agent_avant": "La rue est bien « rue de Chantilly », et non « route de Chantilly », c'est bien ça ?",
+     "entendu": "Ouais, c'est rue de chantilly.",
+     "notes": [
+      {
+       "id": "G3OVsuZqp",
+       "arguments": {
+        "adresse_intervention": "8 Rue de Chantilly"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['adresse_intervention']}"
+      }
+     ]
+    },
+    {
+     "tour": 10,
+     "etape": "autre_demande",
+     "agent_avant": "Est-ce qu'il y a autre chose que je peux faire pour vous ?",
+     "entendu": "Oui, j'aimerais aussi faire l'entretien de mon de mon insert fond dix.",
+     "notes": [
+      {
+       "id": "vfuDlWxG6",
+       "arguments": {
+        "appareil": "insert",
+        "marque_appareil": "Fondis",
+        "motif": "panne de poêle à granulés et entretien d'un insert Fondis 10",
+        "verbatim_demande": "j'aimerais aussi faire l'entretien de mon insert Fond 10"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['appareil', 'motif', 'verbatim_demande'], 'consigne': \"Pas noté : marque_appareil n'a pas été dit tel quel par la personne. Note ses mots exacts ; ne lui fais pas confirmer ta version et ne repose pas la question.\", 'refuses': [{'champ': 'marque_appareil', 'raison': 'non_dit'}]}"
+      },
+      {
+       "id": "1BnGGGIhU",
+       "arguments": {
+        "marque_appareil": "Fond 10"
+       },
+       "production": "{'statut': 'rien_note', 'refuses': [{'champ': 'marque_appareil', 'raison': 'non_sure_sur_sure'}]}"
+      }
+     ]
+    },
+    {
+     "tour": 11,
+     "etape": "entretien",
+     "agent_avant": "Pour l'insert, le dernier entretien remonte à quand ?",
+     "entendu": "C'était l'année dernière je crois.",
+     "notes": [
+      {
+       "id": "ytNOUMSWz",
+       "arguments": {
+        "dernier_entretien": "l'année dernière"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['dernier_entretien'], 'ecriture_retenue': {'dernier_entretien': '2025'}, 'consigne': 'Noté sous son écriture officielle. Tu ne la redis pas et tu ne la fais pas confirmer ; si tu dois la redire plus tard, utilise cette écriture.'}"
+      }
+     ]
+    },
+    {
+     "tour": 12,
+     "etape": "coordonnees",
+     "agent_avant": "Je vais prendre vos coordonnées pour l'entretien de l'insert également. Votre numéro est toujours le zéro six, trente-sept, cinquante-huit, vingt-et-un, quatre-vingt-quatorze ?",
+     "entendu": "ça n'a pas changé, je ne crois pas avoir changé de numéro pendant l'appel là.",
+     "notes": []
+    },
+    {
+     "tour": 13,
+     "etape": "autre_demande",
+     "agent_avant": "Est-ce qu'il y a autre chose que je peux faire pour vous ?",
+     "entendu": "Non, c'est tout.",
+     "notes": []
+    }
+   ],
+   "balayage": {
+    "degre_urgence": "panne",
+    "projet": "faire l'entretien de mon de mon insert fond 10",
+    "type_logement": null,
+    "conduit_existant": null
+   },
+   "production": {
+    "fiche": {
+     "numero_dicte": "0637582194",
+     "nom": "Gauthier",
+     "motif": "panne de poêle à granulés et entretien d'un insert Fondis 10",
+     "verbatim_demande": "j'aimerais aussi faire l'entretien de mon insert Fond 10",
+     "degre_urgence": "panne",
+     "appareil": "insert",
+     "marque_appareil": "MCZ",
+     "dernier_entretien": "2025",
+     "symptome": "s'arrête tout seul depuis 3 jours",
+     "projet": "faire l'entretien de mon de mon insert fond 10",
+     "commune": "Gouvieux",
+     "code_postal": "60270",
+     "adresse_intervention": "8 Rue de Chantilly"
+    },
+    "etat": {
+     "appareil": {
+      "sure": true,
+      "source": "outil"
+     },
+     "marque_appareil": {
+      "sure": true,
+      "source": "outil"
+     },
+     "symptome": {
+      "sure": true,
+      "source": "outil"
+     },
+     "motif": {
+      "sure": true,
+      "source": "outil"
+     },
+     "nom": {
+      "sure": true,
+      "source": "outil"
+     },
+     "numero_dicte": {
+      "sure": true,
+      "source": "outil"
+     },
+     "commune": {
+      "sure": true,
+      "source": "outil"
+     },
+     "code_postal": {
+      "sure": true,
+      "source": "commune"
+     },
+     "adresse_intervention": {
+      "sure": true,
+      "source": "outil"
+     },
+     "verbatim_demande": {
+      "sure": true,
+      "source": "outil"
+     },
+     "dernier_entretien": {
+      "sure": true,
+      "source": "outil"
+     },
+     "degre_urgence": {
+      "sure": true,
+      "source": "balayage"
+     },
+     "projet": {
+      "sure": true,
+      "source": "balayage"
+     }
+    },
+    "journal": [
+     {
+      "champ": "appareil",
+      "valeur": "poêle à granulés",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "marque_appareil",
+      "valeur": "MCZ",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": false,
+      "suite": "a_confirmer",
+      "tour": 1
+     },
+     {
+      "champ": "symptome",
+      "valeur": "s'arrête tout seul depuis 3 jours",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "motif",
+      "valeur": "panne de poêle à granulés",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "marque_appareil",
+      "valeur": "MCZ",
+      "statut": "ecrit",
+      "raison": "confirmee_par_la_personne",
+      "source": "outil",
+      "sure": true,
+      "tour": 2
+     },
+     {
+      "champ": "nom",
+      "valeur": "Gauthier",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 4
+     },
+     {
+      "champ": "numero_dicte",
+      "valeur": "0637582194",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 5
+     },
+     {
+      "champ": "commune",
+      "valeur": "Gouvieux",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 8
+     },
+     {
+      "champ": "code_postal",
+      "valeur": "60270",
+      "statut": "ecrit",
+      "raison": "code_postal_unique_de_la_commune",
+      "source": "commune",
+      "sure": true
+     },
+     {
+      "champ": "code_postal",
+      "valeur": "60270",
+      "statut": "ecrit",
+      "raison": "deja_confirmee",
+      "source": "outil",
+      "sure": true,
+      "tour": 8
+     },
+     {
+      "champ": "adresse_intervention",
+      "valeur": "8 Rue de Chantilly",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": false,
+      "suite": "ambigu",
+      "options": [
+       "Rue de Chantilly",
+       "Route de Chantilly"
+      ],
+      "tour": 8
+     },
+     {
+      "champ": "adresse_intervention",
+      "valeur": "8 Rue de Chantilly",
+      "statut": "ecrit",
+      "raison": "confirmee_par_la_personne",
+      "source": "outil",
+      "sure": true,
+      "tour": 9
+     },
+     {
+      "champ": "appareil",
+      "valeur": "insert",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 10
+     },
+     {
+      "champ": "marque_appareil",
+      "valeur": "Fondis",
+      "statut": "refuse",
+      "raison": "non_dit",
+      "source": "outil",
+      "sure": false,
+      "suite": "a_confirmer",
+      "tour": 10
+     },
+     {
+      "champ": "motif",
+      "valeur": "panne de poêle à granulés et entretien d'un insert Fondis 10",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 10
+     },
+     {
+      "champ": "verbatim_demande",
+      "valeur": "j'aimerais aussi faire l'entretien de mon insert Fond 10",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 10
+     },
+     {
+      "champ": "marque_appareil",
+      "valeur": "Fond 10",
+      "statut": "refuse",
+      "raison": "non_sure_sur_sure",
+      "source": "outil",
+      "sure": false,
+      "tour": 10
+     },
+     {
+      "champ": "dernier_entretien",
+      "valeur": "2025",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "dit": "l'année dernière",
+      "tour": 11
+     },
+     {
+      "champ": "degre_urgence",
+      "valeur": "panne",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "balayage",
+      "sure": true,
+      "tour": 13
+     },
+     {
+      "champ": "projet",
+      "valeur": "faire l'entretien de mon de mon insert fond 10",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "balayage",
+      "sure": true,
+      "tour": 13
+     },
+     {
+      "champ": "type_logement",
+      "valeur": null,
+      "statut": "ignore",
+      "raison": "valeur_vide",
+      "source": "balayage",
+      "sure": true,
+      "tour": 13
+     },
+     {
+      "champ": "conduit_existant",
+      "valeur": null,
+      "statut": "ignore",
+      "raison": "valeur_vide",
+      "source": "balayage",
+      "sure": true,
+      "tour": 13
+     }
+    ],
+    "communes_verifiees": [
+     {
+      "etape": "accueil",
+      "entendu": "granulé",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Grandrû",
+        "code_insee": "60287",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60400"
+        ]
+       },
+       {
+        "nom": "Grane",
+        "code_insee": "26144",
+        "departement": "Drôme",
+        "codes_postaux": [
+         "26400"
+        ]
+       },
+       {
+        "nom": "Grans",
+        "code_insee": "13044",
+        "departement": "Bouches-du-Rhône",
+        "codes_postaux": [
+         "13450"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "son",
+      "tour": 1
+     },
+     {
+      "etape": "panne",
+      "entendu": "juste",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Jussey",
+        "code_insee": "70292",
+        "departement": "Haute-Saône",
+        "codes_postaux": [
+         "70500"
+        ]
+       },
+       {
+        "nom": "Jussy",
+        "code_insee": "02397",
+        "departement": "Aisne",
+        "codes_postaux": [
+         "02480"
+        ]
+       },
+       {
+        "nom": "Huest",
+        "code_insee": "27347",
+        "departement": "Eure",
+        "codes_postaux": [
+         "27930"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "son",
+      "tour": 3
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "Gouvieu",
+      "statut": "sure",
+      "commune_retenue": {
+       "nom": "Gouvieux",
+       "code_insee": "60282",
+       "departement": "Oise",
+       "codes_postaux": [
+        "60270"
+       ]
+      },
+      "propositions": [
+       {
+        "nom": "Gouvieux",
+        "code_insee": "60282",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60270"
+        ]
+       },
+       {
+        "nom": "Gouvix",
+        "code_insee": "14309",
+        "departement": "Calvados",
+        "codes_postaux": [
+         "14680"
+        ]
+       },
+       {
+        "nom": "Gouves",
+        "code_insee": "62378",
+        "departement": "Pas-de-Calais",
+        "codes_postaux": [
+         "62123"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "lieu",
+      "tour": 7
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "soixante deux cent soixante-dix",
+      "statut": "sure",
+      "commune_retenue": {
+       "nom": "Gouvieux",
+       "code_insee": "60282",
+       "departement": "Oise",
+       "codes_postaux": [
+        "60270"
+       ]
+      },
+      "propositions": [
+       {
+        "nom": "Gouvieux",
+        "code_insee": "60282",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60270"
+        ]
+       }
+      ],
+      "par_son": false,
+      "code_postal_entendu": true,
+      "force": "lieu",
+      "tour": 8
+     },
+     {
+      "etape": "entretien",
+      "entendu": "était l'année",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Étalans",
+        "code_insee": "25222",
+        "departement": "Doubs",
+        "codes_postaux": [
+         "25580",
+         "25620"
+        ]
+       },
+       {
+        "nom": "Les Hauts-Talican",
+        "code_insee": "60694",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60390"
+        ]
+       },
+       {
+        "nom": "Étain",
+        "code_insee": "55181",
+        "departement": "Meuse",
+        "codes_postaux": [
+         "55400"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "son",
+      "tour": 11
+     },
+     {
+      "etape": "autre_demande",
+      "entendu": "tout",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Thou",
+        "code_insee": "45323",
+        "departement": "Loiret",
+        "codes_postaux": [
+         "45420"
+        ]
+       },
+       {
+        "nom": "Thou",
+        "code_insee": "18264",
+        "departement": "Cher",
+        "codes_postaux": [
+         "18260"
+        ]
+       },
+       {
+        "nom": "Thoux",
+        "code_insee": "32444",
+        "departement": "Gers",
+        "codes_postaux": [
+         "32430"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "son",
+      "tour": 13
+     }
+    ],
+    "voies_verifiees": [
+     {
+      "etape": "coordonnees",
+      "entendu": "chantilly",
+      "statut": "a_confirmer",
+      "voie_retenue": null,
+      "propositions": [
+       {
+        "nom": "Rue de Chantilly",
+        "score": 103,
+        "numero_present": true
+       },
+       {
+        "nom": "Route de Chantilly",
+        "score": 100,
+        "numero_present": false
+       },
+       {
+        "nom": "Rue de la Chaussée",
+        "score": 78.9,
+        "numero_present": true
+       }
+      ],
+      "par_son": false,
+      "tour": 7
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "chantilly gouvieu",
+      "statut": "a_confirmer",
+      "voie_retenue": null,
+      "propositions": [
+       {
+        "nom": "Rue de Chantilly",
+        "score": 89.5,
+        "numero_present": true
+       },
+       {
+        "nom": "Route de Chantilly",
+        "score": 86.5,
+        "numero_present": false
+       }
+      ],
+      "par_son": true,
+      "tour": 8
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "chantilly",
+      "statut": "a_confirmer",
+      "voie_retenue": null,
+      "propositions": [
+       {
+        "nom": "Rue de Chantilly",
+        "score": 103,
+        "numero_present": null
+       },
+       {
+        "nom": "Route de Chantilly",
+        "score": 100,
+        "numero_present": null
+       },
+       {
+        "nom": "Rue de la Chaussée",
+        "score": 78.9,
+        "numero_present": null
+       }
+      ],
+      "par_son": false,
+      "tour": 9
+     }
+    ],
+    "lexique_reconnu": [],
+    "epellations_lues": [
+     {
+      "etape": "accueil",
+      "entendu": "m c z",
+      "epele": "Mcz",
+      "terme_du_lexique": "MCZ",
+      "tour": 1
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "g a u t h i e r",
+      "epele": "Gauthier",
+      "tour": 4
+     }
+    ]
+   }
+  },
+  {
+   "id": 965,
+   "agent": 34,
+   "version": null,
+   "cibles": {
+    "nom": "BARDIBIN",
+    "marque_appareil": "MCZ",
+    "commune": "Verneuil-en-Halatte",
+    "code_postal": "60550",
+    "adresse_intervention": "26 rue des Hauts de France",
+    "numero_dicte": "0639985085"
+   },
+   "tours": [
+    {
+     "tour": 2,
+     "etape": "accueil",
+     "agent_avant": "le magasin bonjour, je suis Marie, l'assistant téléphonique par intelligence artificielle du magasin. Qu'est-ce que je peux faire pour vous ?",
+     "entendu": "Oui bonjour, mon poêle à granulés m c z s'est un tout seul depuis deux jours.",
+     "notes": [
+      {
+       "id": "ILL6L16zP",
+       "arguments": {
+        "appareil": "poêle à granulés",
+        "symptome": "s'est éteint tout seul depuis deux jours",
+        "verbatim_demande": "mon poêle à granulés m c z s'est un tout seul depuis deux jours"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['appareil', 'symptome', 'verbatim_demande']}"
+      }
+     ]
+    },
+    {
+     "tour": 3,
+     "etape": "panne",
+     "agent_avant": "Vous pouvez me donner la marque de votre poêle à granulés ?\nEt « m c z », c'est bien ça ?",
+     "entendu": "Oui, c'est un m c z.",
+     "notes": [
+      {
+       "id": "0H2RICRJk",
+       "arguments": {
+        "marque_appareil": "MCZ",
+        "symptome": "le poêle à granulés MCZ s'est éteint tout seul depuis deux jours"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['marque_appareil', 'symptome']}"
+      }
+     ]
+    },
+    {
+     "tour": 4,
+     "etape": "coordonnees",
+     "agent_avant": "D'accord.\nVous pouvez me donner votre nom et l'épeler",
+     "entendu": "Oui, c'est bardibin b a r d i b i n.",
+     "notes": [
+      {
+       "id": "9QknIgVN9",
+       "arguments": {
+        "nom": "BARDIBIN"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['nom']}"
+      }
+     ]
+    },
+    {
+     "tour": 5,
+     "etape": "coordonnees",
+     "agent_avant": "Sur quel numéro pouvons-nous vous rappeler ?",
+     "entendu": "zéro six trente neuf quatre vingt dix huit cinquante quatre vingt cinq",
+     "notes": [
+      {
+       "id": "r91imLfL5",
+       "arguments": {
+        "numero_dicte": "0639985425"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['numero_dicte']}"
+      }
+     ]
+    },
+    {
+     "tour": 6,
+     "etape": "coordonnees",
+     "agent_avant": "Je relis : zéro six, trente-neuf, quatre-vingt-dix-huit, cinquante-quatre, vingt-cinq, c'est bien ça ?",
+     "entendu": "Non, c'est le zéro six trente neuf quatre vingt dix huit cinquante quatre vingt cinq.",
+     "notes": [
+      {
+       "id": "o6LuICTGt",
+       "arguments": {
+        "numero_dicte": "0639985425"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['numero_dicte']}"
+      }
+     ]
+    },
+    {
+     "tour": 7,
+     "etape": "coordonnees",
+     "agent_avant": "Vous êtes dans quelle commune, et quel est le code postal ?",
+     "entendu": "Je suis à Vernoy en malade soixante cinq cent cinquante.",
+     "notes": [
+      {
+       "id": "R9PCvHlQa",
+       "arguments": {
+        "commune": "Vernoy",
+        "code_postal": "60550"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['commune', 'code_postal'], 'a_proposer': [{'champ': 'commune', 'valeur': 'Vernoy', 'options': ['Verneuil-en-Halatte (Oise)']}], 'consigne': \"Pour commune : propose à la personne ces possibilités une par une, dans l'ordre, en attendant sa réponse à chacune, puis note celle qu'elle reconnaît.\"}"
+      }
+     ]
+    },
+    {
+     "tour": 8,
+     "etape": "coordonnees",
+     "agent_avant": "Je vais vérifier : c'est bien Vernoy dans l'Oise, code postal soixante mille cinq cent cinquante ?",
+     "entendu": "Non, c'est vermoyant malade soixante cinq cent cinquante.",
+     "notes": [
+      {
+       "id": "mi2XScCtZ",
+       "arguments": {
+        "commune": "Vermoyal"
+       },
+       "production": "{'statut': 'a_proposer', 'a_proposer': [{'champ': 'commune', 'options': ['Verneuil-en-Halatte (Oise)']}], 'consigne': \"Pour commune : propose à la personne ces possibilités une par une, dans l'ordre, en attendant sa réponse à chacune, puis note celle qu'elle reconnaît.\", 'refuses': [{'champ': 'commune', 'raison': 'non_dit'}]}"
+      }
+     ]
+    },
+    {
+     "tour": 9,
+     "etape": "coordonnees",
+     "agent_avant": "Je n'ai pas trouvé Vermoyal dans ce secteur.\nEst-ce que ce serait plutôt Verneuil-en-Halatte, toujours avec le code postal soixante mille cinq cent cinquante ?",
+     "entendu": "ouais, c'est ça.",
+     "notes": [
+      {
+       "id": "AxVRCfd6K",
+       "arguments": {
+        "commune": "Verneuil-en-Halatte"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['commune']}"
+      }
+     ]
+    },
+    {
+     "tour": 10,
+     "etape": "coordonnees",
+     "agent_avant": "Et la rue, avec le numéro ?",
+     "entendu": "vingt-six rue des Hauts-de-France",
+     "notes": [
+      {
+       "id": "NckGKWWLF",
+       "arguments": {
+        "adresse_intervention": "26 rue des Hauts-de-France"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['adresse_intervention']}"
+      }
+     ]
+    },
+    {
+     "tour": 11,
+     "etape": "autre_demande",
+     "agent_avant": "Est-ce qu'il y a autre chose que je peux faire pour vous ?",
+     "entendu": "Non, je crois que c'est bon.",
+     "notes": []
+    }
+   ],
+   "balayage": {
+    "motif": "mon poêle à granulés m c z s'est un tout seul depuis deux jours",
+    "degre_urgence": "panne",
+    "type_logement": null,
+    "conduit_existant": null
+   },
+   "production": {
+    "fiche": {
+     "numero_dicte": "0639985425",
+     "nom": "Bardibin",
+     "verbatim_demande": "mon poêle à granulés m c z s'est un tout seul depuis deux jours",
+     "degre_urgence": "panne",
+     "appareil": "poêle à granulés",
+     "marque_appareil": "MCZ",
+     "symptome": "le poêle à granulés MCZ s'est éteint tout seul depuis deux jours",
+     "commune": "Verneuil-en-Halatte",
+     "code_postal": "60550",
+     "adresse_intervention": "26 Rue des Hauts de France"
+    },
+    "etat": {
+     "appareil": {
+      "sure": true,
+      "source": "outil"
+     },
+     "symptome": {
+      "sure": true,
+      "source": "outil"
+     },
+     "verbatim_demande": {
+      "sure": true,
+      "source": "outil"
+     },
+     "marque_appareil": {
+      "sure": true,
+      "source": "outil"
+     },
+     "nom": {
+      "sure": true,
+      "source": "outil"
+     },
+     "numero_dicte": {
+      "sure": true,
+      "source": "outil"
+     },
+     "commune": {
+      "sure": true,
+      "source": "outil"
+     },
+     "code_postal": {
+      "sure": true,
+      "source": "outil"
+     },
+     "adresse_intervention": {
+      "sure": true,
+      "source": "outil"
+     },
+     "degre_urgence": {
+      "sure": true,
+      "source": "balayage"
+     }
+    },
+    "journal": [
+     {
+      "champ": "appareil",
+      "valeur": "poêle à granulés",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "symptome",
+      "valeur": "s'est éteint tout seul depuis deux jours",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "verbatim_demande",
+      "valeur": "mon poêle à granulés m c z s'est un tout seul depuis deux jours",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "marque_appareil",
+      "valeur": "MCZ",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 2
+     },
+     {
+      "champ": "symptome",
+      "valeur": "le poêle à granulés MCZ s'est éteint tout seul depuis deux jours",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 2
+     },
+     {
+      "champ": "nom",
+      "valeur": "Bardibin",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 3
+     },
+     {
+      "champ": "numero_dicte",
+      "valeur": "0639985425",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 4
+     },
+     {
+      "champ": "numero_dicte",
+      "valeur": "0639985425",
+      "statut": "ecrit",
+      "raison": "deja_confirmee",
+      "source": "outil",
+      "sure": true,
+      "tour": 5
+     },
+     {
+      "champ": "commune",
+      "valeur": "Vernoy",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": false,
+      "suite": "a_proposer",
+      "options": [
+       "Verneuil-en-Halatte (Oise)"
+      ],
+      "tour": 6
+     },
+     {
+      "champ": "code_postal",
+      "valeur": "60550",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 6
+     },
+     {
+      "champ": "commune",
+      "valeur": "Vermoyal",
+      "statut": "refuse",
+      "raison": "non_dit",
+      "source": "outil",
+      "sure": false,
+      "suite": "a_proposer",
+      "options": [
+       "Verneuil-en-Halatte (Oise)"
+      ],
+      "tour": 7
+     },
+     {
+      "champ": "commune",
+      "valeur": "Verneuil-en-Halatte",
+      "statut": "ecrit",
+      "raison": "confirmee_par_la_personne",
+      "source": "outil",
+      "sure": true,
+      "tour": 8
+     },
+     {
+      "champ": "adresse_intervention",
+      "valeur": "26 Rue des Hauts de France",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 9
+     },
+     {
+      "champ": "motif",
+      "valeur": "mon poêle à granulés m c z s'est un tout seul depuis deux jours",
+      "statut": "refuse",
+      "raison": "recopie_de_verbatim_demande",
+      "source": "balayage",
+      "sure": true
+     },
+     {
+      "champ": "degre_urgence",
+      "valeur": "panne",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "balayage",
+      "sure": true,
+      "tour": 10
+     },
+     {
+      "champ": "type_logement",
+      "valeur": null,
+      "statut": "ignore",
+      "raison": "valeur_vide",
+      "source": "balayage",
+      "sure": true,
+      "tour": 10
+     },
+     {
+      "champ": "conduit_existant",
+      "valeur": null,
+      "statut": "ignore",
+      "raison": "valeur_vide",
+      "source": "balayage",
+      "sure": true,
+      "tour": 10
+     }
+    ],
+    "communes_verifiees": [
+     {
+      "etape": "accueil",
+      "entendu": "granulés",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Grandrû",
+        "code_insee": "60287",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60400"
+        ]
+       },
+       {
+        "nom": "Grans",
+        "code_insee": "13044",
+        "departement": "Bouches-du-Rhône",
+        "codes_postaux": [
+         "13450"
+        ]
+       },
+       {
+        "nom": "Grane",
+        "code_insee": "26144",
+        "departement": "Drôme",
+        "codes_postaux": [
+         "26400"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "son",
+      "tour": 1
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "Vernoy en malade",
+      "statut": "sure",
+      "commune_retenue": {
+       "nom": "Verneuil-en-Halatte",
+       "code_insee": "60670",
+       "departement": "Oise",
+       "codes_postaux": [
+        "60550"
+       ]
+      },
+      "propositions": [
+       {
+        "nom": "Verneuil-en-Halatte",
+        "code_insee": "60670",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60550"
+        ]
+       },
+       {
+        "nom": "Saint-Laurent-de-Neste",
+        "code_insee": "65389",
+        "departement": "Hautes-Pyrénées",
+        "codes_postaux": [
+         "65150"
+        ]
+       },
+       {
+        "nom": "Montsérié",
+        "code_insee": "65323",
+        "departement": "Hautes-Pyrénées",
+        "codes_postaux": [
+         "65150"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "lieu",
+      "tour": 6
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "vermoyant",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Ermont",
+        "code_insee": "95219",
+        "departement": "Val-d'Oise",
+        "codes_postaux": [
+         "95120"
+        ]
+       },
+       {
+        "nom": "Vermand",
+        "code_insee": "02785",
+        "departement": "Aisne",
+        "codes_postaux": [
+         "02490"
+        ]
+       },
+       {
+        "nom": "Voyennes",
+        "code_insee": "80811",
+        "departement": "Somme",
+        "codes_postaux": [
+         "80400"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "lieu",
+      "tour": 7
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "malade",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Malpart",
+        "code_insee": "80504",
+        "departement": "Somme",
+        "codes_postaux": [
+         "80250"
+        ]
+       },
+       {
+        "nom": "Maclas",
+        "code_insee": "42129",
+        "departement": "Loire",
+        "codes_postaux": [
+         "42520"
+        ]
+       },
+       {
+        "nom": "Malay",
+        "code_insee": "71272",
+        "departement": "Saône-et-Loire",
+        "codes_postaux": [
+         "71460"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "lieu",
+      "tour": 7
+     },
+     {
+      "etape": "autre_demande",
+      "entendu": "crois",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Croix",
+        "code_insee": "59163",
+        "departement": "Nord",
+        "codes_postaux": [
+         "59170"
+        ]
+       },
+       {
+        "nom": "Croix",
+        "code_insee": "90030",
+        "departement": "Territoire de Belfort",
+        "codes_postaux": [
+         "90100"
+        ]
+       },
+       {
+        "nom": "Crouy",
+        "code_insee": "02243",
+        "departement": "Aisne",
+        "codes_postaux": [
+         "02880"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "son",
+      "tour": 10
+     }
+    ],
+    "voies_verifiees": [
+     {
+      "etape": "coordonnees",
+      "entendu": "hauts de france",
+      "statut": "sure",
+      "voie_retenue": "Rue des Hauts de France",
+      "propositions": [
+       {
+        "nom": "Rue des Hauts de France",
+        "score": 103,
+        "numero_present": true
+       }
+      ],
+      "par_son": false,
+      "tour": 9
+     }
+    ],
+    "lexique_reconnu": [
+     {
+      "etape": "panne",
+      "entendu": "m c z",
+      "statut": "sure",
+      "terme": "MCZ",
+      "propositions": [
+       {
+        "terme": "MCZ",
+        "categorie": "marque",
+        "score": 100
+       }
+      ],
+      "par_son": false
+     }
+    ],
+    "epellations_lues": [
+     {
+      "etape": "accueil",
+      "entendu": "m c z",
+      "epele": "Mcz",
+      "terme_du_lexique": "MCZ",
+      "tour": 1
+     },
+     {
+      "etape": "panne",
+      "entendu": "m c z",
+      "epele": "Mcz",
+      "terme_du_lexique": "MCZ",
+      "tour": 2
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "l o i s e l e t",
+      "epele": "Bardibin",
+      "tour": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": 966,
+   "agent": 34,
+   "version": null,
+   "cibles": {
+    "nom": "BARDIBIN",
+    "marque_appareil": "Deville",
+    "commune": "Pont-Sainte-Maxence",
+    "code_postal": "60700",
+    "adresse_intervention": "6 rue Danton",
+    "numero_dicte": "0639981409"
+   },
+   "tours": [
+    {
+     "tour": 2,
+     "etape": "accueil",
+     "agent_avant": "le magasin bonjour, je suis Marie, l'assistant téléphonique par intelligence artificielle du magasin. Qu'est-ce que je peux faire pour vous ?",
+     "entendu": "Bonjour, mon poêle à bois deux villes à la porte qui ferment plus bien. Le joint est parti, je crois.",
+     "notes": [
+      {
+       "id": "HmsK2w6KF",
+       "arguments": {
+        "appareil": "poêle à bois",
+        "motif": "problème de porte et joint défectueux",
+        "symptome": "les portes ne ferment plus bien, le joint est parti"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['appareil', 'motif', 'symptome']}"
+      }
+     ]
+    },
+    {
+     "tour": 3,
+     "etape": "panne",
+     "agent_avant": "Vous pouvez me donner la marque de votre poêle à bois ?",
+     "entendu": "Je viens de vous le dire, c'est un devis",
+     "notes": [
+      {
+       "id": "GLdDrqWVr",
+       "arguments": {
+        "marque_appareil": "Deville"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['marque_appareil']}"
+      }
+     ]
+    },
+    {
+     "tour": 4,
+     "etape": "panne",
+     "agent_avant": "Deville, c'est bien ça ? Ça dure depuis quand ?",
+     "entendu": "Oui.\nOui et ça dure depuis une semaine.",
+     "notes": [
+      {
+       "id": "IzMFnfFGN",
+       "arguments": {
+        "symptome": "les portes ne ferment plus bien, le joint est parti depuis une semaine"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['symptome']}"
+      }
+     ]
+    },
+    {
+     "tour": 5,
+     "etape": "coordonnees",
+     "agent_avant": "D'accord. Vous pouvez me donner votre nom et l'épeler ?",
+     "entendu": "Oui, Bardibi, b a r d i b i n.",
+     "notes": [
+      {
+       "id": "qScpVvC9T",
+       "arguments": {
+        "nom": "BARDIBI"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['nom'], 'ecriture_retenue': {'nom': 'Bardibin'}, 'consigne': 'Noté sous son écriture officielle. Tu ne la redis pas et tu ne la fais pas confirmer ; si tu dois la redire plus tard, utilise cette écriture.'}"
+      }
+     ]
+    },
+    {
+     "tour": 6,
+     "etape": "coordonnees",
+     "agent_avant": "Sur quel numéro pouvons-nous vous rappeler ?",
+     "entendu": "Le zéro six trente neuf quatre vingt dix huit quatorze zéro neuf.",
+     "notes": [
+      {
+       "id": "4bm3UL5ld",
+       "arguments": {
+        "numero_dicte": "0639981409"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['numero_dicte']}"
+      }
+     ]
+    },
+    {
+     "tour": 7,
+     "etape": "coordonnees",
+     "agent_avant": "Je vais vous relire le numéro pour confirmer : zéro six, trente-neuf, quatre-vingt-dix-huit, quatorze, zéro neuf, c'est bien ça ?",
+     "entendu": "Oui.",
+     "notes": [
+      {
+       "id": "i8Q5ucTlL",
+       "arguments": {
+        "numero_dicte": "0639981409"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['numero_dicte']}"
+      }
+     ]
+    },
+    {
+     "tour": 8,
+     "etape": "coordonnees",
+     "agent_avant": "Vous êtes dans quelle commune, et quel est le code postal ?",
+     "entendu": "Je suis à Ponce-Alpes-Maxence, soixante sept cent.",
+     "notes": [
+      {
+       "id": "9POTTvrxl",
+       "arguments": {
+        "commune": "Ponce-Alpes-Maxence",
+        "code_postal": "60700"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['commune', 'code_postal'], 'ecriture_retenue': {'commune': 'Pont-Sainte-Maxence'}, 'consigne': 'Noté sous son écriture officielle. Tu ne la redis pas et tu ne la fais pas confirmer ; si tu dois la redire plus tard, utilise cette écriture.'}"
+      }
+     ]
+    },
+    {
+     "tour": 9,
+     "etape": "coordonnees",
+     "agent_avant": "Et la rue, avec le numéro ?",
+     "entendu": "Cyru Danton.",
+     "notes": [
+      {
+       "id": "k1wQAoD35",
+       "arguments": {
+        "adresse_intervention": "Cyru Danton"
+       },
+       "production": "{'statut': 'a_confirmer', 'ecrits': ['adresse_intervention'], 'a_confirmer': [{'champ': 'adresse_intervention', 'valeur': 'Cyru Danton'}], 'consigne': 'Noté, mais pas vérifié : fais confirmer cette information à la personne.'}"
+      }
+     ]
+    },
+    {
+     "tour": 10,
+     "etape": "coordonnees",
+     "agent_avant": "C'est bien au Cyru Danton ? Pouvez-vous me préciser le numéro et le nom de la rue ?",
+     "entendu": "Oui je viens de le faire, c'est le six rue Danton.",
+     "notes": [
+      {
+       "id": "LnybonhST",
+       "arguments": {
+        "adresse_intervention": "6 rue Danton"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['adresse_intervention']}"
+      }
+     ]
+    },
+    {
+     "tour": 11,
+     "etape": "autre_demande",
+     "agent_avant": "Est-ce qu'il y a autre chose que je peux faire pour vous ?",
+     "entendu": "Non c'est tout.",
+     "notes": []
+    }
+   ],
+   "balayage": {
+    "verbatim_demande": "mon poêle à bois deux villes à la porte qui ferment plus bien. Le joint est parti, je crois.",
+    "degre_urgence": "panne",
+    "conduit_existant": "oui"
+   },
+   "production": {
+    "fiche": {
+     "numero_dicte": "0639981409",
+     "nom": "Bardibin",
+     "motif": "problème de porte et joint défectueux",
+     "verbatim_demande": "mon poêle à bois deux villes à la porte qui ferment plus bien. Le joint est parti, je crois.",
+     "degre_urgence": "panne",
+     "appareil": "poêle à bois",
+     "marque_appareil": "Deville",
+     "symptome": "les portes ne ferment plus bien, le joint est parti depuis une semaine",
+     "commune": "Pont-Sainte-Maxence",
+     "code_postal": "60700",
+     "adresse_intervention": "6 Rue Danton"
+    },
+    "etat": {
+     "appareil": {
+      "sure": true,
+      "source": "outil"
+     },
+     "motif": {
+      "sure": true,
+      "source": "outil"
+     },
+     "symptome": {
+      "sure": true,
+      "source": "outil"
+     },
+     "marque_appareil": {
+      "sure": true,
+      "source": "outil"
+     },
+     "nom": {
+      "sure": true,
+      "source": "outil"
+     },
+     "numero_dicte": {
+      "sure": true,
+      "source": "outil"
+     },
+     "commune": {
+      "sure": true,
+      "source": "outil"
+     },
+     "code_postal": {
+      "sure": true,
+      "source": "commune"
+     },
+     "adresse_intervention": {
+      "sure": true,
+      "source": "outil"
+     },
+     "verbatim_demande": {
+      "sure": true,
+      "source": "balayage"
+     },
+     "degre_urgence": {
+      "sure": true,
+      "source": "balayage"
+     }
+    },
+    "journal": [
+     {
+      "champ": "appareil",
+      "valeur": "poêle à bois",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "motif",
+      "valeur": "problème de porte et joint défectueux",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "symptome",
+      "valeur": "les portes ne ferment plus bien, le joint est parti",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "marque_appareil",
+      "valeur": "Deville",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 2
+     },
+     {
+      "champ": "symptome",
+      "valeur": "les portes ne ferment plus bien, le joint est parti depuis une semaine",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 4
+     },
+     {
+      "champ": "nom",
+      "valeur": "Bardibin",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 5
+     },
+     {
+      "champ": "numero_dicte",
+      "valeur": "0639981409",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 6
+     },
+     {
+      "champ": "numero_dicte",
+      "valeur": "0639981409",
+      "statut": "ecrit",
+      "raison": "deja_confirmee",
+      "source": "outil",
+      "sure": true,
+      "tour": 7
+     },
+     {
+      "champ": "commune",
+      "valeur": "Pont-Sainte-Maxence",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 8
+     },
+     {
+      "champ": "code_postal",
+      "valeur": "60700",
+      "statut": "ecrit",
+      "raison": "code_postal_unique_de_la_commune",
+      "source": "commune",
+      "sure": true
+     },
+     {
+      "champ": "code_postal",
+      "valeur": "60700",
+      "statut": "ecrit",
+      "raison": "deja_confirmee",
+      "source": "outil",
+      "sure": true,
+      "tour": 8
+     },
+     {
+      "champ": "adresse_intervention",
+      "valeur": "Cyru Danton",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": false,
+      "suite": "a_confirmer",
+      "tour": 9
+     },
+     {
+      "champ": "adresse_intervention",
+      "valeur": "6 Rue Danton",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 10
+     },
+     {
+      "champ": "verbatim_demande",
+      "valeur": "mon poêle à bois deux villes à la porte qui ferment plus bien. Le joint est parti, je crois.",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "balayage",
+      "sure": true,
+      "tour": 11
+     },
+     {
+      "champ": "degre_urgence",
+      "valeur": "panne",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "balayage",
+      "sure": true,
+      "tour": 11
+     },
+     {
+      "champ": "conduit_existant",
+      "valeur": "oui",
+      "statut": "refuse",
+      "raison": "dicte_a_liste_hors_outil",
+      "source": "balayage",
+      "sure": true
+     }
+    ],
+    "communes_verifiees": [
+     {
+      "etape": "accueil",
+      "entendu": "la porte",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "La Porta",
+        "code_insee": "2B246",
+        "departement": "Haute-Corse",
+        "codes_postaux": [
+         "20237"
+        ]
+       },
+       {
+        "nom": "La Morte",
+        "code_insee": "38264",
+        "departement": "Isère",
+        "codes_postaux": [
+         "38350"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "son",
+      "tour": 1
+     },
+     {
+      "etape": "accueil",
+      "entendu": "bois",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Bois",
+        "code_insee": "17050",
+        "departement": "Charente-Maritime",
+        "codes_postaux": [
+         "17240"
+        ]
+       },
+       {
+        "nom": "Broyes",
+        "code_insee": "60111",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60120"
+        ]
+       },
+       {
+        "nom": "Boissay",
+        "code_insee": "76113",
+        "departement": "Seine-Maritime",
+        "codes_postaux": [
+         "76750"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "nom",
+      "tour": 1
+     },
+     {
+      "etape": "panne",
+      "entendu": "viens",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Viens",
+        "code_insee": "84144",
+        "departement": "Vaucluse",
+        "codes_postaux": [
+         "84750"
+        ]
+       },
+       {
+        "nom": "Vienne",
+        "code_insee": "38544",
+        "departement": "Isère",
+        "codes_postaux": [
+         "38200"
+        ]
+       },
+       {
+        "nom": "Vains",
+        "code_insee": "50612",
+        "departement": "Manche",
+        "codes_postaux": [
+         "50300"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "nom",
+      "tour": 2
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "Ponce-Alpes-Maxence",
+      "statut": "sure",
+      "commune_retenue": {
+       "nom": "Pont-Sainte-Maxence",
+       "code_insee": "60509",
+       "departement": "Oise",
+       "codes_postaux": [
+        "60700"
+       ]
+      },
+      "propositions": [
+       {
+        "nom": "Pont-Sainte-Maxence",
+        "code_insee": "60509",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60700"
+        ]
+       },
+       {
+        "nom": "Pontpoint",
+        "code_insee": "60508",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60700"
+        ]
+       },
+       {
+        "nom": "Sacy-le-Grand",
+        "code_insee": "60562",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60700"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "lieu",
+      "tour": 8
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "viens",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Viens",
+        "code_insee": "84144",
+        "departement": "Vaucluse",
+        "codes_postaux": [
+         "84750"
+        ]
+       },
+       {
+        "nom": "Vienne",
+        "code_insee": "38544",
+        "departement": "Isère",
+        "codes_postaux": [
+         "38200"
+        ]
+       },
+       {
+        "nom": "Vains",
+        "code_insee": "50612",
+        "departement": "Manche",
+        "codes_postaux": [
+         "50300"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "lieu",
+      "tour": 10
+     },
+     {
+      "etape": "autre_demande",
+      "entendu": "tout",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Thou",
+        "code_insee": "45323",
+        "departement": "Loiret",
+        "codes_postaux": [
+         "45420"
+        ]
+       },
+       {
+        "nom": "Thou",
+        "code_insee": "18264",
+        "departement": "Cher",
+        "codes_postaux": [
+         "18260"
+        ]
+       },
+       {
+        "nom": "Thoux",
+        "code_insee": "32444",
+        "departement": "Gers",
+        "codes_postaux": [
+         "32430"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "son",
+      "tour": 11
+     }
+    ],
+    "voies_verifiees": [
+     {
+      "etape": "coordonnees",
+      "entendu": "danton",
+      "statut": "sure",
+      "voie_retenue": "Rue Danton",
+      "propositions": [
+       {
+        "nom": "Rue Danton",
+        "score": 103,
+        "numero_present": true
+       }
+      ],
+      "par_son": false,
+      "tour": 10
+     }
+    ],
+    "lexique_reconnu": [
+     {
+      "etape": "panne",
+      "entendu": "devis",
+      "statut": "a_confirmer",
+      "terme": "Deville",
+      "propositions": [
+       {
+        "terme": "Deville",
+        "categorie": "marque",
+        "score": 88.9
+       }
+      ],
+      "par_son": false
+     }
+    ],
+    "epellations_lues": [
+     {
+      "etape": "coordonnees",
+      "entendu": "l o i s e l e t",
+      "epele": "Bardibin",
+      "tour": 5
+     }
+    ]
+   }
+  },
+  {
+   "id": 967,
+   "agent": 34,
+   "version": null,
+   "cibles": {
+    "nom": "FLAMANT",
+    "commune": "Verneuil-en-Halatte",
+    "code_postal": "60550",
+    "adresse_intervention": "26 rue des Hauts de France",
+    "numero_dicte": "0639981409",
+    "reference_commande": "CM2931"
+   },
+   "tours": [
+    {
+     "tour": 2,
+     "etape": "accueil",
+     "agent_avant": "le magasin bonjour, je suis Marie, l'assistant téléphonique par intelligence artificielle du magasin. Qu'est-ce que je peux faire pour vous ?",
+     "entendu": "Oui bonjour, je voudrais un devis pour installer un poêle à bois dans ma maison.",
+     "notes": [
+      {
+       "id": "5LhrpFazX",
+       "arguments": {
+        "motif": "demande de devis pour installation d'un poêle à bois",
+        "verbatim_demande": "je voudrais un devis pour installer un poêle à bois dans ma maison",
+        "projet": "installation d'un poêle à bois",
+        "type_logement": "maison"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['motif', 'verbatim_demande', 'projet', 'type_logement']}"
+      }
+     ]
+    },
+    {
+     "tour": 3,
+     "etape": "projet",
+     "agent_avant": "Il y a déjà un conduit de cheminée ?",
+     "entendu": "Non, pas de conduit.",
+     "notes": [
+      {
+       "id": "2I2IS0Xl6",
+       "arguments": {
+        "conduit_existant": "non"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['conduit_existant']}"
+      }
+     ]
+    },
+    {
+     "tour": 4,
+     "etape": "projet",
+     "agent_avant": "Vous aimeriez que ce soit fait pour quand ?",
+     "entendu": "au printemps",
+     "notes": [
+      {
+       "id": "AxqaFYEyy",
+       "arguments": {
+        "echeance_projet": "au printemps"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['echeance_projet']}"
+      }
+     ]
+    },
+    {
+     "tour": 5,
+     "etape": "coordonnees",
+     "agent_avant": "D'accord. Vous pouvez me donner votre nom et l'épeler ?",
+     "entendu": "Oui, flamand f l a m a n t.",
+     "notes": [
+      {
+       "id": "eiziMKd8M",
+       "arguments": {
+        "nom": "FLAMANT"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['nom']}"
+      }
+     ]
+    },
+    {
+     "tour": 6,
+     "etape": "coordonnees",
+     "agent_avant": "Sur quel numéro pouvons-nous vous rappeler ?",
+     "entendu": "Vous pouvez me rappeler au zéro six trente neuf quatre vingt dix huit quatorze zéro neuf.",
+     "notes": [
+      {
+       "id": "T4TXlwRE1",
+       "arguments": {
+        "numero_dicte": "0639981409"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['numero_dicte']}"
+      }
+     ]
+    },
+    {
+     "tour": 7,
+     "etape": "coordonnees",
+     "agent_avant": "Je relis : zéro six, trente-neuf, quatre-vingt-dix-huit, quatorze, zéro neuf, c'est bien ça ?",
+     "entendu": "Ouais c'est ça.",
+     "notes": [
+      {
+       "id": "JFmjKPVT4",
+       "arguments": {
+        "commune": "",
+        "code_postal": "",
+        "adresse_intervention": ""
+       },
+       "production": "{'statut': 'rien_note'}"
+      }
+     ]
+    },
+    {
+     "tour": 8,
+     "etape": "coordonnees",
+     "agent_avant": "Vous êtes dans quelle commune, et quel est le code postal ?",
+     "entendu": "Je suis au vingt six rue des Hauts-de-France, soixante cinq cent cinquante, vernayon à la",
+     "notes": [
+      {
+       "id": "9Bj2GZXvr",
+       "arguments": {
+        "code_postal": "60550",
+        "commune": "Vernayon",
+        "adresse_intervention": "26 rue des Hauts-de-France"
+       },
+       "production": "{'statut': 'ambigu', 'ecrits': ['code_postal', 'commune', 'adresse_intervention'], 'a_confirmer': [{'champ': 'adresse_intervention', 'valeur': '26 rue des Hauts-de-France', 'options': ['Avenue Ile de France', 'Rue des Frênes']}], 'ecriture_retenue': {'commune': 'Vernon'}, 'consigne': 'Noté, mais plusieurs possibilités : demande à la personne laquelle est la bonne. Pour commune : Noté sous son écriture officielle. Tu ne la redis pas et tu ne la fais pas confirmer ; si tu dois la redire plus tard, utilise cette écriture.'}"
+      }
+     ]
+    },
+    {
+     "tour": 9,
+     "etape": "coordonnees",
+     "agent_avant": "Je note votre adresse, mais il y a une incertitude : c'est bien **vingt-six rue des Hauts-de-France** à Vernon ? Il existe aussi une **avenue Île de France** et une **rue des Frênes** dans cette commune.",
+     "entendu": "Non, je vous ai dit verneuil en alerte.",
+     "notes": [
+      {
+       "id": "EauPqZe7g",
+       "arguments": {
+        "adresse_intervention": "26 rue des Hauts-de-France",
+        "commune": "Verneuil-en-Halatte",
+        "code_postal": "60550"
+       },
+       "production": "{'statut': 'ambigu', 'ecrits': ['adresse_intervention', 'code_postal'], 'a_confirmer': [{'champ': 'adresse_intervention', 'valeur': '26 rue des Hauts-de-France', 'options': ['Avenue Ile de France', 'Rue des Frênes']}], 'consigne': 'Noté, mais plusieurs possibilités : demande à la personne laquelle est la bonne.', 'refuses': [{'champ': 'commune', 'raison': 'non_sure_sur_sure'}]}"
+      }
+     ]
+    },
+    {
+     "tour": 10,
+     "etape": "coordonnees",
+     "agent_avant": "Je note votre adresse, mais il y a une incertitude : c'est bien **vingt-six rue des Hauts-de-France** à Vernon ? Il existe aussi une **avenue Île de France** et une **rue des Frênes** dans cette commune.",
+     "entendu": "Alors le le code postal, le code postal c'est soixante mille cinq cent cinquante, j'habite au vingt-six rue des Hauts-de-France, ce n'est pas compliqué pourtant.",
+     "notes": [
+      {
+       "id": "6FoxKp0ZS",
+       "arguments": {
+        "adresse_intervention": "26 rue des Hauts-de-France"
+       },
+       "production": "{'statut': 'ambigu', 'ecrits': ['adresse_intervention'], 'a_confirmer': [{'champ': 'adresse_intervention', 'valeur': '26 rue des Hauts-de-France', 'options': ['Avenue Ile de France', 'Rue des Frênes']}], 'consigne': 'Noté, mais plusieurs possibilités : demande à la personne laquelle est la bonne.'}"
+      }
+     ]
+    },
+    {
+     "tour": 11,
+     "etape": "coordonnees",
+     "agent_avant": "D'accord, donc **Verneuil-en-Halatte**, code postal six mille cinquante.\n\nJe note toujours une incertitude sur la rue : c'est bien **vingt-six rue des Hauts-de-France** ? Il existe aussi une **avenue\nJe comprends votre agacement. Pour être sûre de bien noter, c'est bien **vingt-six rue des Hauts-de-France**, et non une **avenue Île de France** ou une **rue des Frênes** ?",
+     "entendu": "Je vous ai déjà confirmé.",
+     "notes": []
+    },
+    {
+     "tour": 12,
+     "etape": "autre_demande",
+     "agent_avant": "Est-ce qu'il y a autre chose que je peux faire pour vous ?",
+     "entendu": "Oui, j'ai aussi une question sur ma commande c m vingt neuf trente et un. Je ne sais pas quand elle sera livrée.",
+     "notes": [
+      {
+       "id": "Q2BF2jxza",
+       "arguments": {
+        "motif": "demande de devis pour installation d'un poêle à bois et question sur la date de livraison de la commande CM2931",
+        "verbatim_demande": "je voudrais un devis pour installer un poêle à bois dans ma maison, et savoir quand ma commande CM2931 sera livrée",
+        "reference_commande": "CM2931"
+       },
+       "production": "{'statut': 'note', 'ecrits': ['motif', 'reference_commande'], 'consigne': \"Pas noté : verbatim_demande n'a pas été dit tel quel par la personne. Note ses mots exacts ; ne lui fais pas confirmer ta version et ne repose pas la question.\", 'refuses': [{'champ': 'verbatim_demande', 'raison': 'non_dit'}]}"
+      },
+      {
+       "id": "XEthEq907",
+       "arguments": {
+        "verbatim_demande": "je voudrais un devis pour installer un poêle à bois dans ma maison, et savoir quand ma commande CM2931 sera livrée"
+       },
+       "production": "{'statut': 'rien_note', 'consigne': \"Pas noté : verbatim_demande n'a pas été dit tel quel par la personne. Note ses mots exacts ; ne lui fais pas confirmer ta version et ne repose pas la question.\", 'refuses': [{'champ': 'verbatim_demande', 'raison': 'non_dit'}]}"
+      }
+     ]
+    },
+    {
+     "tour": 13,
+     "etape": "autre_demande",
+     "agent_avant": "Je ne peux pas vous donner de date de livraison, le magasin vous la confirmera en vous rappelant. Est-ce qu'il y a autre chose que je peux faire pour vous ?",
+     "entendu": "Non, c'est tout.",
+     "notes": [
+      {
+       "id": "c6nvBqkq2",
+       "arguments": {
+        "verbatim_demande": "je voudrais un devis pour installer un poêle à bois dans ma maison, et savoir quand ma commande CM2931 sera livrée"
+       },
+       "production": "{'statut': 'rien_note', 'consigne': \"Pas noté : verbatim_demande n'a pas été dit tel quel par la personne. Note ses mots exacts ; ne lui fais pas confirmer ta version et ne repose pas la question.\", 'refuses': [{'champ': 'verbatim_demande', 'raison': 'non_dit'}]}"
+      }
+     ]
+    }
+   ],
+   "balayage": {
+    "appareil": "poêle à bois",
+    "reference_facture": "CM2931"
+   },
+   "production": {
+    "fiche": {
+     "numero_dicte": "0639981409",
+     "nom": "Flamant",
+     "motif": "demande de devis pour installation d'un poêle à bois et question sur la date de livraison de la commande CM2931",
+     "verbatim_demande": "je voudrais un devis pour installer un poêle à bois dans ma maison",
+     "appareil": "poêle à bois",
+     "projet": "installation d'un poêle à bois",
+     "type_logement": "maison",
+     "echeance_projet": "au printemps",
+     "reference_commande": "CM2931",
+     "commune": "Vernon",
+     "code_postal": "60550",
+     "adresse_intervention": "26 rue des Hauts-de-France",
+     "conduit_existant": "non"
+    },
+    "etat": {
+     "motif": {
+      "sure": true,
+      "source": "outil"
+     },
+     "verbatim_demande": {
+      "sure": true,
+      "source": "outil"
+     },
+     "projet": {
+      "sure": true,
+      "source": "outil"
+     },
+     "type_logement": {
+      "sure": true,
+      "source": "outil"
+     },
+     "conduit_existant": {
+      "sure": true,
+      "source": "outil"
+     },
+     "echeance_projet": {
+      "sure": true,
+      "source": "outil"
+     },
+     "nom": {
+      "sure": true,
+      "source": "outil"
+     },
+     "numero_dicte": {
+      "sure": true,
+      "source": "outil"
+     },
+     "code_postal": {
+      "sure": true,
+      "source": "outil"
+     },
+     "commune": {
+      "sure": true,
+      "source": "outil"
+     },
+     "adresse_intervention": {
+      "sure": false,
+      "source": "outil"
+     },
+     "reference_commande": {
+      "sure": true,
+      "source": "outil"
+     },
+     "appareil": {
+      "sure": true,
+      "source": "balayage"
+     }
+    },
+    "journal": [
+     {
+      "champ": "motif",
+      "valeur": "demande de devis pour installation d'un poêle à bois",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "verbatim_demande",
+      "valeur": "je voudrais un devis pour installer un poêle à bois dans ma maison",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "projet",
+      "valeur": "installation d'un poêle à bois",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "type_logement",
+      "valeur": "maison",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 1
+     },
+     {
+      "champ": "conduit_existant",
+      "valeur": "non",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 2
+     },
+     {
+      "champ": "echeance_projet",
+      "valeur": "au printemps",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 3
+     },
+     {
+      "champ": "nom",
+      "valeur": "Flamant",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 4
+     },
+     {
+      "champ": "numero_dicte",
+      "valeur": "0639981409",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 5
+     },
+     {
+      "champ": "commune",
+      "valeur": "",
+      "statut": "ignore",
+      "raison": "valeur_vide",
+      "source": "outil",
+      "sure": true,
+      "tour": 6
+     },
+     {
+      "champ": "code_postal",
+      "valeur": "",
+      "statut": "ignore",
+      "raison": "valeur_vide",
+      "source": "outil",
+      "sure": true,
+      "tour": 6
+     },
+     {
+      "champ": "adresse_intervention",
+      "valeur": "",
+      "statut": "ignore",
+      "raison": "valeur_vide",
+      "source": "outil",
+      "sure": true,
+      "tour": 6
+     },
+     {
+      "champ": "code_postal",
+      "valeur": "60550",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 7
+     },
+     {
+      "champ": "commune",
+      "valeur": "Vernon",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 7
+     },
+     {
+      "champ": "adresse_intervention",
+      "valeur": "26 rue des Hauts-de-France",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": false,
+      "suite": "ambigu",
+      "options": [
+       "Avenue Ile de France",
+       "Rue des Frênes"
+      ],
+      "tour": 7
+     },
+     {
+      "champ": "adresse_intervention",
+      "valeur": "26 rue des Hauts-de-France",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": false,
+      "suite": "ambigu",
+      "options": [
+       "Avenue Ile de France",
+       "Rue des Frênes"
+      ],
+      "tour": 8
+     },
+     {
+      "champ": "commune",
+      "valeur": "Verneuil-en-Halatte",
+      "statut": "refuse",
+      "raison": "non_sure_sur_sure",
+      "source": "outil",
+      "sure": false,
+      "tour": 8
+     },
+     {
+      "champ": "code_postal",
+      "valeur": "60550",
+      "statut": "ecrit",
+      "raison": "deja_confirmee",
+      "source": "outil",
+      "sure": true,
+      "tour": 8
+     },
+     {
+      "champ": "adresse_intervention",
+      "valeur": "26 rue des Hauts-de-France",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": false,
+      "suite": "ambigu",
+      "options": [
+       "Avenue Ile de France",
+       "Rue des Frênes"
+      ],
+      "tour": 9
+     },
+     {
+      "champ": "motif",
+      "valeur": "demande de devis pour installation d'un poêle à bois et question sur la date de livraison de la commande CM2931",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 11
+     },
+     {
+      "champ": "verbatim_demande",
+      "valeur": "je voudrais un devis pour installer un poêle à bois dans ma maison, et savoir quand ma commande CM2931 sera livrée",
+      "statut": "refuse",
+      "raison": "non_dit",
+      "source": "outil",
+      "sure": true,
+      "tour": 11
+     },
+     {
+      "champ": "reference_commande",
+      "valeur": "CM2931",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "outil",
+      "sure": true,
+      "tour": 11
+     },
+     {
+      "champ": "verbatim_demande",
+      "valeur": "je voudrais un devis pour installer un poêle à bois dans ma maison, et savoir quand ma commande CM2931 sera livrée",
+      "statut": "refuse",
+      "raison": "non_dit",
+      "source": "outil",
+      "sure": true,
+      "tour": 11
+     },
+     {
+      "champ": "verbatim_demande",
+      "valeur": "je voudrais un devis pour installer un poêle à bois dans ma maison, et savoir quand ma commande CM2931 sera livrée",
+      "statut": "refuse",
+      "raison": "non_dit",
+      "source": "outil",
+      "sure": true,
+      "tour": 12
+     },
+     {
+      "champ": "appareil",
+      "valeur": "poêle à bois",
+      "statut": "ecrit",
+      "raison": null,
+      "source": "balayage",
+      "sure": true,
+      "tour": 12
+     },
+     {
+      "champ": "reference_facture",
+      "valeur": "CM2931",
+      "statut": "refuse",
+      "raison": "recopie_de_reference_commande",
+      "source": "balayage",
+      "sure": true
+     }
+    ],
+    "communes_verifiees": [
+     {
+      "etape": "accueil",
+      "entendu": "bois",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Bois",
+        "code_insee": "17050",
+        "departement": "Charente-Maritime",
+        "codes_postaux": [
+         "17240"
+        ]
+       },
+       {
+        "nom": "Broyes",
+        "code_insee": "60111",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60120"
+        ]
+       },
+       {
+        "nom": "Boissay",
+        "code_insee": "76113",
+        "departement": "Seine-Maritime",
+        "codes_postaux": [
+         "76750"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "nom",
+      "tour": 1
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "vernayon",
+      "statut": "sure",
+      "commune_retenue": {
+       "nom": "Vernon",
+       "code_insee": "27681",
+       "departement": "Eure",
+       "codes_postaux": [
+        "27200"
+       ]
+      },
+      "propositions": [
+       {
+        "nom": "Vernon",
+        "code_insee": "27681",
+        "departement": "Eure",
+        "codes_postaux": [
+         "27200"
+        ]
+       },
+       {
+        "nom": "Cuvergnon",
+        "code_insee": "60190",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60620"
+        ]
+       },
+       {
+        "nom": "Verderonne",
+        "code_insee": "60669",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60140"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "lieu",
+      "tour": 7
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "soixante cinq cent cinquante",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Verneuil-en-Halatte",
+        "code_insee": "60670",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60550"
+        ]
+       },
+       {
+        "nom": "Saint-Laurent-de-Neste",
+        "code_insee": "65389",
+        "departement": "Hautes-Pyrénées",
+        "codes_postaux": [
+         "65150"
+        ]
+       }
+      ],
+      "par_son": false,
+      "code_postal_entendu": true,
+      "force": "lieu",
+      "tour": 7
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "soixante mille cinq cent cinquante",
+      "statut": "sure",
+      "commune_retenue": {
+       "nom": "Verneuil-en-Halatte",
+       "code_insee": "60670",
+       "departement": "Oise",
+       "codes_postaux": [
+        "60550"
+       ]
+      },
+      "propositions": [
+       {
+        "nom": "Verneuil-en-Halatte",
+        "code_insee": "60670",
+        "departement": "Oise",
+        "codes_postaux": [
+         "60550"
+        ]
+       }
+      ],
+      "par_son": false,
+      "code_postal_entendu": true,
+      "force": "lieu",
+      "tour": 9
+     },
+     {
+      "etape": "autre_demande",
+      "entendu": "tout",
+      "statut": "a_confirmer",
+      "commune_retenue": null,
+      "propositions": [
+       {
+        "nom": "Thou",
+        "code_insee": "45323",
+        "departement": "Loiret",
+        "codes_postaux": [
+         "45420"
+        ]
+       },
+       {
+        "nom": "Thou",
+        "code_insee": "18264",
+        "departement": "Cher",
+        "codes_postaux": [
+         "18260"
+        ]
+       },
+       {
+        "nom": "Thoux",
+        "code_insee": "32444",
+        "departement": "Gers",
+        "codes_postaux": [
+         "32430"
+        ]
+       }
+      ],
+      "par_son": false,
+      "force": "son",
+      "tour": 12
+     }
+    ],
+    "voies_verifiees": [
+     {
+      "etape": "coordonnees",
+      "entendu": "hauts de france",
+      "statut": "a_confirmer",
+      "voie_retenue": null,
+      "propositions": [
+       {
+        "nom": "Avenue Ile de France",
+        "score": 80,
+        "numero_present": true
+       },
+       {
+        "nom": "Rue des Frênes",
+        "score": 75.7,
+        "numero_present": false
+       }
+      ],
+      "par_son": false,
+      "tour": 7
+     },
+     {
+      "etape": "coordonnees",
+      "entendu": "hauts de france ce n",
+      "statut": "introuvable",
+      "voie_retenue": null,
+      "propositions": [],
+      "par_son": false,
+      "tour": 9
+     }
+    ],
+    "lexique_reconnu": [
+     {
+      "etape": "accueil",
+      "entendu": "devis",
+      "statut": "a_confirmer",
+      "terme": "Deville",
+      "propositions": [
+       {
+        "terme": "Deville",
+        "categorie": "marque",
+        "score": 88.9
+       }
+      ],
+      "par_son": false
+     }
+    ],
+    "epellations_lues": [
+     {
+      "etape": "coordonnees",
+      "entendu": "f l a m a n t",
+      "epele": "Flamant",
+      "tour": 4
+     }
+    ]
+   }
+  }
+ ]
+}

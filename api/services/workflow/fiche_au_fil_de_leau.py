@@ -55,13 +55,18 @@ from api.schemas.fiche_agent import (
 )
 from api.schemas.lexique_metier import normaliser_terme
 from api.services.communes.base import base_si_chargee, cle_sonore, normaliser
+from api.services.communes.mention import MARQUE as MARQUE_COMMUNES
+from api.services.epellation.mention import MARQUE as MARQUE_EPELLATION
 from api.services.lexique.analyse import SEUIL_A_CONFIRMER
+from api.services.lexique.correction import MARQUE as MARQUE_LEXIQUE
 from api.services.lexique.epellation import terme_epele
 from api.services.nombres.lecture import lire_nombres, reecrire
+from api.services.nombres.mention import MARQUE as MARQUE_NOMBRES
 from api.services.nombres.voix import en_mots
 from api.services.voies import base as base_voies
 from api.services.voies.analyse import SURE as VOIE_SURE
 from api.services.voies.analyse import analyser as analyser_voie
+from api.services.voies.mention import MARQUE as MARQUE_VOIES
 from api.services.workflow.dates_relatives import est_une_date, lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
 
@@ -425,6 +430,35 @@ def _chiffres_comme_lus(texte: str) -> str:
     except Exception as erreur:  # noqa: BLE001 -- un contrôle ne coûte jamais l'appel
         logger.warning(f"[fiche] nombres de la date non convertis : {erreur!r}")
         return texte
+
+
+# Lot A (chantier fiabilite-fiche-et-renvoi, 01/10, run 925) : les notes que les modules
+# collent au message de la personne, chacune ouverte par la marque de son module.
+_NOTES_DES_MODULES = re.compile(
+    r"\s*(?:"
+    + "|".join(
+        re.escape(marque)
+        for marque in (MARQUE_LEXIQUE, MARQUE_EPELLATION, MARQUE_COMMUNES, MARQUE_NOMBRES, MARQUE_VOIES)
+    )
+    + r")[^\]]*\]"
+)
+
+
+def paroles_sans_notes(paroles: Iterable[str], fiche: dict) -> list[str]:
+    """Lot A (run 925) : ce que la personne a dit, pour le contrôle « dit tel quel ».
+
+    Les notes des modules ne sont pas des paroles : au 925, « devis » avait fait
+    PROPOSER Deville par le lexique, la note portait « Deville », et le contrôle
+    l'a lue comme dite. Une reconnaissance SÛRE du lexique, elle, est une parole :
+    la même parole est ajoutée avec l'écriture officielle (« édile kamine » ->
+    « Edilkamin »). Une proposition « à confirmer » ne compte jamais."""
+    nettes = [_NOTES_DES_MODULES.sub("", str(parole)) for parole in paroles]
+    for trace in _entrees(fiche, TRACE_LEXIQUE):
+        if trace.get("statut") != "sure" or not trace.get("entendu") or not trace.get("terme"):
+            continue
+        entendu = re.compile(re.escape(str(trace["entendu"])), re.IGNORECASE)
+        nettes += [entendu.sub(str(trace["terme"]), p) for p in nettes if entendu.search(p)]
+    return nettes
 
 
 def paroles_de_l_appelant(messages: Iterable[dict]) -> list[str]:
@@ -1586,7 +1620,8 @@ def ecrire_dans_la_fiche(
             # personne ne prononce pas « true ») ; il se juge comme un déduit.
             and definition.type != "boolean"
             # D-C5 : une phrase se dit dans une même réplique.
-            and not est_dit_tel_quel(valeur, paroles)
+            # Lot A : comparé aux paroles, jamais aux notes des modules.
+            and not est_dit_tel_quel(valeur, paroles_sans_notes(paroles, fiche))
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:
