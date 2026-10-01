@@ -12,9 +12,14 @@
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BoutonsRenvoiEnTest } from "./BoutonsRenvoiEnTest";
+import { FournisseurLangue } from "./langue/langue";
+
+// The application opens in French (D12): the labels are read as Evan wrote them.
+const enFrancais = (ui: React.ReactElement) => render(<FournisseurLangue>{ui}</FournisseurLangue>);
 
 const { lireEtat, decider, useWebSocketRTCMock, useTextChatSessionMock } = vi.hoisted(() => ({
     lireEtat: vi.fn(),
@@ -52,7 +57,7 @@ describe("Boutons du renvoi d'appel en test", () => {
 
     it("affiche les deux boutons, libellés exacts, quand un renvoi attend", async () => {
         lireEtat.mockResolvedValue({ data: { en_attente: true } });
-        render(<BoutonsRenvoiEnTest workflowId={7} runId={42} actif />);
+        enFrancais(<BoutonsRenvoiEnTest workflowId={7} runId={42} actif />);
         expect(await screen.findByRole("button", { name: ACCEPTER })).toBeTruthy();
         expect(screen.getByRole("button", { name: REFUSER })).toBeTruthy();
         expect(lireEtat).toHaveBeenCalledWith({ path: { workflow_id: 7, run_id: 42 } });
@@ -61,7 +66,7 @@ describe("Boutons du renvoi d'appel en test", () => {
     it("un clic sur Accepter envoie la décision au bon run", async () => {
         lireEtat.mockResolvedValue({ data: { en_attente: true } });
         decider.mockResolvedValue({ data: { en_attente: false } });
-        render(<BoutonsRenvoiEnTest workflowId={7} runId={42} actif />);
+        enFrancais(<BoutonsRenvoiEnTest workflowId={7} runId={42} actif />);
         fireEvent.click(await screen.findByRole("button", { name: ACCEPTER }));
         await waitFor(() =>
             expect(decider).toHaveBeenCalledWith({ path: { workflow_id: 7, run_id: 42 }, body: { accepte: true } }),
@@ -71,20 +76,20 @@ describe("Boutons du renvoi d'appel en test", () => {
     it("un clic sur Refuser envoie le refus", async () => {
         lireEtat.mockResolvedValue({ data: { en_attente: true } });
         decider.mockResolvedValue({ data: { en_attente: false } });
-        render(<BoutonsRenvoiEnTest workflowId={7} runId={42} actif />);
+        enFrancais(<BoutonsRenvoiEnTest workflowId={7} runId={42} actif />);
         fireEvent.click(await screen.findByRole("button", { name: REFUSER }));
         await waitFor(() => expect(decider).toHaveBeenCalledWith(expect.objectContaining({ body: { accepte: false } })));
     });
 
     it("rien quand aucun renvoi n'attend", async () => {
         lireEtat.mockResolvedValue({ data: { en_attente: false } });
-        render(<BoutonsRenvoiEnTest workflowId={7} runId={42} actif />);
+        enFrancais(<BoutonsRenvoiEnTest workflowId={7} runId={42} actif />);
         await waitFor(() => expect(lireEtat).toHaveBeenCalled());
         expect(screen.queryByRole("button", { name: ACCEPTER })).toBeNull();
     });
 
     it("inactif : ni bouton ni appel au serveur", () => {
-        render(<BoutonsRenvoiEnTest workflowId={7} runId={42} actif={false} />);
+        enFrancais(<BoutonsRenvoiEnTest workflowId={7} runId={42} actif={false} />);
         expect(lireEtat).not.toHaveBeenCalled();
         expect(screen.queryByRole("button", { name: ACCEPTER })).toBeNull();
     });
@@ -115,7 +120,7 @@ describe("Boutons du renvoi d'appel en test", () => {
         const { EmbeddedVoiceTester } = await import(
             "@/app/workflow/[workflowId]/components/workflow-tester/EmbeddedVoiceTester"
         );
-        render(<EmbeddedVoiceTester workflowId={7} workflowRunId={42} accessToken="t" onReset={vi.fn()} />);
+        enFrancais(<EmbeddedVoiceTester workflowId={7} workflowRunId={42} accessToken="t" onReset={vi.fn()} />);
         expect(await screen.findByRole("button", { name: ACCEPTER })).toBeTruthy();
         expect(lireEtat).toHaveBeenCalledWith({ path: { workflow_id: 7, run_id: 42 } });
     });
@@ -151,7 +156,7 @@ describe("Boutons du renvoi d'appel en test", () => {
         const { ManualTextChatPanel } = await import(
             "@/app/workflow/[workflowId]/components/workflow-tester/ManualTextChatPanel"
         );
-        render(<ManualTextChatPanel workflowId={7} ready disabled={false} disabledReason={null} />);
+        enFrancais(<ManualTextChatPanel workflowId={7} ready disabled={false} disabledReason={null} />);
         expect(await screen.findByRole("button", { name: ACCEPTER })).toBeTruthy();
         expect(lireEtat).toHaveBeenCalledWith({ path: { workflow_id: 7, run_id: 42 } });
     });

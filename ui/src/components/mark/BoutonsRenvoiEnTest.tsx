@@ -10,6 +10,8 @@ import {
 } from "@/client";
 import { Button } from "@/components/ui/button";
 
+import { useLangue } from "./langue/langue";
+
 /**
  * [.mark] Lot D (chantier fiabilite-fiche-et-renvoi, 01/10/2026): the tester's answer
  * to a call transfer, in the keyboard chat and in the voice tester.
@@ -19,8 +21,10 @@ import { Button } from "@/components/ui/button";
  * tester; these two buttons give the answer, and the agent receives exactly what
  * telephony would give it (accepted: the agent withdraws; declined: it carries on).
  *
- * ⛔ The labels are Evan's, word for word (01/10): « Accepter le renvoi d'appel »
- * and « Refuser le renvoi d'appel ». Nothing here is specific to a client.
+ * ⛔ The French labels are Evan's, word for word (01/10): « Accepter le renvoi
+ * d'appel » and « Refuser le renvoi d'appel » (the application opens in French).
+ * Every text is written in both languages (convention T2). Nothing here is
+ * specific to a client.
  *
  * ``actif``: true while a transfer may be waiting (a keyboard message being
  * answered, a voice call in progress). The page asks the server every second
@@ -36,6 +40,7 @@ interface BoutonsRenvoiEnTestProps {
 }
 
 export const BoutonsRenvoiEnTest = ({ workflowId, runId, actif }: BoutonsRenvoiEnTestProps) => {
+    const { t } = useLangue();
     const [enAttente, setEnAttente] = useState(false);
     const [envoi, setEnvoi] = useState(false);
 
@@ -75,11 +80,21 @@ export const BoutonsRenvoiEnTest = ({ workflowId, runId, actif }: BoutonsRenvoiE
             });
             // The generated client resolves with `{ data, error }` on an HTTP error.
             if (reponse.error) {
-                toast.error("Le renvoi n'attend plus de réponse (délai dépassé).");
+                toast.error(
+                    t({
+                        en: "The transfer is no longer waiting for an answer (time limit passed).",
+                        fr: "Le renvoi n'attend plus de réponse (délai dépassé).",
+                    }),
+                );
             }
             setEnAttente(false);
         } catch {
-            toast.error("La réponse au renvoi n'a pas pu être envoyée.");
+            toast.error(
+                t({
+                    en: "The answer to the transfer could not be sent.",
+                    fr: "La réponse au renvoi n'a pas pu être envoyée.",
+                }),
+            );
         } finally {
             setEnvoi(false);
         }
@@ -89,11 +104,11 @@ export const BoutonsRenvoiEnTest = ({ workflowId, runId, actif }: BoutonsRenvoiE
         <div className="flex flex-wrap gap-2 py-2" data-testid="boutons-renvoi-en-test">
             <Button type="button" size="sm" disabled={envoi} onClick={() => void decider(true)}>
                 <PhoneForwarded className="h-3.5 w-3.5" />
-                Accepter le renvoi d&apos;appel
+                {t({ en: "Accept the call transfer", fr: "Accepter le renvoi d'appel" })}
             </Button>
             <Button type="button" size="sm" variant="outline" disabled={envoi} onClick={() => void decider(false)}>
                 <PhoneOff className="h-3.5 w-3.5" />
-                Refuser le renvoi d&apos;appel
+                {t({ en: "Decline the call transfer", fr: "Refuser le renvoi d'appel" })}
             </Button>
         </div>
     );
