@@ -152,3 +152,17 @@ def test_B3_les_lettres_d_une_elision_comptent_comme_avant(base, magasin):
     """Témoin (corpus réel) : « l'appel », « d'ouverture » ne sont pas une épellation."""
     communes, _ = _communes("Allez c'est bon fin de l'appel. fondamental.", base, magasin)
     assert communes == []
+
+
+def test_B2_un_code_dit_confirme_la_commune_dont_le_nom_ouvre_les_mots_entendus(base, magasin):
+    """Run 935 : « c'est Montataire maintenant, 60160 » restait à confirmer."""
+    communes, _ = _communes(
+        "Je dis Nogent mais j'ai déménagé, c'est Montataire maintenant, soixante mille cent soixante", base, magasin
+    )
+    assert ("Montataire", SURE) in communes
+
+
+def test_B2_temoin_transcription_propre_inchangee(base, magasin):
+    """Témoin : le nom seul, bien transcrit, avec son code : sûr avant comme après."""
+    communes, _ = _communes("c'est Montataire, soixante mille cent soixante", base, magasin)
+    assert communes == [("Montataire", SURE)]

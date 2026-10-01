@@ -1030,6 +1030,13 @@ def _codes_retenus(trace_nombres) -> set[str]:
     return set()
 
 
+def _nom_en_tete(entendu: str, lecture) -> bool:
+    """B2 (run 935) : les mots entendus commencent par le nom exact de la commune,
+    suivi d'autres mots (« Montataire maintenant »)."""
+    nom = normaliser(lecture.commune.nom)
+    return bool(nom) and normaliser(entendu or "").startswith(nom + " ")
+
+
 def _code_postal_tranche(detections, codes):
     """D5 (chantier correctifs-modules, 28/09) : le code postal tranche.
 
@@ -1056,8 +1063,11 @@ def _code_postal_tranche(detections, codes):
         # ⛔ Une commune venue du seul code, sans ressemblance au nom dit, n'est pas
         # tranchée : « d'accord quatre-vingt mille six cent quatre-vingt » rendait
         # Hébécourt sûre (balayage des amorces, 97 fausses sûres).
+        # B2 (chantier fiabilite-fiche-et-renvoi, run 935) : ou les mots entendus COMMENCENT
+        # par le nom exact de la commune (« Montataire maintenant », 60160).
         portent = [
-            l for l in d.lectures if set(l.commune.cps) & codes and (l.phon_nom or 0) >= SEUIL_PHON
+            l for l in d.lectures
+            if set(l.commune.cps) & codes and ((l.phon_nom or 0) >= SEUIL_PHON or _nom_en_tete(d.entendu, l))
         ]
         # ⛔ Ni sur des mots de conversation (« je crois que c'est 60120 » rendait
         # Broyes sûre), ni quand une commune ÉCRITE comme dite ne porte pas le code :
