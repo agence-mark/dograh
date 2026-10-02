@@ -49,6 +49,7 @@ REGLAGES_EXPOSES = (
     "endpoint_detection",
     *REGLAGES_FIN_DE_TOUR,
     "enable_speaker_diarization",
+    "domain_description",  # lot 5bis of communes-cp-et-lexique-soniox (Q5, 2026-10-02)
     "base_url",
     "region",
 )

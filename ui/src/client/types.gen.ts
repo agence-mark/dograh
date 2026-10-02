@@ -6643,6 +6643,12 @@ export type SonioxSttConfiguration = {
      */
     enable_speaker_diarization?: boolean;
     /**
+     * Domain Description
+     *
+     * What the calls are about, in a few words (trade, products, usual requests): Soniox then recognises the words of the domain better. Sent before the terms of the vocabulary, within the same ceiling. 300 characters at most; left empty, nothing is sent.
+     */
+    domain_description?: string | null;
+    /**
      * Base Url
      *
      * The Soniox endpoint the caller's audio is sent to, and therefore the jurisdiction that processes it. Defaults to Europe, which Soniox enables per project on request; leaving it empty also sends the audio to Europe.

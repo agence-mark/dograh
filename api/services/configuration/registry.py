@@ -417,6 +417,7 @@ ECRAN_SONIOX_STT: EcranMark = {
     "max_endpoint_delay_ms": ("fin_de_tour", "Max end of turn delay (ms)", "Délai maximum de fin de tour (ms)"),
     "endpoint_sensitivity": ("fin_de_tour", "End of turn sensitivity", "Sensibilité de la fin de tour"),
     "endpoint_latency_adjustment_level": ("fin_de_tour", "End of turn latency reduction", "Réduction de latence de la fin de tour"),
+    "domain_description": ("vocabulaire", "Domain description", "Description du domaine"),
     "enable_speaker_diarization": ("analyse", "Diarize", "Séparer les voix"),
     "base_url": ("hebergement", "Base URL", "Adresse du service"),
     "region": ("hebergement", "Region", "Région"),
@@ -2734,9 +2735,13 @@ class GladiaSTTConfiguration(BaseSTTConfiguration):
 #   the three end-of-turn settings are hidden AND not sent (E8);
 # - the European address by default (D5); an empty one also goes to Europe;
 # - `context` is NOT a field: the list of terms is fed by the agent's lexicon,
-#   and no ceiling is declared until Soniox is probed (D7), so none is sent.
+#   and leaves only under the ceiling declared once Soniox is probed (D7); the
+#   one thing typed here is `domain_description` (Q5, 2026-10-02), which the
+#   factory puts in the same context, under the same ceiling.
 SONIOX_ADRESSE_EUROPE = "wss://stt-rt.eu.soniox.com/transcribe-websocket"
 SONIOX_ADRESSE_MONDIALE = "wss://stt-rt.soniox.com/transcribe-websocket"
+# [.mark] Q5-bis (2026-10-02): the longest domain description an agent may send.
+DESCRIPTION_DU_DOMAINE_MAX = 300
 
 
 def adresse_soniox(base_url: str | None) -> str:
@@ -2838,6 +2843,23 @@ class SonioxSTTConfiguration(BaseSTTConfiguration):
     enable_speaker_diarization: bool = Field(
         default=False,
         description="Tag each word with the voice that said it.",
+    )
+    # [.mark] Chantier communes-cp-et-lexique-soniox (Q5, 2026-10-02): a short
+    # description of the agent's domain, sent in Soniox's context with the
+    # terms. ⛔ It leaves only under the terms' declared ceiling, and takes from
+    # it FIRST (Q5-ter): `construire_liste_ecoutee`.
+    domain_description: str | None = Field(
+        default=None,
+        max_length=DESCRIPTION_DU_DOMAINE_MAX,
+        description=(
+            "What the calls are about, in a few words (trade, products, usual "
+            "requests): Soniox then recognises the words of the domain better. "
+            "Sent before the terms of the vocabulary, within the same ceiling. "
+            "300 characters at most; left empty, nothing is sent."
+        ),
+        # The bound again at the top of the property: an optional field keeps
+        # `max_length` inside `anyOf`, where the screen does not look.
+        json_schema_extra={"multiline": True, "maxLength": DESCRIPTION_DU_DOMAINE_MAX},
     )
     base_url: str = Field(
         default=SONIOX_ADRESSE_EUROPE,

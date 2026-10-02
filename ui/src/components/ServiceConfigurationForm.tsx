@@ -46,6 +46,8 @@ interface SchemaProperty {
     description?: string;
     format?: string;
     multiline?: boolean;
+    // [.mark] A text bound, enforced by the field (Soniox domain description).
+    maxLength?: number;
     docs_url?: string;
     // [.mark] The models that accept this setting. Absent = every model.
     models?: string[];
@@ -1271,6 +1273,8 @@ export function ServiceConfigurationForm({
                 <Textarea
                     rows={6}
                     className="font-mono text-xs"
+                    // [.mark] The schema's bound, typed no further (Soniox domain description, 300).
+                    maxLength={actualSchema?.maxLength}
                     placeholder={`Enter ${field}`}
                     {...register(`${service}_${field}`, {
                         required: service !== "embeddings" && providerSchema.required?.includes(field),

@@ -29,6 +29,7 @@ from api.services.integrations import (
 )
 from api.services.lexique.ecoute import (
     construire_liste_ecoutee,
+    description_du_domaine,
     injecter_lexique_propose,
     termes_proposes,
 )
@@ -961,6 +962,8 @@ async def _run_pipeline_impl(
             getattr(getattr(user_config, "stt", None), "provider", None),
             getattr(getattr(user_config, "stt", None), "model", None),
         ),
+        # [.mark] Soniox only (Q5, 2026-10-02): taken from the ceiling first.
+        description_du_domaine(getattr(user_config, "stt", None)),
     )
     keyterms = liste_ecoutee.termes or None  # Terms the transcription listens for
 
@@ -1014,6 +1017,7 @@ async def _run_pipeline_impl(
                     audio_config,
                     keyterms=keyterms,
                     correlation_id=mps_correlation_id,
+                    description_domaine=liste_ecoutee.description,
                 ),
                 keyterms,
                 lambda message: noter_le_refus(
