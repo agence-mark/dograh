@@ -67,3 +67,99 @@ async def test_C1_temoin_une_commune_hors_des_propositions_n_est_pas_confirmee_p
     appel.dit("Oui, oui.", agent_avant="Est-ce que vous êtes bien sur Compiègne ?")
     await appel.note(commune="Compiègne")
     assert not appel.sure("commune")
+
+
+# --- C2 : un code postal incompatible avec la commune devient « à confirmer » (Q2, Q3) ---
+
+VERNEUIL = {
+    "nom": "Verneuil-en-Halatte",
+    "code_insee": "60670",
+    "departement": "Oise",
+    "codes_postaux": ["60550"],
+}
+
+
+def _verneuil_sure(appel: Appel, entendu: str = "vernay en malatte") -> None:
+    """Le module des communes retient Verneuil-en-Halatte au tour courant (run 1018)."""
+    appel.trace(
+        "communes_verifiees",
+        entendu=entendu,
+        statut="sure",
+        commune_retenue=VERNEUIL,
+        propositions=[],
+    )
+
+
+def _code_a_proposer(resultat: dict) -> list:
+    return [p for p in resultat.get("a_proposer") or [] if p["champ"] == "code_postal"]
+
+
+async def _run_1018() -> tuple[Appel, dict]:
+    """Run 1018 : « Vernay-en-Malatte, 65150 » dans la même note ; le module retient
+    Verneuil-en-Halatte (60550). Le code dicté ne lui appartient pas."""
+    charger_base()
+    appel = Appel(_reglages(COMMUNE, CODE_POSTAL))
+    appel.dit("Euh, je suis à Vernay-en-Malatte, 65150.")
+    _verneuil_sure(appel)
+    r = await appel.note(commune="Vernay-en-Malatte", code_postal="65150")
+    return appel, r
+
+
+@pytest.mark.asyncio
+async def test_C2_run_1018_le_code_incompatible_devient_a_confirmer_avec_celui_de_la_commune():
+    appel, r = await _run_1018()
+    assert appel.fiche["commune"] == "Verneuil-en-Halatte" and appel.sure("commune"), r
+    # Rien n'est écrasé sans demander : la valeur dite reste, marquée à confirmer.
+    assert appel.fiche["code_postal"] == "65150" and not appel.sure("code_postal"), r
+    assert [p["options"] for p in _code_a_proposer(r)] == [["60550"]], r
+
+
+@pytest.mark.asyncio
+async def test_C2_dans_l_autre_ordre_le_code_d_abord_puis_la_commune():
+    charger_base()
+    appel = Appel(_reglages(COMMUNE, CODE_POSTAL))
+    appel.dit("C'est le 65150.")
+    await appel.note(code_postal="65150")
+    assert appel.sure("code_postal")
+    appel.dit("À Vernay-en-Malatte.", agent_avant="Et c'est dans quelle commune ?")
+    _verneuil_sure(appel)
+    r = await appel.note(commune="Vernay-en-Malatte")
+    assert appel.fiche["code_postal"] == "65150" and not appel.sure("code_postal"), r
+    assert [p["options"] for p in _code_a_proposer(r)] == [["60550"]], r
+
+
+@pytest.mark.asyncio
+async def test_C2_un_oui_au_code_de_la_commune_l_ecrit():
+    appel, _ = await _run_1018()
+    appel.dit("Oui, c'est ça.", agent_avant="Le code postal, c'est bien le 60550 ?")
+    r = await appel.note(code_postal="60550")
+    assert appel.fiche["code_postal"] == "60550" and appel.sure("code_postal"), r
+
+
+@pytest.mark.asyncio
+async def test_C2_Q3_un_non_garde_la_valeur_dite_a_confirmer_sans_reposer_la_question():
+    appel, _ = await _run_1018()
+    appel.dit("Non, c'est bien le 65150.", agent_avant="Le code postal, c'est bien le 60550 ?")
+    r = await appel.note(code_postal="65150")
+    assert appel.fiche["code_postal"] == "65150" and not appel.sure("code_postal"), r
+    assert not _code_a_proposer(r), r
+
+
+@pytest.mark.asyncio
+async def test_C2_temoin_un_code_compatible_ne_declenche_rien():
+    charger_base()
+    appel = Appel(_reglages(COMMUNE, CODE_POSTAL))
+    appel.dit("Je suis à Verneuil-en-Halatte, 60550.")
+    _verneuil_sure(appel, entendu="verneuil en halatte")
+    r = await appel.note(commune="Verneuil-en-Halatte", code_postal="60550")
+    assert appel.sure("code_postal") and not _code_a_proposer(r), r
+
+
+@pytest.mark.asyncio
+async def test_C2_temoin_une_commune_non_sure_ne_juge_pas_le_code():
+    charger_base()
+    appel = Appel(_reglages(COMMUNE, CODE_POSTAL))
+    appel.dit("Je suis à Zorvexville, 65150.")
+    r = await appel.note(commune="Zorvexville", code_postal="65150")
+    assert not appel.sure("commune")
+    assert not _code_a_proposer(r), r
