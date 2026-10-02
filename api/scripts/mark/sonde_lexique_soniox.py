@@ -37,7 +37,7 @@ from pathlib import Path
 
 import websockets
 
-from api.services.configuration.plafond_lexique import PlafondLexique, jetons_du_terme
+from api.services.configuration.plafond_lexique import jetons_du_terme, plafond_du_lexique
 from api.services.pipecat.service_factory import contexte_soniox
 
 RACINE = Path(__file__).resolve().parents[3]
@@ -52,15 +52,10 @@ DESCRIPTION_300 = (
     "suivi de commande et garantie ; marques de poêles et de granulés, communes de l'Oise et "
     "du Val-d'Oise."
 )[:300]
-# The estimate our ceilings use (plafond_lexique.py), to recalibrate on the frontier.
-ESTIMATEUR = PlafondLexique(
-    fournisseur="Soniox",
-    jetons=None,
-    termes=None,
-    octets_par_jeton=3.5,
-    jetons_par_terme=2,
-    source="sonde",
-)
+# The estimate our ceilings use, taken from the declaration (never a second ceiling
+# written here: test_aucun_plafond_nest_ecrit_hors_de_la_declaration_du_fournisseur),
+# to recalibrate on the frontier this probe finds.
+ESTIMATEUR = plafond_du_lexique("deepgram", "nova-3")
 
 
 def _cle() -> str:
