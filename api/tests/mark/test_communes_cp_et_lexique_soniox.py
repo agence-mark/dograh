@@ -13,7 +13,11 @@ modules sont écrites comme les modules les écrivent.
 import pytest
 
 from api.services.communes.base import charger_base
-from api.tests.mark.test_fiche_correctifs_modules import Appel, _a_faire_confirmer, _reglages
+from api.tests.mark.test_fiche_correctifs_modules import (
+    Appel,
+    _a_faire_confirmer,
+    _reglages,
+)
 
 COMMUNE = {"nom": "commune", "origine": "dicte"}
 CODE_POSTAL = {"nom": "code_postal", "origine": "dicte"}
@@ -39,7 +43,9 @@ async def _sainte_maxence_proposee() -> Appel:
 @pytest.mark.asyncio
 async def test_C1_run_1019_un_oui_a_la_commune_proposee_depuis_le_code_postal_l_ecrit():
     appel = await _sainte_maxence_proposee()
-    appel.dit("Oui, oui.", agent_avant="Est-ce que vous êtes bien sur Pont-Sainte-Maxence ?")
+    appel.dit(
+        "Oui, oui.", agent_avant="Est-ce que vous êtes bien sur Pont-Sainte-Maxence ?"
+    )
     r = await appel.note(commune="Pont-Sainte-Maxence")
     assert "commune" not in _a_faire_confirmer(r), r
     assert appel.sure("commune") and appel.fiche["commune"] == "Pont-Sainte-Maxence", r
@@ -56,7 +62,10 @@ async def test_C1_l_option_renvoyee_avec_son_departement_est_aussi_reconnue():
 @pytest.mark.asyncio
 async def test_C1_temoin_un_non_ne_confirme_rien():
     appel = await _sainte_maxence_proposee()
-    appel.dit("Non, pas du tout.", agent_avant="Est-ce que vous êtes bien sur Pont-Sainte-Maxence ?")
+    appel.dit(
+        "Non, pas du tout.",
+        agent_avant="Est-ce que vous êtes bien sur Pont-Sainte-Maxence ?",
+    )
     await appel.note(commune="Pont-Sainte-Maxence")
     assert not appel.sure("commune")
 
@@ -105,13 +114,22 @@ async def _run_1018() -> tuple[Appel, dict]:
     return appel, r
 
 
+def _commune_a_proposer(resultat: dict) -> list:
+    return [p for p in resultat.get("a_proposer") or [] if p["champ"] == "commune"]
+
+
 @pytest.mark.asyncio
-async def test_C2_run_1018_le_code_incompatible_devient_a_confirmer_avec_celui_de_la_commune():
+async def test_C2_run_1018_le_code_incompatible_et_la_commune_deviennent_a_confirmer():
     appel, r = await _run_1018()
-    assert appel.fiche["commune"] == "Verneuil-en-Halatte" and appel.sure("commune"), r
-    # Rien n'est écrasé sans demander : la valeur dite reste, marquée à confirmer.
+    # Rien n'est écrasé sans demander : les valeurs restent, marquées à confirmer.
+    assert appel.fiche["commune"] == "Verneuil-en-Halatte" and not appel.sure(
+        "commune"
+    ), r
     assert appel.fiche["code_postal"] == "65150" and not appel.sure("code_postal"), r
     assert [p["options"] for p in _code_a_proposer(r)] == [["60550"]], r
+    # Décision du 02/10 : la commune aussi, avec les communes du code dit.
+    options = [p["options"] for p in _commune_a_proposer(r)]
+    assert options and options[0][0].endswith("(Hautes-Pyrénées)"), r
 
 
 @pytest.mark.asyncio
@@ -129,20 +147,83 @@ async def test_C2_dans_l_autre_ordre_le_code_d_abord_puis_la_commune():
 
 
 @pytest.mark.asyncio
-async def test_C2_un_oui_au_code_de_la_commune_l_ecrit():
+async def test_C2_un_oui_au_code_de_la_commune_l_ecrit_et_la_commune_redevient_sure():
     appel, _ = await _run_1018()
     appel.dit("Oui, c'est ça.", agent_avant="Le code postal, c'est bien le 60550 ?")
     r = await appel.note(code_postal="60550")
     assert appel.fiche["code_postal"] == "60550" and appel.sure("code_postal"), r
+    assert appel.fiche["commune"] == "Verneuil-en-Halatte" and appel.sure("commune"), r
 
 
 @pytest.mark.asyncio
 async def test_C2_Q3_un_non_garde_la_valeur_dite_a_confirmer_sans_reposer_la_question():
     appel, _ = await _run_1018()
-    appel.dit("Non, c'est bien le 65150.", agent_avant="Le code postal, c'est bien le 60550 ?")
+    appel.dit(
+        "Non, c'est bien le 65150.", agent_avant="Le code postal, c'est bien le 60550 ?"
+    )
     r = await appel.note(code_postal="65150")
     assert appel.fiche["code_postal"] == "65150" and not appel.sure("code_postal"), r
-    assert not _code_a_proposer(r), r
+    assert not _code_a_proposer(r) and not _commune_a_proposer(r), r
+
+
+# Run 967 : « vernayon à la » ; le module retient Vernon (Eure), FAUX ; le code dit,
+# 60550, est JUSTE. C'est la commune qu'il faut faire confirmer.
+VERNON = {
+    "nom": "Vernon",
+    "code_insee": "27681",
+    "departement": "Eure",
+    "codes_postaux": ["27200"],
+}
+
+
+async def _run_967() -> tuple[Appel, dict]:
+    charger_base()
+    appel = Appel(_reglages(COMMUNE, CODE_POSTAL))
+    # Le code est écrit en chiffres comme le module des nombres le rend au modèle.
+    appel.dit("Je suis au 26 rue des Hauts-de-France, 60550, vernayon à la")
+    appel.trace("nombres_lus", type="code_postal", retenu="60550")
+    appel.trace(
+        "communes_verifiees",
+        entendu="vernayon a la",
+        statut="sure",
+        commune_retenue=VERNON,
+        propositions=[],
+    )
+    r = await appel.note(commune="Vernon", code_postal="60550")
+    return appel, r
+
+
+@pytest.mark.asyncio
+async def test_C2_run_967_la_commune_fausse_est_proposee_avec_celle_du_code_dit():
+    appel, r = await _run_967()
+    assert not appel.sure("commune") and not appel.sure("code_postal"), r
+    assert [p["options"] for p in _commune_a_proposer(r)] == [
+        ["Verneuil-en-Halatte (Oise)"]
+    ], r
+    assert [p["options"] for p in _code_a_proposer(r)] == [["27200"]], r
+
+
+@pytest.mark.asyncio
+async def test_C2_run_967_un_oui_a_la_commune_du_code_rend_les_deux_surs():
+    appel, _ = await _run_967()
+    appel.dit(
+        "Oui, Verneuil-en-Halatte.",
+        agent_avant="Vous êtes bien à Verneuil-en-Halatte, dans l'Oise ?",
+    )
+    r = await appel.note(commune="Verneuil-en-Halatte")
+    assert appel.fiche["commune"] == "Verneuil-en-Halatte" and appel.sure("commune"), r
+    assert appel.fiche["code_postal"] == "60550" and appel.sure("code_postal"), r
+
+
+@pytest.mark.asyncio
+async def test_C2_temoin_un_code_sans_commune_ne_met_pas_la_commune_en_doute():
+    charger_base()
+    appel = Appel(_reglages(COMMUNE, CODE_POSTAL))
+    appel.dit("Je suis à Vernay-en-Malatte, 00000.")
+    _verneuil_sure(appel)
+    r = await appel.note(commune="Vernay-en-Malatte", code_postal="00000")
+    assert appel.sure("commune") and not appel.sure("code_postal"), r
+    assert not _commune_a_proposer(r), r
 
 
 @pytest.mark.asyncio
