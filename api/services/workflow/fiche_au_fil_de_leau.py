@@ -781,11 +781,9 @@ def _terme_dit(officiel: str, termes: dict[str, str], paroles: Iterable[str]) ->
     return False
 
 
-def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]:
-    """C3 (PB6, run 845) : les communes du DERNIER code postal que le module des
-    nombres a lu dans l'appel, les plus peuplées d'abord. Au 845, « soixante
-    trois cents » donnait Senlis, Chamant, Avilly : aucune n'a été proposée."""
-    code = next(
+def _dernier_code_postal_lu(fiche: dict) -> str | None:
+    """Le DERNIER code postal à cinq chiffres que le module des nombres a lu dans l'appel."""
+    return next(
         (
             t.get("retenu") or t.get("ecrit")
             for t in _entrees(fiche, TRACE_NOMBRES)
@@ -794,6 +792,13 @@ def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]
         ),
         None,
     )
+
+
+def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]:
+    """C3 (PB6, run 845) : les communes du DERNIER code postal que le module des
+    nombres a lu dans l'appel, les plus peuplées d'abord. Au 845, « soixante
+    trois cents » donnait Senlis, Chamant, Avilly : aucune n'a été proposée."""
+    code = _dernier_code_postal_lu(fiche)
     if code is None:
         return ()
     base = base_si_chargee()
@@ -1321,8 +1326,8 @@ def _derniere_note(fiche: dict, champ: str) -> dict | None:
 
 
 def _proposition_de_commune(fiche: dict, option: Any) -> dict | None:
-    """La commune retenue ou proposée par le module que cette option désigne
-    (nom, et département quand l'option le porte)."""
+    """La commune retenue ou proposée que cette option désigne (nom, et département
+    quand l'option le porte) : par le module des communes, ou par le code postal lu."""
     nom = _sans_complement(option)
     complement = re.search(r"\(([^)]*)\)\s*$", str(option))
     for trace in _entrees(fiche, TRACE_COMMUNES):
@@ -1332,6 +1337,25 @@ def _proposition_de_commune(fiche: dict, option: Any) -> dict | None:
             if complement and not _memes_mots(p.get("departement"), complement.group(1)):
                 continue
             return p
+    # C1 (run 1019) : les communes du code postal lu (C3) sont proposées par la fiche
+    # elle-même et n'entrent dans aucune trace du module des communes. Elles se
+    # retrouvent dans la liste officielle, parmi les communes de CE code seulement.
+    code = _dernier_code_postal_lu(fiche)
+    base = base_si_chargee()
+    if code is None or base is None:
+        return None
+    for commune in base.communes_du_code_postal(code):
+        departement = base.nom_departement(commune.dep)
+        if not _memes_mots(commune.nom, nom):
+            continue
+        if complement and not _memes_mots(departement, complement.group(1)):
+            continue
+        return {
+            "nom": commune.nom,
+            "code_insee": commune.insee,
+            "departement": departement,
+            "codes_postaux": list(commune.cps),
+        }
     return None
 
 
