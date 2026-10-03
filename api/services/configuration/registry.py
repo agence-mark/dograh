@@ -2735,7 +2735,7 @@ class GladiaSTTConfiguration(BaseSTTConfiguration):
 #   the three end-of-turn settings are hidden AND not sent (E8);
 # - the European address by default (D5); an empty one also goes to Europe;
 # - `context` is NOT a field: the list of terms is fed by the agent's lexicon,
-#   and leaves only under the ceiling declared once Soniox is probed (D7); the
+#   and leaves only under the ceiling the probe of 2026-10-03 measured (D7); the
 #   one thing typed here is `domain_description` (Q5, 2026-10-02), which the
 #   factory puts in the same context, under the same ceiling.
 SONIOX_ADRESSE_EUROPE = "wss://stt-rt.eu.soniox.com/transcribe-websocket"

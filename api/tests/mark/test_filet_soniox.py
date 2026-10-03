@@ -29,10 +29,11 @@ from api.tests.mark.test_soniox_expose import (
     _message_de_configuration,
 )
 
+# The refusal exactly as the probe of 2026-10-03 received it.
 REFUS_DU_CONTEXTE = {
     "tokens": [],
     "error_code": 400,
-    "error_message": "Context too long.",
+    "error_message": "Context is too long: 8021 tokens, the maximum is 8000 tokens.",
 }
 PLUS_DE_CREDIT = {
     "tokens": [],
@@ -92,7 +93,7 @@ async def test_un_contexte_refuse_en_session_est_retire_et_la_reconnexion_part_s
         "Edilkamin"
     ]
     await _recevoir(service, REFUS_DU_CONTEXTE)
-    assert refus and "Context too long" in refus[0], refus
+    assert refus and "Context is too long" in refus[0], refus
     assert service._settings.context is None
     assert (await _message_de_configuration(service))["context"] is None
 

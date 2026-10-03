@@ -157,7 +157,10 @@ async def test_la_description_seule_part_aussi(plafond_soniox):
 
 
 @pytest.mark.asyncio
-async def test_sans_plafond_declare_la_description_ne_part_pas():
+async def test_sans_plafond_declare_la_description_ne_part_pas(monkeypatch):
+    from api.services.pipecat import service_factory
+
+    monkeypatch.setattr(service_factory, "plafond_du_lexique", lambda *_: None)
     message = await _message_de_configuration(
         _service_avec_description(None, DESCRIPTION)
     )

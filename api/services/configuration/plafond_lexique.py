@@ -81,11 +81,35 @@ _DEEPGRAM_JETONS = PlafondLexique(
     source=_SONDE + " : nova-3 refuse au-delà de 500 jetons",
 )
 
+# Soniox (chantier communes-cp-et-lexique-soniox, lot 4). Probe of 2026-10-03
+# (``api/scripts/mark/sonde_lexique_soniox.py``, global endpoint, stt-rt-v5, the
+# 181 real terms then synthetic lists, one connection with one second of audio
+# each): 8 000 tokens across the whole context (terms AND domain description),
+# refused inside the session (« Context is too long: 8021 tokens, the maximum is
+# 8000 tokens. »). Frontier: 1 345 terms accepted (7 366 estimated), 1 357 refused
+# (7 426 estimated, 8 021 real). Our estimate counts about 8 % UNDER Soniox's
+# tokenizer (7 426 for 8 021): the ceiling is written in OUR estimate, 6 800, i.e.
+# about 7 345 real tokens -- 8 % under 8 000, the margin that covers that gap.
+# The 181 real terms and a 300-character description cost about 1 000.
+_SONIOX = PlafondLexique(
+    fournisseur="Soniox",
+    jetons=6800,
+    termes=None,
+    octets_par_jeton=3.5,
+    jetons_par_terme=2,
+    source=(
+        "sonde du 03/10/2026 (point mondial, stt-rt-v5) : refus au-delà de 8 000 jetons réels, "
+        "frontière 1 345 termes acceptés / 1 357 refusés ; 6 800 estimés ≈ 7 345 réels"
+    ),
+)
+
 # Provider -> (model prefix, ceiling), the first matching prefix wins; "" matches
 # every other model of the provider. A provider absent from this table has no ceiling.
 # ⚠️ Deepgram's models other than Flux get the nova-3 rule, the one measured in tokens.
+# ⚠️ Soniox: only the real-time family (« stt-rt ») was probed.
 PLAFONDS: dict[str, tuple[tuple[str, PlafondLexique], ...]] = {
     ServiceProviders.DEEPGRAM.value: (("flux", _DEEPGRAM_FLUX), ("", _DEEPGRAM_JETONS)),
+    ServiceProviders.SONIOX.value: (("stt-rt", _SONIOX),),
 }
 
 
