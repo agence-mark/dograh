@@ -244,3 +244,129 @@ async def test_C2_temoin_une_commune_non_sure_ne_juge_pas_le_code():
     r = await appel.note(commune="Zorvexville", code_postal="65150")
     assert not appel.sure("commune")
     assert not _code_a_proposer(r), r
+
+
+# --- Relecture indépendante du 03/10 : deux parcours qui faisaient défaut ---
+
+CREIL = {
+    "nom": "Creil",
+    "code_insee": "60175",
+    "departement": "Oise",
+    "codes_postaux": ["60100"],
+}
+SAINT_MAUR = {
+    "nom": "Saint-Maur-des-Fossés",
+    "code_insee": "94068",
+    "departement": "Val-de-Marne",
+    "codes_postaux": ["94100", "94210"],
+}
+
+
+@pytest.mark.asyncio
+async def test_C2_une_adresse_corrigee_en_une_phrase_ne_repropose_pas_l_ancienne():
+    """Commune et code changés dans la même note : la paire passe incohérente le temps
+    d'écrire l'un, puis redevient cohérente. Rien ne doit être proposé (relecture 03/10)."""
+    charger_base()
+    appel = Appel(_reglages(COMMUNE, CODE_POSTAL))
+    appel.dit("Je suis à Verneuil-en-Halatte, 60550.")
+    _verneuil_sure(appel, entendu="verneuil en halatte")
+    await appel.note(commune="Verneuil-en-Halatte", code_postal="60550")
+    appel.dit("Non pardon, je suis à Creil, 60100.")
+    appel.trace(
+        "communes_verifiees",
+        entendu="creil",
+        statut="sure",
+        commune_retenue=CREIL,
+        propositions=[],
+    )
+    r = await appel.note(commune="Creil", code_postal="60100")
+    assert appel.sure("commune") and appel.sure("code_postal"), r
+    assert not _commune_a_proposer(r) and not _code_a_proposer(r), r
+
+
+async def _saint_maur_et_65150() -> Appel:
+    charger_base()
+    appel = Appel(_reglages(COMMUNE, CODE_POSTAL))
+    appel.dit("Je suis à Saint-Maur-des-Fossés, 65150.")
+    appel.trace(
+        "communes_verifiees",
+        entendu="saint maur des fosses",
+        statut="sure",
+        commune_retenue=SAINT_MAUR,
+        propositions=[],
+    )
+    await appel.note(commune="Saint-Maur-des-Fossés", code_postal="65150")
+    assert not appel.sure("commune") and not appel.sure("code_postal")
+    return appel
+
+
+@pytest.mark.asyncio
+async def test_C2_un_oui_a_la_commune_la_rend_sure_et_repropose_ses_codes():
+    """Commune à plusieurs codes : le oui de la personne tient, et seul le code reste à
+    confirmer, avec les codes de la commune reproposés (relecture 03/10)."""
+    appel = await _saint_maur_et_65150()
+    appel.dit(
+        "Oui, Saint-Maur-des-Fossés.",
+        agent_avant="Vous êtes bien à Saint-Maur-des-Fossés ?",
+    )
+    r = await appel.note(commune="Saint-Maur-des-Fossés")
+    assert appel.sure("commune"), r
+    assert appel.fiche["code_postal"] == "65150" and not appel.sure("code_postal"), r
+    assert [p["options"] for p in _code_a_proposer(r)] == [["94100", "94210"]], r
+    assert not _commune_a_proposer(r), r
+
+
+@pytest.mark.asyncio
+async def test_C2_apres_le_oui_a_la_commune_un_oui_au_code_rend_tout_sur():
+    appel = await _saint_maur_et_65150()
+    appel.dit(
+        "Oui, Saint-Maur-des-Fossés.",
+        agent_avant="Vous êtes bien à Saint-Maur-des-Fossés ?",
+    )
+    await appel.note(commune="Saint-Maur-des-Fossés")
+    appel.dit(
+        "Oui, le 94100.", agent_avant="Le code postal, c'est le 94100 ou le 94210 ?"
+    )
+    r = await appel.note(code_postal="94100")
+    assert appel.sure("commune") and appel.sure("code_postal"), r
+    assert appel.fiche["code_postal"] == "94100", r
+
+
+ADRESSE = {"nom": "adresse_intervention", "origine": "dicte"}
+LIANCOURT = {
+    "nom": "Liancourt",
+    "code_insee": "60360",
+    "departement": "Oise",
+    "codes_postaux": ["60140"],
+}
+
+
+@pytest.mark.asyncio
+async def test_C2_la_commune_redevenue_sure_fait_relire_la_rue():
+    """Un oui au code rend la commune sûre par le contrôle de cohérence, sans qu'elle
+    soit écrite : la rue notée pendant le conflit est relue quand même (relecture 03/10)."""
+    charger_base()
+    appel = Appel(_reglages(COMMUNE, CODE_POSTAL, ADRESSE))
+    appel.dit("Je suis à Liancourt, 65150.")
+    appel.trace(
+        "communes_verifiees",
+        entendu="liancourt",
+        statut="sure",
+        commune_retenue=LIANCOURT,
+        propositions=[],
+    )
+    await appel.note(commune="Liancourt", code_postal="65150")
+    assert not appel.sure("commune")
+    appel.dit("Au 12 rue Pasteur.", agent_avant="Et l'adresse ?")
+    await appel.note(adresse_intervention="12 rue Pasteur")
+    assert not appel.sure("adresse_intervention")
+    appel.dit("Oui, le 60140.", agent_avant="Le code postal, c'est bien le 60140 ?")
+    r = await appel.note(code_postal="60140")
+    assert appel.sure("commune") and appel.sure("code_postal"), r
+    assert (
+        appel.sure("adresse_intervention")
+        and appel.fiche["adresse_intervention"] == "12 Rue Pasteur"
+    ), (
+        r,
+        appel.fiche,
+    )
