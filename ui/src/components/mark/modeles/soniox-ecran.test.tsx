@@ -132,6 +132,33 @@ describe("[.mark] Soniox on the Models screen", () => {
         expect(champ.querySelector("[data-cle-technique]")?.textContent).toBe("endpoint_detection");
     });
 
+    // Chantier communes-cp-et-lexique-soniox, lot 5bis (Q5, Q5-bis of 2026-10-02).
+    it("draws the domain description flat, labelled in French, bounded to 300 characters", async () => {
+        await ouvrirSoniox({
+            stt: { domain_description: "Poêles à bois" },
+            enveloppe: (n) => <FournisseurLangue>{n}</FournisseurLangue>,
+        });
+        const champ = await waitFor(() => {
+            const trouve = document.querySelector('[data-champ="domain_description"]') as HTMLElement;
+            expect(trouve).not.toBeNull();
+            return trouve;
+        });
+        // « Vocabulary » holds one setting: drawn flat (E2).
+        expect(champ.closest("[data-sous-menu]")).toBeNull();
+        expect(champ.textContent).toContain("Description du domaine");
+        expect(champ.querySelector("[data-cle-technique]")?.textContent).toBe("domain_description");
+        const zone = champ.querySelector("textarea") as HTMLTextAreaElement;
+        expect(zone.maxLength).toBe(300);
+        expect(zone.value).toBe("Poêles à bois");
+        expect(champ.textContent).toContain("300 characters at most");
+    });
+
+    it("does not draw the domain description for Deepgram", async () => {
+        await ouvrirSoniox({ stt: { provider: "deepgram", model: "nova-3-general" } });
+        await waitFor(() => expect(document.querySelector('[data-champ="model"]')).not.toBeNull());
+        expect(document.querySelector('[data-champ="domain_description"]')).toBeNull();
+    });
+
     it("draws an agent's per-service override the same way (Services theme)", async () => {
         await ouvrirSoniox({ mode: "override" });
         fireEvent.click(await waitFor(() => document.getElementById("override-stt") as HTMLButtonElement));

@@ -781,11 +781,9 @@ def _terme_dit(officiel: str, termes: dict[str, str], paroles: Iterable[str]) ->
     return False
 
 
-def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]:
-    """C3 (PB6, run 845) : les communes du DERNIER code postal que le module des
-    nombres a lu dans l'appel, les plus peuplées d'abord. Au 845, « soixante
-    trois cents » donnait Senlis, Chamant, Avilly : aucune n'a été proposée."""
-    code = next(
+def _dernier_code_postal_lu(fiche: dict) -> str | None:
+    """Le DERNIER code postal à cinq chiffres que le module des nombres a lu dans l'appel."""
+    return next(
         (
             t.get("retenu") or t.get("ecrit")
             for t in _entrees(fiche, TRACE_NOMBRES)
@@ -794,6 +792,13 @@ def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]
         ),
         None,
     )
+
+
+def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]:
+    """C3 (PB6, run 845) : les communes du DERNIER code postal que le module des
+    nombres a lu dans l'appel, les plus peuplées d'abord. Au 845, « soixante
+    trois cents » donnait Senlis, Chamant, Avilly : aucune n'a été proposée."""
+    code = _dernier_code_postal_lu(fiche)
     if code is None:
         return ()
     base = base_si_chargee()
@@ -1321,8 +1326,8 @@ def _derniere_note(fiche: dict, champ: str) -> dict | None:
 
 
 def _proposition_de_commune(fiche: dict, option: Any) -> dict | None:
-    """La commune retenue ou proposée par le module que cette option désigne
-    (nom, et département quand l'option le porte)."""
+    """La commune retenue ou proposée que cette option désigne (nom, et département
+    quand l'option le porte) : par le module des communes, ou par le code postal lu."""
     nom = _sans_complement(option)
     complement = re.search(r"\(([^)]*)\)\s*$", str(option))
     for trace in _entrees(fiche, TRACE_COMMUNES):
@@ -1332,6 +1337,31 @@ def _proposition_de_commune(fiche: dict, option: Any) -> dict | None:
             if complement and not _memes_mots(p.get("departement"), complement.group(1)):
                 continue
             return p
+    # C1 (run 1019) : les communes d'un code postal sont proposées par la fiche
+    # elle-même et n'entrent dans aucune trace du module des communes : celles du code
+    # lu (C3), celles du code dit quand il contredit la commune (C2). Elles se
+    # retrouvent dans la liste officielle, parmi les communes de CES codes seulement.
+    base = base_si_chargee()
+    if base is None:
+        return None
+    codes = [_dernier_code_postal_lu(fiche)] + [
+        e.get("code_postal")
+        for e in fiche.get(CLE_JOURNAL) or []
+        if e.get("raison") == RAISON_COMMUNE_ETRANGERE
+    ]
+    for code in dict.fromkeys(c for c in codes if c):
+        for commune in base.communes_du_code_postal(code):
+            departement = base.nom_departement(commune.dep)
+            if not _memes_mots(commune.nom, nom):
+                continue
+            if complement and not _memes_mots(departement, complement.group(1)):
+                continue
+            return {
+                "nom": commune.nom,
+                "code_insee": commune.insee,
+                "departement": departement,
+                "codes_postaux": list(commune.cps),
+            }
     return None
 
 
@@ -1739,6 +1769,12 @@ def ecrire_dans_la_fiche(
     ):
         # Après la commune dans le journal : c'est elle qui donne le code.
         _code_postal_de_la_commune(fiche, reglages, champ, lecture)
+    if verdict.statut == "ecrit":
+        # C2 (run 1018) : après chaque écriture, quel qu'en soit l'auteur (outil,
+        # passe de fin d'appel), un code postal étranger à la commune sûre est relevé.
+        _controler_le_code_postal(
+            fiche, reglages, champ, confirme=verdict.raison == "confirmee_par_la_personne"
+        )
     return verdict
 
 
@@ -1871,6 +1907,176 @@ def _code_postal_de_la_commune(
         }
     )
     logger.info(f"[fiche] commune {cible} -> {verdict.statut} (code postal unique)")
+
+
+# C2 (run 1018, décisions Q2 et Q3 du 02/10) : la raison écrite au journal quand un
+# code postal n'appartient pas à la commune sûre.
+RAISON_CODE_POSTAL_ETRANGER = "code_postal_etranger_a_la_commune"
+# C2, décision d'Evan du 02/10 après le rejeu (run 967 : commune retenue fausse, code
+# juste) : le code ne sait pas lequel des deux est faux, la commune est relevée aussi.
+RAISON_COMMUNE_ETRANGERE = "commune_etrangere_au_code_postal"
+RAISONS_INCOHERENCE = (RAISON_CODE_POSTAL_ETRANGER, RAISON_COMMUNE_ETRANGERE)
+# Posé dans l'état d'un champ que C2 a fait douter, retiré quand la paire redevient cohérente.
+INCOHERENT = "incoherent"
+
+
+def _commune_et_code_postal(reglages: ReglagesFiche, champ: str) -> tuple[str, str] | None:
+    """La paire (champ de commune, champ de code postal) que ce champ forme, sur la même
+    convention de nom que C12 (``commune…`` <-> ``code_postal…``), ou ``None``."""
+    if champ.startswith("code_postal"):
+        commune, code = "commune" + champ[len("code_postal") :], champ
+    elif champ.startswith("commune"):
+        commune, code = champ, "code_postal" + champ[len("commune") :]
+    else:
+        return None
+    definition = reglages.par_nom.get(commune)
+    if (
+        definition is None
+        or definition.lecteur_effectif != "commune"
+        or code not in reglages.par_nom
+    ):
+        return None
+    return commune, code
+
+
+def _codes_postaux_de_la_commune_sure(fiche: dict, commune: str) -> tuple[str, ...]:
+    """Les codes postaux de la commune écrite SÛRE, ou que C2 seul a fait douter (liste
+    officielle, sinon la trace du module qui l'a retenue). Vide quand la commune n'est
+    pas sûre pour une autre raison, ou reste inconnue."""
+    etat = (fiche.get(CLE_ETAT) or {}).get(commune) or {}
+    if not (etat.get("sure") or etat.get(INCOHERENT)):
+        return ()
+    insee = fiche.get(cle_insee(commune))
+    if not insee:
+        return ()
+    base = base_si_chargee()
+    if base is not None and (i := base.par_insee.get(str(insee))) is not None:
+        return tuple(base.communes[i].cps)
+    for trace in _entrees(fiche, TRACE_COMMUNES):
+        retenue = trace.get("commune_retenue") or {}
+        if isinstance(retenue, dict) and str(retenue.get("code_insee")) == str(insee):
+            return tuple(retenue.get("codes_postaux") or ())
+    return ()
+
+
+def _communes_du_code(code: str, maximum: int = 3) -> tuple[str, ...]:
+    """Les communes de ce code postal dans la liste officielle, les plus peuplées
+    d'abord, écrites comme la fiche les propose : « Nom (Département) »."""
+    base = base_si_chargee()
+    if base is None:
+        return ()
+    return tuple(
+        f"{c.nom} ({base.nom_departement(c.dep)})"
+        for c in base.communes_du_code_postal(code)[:maximum]
+    )
+
+
+def _relever(
+    fiche: dict,
+    champ: str,
+    raison: str,
+    source: str,
+    options: list[str],
+    reproposer: bool = False,
+    **en_plus,
+) -> None:
+    """Fait douter ce champ (C2) et, sauf si cette valeur a déjà été relevée (Q3 : pas de
+    boucle), écrit au journal la question à poser avec ses possibilités (D6).
+    ``reproposer`` : la personne vient de confirmer l'autre champ de la paire, la
+    question n'est plus la même (relecture du 03/10)."""
+    etat = fiche.setdefault(CLE_ETAT, {})
+    etat[champ] = {**(etat.get(champ) or {}), "sure": False, INCOHERENT: True}
+    valeur = fiche.get(champ)
+    if not reproposer and any(
+        e.get("champ") == champ
+        and e.get("raison") == raison
+        and _mots(str(e.get("valeur") or "")) == _mots(str(valeur or ""))
+        for e in fiche.get(CLE_JOURNAL) or []
+    ):
+        return
+    fiche.setdefault(CLE_JOURNAL, []).append(
+        {
+            "champ": champ,
+            "valeur": valeur,
+            "statut": "a_confirmer",
+            "raison": raison,
+            "source": source,
+            "sure": False,
+            "suite": "a_proposer",
+            "options": options,
+            **en_plus,
+            **({"tour": fiche[CLE_TOUR]} if fiche.get(CLE_TOUR) else {}),
+        }
+    )
+    logger.info(f"[fiche] {champ} : commune et code postal incompatibles, à confirmer")
+
+
+def _controler_le_code_postal(
+    fiche: dict, reglages: ReglagesFiche, champ: str, confirme: bool = False
+) -> None:
+    """C2 : un code postal qui n'est pas l'un des codes de la commune sûre. Le code ne
+    sait pas lequel des deux est faux (run 1018 : le code ; run 967 : la commune) :
+    décision d'Evan du 02/10, **les deux** deviennent « à confirmer ». Le code avec les
+    codes de la commune (Q2), la commune avec les communes du code dit. Un code qui
+    n'appartient à aucune commune est seul en cause : la commune reste sûre.
+    ⛔ Aucune valeur dite n'est écrasée : la personne tranche. Q3 : une valeur déjà
+    relevée et redite n'est plus proposée (pas de boucle), elle reste « à confirmer ».
+    Quand la paire redevient cohérente (un oui à l'une des possibilités), ce que C2
+    avait fait douter redevient sûr. ``confirme`` : ce champ vient d'être confirmé
+    par un oui de la personne ; il reste sûr, seul l'autre est relevé, et reproposé
+    (relecture du 03/10 : une commune à plusieurs codes confirmée restait à confirmer)."""
+    paire = _commune_et_code_postal(reglages, champ)
+    if paire is None:
+        return
+    commune, cible = paire
+    code = re.sub(r"\s", "", str(fiche.get(cible) or ""))
+    if not re.fullmatch(r"\d{5}", code):
+        return
+    codes = _codes_postaux_de_la_commune_sure(fiche, commune)
+    if not codes:
+        return
+    etat = fiche.setdefault(CLE_ETAT, {})
+    if code in codes:
+        for douteux in (commune, cible):
+            if (etat.get(douteux) or {}).get(INCOHERENT):
+                etat[douteux] = {**etat[douteux], "sure": True, INCOHERENT: False}
+        return
+    garde = champ if confirme else None
+    if garde != cible:
+        _relever(
+            fiche, cible, RAISON_CODE_POSTAL_ETRANGER, commune, list(codes[:3]), reproposer=confirme
+        )
+    communes = _communes_du_code(code)
+    if communes and garde != commune:
+        _relever(
+            fiche,
+            commune,
+            RAISON_COMMUNE_ETRANGERE,
+            cible,
+            list(communes),
+            reproposer=confirme,
+            code_postal=code,
+        )
+
+
+def codes_postaux_releves(fiche: dict, depuis: int) -> list[dict]:
+    """C2 : les champs relevés incohérents (code postal, commune) depuis cette position
+    du journal, à proposer à la personne dans la réponse de l'outil. Seulement ceux qui
+    le sont ENCORE à la fin de la note, avec la même valeur : une commune et un code
+    corrigés dans la même note passent incohérents le temps d'écrire l'un, puis
+    redeviennent cohérents (relecture du 03/10). Le dernier relevé d'un champ compte."""
+    etat = fiche.get(CLE_ETAT) or {}
+    releves: dict[str, dict] = {}
+    for e in (fiche.get(CLE_JOURNAL) or [])[depuis:]:
+        if e.get("raison") not in RAISONS_INCOHERENCE:
+            continue
+        champ = e["champ"]
+        if not (etat.get(champ) or {}).get(INCOHERENT):
+            continue
+        if _mots(str(e.get("valeur") or "")) != _mots(str(fiche.get(champ) or "")):
+            continue
+        releves[champ] = {"champ": champ, "valeur": e.get("valeur"), "options": list(e.get("options") or [])}
+    return list(releves.values())
 
 
 def _ecrire(
@@ -2338,6 +2544,16 @@ def creer_gestionnaire(
             refuses: list[dict] = []
             a_confirmer: list[dict] = []
             a_proposer: list[dict] = []
+            # C2 : où commence ce que cette note ajoute au journal.
+            debut_du_journal = len(fiche().get(CLE_JOURNAL) or [])
+            # C2 (relecture du 03/10) : une commune peut redevenir sûre sans être
+            # écrite (un oui au code la rend cohérente) ; elle fait relire la rue aussi.
+            communes = [
+                c.nom for c in reglages.champs if c.lecteur_effectif == "commune"
+            ]
+            sures_avant = {
+                c for c in communes if ((fiche().get(CLE_ETAT) or {}).get(c) or {}).get("sure")
+            }
             # Plusieurs notes d'un même tour : appliquées dans l'ordre d'arrivée,
             # chaque champ seul.
             for champ, valeur in dict(params.arguments or {}).items():
@@ -2383,7 +2599,12 @@ def creer_gestionnaire(
                         a_proposer.append(
                             {"champ": champ, "options": list(verdict.options)}
                         )
-            if any(
+            redevenues_sures = any(
+                c not in sures_avant
+                and ((fiche().get(CLE_ETAT) or {}).get(c) or {}).get("sure")
+                for c in communes
+            )
+            if redevenues_sures or any(
                 c in reglages.par_nom
                 and reglages.par_nom[c].lecteur_effectif == "commune"
                 for c in ecrits
@@ -2403,6 +2624,12 @@ def creer_gestionnaire(
                     a_confirmer = [c for c in a_confirmer if c["champ"] != champ]
                     if champ not in ecrits:
                         ecrits.append(champ)
+            # C2 (run 1018) : un code postal étranger à la commune sûre est proposé à
+            # la personne, avec les codes de la commune (Q2).
+            for releve in codes_postaux_releves(fiche(), debut_du_journal):
+                a_confirmer = [c for c in a_confirmer if c["champ"] != releve["champ"]]
+                a_proposer = [p for p in a_proposer if p["champ"] != releve["champ"]]
+                a_proposer.append(releve)
             resultat: dict = {"statut": "note" if ecrits else "rien_note"}
             # A2 (run 832) : une consigne ne remplace plus l'autre. Commune
             # retenue ET adresse à confirmer dans la même note : les deux.

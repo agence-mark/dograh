@@ -125,6 +125,7 @@ from pipecat.services.speaches.llm import SpeachesLLMService, SpeachesLLMSetting
 from pipecat.services.speaches.stt import SpeachesSTTService, SpeachesSTTSettings
 from pipecat.services.speaches.tts import SpeachesTTSService, SpeachesTTSSettings
 from pipecat.services.soniox.stt import (
+    SonioxContextGeneralItem,
     SonioxContextObject,
     SonioxSTTService,
     SonioxSTTSettings,
@@ -225,6 +226,20 @@ SONIOX_FIN_DE_TOUR_FIELDS = tuple(
     for nom, champ in SonioxSTTConfiguration.model_fields.items()
     if (champ.json_schema_extra or {}).get("visible_when") == {"endpoint_detection": True}
 )
+
+
+def contexte_soniox(termes: list[str] | None, description: str | None) -> SonioxContextObject:
+    """[.mark] The context Soniox receives: the domain description, then the terms.
+
+    The description goes in ``general`` under the key ``domain``, the form
+    Soniox documents for « what the audio is about »
+    (https://soniox.com/docs/stt/concepts/context). 🔑 The probe of the ceiling
+    sends exactly this object, so what was measured is what a call sends.
+    """
+    return SonioxContextObject(
+        general=[SonioxContextGeneralItem(key="domain", value=description)] if description else None,
+        terms=list(termes) if termes else None,
+    )
 
 
 def _reglages_soniox(stt_config) -> dict:
@@ -599,6 +614,7 @@ def create_stt_service(
     audio_config: "AudioConfig",
     keyterms: list[str] | None = None,
     correlation_id: str | None = None,
+    description_domaine: str | None = None,
 ):
     """Create and return appropriate STT service based on user configuration
 
@@ -862,14 +878,14 @@ def create_stt_service(
         settings_kwargs = {"model": user_config.stt.model, **reglages}
         if langues:
             settings_kwargs["language_hints"] = [Language(code) for code in langues]
-        # ⛔ The list of terms leaves only once Soniox has a declared ceiling
-        # (rule Q1 of the lexicon, question n° 250). None is declared until
-        # Soniox is probed (decision of 2026-09-29), so none leaves -- even if
-        # a list is handed over.
-        if keyterms and plafond_du_lexique(
+        # ⛔ The list of terms, and the domain description (Q5, 2026-10-02),
+        # leave only once Soniox has a declared ceiling (rule Q1 of the
+        # lexicon, question n° 250) -- even if they are handed over. Both are
+        # already measured against it by `construire_liste_ecoutee`.
+        if (keyterms or description_domaine) and plafond_du_lexique(
             user_config.stt.provider, user_config.stt.model
         ):
-            settings_kwargs["context"] = SonioxContextObject(terms=keyterms)
+            settings_kwargs["context"] = contexte_soniox(keyterms, description_domaine)
         return SonioxSTTService(
             api_key=user_config.stt.api_key,
             url=adresse,

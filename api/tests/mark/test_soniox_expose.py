@@ -17,8 +17,9 @@ Decisions it holds (plan, table of decisions):
   Switched off, Pipecat's local detector ends the turn and the three endpoint
   settings are hidden AND not sent: the same rule on screen and in code (E8).
 - D5: the European address by default; an empty address also goes to Europe.
-- D7/D8: no ceiling is declared for Soniox until it is probed, so Soniox
-  receives NO list of terms.
+- D7/D8: no list of terms left for Soniox until it was probed; since the
+  probe of 2026-10-03 the real-time family has its ceiling (8 000 real tokens,
+  6 800 estimated), and the list leaves under it.
 - D10: the names are upstream's (``soniox``, ``SonioxSTTConfiguration``,
   ``options/soniox.py``), so the next version bump merges instead of doubling.
 - Key check (Evan and Pierre, 2026-09-29): against the API of the region the
@@ -49,6 +50,7 @@ REGLAGES_EXPOSES = (
     "endpoint_detection",
     *REGLAGES_FIN_DE_TOUR,
     "enable_speaker_diarization",
+    "domain_description",  # lot 5bis of communes-cp-et-lexique-soniox (Q5, 2026-10-02)
     "base_url",
     "region",
 )
@@ -342,22 +344,57 @@ def test_la_fin_de_tour_de_soniox_nest_pas_coupee_a_la_fabrique():
 
 
 # --------------------------------------------------------------------------- #
-# 4. The lexicon: no ceiling declared, so no list
+# 4. The lexicon: the ceiling measured by the probe of 2026-10-03 (lot 4 of
+#    communes-cp-et-lexique-soniox), for the real-time family only
 # --------------------------------------------------------------------------- #
 
 
-def test_aucun_plafond_nest_declare_pour_soniox_avant_la_sonde():
+def test_le_plafond_mesure_est_declare_pour_le_modele_sonde_seulement():
     from api.services.configuration.plafond_lexique import plafond_du_lexique
 
-    assert plafond_du_lexique("soniox", "stt-rt-v5") is None
+    plafond = plafond_du_lexique("soniox", "stt-rt-v5")
+    assert plafond is not None and plafond.fournisseur == "Soniox"
+    # 8 000 real tokens measured; our estimate counts ~8 % under: 6 800 estimated.
+    assert plafond.jetons == 6800 and plafond.termes is None
+    assert plafond_du_lexique("soniox", "stt-async-v3") is None
+    # Only the model the probe played (review of 2026-10-03).
+    assert plafond_du_lexique("soniox", "stt-rt-v4") is None
 
 
 @pytest.mark.asyncio
-async def test_une_liste_recue_quand_meme_ne_part_pas():
-    """Belt and braces: even handed a list, the factory sends none until the
-    ceiling is measured (rule Q1 of the lexicon, question n° 250)."""
+async def test_la_liste_part_chez_soniox():
     message = await _message_de_configuration(_service(keyterms=["poêle", "insert"]))
+    assert message["context"]["terms"] == ["poêle", "insert"]
+
+
+@pytest.mark.asyncio
+async def test_un_modele_non_sonde_ne_recoit_pas_la_liste():
+    """Rule Q1 of the lexicon (question n° 250): a model whose ceiling was never
+    measured receives no list, even handed one."""
+    message = await _message_de_configuration(
+        _service(keyterms=["poêle", "insert"], model="stt-async-v3")
+    )
     assert message["context"] is None
+
+
+def test_le_lexique_reel_part_en_entier_et_une_liste_trop_longue_est_coupee():
+    """Through the function a call uses: the 181 real terms of the vocabulary
+    (corpus of runs 963-967) fit; 2 000 terms are cut under the ceiling."""
+    import json as _json
+    from pathlib import Path
+
+    from api.schemas.lexique_metier import LexiqueMetier
+    from api.services.configuration.plafond_lexique import plafond_du_lexique
+    from api.services.lexique.ecoute import construire_liste_ecoutee
+
+    donnees = Path(__file__).parent / "donnees" / "rejeu_runs_963_967.json"
+    lexique = _json.loads(donnees.read_text(encoding="utf-8"))["lexique"]
+    lexique["termes"] = [{**t, "a_ecouter": True} for t in lexique["termes"]]
+    plafond = plafond_du_lexique("soniox", "stt-rt-v5")
+    reelle = construire_liste_ecoutee(None, LexiqueMetier.model_validate(lexique), plafond)
+    assert len(reelle.termes) == 181 and not reelle.tronquee
+    longue = construire_liste_ecoutee(", ".join(f"Terme{n}" for n in range(2000)), None, plafond)
+    assert longue.tronquee and longue.jetons <= plafond.jetons
 
 
 # --------------------------------------------------------------------------- #
@@ -468,7 +505,7 @@ NON_EXPOSES_ET_POURQUOI = {
     "model": "the model field, at the top of the provider",
     "language": "Pipecat's generic language; Soniox reads language_hints, fed by our `language`",
     "language_hints": "fed by our `language` field (upstream's name)",
-    "context": "fed by the agent's lexicon, never typed here, and none sent before the probe",
+    "context": "fed by the agent's lexicon and the domain description, under the probed ceiling",
     "client_reference_id": "an internal trace identifier, not a setting",
 }
 
@@ -513,3 +550,26 @@ def test_la_latence_de_transcription_est_ignoree_quand_soniox_decide():
     local = _service(endpoint_detection=False)
     appliquer_latence_de_transcription(local, 0.9, pilote_les_tours=False)
     assert local._ttfs_p99_latency == 0.9
+
+
+@pytest.mark.asyncio
+async def test_lecran_du_lexique_compte_contre_le_plafond_soniox(monkeypatch):
+    """« n / 6 800 tokens (Soniox) »: the budget the vocabulary screen shows, computed
+    by the very functions a call uses, for an organization on Soniox."""
+    from types import SimpleNamespace as _NS
+    from unittest.mock import AsyncMock
+
+    from api.schemas.lexique_metier import LexiqueMetier
+    from api.services.lexique import budget
+
+    monkeypatch.setattr(
+        budget,
+        "get_resolved_ai_model_configuration",
+        AsyncMock(return_value=_NS(effective=_NS(stt=_NS(provider="soniox", model="stt-rt-v5")))),
+    )
+    lexique = LexiqueMetier.model_validate(
+        {"termes": [{"terme": "Edilkamin", "type": "nom", "categorie": "marque", "a_ecouter": True}]}
+    )
+    resultat = await budget.budget_du_lexique(1, lexique)
+    assert resultat.nom_du_plafond == "Soniox" and resultat.plafond_jetons == 6800
+    assert resultat.envoyes == ["Edilkamin"] and not resultat.non_envoyes

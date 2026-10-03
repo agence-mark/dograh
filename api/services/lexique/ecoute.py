@@ -39,10 +39,13 @@ class ListeEcoutee:
     termes: list[str]
     # Asked for but not sent: past the ceiling, or no ceiling declared at all.
     non_envoyes: list[str]
-    # The prudent estimate of what ``termes`` costs.
+    # The prudent estimate of what ``termes`` (and ``description``) cost.
     jetons: int
     # None: the provider declares no ceiling, and nothing is sent.
     plafond: PlafondLexique | None
+    # [.mark] The domain description sent with the terms (Soniox, Q5 of
+    # 2026-10-02), or None. It is counted in ``jetons``, before the terms.
+    description: str | None = None
 
     @property
     def tronquee(self) -> bool:
@@ -64,10 +67,23 @@ def termes_voulus(dictionary: str | None, lexique: LexiqueMetier | None) -> list
     return uniques
 
 
+def description_du_domaine(stt_config) -> str | None:
+    """[.mark] The agent's domain description for the transcription, or None.
+
+    Only Soniox declares the field (``SonioxSTTConfiguration``); an empty one
+    is no description at all.
+    """
+    description = getattr(stt_config, "domain_description", None)
+    if not isinstance(description, str):
+        return None
+    return description.strip() or None
+
+
 def construire_liste_ecoutee(
     dictionary: str | None,
     lexique: LexiqueMetier | None,
     plafond: PlafondLexique | None,
+    description: str | None = None,
 ) -> ListeEcoutee:
     """The terms the transcription listens for, within the provider's ceiling.
 
@@ -79,18 +95,28 @@ def construire_liste_ecoutee(
 
     ⛔ No ceiling declared for the provider: NOTHING is sent (Q1, 2026-09-26),
     and it is logged. An unknown limit is a risk of refusal.
+
+    The domain description (Soniox, Q5 of 2026-10-02) follows the same rule and
+    takes from the ceiling FIRST (Q5-ter): the terms fill what is left.
     """
     voulus = termes_voulus(dictionary, lexique)
     if plafond is None:
-        if voulus:
+        if voulus or description:
             logger.warning(
-                f"[.mark] No term sent to the transcription: its provider declares no ceiling "
-                f"({len(voulus)} asked for). The vocabulary keeps correction and pronunciation."
+                f"[.mark] Nothing sent to the transcription: its provider declares no ceiling "
+                f"({len(voulus)} terms asked for"
+                + (", and a domain description" if description else "")
+                + "). The vocabulary keeps correction and pronunciation."
             )
         return ListeEcoutee(termes=[], non_envoyes=voulus, jetons=0, plafond=None)
     retenus: list[str] = []
     non_envoyes: list[str] = []
-    jetons = 0
+    jetons = jetons_du_terme(description, plafond) if description else 0
+    if plafond.jetons is not None and jetons > plafond.jetons:
+        # Unreachable with 300 characters against any measured ceiling; written
+        # so a smaller ceiling one day drops the description, never the call.
+        logger.warning(f"[.mark] Domain description left out: {jetons} tokens over the ceiling.")
+        description, jetons = None, 0
     for terme in voulus:
         cout = jetons_du_terme(terme, plafond)
         if (plafond.termes is not None and len(retenus) >= plafond.termes) or (
@@ -107,7 +133,9 @@ def construire_liste_ecoutee(
             f"{len(non_envoyes)} of {len(voulus)} left out "
             f"({', '.join(non_envoyes[:10])}). They keep correction and pronunciation."
         )
-    return ListeEcoutee(termes=retenus, non_envoyes=non_envoyes, jetons=jetons, plafond=plafond)
+    return ListeEcoutee(
+        termes=retenus, non_envoyes=non_envoyes, jetons=jetons, plafond=plafond, description=description
+    )
 
 
 def prononciations_du_lexique(lexique: LexiqueMetier | None) -> list[tuple[str, str]]:
