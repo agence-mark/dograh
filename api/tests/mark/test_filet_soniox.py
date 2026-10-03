@@ -15,6 +15,7 @@ simulated socket:
 | the net is armed with a description alone, no term | S4 + S3 |
 """
 
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -132,3 +133,33 @@ async def test_le_filet_s_arme_avec_une_description_seule():
     assert (await _message_de_configuration(service))["context"]["general"]
     await _recevoir(service, REFUS_DU_CONTEXTE)
     assert refus and service._settings.context is None
+
+
+class _SocketQuiResteOuverte(_Socket):
+    """Soniox envoie son refus et ne ferme pas la session."""
+
+    async def _lire(self):
+        for message in self.messages:
+            yield message
+        await asyncio.Event().wait()
+
+
+@pytest.mark.asyncio
+async def test_le_filet_n_attend_pas_que_soniox_ferme_la_session():
+    """Relecture du 03/10 : la reprise ne dépend pas d'une fermeture par Soniox."""
+    service, refus = _service_arme()
+    service._websocket = _SocketQuiResteOuverte(REFUS_DU_CONTEXTE)
+    await asyncio.wait_for(service._receive_messages(), timeout=2)
+    assert refus and service._settings.context is None
+
+
+@pytest.mark.asyncio
+async def test_temoin_un_400_sans_rapport_au_milieu_de_l_appel_reste_au_moteur():
+    """Relecture du 03/10 : après des mots transcrits, un 400 qui ne parle pas du
+    contexte n'est pas un refus de la liste ; la liste reste."""
+    service, refus = _service_arme()
+    jetons = {"tokens": [{"text": "Bonjour", "is_final": False}]}
+    autre = {"tokens": [], "error_code": 400, "error_message": "Invalid audio format."}
+    await _recevoir(service, jetons, autre)
+    assert not refus
+    assert service._settings.context is not None

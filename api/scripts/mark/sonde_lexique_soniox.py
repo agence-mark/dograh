@@ -37,7 +37,11 @@ from pathlib import Path
 
 import websockets
 
-from api.services.configuration.plafond_lexique import jetons_du_terme, plafond_du_lexique
+from api.services.configuration.plafond_lexique import (
+    jetons_du_terme,
+    plafond_du_lexique,
+)
+from api.services.configuration.registry import DESCRIPTION_DU_DOMAINE_MAX
 from api.services.pipecat.service_factory import contexte_soniox
 
 RACINE = Path(__file__).resolve().parents[3]
@@ -46,16 +50,16 @@ ENV_LABO = RACINE.parent.parent / "Labo-agent-vocal/.env.local"
 ADRESSE_MONDIALE = "wss://stt-rt.soniox.com/transcribe-websocket"
 TAUX = 8000  # telephony, as the calls
 SILENCE = b"\x00\x00" * TAUX  # one second
+# The content plays no part in the measure, only its length: a neutral text,
+# never a trade's words (rule « zéro vocabulaire métier dans le code »).
 DESCRIPTION_300 = (
-    "Vente, pose, entretien et ramonage de poêles à bois, poêles à granulés, inserts et cheminées "
-    "pour particuliers ; demandes de devis, rendez-vous de ramonage, pannes, pièces détachées, "
-    "suivi de commande et garantie ; marques de poêles et de granulés, communes de l'Oise et "
-    "du Val-d'Oise."
-)[:300]
+    "Description neutre du domaine, utilisée seulement pour mesurer la place qu'elle prend. "
+    * 5
+)[:DESCRIPTION_DU_DOMAINE_MAX]
 # The estimate our ceilings use, taken from the declaration (never a second ceiling
 # written here: test_aucun_plafond_nest_ecrit_hors_de_la_declaration_du_fournisseur),
 # to recalibrate on the frontier this probe finds.
-ESTIMATEUR = plafond_du_lexique("deepgram", "nova-3")
+ESTIMATEUR = plafond_du_lexique("soniox", "stt-rt-v5")
 
 
 def _cle() -> str:

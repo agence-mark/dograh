@@ -202,3 +202,19 @@ def test_la_route_d_enregistrement_de_l_agent_garde_la_description():
 def test_la_route_d_enregistrement_refuse_301_caracteres():
     with pytest.raises(AssertionError, match="422"):
         _enregistrer(_surcharge_soniox("a" * 301))
+
+
+def test_l_appel_construit_la_liste_avec_la_description_et_la_passe_a_la_fabrique():
+    """R1, relecture du 03/10 : l'appel lit la description dans la transcription
+    choisie, la mesure avec les termes, et donne à la fabrique celle qui a tenu."""
+    import inspect
+
+    import api.services.pipecat.run_pipeline as run_pipeline
+
+    source = inspect.getsource(run_pipeline)
+    construction = source[source.index("liste_ecoutee = construire_liste_ecoutee(") :]
+    construction = construction[
+        : construction.index("keyterms = liste_ecoutee.termes or None")
+    ]
+    assert 'description_du_domaine(getattr(user_config, "stt", None))' in construction
+    assert "description_domaine=liste_ecoutee.description," in source

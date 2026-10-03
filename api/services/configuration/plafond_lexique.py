@@ -106,10 +106,11 @@ _SONIOX = PlafondLexique(
 # Provider -> (model prefix, ceiling), the first matching prefix wins; "" matches
 # every other model of the provider. A provider absent from this table has no ceiling.
 # ⚠️ Deepgram's models other than Flux get the nova-3 rule, the one measured in tokens.
-# ⚠️ Soniox: only the real-time family (« stt-rt ») was probed.
+# ⚠️ Soniox: only `stt-rt-v5` was probed; another model, typed by hand, gets no list
+# until it is probed in turn (review of 2026-10-03).
 PLAFONDS: dict[str, tuple[tuple[str, PlafondLexique], ...]] = {
     ServiceProviders.DEEPGRAM.value: (("flux", _DEEPGRAM_FLUX), ("", _DEEPGRAM_JETONS)),
-    ServiceProviders.SONIOX.value: (("stt-rt", _SONIOX),),
+    ServiceProviders.SONIOX.value: (("stt-rt-v5", _SONIOX),),
 }
 
 

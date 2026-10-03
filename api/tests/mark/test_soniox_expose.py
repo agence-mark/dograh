@@ -349,7 +349,7 @@ def test_la_fin_de_tour_de_soniox_nest_pas_coupee_a_la_fabrique():
 # --------------------------------------------------------------------------- #
 
 
-def test_le_plafond_mesure_est_declare_pour_le_temps_reel_seulement():
+def test_le_plafond_mesure_est_declare_pour_le_modele_sonde_seulement():
     from api.services.configuration.plafond_lexique import plafond_du_lexique
 
     plafond = plafond_du_lexique("soniox", "stt-rt-v5")
@@ -357,6 +357,8 @@ def test_le_plafond_mesure_est_declare_pour_le_temps_reel_seulement():
     # 8 000 real tokens measured; our estimate counts ~8 % under: 6 800 estimated.
     assert plafond.jetons == 6800 and plafond.termes is None
     assert plafond_du_lexique("soniox", "stt-async-v3") is None
+    # Only the model the probe played (review of 2026-10-03).
+    assert plafond_du_lexique("soniox", "stt-rt-v4") is None
 
 
 @pytest.mark.asyncio

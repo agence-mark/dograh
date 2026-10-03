@@ -29,7 +29,7 @@ service instance of this call only, the one call that opens the connection:
   ``_get_websocket``, read through a filter. Soniox refuses a context by a
   message inside the session (``error_code`` 400), not at the handshake; the
   message is held back, ``context`` (terms and domain description) is emptied,
-  and the reconnection the engine makes when Soniox closes sends none.
+  the reading of the session ends, and the engine's reconnection sends none.
 
 The settings are emptied too (``keyterm = []``): a reconnection later in the
 call rebuilds its request from them, and must not send the refused list again.
@@ -78,12 +78,17 @@ def _sans_la_liste(url: str) -> str:
     return urlunsplit(morceaux._replace(query=urlencode(parametres)))
 
 
-def _refus_du_contexte_soniox(message) -> str | None:
-    """[.mark] The provider's text when a Soniox message refuses the request, else None.
+def _refus_du_contexte_soniox(message, avant_tout_mot: bool = True) -> str | None:
+    """[.mark] The provider's text when a Soniox message refuses the context, else None.
 
     Soniox answers a request it will not take with ``error_code`` 400 inside
     the session (its documentation, ``invalid_request``); a missing credit is a
     402, a wrong key a 401: those are not the list's, and are left alone.
+    A 400 is taken for the context's when its message names the context
+    (probe of 2026-10-03: « Context is too long: 8021 tokens, the maximum is
+    8000 tokens. »), or when it comes before any word: the context is read at
+    the start of the session. A 400 in the middle of the call that does not
+    name it is left to the engine (review of 2026-10-03).
     """
     try:
         contenu = json.loads(message)
@@ -97,7 +102,18 @@ def _refus_du_contexte_soniox(message) -> str | None:
         return None
     if code != 400:
         return None
-    return f"{code}: {contenu.get('error_message') or ''}".strip()
+    texte = str(contenu.get("error_message") or "")
+    if not avant_tout_mot and "context" not in texte.lower():
+        return None
+    return f"{code}: {texte}".strip()
+
+
+def _porte_des_mots(message) -> bool:
+    try:
+        contenu = json.loads(message)
+    except (TypeError, ValueError):
+        return False
+    return isinstance(contenu, dict) and bool(contenu.get("tokens"))
 
 
 class _SocketFiltree:
@@ -105,11 +121,12 @@ class _SocketFiltree:
 
     Every message passes untouched except a refusal of the context while one
     is sent: that one is held back, so the engine does not report it as an
-    error of the call, and Soniox's closing of the session then reconnects
-    through the emptied settings.
+    error of the call, and the reading ENDS there: the engine then reconnects
+    through the emptied settings, whether or not Soniox closes the session
+    (review of 2026-10-03).
     """
 
-    def __init__(self, socket, retenir: Callable[[object], bool]):
+    def __init__(self, socket, retenir: Callable[[object, bool], bool]):
         self._socket = socket
         self._retenir = retenir
 
@@ -117,9 +134,12 @@ class _SocketFiltree:
         return self._lire()
 
     async def _lire(self):
+        avant_tout_mot = True
         async for message in self._socket:
-            if self._retenir(message):
-                continue
+            if self._retenir(message, avant_tout_mot):
+                return
+            if avant_tout_mot and _porte_des_mots(message):
+                avant_tout_mot = False
             yield message
 
     def __getattr__(self, nom):
@@ -174,10 +194,10 @@ def armer_filet_lexique(service, liste: list[str] | None, sur_refus: Callable[[s
         lire_socket = getattr(service, "_get_websocket", None)
         if contexte_soniox and callable(lire_socket):
 
-            def retenir(message) -> bool:
+            def retenir(message, avant_tout_mot: bool) -> bool:
                 if reglages.context is None:
                     return False
-                refus = _refus_du_contexte_soniox(message)
+                refus = _refus_du_contexte_soniox(message, avant_tout_mot)
                 if refus is None:
                     return False
                 signaler(refus)
