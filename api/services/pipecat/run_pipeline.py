@@ -130,7 +130,10 @@ from api.services.workflow.answer_classification_service import (
     AnswerClassificationService,
 )
 from api.services.workflow.dto import ReactFlowDTO
-from api.services.workflow.fiche_au_fil_de_leau import ReglagesFiche
+from api.services.workflow.fiche_au_fil_de_leau import (
+    ReglagesFiche,
+    estampiller_le_mode,
+)
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.services.workflow.workflow_graph import WorkflowGraph
@@ -1085,6 +1088,14 @@ async def _run_pipeline_impl(
             "llm_model": user_config.llm.model,
         }
     stamp_sampling_settings(runtime_configuration, user_config.llm)
+    # [.mark] La fiche au fil de l'eau (plan 2026-09-23) : None si éteinte.
+    # C10 : avec le lexique de l'organisation, pour le lecteur des marques.
+    # Lue une fois ici : l'estampille dit le mode de prise de notes JOUÉ
+    # (plan mode-prise-de-notes), le moteur reçoit les mêmes réglages.
+    reglages_fiche = ReglagesFiche.depuis(
+        run_configs, is_realtime=is_realtime, lexique=lexique_metier
+    )
+    estampiller_le_mode(runtime_configuration, reglages_fiche)
     if not is_realtime:
         # ⚠️ The guard is about REALTIME, not about the keyboard bench: a
         # speech-to-speech call has no separate transcription service, so
@@ -1257,11 +1268,8 @@ async def _run_pipeline_impl(
         is_realtime=is_realtime,
         context_compaction_enabled=context_compaction_enabled,
         call_dispositions=call_dispositions,
-        # [.mark] La fiche au fil de l'eau (plan 2026-09-23) : None si éteinte.
-        # C10 : avec le lexique de l'organisation, pour le lecteur des marques.
-        fiche=ReglagesFiche.depuis(
-            run_configs, is_realtime=is_realtime, lexique=lexique_metier
-        ),
+        # [.mark] La fiche au fil de l'eau : lue avec l'estampille, plus haut.
+        fiche=reglages_fiche,
     )
 
     # Create pipeline components

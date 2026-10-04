@@ -752,6 +752,19 @@ class WorkflowConfigurationDefaults(BaseModel):
             "by the tool. No effect in realtime mode."
         ),
     )
+    # [.mark] Plan mode-prise-de-notes (04/10), D1 : comment la fiche s'écrit.
+    # « outil » = le comportement d'avant, le défaut ; une configuration sans la
+    # clé est lue « outil » (``ReglagesFiche.depuis``).
+    fiche_mode_de_note: Literal["outil", "post_scriptum", "greffier"] = Field(
+        default="outil",
+        description=(
+            "How the call record is written, when it is on. Tool (default): the "
+            "model calls noter_information, then speaks in a second pass. "
+            "Postscript: the model speaks, then writes its note after a separator "
+            "in the same answer; the note is never spoken. Clerk: a second model "
+            "keeps the record alongside the agent (not available yet)."
+        ),
+    )
     fiche_champs: list[ChampFiche] = Field(
         default_factory=list,
         max_length=60,
@@ -842,6 +855,17 @@ class WorkflowConfigurationDefaults(BaseModel):
     def fiche_champs_valides(cls, value: list[ChampFiche]) -> list[ChampFiche]:
         """[.mark] A reserved or duplicated field name is refused (422 on save)."""
         return verifier_champs(value)
+
+    @field_validator("fiche_mode_de_note")
+    @classmethod
+    def fiche_mode_de_note_disponible(cls, value: str) -> str:
+        """[.mark] D1 : the clerk is refused (422 on save) until part 2 ships."""
+        if value == "greffier":
+            raise ValueError(
+                "the clerk note-taking mode is not available yet: choose the "
+                "tool or the postscript"
+            )
+        return value
 
     @field_validator("variables_commune", mode="before")
     @classmethod

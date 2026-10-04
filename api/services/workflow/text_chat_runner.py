@@ -63,6 +63,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_ETAT,
     CLE_JOURNAL,
     ReglagesFiche,
+    estampiller_le_mode,
 )
 from api.services.pipecat.recording_audio_cache import create_recording_audio_fetcher
 from api.services.pipecat.service_factory import (
@@ -638,6 +639,10 @@ async def execute_text_chat_pending_turn(
     initial_context = injecter_lexique_propose(
         initial_context, termes_proposes(lexique_metier)
     )
+    # [.mark] The record, read once: the stamp says the note-taking mode the
+    # keyboard PLAYED (plan mode-prise-de-notes), the engine gets the same.
+    reglages_fiche = ReglagesFiche.depuis(run_configs, lexique=lexique_metier)
+    estampiller_le_mode(initial_context["runtime_configuration"], reglages_fiche)
 
     base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
 
@@ -753,7 +758,7 @@ async def execute_text_chat_pending_turn(
         # voice path (`run_pipeline.py`): the record, its `noter_information`
         # tool and the end-of-call pass. Without it the keyboard measured an
         # agent that is not the one callers reach (run 896).
-        fiche=ReglagesFiche.depuis(run_configs, lexique=lexique_metier),
+        fiche=reglages_fiche,
     )
     engine._gathered_context = dict(base_checkpoint["gathered_context"])
     capture_processor = _TextChatCaptureProcessor(response_window, context, engine)

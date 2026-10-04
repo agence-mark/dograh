@@ -157,12 +157,35 @@ DESCRIPTION_OUTIL = (
 )
 
 
+CLE_MODE = "fiche_mode_de_note"
+MODE_OUTIL = "outil"
+MODE_POST_SCRIPTUM = "post_scriptum"
+MODE_GREFFIER = "greffier"
+# Plan mode-prise-de-notes, D1 : les modes qu'un appel peut jouer aujourd'hui.
+# Le greffier (partie 2) n'y est pas : refusé à l'enregistrement, lu « outil ».
+MODES_JOUABLES = (MODE_OUTIL, MODE_POST_SCRIPTUM)
+
+
+def _mode(run_configs: dict) -> str:
+    """Le mode de prise de notes de l'agent. Sans la clé (configuration d'avant
+    le réglage) : l'outil. Une valeur injouable ne coûte pas l'appel : l'outil."""
+    mode = run_configs.get(CLE_MODE)
+    if mode is None:
+        return MODE_OUTIL
+    if mode not in MODES_JOUABLES:
+        logger.warning(f"[fiche] mode de prise de notes injouable : {mode!r}, outil")
+        return MODE_OUTIL
+    return mode
+
+
 @dataclass(frozen=True)
 class ReglagesFiche:
     champs: tuple[ChampFiche, ...]
     # C10 (PB12) : les termes du lexique de l'organisation, par forme comparée
     # (`normaliser_terme`), avec leur écriture officielle. Variantes comprises.
     termes_du_lexique: dict[str, str] = field(default_factory=dict)
+    # Plan mode-prise-de-notes, D1 : comment la fiche s'écrit pendant l'appel.
+    mode: str = MODE_OUTIL
 
     @property
     def par_nom(self) -> dict[str, ChampFiche]:
@@ -208,7 +231,19 @@ class ReglagesFiche:
                 else c
                 for c in champs
             ]
-        return cls(champs=tuple(champs), termes_du_lexique=termes)
+        return cls(
+            champs=tuple(champs), termes_du_lexique=termes, mode=_mode(run_configs)
+        )
+
+
+def estampiller_le_mode(
+    runtime_configuration: dict, reglages: ReglagesFiche | None
+) -> dict:
+    """Plan mode-prise-de-notes : l'estampille du run dit le mode JOUÉ. Fiche
+    éteinte (``None``) : aucun mode n'a été joué, rien n'est écrit."""
+    if reglages is not None:
+        runtime_configuration[CLE_MODE] = reglages.mode
+    return runtime_configuration
 
 
 def _termes(lexique: Any) -> dict[str, str]:
