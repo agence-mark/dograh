@@ -185,6 +185,9 @@ class PipecatEngine:
         )
         # Les notes du post-scriptum encore en cours, attendues avant la passe de fin.
         self.notes_en_cours: set[asyncio.Task] = set()
+        # Plan mode-prise-de-notes, partie 2 : le greffier de l'appel (None hors
+        # de ce mode), clos à la passe de fin.
+        self.greffier = None
         if fiche is not None and llm is not None:
             # D14 : l'état de la fiche, montré à chaque requête de conversation.
             montrer_la_fiche(
@@ -862,6 +865,9 @@ class PipecatEngine:
         # Plan mode-prise-de-notes : une note du post-scriptum encore en cours
         # finit avant (bornée), sinon la passe la croiserait.
         await attendre_les_notes(self.notes_en_cours, delai_des_notes(self._fiche))
+        if self.greffier is not None:
+            # Une passe plus lente n'écrira plus après la passe de fin.
+            self.greffier.clore()
         parent_context = self._get_otel_context()
         try:
             return await balayer_la_fiche(

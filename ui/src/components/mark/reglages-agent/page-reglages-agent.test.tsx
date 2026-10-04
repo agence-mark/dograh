@@ -329,6 +329,14 @@ describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2)", () => 
         expect(charge.greffier_llm).toEqual(GREFFIER.greffier_llm);
     });
 
+    it("a changed provider asks for its key: the saved one never goes to another provider", async () => {
+        await regler();
+        saisir("greffier_fournisseur", "openai");
+        expect(screen.getAllByText(/The provider changed: type its API key/).length).toBeGreaterThan(0);
+        saisir("greffier_cle", "une-cle-openai");
+        expect(screen.queryAllByText(/The provider changed: type its API key/)).toHaveLength(0);
+    });
+
     it("a temperature that is not a number blocks the save", async () => {
         await regler();
         saisir("greffier_temperature", "chaud");

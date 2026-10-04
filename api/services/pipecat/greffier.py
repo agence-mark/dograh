@@ -58,6 +58,8 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 # La trace de chaque passe du greffier, dans la fiche de l'appel.
 TRACE_GREFFIER = "greffier_passes"
 ECRIT, RIEN, ILLISIBLE, SAUTE, ECHEC = "ecrit", "rien", "illisible", "saute", "echec"
+# Une passe revenue après la fin de l'appel : rien n'est écrit.
+TARDIVE = "tardive"
 
 # D8 : le modèle du greffier quand son bloc n'en dit rien et que le fournisseur
 # est Mistral (rejeu du 02/10 : Large manque 7 données sur 15 appels, Small 11).
@@ -288,10 +290,20 @@ class Greffier:
         self._encore = False
         # Ce que la passe précédente s'est vu refuser : dit à la suivante.
         self._refus: list[dict] = []
+        # Fin de l'appel (revue du 04/10) : plus de passe, et une passe encore
+        # en vol n'écrit plus (la passe de fin est passée, la fiche est partie).
+        self._clos = False
+
+    def clore(self) -> None:
+        """La fin de l'appel : aucune passe ne part ni n'écrit plus."""
+        self._clos = True
+        self._encore = False
 
     def declencher(self) -> None:
         """Demande une passe. Pendant une passe, la demande est gardée (une seule)
         et rejouée à sa fin, sur la conversation de ce moment-là."""
+        if self._clos:
+            return
         if self._en_vol is not None and not self._en_vol.done():
             self._encore = True
             return
@@ -304,7 +316,7 @@ class Greffier:
     async def _tourner(self) -> None:
         while True:
             await self.une_passe()
-            if not self._encore:
+            if not self._encore or self._clos:
                 return
             self._encore = False
 
@@ -330,6 +342,10 @@ class Greffier:
                     f"[fiche] passe du greffier en échec : {type(erreur).__name__}"
                 )
                 self._tracer(ECHEC, [], debut, erreur=type(erreur).__name__)
+            return
+        if self._clos:
+            logger.info("[fiche] passe du greffier finie après l'appel : rien écrit")
+            self._tracer(TARDIVE, [], debut, **jetons)
             return
         rendue = lire_la_note(texte or "")
         if rendue is None:
@@ -402,6 +418,16 @@ class DeclencheurDuGreffier(FrameProcessor):
 # --- Le service ---------------------------------------------------------------
 
 
+# Ce que le greffier n'hérite pas de la conversation (revue du 04/10).
+REGLAGES_NON_HERITES = (
+    "max_tokens",
+    "frequency_penalty",
+    "presence_penalty",
+    "seed",
+    "top_p",
+)
+
+
 def configuration_du_greffier(user_config: Any, bloc: dict | None) -> Any:
     """La configuration de modèle du greffier : celle de la conversation, à
     laquelle son bloc s'applique comme une surcharge de modèle. Sans modèle dans
@@ -422,9 +448,23 @@ def configuration_du_greffier(user_config: Any, bloc: dict | None) -> Any:
         and str(getattr(fournisseur, "value", fournisseur)).lower() == "mistral"
     ):
         surcharge["model"] = MODELE_PAR_DEFAUT_MISTRAL
-    return resolve_effective_config(
+    configuration = resolve_effective_config(
         user_config, {"llm": surcharge} if surcharge else None
     )
+    # Revue du 04/10 : les réglages de génération réglés pour la VOIX (plafond de
+    # jetons, pénalités, graine) tronqueraient ou pénaliseraient la fiche JSON du
+    # greffier, et ne se voient pas dans sa modale : remis à leur défaut, sauf
+    # s'ils sont posés dans son bloc. La température, elle, est à l'écran.
+    llm = configuration.llm
+    champs = getattr(type(llm), "model_fields", {})
+    remis = {
+        nom: champs[nom].default
+        for nom in REGLAGES_NON_HERITES
+        if nom in champs and nom not in surcharge
+    }
+    if remis:
+        configuration.llm = llm.model_copy(update=remis)
+    return configuration
 
 
 def service_du_greffier(
@@ -465,17 +505,18 @@ def greffier_du_moteur(
     reglages = engine.fiche
     if service is None or reglages is None or reglages.mode != MODE_GREFFIER:
         return None
-    return DeclencheurDuGreffier(
-        Greffier(
-            service=service,
-            reglages=reglages,
-            fiche=lambda: engine._gathered_context,
-            messages=lambda: engine.context.get_messages() if engine.context else [],
-            notices=engine.notices_fiche,
-            notes_en_cours=engine.notes_en_cours,
-            consigne=consigne,
-        )
+    greffier = Greffier(
+        service=service,
+        reglages=reglages,
+        fiche=lambda: engine._gathered_context,
+        messages=lambda: engine.context.get_messages() if engine.context else [],
+        notices=engine.notices_fiche,
+        notes_en_cours=engine.notes_en_cours,
+        consigne=consigne,
     )
+    # Le moteur le clôt à la passe de fin (revue du 04/10).
+    engine.greffier = greffier
+    return DeclencheurDuGreffier(greffier)
 
 
 CLE_ESTAMPILLE = "greffier_modele"

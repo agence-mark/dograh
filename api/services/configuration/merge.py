@@ -176,6 +176,12 @@ def merge_greffier_secret(
         existing_greffier, dict
     ):
         return incoming_config
+    # Revue du 04/10 : une clé ne revient que chez SON fournisseur, absent des
+    # deux côtés compris (« comme la conversation »). Vider le fournisseur ou en
+    # changer laisse le masque, que la route refuse : jamais une clé envoyée à
+    # un autre fournisseur.
+    if incoming_greffier.get("provider") != existing_greffier.get("provider"):
+        return incoming_config
     merged = copy.deepcopy(incoming_config)
     merged["greffier_llm"] = _merge_service_secret_fields(
         merged["greffier_llm"],

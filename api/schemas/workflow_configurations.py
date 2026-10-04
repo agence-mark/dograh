@@ -885,12 +885,22 @@ class WorkflowConfigurationDefaults(BaseModel):
         an unusable clerk at call time."""
         if value is None:
             return None
-        for cle in ("provider", "model", "base_url", "endpoint"):
+        # Revue du 04/10 : seulement ce que la modale montre (un réglage se voit
+        # à l'écran), et la clé en texte (un objet ferait lever le masquage).
+        inconnues = sorted(set(value) - {"provider", "model", "temperature", "api_key"})
+        if inconnues:
+            raise ValueError(
+                f"greffier_llm accepts provider, model, temperature and api_key only, "
+                f"not {', '.join(inconnues)}"
+            )
+        for cle in ("provider", "model", "api_key"):
             if cle in value and value[cle] is not None and not isinstance(value[cle], str):
                 raise ValueError(f"greffier_llm.{cle} must be text")
-        for cle in ("temperature", "top_p"):
-            if cle in value and value[cle] is not None and not isinstance(value[cle], (int, float)):
-                raise ValueError(f"greffier_llm.{cle} must be a number")
+        temperature = value.get("temperature")
+        if temperature is not None and (
+            isinstance(temperature, bool) or not isinstance(temperature, (int, float))
+        ):
+            raise ValueError("greffier_llm.temperature must be a number")
         fournisseur = value.get("provider")
         if fournisseur:
             from api.services.configuration.registry import ServiceProviders

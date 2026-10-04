@@ -44,6 +44,7 @@ from api.services.pipecat.greffier import (
     MODELE_PAR_DEFAUT_MISTRAL,
     RIEN,
     SAUTE,
+    TARDIVE,
     TRACE_GREFFIER,
     DeclencheurDuGreffier,
     Greffier,
@@ -530,3 +531,72 @@ async def test_la_fabrique_du_moteur_joue_ses_lectures(three_node_workflow):
     )
     assert greffier_du_moteur(outil, modele, None) is None
     assert greffier_du_moteur(engine, None, None) is None
+
+
+# --------------------------------------------------------------------------- #
+# 7. Corrections de la relecture indépendante du 04/10
+# --------------------------------------------------------------------------- #
+
+
+def test_les_reglages_de_generation_de_la_voix_ne_passent_pas_au_greffier():
+    from api.schemas.ai_model_configuration import EffectiveAIModelConfiguration
+
+    conversation = EffectiveAIModelConfiguration.model_validate(
+        {
+            "llm": {
+                "provider": "mistral",
+                "model": "mistral-large-2512",
+                "api_key": "cle-de-la-conversation-de-test",
+                "temperature": 0.4,
+                "max_tokens": 120,
+                "frequency_penalty": 0.5,
+            }
+        }
+    )
+    greffier = configuration_du_greffier(conversation, None).llm
+    defauts = type(greffier).model_fields
+    assert greffier.max_tokens == defauts["max_tokens"].default
+    assert greffier.frequency_penalty == defauts["frequency_penalty"].default
+    assert greffier.temperature == 0.4  # à l'écran : « comme la conversation »
+    assert conversation.llm.max_tokens == 120  # la conversation n'est pas touchée
+
+
+@pytest.mark.asyncio
+async def test_clos_aucune_passe_ne_part_ni_n_ecrit_apres_la_fin_de_l_appel():
+    modele = _Modele({"nom": "Dupont"}, {"nom": "Dupont"}, delai=0.2)
+    montage = _Montage(modele)
+    montage.greffier.declencher()
+    await asyncio.sleep(0.05)
+    montage.greffier.declencher()  # gardée pour après la passe en vol
+    montage.greffier.clore()
+    await attendre_les_notes(montage.notes, delai=5)
+    assert "nom" not in montage.fiche
+    assert [t["etat"] for t in montage.traces] == [TARDIVE]
+    assert len(modele.lus) == 1  # la demande gardée n'est pas rejouée
+    montage.greffier.declencher()
+    await attendre_les_notes(montage.notes, delai=5)
+    assert len(modele.lus) == 1
+
+
+@pytest.mark.asyncio
+async def test_le_moteur_clot_le_greffier_a_la_passe_de_fin(three_node_workflow):
+    from api.services.workflow.pipecat_engine import PipecatEngine
+    from api.tests.mark.test_fiche_montree import _contexte, _mistral
+
+    engine = PipecatEngine(
+        llm=_mistral(),
+        context=_contexte({"role": "user", "content": PAROLE}),
+        workflow=three_node_workflow,
+        call_context_vars={},
+        workflow_run_id=1,
+        fiche=ReglagesFiche.depuis(FICHE_GREFFIER),
+    )
+    assert engine.greffier is None
+    greffier_du_moteur(engine, _Modele({}), None)
+    assert engine.greffier is not None
+    with patch(
+        "api.services.workflow.pipecat_engine.balayer_la_fiche",
+        new=AsyncMock(return_value={}),
+    ):
+        await engine._balayer_la_fiche()
+    assert engine.greffier._clos is True

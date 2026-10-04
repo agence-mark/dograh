@@ -75,6 +75,23 @@ def test_un_masque_orphelin_est_refuse_et_rien_n_est_ecrit(existantes):
     assert ecrit is None
 
 
+@pytest.mark.parametrize(
+    "fournisseur", [None, "openai"], ids=["fournisseur-vide", "autre-fournisseur"]
+)
+def test_la_cle_ne_suit_pas_un_changement_de_fournisseur(fournisseur):
+    """Revue du 04/10 : vider le fournisseur (« comme la conversation ») ou en
+    changer sans retaper la clé laisse le masque, refusé : jamais une clé
+    envoyée à un autre fournisseur."""
+    bloc = {"model": "un-modele", "api_key": _masque()}
+    if fournisseur:
+        bloc["provider"] = fournisseur
+    reponse, ecrit = _enregistrer(
+        {**EXISTANTES, "greffier_llm": bloc}, existantes=EXISTANTES
+    )
+    assert reponse.status_code == 422, reponse.text
+    assert ecrit is None
+
+
 def test_une_cle_vide_reste_vide():
     sans_cle = {k: v for k, v in BLOC.items() if k != "api_key"}
     entrant = {**EXISTANTES, "greffier_llm": sans_cle}
@@ -90,6 +107,11 @@ def test_une_cle_vide_reste_vide():
         {"provider": ["mistral"]},
         {"temperature": "chaud"},
         {"provider": "mistrall"},
+        # Revue du 04/10 : seulement ce que la modale montre, la clé en texte.
+        {"max_tokens": 50},
+        {"base_url": "https://ailleurs.example"},
+        {"api_key": {"cle": "objet"}},
+        {"temperature": True},
     ],
 )
 def test_un_bloc_mal_forme_est_refuse(bloc):

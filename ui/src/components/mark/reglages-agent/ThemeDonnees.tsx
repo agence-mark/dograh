@@ -192,6 +192,19 @@ export const ThemeDonnees = ({
             },
         });
     }
+    // A saved key only goes back to ITS provider (the server refuses it elsewhere):
+    // a changed provider needs its key typed, or the conversation's key.
+    const fournisseurChange = (fournisseurGreffier.trim() || undefined) !== (greffierEnregistre?.provider || undefined);
+    if (fournisseurChange && cleEnregistree && !cleGreffier.trim()) {
+        erreurs.push({
+            cle: "greffier_llm",
+            libelle: { en: "Clerk", fr: "Greffier" },
+            message: {
+                en: "the provider changed: type its API key, or use the conversation's key.",
+                fr: "le fournisseur a changé : tapez sa clé API, ou prenez la clé de la conversation.",
+            },
+        });
+    }
     if (!temperatureValide) {
         erreurs.push({
             cle: "greffier_llm",
@@ -582,6 +595,14 @@ export const ThemeDonnees = ({
                                     fr: "Une clé enregistrée n'est jamais réaffichée. Vide, le greffier prend la clé de la conversation, et son quota : Mistral limite chaque organisation, donc pour que le greffier ne partage pas la limite de l'agent, la clé doit venir d'une autre organisation Mistral.",
                                 })}
                             </p>
+                            {fournisseurChange && cleEnregistree && !cleGreffier.trim() && (
+                                <p className="text-xs text-destructive">
+                                    {t({
+                                        en: "The provider changed: type its API key, or use the conversation's key.",
+                                        fr: "Le fournisseur a changé : tapez sa clé API, ou prenez la clé de la conversation.",
+                                    })}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-1">
                             <div className="flex items-center justify-between gap-2">
