@@ -71,6 +71,7 @@ from api.services.workflow.disposition_mapping import (
     get_disposition_mapping,
 )
 from api.services.workflow.fiche_au_fil_de_leau import (
+    MODE_OUTIL,
     ReglagesFiche,
     balayer_la_fiche,
     brancher_noter_information,
@@ -166,8 +167,12 @@ class PipecatEngine:
         # Un agent reçu par transfert (éteint chez .mark) n'a pas de fiche.
         self._fiche = fiche
         self._llm_de_la_fiche = llm if fiche is not None else None
+        # Plan mode-prise-de-notes, lot 2 : une seule relance par tour ne
+        # concerne que l'outil ; sans outil, aucune note ne relance le modèle.
         self._tours_fiche = (
-            suivre_les_tours(llm) if fiche is not None and llm is not None else None
+            suivre_les_tours(llm)
+            if fiche is not None and llm is not None and fiche.mode == MODE_OUTIL
+            else None
         )
         if fiche is not None and llm is not None:
             # D14 : l'état de la fiche, montré à chaque requête de conversation.
@@ -911,8 +916,10 @@ class PipecatEngine:
         # [.mark] D12 : l'outil de la fiche n'existe que si l'interrupteur est
         # allumé. Pas sur une étape de fin (comme au lot 0). Seulement pour
         # l'agent dont le modèle porte la fiche (découpage par agent, fc76383c).
+        # Plan mode-prise-de-notes : et seulement en mode outil.
         if (
             self._fiche is not None
+            and self._fiche.mode == MODE_OUTIL
             and not node.is_end
             and agent.llm is self._llm_de_la_fiche
         ):

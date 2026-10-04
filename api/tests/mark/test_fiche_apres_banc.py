@@ -1492,8 +1492,11 @@ def test_C10_l_appel_donne_son_lexique_a_la_fiche():
     source = (
         Path(__file__).parents[2] / "services" / "pipecat" / "run_pipeline.py"
     ).read_text(encoding="utf-8")
-    appel = source.split("fiche=ReglagesFiche.depuis(")[1].split(")")[0]
+    # Plan mode-prise-de-notes, lot 1 : la fiche est lue une fois, avant
+    # l'estampille, et ce sont ces réglages-là que reçoit le moteur.
+    appel = source.split("reglages_fiche = ReglagesFiche.depuis(")[1].split(")")[0]
     assert "lexique=lexique_metier" in appel
+    assert "fiche=reglages_fiche" in source
 
 
 # --- C12 : le code postal d'une commune qui n'en a qu'un (PB13) ---------------
