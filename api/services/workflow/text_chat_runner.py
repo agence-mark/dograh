@@ -54,6 +54,7 @@ from api.services.pipecat.etat_ouverture import (
 )
 from api.services.pipecat.lecture_appelant import lire_message_tape
 from api.services.pipecat.pipeline_builder import create_pipeline_task
+from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
 )
@@ -63,6 +64,8 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_ETAT,
     CLE_JOURNAL,
     ReglagesFiche,
+    attendre_les_notes,
+    estampiller_le_mode,
 )
 from api.services.pipecat.recording_audio_cache import create_recording_audio_fetcher
 from api.services.pipecat.service_factory import (
@@ -638,6 +641,10 @@ async def execute_text_chat_pending_turn(
     initial_context = injecter_lexique_propose(
         initial_context, termes_proposes(lexique_metier)
     )
+    # [.mark] The record, read once: the stamp says the note-taking mode the
+    # keyboard PLAYED (plan mode-prise-de-notes), the engine gets the same.
+    reglages_fiche = ReglagesFiche.depuis(run_configs, lexique=lexique_metier)
+    estampiller_le_mode(initial_context["runtime_configuration"], reglages_fiche)
 
     base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
 
@@ -753,7 +760,7 @@ async def execute_text_chat_pending_turn(
         # voice path (`run_pipeline.py`): the record, its `noter_information`
         # tool and the end-of-call pass. Without it the keyboard measured an
         # agent that is not the one callers reach (run 896).
-        fiche=ReglagesFiche.depuis(run_configs, lexique=lexique_metier),
+        fiche=reglages_fiche,
     )
     engine._gathered_context = dict(base_checkpoint["gathered_context"])
     capture_processor = _TextChatCaptureProcessor(response_window, context, engine)
@@ -788,12 +795,21 @@ async def execute_text_chat_pending_turn(
     trace_span_attributes = {
         "langfuse.trace.name": workflow_run.name or f"text-chat-{workflow_run_id}"
     }
+    # [.mark] Plan mode-prise-de-notes (lot 5): the keyboard plays the postscript
+    # like the phone (C8), right after the model, so what is captured, shown and
+    # kept in memory is what the voice would have said. None outside that mode.
+    post_scriptum = post_scriptum_du_moteur(engine)
     pipeline = Pipeline(
         [
-            llm,
-            capture_processor,
-            assistant_context_aggregator,
-            pipeline_metrics_aggregator,
+            p
+            for p in (
+                llm,
+                post_scriptum,
+                capture_processor,
+                assistant_context_aggregator,
+                pipeline_metrics_aggregator,
+            )
+            if p is not None
         ]
     )
     task = create_pipeline_task(
@@ -895,6 +911,8 @@ async def execute_text_chat_pending_turn(
             await engine.close_mcp_sessions()
             await engine.cleanup()
 
+    # [.mark] A postscript note still being written belongs to this turn's record.
+    await attendre_les_notes(engine.notes_du_post_scriptum)
     gathered_context = await engine.get_gathered_context()
     assistant_text = (
         "\n\n".join(part for part in response_window.outputs if part).strip()

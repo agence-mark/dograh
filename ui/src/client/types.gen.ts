@@ -9079,6 +9079,12 @@ export type WorkflowConfigurationDefaults = {
      */
     fiche_au_fil_de_leau?: boolean;
     /**
+     * Fiche Mode De Note
+     *
+     * How the call record is written, when it is on. Tool (default): the model calls noter_information, then speaks in a second pass. Postscript: the model speaks, then writes its note after a separator in the same answer; the note is never spoken. Clerk: a second model keeps the record alongside the agent (not available yet).
+     */
+    fiche_mode_de_note?: 'outil' | 'post_scriptum' | 'greffier';
+    /**
      * Fiche Champs
      *
      * The fields of the call record the tool can write: name, type, dictated or deduced, and a hint for the model. A dictated value is written only if the caller said it.

@@ -30,6 +30,7 @@ muet). Avec une autre fonction dans le tour, ou sans note : Pipecat, inchangé.
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import unicodedata
 from collections.abc import Callable, Iterable
@@ -157,12 +158,35 @@ DESCRIPTION_OUTIL = (
 )
 
 
+CLE_MODE = "fiche_mode_de_note"
+MODE_OUTIL = "outil"
+MODE_POST_SCRIPTUM = "post_scriptum"
+MODE_GREFFIER = "greffier"
+# Plan mode-prise-de-notes, D1 : les modes qu'un appel peut jouer aujourd'hui.
+# Le greffier (partie 2) n'y est pas : refusé à l'enregistrement, lu « outil ».
+MODES_JOUABLES = (MODE_OUTIL, MODE_POST_SCRIPTUM)
+
+
+def _mode(run_configs: dict) -> str:
+    """Le mode de prise de notes de l'agent. Sans la clé (configuration d'avant
+    le réglage) : l'outil. Une valeur injouable ne coûte pas l'appel : l'outil."""
+    mode = run_configs.get(CLE_MODE)
+    if mode is None:
+        return MODE_OUTIL
+    if mode not in MODES_JOUABLES:
+        logger.warning(f"[fiche] mode de prise de notes injouable : {mode!r}, outil")
+        return MODE_OUTIL
+    return mode
+
+
 @dataclass(frozen=True)
 class ReglagesFiche:
     champs: tuple[ChampFiche, ...]
     # C10 (PB12) : les termes du lexique de l'organisation, par forme comparée
     # (`normaliser_terme`), avec leur écriture officielle. Variantes comprises.
     termes_du_lexique: dict[str, str] = field(default_factory=dict)
+    # Plan mode-prise-de-notes, D1 : comment la fiche s'écrit pendant l'appel.
+    mode: str = MODE_OUTIL
 
     @property
     def par_nom(self) -> dict[str, ChampFiche]:
@@ -208,7 +232,19 @@ class ReglagesFiche:
                 else c
                 for c in champs
             ]
-        return cls(champs=tuple(champs), termes_du_lexique=termes)
+        return cls(
+            champs=tuple(champs), termes_du_lexique=termes, mode=_mode(run_configs)
+        )
+
+
+def estampiller_le_mode(
+    runtime_configuration: dict, reglages: ReglagesFiche | None
+) -> dict:
+    """Plan mode-prise-de-notes : l'estampille du run dit le mode JOUÉ. Fiche
+    éteinte (``None``) : aucun mode n'a été joué, rien n'est écrit."""
+    if reglages is not None:
+        runtime_configuration[CLE_MODE] = reglages.mode
+    return runtime_configuration
 
 
 def _termes(lexique: Any) -> dict[str, str]:
@@ -2527,6 +2563,175 @@ def schema_outil(reglages: ReglagesFiche) -> FunctionSchema:
     )
 
 
+@dataclass
+class Note:
+    """Ce qu'une note a fait dans la fiche, champ par champ (plan
+    mode-prise-de-notes, lot 2) : la matière de la réponse de l'outil, et des
+    notices que l'état de la fiche montre dans les modes sans outil."""
+
+    ecrits: list[str] = field(default_factory=list)
+    retenus: dict[str, Any] = field(default_factory=dict)
+    refuses: list[dict] = field(default_factory=list)
+    a_confirmer: list[dict] = field(default_factory=list)
+    a_proposer: list[dict] = field(default_factory=list)
+
+
+async def noter(
+    fiche: Callable[[], dict],
+    reglages: ReglagesFiche,
+    champs: dict[str, Any],
+    *,
+    paroles: list[str],
+    question: str | None,
+    source: str = "outil",
+) -> Note:
+    """Écrit une note (des champs et leurs valeurs) par le point d'écriture
+    unique, puis relit les rues après une commune et relève les codes postaux
+    étrangers (C2). Plan mode-prise-de-notes, lot 2 : extrait tel quel du
+    gestionnaire de l'outil, pour que l'outil, le post-scriptum et le greffier
+    passent par UNE seule copie de ces contrôles. La ``source`` va au journal.
+
+    Lève si un module lève : à l'appelant de ne pas en faire perdre l'appel."""
+    note = Note()
+    ecrits, retenus, refuses = note.ecrits, note.retenus, note.refuses
+    a_confirmer: list[dict] = []
+    a_proposer: list[dict] = []
+    # C2 : où commence ce que cette note ajoute au journal.
+    debut_du_journal = len(fiche().get(CLE_JOURNAL) or [])
+    # C2 (relecture du 03/10) : une commune peut redevenir sûre sans être
+    # écrite (un oui au code la rend cohérente) ; elle fait relire la rue aussi.
+    communes = [c.nom for c in reglages.champs if c.lecteur_effectif == "commune"]
+    sures_avant = {
+        c for c in communes if ((fiche().get(CLE_ETAT) or {}).get(c) or {}).get("sure")
+    }
+    # Plusieurs notes d'un même tour : appliquées dans l'ordre d'arrivée,
+    # chaque champ seul.
+    for champ, valeur in champs.items():
+        verdict = ecrire_dans_la_fiche(
+            fiche(),
+            reglages,
+            champ,
+            valeur,
+            source=source,
+            paroles=paroles,
+            question=question,
+        )
+        if verdict.statut == "ecrit":
+            ecrits.append(champ)
+            if _mots(str(verdict.valeur)) != _mots(str(valeur)):
+                # Le module a changé l'écriture (commune, rue, épellation).
+                retenus[champ] = verdict.valeur
+            if verdict.suite == "a_proposer":
+                a_proposer.append(
+                    {
+                        "champ": champ,
+                        "valeur": verdict.valeur,
+                        "options": list(verdict.options),
+                    }
+                )
+            elif verdict.suite:
+                a_confirmer.append(
+                    {
+                        "champ": champ,
+                        "valeur": verdict.valeur,
+                        **({"options": list(verdict.options)} if verdict.options else {}),
+                    }
+                )
+        elif verdict.statut == "refuse":
+            refuses.append(
+                {"champ": champ, "raison": verdict.raison}
+                if verdict.raison != "nombre_de_chiffres"
+                else {
+                    "champ": champ,
+                    "raison": verdict.raison,
+                    "chiffres_attendus": reglages.par_nom[champ].chiffres,
+                }
+            )
+            if verdict.options:
+                a_proposer.append({"champ": champ, "options": list(verdict.options)})
+    redevenues_sures = any(
+        c not in sures_avant and ((fiche().get(CLE_ETAT) or {}).get(c) or {}).get("sure")
+        for c in communes
+    )
+    if redevenues_sures or any(
+        c in reglages.par_nom and reglages.par_nom[c].lecteur_effectif == "commune"
+        for c in ecrits
+    ):
+        # C2 : une commune vient d'être écrite ; la rue notée avant elle
+        # est relue dans ses rues, hors de la boucle de l'appel (base).
+        a_relire = rues_a_relire(fiche(), reglages)
+        trouvees = (
+            await asyncio.to_thread(analyser_les_rues, a_relire) if a_relire else []
+        )
+        for champ, relue in ecrire_les_rues_relues(fiche(), reglages, trouvees).items():
+            retenus[champ] = relue
+            a_confirmer = [c for c in a_confirmer if c["champ"] != champ]
+            if champ not in ecrits:
+                ecrits.append(champ)
+    # C2 (run 1018) : un code postal étranger à la commune sûre est proposé à
+    # la personne, avec les codes de la commune (Q2).
+    for releve in codes_postaux_releves(fiche(), debut_du_journal):
+        a_confirmer = [c for c in a_confirmer if c["champ"] != releve["champ"]]
+        a_proposer = [p for p in a_proposer if p["champ"] != releve["champ"]]
+        a_proposer.append(releve)
+    note.a_confirmer = a_confirmer
+    note.a_proposer = a_proposer
+    return note
+
+
+def reponse_de_l_outil(note: Note) -> dict:
+    """Le résultat que l'outil rend au modèle pour cette note : statut, détail
+    et consignes (D7, A2, C3). Extrait tel quel du gestionnaire (lot 2)."""
+    ecrits, retenus, refuses = note.ecrits, note.retenus, note.refuses
+    a_confirmer, a_proposer = note.a_confirmer, note.a_proposer
+    resultat: dict = {"statut": "note" if ecrits else "rien_note"}
+    # A2 (run 832) : une consigne ne remplace plus l'autre. Commune
+    # retenue ET adresse à confirmer dans la même note : les deux.
+    consignes: list[str] = []
+    if ecrits:
+        resultat["ecrits"] = ecrits
+    if a_confirmer:
+        # D7 : c'est le modèle, relancé, qui pose la question.
+        ambigu = any("options" in c for c in a_confirmer)
+        resultat["statut"] = "ambigu" if ambigu else "a_confirmer"
+        resultat["a_confirmer"] = a_confirmer
+        consignes.append(CONSIGNE_AMBIGU if ambigu else CONSIGNE_A_CONFIRMER)
+    if retenus:
+        resultat["ecriture_retenue"] = retenus
+        consignes.append(
+            f"Pour {', '.join(retenus)} : {CONSIGNE_ECRITURE_RETENUE}"
+            if a_confirmer
+            else CONSIGNE_ECRITURE_RETENUE
+        )
+    if a_proposer:
+        # C3 (PB6) : les possibilités, à proposer une par une.
+        resultat["a_proposer"] = a_proposer
+        # Revue du 25/09 : ce qui a été noté reste « note ».
+        if resultat["statut"] == "rien_note":
+            resultat["statut"] = "a_proposer"
+        consignes.append(
+            CONSIGNE_A_PROPOSER.format(champs=", ".join(p["champ"] for p in a_proposer))
+        )
+    proposes = {p["champ"] for p in a_proposer}
+    non_dits = [
+        r["champ"]
+        for r in refuses
+        if r["raison"] == "non_dit" and r["champ"] not in proposes
+    ]
+    if non_dits:
+        consignes.append(CONSIGNE_NON_DIT.format(champs=", ".join(non_dits)))
+    mal_comptes = [r["champ"] for r in refuses if r["raison"] == "nombre_de_chiffres"]
+    if mal_comptes:
+        consignes.append(
+            CONSIGNE_NOMBRE_DE_CHIFFRES.format(champs=", ".join(mal_comptes))
+        )
+    if consignes:
+        resultat["consigne"] = " ".join(consignes)
+    if refuses:
+        resultat["refuses"] = refuses
+    return resultat
+
+
 def creer_gestionnaire(
     reglages: ReglagesFiche,
     fiche: Callable[[], dict],
@@ -2536,149 +2741,15 @@ def creer_gestionnaire(
     async def noter_information(params: FunctionCallParams) -> None:
         try:
             lus = list(messages())
-            paroles = paroles_de_l_appelant(lus)
-            # C2 (run 893) : la question à laquelle la personne vient de répondre.
-            question = derniere_question(lus)
-            ecrits: list[str] = []
-            retenus: dict[str, Any] = {}
-            refuses: list[dict] = []
-            a_confirmer: list[dict] = []
-            a_proposer: list[dict] = []
-            # C2 : où commence ce que cette note ajoute au journal.
-            debut_du_journal = len(fiche().get(CLE_JOURNAL) or [])
-            # C2 (relecture du 03/10) : une commune peut redevenir sûre sans être
-            # écrite (un oui au code la rend cohérente) ; elle fait relire la rue aussi.
-            communes = [
-                c.nom for c in reglages.champs if c.lecteur_effectif == "commune"
-            ]
-            sures_avant = {
-                c for c in communes if ((fiche().get(CLE_ETAT) or {}).get(c) or {}).get("sure")
-            }
-            # Plusieurs notes d'un même tour : appliquées dans l'ordre d'arrivée,
-            # chaque champ seul.
-            for champ, valeur in dict(params.arguments or {}).items():
-                verdict = ecrire_dans_la_fiche(
-                    fiche(), reglages, champ, valeur, paroles=paroles, question=question
-                )
-                if verdict.statut == "ecrit":
-                    ecrits.append(champ)
-                    if _mots(str(verdict.valeur)) != _mots(str(valeur)):
-                        # Le module a changé l'écriture (commune, rue, épellation).
-                        retenus[champ] = verdict.valeur
-                    if verdict.suite == "a_proposer":
-                        a_proposer.append(
-                            {
-                                "champ": champ,
-                                "valeur": verdict.valeur,
-                                "options": list(verdict.options),
-                            }
-                        )
-                    elif verdict.suite:
-                        a_confirmer.append(
-                            {
-                                "champ": champ,
-                                "valeur": verdict.valeur,
-                                **(
-                                    {"options": list(verdict.options)}
-                                    if verdict.options
-                                    else {}
-                                ),
-                            }
-                        )
-                elif verdict.statut == "refuse":
-                    refuses.append(
-                        {"champ": champ, "raison": verdict.raison}
-                        if verdict.raison != "nombre_de_chiffres"
-                        else {
-                            "champ": champ,
-                            "raison": verdict.raison,
-                            "chiffres_attendus": reglages.par_nom[champ].chiffres,
-                        }
-                    )
-                    if verdict.options:
-                        a_proposer.append(
-                            {"champ": champ, "options": list(verdict.options)}
-                        )
-            redevenues_sures = any(
-                c not in sures_avant
-                and ((fiche().get(CLE_ETAT) or {}).get(c) or {}).get("sure")
-                for c in communes
+            note = await noter(
+                fiche,
+                reglages,
+                dict(params.arguments or {}),
+                paroles=paroles_de_l_appelant(lus),
+                # C2 (run 893) : la question à laquelle la personne vient de répondre.
+                question=derniere_question(lus),
             )
-            if redevenues_sures or any(
-                c in reglages.par_nom
-                and reglages.par_nom[c].lecteur_effectif == "commune"
-                for c in ecrits
-            ):
-                # C2 : une commune vient d'être écrite ; la rue notée avant elle
-                # est relue dans ses rues, hors de la boucle de l'appel (base).
-                a_relire = rues_a_relire(fiche(), reglages)
-                trouvees = (
-                    await asyncio.to_thread(analyser_les_rues, a_relire)
-                    if a_relire
-                    else []
-                )
-                for champ, relue in ecrire_les_rues_relues(
-                    fiche(), reglages, trouvees
-                ).items():
-                    retenus[champ] = relue
-                    a_confirmer = [c for c in a_confirmer if c["champ"] != champ]
-                    if champ not in ecrits:
-                        ecrits.append(champ)
-            # C2 (run 1018) : un code postal étranger à la commune sûre est proposé à
-            # la personne, avec les codes de la commune (Q2).
-            for releve in codes_postaux_releves(fiche(), debut_du_journal):
-                a_confirmer = [c for c in a_confirmer if c["champ"] != releve["champ"]]
-                a_proposer = [p for p in a_proposer if p["champ"] != releve["champ"]]
-                a_proposer.append(releve)
-            resultat: dict = {"statut": "note" if ecrits else "rien_note"}
-            # A2 (run 832) : une consigne ne remplace plus l'autre. Commune
-            # retenue ET adresse à confirmer dans la même note : les deux.
-            consignes: list[str] = []
-            if ecrits:
-                resultat["ecrits"] = ecrits
-            if a_confirmer:
-                # D7 : c'est le modèle, relancé, qui pose la question.
-                ambigu = any("options" in c for c in a_confirmer)
-                resultat["statut"] = "ambigu" if ambigu else "a_confirmer"
-                resultat["a_confirmer"] = a_confirmer
-                consignes.append(CONSIGNE_AMBIGU if ambigu else CONSIGNE_A_CONFIRMER)
-            if retenus:
-                resultat["ecriture_retenue"] = retenus
-                consignes.append(
-                    f"Pour {', '.join(retenus)} : {CONSIGNE_ECRITURE_RETENUE}"
-                    if a_confirmer
-                    else CONSIGNE_ECRITURE_RETENUE
-                )
-            if a_proposer:
-                # C3 (PB6) : les possibilités, à proposer une par une.
-                resultat["a_proposer"] = a_proposer
-                # Revue du 25/09 : ce qui a été noté reste « note ».
-                if resultat["statut"] == "rien_note":
-                    resultat["statut"] = "a_proposer"
-                consignes.append(
-                    CONSIGNE_A_PROPOSER.format(
-                        champs=", ".join(p["champ"] for p in a_proposer)
-                    )
-                )
-            proposes = {p["champ"] for p in a_proposer}
-            non_dits = [
-                r["champ"]
-                for r in refuses
-                if r["raison"] == "non_dit" and r["champ"] not in proposes
-            ]
-            if non_dits:
-                consignes.append(CONSIGNE_NON_DIT.format(champs=", ".join(non_dits)))
-            mal_comptes = [
-                r["champ"] for r in refuses if r["raison"] == "nombre_de_chiffres"
-            ]
-            if mal_comptes:
-                consignes.append(
-                    CONSIGNE_NOMBRE_DE_CHIFFRES.format(champs=", ".join(mal_comptes))
-                )
-            if consignes:
-                resultat["consigne"] = " ".join(consignes)
-            if refuses:
-                resultat["refuses"] = refuses
+            resultat = reponse_de_l_outil(note)
         except Exception as erreur:  # noqa: BLE001 -- une note ne coûte jamais l'appel
             logger.error(f"[fiche] {NOM_OUTIL} a échoué : {erreur}")
             resultat = {"statut": "erreur"}
@@ -2692,6 +2763,103 @@ def creer_gestionnaire(
         )
 
     return noter_information
+
+
+# --- Les consignes de mode (plan mode-prise-de-notes, lot 3) ------------------
+
+# D6 : fixé dans le code, jamais réglable. Celui du rejeu du 04/10 (128 tours sur 128).
+SEPARATEUR = "|||"
+DEBUT_PRISE_DE_NOTES, FIN_PRISE_DE_NOTES = "<prise_de_notes>", "</prise_de_notes>"
+
+# La consigne du rejeu du 04/10 (`agents/nuances-de-feu/essais/2026-10-04-voie-b-post-scriptum`),
+# reprise au mot, plus ce que l'outil disait déjà au modèle (écrire tel que dit,
+# NOTE_DESCRIPTIONS). ⛔ Aucun mot de métier : les champs viennent de la fiche de l'agent.
+CONSIGNE_POST_SCRIPTUM = (
+    "# Ta réponse, à chaque tour : deux parties, toujours dans cet ordre\n"
+    "1. Ce que tu dis à la personne : une ou deux phrases parlées, comme "
+    "d'habitude. Rien d'autre.\n"
+    "2. À la ligne, le séparateur {separateur} seul, puis ta note : un objet JSON "
+    "dont les clés sont des noms de champs ci-dessous et les valeurs ce que la "
+    "personne vient de dire ou de corriger DANS CE TOUR (ou plus tôt, si ça manque "
+    "encore à la fiche). S'il n'y a rien à noter, écris {{}} après le séparateur.\n"
+    "Jamais de JSON ni de nom de champ avant le séparateur. Jamais de texte après "
+    "la note. La note n'est pas lue à la personne. Écris chaque valeur telle que la "
+    "personne l'a dite, sans rien compléter ni inventer.\n\n"
+    "# Les champs de la fiche\n"
+    "{champs}\n"
+    "{note_descriptions}"
+)
+
+
+def consigne_du_mode(reglages: ReglagesFiche | None) -> str | None:
+    """D3 : le bloc que le CODE ajoute à la fin du prompt système selon le mode,
+    pour que les prompts de l'agent restent neutres (« tu le notes »). Calculé à
+    chaque étape, jamais enregistré : rien à retirer en revenant à l'outil, et
+    fixe pendant l'appel (le début de la requête ne bouge pas, cache intact).
+
+    Outil : rien (le comportement d'avant, la description de l'outil suffit)."""
+    if reglages is None or reglages.mode != MODE_POST_SCRIPTUM:
+        return None
+    champs = "\n".join(
+        f"- {champ.nom} : {_propriete(champ)['description']}"
+        for champ in reglages.champs
+    )
+    return "\n".join(
+        [
+            DEBUT_PRISE_DE_NOTES,
+            CONSIGNE_POST_SCRIPTUM.format(
+                separateur=SEPARATEUR,
+                champs=champs,
+                note_descriptions=NOTE_DESCRIPTIONS,
+            ),
+            FIN_PRISE_DE_NOTES,
+        ]
+    )
+
+
+@dataclass
+class Notices:
+    """D4 : dans un mode sans outil, ce que la dernière note demande au modèle
+    (à confirmer, à proposer, refusé), montré au tour suivant par l'état de la
+    fiche. Chaque note remplace la précédente ; une réponse sans note l'efface."""
+
+    derniere: dict | None = None
+
+    def retenir(self, note: Note | None) -> None:
+        self.derniere = reponse_de_l_outil(note) if note is not None else None
+
+
+# Ce que l'outil rend au modèle et qui lui demande quelque chose : les mêmes clés,
+# les mêmes consignes (D4). « statut » et « ecrits » sont déjà dits par l'état.
+CLES_DES_NOTICES = ("a_confirmer", "ecriture_retenue", "a_proposer", "refuses", "consigne")
+
+
+def _ligne_des_notices(notices: Notices | None) -> str | None:
+    if notices is None or not notices.derniere:
+        return None
+    retour = {c: notices.derniere[c] for c in CLES_DES_NOTICES if c in notices.derniere}
+    if not retour:
+        return None
+    return "Retour de ta dernière note : " + json.dumps(retour, ensure_ascii=False)
+
+
+# Le délai laissé aux notes du post-scriptum encore en cours avant la passe de fin.
+DELAI_DES_NOTES_EN_COURS = 3.0
+
+
+async def attendre_les_notes(notes_en_cours: set[asyncio.Task]) -> None:
+    """Avant la passe de fin : laisser finir une note encore en cours, au plus
+    ``DELAI_DES_NOTES_EN_COURS``. Rien n'est annulé (relecture du 04/10) : une
+    note plus lente finit après la passe, qui ne remplit que les champs vides."""
+    en_cours = [t for t in notes_en_cours if not t.done()]
+    if not en_cours:
+        return
+    _, restantes = await asyncio.wait(en_cours, timeout=DELAI_DES_NOTES_EN_COURS)
+    if restantes:
+        logger.warning(
+            "[fiche] note du post-scriptum encore en cours : la passe de fin part "
+            "sans l'attendre, la note finira après elle"
+        )
 
 
 def brancher_noter_information(
@@ -2714,6 +2882,19 @@ ENTETE_ETAT = (
     "[Fiche de l'appel : pour toi seulement, tu ne la lis jamais à voix haute. "
     "Elle se remplit par noter_information.]"
 )
+# Plan mode-prise-de-notes, lot 3 : « par noter_information » n'est vrai qu'en mode outil.
+ENTETE_ETAT_POST_SCRIPTUM = (
+    "[Fiche de l'appel : pour toi seulement, tu ne la lis jamais à voix haute. "
+    f"Elle se remplit par tes notes après {SEPARATEUR}.]"
+)
+
+
+def entete_etat(reglages: ReglagesFiche) -> str:
+    if reglages.mode == MODE_POST_SCRIPTUM:
+        return ENTETE_ETAT_POST_SCRIPTUM
+    return ENTETE_ETAT
+
+
 LONGUEUR_MAX_VALEUR = 120
 
 
@@ -2772,9 +2953,15 @@ def numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> list[tuple[str, 
     return []
 
 
-def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str | None:
+def etat_de_la_fiche(
+    reglages: ReglagesFiche, fiche: dict, notices: Notices | None = None
+) -> str | None:
     """Ce que le modèle a déjà, sûr ou à faire confirmer, dans l'ordre des
     champs de la fiche. ``None`` tant que rien n'est noté.
+
+    Plan mode-prise-de-notes (D4) : sans outil, la note est vérifiée APRÈS que
+    la phrase est partie ; ce que la vérification demande (``notices``) est donc
+    montré ici, au tour suivant, avec les consignes que l'outil aurait rendues.
 
     ⛔ Pas de liste de ce qui manque (A7, run 835) : sous les yeux de l'accueil,
     « Manque : numero_dicte, commune… » s'est lu comme une liste de questions,
@@ -2793,9 +2980,10 @@ def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str | None:
             notes.append(ligne)
         else:
             a_confirmer.append(ligne)
-    if not (notes or a_confirmer):
+    retour = _ligne_des_notices(notices)
+    if not (notes or a_confirmer or retour):
         return None
-    lignes = [ENTETE_ETAT]
+    lignes = [entete_etat(reglages)]
     if notes:
         lignes.append("Noté : " + " ; ".join(notes))
     if a_confirmer:
@@ -2806,6 +2994,8 @@ def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str | None:
             f"{_par_paires(dernier)}, la fiche a un autre numéro dans {champ}. "
             "Si c'est une correction, note le nouveau numéro."
         )
+    if retour:
+        lignes.append(retour)
     return "\n".join(lignes)
 
 
@@ -2819,7 +3009,10 @@ def inserer_l_etat(messages: list, texte: str) -> list:
 
 
 def montrer_la_fiche(
-    llm: Any, reglages: ReglagesFiche, fiche: Callable[[], dict]
+    llm: Any,
+    reglages: ReglagesFiche,
+    fiche: Callable[[], dict],
+    notices: Notices | None = None,
 ) -> bool:
     """Ajoute l'état de la fiche à chaque requête de CONVERSATION du modèle.
 
@@ -2857,7 +3050,7 @@ def montrer_la_fiche(
         params = construire(params_from_context)
         if en_conversation.get():
             try:
-                texte = etat_de_la_fiche(reglages, fiche())
+                texte = etat_de_la_fiche(reglages, fiche(), notices)
                 if texte:
                     params["messages"] = inserer_l_etat(list(params["messages"]), texte)
             except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais l'appel

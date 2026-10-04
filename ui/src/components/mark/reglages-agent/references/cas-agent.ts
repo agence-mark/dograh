@@ -158,6 +158,8 @@ export const CAS_AGENT: CasAgent[] = [
 
     // ---- Call Record (.mark) -----------------------------------------------
     c("fiche", "call-record", "donnees", ["fiche_au_fil_de_leau"], [inter("fiche_au_fil_de_leau")]),
+    // Plan mode-prise-de-notes (lot 6): added after the reorganisation, frozen once.
+    c("mode-de-note", "ajout-mark", "donnees", ["fiche_mode_de_note"], [choisir("fiche_mode_de_note", "post_scriptum")]),
     c("fiche-champ", "call-record", "donnees", ["fiche_champs"], [
         { type: "cliquer", nom: "Edit fields" },
         saisir("fiche_nom_0", "nom_appelant"),

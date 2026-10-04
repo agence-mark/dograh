@@ -62,8 +62,10 @@ export const SelectContent = ({ children }: { children?: ReactNode }) => {
     );
 };
 
-export const SelectItem = ({ value, children }: { value: string; children?: ReactNode }) => (
-    <option value={value}>{typeof children === "string" ? children : value}</option>
+export const SelectItem = ({ value, disabled, children }: { value: string; disabled?: boolean; children?: ReactNode }) => (
+    <option value={value} disabled={disabled}>
+        {typeof children === "string" ? children : value}
+    </option>
 );
 
 export const SelectGroup = ({ children }: { children?: ReactNode }) => <>{children}</>;

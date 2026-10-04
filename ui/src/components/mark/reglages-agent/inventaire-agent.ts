@@ -93,6 +93,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     max_call_duration: { theme: "rythme", cas: ["duree-max"] },
     // Données de l'appel
     fiche_au_fil_de_leau: { theme: "donnees", cas: ["fiche"] },
+    fiche_mode_de_note: { theme: "donnees", cas: ["mode-de-note"] },
     fiche_champs: { theme: "donnees", cas: ["fiche-champ"] },
     call_dispositions: { theme: "donnees", cas: ["issues-eteintes"] },
     transcript_configuration: { theme: "donnees", cas: ["transcription-horodatee"] },

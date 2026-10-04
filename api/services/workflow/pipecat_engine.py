@@ -71,9 +71,13 @@ from api.services.workflow.disposition_mapping import (
     get_disposition_mapping,
 )
 from api.services.workflow.fiche_au_fil_de_leau import (
+    MODE_OUTIL,
+    Notices,
     ReglagesFiche,
+    attendre_les_notes,
     balayer_la_fiche,
     brancher_noter_information,
+    consigne_du_mode,
     montrer_la_fiche,
     suivre_les_tours,
 )
@@ -166,12 +170,25 @@ class PipecatEngine:
         # Un agent reçu par transfert (éteint chez .mark) n'a pas de fiche.
         self._fiche = fiche
         self._llm_de_la_fiche = llm if fiche is not None else None
+        # Plan mode-prise-de-notes, lot 2 : une seule relance par tour ne
+        # concerne que l'outil ; sans outil, aucune note ne relance le modèle.
         self._tours_fiche = (
-            suivre_les_tours(llm) if fiche is not None and llm is not None else None
+            suivre_les_tours(llm)
+            if fiche is not None and llm is not None and fiche.mode == MODE_OUTIL
+            else None
         )
+        # Plan mode-prise-de-notes (D4) : sans outil, ce que la dernière note
+        # demande au modèle arrive au tour suivant, par l'état de la fiche.
+        self._notices_fiche = (
+            Notices() if fiche is not None and fiche.mode != MODE_OUTIL else None
+        )
+        # Les notes du post-scriptum encore en cours, attendues avant la passe de fin.
+        self.notes_du_post_scriptum: set[asyncio.Task] = set()
         if fiche is not None and llm is not None:
             # D14 : l'état de la fiche, montré à chaque requête de conversation.
-            montrer_la_fiche(llm, fiche, lambda: self._gathered_context)
+            montrer_la_fiche(
+                llm, fiche, lambda: self._gathered_context, self._notices_fiche
+            )
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
         # summarization). Falls back to the pipeline LLM when not provided.
@@ -817,8 +834,33 @@ class PipecatEngine:
             and self.active_agent.llm is self._llm_de_la_fiche
         )
 
+    @property
+    def fiche(self) -> Optional[ReglagesFiche]:
+        """[.mark] Les réglages de la fiche de l'appel (None : éteinte)."""
+        return self._fiche
+
+    @property
+    def notices_fiche(self) -> Optional[Notices]:
+        """[.mark] Plan mode-prise-de-notes (D4) : None en mode outil."""
+        return self._notices_fiche
+
+    def post_scriptum_attendu(self) -> bool:
+        """[.mark] L'étape en cours porte-t-elle la consigne du post-scriptum ?
+        Mêmes conditions que la consigne (``_prepare_node``) : l'agent qui porte
+        la fiche, hors étape de fin."""
+        agent = self.active_agent
+        node = getattr(agent, "current_node", None)
+        return (
+            self._fiche_sur_l_agent_actif()
+            and node is not None
+            and not node.is_end
+        )
+
     async def _balayer_la_fiche(self) -> Optional[dict]:
         """[.mark] D11 : le filet de fin d'appel, par le point d'écriture unique."""
+        # Plan mode-prise-de-notes : une note du post-scriptum encore en cours
+        # finit avant (bornée), sinon la passe la croiserait.
+        await attendre_les_notes(self.notes_du_post_scriptum)
         parent_context = self._get_otel_context()
         try:
             return await balayer_la_fiche(
@@ -911,8 +953,10 @@ class PipecatEngine:
         # [.mark] D12 : l'outil de la fiche n'existe que si l'interrupteur est
         # allumé. Pas sur une étape de fin (comme au lot 0). Seulement pour
         # l'agent dont le modèle porte la fiche (découpage par agent, fc76383c).
+        # Plan mode-prise-de-notes : et seulement en mode outil.
         if (
             self._fiche is not None
+            and self._fiche.mode == MODE_OUTIL
             and not node.is_end
             and agent.llm is self._llm_de_la_fiche
         ):
@@ -925,14 +969,24 @@ class PipecatEngine:
                     self._tours_fiche,
                 )
             )
+        texte = prompt.text
+        # [.mark] Plan mode-prise-de-notes (D3) : la consigne du mode, écrite par
+        # le code à la fin du prompt, là où l'outil serait proposé (mêmes
+        # conditions que D12 ci-dessus). Outil : rien.
+        if (
+            self._fiche is not None
+            and not node.is_end
+            and agent.llm is self._llm_de_la_fiche
+        ):
+            bloc = consigne_du_mode(self._fiche)
+            if bloc:
+                texte = f"{texte}\n\n{bloc}"
         agent.tools = ToolsSchema(standard_tools=functions)
-        agent.system_prompt = prompt.text
+        agent.system_prompt = texte
         if agent.recording_router is not None:
             agent.recording_router.set_enabled(prompt.recording_enabled)
         if apply_settings:
-            await agent.llm._update_settings(
-                LLMSettings(system_instruction=prompt.text)
-            )
+            await agent.llm._update_settings(LLMSettings(system_instruction=texte))
 
     async def _setup_llm_context(self, node: Node) -> None:
         agent = self.active_agent

@@ -136,6 +136,7 @@ def build_agent_generation_pipeline(
     # build_pipeline): a positional upstream caller cannot be misfed.
     *,
     filtre_nom_civilite=None,
+    post_scriptum=None,
 ):
     """Build the generation stage that runs in one agent visit's own worker.
 
@@ -150,11 +151,18 @@ def build_agent_generation_pipeline(
             passes it on. What it removes does not come back into the model's
             memory either, which is built downstream of the voice (the call
             pipeline's assistant aggregator). None leaves the list unchanged.
+        post_scriptum: [.mark] Optional PostScriptumProcessor (plan
+            mode-prise-de-notes). When provided, inserted just BEFORE the name
+            filter: the note the model writes after its separator never reaches
+            the filter, the voice, nor the model's memory. None leaves the list
+            unchanged.
     """
     processors = [llm, generation_callback_processor]
     if recording_router:
         processors.append(recording_router)
-    # [.mark] filtre du nom, puis TTS
+    # [.mark] post-scriptum, filtre du nom, puis TTS
+    if post_scriptum:
+        processors.append(post_scriptum)
     if filtre_nom_civilite:
         processors.append(filtre_nom_civilite)
     processors.append(tts)

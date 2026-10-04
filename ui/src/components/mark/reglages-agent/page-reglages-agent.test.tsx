@@ -208,3 +208,45 @@ describe("[.mark] the agent page in themes", () => {
         await waitFor(() => expect(document.querySelector('[data-theme="tour"]')?.textContent).toContain("Turn taking"));
     });
 });
+
+// [.mark] Plan mode-prise-de-notes, lot 6: the note-taking mode, rendered.
+describe("[.mark] the note-taking mode in the call data theme", () => {
+    const FICHE = {
+        fiche_au_fil_de_leau: true,
+        fiche_champs: [{ nom: "nom", type: "string", origine: "dicte", description: "Nom", lecteur: null, valeurs: null }],
+    };
+    const menu = () => document.getElementById("fiche_mode_de_note") as HTMLSelectElement | null;
+
+    it("shows the stored mode, read back from the server", async () => {
+        await ouvrir({ ...FICHE, fiche_mode_de_note: "post_scriptum" }, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(menu()?.value).toBe("post_scriptum"));
+    });
+
+    it("an agent saved before the setting reads « tool »", async () => {
+        await ouvrir(FICHE, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(menu()?.value).toBe("outil"));
+    });
+
+    it("is shown only with the record on, like in the code", async () => {
+        await ouvrir({ ...FICHE, fiche_au_fil_de_leau: false }, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(document.getElementById("fiche_au_fil_de_leau")).not.toBeNull());
+        expect(menu()).toBeNull();
+        fireEvent.click(document.getElementById("fiche_au_fil_de_leau") as HTMLElement);
+        await waitFor(() => expect(menu()).not.toBeNull());
+    });
+
+    it("offers the clerk greyed out until part 2", async () => {
+        await ouvrir(FICHE, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(menu()).not.toBeNull());
+        const options = Array.from(menu()!.options).map((o) => [o.value, o.disabled]);
+        expect(options).toEqual([
+            ["outil", false],
+            ["post_scriptum", false],
+            ["greffier", true],
+        ]);
+    });
+});

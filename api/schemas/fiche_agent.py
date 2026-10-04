@@ -198,6 +198,8 @@ NOMS_RESERVES = frozenset(
         "agent_visits",
         # traces des modules
         "communes_verifiees",
+        # plan mode-prise-de-notes : la trace de chaque post-scriptum
+        "post_scriptums",
         "voies_verifiees",
         "epellations_lues",
         "nombres_lus",

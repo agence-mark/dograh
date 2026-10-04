@@ -70,6 +70,8 @@ export const NOMS_RESERVES = [
     "nodes_visited",
     "agent_visits",
     "communes_verifiees",
+    // Plan mode-prise-de-notes: the trace of each postscript.
+    "post_scriptums",
     "voies_verifiees",
     "epellations_lues",
     "nombres_lus",
@@ -255,12 +257,12 @@ interface SectionFicheProps {
 /** The help of the call record switch, in both languages. */
 export const AIDES_FICHE: Texte[] = [
     {
-        en: "Off: the tool is not offered and the agent behaves exactly as before.",
-        fr: "Éteint : l'outil n'est pas proposé et l'agent se comporte exactement comme avant.",
+        en: "Off: nothing is written during the call and the agent behaves exactly as before.",
+        fr: "Éteint : rien n'est écrit pendant l'appel et l'agent se comporte exactement comme avant.",
     },
     {
-        en: "On: the step-by-step extraction stops, the record is written by the tool, and a final pass at the end of the call fills only the fields left empty. The town, street and spelling readers stop adding notes to what the model reads and answer the tool instead. A value the caller never said is refused. No effect in realtime mode.",
-        fr: "Allumé : l'extraction étape par étape s'arrête, la fiche est écrite par l'outil, et une passe finale en fin d'appel remplit seulement les champs restés vides. Les lecteurs de commune, de rue et d'épellation n'annotent plus ce que lit le modèle et répondent à l'outil. Une valeur jamais dite par l'appelant est refusée. Sans effet en mode temps réel.",
+        en: "On: the step-by-step extraction stops, the record is written during the call (note-taking mode), and a final pass at the end of the call fills only the fields left empty. The town, street and spelling readers stop adding notes to what the model reads and answer the note instead. A value the caller never said is refused. No effect in realtime mode.",
+        fr: "Allumé : l'extraction étape par étape s'arrête, la fiche est écrite pendant l'appel (mode de prise de notes), et une passe finale en fin d'appel remplit seulement les champs restés vides. Les lecteurs de commune, de rue et d'épellation n'annotent plus ce que lit le modèle et répondent à la note. Une valeur jamais dite par l'appelant est refusée. Sans effet en mode temps réel.",
     },
     {
         en: "⚠️ The agent's prompts must say how the record is filled. Prompts written for step-by-step extraction still ask for a step per piece of information.",

@@ -309,6 +309,7 @@ class AgentRuntimeFactory:
             generation_callbacks,
             recording_router=runtime.recording_router,
             filtre_nom_civilite=runtime.filtre_nom_civilite,  # [.mark]
+            post_scriptum=runtime.post_scriptum,  # [.mark]
         )
         call_tracing_context = getattr(self._call_worker, "_tracing_context", None)
         if call_tracing_context is None:
