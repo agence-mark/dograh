@@ -227,11 +227,11 @@ export const ThemeDonnees = ({
                 <ChampReglage
                     cle="fiche_au_fil_de_leau"
                     idControle="fiche_au_fil_de_leau"
-                    libelle={{ en: "Fill the call record with a tool", fr: "Remplir la fiche avec un outil" }}
+                    libelle={{ en: "Fill the call record during the call", fr: "Remplir la fiche pendant l'appel" }}
                     aides={[
                         {
-                            en: "Let the agent write and correct the call record at any moment of the call, whatever the step, with one tool: noter_information.",
-                            fr: "L'agent écrit et corrige la fiche à tout moment de l'appel, quelle que soit l'étape, avec un seul outil : noter_information.",
+                            en: "Let the agent write and correct the call record at any moment of the call, whatever the step. How it writes is the note-taking mode below.",
+                            fr: "L'agent écrit et corrige la fiche à tout moment de l'appel, quelle que soit l'étape. La façon dont il l'écrit est le mode de prise de notes, juste dessous.",
                         },
                         ...AIDES_FICHE,
                     ]}
