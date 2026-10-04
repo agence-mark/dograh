@@ -160,6 +160,20 @@ export const CAS_AGENT: CasAgent[] = [
     c("fiche", "call-record", "donnees", ["fiche_au_fil_de_leau"], [inter("fiche_au_fil_de_leau")]),
     // Plan mode-prise-de-notes (lot 6): added after the reorganisation, frozen once.
     c("mode-de-note", "ajout-mark", "donnees", ["fiche_mode_de_note"], [choisir("fiche_mode_de_note", "post_scriptum")]),
+    // Plan mode-prise-de-notes, part 2: the clerk's dialog, frozen once.
+    c("greffier", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_llm"], [
+        choisir("fiche_mode_de_note", "greffier"),
+        { type: "cliquer", nom: "Configure the clerk" },
+        saisir("greffier_modele", "mistral-small-2603"),
+        saisir("greffier_cle", "cle-de-reference"),
+        { type: "cliquer", nom: "Done" },
+    ]),
+    c("greffier-consigne", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_consigne"], [
+        choisir("fiche_mode_de_note", "greffier"),
+        { type: "cliquer", nom: "Configure the clerk" },
+        saisir("greffier_consigne", "Tu tiens la fiche."),
+        { type: "cliquer", nom: "Done" },
+    ]),
     c("fiche-champ", "call-record", "donnees", ["fiche_champs"], [
         { type: "cliquer", nom: "Edit fields" },
         saisir("fiche_nom_0", "nom_appelant"),

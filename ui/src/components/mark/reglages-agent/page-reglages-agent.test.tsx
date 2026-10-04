@@ -20,12 +20,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { FournisseurLangue } from "../langue/langue";
+import { CONSIGNE_GENERIQUE_GREFFIER } from "./consigne-greffier";
 import { INVENTAIRE_AGENT } from "./inventaire-agent";
 import { CONFIG_DE_REFERENCE } from "./references/config-de-reference";
 
 const m = vi.hoisted(() => ({
     config: null as unknown,
     userConfig: null as unknown,
+    // What the page saves: read by the clerk's tests below.
+    save: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -68,7 +71,7 @@ vi.mock("@/app/workflow/[workflowId]/hooks/useWorkflowState", () => ({
         widgetTextDefaults: {},
         templateContextVariables: {},
         dictionary: "",
-        saveWorkflowConfigurations: vi.fn().mockResolvedValue(undefined),
+        saveWorkflowConfigurations: m.save,
         saveTemplateContextVariables: vi.fn().mockResolvedValue(undefined),
         saveDictionary: vi.fn().mockResolvedValue(undefined),
     }),
@@ -103,7 +106,7 @@ describe("[.mark] the agent page in themes", () => {
     it("draws every setting the inventory puts on screen, in its theme", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
         for (const [cle, entree] of Object.entries(INVENTAIRE_AGENT)) {
-            if ("horsEcran" in entree || "via" in entree) continue;
+            if ("horsEcran" in entree || "via" in entree || SEULEMENT_EN_GREFFIER.includes(cle)) continue;
             const theme = ouvrirLeTheme(entree.theme);
             await waitFor(() => {
                 const trouve =
@@ -116,6 +119,22 @@ describe("[.mark] the agent page in themes", () => {
         }
         // Every key of the inventory, one after the other: slow under a full run.
     }, 30000);
+
+    // Plan mode-prise-de-notes, part 2: the clerk's settings are drawn only in
+    // its mode, like in the code (no clerk, nothing to set).
+    const SEULEMENT_EN_GREFFIER = ["greffier_llm", "greffier_consigne"];
+    it("draws the clerk's settings in the clerk mode only", async () => {
+        await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), fiche_mode_de_note: "greffier" }, NOVA);
+        const theme = ouvrirLeTheme("donnees");
+        for (const cle of SEULEMENT_EN_GREFFIER) {
+            await waitFor(() => expect(theme.querySelector(`[data-reglage="${cle}"]`), cle).not.toBeNull());
+        }
+        cleanup();
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const outil = ouvrirLeTheme("donnees");
+        await waitFor(() => expect(outil.querySelector('[data-reglage="fiche_mode_de_note"]')).not.toBeNull());
+        for (const cle of SEULEMENT_EN_GREFFIER) expect(outil.querySelector(`[data-reglage="${cle}"]`), cle).toBeNull();
+    });
 
     // C9 (chantier correctifs-banc-34, question n° 272): under a transcription
     // that decides the turns, the screen shows what plays and hides what does
@@ -238,7 +257,7 @@ describe("[.mark] the note-taking mode in the call data theme", () => {
         await waitFor(() => expect(menu()).not.toBeNull());
     });
 
-    it("offers the clerk greyed out until part 2", async () => {
+    it("offers the three modes, the clerk included (part 2)", async () => {
         await ouvrir(FICHE, NOVA);
         ouvrirLeTheme("donnees");
         await waitFor(() => expect(menu()).not.toBeNull());
@@ -246,7 +265,74 @@ describe("[.mark] the note-taking mode in the call data theme", () => {
         expect(options).toEqual([
             ["outil", false],
             ["post_scriptum", false],
-            ["greffier", true],
+            ["greffier", false],
         ]);
     });
 });
+
+describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2)", () => {
+    const MASQUE = "sk-***abcd";
+    const GREFFIER = {
+        fiche_au_fil_de_leau: true,
+        fiche_mode_de_note: "greffier",
+        fiche_champs: [{ nom: "nom", type: "string", origine: "dicte", description: "Nom", lecteur: null, valeurs: null }],
+        greffier_llm: { provider: "mistral", model: "mistral-small-2603", api_key: MASQUE },
+    };
+    const envoye = () => {
+        const appels = m.save.mock.calls as unknown as Array<[Record<string, unknown>]>;
+        return appels[appels.length - 1][0];
+    };
+    const enregistrer = async () => {
+        m.save.mockClear();
+        fireEvent.click(await screen.findByRole("button", { name: "Save Call data" }));
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        return envoye();
+    };
+    const regler = async () => {
+        await ouvrir(GREFFIER, NOVA);
+        ouvrirLeTheme("donnees");
+        fireEvent.click(await screen.findByRole("button", { name: "Configure the clerk" }));
+        await waitFor(() => expect(document.getElementById("greffier_modele")).not.toBeNull());
+    };
+    const saisir = (id: string, valeur: string) =>
+        fireEvent.change(document.getElementById(id) as HTMLElement, { target: { value: valeur } });
+
+    it("never shows the saved key, and sends its mask back untouched", async () => {
+        await regler();
+        expect((document.getElementById("greffier_cle") as HTMLInputElement).value).toBe("");
+        expect((document.getElementById("greffier_cle") as HTMLInputElement).type).toBe("password");
+        saisir("greffier_modele", "mistral-large-2512");
+        fireEvent.click(screen.getByRole("button", { name: "Done" }));
+        const charge = await enregistrer();
+        expect(charge.greffier_llm).toEqual({ provider: "mistral", model: "mistral-large-2512", api_key: MASQUE });
+        expect(charge.greffier_consigne ?? null).toBeNull();
+    });
+
+    it("« Use the conversation's key » removes the key", async () => {
+        await regler();
+        fireEvent.click(screen.getByRole("button", { name: "Use the conversation's key" }));
+        fireEvent.click(screen.getByRole("button", { name: "Done" }));
+        const charge = await enregistrer();
+        expect(charge.greffier_llm).toEqual({ provider: "mistral", model: "mistral-small-2603" });
+    });
+
+    it("instructions back to the template are sent empty", async () => {
+        await ouvrir({ ...GREFFIER, greffier_consigne: "Tu tiens la fiche." }, NOVA);
+        ouvrirLeTheme("donnees");
+        fireEvent.click(await screen.findByRole("button", { name: "Edit the instructions" }));
+        await waitFor(() => expect((document.getElementById("greffier_consigne") as HTMLTextAreaElement).value).toBe("Tu tiens la fiche."));
+        fireEvent.click(screen.getByRole("button", { name: "Back to the template" }));
+        expect((document.getElementById("greffier_consigne") as HTMLTextAreaElement).value).toBe(CONSIGNE_GENERIQUE_GREFFIER);
+        fireEvent.click(screen.getByRole("button", { name: "Done" }));
+        const charge = await enregistrer();
+        expect(charge.greffier_consigne).toBeNull();
+        expect(charge.greffier_llm).toEqual(GREFFIER.greffier_llm);
+    });
+
+    it("a temperature that is not a number blocks the save", async () => {
+        await regler();
+        saisir("greffier_temperature", "chaud");
+        expect(screen.getAllByText(/must be a number/).length).toBeGreaterThan(0);
+    });
+});
+

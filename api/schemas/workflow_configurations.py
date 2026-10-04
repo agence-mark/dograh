@@ -762,7 +762,28 @@ class WorkflowConfigurationDefaults(BaseModel):
             "model calls noter_information, then speaks in a second pass. "
             "Postscript: the model speaks, then writes its note after a separator "
             "in the same answer; the note is never spoken. Clerk: a second model "
-            "keeps the record alongside the agent (not available yet)."
+            "keeps the record alongside the agent, the agent only speaks."
+        ),
+    )
+    # [.mark] Plan mode-prise-de-notes, partie 2 (D8, D10) : le greffier. Son
+    # modèle, au format d'une surcharge de modèle (`model_overrides.llm`) : clé
+    # absente = celle de la conversation ; clé masquée dans les réponses de l'API
+    # et remise à sa valeur à l'enregistrement, comme les surcharges (Evan, 04/10).
+    greffier_llm: dict | None = Field(
+        default=None,
+        description=(
+            "The clerk's model, when the note-taking mode is Clerk: provider, model, "
+            "settings and its own API key. Empty fields come from the conversation "
+            "model; an empty key uses the conversation's key (and its rate limit)."
+        ),
+    )
+    greffier_consigne: str | None = Field(
+        default=None,
+        max_length=20000,
+        description=(
+            "The clerk's instructions. Empty: the generic instructions written in "
+            "the code. The record's fields and the expected answer format are "
+            "always added by the code."
         ),
     )
     fiche_champs: list[ChampFiche] = Field(
@@ -856,15 +877,30 @@ class WorkflowConfigurationDefaults(BaseModel):
         """[.mark] A reserved or duplicated field name is refused (422 on save)."""
         return verifier_champs(value)
 
-    @field_validator("fiche_mode_de_note")
+    @field_validator("greffier_llm")
     @classmethod
-    def fiche_mode_de_note_disponible(cls, value: str) -> str:
-        """[.mark] D1 : the clerk is refused (422 on save) until part 2 ships."""
-        if value == "greffier":
-            raise ValueError(
-                "the clerk note-taking mode is not available yet: choose the "
-                "tool or the postscript"
-            )
+    def greffier_llm_valide(cls, value: dict | None) -> dict | None:
+        """[.mark] The clerk's model block, the shape of a model override: text
+        fields stay text, so a bad save is refused (422) rather than read as
+        an unusable clerk at call time."""
+        if value is None:
+            return None
+        for cle in ("provider", "model", "base_url", "endpoint"):
+            if cle in value and value[cle] is not None and not isinstance(value[cle], str):
+                raise ValueError(f"greffier_llm.{cle} must be text")
+        for cle in ("temperature", "top_p"):
+            if cle in value and value[cle] is not None and not isinstance(value[cle], (int, float)):
+                raise ValueError(f"greffier_llm.{cle} must be a number")
+        fournisseur = value.get("provider")
+        if fournisseur:
+            from api.services.configuration.registry import ServiceProviders
+
+            connus = {p.value for p in ServiceProviders}
+            if fournisseur not in connus:
+                raise ValueError(
+                    f"greffier_llm.provider '{fournisseur}' is unknown: "
+                    f"use one of {', '.join(sorted(connus))}"
+                )
         return value
 
     @field_validator("variables_commune", mode="before")

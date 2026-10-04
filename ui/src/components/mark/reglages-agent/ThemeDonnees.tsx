@@ -26,14 +26,22 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useOrgConfig } from "@/context/OrgConfigContext";
-import type { CallDispositionOption, ChampFiche, ExternalPBXFieldMapping, FicheModeDeNote } from "@/types/workflow-configurations";
+import type {
+    CallDispositionOption,
+    ChampFiche,
+    ExternalPBXFieldMapping,
+    FicheModeDeNote,
+    GreffierLlm,
+} from "@/types/workflow-configurations";
 
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
 import { AIDES_FICHE, EditeurChampsFiche, pourComparerLaFiche, texteErreursDesChamps } from "../SectionFiche";
+import { CONSIGNE_GENERIQUE_GREFFIER } from "./consigne-greffier";
 import { useEnregistrementTheme } from "./enregistrement";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useEtatTheme, useRevelation } from "./theme-commun";
 
@@ -53,10 +61,20 @@ export const AIDES_MODE_DE_NOTE: Texte[] = [
         fr: "Post-scriptum : l'agent parle, puis écrit sa note après un séparateur dans la même réponse. Une seule passe, la note n'est jamais dite ; ce que les contrôles demandent arrive à l'agent au tour suivant.",
     },
     {
+        en: "Clerk: a second model keeps the record alongside the agent, which only speaks. It rereads the whole conversation after each answer of the agent; one pass at a time, a pass refused for rate limit is skipped. Its model, key and instructions are set in « Configure the clerk ».",
+        fr: "Greffier : un second modèle tient la fiche à côté de l'agent, qui parle seulement. Il relit toute la conversation après chaque réponse de l'agent ; une passe à la fois, une passe refusée pour quota est sautée. Son modèle, sa clé et sa consigne se règlent dans « Régler le greffier ».",
+    },
+    {
         en: "Switching mode changes no prompt: write « you note it », never the tool's name. The end-of-call pass stays in every mode.",
         fr: "Changer de mode ne demande de retoucher aucun prompt : écrire « tu le notes », jamais le nom de l'outil. La passe de fin d'appel reste dans tous les modes.",
     },
 ];
+
+// The clerk's block, compared key by key whatever the order of its keys.
+const pourComparerLeGreffier = (bloc: GreffierLlm | null | undefined) =>
+    bloc && Object.keys(bloc).length > 0
+        ? JSON.stringify(Object.fromEntries(Object.entries(bloc).sort(([a], [b]) => a.localeCompare(b))))
+        : null;
 
 export const ThemeDonnees = ({
     resolue,
@@ -94,6 +112,52 @@ export const ThemeDonnees = ({
         setChamps(champsRelus);
     }, [ficheEnregistree]);
 
+    // ---- The clerk (plan mode-prise-de-notes, part 2) ---------------------------
+    // Its key comes back MASKED from the server: left untouched, the mask is
+    // sent back and the server restores the real key (Evan, 04/10: « comme
+    // Dograh »). A key typed replaces it; « conversation's key » removes it.
+    const greffierEnregistre = useMemo(() => (resolue.greffier_llm ?? null) as GreffierLlm | null, [resolue.greffier_llm]);
+    const consigneEnregistree = resolue.greffier_consigne ?? null;
+    const [fournisseurGreffier, setFournisseurGreffier] = useState("");
+    const [modeleGreffier, setModeleGreffier] = useState("");
+    const [temperatureGreffier, setTemperatureGreffier] = useState("");
+    const [cleGreffier, setCleGreffier] = useState("");
+    const [cleRetiree, setCleRetiree] = useState(false);
+    const [consigne, setConsigne] = useState(consigneEnregistree ?? CONSIGNE_GENERIQUE_GREFFIER);
+    const greffierRelu = JSON.stringify([greffierEnregistre, consigneEnregistree]);
+    useEffect(() => {
+        const [bloc, texte] = JSON.parse(greffierRelu) as [GreffierLlm | null, string | null];
+        setFournisseurGreffier(bloc?.provider ?? "");
+        setModeleGreffier(bloc?.model ?? "");
+        setTemperatureGreffier(bloc?.temperature === undefined || bloc?.temperature === null ? "" : String(bloc.temperature));
+        setCleGreffier("");
+        setCleRetiree(false);
+        setConsigne(texte ?? CONSIGNE_GENERIQUE_GREFFIER);
+    }, [greffierRelu]);
+    const temperatureValide = temperatureGreffier.trim() === "" || Number.isFinite(Number(temperatureGreffier.replace(",", ".")));
+    const blocGreffier = (): GreffierLlm | null => {
+        const bloc: GreffierLlm = { ...(greffierEnregistre ?? {}) };
+        const poser = (cle: string, valeur: unknown) => {
+            if (valeur === undefined) delete bloc[cle];
+            else bloc[cle] = valeur;
+        };
+        poser("provider", fournisseurGreffier.trim() || undefined);
+        poser("model", modeleGreffier.trim() || undefined);
+        poser(
+            "temperature",
+            temperatureGreffier.trim() && temperatureValide ? Number(temperatureGreffier.replace(",", ".")) : undefined,
+        );
+        if (cleGreffier.trim()) poser("api_key", cleGreffier.trim());
+        else if (cleRetiree) poser("api_key", undefined);
+        return Object.keys(bloc).length > 0 ? bloc : null;
+    };
+    const greffierModifie = pourComparerLeGreffier(blocGreffier()) !== pourComparerLeGreffier(greffierEnregistre);
+    // Saved equal to the template (or emptied), the instructions are sent empty:
+    // the agent then follows the template when the template improves.
+    const consigneEnvoyee = consigne.trim() === "" || consigne === CONSIGNE_GENERIQUE_GREFFIER ? null : consigne;
+    const consigneModifiee = consigneEnvoyee !== consigneEnregistree;
+    const cleEnregistree = typeof greffierEnregistre?.api_key === "string" && greffierEnregistre.api_key !== "" && !cleRetiree;
+
     // ---- Dograh's « General » parts ------------------------------------------
     const [lignesIssues, setLignesIssues] = useState<CallDispositionRow[]>(() => createCallDispositionRows(resolue.call_dispositions));
     const issuesNormalisees = useMemo(() => normalizeCallDispositions(lignesIssues), [lignesIssues]);
@@ -106,7 +170,7 @@ export const ThemeDonnees = ({
 
     const [correspondances, setCorrespondances] = useState<ExternalPBXFieldMapping[]>(resolue.external_pbx_field_mappings);
     const [champsProspect, setChampsProspect] = useState<string[]>(resolue.external_pbx_lead_headers);
-    const [fenetre, setFenetre] = useState<"correspondance" | "prospect" | null>(null);
+    const [fenetre, setFenetre] = useState<"correspondance" | "prospect" | "greffier" | null>(null);
     const correspondancesValides = correspondances.every(
         (m) => Boolean(m.context_path.trim()) && NOM_DE_CHAMP_PBX.test(m.destination_field.trim()),
     );
@@ -126,6 +190,13 @@ export const ThemeDonnees = ({
                 en: "a field has a problem: open the fields to fix it.",
                 fr: "un champ a un problème : ouvrez les champs pour le corriger.",
             },
+        });
+    }
+    if (!temperatureValide) {
+        erreurs.push({
+            cle: "greffier_llm",
+            libelle: { en: "Clerk", fr: "Greffier" },
+            message: { en: "the temperature must be a number.", fr: "la température doit être un nombre." },
         });
     }
     if (!issuesValides) {
@@ -156,7 +227,7 @@ export const ThemeDonnees = ({
         });
     }
 
-    const modifie = ficheModifiee || modeModifie || generalModifie;
+    const modifie = ficheModifiee || modeModifie || greffierModifie || consigneModifiee || generalModifie;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -176,6 +247,17 @@ export const ThemeDonnees = ({
                 nom: { en: "Note-taking mode", fr: "Mode de prise de notes" },
                 modifie: modeModifie,
                 config: () => ({ fiche_mode_de_note: modeDeNote }),
+            },
+            {
+                // The clerk's two parts, each sent only when changed (E6).
+                nom: { en: "Clerk model", fr: "Modèle du greffier" },
+                modifie: greffierModifie,
+                config: () => ({ greffier_llm: blocGreffier() }),
+            },
+            {
+                nom: { en: "Clerk instructions", fr: "Consigne du greffier" },
+                modifie: consigneModifiee,
+                config: () => ({ greffier_consigne: consigneEnvoyee }),
             },
             {
                 nom: { en: "Call data settings", fr: "Réglages des données de l'appel" },
@@ -210,7 +292,11 @@ export const ThemeDonnees = ({
             resume={[
                 ficheActive
                     ? `${t({ en: "Record", fr: "Fiche" })} · ${champs.length} ${t({ en: "fields", fr: "champs" })}${
-                          modeDeNote === "post_scriptum" ? ` · ${t({ en: "Postscript", fr: "Post-scriptum" })}` : ""
+                          modeDeNote === "post_scriptum"
+                              ? ` · ${t({ en: "Postscript", fr: "Post-scriptum" })}`
+                              : modeDeNote === "greffier"
+                                ? ` · ${t({ en: "Clerk", fr: "Greffier" })}`
+                                : ""
                       }`
                     : t({ en: "Record off", fr: "Fiche éteinte" }),
                 lignesIssues.length > 0
@@ -256,11 +342,57 @@ export const ThemeDonnees = ({
                             <SelectContent>
                                 <SelectItem value="outil">{t({ en: "Tool", fr: "Outil" })}</SelectItem>
                                 <SelectItem value="post_scriptum">{t({ en: "Postscript", fr: "Post-scriptum" })}</SelectItem>
-                                <SelectItem value="greffier" disabled>
-                                    {t({ en: "Clerk (part 2, not available yet)", fr: "Greffier (partie 2, pas encore disponible)" })}
-                                </SelectItem>
+                                <SelectItem value="greffier">{t({ en: "Clerk", fr: "Greffier" })}</SelectItem>
                             </SelectContent>
                         </Select>
+                    </ChampReglage>
+                )}
+                {/* Part 2: the clerk's settings, only in its mode, in a dialog (convention E4). */}
+                {ficheActive && modeDeNote === "greffier" && (
+                    <ChampReglage
+                        cle="greffier_llm"
+                        libelle={{ en: "Clerk", fr: "Greffier" }}
+                        aides={[
+                            {
+                                en: "The clerk's model, its own API key and its instructions. Empty fields come from the conversation model; by default, Mistral Large.",
+                                fr: "Le modèle du greffier, sa propre clé API et sa consigne. Un champ vide reprend le modèle de la conversation ; par défaut, Mistral Large.",
+                            },
+                        ]}
+                    >
+                        <div className="flex items-center justify-between gap-3 rounded border p-3 text-sm">
+                            <span>
+                                {modeleGreffier.trim() || t({ en: "Model by default", fr: "Modèle par défaut" })} ·{" "}
+                                {cleGreffier.trim() || cleEnregistree
+                                    ? t({ en: "own key", fr: "clé propre" })
+                                    : t({ en: "conversation's key", fr: "clé de la conversation" })}
+                            </span>
+                            <Button variant="outline" size="sm" onClick={() => setFenetre("greffier")}>
+                                {t({ en: "Configure the clerk", fr: "Régler le greffier" })}
+                            </Button>
+                        </div>
+                    </ChampReglage>
+                )}
+                {ficheActive && modeDeNote === "greffier" && (
+                    <ChampReglage
+                        cle="greffier_consigne"
+                        libelle={{ en: "Clerk instructions", fr: "Consigne du greffier" }}
+                        aides={[
+                            {
+                                en: "What the clerk is told before each pass. By default the generic template, with no trade vocabulary; what is specific to a trade goes here, agent by agent.",
+                                fr: "Ce qui est dit au greffier avant chaque passe. Par défaut le modèle générique, sans vocabulaire de métier ; ce qui est propre à un métier s'écrit ici, agent par agent.",
+                            },
+                        ]}
+                    >
+                        <div className="flex items-center justify-between gap-3 rounded border p-3 text-sm">
+                            <span>
+                                {consigneEnvoyee === null
+                                    ? t({ en: "Generic template", fr: "Modèle générique" })
+                                    : t({ en: "Own instructions", fr: "Consigne propre" })}
+                            </span>
+                            <Button variant="outline" size="sm" onClick={() => setFenetre("greffier")}>
+                                {t({ en: "Edit the instructions", fr: "Modifier la consigne" })}
+                            </Button>
+                        </div>
                     </ChampReglage>
                 )}
                 <div id="reglage-fiche_champs" data-reglage="fiche_champs" className="space-y-2">
@@ -353,6 +485,139 @@ export const ThemeDonnees = ({
                     })}
                 </p>
             )}
+
+            <Dialog open={fenetre === "greffier"} onOpenChange={(o) => setFenetre(o ? "greffier" : null)}>
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>{t({ en: "Clerk", fr: "Greffier" })}</DialogTitle>
+                        <DialogDescription>
+                            {t({
+                                en: "A second model keeps the record alongside the agent. Empty fields come from the conversation model.",
+                                fr: "Un second modèle tient la fiche à côté de l'agent. Un champ vide reprend le modèle de la conversation.",
+                            })}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div className="space-y-1">
+                                <label htmlFor="greffier_fournisseur" className="text-sm font-medium">
+                                    {t({ en: "Provider", fr: "Fournisseur" })}
+                                </label>
+                                <Input
+                                    id="greffier_fournisseur"
+                                    value={fournisseurGreffier}
+                                    onChange={(e) => setFournisseurGreffier(e.target.value)}
+                                    placeholder={t({ en: "as the conversation", fr: "comme la conversation" })}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label htmlFor="greffier_modele" className="text-sm font-medium">
+                                    {t({ en: "Model", fr: "Modèle" })}
+                                </label>
+                                <Input
+                                    id="greffier_modele"
+                                    value={modeleGreffier}
+                                    onChange={(e) => setModeleGreffier(e.target.value)}
+                                    placeholder={t({ en: "mistral-large-2512", fr: "mistral-large-2512" })}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label htmlFor="greffier_temperature" className="text-sm font-medium">
+                                    {t({ en: "Temperature", fr: "Température" })}
+                                </label>
+                                <Input
+                                    id="greffier_temperature"
+                                    inputMode="decimal"
+                                    value={temperatureGreffier}
+                                    onChange={(e) => setTemperatureGreffier(e.target.value)}
+                                    placeholder={t({ en: "as the conversation", fr: "comme la conversation" })}
+                                />
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            {t({
+                                en: "Provider as named in the model settings (for example mistral). Without a model, Mistral uses mistral-large-2512.",
+                                fr: "Le fournisseur tel qu'il est nommé dans les réglages des modèles (par exemple mistral). Sans modèle, Mistral prend mistral-large-2512.",
+                            })}
+                        </p>
+                        {!temperatureValide && (
+                            <p className="text-xs text-destructive">
+                                {t({ en: "The temperature must be a number.", fr: "La température doit être un nombre." })}
+                            </p>
+                        )}
+                        <div className="space-y-1">
+                            <label htmlFor="greffier_cle" className="text-sm font-medium">
+                                {t({ en: "API key", fr: "Clé API" })}
+                            </label>
+                            <div className="flex gap-2">
+                                <Input
+                                    id="greffier_cle"
+                                    type="password"
+                                    autoComplete="off"
+                                    value={cleGreffier}
+                                    onChange={(e) => setCleGreffier(e.target.value)}
+                                    placeholder={
+                                        cleEnregistree
+                                            ? `${t({ en: "Saved key", fr: "Clé enregistrée" })} ${String(greffierEnregistre?.api_key)}`
+                                            : t({ en: "Empty: the conversation's key", fr: "Vide : la clé de la conversation" })
+                                    }
+                                />
+                                {(cleEnregistree || cleGreffier) && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            setCleGreffier("");
+                                            setCleRetiree(true);
+                                        }}
+                                    >
+                                        {t({ en: "Use the conversation's key", fr: "Prendre la clé de la conversation" })}
+                                    </Button>
+                                )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {t({
+                                    en: "A saved key is never shown again. Empty, the clerk uses the conversation's key, and its rate limit: Mistral limits each organization, so for the clerk not to share the agent's limit, the key must come from another Mistral organization.",
+                                    fr: "Une clé enregistrée n'est jamais réaffichée. Vide, le greffier prend la clé de la conversation, et son quota : Mistral limite chaque organisation, donc pour que le greffier ne partage pas la limite de l'agent, la clé doit venir d'une autre organisation Mistral.",
+                                })}
+                            </p>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                                <label htmlFor="greffier_consigne" className="text-sm font-medium">
+                                    {t({ en: "Instructions", fr: "Consigne" })}
+                                </label>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={consigne === CONSIGNE_GENERIQUE_GREFFIER}
+                                    onClick={() => setConsigne(CONSIGNE_GENERIQUE_GREFFIER)}
+                                >
+                                    {t({ en: "Back to the template", fr: "Revenir au modèle" })}
+                                </Button>
+                            </div>
+                            <Textarea
+                                id="greffier_consigne"
+                                rows={12}
+                                value={consigne}
+                                onChange={(e) => setConsigne(e.target.value)}
+                                className="font-mono text-xs"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                {t({
+                                    en: "Prefilled with the generic template, which has no trade vocabulary. The record's fields and the expected answer format are always added by the code.",
+                                    fr: "Préremplie du modèle générique, sans vocabulaire de métier. Les champs de la fiche et le format de la réponse sont toujours ajoutés par le code.",
+                                })}
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setFenetre(null)}>{t({ en: "Done", fr: "Terminé" })}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={fenetre === "correspondance"} onOpenChange={(o) => setFenetre(o ? "correspondance" : null)}>
                 <DialogContent className="sm:max-w-2xl">

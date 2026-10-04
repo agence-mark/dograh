@@ -1,13 +1,13 @@
 """[.mark] Le réglage « mode de prise de notes » : données seules (plan mode-prise-de-notes, lot 1).
 
 Plan `Labo-agent-vocal/plans/mode-prise-de-notes/`, D1 : un menu à trois valeurs par agent,
-outil (défaut, le comportement d'avant), post-scriptum, greffier (refusé tant que la partie 2
-n'est pas livrée). L'estampille du run dit le mode JOUÉ.
+outil (défaut, le comportement d'avant), post-scriptum, greffier (partie 2, livrée sur la
+branche `chantier/mode-prise-de-notes-2`). L'estampille du run dit le mode JOUÉ.
 
 | Test | Ce qu'il prouve |
 |---|---|
 | défaut | un agent sans le réglage est en mode outil, au schéma comme à l'appel |
-| route | le post-scriptum s'enregistre ; le greffier et une valeur inconnue sont refusés (422) sans rien écrire |
+| route | le post-scriptum et le greffier s'enregistrent ; une valeur inconnue est refusée (422) sans rien écrire |
 | lecture | une configuration écrite à la main avec une valeur injouable est lue « outil », jamais un appel perdu |
 | estampille | le clavier, par ses vraies routes, écrit le mode joué dans `runtime_configuration` ; fiche éteinte : rien |
 | deux chemins | le téléphone et le clavier appellent tous deux l'estampille |
@@ -21,6 +21,7 @@ from pydantic import ValidationError
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_MODE,
+    MODE_GREFFIER,
     MODE_OUTIL,
     MODE_POST_SCRIPTUM,
     ReglagesFiche,
@@ -61,18 +62,22 @@ def test_la_route_ecrit_le_post_scriptum():
     assert ecrit[CLE_MODE] == MODE_POST_SCRIPTUM
 
 
-@pytest.mark.parametrize("refuse", ["greffier", "clerk", "", "OUTIL"])
-def test_la_route_refuse_un_mode_indisponible_et_n_ecrit_rien(refuse):
+def test_la_route_ecrit_le_greffier():
+    reponse, ecrit = _enregistrer({**FICHE, CLE_MODE: MODE_GREFFIER})
+    assert reponse.status_code == 200, reponse.text
+    assert ecrit[CLE_MODE] == MODE_GREFFIER
+
+
+@pytest.mark.parametrize("refuse", ["clerk", "", "OUTIL"])
+def test_la_route_refuse_un_mode_inconnu_et_n_ecrit_rien(refuse):
     reponse, ecrit = _enregistrer({**FICHE, CLE_MODE: refuse})
     assert reponse.status_code == 422, reponse.text
     assert ecrit is None
 
 
-def test_le_greffier_est_refuse_avec_un_message_clair():
-    with pytest.raises(
-        ValidationError, match="clerk note-taking mode is not available yet"
-    ):
-        WorkflowConfigurationDefaults(fiche_mode_de_note="greffier")
+def test_une_valeur_inconnue_est_refusee_au_schema():
+    with pytest.raises(ValidationError):
+        WorkflowConfigurationDefaults(fiche_mode_de_note="clerk")
 
 
 # --------------------------------------------------------------------------- #
@@ -80,7 +85,12 @@ def test_le_greffier_est_refuse_avec_un_message_clair():
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("injouable", ["greffier", "n_importe_quoi", 3])
+def test_le_greffier_est_lu():
+    reglages = ReglagesFiche.depuis({**FICHE, CLE_MODE: MODE_GREFFIER})
+    assert reglages.mode == MODE_GREFFIER
+
+
+@pytest.mark.parametrize("injouable", ["clerk", "n_importe_quoi", 3])
 def test_une_valeur_injouable_ecrite_a_la_main_est_lue_outil(injouable):
     reglages = ReglagesFiche.depuis({**FICHE, CLE_MODE: injouable})
     assert reglages is not None

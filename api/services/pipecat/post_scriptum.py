@@ -408,5 +408,5 @@ def post_scriptum_du_moteur(engine: Any) -> PostScriptumProcessor | None:
         messages=lambda: engine.context.get_messages() if engine.context else [],
         notices=engine.notices_fiche,
         attendu=engine.post_scriptum_attendu,
-        notes_en_cours=engine.notes_du_post_scriptum,
+        notes_en_cours=engine.notes_en_cours,
     )

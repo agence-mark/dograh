@@ -635,7 +635,7 @@ async def test_mineur_4_la_fabrique_du_moteur_joue_ses_lectures(three_node_workf
         ],
         start_timeout=DEMARRAGE_S,
     )
-    await attendre_les_notes(engine.notes_du_post_scriptum)
+    await attendre_les_notes(engine.notes_en_cours)
     fiche = engine._gathered_context
     assert fiche["nom"] == "Dupont"  # dit dans la conversation lue par la fabrique
     assert "motif" not in fiche  # jamais dit : refusé, comme avec l'outil

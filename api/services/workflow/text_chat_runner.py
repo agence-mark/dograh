@@ -54,6 +54,7 @@ from api.services.pipecat.etat_ouverture import (
 )
 from api.services.pipecat.lecture_appelant import lire_message_tape
 from api.services.pipecat.pipeline_builder import create_pipeline_task
+from api.services.pipecat.greffier import greffier_du_moteur, preparer_le_greffier
 from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
@@ -65,6 +66,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_JOURNAL,
     ReglagesFiche,
     attendre_les_notes,
+    delai_des_notes,
     estampiller_le_mode,
 )
 from api.services.pipecat.recording_audio_cache import create_recording_audio_fetcher
@@ -644,6 +646,12 @@ async def execute_text_chat_pending_turn(
     # [.mark] The record, read once: the stamp says the note-taking mode the
     # keyboard PLAYED (plan mode-prise-de-notes), the engine gets the same.
     reglages_fiche = ReglagesFiche.depuis(run_configs, lexique=lexique_metier)
+    reglages_fiche, service_greffier = preparer_le_greffier(
+        reglages_fiche,
+        run_configs,
+        user_config,
+        initial_context["runtime_configuration"],
+    )
     estampiller_le_mode(initial_context["runtime_configuration"], reglages_fiche)
 
     base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
@@ -798,7 +806,9 @@ async def execute_text_chat_pending_turn(
     # [.mark] Plan mode-prise-de-notes (lot 5): the keyboard plays the postscript
     # like the phone (C8), right after the model, so what is captured, shown and
     # kept in memory is what the voice would have said. None outside that mode.
-    post_scriptum = post_scriptum_du_moteur(engine)
+    post_scriptum = post_scriptum_du_moteur(engine) or greffier_du_moteur(
+        engine, service_greffier, run_configs.get("greffier_consigne")
+    )
     pipeline = Pipeline(
         [
             p
@@ -911,8 +921,9 @@ async def execute_text_chat_pending_turn(
             await engine.close_mcp_sessions()
             await engine.cleanup()
 
-    # [.mark] A postscript note still being written belongs to this turn's record.
-    await attendre_les_notes(engine.notes_du_post_scriptum)
+    # [.mark] A postscript note or a clerk pass still being written belongs to
+    # this turn's record (the clerk waits for a second model: a longer bound).
+    await attendre_les_notes(engine.notes_en_cours, delai_des_notes(engine.fiche))
     gathered_context = await engine.get_gathered_context()
     assistant_text = (
         "\n\n".join(part for part in response_window.outputs if part).strip()

@@ -70,8 +70,9 @@ export const NOMS_RESERVES = [
     "nodes_visited",
     "agent_visits",
     "communes_verifiees",
-    // Plan mode-prise-de-notes: the trace of each postscript.
+    // Plan mode-prise-de-notes: the trace of each postscript and each clerk pass.
     "post_scriptums",
+    "greffier_passes",
     "voies_verifiees",
     "epellations_lues",
     "nombres_lus",

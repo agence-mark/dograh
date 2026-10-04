@@ -75,6 +75,7 @@ from api.services.pipecat.realtime_feedback_observer import (
     register_turn_log_handlers,
 )
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
+from api.services.pipecat.greffier import greffier_du_moteur, preparer_le_greffier
 from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.reconnaissance_lexique import (
     CLE_TRACE_LEXIQUE,
@@ -1096,6 +1097,15 @@ async def _run_pipeline_impl(
     reglages_fiche = ReglagesFiche.depuis(
         run_configs, is_realtime=is_realtime, lexique=lexique_metier
     )
+    # Partie 2 : le modèle du greffier, construit avant le moteur ; s'il ne se
+    # construit pas, l'appel est joué en mode outil (et estampillé tel).
+    reglages_fiche, service_greffier = preparer_le_greffier(
+        reglages_fiche,
+        run_configs,
+        user_config,
+        runtime_configuration,
+        correlation_id=mps_correlation_id,
+    )
     estampiller_le_mode(runtime_configuration, reglages_fiche)
     if not is_realtime:
         # ⚠️ The guard is about REALTIME, not about the keyboard bench: a
@@ -1665,9 +1675,12 @@ async def _run_pipeline_impl(
         agent.filtre_nom_civilite = creer_filtre_nom_civilite(
             run_configs, variables_appel
         )
-        # [.mark] Plan mode-prise-de-notes : le post-scriptum, sur l'agent qui
-        # porte la fiche (le premier), seulement dans ce mode.
-        agent.post_scriptum = post_scriptum_du_moteur(engine)
+        # [.mark] Plan mode-prise-de-notes : le post-scriptum ou le déclencheur
+        # du greffier, sur l'agent qui porte la fiche (le premier), seulement
+        # dans leur mode (le slot reçoit le processeur de prise de notes).
+        agent.post_scriptum = post_scriptum_du_moteur(engine) or greffier_du_moteur(
+            engine, service_greffier, run_configs.get("greffier_consigne")
+        )
 
     # Initialize the engine to set the initial context with
     # System Prompt and Tools

@@ -62,8 +62,9 @@ def _application() -> FastAPI:
     return app
 
 
-def _enregistrer(configurations: dict):
-    """PUT the settings through the route; return (response, written configuration)."""
+def _enregistrer(configurations: dict, existantes: dict | None = None):
+    """PUT the settings through the route; return (response, written configuration).
+    ``existantes``: the configuration already saved (the published version)."""
     client = TestClient(_application())
     workflow = SimpleNamespace(
         id=1,
@@ -76,7 +77,7 @@ def _enregistrer(configurations: dict):
         call_disposition_codes={},
         released_definition=SimpleNamespace(
             workflow_json={},
-            workflow_configurations={},
+            workflow_configurations=existantes or {},
             template_context_variables={},
             version_number=1,
             status="published",
