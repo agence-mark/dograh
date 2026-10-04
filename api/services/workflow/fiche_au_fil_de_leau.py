@@ -30,6 +30,7 @@ muet). Avec une autre fonction dans le tour, ou sans note : Pipecat, inchangé.
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import unicodedata
 from collections.abc import Callable, Iterable
@@ -2764,6 +2765,84 @@ def creer_gestionnaire(
     return noter_information
 
 
+# --- Les consignes de mode (plan mode-prise-de-notes, lot 3) ------------------
+
+# D6 : fixé dans le code, jamais réglable. Celui du rejeu du 04/10 (128 tours sur 128).
+SEPARATEUR = "|||"
+DEBUT_PRISE_DE_NOTES, FIN_PRISE_DE_NOTES = "<prise_de_notes>", "</prise_de_notes>"
+
+# La consigne du rejeu du 04/10 (`agents/nuances-de-feu/essais/2026-10-04-voie-b-post-scriptum`),
+# reprise au mot, plus ce que l'outil disait déjà au modèle (écrire tel que dit,
+# NOTE_DESCRIPTIONS). ⛔ Aucun mot de métier : les champs viennent de la fiche de l'agent.
+CONSIGNE_POST_SCRIPTUM = (
+    "# Ta réponse, à chaque tour : deux parties, toujours dans cet ordre\n"
+    "1. Ce que tu dis à la personne : une ou deux phrases parlées, comme "
+    "d'habitude. Rien d'autre.\n"
+    "2. À la ligne, le séparateur {separateur} seul, puis ta note : un objet JSON "
+    "dont les clés sont des noms de champs ci-dessous et les valeurs ce que la "
+    "personne vient de dire ou de corriger DANS CE TOUR (ou plus tôt, si ça manque "
+    "encore à la fiche). S'il n'y a rien à noter, écris {{}} après le séparateur.\n"
+    "Jamais de JSON ni de nom de champ avant le séparateur. Jamais de texte après "
+    "la note. La note n'est pas lue à la personne. Écris chaque valeur telle que la "
+    "personne l'a dite, sans rien compléter ni inventer.\n\n"
+    "# Les champs de la fiche\n"
+    "{champs}\n"
+    "{note_descriptions}"
+)
+
+
+def consigne_du_mode(reglages: ReglagesFiche | None) -> str | None:
+    """D3 : le bloc que le CODE ajoute à la fin du prompt système selon le mode,
+    pour que les prompts de l'agent restent neutres (« tu le notes »). Calculé à
+    chaque étape, jamais enregistré : rien à retirer en revenant à l'outil, et
+    fixe pendant l'appel (le début de la requête ne bouge pas, cache intact).
+
+    Outil : rien (le comportement d'avant, la description de l'outil suffit)."""
+    if reglages is None or reglages.mode != MODE_POST_SCRIPTUM:
+        return None
+    champs = "\n".join(
+        f"- {champ.nom} : {_propriete(champ)['description']}"
+        for champ in reglages.champs
+    )
+    return "\n".join(
+        [
+            DEBUT_PRISE_DE_NOTES,
+            CONSIGNE_POST_SCRIPTUM.format(
+                separateur=SEPARATEUR,
+                champs=champs,
+                note_descriptions=NOTE_DESCRIPTIONS,
+            ),
+            FIN_PRISE_DE_NOTES,
+        ]
+    )
+
+
+@dataclass
+class Notices:
+    """D4 : dans un mode sans outil, ce que la dernière note demande au modèle
+    (à confirmer, à proposer, refusé), montré au tour suivant par l'état de la
+    fiche. Chaque note remplace la précédente ; une réponse sans note l'efface."""
+
+    derniere: dict | None = None
+
+    def retenir(self, note: Note | None) -> None:
+        self.derniere = reponse_de_l_outil(note) if note is not None else None
+
+
+# Ce que l'outil rend au modèle et qui lui demande quelque chose : les mêmes clés,
+# les mêmes consignes (D4). « statut » et « ecrits » sont déjà dits par l'état.
+CLES_DES_NOTICES = ("a_confirmer", "ecriture_retenue", "a_proposer", "refuses", "consigne")
+
+
+def _ligne_des_notices(notices: Notices | None) -> str | None:
+    if notices is None or not notices.derniere:
+        return None
+    retour = {c: notices.derniere[c] for c in CLES_DES_NOTICES if c in notices.derniere}
+    if not retour:
+        return None
+    return "Retour de ta dernière note : " + json.dumps(retour, ensure_ascii=False)
+
+
 def brancher_noter_information(
     reglages: ReglagesFiche,
     llm: Any,
@@ -2784,6 +2863,17 @@ ENTETE_ETAT = (
     "[Fiche de l'appel : pour toi seulement, tu ne la lis jamais à voix haute. "
     "Elle se remplit par noter_information.]"
 )
+# Plan mode-prise-de-notes, lot 3 : « par noter_information » n'est vrai qu'en mode outil.
+ENTETE_ETAT_POST_SCRIPTUM = (
+    "[Fiche de l'appel : pour toi seulement, tu ne la lis jamais à voix haute. "
+    f"Elle se remplit par tes notes après {SEPARATEUR}.]"
+)
+
+
+def entete_etat(reglages: ReglagesFiche) -> str:
+    if reglages.mode == MODE_POST_SCRIPTUM:
+        return ENTETE_ETAT_POST_SCRIPTUM
+    return ENTETE_ETAT
 LONGUEUR_MAX_VALEUR = 120
 
 
@@ -2842,9 +2932,15 @@ def numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> list[tuple[str, 
     return []
 
 
-def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str | None:
+def etat_de_la_fiche(
+    reglages: ReglagesFiche, fiche: dict, notices: Notices | None = None
+) -> str | None:
     """Ce que le modèle a déjà, sûr ou à faire confirmer, dans l'ordre des
     champs de la fiche. ``None`` tant que rien n'est noté.
+
+    Plan mode-prise-de-notes (D4) : sans outil, la note est vérifiée APRÈS que
+    la phrase est partie ; ce que la vérification demande (``notices``) est donc
+    montré ici, au tour suivant, avec les consignes que l'outil aurait rendues.
 
     ⛔ Pas de liste de ce qui manque (A7, run 835) : sous les yeux de l'accueil,
     « Manque : numero_dicte, commune… » s'est lu comme une liste de questions,
@@ -2863,9 +2959,10 @@ def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str | None:
             notes.append(ligne)
         else:
             a_confirmer.append(ligne)
-    if not (notes or a_confirmer):
+    retour = _ligne_des_notices(notices)
+    if not (notes or a_confirmer or retour):
         return None
-    lignes = [ENTETE_ETAT]
+    lignes = [entete_etat(reglages)]
     if notes:
         lignes.append("Noté : " + " ; ".join(notes))
     if a_confirmer:
@@ -2876,6 +2973,8 @@ def etat_de_la_fiche(reglages: ReglagesFiche, fiche: dict) -> str | None:
             f"{_par_paires(dernier)}, la fiche a un autre numéro dans {champ}. "
             "Si c'est une correction, note le nouveau numéro."
         )
+    if retour:
+        lignes.append(retour)
     return "\n".join(lignes)
 
 
@@ -2889,7 +2988,10 @@ def inserer_l_etat(messages: list, texte: str) -> list:
 
 
 def montrer_la_fiche(
-    llm: Any, reglages: ReglagesFiche, fiche: Callable[[], dict]
+    llm: Any,
+    reglages: ReglagesFiche,
+    fiche: Callable[[], dict],
+    notices: Notices | None = None,
 ) -> bool:
     """Ajoute l'état de la fiche à chaque requête de CONVERSATION du modèle.
 
@@ -2927,7 +3029,7 @@ def montrer_la_fiche(
         params = construire(params_from_context)
         if en_conversation.get():
             try:
-                texte = etat_de_la_fiche(reglages, fiche())
+                texte = etat_de_la_fiche(reglages, fiche(), notices)
                 if texte:
                     params["messages"] = inserer_l_etat(list(params["messages"]), texte)
             except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais l'appel

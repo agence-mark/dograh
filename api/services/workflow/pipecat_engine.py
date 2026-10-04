@@ -72,9 +72,11 @@ from api.services.workflow.disposition_mapping import (
 )
 from api.services.workflow.fiche_au_fil_de_leau import (
     MODE_OUTIL,
+    Notices,
     ReglagesFiche,
     balayer_la_fiche,
     brancher_noter_information,
+    consigne_du_mode,
     montrer_la_fiche,
     suivre_les_tours,
 )
@@ -174,9 +176,16 @@ class PipecatEngine:
             if fiche is not None and llm is not None and fiche.mode == MODE_OUTIL
             else None
         )
+        # Plan mode-prise-de-notes (D4) : sans outil, ce que la dernière note
+        # demande au modèle arrive au tour suivant, par l'état de la fiche.
+        self._notices_fiche = (
+            Notices() if fiche is not None and fiche.mode != MODE_OUTIL else None
+        )
         if fiche is not None and llm is not None:
             # D14 : l'état de la fiche, montré à chaque requête de conversation.
-            montrer_la_fiche(llm, fiche, lambda: self._gathered_context)
+            montrer_la_fiche(
+                llm, fiche, lambda: self._gathered_context, self._notices_fiche
+            )
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
         # summarization). Falls back to the pipeline LLM when not provided.
@@ -932,14 +941,24 @@ class PipecatEngine:
                     self._tours_fiche,
                 )
             )
+        texte = prompt.text
+        # [.mark] Plan mode-prise-de-notes (D3) : la consigne du mode, écrite par
+        # le code à la fin du prompt, là où l'outil serait proposé (mêmes
+        # conditions que D12 ci-dessus). Outil : rien.
+        if (
+            self._fiche is not None
+            and not node.is_end
+            and agent.llm is self._llm_de_la_fiche
+        ):
+            bloc = consigne_du_mode(self._fiche)
+            if bloc:
+                texte = f"{texte}\n\n{bloc}"
         agent.tools = ToolsSchema(standard_tools=functions)
-        agent.system_prompt = prompt.text
+        agent.system_prompt = texte
         if agent.recording_router is not None:
             agent.recording_router.set_enabled(prompt.recording_enabled)
         if apply_settings:
-            await agent.llm._update_settings(
-                LLMSettings(system_instruction=prompt.text)
-            )
+            await agent.llm._update_settings(LLMSettings(system_instruction=texte))
 
     async def _setup_llm_context(self, node: Node) -> None:
         agent = self.active_agent
