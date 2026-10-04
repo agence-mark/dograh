@@ -75,7 +75,7 @@ from api.services.pipecat.realtime_feedback_observer import (
     register_turn_log_handlers,
 )
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
-from api.services.pipecat.post_scriptum import creer_post_scriptum
+from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.reconnaissance_lexique import (
     CLE_TRACE_LEXIQUE,
     creer_reconnaissance_lexique,
@@ -1667,14 +1667,7 @@ async def _run_pipeline_impl(
         )
         # [.mark] Plan mode-prise-de-notes : le post-scriptum, sur l'agent qui
         # porte la fiche (le premier), seulement dans ce mode.
-        agent.post_scriptum = creer_post_scriptum(
-            engine.fiche,
-            lambda: engine._gathered_context,
-            lambda: engine.context.get_messages() if engine.context else [],
-            engine.notices_fiche,
-            attendu=engine.post_scriptum_attendu,
-            notes_en_cours=engine.notes_du_post_scriptum,
-        )
+        agent.post_scriptum = post_scriptum_du_moteur(engine)
 
     # Initialize the engine to set the initial context with
     # System Prompt and Tools

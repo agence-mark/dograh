@@ -54,7 +54,7 @@ from api.services.pipecat.etat_ouverture import (
 )
 from api.services.pipecat.lecture_appelant import lire_message_tape
 from api.services.pipecat.pipeline_builder import create_pipeline_task
-from api.services.pipecat.post_scriptum import attendre_les_notes, creer_post_scriptum
+from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
 )
@@ -64,6 +64,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_ETAT,
     CLE_JOURNAL,
     ReglagesFiche,
+    attendre_les_notes,
     estampiller_le_mode,
 )
 from api.services.pipecat.recording_audio_cache import create_recording_audio_fetcher
@@ -797,14 +798,7 @@ async def execute_text_chat_pending_turn(
     # [.mark] Plan mode-prise-de-notes (lot 5): the keyboard plays the postscript
     # like the phone (C8), right after the model, so what is captured, shown and
     # kept in memory is what the voice would have said. None outside that mode.
-    post_scriptum = creer_post_scriptum(
-        engine.fiche,
-        lambda: engine._gathered_context,
-        lambda: context.get_messages(),
-        engine.notices_fiche,
-        attendu=engine.post_scriptum_attendu,
-        notes_en_cours=engine.notes_du_post_scriptum,
-    )
+    post_scriptum = post_scriptum_du_moteur(engine)
     pipeline = Pipeline(
         [
             p

@@ -40,13 +40,15 @@ from api.services.pipecat.pipeline_builder import build_agent_generation_pipelin
 from api.services.pipecat.post_scriptum import (
     ABSENT,
     ILLISIBLE,
+    INTERROMPU,
     PRESENT,
     TRACE_POST_SCRIPTUM,
     VIDE,
     PostScriptumProcessor,
-    attendre_les_notes,
     creer_post_scriptum,
     lire_la_note,
+    post_scriptum_du_moteur,
+    sans_json,
 )
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_JOURNAL,
@@ -55,6 +57,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     MODE_POST_SCRIPTUM,
     Notices,
     ReglagesFiche,
+    attendre_les_notes,
 )
 from api.services.workflow.pipecat_engine_callbacks import (
     create_aggregation_correction_callback,
@@ -113,9 +116,9 @@ class _Montage:
         self.notes: set[asyncio.Task] = set()
         self.processeur = creer_post_scriptum(
             self.reglages,
-            lambda: self.fiche,
-            lambda: self.messages,
-            self.notices,
+            fiche=lambda: self.fiche,
+            messages=lambda: self.messages,
+            notices=self.notices,
             attendu=lambda: attendu,
             notes_en_cours=self.notes,
         )
@@ -295,6 +298,8 @@ async def test_une_interruption_avant_le_separateur_ne_soude_pas_deux_tours():
     aval = await montage.jouer(
         LLMFullResponseStartFrame(),
         LLMTextFrame("Très bien\n|"),
+        # Le texte d'abord : une frame système passerait avant lui dans le banc.
+        SleepFrame(sleep=0.1),
         InterruptionFrame(),
         LLMFullResponseStartFrame(),
         LLMTextFrame("Oui ?"),
@@ -312,6 +317,8 @@ async def test_une_interruption_apres_le_separateur_ne_note_rien():
         LLMFullResponseStartFrame(),
         LLMTextFrame("Très bien.\n|||\n"),
         LLMTextFrame('{"nom": "Dup'),
+        # Le texte d'abord : une frame système passerait avant lui dans le banc.
+        SleepFrame(sleep=0.1),
         InterruptionFrame(),
         LLMFullResponseStartFrame(),
         LLMTextFrame("Oui ?\n|||\n{}"),
@@ -319,7 +326,8 @@ async def test_une_interruption_apres_le_separateur_ne_note_rien():
     )
     assert "".join(aval.textes) == "Très bien.Oui ?"
     assert "nom" not in montage.fiche
-    assert [t["etat"] for t in montage.traces] == [VIDE]
+    assert [t["etat"] for t in montage.traces] == [INTERROMPU, VIDE]
+    assert montage.traces[0]["separateur"] is True
 
 
 @pytest.mark.asyncio
@@ -445,8 +453,8 @@ def test_la_correction_de_la_memoire_ne_fait_jamais_entrer_la_note():
 
 def test_hors_mode_post_scriptum_pas_de_processeur():
     outil = ReglagesFiche.depuis({**FICHE_SIMPLE, CLE_MODE: MODE_OUTIL})
-    assert creer_post_scriptum(outil, dict, list, None) is None
-    assert creer_post_scriptum(None, dict, list, None) is None
+    assert creer_post_scriptum(outil, fiche=dict, messages=list, notices=None) is None
+    assert creer_post_scriptum(None, fiche=dict, messages=list, notices=None) is None
     assert isinstance(_Montage().processeur, PostScriptumProcessor)
 
 
@@ -479,10 +487,168 @@ def test_le_chemin_telephonique_construit_le_post_scriptum():
     import inspect
 
     from api.services.pipecat import agent_runtime_factory, run_pipeline
+    from api.services.workflow import text_chat_runner
 
-    assert "agent.post_scriptum = creer_post_scriptum(" in inspect.getsource(
+    assert "agent.post_scriptum = post_scriptum_du_moteur(engine)" in inspect.getsource(
         run_pipeline
+    )
+    assert "post_scriptum = post_scriptum_du_moteur(engine)" in inspect.getsource(
+        text_chat_runner
     )
     assert "post_scriptum=runtime.post_scriptum" in inspect.getsource(
         agent_runtime_factory
     )
+
+
+# --------------------------------------------------------------------------- #
+# 8. Corrections de la relecture indépendante du 04/10
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "morceaux",
+    [
+        ['{"nom": "Dupont"}', "\nTrès bien, et votre numéro ?", "\n|||\n{}"],
+        ["```\nTrès bien, et votre numéro ?\n|||\n", '{"nom": "Dupont"}\n```'],
+    ],
+    ids=["json-en-tete", "tout-dans-un-bloc-de-code"],
+)
+async def test_majeur_1_la_parole_apres_un_json_n_est_jamais_perdue(morceaux):
+    """D7 : « rien ne se perd à l'oral ». Le JSON n'est pas dit, la phrase l'est."""
+    montage = _Montage()
+    aval = await montage.reponse(*morceaux)
+    dit = "".join(aval.textes)
+    assert dit == "Très bien, et votre numéro ?"
+    assert "{" not in dit and "`" not in dit and "|" not in dit
+
+
+@pytest.mark.asyncio
+async def test_majeur_1_json_sans_separateur_puis_parole_la_parole_part_a_la_fin():
+    montage = _Montage()
+    aval = await montage.reponse('{"nom": "Dupont"}\n', "Et votre numéro ?")
+    assert "".join(aval.textes) == "Et votre numéro ?"
+    assert "nom" not in montage.fiche
+    assert montage.traces[-1]["etat"] == ABSENT
+
+
+@pytest.mark.parametrize(
+    "texte, parole",
+    [
+        ('{"a": {"b": 1}} Bonjour.', "Bonjour."),
+        ("```json\nBonjour ?\n```", "Bonjour ?"),
+        ('Oui. {"a": "x', "Oui."),
+        ("Merci || ", "Merci"),
+    ],
+)
+def test_sans_json(texte, parole):
+    assert sans_json(texte) == parole
+
+
+@pytest.mark.asyncio
+async def test_mineur_3_un_separateur_mal_forme_n_est_pas_dit():
+    montage = _Montage()
+    aval = await montage.reponse("Très bien.\n||", '\n{"nom": "Dupont"}')
+    assert "".join(aval.textes) == "Très bien."
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "avant, separateur",
+    [(["Très bien, et"], False), (["Très bien.\n|||\n", '{"nom": "Du'], True)],
+    ids=["avant-le-separateur", "apres-le-separateur"],
+)
+async def test_majeur_2_un_tour_interrompu_est_trace(avant, separateur):
+    montage = _Montage()
+    await montage.jouer(
+        LLMFullResponseStartFrame(),
+        *[LLMTextFrame(m) for m in avant],
+        # Le texte d'abord : une frame système passerait avant lui dans le banc.
+        SleepFrame(sleep=0.1),
+        InterruptionFrame(),
+    )
+    assert montage.traces == [
+        {"tour": None, "etat": INTERROMPU, "champs": [], "separateur": separateur}
+    ]
+    assert "nom" not in montage.fiche
+
+
+@pytest.mark.asyncio
+async def test_majeur_2_une_interruption_hors_reponse_ne_trace_rien():
+    montage = _Montage()
+    await montage.jouer(InterruptionFrame())
+    assert montage.traces == []
+
+
+@pytest.mark.asyncio
+async def test_mineur_5_une_note_lente_ne_reecrit_pas_les_notices_d_apres(monkeypatch):
+    """Une note qui relit des rues finit tard ; la réponse suivante n'a rien noté.
+    Les notices doivent être celles de la DERNIÈRE réponse : aucune."""
+    from api.services.pipecat import post_scriptum as module
+
+    vraie = module.noter
+
+    async def lente(*args, **kwargs):
+        await asyncio.sleep(0.4)
+        return await vraie(*args, **kwargs)
+
+    monkeypatch.setattr(module, "noter", lente)
+    montage = _Montage()
+    await montage.jouer(
+        LLMFullResponseStartFrame(),
+        LLMTextFrame('Et votre nom ?\n|||\n{"nom": "Martin"}'),
+        LLMFullResponseEndFrame(),
+        LLMFullResponseStartFrame(),
+        LLMTextFrame("D'accord.\n|||\n{}"),
+        LLMFullResponseEndFrame(),
+    )
+    assert montage.notices.derniere is None
+    assert [t["etat"] for t in montage.traces] == [PRESENT, VIDE]
+
+
+@pytest.mark.asyncio
+async def test_mineur_4_la_fabrique_du_moteur_joue_ses_lectures(three_node_workflow):
+    """Les lectures branchées au téléphone et au clavier (fiche, conversation,
+    notices, notes en cours), jouées sur un vrai moteur."""
+    from api.services.workflow.pipecat_engine import PipecatEngine
+    from api.tests.mark.test_fiche_montree import _contexte, _mistral
+
+    reglages = ReglagesFiche.depuis(FICHE_SIMPLE)
+    engine = PipecatEngine(
+        llm=_mistral(),
+        context=_contexte({"role": "user", "content": PAROLE}),
+        workflow=three_node_workflow,
+        call_context_vars={},
+        workflow_run_id=1,
+        fiche=reglages,
+    )
+    processeur = post_scriptum_du_moteur(engine)
+    assert isinstance(processeur, PostScriptumProcessor)
+    aval = _Aval()
+    await run_test(
+        Pipeline([processeur, aval]),
+        frames_to_send=[
+            LLMFullResponseStartFrame(),
+            LLMTextFrame('Très bien.\n|||\n{"nom": "Dupont", "motif": "Martin"}'),
+            LLMFullResponseEndFrame(),
+            SleepFrame(sleep=0.3),
+        ],
+        start_timeout=DEMARRAGE_S,
+    )
+    await attendre_les_notes(engine.notes_du_post_scriptum)
+    fiche = engine._gathered_context
+    assert fiche["nom"] == "Dupont"  # dit dans la conversation lue par la fabrique
+    assert "motif" not in fiche  # jamais dit : refusé, comme avec l'outil
+    assert engine.notices_fiche.derniere["refuses"] == [
+        {"champ": "motif", "raison": "non_dit"}
+    ]
+    assert fiche[TRACE_POST_SCRIPTUM][-1]["etat"] == PRESENT
+    outil = PipecatEngine(
+        llm=_mistral(),
+        context=_contexte(),
+        workflow=three_node_workflow,
+        call_context_vars={},
+        workflow_run_id=1,
+        fiche=ReglagesFiche.depuis({**FICHE_SIMPLE, CLE_MODE: MODE_OUTIL}),
+    )
+    assert post_scriptum_du_moteur(outil) is None

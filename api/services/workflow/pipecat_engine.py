@@ -60,7 +60,6 @@ import time
 from loguru import logger
 
 from api.services.managed_model_services import MPS_CORRELATION_ID_CONTEXT_KEY
-from api.services.pipecat.post_scriptum import attendre_les_notes
 from api.services.workflow import pipecat_engine_callbacks as engine_callbacks
 from api.services.workflow.answer_handling import ANSWER_TERMINAL_REASONS, handle_answer
 from api.services.workflow.disposition_extraction import (
@@ -75,6 +74,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     MODE_OUTIL,
     Notices,
     ReglagesFiche,
+    attendre_les_notes,
     balayer_la_fiche,
     brancher_noter_information,
     consigne_du_mode,

@@ -2843,6 +2843,25 @@ def _ligne_des_notices(notices: Notices | None) -> str | None:
     return "Retour de ta dernière note : " + json.dumps(retour, ensure_ascii=False)
 
 
+# Le délai laissé aux notes du post-scriptum encore en cours avant la passe de fin.
+DELAI_DES_NOTES_EN_COURS = 3.0
+
+
+async def attendre_les_notes(notes_en_cours: set[asyncio.Task]) -> None:
+    """Avant la passe de fin : laisser finir une note encore en cours, au plus
+    ``DELAI_DES_NOTES_EN_COURS``. Rien n'est annulé (relecture du 04/10) : une
+    note plus lente finit après la passe, qui ne remplit que les champs vides."""
+    en_cours = [t for t in notes_en_cours if not t.done()]
+    if not en_cours:
+        return
+    _, restantes = await asyncio.wait(en_cours, timeout=DELAI_DES_NOTES_EN_COURS)
+    if restantes:
+        logger.warning(
+            "[fiche] note du post-scriptum encore en cours : la passe de fin part "
+            "sans l'attendre, la note finira après elle"
+        )
+
+
 def brancher_noter_information(
     reglages: ReglagesFiche,
     llm: Any,
@@ -2874,6 +2893,8 @@ def entete_etat(reglages: ReglagesFiche) -> str:
     if reglages.mode == MODE_POST_SCRIPTUM:
         return ENTETE_ETAT_POST_SCRIPTUM
     return ENTETE_ETAT
+
+
 LONGUEUR_MAX_VALEUR = 120
 
 

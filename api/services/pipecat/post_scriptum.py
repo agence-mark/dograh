@@ -37,6 +37,7 @@ import asyncio
 import json
 import re
 from collections.abc import Callable, Iterable
+from typing import Any
 
 from loguru import logger
 
@@ -65,6 +66,8 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 # La trace de chaque réponse qui parle, dans la fiche de l'appel.
 TRACE_POST_SCRIPTUM = "post_scriptums"
 PRESENT, VIDE, ABSENT, ILLISIBLE = "present", "vide", "absent", "illisible"
+# Un tour coupé par la personne avant la fin de la réponse (avec `separateur` : vu ou non).
+INTERROMPU = "interrompu"
 
 # D7 : une ligne qui commence comme du JSON ou comme un bloc de code.
 _DEBUT_JSON_EN_LIGNE = re.compile(r"\n[ \t]*[{`]")
@@ -74,8 +77,6 @@ _DEBUT_JSON_EN_TETE = re.compile(r"^[ \t]*[{`]")
 _FIN_EN_SUSPENS = re.compile(r"[ \t\n|]*$")
 _GUILLEMET_FERMANT = re.compile(r"[\s  ]*»[\s  ]*$")
 _GUILLEMET_OUVRANT = re.compile(r"^[\s  ]*«[\s  ]*")
-# Une note « tout ou rien » : le délai laissé aux notes en cours avant la passe de fin.
-DELAI_DES_NOTES_EN_COURS = 3.0
 
 
 def lire_la_note(brut: str) -> dict | None:
@@ -97,6 +98,22 @@ def lire_la_note(brut: str) -> dict | None:
         except ValueError:
             return None
     return valeur if isinstance(valeur, dict) else None
+
+
+def sans_json(texte: str) -> str:
+    """La parole d'un texte où le modèle a mêlé du JSON (D7) : sans les objets
+    ``{…}`` (même imbriqués ou inachevés), sans les clôtures ``` ni les « | »."""
+    texte = re.sub(r"```[A-Za-z]*", " ", texte or "")
+    sortie: list[str] = []
+    profondeur = 0
+    for caractere in texte:
+        if caractere == "{":
+            profondeur += 1
+        elif caractere == "}" and profondeur:
+            profondeur -= 1
+        elif not profondeur:
+            sortie.append(caractere)
+    return re.sub(r"\s+", " ", "".join(sortie).replace("|", " ")).strip()
 
 
 class PostScriptumProcessor(FrameProcessor):
@@ -121,6 +138,9 @@ class PostScriptumProcessor(FrameProcessor):
         # L'étape attend-elle un post-scriptum ? (pas une étape de fin, D12)
         self._attendu = attendu
         self._notes_en_cours = notes_en_cours if notes_en_cours is not None else set()
+        # Une seule note à la fois, dans l'ordre des réponses (relecture du 04/10) :
+        # une note lente (rues relues) ne doit pas finir après la suivante.
+        self._une_note_a_la_fois = asyncio.Lock()
         self._lus: list[dict] = []
         self._oublier()
 
@@ -160,7 +180,8 @@ class PostScriptumProcessor(FrameProcessor):
         if fin:
             if self._guillemet:
                 texte = _GUILLEMET_FERMANT.sub("", texte)
-            texte = texte.rstrip()
+            # Un séparateur mal formé (« || ») ne part pas à la voix (relecture du 04/10).
+            texte = texte.rstrip().rstrip("|").rstrip()
         if not texte:
             return
         self._en_debut_de_ligne = texte.endswith("\n")
@@ -225,6 +246,15 @@ class PostScriptumProcessor(FrameProcessor):
             await self.push_frame(frame, direction)
             return
 
+        if (
+            isinstance(frame, InterruptionFrame)
+            and self._vu_du_texte
+            and self._attendu()
+        ):
+            # Relecture du 04/10 : un tour coupé compte dans la mesure D11, avec ce
+            # qu'on sait du séparateur ; sa note n'est pas écrite (le tour suivant
+            # ou la passe de fin la rattrape).
+            self._tracer(INTERROMPU, [], separateur=self._separateur)
         if isinstance(frame, (InterruptionFrame, EndFrame, CancelFrame)):
             self._oublier()
             await self.push_frame(frame, direction)
@@ -237,11 +267,29 @@ class PostScriptumProcessor(FrameProcessor):
         self._vu_du_texte = True
         if self._apres:
             self._note += frame.text
+            if not self._separateur:
+                coupe = self._note.find(SEPARATEUR)
+                if coupe >= 0:
+                    # D7 (relecture du 04/10) : le JSON écrit AVANT le séparateur
+                    # n'est jamais dit, mais la parole qui l'entoure l'est.
+                    await self._dire(
+                        sans_json(self._note[:coupe]), None, direction, fin=True
+                    )
+                    self._separateur = True
+                    self._note = self._note[coupe + len(SEPARATEUR) :]
             return
         texte, self._attente = self._attente + frame.text, ""
         coupe = texte.find(SEPARATEUR)
         if coupe >= 0:
-            await self._dire(texte[:coupe], frame, direction, fin=True)
+            avant = texte[:coupe]
+            # D7 : du JSON ou une clôture de code arrivés dans le même morceau que
+            # le séparateur ne partent pas à la voix non plus.
+            json_ = _DEBUT_JSON_EN_LIGNE.search(avant)
+            if json_ is None and self._en_debut_de_ligne:
+                json_ = _DEBUT_JSON_EN_TETE.search(avant)
+            if json_ is not None:
+                avant = f"{avant[: json_.start()]} {sans_json(avant[json_.start() :])}"
+            await self._dire(avant, frame, direction, fin=True)
             self._apres = self._separateur = True
             self._note = texte[coupe + len(SEPARATEUR) :]
             return
@@ -249,7 +297,9 @@ class PostScriptumProcessor(FrameProcessor):
         if json_ is None and self._en_debut_de_ligne:
             json_ = _DEBUT_JSON_EN_TETE.search(texte)
         if json_ is not None:
-            # D7 : du JSON sans séparateur ne part jamais à la voix.
+            # D7 : du JSON sans séparateur ne part jamais à la voix. Ce qui suit
+            # est retenu ; la parole qu'il contient part au séparateur, ou à la
+            # fin de la réponse (jamais un tour muet).
             await self._dire(texte[: json_.start()], frame, direction, fin=True)
             self._apres = True
             self._note = texte[json_.start() :]
@@ -262,6 +312,9 @@ class PostScriptumProcessor(FrameProcessor):
         """Fin de la réponse : le reste à la voix, puis la note."""
         if not self._apres and self._attente.strip(" \t\n|"):
             await self._dire(self._attente, None, direction, fin=True)
+        if self._apres and not self._separateur:
+            # D7 : du JSON sans séparateur ; la parole écrite autour part quand même.
+            await self._dire(sans_json(self._note), None, direction, fin=True)
         if not self._vu_du_texte:
             # Une réponse qui ne parle pas (une porte, D5) : ni note ni trace.
             self._oublier()
@@ -282,62 +335,52 @@ class PostScriptumProcessor(FrameProcessor):
             # Une étape de fin n'a pas de consigne : son silence n'est pas un oubli.
             return
         self._tracer(etat, sorted(champs or {}))
-        if etat != PRESENT:
-            if self._notices is not None:
-                self._notices.retenir(None)
-            return
-        tache = asyncio.get_running_loop().create_task(self._noter(champs, lus))
+        # Une réponse sans note efface les notices ; elle passe par la même file
+        # que les notes, sinon une note lente les réécrirait après elle.
+        a_noter = champs if etat == PRESENT else None
+        tache = asyncio.get_running_loop().create_task(self._noter(a_noter, lus))
         self._notes_en_cours.add(tache)
         tache.add_done_callback(self._notes_en_cours.discard)
 
-    def _tracer(self, etat: str, champs: list[str]) -> None:
+    def _tracer(self, etat: str, champs: list[str], **detail) -> None:
         try:
             fiche = self._fiche()
             fiche.setdefault(TRACE_POST_SCRIPTUM, []).append(
-                {"tour": fiche.get(CLE_TOUR), "etat": etat, "champs": champs}
+                {"tour": fiche.get(CLE_TOUR), "etat": etat, "champs": champs, **detail}
             )
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[fiche] trace du post-scriptum non écrite : {erreur!r}")
 
-    async def _noter(self, champs: dict, lus: list[dict]) -> None:
-        """La note, par les mêmes contrôles que l'outil ; ses notices au tour suivant (D4)."""
-        try:
-            note = await noter(
-                self._fiche,
-                self._reglages,
-                champs,
-                paroles=paroles_de_l_appelant(lus),
-                question=derniere_question(lus),
-                source=MODE_POST_SCRIPTUM,
-            )
-        except Exception as erreur:  # noqa: BLE001 -- une note ne coûte jamais l'appel
-            logger.error(f"[fiche] note du post-scriptum en échec : {erreur!r}")
-            note = None
-        if self._notices is not None:
-            self._notices.retenir(note)
-
-
-async def attendre_les_notes(notes_en_cours: set[asyncio.Task]) -> None:
-    """Avant la passe de fin : laisser finir une note encore en cours (bornée)."""
-    en_cours = [t for t in notes_en_cours if not t.done()]
-    if not en_cours:
-        return
-    try:
-        await asyncio.wait_for(
-            asyncio.gather(*en_cours, return_exceptions=True), DELAI_DES_NOTES_EN_COURS
-        )
-    except TimeoutError:
-        logger.warning(
-            "[fiche] note du post-scriptum trop lente, passe de fin lancée sans elle"
-        )
+    async def _noter(self, champs: dict | None, lus: list[dict]) -> None:
+        """La note, par les mêmes contrôles que l'outil ; ses notices au tour suivant (D4).
+        ``champs`` à ``None`` : la réponse n'a rien noté, ses notices s'effacent."""
+        async with self._une_note_a_la_fois:
+            if champs is None:
+                if self._notices is not None:
+                    self._notices.retenir(None)
+                return
+            try:
+                note = await noter(
+                    self._fiche,
+                    self._reglages,
+                    champs,
+                    paroles=paroles_de_l_appelant(lus),
+                    question=derniere_question(lus),
+                    source=MODE_POST_SCRIPTUM,
+                )
+            except Exception as erreur:  # noqa: BLE001 -- une note ne coûte jamais l'appel
+                logger.error(f"[fiche] note du post-scriptum en échec : {erreur!r}")
+                note = None
+            if self._notices is not None:
+                self._notices.retenir(note)
 
 
 def creer_post_scriptum(
     reglages: ReglagesFiche | None,
+    *,
     fiche: Callable[[], dict],
     messages: Callable[[], Iterable[dict]],
     notices: Notices | None,
-    *,
     attendu: Callable[[], bool] = lambda: True,
     notes_en_cours: set[asyncio.Task] | None = None,
 ) -> PostScriptumProcessor | None:
@@ -351,4 +394,19 @@ def creer_post_scriptum(
         notices=notices,
         attendu=attendu,
         notes_en_cours=notes_en_cours,
+    )
+
+
+def post_scriptum_du_moteur(engine: Any) -> PostScriptumProcessor | None:
+    """Le processeur de l'agent qui porte la fiche, branché sur le moteur de
+    l'appel : sa fiche, sa conversation, ses notices, ses notes en cours.
+    Une seule fabrique pour le téléphone et le clavier (relecture du 04/10 :
+    ces lectures sont jouées par les tests, pas seulement lues au source)."""
+    return creer_post_scriptum(
+        engine.fiche,
+        fiche=lambda: engine._gathered_context,
+        messages=lambda: engine.context.get_messages() if engine.context else [],
+        notices=engine.notices_fiche,
+        attendu=engine.post_scriptum_attendu,
+        notes_en_cours=engine.notes_du_post_scriptum,
     )
