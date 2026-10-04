@@ -24,9 +24,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useOrgConfig } from "@/context/OrgConfigContext";
-import type { CallDispositionOption, ChampFiche, ExternalPBXFieldMapping } from "@/types/workflow-configurations";
+import type { CallDispositionOption, ChampFiche, ExternalPBXFieldMapping, FicheModeDeNote } from "@/types/workflow-configurations";
 
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
@@ -40,6 +41,22 @@ export const ID_THEME_DONNEES = "donnees";
 export const TITRE_DONNEES = { en: "Call data", fr: "Données de l'appel" };
 
 const NOM_DE_CHAMP_PBX = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
+
+// Plan mode-prise-de-notes (D2): one line per mode, the tool named as the default.
+export const AIDES_MODE_DE_NOTE: Texte[] = [
+    {
+        en: "Tool (default): the agent calls noter_information, then speaks in a second pass. The behaviour of before.",
+        fr: "Outil (par défaut) : l'agent appelle noter_information, puis parle dans une seconde passe. Le comportement d'avant.",
+    },
+    {
+        en: "Postscript: the agent speaks, then writes its note after a separator in the same answer. One pass, the note is never spoken; checks that ask the caller something reach the agent at its next turn.",
+        fr: "Post-scriptum : l'agent parle, puis écrit sa note après un séparateur dans la même réponse. Une seule passe, la note n'est jamais dite ; ce que les contrôles demandent arrive à l'agent au tour suivant.",
+    },
+    {
+        en: "Switching mode changes no prompt: write « you note it », never the tool's name. The end-of-call pass stays in every mode.",
+        fr: "Changer de mode ne demande de retoucher aucun prompt : écrire « tu le notes », jamais le nom de l'outil. La passe de fin d'appel reste dans tous les modes.",
+    },
+];
 
 export const ThemeDonnees = ({
     resolue,
@@ -56,19 +73,24 @@ export const ThemeDonnees = ({
 
     // ---- The call record ---------------------------------------------------
     const ficheActiveEnregistree = resolue.fiche_au_fil_de_leau ?? false;
+    // Plan mode-prise-de-notes (D1): absent = the tool, the behaviour of before.
+    const modeEnregistre: FicheModeDeNote = resolue.fiche_mode_de_note ?? "outil";
     const champsEnregistres = useMemo(() => (resolue.fiche_champs ?? []) as ChampFiche[], [resolue.fiche_champs]);
     const [ficheActive, setFicheActive] = useState(ficheActiveEnregistree);
+    const [modeDeNote, setModeDeNote] = useState<FicheModeDeNote>(modeEnregistre);
     const [champs, setChamps] = useState<ChampFiche[]>(champsEnregistres);
     const ficheModifiee =
         ficheActive !== ficheActiveEnregistree
         || JSON.stringify(pourComparerLaFiche(champs)) !== JSON.stringify(pourComparerLaFiche(champsEnregistres));
+    const modeModifie = modeDeNote !== modeEnregistre;
     const erreursFiche = texteErreursDesChamps(champs);
     // As the call record card did (24/09): follow the record the server stored,
     // keyed on its CONTENT so another theme's save does not wipe an edit here.
-    const ficheEnregistree = JSON.stringify([ficheActiveEnregistree, champsEnregistres]);
+    const ficheEnregistree = JSON.stringify([ficheActiveEnregistree, modeEnregistre, champsEnregistres]);
     useEffect(() => {
-        const [actifRelu, champsRelus] = JSON.parse(ficheEnregistree) as [boolean, ChampFiche[]];
+        const [actifRelu, modeRelu, champsRelus] = JSON.parse(ficheEnregistree) as [boolean, FicheModeDeNote, ChampFiche[]];
         setFicheActive(actifRelu);
+        setModeDeNote(modeRelu);
         setChamps(champsRelus);
     }, [ficheEnregistree]);
 
@@ -134,7 +156,7 @@ export const ThemeDonnees = ({
         });
     }
 
-    const modifie = ficheModifiee || generalModifie;
+    const modifie = ficheModifiee || modeModifie || generalModifie;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -147,6 +169,13 @@ export const ThemeDonnees = ({
                 nom: { en: "Call record", fr: "Fiche d'appel" },
                 modifie: ficheModifiee,
                 config: () => ({ fiche_au_fil_de_leau: ficheActive, fiche_champs: champs }),
+            },
+            {
+                // Its own part (like the flow map): sent only when changed, so the
+                // record's save sends exactly what it sent before (E6).
+                nom: { en: "Note-taking mode", fr: "Mode de prise de notes" },
+                modifie: modeModifie,
+                config: () => ({ fiche_mode_de_note: modeDeNote }),
             },
             {
                 nom: { en: "Call data settings", fr: "Réglages des données de l'appel" },
@@ -180,7 +209,9 @@ export const ThemeDonnees = ({
             description={{ en: "What the agent writes down, and what is kept or passed on.", fr: "Ce que l'agent note, et ce qui est conservé ou transmis." }}
             resume={[
                 ficheActive
-                    ? `${t({ en: "Record", fr: "Fiche" })} · ${champs.length} ${t({ en: "fields", fr: "champs" })}`
+                    ? `${t({ en: "Record", fr: "Fiche" })} · ${champs.length} ${t({ en: "fields", fr: "champs" })}${
+                          modeDeNote === "post_scriptum" ? ` · ${t({ en: "Postscript", fr: "Post-scriptum" })}` : ""
+                      }`
                     : t({ en: "Record off", fr: "Fiche éteinte" }),
                 lignesIssues.length > 0
                     ? `${lignesIssues.length} ${t({ en: "dispositions", fr: "issues" })}`
@@ -208,6 +239,30 @@ export const ThemeDonnees = ({
                 >
                     <Switch id="fiche_au_fil_de_leau" checked={ficheActive} onCheckedChange={setFicheActive} />
                 </ChampReglage>
+                {/* Plan mode-prise-de-notes (D1, D2): shown only with the record on, the same
+                    condition as in the code (no record, no note-taking mode). */}
+                {ficheActive && (
+                    <ChampReglage
+                        cle="fiche_mode_de_note"
+                        idControle="fiche_mode_de_note"
+                        libelle={{ en: "Note-taking mode", fr: "Mode de prise de notes" }}
+                        aides={AIDES_MODE_DE_NOTE}
+                        bornes={{ en: "Default: Tool", fr: "Par défaut : outil" }}
+                    >
+                        <Select value={modeDeNote} onValueChange={(v: FicheModeDeNote) => setModeDeNote(v)}>
+                            <SelectTrigger id="fiche_mode_de_note">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="outil">{t({ en: "Tool", fr: "Outil" })}</SelectItem>
+                                <SelectItem value="post_scriptum">{t({ en: "Postscript", fr: "Post-scriptum" })}</SelectItem>
+                                <SelectItem value="greffier" disabled>
+                                    {t({ en: "Clerk (part 2, not available yet)", fr: "Greffier (partie 2, pas encore disponible)" })}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </ChampReglage>
+                )}
                 <div id="reglage-fiche_champs" data-reglage="fiche_champs" className="space-y-2">
                     <EditeurChampsFiche actif={ficheActive} champs={champs} onChange={setChamps} />
                 </div>

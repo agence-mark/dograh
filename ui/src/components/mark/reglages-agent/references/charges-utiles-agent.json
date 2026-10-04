@@ -976,6 +976,20 @@
         }
       ]
     },
+    "mode-de-note": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_mode_de_note": "post_scriptum"
+          },
+          "retirees": []
+        }
+      ]
+    },
     "fiche-champ": {
       "carte": "call-record",
       "theme": "donnees",

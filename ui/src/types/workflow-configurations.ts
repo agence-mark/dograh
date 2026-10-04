@@ -21,6 +21,8 @@ export type AmbientNoiseConfiguration = Omit<
 
 export type TurnStopStrategy = NonNullable<GeneratedWorkflowConfigurationDefaults["turn_stop_strategy"]>;
 export type TurnStartStrategy = NonNullable<GeneratedWorkflowConfigurationDefaults["turn_start_strategy"]>;
+// [.mark] Plan mode-prise-de-notes (D1).
+export type FicheModeDeNote = NonNullable<GeneratedWorkflowConfigurationDefaults["fiche_mode_de_note"]>;
 export const DEFAULT_TURN_START_MIN_WORDS = 3;
 export const DEFAULT_TTS_MARKDOWN_FILTER_ENABLED = false;
 // [.mark] 🔒 Every Pipecat setting this fork exposes on the agent, at the
@@ -278,6 +280,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] The call record filled by the noter_information tool (fiche au
     // fil de l'eau). Off by default: the tool is not offered at all.
     fiche_au_fil_de_leau?: boolean;
+    // [.mark] Plan mode-prise-de-notes: how the record is written. Absent means
+    // the tool, the behaviour of before. The clerk is refused until part 2.
+    fiche_mode_de_note?: FicheModeDeNote;
     fiche_champs?: ChampFiche[];
     // [.mark] Chantier correctifs-modules, lot 4 bis: write the flow map into the
     // prompts at every save. Off by default: the save is unchanged.
