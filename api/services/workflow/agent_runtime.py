@@ -104,6 +104,9 @@ class AgentRuntime:
     # `AgentRuntimeFactory.attach`. Last, with a default: upstream builds this
     # dataclass with keywords and never needs to know it exists.
     filtre_nom_civilite: Any = None
+    # [.mark] Plan mode-prise-de-notes : the postscript processor (None outside
+    # that mode, the default), placed just before the name filter.
+    post_scriptum: Any = None
 
     def bind_tool(self, engine, handler):
         """Bind a tool's lifetime to this visit, including work across awaits."""

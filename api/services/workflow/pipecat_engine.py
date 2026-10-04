@@ -60,6 +60,7 @@ import time
 from loguru import logger
 
 from api.services.managed_model_services import MPS_CORRELATION_ID_CONTEXT_KEY
+from api.services.pipecat.post_scriptum import attendre_les_notes
 from api.services.workflow import pipecat_engine_callbacks as engine_callbacks
 from api.services.workflow.answer_handling import ANSWER_TERMINAL_REASONS, handle_answer
 from api.services.workflow.disposition_extraction import (
@@ -181,6 +182,8 @@ class PipecatEngine:
         self._notices_fiche = (
             Notices() if fiche is not None and fiche.mode != MODE_OUTIL else None
         )
+        # Les notes du post-scriptum encore en cours, attendues avant la passe de fin.
+        self.notes_du_post_scriptum: set[asyncio.Task] = set()
         if fiche is not None and llm is not None:
             # D14 : l'état de la fiche, montré à chaque requête de conversation.
             montrer_la_fiche(
@@ -831,8 +834,33 @@ class PipecatEngine:
             and self.active_agent.llm is self._llm_de_la_fiche
         )
 
+    @property
+    def fiche(self) -> Optional[ReglagesFiche]:
+        """[.mark] Les réglages de la fiche de l'appel (None : éteinte)."""
+        return self._fiche
+
+    @property
+    def notices_fiche(self) -> Optional[Notices]:
+        """[.mark] Plan mode-prise-de-notes (D4) : None en mode outil."""
+        return self._notices_fiche
+
+    def post_scriptum_attendu(self) -> bool:
+        """[.mark] L'étape en cours porte-t-elle la consigne du post-scriptum ?
+        Mêmes conditions que la consigne (``_prepare_node``) : l'agent qui porte
+        la fiche, hors étape de fin."""
+        agent = self.active_agent
+        node = getattr(agent, "current_node", None)
+        return (
+            self._fiche_sur_l_agent_actif()
+            and node is not None
+            and not node.is_end
+        )
+
     async def _balayer_la_fiche(self) -> Optional[dict]:
         """[.mark] D11 : le filet de fin d'appel, par le point d'écriture unique."""
+        # Plan mode-prise-de-notes : une note du post-scriptum encore en cours
+        # finit avant (bornée), sinon la passe la croiserait.
+        await attendre_les_notes(self.notes_du_post_scriptum)
         parent_context = self._get_otel_context()
         try:
             return await balayer_la_fiche(
