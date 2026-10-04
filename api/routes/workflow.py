@@ -39,11 +39,16 @@ from api.services.configuration.ai_model_configuration import (
 )
 from api.services.configuration.check_validity import UserConfigurationValidator
 from api.services.configuration.masking import (
+    SERVICE_SECRET_FIELDS,
+    contains_masked_key,
     mask_workflow_configurations,
     mask_workflow_definition,
     merge_workflow_api_keys,
 )
-from api.services.configuration.merge import merge_workflow_configuration_secrets
+from api.services.configuration.merge import (
+    merge_greffier_secret,
+    merge_workflow_configuration_secrets,
+)
 from api.services.configuration.resolve import (
     enrich_overrides_with_api_keys,
     resolve_effective_config,
@@ -1200,6 +1205,44 @@ async def update_workflow(
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ExternalPBXConfigurationDisabledError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
+        # [.mark] Plan mode-prise-de-notes, partie 2 : la clé du greffier revient
+        # masquée de l'écran ; elle reprend sa vraie valeur à chaque
+        # enregistrement, surcharge de modèle ou pas. Un masque qui ne retrouve
+        # pas sa clé (autre fournisseur, rien en base) est refusé : jamais
+        # enregistré à la place de la clé.
+        if workflow_configurations and isinstance(
+            workflow_configurations.get("greffier_llm"), dict
+        ):
+            existing_workflow = await db_client.get_workflow(
+                workflow_id, organization_id=user.selected_organization_id
+            )
+            if existing_workflow is None:
+                raise HTTPException(
+                    status_code=404, detail=f"Workflow with id {workflow_id} not found"
+                )
+            existing_draft = await db_client.get_draft_version(workflow_id)
+            existing_configs = (
+                existing_draft.workflow_configurations
+                if existing_draft
+                else (
+                    existing_workflow.released_definition.workflow_configurations
+                    if existing_workflow.released_definition
+                    else None
+                )
+            )
+            workflow_configurations = merge_greffier_secret(
+                workflow_configurations, existing_configs
+            )
+            greffier = workflow_configurations["greffier_llm"]
+            if any(
+                isinstance(greffier.get(champ), (str, list))
+                and contains_masked_key(greffier.get(champ))
+                for champ in SERVICE_SECRET_FIELDS
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail="the clerk's API key is masked: type the key again",
+                )
         if workflow_configurations and workflow_configurations.get(
             WORKFLOW_MODEL_CONFIGURATION_V2_OVERRIDE_KEY
         ):

@@ -9081,9 +9081,23 @@ export type WorkflowConfigurationDefaults = {
     /**
      * Fiche Mode De Note
      *
-     * How the call record is written, when it is on. Tool (default): the model calls noter_information, then speaks in a second pass. Postscript: the model speaks, then writes its note after a separator in the same answer; the note is never spoken. Clerk: a second model keeps the record alongside the agent (not available yet).
+     * How the call record is written, when it is on. Tool (default): the model calls noter_information, then speaks in a second pass. Postscript: the model speaks, then writes its note after a separator in the same answer; the note is never spoken. Clerk: a second model keeps the record alongside the agent, the agent only speaks.
      */
     fiche_mode_de_note?: 'outil' | 'post_scriptum' | 'greffier';
+    /**
+     * Greffier Llm
+     *
+     * The clerk's model, when the note-taking mode is Clerk: provider, model, settings and its own API key. Empty fields come from the conversation model; an empty key uses the conversation's key (and its rate limit).
+     */
+    greffier_llm?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Greffier Consigne
+     *
+     * The clerk's instructions. Empty: the generic instructions written in the code. The record's fields and the expected answer format are always added by the code.
+     */
+    greffier_consigne?: string | null;
     /**
      * Fiche Champs
      *

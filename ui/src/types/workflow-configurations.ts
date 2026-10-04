@@ -23,6 +23,15 @@ export type TurnStopStrategy = NonNullable<GeneratedWorkflowConfigurationDefault
 export type TurnStartStrategy = NonNullable<GeneratedWorkflowConfigurationDefaults["turn_start_strategy"]>;
 // [.mark] Plan mode-prise-de-notes (D1).
 export type FicheModeDeNote = NonNullable<GeneratedWorkflowConfigurationDefaults["fiche_mode_de_note"]>;
+// [.mark] Part 2: the clerk's model block. Empty fields come from the
+// conversation model; no `api_key` = the conversation's key.
+export type GreffierLlm = {
+    provider?: string;
+    model?: string;
+    temperature?: number;
+    api_key?: string;
+    [cle: string]: unknown;
+};
 export const DEFAULT_TURN_START_MIN_WORDS = 3;
 export const DEFAULT_TTS_MARKDOWN_FILTER_ENABLED = false;
 // [.mark] 🔒 Every Pipecat setting this fork exposes on the agent, at the
@@ -281,8 +290,13 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // fil de l'eau). Off by default: the tool is not offered at all.
     fiche_au_fil_de_leau?: boolean;
     // [.mark] Plan mode-prise-de-notes: how the record is written. Absent means
-    // the tool, the behaviour of before. The clerk is refused until part 2.
+    // the tool, the behaviour of before.
     fiche_mode_de_note?: FicheModeDeNote;
+    // [.mark] Part 2: the clerk's model, shaped like a model override (its key
+    // comes back masked and is restored on save), and its instructions (absent:
+    // the generic ones written in the code).
+    greffier_llm?: GreffierLlm | null;
+    greffier_consigne?: string | null;
     fiche_champs?: ChampFiche[];
     // [.mark] Chantier correctifs-modules, lot 4 bis: write the flow map into the
     // prompts at every save. Off by default: the save is unchanged.

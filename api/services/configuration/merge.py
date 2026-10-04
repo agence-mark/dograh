@@ -157,3 +157,36 @@ def merge_workflow_configuration_secrets(
         )
 
     return merged
+
+
+def merge_greffier_secret(
+    incoming_config: dict | None,
+    existing_config: dict | None,
+) -> dict | None:
+    """[.mark] Plan mode-prise-de-notes, partie 2 : la clé du greffier revient
+    masquée de l'écran ; elle reprend sa vraie valeur, comme une surcharge de
+    modèle (décision d'Evan, 04/10). Appelée à chaque enregistrement, avec ou
+    sans surcharge de modèle. Une clé absente reste absente (= clé de la
+    conversation)."""
+    if not incoming_config:
+        return incoming_config
+    incoming_greffier = incoming_config.get("greffier_llm")
+    existing_greffier = (existing_config or {}).get("greffier_llm")
+    if not isinstance(incoming_greffier, dict) or not isinstance(
+        existing_greffier, dict
+    ):
+        return incoming_config
+    # Revue du 04/10 : une clé ne revient que chez SON fournisseur, absent des
+    # deux côtés compris (« comme la conversation »). Vider le fournisseur ou en
+    # changer laisse le masque, que la route refuse : jamais une clé envoyée à
+    # un autre fournisseur.
+    if incoming_greffier.get("provider") != existing_greffier.get("provider"):
+        return incoming_config
+    merged = copy.deepcopy(incoming_config)
+    merged["greffier_llm"] = _merge_service_secret_fields(
+        merged["greffier_llm"],
+        existing_greffier,
+        preserve_missing=False,
+        masked_value_preserves_full_secret=True,
+    )
+    return merged

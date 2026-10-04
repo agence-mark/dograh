@@ -990,6 +990,39 @@
         }
       ]
     },
+    "greffier": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_mode_de_note": "greffier",
+            "greffier_llm": {
+              "model": "mistral-small-2603",
+              "api_key": "cle-de-reference"
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "greffier-consigne": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_mode_de_note": "greffier",
+            "greffier_consigne": "Tu tiens la fiche."
+          },
+          "retirees": []
+        }
+      ]
+    },
     "fiche-champ": {
       "carte": "call-record",
       "theme": "donnees",

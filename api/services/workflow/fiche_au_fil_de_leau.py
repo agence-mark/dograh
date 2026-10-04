@@ -162,9 +162,8 @@ CLE_MODE = "fiche_mode_de_note"
 MODE_OUTIL = "outil"
 MODE_POST_SCRIPTUM = "post_scriptum"
 MODE_GREFFIER = "greffier"
-# Plan mode-prise-de-notes, D1 : les modes qu'un appel peut jouer aujourd'hui.
-# Le greffier (partie 2) n'y est pas : refusé à l'enregistrement, lu « outil ».
-MODES_JOUABLES = (MODE_OUTIL, MODE_POST_SCRIPTUM)
+# Plan mode-prise-de-notes, D1 : les modes qu'un appel peut jouer (partie 2 : le greffier).
+MODES_JOUABLES = (MODE_OUTIL, MODE_POST_SCRIPTUM, MODE_GREFFIER)
 
 
 def _mode(run_configs: dict) -> str:
@@ -2791,13 +2790,28 @@ CONSIGNE_POST_SCRIPTUM = (
 )
 
 
+# Plan mode-prise-de-notes, partie 2 : ce que l'agent sait du greffier. Il ne
+# note rien et n'appelle rien pour la fiche ; il voit ce qui est écrit (état).
+CONSIGNE_AGENT_DU_GREFFIER = (
+    "La fiche de l'appel est tenue à côté de toi par un greffier, qui écoute la "
+    "conversation : tu ne notes rien toi-même et tu n'appelles aucun outil pour la "
+    "remplir. Tu parles. Ce qui est déjà écrit dans la fiche t'est montré, avec ce "
+    "qu'il faut faire confirmer à la personne."
+)
+
+
 def consigne_du_mode(reglages: ReglagesFiche | None) -> str | None:
     """D3 : le bloc que le CODE ajoute à la fin du prompt système selon le mode,
     pour que les prompts de l'agent restent neutres (« tu le notes »). Calculé à
     chaque étape, jamais enregistré : rien à retirer en revenant à l'outil, et
     fixe pendant l'appel (le début de la requête ne bouge pas, cache intact).
 
-    Outil : rien (le comportement d'avant, la description de l'outil suffit)."""
+    Outil : rien (le comportement d'avant, la description de l'outil suffit).
+    Greffier : la fiche est tenue à côté de l'agent, il parle seulement."""
+    if reglages is not None and reglages.mode == MODE_GREFFIER:
+        return "\n".join(
+            [DEBUT_PRISE_DE_NOTES, CONSIGNE_AGENT_DU_GREFFIER, FIN_PRISE_DE_NOTES]
+        )
     if reglages is None or reglages.mode != MODE_POST_SCRIPTUM:
         return None
     champs = "\n".join(
@@ -2834,31 +2848,49 @@ class Notices:
 CLES_DES_NOTICES = ("a_confirmer", "ecriture_retenue", "a_proposer", "refuses", "consigne")
 
 
-def _ligne_des_notices(notices: Notices | None) -> str | None:
+ENTETE_NOTICES = "Retour de ta dernière note : "
+# Partie 2 : en mode greffier, ce n'est pas l'agent qui a noté.
+ENTETE_NOTICES_GREFFIER = "Retour de la dernière note du greffier : "
+
+
+def _ligne_des_notices(
+    notices: Notices | None, entete: str = ENTETE_NOTICES
+) -> str | None:
     if notices is None or not notices.derniere:
         return None
     retour = {c: notices.derniere[c] for c in CLES_DES_NOTICES if c in notices.derniere}
     if not retour:
         return None
-    return "Retour de ta dernière note : " + json.dumps(retour, ensure_ascii=False)
+    return entete + json.dumps(retour, ensure_ascii=False)
 
 
-# Le délai laissé aux notes du post-scriptum encore en cours avant la passe de fin.
+# Le délai laissé aux notes encore en cours (post-scriptum, greffier) avant la
+# passe de fin. Le greffier attend la réponse d'un second modèle : plus long.
 DELAI_DES_NOTES_EN_COURS = 3.0
+DELAI_DU_GREFFIER = 15.0
 
 
-async def attendre_les_notes(notes_en_cours: set[asyncio.Task]) -> None:
+def delai_des_notes(reglages: ReglagesFiche | None) -> float:
+    """Combien attendre les notes encore en cours, selon le mode joué."""
+    if reglages is not None and reglages.mode == MODE_GREFFIER:
+        return DELAI_DU_GREFFIER
+    return DELAI_DES_NOTES_EN_COURS
+
+
+async def attendre_les_notes(
+    notes_en_cours: set[asyncio.Task], delai: float = DELAI_DES_NOTES_EN_COURS
+) -> None:
     """Avant la passe de fin : laisser finir une note encore en cours, au plus
-    ``DELAI_DES_NOTES_EN_COURS``. Rien n'est annulé (relecture du 04/10) : une
-    note plus lente finit après la passe, qui ne remplit que les champs vides."""
+    ``delai``. Rien n'est annulé (relecture du 04/10) : une note plus lente
+    finit après la passe, qui ne remplit que les champs vides."""
     en_cours = [t for t in notes_en_cours if not t.done()]
     if not en_cours:
         return
-    _, restantes = await asyncio.wait(en_cours, timeout=DELAI_DES_NOTES_EN_COURS)
+    _, restantes = await asyncio.wait(en_cours, timeout=delai)
     if restantes:
         logger.warning(
-            "[fiche] note du post-scriptum encore en cours : la passe de fin part "
-            "sans l'attendre, la note finira après elle"
+            "[fiche] note encore en cours : la passe de fin part sans l'attendre, "
+            "la note finira après elle"
         )
 
 
@@ -2889,9 +2921,17 @@ ENTETE_ETAT_POST_SCRIPTUM = (
 )
 
 
+ENTETE_ETAT_GREFFIER = (
+    "[Fiche de l'appel : pour toi seulement, tu ne la lis jamais à voix haute. "
+    "Elle est tenue par le greffier.]"
+)
+
+
 def entete_etat(reglages: ReglagesFiche) -> str:
     if reglages.mode == MODE_POST_SCRIPTUM:
         return ENTETE_ETAT_POST_SCRIPTUM
+    if reglages.mode == MODE_GREFFIER:
+        return ENTETE_ETAT_GREFFIER
     return ENTETE_ETAT
 
 
@@ -2980,7 +3020,10 @@ def etat_de_la_fiche(
             notes.append(ligne)
         else:
             a_confirmer.append(ligne)
-    retour = _ligne_des_notices(notices)
+    retour = _ligne_des_notices(
+        notices,
+        ENTETE_NOTICES_GREFFIER if reglages.mode == MODE_GREFFIER else ENTETE_NOTICES,
+    )
     if not (notes or a_confirmer or retour):
         return None
     lignes = [entete_etat(reglages)]
