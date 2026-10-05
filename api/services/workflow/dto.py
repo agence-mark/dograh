@@ -134,6 +134,22 @@ class _PromptedNodeDataMixin(BaseModel):
     )
 
 
+class _PremiereRepliqueNodeDataMixin(BaseModel):
+    # [.mark] Plan porte-parlee, D2 : ce que l'étape dit en premier quand une porte
+    # y mène. Lu seulement quand l'agent prend ses portes dans la réponse ; vide =
+    # absent. Pas de vocabulaire métier dans le code : c'est un champ de l'écran.
+    premiere_replique: Optional[str] = spec_field(
+        default=None,
+        ui_type=PropertyType.mention_textarea,
+        display_name="First reply",
+        description=(
+            "What the agent says first when it arrives at this step. Used only "
+            'when "Transitions in the reply" is on. Supports {{template_variables}}.'
+        ),
+        max_length=4000,
+    )
+
+
 class _ExtractionNodeDataMixin(BaseModel):
     extraction_enabled: bool = spec_field(
         default=False,
@@ -433,6 +449,7 @@ class StartCallNodeData(
     property_order=(
         "name",
         "prompt",
+        "premiere_replique",
         "allow_interrupt",
         "add_global_prompt",
         "extraction_enabled",
@@ -474,6 +491,7 @@ class StartCallNodeData(
 class AgentNodeData(
     BaseNodeData,
     _PromptedNodeDataMixin,
+    _PremiereRepliqueNodeDataMixin,
     _ExtractionNodeDataMixin,
     _ToolDocumentRefsMixin,
 ):
@@ -505,6 +523,7 @@ class AgentNodeData(
     property_order=(
         "name",
         "prompt",
+        "premiere_replique",
         "add_global_prompt",
         "extraction_enabled",
         "extraction_prompt",
@@ -556,6 +575,7 @@ class AgentNodeData(
 class EndCallNodeData(
     BaseNodeData,
     _PromptedNodeDataMixin,
+    _PremiereRepliqueNodeDataMixin,
     _ExtractionNodeDataMixin,
 ):
     is_end: bool = spec_field(default=True, spec_exclude=True)

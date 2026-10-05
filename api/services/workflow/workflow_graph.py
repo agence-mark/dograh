@@ -142,6 +142,10 @@ class Node:
         self.pre_call_fetch_credential_uuid = getattr(
             data, "pre_call_fetch_credential_uuid", None
         )
+        # [.mark] Plan porte-parlee, D2 : vide ou blanc = absent.
+        self.premiere_replique = (
+            getattr(data, "premiere_replique", None) or ""
+        ).strip() or None
 
         self.data = data
 

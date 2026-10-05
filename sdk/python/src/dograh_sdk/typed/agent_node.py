@@ -57,6 +57,12 @@ class AgentNode(TypedNode):
     logs and edge transition tools.
     """
 
+    premiere_replique: Optional[str] = None
+    """
+    What the agent says first when it arrives at this step. Used only when
+    "Transitions in the reply" is on. Supports {{template_variables}}.
+    """
+
     allow_interrupt: bool = True
     """
     When true, the user can interrupt the agent mid-utterance. Set false for
