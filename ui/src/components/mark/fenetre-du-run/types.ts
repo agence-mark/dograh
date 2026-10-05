@@ -29,6 +29,13 @@ export type TourDeLatence = {
 
 export type Latence = Bloc & {
     turns?: TourDeLatence[];
+    perceived?: {
+        status: Statut;
+        count?: number;
+        median_secs?: number | null;
+        worst_secs?: number | null;
+        pairs?: { caller_end_secs: number; agent_start_secs: number; silence_secs: number }[];
+    };
     stats?: {
         measured_turns: number;
         total_turns: number;

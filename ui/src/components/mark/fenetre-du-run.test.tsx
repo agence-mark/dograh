@@ -290,3 +290,23 @@ describe("Fenêtre du run : coupures, interruptions, relances", () => {
         expect(marques).toContain("relance d'inactivité");
     });
 });
+
+
+describe("Fenêtre du run : silence réellement entendu", () => {
+    it("montre la médiane et le pire, ou dit « non capté »", async () => {
+        lireAnalyse.mockResolvedValue({
+            data: {
+                ...ANALYSE,
+                latency: { ...ANALYSE.latency, perceived: { status: "ok", count: 7, median_secs: 1.8, worst_secs: 3.1 } },
+            },
+        });
+        const { unmount } = enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        expect(texte(screen.getByTestId("silence-entendu"))).toContain("médiane 1.80 s · pire 3.10 s · 7 réponses");
+        unmount();
+        lireAnalyse.mockResolvedValue({ data: ANALYSE });
+        enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        expect(texte(screen.getByTestId("silence-entendu"))).toContain("non capté");
+    });
+});

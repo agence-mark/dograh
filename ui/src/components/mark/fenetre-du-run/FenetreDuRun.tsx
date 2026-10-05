@@ -250,6 +250,22 @@ function BlocLatence({ latence }: { latence: Latence }) {
                     })}
                 </p>
             )}
+            <p data-testid="silence-entendu">
+                {!latence.perceived || latence.perceived.status === "not_captured"
+                    ? t({
+                          en: "Silence actually heard: not captured (no separate tracks, or run older than this capture).",
+                          fr: "Silence réellement entendu : non capté (pas de pistes séparées, ou run antérieur à cette capture).",
+                      })
+                    : latence.perceived.status === "unavailable"
+                      ? t({
+                            en: "Silence actually heard: unavailable (the tracks could not be analysed).",
+                            fr: "Silence réellement entendu : indisponible (les pistes n'ont pas pu être analysées).",
+                        })
+                      : t({
+                            en: `Silence actually heard (end of the caller's voice → first sound of the agent): median ${secondes(latence.perceived.median_secs)} · worst ${secondes(latence.perceived.worst_secs)} · ${latence.perceived.count ?? 0} replies`,
+                            fr: `Silence réellement entendu (fin de la voix de l'appelant → premier son de l'agent) : médiane ${secondes(latence.perceived.median_secs)} · pire ${secondes(latence.perceived.worst_secs)} · ${latence.perceived.count ?? 0} réponses`,
+                        })}
+            </p>
             <p className="text-xs text-muted-foreground">
                 {t({
                     en: "Silence = end of the caller's words → first text of the agent. Bar: wait for the end of the turn, then each model pass (black = the reply), then the voice.",

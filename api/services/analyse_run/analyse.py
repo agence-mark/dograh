@@ -170,8 +170,11 @@ def _latence(run: dict, portes: set[str] | None) -> dict:
                 ),
             }
         )
+    # Lot 2 (L4) : le silence réellement entendu, calculé après l'appel sur les deux pistes.
+    percu = _contexte(run).get("mark_silences")
+    percu = percu if isinstance(percu, dict) else {"status": NON_CAPTE}
     if not tours:
-        return {"status": NON_CAPTE, "turns": []}
+        return {"status": NON_CAPTE, "turns": [], "perceived": percu}
     mesures = [t["silence_secs"] for t in tours if t["measured"]]
     pire = max(
         (t for t in tours if t["measured"]),
@@ -182,6 +185,7 @@ def _latence(run: dict, portes: set[str] | None) -> dict:
     return {
         "status": OK,
         "turns": tours,
+        "perceived": percu,
         "stats": {
             "measured_turns": len(mesures),
             "total_turns": len(tours),

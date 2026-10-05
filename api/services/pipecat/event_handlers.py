@@ -5,6 +5,7 @@ from loguru import logger
 from api.constants import ENABLE_CALL_RECORDING_UPLOAD
 from api.db import db_client
 from api.enums import PostHogEvent, WorkflowRunState
+from api.services.analyse_run.silences import lancer_le_calcul_des_silences
 from api.services.campaign.campaign_event_publisher import (
     notify_campaign_call_completed,
 )
@@ -524,6 +525,12 @@ def register_event_handlers(
             )
         except Exception as e:
             logger.error(f"Error uploading call artifacts: {e}", exc_info=True)
+
+        # [.mark] Le silence réellement entendu, calculé sur les deux pistes en tâche à part
+        # (langwatch-et-fenetre-du-run, lot 2). Ne retarde ni l'envoi ni la suite.
+        lancer_le_calcul_des_silences(
+            workflow_run_id, user_audio_wav, bot_audio_wav, db_client
+        )
 
         # Combined task: runs integrations (including QA), then calculates
         # cost (so QA token usage is captured in usage_info)
