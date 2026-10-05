@@ -45,14 +45,54 @@ CLE_INTERRUPTEUR = "relance_apres_outil"
 
 
 class AgregateurAppelantRelance(LLMUserAggregator):
-    """Prévient l'agrégateur de l'agent à chaque demande au modèle (règle 4)."""
+    """Prévient l'agrégateur de l'agent à chaque demande au modèle (règle 4).
+
+    Y compris la réponse SPÉCULATIVE (revue du 05/10, point 9) : Pipecat la lance sur une copie du
+    contexte par ``push_frame``, pas par ``push_context_frame``, et ne réinterroge pas le modèle
+    quand la fin de tour la confirme. Lancée alors qu'une relance était due, elle voit déjà le
+    résultat de l'outil : sa confirmation solde la relance (sinon, deux réponses). Jetée, rien ne
+    change : la fin de tour normale demande au modèle et solde la relance comme d'habitude.
+    """
 
     assistant: AgregateurAgentRelance | None = None
+    _speculation_apres_resultat: bool = False
 
     async def push_context_frame(self, direction=FrameDirection.DOWNSTREAM):
         if self.assistant is not None:
             self.assistant.demande_au_modele()
         await super().push_context_frame(direction)
+
+    async def _run_speculative_inference(self, speculation):
+        # Seule la DERNIÈRE spéculation compte (Pipecat remplace la précédente) : elle a vu le
+        # résultat si une relance était due à son départ.
+        self._speculation_apres_resultat = bool(
+            self.assistant is not None and self.assistant._relance_due
+        )
+        await super()._run_speculative_inference(speculation)
+
+    def resultat_arrive(self) -> None:
+        """Un résultat d'outil arrive : aucune spéculation déjà partie ne l'a vu."""
+        self._speculation_apres_resultat = False
+
+    async def _on_user_turn_started(self, controller, strategy, params):
+        # Un tour fini sans « stopped » (interruption, fin de session) ne transmet rien.
+        self._speculation_apres_resultat = False
+        await super()._on_user_turn_started(controller, strategy, params)
+
+    async def _on_user_turn_speculation_cancelled(self, controller):
+        self._speculation_apres_resultat = False
+        await super()._on_user_turn_speculation_cancelled(controller)
+
+    async def _on_user_turn_stopped(self, controller, strategy, params):
+        confirmee = bool(getattr(params, "confirms_speculation", False))
+        if (
+            confirmee
+            and self._speculation_apres_resultat
+            and self.assistant is not None
+        ):
+            self.assistant.demande_au_modele()
+        self._speculation_apres_resultat = False
+        await super()._on_user_turn_stopped(controller, strategy, params)
 
 
 class AgregateurAgentRelance(LLMAssistantAggregator):
@@ -93,6 +133,7 @@ class AgregateurAgentRelance(LLMAssistantAggregator):
 
     async def _maybe_push_context_after_function_result(self):
         self._relance_due = True
+        self._paired_user_aggregator.resultat_arrive()
         if self._tour_en_cours():
             logger.debug(
                 f"{self}: tour de l'appelant en cours, relance après l'outil gardée"
