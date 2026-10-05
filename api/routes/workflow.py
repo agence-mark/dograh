@@ -367,6 +367,16 @@ class UpdateWorkflowRequest(BaseModel):
                 vers_expression_osm(value.horaires_ouverture)
             except HorairesInvalides as erreur:
                 raise ValueError(str(erreur)) from None
+        # [.mark] Plan porte-parlee, D1 : la porte dans la réponse n'existe qu'en
+        # Postscript. Ici et non au schéma, pour la même raison que les horaires.
+        if (
+            value is not None
+            and value.portes_dans_la_reponse
+            and value.fiche_mode_de_note != "post_scriptum"
+        ):
+            raise ValueError(
+                "Transitions in the reply require the Postscript note-taking mode"
+            )
         return value
 
 

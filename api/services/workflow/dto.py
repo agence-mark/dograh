@@ -134,6 +134,22 @@ class _PromptedNodeDataMixin(BaseModel):
     )
 
 
+class _PremiereRepliqueNodeDataMixin(BaseModel):
+    # [.mark] Plan porte-parlee, D2 : ce que l'étape dit en premier quand une porte
+    # y mène. Lu seulement quand l'agent prend ses portes dans la réponse ; vide =
+    # absent. Pas de vocabulaire métier dans le code : c'est un champ de l'écran.
+    premiere_replique: Optional[str] = spec_field(
+        default=None,
+        ui_type=PropertyType.mention_textarea,
+        display_name="First reply",
+        description=(
+            "What the agent says first when it arrives at this step. Used only "
+            'when "Transitions in the reply" is on. Supports {{template_variables}}.'
+        ),
+        max_length=4000,
+    )
+
+
 class _ExtractionNodeDataMixin(BaseModel):
     extraction_enabled: bool = spec_field(
         default=False,
@@ -433,6 +449,7 @@ class StartCallNodeData(
     property_order=(
         "name",
         "prompt",
+        "premiere_replique",
         "allow_interrupt",
         "add_global_prompt",
         "extraction_enabled",
@@ -474,6 +491,7 @@ class StartCallNodeData(
 class AgentNodeData(
     BaseNodeData,
     _PromptedNodeDataMixin,
+    _PremiereRepliqueNodeDataMixin,
     _ExtractionNodeDataMixin,
     _ToolDocumentRefsMixin,
 ):
@@ -505,6 +523,7 @@ class AgentNodeData(
     property_order=(
         "name",
         "prompt",
+        "premiere_replique",
         "add_global_prompt",
         "extraction_enabled",
         "extraction_prompt",
@@ -556,6 +575,7 @@ class AgentNodeData(
 class EndCallNodeData(
     BaseNodeData,
     _PromptedNodeDataMixin,
+    _PremiereRepliqueNodeDataMixin,
     _ExtractionNodeDataMixin,
 ):
     is_end: bool = spec_field(default=True, spec_exclude=True)
@@ -1171,7 +1191,13 @@ def _sanitize_node(node):
     if not data_cls or not isinstance(raw_data, dict):
         return node
     allowed = data_cls.model_fields.keys()
-    return {**node, "data": {k: v for k, v in raw_data.items() if k in allowed}}
+    data = {k: v for k, v in raw_data.items() if k in allowed}
+    # [.mark] Plan porte-parlee (D18) : le formulaire du nœud envoie le champ vide
+    # dans chaque étape ; vide = absent, et le JSON d'un agent qui ne s'en sert
+    # pas reste identique à ce qu'il était avant le champ.
+    if not str(data.get("premiere_replique") or "").strip():
+        data.pop("premiere_replique", None)
+    return {**node, "data": data}
 
 
 def _sanitize_edge(edge):

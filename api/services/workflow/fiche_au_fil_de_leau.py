@@ -162,6 +162,8 @@ CLE_MODE = "fiche_mode_de_note"
 MODE_OUTIL = "outil"
 MODE_POST_SCRIPTUM = "post_scriptum"
 MODE_GREFFIER = "greffier"
+# Plan porte-parlee, D1 : la porte se prend dans la réponse (Postscript seulement).
+CLE_PORTES_DANS_LA_REPONSE = "portes_dans_la_reponse"
 # Plan mode-prise-de-notes, D1 : les modes qu'un appel peut jouer (partie 2 : le greffier).
 MODES_JOUABLES = (MODE_OUTIL, MODE_POST_SCRIPTUM, MODE_GREFFIER)
 
@@ -186,6 +188,8 @@ class ReglagesFiche:
     termes_du_lexique: dict[str, str] = field(default_factory=dict)
     # Plan mode-prise-de-notes, D1 : comment la fiche s'écrit pendant l'appel.
     mode: str = MODE_OUTIL
+    # Plan porte-parlee, D1 : la porte se prend dans la réponse (Postscript seulement).
+    portes_dans_la_reponse: bool = False
 
     @property
     def par_nom(self) -> dict[str, ChampFiche]:
@@ -231,18 +235,40 @@ class ReglagesFiche:
                 else c
                 for c in champs
             ]
+        mode = _mode(run_configs)
         return cls(
-            champs=tuple(champs), termes_du_lexique=termes, mode=_mode(run_configs)
+            champs=tuple(champs),
+            termes_du_lexique=termes,
+            mode=mode,
+            portes_dans_la_reponse=_portes_dans_la_reponse(run_configs, mode),
         )
+
+
+def _portes_dans_la_reponse(run_configs: dict, mode: str) -> bool:
+    """Plan porte-parlee, D1 : allumée seulement par ``True`` et en Postscript.
+    Sans la clé : éteinte. Écrite à la main hors Postscript : éteinte, jamais un
+    appel perdu (l'enregistrement le refuse, D1)."""
+    if run_configs.get(CLE_PORTES_DANS_LA_REPONSE) is not True:
+        return False
+    if mode != MODE_POST_SCRIPTUM:
+        logger.warning(
+            f"[fiche] porte dans la réponse ignorée hors Postscript (mode {mode})"
+        )
+        return False
+    return True
 
 
 def estampiller_le_mode(
     runtime_configuration: dict, reglages: ReglagesFiche | None
 ) -> dict:
     """Plan mode-prise-de-notes : l'estampille du run dit le mode JOUÉ. Fiche
-    éteinte (``None``) : aucun mode n'a été joué, rien n'est écrit."""
+    éteinte (``None``) : aucun mode n'a été joué, rien n'est écrit.
+    Plan porte-parlee : la porte dans la réponse n'est écrite que jouée, pour
+    qu'un run d'un agent qui ne l'a pas garde son estampille à l'identique."""
     if reglages is not None:
         runtime_configuration[CLE_MODE] = reglages.mode
+        if reglages.portes_dans_la_reponse:
+            runtime_configuration[CLE_PORTES_DANS_LA_REPONSE] = True
     return runtime_configuration
 
 

@@ -56,6 +56,12 @@ class EndCall(TypedNode):
     (e.g., 'Successful close', 'Polite decline').
     """
 
+    premiere_replique: Optional[str] = None
+    """
+    What the agent says first when it arrives at this step. Used only when
+    "Transitions in the reply" is on. Supports {{template_variables}}.
+    """
+
     add_global_prompt: bool = False
     """
     When true and a Global node exists, prepends the global prompt to this

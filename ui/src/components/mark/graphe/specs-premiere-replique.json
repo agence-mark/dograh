@@ -1,0 +1,600 @@
+{
+  "agentNode": {
+    "name": "agentNode",
+    "display_name": "Agent Node",
+    "description": "Conversational step — the LLM runs one focused exchange.",
+    "llm_hint": "Mid-call step executed by the LLM. Most workflows are a chain of agent nodes connected by edges that describe transition conditions. Each agent node can invoke tools and reference documents.",
+    "docs_url": null,
+    "category": "call_node",
+    "icon": "Headset",
+    "version": "1.0.0",
+    "properties": [
+      {
+        "name": "name",
+        "type": "string",
+        "display_name": "Name",
+        "description": "Short identifier for this step (e.g., 'Qualify Budget'). Appears in call logs and edge transition tools.",
+        "llm_hint": null,
+        "default": "Agent",
+        "required": true,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": 1,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "prompt",
+        "type": "mention_textarea",
+        "display_name": "Prompt",
+        "description": "Agent system prompt for this step. Supports {{template_variables}} from extraction or pre-call fetch.",
+        "llm_hint": null,
+        "default": null,
+        "required": true,
+        "placeholder": "Ask the caller about their budget and timeline.",
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": 1,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "premiere_replique",
+        "type": "mention_textarea",
+        "display_name": "First reply",
+        "description": "What the agent says first when it arrives at this step. Used only when \"Transitions in the reply\" is on. Supports {{template_variables}}.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": 4000,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "allow_interrupt",
+        "type": "boolean",
+        "display_name": "Allow Interruption",
+        "description": "When true, the user can interrupt the agent mid-utterance. Set false for non-interruptible disclosures.",
+        "llm_hint": null,
+        "default": true,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "add_global_prompt",
+        "type": "boolean",
+        "display_name": "Add Global Prompt",
+        "description": "When true and a Global node exists, prepends the global prompt to this node's prompt at runtime.",
+        "llm_hint": null,
+        "default": true,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "extraction_enabled",
+        "type": "boolean",
+        "display_name": "Enable Variable Extraction",
+        "description": "When true, runs an LLM extraction pass for this node.",
+        "llm_hint": null,
+        "default": false,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "extraction_prompt",
+        "type": "string",
+        "display_name": "Extraction Prompt",
+        "description": "Overall instructions guiding variable extraction.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": {
+          "show": {
+            "extraction_enabled": [
+              true
+            ]
+          },
+          "hide": null
+        },
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": "textarea",
+        "renderer_options": null
+      },
+      {
+        "name": "extraction_variables",
+        "type": "fixed_collection",
+        "display_name": "Variables to Extract",
+        "description": "Each entry declares one variable to capture, with its name, data type, and extraction hint. Call outcomes are configured separately in workflow settings.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": {
+          "show": {
+            "extraction_enabled": [
+              true
+            ]
+          },
+          "hide": null
+        },
+        "options": null,
+        "properties": [
+          {
+            "name": "name",
+            "type": "string",
+            "display_name": "Variable Name",
+            "description": "snake_case identifier used downstream.",
+            "llm_hint": null,
+            "default": null,
+            "required": true,
+            "placeholder": null,
+            "display_options": null,
+            "options": null,
+            "properties": null,
+            "min_value": null,
+            "max_value": null,
+            "min_length": 1,
+            "max_length": null,
+            "pattern": null,
+            "editor": null,
+            "renderer_options": null
+          },
+          {
+            "name": "type",
+            "type": "options",
+            "display_name": "Type",
+            "description": "Data type of the extracted value.",
+            "llm_hint": null,
+            "default": "string",
+            "required": true,
+            "placeholder": null,
+            "display_options": null,
+            "options": [
+              {
+                "value": "string",
+                "label": "String",
+                "description": null
+              },
+              {
+                "value": "number",
+                "label": "Number",
+                "description": null
+              },
+              {
+                "value": "boolean",
+                "label": "Boolean",
+                "description": null
+              }
+            ],
+            "properties": null,
+            "min_value": null,
+            "max_value": null,
+            "min_length": null,
+            "max_length": null,
+            "pattern": null,
+            "editor": null,
+            "renderer_options": null
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "display_name": "Extraction Hint",
+            "description": "Per-variable hint describing what to look for.",
+            "llm_hint": null,
+            "default": null,
+            "required": false,
+            "placeholder": null,
+            "display_options": null,
+            "options": null,
+            "properties": null,
+            "min_value": null,
+            "max_value": null,
+            "min_length": null,
+            "max_length": null,
+            "pattern": null,
+            "editor": "textarea",
+            "renderer_options": null
+          }
+        ],
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "tool_uuids",
+        "type": "tool_refs",
+        "display_name": "Tools",
+        "description": "Tools the agent can invoke during this step.",
+        "llm_hint": "List of tool UUIDs from `list_tools`.",
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "document_uuids",
+        "type": "document_refs",
+        "display_name": "Knowledge Base Documents",
+        "description": "Documents the agent can reference during this step.",
+        "llm_hint": "List of document UUIDs from `list_documents`.",
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      }
+    ],
+    "examples": [
+      {
+        "name": "qualify_lead",
+        "description": null,
+        "data": {
+          "name": "Qualify Budget",
+          "prompt": "Ask about budget and timeline. Capture both before transitioning.",
+          "allow_interrupt": true,
+          "extraction_enabled": true,
+          "extraction_prompt": "Extract budget amount and rough timeline.",
+          "extraction_variables": [
+            {
+              "name": "budget_usd",
+              "type": "number",
+              "prompt": "Stated budget in USD"
+            },
+            {
+              "name": "timeline",
+              "type": "string",
+              "prompt": "When they want to start"
+            }
+          ]
+        }
+      }
+    ],
+    "graph_constraints": {
+      "min_incoming": 1,
+      "max_incoming": null,
+      "min_outgoing": null,
+      "max_outgoing": null,
+      "min_instances": null,
+      "max_instances": null
+    }
+  },
+  "endCall": {
+    "name": "endCall",
+    "display_name": "End Call",
+    "description": "Closes the conversation and hangs up.",
+    "llm_hint": "Terminal node that politely closes the conversation. Variable extraction can run before hangup. A workflow can have multiple endCall nodes reached via different edge conditions.",
+    "docs_url": null,
+    "category": "call_node",
+    "icon": "OctagonX",
+    "version": "1.0.0",
+    "properties": [
+      {
+        "name": "name",
+        "type": "string",
+        "display_name": "Name",
+        "description": "Short identifier shown in call logs. Should describe the ending context (e.g., 'Successful close', 'Polite decline').",
+        "llm_hint": null,
+        "default": "End Call",
+        "required": true,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": 1,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "prompt",
+        "type": "mention_textarea",
+        "display_name": "Prompt",
+        "description": "Agent system prompt for the closing exchange. Supports {{template_variables}} from extraction or pre-call fetch.",
+        "llm_hint": null,
+        "default": null,
+        "required": true,
+        "placeholder": "Thank the caller and confirm next steps before ending the call.",
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": 1,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "premiere_replique",
+        "type": "mention_textarea",
+        "display_name": "First reply",
+        "description": "What the agent says first when it arrives at this step. Used only when \"Transitions in the reply\" is on. Supports {{template_variables}}.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": 4000,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "add_global_prompt",
+        "type": "boolean",
+        "display_name": "Add Global Prompt",
+        "description": "When true and a Global node exists, prepends the global prompt to this node's prompt at runtime.",
+        "llm_hint": null,
+        "default": false,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "extraction_enabled",
+        "type": "boolean",
+        "display_name": "Enable Variable Extraction",
+        "description": "When true, runs an LLM extraction pass before hangup to capture variables from the conversation.",
+        "llm_hint": null,
+        "default": false,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "extraction_prompt",
+        "type": "string",
+        "display_name": "Extraction Prompt",
+        "description": "Overall instructions guiding how variables should be extracted from the conversation.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": {
+          "show": {
+            "extraction_enabled": [
+              true
+            ]
+          },
+          "hide": null
+        },
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": "textarea",
+        "renderer_options": null
+      },
+      {
+        "name": "extraction_variables",
+        "type": "fixed_collection",
+        "display_name": "Variables to Extract",
+        "description": "Each entry declares one variable to capture from the conversation, with its name, data type, and a per-variable extraction hint.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": {
+          "show": {
+            "extraction_enabled": [
+              true
+            ]
+          },
+          "hide": null
+        },
+        "options": null,
+        "properties": [
+          {
+            "name": "name",
+            "type": "string",
+            "display_name": "Variable Name",
+            "description": "snake_case identifier used downstream.",
+            "llm_hint": null,
+            "default": null,
+            "required": true,
+            "placeholder": null,
+            "display_options": null,
+            "options": null,
+            "properties": null,
+            "min_value": null,
+            "max_value": null,
+            "min_length": 1,
+            "max_length": null,
+            "pattern": null,
+            "editor": null,
+            "renderer_options": null
+          },
+          {
+            "name": "type",
+            "type": "options",
+            "display_name": "Type",
+            "description": "Data type of the extracted value.",
+            "llm_hint": null,
+            "default": "string",
+            "required": true,
+            "placeholder": null,
+            "display_options": null,
+            "options": [
+              {
+                "value": "string",
+                "label": "String",
+                "description": null
+              },
+              {
+                "value": "number",
+                "label": "Number",
+                "description": null
+              },
+              {
+                "value": "boolean",
+                "label": "Boolean",
+                "description": null
+              }
+            ],
+            "properties": null,
+            "min_value": null,
+            "max_value": null,
+            "min_length": null,
+            "max_length": null,
+            "pattern": null,
+            "editor": null,
+            "renderer_options": null
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "display_name": "Extraction Hint",
+            "description": "Per-variable hint describing what to look for.",
+            "llm_hint": null,
+            "default": null,
+            "required": false,
+            "placeholder": null,
+            "display_options": null,
+            "options": null,
+            "properties": null,
+            "min_value": null,
+            "max_value": null,
+            "min_length": null,
+            "max_length": null,
+            "pattern": null,
+            "editor": "textarea",
+            "renderer_options": null
+          }
+        ],
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      }
+    ],
+    "examples": [
+      {
+        "name": "successful_close",
+        "description": null,
+        "data": {
+          "name": "Successful Close",
+          "prompt": "Confirm the appointment time, thank the caller, and end the call.",
+          "add_global_prompt": false
+        }
+      }
+    ],
+    "graph_constraints": {
+      "min_incoming": 1,
+      "max_incoming": null,
+      "min_outgoing": 0,
+      "max_outgoing": 0,
+      "min_instances": null,
+      "max_instances": null
+    }
+  }
+}

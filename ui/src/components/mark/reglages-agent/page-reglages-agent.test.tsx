@@ -29,6 +29,8 @@ const m = vi.hoisted(() => ({
     userConfig: null as unknown,
     // What the page saves: read by the clerk's tests below.
     save: vi.fn(() => Promise.resolve(undefined)),
+    // Plan porte-parlee: the graph the page is opened with.
+    definition: { nodes: [], edges: [] } as unknown,
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -48,7 +50,7 @@ vi.mock("@/components/ui/select", () => import("./references/select-natif"));
 vi.mock("@/client/sdk.gen", () => ({
     getWorkflowApiV1WorkflowFetchWorkflowIdGet: () =>
         Promise.resolve({
-            data: { id: 1, name: "Agent", workflow_uuid: "u-u-i-d", workflow_definition: { nodes: [], edges: [] }, template_context_variables: {}, workflow_configurations: {} },
+            data: { id: 1, name: "Agent", workflow_uuid: "u-u-i-d", workflow_definition: m.definition, template_context_variables: {}, workflow_configurations: {} },
             error: null,
         }),
     getModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Get: () =>
@@ -106,7 +108,7 @@ describe("[.mark] the agent page in themes", () => {
     it("draws every setting the inventory puts on screen, in its theme", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
         for (const [cle, entree] of Object.entries(INVENTAIRE_AGENT)) {
-            if ("horsEcran" in entree || "via" in entree || SEULEMENT_EN_GREFFIER.includes(cle)) continue;
+            if ("horsEcran" in entree || "via" in entree || SEULEMENT_DANS_UN_MODE.includes(cle)) continue;
             const theme = ouvrirLeTheme(entree.theme);
             await waitFor(() => {
                 const trouve =
@@ -122,7 +124,9 @@ describe("[.mark] the agent page in themes", () => {
 
     // Plan mode-prise-de-notes, part 2: the clerk's settings are drawn only in
     // its mode, like in the code (no clerk, nothing to set).
+    // Plan porte-parlee: « Transitions in the reply » only in Postscript (tested below).
     const SEULEMENT_EN_GREFFIER = ["greffier_llm", "greffier_consigne"];
+    const SEULEMENT_DANS_UN_MODE = [...SEULEMENT_EN_GREFFIER, "portes_dans_la_reponse"];
     it("draws the clerk's settings in the clerk mode only", async () => {
         await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), fiche_mode_de_note: "greffier" }, NOVA);
         const theme = ouvrirLeTheme("donnees");
@@ -372,3 +376,90 @@ describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2)", () => 
     });
 });
 
+
+// [.mark] Plan porte-parlee, lot 6: « Transitions in the reply », rendered.
+describe("[.mark] transitions in the reply, in the call data theme", () => {
+    const FICHE = {
+        fiche_au_fil_de_leau: true,
+        fiche_champs: [{ nom: "nom", type: "string", origine: "dicte", description: "Nom", lecteur: null, valeurs: null }],
+    };
+    const POST_SCRIPTUM = { ...FICHE, fiche_mode_de_note: "post_scriptum" };
+    const caseAPorte = () => document.getElementById("portes_dans_la_reponse");
+    const GRAPHE = {
+        nodes: [
+            { id: "start", type: "startCall", data: { name: "Accueil" } },
+            { id: "etape", type: "agentNode", data: { name: "Panne", premiere_replique: "Quelle marque ?" } },
+            { id: "fin", type: "endCall", data: { name: "Clôture", premiere_replique: "  " } },
+        ],
+        edges: [
+            { id: "a", source: "start", target: "etape" },
+            { id: "b", source: "etape", target: "fin" },
+        ],
+    };
+    const enregistrer = async () => {
+        m.save.mockClear();
+        fireEvent.click(await screen.findByRole("button", { name: "Save Call data" }));
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        const appels = m.save.mock.calls as unknown as Array<[Record<string, unknown>]>;
+        return appels[appels.length - 1][0];
+    };
+    afterEach(() => {
+        m.definition = { nodes: [], edges: [] };
+    });
+
+    it("is shown only in Postscript, like in the code", async () => {
+        await ouvrir(FICHE, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(document.getElementById("fiche_mode_de_note")).not.toBeNull());
+        expect(caseAPorte()).toBeNull();
+        fireEvent.change(document.getElementById("fiche_mode_de_note") as HTMLElement, { target: { value: "post_scriptum" } });
+        await waitFor(() => expect(caseAPorte()).not.toBeNull());
+        fireEvent.change(document.getElementById("fiche_mode_de_note") as HTMLElement, { target: { value: "greffier" } });
+        await waitFor(() => expect(caseAPorte()).toBeNull());
+    });
+
+    it("is off for an agent saved before it, and reads back what the server stored", async () => {
+        await ouvrir(POST_SCRIPTUM, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(caseAPorte()?.getAttribute("aria-checked")).toBe("false"));
+        cleanup();
+        await ouvrir({ ...POST_SCRIPTUM, portes_dans_la_reponse: true }, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(caseAPorte()?.getAttribute("aria-checked")).toBe("true"));
+    });
+
+    it("sends the box when switched on", async () => {
+        await ouvrir(POST_SCRIPTUM, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(caseAPorte()).not.toBeNull());
+        fireEvent.click(caseAPorte() as HTMLElement);
+        const charge = await enregistrer();
+        expect(charge.portes_dans_la_reponse).toBe(true);
+        expect(charge.fiche_mode_de_note).toBe("post_scriptum");
+    });
+
+    it("leaving Postscript sends the box off, or the server would refuse the save", async () => {
+        await ouvrir({ ...POST_SCRIPTUM, portes_dans_la_reponse: true }, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(caseAPorte()).not.toBeNull());
+        fireEvent.change(document.getElementById("fiche_mode_de_note") as HTMLElement, { target: { value: "outil" } });
+        const charge = await enregistrer();
+        expect(charge.fiche_mode_de_note).toBe("outil");
+        expect(charge.portes_dans_la_reponse).toBe(false);
+    });
+
+    it("names the steps a transition leads to that have no first reply, without blocking", async () => {
+        m.definition = GRAPHE;
+        await ouvrir({ ...POST_SCRIPTUM, portes_dans_la_reponse: true }, NOVA);
+        ouvrirLeTheme("donnees");
+        const note = await screen.findByRole("note");
+        expect(note.textContent).toContain("Steps without a first reply");
+        expect(note.textContent).toContain("Clôture");
+        expect(note.textContent).not.toContain("Panne");
+        expect(note.textContent).not.toContain("Accueil");
+        // Not an error: the theme's button is not blocked.
+        fireEvent.click(caseAPorte() as HTMLElement);
+        fireEvent.click(caseAPorte() as HTMLElement);
+        expect(screen.queryByRole("note")).not.toBeNull();
+    });
+});

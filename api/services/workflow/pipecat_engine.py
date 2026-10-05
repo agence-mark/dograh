@@ -18,6 +18,7 @@ from pipecat.frames.frames import (
     CancelFrame,
     EndFrame,
     FunctionCallResultProperties,
+    LLMRunFrame,
     SpeechBoundaryFrame,
 )
 from pipecat.pipeline.worker import PipelineWorker
@@ -97,6 +98,10 @@ from api.services.workflow.pipecat_engine_custom_tools import (
 from api.services.workflow.pipecat_engine_variable_extractor import (
     VariableExtractionManager,
 )
+from api.services.workflow.porte_parlee import (
+    consigne_des_portes,
+    etapes_sans_premiere_replique,
+)
 from api.services.workflow.tools.knowledge_base import (
     retrieve_from_knowledge_base,
 )
@@ -171,6 +176,14 @@ class PipecatEngine:
         # Un agent reçu par transfert (éteint chez .mark) n'a pas de fiche.
         self._fiche = fiche
         self._llm_de_la_fiche = llm if fiche is not None else None
+        # [.mark] Plan porte-parlee (D3) : les étapes sans première réplique, au journal.
+        if fiche is not None and fiche.portes_dans_la_reponse:
+            sans = etapes_sans_premiere_replique(workflow)
+            if sans:
+                logger.warning(
+                    "[porte] étapes sans première réplique (ligne générique) : "
+                    + ", ".join(sans)
+                )
         # Plan mode-prise-de-notes, lot 2 : une seule relance par tour ne
         # concerne que l'outil ; sans outil, aucune note ne relance le modèle.
         self._tours_fiche = (
@@ -185,6 +198,8 @@ class PipecatEngine:
         )
         # Les notes du post-scriptum encore en cours, attendues avant la passe de fin.
         self.notes_en_cours: set[asyncio.Task] = set()
+        # [.mark] Plan porte-parlee (D7) : les raccrochages après une porte écrite.
+        self._taches_de_porte: set[asyncio.Task] = set()
         # Plan mode-prise-de-notes, partie 2 : le greffier de l'appel (None hors
         # de ce mode), clos à la passe de fin.
         self.greffier = None
@@ -555,6 +570,113 @@ class PipecatEngine:
                 )
 
         return agent.bind_tool(self, transition_func)
+
+    # --- [.mark] Plan porte-parlee (lot 4) : la porte écrite dans la réponse ---
+
+    def _porte_de_l_etape(self, nom: str):
+        """L'arête de l'étape en cours dont le nom de porte est ``nom``, ou None.
+        Le code ne choisit jamais : il retrouve la porte écrite, ou rien."""
+        node = self.active_agent.current_node
+        if node is None or node.is_end:
+            return None
+        return next((e for e in node.out_edges if e.get_function_name() == nom), None)
+
+    def phrase_de_transition_ecrite(self, nom: str) -> Optional[str]:
+        """D16 : la phrase de transition ÉCRITE de la porte ``nom`` (le processeur
+        la pousse avant la phrase du modèle). Un enregistrement audio : None, il
+        est joué au changement d'étape."""
+        arete = self._porte_de_l_etape(nom)
+        if arete is None or (arete.data.transition_speech_type or "text") != "text":
+            return None
+        return arete.transition_speech or None
+
+    async def prendre_porte_ecrite(
+        self,
+        nom: str,
+        *,
+        transition_dite: bool = False,
+        reponse: Optional[str] = None,
+        relancer: bool = False,
+    ) -> str:
+        """D6 : la porte ``nom`` écrite par le modèle, prise à la fin de sa réponse
+        (interruption comprise), comme ``_create_transition_func`` mais sans
+        résultat de fonction ni relance : la phrase dite est la première réplique.
+
+        ``transition_dite`` : la phrase de transition écrite est déjà partie (D16).
+        ``reponse`` : l'identifiant de lecture de la réponse en cours ; vers une
+        étape de fin, c'est elle la phrase de fin (D7) : on attend qu'elle soit
+        jouée, puis on raccroche. ``relancer`` : la réponse n'a rien dit ; le
+        modèle reparle dans la nouvelle étape (comme une porte appelée en fonction).
+
+        Rend l'état pour la trace : ``prise``, ``inconnue`` ou ``echec``.
+        ⛔ Ne lève jamais : une porte mal écrite ne coûte pas l'appel."""
+        agent = self.active_agent
+        arete = self._porte_de_l_etape(nom)
+        if arete is None:
+            logger.warning(f"[porte] « {nom} » n'est pas une porte de l'étape : rien")
+            return "inconnue"
+        try:
+            logger.info(f"[porte] porte écrite prise : {nom} -> {arete.target}")
+            await self._perform_variable_extraction_if_needed(
+                agent.current_node,
+                run_in_background=self._run_transition_variable_extraction_in_background,
+            )
+            if (
+                (arete.data.transition_speech_type or "text") == "audio"
+                and arete.data.transition_speech_recording_id
+                and self._fetch_recording_audio
+            ):
+                await self.queue_speech(
+                    recording_pk=int(arete.data.transition_speech_recording_id),
+                    mute_user=True,
+                )
+            elif arete.transition_speech and not transition_dite:
+                await self.queue_text_message(arete.transition_speech, mute_user=True)
+            fin = agent.workflow.nodes[arete.target].is_end
+            phrase_de_fin = (
+                self.speech_playback.suivre_une_reponse(reponse)
+                if fin and reponse and not relancer
+                else None
+            )
+            # Comme `_create_transition_func` : l'attente de la réponse de fin est
+            # posée avant de changer d'étape, jamais après (revue du 05/10).
+            closing = (
+                self.speech_playback.expect_response(source=agent.llm)
+                if fin and relancer
+                else None
+            )
+            await self.set_node(arete.target, origin_visit_id=agent.visit_id)
+            if fin and not relancer:
+                self._mute_pipeline = True
+
+                async def raccrocher() -> None:
+                    if phrase_de_fin is not None:
+                        await phrase_de_fin.wait()
+                    if self.agent_can_act(agent):
+                        await self.end_call_with_reason(EndTaskReason.END_CALL.value)
+
+                tache = asyncio.get_running_loop().create_task(raccrocher())
+                self._taches_de_porte.add(tache)
+                tache.add_done_callback(self._taches_de_porte.discard)
+            elif relancer:
+                if closing is not None:
+                    self._mute_pipeline = True
+
+                    async def raccrocher_apres() -> None:
+                        await closing.wait()
+                        if self.agent_can_act(agent):
+                            await self.end_call_with_reason(
+                                EndTaskReason.END_CALL.value
+                            )
+
+                    tache = asyncio.get_running_loop().create_task(raccrocher_apres())
+                    self._taches_de_porte.add(tache)
+                    tache.add_done_callback(self._taches_de_porte.discard)
+                await agent.queue_frame(LLMRunFrame())
+            return "prise"
+        except Exception as e:  # noqa: BLE001 -- une porte ne coûte jamais l'appel
+            logger.error(f"[porte] porte écrite « {nom} » en échec : {e!r}")
+            return "echec"
 
     async def _register_transition_function_with_llm(
         self,
@@ -954,8 +1076,18 @@ class PipecatEngine:
             format_prompt=self._format_prompt,
             has_recordings=self._has_recordings,
         )
+        # [.mark] Plan porte-parlee (D5) : mêmes conditions que la consigne du
+        # mode ci-dessous, et seulement case allumée (Postscript seulement).
+        portes_parlees = (
+            self._fiche is not None
+            and self._fiche.portes_dans_la_reponse
+            and not node.is_end
+            and agent.llm is self._llm_de_la_fiche
+        )
         functions = await compose_functions_for_node(
-            node=node, custom_tool_manager=manager
+            node=node,
+            custom_tool_manager=manager,
+            portes_en_fonctions=not portes_parlees,
         )
         # [.mark] D12 : l'outil de la fiche n'existe que si l'interrupteur est
         # allumé. Pas sur une étape de fin (comme au lot 0). Seulement pour
@@ -986,6 +1118,12 @@ class PipecatEngine:
             and agent.llm is self._llm_de_la_fiche
         ):
             bloc = consigne_du_mode(self._fiche)
+            if bloc:
+                texte = f"{texte}\n\n{bloc}"
+        # [.mark] Plan porte-parlee (D4, D5, D11) : les portes de l'étape et les
+        # premières répliques, après la consigne du post-scriptum.
+        if portes_parlees:
+            bloc = consigne_des_portes(node, agent.workflow, self._format_prompt)
             if bloc:
                 texte = f"{texte}\n\n{bloc}"
         agent.tools = ToolsSchema(standard_tools=functions)

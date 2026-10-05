@@ -51,7 +51,22 @@ _BIGQUERY_NEUTRALISE = (
     "garde retiree, les 24 tests des deux fichiers passent."
 )
 
+# [.mark] Plan porte-parlee (05/10/2026), D2 : la premiere replique du noeud.
+_PREMIERE_REPLIQUE = (
+    "[.mark] Decision d'Evan du 05/10/2026 (plan porte-parlee, D2) : les etapes "
+    "de conversation et de fin ont un champ premiere_replique, juste apres le "
+    "prompt, dans la fenetre du noeud du graphe. L'amont fige l'ordre des "
+    "proprietes de ces deux noeuds sans ce champ. Prouve le 05/10 : sans le "
+    "champ, ces deux cas passent."
+)
+
 DIVERGENCES_ASSUMEES = {
+    "tests/test_node_specs.py": {
+        "test_node_spec_property_order_stable": {
+            "agentNode-expected_order1": _PREMIERE_REPLIQUE,
+            "endCall-expected_order2": _PREMIERE_REPLIQUE,
+        },
+    },
     "tests/test_deepgram_endpoint_service_factory.py": {
         "test_unset_endpoint_falls_back_to_the_default_host": (
             "[.mark] Decision d'Evan du 16/09/2026 : une adresse Deepgram VIDE "

@@ -38,6 +38,10 @@ export interface AgentNode {
      */
     prompt: string;
     /**
+     * What the agent says first when it arrives at this step. Used only when "Transitions in the reply" is on. Supports {{template_variables}}.
+     */
+    premiere_replique?: string;
+    /**
      * When true, the user can interrupt the agent mid-utterance. Set false for non-interruptible disclosures.
      */
     allow_interrupt?: boolean;

@@ -38,6 +38,10 @@ export interface EndCall {
      */
     prompt: string;
     /**
+     * What the agent says first when it arrives at this step. Used only when "Transitions in the reply" is on. Supports {{template_variables}}.
+     */
+    premiere_replique?: string;
+    /**
      * When true and a Global node exists, prepends the global prompt to this node's prompt at runtime.
      */
     add_global_prompt?: boolean;

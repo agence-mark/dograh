@@ -51,6 +51,8 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     noter,
     paroles_de_l_appelant,
 )
+from api.services.workflow.porte_parlee import FLECHE
+from api.services.workflow.workflow_graph import transition_tool_name
 from pipecat.frames.frames import (
     CancelFrame,
     EndFrame,
@@ -77,6 +79,10 @@ _DEBUT_JSON_EN_TETE = re.compile(r"^[ \t]*[{`]")
 _FIN_EN_SUSPENS = re.compile(r"[ \t\n|]*$")
 _GUILLEMET_FERMANT = re.compile(r"[\s  ]*»[\s  ]*$")
 _GUILLEMET_OUVRANT = re.compile(r"^[\s  ]*«[\s  ]*")
+# Plan porte-parlee (D9) : case allumée, « || » vaut séparateur à la lecture.
+_SEPARATEUR_TOLERE = re.compile(r"\|{2,}")
+# Ce qui entoure parfois le nom écrit après « → » (guillemets, mise en forme).
+_AUTOUR_DU_NOM = " \t\r«»\"'`*:.,;"
 
 
 def lire_la_note(brut: str) -> dict | None:
@@ -128,9 +134,14 @@ class PostScriptumProcessor(FrameProcessor):
         notices: Notices | None,
         attendu: Callable[[], bool] = lambda: True,
         notes_en_cours: set[asyncio.Task] | None = None,
+        portes: Any = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        # Plan porte-parlee : le moteur qui prend les portes écrites, case allumée
+        # seulement (``None`` : le processeur d'avant, à l'octet).
+        self._portes = portes if reglages.portes_dans_la_reponse else None
+        self._portes_en_cours: set[asyncio.Task] = set()
         self._reglages = reglages
         self._fiche = fiche
         self._messages = messages
@@ -156,6 +167,15 @@ class PostScriptumProcessor(FrameProcessor):
         self._en_tete = True  # rien n'a encore été dit dans cette réponse
         self._en_debut_de_ligne = True
         self._guillemet = False  # la phrase s'ouvrait sur « : le » final part
+        # Plan porte-parlee (case allumée seulement).
+        self._a_dit = False  # quelque chose est parti à la voix
+        self._reponse: str | None = None  # identifiant de lecture de la réponse
+        self._ligne_au_debut = True  # le flux est en début de ligne
+        self._blancs = ""  # les blancs d'un début de ligne, en attente
+        self._dans_la_porte = False  # une ligne « → » est en cours de lecture
+        self._porte_brute = ""
+        self._portes_lues: list[str] = []  # les lignes « → » complètes
+        self._transition_dite = False
 
     # --- Vers la voix ----------------------------------------------------------
 
@@ -187,6 +207,7 @@ class PostScriptumProcessor(FrameProcessor):
         self._en_debut_de_ligne = texte.endswith("\n")
         porteuse = frame or LLMTextFrame(texte)
         porteuse.text = texte
+        self._a_dit = True
         await self.push_frame(porteuse, direction)
 
     def _a_retenir(self, texte: str) -> int:
@@ -238,23 +259,48 @@ class PostScriptumProcessor(FrameProcessor):
                     f"[fiche] post-scriptum : conversation illisible ({erreur!r})"
                 )
                 self._lus = []
+            # Plan porte-parlee (D7) : la réponse se retrouve à la sortie par cet identifiant.
+            self._reponse = frame.metadata.get("dograh_speech_id")
             await self.push_frame(frame, direction)
             return
 
         if isinstance(frame, LLMFullResponseEndFrame):
-            await self._finir(direction)
+            if self._portes is None:
+                await self._finir(direction)
+            else:
+                # D6 : la porte est prise à la fin de la réponse, après la phrase et la note.
+                self._clore_la_ligne(complete=True)
+                portes = (list(self._portes_lues), self._transition_dite, self._reponse)
+                trace = await self._finir(direction)
+                await self._porte_protegee(portes, trace, relancer=not self._dit)
             await self.push_frame(frame, direction)
             return
 
-        if (
-            isinstance(frame, InterruptionFrame)
-            and self._vu_du_texte
-            and self._attendu()
-        ):
+        detail: dict = {}
+        if isinstance(frame, InterruptionFrame) and self._portes is not None:
+            # D6 : la décision du modèle portait sur ce que la personne avait dit ;
+            # l'étape change même si elle coupe la parole. Une ligne « → » coupée
+            # en route n'est jamais prise (un nom tronqué peut en nommer un autre).
+            attendu = self._attendu()
+            self._clore_la_ligne(complete=False)
+            detail = await self._prendre_la_porte(
+                list(self._portes_lues),
+                self._transition_dite,
+                self._reponse,
+                relancer=False,
+            )
+            vu = self._vu_du_texte and attendu
+        else:
+            vu = (
+                isinstance(frame, InterruptionFrame)
+                and self._vu_du_texte
+                and self._attendu()
+            )
+        if vu:
             # Relecture du 04/10 : un tour coupé compte dans la mesure D11, avec ce
             # qu'on sait du séparateur ; sa note n'est pas écrite (le tour suivant
             # ou la passe de fin la rattrape).
-            self._tracer(INTERROMPU, [], separateur=self._separateur)
+            self._tracer(INTERROMPU, [], separateur=self._separateur, **detail)
         if isinstance(frame, (InterruptionFrame, EndFrame, CancelFrame)):
             self._oublier()
             await self.push_frame(frame, direction)
@@ -264,23 +310,33 @@ class PostScriptumProcessor(FrameProcessor):
             await self.push_frame(frame, direction)
             return
 
+        if self._portes is not None:
+            # Plan porte-parlee (lot 4) : une ligne « → » est retenue où qu'elle
+            # soit (en tête, après la phrase, après le séparateur), jamais dite.
+            frame.text = self._filtrer_les_portes(frame.text)
+            await self._annoncer_la_transition(direction)
+            if not frame.text:
+                self._vu_du_texte = True
+                return
         self._vu_du_texte = True
         if self._apres:
             self._note += frame.text
             if not self._separateur:
-                coupe = self._note.find(SEPARATEUR)
-                if coupe >= 0:
+                trouve = self._separateur_dans(self._note)
+                if trouve is not None:
+                    coupe, apres = trouve
                     # D7 (relecture du 04/10) : le JSON écrit AVANT le séparateur
                     # n'est jamais dit, mais la parole qui l'entoure l'est.
                     await self._dire(
                         sans_json(self._note[:coupe]), None, direction, fin=True
                     )
                     self._separateur = True
-                    self._note = self._note[coupe + len(SEPARATEUR) :]
+                    self._note = self._note[apres:]
             return
         texte, self._attente = self._attente + frame.text, ""
-        coupe = texte.find(SEPARATEUR)
-        if coupe >= 0:
+        trouve = self._separateur_dans(texte)
+        if trouve is not None:
+            coupe, apres = trouve
             avant = texte[:coupe]
             # D7 : du JSON ou une clôture de code arrivés dans le même morceau que
             # le séparateur ne partent pas à la voix non plus.
@@ -291,7 +347,7 @@ class PostScriptumProcessor(FrameProcessor):
                 avant = f"{avant[: json_.start()]} {sans_json(avant[json_.start() :])}"
             await self._dire(avant, frame, direction, fin=True)
             self._apres = self._separateur = True
-            self._note = texte[coupe + len(SEPARATEUR) :]
+            self._note = texte[apres:]
             return
         json_ = _DEBUT_JSON_EN_LIGNE.search(texte)
         if json_ is None and self._en_debut_de_ligne:
@@ -308,8 +364,10 @@ class PostScriptumProcessor(FrameProcessor):
         await self._dire(texte[: len(texte) - garde], frame, direction)
         self._attente = texte[len(texte) - garde :]
 
-    async def _finir(self, direction: FrameDirection) -> None:
-        """Fin de la réponse : le reste à la voix, puis la note."""
+    async def _finir(self, direction: FrameDirection) -> dict | None:
+        """Fin de la réponse : le reste à la voix, puis la note. Rend la trace
+        écrite pour ce tour (ou ``None``) ; ``self._dit`` : la réponse a parlé."""
+        self._dit = False
         if not self._apres and self._attente.strip(" \t\n|"):
             await self._dire(self._attente, None, direction, fin=True)
         if self._apres and not self._separateur:
@@ -318,14 +376,22 @@ class PostScriptumProcessor(FrameProcessor):
         if not self._vu_du_texte:
             # Une réponse qui ne parle pas (une porte, D5) : ni note ni trace.
             self._oublier()
-            return
+            return None
         champs: dict | None = None
+        detail: dict = {}
         if self._separateur:
             champs = lire_la_note(self._note)
+            if self._portes is not None and await self._rattraper_la_phrase(
+                champs, direction
+            ):
+                # D10 : une phrase écrite après la note est dite, plus tard.
+                detail["phrase_apres_note"] = True
+                champs = {} if champs is None else champs
             etat = ILLISIBLE if champs is None else (PRESENT if champs else VIDE)
         else:
             etat = ABSENT
         lus = self._lus
+        self._dit = self._a_dit
         self._oublier()
         if etat == ILLISIBLE:
             logger.warning("[fiche] post_scriptum_illisible : rien noté à ce tour")
@@ -333,23 +399,174 @@ class PostScriptumProcessor(FrameProcessor):
             logger.info("[fiche] post_scriptum_absent : rien noté à ce tour")
         if etat == ABSENT and not self._attendu():
             # Une étape de fin n'a pas de consigne : son silence n'est pas un oubli.
-            return
-        self._tracer(etat, sorted(champs or {}))
+            return None
+        trace = self._tracer(etat, sorted(champs or {}), **detail)
         # Une réponse sans note efface les notices ; elle passe par la même file
         # que les notes, sinon une note lente les réécrirait après elle.
         a_noter = champs if etat == PRESENT else None
         tache = asyncio.get_running_loop().create_task(self._noter(a_noter, lus))
         self._notes_en_cours.add(tache)
         tache.add_done_callback(self._notes_en_cours.discard)
+        return trace
 
-    def _tracer(self, etat: str, champs: list[str], **detail) -> None:
+    def _tracer(self, etat: str, champs: list[str], **detail) -> dict | None:
         try:
             fiche = self._fiche()
-            fiche.setdefault(TRACE_POST_SCRIPTUM, []).append(
-                {"tour": fiche.get(CLE_TOUR), "etat": etat, "champs": champs, **detail}
-            )
+            trace = {
+                "tour": fiche.get(CLE_TOUR),
+                "etat": etat,
+                "champs": champs,
+                **detail,
+            }
+            fiche.setdefault(TRACE_POST_SCRIPTUM, []).append(trace)
+            return trace
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[fiche] trace du post-scriptum non écrite : {erreur!r}")
+            return None
+
+    # --- Plan porte-parlee (lot 4) : la porte écrite dans la réponse -------------
+
+    def _separateur_dans(self, texte: str) -> tuple[int, int] | None:
+        """Où commence et où finit le séparateur dans ``texte``, ou ``None``.
+        Case éteinte : ``|||`` seul, comme avant. Allumée (D9) : ``||`` aussi,
+        sauf en toute fin de morceau (peut-être le début de ``|||`` : retenu)."""
+        if self._portes is None:
+            coupe = texte.find(SEPARATEUR)
+            return None if coupe < 0 else (coupe, coupe + len(SEPARATEUR))
+        for trouve in _SEPARATEUR_TOLERE.finditer(texte):
+            if trouve.end() < len(texte) or len(trouve.group(0)) >= len(SEPARATEUR):
+                return trouve.start(), trouve.end()
+        return None
+
+    def _filtrer_les_portes(self, texte: str) -> str:
+        """Retire du flux les lignes qui commencent par « → » (blancs en tête
+        permis) et les garde à part ; le reste passe tel quel. Morceau par
+        morceau : une ligne coupée en plusieurs morceaux est recollée."""
+        sortie: list[str] = []
+        for caractere in texte:
+            if self._dans_la_porte:
+                if caractere == "\n":
+                    self._clore_la_ligne(complete=True)
+                    self._ligne_au_debut = True
+                else:
+                    self._porte_brute += caractere
+            elif self._ligne_au_debut:
+                if caractere in " \t\r":
+                    self._blancs += caractere
+                elif caractere == FLECHE:
+                    self._dans_la_porte, self._porte_brute, self._blancs = True, "", ""
+                    self._ligne_au_debut = False
+                else:
+                    sortie.append(self._blancs + caractere)
+                    self._blancs = ""
+                    self._ligne_au_debut = caractere == "\n"
+            else:
+                sortie.append(caractere)
+                self._ligne_au_debut = caractere == "\n"
+        return "".join(sortie)
+
+    def _clore_la_ligne(self, *, complete: bool) -> None:
+        """Une ligne « → » en cours est finie (``complete``) ou coupée en route."""
+        if not self._dans_la_porte:
+            return
+        self._dans_la_porte = False
+        if complete:
+            self._portes_lues.append(_nom_de_porte(self._porte_brute))
+        else:
+            logger.warning("[porte] ligne « → » coupée en route : jamais prise")
+            self._portes_lues.append(None)
+        self._porte_brute = ""
+
+    async def _annoncer_la_transition(self, direction: FrameDirection) -> None:
+        """D16 : la phrase de transition écrite de la porte part avant la phrase du
+        modèle, si rien n'est encore parti à la voix. Une fois par réponse."""
+        if self._transition_dite or self._a_dit or not self._portes_lues:
+            return
+        if self._attente.strip():
+            # La phrase du modèle a commencé (retenue, pas encore partie) : trop tard.
+            return
+        nom = self._portes_lues[0]
+        if not nom:
+            return
+        phrase = self._portes.phrase_de_transition_ecrite(nom)
+        if phrase:
+            await self.push_frame(
+                TTSSpeakFrame(phrase, append_to_context=False, persist_to_logs=True),
+                direction,
+            )
+            # Elle ne compte pas comme une parole du modèle (revue du 05/10) : une
+            # réponse faite de la seule porte fait encore reparler le modèle.
+            self._transition_dite = True
+
+    async def _prendre_la_porte(
+        self,
+        noms: list[str | None],
+        transition_dite: bool,
+        reponse: str | None,
+        *,
+        relancer: bool,
+    ) -> dict:
+        """La première porte lue est donnée au moteur ; rend ce qu'on trace."""
+        if not noms:
+            return {}
+        detail: dict = {"porte": noms[0]}
+        if len(noms) > 1:
+            detail["portes_en_trop"] = len(noms) - 1
+        if noms[0] is None:
+            detail["porte_etat"] = "coupee"
+        elif not noms[0]:
+            logger.warning("[porte] « → » sans nom : rien")
+            detail["porte_etat"] = "sans_nom"
+        else:
+            detail["porte_etat"] = await self._portes.prendre_porte_ecrite(
+                noms[0],
+                transition_dite=transition_dite,
+                reponse=reponse,
+                relancer=relancer,
+            )
+        return detail
+
+    async def _porte_protegee(
+        self, portes: tuple, trace: dict | None, *, relancer: bool
+    ) -> None:
+        """La porte de fin de réponse, dans une tâche que l'interruption n'annule pas
+        (revue du 05/10) : la fin de réponse est une frame interruptible ; annulée
+        pendant ``set_node``, l'étape changeait à moitié, ou pas du tout et sans
+        trace. On l'attend sans pouvoir l'interrompre : elle finit toujours."""
+
+        async def prendre() -> None:
+            detail = await self._prendre_la_porte(*portes, relancer=relancer)
+            self._completer_la_trace(trace, detail)
+
+        tache = asyncio.get_running_loop().create_task(prendre())
+        self._portes_en_cours.add(tache)
+        tache.add_done_callback(self._portes_en_cours.discard)
+        await asyncio.shield(tache)
+
+    def _completer_la_trace(self, trace: dict | None, detail: dict) -> None:
+        if not detail:
+            return
+        if trace is not None:
+            trace.update(detail)
+        else:
+            self._tracer(ABSENT, [], **detail)
+
+    async def _rattraper_la_phrase(
+        self, champs: dict | None, direction: FrameDirection
+    ) -> bool:
+        """D10 : une phrase écrite APRÈS la note (un objet JSON lisible) part à la
+        voix à la fin de la réponse. Une note sans objet JSON lisible n'est jamais
+        dite (« RAS », « rien à noter ») : rien de technique à la voix (revue du 05/10)."""
+        note = self._note
+        if champs is None or "}" not in note:
+            return False
+        phrase = sans_json(note[note.rfind("}") + 1 :]).strip(" `")
+        if not phrase or phrase.startswith(("//", "#", "(")):
+            return False
+        await self._dire(
+            f" {phrase}" if self._a_dit else phrase, None, direction, fin=True
+        )
+        return True
 
     async def _noter(self, champs: dict | None, lus: list[dict]) -> None:
         """La note, par les mêmes contrôles que l'outil ; ses notices au tour suivant (D4).
@@ -375,6 +592,16 @@ class PostScriptumProcessor(FrameProcessor):
                 self._notices.retenir(note)
 
 
+def _nom_de_porte(brut: str) -> str:
+    """La ligne écrite après « → », TOUTE la ligne, écrite comme le nom d'une porte
+    (D4) ; ``""`` : rien d'écrit. Une seconde flèche sur la même ligne est ignorée
+    (une porte). ⛔ Jamais le premier mot seul (revue du 05/10) : « → Fin
+    renseignement » donnait « fin », une AUTRE porte ; ici « fin_renseignement »,
+    et tout ce qui n'est pas exactement un nom de porte est « inconnue »."""
+    ligne = brut.split(FLECHE)[0].strip(_AUTOUR_DU_NOM)
+    return transition_tool_name(ligne) if ligne else ""
+
+
 def creer_post_scriptum(
     reglages: ReglagesFiche | None,
     *,
@@ -383,6 +610,7 @@ def creer_post_scriptum(
     notices: Notices | None,
     attendu: Callable[[], bool] = lambda: True,
     notes_en_cours: set[asyncio.Task] | None = None,
+    portes: Any = None,
 ) -> PostScriptumProcessor | None:
     """Le processeur, ou ``None`` hors mode post-scriptum (le défaut : outil)."""
     if reglages is None or reglages.mode != MODE_POST_SCRIPTUM:
@@ -394,6 +622,7 @@ def creer_post_scriptum(
         notices=notices,
         attendu=attendu,
         notes_en_cours=notes_en_cours,
+        portes=portes,
     )
 
 
@@ -409,4 +638,5 @@ def post_scriptum_du_moteur(engine: Any) -> PostScriptumProcessor | None:
         notices=engine.notices_fiche,
         attendu=engine.post_scriptum_attendu,
         notes_en_cours=engine.notes_en_cours,
+        portes=engine,
     )

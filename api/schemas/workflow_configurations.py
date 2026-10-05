@@ -765,6 +765,17 @@ class WorkflowConfigurationDefaults(BaseModel):
             "keeps the record alongside the agent, the agent only speaks."
         ),
     )
+    # [.mark] Plan porte-parlee (05/10), D1 : la porte se prend dans la réponse.
+    # Éteinte par défaut ; une configuration sans la clé est lue éteinte. Jouée
+    # seulement en Postscript (refusée à l'enregistrement sinon, D1).
+    portes_dans_la_reponse: bool = Field(
+        default=False,
+        description=(
+            "Postscript only. The agent takes a transition inside its reply and "
+            "already speaks the next step's first reply: no silence between steps. "
+            "Off (default): transitions stay function calls, as before."
+        ),
+    )
     # [.mark] Plan mode-prise-de-notes, partie 2 (D8, D10) : le greffier. Son
     # modèle, au format d'une surcharge de modèle (`model_overrides.llm`) : clé
     # absente = celle de la conversation ; clé masquée dans les réponses de l'API

@@ -178,6 +178,22 @@ class SpeechPlaybackTracker:
                 observer.on_response_expected(source)
         return speech
 
+    def suivre_une_reponse(
+        self, speech_id: str, *, timeout: float = 35
+    ) -> SpeechPlayback:
+        """[.mark] Plan porte-parlee (D7) : suivre une réponse DÉJÀ émise par le
+        modèle (son identifiant de lecture), pour raccrocher quand elle a été
+        jouée. À appeler avant que sa fin n'atteigne la sortie ; sinon le délai
+        la relâche (jamais un appel qui reste ouvert)."""
+        if speech_id in self.pending:
+            # Déjà attendue (revue du 05/10) : on attend la même, sans la remplacer.
+            return self.pending[speech_id]
+        speech = SpeechPlayback(self, mute_user=False, timeout=timeout)
+        speech.id = speech_id
+        speech.started = speech_id in self._output_scopes
+        self.pending[speech_id] = speech
+        return speech
+
     def _bind_response_boundaries(self, source: FrameProcessor) -> None:
         if source not in self._response_sources:
             self._response_sources[source] = None
