@@ -343,6 +343,80 @@ export type AmbientNoiseUploadResponse = {
 };
 
 /**
+ * AppelDeSerie
+ */
+export type AppelDeSerie = {
+    /**
+     * Scenario Id
+     */
+    scenario_id: string;
+    /**
+     * Scenario Nom
+     */
+    scenario_nom: string;
+    /**
+     * Run Id
+     */
+    run_id?: number | null;
+    /**
+     * Etat
+     */
+    etat?: 'a_jouer' | 'en_cours' | 'joue' | 'echec';
+    /**
+     * Reussi
+     */
+    reussi?: boolean | null;
+    /**
+     * Cout
+     */
+    cout?: number | null;
+    /**
+     * Erreur
+     */
+    erreur?: string | null;
+};
+
+/**
+ * AppelDuRapport
+ */
+export type AppelDuRapport = {
+    /**
+     * Scenario Id
+     */
+    scenario_id: string;
+    /**
+     * Scenario Nom
+     */
+    scenario_nom: string;
+    /**
+     * Run Id
+     */
+    run_id: number | null;
+    /**
+     * Etat
+     */
+    etat: string;
+    /**
+     * Reussi
+     */
+    reussi: boolean | null;
+    /**
+     * Cout
+     */
+    cout: number | null;
+    /**
+     * Erreur
+     */
+    erreur: string | null;
+    /**
+     * Resultat
+     */
+    resultat?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
  * AppendTextChatMessageRequest
  */
 export type AppendTextChatMessageRequest = {
@@ -1644,6 +1718,28 @@ export type CommuneDuCodePostal = {
      * Nom
      */
     nom: string;
+};
+
+/**
+ * Comportements
+ */
+export type Comportements = {
+    /**
+     * Presse
+     */
+    presse?: boolean;
+    /**
+     * Coupe La Parole
+     */
+    coupe_la_parole?: boolean;
+    /**
+     * Hesite
+     */
+    hesite?: boolean;
+    /**
+     * Se Tait
+     */
+    se_tait?: boolean;
 };
 
 /**
@@ -4060,6 +4156,16 @@ export type InworldTtsConfiguration = {
 export type ItemKind = 'node' | 'edge' | 'workflow';
 
 /**
+ * LancementSerie
+ */
+export type LancementSerie = {
+    /**
+     * Scenario Ids
+     */
+    scenario_ids: Array<string>;
+};
+
+/**
  * LangfuseCredentialsRequest
  */
 export type LangfuseCredentialsRequest = {
@@ -5892,6 +5998,17 @@ export type PublicEmbedChatTurn = {
 };
 
 /**
+ * RapportSerie
+ */
+export type RapportSerie = {
+    serie: SerieSimulee;
+    /**
+     * Appels
+     */
+    appels: Array<AppelDuRapport>;
+};
+
+/**
  * RecordingCreateRequestSchema
  *
  * Request schema for creating a recording record after upload.
@@ -6131,6 +6248,39 @@ export type ReglagesAnnonceOuverture = {
 };
 
 /**
+ * ReglagesAppelantSimule
+ */
+export type ReglagesAppelantSimule = {
+    /**
+     * Format
+     */
+    format?: 'appelant-simule-mark';
+    /**
+     * Version
+     */
+    version?: 1;
+    appelant?: RoleSimule;
+    juge?: RoleSimule;
+    voix?: VoixSimulee;
+    /**
+     * Simultanes
+     *
+     * Calls played at once in a series (L13: 1 by default, the Mistral limit).
+     */
+    simultanes?: number;
+    /**
+     * Taille Max Serie
+     */
+    taille_max_serie?: number;
+    /**
+     * Plafond
+     *
+     * Spending cap of one series (Q3), in the price table's currency (USD by default).
+     */
+    plafond?: number;
+};
+
+/**
  * ReglagesFenetreDuRun
  */
 export type ReglagesFenetreDuRun = {
@@ -6281,6 +6431,34 @@ export type RimeTtsConfiguration = {
      * ISO 639-1 language code.
      */
     language?: string;
+};
+
+/**
+ * RoleSimule
+ */
+export type RoleSimule = {
+    /**
+     * Modele
+     *
+     * Model, from the list.
+     */
+    modele?: 'mistral/mistral-small-latest' | 'mistral/mistral-medium-latest' | 'mistral/mistral-large-latest';
+    /**
+     * Identifiant
+     *
+     * UUID of the Dograh credential holding the model's key (an organization other than the agent's, Q1).
+     */
+    identifiant?: string | null;
+    /**
+     * Consigne
+     *
+     * Prompt.
+     */
+    consigne: string;
+    /**
+     * Temperature
+     */
+    temperature?: number;
 };
 
 /**
@@ -6448,6 +6626,59 @@ export type SarvamTtsConfiguration = {
 };
 
 /**
+ * ScenarioSimule
+ */
+export type ScenarioSimule = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Workflow Id
+     *
+     * The agent the scenario is filed with.
+     */
+    workflow_id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Role
+     *
+     * Who calls and why: what the simulated caller knows and wants.
+     */
+    role: string;
+    /**
+     * Consigne
+     *
+     * Extra instructions to the caller.
+     */
+    consigne?: string;
+    comportements?: Comportements;
+    /**
+     * Criteres
+     */
+    criteres: Array<string>;
+    /**
+     * Tours Max
+     */
+    tours_max?: number;
+    /**
+     * Renvoi
+     *
+     * What the simulated transfer answers if the agent transfers the call.
+     */
+    renvoi?: 'refuse' | 'accepte' | 'sans_reponse';
+    /**
+     * Latence Max S
+     *
+     * If set, a turn slower than this fails the scenario.
+     */
+    latence_max_s?: number | null;
+};
+
+/**
  * ScheduleConfigRequest
  */
 export type ScheduleConfigRequest = {
@@ -6491,6 +6722,64 @@ export type SelectOrganizationRequest = {
      * Organization Id
      */
     organization_id: number;
+};
+
+/**
+ * SerieSimulee
+ */
+export type SerieSimulee = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Lancee Le
+     */
+    lancee_le: string;
+    /**
+     * Lancee Par
+     */
+    lancee_par: number;
+    /**
+     * Etat
+     */
+    etat?: 'en_cours' | 'terminee' | 'arretee_plafond' | 'arretee' | 'echec';
+    /**
+     * Plafond
+     */
+    plafond: number;
+    /**
+     * Devise
+     */
+    devise?: string;
+    /**
+     * Cout Estime
+     */
+    cout_estime?: number | null;
+    /**
+     * Cout
+     */
+    cout?: number;
+    /**
+     * Cout Partiel
+     */
+    cout_partiel?: boolean;
+    /**
+     * Raison
+     */
+    raison?: string | null;
+    /**
+     * Terminee Le
+     */
+    terminee_le?: string | null;
+    /**
+     * Appels
+     */
+    appels?: Array<AppelDeSerie>;
 };
 
 /**
@@ -8717,6 +9006,24 @@ export type VoicesResponse = {
      */
     voices: Array<VoiceInfo>;
     facets?: VoiceFacets | null;
+};
+
+/**
+ * VoixSimulee
+ */
+export type VoixSimulee = {
+    /**
+     * Voix
+     *
+     * ElevenLabs voice id of the simulated caller (Q2: a French voice).
+     */
+    voix?: string;
+    /**
+     * Identifiant
+     *
+     * UUID of the Dograh credential holding the ElevenLabs key (voice and transcription of the agent).
+     */
+    identifiant?: string | null;
 };
 
 /**
@@ -12052,6 +12359,361 @@ export type SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponses =
 };
 
 export type SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponse = SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponses[keyof SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponses];
+
+export type GetReglagesAppelantSimuleApiV1AppelSimuleReglagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/appel-simule/reglages';
+};
+
+export type GetReglagesAppelantSimuleApiV1AppelSimuleReglagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetReglagesAppelantSimuleApiV1AppelSimuleReglagesGetError = GetReglagesAppelantSimuleApiV1AppelSimuleReglagesGetErrors[keyof GetReglagesAppelantSimuleApiV1AppelSimuleReglagesGetErrors];
+
+export type GetReglagesAppelantSimuleApiV1AppelSimuleReglagesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesAppelantSimule;
+};
+
+export type GetReglagesAppelantSimuleApiV1AppelSimuleReglagesGetResponse = GetReglagesAppelantSimuleApiV1AppelSimuleReglagesGetResponses[keyof GetReglagesAppelantSimuleApiV1AppelSimuleReglagesGetResponses];
+
+export type SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutData = {
+    body: ReglagesAppelantSimule;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/appel-simule/reglages';
+};
+
+export type SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutError = SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutErrors[keyof SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutErrors];
+
+export type SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesAppelantSimule;
+};
+
+export type SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutResponse = SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutResponses[keyof SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutResponses];
+
+export type GetScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/appel-simule/agents/{workflow_id}/scenarios';
+};
+
+export type GetScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGetError = GetScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGetErrors[keyof GetScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGetErrors];
+
+export type GetScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGetResponses = {
+    /**
+     * Response Get Scenarios Simules Api V1 Appel Simule Agents  Workflow Id  Scenarios Get
+     *
+     * Successful Response
+     */
+    200: Array<ScenarioSimule>;
+};
+
+export type GetScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGetResponse = GetScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGetResponses[keyof GetScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGetResponses];
+
+export type SaveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPutData = {
+    /**
+     * Request
+     */
+    body: Array<ScenarioSimule>;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/appel-simule/agents/{workflow_id}/scenarios';
+};
+
+export type SaveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPutError = SaveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPutErrors[keyof SaveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPutErrors];
+
+export type SaveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPutResponses = {
+    /**
+     * Response Save Scenarios Simules Api V1 Appel Simule Agents  Workflow Id  Scenarios Put
+     *
+     * Successful Response
+     */
+    200: Array<ScenarioSimule>;
+};
+
+export type SaveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPutResponse = SaveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPutResponses[keyof SaveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPutResponses];
+
+export type LancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPostData = {
+    body: LancementSerie;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/appel-simule/agents/{workflow_id}/series';
+};
+
+export type LancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPostError = LancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPostErrors[keyof LancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPostErrors];
+
+export type LancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SerieSimulee;
+};
+
+export type LancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPostResponse = LancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPostResponses[keyof LancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPostResponses];
+
+export type GetSeriesSimuleesApiV1AppelSimuleSeriesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Workflow Id
+         */
+        workflow_id?: number | null;
+    };
+    url: '/api/v1/appel-simule/series';
+};
+
+export type GetSeriesSimuleesApiV1AppelSimuleSeriesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSeriesSimuleesApiV1AppelSimuleSeriesGetError = GetSeriesSimuleesApiV1AppelSimuleSeriesGetErrors[keyof GetSeriesSimuleesApiV1AppelSimuleSeriesGetErrors];
+
+export type GetSeriesSimuleesApiV1AppelSimuleSeriesGetResponses = {
+    /**
+     * Response Get Series Simulees Api V1 Appel Simule Series Get
+     *
+     * Successful Response
+     */
+    200: Array<SerieSimulee>;
+};
+
+export type GetSeriesSimuleesApiV1AppelSimuleSeriesGetResponse = GetSeriesSimuleesApiV1AppelSimuleSeriesGetResponses[keyof GetSeriesSimuleesApiV1AppelSimuleSeriesGetResponses];
+
+export type GetRapportSerieApiV1AppelSimuleSeriesSerieIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Serie Id
+         */
+        serie_id: string;
+    };
+    query?: never;
+    url: '/api/v1/appel-simule/series/{serie_id}';
+};
+
+export type GetRapportSerieApiV1AppelSimuleSeriesSerieIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRapportSerieApiV1AppelSimuleSeriesSerieIdGetError = GetRapportSerieApiV1AppelSimuleSeriesSerieIdGetErrors[keyof GetRapportSerieApiV1AppelSimuleSeriesSerieIdGetErrors];
+
+export type GetRapportSerieApiV1AppelSimuleSeriesSerieIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: RapportSerie;
+};
+
+export type GetRapportSerieApiV1AppelSimuleSeriesSerieIdGetResponse = GetRapportSerieApiV1AppelSimuleSeriesSerieIdGetResponses[keyof GetRapportSerieApiV1AppelSimuleSeriesSerieIdGetResponses];
+
+export type ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Serie Id
+         */
+        serie_id: string;
+    };
+    query?: never;
+    url: '/api/v1/appel-simule/series/{serie_id}/arreter';
+};
+
+export type ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostError = ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostErrors[keyof ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostErrors];
+
+export type ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponses = {
+    /**
+     * Response Arreter Serie Simulee Api V1 Appel Simule Series  Serie Id  Arreter Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponse = ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponses[keyof ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;

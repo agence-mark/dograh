@@ -5,6 +5,7 @@ from sqlalchemy import String, and_, func, select
 
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowModel, WorkflowRunModel
+from api.enums import WorkflowRunMode
 
 
 class ReportsClient(BaseDBClient):
@@ -110,6 +111,8 @@ class ReportsClient(BaseDBClient):
                         WorkflowModel.organization_id == organization_id,
                         WorkflowRunModel.created_at >= start_utc,
                         WorkflowRunModel.created_at <= end_utc,
+                        # [.mark] The simulated caller's calls are not real calls (L9).
+                        WorkflowRunModel.mode != WorkflowRunMode.SIMULATED.value,
                     )
                 )
             )

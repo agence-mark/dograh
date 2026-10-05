@@ -24,14 +24,17 @@ from api.constants import REDIS_URL
 from api.db import db_client
 from api.enums import WorkflowRunMode
 
-# Les modes où l'outil de transfert ne peut pas joindre de téléphonie.
+# Les modes où l'outil de transfert ne peut pas joindre de téléphonie. L'appel simulé
+# (langwatch-et-fenetre-du-run, lot 3) en est : un renvoi n'y compose jamais de vrai numéro.
 MODES_DE_TEST = frozenset(
     {
         WorkflowRunMode.TEXTCHAT.value,
         WorkflowRunMode.WEBRTC.value,
         WorkflowRunMode.SMALLWEBRTC.value,
+        WorkflowRunMode.SIMULATED.value,
     }
 )
+
 
 async def est_un_essai(workflow_run) -> bool:
     """Un essai lancé depuis l'écran (clavier, testeur vocal), jamais un visiteur du

@@ -18,7 +18,7 @@ from api.enums import OrganizationConfigurationKey
 from api.schemas.fenetre_du_run import ReglagesFenetreDuRun
 
 CLE = OrganizationConfigurationKey.FENETRE_DU_RUN.value
-CANAUX_SANS_TELEPHONIE = {"smallwebrtc", "textchat"}
+CANAUX_SANS_TELEPHONIE = {"smallwebrtc", "textchat", "simulated"}
 
 
 async def lire_reglages_fenetre(

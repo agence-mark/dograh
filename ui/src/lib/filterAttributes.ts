@@ -122,6 +122,8 @@ export const baseFilterAttributes: Record<string, Omit<FilterAttribute, "id">> =
         { label: "Telephony", value: "telephony" },
         { label: "Web call", value: "web" },
         { label: "Text chat", value: "chat" },
+        // [.mark] The simulated caller's calls (langwatch-et-fenetre-du-run, lot 3).
+        { label: "Simulated caller", value: "simulated" },
         { label: "All", value: "all" },
       ],
       defaultValue: "all",

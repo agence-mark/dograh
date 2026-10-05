@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from api.routes.agent_stream import router as agent_stream_router
 from api.routes.analyse_run import router as analyse_run_router
+from api.routes.appel_simule import router as appel_simule_router
 from api.routes.auth import router as auth_router
 from api.routes.campaign import router as campaign_router
 from api.routes.credentials import router as credentials_router
@@ -52,6 +53,8 @@ router.include_router(renvoi_en_test_router)
 router.include_router(analyse_run_router)
 # [.mark] The run window's settings: price table (L5) and incident thresholds (L6).
 router.include_router(fenetre_du_run_router)
+# [.mark] The simulated caller's audio entry (langwatch-et-fenetre-du-run, lot 3, L8, L19).
+router.include_router(appel_simule_router)
 router.include_router(user_router)
 router.include_router(campaign_router)
 router.include_router(credentials_router)

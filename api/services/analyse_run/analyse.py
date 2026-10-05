@@ -39,6 +39,7 @@ SEUIL_TOUR_RAPIDE_S = 0.8
 CANAUX = {
     "smallwebrtc": "browser",
     "textchat": "keyboard",
+    "simulated": "simulated",
 }
 
 OK, NON_CAPTE, INDISPONIBLE = "ok", "not_captured", "unavailable"

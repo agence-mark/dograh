@@ -78,12 +78,26 @@ RUN \
  && uv pip install opencv-python-headless -c /tmp/constraints.txt \
  && python -c "import nltk; nltk.download('punkt_tab', download_dir='/opt/venv/nltk_data', quiet=True)"
 
+# [.mark] Second environnement Python : l'appelant simule (LangWatch Scenario,
+# chantier langwatch-et-fenetre-du-run, decision L19 du 05/10/2026). Scenario exige
+# openai 2.x (par litellm), l'API et Pipecat sont sur 3.x : il ne peut pas vivre
+# dans /opt/venv. La tache de fond de l'API le lance par sous-processus. Ses
+# versions exactes sont figees a part (simulateur/constraints.txt, Linux, 3.13).
+COPY simulateur/requirements.txt /tmp/simulateur-req.txt
+COPY simulateur/constraints.txt /tmp/simulateur-constraints.txt
+RUN python -m venv /opt/venv-simulateur \
+ && uv pip install --python /opt/venv-simulateur/bin/python \
+      -r /tmp/simulateur-req.txt -c /tmp/simulateur-constraints.txt
+
 # Strip cache files, test/example dirs, and type stubs from the venv
-RUN find /opt/venv -type f -name '*.pyc' -delete && \
-    find /opt/venv -type d -name '__pycache__' -prune -exec rm -rf {} + && \
-    find /opt/venv -type f -name '*.pyo' -delete && \
-    find /opt/venv -type d \( -name tests -o -name test -o -name examples \) -prune -exec rm -rf {} + && \
-    find /opt/venv -name '*.pyi' -delete
+# [.mark] ... et de celui du simulateur (meme nettoyage, boucle sur les deux).
+RUN for v in /opt/venv /opt/venv-simulateur; do \
+    find $v -type f -name '*.pyc' -delete && \
+    find $v -type d -name '__pycache__' -prune -exec rm -rf {} + && \
+    find $v -type f -name '*.pyo' -delete && \
+    find $v -type d \( -name tests -o -name test -o -name examples \) -prune -exec rm -rf {} + && \
+    find $v -name '*.pyi' -delete || exit 1 ; \
+    done
 
 # Stage 2: Node deps for ts_validator (built with full node:22-slim, only
 # node_modules is copied into the runner).
@@ -164,6 +178,8 @@ COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node
 # Copy the populated venv from the builder stage. NLTK data lives at
 # /opt/venv/nltk_data and is auto-discovered via sys.prefix.
 COPY --from=builder /opt/venv /opt/venv
+# [.mark] L'environnement de l'appelant simule (L19), jamais sur le PATH de l'API.
+COPY --from=builder /opt/venv-simulateur /opt/venv-simulateur
 
 # Activate the venv for subsequent RUN/CMD layers.
 ENV VIRTUAL_ENV=/opt/venv \
@@ -177,6 +193,8 @@ ENV PYTHONUNBUFFERED=1
 # Copy application code (chown at copy-time avoids a duplicate /app layer
 # from a later `RUN chown -R`, which would double the on-disk size of /app).
 COPY --chown=dograh:dograh ./api ./api
+# [.mark] Le lanceur de l'appelant simule, lance par /opt/venv-simulateur/bin/python.
+COPY --chown=dograh:dograh ./simulateur ./simulateur
 
 # Entrypoint scripts.
 #   start_services_docker.sh — single-container (docker-compose) entrypoint
