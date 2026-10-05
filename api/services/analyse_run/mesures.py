@@ -191,7 +191,9 @@ def mesurer_run(run: dict) -> dict:
 def mediane_basse(valeurs: list) -> float | None:
     """La médiane BASSE du 15/09 (élément d'indice ``floor((n-1)/2)``), gardée pour que l'avant
     et l'après se comparent à l'identique."""
-    nombres = sorted(v for v in valeurs if isinstance(v, (int, float)) and not math.isnan(v))
+    nombres = sorted(
+        v for v in valeurs if isinstance(v, (int, float)) and not math.isnan(v)
+    )
     if not nombres:
         return None
     return nombres[(len(nombres) - 1) // 2]

@@ -6,6 +6,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 from api.routes.agent_stream import router as agent_stream_router
+from api.routes.analyse_run import router as analyse_run_router
 from api.routes.auth import router as auth_router
 from api.routes.campaign import router as campaign_router
 from api.routes.credentials import router as credentials_router
@@ -46,6 +47,8 @@ router.include_router(workflow_router)
 router.include_router(workflow_text_chat_router)
 # [.mark] Lot D : la décision du testeur sur un renvoi d'appel (clavier, casque).
 router.include_router(renvoi_en_test_router)
+# [.mark] Chantier langwatch-et-fenetre-du-run : l'analyse d'un run pour sa fenêtre.
+router.include_router(analyse_run_router)
 router.include_router(user_router)
 router.include_router(campaign_router)
 router.include_router(credentials_router)
