@@ -165,3 +165,79 @@ def test_les_membres_prives_de_pipecat_utilises_existent_encore():
     for evenement in ("on_user_turn_started", "on_user_turn_stopped"):
         assert evenement in appelant._event_handlers
     assert relance.CLE_INTERRUPTEUR == "relance_apres_outil"
+
+
+# --- La réponse spéculative (revue du 05/10, point 9) ------------------------------------------
+
+
+@pytest.fixture
+def speculation():
+    """Les deux méthodes de Pipecat que l'agrégateur de l'appelant enveloppe, neutralisées."""
+    with (
+        patch.object(LLMUserAggregator, "_run_speculative_inference", AsyncMock()),
+        patch.object(LLMUserAggregator, "_on_user_turn_stopped", AsyncMock()),
+    ):
+        yield
+
+
+def _fin_de_tour(confirme: bool):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        confirms_speculation=confirme, enable_user_speaking_frames=True
+    )
+
+
+async def _garder_une_relance(appelant, agent):
+    _ouvrir_le_tour(appelant)
+    await agent._tour_ouvert(appelant, None)
+    await agent._maybe_push_context_after_function_result()
+
+
+async def test_une_speculation_confirmee_apres_le_resultat_solde_la_relance(
+    banc, speculation
+):
+    appelant, agent, envois, _ = banc
+    await _garder_une_relance(appelant, agent)
+    await appelant._run_speculative_inference(object())  # elle voit le résultat
+    await appelant._on_user_turn_stopped(None, None, _fin_de_tour(confirme=True))
+    _fermer_le_tour(appelant)
+    await agent._tour_ferme(appelant, None, None)
+    envois.assert_not_awaited()  # la réponse spéculative EST la réponse : pas de seconde
+
+
+async def test_une_speculation_jetee_laisse_la_relance_due(banc, speculation):
+    appelant, agent, envois, _ = banc
+    await _garder_une_relance(appelant, agent)
+    await appelant._run_speculative_inference(object())
+    await appelant._on_user_turn_stopped(None, None, _fin_de_tour(confirme=False))
+    _fermer_le_tour(appelant)
+    await agent._tour_ferme(appelant, None, None)
+    envois.assert_awaited_once()
+
+
+async def test_une_speculation_lancee_avant_le_resultat_ne_solde_rien(
+    banc, speculation
+):
+    appelant, agent, envois, _ = banc
+    _ouvrir_le_tour(appelant)
+    await agent._tour_ouvert(appelant, None)
+    await appelant._run_speculative_inference(object())  # sans le résultat de l'outil
+    await agent._maybe_push_context_after_function_result()
+    await appelant._on_user_turn_stopped(None, None, _fin_de_tour(confirme=True))
+    _fermer_le_tour(appelant)
+    await agent._tour_ferme(appelant, None, None)
+    envois.assert_awaited_once()
+
+
+def test_les_membres_de_la_speculation_existent_encore():
+    import dataclasses
+
+    from pipecat.turns.user_stop.base_user_turn_stop_strategy import (
+        UserTurnStoppedParams,
+    )
+
+    assert callable(LLMUserAggregator._run_speculative_inference)
+    assert callable(LLMUserAggregator._on_user_turn_stopped)
+    champs = {c.name for c in dataclasses.fields(UserTurnStoppedParams)}
+    assert "confirms_speculation" in champs
