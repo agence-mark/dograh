@@ -18,6 +18,7 @@ from pipecat.frames.frames import (
     CancelFrame,
     EndFrame,
     FunctionCallResultProperties,
+    LLMRunFrame,
     SpeechBoundaryFrame,
 )
 from pipecat.pipeline.worker import PipelineWorker
@@ -197,6 +198,8 @@ class PipecatEngine:
         )
         # Les notes du post-scriptum encore en cours, attendues avant la passe de fin.
         self.notes_en_cours: set[asyncio.Task] = set()
+        # [.mark] Plan porte-parlee (D7) : les raccrochages après une porte écrite.
+        self._taches_de_porte: set[asyncio.Task] = set()
         # Plan mode-prise-de-notes, partie 2 : le greffier de l'appel (None hors
         # de ce mode), clos à la passe de fin.
         self.greffier = None
@@ -536,9 +539,7 @@ class PipecatEngine:
                     on_context_updated=on_context_updated,
                     # [.mark] Fiche : dans un tour avec une note, seul le dernier
                     # résultat relance ; None = regroupement de Pipecat, inchangé.
-                    run_llm=self._tours_fiche.relance(
-                        function_call_params.tool_call_id
-                    )
+                    run_llm=self._tours_fiche.relance(function_call_params.tool_call_id)
                     if self._tours_fiche is not None
                     else None,
                 )
@@ -567,6 +568,107 @@ class PipecatEngine:
                 )
 
         return agent.bind_tool(self, transition_func)
+
+    # --- [.mark] Plan porte-parlee (lot 4) : la porte écrite dans la réponse ---
+
+    def _porte_de_l_etape(self, nom: str):
+        """L'arête de l'étape en cours dont le nom de porte est ``nom``, ou None.
+        Le code ne choisit jamais : il retrouve la porte écrite, ou rien."""
+        node = self.active_agent.current_node
+        if node is None or node.is_end:
+            return None
+        return next((e for e in node.out_edges if e.get_function_name() == nom), None)
+
+    def phrase_de_transition_ecrite(self, nom: str) -> Optional[str]:
+        """D16 : la phrase de transition ÉCRITE de la porte ``nom`` (le processeur
+        la pousse avant la phrase du modèle). Un enregistrement audio : None, il
+        est joué au changement d'étape."""
+        arete = self._porte_de_l_etape(nom)
+        if arete is None or (arete.data.transition_speech_type or "text") != "text":
+            return None
+        return arete.transition_speech or None
+
+    async def prendre_porte_ecrite(
+        self,
+        nom: str,
+        *,
+        transition_dite: bool = False,
+        reponse: Optional[str] = None,
+        relancer: bool = False,
+    ) -> str:
+        """D6 : la porte ``nom`` écrite par le modèle, prise à la fin de sa réponse
+        (interruption comprise), comme ``_create_transition_func`` mais sans
+        résultat de fonction ni relance : la phrase dite est la première réplique.
+
+        ``transition_dite`` : la phrase de transition écrite est déjà partie (D16).
+        ``reponse`` : l'identifiant de lecture de la réponse en cours ; vers une
+        étape de fin, c'est elle la phrase de fin (D7) : on attend qu'elle soit
+        jouée, puis on raccroche. ``relancer`` : la réponse n'a rien dit ; le
+        modèle reparle dans la nouvelle étape (comme une porte appelée en fonction).
+
+        Rend l'état pour la trace : ``prise``, ``inconnue`` ou ``echec``.
+        ⛔ Ne lève jamais : une porte mal écrite ne coûte pas l'appel."""
+        agent = self.active_agent
+        arete = self._porte_de_l_etape(nom)
+        if arete is None:
+            logger.warning(f"[porte] « {nom} » n'est pas une porte de l'étape : rien")
+            return "inconnue"
+        try:
+            logger.info(f"[porte] porte écrite prise : {nom} -> {arete.target}")
+            await self._perform_variable_extraction_if_needed(
+                agent.current_node,
+                run_in_background=self._run_transition_variable_extraction_in_background,
+            )
+            if (
+                (arete.data.transition_speech_type or "text") == "audio"
+                and arete.data.transition_speech_recording_id
+                and self._fetch_recording_audio
+            ):
+                await self.queue_speech(
+                    recording_pk=int(arete.data.transition_speech_recording_id),
+                    mute_user=True,
+                )
+            elif arete.transition_speech and not transition_dite:
+                await self.queue_text_message(arete.transition_speech, mute_user=True)
+            fin = agent.workflow.nodes[arete.target].is_end
+            phrase_de_fin = (
+                self.speech_playback.suivre_une_reponse(reponse)
+                if fin and reponse and not relancer
+                else None
+            )
+            await self.set_node(arete.target, origin_visit_id=agent.visit_id)
+            if fin and not relancer:
+                self._mute_pipeline = True
+
+                async def raccrocher() -> None:
+                    if phrase_de_fin is not None:
+                        await phrase_de_fin.wait()
+                    if self.agent_can_act(agent):
+                        await self.end_call_with_reason(EndTaskReason.END_CALL.value)
+
+                tache = asyncio.get_running_loop().create_task(raccrocher())
+                self._taches_de_porte.add(tache)
+                tache.add_done_callback(self._taches_de_porte.discard)
+            elif relancer:
+                if fin:
+                    closing = self.speech_playback.expect_response(source=agent.llm)
+                    self._mute_pipeline = True
+
+                    async def raccrocher_apres() -> None:
+                        await closing.wait()
+                        if self.agent_can_act(agent):
+                            await self.end_call_with_reason(
+                                EndTaskReason.END_CALL.value
+                            )
+
+                    tache = asyncio.get_running_loop().create_task(raccrocher_apres())
+                    self._taches_de_porte.add(tache)
+                    tache.add_done_callback(self._taches_de_porte.discard)
+                await agent.queue_frame(LLMRunFrame())
+            return "prise"
+        except Exception as e:  # noqa: BLE001 -- une porte ne coûte jamais l'appel
+            logger.error(f"[porte] porte écrite « {nom} » en échec : {e!r}")
+            return "echec"
 
     async def _register_transition_function_with_llm(
         self,
@@ -846,8 +948,7 @@ class PipecatEngine:
         l'amont reste en place, sinon rien ne serait collecté pendant sa visite.
         """
         return (
-            self._fiche is not None
-            and self.active_agent.llm is self._llm_de_la_fiche
+            self._fiche is not None and self.active_agent.llm is self._llm_de_la_fiche
         )
 
     @property
@@ -866,11 +967,7 @@ class PipecatEngine:
         la fiche, hors étape de fin."""
         agent = self.active_agent
         node = getattr(agent, "current_node", None)
-        return (
-            self._fiche_sur_l_agent_actif()
-            and node is not None
-            and not node.is_end
-        )
+        return self._fiche_sur_l_agent_actif() and node is not None and not node.is_end
 
     async def _balayer_la_fiche(self) -> Optional[dict]:
         """[.mark] D11 : le filet de fin d'appel, par le point d'écriture unique."""
