@@ -39,6 +39,9 @@ import type {
     TourDeLatence,
 } from "./types";
 
+/** « 2026-10-01 » → « 01/10 ». */
+const dateCourte = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
 const secondes = (valeur: number | null | undefined) =>
     typeof valeur === "number" ? `${valeur.toFixed(2)} s` : "–";
 
@@ -179,8 +182,32 @@ function BlocResume({ resume, incidents }: { resume: Resume; incidents: Incident
                     })
                 )}
             </p>
-            <p className="text-muted-foreground">
-                {t({ en: "Estimated cost: not captured yet.", fr: "Coût estimé : pas encore capté." })}
+            <p data-testid="fenetre-cout">
+                {resume.cost?.status === "ok" ? (
+                    <>
+                        {t({ en: "Estimated cost", fr: "Coût estimé" })} :{" "}
+                        <strong>
+                            {resume.cost.total?.toFixed(4)} {resume.cost.currency}
+                        </strong>{" "}
+                        {t({
+                            en: `at the rate of ${(resume.cost.rate_dates ?? []).map(dateCourte).join(", ")}`,
+                            fr: `au tarif du ${(resume.cost.rate_dates ?? []).map(dateCourte).join(", ")}`,
+                        })}
+                        {resume.cost.partial
+                            ? ` · ${t({
+                                  en: `partial: no price for ${(resume.cost.unpriced ?? []).map((u) => u.model).join(", ")}`,
+                                  fr: `partiel : pas de prix pour ${(resume.cost.unpriced ?? []).map((u) => u.model).join(", ")}`,
+                              })}`
+                            : ""}
+                    </>
+                ) : (
+                    <span className="text-muted-foreground">
+                        {t({
+                            en: "Estimated cost: not captured (no price table in the organization settings, or no consumption recorded).",
+                            fr: "Coût estimé : non capté (pas de table des prix dans les paramètres de l'organisation, ou aucune consommation enregistrée).",
+                        })}
+                    </span>
+                )}
             </p>
             {nombre > 0 && incidents.status === "ok" && (
                 <p className="font-medium text-destructive" role="alert">

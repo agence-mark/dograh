@@ -252,7 +252,7 @@ def test_un_run_sans_donnees_dit_non_capte():
         "conversation",
     ):
         assert resultat[bloc]["status"] == "not_captured", bloc
-    assert resultat["summary"]["cost"] == {"status": "not_captured"}
+    assert resultat["summary"]["cost"]["status"] == "not_captured"
 
 
 def test_le_429_de_mistral_devient_un_incident(corpus):

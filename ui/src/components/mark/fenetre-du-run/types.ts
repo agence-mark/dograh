@@ -54,7 +54,13 @@ export type Resume = Bloc & {
     channel?: string;
     duration_secs?: number | null;
     disposition?: string | null;
-    cost?: Bloc;
+    cost?: Bloc & {
+        currency?: string;
+        total?: number;
+        partial?: boolean;
+        rate_dates?: string[];
+        unpriced?: { component: string; model: string }[];
+    };
     version?: {
         status?: Statut;
         app_version?: string;

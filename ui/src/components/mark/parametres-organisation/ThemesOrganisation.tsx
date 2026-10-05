@@ -36,6 +36,7 @@ import {
     EtatLectureAnnonce,
 } from "../SectionAnnonceOuverture";
 import { SectionLexiqueMetier } from "../SectionLexiqueMetier";
+import { ModaleTableDesPrix } from "./ModaleTableDesPrix";
 import type { EtatPreferences } from "./preferences";
 import type { ThemeOrganisation } from "./references/cas-organisation";
 
@@ -143,6 +144,9 @@ export const ThemeOrganisationGenerale = ({
     const { enregistre, brouillon, setBrouillon } = useBrouillonPreferences(preferences, CLES_ORGANISATION);
     const modifie = differe(brouillon, enregistre);
     useSignaler("organisation", modifie, false, signaler);
+    // [.mark] The price table opens in its own modal and saves itself (E4): it is not part of
+    // the theme's draft, so its button does not count as a modification of the theme.
+    const [tableDesPrixOuverte, setTableDesPrixOuverte] = useState(false);
 
     return (
         <Theme
@@ -192,6 +196,25 @@ export const ThemeOrganisationGenerale = ({
                             styles={stylesFuseau}
                         />
                     </ChampReglage>
+                </Intertitre>
+            )}
+            {!preferences.chargement && (
+                <Intertitre id="organisation-couts" titre={{ en: "Costs", fr: "Coûts" }}>
+                    <ChampReglage
+                        cle="table_des_prix"
+                        libelle={{ en: "Price table", fr: "Table des prix" }}
+                        aides={[
+                            {
+                                en: "Prices by provider model, dated, used to estimate the cost of each call in the run window.",
+                                fr: "Prix par modèle de fournisseur, datés, pour estimer le coût de chaque appel dans la fenêtre du run.",
+                            },
+                        ]}
+                    >
+                        <Button variant="outline" size="sm" onClick={() => setTableDesPrixOuverte(true)}>
+                            {t({ en: "Edit the price table…", fr: "Modifier la table des prix…" })}
+                        </Button>
+                    </ChampReglage>
+                    <ModaleTableDesPrix ouverte={tableDesPrixOuverte} onFermer={() => setTableDesPrixOuverte(false)} />
                 </Intertitre>
             )}
         </Theme>

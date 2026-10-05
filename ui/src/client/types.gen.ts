@@ -4163,6 +4163,60 @@ export type LexiqueMetier = {
 };
 
 /**
+ * LignePrix
+ */
+export type LignePrix = {
+    /**
+     * Brique
+     *
+     * Component: model (llm), transcription (stt), voice (tts) or telephony.
+     */
+    brique: 'llm' | 'stt' | 'tts' | 'telephony';
+    /**
+     * Modele
+     *
+     * The model id exactly as the run records it (e.g. mistral-large-2512), or the telephony provider (e.g. twilio).
+     */
+    modele: string;
+    /**
+     * Entree Par Million
+     *
+     * Price per million input tokens.
+     */
+    entree_par_million?: number | null;
+    /**
+     * Cache Par Million
+     *
+     * Price per million cached input tokens; empty = the input price.
+     */
+    cache_par_million?: number | null;
+    /**
+     * Sortie Par Million
+     *
+     * Price per million output tokens.
+     */
+    sortie_par_million?: number | null;
+    /**
+     * Par Minute
+     *
+     * Price per minute (transcription, telephony).
+     */
+    par_minute?: number | null;
+    /**
+     * Par Million Caracteres
+     *
+     * Price per million characters spoken (voice).
+     */
+    par_million_caracteres?: number | null;
+    /**
+     * Date Du Tarif
+     *
+     * The date of the provider's rate this price was read from.
+     */
+    date_du_tarif: string;
+};
+
+/**
  * LMNT
  *
  * Stored LMNT configurations remain readable after the provider's retirement.
@@ -6998,6 +7052,28 @@ export type TtsCacheList = {
      * Total
      */
     total: number;
+};
+
+/**
+ * TableDesPrix
+ */
+export type TableDesPrix = {
+    /**
+     * Format
+     */
+    format?: 'table-des-prix-mark';
+    /**
+     * Version
+     */
+    version?: 1;
+    /**
+     * Devise
+     */
+    devise?: 'USD' | 'EUR';
+    /**
+     * Lignes
+     */
+    lignes?: Array<LignePrix>;
 };
 
 /**
@@ -11879,6 +11955,84 @@ export type GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetRespo
 };
 
 export type GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetResponse = GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetResponses[keyof GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetResponses];
+
+export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/table-des-prix';
+};
+
+export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetError = GetTableDesPrixApiV1OrganizationsTableDesPrixGetErrors[keyof GetTableDesPrixApiV1OrganizationsTableDesPrixGetErrors];
+
+export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: TableDesPrix;
+};
+
+export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetResponse = GetTableDesPrixApiV1OrganizationsTableDesPrixGetResponses[keyof GetTableDesPrixApiV1OrganizationsTableDesPrixGetResponses];
+
+export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutData = {
+    body: TableDesPrix;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/table-des-prix';
+};
+
+export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutError = SaveTableDesPrixApiV1OrganizationsTableDesPrixPutErrors[keyof SaveTableDesPrixApiV1OrganizationsTableDesPrixPutErrors];
+
+export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: TableDesPrix;
+};
+
+export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutResponse = SaveTableDesPrixApiV1OrganizationsTableDesPrixPutResponses[keyof SaveTableDesPrixApiV1OrganizationsTableDesPrixPutResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;

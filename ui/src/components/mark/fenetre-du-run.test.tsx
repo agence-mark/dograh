@@ -310,3 +310,35 @@ describe("Fenêtre du run : silence réellement entendu", () => {
         expect(texte(screen.getByTestId("silence-entendu"))).toContain("non capté");
     });
 });
+
+
+describe("Fenêtre du run : coût estimé", () => {
+    it("dit le coût, son tarif daté et ce qui n'a pas de prix ; sinon « non capté »", async () => {
+        lireAnalyse.mockResolvedValue({
+            data: {
+                ...ANALYSE,
+                summary: {
+                    ...ANALYSE.summary,
+                    cost: {
+                        status: "ok",
+                        currency: "USD",
+                        total: 0.1234,
+                        partial: true,
+                        rate_dates: ["2026-10-01"],
+                        unpriced: [{ component: "tts", model: "eleven_flash_v2_5" }],
+                    },
+                },
+            },
+        });
+        const { unmount } = enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        expect(texte(screen.getByTestId("fenetre-cout"))).toContain(
+            "Coût estimé : 0.1234 USD au tarif du 01/10 · partiel : pas de prix pour eleven_flash_v2_5",
+        );
+        unmount();
+        lireAnalyse.mockResolvedValue({ data: ANALYSE });
+        enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        expect(texte(screen.getByTestId("fenetre-cout"))).toContain("Coût estimé : non capté");
+    });
+});

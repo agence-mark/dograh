@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.db import db_client
 from api.db.models import UserModel
 from api.services.analyse_run.analyse import analyser_run
+from api.services.analyse_run.cout import lire_table_des_prix
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.workflow.fiche_au_fil_de_leau import CLE_CHAMPS
 from api.services.workflow.workflow_graph import transition_tool_name
@@ -69,4 +70,5 @@ async def get_workflow_run_analyse(
         },
         portes=_portes(definition),
         champs_fiche=_champs_fiche(definition),
+        table_des_prix=await lire_table_des_prix(user.selected_organization_id),
     )

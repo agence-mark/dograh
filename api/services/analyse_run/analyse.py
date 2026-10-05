@@ -20,6 +20,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.analyse_run.cout import cout_du_run
 from api.services.analyse_run.mesures import _ms, mediane_basse, mesurer_run
 
 VERSION = 1
@@ -678,6 +679,7 @@ def analyser_run(
     *,
     portes: set[str] | None = None,
     champs_fiche: list[str] | None = None,
+    table_des_prix: Any = None,
 ) -> dict:
     """L'analyse complète, bloc par bloc.
 
@@ -700,7 +702,8 @@ def analyser_run(
             "mode": run.get("mode"),
             "duration_secs": (run.get("usage_info") or {}).get("call_duration_seconds"),
             "disposition": contexte.get("call_disposition"),
-            "cost": {"status": NON_CAPTE},
+            # Lot 2 (L5) : consommation × table de prix de l'organisation, au tarif daté.
+            "cost": cout_du_run(run, table_des_prix),
             # Lot 2 : quel code et quelle version de l'agent ont joué l'appel (absent des runs
             # d'avant le chantier : « not_captured »).
             "version": _estampille(run).get("mark_version") or {"status": NON_CAPTE},

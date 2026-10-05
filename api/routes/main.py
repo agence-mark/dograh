@@ -24,6 +24,7 @@ from api.routes.reports import router as reports_router
 from api.routes.s3_signed_url import router as s3_router
 from api.routes.service_keys import router as service_keys_router
 from api.routes.superuser import router as superuser_router
+from api.routes.table_des_prix import router as table_des_prix_router
 from api.routes.telephony import router as telephony_router
 from api.routes.tool import router as tool_router
 from api.routes.tts_cache import router as tts_cache_router
@@ -49,6 +50,8 @@ router.include_router(workflow_text_chat_router)
 router.include_router(renvoi_en_test_router)
 # [.mark] Chantier langwatch-et-fenetre-du-run : l'analyse d'un run pour sa fenêtre.
 router.include_router(analyse_run_router)
+# [.mark] The organization's price table (estimated cost of a run, L5).
+router.include_router(table_des_prix_router)
 router.include_router(user_router)
 router.include_router(campaign_router)
 router.include_router(credentials_router)
