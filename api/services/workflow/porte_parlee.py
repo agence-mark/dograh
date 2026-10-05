@@ -37,7 +37,7 @@ Une seule porte par réponse. Dès que ce que dit la personne correspond à une 
 
 {portes}
 
-# La première réplique de chaque étape
+# La première réplique des étapes où mènent tes portes
 {premieres}"""
 
 # D3 : une étape d'arrivée sans première réplique écrite à l'écran.
@@ -59,9 +59,13 @@ def consigne_des_portes(
     noeud: Node, graphe: WorkflowGraph, rendre: Callable[[str], str]
 ) -> str | None:
     """D5 : le bloc des portes de l'étape (``nom → étape : condition``), puis une
-    fois les premières répliques de toutes les étapes où mène une porte (identiques
-    sur tout l'appel), rendues avec les variables de l'appel comme le prompt.
-    ``None`` : l'étape n'a pas de porte, rien à ajouter."""
+    fois la première réplique de chaque étape d'arrivée de CES portes, rendue avec
+    les variables de l'appel comme le prompt. ``None`` : l'étape n'a pas de porte.
+
+    D21 (Evan, 05/10) : seulement les étapes d'arrivée, jamais toutes les étapes.
+    Une première réplique peut porter ce que l'agent ne doit pas avoir sous les
+    yeux ailleurs (l'adresse du magasin, donc sa commune, dans celle d'« infos ») :
+    l'étape des coordonnées, qui ne mène pas à « infos », ne la voit jamais."""
     if not noeud.out_edges:
         return None
     portes = "\n".join(
@@ -69,11 +73,10 @@ def consigne_des_portes(
         f"{arete.condition}"
         for arete in noeud.out_edges
     )
-    cibles = {arete.target for arete in graphe.edges}
+    arrivees = list(dict.fromkeys(arete.target for arete in noeud.out_edges))
     premieres = "\n".join(
         f"- {etape.name} : "
         f"{rendre(etape.premiere_replique) if etape.premiere_replique else SANS_PREMIERE_REPLIQUE}"
-        for etape in graphe.nodes.values()
-        if etape.id in cibles and not etape.is_start
+        for etape in (graphe.nodes[cible] for cible in arrivees)
     )
     return CONSIGNE_DES_PORTES.format(portes=portes, premieres=premieres)

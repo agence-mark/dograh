@@ -150,10 +150,23 @@ async def test_le_bloc_porte_les_portes_de_l_etape_et_les_premieres_repliques():
     # Seulement les portes de l'étape en cours.
     assert "- vers_etape →" not in prompt
     assert PHRASE_D11 in prompt
-    # Les premières répliques, rendues avec les variables de l'appel ; la ligne générique.
-    assert "- Etape : Bienvenue chez Le Comptoir, quelle marque ?" in prompt
+    # La première réplique des seules étapes d'arrivée (D21) : ici la ligne générique de
+    # End ; celle d'Etape, où cette étape ne mène pas, n'y est jamais.
     assert f"- End : {SANS_PREMIERE_REPLIQUE}" in prompt
-    assert "{{magasin}}" not in prompt
+    assert "Bienvenue chez" not in prompt
+
+
+@pytest.mark.asyncio
+async def test_d21_seules_les_premieres_repliques_des_etapes_d_arrivee():
+    """Une première réplique peut porter ce que l'agent ne doit pas avoir sous les yeux
+    ailleurs (l'adresse du magasin) : elle n'apparaît que là où une porte y mène."""
+    accueil, _ = await _requete("start", MODE_POST_SCRIPTUM, True)
+    # Rendue avec les variables de l'appel, depuis l'accueil qui y mène.
+    assert "- Etape : Bienvenue chez Le Comptoir, quelle marque ?" in accueil
+    assert f"- End : {SANS_PREMIERE_REPLIQUE}" in accueil
+    assert "{{magasin}}" not in accueil
+    etape, _ = await _requete("etape", MODE_POST_SCRIPTUM, True)
+    assert "Le Comptoir" not in etape
 
 
 @pytest.mark.asyncio
@@ -193,11 +206,11 @@ def test_hors_du_graphe_le_bloc_est_fixe():
     bloc = consigne_des_portes(graphe.nodes["etape"], graphe, lambda texte: texte)
     assert bloc == CONSIGNE_DES_PORTES.format(
         portes="- vers_fin → étape End : Quand c'est fini.",
-        premieres=(
-            "- Etape : Bienvenue chez {{magasin}}, quelle marque ?\n"
-            f"- End : {SANS_PREMIERE_REPLIQUE}"
-        ),
+        premieres=f"- End : {SANS_PREMIERE_REPLIQUE}",
     )
+    # Une étape d'arrivée n'apparaît qu'une fois, même atteinte par plusieurs portes.
+    accueil = consigne_des_portes(graphe.nodes["start"], graphe, lambda texte: texte)
+    assert accueil.count("- End :") == 1
     assert consigne_des_portes(graphe.nodes["end"], graphe, str) is None
 
 
