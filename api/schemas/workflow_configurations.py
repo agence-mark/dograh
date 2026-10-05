@@ -765,6 +765,19 @@ class WorkflowConfigurationDefaults(BaseModel):
             "keeps the record alongside the agent, the agent only speaks."
         ),
     )
+    # [.mark] Chantier langwatch-et-fenetre-du-run, lot 4 (ticket Pipecat 5960) :
+    # la relance du modèle après un outil n'est plus perdue quand le résultat
+    # devance la fin de tour. Éteinte par défaut ; mode cascade seulement.
+    relance_apres_outil: bool = Field(
+        default=False,
+        description=(
+            "Pipecat ticket 5960. When a tool result reaches the agent before the "
+            "caller's turn has closed, the model's reply is kept and sent once the "
+            "turn closes, instead of being lost (the agent then stays silent until "
+            "the caller speaks again). Off (default): Pipecat's behaviour. No effect "
+            "in realtime mode."
+        ),
+    )
     # [.mark] Plan porte-parlee (05/10), D1 : la porte se prend dans la réponse.
     # Éteinte par défaut ; une configuration sans la clé est lue éteinte. Jouée
     # seulement en Postscript (refusée à l'enregistrement sinon, D1).

@@ -26,6 +26,7 @@ import {
     getWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGet,
 } from '@/client/sdk.gen';
 import { BilanGreffier } from '@/components/mark/BilanGreffier';
+import { FenetreDuRun } from '@/components/mark/fenetre-du-run/FenetreDuRun';
 import { MediaPreviewButton, MediaPreviewDialog } from '@/components/MediaPreviewDialog';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { Button } from '@/components/ui/button';
@@ -851,6 +852,13 @@ export default function WorkflowRunPage() {
 
                         {/* [.mark] The clerk's passes, failures and tokens (mode-prise-de-notes). */}
                         <BilanGreffier fiche={workflowRun?.gathered_context ?? null} />
+
+                        {/* [.mark] The run window: latency turn by turn, providers, modules, record, path, incidents. */}
+                        <FenetreDuRun
+                            workflowId={Number(params.workflowId)}
+                            runId={Number(params.runId)}
+                            recordingKey={workflowRun?.recording_url ?? null}
+                        />
 
                         {!isTextChatRun && hasSplitTracks && (
                             <SplitTracksSection

@@ -1,0 +1,3 @@
+# [.mark] Le second environnement Python de l'image : l'appelant simulé (L19).
+# Jamais installé dans l'API (openai 2.x exigé par litellm, l'API est sur 3.x).
+langwatch-scenario==1.5.0

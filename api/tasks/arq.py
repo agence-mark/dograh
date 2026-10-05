@@ -14,6 +14,7 @@ setup_logging()
 # Now import ARQ and task dependencies
 from arq import create_pool, cron
 from arq.connections import ArqRedis, RedisSettings
+from arq.worker import func
 from redis.asyncio.retry import Retry
 from redis.backoff import ExponentialBackoff
 from redis.exceptions import ConnectionError as RedisConnectionError
@@ -57,6 +58,7 @@ REDIS_SETTINGS = RedisSettings(
     ssl_check_hostname=False if use_ssl else None,
 )
 
+from api.tasks.appel_simule import jouer_serie_simulee
 from api.tasks.campaign_tasks import (
     process_campaign_batch,
     sync_campaign_source,
@@ -80,6 +82,9 @@ class WorkerSettings:
         process_knowledge_base_document,
         deliver_webhook,
         complete_inactive_text_chat_session,
+        # [.mark] A series of the simulated caller lasts up to hours, and is never retried:
+        # a retry would replay (and pay) calls already played (langwatch-et-fenetre-du-run).
+        func(jouer_serie_simulee, timeout=6 * 3600, max_tries=1),
     ]
     cron_jobs = [
         # Safety net for webhook deliveries whose ARQ job was lost (worker

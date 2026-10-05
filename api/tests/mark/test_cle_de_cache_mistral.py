@@ -349,7 +349,17 @@ async def test_clavier_mistral_la_conversation_recoit_la_cle_et_le_run_lestampil
 async def test_clavier_autre_fournisseur_aucune_estampille():
     """🔒 Exact dictionary: the stamp of before, not one key more."""
     persiste, _ = await _jouer_au_clavier(OpenAIConfig(api_key="k", model="gpt-4.1"))
-    assert persiste["runtime_configuration"] == {
+    configuration = dict(persiste["runtime_configuration"])
+    # La version du code, estampillée sur tout appel depuis le chantier
+    # langwatch-et-fenetre-du-run (lot 2) : voulue, et sans rapport avec le cache.
+    assert set(configuration.pop("mark_version")) == {
+        "app_version",
+        "commit",
+        "definition_id",
+        "version_number",
+        "definition_status",
+    }
+    assert configuration == {
         "llm_provider": "openai",
         "llm_model": "gpt-4.1",
     }

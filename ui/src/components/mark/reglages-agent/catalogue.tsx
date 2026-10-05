@@ -262,6 +262,17 @@ export const CATALOGUE = {
             },
         ],
     }),
+    relance_apres_outil: d({
+        type: "interrupteur",
+        libelle: { en: "Always reply after a tool", fr: "Toujours répondre après un outil" },
+        aides: [
+            {
+                en: "When a tool (taking a note, a transition) finishes before the caller's turn has fully closed, the agent's reply is kept and sent once the turn closes. Off, Pipecat drops it and the agent stays silent until the caller speaks again (Pipecat ticket 5960, seen on a real call).",
+                fr: "Quand un outil (une prise de notes, une porte) finit avant que le tour de l'appelant soit tout à fait fermé, la réponse de l'agent est gardée et envoyée à la fermeture du tour. Éteint, Pipecat la perd et l'agent se tait jusqu'à ce que l'appelant reparle (ticket Pipecat 5960, constaté sur un vrai appel).",
+            },
+            { en: "Off until now. No effect in realtime mode.", fr: "Éteint jusqu'ici. Sans effet en mode temps réel." },
+        ],
+    }),
     mute_until_first_bot_complete: d({
         type: "interrupteur",
         libelle: { en: "During the opening sentence", fr: "Pendant la phrase d'accueil" },

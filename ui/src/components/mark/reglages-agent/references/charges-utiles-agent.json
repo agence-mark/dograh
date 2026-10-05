@@ -735,6 +735,20 @@
         }
       ]
     },
+    "relance-outil": {
+      "carte": "ajout-mark",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "relance_apres_outil": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "muet-workflow": {
       "carte": "speech-tuning",
       "theme": "tour",

@@ -40,6 +40,8 @@ const m = vi.hoisted(() => ({
     getAnnonce: vi.fn(),
     savePreferences: vi.fn(),
     saveAnnonce: vi.fn(),
+    getReglagesFenetreDuRun: vi.fn(),
+    saveReglagesFenetreDuRun: vi.fn(),
 }));
 
 vi.mock("@/client/sdk.gen", () => ({
@@ -52,6 +54,8 @@ vi.mock("@/client/sdk.gen", () => ({
     getLexiqueApiV1OrganizationsLexiqueGet: () => Promise.resolve({ data: { format: "lexique-mark", version: 1, termes: [] } }),
     saveLexiqueApiV1OrganizationsLexiquePut: vi.fn(),
     importLexiqueApiV1OrganizationsLexiqueImportPost: vi.fn(),
+    getReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGet: m.getReglagesFenetreDuRun,
+    saveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPut: m.saveReglagesFenetreDuRun,
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/context/UserConfigContext", () => ({ useUserConfig: () => ({ refreshConfig: () => Promise.resolve() }) }));
@@ -84,6 +88,17 @@ const reinitialiser = () => {
     m.getAnnonce.mockReset().mockImplementation(() => Promise.resolve({ data: structuredClone(ANNONCE) }));
     m.savePreferences.mockReset().mockImplementation(async ({ body }) => ({ data: body }));
     m.saveAnnonce.mockReset().mockImplementation(async ({ body }) => ({ data: body }));
+    m.getReglagesFenetreDuRun.mockReset().mockImplementation(() =>
+        Promise.resolve({
+            data: {
+                format: "fenetre-du-run-mark",
+                version: 1,
+                devise: "USD",
+                lignes: [{ brique: "stt", modele: "flux-general-multi", par_minute: 0.0077, date_du_tarif: "2026-10-01" }],
+            },
+        }),
+    );
+    m.saveReglagesFenetreDuRun.mockReset().mockImplementation(async ({ body }) => ({ data: body }));
 };
 reinitialiser();
 afterEach(() => {
@@ -193,5 +208,109 @@ describe("[.mark] the Platform Settings page in themes", () => {
         const theme = await ouvrirLeTheme("etablissement");
         expect(theme.textContent).toContain("Quand l'entreprise est fermée");
         expect(bouton("Enregistrer Établissement")).toBeTruthy();
+    });
+});
+
+
+describe("[.mark] the price table (langwatch-et-fenetre-du-run, L5 and L18)", () => {
+    it("is in the Organization theme, opens in a modal, and sends exactly the table typed", async () => {
+        await ouvrirLaPage();
+        const theme = await ouvrirLeTheme("organisation");
+        expect(theme.querySelector('[data-reglage="fenetre_du_run"]')).not.toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Edit prices and thresholds…" }));
+        await waitFor(() => expect(screen.getAllByTestId("ligne-de-prix")).toHaveLength(1));
+        // A new line is faulty until its model and prices are typed: Save stays asleep, the fault is named.
+        fireEvent.click(screen.getByRole("button", { name: "Add a line" }));
+        expect(screen.getByTestId("fautes-fenetre-du-run").textContent).toContain("Line 2: model missing");
+        expect(bouton("Save").disabled).toBe(true);
+        const nouvelle = screen.getAllByTestId("ligne-de-prix")[1];
+        fireEvent.change(nouvelle.querySelector('input[aria-label="Model"]') as HTMLInputElement, {
+            target: { value: " mistral-large-2512 " },
+        });
+        fireEvent.change(nouvelle.querySelector('input[aria-label="Rate date"]') as HTMLInputElement, {
+            target: { value: "2026-10-01" },
+        });
+        for (const [libelle, valeur] of [["Input / 1M tokens", "2"], ["Output / 1M tokens", "6"]]) {
+            fireEvent.change(nouvelle.querySelector(`input[aria-label="${libelle}"]`) as HTMLInputElement, {
+                target: { value: valeur },
+            });
+        }
+        await waitFor(() => expect(bouton("Save").disabled).toBe(false));
+        fireEvent.click(bouton("Save"));
+        await waitFor(() => expect(m.saveReglagesFenetreDuRun).toHaveBeenCalledTimes(1));
+        expect(m.saveReglagesFenetreDuRun.mock.calls[0][0].body).toEqual({
+            format: "fenetre-du-run-mark",
+            version: 1,
+            devise: "USD",
+            lignes: [
+                { brique: "stt", modele: "flux-general-multi", par_minute: 0.0077, date_du_tarif: "2026-10-01" },
+                {
+                    brique: "llm",
+                    modele: "mistral-large-2512",
+                    entree_par_million: 2,
+                    sortie_par_million: 6,
+                    date_du_tarif: "2026-10-01",
+                },
+            ],
+            seuils: { silence_apres_outil_s: 5, tour_lent_s: 3 },
+        });
+        // The theme's own save is untouched by the modal (E4: the table saves itself).
+        expect(m.savePreferences).not.toHaveBeenCalled();
+    });
+
+    it("drops a price of another component when the component of a line is changed", async () => {
+        await ouvrirLaPage();
+        await ouvrirLeTheme("organisation");
+        fireEvent.click(screen.getByRole("button", { name: "Edit prices and thresholds…" }));
+        await waitFor(() => expect(screen.getAllByTestId("ligne-de-prix")).toHaveLength(1));
+        const ligne = screen.getAllByTestId("ligne-de-prix")[0];
+        fireEvent.change(ligne.querySelector('select[aria-label="Component"]') as HTMLSelectElement, { target: { value: "tts" } });
+        fireEvent.change(ligne.querySelector('input[aria-label="Per 1M characters"]') as HTMLInputElement, {
+            target: { value: "30" },
+        });
+        await waitFor(() => expect(bouton("Save").disabled).toBe(false));
+        fireEvent.click(bouton("Save"));
+        await waitFor(() => expect(m.saveReglagesFenetreDuRun).toHaveBeenCalledTimes(1));
+        expect(m.saveReglagesFenetreDuRun.mock.calls[0][0].body.lignes).toEqual([
+            { brique: "tts", modele: "flux-general-multi", par_million_caracteres: 30, date_du_tarif: "2026-10-01" },
+        ]);
+    });
+});
+
+
+describe("[.mark] the incident thresholds (L6, L18)", () => {
+    it("reads the saved thresholds, refuses one out of bounds, and sends the one typed", async () => {
+        m.getReglagesFenetreDuRun.mockImplementation(() =>
+            Promise.resolve({
+                data: {
+                    format: "fenetre-du-run-mark",
+                    version: 1,
+                    devise: "EUR",
+                    lignes: [],
+                    seuils: { silence_apres_outil_s: 4, tour_lent_s: 3 },
+                },
+            }),
+        );
+        await ouvrirLaPage();
+        await ouvrirLeTheme("organisation");
+        fireEvent.click(screen.getByRole("button", { name: "Edit prices and thresholds…" }));
+        const silence = (await screen.findByLabelText(
+            "Silence after a tool result that makes an incident",
+        )) as HTMLInputElement;
+        await waitFor(() => expect(silence.value).toBe("4"));
+        fireEvent.change(silence, { target: { value: "0.5" } });
+        expect(screen.getByTestId("fautes-fenetre-du-run").textContent).toContain("between 1 and 60 s");
+        expect(bouton("Save").disabled).toBe(true);
+        fireEvent.change(silence, { target: { value: "6" } });
+        await waitFor(() => expect(bouton("Save").disabled).toBe(false));
+        fireEvent.click(bouton("Save"));
+        await waitFor(() => expect(m.saveReglagesFenetreDuRun).toHaveBeenCalledTimes(1));
+        expect(m.saveReglagesFenetreDuRun.mock.calls[0][0].body).toEqual({
+            format: "fenetre-du-run-mark",
+            version: 1,
+            devise: "EUR",
+            lignes: [],
+            seuils: { silence_apres_outil_s: 6, tour_lent_s: 3 },
+        });
     });
 });

@@ -72,6 +72,10 @@ class WorkflowRunMode(Enum):
     WEBRTC = "webrtc"
     SMALLWEBRTC = "smallwebrtc"
     TEXTCHAT = "textchat"
+    # [.mark] A call played by the simulated caller (LangWatch Scenario), through
+    # its own audio entry (langwatch-et-fenetre-du-run, L9, L19). Free-text column:
+    # no migration. Its own channel keeps it out of the real calls' numbers.
+    SIMULATED = "simulated"
 
     # Historical, not used anymore. Don't
     # use and don't remove
@@ -91,6 +95,8 @@ class WorkflowRunChannel(Enum):
     TELEPHONY = "telephony"
     WEB = "web"
     CHAT = "chat"
+    # [.mark] Calls of the simulated caller (L9), filtered apart from real calls.
+    SIMULATED = "simulated"
 
 
 # Every WorkflowRunMode belongs to exactly one channel. Historical modes are
@@ -116,6 +122,7 @@ WORKFLOW_RUN_MODES_BY_CHANNEL: dict[str, tuple[str, ...]] = {
         WorkflowRunMode.TEXTCHAT.value,
         WorkflowRunMode.CHAT.value,
     ),
+    WorkflowRunChannel.SIMULATED.value: (WorkflowRunMode.SIMULATED.value,),
 }
 
 
@@ -186,6 +193,18 @@ class OrganizationConfigurationKey(Enum):
     # and the state forced by hand until a date. Same free-text key of the same
     # table, so no migration. Format: api/schemas/annonce_ouverture.py
     ANNONCE_OUVERTURE = "ANNONCE_OUVERTURE"
+    # [.mark] The run window's settings: the price table (by provider model, dated)
+    # that turns a run's consumption into an estimated cost, and the incident
+    # thresholds (langwatch-et-fenetre-du-run, L5, L6, L18). Same free-text key,
+    # no migration. Format: api/schemas/fenetre_du_run.py
+    FENETRE_DU_RUN = "FENETRE_DU_RUN"
+    # [.mark] The simulated caller (langwatch-et-fenetre-du-run, lot 3, L10, L18, Q3):
+    # its settings, the scenario library filed by agent, and the last series played.
+    # Same free-text keys, no migration. Format: api/schemas/appel_simule.py and
+    # api/services/appel_simule/reglages.py
+    APPELANT_SIMULE = "APPELANT_SIMULE"
+    SCENARIOS_SIMULES = "SCENARIOS_SIMULES"
+    SERIES_SIMULEES = "SERIES_SIMULEES"
 
 
 class UserConfigurationKey(Enum):

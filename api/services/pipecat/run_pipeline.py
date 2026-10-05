@@ -16,6 +16,13 @@ from api.schemas.workflow_configurations import (
     DEFAULT_TURN_START_STRATEGY,
     WorkflowConfigurationDefaults,
 )
+from api.services.analyse_run.captures import estampiller_la_version
+from api.services.analyse_run.incidents_appel import (
+    ATTRIBUT_JOURNAL,
+    ObservateurDesInterruptions,
+    brancher_les_connexions,
+)
+from api.services.analyse_run.requetes_modele import brancher_le_journal_des_requetes
 from api.services.call_concurrency import call_concurrency
 from api.services.communes.adresse import (
     injecter_adresse_etablissement,
@@ -93,6 +100,10 @@ from api.services.pipecat.reglages_tour_de_parole import (
     collecter_reglages_tour_de_parole,
     collecter_strategies_de_coupure,
     reglages_accueil_et_silence,
+)
+from api.services.pipecat.relance_apres_outil import (
+    paire_d_agregateurs,
+    relance_allumee,
 )
 from api.services.pipecat.service_factory import (
     cle_de_cache,
@@ -1107,6 +1118,8 @@ async def _run_pipeline_impl(
         correlation_id=mps_correlation_id,
     )
     estampiller_le_mode(runtime_configuration, reglages_fiche)
+    # [.mark] Quel code et quelle version de l'agent jouent l'appel (langwatch-et-fenetre-du-run, lot 2).
+    estampiller_la_version(runtime_configuration, run_definition)
     if not is_realtime:
         # ⚠️ The guard is about REALTIME, not about the keyboard bench: a
         # speech-to-speech call has no separate transcription service, so
@@ -1189,6 +1202,10 @@ async def _run_pipeline_impl(
 
     # Create in-memory logs buffer early so it can be used by engine callbacks
     in_memory_logs_buffer = InMemoryLogsBuffer(workflow_run_id)
+    # [.mark] Les refus et nouvelles tentatives du modèle de conversation, que la bibliothèque
+    # cliente refait en silence (langwatch-et-fenetre-du-run, lot 2). Observe, ne change rien.
+    if not is_realtime:
+        brancher_le_journal_des_requetes(llm, in_memory_logs_buffer)
 
     # Create node transition callback (always logs to buffer, optionally streams to WS)
     ws_sender = get_ws_sender(workflow_run_id)
@@ -1414,13 +1431,13 @@ async def _run_pipeline_impl(
         )
         user_context_aggregator, assistant_context_aggregator = context_aggregator
     else:
-        user_context_aggregator, assistant_context_aggregator = (
-            LLMContextAggregatorPair(
-                context,
-                user_params=user_params,
-                assistant_params=assistant_params,
-                realtime_service_mode=False,
-            )
+        # [.mark] Lot 4 (ticket Pipecat 5960) : la paire de Pipecat, ou celle qui garde
+        # la relance après un outil, selon l'option de l'agent (éteinte par défaut).
+        user_context_aggregator, assistant_context_aggregator = paire_d_agregateurs(
+            context,
+            user_params=user_params,
+            assistant_params=assistant_params,
+            relance=relance_allumee(run_configs),
         )
         engine.greeting.regler(  # [.mark] E1
             interruptible=accueil_ouvert, mots_minimum=accueil_mots_minimum
@@ -1622,6 +1639,11 @@ async def _run_pipeline_impl(
         else None,
     )
     task.add_observer(feedback_observer)
+    # [.mark] Interruptions, coupures et relances, gardées dans le journal du run
+    # (langwatch-et-fenetre-du-run, lot 2). Observent, ne changent rien.
+    task.add_observer(ObservateurDesInterruptions(in_memory_logs_buffer))
+    brancher_les_connexions({"transcription": stt, "voice": tts}, in_memory_logs_buffer)
+    setattr(engine, ATTRIBUT_JOURNAL, in_memory_logs_buffer)
     engine.greeting.log_generated_speech = feedback_observer.log_speech
 
     if not is_realtime:

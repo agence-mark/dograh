@@ -1833,6 +1833,8 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "lexique_metier",
     "sons_communes",
     "sons_lexique",
+    # [.mark] Lot 4 du chantier langwatch-et-fenetre-du-run (ticket Pipecat 5960).
+    "relance_apres_outil",
 )
 
 

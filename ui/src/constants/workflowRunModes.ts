@@ -13,7 +13,9 @@ export const WORKFLOW_RUN_MODES = {
     TEXTCHAT: 'textchat',
     ARI: 'ari',
     TELNYX: 'telnyx',
-    PLIVO: 'plivo'
+    PLIVO: 'plivo',
+    // [.mark] The simulated caller (langwatch-et-fenetre-du-run, lot 3).
+    SIMULATED: 'simulated'
 } as const;
 
 export type WorkflowRunMode = typeof WORKFLOW_RUN_MODES[keyof typeof WORKFLOW_RUN_MODES];

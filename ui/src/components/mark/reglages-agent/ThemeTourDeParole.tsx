@@ -72,6 +72,7 @@ export const CLES_TOUR_MARK = [
     "filter_incomplete_user_turns",
     "incomplete_short_timeout",
     "incomplete_long_timeout",
+    "relance_apres_outil",
 ] as const satisfies readonly CleCatalogue[];
 
 const CLES_MUETTES = [
@@ -369,6 +370,11 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                     {r("incomplete_long_timeout", Boolean(brouillon.filter_incomplete_user_turns))}
                 </Intertitre>
             )}
+
+            {/* [.mark] Lot 4 of chantier langwatch-et-fenetre-du-run (Pipecat ticket 5960). */}
+            <Intertitre id="tour-apres-outil" titre={{ en: "After a tool", fr: "Après un outil" }}>
+                {r("relance_apres_outil")}
+            </Intertitre>
         </Theme>
     );
 };
