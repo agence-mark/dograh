@@ -41,7 +41,12 @@ import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
 import { AIDES_FICHE, EditeurChampsFiche, pourComparerLaFiche, texteErreursDesChamps } from "../SectionFiche";
-import { CONSIGNE_GENERIQUE_GREFFIER } from "./consigne-greffier";
+import {
+    CONSIGNE_GENERIQUE_GREFFIER,
+    fournisseurDuGreffier,
+    FOURNISSEURS_AVEC_TEMPERATURE,
+    NOMS_AVEC_TEMPERATURE,
+} from "./consigne-greffier";
 import { useEnregistrementTheme } from "./enregistrement";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useEtatTheme, useRevelation } from "./theme-commun";
 
@@ -86,7 +91,7 @@ export const ThemeDonnees = ({
     issuesParDefaut,
 }: ProprietesThemeAgent & { issuesParDefaut: CallDispositionOption[] }) => {
     const { t } = useLangue();
-    const { externalPbxIntegrationsEnabled } = useOrgConfig();
+    const { externalPbxIntegrationsEnabled, userConfig } = useOrgConfig();
     const { afficher } = useRevelation(ouvrir);
 
     // ---- The call record ---------------------------------------------------
@@ -134,6 +139,11 @@ export const ThemeDonnees = ({
         setCleRetiree(false);
         setConsigne(texte ?? CONSIGNE_GENERIQUE_GREFFIER);
     }, [greffierRelu]);
+    // The temperature only plays where the provider declares one (registry.py):
+    // elsewhere the server ignores it, so the field is greyed out. Unknown
+    // provider (no configuration loaded): left open.
+    const fournisseurEffectif = fournisseurDuGreffier(fournisseurGreffier, resolue, userConfig);
+    const temperatureJoue = fournisseurEffectif === undefined || FOURNISSEURS_AVEC_TEMPERATURE.includes(fournisseurEffectif);
     const temperatureValide = temperatureGreffier.trim() === "" || Number.isFinite(Number(temperatureGreffier.replace(",", ".")));
     const blocGreffier = (): GreffierLlm | null => {
         const bloc: GreffierLlm = { ...(greffierEnregistre ?? {}) };
@@ -141,7 +151,7 @@ export const ThemeDonnees = ({
             if (valeur === undefined) delete bloc[cle];
             else bloc[cle] = valeur;
         };
-        poser("provider", fournisseurGreffier.trim() || undefined);
+        poser("provider", fournisseurGreffier.trim().toLowerCase() || undefined);
         poser("model", modeleGreffier.trim() || undefined);
         poser(
             "temperature",
@@ -541,10 +551,25 @@ export const ThemeDonnees = ({
                                 <Input
                                     id="greffier_temperature"
                                     inputMode="decimal"
+                                    disabled={!temperatureJoue}
                                     value={temperatureGreffier}
                                     onChange={(e) => setTemperatureGreffier(e.target.value)}
                                     placeholder={t({ en: "as the conversation", fr: "comme la conversation" })}
                                 />
+                                {!temperatureJoue && (
+                                    <p className="text-xs text-muted-foreground">
+                                        {t({
+                                            en: `No effect with ${fournisseurEffectif}: only ${NOMS_AVEC_TEMPERATURE("and")} take a temperature.`,
+                                            fr: `Sans effet chez ${fournisseurEffectif} : seuls ${NOMS_AVEC_TEMPERATURE("et")} prennent une température.`,
+                                        })}
+                                    </p>
+                                )}
+                                {/* A value kept from another provider would play again on a return to it: it can be cleared. */}
+                                {!temperatureJoue && temperatureGreffier.trim() !== "" && (
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setTemperatureGreffier("")}>
+                                        {t({ en: "Clear the temperature", fr: "Effacer la température" })}
+                                    </Button>
+                                )}
                             </div>
                         </div>
                         <p className="text-xs text-muted-foreground">

@@ -28,3 +28,55 @@ export const CONSIGNE_GENERIQUE_GREFFIER =
     "- Tu n'inventes rien, tu ne complètes rien : rien de deviné à partir d'une autre information, aucun nombre complété.\n" +
     "- Tu n'écris jamais ce que l'agent a dit, seulement ce que la personne a dit ou confirmé.\n" +
     "- Tu n'écris pas une information dont tu n'as pas compris le sens : l'agent la fera répéter.\n";
+
+/**
+ * [.mark] The providers whose model configuration declares a temperature
+ * (`registry.py`): anywhere else the clerk's temperature is ignored by the
+ * server, so the screen greys the field out. ⛔ Checked against the registry
+ * by `api/tests/mark/test_greffier_ecran.py`.
+ */
+export const FOURNISSEURS_AVEC_TEMPERATURE: readonly string[] = ["minimax", "mistral", "sarvam"];
+
+type AvecLlm = { llm?: { provider?: unknown } | null } | null | undefined;
+const fournisseurDe = (valeur: unknown): string | undefined => {
+    const llm = (valeur as AvecLlm)?.llm;
+    return typeof llm?.provider === "string" && llm.provider ? llm.provider.trim().toLowerCase() : undefined;
+};
+
+/**
+ * The model provider of an agent's full configuration (v2), stored as
+ * `OrganizationAIModelConfigurationV2`: `{mode: "dograh"}` or `{mode: "byok",
+ * byok: {mode: "pipeline" | "realtime", pipeline | realtime: {llm: ...}}}`.
+ * Review of 05/10: there is no `llm` at its root.
+ */
+const fournisseurDeLaConfigurationComplete = (valeur: unknown): string | undefined => {
+    if (!valeur || typeof valeur !== "object") return undefined;
+    const v2 = valeur as { mode?: unknown; byok?: { mode?: unknown; [cle: string]: unknown } | null };
+    if (v2.mode === "dograh") return "dograh";
+    const byok = v2.byok;
+    if (v2.mode !== "byok" || !byok || (byok.mode !== "pipeline" && byok.mode !== "realtime")) return undefined;
+    return fournisseurDe(byok[byok.mode as string]);
+};
+
+/**
+ * The provider the clerk runs on: its own, else the conversation's (a full v2
+ * configuration on the agent wins outright, else the agent's per-service
+ * override, else the organization's) -- the server's order. `undefined` when
+ * the screen cannot know. Lower case, as the server names providers.
+ */
+export const fournisseurDuGreffier = (
+    propre: string,
+    agent: { model_configuration_v2_override?: unknown; model_overrides?: unknown } | null | undefined,
+    organisation: unknown,
+): string | undefined => {
+    if (propre.trim()) return propre.trim().toLowerCase();
+    if (agent?.model_configuration_v2_override) return fournisseurDeLaConfigurationComplete(agent.model_configuration_v2_override);
+    return fournisseurDe(agent?.model_overrides) || fournisseurDe(organisation);
+};
+
+/** The providers that take a temperature, as said on screen: « Mistral, MiniMax and Sarvam ». */
+export const NOMS_AVEC_TEMPERATURE = (et: string): string => {
+    const noms: Record<string, string> = { minimax: "MiniMax", mistral: "Mistral", sarvam: "Sarvam" };
+    const liste = FOURNISSEURS_AVEC_TEMPERATURE.map((f) => noms[f] ?? f);
+    return liste.length > 1 ? `${liste.slice(0, -1).join(", ")} ${et} ${liste[liste.length - 1]}` : liste.join("");
+};

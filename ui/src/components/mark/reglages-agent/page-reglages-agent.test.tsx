@@ -337,6 +337,34 @@ describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2)", () => 
         expect(screen.queryAllByText(/The provider changed: type its API key/)).toHaveLength(0);
     });
 
+    it("greys the temperature out where the provider takes none, and says why", async () => {
+        await regler();
+        const temperature = () => document.getElementById("greffier_temperature") as HTMLInputElement;
+        expect(temperature().disabled).toBe(false); // mistral
+        saisir("greffier_fournisseur", "openai");
+        expect(temperature().disabled).toBe(true);
+        expect(screen.getAllByText(/No effect with openai/).length).toBeGreaterThan(0);
+    });
+
+    it("a temperature kept from another provider can be cleared, and a capital letter changes nothing", async () => {
+        await ouvrir({ ...GREFFIER, greffier_llm: { ...GREFFIER.greffier_llm, provider: "openai", temperature: 0.3 } }, NOVA);
+        ouvrirLeTheme("donnees");
+        fireEvent.click(await screen.findByRole("button", { name: "Configure the clerk" }));
+        await waitFor(() => expect(document.getElementById("greffier_temperature")).not.toBeNull());
+        fireEvent.click(screen.getByRole("button", { name: "Clear the temperature" }));
+        expect((document.getElementById("greffier_temperature") as HTMLInputElement).value).toBe("");
+        saisir("greffier_fournisseur", "Mistral");
+        expect((document.getElementById("greffier_temperature") as HTMLInputElement).disabled).toBe(false);
+    });
+
+    it("an empty provider follows the conversation's", async () => {
+        await ouvrir({ ...GREFFIER, greffier_llm: { model: "gpt-x" } }, { ...NOVA, llm: { provider: "openrouter" } });
+        ouvrirLeTheme("donnees");
+        fireEvent.click(await screen.findByRole("button", { name: "Configure the clerk" }));
+        await waitFor(() => expect(document.getElementById("greffier_temperature")).not.toBeNull());
+        expect((document.getElementById("greffier_temperature") as HTMLInputElement).disabled).toBe(true);
+    });
+
     it("a temperature that is not a number blocks the save", async () => {
         await regler();
         saisir("greffier_temperature", "chaud");
