@@ -32,7 +32,6 @@ from api.services.workflow.pipecat_engine import PipecatEngine
 from api.tests.mark.test_fiche_montree import _contexte, _mistral
 from api.tests.mark.test_outil_noter import CONFIG_ALLUMEE
 from api.tests.mark.test_porte_parlee_consigne import _definition, _graphe
-from api.tests.mark.test_porte_parlee_premiere_replique import _noeud
 
 
 async def _moteur(etape: str = "start", definition: dict | None = None):
