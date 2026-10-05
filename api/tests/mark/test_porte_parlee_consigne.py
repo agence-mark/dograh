@@ -208,10 +208,25 @@ def test_hors_du_graphe_le_bloc_est_fixe():
         portes="- vers_fin → étape End : Quand c'est fini.",
         premieres=f"- End : {SANS_PREMIERE_REPLIQUE}",
     )
-    # Une étape d'arrivée n'apparaît qu'une fois, même atteinte par plusieurs portes.
-    accueil = consigne_des_portes(graphe.nodes["start"], graphe, lambda texte: texte)
-    assert accueil.count("- End :") == 1
     assert consigne_des_portes(graphe.nodes["end"], graphe, str) is None
+
+
+def test_une_etape_d_arrivee_n_apparait_qu_une_fois_meme_atteinte_par_deux_portes():
+    """Deux portes de la même étape vers la même arrivée : deux lignes de porte, une
+    seule première réplique (revue du 05/10 : l'ancien test passait sans le dédoublonnage)."""
+    definition = _definition()
+    definition["edges"].append(
+        {
+            "id": "etape-end-bis",
+            "source": "etape",
+            "target": "end",
+            "data": {"label": "vers_fin_bis", "condition": "Quand elle raccroche."},
+        }
+    )
+    graphe = _graphe(definition)
+    bloc = consigne_des_portes(graphe.nodes["etape"], graphe, lambda texte: texte)
+    assert "- vers_fin_bis → étape End : Quand elle raccroche." in bloc
+    assert bloc.count("- End :") == 1
 
 
 def test_une_accolade_dans_une_premiere_replique_ne_casse_rien():
