@@ -13,7 +13,10 @@ Et les routes de l'écran (L11, L18), toujours dans l'organisation de l'utilisat
 l'appelant simulé, scénarios d'un agent, lancement, suivi, arrêt et rapport d'une série.
 """
 
+import asyncio
 import json
+import logging
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket
 from loguru import logger
@@ -26,7 +29,12 @@ from api.db.models import UserModel
 from api.enums import WorkflowRunState
 from api.schemas.appel_simule import ReglagesAppelantSimule, ScenarioSimule
 from api.services.appel_simule import reglages as stockage
-from api.services.appel_simule.entree import CLE_EXTRA, jeton_valide, run_branchable
+from api.services.appel_simule.entree import (
+    CLE_EXTRA,
+    jeton_valide,
+    reserver_le_branchement,
+    run_branchable,
+)
 from api.services.appel_simule.pipeline import jouer_appel_simule
 from api.services.appel_simule.reglages import SerieSimulee
 from api.services.appel_simule.serie import SerieRefusee, arreter_serie, lancer_serie
@@ -37,6 +45,24 @@ from api.services.quota_service import authorize_workflow_run_start
 from api.services.workflow_run_failure import mark_workflow_run_failed
 
 router = APIRouter(prefix="/appel-simule", tags=["appel-simule"])
+
+DELAI_DEBUT_S = 15
+_JETON_DANS_LE_CHEMIN = re.compile(r"(/appel-simule/ws/\d+/)[^\s\"?]+")
+
+
+class MasquerLeJeton(logging.Filter):
+    """Le jeton est dans le chemin du WebSocket : uvicorn l'écrirait dans ses journaux
+    (« WebSocket /api/v1/appel-simule/ws/12/<jeton> [accepted] »). Il y est masqué."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        if "/appel-simule/ws/" in message:
+            record.msg, record.args = _JETON_DANS_LE_CHEMIN.sub(r"\1***", message), ()
+        return True
+
+
+for _nom in ("uvicorn.access", "uvicorn.error"):
+    logging.getLogger(_nom).addFilter(MasquerLeJeton())
 
 
 async def lire_le_debut(websocket: WebSocket) -> tuple[str, str] | None:
@@ -81,7 +107,7 @@ async def appel_simule_websocket(
         logger.warning(f"[appel simulé] jeton refusé pour le run {workflow_run_id}")
         await _fermer(websocket, 4401, "Unauthorized")
         return
-    if not run_branchable(run):
+    if not run_branchable(run) or not await reserver_le_branchement(run.id):
         await _fermer(websocket, 4409, "Run not available for connection")
         return
     organisation = run.workflow.organization_id
@@ -119,7 +145,13 @@ async def appel_simule_websocket(
             )
             await _fermer(websocket, 1008, quota.error_message or "Quota exceeded")
             return
-        identifiants = await lire_le_debut(websocket)
+        try:
+            # Un client branché qui n'envoie rien ne garde pas la place de concurrence.
+            identifiants = await asyncio.wait_for(
+                lire_le_debut(websocket), timeout=DELAI_DEBUT_S
+            )
+        except asyncio.TimeoutError:
+            identifiants = None
         if identifiants is None:
             await mark_workflow_run_failed(
                 run.id, "Expected connected then start events"

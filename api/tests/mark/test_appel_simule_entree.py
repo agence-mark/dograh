@@ -108,7 +108,17 @@ def banc():
     quota = AsyncMock(return_value=SimpleNamespace(has_quota=True, error_message=None))
     app = FastAPI()
     app.include_router(route.router, prefix="/api/v1")
+    reserves: set[int] = set()
+
+    async def reserver(run_id):
+        # Comme le SET NX de Redis : un seul branchement obtient le run.
+        if run_id in reserves:
+            return False
+        reserves.add(run_id)
+        return True
+
     with (
+        patch.object(route, "reserver_le_branchement", side_effect=reserver),
         patch.object(route, "db_client", db),
         patch.object(route, "call_concurrency", concurrence),
         patch.object(route, "jouer_appel_simule", jouer),
@@ -251,3 +261,79 @@ def test_la_fenetre_du_run_dit_appelant_simule_sans_telephonie():
     assert WorkflowRunMode.SIMULATED.value in CANAUX_SANS_TELEPHONIE
     analyse = analyser_run({"id": 12, "mode": "simulated", "logs": {}})
     assert analyse["summary"]["channel"] == "simulated"
+
+
+# --- Corrections de la revue du 05/10 ------------------------------------------------------------
+
+
+def test_deux_branchements_avec_le_bon_jeton_un_seul_passe(banc):
+    """L'état du run est encore « initialized » pour le second (lecture d'avant la mise à jour) :
+    seule la réservation atomique l'arrête."""
+    _fermeture(banc.client, f"/api/v1/appel-simule/ws/12/{JETON}", DEBUT)
+    assert _fermeture(banc.client, f"/api/v1/appel-simule/ws/12/{JETON}", DEBUT) == 4409
+    assert banc.jouer.await_count == 1
+
+
+def test_un_client_muet_libere_la_place(banc):
+    with patch.object(route, "DELAI_DEBUT_S", 0.2):
+        assert _fermeture(banc.client, f"/api/v1/appel-simule/ws/12/{JETON}") == 4400
+    banc.echec.assert_awaited_once()
+    banc.concurrence.unregister_active_call.assert_awaited_once_with(12)
+    banc.jouer.assert_not_awaited()
+
+
+def test_le_jeton_est_masque_dans_les_journaux_d_uvicorn():
+    import logging
+
+    record = logging.LogRecord(
+        "uvicorn.error",
+        logging.INFO,
+        __file__,
+        1,
+        '%s - "WebSocket %s" [accepted]',
+        ("127.0.0.1:5000", f"/api/v1/appel-simule/ws/12/{JETON}"),
+        None,
+    )
+    assert route.MasquerLeJeton().filter(record)
+    assert JETON not in record.getMessage()
+    assert "/api/v1/appel-simule/ws/12/***" in record.getMessage()
+    filtres = logging.getLogger("uvicorn.error").filters
+    assert any(isinstance(f, route.MasquerLeJeton) for f in filtres)
+
+
+async def test_un_appel_simule_est_un_essai_sans_autre_lecture():
+    from api.services.workflow import renvoi_en_test
+
+    with patch.object(renvoi_en_test, "db_client") as db:
+        db.run_vient_du_widget = AsyncMock(return_value=True)
+        assert await renvoi_en_test.est_un_essai(_run())
+        db.run_vient_du_widget.assert_not_awaited()
+
+
+async def test_le_run_simule_joue_le_brouillon_et_ses_variables():
+    from api.services.appel_simule import entree
+    from api.services.workflow.run_creation import WorkflowRunInputs
+
+    preparer = AsyncMock(
+        return_value=WorkflowRunInputs(
+            definition_id=9, initial_context={"nom_magasin": "Test"}, use_draft=True
+        )
+    )
+    db = MagicMock()
+    db.create_workflow_run = AsyncMock(return_value=SimpleNamespace(id=12))
+    db.update_workflow_run = AsyncMock()
+    with (
+        patch.object(entree, "prepare_workflow_run_inputs", preparer),
+        patch.object(entree, "db_client", db),
+    ):
+        await entree.creer_run_simule(
+            SimpleNamespace(id=34), user_id=3, organization_id=7, simulation={}
+        )
+    assert preparer.await_args.kwargs == {
+        "use_draft": True,
+        "include_template_context": True,
+    }
+    kwargs = db.create_workflow_run.await_args.kwargs
+    assert kwargs["use_draft"] is True and kwargs["definition_id"] == 9
+    assert kwargs["initial_context"]["nom_magasin"] == "Test"
+    assert kwargs["initial_context"]["provider"] == "simulated"

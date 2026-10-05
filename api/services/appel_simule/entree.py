@@ -20,6 +20,9 @@ import secrets
 import uuid
 from typing import Any
 
+import redis.asyncio as aioredis
+
+from api.constants import REDIS_URL
 from api.db import db_client
 from api.enums import CallType, WorkflowRunMode, WorkflowRunState
 from api.services.workflow.run_creation import prepare_workflow_run_inputs
@@ -59,13 +62,17 @@ async def creer_run_simule(
     user_id: int,
     organization_id: int,
     simulation: dict,
-    use_draft: bool = False,
+    use_draft: bool = True,
 ) -> tuple[Any, str]:
     """Crée le run d'un appel simulé et rend ``(run, jeton)``. ``simulation`` décrit la série et le
-    scénario joué ; il est rangé avec l'empreinte du jeton, hors du contexte de l'appel."""
+    scénario joué ; il est rangé avec l'empreinte du jeton, hors du contexte de l'appel.
+
+    Comme les onglets voisins de « Test Agent » (``routes/workflow.py``) : le BROUILLON de l'agent
+    et ses variables de modèle. Sinon, une série jouée pour comparer une option basculée dans le
+    brouillon jouerait deux fois la version publiée (revue du 05/10)."""
     jeton = secrets.token_urlsafe(32)
     entrees = await prepare_workflow_run_inputs(
-        db_client, workflow, use_draft=use_draft
+        db_client, workflow, use_draft=use_draft, include_template_context=True
     )
     numero = int(uuid.uuid4().hex[:8], 16) % 100000000
     run = await db_client.create_workflow_run(
@@ -75,6 +82,7 @@ async def creer_run_simule(
         user_id,
         call_type=CallType.INBOUND,
         initial_context={
+            **(entrees.initial_context or {}),
             "provider": WorkflowRunMode.SIMULATED.value,
             "direction": "inbound",
         },
@@ -87,6 +95,22 @@ async def creer_run_simule(
         extra={CLE_EXTRA: {**simulation, "jeton_sha256": empreinte(jeton)}},
     )
     return run, jeton
+
+
+def _cle_branchement(run_id: int) -> str:
+    return f"mark:appel-simule:branche:{run_id}"
+
+
+async def reserver_le_branchement(run_id: int) -> bool:
+    """L'usage unique, atomique : de deux branchements simultanés avec le bon jeton, un seul
+    obtient le run (``SET NX``), avant même la lecture de son état (revue du 05/10)."""
+    redis = await aioredis.from_url(REDIS_URL, decode_responses=True)
+    try:
+        return bool(
+            await redis.set(_cle_branchement(run_id), "1", nx=True, ex=24 * 3600)
+        )
+    finally:
+        await redis.aclose()
 
 
 def adresse_ws(base_ws: str, run_id: int, jeton: str) -> str:

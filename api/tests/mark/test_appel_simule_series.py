@@ -118,17 +118,36 @@ def base():
     )
     redis = RedisFactice()
     file = AsyncMock()
+    prix = AsyncMock(return_value=TABLE_DU_SIMULATEUR)
     with (
         patch.object(stockage, "db_client", db),
         patch.object(moteur, "db_client", db),
         patch.object(route, "db_client", db),
         patch.object(moteur, "_client_redis", AsyncMock(return_value=redis)),
-        patch.object(moteur, "lire_reglages_fenetre", AsyncMock(return_value=None)),
+        patch.object(moteur, "lire_reglages_fenetre", prix),
         patch("api.tasks.arq.enqueue_job", file),
     ):
         yield SimpleNamespace(
-            db=db, redis=redis, file=file, configurations=configurations
+            db=db, redis=redis, file=file, configurations=configurations, prix=prix
         )
+
+
+TABLE_DU_SIMULATEUR = ReglagesFenetreDuRun(
+    lignes=[
+        LignePrix(
+            brique="tts",
+            modele="eleven_v3",
+            par_million_caracteres=100,
+            date_du_tarif=date(2026, 10, 1),
+        ),
+        LignePrix(
+            brique="stt",
+            modele="scribe_v1",
+            par_minute=0.4,
+            date_du_tarif=date(2026, 10, 1),
+        ),
+    ]
+)
 
 
 # --- Ce que reçoit le lanceur ------------------------------------------------------------------
@@ -501,6 +520,180 @@ async def test_un_appel_en_echec_n_arrete_pas_la_serie(base):
         ("echec", "RuntimeError"),
         ("joue", None),
     ]
+
+
+# --- Corrections de la revue du 05/10 -----------------------------------------------------------
+
+
+async def test_sans_prix_du_simulateur_la_serie_est_refusee(base):
+    """Sans prix, chaque appel coûterait 0 et le plafond ne jouerait jamais."""
+    await _preparer(base)
+    base.prix.return_value = None
+    with pytest.raises(moteur.SerieRefusee, match="tts eleven_v3, stt scribe_v1"):
+        await moteur.lancer_serie(ORG, 3, 34, ["s1"])
+    base.prix.return_value = ReglagesFenetreDuRun(
+        lignes=[TABLE_DU_SIMULATEUR.lignes[0]]
+    )
+    with pytest.raises(moteur.SerieRefusee, match="stt scribe_v1"):
+        await moteur.lancer_serie(ORG, 3, 34, ["s1"])
+    base.file.assert_not_awaited()
+
+
+async def test_en_simultane_un_seul_appel_part_tant_que_le_cout_est_inconnu(base):
+    await _preparer(base, _reglages(simultanes=3))
+    serie = await moteur.lancer_serie(ORG, 3, 34, ["s1", "s2", "s3"])
+    en_cours, pic = [0], [0]
+
+    async def jouer(org, workflow, serie_, appel, *reste):
+        en_cours[0] += 1
+        pic[0] = max(pic[0], en_cours[0])
+        await asyncio.sleep(0.01)
+        appel.etat, appel.cout = "joue", 2.0
+        serie_.cout = round(serie_.cout + 2.0, 4)
+        en_cours[0] -= 1
+
+    with patch.object(moteur, "_jouer_un_appel", side_effect=jouer):
+        await moteur.jouer_serie(ORG, serie.id)
+    finale = await stockage.lire_serie(ORG, serie.id)
+    # 1er appel seul (coût inconnu), puis le plafond (5) compte l'appel en vol : 2 + 2×2 > 5.
+    assert pic[0] == 1
+    assert [a.etat for a in finale.appels].count("joue") == 2
+    assert finale.etat == "arretee_plafond" and finale.cout <= 5
+
+
+async def test_le_verrou_d_une_autre_serie_n_est_jamais_rendu(base):
+    await _preparer(base)
+    serie = await moteur.lancer_serie(ORG, 3, 34, ["s1"])
+    base.redis.valeurs[moteur._cle_verrou(ORG)] = "une-autre-serie"
+    with patch.object(moteur, "_jouer_un_appel", side_effect=_appel_qui_coute(0.1)):
+        await moteur.jouer_serie(ORG, serie.id)
+    assert base.redis.valeurs[moteur._cle_verrou(ORG)] == "une-autre-serie"
+
+
+async def test_une_tache_annulee_ne_laisse_pas_la_serie_en_cours(base):
+    await _preparer(base)
+    serie = await moteur.lancer_serie(ORG, 3, 34, ["s1"])
+
+    async def interrompu(*_a):
+        raise asyncio.CancelledError
+
+    with (
+        patch.object(moteur, "_jouer_un_appel", side_effect=interrompu),
+        pytest.raises(asyncio.CancelledError),
+    ):
+        await moteur.jouer_serie(ORG, serie.id)
+    finale = await stockage.lire_serie(ORG, serie.id)
+    assert finale.etat == "echec" and finale.terminee_le
+    assert not base.redis.valeurs
+
+
+async def test_un_lanceur_annule_est_tue(tmp_path):
+    lanceur = tmp_path / "jouer.py"
+    lanceur.write_text("import time\ntime.sleep(30)\n", encoding="utf-8")
+    lances = []
+    vrai = asyncio.create_subprocess_exec
+
+    async def creer(*a, **k):
+        processus = await vrai(*a, **k)
+        lances.append(processus)
+        return processus
+
+    with (
+        patch.object(moteur, "PYTHON_SIMULATEUR", sys.executable),
+        patch.object(moteur, "LANCEUR", lanceur),
+        patch.object(moteur.asyncio, "create_subprocess_exec", creer),
+    ):
+        tache = asyncio.create_task(moteur.lancer_le_lanceur({}, None, 60, []))
+        while not lances:
+            await asyncio.sleep(0.05)
+        tache.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await tache
+    # Tué, pas laissé tourner : il rend la main bien avant ses 30 s.
+    assert await asyncio.wait_for(lances[0].wait(), timeout=5) != 0
+
+
+def _monter_un_appel(base, verdict, etat_du_run, cout_agent):
+    run = SimpleNamespace(
+        id=55,
+        state=etat_du_run,
+        extra={"mark_simulation": {"serie_id": "x"}},
+        usage_info={"call_duration_seconds": 30},
+    )
+    base.db.get_workflow_run = AsyncMock(return_value=run)
+    base.db.update_workflow_run = AsyncMock()
+    analyse = {
+        "latency": {"stats": {"worst_silence_secs": 1.0, "median_silence_secs": 0.8}},
+        "summary": {"cost": cout_agent},
+        "incidents": {"items": []},
+    }
+    return [
+        patch.object(
+            moteur, "creer_run_simule", AsyncMock(return_value=(run, "jeton"))
+        ),
+        patch.object(moteur, "lancer_le_lanceur", AsyncMock(return_value=verdict)),
+        patch.object(moteur, "analyser_le_run", AsyncMock(return_value=analyse)),
+        patch.object(moteur, "attendre_la_fin_du_run", AsyncMock(return_value=run)),
+        patch.object(moteur, "mark_workflow_run_failed", AsyncMock()),
+    ]
+
+
+async def test_un_simulateur_jamais_branche_clot_le_run_sans_attendre(base):
+    correctifs = _monter_un_appel(
+        base, {"error": "boom"}, "initialized", {"status": "ok"}
+    )
+    for c in correctifs:
+        c.start()
+    try:
+        serie = SerieSimulee(
+            id="s", workflow_id=34, lancee_le="x", lancee_par=3, plafond=5
+        )
+        appel = AppelDeSerie(scenario_id="s1", scenario_nom="s1")
+        await moteur._jouer_un_appel(
+            ORG,
+            SimpleNamespace(id=34),
+            serie,
+            appel,
+            _scenario(),
+            _reglages(),
+            ("k", "v"),
+            TABLE_DU_SIMULATEUR,
+        )
+        moteur.attendre_la_fin_du_run.assert_not_awaited()
+        moteur.mark_workflow_run_failed.assert_awaited_once()
+        assert appel.etat == "echec"
+    finally:
+        for c in correctifs:
+            c.stop()
+
+
+async def test_un_cout_de_l_agent_sans_prix_arrete_la_serie(base):
+    correctifs = _monter_un_appel(
+        base, {"success": True}, "completed", {"status": "not_captured"}
+    )
+    for c in correctifs:
+        c.start()
+    try:
+        serie = SerieSimulee(
+            id="s", workflow_id=34, lancee_le="x", lancee_par=3, plafond=5
+        )
+        appel = AppelDeSerie(scenario_id="s1", scenario_nom="s1")
+        await moteur._jouer_un_appel(
+            ORG,
+            SimpleNamespace(id=34),
+            serie,
+            appel,
+            _scenario(),
+            _reglages(),
+            ("k", "v"),
+            TABLE_DU_SIMULATEUR,
+        )
+        assert serie.etat == "arretee"
+        assert "could not be fully priced" in serie.raison
+        moteur.attendre_la_fin_du_run.assert_awaited_once()
+    finally:
+        for c in correctifs:
+            c.stop()
 
 
 # --- Le bloc Simulation de la fenêtre ----------------------------------------------------------

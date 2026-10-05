@@ -42,6 +42,10 @@ async def est_un_essai(workflow_run) -> bool:
     pas pouvoir décider à sa place (relecture du 01/10)."""
     if workflow_run is None or workflow_run.mode not in MODES_DE_TEST:
         return False
+    # Un appel simulé n'a jamais de vraie téléphonie : essai d'office, sans dépendre
+    # d'aucune autre lecture (revue du 05/10, défense en profondeur).
+    if workflow_run.mode == WorkflowRunMode.SIMULATED.value:
+        return True
     return not await db_client.run_vient_du_widget(workflow_run.id)
 
 

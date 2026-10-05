@@ -50,6 +50,7 @@ from api.services.appel_simule.reglages import (
     maintenant,
 )
 from api.services.workflow.renvoi_en_test import donner_la_decision, renvoi_en_attente
+from api.services.workflow_run_failure import mark_workflow_run_failed
 
 PYTHON_SIMULATEUR = "/opt/venv-simulateur/bin/python"
 LANCEUR = Path(__file__).resolve().parents[3] / "simulateur" / "jouer.py"
@@ -199,6 +200,12 @@ async def lancer_le_lanceur(
         processus.kill()
         await processus.wait()
         return {"error": f"the simulator did not finish within {int(delai_s)} s"}
+    except BaseException:
+        # Tâche annulée (arrêt du worker, délai de la tâche) : l'appel ne continue pas à
+        # dépenser sans personne pour le suivre (revue du 05/10).
+        if processus.returncode is None:
+            processus.kill()
+        raise
     if processus.returncode not in (0, 1):
         logger.warning(
             f"[appel simulé] lanceur sorti en {processus.returncode} : "
@@ -353,6 +360,18 @@ async def _cles(
 # --- Lancer une série ----------------------------------------------------------------------------
 
 
+PRIX_DU_SIMULATEUR = (("tts", "eleven_v3"), ("stt", "scribe_v1"))
+
+
+def prix_manquants_du_simulateur(table) -> list[str]:
+    """Sans ces prix, le coût d'un appel simulé vaudrait 0 et le plafond ne jouerait jamais
+    (revue du 05/10) : la série est refusée tant qu'ils manquent."""
+    if table is None:
+        return [f"{brique} {modele}" for brique, modele in PRIX_DU_SIMULATEUR]
+    presents = {(l.brique, l.modele.strip()) for l in table.lignes}
+    return [f"{b} {m}" for b, m in PRIX_DU_SIMULATEUR if (b, m) not in presents]
+
+
 def estimer_le_cout(
     series: list[SerieSimulee], workflow_id: int, nombre: int
 ) -> float | None:
@@ -391,6 +410,13 @@ async def lancer_serie(
         raise SerieRefusee("A scenario is not filed with this agent.")
     await _cles(organization_id, reglages)
     table = await lire_reglages_fenetre(organization_id)
+    manquants = prix_manquants_du_simulateur(table)
+    if manquants:
+        raise SerieRefusee(
+            "The spending cap needs prices: add "
+            + ", ".join(manquants)
+            + " to the run window's price table (organization settings)."
+        )
 
     serie = SerieSimulee(
         id=str(uuid.uuid4()),
@@ -474,7 +500,16 @@ async def _jouer_un_appel(
             fin.set()
             await renvoi
 
-    lu = await attendre_la_fin_du_run(run.id, organization_id, DELAI_FIN_DU_RUN_S)
+    lu = await db_client.get_workflow_run(run.id, organization_id=organization_id)
+    if (
+        "error" in verdict
+        and lu is not None
+        and lu.state == WorkflowRunState.INITIALIZED.value
+    ):
+        # Le simulateur ne s'est jamais branché : rien à attendre, le run est clos en échec.
+        await mark_workflow_run_failed(run.id, "The simulated caller never connected")
+    else:
+        lu = await attendre_la_fin_du_run(run.id, organization_id, DELAI_FIN_DU_RUN_S)
     analyse = await analyser_le_run(lu, organization_id) if lu is not None else {}
     duree = ((lu.usage_info or {}) if lu is not None else {}).get(
         "call_duration_seconds"
@@ -492,6 +527,13 @@ async def _jouer_un_appel(
     appel.erreur = resultat["error"]
     appel.cout = round((resultat["agent_cost"] or 0) + resultat["caller_cost"], 4)
     serie.cout = round(serie.cout + appel.cout, 4)
+    if resultat["agent_cost_partial"] and not resultat["error"]:
+        # Un modèle de l'agent sans prix : le coût compté serait faux, le plafond aussi.
+        serie.etat = "arretee"
+        serie.raison = (
+            "the agent's cost could not be fully priced (a model is missing from the "
+            "price table): the cap could not be guaranteed"
+        )
     serie.cout_partiel = (
         True  # les appels au modèle du simulateur ne sont jamais chiffrés
     )
@@ -516,48 +558,72 @@ async def jouer_serie(organization_id: int, serie_id: str) -> None:
         }
         places = asyncio.Semaphore(reglages.simultanes)
         verrou_serie = asyncio.Lock()
+        en_vol = [0]  # appels partis, pas encore comptés
+        un_appel_fini = asyncio.Event()
 
-        async def un_appel(appel: AppelDeSerie) -> None:
-            async with places:
+        async def autoriser() -> bool:
+            """Le plafond compte aussi les appels en cours (revue du 05/10) ; tant qu'aucun
+            appel n'est fini, son coût est inconnu : un seul appel en vol à la fois."""
+            while True:
                 async with verrou_serie:
                     if await redis.get(_cle_arret(serie.id)):
                         serie.etat, serie.raison = "arretee", "stopped from the screen"
-                    joues = [a.cout for a in serie.appels if a.cout is not None]
-                    prochain = statistics.fmean(joues) if joues else 0.0
-                    if (
-                        serie.etat == "en_cours"
-                        and serie.cout + prochain > serie.plafond
-                    ):
-                        serie.etat = "arretee_plafond"
-                        serie.raison = f"the next call would exceed the cap ({serie.plafond} {serie.devise})"
                     if serie.etat != "en_cours":
-                        return
-                scenario = scenarios.get(appel.scenario_id)
-                if scenario is None:
-                    appel.etat, appel.erreur = "echec", "scenario deleted"
+                        return False
+                    joues = [a.cout for a in serie.appels if a.cout is not None]
+                    if joues or en_vol[0] == 0:
+                        prochain = statistics.fmean(joues) if joues else 0.0
+                        if serie.cout + (en_vol[0] + 1) * prochain > serie.plafond:
+                            serie.etat = "arretee_plafond"
+                            serie.raison = f"the next call would exceed the cap ({serie.plafond} {serie.devise})"
+                            return False
+                        en_vol[0] += 1
+                        return True
+                    un_appel_fini.clear()
+                await un_appel_fini.wait()
+
+        async def un_appel(appel: AppelDeSerie) -> None:
+            async with places:
+                if not await autoriser():
                     return
                 try:
-                    await _jouer_un_appel(
-                        organization_id,
-                        workflow,
-                        serie,
-                        appel,
-                        scenario,
-                        reglages,
-                        cles,
-                        table,
-                    )
-                except Exception as erreur:  # noqa: BLE001
-                    logger.error(
-                        f"[appel simulé] série {serie.id} : {erreur!r}", exc_info=True
-                    )
-                    appel.etat, appel.erreur = "echec", type(erreur).__name__
-                async with verrou_serie:
-                    await ecrire_serie(organization_id, serie)
+                    await jouer_l_appel(appel)
+                finally:
+                    async with verrou_serie:
+                        en_vol[0] -= 1
+                        un_appel_fini.set()
+                        await ecrire_serie(organization_id, serie)
+
+        async def jouer_l_appel(appel: AppelDeSerie) -> None:
+            scenario = scenarios.get(appel.scenario_id)
+            if scenario is None:
+                appel.etat, appel.erreur = "echec", "scenario deleted"
+                return
+            try:
+                await _jouer_un_appel(
+                    organization_id,
+                    workflow,
+                    serie,
+                    appel,
+                    scenario,
+                    reglages,
+                    cles,
+                    table,
+                )
+            except Exception as erreur:  # noqa: BLE001
+                logger.error(
+                    f"[appel simulé] série {serie.id} : {erreur!r}", exc_info=True
+                )
+                appel.etat, appel.erreur = "echec", type(erreur).__name__
 
         await asyncio.gather(*(un_appel(a) for a in serie.appels))
         if serie.etat == "en_cours":
             serie.etat = "terminee"
+    except asyncio.CancelledError:
+        # Worker arrêté ou délai de la tâche atteint : la série ne reste pas « en cours ».
+        if serie is not None:
+            serie.etat, serie.raison = "echec", "interrupted (worker stopped)"
+        raise
     except Exception as erreur:  # noqa: BLE001
         logger.error(f"[appel simulé] série {serie_id} : {erreur!r}", exc_info=True)
         if serie is not None:
@@ -571,4 +637,7 @@ async def jouer_serie(organization_id: int, serie_id: str) -> None:
         if serie is not None:
             serie.terminee_le = maintenant()
             await ecrire_serie(organization_id, serie)
-        await redis.delete(_cle_verrou(organization_id), _cle_arret(serie_id))
+        # Le verrou n'est rendu que s'il est bien celui de CETTE série.
+        if await redis.get(_cle_verrou(organization_id)) == serie_id:
+            await redis.delete(_cle_verrou(organization_id))
+        await redis.delete(_cle_arret(serie_id))
