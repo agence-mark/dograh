@@ -76,10 +76,10 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     Notices,
     ReglagesFiche,
     attendre_les_notes,
+    delai_des_notes,
     balayer_la_fiche,
     brancher_noter_information,
     consigne_du_mode,
-    delai_des_notes,
     montrer_la_fiche,
     suivre_les_tours,
 )
@@ -539,7 +539,9 @@ class PipecatEngine:
                     on_context_updated=on_context_updated,
                     # [.mark] Fiche : dans un tour avec une note, seul le dernier
                     # résultat relance ; None = regroupement de Pipecat, inchangé.
-                    run_llm=self._tours_fiche.relance(function_call_params.tool_call_id)
+                    run_llm=self._tours_fiche.relance(
+                        function_call_params.tool_call_id
+                    )
                     if self._tours_fiche is not None
                     else None,
                 )
@@ -636,6 +638,13 @@ class PipecatEngine:
                 if fin and reponse and not relancer
                 else None
             )
+            # Comme `_create_transition_func` : l'attente de la réponse de fin est
+            # posée avant de changer d'étape, jamais après (revue du 05/10).
+            closing = (
+                self.speech_playback.expect_response(source=agent.llm)
+                if fin and relancer
+                else None
+            )
             await self.set_node(arete.target, origin_visit_id=agent.visit_id)
             if fin and not relancer:
                 self._mute_pipeline = True
@@ -650,8 +659,7 @@ class PipecatEngine:
                 self._taches_de_porte.add(tache)
                 tache.add_done_callback(self._taches_de_porte.discard)
             elif relancer:
-                if fin:
-                    closing = self.speech_playback.expect_response(source=agent.llm)
+                if closing is not None:
                     self._mute_pipeline = True
 
                     async def raccrocher_apres() -> None:
@@ -948,7 +956,8 @@ class PipecatEngine:
         l'amont reste en place, sinon rien ne serait collecté pendant sa visite.
         """
         return (
-            self._fiche is not None and self.active_agent.llm is self._llm_de_la_fiche
+            self._fiche is not None
+            and self.active_agent.llm is self._llm_de_la_fiche
         )
 
     @property
@@ -967,7 +976,11 @@ class PipecatEngine:
         la fiche, hors étape de fin."""
         agent = self.active_agent
         node = getattr(agent, "current_node", None)
-        return self._fiche_sur_l_agent_actif() and node is not None and not node.is_end
+        return (
+            self._fiche_sur_l_agent_actif()
+            and node is not None
+            and not node.is_end
+        )
 
     async def _balayer_la_fiche(self) -> Optional[dict]:
         """[.mark] D11 : le filet de fin d'appel, par le point d'écriture unique."""

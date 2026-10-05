@@ -8,13 +8,13 @@ Joué par le vrai ``_prepare_node`` du moteur (ce qui part au modèle : prompt s
 
 | Test | Ce qu'il prouve |
 |---|---|
-| éteinte | case éteinte en Postscript : prompt et outils identiques à aujourd'hui (portes en fonctions) |
+| éteinte | case éteinte en Postscript : prompt et outils identiques à ceux d'une configuration sans la clé, sur le code de la branche (portes en fonctions). ⚠️ La preuve « identique à la production » est le rejeu 861-904, pas ce test |
 | allumée | aucune fonction de porte ; les autres outils restent ; bloc après la consigne du post-scriptum |
 | contenu | les portes de l'étape, la phrase D11, les premières répliques rendues avec les variables, la ligne générique D3 |
 | accueil | l'accueil a le bloc (ses portes coûtaient deux ou trois passes) |
 | fin | une étape de fin n'a ni bloc ni fonction de porte |
 | hors fiche | sans la fiche ou dans un autre mode, rien ne change |
-| vocabulaire | hors du graphe et des champs de l'écran, le bloc est fixe |
+| vocabulaire | le bloc n'est fait que du gabarit fixe et de ce que donne le graphe : aucun autre texte n'y entre. L'absence de mot de métier dans le gabarit lui-même se relit (`CONSIGNE_DES_PORTES`), ce test ne la prouve pas |
 """
 
 import copy
@@ -94,7 +94,8 @@ async def _requete(etape: str, mode: str | None, portes: bool, graphe=None):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("etape", ["start", "etape", "end"])
 async def test_case_eteinte_la_requete_est_celle_d_aujourd_hui(etape):
-    """Même requête que la configuration d'avant le réglage (sans la clé)."""
+    """Même requête qu'une configuration sans la clé, sur le code de la branche. La preuve
+    « identique à la production » est le rejeu 861-904 (revue du 05/10)."""
     graphe = _graphe()
     avant = PipecatEngine(
         llm=_mistral(),

@@ -141,6 +141,7 @@ class PostScriptumProcessor(FrameProcessor):
         # Plan porte-parlee : le moteur qui prend les portes écrites, case allumée
         # seulement (``None`` : le processeur d'avant, à l'octet).
         self._portes = portes if reglages.portes_dans_la_reponse else None
+        self._portes_en_cours: set[asyncio.Task] = set()
         self._reglages = reglages
         self._fiche = fiche
         self._messages = messages
@@ -271,8 +272,7 @@ class PostScriptumProcessor(FrameProcessor):
                 self._clore_la_ligne(complete=True)
                 portes = (list(self._portes_lues), self._transition_dite, self._reponse)
                 trace = await self._finir(direction)
-                detail = await self._prendre_la_porte(*portes, relancer=not self._dit)
-                self._completer_la_trace(trace, detail)
+                await self._porte_protegee(portes, trace, relancer=not self._dit)
             await self.push_frame(frame, direction)
             return
 
@@ -482,6 +482,9 @@ class PostScriptumProcessor(FrameProcessor):
         modèle, si rien n'est encore parti à la voix. Une fois par réponse."""
         if self._transition_dite or self._a_dit or not self._portes_lues:
             return
+        if self._attente.strip():
+            # La phrase du modèle a commencé (retenue, pas encore partie) : trop tard.
+            return
         nom = self._portes_lues[0]
         if not nom:
             return
@@ -491,7 +494,9 @@ class PostScriptumProcessor(FrameProcessor):
                 TTSSpeakFrame(phrase, append_to_context=False, persist_to_logs=True),
                 direction,
             )
-            self._transition_dite = self._a_dit = True
+            # Elle ne compte pas comme une parole du modèle (revue du 05/10) : une
+            # réponse faite de la seule porte fait encore reparler le modèle.
+            self._transition_dite = True
 
     async def _prendre_la_porte(
         self,
@@ -521,6 +526,23 @@ class PostScriptumProcessor(FrameProcessor):
             )
         return detail
 
+    async def _porte_protegee(
+        self, portes: tuple, trace: dict | None, *, relancer: bool
+    ) -> None:
+        """La porte de fin de réponse, dans une tâche que l'interruption n'annule pas
+        (revue du 05/10) : la fin de réponse est une frame interruptible ; annulée
+        pendant ``set_node``, l'étape changeait à moitié, ou pas du tout et sans
+        trace. On l'attend sans pouvoir l'interrompre : elle finit toujours."""
+
+        async def prendre() -> None:
+            detail = await self._prendre_la_porte(*portes, relancer=relancer)
+            self._completer_la_trace(trace, detail)
+
+        tache = asyncio.get_running_loop().create_task(prendre())
+        self._portes_en_cours.add(tache)
+        tache.add_done_callback(self._portes_en_cours.discard)
+        await asyncio.shield(tache)
+
     def _completer_la_trace(self, trace: dict | None, detail: dict) -> None:
         if not detail:
             return
@@ -532,14 +554,14 @@ class PostScriptumProcessor(FrameProcessor):
     async def _rattraper_la_phrase(
         self, champs: dict | None, direction: FrameDirection
     ) -> bool:
-        """D10 : une phrase écrite APRÈS la note part à la voix à la fin de la
-        réponse. Une note sans objet JSON qui n'est que de la parole compte aussi."""
+        """D10 : une phrase écrite APRÈS la note (un objet JSON lisible) part à la
+        voix à la fin de la réponse. Une note sans objet JSON lisible n'est jamais
+        dite (« RAS », « rien à noter ») : rien de technique à la voix (revue du 05/10)."""
         note = self._note
-        if champs is None and "{" in note:
+        if champs is None or "}" not in note:
             return False
-        reste = note[note.rfind("}") + 1 :] if "}" in note else note
-        phrase = sans_json(reste).strip(" `")
-        if not phrase:
+        phrase = sans_json(note[note.rfind("}") + 1 :]).strip(" `")
+        if not phrase or phrase.startswith(("//", "#", "(")):
             return False
         await self._dire(
             f" {phrase}" if self._a_dit else phrase, None, direction, fin=True
@@ -571,10 +593,13 @@ class PostScriptumProcessor(FrameProcessor):
 
 
 def _nom_de_porte(brut: str) -> str:
-    """Le nom écrit après « → », écrit comme le nom d'une porte (D4) ; ``""`` :
-    rien d'écrit. Une seconde flèche sur la même ligne est ignorée (une porte)."""
-    mots = brut.split(FLECHE)[0].strip(_AUTOUR_DU_NOM).split()
-    return transition_tool_name(mots[0].strip(_AUTOUR_DU_NOM)) if mots else ""
+    """La ligne écrite après « → », TOUTE la ligne, écrite comme le nom d'une porte
+    (D4) ; ``""`` : rien d'écrit. Une seconde flèche sur la même ligne est ignorée
+    (une porte). ⛔ Jamais le premier mot seul (revue du 05/10) : « → Fin
+    renseignement » donnait « fin », une AUTRE porte ; ici « fin_renseignement »,
+    et tout ce qui n'est pas exactement un nom de porte est « inconnue »."""
+    ligne = brut.split(FLECHE)[0].strip(_AUTOUR_DU_NOM)
+    return transition_tool_name(ligne) if ligne else ""
 
 
 def creer_post_scriptum(

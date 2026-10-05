@@ -185,6 +185,9 @@ class SpeechPlaybackTracker:
         modèle (son identifiant de lecture), pour raccrocher quand elle a été
         jouée. À appeler avant que sa fin n'atteigne la sortie ; sinon le délai
         la relâche (jamais un appel qui reste ouvert)."""
+        if speech_id in self.pending:
+            # Déjà attendue (revue du 05/10) : on attend la même, sans la remplacer.
+            return self.pending[speech_id]
         speech = SpeechPlayback(self, mute_user=False, timeout=timeout)
         speech.id = speech_id
         speech.started = speech_id in self._output_scopes

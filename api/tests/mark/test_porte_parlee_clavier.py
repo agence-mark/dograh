@@ -7,7 +7,7 @@ fiche ne se remplit pas, ou si la ligne de porte ou le séparateur s'affichent.
 
 | Test | Ce qu'il prouve |
 |---|---|
-| deux tours | « → porte » change d'étape sans appel de fonction ; la porte de l'étape d'arrivée est ensuite reconnue (la requête d'après est bien celle de l'étape suivante) ; la fiche se remplit ; rien de technique n'est affiché |
+| deux tours | « → porte » change d'étape sans appel de fonction ; la porte de l'étape d'arrivée est ensuite reconnue (l'étape en cours a bien changé ; le prompt envoyé, lui, est prouvé dans `test_porte_parlee_moteur.py`, le modèle simulé l'ignorant) ; la fiche se remplit ; rien de technique n'est affiché |
 | case éteinte | la même réponse ne change pas d'étape : c'est bien la case qui fait le travail |
 """
 
@@ -72,8 +72,9 @@ async def test_au_clavier_la_porte_ecrite_change_d_etape(
 async def test_au_clavier_la_porte_de_l_etape_d_arrivee_est_reconnue(
     db_session, async_session, test_client_factory
 ):
-    """« vers_fin » n'existe que depuis l'étape : si la requête du tour 2 n'était pas
-    celle de l'étape d'arrivée, la porte serait inconnue et l'appel resterait."""
+    """« vers_fin » n'existe que depuis l'étape : si l'étape en cours n'avait pas changé,
+    la porte serait inconnue et l'appel resterait. Le prompt envoyé au modèle est prouvé
+    dans `test_porte_parlee_moteur.py` (le modèle simulé ici ne le lit pas)."""
     user, workflow = await _monter(db_session, async_session, ALLUMEE, _definition())
     charge = await _messages(test_client_factory, user, workflow, [TOUR_1, TOUR_2])
     assert charge["checkpoint"]["current_node_id"] == "end", charge["checkpoint"]

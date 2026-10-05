@@ -19,6 +19,8 @@ au clavier. Chaque cas a été vu ROUGE avant d'être vert (R7).
 | case éteinte | une ligne « → » part à la voix comme avant (comportement d'avant, à l'octet) |
 """
 
+import asyncio
+
 import pytest
 from pipecat.frames.frames import (
     Frame,
@@ -47,21 +49,27 @@ from api.tests.mark.test_post_scriptum import DEMARRAGE_S, FICHE_SIMPLE, _Montag
 from pipecat.tests import run_test
 
 ALLUMEE = {**FICHE_SIMPLE, CLE_PORTES_DANS_LA_REPONSE: True}
-PORTES = {"vers_fin", "vers_panne"}
+PORTES = {"vers_fin", "vers_panne", "fin", "fin_renseignement"}
 
 
 class _Moteur:
     """Le témoin du moteur : ce que le processeur lui a donné."""
 
-    def __init__(self, transition: str | None = None):
+    def __init__(self, transition: str | None = None, lenteur: float = 0.0):
         self.prises: list[dict] = []
+        self.finies: list[str] = []
         self.transition = transition
+        self.lenteur = lenteur
 
     def phrase_de_transition_ecrite(self, nom: str):
         return self.transition if nom in PORTES else None
 
     async def prendre_porte_ecrite(self, nom, **options):
         self.prises.append({"nom": nom, **options})
+        if self.lenteur:
+            # Un changement d'étape qui prend du temps (le vrai `set_node`).
+            await asyncio.sleep(self.lenteur)
+        self.finies.append(nom)
         return "prise" if nom in PORTES else "inconnue"
 
 
@@ -86,9 +94,11 @@ class _Ordre(FrameProcessor):
 
 
 class _MontagePortes(_Montage):
-    def __init__(self, config: dict = ALLUMEE, transition: str | None = None, **kw):
+    def __init__(
+        self, config: dict = ALLUMEE, transition: str | None = None, lenteur: float = 0.0, **kw
+    ):
         super().__init__(config, **kw)
-        self.moteur = _Moteur(transition)
+        self.moteur = _Moteur(transition, lenteur)
         self.processeur = creer_post_scriptum(
             self.reglages,
             fiche=lambda: self.fiche,
@@ -356,3 +366,77 @@ async def test_case_eteinte_la_fleche_part_a_la_voix_comme_avant():
     assert "→ vers_panne" in ordre.dit
     assert montage.moteur.prises == []
     assert "porte" not in montage.traces[-1]
+
+
+# --------------------------------------------------------------------------- #
+# 7. Corrections de la revue du 05/10
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_une_interruption_pendant_le_changement_d_etape_ne_l_annule_pas():
+    """La fin de réponse est une frame interruptible : sans protection, une interruption
+    tombée pendant le changement d'étape l'annulait à moitié, sans trace."""
+    montage = _MontagePortes(lenteur=0.3)
+    await montage.jouer(
+        LLMFullResponseStartFrame(),
+        LLMTextFrame("→ vers_panne\nQuelle marque ?|||{}"),
+        LLMFullResponseEndFrame(),
+        # L'appelant reprend la parole pendant le changement d'étape.
+        SleepFrame(sleep=0.1),
+        InterruptionFrame(),
+        SleepFrame(sleep=0.5),
+    )
+    assert montage.moteur.finies == ["vers_panne"]
+    assert [p["nom"] for p in montage.moteur.prises] == ["vers_panne"]
+    assert montage.traces[-1]["porte_etat"] == "prise"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "ligne, nom",
+    [
+        ("→ Fin renseignement", "fin_renseignement"),
+        ("→ « fin_renseignement »", "fin_renseignement"),
+        ("→ fin", "fin"),
+    ],
+)
+async def test_le_nom_est_lu_sur_toute_la_ligne_jamais_le_premier_mot(ligne, nom):
+    montage = _MontagePortes()
+    await montage.reponse(f"{ligne}\nD'accord.|||{{}}")
+    assert [p["nom"] for p in montage.moteur.prises] == [nom]
+
+
+@pytest.mark.asyncio
+async def test_une_ligne_qui_n_est_pas_exactement_un_nom_de_porte_est_inconnue():
+    montage = _MontagePortes()
+    await montage.reponse("→ vers_panne parce qu'il parle de panne\nD'accord.|||{}")
+    assert [p["nom"] for p in montage.moteur.prises] != ["vers_panne"]
+    assert montage.traces[-1]["porte_etat"] == "inconnue"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "morceaux",
+    [
+        ["Quelle marque ?|||\nRAS"],
+        ["Quelle marque ?|||(rien à noter)"],
+        ['Quelle marque ?|||{"motif": "entretien"} // rien d\'autre'],
+    ],
+    ids=["ras", "parentheses", "commentaire"],
+)
+async def test_rien_de_technique_n_est_dit_apres_la_note(morceaux):
+    montage = _MontagePortes()
+    ordre = await montage.reponse(*morceaux)
+    assert ordre.dit.strip() == "Quelle marque ?"
+
+
+@pytest.mark.asyncio
+async def test_une_porte_seule_avec_transition_ecrite_fait_quand_meme_reparler_le_modele():
+    montage = _MontagePortes(transition="Un petit instant.")
+    ordre = await montage.reponse("→ vers_panne\n|||\n{}")
+    assert ordre.suite == [("figee", "Un petit instant.")]
+    assert montage.moteur.prises[0]["relancer"] is True
+    assert montage.moteur.prises[0]["transition_dite"] is True
+
+

@@ -151,3 +151,32 @@ async def test_hors_etape_ou_depuis_une_fin_rien():
     definition = _definition()
     engine = await _moteur("end", definition)
     assert await engine.prendre_porte_ecrite("vers_fin") == "inconnue"
+
+
+# --- Corrections de la revue du 05/10 ------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_porte_seule_vers_une_fin_l_attente_est_posee_avant_de_changer_d_etape():
+    """Comme `_create_transition_func` : posée après `set_node`, l'attente pouvait lever
+    (une réponse déjà attendue) une fois l'étape de fin prise : ni relance ni raccrochage."""
+    engine = await _moteur("etape")
+    vu_au_changement = []
+    vrai_set_node = engine.set_node
+
+    async def set_node(*args, **kwargs):
+        vu_au_changement.append(engine.speech_playback._expected_response is not None)
+        return await vrai_set_node(*args, **kwargs)
+
+    engine.set_node = set_node
+    assert await engine.prendre_porte_ecrite("vers_fin", relancer=True) == "prise"
+    assert vu_au_changement == [True]
+    (appel,) = engine.active_agent.queue_frame.await_args_list
+    assert isinstance(appel.args[0], LLMRunFrame)
+
+
+@pytest.mark.asyncio
+async def test_suivre_une_reponse_deja_attendue_ne_la_remplace_pas():
+    engine = await _moteur("start")
+    premiere = engine.speech_playback.suivre_une_reponse("reponse-x")
+    assert engine.speech_playback.suivre_une_reponse("reponse-x") is premiere
