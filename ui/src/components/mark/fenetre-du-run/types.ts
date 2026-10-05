@@ -178,4 +178,30 @@ export type AnalyseDuRun = {
     path: Parcours;
     conversation: Conversation;
     incidents: Incidents;
+    /** Only on a call of the simulated caller (lot 3): the scenario played and the judge's verdict. */
+    simulation?: Simulation;
+};
+
+export type ResultatSimulation = {
+    success: boolean;
+    error: string | null;
+    reasoning: string | null;
+    passed_criteria: string[];
+    failed_criteria: string[];
+    messages: { role: "user" | "assistant"; content: string }[];
+    worst_silence_secs: number | null;
+    median_silence_secs: number | null;
+    incidents: number;
+    agent_cost: number | null;
+    agent_cost_partial: boolean;
+    caller_cost: number;
+    caller_unpriced: string[];
+    total_time: number | null;
+};
+
+export type Simulation = {
+    serie_id?: string;
+    scenario_id?: string;
+    scenario_nom?: string;
+    resultat?: ResultatSimulation;
 };

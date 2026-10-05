@@ -1,11 +1,12 @@
 "use client";
 
-import { Loader2, MessageSquareText, Mic, Phone, RefreshCw, X } from "lucide-react";
+import { Bot, Loader2, MessageSquareText, Mic, Phone, RefreshCw, X } from "lucide-react";
 import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { createWorkflowRunApiV1WorkflowWorkflowIdRunsPost } from "@/client/sdk.gen";
+import { AppelantSimule, TitreOngletAppelantSimule } from "@/components/mark/appelant-simule/AppelantSimule";
 import { OnboardingTooltip } from "@/components/onboarding/OnboardingTooltip";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,7 +51,8 @@ export function WorkflowTesterPanel({
     const { markActionCompleted } = useOnboarding();
     const { isAuthenticated, loading: authLoading, getAccessToken } = auth;
     const [accessToken, setAccessToken] = useState<string | null>(null);
-    const [activeMode, setActiveMode] = useState<"audio" | "text">("audio");
+    // [.mark] Third tab: the simulated caller (langwatch-et-fenetre-du-run, lot 3, L11).
+    const [activeMode, setActiveMode] = useState<"audio" | "text" | "simulated">("audio");
     const [chatMode, setChatMode] = useState<"manual" | "simulated">("manual");
     const [chatSessionKey, setChatSessionKey] = useState(0);
     const [chatActive, setChatActive] = useState(false);
@@ -142,7 +144,7 @@ export function WorkflowTesterPanel({
         !testerBlocked;
 
     const handleModeChange = (value: string) => {
-        const mode = value as "audio" | "text";
+        const mode = value as "audio" | "text" | "simulated";
         setActiveMode(mode);
         if (mode !== "audio") {
             // Leaving this tab unmounts EmbeddedVoiceTester, whose cleanup closes
@@ -163,7 +165,7 @@ export function WorkflowTesterPanel({
             >
                 <div className="border-b border-border/70 px-4 py-3">
                     <div className="flex items-center gap-3">
-                        <TabsList className="grid h-9 flex-1 grid-cols-2 rounded-lg bg-muted/60 p-1">
+                        <TabsList className="grid h-9 flex-1 grid-cols-3 rounded-lg bg-muted/60 p-1">
                             <TabsTrigger value="audio" className="rounded-md text-sm">
                                 <Mic className="h-4 w-4" />
                                 Test Audio
@@ -171,6 +173,10 @@ export function WorkflowTesterPanel({
                             <TabsTrigger value="text" className="rounded-md text-sm">
                                 <MessageSquareText className="h-4 w-4" />
                                 Test Chat
+                            </TabsTrigger>
+                            <TabsTrigger value="simulated" className="rounded-md text-sm">
+                                <Bot className="h-4 w-4" />
+                                <TitreOngletAppelantSimule />
                             </TabsTrigger>
                         </TabsList>
                         {onClose ? (
@@ -272,6 +278,14 @@ export function WorkflowTesterPanel({
                             <AiSimulatorPlaceholder disabledReason={effectiveDisabledReason} />
                         )}
                     </div>
+                </TabsContent>
+
+                <TabsContent value="simulated" className="min-h-0 flex-1 px-4 py-3">
+                    {testerBlocked && effectiveDisabledReason ? (
+                        <DisabledNotice reason={effectiveDisabledReason} />
+                    ) : (
+                        <AppelantSimule workflowId={workflowId} />
+                    )}
                 </TabsContent>
             </Tabs>
 

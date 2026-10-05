@@ -36,6 +36,7 @@ import type {
     NatureDePasse,
     Parcours,
     Resume,
+    Simulation,
     TourDeLatence,
 } from "./types";
 
@@ -654,6 +655,59 @@ function BlocIncidents({ incidents }: { incidents: Incidents }) {
     );
 }
 
+function BlocSimulation({ simulation }: { simulation: Simulation }) {
+    const { t } = useLangue();
+    const r = simulation.resultat;
+    if (!r)
+        return (
+            <p className="text-sm text-muted-foreground">
+                {t({
+                    en: "The simulated call is not finished, or its verdict was not saved.",
+                    fr: "L'appel simulé n'est pas fini, ou son verdict n'a pas été rangé.",
+                })}
+            </p>
+        );
+    return (
+        <div className="space-y-3 text-sm" data-testid="simulation">
+            <p>
+                {t({ en: "Scenario", fr: "Scénario" })} : <strong>{simulation.scenario_nom}</strong>
+            </p>
+            {r.error ? (
+                <p className="text-destructive" role="alert">
+                    {t({ en: "The simulator failed", fr: "Le simulateur a échoué" })} : {r.error}
+                </p>
+            ) : null}
+            {r.reasoning ? (
+                <p className="text-muted-foreground">
+                    {t({ en: "Judge", fr: "Juge" })} : {r.reasoning}
+                </p>
+            ) : null}
+            <ul className="space-y-1" data-testid="criteres">
+                {r.passed_criteria.map((c) => (
+                    <li key={`ok-${c}`}>✓ {c}</li>
+                ))}
+                {r.failed_criteria.map((c) => (
+                    <li key={`ko-${c}`} className="text-destructive">
+                        ✗ {c}
+                    </li>
+                ))}
+            </ul>
+            <p className="text-muted-foreground">
+                {t({
+                    en: `Worst turn ${secondes(r.worst_silence_secs)} · median ${secondes(r.median_silence_secs)} · ${r.incidents} incident(s)`,
+                    fr: `Pire tour ${secondes(r.worst_silence_secs)} · médiane ${secondes(r.median_silence_secs)} · ${r.incidents} incident(s)`,
+                })}
+            </p>
+            <p className="text-muted-foreground">
+                {t({
+                    en: `Cost: agent ${r.agent_cost ?? "unpriced"}${r.agent_cost_partial ? " (partial)" : ""} + simulator ${r.caller_cost} (its model calls unpriced)`,
+                    fr: `Coût : agent ${r.agent_cost ?? "sans prix"}${r.agent_cost_partial ? " (partiel)" : ""} + simulateur ${r.caller_cost} (ses appels au modèle sans prix)`,
+                })}
+            </p>
+        </div>
+    );
+}
+
 export function FenetreDuRun({
     workflowId,
     runId,
@@ -707,6 +761,23 @@ export function FenetreDuRun({
     const stats = analyse.latency.stats;
     return (
         <div className="space-y-4" data-testid="fenetre-du-run">
+            {analyse.simulation ? (
+                <Section
+                    titre={{ en: "Simulation", fr: "Simulation" }}
+                    bloc={{ status: "ok" }}
+                    ouverte
+                    testId="bloc-simulation"
+                    resume={
+                        analyse.simulation.resultat
+                            ? analyse.simulation.resultat.success
+                                ? t({ en: "passed", fr: "réussi" })
+                                : t({ en: "failed", fr: "échoué" })
+                            : null
+                    }
+                >
+                    <BlocSimulation simulation={analyse.simulation} />
+                </Section>
+            ) : null}
             <Section titre={{ en: "Summary", fr: "Résumé" }} bloc={analyse.summary} ouverte testId="bloc-summary">
                 <BlocResume resume={analyse.summary} incidents={analyse.incidents} />
             </Section>
