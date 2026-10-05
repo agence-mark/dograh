@@ -90,3 +90,25 @@ async def test_au_clavier_case_eteinte_la_meme_reponse_ne_change_pas_d_etape(
     )
     charge = await _messages(test_client_factory, user, workflow, [TOUR_1])
     assert charge["checkpoint"]["current_node_id"] == "start", charge["checkpoint"]
+
+
+@pytest.mark.asyncio
+async def test_au_clavier_une_porte_seule_fait_reparler_le_modele_dans_l_etape_d_arrivee(
+    db_session, async_session, test_client_factory
+):
+    """D17 : « → porte » sans phrase. La porte est prise et le modèle reparle dans l'étape
+    d'arrivée, dans le même tour : l'écran affiche sa phrase, jamais un tour muet."""
+    user, workflow = await _monter(db_session, async_session, ALLUMEE, _definition())
+    tour = (
+        "c'est pour une panne",
+        [
+            MockLLMService.create_text_chunks('→ vers_etape\n|||\n{"motif": "panne"}'),
+            MockLLMService.create_text_chunks("Quelle marque ? ||| {}"),
+        ],
+    )
+    charge = await _messages(test_client_factory, user, workflow, [tour])
+    assert charge["checkpoint"]["current_node_id"] == "etape", charge["checkpoint"]
+    affiche = _affiche(charge)
+    assert "Quelle marque ?" in affiche, affiche
+    assert "→" not in affiche and "|||" not in affiche, affiche
+    assert charge["checkpoint"]["gathered_context"].get("motif") == "panne"

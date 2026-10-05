@@ -111,6 +111,17 @@ def test_le_nettoyage_garde_le_champ_sur_l_etape_et_la_fin():
     assert CHAMP not in _noeud(propre, "start")["data"]
 
 
+@pytest.mark.parametrize("vide", ["", "   \n", None])
+def test_un_champ_vide_n_est_jamais_stocke(vide):
+    """D18 : le formulaire du nœud envoie le champ vide dans chaque étape ; il n'est pas
+    stocké, et le JSON d'un agent qui ne s'en sert pas reste celui d'avant le champ."""
+    definition = _definition_a_trois_etapes()
+    avant = copy.deepcopy(definition)
+    for identifiant in ("etape", "end"):
+        _noeud(definition, identifiant)["data"][CHAMP] = vide
+    assert sanitize_workflow_definition(definition) == avant
+
+
 def test_un_agent_sans_le_champ_ressort_a_l_identique():
     definition = _definition_a_trois_etapes()
     assert sanitize_workflow_definition(copy.deepcopy(definition)) == definition

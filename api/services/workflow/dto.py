@@ -1191,7 +1191,13 @@ def _sanitize_node(node):
     if not data_cls or not isinstance(raw_data, dict):
         return node
     allowed = data_cls.model_fields.keys()
-    return {**node, "data": {k: v for k, v in raw_data.items() if k in allowed}}
+    data = {k: v for k, v in raw_data.items() if k in allowed}
+    # [.mark] Plan porte-parlee (D18) : le formulaire du nœud envoie le champ vide
+    # dans chaque étape ; vide = absent, et le JSON d'un agent qui ne s'en sert
+    # pas reste identique à ce qu'il était avant le champ.
+    if not str(data.get("premiere_replique") or "").strip():
+        data.pop("premiere_replique", None)
+    return {**node, "data": data}
 
 
 def _sanitize_edge(edge):
