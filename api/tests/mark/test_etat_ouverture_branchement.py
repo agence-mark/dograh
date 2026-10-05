@@ -359,6 +359,15 @@ async def test_clavier_sans_horaires_le_contexte_persiste_est_celui_davant(confi
     inapercue, meme quand elle est inoffensive. On la constate, on l'inscrit.
     """
     persiste, consigne = await _jouer_le_premier_tour(configurations)
+    # Inscrite le 05/10 : la version du code, estampillée sur tout appel
+    # (chantier langwatch-et-fenetre-du-run, lot 2), dans la configuration d'exécution.
+    assert set(persiste["runtime_configuration"].pop("mark_version")) == {
+        "app_version",
+        "commit",
+        "definition_id",
+        "version_number",
+        "definition_status",
+    }
     assert persiste == {
         "direction": "inbound",
         "workflow_run_id": 7,

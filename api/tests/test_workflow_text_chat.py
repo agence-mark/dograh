@@ -48,7 +48,21 @@ def _sans_date_heure_appel(contexte: dict) -> dict:
     for cle in ("date_appel", "heure_appel"):
         valeur = contexte.pop(cle, None)
         assert isinstance(valeur, str) and valeur, f"{cle} absente ou vide"
+    if "runtime_configuration" in contexte:
+        contexte["runtime_configuration"] = _sans_version(
+            contexte["runtime_configuration"]
+        )
     return contexte
+
+
+def _sans_version(configuration: dict) -> dict:
+    """[.mark] La configuration d'execution sans la version du code, que notre fork
+    estampille sur tout appel (chantier langwatch-et-fenetre-du-run, lot 2). Meme
+    regle que ci-dessus : retiree, mais exigee presente."""
+    configuration = dict(configuration)
+    version = configuration.pop("mark_version", None)
+    assert isinstance(version, dict) and "app_version" in version, "mark_version absente"
+    return configuration
 
 
 def _log_texts(logs: dict | None, event_type: str) -> list[str]:
@@ -505,7 +519,8 @@ async def test_text_chat_pre_call_fetch_hydrates_initial_context_once(
     )
     assert fetch_kwargs["call_context_vars"]["customer_name"] == "Explicit"
     assert fetch_kwargs["call_context_vars"]["page_url"] == "https://dograh.com/pricing"
-    assert fetch_kwargs["call_context_vars"]["runtime_configuration"] == {
+    # [.mark] Voir `_sans_version`.
+    assert _sans_version(fetch_kwargs["call_context_vars"]["runtime_configuration"]) == {
         "llm_provider": "openai",
         "llm_model": "gpt-4.1",
     }
