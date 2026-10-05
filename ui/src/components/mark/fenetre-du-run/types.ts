@@ -48,6 +48,14 @@ export type Resume = Bloc & {
     duration_secs?: number | null;
     disposition?: string | null;
     cost?: Bloc;
+    version?: {
+        status?: Statut;
+        app_version?: string;
+        commit?: string | null;
+        definition_id?: number | null;
+        version_number?: number | null;
+        definition_status?: string | null;
+    };
     incident_count?: number;
 };
 

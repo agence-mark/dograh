@@ -38,6 +38,7 @@ from pipecat.utils.run_context import set_current_org_id
 from api.db import db_client
 from api.enums import WorkflowRunMode, WorkflowRunState
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
+from api.services.analyse_run.captures import estampiller_la_version
 from api.services.communes.adresse import (
     injecter_adresse_etablissement,
     lire_adresse_etablissement,
@@ -653,6 +654,8 @@ async def execute_text_chat_pending_turn(
         initial_context["runtime_configuration"],
     )
     estampiller_le_mode(initial_context["runtime_configuration"], reglages_fiche)
+    # [.mark] Quel code et quelle version de l'agent jouent l'essai (langwatch-et-fenetre-du-run, lot 2).
+    estampiller_la_version(initial_context["runtime_configuration"], run_definition)
 
     base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
 

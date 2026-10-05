@@ -304,3 +304,10 @@ def test_une_date_illisible_ne_casse_pas_la_reponse_json(corpus, base):
     assert {t["not_measured_reason"] for t in resultat["latency"]["turns"]} >= {
         "unreadable_timestamps"
     }
+
+
+def test_le_resume_dit_la_version_ou_qu_elle_n_est_pas_captee(corpus):
+    run = _run(corpus, 967)
+    assert analyser_run(run)["summary"]["version"] == {"status": "not_captured"}
+    run["initial_context"]["runtime_configuration"]["mark_version"] = {"commit": "abc"}
+    assert analyser_run(run)["summary"]["version"] == {"commit": "abc"}

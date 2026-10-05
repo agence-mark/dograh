@@ -16,6 +16,7 @@ from api.schemas.workflow_configurations import (
     DEFAULT_TURN_START_STRATEGY,
     WorkflowConfigurationDefaults,
 )
+from api.services.analyse_run.captures import estampiller_la_version
 from api.services.call_concurrency import call_concurrency
 from api.services.communes.adresse import (
     injecter_adresse_etablissement,
@@ -1107,6 +1108,8 @@ async def _run_pipeline_impl(
         correlation_id=mps_correlation_id,
     )
     estampiller_le_mode(runtime_configuration, reglages_fiche)
+    # [.mark] Quel code et quelle version de l'agent jouent l'appel (langwatch-et-fenetre-du-run, lot 2).
+    estampiller_la_version(runtime_configuration, run_definition)
     if not is_realtime:
         # ⚠️ The guard is about REALTIME, not about the keyboard bench: a
         # speech-to-speech call has no separate transcription service, so

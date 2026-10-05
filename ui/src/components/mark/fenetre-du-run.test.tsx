@@ -61,6 +61,7 @@ const ANALYSE: AnalyseDuRun = {
         duration_secs: 158,
         disposition: "sav_urgent",
         cost: { status: "not_captured" },
+        version: { app_version: "1.0.0", commit: "c3ac9aa65c0e5c47", version_number: 10, definition_status: "published" },
         incident_count: 1,
     },
     latency: {
@@ -188,6 +189,8 @@ describe("Fenêtre du run", () => {
         expect(texte(tours[1])).toContain("non mesuré : l'agent n'a pas répondu");
         expect(texte(screen.getByTestId("bloc-latency"))).toContain("1 tours mesurés sur 2");
         expect(texte(screen.getByTestId("fenetre-resume"))).toContain("1 incident(s) sur cet appel");
+        expect(texte(screen.getByTestId("fenetre-version"))).toContain("commit déployé : c3ac9aa6");
+        expect(texte(screen.getByTestId("fenetre-version"))).toContain("version de l'agent : 10 (published)");
     });
 
     it("dit « indisponible » pour un bloc en échec et « non capté » pour une donnée absente", async () => {

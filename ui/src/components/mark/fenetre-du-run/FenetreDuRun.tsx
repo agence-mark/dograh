@@ -149,6 +149,22 @@ function BlocResume({ resume, incidents }: { resume: Resume; incidents: Incident
                 {t({ en: "Agent version", fr: "Version de l'agent" })} : <code>{resume.definition_id ?? "–"}</code> ·{" "}
                 {t({ en: "Outcome", fr: "Issue" })} : <code>{resume.disposition ?? "–"}</code>
             </p>
+            <p className="text-muted-foreground" data-testid="fenetre-version">
+                {resume.version && resume.version.status !== "not_captured" ? (
+                    <>
+                        {t({ en: "Code", fr: "Code" })} : <code>{resume.version.app_version ?? "–"}</code> ·{" "}
+                        {t({ en: "deployed commit", fr: "commit déployé" })} :{" "}
+                        <code>{resume.version.commit ? resume.version.commit.slice(0, 8) : "–"}</code> ·{" "}
+                        {t({ en: "agent version", fr: "version de l'agent" })} :{" "}
+                        <code>{resume.version.version_number ?? "–"}</code> (<code>{resume.version.definition_status ?? "–"}</code>)
+                    </>
+                ) : (
+                    t({
+                        en: "Code version: not captured (run older than this capture).",
+                        fr: "Version du code : non captée (run antérieur à cette capture).",
+                    })
+                )}
+            </p>
             <p className="text-muted-foreground">
                 {t({ en: "Estimated cost: not captured yet.", fr: "Coût estimé : pas encore capté." })}
             </p>

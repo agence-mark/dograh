@@ -567,6 +567,9 @@ def analyser_run(
             "duration_secs": (run.get("usage_info") or {}).get("call_duration_seconds"),
             "disposition": contexte.get("call_disposition"),
             "cost": {"status": NON_CAPTE},
+            # Lot 2 : quel code et quelle version de l'agent ont joué l'appel (absent des runs
+            # d'avant le chantier : « not_captured »).
+            "version": _estampille(run).get("mark_version") or {"status": NON_CAPTE},
             "incident_count": len(incidents.get("items") or []),
         },
         identifiant,
