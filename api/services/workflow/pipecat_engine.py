@@ -75,10 +75,10 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     Notices,
     ReglagesFiche,
     attendre_les_notes,
-    delai_des_notes,
     balayer_la_fiche,
     brancher_noter_information,
     consigne_du_mode,
+    delai_des_notes,
     montrer_la_fiche,
     suivre_les_tours,
 )
@@ -96,6 +96,10 @@ from api.services.workflow.pipecat_engine_custom_tools import (
 )
 from api.services.workflow.pipecat_engine_variable_extractor import (
     VariableExtractionManager,
+)
+from api.services.workflow.porte_parlee import (
+    consigne_des_portes,
+    etapes_sans_premiere_replique,
 )
 from api.services.workflow.tools.knowledge_base import (
     retrieve_from_knowledge_base,
@@ -171,6 +175,14 @@ class PipecatEngine:
         # Un agent reçu par transfert (éteint chez .mark) n'a pas de fiche.
         self._fiche = fiche
         self._llm_de_la_fiche = llm if fiche is not None else None
+        # [.mark] Plan porte-parlee (D3) : les étapes sans première réplique, au journal.
+        if fiche is not None and fiche.portes_dans_la_reponse:
+            sans = etapes_sans_premiere_replique(workflow)
+            if sans:
+                logger.warning(
+                    "[porte] étapes sans première réplique (ligne générique) : "
+                    + ", ".join(sans)
+                )
         # Plan mode-prise-de-notes, lot 2 : une seule relance par tour ne
         # concerne que l'outil ; sans outil, aucune note ne relance le modèle.
         self._tours_fiche = (
@@ -954,8 +966,18 @@ class PipecatEngine:
             format_prompt=self._format_prompt,
             has_recordings=self._has_recordings,
         )
+        # [.mark] Plan porte-parlee (D5) : mêmes conditions que la consigne du
+        # mode ci-dessous, et seulement case allumée (Postscript seulement).
+        portes_parlees = (
+            self._fiche is not None
+            and self._fiche.portes_dans_la_reponse
+            and not node.is_end
+            and agent.llm is self._llm_de_la_fiche
+        )
         functions = await compose_functions_for_node(
-            node=node, custom_tool_manager=manager
+            node=node,
+            custom_tool_manager=manager,
+            portes_en_fonctions=not portes_parlees,
         )
         # [.mark] D12 : l'outil de la fiche n'existe que si l'interrupteur est
         # allumé. Pas sur une étape de fin (comme au lot 0). Seulement pour
@@ -986,6 +1008,12 @@ class PipecatEngine:
             and agent.llm is self._llm_de_la_fiche
         ):
             bloc = consigne_du_mode(self._fiche)
+            if bloc:
+                texte = f"{texte}\n\n{bloc}"
+        # [.mark] Plan porte-parlee (D4, D5, D11) : les portes de l'étape et les
+        # premières répliques, après la consigne du post-scriptum.
+        if portes_parlees:
+            bloc = consigne_des_portes(node, agent.workflow, self._format_prompt)
             if bloc:
                 texte = f"{texte}\n\n{bloc}"
         agent.tools = ToolsSchema(standard_tools=functions)

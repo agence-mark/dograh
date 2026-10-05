@@ -96,6 +96,7 @@ async def compose_functions_for_node(
     *,
     node: "Node",
     custom_tool_manager: Optional["CustomToolManager"],
+    portes_en_fonctions: bool = True,
 ) -> list[dict]:
     """Compose the function/tool schemas for a workflow node.
 
@@ -106,6 +107,8 @@ async def compose_functions_for_node(
     Args:
         node: The workflow node to compose functions for.
         custom_tool_manager: Manager for custom and built-in tools (may be None).
+        portes_en_fonctions: [.mark] False when the model takes its transitions
+            inside its reply (plan porte-parlee, D5): no transition schema.
 
     Returns:
         A list of function schemas to register with the LLM.
@@ -132,7 +135,8 @@ async def compose_functions_for_node(
         functions.extend(custom_tool_schemas)
 
     # Transition function schemas
-    for outgoing_edge in node.out_edges:
+    # [.mark] Plan porte-parlee (D5) : portes dans la réponse, aucune fonction de porte.
+    for outgoing_edge in node.out_edges if portes_en_fonctions else ():
         function_schema = get_function_schema(
             outgoing_edge.get_function_name(), outgoing_edge.condition
         )
