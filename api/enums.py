@@ -186,10 +186,11 @@ class OrganizationConfigurationKey(Enum):
     # and the state forced by hand until a date. Same free-text key of the same
     # table, so no migration. Format: api/schemas/annonce_ouverture.py
     ANNONCE_OUVERTURE = "ANNONCE_OUVERTURE"
-    # [.mark] The price table, by provider model and dated, that turns a run's
-    # consumption into an estimated cost (langwatch-et-fenetre-du-run, L5). Same
-    # free-text key, no migration. Format: api/schemas/table_des_prix.py
-    TABLE_DES_PRIX = "TABLE_DES_PRIX"
+    # [.mark] The run window's settings: the price table (by provider model, dated)
+    # that turns a run's consumption into an estimated cost, and the incident
+    # thresholds (langwatch-et-fenetre-du-run, L5, L6, L18). Same free-text key,
+    # no migration. Format: api/schemas/fenetre_du_run.py
+    FENETRE_DU_RUN = "FENETRE_DU_RUN"
 
 
 class UserConfigurationKey(Enum):

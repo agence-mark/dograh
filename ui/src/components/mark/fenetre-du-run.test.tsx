@@ -342,3 +342,32 @@ describe("Fenêtre du run : coût estimé", () => {
         expect(texte(screen.getByTestId("fenetre-cout"))).toContain("Coût estimé : non capté");
     });
 });
+
+
+describe("Fenêtre du run : silence après un outil", () => {
+    it("dit la durée, qui a rompu le silence et la signature du ticket 5960", async () => {
+        lireAnalyse.mockResolvedValue({
+            data: {
+                ...ANALYSE,
+                incidents: {
+                    status: "ok",
+                    items: [
+                        {
+                            turn: 2,
+                            kind: "silence_after_tool",
+                            fatal: false,
+                            processor: "noter_information",
+                            detail: { secs: 7.777, broken_by: "caller", model_pass_after_tool: false, threshold_secs: 5 },
+                        },
+                    ],
+                },
+            },
+        });
+        enFrancais(<FenetreDuRun workflowId={34} runId={964} />);
+        await screen.findByTestId("fenetre-du-run");
+        ouvrir("bloc-incidents");
+        expect(texte(screen.getByTestId("incident"))).toContain(
+            "Silence après un résultat d'outil · 7.78 s > 5 s · l'appelant a dû reparler · aucune passe du modèle après l'outil (signature du ticket Pipecat 5960)",
+        );
+    });
+});

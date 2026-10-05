@@ -1,11 +1,17 @@
-"""[.mark] The organization's price table (chantier langwatch-et-fenetre-du-run, lot 2, decision L5).
+"""[.mark] The run window's settings of an organization (chantier langwatch-et-fenetre-du-run, lot 2,
+decisions L5, L6, L18): the price table and the incident thresholds.
+
+Price table (L5):
 
 The cost of a call is its consumption times these prices, declared by provider model and dated:
 prices change, so the run window says « estimated at the rate of DD/MM ». Edited on the
 organization screen (modal), never in a file. No price is written in the code: an empty table
 means « cost not captured », never a guessed cost.
 
-One row of ``organization_configurations``, key ``TABLE_DES_PRIX`` (no migration).
+Incident thresholds (L6): the silence after a tool result that makes an incident (5 s by default)
+and the turn the window highlights as slow (3 s by default).
+
+One row of ``organization_configurations``, key ``FENETRE_DU_RUN`` (no migration).
 """
 
 from __future__ import annotations
@@ -98,14 +104,30 @@ class LignePrix(BaseModel):
         return self
 
 
-class TableDesPrix(BaseModel):
-    format: Literal["table-des-prix-mark"] = "table-des-prix-mark"
+class Seuils(BaseModel):
+    silence_apres_outil_s: float = Field(
+        default=5.0,
+        ge=1,
+        le=60,
+        description="Seconds without any reply of the agent after a tool result, the caller silent, that make an incident.",
+    )
+    tour_lent_s: float = Field(
+        default=3.0,
+        ge=0.5,
+        le=30,
+        description="Silence of a turn above which the run window highlights it as slow.",
+    )
+
+
+class ReglagesFenetreDuRun(BaseModel):
+    format: Literal["fenetre-du-run-mark"] = "fenetre-du-run-mark"
     version: Literal[1] = 1
     devise: Literal["USD", "EUR"] = "USD"
     lignes: list[LignePrix] = Field(default_factory=list, max_length=MAX_LIGNES)
+    seuils: Seuils = Field(default_factory=Seuils)
 
     @model_validator(mode="after")
-    def _une_ligne_par_modele(self) -> TableDesPrix:
+    def _une_ligne_par_modele(self) -> ReglagesFenetreDuRun:
         vues: set[tuple[str, str]] = set()
         for ligne in self.lignes:
             cle = (ligne.brique, ligne.modele.strip())

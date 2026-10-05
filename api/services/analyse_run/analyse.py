@@ -31,6 +31,9 @@ OUTIL_DE_NOTE = "noter_information"
 
 # Un tour plus lent que ce seuil est surligné (note de la fenêtre du run, bloc 2).
 SEUIL_TOUR_LENT_S = 3.0
+# L6 : silence après un résultat d'outil qui fait un incident. Défauts seulement : la valeur jouée
+# est celle de l'organisation (réglages de la fenêtre du run, modifiables à l'écran, L18).
+SEUIL_SILENCE_APRES_OUTIL_S = 5.0
 SEUIL_TOUR_RAPIDE_S = 0.8
 
 CANAUX = {
@@ -82,7 +85,9 @@ def _nature_d_un_outil(nom: str | None, portes: set[str] | None) -> str:
 # --------------------------------------------------------------------------- blocs
 
 
-def _latence(run: dict, portes: set[str] | None) -> dict:
+def _latence(
+    run: dict, portes: set[str] | None, tour_lent_s: float = SEUIL_TOUR_LENT_S
+) -> dict:
     tours = []
     for numero, es in _tours(run):
         details = [
@@ -163,7 +168,7 @@ def _latence(run: dict, portes: set[str] | None) -> dict:
                 "passes": passes,
                 "voice_secs": max((v for v in voix if v is not None), default=None),
                 "silence_secs": silence,
-                "slow": silence is not None and silence > SEUIL_TOUR_LENT_S,
+                "slow": silence is not None and silence > tour_lent_s,
                 "step_change": any(
                     e.get("type") == "rtf-node-transition"
                     and (e.get("payload") or {}).get("previous_node_id") is not None
@@ -570,8 +575,102 @@ def _conversation(run: dict) -> dict:
     }
 
 
-def _incidents(run: dict, latence: dict) -> dict:
+def silences_apres_outil(run: dict, seuil_s: float) -> list[dict]:
+    """Décision L6 (défaut Pipecat #5960) : un résultat d'outil suivi de plus de ``seuil_s``
+    sans que personne ne parle. ``broken_by`` dit qui a rompu le silence : « agent » (réponse
+    lente) ou « caller » (l'appelant a dû reparler). ``model_pass_after_tool`` à faux = la
+    signature du #5960 (la relance du modèle a été sautée).
+
+    Chaque parole est un INTERVALLE (début → fin de la réplique ou de la transcription) : une
+    réplique de l'agent commencée avant l'outil et qui dure après lui n'est pas un silence (faux
+    positif du run 885 au premier essai). Un résultat d'outil suivi de rien du tout (fin d'appel)
+    n'est pas compté."""
+    evenements = _evenements(run)
+    paroles = []
+    for e in evenements:
+        charge = e.get("payload") or {}
+        if e.get("type") == "rtf-bot-text":
+            qui = "agent"
+        elif e.get("type") == "rtf-user-transcription" and charge.get("final"):
+            qui = "caller"
+        else:
+            continue
+        debut = _ms(charge.get("timestamp") or e.get("timestamp"))
+        fin = _ms(charge.get("end_timestamp"))
+        if math.isnan(debut):
+            continue
+        paroles.append((debut, debut if math.isnan(fin) else max(fin, debut), qui))
+    trouves = []
+    for e in evenements:
+        if e.get("type") != "rtf-function-call-end":
+            continue
+        instant = _ms(e.get("timestamp"))
+        if math.isnan(instant):
+            continue
+        # La prochaine parole active à partir de l'outil : en cours (elle le couvre) ou à venir.
+        actives = [
+            (max(debut, instant), qui) for debut, fin, qui in paroles if fin >= instant
+        ]
+        if not actives:
+            continue
+        reprise, qui = min(actives)
+        ecart = (reprise - instant) / 1000
+        if ecart > seuil_s:
+            trouves.append(
+                {
+                    "turn": e.get("turn"),
+                    "tool": (e.get("payload") or {}).get("function_name"),
+                    "secs": round(ecart, 3),
+                    "broken_by": qui,
+                    "model_pass_after_tool": _passe_apres_les_outils(
+                        evenements, e.get("turn")
+                    ),
+                }
+            )
+    return trouves
+
+
+def _passe_apres_les_outils(evenements: list[dict], tour: Any) -> bool | None:
+    """Le modèle a-t-il été relancé après le dernier outil du tour ? Signature du défaut #5960 :
+    NON (la relance est sautée). Oui avec un silence : l'agent a produit une passe que rien n'a
+    dite (réponse vide, coupée…), un autre défaut. ``None`` : pas de détail de latence."""
+    du_tour = [e for e in evenements if e.get("turn") == tour]
+    details = [
+        e.get("payload") or {}
+        for e in du_tour
+        if e.get("type") == "mark-latency-breakdown"
+    ]
+    if not details:
+        return None
+    passes = sum(
+        1
+        for x in (details[-1].get("ttfb") or [])
+        if "LLMService" in str(x.get("processor", ""))
+    )
+    outils = sum(1 for e in du_tour if e.get("type") == "rtf-function-call-start")
+    return passes > outils
+
+
+def _incidents(run: dict, latence: dict, seuils: Any = None) -> dict:
     elements = []
+    seuil = (
+        getattr(seuils, "silence_apres_outil_s", None) or SEUIL_SILENCE_APRES_OUTIL_S
+    )
+    for s in silences_apres_outil(run, seuil):
+        elements.append(
+            {
+                "turn": s["turn"],
+                "kind": "silence_after_tool",
+                "fatal": False,
+                "processor": s["tool"],
+                "detail": {
+                    "secs": s["secs"],
+                    "broken_by": s["broken_by"],
+                    "model_pass_after_tool": s["model_pass_after_tool"],
+                    "threshold_secs": seuil,
+                },
+            }
+        )
     for e in _evenements(run):
         if e.get("type") != "rtf-pipeline-error":
             continue
@@ -679,7 +778,7 @@ def analyser_run(
     *,
     portes: set[str] | None = None,
     champs_fiche: list[str] | None = None,
-    table_des_prix: Any = None,
+    reglages_fenetre: Any = None,
 ) -> dict:
     """L'analyse complète, bloc par bloc.
 
@@ -689,8 +788,20 @@ def analyser_run(
     ceux restés vides.
     """
     identifiant = run.get("id")
-    latence = _bloc("latency", lambda: _latence(run, portes), identifiant)
-    incidents = _bloc("incidents", lambda: _incidents(run, latence), identifiant)
+    latence = _bloc(
+        "latency",
+        lambda: _latence(
+            run,
+            portes,
+            getattr(getattr(reglages_fenetre, "seuils", None), "tour_lent_s", None)
+            or SEUIL_TOUR_LENT_S,
+        ),
+        identifiant,
+    )
+    seuils = getattr(reglages_fenetre, "seuils", None)
+    incidents = _bloc(
+        "incidents", lambda: _incidents(run, latence, seuils), identifiant
+    )
     contexte = _contexte(run)
     resume = _bloc(
         "summary",
@@ -703,7 +814,7 @@ def analyser_run(
             "duration_secs": (run.get("usage_info") or {}).get("call_duration_seconds"),
             "disposition": contexte.get("call_disposition"),
             # Lot 2 (L5) : consommation × table de prix de l'organisation, au tarif daté.
-            "cost": cout_du_run(run, table_des_prix),
+            "cost": cout_du_run(run, reglages_fenetre),
             # Lot 2 : quel code et quelle version de l'agent ont joué l'appel (absent des runs
             # d'avant le chantier : « not_captured »).
             "version": _estampille(run).get("mark_version") or {"status": NON_CAPTE},

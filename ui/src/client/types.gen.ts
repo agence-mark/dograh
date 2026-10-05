@@ -6131,6 +6131,29 @@ export type ReglagesAnnonceOuverture = {
 };
 
 /**
+ * ReglagesFenetreDuRun
+ */
+export type ReglagesFenetreDuRun = {
+    /**
+     * Format
+     */
+    format?: 'fenetre-du-run-mark';
+    /**
+     * Version
+     */
+    version?: 1;
+    /**
+     * Devise
+     */
+    devise?: 'USD' | 'EUR';
+    /**
+     * Lignes
+     */
+    lignes?: Array<LignePrix>;
+    seuils?: Seuils;
+};
+
+/**
  * ResultatImport
  */
 export type ResultatImport = {
@@ -6542,6 +6565,24 @@ export type SetupStep = {
      * Blocks Outbound
      */
     blocks_outbound?: boolean;
+};
+
+/**
+ * Seuils
+ */
+export type Seuils = {
+    /**
+     * Silence Apres Outil S
+     *
+     * Seconds without any reply of the agent after a tool result, the caller silent, that make an incident.
+     */
+    silence_apres_outil_s?: number;
+    /**
+     * Tour Lent S
+     *
+     * Silence of a turn above which the run window highlights it as slow.
+     */
+    tour_lent_s?: number;
 };
 
 /**
@@ -7052,28 +7093,6 @@ export type TtsCacheList = {
      * Total
      */
     total: number;
-};
-
-/**
- * TableDesPrix
- */
-export type TableDesPrix = {
-    /**
-     * Format
-     */
-    format?: 'table-des-prix-mark';
-    /**
-     * Version
-     */
-    version?: 1;
-    /**
-     * Devise
-     */
-    devise?: 'USD' | 'EUR';
-    /**
-     * Lignes
-     */
-    lignes?: Array<LignePrix>;
 };
 
 /**
@@ -11956,7 +11975,7 @@ export type GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetRespo
 
 export type GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetResponse = GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetResponses[keyof GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetResponses];
 
-export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetData = {
+export type GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetData = {
     body?: never;
     headers?: {
         /**
@@ -11970,10 +11989,10 @@ export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/organizations/table-des-prix';
+    url: '/api/v1/organizations/fenetre-du-run';
 };
 
-export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetErrors = {
+export type GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetErrors = {
     /**
      * Not found
      */
@@ -11984,19 +12003,19 @@ export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetErrors = {
     422: HttpValidationError;
 };
 
-export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetError = GetTableDesPrixApiV1OrganizationsTableDesPrixGetErrors[keyof GetTableDesPrixApiV1OrganizationsTableDesPrixGetErrors];
+export type GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetError = GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetErrors[keyof GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetErrors];
 
-export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetResponses = {
+export type GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetResponses = {
     /**
      * Successful Response
      */
-    200: TableDesPrix;
+    200: ReglagesFenetreDuRun;
 };
 
-export type GetTableDesPrixApiV1OrganizationsTableDesPrixGetResponse = GetTableDesPrixApiV1OrganizationsTableDesPrixGetResponses[keyof GetTableDesPrixApiV1OrganizationsTableDesPrixGetResponses];
+export type GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetResponse = GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetResponses[keyof GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetResponses];
 
-export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutData = {
-    body: TableDesPrix;
+export type SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutData = {
+    body: ReglagesFenetreDuRun;
     headers?: {
         /**
          * Authorization
@@ -12009,10 +12028,10 @@ export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/organizations/table-des-prix';
+    url: '/api/v1/organizations/fenetre-du-run';
 };
 
-export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutErrors = {
+export type SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutErrors = {
     /**
      * Not found
      */
@@ -12023,16 +12042,16 @@ export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutErrors = {
     422: HttpValidationError;
 };
 
-export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutError = SaveTableDesPrixApiV1OrganizationsTableDesPrixPutErrors[keyof SaveTableDesPrixApiV1OrganizationsTableDesPrixPutErrors];
+export type SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutError = SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutErrors[keyof SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutErrors];
 
-export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutResponses = {
+export type SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponses = {
     /**
      * Successful Response
      */
-    200: TableDesPrix;
+    200: ReglagesFenetreDuRun;
 };
 
-export type SaveTableDesPrixApiV1OrganizationsTableDesPrixPutResponse = SaveTableDesPrixApiV1OrganizationsTableDesPrixPutResponses[keyof SaveTableDesPrixApiV1OrganizationsTableDesPrixPutResponses];
+export type SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponse = SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponses[keyof SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;

@@ -1,11 +1,11 @@
 """Le coût estimé d'un appel (.mark, langwatch-et-fenetre-du-run, lot 2, étape 5, décision L5).
 
-Consommation du run × table de prix de l'organisation (``api/schemas/table_des_prix.py``), calculé
+Consommation du run × table de prix de l'organisation (``api/schemas/fenetre_du_run.py``), calculé
 à la LECTURE (L2) : changer un prix change l'estimation de tous les runs, et la fenêtre dit à quel
 tarif (date de chaque prix utilisé). Une consommation sans prix déclaré n'est jamais devinée : elle
 est listée « unpriced » et le total est dit partiel.
 
-Stockage : une ligne de ``organization_configurations``, clé ``TABLE_DES_PRIX`` (aucune migration),
+Stockage : une ligne de ``organization_configurations``, clé ``FENETRE_DU_RUN`` (aucune migration),
 comme l'annonce d'ouverture.
 """
 
@@ -15,13 +15,15 @@ from loguru import logger
 
 from api.db import db_client
 from api.enums import OrganizationConfigurationKey
-from api.schemas.table_des_prix import TableDesPrix
+from api.schemas.fenetre_du_run import ReglagesFenetreDuRun
 
-CLE = OrganizationConfigurationKey.TABLE_DES_PRIX.value
+CLE = OrganizationConfigurationKey.FENETRE_DU_RUN.value
 CANAUX_SANS_TELEPHONIE = {"smallwebrtc", "textchat"}
 
 
-async def lire_table_des_prix(organization_id: int | None) -> TableDesPrix | None:
+async def lire_reglages_fenetre(
+    organization_id: int | None,
+) -> ReglagesFenetreDuRun | None:
     """Pour l'analyse d'un run : ``None`` si absente ou illisible (le coût est alors « non capté »,
     jamais faux). Ne lève pas."""
     if organization_id is None:
@@ -30,7 +32,7 @@ async def lire_table_des_prix(organization_id: int | None) -> TableDesPrix | Non
         ligne = await db_client.get_configuration(organization_id, CLE)
         if ligne is None or not ligne.value:
             return None
-        return TableDesPrix.model_validate(ligne.value)
+        return ReglagesFenetreDuRun.model_validate(ligne.value)
     except Exception as erreur:  # noqa: BLE001
         logger.warning(
             f"[.mark] Price table of organization {organization_id} unreadable: {erreur!r}"
@@ -38,18 +40,18 @@ async def lire_table_des_prix(organization_id: int | None) -> TableDesPrix | Non
         return None
 
 
-async def lire_table_des_prix_stricte(organization_id: int) -> TableDesPrix:
+async def lire_reglages_fenetre_stricte(organization_id: int) -> ReglagesFenetreDuRun:
     """Pour l'ÉCRAN : une ligne illisible lève, pour ne pas montrer une table vide qu'un
     enregistrement viendrait écraser (même règle que le lexique et l'annonce)."""
     ligne = await db_client.get_configuration(organization_id, CLE)
     if ligne is None or not ligne.value:
-        return TableDesPrix()
-    return TableDesPrix.model_validate(ligne.value)
+        return ReglagesFenetreDuRun()
+    return ReglagesFenetreDuRun.model_validate(ligne.value)
 
 
-async def enregistrer_table_des_prix(
-    organization_id: int, table: TableDesPrix
-) -> TableDesPrix:
+async def enregistrer_reglages_fenetre(
+    organization_id: int, table: ReglagesFenetreDuRun
+) -> ReglagesFenetreDuRun:
     await db_client.upsert_configuration(
         organization_id, CLE, table.model_dump(mode="json")
     )
@@ -61,7 +63,7 @@ def _modele(cle: str) -> str:
     return str(cle).partition("|||")[2] or str(cle)
 
 
-def cout_du_run(run: dict, table: TableDesPrix | None) -> dict:
+def cout_du_run(run: dict, table: ReglagesFenetreDuRun | None) -> dict:
     """Le bloc « cost » du résumé de la fenêtre."""
     if table is None or not table.lignes:
         return {"status": "not_captured", "reason": "no_price_table"}

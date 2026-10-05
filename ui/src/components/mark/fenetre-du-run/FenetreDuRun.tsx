@@ -77,6 +77,7 @@ const INCIDENTS: Record<string, Texte> = {
     model_retried: { en: "Model request retried", fr: "Requête du modèle recommencée" },
     provider_disconnected: { en: "Provider disconnected during the call", fr: "Fournisseur déconnecté pendant l'appel" },
     provider_error: { en: "Provider connection error", fr: "Erreur de connexion d'un fournisseur" },
+    silence_after_tool: { en: "Silence after a tool result", fr: "Silence après un résultat d'outil" },
     slow_turn: { en: "Slow turn", fr: "Tour lent" },
 };
 
@@ -605,6 +606,30 @@ function BlocConversation({ conversation, recordingKey }: { conversation: Conver
     );
 }
 
+type DetailSilence = {
+    secs: number;
+    broken_by: "agent" | "caller";
+    model_pass_after_tool: boolean | null;
+    threshold_secs: number;
+};
+
+const texteDuSilence = (d: DetailSilence, t: (texte: Texte) => string) => {
+    const qui =
+        d.broken_by === "caller"
+            ? t({ en: "the caller had to speak again", fr: "l'appelant a dû reparler" })
+            : t({ en: "the agent replied late", fr: "l'agent a répondu en retard" });
+    const passe =
+        d.model_pass_after_tool === false
+            ? t({
+                  en: "no model pass after the tool (signature of Pipecat issue 5960)",
+                  fr: "aucune passe du modèle après l'outil (signature du ticket Pipecat 5960)",
+              })
+            : d.model_pass_after_tool === true
+              ? t({ en: "a model pass produced nothing spoken", fr: "une passe du modèle n'a rien fait dire" })
+              : "";
+    return [`${secondes(d.secs)} > ${d.threshold_secs} s`, qui, passe].filter(Boolean).join(" · ");
+};
+
 function BlocIncidents({ incidents }: { incidents: Incidents }) {
     const { t } = useLangue();
     const elements = incidents.items ?? [];
@@ -615,7 +640,9 @@ function BlocIncidents({ incidents }: { incidents: Incidents }) {
             {elements.map((e, i) => (
                 <li key={i} data-testid="incident" className={cn(e.fatal && "font-medium text-destructive")}>
                     {t({ en: "Turn", fr: "Tour" })} {e.turn ?? "?"} · {t(INCIDENTS[e.kind] ?? { en: e.kind, fr: e.kind })}
-                    {e.detail != null ? (
+                    {e.kind === "silence_after_tool" && e.detail && typeof e.detail === "object" ? (
+                        <> · {texteDuSilence(e.detail as DetailSilence, t)}</>
+                    ) : e.detail != null ? (
                         <>
                             {" "}
                             · <code>{typeof e.detail === "number" ? secondes(e.detail) : String(e.detail)}</code>

@@ -36,7 +36,7 @@ import {
     EtatLectureAnnonce,
 } from "../SectionAnnonceOuverture";
 import { SectionLexiqueMetier } from "../SectionLexiqueMetier";
-import { ModaleTableDesPrix } from "./ModaleTableDesPrix";
+import { ModaleFenetreDuRun } from "./ModaleFenetreDuRun";
 import type { EtatPreferences } from "./preferences";
 import type { ThemeOrganisation } from "./references/cas-organisation";
 
@@ -146,7 +146,7 @@ export const ThemeOrganisationGenerale = ({
     useSignaler("organisation", modifie, false, signaler);
     // [.mark] The price table opens in its own modal and saves itself (E4): it is not part of
     // the theme's draft, so its button does not count as a modification of the theme.
-    const [tableDesPrixOuverte, setTableDesPrixOuverte] = useState(false);
+    const [tableDesPrixOuverte, setReglagesFenetreDuRunOuverte] = useState(false);
 
     return (
         <Theme
@@ -199,22 +199,22 @@ export const ThemeOrganisationGenerale = ({
                 </Intertitre>
             )}
             {!preferences.chargement && (
-                <Intertitre id="organisation-couts" titre={{ en: "Costs", fr: "Coûts" }}>
+                <Intertitre id="organisation-couts" titre={{ en: "Run window", fr: "Fenêtre du run" }}>
                     <ChampReglage
-                        cle="table_des_prix"
-                        libelle={{ en: "Price table", fr: "Table des prix" }}
+                        cle="fenetre_du_run"
+                        libelle={{ en: "Run window: prices and thresholds", fr: "Fenêtre du run : prix et seuils" }}
                         aides={[
                             {
-                                en: "Prices by provider model, dated, used to estimate the cost of each call in the run window.",
-                                fr: "Prix par modèle de fournisseur, datés, pour estimer le coût de chaque appel dans la fenêtre du run.",
+                                en: "Prices by provider model, dated, to estimate the cost of each call; and the thresholds of the incidents the run window shows.",
+                                fr: "Prix par modèle de fournisseur, datés, pour estimer le coût de chaque appel ; et les seuils des incidents que montre la fenêtre du run.",
                             },
                         ]}
                     >
-                        <Button variant="outline" size="sm" onClick={() => setTableDesPrixOuverte(true)}>
-                            {t({ en: "Edit the price table…", fr: "Modifier la table des prix…" })}
+                        <Button variant="outline" size="sm" onClick={() => setReglagesFenetreDuRunOuverte(true)}>
+                            {t({ en: "Edit prices and thresholds…", fr: "Modifier prix et seuils…" })}
                         </Button>
                     </ChampReglage>
-                    <ModaleTableDesPrix ouverte={tableDesPrixOuverte} onFermer={() => setTableDesPrixOuverte(false)} />
+                    <ModaleFenetreDuRun ouverte={tableDesPrixOuverte} onFermer={() => setReglagesFenetreDuRunOuverte(false)} />
                 </Intertitre>
             )}
         </Theme>
