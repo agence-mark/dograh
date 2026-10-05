@@ -280,3 +280,27 @@ def test_l_organisation_est_celle_de_l_utilisateur_dans_les_deux_sens(base):
     assert client_b.get("/workflow/34/runs/966/analyse").status_code == 200
     assert client_b.get("/workflow/34/runs/967/analyse").status_code == 404
     assert base.appels == [ORGANISATION_B, ORGANISATION_B]
+
+
+def test_la_mesure_du_labo_est_exposee_telle_quelle(corpus):
+    """L1 : ``mesures-run.mjs`` lit ``lab_measures`` sur la route ; elle doit égaler ce que
+    l'outil du labo calculait lui-même (les ``attendus`` du corpus)."""
+    attendus = json.loads(CORPUS.read_text(encoding="utf-8"))["attendus"]
+    for run in corpus:
+        expose = analyser_run(run)["lab_measures"]
+        assert expose.pop("status") == "ok"
+        assert expose == attendus[str(run["id"])], run["id"]
+
+
+def test_une_date_illisible_ne_casse_pas_la_reponse_json(corpus, base):
+    """Un NaN ferait refuser la réponse par le serveur (JSON n'en a pas) : il devient null."""
+    run = _run(corpus, 967)
+    for evenement in run["logs"]["realtime_feedback_events"]:
+        if evenement["type"] == "rtf-bot-text":
+            evenement["payload"]["timestamp"] = "illisible"
+    resultat = analyser_run(run)
+    json.dumps(resultat, allow_nan=False)
+    assert any(v is None for v in resultat["lab_measures"]["tour"])
+    assert {t["not_measured_reason"] for t in resultat["latency"]["turns"]} >= {
+        "unreadable_timestamps"
+    }

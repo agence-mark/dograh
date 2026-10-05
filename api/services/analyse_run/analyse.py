@@ -527,6 +527,18 @@ def _bloc(nom: str, calcul: Callable[[], dict], run_id: Any) -> dict:
         return {"status": INDISPONIBLE, "reason": type(erreur).__name__}
 
 
+def _sans_nan(valeur: Any) -> Any:
+    """JSON n'a pas de NaN (le serveur refuserait la réponse) : un NaN devient ``None``,
+    comme ``JSON.stringify`` l'écrit côté labo."""
+    if isinstance(valeur, float) and math.isnan(valeur):
+        return None
+    if isinstance(valeur, dict):
+        return {k: _sans_nan(v) for k, v in valeur.items()}
+    if isinstance(valeur, list):
+        return [_sans_nan(v) for v in valeur]
+    return valeur
+
+
 def analyser_run(
     run: dict,
     *,
@@ -559,15 +571,34 @@ def analyser_run(
         },
         identifiant,
     )
-    return {
-        "version": VERSION,
-        "run_id": identifiant,
-        "summary": resume,
-        "latency": latence,
-        "providers": _bloc("providers", lambda: _fournisseurs(run), identifiant),
-        "reading_modules": _bloc("reading_modules", lambda: _modules(run), identifiant),
-        "record": _bloc("record", lambda: _fiche(run, champs_fiche), identifiant),
-        "path": _bloc("path", lambda: _parcours(run, portes), identifiant),
-        "conversation": _bloc("conversation", lambda: _conversation(run), identifiant),
-        "incidents": incidents,
-    }
+    return _sans_nan(
+        {
+            "version": VERSION,
+            "run_id": identifiant,
+            "summary": resume,
+            "latency": latence,
+            "providers": _bloc("providers", lambda: _fournisseurs(run), identifiant),
+            "reading_modules": _bloc(
+                "reading_modules", lambda: _modules(run), identifiant
+            ),
+            "record": _bloc("record", lambda: _fiche(run, champs_fiche), identifiant),
+            "path": _bloc("path", lambda: _parcours(run, portes), identifiant),
+            "conversation": _bloc(
+                "conversation", lambda: _conversation(run), identifiant
+            ),
+            "incidents": incidents,
+            # La mesure du labo telle quelle (``mesures-run.mjs`` la lit ici, décision L1) : mêmes
+            # clés, mêmes valeurs, nombre de post-scriptums au lieu de leur contenu.
+            "lab_measures": _bloc(
+                "lab_measures",
+                lambda: {
+                    "status": OK,
+                    **{
+                        **(m := mesurer_run(run)),
+                        "postScriptums": len(m["postScriptums"]),
+                    },
+                },
+                identifiant,
+            ),
+        }
+    )
