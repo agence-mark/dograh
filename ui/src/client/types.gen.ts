@@ -9085,6 +9085,12 @@ export type WorkflowConfigurationDefaults = {
      */
     fiche_mode_de_note?: 'outil' | 'post_scriptum' | 'greffier';
     /**
+     * Portes Dans La Reponse
+     *
+     * Postscript only. The agent takes a transition inside its reply and already speaks the next step's first reply: no silence between steps. Off (default): transitions stay function calls, as before.
+     */
+    portes_dans_la_reponse?: boolean;
+    /**
      * Greffier Llm
      *
      * The clerk's model, when the note-taking mode is Clerk: provider, model, settings and its own API key. Empty fields come from the conversation model; an empty key uses the conversation's key (and its rate limit).
