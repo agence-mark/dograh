@@ -11828,6 +11828,58 @@ export type DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostRespo
 
 export type DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostResponse = DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostResponses[keyof DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostResponses];
 
+export type GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Run Id
+         */
+        run_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/runs/{run_id}/analyse';
+};
+
+export type GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetError = GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetErrors[keyof GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetErrors];
+
+export type GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetResponses = {
+    /**
+     * Response Get Workflow Run Analyse Api V1 Workflow  Workflow Id  Runs  Run Id  Analyse Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetResponse = GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetResponses[keyof GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetResponses];
+
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;
     path?: never;
