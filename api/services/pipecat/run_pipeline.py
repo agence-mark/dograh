@@ -17,6 +17,11 @@ from api.schemas.workflow_configurations import (
     WorkflowConfigurationDefaults,
 )
 from api.services.analyse_run.captures import estampiller_la_version
+from api.services.analyse_run.incidents_appel import (
+    ATTRIBUT_JOURNAL,
+    ObservateurDesInterruptions,
+    brancher_les_connexions,
+)
 from api.services.analyse_run.requetes_modele import brancher_le_journal_des_requetes
 from api.services.call_concurrency import call_concurrency
 from api.services.communes.adresse import (
@@ -1630,6 +1635,11 @@ async def _run_pipeline_impl(
         else None,
     )
     task.add_observer(feedback_observer)
+    # [.mark] Interruptions, coupures et relances, gardées dans le journal du run
+    # (langwatch-et-fenetre-du-run, lot 2). Observent, ne changent rien.
+    task.add_observer(ObservateurDesInterruptions(in_memory_logs_buffer))
+    brancher_les_connexions({"transcription": stt, "voice": tts}, in_memory_logs_buffer)
+    setattr(engine, ATTRIBUT_JOURNAL, in_memory_logs_buffer)
     engine.greeting.log_generated_speech = feedback_observer.log_speech
 
     if not is_realtime:

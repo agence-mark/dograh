@@ -18,6 +18,7 @@ from api.schemas.workflow_configurations import (
     DEFAULT_USER_IDLE_MAX_PROMPTS,
     DEFAULT_USER_IDLE_PROMPT,
 )
+from api.services.analyse_run.incidents_appel import noter_la_relance
 from loguru import logger
 from pipecat.frames.frames import (
     LLMMessagesAppendFrame,
@@ -58,6 +59,8 @@ async def handle_user_idle(engine: "PipecatEngine", aggregator, attempt: int) ->
     max_prompts = DEFAULT_USER_IDLE_MAX_PROMPTS if max_prompts is None else int(max_prompts)
 
     logger.debug(f"Handling user_idle, attempt: {attempt}")
+    # [.mark] The run keeps each reminder (langwatch-et-fenetre-du-run, lot 2).
+    await noter_la_relance(engine, attempt, raccroche=attempt > max_prompts)
     if attempt <= max_prompts:
         await aggregator.push_frame(
             LLMMessagesAppendFrame(

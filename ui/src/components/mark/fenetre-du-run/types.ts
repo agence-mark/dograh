@@ -79,6 +79,7 @@ export type Fournisseurs = Bloc & {
         lost_secs?: number;
         by_status?: Record<string, number>;
     };
+    connections?: { status?: Statut } & Record<string, { disconnections: number; errors: number } | Statut | undefined>;
 };
 
 export type ElementDeModule = {
@@ -135,7 +136,13 @@ export type LigneDeConversation = {
     end_secs: number | null;
 };
 
-export type Conversation = Bloc & { lines?: LigneDeConversation[] };
+export type MarqueDeConversation = {
+    turn: number | null;
+    kind: "caller_interrupted" | "idle_reminder" | "idle_hang_up";
+    at_secs: number | null;
+};
+
+export type Conversation = Bloc & { lines?: LigneDeConversation[]; marks?: MarqueDeConversation[] };
 
 export type Incident = {
     turn: number | null;

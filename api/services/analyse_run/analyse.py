@@ -220,6 +220,36 @@ def _usage_par_brique(usage: dict, brique: str) -> list[dict]:
 
 
 TYPE_REQUETE_MODELE = "mark-model-request"
+TYPE_CONNEXION = "mark-provider-connection"
+TYPE_INTERRUPTION = "mark-caller-interrupted"
+TYPE_RELANCE = "mark-user-idle"
+
+
+def _connexions(run: dict) -> dict | None:
+    """Par brique : déconnexions en cours d'appel (la dernière, fin d'appel, est normale) et
+    erreurs de connexion. ``None`` : aucun événement de connexion."""
+    par_brique: dict[str, list[dict]] = {}
+    for e in _evenements(run):
+        if e.get("type") == TYPE_CONNEXION:
+            charge = e.get("payload") or {}
+            par_brique.setdefault(charge.get("component") or "?", []).append(
+                {**charge, "turn": e.get("turn")}
+            )
+    if not par_brique:
+        return None
+    resume = {}
+    for brique, evenements in par_brique.items():
+        deconnexions = [e for e in evenements if e.get("event") == "disconnected"]
+        en_cours = (
+            deconnexions[:-1]
+            if deconnexions and evenements[-1].get("event") == "disconnected"
+            else deconnexions
+        )
+        resume[brique] = {
+            "disconnections": en_cours,
+            "errors": [e for e in evenements if e.get("event") == "error"],
+        }
+    return resume
 
 
 def _requetes_du_modele(run: dict) -> dict | None:
@@ -255,7 +285,7 @@ def _fournisseurs(run: dict) -> dict:
     estampille = _estampille(run)
     usage = run.get("usage_info") or {}
     requetes = _requetes_du_modele(run)
-    if not estampille and not usage and requetes is None:
+    if not estampille and not usage and requetes is None and _connexions(run) is None:
         return {"status": NON_CAPTE}
     if requetes is None:
         # Aucun refus noté : zéro si la capture existait (estampille de version), sinon non capté.
@@ -305,6 +335,17 @@ def _fournisseurs(run: dict) -> dict:
             ],
         },
         "model_requests": requetes,
+        "connections": (
+            {
+                brique: {
+                    "disconnections": len(v["disconnections"]),
+                    "errors": len(v["errors"]),
+                }
+                for brique, v in connexions.items()
+            }
+            if (connexions := _connexions(run)) is not None
+            else ({"status": NON_CAPTE} if "mark_version" not in estampille else {})
+        ),
         "pipeline_settings": estampille.get("pipeline_settings"),
         "call_duration_secs": usage.get("call_duration_seconds"),
     }
@@ -498,9 +539,26 @@ def _conversation(run: dict) -> dict:
             }
         )
     lignes.sort(key=lambda l: (l["start_secs"] is None, l["start_secs"] or 0))
+    marques = []
+    for e in evenements:
+        if e.get("type") not in (TYPE_INTERRUPTION, TYPE_RELANCE):
+            continue
+        charge = e.get("payload") or {}
+        if e.get("type") == TYPE_INTERRUPTION:
+            nature = "caller_interrupted"
+        else:
+            nature = "idle_hang_up" if charge.get("hang_up") else "idle_reminder"
+        marques.append(
+            {
+                "turn": e.get("turn"),
+                "kind": nature,
+                "at_secs": _nombre_fini((_ms(e.get("timestamp")) - origine) / 1000),
+            }
+        )
     return {
         "status": OK,
         "lines": lignes,
+        "marks": marques,
         # L'origine est le premier événement du run, pas le début de l'enregistrement :
         # l'écran le dit (« approximate »).
         "time_origin": "first_event",
@@ -527,6 +585,21 @@ def _incidents(run: dict, latence: dict) -> dict:
                 "detail": charge.get("exception_type"),
             }
         )
+    for brique, v in (_connexions(run) or {}).items():
+        for nature, cle in (
+            ("provider_disconnected", "disconnections"),
+            ("provider_error", "errors"),
+        ):
+            for e in v[cle]:
+                elements.append(
+                    {
+                        "turn": e.get("turn"),
+                        "kind": nature,
+                        "fatal": False,
+                        "processor": e.get("service"),
+                        "detail": e.get("error") or brique,
+                    }
+                )
     for e in _evenements(run):
         charge = e.get("payload") or {}
         if (

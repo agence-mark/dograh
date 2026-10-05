@@ -259,3 +259,34 @@ describe("Fenêtre du run : refus du modèle", () => {
         );
     });
 });
+
+
+describe("Fenêtre du run : coupures, interruptions, relances", () => {
+    it("dit les coupures par brique et marque interruptions et relances dans la conversation", async () => {
+        lireAnalyse.mockResolvedValue({
+            data: {
+                ...ANALYSE,
+                providers: {
+                    status: "ok",
+                    connections: { transcription: { disconnections: 1, errors: 0 } },
+                },
+                conversation: {
+                    status: "ok",
+                    lines: [],
+                    marks: [
+                        { turn: 3, kind: "caller_interrupted", at_secs: 12.3 },
+                        { turn: 6, kind: "idle_reminder", at_secs: 40 },
+                    ],
+                },
+            },
+        });
+        enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        ouvrir("bloc-providers");
+        expect(texte(screen.getByTestId("connexions-des-fournisseurs"))).toContain("Transcription : 1 coupure(s), 0 erreur(s)");
+        ouvrir("bloc-conversation");
+        const marques = texte(screen.getByTestId("marques-de-conversation"));
+        expect(marques).toContain("12.3 s · Tour 3 · l'appelant a coupé l'agent");
+        expect(marques).toContain("relance d'inactivité");
+    });
+});

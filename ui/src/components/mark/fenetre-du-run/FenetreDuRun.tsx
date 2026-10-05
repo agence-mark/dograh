@@ -72,7 +72,20 @@ const INCIDENTS: Record<string, Texte> = {
     pipeline_error: { en: "Pipeline error", fr: "Erreur du pipeline" },
     tool_never_finished: { en: "Tool never finished", fr: "Outil jamais terminé" },
     model_retried: { en: "Model request retried", fr: "Requête du modèle recommencée" },
+    provider_disconnected: { en: "Provider disconnected during the call", fr: "Fournisseur déconnecté pendant l'appel" },
+    provider_error: { en: "Provider connection error", fr: "Erreur de connexion d'un fournisseur" },
     slow_turn: { en: "Slow turn", fr: "Tour lent" },
+};
+
+const MARQUES: Record<string, Texte> = {
+    caller_interrupted: { en: "the caller interrupted the agent", fr: "l'appelant a coupé l'agent" },
+    idle_reminder: { en: "silence reminder", fr: "relance d'inactivité" },
+    idle_hang_up: { en: "hang-up after silence", fr: "raccrochage après silence" },
+};
+
+const BRIQUES: Record<string, Texte> = {
+    transcription: { en: "Transcription", fr: "Transcription" },
+    voice: { en: "Voice", fr: "Voix" },
 };
 
 const CANAUX: Record<string, Texte> = {
@@ -329,6 +342,23 @@ function BlocFournisseurs({ fournisseurs }: { fournisseurs: Fournisseurs }) {
                           fr: `Refus du modèle : ${fournisseurs.model_requests.refused ?? 0} · nouvelles tentatives silencieuses : ${fournisseurs.model_requests.retries ?? 0} · temps perdu : ${secondes(fournisseurs.model_requests.lost_secs)}`,
                       })}
             </p>
+            <p data-testid="connexions-des-fournisseurs">
+                {!fournisseurs.connections || fournisseurs.connections.status === "not_captured"
+                    ? t({
+                          en: "Provider disconnections: not captured (run older than this capture).",
+                          fr: "Coupures des fournisseurs : non captées (run antérieur à cette capture).",
+                      })
+                    : Object.entries(fournisseurs.connections)
+                          .filter(([cle]) => cle !== "status")
+                          .map(([brique, v]) => {
+                              const c = v as { disconnections: number; errors: number };
+                              return `${t(BRIQUES[brique] ?? { en: brique, fr: brique })} : ${t({
+                                  en: `${c.disconnections} disconnection(s), ${c.errors} error(s)`,
+                                  fr: `${c.disconnections} coupure(s), ${c.errors} erreur(s)`,
+                              })}`;
+                          })
+                          .join(" · ") || t({ en: "No provider disconnection.", fr: "Aucune coupure de fournisseur." })}
+            </p>
             <p className="text-muted-foreground">
                 {t({ en: "Note-taking mode", fr: "Mode de prise de notes" })} :{" "}
                 <code>{modele?.note_taking_mode ?? "–"}</code>
@@ -495,6 +525,16 @@ function BlocConversation({ conversation, recordingKey }: { conversation: Conver
                       })
                     : t({ en: "No recording for this run.", fr: "Aucun enregistrement pour ce run." })}
             </p>
+            {(conversation.marks ?? []).length > 0 && (
+                <ul className="space-y-1" data-testid="marques-de-conversation">
+                    {(conversation.marks ?? []).map((m, i) => (
+                        <li key={i} className="text-muted-foreground">
+                            {m.at_secs == null ? "–" : `${m.at_secs.toFixed(1)} s`} · {t({ en: "Turn", fr: "Tour" })}{" "}
+                            {m.turn ?? "?"} · {t(MARQUES[m.kind] ?? { en: m.kind, fr: m.kind })}
+                        </li>
+                    ))}
+                </ul>
+            )}
             <audio ref={audio} controls={Boolean(adresse)} className={cn("w-full", !adresse && "hidden")} />
             <ul className="space-y-1">
                 {(conversation.lines ?? []).map((ligne, i) => (
