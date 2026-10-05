@@ -63,9 +63,25 @@ class AgregateurAppelantRelance(LLMUserAggregator):
         await super().push_context_frame(direction)
 
     async def _run_speculative_inference(self, speculation):
-        if self.assistant is not None and self.assistant._relance_due:
-            self._speculation_apres_resultat = True
+        # Seule la DERNIÈRE spéculation compte (Pipecat remplace la précédente) : elle a vu le
+        # résultat si une relance était due à son départ.
+        self._speculation_apres_resultat = bool(
+            self.assistant is not None and self.assistant._relance_due
+        )
         await super()._run_speculative_inference(speculation)
+
+    def resultat_arrive(self) -> None:
+        """Un résultat d'outil arrive : aucune spéculation déjà partie ne l'a vu."""
+        self._speculation_apres_resultat = False
+
+    async def _on_user_turn_started(self, controller, strategy, params):
+        # Un tour fini sans « stopped » (interruption, fin de session) ne transmet rien.
+        self._speculation_apres_resultat = False
+        await super()._on_user_turn_started(controller, strategy, params)
+
+    async def _on_user_turn_speculation_cancelled(self, controller):
+        self._speculation_apres_resultat = False
+        await super()._on_user_turn_speculation_cancelled(controller)
 
     async def _on_user_turn_stopped(self, controller, strategy, params):
         confirmee = bool(getattr(params, "confirms_speculation", False))
@@ -117,6 +133,7 @@ class AgregateurAgentRelance(LLMAssistantAggregator):
 
     async def _maybe_push_context_after_function_result(self):
         self._relance_due = True
+        self._paired_user_aggregator.resultat_arrive()
         if self._tour_en_cours():
             logger.debug(
                 f"{self}: tour de l'appelant en cours, relance après l'outil gardée"

@@ -241,3 +241,64 @@ def test_les_membres_de_la_speculation_existent_encore():
     assert callable(LLMUserAggregator._on_user_turn_stopped)
     champs = {c.name for c in dataclasses.fields(UserTurnStoppedParams)}
     assert "confirms_speculation" in champs
+
+
+# --- Revue du blindage (05/10) : le drapeau suit la dernière spéculation ------------------------
+
+
+async def test_un_second_resultat_apres_la_speculation_garde_sa_relance(
+    banc, speculation
+):
+    appelant, agent, envois, _ = banc
+    await _garder_une_relance(appelant, agent)
+    await appelant._run_speculative_inference(object())  # a vu le résultat A
+    await (
+        agent._maybe_push_context_after_function_result()
+    )  # résultat B, après son départ
+    await appelant._on_user_turn_stopped(None, None, _fin_de_tour(confirme=True))
+    _fermer_le_tour(appelant)
+    await agent._tour_ferme(appelant, None, None)
+    envois.assert_awaited_once()  # B obtient sa réponse : l'agent ne reste pas muet
+
+
+async def test_le_drapeau_ne_passe_pas_d_un_tour_a_l_autre(banc, speculation):
+    appelant, agent, envois, _ = banc
+    with (
+        patch.object(LLMUserAggregator, "_on_user_turn_started", AsyncMock()),
+        patch.object(
+            LLMUserAggregator, "_on_user_turn_speculation_cancelled", AsyncMock()
+        ),
+    ):
+        await _garder_une_relance(appelant, agent)
+        await appelant._run_speculative_inference(object())
+        # Le tour s'arrête sans « stopped » (interruption) ; un nouveau tour s'ouvre.
+        await appelant._on_user_turn_started(None, None, None)
+        assert appelant._speculation_apres_resultat is False
+        await appelant._run_speculative_inference(object())
+        await appelant._on_user_turn_speculation_cancelled(None)
+        assert appelant._speculation_apres_resultat is False
+
+
+def test_le_controleur_de_tour_appelle_nos_surcharges():
+    appelant, _agent = _paire()
+    gestionnaires = appelant._user_turn_controller._event_handlers
+    for evenement, methode in (
+        ("on_user_turn_stopped", AgregateurAppelantRelance._on_user_turn_stopped),
+        ("on_user_turn_started", AgregateurAppelantRelance._on_user_turn_started),
+        (
+            "on_user_turn_speculation_cancelled",
+            AgregateurAppelantRelance._on_user_turn_speculation_cancelled,
+        ),
+    ):
+        fonctions = [
+            getattr(h, "__func__", None)
+            for h in _gestionnaires(gestionnaires[evenement])
+        ]
+        assert methode in fonctions, (evenement, fonctions)
+
+
+def _gestionnaires(entree):
+    """Le registre d'évènements de Pipecat range une liste de gestionnaires (ou un objet qui la porte)."""
+    if isinstance(entree, list):
+        return entree
+    return getattr(entree, "handlers", None) or [entree]
