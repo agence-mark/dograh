@@ -567,6 +567,34 @@ async def test_la_coupure_du_micro_reglee_arrive_dans_l_agregateur_de_l_appel(
     assert presente is regle, trouvees
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("regle", [True, False])
+@_borne
+async def test_la_relance_apres_outil_reglee_arrive_dans_la_paire_de_l_appel(
+    db_session, async_session, regle
+):
+    """Lot 4 du chantier langwatch-et-fenetre-du-run (ticket Pipecat 5960) : l'option de
+    l'agent choisit la paire d'agrégateurs que l'appel construit réellement ; éteinte, c'est
+    celle de Pipecat, inchangée."""
+    from api.services.pipecat.relance_apres_outil import (
+        AgregateurAgentRelance,
+        AgregateurAppelantRelance,
+    )
+
+    montage = await _monter(db_session, async_session, {"relance_apres_outil": regle})
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    trouves = []
+
+    async def relever(_tache, agregateur, _voix):
+        trouves.append(agregateur)
+
+    await _appeler(montage, llm, [], apres=relever)
+    appelant = trouves[0]
+    assert isinstance(appelant, AgregateurAppelantRelance) is regle, type(appelant)
+    if regle:
+        assert isinstance(appelant.assistant, AgregateurAgentRelance)
+
+
 # --------------------------------------------------------------------------- #
 # Décisions d'Evan du 25/09/2026, remise à niveau sur l'amont 4e6cb22b
 # --------------------------------------------------------------------------- #

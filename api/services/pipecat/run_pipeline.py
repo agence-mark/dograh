@@ -101,6 +101,10 @@ from api.services.pipecat.reglages_tour_de_parole import (
     collecter_strategies_de_coupure,
     reglages_accueil_et_silence,
 )
+from api.services.pipecat.relance_apres_outil import (
+    paire_d_agregateurs,
+    relance_allumee,
+)
 from api.services.pipecat.service_factory import (
     cle_de_cache,
     create_llm_service,
@@ -1427,13 +1431,13 @@ async def _run_pipeline_impl(
         )
         user_context_aggregator, assistant_context_aggregator = context_aggregator
     else:
-        user_context_aggregator, assistant_context_aggregator = (
-            LLMContextAggregatorPair(
-                context,
-                user_params=user_params,
-                assistant_params=assistant_params,
-                realtime_service_mode=False,
-            )
+        # [.mark] Lot 4 (ticket Pipecat 5960) : la paire de Pipecat, ou celle qui garde
+        # la relance après un outil, selon l'option de l'agent (éteinte par défaut).
+        user_context_aggregator, assistant_context_aggregator = paire_d_agregateurs(
+            context,
+            user_params=user_params,
+            assistant_params=assistant_params,
+            relance=relance_allumee(run_configs),
         )
         engine.greeting.regler(  # [.mark] E1
             interruptible=accueil_ouvert, mots_minimum=accueil_mots_minimum

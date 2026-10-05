@@ -9487,6 +9487,12 @@ export type WorkflowConfigurationDefaults = {
      */
     fiche_mode_de_note?: 'outil' | 'post_scriptum' | 'greffier';
     /**
+     * Relance Apres Outil
+     *
+     * Pipecat ticket 5960. When a tool result reaches the agent before the caller's turn has closed, the model's reply is kept and sent once the turn closes, instead of being lost (the agent then stays silent until the caller speaks again). Off (default): Pipecat's behaviour. No effect in realtime mode.
+     */
+    relance_apres_outil?: boolean;
+    /**
      * Portes Dans La Reponse
      *
      * Postscript only. The agent takes a transition inside its reply and already speaks the next step's first reply: no silence between steps. Off (default): transitions stay function calls, as before.

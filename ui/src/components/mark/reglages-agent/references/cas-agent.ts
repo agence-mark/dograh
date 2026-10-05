@@ -139,6 +139,7 @@ export const CAS_AGENT: CasAgent[] = [
     c("attente-temps", "speech-tuning", "tour", ["incomplete_long_timeout"], [saisir("incomplete_long_timeout", "12")]),
     c("muet-accueil", "speech-tuning", "tour", ["mute_until_first_bot_complete"], [inter("mute_until_first_bot_complete")]),
     c("muet-outil", "speech-tuning", "tour", ["mute_during_function_call"], [inter("mute_during_function_call")]),
+    c("relance-outil", "ajout-mark", "tour", ["relance_apres_outil"], [inter("relance_apres_outil")]),
     c("muet-workflow", "speech-tuning", "tour", ["mute_engine_callback"], [inter("mute_engine_callback")]),
     c("muet-premiere", "speech-tuning", "tour", ["mute_first_speech"], [inter("mute_first_speech")]),
     c("muet-toujours", "speech-tuning", "tour", ["mute_always"], [inter("mute_always")]),

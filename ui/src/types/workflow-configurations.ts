@@ -295,6 +295,10 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Plan porte-parlee: transitions taken inside the reply. Postscript
     // only; absent means off, the behaviour of before.
     portes_dans_la_reponse?: boolean;
+    // [.mark] Chantier langwatch-et-fenetre-du-run, lot 4 (Pipecat ticket 5960):
+    // the model's reply after a tool is kept when the result beats the end of the
+    // caller's turn. Absent means off, Pipecat's behaviour.
+    relance_apres_outil?: boolean;
     // [.mark] Part 2: the clerk's model, shaped like a model override (its key
     // comes back masked and is restored on save), and its instructions (absent:
     // the generic ones written in the code).
