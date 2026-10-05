@@ -141,6 +141,7 @@ quelque chose. **Un patch perdu ne se présente pas toujours comme un échec de 
 | `test_greffier.py` | 🆕 **Le greffier** : requête JSON avec ses jetons, seuls les champs changés passent par `noter`, une passe en vol (la plus récente gagne), 429 sauté, rien après la fin de l'appel, refus renvoyés au greffier et jamais à l'agent, réglages de la voix non hérités, repli en mode outil | chantier mode-prise-de-notes |
 | `test_greffier_cle.py` | 🆕 **La clé du greffier « comme Dograh »** : masquée dans les réponses, restaurée à chaque enregistrement et seulement chez son fournisseur, masque orphelin refusé (422), bloc limité à ce que l'écran montre | chantier mode-prise-de-notes |
 | `test_greffier_clavier.py` | 🆕 **Le greffier au clavier** par les vraies routes : la fiche se remplit (source « greffier »), l'agent n'a pas l'outil, estampille sans la clé, repli en mode outil | chantier mode-prise-de-notes |
+| `test_greffier_ecran.py` | 🆕 **Ce que l'écran du greffier affirme** : la température ouverte exactement chez les fournisseurs qui en déclarent une (ailleurs le serveur l'ignore) ; l'encadré de la page d'un appel lit la clé des passes | chantier greffier-ecran |
 
 ⛔ **Le second cas est le plus dangereux, parce qu'il ressemble à une panne d'environnement.**
 Retirer le patch Mistral donne exactement ça :

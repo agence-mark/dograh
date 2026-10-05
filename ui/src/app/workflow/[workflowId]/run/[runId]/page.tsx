@@ -25,6 +25,7 @@ import {
     getWorkflowApiV1WorkflowFetchWorkflowIdGet,
     getWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGet,
 } from '@/client/sdk.gen';
+import { BilanGreffier } from '@/components/mark/BilanGreffier';
 import { MediaPreviewButton, MediaPreviewDialog } from '@/components/MediaPreviewDialog';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { Button } from '@/components/ui/button';
@@ -847,6 +848,9 @@ export default function WorkflowRunPage() {
                             logs={workflowRun?.logs ?? null}
                             gatheredContext={workflowRun?.gathered_context ?? null}
                         />
+
+                        {/* [.mark] The clerk's passes, failures and tokens (mode-prise-de-notes). */}
+                        <BilanGreffier fiche={workflowRun?.gathered_context ?? null} />
 
                         {!isTextChatRun && hasSplitTracks && (
                             <SplitTracksSection
