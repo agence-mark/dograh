@@ -202,7 +202,8 @@ def _trouver(tache, nom_de_classe: str):
         if id(p) in vus:
             continue
         vus.add(id(p))
-        if p.__class__.__name__ == nom_de_classe:
+        # Une sous-classe compte aussi (lot 4 : la paire qui garde la relance après un outil).
+        if any(c.__name__ == nom_de_classe for c in type(p).__mro__):
             return p
         pile.extend(getattr(p, "_processors", None) or [])
     return None
