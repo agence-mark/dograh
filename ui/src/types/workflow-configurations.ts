@@ -292,6 +292,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Plan mode-prise-de-notes: how the record is written. Absent means
     // the tool, the behaviour of before.
     fiche_mode_de_note?: FicheModeDeNote;
+    // [.mark] Plan porte-parlee: transitions taken inside the reply. Postscript
+    // only; absent means off, the behaviour of before.
+    portes_dans_la_reponse?: boolean;
     // [.mark] Part 2: the clerk's model, shaped like a model override (its key
     // comes back masked and is restored on save), and its instructions (absent:
     // the generic ones written in the code).

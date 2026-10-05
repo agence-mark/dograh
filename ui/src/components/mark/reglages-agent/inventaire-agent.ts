@@ -94,6 +94,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     // Données de l'appel
     fiche_au_fil_de_leau: { theme: "donnees", cas: ["fiche"] },
     fiche_mode_de_note: { theme: "donnees", cas: ["mode-de-note"] },
+    portes_dans_la_reponse: { theme: "donnees", cas: ["portes-dans-la-reponse"] },
     greffier_llm: { theme: "donnees", cas: ["greffier"] },
     greffier_consigne: { theme: "donnees", cas: ["greffier-consigne"] },
     fiche_champs: { theme: "donnees", cas: ["fiche-champ"] },

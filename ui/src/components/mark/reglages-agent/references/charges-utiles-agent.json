@@ -990,6 +990,21 @@
         }
       ]
     },
+    "portes-dans-la-reponse": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_mode_de_note": "post_scriptum",
+            "portes_dans_la_reponse": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "greffier": {
       "carte": "ajout-mark",
       "theme": "donnees",

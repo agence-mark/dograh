@@ -40,6 +40,7 @@ import { resolveWorkflowConfigurations, type WorkflowConfigurations } from "@/ty
 
 import { NavigationThemes } from "../ecran/NavigationThemes";
 import { useThemesOuverts } from "../ecran/useThemesOuverts";
+import { etapesSansPremiereReplique } from "../graphe/premiere-replique";
 import { useLangue } from "../langue/langue";
 import { ContexteErreursThemes } from "./theme-commun";
 import { ID_THEME_AGENT, ThemeAgent, TITRE_AGENT } from "./ThemeAgent";
@@ -102,6 +103,11 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
             edges: workflow.workflow_definition.edges as FlowEdge[],
             viewport: { x: 0, y: 0, zoom: 0 },
         }),
+        [workflow],
+    );
+    // [.mark] Plan porte-parlee (D3): read from the graph the page was opened with.
+    const etapesSansPremiere = useMemo(
+        () => etapesSansPremiereReplique(workflow.workflow_definition as Parameters<typeof etapesSansPremiereReplique>[0]),
         [workflow],
     );
     const initialTemplateContextVariables = useMemo(
@@ -222,7 +228,11 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                                 <ThemeTourDeParole {...commun(ID_THEME_TOUR)!} />
                                 <ThemeVoix {...commun(ID_THEME_VOIX)!} workflowId={workflowId} />
                                 <ThemeRythme {...commun(ID_THEME_RYTHME)!} />
-                                <ThemeDonnees {...commun(ID_THEME_DONNEES)!} issuesParDefaut={defaultCallDispositions} />
+                                <ThemeDonnees
+                                    {...commun(ID_THEME_DONNEES)!}
+                                    issuesParDefaut={defaultCallDispositions}
+                                    etapesSansPremiereReplique={etapesSansPremiere}
+                                />
                                 <ThemeEtablissement
                                     {...commun(ID_THEME_ETABLISSEMENT)!}
                                     consignesParDefaut={defaultAnswerClassifierPrompt}

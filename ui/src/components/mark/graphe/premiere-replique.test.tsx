@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { NodeSpec } from "@/client/types.gen";
 import { NodeEditForm } from "@/components/flow/renderer/NodeEditForm";
 
+import { etapesSansPremiereReplique } from "./premiere-replique";
 import specs from "./specs-premiere-replique.json";
 
 const CONTEXTE = { tools: [], documents: [], recordings: [] };
@@ -50,5 +51,25 @@ describe.each(["agentNode", "endCall"] as const)("[.mark] first reply on %s", (t
         expect(zone).toBeTruthy();
         fireEvent.change(zone!, { target: { value: "Quelle marque ?" } });
         expect(onChange).toHaveBeenCalledWith({ name: "Step", prompt: "Ask.", premiere_replique: "Quelle marque ?" });
+    });
+});
+
+// The same rule as `etapes_sans_premiere_replique` (Python), on the graph of
+// `test_porte_parlee_premiere_replique.py` (convention E8).
+describe("[.mark] steps without a first reply", () => {
+    const graphe = (etape?: string | null, fin?: string | null) => ({
+        nodes: [
+            { id: "start", type: "startCall", data: { name: "Start" } },
+            { id: "etape", type: "agentNode", data: { name: "Etape", premiere_replique: etape } },
+            { id: "end", type: "endCall", data: { name: "End", premiere_replique: fin } },
+        ],
+        edges: [{ target: "end" }, { target: "etape" }, { target: "end" }],
+    });
+
+    it("lists the steps a transition leads to, never the greeting, as the server does", () => {
+        expect(etapesSansPremiereReplique(graphe())).toEqual(["Etape", "End"]);
+        expect(etapesSansPremiereReplique(graphe("Quelle marque ?", "   "))).toEqual(["End"]);
+        expect(etapesSansPremiereReplique(graphe("Quelle marque ?", "Au revoir."))).toEqual([]);
+        expect(etapesSansPremiereReplique(null)).toEqual([]);
     });
 });

@@ -75,6 +75,18 @@ export const AIDES_MODE_DE_NOTE: Texte[] = [
     },
 ];
 
+// Plan porte-parlee (D14, D16): the box under the note-taking mode, Postscript only.
+export const AIDES_PORTES_DANS_LA_REPONSE: Texte[] = [
+    {
+        en: "The agent takes a transition inside its reply and already speaks the next step's first reply: no silence between steps. Requires Postscript and a First reply on each step.",
+        fr: "L'agent prend une porte dans sa réponse et dit déjà la première réplique de l'étape suivante : aucun silence entre deux étapes. Demande le post-scriptum et une première réplique sur chaque étape.",
+    },
+    {
+        en: "A transition's written speech is spoken before the first reply; a recorded one plays after it.",
+        fr: "La phrase de transition écrite d'une porte est dite avant la première réplique ; une phrase enregistrée en audio, après.",
+    },
+];
+
 // The clerk's block, compared key by key whatever the order of its keys.
 const pourComparerLeGreffier = (bloc: GreffierLlm | null | undefined) =>
     bloc && Object.keys(bloc).length > 0
@@ -89,7 +101,12 @@ export const ThemeDonnees = ({
     onBasculer,
     ouvrir,
     issuesParDefaut,
-}: ProprietesThemeAgent & { issuesParDefaut: CallDispositionOption[] }) => {
+    etapesSansPremiereReplique = [],
+}: ProprietesThemeAgent & {
+    issuesParDefaut: CallDispositionOption[];
+    /** Plan porte-parlee (D3): steps a transition leads to, with no first reply. */
+    etapesSansPremiereReplique?: string[];
+}) => {
     const { t } = useLangue();
     const { externalPbxIntegrationsEnabled, userConfig } = useOrgConfig();
     const { afficher } = useRevelation(ouvrir);
@@ -107,6 +124,13 @@ export const ThemeDonnees = ({
         || JSON.stringify(pourComparerLaFiche(champs)) !== JSON.stringify(pourComparerLaFiche(champsEnregistres));
     const modeModifie = modeDeNote !== modeEnregistre;
     const erreursFiche = texteErreursDesChamps(champs);
+    // Plan porte-parlee (D1): read only in Postscript, the same rule as the code
+    // (E8); outside it the box is sent off, or the server would refuse the save.
+    const portesEnregistrees = resolue.portes_dans_la_reponse ?? false;
+    const [portes, setPortes] = useState(portesEnregistrees);
+    useEffect(() => setPortes(portesEnregistrees), [portesEnregistrees]);
+    const portesEnvoyees = modeDeNote === "post_scriptum" && portes;
+    const portesModifiees = portesEnvoyees !== portesEnregistrees;
     // As the call record card did (24/09): follow the record the server stored,
     // keyed on its CONTENT so another theme's save does not wipe an edit here.
     const ficheEnregistree = JSON.stringify([ficheActiveEnregistree, modeEnregistre, champsEnregistres]);
@@ -250,7 +274,8 @@ export const ThemeDonnees = ({
         });
     }
 
-    const modifie = ficheModifiee || modeModifie || greffierModifie || consigneModifiee || generalModifie;
+    const modifie =
+        ficheModifiee || modeModifie || portesModifiees || greffierModifie || consigneModifiee || generalModifie;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -270,6 +295,12 @@ export const ThemeDonnees = ({
                 nom: { en: "Note-taking mode", fr: "Mode de prise de notes" },
                 modifie: modeModifie,
                 config: () => ({ fiche_mode_de_note: modeDeNote }),
+            },
+            {
+                // Plan porte-parlee: its own part, sent only when changed (E6).
+                nom: { en: "Transitions in the reply", fr: "Portes dans la réponse" },
+                modifie: portesModifiees,
+                config: () => ({ portes_dans_la_reponse: portesEnvoyees }),
             },
             {
                 // The clerk's two parts, each sent only when changed (E6).
@@ -316,7 +347,9 @@ export const ThemeDonnees = ({
                 ficheActive
                     ? `${t({ en: "Record", fr: "Fiche" })} · ${champs.length} ${t({ en: "fields", fr: "champs" })}${
                           modeDeNote === "post_scriptum"
-                              ? ` · ${t({ en: "Postscript", fr: "Post-scriptum" })}`
+                              ? ` · ${t({ en: "Postscript", fr: "Post-scriptum" })}${
+                                    portes ? ` · ${t({ en: "transitions in the reply", fr: "portes dans la réponse" })}` : ""
+                                }`
                               : modeDeNote === "greffier"
                                 ? ` · ${t({ en: "Clerk", fr: "Greffier" })}`
                                 : ""
@@ -369,6 +402,28 @@ export const ThemeDonnees = ({
                             </SelectContent>
                         </Select>
                     </ChampReglage>
+                )}
+                {/* Plan porte-parlee (D1, D3): only in Postscript, the same condition as the code. */}
+                {ficheActive && modeDeNote === "post_scriptum" && (
+                    <ChampReglage
+                        cle="portes_dans_la_reponse"
+                        idControle="portes_dans_la_reponse"
+                        libelle={{ en: "Transitions in the reply", fr: "Portes dans la réponse" }}
+                        aides={AIDES_PORTES_DANS_LA_REPONSE}
+                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                        disposition="ligne"
+                    >
+                        <Switch id="portes_dans_la_reponse" checked={portes} onCheckedChange={setPortes} />
+                    </ChampReglage>
+                )}
+                {ficheActive && modeDeNote === "post_scriptum" && portes && etapesSansPremiereReplique.length > 0 && (
+                    <p role="note" className="rounded border bg-muted/30 p-3 text-sm">
+                        {t({
+                            en: "Steps without a first reply (the agent gets a generic line instead): ",
+                            fr: "Étapes sans première réplique (l'agent reçoit une ligne générique à la place) : ",
+                        })}
+                        {etapesSansPremiereReplique.join(", ")}
+                    </p>
                 )}
                 {/* Part 2: the clerk's settings, only in its mode, in a dialog (convention E4). */}
                 {ficheActive && modeDeNote === "greffier" && (

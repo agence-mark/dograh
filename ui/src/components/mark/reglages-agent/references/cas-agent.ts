@@ -160,6 +160,11 @@ export const CAS_AGENT: CasAgent[] = [
     c("fiche", "call-record", "donnees", ["fiche_au_fil_de_leau"], [inter("fiche_au_fil_de_leau")]),
     // Plan mode-prise-de-notes (lot 6): added after the reorganisation, frozen once.
     c("mode-de-note", "ajout-mark", "donnees", ["fiche_mode_de_note"], [choisir("fiche_mode_de_note", "post_scriptum")]),
+    // Plan porte-parlee (lot 6): the box only shows in Postscript, frozen once.
+    c("portes-dans-la-reponse", "ajout-mark", "donnees", ["fiche_mode_de_note", "portes_dans_la_reponse"], [
+        choisir("fiche_mode_de_note", "post_scriptum"),
+        inter("portes_dans_la_reponse"),
+    ]),
     // Plan mode-prise-de-notes, part 2: the clerk's dialog, frozen once.
     c("greffier", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_llm"], [
         choisir("fiche_mode_de_note", "greffier"),
