@@ -74,10 +74,10 @@ export const BilanGreffier = ({ fiche }: { fiche: Record<string, unknown> | null
                         {t({
                             en: `The clerk failed ${enEchec} time(s) out of ${bilan.passes}${
                                 bilan.erreurs.length ? ` (${bilan.erreurs.join(", ")})` : ""
-                            }: check its model and its key. The end-of-call pass filled the empty fields.`,
+                            }. An authentication or model error points to its key or its model; any other is in the record's checks. Fields left empty are filled by the end-of-call pass, if it is on.`,
                             fr: `Le greffier a échoué ${enEchec} fois sur ${bilan.passes}${
                                 bilan.erreurs.length ? ` (${bilan.erreurs.join(", ")})` : ""
-                            } : vérifiez son modèle et sa clé. La passe de fin d'appel a rempli les champs vides.`,
+                            }. Une erreur d'authentification ou de modèle désigne sa clé ou son modèle ; toute autre vient des contrôles de la fiche. Les champs restés vides sont remplis par la passe de fin d'appel, si elle est active.`,
                         })}
                     </p>
                 )}

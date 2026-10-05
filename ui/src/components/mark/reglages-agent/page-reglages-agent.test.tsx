@@ -346,6 +346,17 @@ describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2)", () => 
         expect(screen.getAllByText(/No effect with openai/).length).toBeGreaterThan(0);
     });
 
+    it("a temperature kept from another provider can be cleared, and a capital letter changes nothing", async () => {
+        await ouvrir({ ...GREFFIER, greffier_llm: { ...GREFFIER.greffier_llm, provider: "openai", temperature: 0.3 } }, NOVA);
+        ouvrirLeTheme("donnees");
+        fireEvent.click(await screen.findByRole("button", { name: "Configure the clerk" }));
+        await waitFor(() => expect(document.getElementById("greffier_temperature")).not.toBeNull());
+        fireEvent.click(screen.getByRole("button", { name: "Clear the temperature" }));
+        expect((document.getElementById("greffier_temperature") as HTMLInputElement).value).toBe("");
+        saisir("greffier_fournisseur", "Mistral");
+        expect((document.getElementById("greffier_temperature") as HTMLInputElement).disabled).toBe(false);
+    });
+
     it("an empty provider follows the conversation's", async () => {
         await ouvrir({ ...GREFFIER, greffier_llm: { model: "gpt-x" } }, { ...NOVA, llm: { provider: "openrouter" } });
         ouvrirLeTheme("donnees");

@@ -41,7 +41,12 @@ import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
 import { AIDES_FICHE, EditeurChampsFiche, pourComparerLaFiche, texteErreursDesChamps } from "../SectionFiche";
-import { CONSIGNE_GENERIQUE_GREFFIER, fournisseurDuGreffier,FOURNISSEURS_AVEC_TEMPERATURE } from "./consigne-greffier";
+import {
+    CONSIGNE_GENERIQUE_GREFFIER,
+    fournisseurDuGreffier,
+    FOURNISSEURS_AVEC_TEMPERATURE,
+    NOMS_AVEC_TEMPERATURE,
+} from "./consigne-greffier";
 import { useEnregistrementTheme } from "./enregistrement";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useEtatTheme, useRevelation } from "./theme-commun";
 
@@ -146,7 +151,7 @@ export const ThemeDonnees = ({
             if (valeur === undefined) delete bloc[cle];
             else bloc[cle] = valeur;
         };
-        poser("provider", fournisseurGreffier.trim() || undefined);
+        poser("provider", fournisseurGreffier.trim().toLowerCase() || undefined);
         poser("model", modeleGreffier.trim() || undefined);
         poser(
             "temperature",
@@ -554,10 +559,16 @@ export const ThemeDonnees = ({
                                 {!temperatureJoue && (
                                     <p className="text-xs text-muted-foreground">
                                         {t({
-                                            en: `No effect with ${fournisseurEffectif}: only Mistral, MiniMax and Sarvam take a temperature.`,
-                                            fr: `Sans effet chez ${fournisseurEffectif} : seuls Mistral, MiniMax et Sarvam prennent une température.`,
+                                            en: `No effect with ${fournisseurEffectif}: only ${NOMS_AVEC_TEMPERATURE("and")} take a temperature.`,
+                                            fr: `Sans effet chez ${fournisseurEffectif} : seuls ${NOMS_AVEC_TEMPERATURE("et")} prennent une température.`,
                                         })}
                                     </p>
+                                )}
+                                {/* A value kept from another provider would play again on a return to it: it can be cleared. */}
+                                {!temperatureJoue && temperatureGreffier.trim() !== "" && (
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setTemperatureGreffier("")}>
+                                        {t({ en: "Clear the temperature", fr: "Effacer la température" })}
+                                    </Button>
                                 )}
                             </div>
                         </div>
