@@ -237,3 +237,25 @@ describe("Fenêtre du run", () => {
         expect(lireAnalyse).toHaveBeenCalledWith({ path: { workflow_id: 34, run_id: 967 } });
     });
 });
+
+
+describe("Fenêtre du run : refus du modèle", () => {
+    it("dit les refus, les nouvelles tentatives silencieuses et le temps perdu", async () => {
+        lireAnalyse.mockResolvedValue({
+            data: {
+                ...ANALYSE,
+                providers: {
+                    status: "ok",
+                    model: { provider: "mistral", model: "mistral-large-2512", usage: [] },
+                    model_requests: { refused: 2, retries: 2, lost_secs: 1.4, by_status: { "429": 2 } },
+                },
+            },
+        });
+        enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        ouvrir("bloc-providers");
+        expect(texte(screen.getByTestId("requetes-du-modele"))).toContain(
+            "Refus du modèle : 2 · nouvelles tentatives silencieuses : 2 · temps perdu : 1.40 s",
+        );
+    });
+});

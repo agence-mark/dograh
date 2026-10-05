@@ -219,11 +219,51 @@ def _usage_par_brique(usage: dict, brique: str) -> list[dict]:
     return lignes
 
 
+TYPE_REQUETE_MODELE = "mark-model-request"
+
+
+def _requetes_du_modele(run: dict) -> dict | None:
+    """Refus et nouvelles tentatives du modèle de conversation (lot 2). ``None`` : pas d'événement.
+    Un refus = une réponse en erreur ; une nouvelle tentative = une tentative de rang > 0 ; le
+    temps perdu = celui de chaque tentative qui a fini par réussir, depuis la première."""
+    evenements = [
+        e.get("payload") or {}
+        for e in _evenements(run)
+        if e.get("type") == TYPE_REQUETE_MODELE
+    ]
+    if not evenements:
+        return None
+    par_statut: dict[str, int] = {}
+    for e in evenements:
+        if (e.get("status") or 0) >= 400:
+            cle = str(e.get("status"))
+            par_statut[cle] = par_statut.get(cle, 0) + 1
+    perdu = sum(
+        _nombre_fini(e.get("lost_secs")) or 0.0
+        for e in evenements
+        if (e.get("status") or 0) < 400
+    )
+    return {
+        "refused": sum(par_statut.values()),
+        "retries": sum(1 for e in evenements if (e.get("attempt") or 0) > 0),
+        "lost_secs": round(perdu, 3),
+        "by_status": par_statut,
+    }
+
+
 def _fournisseurs(run: dict) -> dict:
     estampille = _estampille(run)
     usage = run.get("usage_info") or {}
-    if not estampille and not usage:
+    requetes = _requetes_du_modele(run)
+    if not estampille and not usage and requetes is None:
         return {"status": NON_CAPTE}
+    if requetes is None:
+        # Aucun refus noté : zéro si la capture existait (estampille de version), sinon non capté.
+        requetes = (
+            {"refused": 0, "retries": 0, "lost_secs": 0.0, "by_status": {}}
+            if "mark_version" in estampille
+            else {"status": NON_CAPTE}
+        )
     llm = []
     for ligne in _usage_par_brique(usage, "llm"):
         jetons = ligne["usage"] or {}
@@ -264,6 +304,7 @@ def _fournisseurs(run: dict) -> dict:
                 for ligne in _usage_par_brique(usage, "tts")
             ],
         },
+        "model_requests": requetes,
         "pipeline_settings": estampille.get("pipeline_settings"),
         "call_duration_secs": usage.get("call_duration_seconds"),
     }
@@ -486,6 +527,22 @@ def _incidents(run: dict, latence: dict) -> dict:
                 "detail": charge.get("exception_type"),
             }
         )
+    for e in _evenements(run):
+        charge = e.get("payload") or {}
+        if (
+            e.get("type") == TYPE_REQUETE_MODELE
+            and (charge.get("attempt") or 0) > 0
+            and (charge.get("status") or 0) < 400
+        ):
+            elements.append(
+                {
+                    "turn": e.get("turn"),
+                    "kind": "model_retried",
+                    "fatal": False,
+                    "processor": charge.get("service"),
+                    "detail": _nombre_fini(charge.get("lost_secs")),
+                }
+            )
     debuts = [e for e in _evenements(run) if e.get("type") == "rtf-function-call-start"]
     fins = {
         (e.get("payload") or {}).get("tool_call_id")

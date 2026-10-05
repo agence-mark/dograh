@@ -71,6 +71,7 @@ const INCIDENTS: Record<string, Texte> = {
     model_rate_limited: { en: "Model refused: rate limit", fr: "Modèle refusé : quota" },
     pipeline_error: { en: "Pipeline error", fr: "Erreur du pipeline" },
     tool_never_finished: { en: "Tool never finished", fr: "Outil jamais terminé" },
+    model_retried: { en: "Model request retried", fr: "Requête du modèle recommencée" },
     slow_turn: { en: "Slow turn", fr: "Tour lent" },
 };
 
@@ -317,6 +318,17 @@ function BlocFournisseurs({ fournisseurs }: { fournisseurs: Fournisseurs }) {
                     )}
                 </tbody>
             </table>
+            <p data-testid="requetes-du-modele">
+                {!fournisseurs.model_requests || fournisseurs.model_requests.status === "not_captured"
+                    ? t({
+                          en: "Model refusals and retries: not captured (run older than this capture).",
+                          fr: "Refus et nouvelles tentatives du modèle : non captés (run antérieur à cette capture).",
+                      })
+                    : t({
+                          en: `Model refusals: ${fournisseurs.model_requests.refused ?? 0} · silent retries: ${fournisseurs.model_requests.retries ?? 0} · time lost: ${secondes(fournisseurs.model_requests.lost_secs)}`,
+                          fr: `Refus du modèle : ${fournisseurs.model_requests.refused ?? 0} · nouvelles tentatives silencieuses : ${fournisseurs.model_requests.retries ?? 0} · temps perdu : ${secondes(fournisseurs.model_requests.lost_secs)}`,
+                      })}
+            </p>
             <p className="text-muted-foreground">
                 {t({ en: "Note-taking mode", fr: "Mode de prise de notes" })} :{" "}
                 <code>{modele?.note_taking_mode ?? "–"}</code>

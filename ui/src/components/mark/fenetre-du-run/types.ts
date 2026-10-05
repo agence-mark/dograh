@@ -72,6 +72,13 @@ export type Fournisseurs = Bloc & {
     };
     voice?: { provider?: string; model?: string; usage: (Usage & { characters?: number })[] };
     call_duration_secs?: number | null;
+    model_requests?: {
+        status?: Statut;
+        refused?: number;
+        retries?: number;
+        lost_secs?: number;
+        by_status?: Record<string, number>;
+    };
 };
 
 export type ElementDeModule = {

@@ -17,6 +17,7 @@ from api.schemas.workflow_configurations import (
     WorkflowConfigurationDefaults,
 )
 from api.services.analyse_run.captures import estampiller_la_version
+from api.services.analyse_run.requetes_modele import brancher_le_journal_des_requetes
 from api.services.call_concurrency import call_concurrency
 from api.services.communes.adresse import (
     injecter_adresse_etablissement,
@@ -1192,6 +1193,10 @@ async def _run_pipeline_impl(
 
     # Create in-memory logs buffer early so it can be used by engine callbacks
     in_memory_logs_buffer = InMemoryLogsBuffer(workflow_run_id)
+    # [.mark] Les refus et nouvelles tentatives du modèle de conversation, que la bibliothèque
+    # cliente refait en silence (langwatch-et-fenetre-du-run, lot 2). Observe, ne change rien.
+    if not is_realtime:
+        brancher_le_journal_des_requetes(llm, in_memory_logs_buffer)
 
     # Create node transition callback (always logs to buffer, optionally streams to WS)
     ws_sender = get_ws_sender(workflow_run_id)
