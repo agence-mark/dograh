@@ -28,6 +28,7 @@ import {
 } from "@/client/types.gen";
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, FlowNodeData, NodeType } from "@/components/flow/types";
+import { avertissementApresEnregistrement } from "@/components/mark/graphe/avertir-premiere-replique";
 import { PostHogEvent } from "@/constants/posthog-events";
 import { detailFromError } from "@/lib/apiError";
 import logger from '@/lib/logger';
@@ -443,6 +444,12 @@ export const useWorkflowState = ({
                         | undefined;
                     if (wf?.nodes) setNodes(wf.nodes);
                     if (wf?.edges) setEdges(wf.edges);
+                    // [.mark] Plan porte-parlee (D3, D18): warn, never block.
+                    const avertissement = avertissementApresEnregistrement(
+                        wf,
+                        useWorkflowStore.getState().workflowConfigurations,
+                    );
+                    if (avertissement) toast.warning(avertissement);
                     result = {
                         versionNumber: response.data.version_number ?? undefined,
                         versionStatus: response.data.version_status ?? undefined,
