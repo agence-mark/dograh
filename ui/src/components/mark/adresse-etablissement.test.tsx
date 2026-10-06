@@ -52,6 +52,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/client/sdk.gen", () => ({
+    getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
+        Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [] } }),
+    getNumerosApiV1OrganizationsEtablissementsNumerosGet: () => Promise.resolve({ data: [] }),
+    saveEtablissementsApiV1OrganizationsEtablissementsPut: vi.fn(),
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: mocks.communes,
     getPreferencesApiV1OrganizationsPreferencesGet: mocks.getPreferences,
     savePreferencesApiV1OrganizationsPreferencesPut: mocks.savePreferences,
@@ -229,7 +233,7 @@ const ouvrirPlateforme = async () => {
     await ouvrirLeTheme("etablissement");
     await waitFor(() => expect(document.getElementById("settings-business-address-code-postal")).not.toBeNull());
 };
-const ENREGISTRER = { name: "Save Business" };
+const ENREGISTRER = { name: "Save Establishments" };
 
 describe("[.mark] business address on the Platform Settings page", () => {
     it("is on the page, in the Business theme", async () => {

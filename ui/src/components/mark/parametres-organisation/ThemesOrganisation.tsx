@@ -36,13 +36,14 @@ import {
     EtatLectureAnnonce,
 } from "../SectionAnnonceOuverture";
 import { SectionLexiqueMetier } from "../SectionLexiqueMetier";
+import { ModaleEtablissements, useResumeEtablissements } from "./ModaleEtablissements";
 import { ModaleFenetreDuRun } from "./ModaleFenetreDuRun";
 import type { EtatPreferences } from "./preferences";
 import type { ThemeOrganisation } from "./references/cas-organisation";
 
 export const THEMES_ORGANISATION: Array<{ id: ThemeOrganisation; titre: Texte; icone: LucideIcon }> = [
     { id: "organisation", titre: { en: "Organization", fr: "Organisation" }, icone: Settings },
-    { id: "etablissement", titre: { en: "Business", fr: "Établissement" }, icone: Building2 },
+    { id: "etablissement", titre: { en: "Establishments", fr: "Établissements" }, icone: Building2 },
     { id: "ecoute", titre: { en: "Listening", fr: "Écoute" }, icone: Ear },
     { id: "integrations", titre: { en: "Integrations", fr: "Intégrations" }, icone: Plug },
     { id: "developpeurs", titre: { en: "Developers", fr: "Développeurs" }, icone: Code },
@@ -294,6 +295,11 @@ export const ThemeEtablissementOrganisation = ({
     };
 
     const force = annonce.reglages.etat_force ?? null;
+    // [.mark] The establishments (chantier l-agent-travaille, L1): a list to edit, so a modal
+    // that saves itself (E4); it is not part of this theme's draft.
+    const etablissements = useResumeEtablissements();
+    const [modaleEtablissements, setModaleEtablissements] = useState(false);
+    const nombre = etablissements.liste?.length ?? 0;
 
     return (
         <Theme
@@ -301,10 +307,13 @@ export const ThemeEtablissementOrganisation = ({
             icone={Building2}
             titre={titre("etablissement").titre}
             description={{
-                en: "Business address and the announcement when it is closed.",
-                fr: "Adresse de l'entreprise et annonce quand elle est fermée.",
+                en: "The establishments and their numbers, then what every establishment inherits: the company address and the announcement when it is closed.",
+                fr: "Les établissements et leurs numéros, puis ce dont chaque établissement hérite : l'adresse de l'entreprise et l'annonce quand elle est fermée.",
             }}
             resume={[
+                nombre === 0
+                    ? t({ en: "No establishment", fr: "Aucun établissement" })
+                    : `${nombre} ${t(nombre === 1 ? { en: "establishment", fr: "établissement" } : { en: "establishments", fr: "établissements" })}`,
                 adresseEnregistree ? texteAdresse(adresseEnregistree) : t({ en: "No address", fr: "Aucune adresse" }),
                 force === null
                     ? t({ en: "State computed from hours", fr: "État calculé depuis les horaires" })
@@ -320,6 +329,56 @@ export const ThemeEtablissementOrganisation = ({
                 actifSansModification: true,
             }}
         >
+            <Intertitre
+                id="etablissement-liste"
+                titre={{ en: "Establishments", fr: "Établissements" }}
+                description={{
+                    en: "A call to one of an establishment's numbers reads its hours, address and sentences. Without establishments, every call behaves as before.",
+                    fr: "Un appel vers l'un des numéros d'un établissement lit ses horaires, son adresse et ses phrases. Sans établissement, chaque appel se comporte comme avant.",
+                }}
+            >
+                <ChampReglage
+                    cle="etablissements"
+                    libelle={{ en: "Establishments of the organization", fr: "Établissements de l'organisation" }}
+                    aides={[
+                        {
+                            en: "Name, numbers, second number, transfer number; address, hours and sentences, inherited unless customized.",
+                            fr: "Nom, numéros, second numéro, numéro de transfert ; adresse, horaires et phrases, hérités sauf personnalisation.",
+                        },
+                    ]}
+                    disposition="colonne"
+                >
+                    {etablissements.illisible ? (
+                        <p className="text-sm text-destructive">
+                            {t({ en: "The saved establishments cannot be read.", fr: "Les établissements enregistrés ne peuvent pas être lus." })}
+                        </p>
+                    ) : (
+                        <ul className="space-y-1 text-sm" data-testid="resume-etablissements">
+                            {(etablissements.liste ?? []).map((e) => (
+                                <li key={e.id}>
+                                    <span className="font-medium">{e.nom}</span>{" "}
+                                    <span className="text-muted-foreground">
+                                        {(e.numeros ?? []).length > 0 ? (e.numeros ?? []).join(", ") : t({ en: "to attach", fr: "à rattacher" })}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => setModaleEtablissements(true)} data-testid="ouvrir-etablissements">
+                        {t({ en: "Edit establishments…", fr: "Modifier les établissements…" })}
+                    </Button>
+                </ChampReglage>
+                <ModaleEtablissements
+                    ouverte={modaleEtablissements}
+                    onFermer={(enregistre) => {
+                        setModaleEtablissements(false);
+                        if (enregistre) void etablissements.relire();
+                    }}
+                    adresseOrganisation={adresseEnregistree}
+                    annonceOrganisation={annonce.enregistre}
+                />
+            </Intertitre>
+
             <Intertitre id="etablissement-adresse" titre={{ en: "Address", fr: "Adresse" }}>
                 {preferences.chargement ? (
                     <p className="text-sm text-muted-foreground">{t(CHARGEMENT)}</p>

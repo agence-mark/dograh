@@ -236,6 +236,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                                 <ThemeEtablissement
                                     {...commun(ID_THEME_ETABLISSEMENT)!}
                                     consignesParDefaut={defaultAnswerClassifierPrompt}
+                                    workflowId={workflowId}
                                 />
                             </>
                         )}

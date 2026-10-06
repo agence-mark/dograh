@@ -56,6 +56,10 @@ vi.mock("@/client/sdk.gen", () => ({
     importLexiqueApiV1OrganizationsLexiqueImportPost: vi.fn(),
     getReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGet: m.getReglagesFenetreDuRun,
     saveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPut: m.saveReglagesFenetreDuRun,
+    getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
+        Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [] } }),
+    getNumerosApiV1OrganizationsEtablissementsNumerosGet: () => Promise.resolve({ data: [] }),
+    saveEtablissementsApiV1OrganizationsEtablissementsPut: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/context/UserConfigContext", () => ({ useUserConfig: () => ({ refreshConfig: () => Promise.resolve() }) }));
@@ -142,11 +146,20 @@ describe("[.mark] the Platform Settings page in themes", () => {
         expect(developpeurs.querySelector('[data-testid="telemetrie"]')).not.toBeNull();
     });
 
+    it("[l-agent-travaille] the Establishments theme lists them and opens their modal (E4)", async () => {
+        await ouvrirLaPage();
+        const theme = await ouvrirLeTheme("etablissement");
+        expect(theme.querySelector('[data-reglage="etablissements"]')).not.toBeNull();
+        expect(theme.textContent).toContain("Establishments of the organization");
+        fireEvent.click(screen.getByTestId("ouvrir-etablissements"));
+        await waitFor(() => expect(screen.getByTestId("ajouter-etablissement")).toBeTruthy());
+    });
+
     it("⛔ keeps the save asleep while the preferences are read (review of 26/09, M1)", async () => {
         // A PUT sent from the empty defaults would clear the whole row.
         m.getPreferences.mockReset().mockImplementation(() => new Promise(() => undefined));
         await ouvrirLaPage();
-        for (const [theme, titre] of [["organisation", "Organization"], ["integrations", "Integrations"], ["etablissement", "Business"]]) {
+        for (const [theme, titre] of [["organisation", "Organization"], ["integrations", "Integrations"], ["etablissement", "Establishments"]]) {
             const entete = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded]`) as HTMLButtonElement;
             fireEvent.click(entete);
             expect(bouton(`Save ${titre}`).disabled, theme).toBe(true);
@@ -161,7 +174,7 @@ describe("[.mark] the Platform Settings page in themes", () => {
         const alerte = await screen.findByRole("alert");
         expect(alerte.textContent).toContain("adresse_etablissement");
         expect(alerte.textContent).toContain("Choose the town for this postal code before saving.");
-        expect(bouton("Save Business").disabled).toBe(true);
+        expect(bouton("Save Establishments").disabled).toBe(true);
         expect(document.querySelector('[data-navigation="etablissement"] [data-pastille="erreur"]')).not.toBeNull();
     });
 
@@ -172,13 +185,13 @@ describe("[.mark] the Platform Settings page in themes", () => {
         expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
 
         // Untouched: the address alone is saved.
-        fireEvent.click(bouton("Save Business"));
+        fireEvent.click(bouton("Save Establishments"));
         await waitFor(() => expect(m.savePreferences).toHaveBeenCalledTimes(1));
         expect(m.saveAnnonce).not.toHaveBeenCalled();
 
         // A sentence typed over the unread one: named, and nothing saved.
         fireEvent.change(document.getElementById("annonce_fermeture")!, { target: { value: "Fermé." } });
-        await waitFor(() => expect(bouton("Save Business").disabled).toBe(true));
+        await waitFor(() => expect(bouton("Save Establishments").disabled).toBe(true));
         expect(document.querySelector('[data-erreur="annonce_fermeture"]')).not.toBeNull();
         expect(m.saveAnnonce).not.toHaveBeenCalled();
     });
@@ -204,10 +217,10 @@ describe("[.mark] the Platform Settings page in themes", () => {
     it("speaks French until the user chooses", async () => {
         await ouvrirLaPage((page) => <FournisseurLangue>{page}</FournisseurLangue>);
         expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Paramètres de la plateforme");
-        expect(document.querySelector('[data-theme="etablissement"]')?.textContent).toContain("Établissement");
+        expect(document.querySelector('[data-theme="etablissement"]')?.textContent).toContain("Établissements");
         const theme = await ouvrirLeTheme("etablissement");
         expect(theme.textContent).toContain("Quand l'entreprise est fermée");
-        expect(bouton("Enregistrer Établissement")).toBeTruthy();
+        expect(bouton("Enregistrer Établissements")).toBeTruthy();
     });
 });
 

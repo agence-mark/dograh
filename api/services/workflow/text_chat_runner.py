@@ -48,6 +48,12 @@ from api.services.lexique.ecoute import injecter_lexique_propose, termes_propose
 from api.services.lexique.reglages import lire_lexique_de_lappel
 from api.services.pipecat.audio_config import create_audio_config
 from api.services.annonce.stockage import lire_annonce_ouverture
+from api.services.etablissements.appel import (
+    annonce_heritee,
+    configuration_heritee,
+    etablissement_de_lappel,
+    injecter_etablissement,
+)
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -623,8 +629,25 @@ async def execute_text_chat_pending_turn(
     # it would silence the announcement on EVERY bench, which is precisely where
     # Evan and Pierre listen for it. The keyboard replays what a caller hears.
     reglages_annonce = await lire_annonce_ouverture(workflow.organization_id)
+    # [.mark] The establishment the keyboard plays (chantier l-agent-travaille,
+    # E3): no called number here, so the one chosen in the test window, else
+    # the agent's first, else the organization's first. Same inheritance as a
+    # call; no establishment, the same configuration comes back.
+    etablissement_servi = await etablissement_de_lappel(
+        workflow.organization_id, workflow_id, initial_context
+    )
+    configs_heritees, origines_heritees = configuration_heritee(
+        run_configs, etablissement_servi.etablissement if etablissement_servi else None
+    )
+    reglages_annonce = annonce_heritee(
+        reglages_annonce, etablissement_servi.etablissement if etablissement_servi else None
+    )
+    if etablissement_servi is not None:
+        etablissement_servi.origines.update(origines_heritees)
+        initial_context["runtime_configuration"]["etablissement"] = etablissement_servi.estampille()
+    initial_context = injecter_etablissement(initial_context, etablissement_servi)
     initial_context = injecter_etat_ouverture(
-        initial_context, run_configs, reglages=reglages_annonce
+        initial_context, configs_heritees, reglages=reglages_annonce
     )
     # [.mark] Date and time of the call (latence-modele D2), same moment and
     # same rule: later turns keep the values persisted by the first one.
@@ -632,7 +655,7 @@ async def execute_text_chat_pending_turn(
     # [.mark] Business address (verification-communes D2, D4), same moment and
     # same rule: later turns keep the value persisted by the first one.
     adresse_etablissement = await lire_adresse_etablissement(
-        run_configs, workflow.organization_id
+        configs_heritees, workflow.organization_id
     )
     initial_context = injecter_adresse_etablissement(
         initial_context, adresse_etablissement

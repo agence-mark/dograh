@@ -55,6 +55,12 @@ from api.services.pipecat.agent_runtime_factory import (
 )
 from api.services.pipecat.audio_config import AudioConfig, create_audio_config
 from api.services.annonce.stockage import lire_annonce_ouverture
+from api.services.etablissements.appel import (
+    annonce_heritee,
+    configuration_heritee,
+    etablissement_de_lappel,
+    injecter_etablissement,
+)
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -900,13 +906,32 @@ async def _run_pipeline_impl(
     # reglages-annonce-ouverture, 18/09). Read once here, like the address and
     # the trade vocabulary; the defaults on any problem, and never raises.
     reglages_annonce = await lire_annonce_ouverture(workflow.organization_id)
+    # [.mark] The establishment this call serves (chantier l-agent-travaille,
+    # E2 to E4): found from the called number, read from the in-memory copy.
+    # Its hours, address and sentences are handed to the three injections
+    # below, the agent's own values first. No establishment: the SAME
+    # configuration and announcement come back, the call is the call of before.
+    etablissement_servi = await etablissement_de_lappel(
+        workflow.organization_id, workflow_id, merged_call_context_vars
+    )
+    configs_heritees, origines_heritees = configuration_heritee(
+        run_configs, etablissement_servi.etablissement if etablissement_servi else None
+    )
+    reglages_annonce = annonce_heritee(
+        reglages_annonce, etablissement_servi.etablissement if etablissement_servi else None
+    )
+    if etablissement_servi is not None:
+        etablissement_servi.origines.update(origines_heritees)
+    merged_call_context_vars = injecter_etablissement(
+        merged_call_context_vars, etablissement_servi
+    )
     # [.mark] Opening state, computed once at call set-up, Paris time (D8).
     # BEFORE the persistence below and BEFORE the pre-call fetch, which is
     # merged over it and therefore wins (D7). No hours on the agent and no
     # forced state: the context is left exactly as it was (D6). Never raises (D9).
     merged_call_context_vars = injecter_etat_ouverture(
         merged_call_context_vars,
-        run_configs,
+        configs_heritees,
         reglages=reglages_annonce,
         direction=call_direction,
     )
@@ -920,7 +945,7 @@ async def _run_pipeline_impl(
     # above: the pre-call fetch wins, nothing raises. Read once here, it also
     # gives the town recognition its location clue.
     adresse_etablissement = await lire_adresse_etablissement(
-        run_configs, workflow.organization_id
+        configs_heritees, workflow.organization_id
     )
     merged_call_context_vars = injecter_adresse_etablissement(
         merged_call_context_vars, adresse_etablissement
@@ -1168,6 +1193,10 @@ async def _run_pipeline_impl(
             f"[run {workflow_run_id}] Failed to stamp the pipeline settings: {e}. "
             f"The call goes on; it simply cannot say afterwards what it ran with."
         )
+    # [.mark] Which establishment the call served, and where each value came
+    # from (B3): read at pick-up, so a later change never rewrites the past.
+    if etablissement_servi is not None:
+        runtime_configuration["etablissement"] = etablissement_servi.estampille()
     merged_call_context_vars = {
         **merged_call_context_vars,
         "runtime_configuration": runtime_configuration,

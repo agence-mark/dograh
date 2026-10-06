@@ -44,6 +44,7 @@ import { type Texte, useLangue } from "../langue/langue";
 import { memeAdresse, texteAdresse } from "../SectionAdresseEtablissement";
 import { EXEMPLE_HORAIRES } from "../SectionHorairesOuverture";
 import { RAPPEL_PUBLICATION_TEXTE, useEnregistrementTheme } from "./enregistrement";
+import { EtablissementsServis } from "./EtablissementsServis";
 import { nommerErreurs, type ProprietesThemeAgent, useEtatTheme, useRevelation } from "./theme-commun";
 
 export const ID_THEME_ETABLISSEMENT = "etablissement";
@@ -62,7 +63,8 @@ export const ThemeEtablissement = ({
     onBasculer,
     ouvrir,
     consignesParDefaut,
-}: ProprietesThemeAgent & { consignesParDefaut: string }) => {
+    workflowId,
+}: ProprietesThemeAgent & { consignesParDefaut: string; workflowId?: number }) => {
     const { t } = useLangue();
     const { organizationPreferences } = useOrgConfig();
     const { afficher } = useRevelation(ouvrir);
@@ -219,6 +221,18 @@ export const ThemeEtablissement = ({
             erreurs={nommerErreurs(erreurs, t, afficher)}
             enregistrement={{ onEnregistrer: enregistrer, enCours }}
         >
+            {workflowId !== undefined && (
+                <Intertitre
+                    id="etablissement-servi"
+                    titre={{ en: "Establishments served", fr: "Établissements servis" }}
+                    description={{
+                        en: "Through this agent's numbers. Hours and address below, when set, win over the establishment's.",
+                        fr: "Par les numéros de cet agent. Les horaires et l'adresse ci-dessous, quand ils sont renseignés, l'emportent sur ceux de l'établissement.",
+                    }}
+                >
+                    <EtablissementsServis workflowId={workflowId} horaires={horairesAEnregistrer} adresse={adresse} />
+                </Intertitre>
+            )}
             <Intertitre id="etablissement-horaires" titre={{ en: "Opening Hours", fr: "Horaires d'ouverture" }}>
                 <p className="text-xs text-muted-foreground">
                     {t({

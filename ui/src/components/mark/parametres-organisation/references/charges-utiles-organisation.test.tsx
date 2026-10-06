@@ -68,6 +68,10 @@ vi.mock("@/client/sdk.gen", () => ({
         Promise.resolve({ data: { format: "lexique-mark", version: 1, termes: [] } }),
     saveLexiqueApiV1OrganizationsLexiquePut: vi.fn(),
     importLexiqueApiV1OrganizationsLexiqueImportPost: vi.fn(),
+    getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
+        Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [] } }),
+    getNumerosApiV1OrganizationsEtablissementsNumerosGet: () => Promise.resolve({ data: [] }),
+    saveEtablissementsApiV1OrganizationsEtablissementsPut: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/context/UnsavedChangesContext", () => ({ useUnsavedChanges: () => undefined }));
@@ -147,7 +151,7 @@ const relever = (): AppelOrganisation[] =>
 
 const TITRE_ANGLAIS: Record<ThemeOrganisation, string> = {
     organisation: "Organization",
-    etablissement: "Business",
+    etablissement: "Establishments",
     ecoute: "Listening",
     integrations: "Integrations",
     developpeurs: "Developers",

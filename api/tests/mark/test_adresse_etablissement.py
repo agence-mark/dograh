@@ -378,7 +378,7 @@ def _position(source: str, motif: str, quoi: str) -> int:
 def test_le_chemin_telephonique_injecte_ladresse_apres_la_date_et_avant_la_persistance():
     source = inspect.getsource(run_pipeline)
     date = _position(source, r"merged_call_context_vars = injecter_date_heure_appel\(", "date injection")
-    lecture = _position(source, r"adresse_etablissement = await lire_adresse_etablissement\(\s*run_configs", "address read")
+    lecture = _position(source, r"adresse_etablissement = await lire_adresse_etablissement\(\s*configs_heritees", "address read")
     injection = _position(
         source,
         r"merged_call_context_vars = injecter_adresse_etablissement\(\s*merged_call_context_vars, adresse_etablissement",

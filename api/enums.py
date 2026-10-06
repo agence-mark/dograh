@@ -205,6 +205,10 @@ class OrganizationConfigurationKey(Enum):
     APPELANT_SIMULE = "APPELANT_SIMULE"
     SCENARIOS_SIMULES = "SCENARIOS_SIMULES"
     SERIES_SIMULEES = "SERIES_SIMULEES"
+    # [.mark] The establishments of the organization and what each overrides
+    # (chantier l-agent-travaille, L1). Same free-text key, no migration.
+    # Format: api/schemas/etablissements.py
+    ETABLISSEMENTS = "ETABLISSEMENTS"
 
 
 class UserConfigurationKey(Enum):

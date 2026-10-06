@@ -1479,6 +1479,26 @@ export type CartesiaTtsConfiguration = {
 };
 
 /**
+ * CatalogueEtablissements
+ *
+ * All the establishments of one organization, in the order of the screen.
+ */
+export type CatalogueEtablissements = {
+    /**
+     * Format
+     */
+    format?: 'etablissements-mark';
+    /**
+     * Version
+     */
+    version?: 1;
+    /**
+     * Etablissements
+     */
+    etablissements?: Array<Etablissement>;
+};
+
+/**
  * ChampFiche
  */
 export type ChampFiche = {
@@ -2578,6 +2598,30 @@ export type DefaultConfigurationsResponse = {
 };
 
 /**
+ * DemandeEtablissementsDeLagent
+ */
+export type DemandeEtablissementsDeLagent = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Horaires Ouverture
+     *
+     * The agent's own hours, as on its screen.
+     */
+    horaires_ouverture?: string | null;
+    /**
+     * Adresse Etablissement
+     *
+     * The agent's own address, as on its screen.
+     */
+    adresse_etablissement?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
  * Designation
  *
  * Ce que devient l'identifiant qu'un réglage désigne : une clé de la bibliothèque, un
@@ -3289,6 +3333,109 @@ export type EndTextChatSessionRequest = {
      * Expected Revision
      */
     expected_revision?: number | null;
+};
+
+/**
+ * Etablissement
+ *
+ * One establishment. Every optional field left empty is inherited.
+ */
+export type Etablissement = {
+    /**
+     * Id
+     *
+     * Stable identifier, lower case, digits and hyphens (« saint-maximin »).
+     */
+    id: string;
+    /**
+     * Nom
+     *
+     * Name, as the team says it.
+     */
+    nom: string;
+    /**
+     * Numeros
+     *
+     * The numbers callers dial to reach this establishment, chosen among the organization's Telephony numbers. Empty: the establishment is not attached yet.
+     */
+    numeros?: Array<string>;
+    /**
+     * Second Numero
+     *
+     * The number reached when the agent cannot answer (outage, chantier panne).
+     */
+    second_numero?: string | null;
+    /**
+     * Numero Transfert
+     *
+     * Given to the agents as {{numero_transfert}}, for the transfer tool's destination.
+     */
+    numero_transfert?: string | null;
+    /**
+     * None: the organization's address.
+     */
+    adresse?: AdresseEtablissement | null;
+    /**
+     * Horaires Ouverture
+     *
+     * Opening hours, readable format, closures as dated lines « 24/12/2026 : fermé ». None: the agent's own hours, if any.
+     */
+    horaires_ouverture?: string | null;
+    /**
+     * Annonce Fermeture
+     *
+     * None: the organization's closing announcement.
+     */
+    annonce_fermeture?: string | null;
+    /**
+     * Annonce Pause
+     *
+     * None: the organization's break announcement.
+     */
+    annonce_pause?: string | null;
+};
+
+/**
+ * EtablissementServi
+ *
+ * What the agent's screen shows: an establishment it serves, values resolved.
+ */
+export type EtablissementServi = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Numeros
+     */
+    numeros: Array<string>;
+    horaires_ouverture: ValeurHeritee;
+    adresse: ValeurHeritee;
+    annonce_fermeture: ValeurHeritee;
+    annonce_pause: ValeurHeritee;
+    numero_transfert: ValeurHeritee;
+};
+
+/**
+ * EtablissementsDeLagent
+ *
+ * The establishments an agent serves through its numbers (E3).
+ */
+export type EtablissementsDeLagent = {
+    /**
+     * Etablissements
+     */
+    etablissements?: Array<EtablissementServi>;
+    /**
+     * Numeros Sans Etablissement
+     *
+     * Numbers of this agent attached to no establishment: their calls behave as before.
+     */
+    numeros_sans_etablissement?: Array<string>;
 };
 
 /**
@@ -5047,6 +5194,26 @@ export type NumberInputOptions = {
      * Allow arbitrary fractional values via step='any'.
      */
     fractional?: boolean;
+};
+
+/**
+ * NumeroDeLorganisation
+ *
+ * A Telephony number of the organization, for the establishment's choice list.
+ */
+export type NumeroDeLorganisation = {
+    /**
+     * Numero
+     */
+    numero: string;
+    /**
+     * Libelle
+     */
+    libelle?: string | null;
+    /**
+     * Agent
+     */
+    agent?: string | null;
 };
 
 /**
@@ -8897,6 +9064,22 @@ export type UserResponse = {
      * Provider Id
      */
     provider_id?: string | null;
+};
+
+/**
+ * ValeurHeritee
+ *
+ * A value as the call will read it, and the level it comes from.
+ */
+export type ValeurHeritee = {
+    /**
+     * Valeur
+     */
+    valeur?: string | null;
+    /**
+     * Origine
+     */
+    origine?: 'agent' | 'etablissement' | 'organisation' | 'aucune';
 };
 
 /**
@@ -13143,6 +13326,164 @@ export type SupprimerUneCleApiV1ClesUuidDeleteResponses = {
 };
 
 export type SupprimerUneCleApiV1ClesUuidDeleteResponse = SupprimerUneCleApiV1ClesUuidDeleteResponses[keyof SupprimerUneCleApiV1ClesUuidDeleteResponses];
+
+export type GetEtablissementsApiV1OrganizationsEtablissementsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/etablissements';
+};
+
+export type GetEtablissementsApiV1OrganizationsEtablissementsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetEtablissementsApiV1OrganizationsEtablissementsGetError = GetEtablissementsApiV1OrganizationsEtablissementsGetErrors[keyof GetEtablissementsApiV1OrganizationsEtablissementsGetErrors];
+
+export type GetEtablissementsApiV1OrganizationsEtablissementsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CatalogueEtablissements;
+};
+
+export type GetEtablissementsApiV1OrganizationsEtablissementsGetResponse = GetEtablissementsApiV1OrganizationsEtablissementsGetResponses[keyof GetEtablissementsApiV1OrganizationsEtablissementsGetResponses];
+
+export type SaveEtablissementsApiV1OrganizationsEtablissementsPutData = {
+    body: CatalogueEtablissements;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/etablissements';
+};
+
+export type SaveEtablissementsApiV1OrganizationsEtablissementsPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveEtablissementsApiV1OrganizationsEtablissementsPutError = SaveEtablissementsApiV1OrganizationsEtablissementsPutErrors[keyof SaveEtablissementsApiV1OrganizationsEtablissementsPutErrors];
+
+export type SaveEtablissementsApiV1OrganizationsEtablissementsPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: CatalogueEtablissements;
+};
+
+export type SaveEtablissementsApiV1OrganizationsEtablissementsPutResponse = SaveEtablissementsApiV1OrganizationsEtablissementsPutResponses[keyof SaveEtablissementsApiV1OrganizationsEtablissementsPutResponses];
+
+export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/etablissements/numeros';
+};
+
+export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetError = GetNumerosApiV1OrganizationsEtablissementsNumerosGetErrors[keyof GetNumerosApiV1OrganizationsEtablissementsNumerosGetErrors];
+
+export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponses = {
+    /**
+     * Response Get Numeros Api V1 Organizations Etablissements Numeros Get
+     *
+     * Successful Response
+     */
+    200: Array<NumeroDeLorganisation>;
+};
+
+export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponse = GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponses[keyof GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponses];
+
+export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostData = {
+    body: DemandeEtablissementsDeLagent;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/etablissements/agent';
+};
+
+export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostError = PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostErrors[keyof PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostErrors];
+
+export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtablissementsDeLagent;
+};
+
+export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostResponse = PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostResponses[keyof PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;

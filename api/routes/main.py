@@ -11,6 +11,7 @@ from api.routes.appel_simule import router as appel_simule_router
 from api.routes.auth import router as auth_router
 from api.routes.campaign import router as campaign_router
 from api.routes.cles import router as cles_router
+from api.routes.etablissements import router as etablissements_router
 from api.routes.credentials import router as credentials_router
 from api.routes.fenetre_du_run import router as fenetre_du_run_router
 from api.routes.folder import router as folder_router
@@ -58,6 +59,9 @@ router.include_router(fenetre_du_run_router)
 router.include_router(appel_simule_router)
 # [.mark] The key library (direct-et-passe-muette, lot 0, P15, P16).
 router.include_router(cles_router)
+# [.mark] The establishments of the organization (chantier l-agent-travaille, L1),
+# mounted BEFORE the organization router so its paths are never read as parameters.
+router.include_router(etablissements_router)
 router.include_router(user_router)
 router.include_router(campaign_router)
 router.include_router(credentials_router)

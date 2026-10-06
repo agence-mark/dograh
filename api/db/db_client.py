@@ -2,6 +2,7 @@ from api.db.agent_trigger_client import AgentTriggerClient
 from api.db.api_key_client import APIKeyClient
 from api.db.campaign_client import CampaignClient
 from api.db.embed_token_client import EmbedTokenClient
+from api.db.etablissements_client import EtablissementsClient
 from api.db.folder_client import FolderClient
 from api.db.integration_client import IntegrationClient
 from api.db.knowledge_base_client import KnowledgeBaseClient
@@ -47,6 +48,8 @@ class DBClient(
     TelephonyPhoneNumberClient,
     TelephonyTrunkClient,
     FolderClient,
+    # [.mark] The establishments' reads (chantier l-agent-travaille).
+    EtablissementsClient,
 ):
     """
     Unified database client that combines all specialized database operations.
