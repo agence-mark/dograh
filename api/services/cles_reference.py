@@ -28,6 +28,21 @@ MARQUE = "mark_bibliotheque"
 SERVICES = ("llm", "stt", "tts", "embeddings", "realtime")
 
 
+# Fournisseurs qui partagent une même clé : une clé OpenAI sert OpenAI Realtime, etc.
+FAMILLES = {
+    "openai_realtime": "openai",
+    "google_realtime": "google",
+    "google_vertex_realtime": "google_vertex",
+    "azure_realtime": "azure",
+    "grok_realtime": "xai",
+}
+
+
+def famille(fournisseur) -> str:
+    valeur = str(getattr(fournisseur, "value", fournisseur) or "")
+    return FAMILLES.get(valeur, valeur)
+
+
 def est_reference(valeur) -> bool:
     return isinstance(valeur, str) and valeur.startswith(PREFIXE)
 
@@ -44,17 +59,20 @@ class CleIntrouvable(ValueError):
     """Une référence désigne une clé supprimée ou absente de l'organisation."""
 
 
-async def _cle(uuid: str, organization_id: int) -> Optional[str]:
+async def _cle(uuid: str, organization_id: int) -> Optional[tuple[str, str]]:
+    """``(clé, fournisseur)`` d'une clé de la bibliothèque de l'organisation, ou ``None``."""
     from api.db import (
-        db_client,  # à l'usage : masking.py importe ce module sans la base
-    )
+        db_client,
+    )  # à l'usage : masking.py importe ce module sans la base
 
     identifiant = await db_client.get_credential_by_uuid(uuid, organization_id)
     donnees = (identifiant.credential_data or {}) if identifiant else {}
     if not donnees.get(MARQUE):
         return None
     valeur = donnees.get("token")
-    return valeur if isinstance(valeur, str) and valeur.strip() else None
+    if not (isinstance(valeur, str) and valeur.strip()):
+        return None
+    return valeur, str(donnees.get("fournisseur") or "")
 
 
 async def resoudre_les_cles(
@@ -88,16 +106,26 @@ async def resoudre_les_cles(
             if not est_reference(valeur):
                 resolues.append(valeur)
                 continue
-            cle = (
+            trouvee = (
                 await _cle(uuid_de(valeur), organization_id)
                 if organization_id is not None
                 else None
             )
-            if cle is None:
+            cle, message = None, None
+            if trouvee is None:
                 message = (
                     f"The {nom} key chosen in the key library was deleted or is unusable: "
                     "pick another in « Keys »."
                 )
+            elif famille(trouvee[1]) != famille(getattr(service, "provider", None)):
+                # Revue du lot 0 bis : une clé d'un autre fournisseur ne part jamais.
+                message = (
+                    f"The {nom} key chosen in the key library is a {trouvee[1]} key, "
+                    f"not a {famille(getattr(service, 'provider', None))} one: pick another in « Keys »."
+                )
+            else:
+                cle = trouvee[0]
+            if cle is None:
                 if strict:
                     raise CleIntrouvable(message)
                 logger.error(f"[.mark] {message} (organization {organization_id})")

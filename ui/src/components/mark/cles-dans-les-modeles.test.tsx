@@ -106,7 +106,7 @@ describe("[.mark] the key library in Dograh's model form", () => {
         expect(within(fenetre).queryByTestId("cle-c-mistral")).toBeNull();
         fireEvent.click(within(ligne).getByRole("button", { name: "Use" }));
         await waitFor(() => expect(screen.queryByTestId("fenetre-cles")).toBeNull());
-        expect((await screen.findByTestId("cle-de-la-bibliotheque")).textContent).toContain("OpenAI labo · key library");
+        expect((await screen.findByTestId("cle-de-la-bibliotheque")).textContent).toContain("OpenAI labo · OpenAI Realtime · key library");
         expect(await enregistrer(onSave)).toEqual(["mark-cle:c-openai"]);
     });
 
@@ -123,6 +123,11 @@ describe("[.mark] the key library in Dograh's model form", () => {
         formulaire("mark-cle:c-supprimee");
         expect(await screen.findByText(/This key was deleted from the library/)).toBeTruthy();
         expect(screen.getByTestId("cle-de-la-bibliotheque").textContent).toContain("Key deleted");
+    });
+
+    it("warns when the referenced key belongs to another provider", async () => {
+        formulaire("mark-cle:c-mistral");
+        expect(await screen.findByText(/This is a Mistral key, not a OpenAI Realtime one/)).toBeTruthy();
     });
 });
 

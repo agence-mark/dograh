@@ -527,3 +527,35 @@ def test_les_usages_comptent_models_et_les_reglages_de_modele_des_agents(ecran, 
     assert ecran.get("/cles/cle-eleven/usages").json() == [
         {"ou": "modeles_agent", "nom": "essai_ndf"}
     ]
+
+
+def test_une_cle_d_un_autre_fournisseur_ne_part_jamais(base):
+    # Revue du lot 0 bis : la clé Mistral posée sur la voix ElevenLabs.
+    configuration = _configuration("cle-tapee", "mark-cle:cle-mistral")
+    with pytest.raises(cles_reference.CleIntrouvable, match="is a mistral key"):
+        executer(cles_reference.resoudre_les_cles(configuration, ORG, strict=True))
+    with patch.object(cles_reference.logger, "error"):
+        resolue = executer(
+            cles_reference.resoudre_les_cles(configuration, ORG, strict=False)
+        )
+    assert "SECRET" not in str(resolue.tts.get_all_api_keys())
+
+
+def test_une_cle_se_propose_a_toute_sa_famille_de_fournisseurs(ecran):
+    uuid = ecran.post(
+        "/cles", json={"fournisseur": "openai", "nom": "OpenAI", "cle": "sk-12345678"}
+    ).json()["uuid"]
+    assert [
+        c["uuid"] for c in ecran.get("/cles?fournisseur=openai_realtime").json()
+    ] == [uuid]
+    assert ecran.get("/cles?fournisseur=mistral").json()[0]["uuid"] == "cle-mistral"
+    assert cles_reference.famille("openai_realtime") == cles_reference.famille("openai")
+
+
+def test_la_cle_propre_du_greffier_ne_peut_pas_etre_une_reference():
+    from api.services.pipecat.greffier import configuration_du_greffier
+
+    with pytest.raises(ValueError, match="scribe's own key"):
+        configuration_du_greffier(
+            _configuration("SECRET-M", "x"), {"api_key": "mark-cle:cle-mistral"}
+        )

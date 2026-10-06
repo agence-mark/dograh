@@ -33,6 +33,7 @@ from api.services.bibliotheque_cles import (
     nom_apres_suppression,
     usages_de,
 )
+from api.services.cles_reference import famille
 
 router = APIRouter(prefix="/cles", tags=["cles"])
 
@@ -95,7 +96,8 @@ async def lister_les_cles(
     )
     cles = [_vue(i) for i in identifiants if fournisseur_de(i) is not None]
     if fournisseur:
-        cles = [c for c in cles if c.fournisseur == fournisseur]
+        # Par famille : une clé OpenAI se propose aussi pour OpenAI Realtime (revue du lot 0 bis).
+        cles = [c for c in cles if famille(c.fournisseur) == famille(fournisseur)]
     return sorted(cles, key=lambda c: (c.fournisseur, c.nom.lower()))
 
 

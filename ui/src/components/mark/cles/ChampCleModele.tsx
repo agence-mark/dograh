@@ -15,12 +15,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { type Texte, useLangue } from "../langue/langue";
-import { FenetreCles, type Fournisseur, useCles } from "./FenetreCles";
+import { FenetreCles, type Fournisseur, nomDu, useCles } from "./FenetreCles";
 
 // Same prefix as the server (`PREFIXE`, api/services/cles_reference.py).
 export const PREFIXE_REFERENCE = "mark-cle:";
 export const estReference = (valeur: string | null | undefined) =>
     typeof valeur === "string" && valeur.startsWith(PREFIXE_REFERENCE);
+
+// Same families as the server (`FAMILLES`, api/services/cles_reference.py).
+const FAMILLES: Record<string, string> = {
+    openai_realtime: "openai",
+    google_realtime: "google",
+    google_vertex_realtime: "google_vertex",
+    azure_realtime: "azure",
+    grok_realtime: "xai",
+};
+export const famille = (f: string) => FAMILLES[f] ?? f;
 
 export function ChampCleModele({
     valeur,
@@ -51,7 +61,7 @@ export function ChampCleModele({
                     >
                         <span className="truncate">
                             {designee
-                                ? `${designee.nom} · ${t({ en: "key library", fr: "bibliothèque de clés" })}`
+                                ? `${designee.nom} · ${nomDu(designee.fournisseur)} · ${t({ en: "key library", fr: "bibliothèque de clés" })}`
                                 : cles === null
                                   ? t({ en: "Loading…", fr: "Chargement…" })
                                   : t({ en: "Key deleted: pick another", fr: "Clé supprimée : choisis-en une autre" })}
@@ -74,6 +84,14 @@ export function ChampCleModele({
                     {t({
                         en: "This key was deleted from the library: calls will fail until you pick another.",
                         fr: "Cette clé a été supprimée de la bibliothèque : les appels échoueront tant que tu n'en choisis pas une autre.",
+                    })}
+                </p>
+            )}
+            {designee && famille(designee.fournisseur) !== famille(fournisseur) && (
+                <p className="text-xs text-destructive" role="alert">
+                    {t({
+                        en: `This is a ${nomDu(designee.fournisseur)} key, not a ${nomDu(fournisseur)} one: the save will be refused.`,
+                        fr: `C'est une clé ${nomDu(designee.fournisseur)}, pas ${nomDu(fournisseur)} : l'enregistrement sera refusé.`,
                     })}
                 </p>
             )}
