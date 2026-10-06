@@ -433,6 +433,7 @@ def configuration_du_greffier(user_config: Any, bloc: dict | None) -> Any:
     laquelle son bloc s'applique comme une surcharge de modèle. Sans modèle dans
     le bloc et chez Mistral : ``mistral-large-2512`` (D8). Clé vide : celle de
     la conversation (même fournisseur)."""
+    from api.services.cles_reference import est_reference
     from api.services.configuration.resolve import resolve_effective_config
 
     surcharge = {
@@ -440,6 +441,14 @@ def configuration_du_greffier(user_config: Any, bloc: dict | None) -> Any:
         for cle, valeur in (bloc or {}).items()
         if valeur is not None and valeur != ""
     }
+    # Revue du lot 0 bis (06/10) : ce bloc s'applique APRÈS la résolution des clés de la
+    # bibliothèque ; une référence y partirait telle quelle chez le fournisseur. Refusée en le
+    # disant : l'appelant repasse en mode outil (repli déjà prévu), jamais une clé fausse envoyée.
+    if est_reference(surcharge.get("api_key")):
+        raise ValueError(
+            "The scribe's own key cannot be a key of the key library yet: type it, "
+            "or leave it empty to use the conversation's key."
+        )
     fournisseur = surcharge.get("provider") or getattr(
         getattr(user_config, "llm", None), "provider", None
     )

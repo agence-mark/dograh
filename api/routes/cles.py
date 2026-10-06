@@ -25,6 +25,7 @@ from api.db.models import UserModel
 from api.enums import WebhookCredentialType
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.bibliotheque_cles import (
+    FOURNISSEURS,
     Fournisseur,
     Usage,
     donnees_d_une_cle,
@@ -32,6 +33,7 @@ from api.services.bibliotheque_cles import (
     nom_apres_suppression,
     usages_de,
 )
+from api.services.cles_reference import famille
 
 router = APIRouter(prefix="/cles", tags=["cles"])
 
@@ -94,7 +96,8 @@ async def lister_les_cles(
     )
     cles = [_vue(i) for i in identifiants if fournisseur_de(i) is not None]
     if fournisseur:
-        cles = [c for c in cles if c.fournisseur == fournisseur]
+        # Par famille : une clé OpenAI se propose aussi pour OpenAI Realtime (revue du lot 0 bis).
+        cles = [c for c in cles if famille(c.fournisseur) == famille(fournisseur)]
     return sorted(cles, key=lambda c: (c.fournisseur, c.nom.lower()))
 
 
@@ -134,6 +137,14 @@ async def ajouter_une_cle(
             raise deja_pris from None
         raise HTTPException(status_code=500, detail="Key not saved") from None
     return _vue(identifiant)
+
+
+@router.get("/fournisseurs", response_model=list[str])
+async def fournisseurs_des_cles(
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """P19 : les fournisseurs qu'une clé de la bibliothèque peut servir (ceux de « Models »)."""
+    return list(FOURNISSEURS)
 
 
 @router.get("/designee/{uuid}", response_model=Designation)

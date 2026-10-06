@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 
 import { getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet } from '@/client/sdk.gen';
 import { ChampEtiquettes } from "@/components/mark/ChampEtiquettes";
+import { ChampCleModele } from "@/components/mark/cles/ChampCleModele";
 import { grouperChamps, LibelleChamp, SousMenuFournisseur } from "@/components/mark/modeles/GroupesFournisseur";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -832,13 +833,15 @@ export function ServiceConfigurationForm({
                         {renderFieldDescription("api_key", providerSchema)}
                         {apiKeys[service].map((key, index) => (
                             <div key={index} className="flex gap-2">
-                                <Input
-                                    type="text"
+                                {/* [.mark] Typed by hand as before, or picked in the key library
+                                    (direct-et-passe-muette, lot 0 bis, P20). */}
+                                <ChampCleModele
+                                    fournisseur={currentProvider}
                                     placeholder="Enter API key"
-                                    value={key}
-                                    onChange={(e) => {
+                                    valeur={key}
+                                    onChange={(valeur) => {
                                         const newKeys = [...apiKeys[service]];
-                                        newKeys[index] = e.target.value;
+                                        newKeys[index] = valeur;
                                         setApiKeys(prev => ({ ...prev, [service]: newKeys }));
                                     }}
                                 />

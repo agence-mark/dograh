@@ -1690,10 +1690,7 @@ export type Cle = {
      * Nom
      */
     nom: string;
-    /**
-     * Fournisseur
-     */
-    fournisseur: 'mistral' | 'elevenlabs' | 'deepgram' | 'soniox';
+    fournisseur: ServiceProviders;
     /**
      * Creee Le
      */
@@ -5005,10 +5002,7 @@ export type NodeTypesResponse = {
  * NouvelleCle
  */
 export type NouvelleCle = {
-    /**
-     * Fournisseur
-     */
-    fournisseur: 'mistral' | 'elevenlabs' | 'deepgram' | 'soniox';
+    fournisseur: ServiceProviders;
     /**
      * Nom
      */
@@ -6884,6 +6878,11 @@ export type ServiceKeyResponse = {
 };
 
 /**
+ * ServiceProviders
+ */
+export type ServiceProviders = 'openai' | 'atlascloud' | 'deepgram' | 'groq' | 'openrouter' | 'inworld' | 'cartesia' | 'elevenlabs' | 'google' | 'azure' | 'azure_speech' | 'dograh' | 'sarvam' | 'speechmatics' | 'camb' | 'aws_bedrock' | 'speaches' | 'huggingface' | 'assemblyai' | 'gladia' | 'rime' | 'minimax' | 'google_vertex' | 'openai_realtime' | 'grok_realtime' | 'ultravox_realtime' | 'google_realtime' | 'google_vertex_realtime' | 'azure_realtime' | 'aws_nova_sonic' | 'smallest' | 'xai' | 'lmnt' | 'mistral' | 'speechify' | 'soniox';
+
+/**
  * SetupStep
  *
  * One thing the customer must do before a configuration can carry calls.
@@ -8757,7 +8756,7 @@ export type Usage = {
     /**
      * Ou
      */
-    ou: 'reglages_modele' | 'reglages_voix' | 'outil' | 'agent';
+    ou: 'reglages_modele' | 'reglages_voix' | 'outil' | 'agent' | 'modeles_organisation' | 'modeles_agent';
     /**
      * Nom
      */
@@ -12831,7 +12830,7 @@ export type ListerLesClesApiV1ClesGetData = {
         /**
          * Fournisseur
          */
-        fournisseur?: 'mistral' | 'elevenlabs' | 'deepgram' | 'soniox' | null;
+        fournisseur?: ServiceProviders | null;
     };
     url: '/api/v1/cles';
 };
@@ -12898,6 +12897,47 @@ export type AjouterUneCleApiV1ClesPostResponses = {
 };
 
 export type AjouterUneCleApiV1ClesPostResponse = AjouterUneCleApiV1ClesPostResponses[keyof AjouterUneCleApiV1ClesPostResponses];
+
+export type FournisseursDesClesApiV1ClesFournisseursGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/cles/fournisseurs';
+};
+
+export type FournisseursDesClesApiV1ClesFournisseursGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FournisseursDesClesApiV1ClesFournisseursGetError = FournisseursDesClesApiV1ClesFournisseursGetErrors[keyof FournisseursDesClesApiV1ClesFournisseursGetErrors];
+
+export type FournisseursDesClesApiV1ClesFournisseursGetResponses = {
+    /**
+     * Response Fournisseurs Des Cles Api V1 Cles Fournisseurs Get
+     *
+     * Successful Response
+     */
+    200: Array<string>;
+};
+
+export type FournisseursDesClesApiV1ClesFournisseursGetResponse = FournisseursDesClesApiV1ClesFournisseursGetResponses[keyof FournisseursDesClesApiV1ClesFournisseursGetResponses];
 
 export type IdentifiantDesigneApiV1ClesDesigneeUuidGetData = {
     body?: never;

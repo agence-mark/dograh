@@ -143,6 +143,7 @@ async def process_knowledge_base_document(
         embeddings_endpoint = None
         embeddings_api_version = None
         if retrieval_mode == "chunked":
+            from api.services.cles_reference import resoudre_les_cles
             from api.services.configuration.ai_model_configuration import (
                 apply_managed_embeddings_base_url,
                 get_resolved_ai_model_configuration,
@@ -151,7 +152,10 @@ async def process_knowledge_base_document(
             resolved_config = await get_resolved_ai_model_configuration(
                 organization_id=document.organization_id,
             )
-            effective_config = resolved_config.effective
+            # [.mark] Embeddings key chosen by reference in the key library (lot 0 bis, P21).
+            effective_config = await resoudre_les_cles(
+                resolved_config.effective, document.organization_id, strict=False
+            )
             if effective_config.embeddings:
                 embeddings_provider = getattr(
                     effective_config.embeddings, "provider", None

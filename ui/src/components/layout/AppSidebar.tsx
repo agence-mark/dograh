@@ -12,6 +12,7 @@ import {
   CreditCard,
   Folder,
   House,
+  Key,
   KeyRound,
   LogOut,
   type LucideIcon,
@@ -150,7 +151,13 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         title: "Reports",
         url: "/reports",
         icon: ChartColumn,
-      }
+      },
+      // [.mark] The key library of the organization (direct-et-passe-muette, lot 0 bis, P18).
+      {
+        title: "Keys",
+        url: "/cles",
+        icon: Key,
+      },
     ],
   },
 ];

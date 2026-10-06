@@ -25,6 +25,7 @@ from api.schemas.ai_model_configuration import (
     OrganizationAIModelConfigurationV2,
     compile_ai_model_configuration_v2,
 )
+from api.services.cles_reference import resoudre_les_cles
 from api.services.configuration.masking import (
     SERVICE_SECRET_FIELDS,
     contains_masked_key,
@@ -83,6 +84,24 @@ async def get_resolved_ai_model_configuration(
 
 
 async def get_effective_ai_model_configuration_for_workflow(
+    *,
+    organization_id: int | None,
+    workflow_configurations: dict | None,
+) -> EffectiveAIModelConfiguration:
+    # [.mark] What a call runs with: a key of the key library chosen by reference in « Models »
+    # or in the agent's settings is replaced by the key itself here, before any reader of
+    # ``api_key`` (direct-et-passe-muette, lot 0 bis, P21). Screens never read through here.
+    return await resoudre_les_cles(
+        await _effective_for_workflow(
+            organization_id=organization_id,
+            workflow_configurations=workflow_configurations,
+        ),
+        organization_id,
+        strict=False,
+    )
+
+
+async def _effective_for_workflow(
     *,
     organization_id: int | None,
     workflow_configurations: dict | None,

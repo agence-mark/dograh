@@ -474,6 +474,7 @@ async def search_chunks(
 
     try:
         # Import here to avoid circular dependency
+        from api.services.cles_reference import resoudre_les_cles
         from api.services.configuration.ai_model_configuration import (
             apply_managed_embeddings_base_url,
             get_resolved_ai_model_configuration,
@@ -484,7 +485,10 @@ async def search_chunks(
         resolved_config = await get_resolved_ai_model_configuration(
             organization_id=user.selected_organization_id,
         )
-        effective_config = resolved_config.effective
+        # [.mark] Embeddings key chosen by reference in the key library (lot 0 bis, P21).
+        effective_config = await resoudre_les_cles(
+            resolved_config.effective, user.selected_organization_id, strict=False
+        )
         embeddings_api_key = None
         embeddings_model = None
         embeddings_provider = None
