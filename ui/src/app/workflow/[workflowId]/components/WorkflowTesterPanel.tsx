@@ -24,6 +24,9 @@ import { ChatModeToggle, DisabledNotice, EmptyState } from "./workflow-tester/sh
 import type { WorkflowRuntimeNodeTransition } from "./workflow-tester/types";
 import { extractSdkErrorMessage, getErrorMessage } from "./workflow-tester/utils";
 
+// [.mark] One tab of the tester panel: icon above a label that may wrap (lot 0, direct-et-passe-muette).
+const ONGLET = "h-auto min-w-0 flex-col gap-0.5 whitespace-normal rounded-md px-1 py-1 text-center text-xs leading-tight";
+
 interface WorkflowTesterPanelProps {
     workflowId: number;
     initialContextVariables?: Record<string, string>;
@@ -165,16 +168,18 @@ export function WorkflowTesterPanel({
             >
                 <div className="border-b border-border/70 px-4 py-3">
                     <div className="flex items-center gap-3">
-                        <TabsList className="grid h-9 flex-1 grid-cols-3 rounded-lg bg-muted/60 p-1">
-                            <TabsTrigger value="audio" className="rounded-md text-sm">
+                        {/* [.mark] Three tabs in a narrow panel (direct-et-passe-muette, lot 0): icon above
+                            the label, label allowed to wrap, so no label runs into its neighbour. */}
+                        <TabsList className="grid h-auto min-w-0 flex-1 grid-cols-3 rounded-lg bg-muted/60 p-1">
+                            <TabsTrigger value="audio" className={ONGLET}>
                                 <Mic className="h-4 w-4" />
                                 Test Audio
                             </TabsTrigger>
-                            <TabsTrigger value="text" className="rounded-md text-sm">
+                            <TabsTrigger value="text" className={ONGLET}>
                                 <MessageSquareText className="h-4 w-4" />
                                 Test Chat
                             </TabsTrigger>
-                            <TabsTrigger value="simulated" className="rounded-md text-sm">
+                            <TabsTrigger value="simulated" className={ONGLET}>
                                 <Bot className="h-4 w-4" />
                                 <TitreOngletAppelantSimule />
                             </TabsTrigger>

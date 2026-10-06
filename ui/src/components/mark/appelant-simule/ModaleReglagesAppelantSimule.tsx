@@ -5,17 +5,17 @@
  * Q1 to Q3), for the whole organization: the simulated caller's and the judge's model, prompt and
  * key; the caller's voice; how many calls at once; the size of a series and its spending cap.
  *
- * Keys are never typed here: a credential saved in Dograh is picked in a list (L18). A modal (E4)
- * working on a copy: « Cancel » / « Save ».
+ * Keys are picked in the key library (`../cles/FenetreCles.tsx`, direct-et-passe-muette P15), where
+ * they are also added and deleted; never stored in these settings. A modal (E4) working on a copy:
+ * « Cancel » / « Save ».
  */
 import { useEffect, useState } from "react";
 
 import {
     getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet,
-    listCredentialsApiV1CredentialsGet,
     saveReglagesAppelantSimuleApiV1AppelSimuleReglagesPut,
 } from "@/client";
-import type { CredentialResponse, ReglagesAppelantSimule, RoleSimule, VoixSimulee } from "@/client/types.gen";
+import type { ReglagesAppelantSimule, RoleSimule, VoixSimulee } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { detailFromError } from "@/lib/apiError";
 
+import { SelecteurCle } from "../cles/FenetreCles";
 import { type Texte, useLangue } from "../langue/langue";
 
 // Same list as the server (`MODELES_SIMULATEUR`, api/schemas/appel_simule.py).
@@ -74,8 +75,8 @@ export const fautesDesReglages = (r: ReglagesComplets, t: (texte: Texte) => stri
     if (r.appelant.identifiant !== r.juge.identifiant)
         fautes.push(
             t({
-                en: "The caller and the judge use the same model credential",
-                fr: "L'appelant et le juge utilisent le même identifiant de modèle",
+                en: "The caller and the judge use the same model key",
+                fr: "L'appelant et le juge utilisent la même clé de modèle",
             }),
         );
     for (const [champ, { min, max }] of Object.entries(BORNES) as [keyof typeof BORNES, { min: number; max: number }][]) {
@@ -85,38 +86,6 @@ export const fautesDesReglages = (r: ReglagesComplets, t: (texte: Texte) => stri
     }
     return fautes;
 };
-
-function ChoixIdentifiant({
-    valeur,
-    identifiants,
-    libelle,
-    onChange,
-}: {
-    valeur: string | null | undefined;
-    identifiants: CredentialResponse[];
-    libelle: Texte;
-    onChange: (uuid: string | null) => void;
-}) {
-    const { t } = useLangue();
-    return (
-        <label className="space-y-1 text-xs text-muted-foreground">
-            <span>{t(libelle)}</span>
-            <select
-                className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
-                value={valeur ?? ""}
-                onChange={(e) => onChange(e.target.value || null)}
-                aria-label={t(libelle)}
-            >
-                <option value="">{t({ en: "— choose a saved credential —", fr: "— choisir un identifiant enregistré —" })}</option>
-                {identifiants.map((i) => (
-                    <option key={i.uuid} value={i.uuid}>
-                        {i.name}
-                    </option>
-                ))}
-            </select>
-        </label>
-    );
-}
 
 function Role({
     titre,
@@ -176,7 +145,6 @@ function Role({
 export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: boolean; onFermer: () => void }) {
     const { t } = useLangue();
     const [brouillon, setBrouillon] = useState<ReglagesComplets | null>(null);
-    const [identifiants, setIdentifiants] = useState<CredentialResponse[]>([]);
     const [erreur, setErreur] = useState<string | null>(null);
     const [enCours, setEnCours] = useState(false);
 
@@ -186,16 +154,12 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
         setErreur(null);
         setBrouillon(null);
         (async () => {
-            const [reglages, liste] = await Promise.all([
-                getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet(),
-                listCredentialsApiV1CredentialsGet(),
-            ]);
+            const reglages = await getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet();
             if (annule) return;
             if (reglages.error) {
                 setErreur(detailFromError(reglages.error, "Simulated caller settings unreadable"));
                 return;
             }
-            setIdentifiants((liste.data as CredentialResponse[] | undefined) ?? []);
             setBrouillon(completer(reglages.data as ReglagesAppelantSimule));
         })();
         return () => {
@@ -227,8 +191,8 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
                     <DialogTitle>{t({ en: "Simulated caller settings", fr: "Réglages de l'appelant simulé" })}</DialogTitle>
                     <DialogDescription>
                         {t({
-                            en: "For the whole organization. The simulated caller and the judge use a model credential of an organization other than the agent's, so they never eat its quota. Keys are picked among the credentials saved in Dograh.",
-                            fr: "Pour toute l'organisation. L'appelant simulé et le juge utilisent l'identifiant de modèle d'une autre organisation que celle de l'agent, pour ne jamais manger son quota. Les clés se choisissent parmi les identifiants enregistrés dans Dograh.",
+                            en: "For the whole organization. The simulated caller and the judge use a Mistral key of an organization other than the agent's, so they never eat its quota. Keys are added, picked and deleted with « Keys… ».",
+                            fr: "Pour toute l'organisation. L'appelant simulé et le juge utilisent une clé Mistral d'une autre organisation que celle de l'agent, pour ne jamais manger son quota. Les clés s'ajoutent, se choisissent et se suppriment avec « Clés… ».",
                         })}
                     </DialogDescription>
                 </DialogHeader>
@@ -241,10 +205,10 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
                     <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>
                 ) : brouillon ? (
                     <div className="space-y-3">
-                        <ChoixIdentifiant
+                        <SelecteurCle
+                            fournisseur="mistral"
                             valeur={brouillon.appelant.identifiant}
-                            identifiants={identifiants}
-                            libelle={{ en: "Model credential (caller and judge)", fr: "Identifiant du modèle (appelant et juge)" }}
+                            libelle={{ en: "Mistral key (caller and judge)", fr: "Clé Mistral (appelant et juge)" }}
                             onChange={(uuid) =>
                                 changer({
                                     appelant: { ...brouillon.appelant, identifiant: uuid },
@@ -272,10 +236,10 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
                                     aria-label={t({ en: "ElevenLabs voice id", fr: "Identifiant de voix ElevenLabs" })}
                                 />
                             </label>
-                            <ChoixIdentifiant
+                            <SelecteurCle
+                                fournisseur="elevenlabs"
                                 valeur={brouillon.voix.identifiant}
-                                identifiants={identifiants}
-                                libelle={{ en: "ElevenLabs credential (voice and transcription)", fr: "Identifiant ElevenLabs (voix et transcription)" }}
+                                libelle={{ en: "ElevenLabs key (voice and transcription)", fr: "Clé ElevenLabs (voix et transcription)" }}
                                 onChange={(uuid) => changer({ voix: { ...brouillon.voix, identifiant: uuid } })}
                             />
                         </fieldset>

@@ -7,8 +7,10 @@
  *     Is the « Simulated caller » tab MOUNTED in Dograh's real tester panel? Can one pick scenarios,
  *     read the estimated cost and the cap, run a series, follow it and stop it? Do the modals
  *     (scenarios, settings, report) work on a copy, name their faults and send what was typed?
- *     Are keys picked among saved credentials, never typed? Does the run window show the
- *     simulation's verdict?
+ *     Are keys picked in the key library (direct-et-passe-muette P15, P16): added from the settings
+ *     and picked at once, never shown again, deleted after saying where they serve, and a deleted key
+ *     named as such? Does the run window show the simulation's verdict? Do the three tabs wrap
+ *     their labels instead of running into each other?
  */
 
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -33,7 +35,11 @@ const m = vi.hoisted(() => ({
     getRapport: vi.fn(),
     lancer: vi.fn(),
     arreter: vi.fn(),
-    credentials: vi.fn(),
+    cles: vi.fn(),
+    ajouterCle: vi.fn(),
+    usagesCle: vi.fn(),
+    supprimerCle: vi.fn(),
+    designee: vi.fn(),
     analyse: vi.fn(),
 }));
 
@@ -46,7 +52,11 @@ vi.mock("@/client", () => ({
     getRapportSerieApiV1AppelSimuleSeriesSerieIdGet: (...a: unknown[]) => m.getRapport(...a),
     lancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPost: (...a: unknown[]) => m.lancer(...a),
     arreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPost: (...a: unknown[]) => m.arreter(...a),
-    listCredentialsApiV1CredentialsGet: (...a: unknown[]) => m.credentials(...a),
+    listerLesClesApiV1ClesGet: (...a: unknown[]) => m.cles(...a),
+    ajouterUneCleApiV1ClesPost: (...a: unknown[]) => m.ajouterCle(...a),
+    usagesDUneCleApiV1ClesUuidUsagesGet: (...a: unknown[]) => m.usagesCle(...a),
+    supprimerUneCleApiV1ClesUuidDelete: (...a: unknown[]) => m.supprimerCle(...a),
+    identifiantDesigneApiV1ClesDesigneeUuidGet: (...a: unknown[]) => m.designee(...a),
     getWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGet: (...a: unknown[]) => m.analyse(...a),
 }));
 vi.mock("@/client/sdk.gen", () => ({ createWorkflowRunApiV1WorkflowWorkflowIdRunsPost: vi.fn() }));
@@ -56,6 +66,12 @@ const AUTH = { isAuthenticated: true, loading: false, user: { id: "u-1" }, getAc
 vi.mock("@/lib/auth", () => ({ useAuth: () => AUTH }));
 vi.mock("@/context/OnboardingContext", () => ({ useOnboarding: () => ({ markActionCompleted: vi.fn() }) }));
 vi.mock("@/components/onboarding/OnboardingTooltip", () => ({ OnboardingTooltip: () => null }));
+
+const CLES_DE_DEPART = [
+    { uuid: "c-mistral", nom: "Mistral organisation 2", fournisseur: "mistral" },
+    { uuid: "c-eleven", nom: "ElevenLabs", fournisseur: "elevenlabs" },
+];
+const BIBLIOTHEQUE: { uuid: string; nom: string; fournisseur: string }[] = [];
 
 const enFrancais = (ui: React.ReactElement) => render(<FournisseurLangue>{ui}</FournisseurLangue>);
 const texte = (el: Element) => (el.textContent ?? "").replace(/\s+/g, " ").trim();
@@ -127,11 +143,22 @@ beforeEach(() => {
     m.arreter.mockResolvedValue({ data: { stopping: true } });
     m.saveScenarios.mockResolvedValue({ data: [] });
     m.saveReglages.mockResolvedValue({ data: REGLAGES });
-    m.credentials.mockResolvedValue({
-        data: [
-            { uuid: "c-mistral", name: "Mistral organisation 2", description: null },
-            { uuid: "c-eleven", name: "ElevenLabs", description: null },
-        ],
+    BIBLIOTHEQUE.splice(0, BIBLIOTHEQUE.length, ...CLES_DE_DEPART);
+    m.cles.mockImplementation(async (options?: { query?: { fournisseur?: string } }) => ({
+        data: BIBLIOTHEQUE.filter((c) => !options?.query?.fournisseur || c.fournisseur === options.query.fournisseur),
+    }));
+    m.ajouterCle.mockImplementation(async ({ body }: { body: { fournisseur: string; nom: string } }) => {
+        const cle = { uuid: `c-neuve-${BIBLIOTHEQUE.length}`, nom: body.nom, fournisseur: body.fournisseur };
+        BIBLIOTHEQUE.push(cle);
+        return { data: cle };
+    });
+    m.usagesCle.mockResolvedValue({ data: [{ ou: "reglages_voix", nom: null }, { ou: "agent", nom: "essai_ndf" }] });
+    m.designee.mockImplementation(async ({ path }: { path: { uuid: string } }) => ({
+        data: path.uuid === "c-ancienne" ? { etat: "hors_bibliotheque", nom: "Mistral d'avant" } : { etat: "supprimee" },
+    }));
+    m.supprimerCle.mockImplementation(async ({ path }: { path: { uuid: string } }) => {
+        BIBLIOTHEQUE.splice(BIBLIOTHEQUE.findIndex((c) => c.uuid === path.uuid), 1);
+        return { data: { status: "deleted", uuid: path.uuid, usages: [] } };
     });
 });
 
@@ -142,6 +169,16 @@ describe("[.mark] the « Simulated caller » tab, mounted in Dograh's tester pan
         fireEvent.mouseDown(onglet);
         await screen.findByTestId("appelant-simule");
         await screen.findByText("Panne urgente");
+    });
+
+    it("lets each of the three labels wrap under its icon instead of running into its neighbour", () => {
+        // The real widths are checked in Playwright (P13); here, the classes that make it possible.
+        render(<WorkflowTesterPanel workflowId={34} disabled={false} disabledReason={null} />);
+        for (const onglet of screen.getAllByRole("tab")) {
+            expect(onglet.className).toContain("whitespace-normal");
+            expect(onglet.className).toContain("flex-col");
+            expect(onglet.className).not.toContain("whitespace-nowrap");
+        }
     });
 });
 
@@ -228,12 +265,12 @@ describe("[.mark] the scenario library (L10, L18)", () => {
 });
 
 describe("[.mark] the simulated caller's settings (L18, Q1 to Q3)", () => {
-    it("picks keys among saved credentials, refuses a cap out of bounds, and sends what was set", async () => {
+    it("picks keys in the library, refuses a cap out of bounds, and sends what was set", async () => {
         render(<ModaleReglagesAppelantSimule ouverte onFermer={vi.fn()} />);
-        const modele = (await screen.findByLabelText("Model credential (caller and judge)")) as HTMLSelectElement;
+        const modele = (await screen.findByLabelText("Mistral key (caller and judge)")) as HTMLSelectElement;
         expect([...modele.options].map((o) => o.textContent)).toContain("Mistral organisation 2");
         fireEvent.change(modele, { target: { value: "c-mistral" } });
-        fireEvent.change(screen.getByLabelText("ElevenLabs credential (voice and transcription)"), {
+        fireEvent.change(screen.getByLabelText("ElevenLabs key (voice and transcription)"), {
             target: { value: "c-eleven" },
         });
         fireEvent.change(screen.getByLabelText("ElevenLabs voice id"), { target: { value: "voix-fr" } });
@@ -250,6 +287,61 @@ describe("[.mark] the simulated caller's settings (L18, Q1 to Q3)", () => {
         expect(corps.voix).toEqual({ voix: "voix-fr", identifiant: "c-eleven" });
         expect(corps.plafond).toBe(8);
         expect(JSON.stringify(corps)).not.toMatch(/api_key|token/);
+    });
+
+    it("adds a key from the settings, picks it at once, and never shows it again", async () => {
+        BIBLIOTHEQUE.splice(0, BIBLIOTHEQUE.length);
+        render(<ModaleReglagesAppelantSimule ouverte onFermer={vi.fn()} />);
+        const modele = (await screen.findByLabelText("Mistral key (caller and judge)")) as HTMLSelectElement;
+        await waitFor(() => expect(modele.options[0].textContent).toContain("no key yet"));
+        fireEvent.click(within(modele.parentElement as HTMLElement).getByRole("button", { name: "Keys…" }));
+        const fenetre = await screen.findByTestId("fenetre-cles");
+        expect(texte(fenetre)).toContain("Keys · Mistral");
+        expect((within(fenetre).getByLabelText("Provider") as HTMLSelectElement).value).toBe("mistral");
+        fireEvent.change(within(fenetre).getByLabelText("Key name"), { target: { value: "Mistral labo" } });
+        fireEvent.change(within(fenetre).getByLabelText("Key value"), { target: { value: "sk-tres-secrete" } });
+        expect((within(fenetre).getByLabelText("Key value") as HTMLInputElement).type).toBe("password");
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Save and use" }));
+        await waitFor(() => expect(m.ajouterCle).toHaveBeenCalledTimes(1));
+        expect(m.ajouterCle.mock.calls[0][0].body).toEqual({ fournisseur: "mistral", nom: "Mistral labo", cle: "sk-tres-secrete" });
+        await waitFor(() => expect(screen.queryByTestId("fenetre-cles")).toBeNull());
+        await waitFor(() => expect(modele.value).toBe("c-neuve-0"));
+        expect(document.body.textContent).not.toContain("sk-tres-secrete");
+    });
+
+    it("names a key that was deleted, and says where a key serves before deleting it", async () => {
+        m.getReglages.mockResolvedValueOnce({
+            data: { ...REGLAGES, voix: { voix: "voix-fr", identifiant: "c-revoquee" } },
+        });
+        render(<ModaleReglagesAppelantSimule ouverte onFermer={vi.fn()} />);
+        expect(await screen.findByText("Key deleted: pick another.")).toBeTruthy();
+        const voix = screen.getByLabelText("ElevenLabs key (voice and transcription)") as HTMLSelectElement;
+        fireEvent.click(within(voix.parentElement as HTMLElement).getByRole("button", { name: "Keys…" }));
+        const fenetre = await screen.findByTestId("fenetre-cles");
+        const ligne = await within(fenetre).findByTestId("cle-c-eleven");
+        fireEvent.click(within(ligne).getByRole("button", { name: "Delete…" }));
+        const avertissement = texte(await within(ligne).findByRole("alertdialog"));
+        expect(avertissement).toContain("Simulated caller settings · ElevenLabs key");
+        expect(avertissement).toContain("Agent « essai_ndf » (current version)");
+        expect(m.supprimerCle).not.toHaveBeenCalled();
+        fireEvent.click(within(ligne).getByRole("button", { name: "Delete the key" }));
+        await waitFor(() => expect(m.supprimerCle).toHaveBeenCalledWith({ path: { uuid: "c-eleven" } }));
+        await waitFor(() => expect(within(fenetre).queryByTestId("cle-c-eleven")).toBeNull());
+    });
+
+    it("keeps a credential saved before the library, without calling it deleted", async () => {
+        m.getReglages.mockResolvedValueOnce({
+            data: {
+                ...REGLAGES,
+                appelant: { ...REGLAGES.appelant, identifiant: "c-ancienne" },
+                juge: { ...REGLAGES.juge, identifiant: "c-ancienne" },
+            },
+        });
+        render(<ModaleReglagesAppelantSimule ouverte onFermer={vi.fn()} />);
+        const modele = (await screen.findByLabelText("Mistral key (caller and judge)")) as HTMLSelectElement;
+        await waitFor(() => expect(modele.value).toBe("c-ancienne"));
+        expect(modele.selectedOptions[0].textContent).toBe("Mistral d'avant (outside the library)");
+        expect(screen.queryByText("Key deleted: pick another.")).toBeNull();
     });
 });
 

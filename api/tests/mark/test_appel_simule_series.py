@@ -445,14 +445,14 @@ async def test_une_seule_serie_a_la_fois(base):
                 update={"voix": VoixSimulee(voix="v", identifiant=None)}
             ),
             ["s1"],
-            "ElevenLabs credential",
+            "ElevenLabs key",
         ),
         (
             _reglages().model_copy(
                 update={"appelant": RoleSimule(consigne="c", identifiant="autre")}
             ),
             ["s1"],
-            "same model credential",
+            "same model key",
         ),
     ],
 )
