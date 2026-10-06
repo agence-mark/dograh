@@ -136,7 +136,7 @@ def test_l_appelant_simule_part_sans_liste_d_outils_vide(jouer):
     # 06/10 : Scenario appelle toujours l'appelant simulé avec ``tools=[]`` et Mistral refuse une
     # liste vide. Le juge, qui a des outils, les garde.
     recus = []
-    appeler = jouer.sans_outils_vides(lambda *a, **k: recus.append(k) or "ok")
+    appeler = jouer.pour_le_fournisseur(lambda *a, **k: recus.append(k) or "ok")
     assert appeler(model="m", messages=[], tools=[]) == "ok"
     appeler(model="m", messages=[], tools=[{"type": "function"}])
     appeler(model="m", messages=[])
@@ -145,6 +145,24 @@ def test_l_appelant_simule_part_sans_liste_d_outils_vide(jouer):
         {"model": "m", "messages": [], "tools": [{"type": "function"}]},
         {"model": "m", "messages": []},
     ]
+
+
+def test_les_messages_partent_sans_les_champs_de_suivi_de_scenario(jouer):
+    # Run 1026 : Mistral refuse le ``trace_id`` que Scenario pose sur chaque message.
+    recus = []
+    appeler = jouer.pour_le_fournisseur(lambda *a, **k: recus.append(k))
+    messages = [
+        {"role": "system", "content": "consigne"},
+        {"role": "assistant", "content": "Bonjour", "trace_id": "t1"},
+        {"role": "user", "content": "J'ai une panne", "trace_id": "t1"},
+    ]
+    appeler(model="m", messages=messages)
+    assert recus[0]["messages"] == [
+        {"role": "system", "content": "consigne"},
+        {"role": "assistant", "content": "Bonjour"},
+        {"role": "user", "content": "J'ai une panne"},
+    ]
+    assert messages[1]["trace_id"] == "t1"  # La conversation de Scenario reste intacte.
 
 
 def test_l_erreur_garde_le_message_du_fournisseur(jouer):
