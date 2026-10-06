@@ -130,3 +130,31 @@ def test_le_lanceur_n_importe_rien_de_l_api():
         for a in (n.names if isinstance(n, ast.Import) else [n])
     }
     assert not any(m and (m == "api" or m.startswith("api.")) for m in modules)
+
+
+def test_l_appelant_simule_part_sans_liste_d_outils_vide(jouer):
+    # 06/10 : Scenario appelle toujours l'appelant simulé avec ``tools=[]`` et Mistral refuse une
+    # liste vide. Le juge, qui a des outils, les garde.
+    recus = []
+    appeler = jouer.sans_outils_vides(lambda *a, **k: recus.append(k) or "ok")
+    assert appeler(model="m", messages=[], tools=[]) == "ok"
+    appeler(model="m", messages=[], tools=[{"type": "function"}])
+    appeler(model="m", messages=[])
+    assert recus == [
+        {"model": "m", "messages": []},
+        {"model": "m", "messages": [], "tools": [{"type": "function"}]},
+        {"model": "m", "messages": []},
+    ]
+
+
+def test_l_erreur_garde_le_message_du_fournisseur(jouer):
+    class ErreurFournisseur(Exception):
+        message = "MistralException - List should have at least 1 item"
+
+        def __str__(self):
+            return "Headers({'content-type': 'application/json', ...})"
+
+    assert jouer.message_d_erreur(ErreurFournisseur()) == (
+        "ErreurFournisseur: MistralException - List should have at least 1 item"
+    )
+    assert jouer.message_d_erreur(ValueError("simple")) == "ValueError: simple"

@@ -209,12 +209,20 @@ async def lancer_le_lanceur(
     if processus.returncode not in (0, 1):
         logger.warning(
             f"[appel simulé] lanceur sorti en {processus.returncode} : "
-            f"{_masquer(erreurs.decode(errors='replace')[-1500:], secrets)}"
+            f"{_masquer(erreurs.decode(errors='replace'), secrets)[-1500:]}"
         )
     verdict = lire_le_verdict(sortie.decode(errors="replace"))
     if "error" in verdict:
-        verdict["error"] = _masquer(str(verdict["error"]), secrets)[:500]
+        verdict["error"] = _tronquer(_masquer(str(verdict["error"]), secrets))
     return verdict
+
+
+def _tronquer(texte: str, debut: int = 150, fin: int = 650) -> str:
+    """Le début (le type d'erreur) et la fin (souvent la raison du fournisseur), pas seulement les
+    500 premiers caractères, qui étaient des en-têtes HTTP le 06/10."""
+    if len(texte) <= debut + fin + 3:
+        return texte
+    return f"{texte[:debut]} … {texte[-fin:]}"
 
 
 # --- Pendant et après l'appel --------------------------------------------------------------------
