@@ -30,15 +30,27 @@ class EntreeInvalide(ValueError):
     pass
 
 
-def sans_outils_vides(completion):
-    """Scenario appelle toujours le modèle de l'appelant simulé avec ``tools=[]`` ; litellm le
-    transmet tel quel et Mistral refuse une liste d'outils vide (« at least 1 item »). Les appels
-    sans outil partent sans le champ ; ceux qui en ont (le juge) sont inchangés (direct-et-passe-
-    muette, 06/10 : trois appels refusés en 1 s sur le premier tour de l'appelant simulé)."""
+# Champs que Scenario pose sur chaque message pour son propre suivi (``scenario_executor.py``) ;
+# Mistral refuse tout champ qu'il ne connaît pas (« Extra inputs are not permitted », run 1026).
+CHAMPS_DE_SCENARIO = ("trace_id",)
+
+
+def pour_le_fournisseur(completion):
+    """Ce que Scenario envoie au modèle et que Mistral refuse (direct-et-passe-muette, 06/10) :
+    une liste d'outils vide (l'appelant simulé l'envoie toujours ; « at least 1 item ») et les
+    champs de suivi de Scenario sur les messages. Les appels avec des outils (le juge) gardent
+    leurs outils ; les messages partent sans ces champs, la conversation de Scenario est intacte."""
 
     def appeler(*args, **kwargs):
         if "tools" in kwargs and not kwargs["tools"]:
             kwargs.pop("tools")
+        if isinstance(kwargs.get("messages"), list):
+            kwargs["messages"] = [
+                {k: v for k, v in m.items() if k not in CHAMPS_DE_SCENARIO}
+                if isinstance(m, dict)
+                else m
+                for m in kwargs["messages"]
+            ]
         return completion(*args, **kwargs)
 
     return appeler
@@ -131,7 +143,7 @@ async def jouer(entree: dict) -> dict:
     import scenario
     from scenario import ElevenLabsSTTProvider, PipecatAgentAdapter
 
-    litellm.completion = sans_outils_vides(litellm.completion)
+    litellm.completion = pour_le_fournisseur(litellm.completion)
 
     cle = os.environ.get(CLE_MODELE) or None
     # La transcription de l'agent (pour l'appelant et le juge) passe par la même clé ElevenLabs
