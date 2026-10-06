@@ -269,6 +269,10 @@ export function FenetreCles({
                     <label className="space-y-1 text-xs text-muted-foreground">
                         <span>{t({ en: "Name (e.g. Mistral · lab organization)", fr: "Nom (ex. Mistral · organisation du labo)" })}</span>
                         <Input
+                            name="mark-nom-cle"
+                            autoComplete="off"
+                            data-1p-ignore
+                            data-lpignore="true"
                             value={nouvelle.nom}
                             maxLength={80}
                             onChange={(e) => setNouvelle({ ...nouvelle, nom: e.target.value })}
@@ -277,9 +281,14 @@ export function FenetreCles({
                     </label>
                     <label className="space-y-1 text-xs text-muted-foreground sm:col-span-2">
                         <span>{t({ en: "Key", fr: "Clé" })}</span>
+                        {/* « new-password »: a browser never fills a saved login password here (seen
+                            in production on 06/10: name and key filled with the Dograh login). */}
                         <Input
                             type="password"
-                            autoComplete="off"
+                            name="mark-valeur-cle"
+                            autoComplete="new-password"
+                            data-1p-ignore
+                            data-lpignore="true"
                             value={nouvelle.cle}
                             onChange={(e) => setNouvelle({ ...nouvelle, cle: e.target.value })}
                             aria-label={t({ en: "Key value", fr: "Valeur de la clé" })}
