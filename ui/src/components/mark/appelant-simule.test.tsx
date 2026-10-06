@@ -300,7 +300,11 @@ describe("[.mark] the simulated caller's settings (L18, Q1 to Q3)", () => {
         expect((within(fenetre).getByLabelText("Provider") as HTMLSelectElement).value).toBe("mistral");
         fireEvent.change(within(fenetre).getByLabelText("Key name"), { target: { value: "Mistral labo" } });
         fireEvent.change(within(fenetre).getByLabelText("Key value"), { target: { value: "sk-tres-secrete" } });
-        expect((within(fenetre).getByLabelText("Key value") as HTMLInputElement).type).toBe("password");
+        const valeur = within(fenetre).getByLabelText("Key value") as HTMLInputElement;
+        expect(valeur.type).toBe("password");
+        // A browser must never fill the Dograh login here (seen in production on 06/10).
+        expect(valeur.autocomplete).toBe("new-password");
+        expect((within(fenetre).getByLabelText("Key name") as HTMLInputElement).autocomplete).toBe("off");
         fireEvent.click(within(fenetre).getByRole("button", { name: "Save and use" }));
         await waitFor(() => expect(m.ajouterCle).toHaveBeenCalledTimes(1));
         expect(m.ajouterCle.mock.calls[0][0].body).toEqual({ fournisseur: "mistral", nom: "Mistral labo", cle: "sk-tres-secrete" });
