@@ -17,6 +17,7 @@ from pipecat.transports.websocket.fastapi import (
 
 from api.db import db_client
 from api.enums import WorkflowRunMode
+from api.services.appel_simule.direct import fermer_le_direct, ouvrir_le_direct
 from api.services.configuration.ai_model_configuration import (
     get_effective_ai_model_configuration_for_workflow,
 )
@@ -110,15 +111,21 @@ async def jouer_appel_simule(
         is_realtime=is_realtime,
         run_configs=run_configs,
     )
-    await run_pipeline._run_pipeline_impl(
-        transport,
-        workflow.id,
-        workflow_run.id,
-        # Attribution seulement : le cloisonnement passe par organization_id.
-        workflow.user_id,
-        audio_config=audio_config,
-        workflow_run=workflow_run,
-        resolved_user_config=user_config,
-        organization_id=organization_id,
-        provider_call_id=call_sid,
-    )
+    # Le direct de l'appel (direct-et-passe-muette, lot A) : le pipeline prend son canal dans le
+    # registre au démarrage ; il est retiré à la fin, quoi qu'il arrive.
+    await ouvrir_le_direct(workflow_run.id)
+    try:
+        await run_pipeline._run_pipeline_impl(
+            transport,
+            workflow.id,
+            workflow_run.id,
+            # Attribution seulement : le cloisonnement passe par organization_id.
+            workflow.user_id,
+            audio_config=audio_config,
+            workflow_run=workflow_run,
+            resolved_user_config=user_config,
+            organization_id=organization_id,
+            provider_call_id=call_sid,
+        )
+    finally:
+        await fermer_le_direct(workflow_run.id)

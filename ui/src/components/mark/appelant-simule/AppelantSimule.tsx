@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
+import { DirectAppelSimule } from "./DirectAppelSimule";
 import { ETATS_SERIE, ModaleRapportSeries } from "./ModaleRapportSeries";
 import { ModaleReglagesAppelantSimule } from "./ModaleReglagesAppelantSimule";
 import { ModaleScenarios } from "./ModaleScenarios";
@@ -95,6 +96,9 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
     }, [series, lireRapport]);
 
     const enJeu = rapport?.serie.etat === "en_cours";
+    const appelSuivi =
+        rapport?.appels.find((a) => a.etat === "en_cours" && a.run_id) ??
+        [...(rapport?.appels ?? [])].reverse().find((a) => a.run_id);
     useEffect(() => {
         if (!enJeu) return;
         const minuteur = setInterval(() => void lireRapport(), INTERVALLE_MS);
@@ -239,10 +243,12 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
                     </ul>
                     <p className="text-xs text-muted-foreground">
                         {t({
-                            en: `Cost so far ${rapport.serie.cout ?? 0} ${rapport.serie.devise ?? "USD"}${rapport.serie.cout_partiel ? " (partial)" : ""}. Each call's transcript and verdict appear in its run window when it ends.`,
-                            fr: `Coût à ce stade ${rapport.serie.cout ?? 0} ${rapport.serie.devise ?? "USD"}${rapport.serie.cout_partiel ? " (partiel)" : ""}. La transcription et le verdict de chaque appel apparaissent dans sa fenêtre du run à la fin de l'appel.`,
+                            en: `Cost so far ${rapport.serie.cout ?? 0} ${rapport.serie.devise ?? "USD"}${rapport.serie.cout_partiel ? " (partial)" : ""}. The call on the line is followed live below; its saved transcript and verdict are in its run window when it ends.`,
+                            fr: `Coût à ce stade ${rapport.serie.cout ?? 0} ${rapport.serie.devise ?? "USD"}${rapport.serie.cout_partiel ? " (partiel)" : ""}. L'appel en ligne se suit en direct ci-dessous ; sa transcription enregistrée et son verdict sont dans sa fenêtre du run à la fin de l'appel.`,
                         })}
                     </p>
+                    {/* [.mark] The call on the line, or else the last one played (direct-et-passe-muette, lot A). */}
+                    {appelSuivi?.run_id ? <DirectAppelSimule key={appelSuivi.run_id} runId={appelSuivi.run_id} workflowId={workflowId} /> : null}
                     {rapport.serie.raison ? <p className="text-xs text-muted-foreground">{rapport.serie.raison}</p> : null}
                 </div>
             ) : null}

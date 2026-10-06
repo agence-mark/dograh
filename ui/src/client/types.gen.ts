@@ -2595,6 +2595,28 @@ export type Designation = {
 };
 
 /**
+ * DirectAppelSimule
+ *
+ * Les événements du direct à partir de ``depuis`` : la forme du journal d'un run.
+ */
+export type DirectAppelSimule = {
+    /**
+     * Evenements
+     */
+    evenements: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Suivant
+     */
+    suivant: number;
+    /**
+     * Fini
+     */
+    fini: boolean;
+};
+
+/**
  * DisplayOptions
  *
  * Conditional visibility rules.
@@ -12812,6 +12834,55 @@ export type ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponses
 };
 
 export type ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponse = ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponses[keyof ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponses];
+
+export type DirectAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Run Id
+         */
+        workflow_run_id: number;
+    };
+    query?: {
+        /**
+         * Depuis
+         */
+        depuis?: number;
+    };
+    url: '/api/v1/appel-simule/runs/{workflow_run_id}/direct';
+};
+
+export type DirectAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DirectAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGetError = DirectAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGetErrors[keyof DirectAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGetErrors];
+
+export type DirectAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: DirectAppelSimule;
+};
+
+export type DirectAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGetResponse = DirectAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGetResponses[keyof DirectAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGetResponses];
 
 export type ListerLesClesApiV1ClesGetData = {
     body?: never;

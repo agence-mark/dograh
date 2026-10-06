@@ -18,7 +18,7 @@ import json
 import logging
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket
 from loguru import logger
 from pipecat.utils.run_context import set_current_org_id, set_current_run_id
 from pydantic import BaseModel, Field
@@ -26,9 +26,10 @@ from starlette.websockets import WebSocketDisconnect
 
 from api.db import db_client
 from api.db.models import UserModel
-from api.enums import WorkflowRunState
+from api.enums import WorkflowRunMode, WorkflowRunState
 from api.schemas.appel_simule import ReglagesAppelantSimule, ScenarioSimule
 from api.services.appel_simule import reglages as stockage
+from api.services.appel_simule.direct import lire_le_direct
 from api.services.appel_simule.entree import (
     CLE_EXTRA,
     jeton_valide,
@@ -322,3 +323,44 @@ async def arreter_serie_simulee(
     if not await arreter_serie(user.selected_organization_id, serie_id):
         raise HTTPException(status_code=409, detail="This series is not playing.")
     return {"stopping": True}
+
+
+# --- Le direct d'un appel simulé (direct-et-passe-muette, lot A, P2, P3) -------------------------
+
+
+class DirectAppelSimule(BaseModel):
+    """Les événements du direct à partir de ``depuis`` : la forme du journal d'un run."""
+
+    evenements: list[dict]
+    suivant: int
+    fini: bool
+
+
+@router.get("/runs/{workflow_run_id}/direct", response_model=DirectAppelSimule)
+async def direct_appel_simule(
+    workflow_run_id: int,
+    depuis: int = Query(default=0, ge=0),
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    # P3 : un run d'une autre organisation, ou qui n'est pas simulé, est introuvable.
+    run = await db_client.get_workflow_run(
+        workflow_run_id, organization_id=user.selected_organization_id
+    )
+    if run is None or getattr(run, "mode", None) != WorkflowRunMode.SIMULATED.value:
+        raise HTTPException(status_code=404, detail="Simulated run not found")
+    try:
+        direct = await lire_le_direct(workflow_run_id, depuis)
+    except Exception as erreur:  # noqa: BLE001
+        # R1 : l'appel continue ; seul le direct manque, et l'écran le dit.
+        logger.warning(
+            f"[.mark] Live view of run {workflow_run_id} unreadable: {erreur!r}"
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Live view unavailable; the call goes on and its transcript is saved at the end.",
+        ) from None
+    # Revue du lot A : un run terminé sans marqueur de fin (échec avant l'appel, processus perdu,
+    # direct expiré) est fini aussi ; l'écran cesse de relire.
+    if getattr(run, "state", None) == WorkflowRunState.COMPLETED.value:
+        direct["fini"] = True
+    return direct

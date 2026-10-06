@@ -40,6 +40,7 @@ const m = vi.hoisted(() => ({
     usagesCle: vi.fn(),
     supprimerCle: vi.fn(),
     designee: vi.fn(),
+    direct: vi.fn(),
     analyse: vi.fn(),
 }));
 
@@ -57,6 +58,7 @@ vi.mock("@/client", () => ({
     usagesDUneCleApiV1ClesUuidUsagesGet: (...a: unknown[]) => m.usagesCle(...a),
     supprimerUneCleApiV1ClesUuidDelete: (...a: unknown[]) => m.supprimerCle(...a),
     identifiantDesigneApiV1ClesDesigneeUuidGet: (...a: unknown[]) => m.designee(...a),
+    directAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGet: (...a: unknown[]) => m.direct(...a),
     fournisseursDesClesApiV1ClesFournisseursGet: async () => ({ data: ["mistral", "elevenlabs", "openai"] }),
     getWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGet: (...a: unknown[]) => m.analyse(...a),
 }));
@@ -140,6 +142,8 @@ beforeEach(() => {
     m.getReglages.mockResolvedValue({ data: REGLAGES });
     m.getSeries.mockResolvedValue({ data: [] });
     m.getRapport.mockResolvedValue({ data: RAPPORT });
+    m.direct.mockResolvedValue({ data: { evenements: [], suivant: 0, fini: true } });
+    Element.prototype.scrollIntoView = vi.fn();
     m.lancer.mockResolvedValue({ data: SERIE });
     m.arreter.mockResolvedValue({ data: { stopping: true } });
     m.saveScenarios.mockResolvedValue({ data: [] });
@@ -202,6 +206,9 @@ describe("[.mark] running a series", () => {
         const [premier] = within(suivie).getAllByTestId("appel-suivi");
         expect([...premier.children].map(texte)).toEqual(["✓", "Panne urgente", "played", "run window"]);
         expect(premier.querySelector("a")?.getAttribute("href")).toBe("/workflow/34/run/990");
+        // Lot A : no call on the line, so the last one played is shown, read from its live view.
+        expect(await within(suivie).findByTestId("direct-appel-simule")).toBeTruthy();
+        await waitFor(() => expect(m.direct).toHaveBeenCalledWith({ path: { workflow_run_id: 990 }, query: { depuis: 0 } }));
 
         fireEvent.click(bouton("Stop"));
         await waitFor(() => expect(m.arreter).toHaveBeenCalledWith({ path: { serie_id: "serie-1" } }));
