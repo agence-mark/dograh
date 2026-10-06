@@ -80,10 +80,19 @@ export function DirectAppelSimule({ runId, workflowId }: { runId: number; workfl
         let arrete = false;
         let minuteur: ReturnType<typeof setTimeout> | undefined;
         const lire = async () => {
-            const reponse = await directAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGet({
-                path: { workflow_run_id: runId },
-                query: { depuis: suivant.current },
-            });
+            let reponse: Awaited<ReturnType<typeof directAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGet>>;
+            try {
+                reponse = await directAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGet({
+                    path: { workflow_run_id: runId },
+                    query: { depuis: suivant.current },
+                });
+            } catch {
+                // A network cut rejects instead of returning an error: say so and keep reading.
+                if (arrete) return;
+                setErreur(t({ en: "Live view unavailable", fr: "Direct indisponible" }));
+                minuteur = setTimeout(() => void lire(), INTERVALLE_DIRECT_MS);
+                return;
+            }
             if (arrete) return;
             if (reponse.error) {
                 setErreur(detailFromError(reponse.error, "Live view unavailable"));
@@ -106,9 +115,11 @@ export function DirectAppelSimule({ runId, workflowId }: { runId: number; workfl
             arrete = true;
             if (minuteur) clearTimeout(minuteur);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` changes with the language, not the run.
     }, [runId]);
 
     const elements = conversationItemsFromRealtimeFeedbackEvents(regrouperLeDirect(evenements));
+    const tronque = evenements.some((e) => (e.type as string) === "mark-direct-tronque");
     return (
         <div className="space-y-1" data-testid="direct-appel-simule">
             {erreur && (
@@ -135,6 +146,14 @@ export function DirectAppelSimule({ runId, workflowId }: { runId: number; workfl
                     />
                 </ConversationContainer>
             </div>
+            {tronque && (
+                <p className="text-xs text-muted-foreground" role="status">
+                    {t({
+                        en: "Live view truncated (too many events): the full transcript is in the run window at the end.",
+                        fr: "Direct tronqué (trop d'événements) : la transcription complète est dans la fenêtre du run à la fin.",
+                    })}
+                </p>
+            )}
             {fini && (
                 <a className="text-xs underline" href={`/workflow/${workflowId}/run/${runId}`} target="_blank" rel="noreferrer">
                     {t({ en: "Saved transcript and verdict: run window", fr: "Transcription enregistrée et verdict : fenêtre du run" })}

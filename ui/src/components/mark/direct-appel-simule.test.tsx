@@ -85,3 +85,25 @@ describe("[.mark] the live view of a simulated call", () => {
         await waitFor(() => expect(screen.queryByRole("alert")).toBeNull(), { timeout: 3000 });
     });
 });
+
+describe("[.mark] the live view, when things go wrong (review of lot A)", () => {
+    it("keeps reading after a network cut, and says when the live view was truncated", async () => {
+        m.direct
+            .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+            .mockResolvedValueOnce({
+                data: {
+                    evenements: [
+                        evenement("rtf-bot-text", { text: "Bonjour." }, 0),
+                        evenement("mark-direct-tronque", { max: 2000 }, 1),
+                    ],
+                    suivant: 2,
+                    fini: true,
+                },
+            });
+        render(<DirectAppelSimule runId={8} workflowId={34} />);
+        expect((await screen.findByRole("alert")).textContent).toContain("Live view unavailable");
+        expect(await screen.findByText(/Live view truncated/, undefined, { timeout: 3000 })).toBeTruthy();
+        expect(screen.queryByRole("alert")).toBeNull();
+        expect(screen.getByText("Bonjour.")).toBeTruthy();
+    });
+});

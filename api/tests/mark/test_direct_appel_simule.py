@@ -1,13 +1,19 @@
 """[.mark] Le direct d'un appel simulé (chantier direct-et-passe-muette, lot A, P1 à P5).
 
 Ce qui doit tenir : chaque événement du pipeline arrive dans le direct du run, horodaté comme dans le
-journal, dans l'ordre ; le direct est borné, et sa fin s'écrit toujours ; un direct en panne ne casse
-jamais l'appel ; le canal est retiré à la fin de l'appel même s'il échoue ; la route ne montre que le
-direct d'un run simulé de l'organisation de l'utilisateur, à partir de l'index demandé.
+journal, dans l'ordre ; le direct est borné, et sa fin s'écrit toujours ; **le canal ne fait jamais
+attendre l'appel, même quand Redis ne répond plus** (revue du lot A) ; le canal est retiré à la fin de
+l'appel même s'il échoue ; la route ne montre que le direct d'un run simulé de l'organisation de
+l'utilisateur, à partir de l'index demandé, et dit fini un run terminé sans marqueur de fin.
+
+Chaque scénario tourne dans une seule boucle : la tâche d'écriture du direct vit dans la boucle de
+l'appel.
 """
 
 from __future__ import annotations
 
+import asyncio
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -28,24 +34,41 @@ ORG = 7
 
 
 class RedisFactice:
-    def __init__(self):
+    def __init__(self, fige: bool = False):
         self.listes: dict[str, list[str]] = {}
         self.expirations: dict[str, int] = {}
+        self.fige = fige
 
-    async def rpush(self, cle, valeur):
-        self.listes.setdefault(cle, []).append(valeur)
+    async def _attendre(self):
+        if self.fige:
+            await asyncio.Event().wait()  # Accepte la connexion, ne répond jamais.
 
-    async def llen(self, cle):
-        return len(self.listes.get(cle, []))
+    def pipeline(self, transaction=True):
+        redis, operations = self, []
+
+        class Transaction:
+            def rpush(self, cle, valeur):
+                operations.append(("rpush", cle, valeur))
+
+            def expire(self, cle, secondes):
+                operations.append(("expire", cle, secondes))
+
+            async def execute(self):
+                await redis._attendre()
+                for nom, cle, valeur in operations:
+                    if nom == "rpush":
+                        redis.listes.setdefault(cle, []).append(valeur)
+                    else:
+                        redis.expirations[cle] = valeur
+
+        return Transaction()
 
     async def lrange(self, cle, debut, fin):
         valeurs = self.listes.get(cle, [])
         return valeurs[debut:] if fin == -1 else valeurs[debut : fin + 1]
 
-    async def expire(self, cle, secondes):
-        self.expirations[cle] = secondes
-
     async def delete(self, cle):
+        await self._attendre()
         self.listes.pop(cle, None)
 
 
@@ -57,19 +80,17 @@ def redis():
 
 
 def test_chaque_evenement_arrive_horodate_et_dans_l_ordre(redis):
-    executer(direct.ouvrir_le_direct(42))
-    canal = get_ws_sender(42)
-    assert canal is not None
-    executer(
-        canal(
+    async def scenario():
+        await direct.ouvrir_le_direct(42)
+        canal = get_ws_sender(42)
+        assert canal is not None
+        await canal(
             {
                 "type": "rtf-user-transcription",
                 "payload": {"text": "Bonjour", "final": True},
             }
         )
-    )
-    executer(
-        canal(
+        await canal(
             {
                 "type": "rtf-bot-text",
                 "payload": {"text": "Bonjour, que puis-je pour vous ?"},
@@ -77,8 +98,12 @@ def test_chaque_evenement_arrive_horodate_et_dans_l_ordre(redis):
                 "node_name": "Accueil",
             }
         )
-    )
-    lu = executer(direct.lire_le_direct(42, 0))
+        await asyncio.sleep(0.05)
+        avant_la_fin = await direct.lire_le_direct(42, 0)
+        await direct.fermer_le_direct(42)
+        return avant_la_fin, await direct.lire_le_direct(42, avant_la_fin["suivant"])
+
+    lu, suite = executer(scenario())
     assert [e["type"] for e in lu["evenements"]] == [
         "rtf-user-transcription",
         "rtf-bot-text",
@@ -86,20 +111,21 @@ def test_chaque_evenement_arrive_horodate_et_dans_l_ordre(redis):
     assert all("timestamp" in e for e in lu["evenements"])
     assert lu["suivant"] == 2 and lu["fini"] is False
     assert redis.expirations[direct.cle_du_direct(42)] == direct.DUREE_DE_VIE_S
-    # Relu à partir du suivant : rien de neuf, puis la fin.
-    executer(direct.fermer_le_direct(42))
     assert get_ws_sender(42) is None
-    suite = executer(direct.lire_le_direct(42, lu["suivant"]))
     assert suite == {"evenements": [], "suivant": 3, "fini": True}
 
 
 def test_le_direct_est_borne_et_sa_fin_s_ecrit_toujours(redis):
-    with patch.object(direct, "MAX_EVENEMENTS", 3):
-        canal = direct.canal_du_direct(5)
-        for i in range(6):
-            executer(canal({"type": "rtf-bot-text", "payload": {"text": str(i)}}))
-        executer(direct.fermer_le_direct(5))
-    lu = executer(direct.lire_le_direct(5, 0))
+    async def scenario():
+        with patch.object(direct, "MAX_EVENEMENTS", 3):
+            await direct.ouvrir_le_direct(5)
+            canal = get_ws_sender(5)
+            for i in range(6):
+                await canal({"type": "rtf-bot-text", "payload": {"text": str(i)}})
+            await direct.fermer_le_direct(5)
+        return await direct.lire_le_direct(5, 0)
+
+    lu = executer(scenario())
     assert [e["type"] for e in lu["evenements"]] == [
         "rtf-bot-text",
         "rtf-bot-text",
@@ -108,17 +134,49 @@ def test_le_direct_est_borne_et_sa_fin_s_ecrit_toujours(redis):
     assert lu["fini"] is True
 
 
-def test_un_direct_en_panne_ne_casse_jamais_l_appel():
-    # R1 : Redis absent ; le canal avale l'erreur et l'écrit au journal.
-    with (
-        patch.object(
-            direct, "_client_redis", AsyncMock(side_effect=ConnectionError("redis"))
-        ),
-        patch.object(direct.logger, "error") as erreur,
-    ):
-        executer(direct.canal_du_direct(9)({"type": "rtf-bot-text", "payload": {}}))
-        executer(direct.fermer_le_direct(9))
-    assert "[.mark]" in erreur.call_args_list[0].args[0]
+def test_un_redis_fige_ne_fait_jamais_attendre_l_appel():
+    # R1, revue du lot A : Redis accepte la connexion et ne répond plus. Le canal rend la main tout
+    # de suite (un changement d'étape l'attend), et la fermeture abandonne dans son délai.
+    fige = RedisFactice(fige=True)
+
+    async def scenario():
+        with (
+            patch.object(direct, "_client_redis", AsyncMock(return_value=fige)),
+            patch.object(direct, "DELAI_ECRITURE_S", 0.05),
+            patch.object(direct, "DELAI_FERMETURE_S", 0.2),
+            patch.object(direct.logger, "error"),
+        ):
+            await direct.ouvrir_le_direct(9)
+            canal = get_ws_sender(9)
+            debut = time.monotonic()
+            for i in range(50):
+                await canal({"type": "rtf-bot-text", "payload": {"text": str(i)}})
+            duree_du_canal = time.monotonic() - debut
+            debut = time.monotonic()
+            await direct.fermer_le_direct(9)
+            return duree_du_canal, time.monotonic() - debut
+
+    duree_du_canal, duree_de_fermeture = executer(scenario())
+    assert duree_du_canal < 0.05
+    assert duree_de_fermeture < 1.0
+    assert get_ws_sender(9) is None
+
+
+def test_un_redis_absent_ne_casse_rien():
+    async def scenario():
+        with (
+            patch.object(
+                direct, "_client_redis", AsyncMock(side_effect=ConnectionError("redis"))
+            ),
+            patch.object(direct.logger, "error") as erreur,
+        ):
+            await direct.ouvrir_le_direct(10)
+            await get_ws_sender(10)({"type": "rtf-bot-text", "payload": {}})
+            await direct.fermer_le_direct(10)
+            return erreur.call_args_list
+
+    appels = executer(scenario())
+    assert appels and all("[.mark]" in a.args[0] for a in appels)
 
 
 def test_le_canal_est_retire_meme_si_l_appel_echoue(redis):
@@ -136,6 +194,17 @@ def test_le_canal_est_retire_meme_si_l_appel_echoue(redis):
         vu_pendant["canal"] = get_ws_sender(77)
         raise RuntimeError("panne du pipeline")
 
+    async def scenario():
+        with pytest.raises(RuntimeError, match="panne du pipeline"):
+            await pipeline_simule.jouer_appel_simule(
+                MagicMock(),
+                workflow_run_id=77,
+                organization_id=ORG,
+                stream_sid="s",
+                call_sid="c",
+            )
+        return await direct.lire_le_direct(77, 0)
+
     with (
         patch.object(pipeline_simule, "db_client", db),
         patch.object(
@@ -149,26 +218,18 @@ def test_le_canal_est_retire_meme_si_l_appel_echoue(redis):
             pipeline_simule.run_pipeline, "_run_pipeline_impl", pipeline_qui_echoue
         ),
     ):
-        with pytest.raises(RuntimeError, match="panne du pipeline"):
-            executer(
-                pipeline_simule.jouer_appel_simule(
-                    MagicMock(),
-                    workflow_run_id=77,
-                    organization_id=ORG,
-                    stream_sid="s",
-                    call_sid="c",
-                )
-            )
+        lu = executer(scenario())
     assert vu_pendant["canal"] is not None
     assert get_ws_sender(77) is None
-    assert executer(direct.lire_le_direct(77, 0))["fini"] is True
+    assert lu["fini"] is True
 
 
 @pytest.fixture
 def ecran(redis):
     runs = {
-        1: SimpleNamespace(id=1, mode="simulated"),
-        2: SimpleNamespace(id=2, mode="smallwebrtc"),
+        1: SimpleNamespace(id=1, mode="simulated", state="running"),
+        2: SimpleNamespace(id=2, mode="smallwebrtc", state="running"),
+        3: SimpleNamespace(id=3, mode="simulated", state="completed"),
     }
     db = MagicMock()
     db.get_workflow_run = AsyncMock(
@@ -185,11 +246,20 @@ def ecran(redis):
         yield TestClient(app), db
 
 
+def _remplir(run_id, textes):
+    async def scenario():
+        await direct.ouvrir_le_direct(run_id)
+        canal = get_ws_sender(run_id)
+        for texte in textes:
+            await canal({"type": "rtf-bot-text", "payload": {"text": texte}})
+        await asyncio.sleep(0.05)
+
+    executer(scenario())
+
+
 def test_la_route_ne_montre_que_le_direct_d_un_run_simule_de_l_organisation(ecran):
     client, db = ecran
-    canal = direct.canal_du_direct(1)
-    for texte in ("un", "deux", "trois"):
-        executer(canal({"type": "rtf-bot-text", "payload": {"text": texte}}))
+    _remplir(1, ("un", "deux", "trois"))
     reponse = client.get("/appel-simule/runs/1/direct?depuis=1")
     assert reponse.status_code == 200
     corps = reponse.json()
@@ -200,6 +270,16 @@ def test_la_route_ne_montre_que_le_direct_d_un_run_simule_de_l_organisation(ecra
     assert client.get("/appel-simule/runs/99/direct").status_code == 404
     db.get_workflow_run.side_effect = lambda rid, organization_id=None: None
     assert client.get("/appel-simule/runs/1/direct").status_code == 404
+
+
+def test_un_run_termine_sans_marqueur_de_fin_est_fini(ecran):
+    # Revue du lot A : échec avant l'appel, processus perdu ou direct expiré ; l'écran s'arrête.
+    client, _ = ecran
+    assert client.get("/appel-simule/runs/3/direct").json() == {
+        "evenements": [],
+        "suivant": 0,
+        "fini": True,
+    }
 
 
 def test_un_direct_illisible_le_dit_sans_rien_casser(ecran):

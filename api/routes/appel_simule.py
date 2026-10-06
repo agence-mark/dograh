@@ -349,7 +349,7 @@ async def direct_appel_simule(
     if run is None or getattr(run, "mode", None) != WorkflowRunMode.SIMULATED.value:
         raise HTTPException(status_code=404, detail="Simulated run not found")
     try:
-        return await lire_le_direct(workflow_run_id, depuis)
+        direct = await lire_le_direct(workflow_run_id, depuis)
     except Exception as erreur:  # noqa: BLE001
         # R1 : l'appel continue ; seul le direct manque, et l'écran le dit.
         logger.warning(
@@ -359,3 +359,8 @@ async def direct_appel_simule(
             status_code=503,
             detail="Live view unavailable; the call goes on and its transcript is saved at the end.",
         ) from None
+    # Revue du lot A : un run terminé sans marqueur de fin (échec avant l'appel, processus perdu,
+    # direct expiré) est fini aussi ; l'écran cesse de relire.
+    if getattr(run, "state", None) == WorkflowRunState.COMPLETED.value:
+        direct["fini"] = True
+    return direct
