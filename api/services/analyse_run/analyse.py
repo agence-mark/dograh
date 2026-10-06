@@ -585,11 +585,24 @@ def silences_apres_outil(run: dict, seuil_s: float) -> list[dict]:
     Chaque parole est un INTERVALLE (début → fin de la réplique ou de la transcription) : une
     réplique de l'agent commencée avant l'outil et qui dure après lui n'est pas un silence (faux
     positif du run 885 au premier essai). Un résultat d'outil suivi de rien du tout (fin d'appel)
-    n'est pas compté."""
+    n'est pas compté.
+
+    Le premier son de la voix compte comme une parole de l'agent, en plus de son texte (lot B du
+    chantier direct-et-passe-muette, 06/10) : après une réplique interrompue, le journal de l'amont
+    range le texte de l'agent dans un autre tour, et le tour qui a parlé n'a plus de texte. Les
+    « passes muettes » des runs 909 t3 et 967 t9 étaient ce rangement, pas un silence : la voix
+    avait démarré 1,2 à 1,6 s après l'outil."""
     evenements = _evenements(run)
     paroles = []
     for e in evenements:
         charge = e.get("payload") or {}
+        if e.get("type") == "rtf-ttfb-metric" and "TTSService" in str(
+            charge.get("processor", "")
+        ):
+            instant = _ms(e.get("timestamp"))
+            if not math.isnan(instant):
+                paroles.append((instant, instant, "agent"))
+            continue
         if e.get("type") == "rtf-bot-text":
             qui = "agent"
         elif e.get("type") == "rtf-user-transcription" and charge.get("final"):
