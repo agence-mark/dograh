@@ -23,12 +23,17 @@ from sqlalchemy.exc import IntegrityError
 
 from api.routes import cles as route
 from api.routes import credentials as route_amont
+from api.schemas.ai_model_configuration import EffectiveAIModelConfiguration
 from api.schemas.appel_simule import ReglagesAppelantSimule, RoleSimule, VoixSimulee
 from api.services import bibliotheque_cles as bibliotheque
+from api.services import cles_reference
 from api.services.appel_simule import reglages as stockage
 from api.services.appel_simule import serie as moteur
 from api.services.appel_simule.serie import SerieRefusee
 from api.services.auth.depends import get_user, get_user_with_selected_organization
+from api.services.configuration import ai_model_configuration as configuration_modeles
+from api.services.configuration.check_validity import UserConfigurationValidator
+from api.services.configuration.masking import mask_key
 from api.tests.mark.boucle_isolee import (
     executer_sans_toucher_la_boucle_courante as executer,
 )
@@ -153,8 +158,14 @@ def base():
         patch.object(bibliotheque, "db_client", db),
         patch.object(stockage, "db_client", db),
         patch.object(moteur, "db_client", db),
+        patch("api.db.db_client", db),
+        patch.object(
+            bibliotheque,
+            "get_organization_ai_model_configuration_v2",
+            AsyncMock(return_value=None),
+        ) as modeles_organisation,
     ):
-        yield SimpleNamespace(db=db, coffre=coffre)
+        yield SimpleNamespace(db=db, coffre=coffre, modeles=modeles_organisation)
 
 
 @pytest.fixture
@@ -215,7 +226,7 @@ def test_un_nom_deja_pris_et_un_fournisseur_inconnu_sont_refuses(ecran):
     )
     assert pris.status_code == 409 and "already exists" in pris.json()["detail"]
     inconnu = ecran.post(
-        "/cles", json={"fournisseur": "openai", "nom": "X", "cle": "12345678"}
+        "/cles", json={"fournisseur": "inconnu", "nom": "X", "cle": "12345678"}
     )
     assert inconnu.status_code == 422
     vide = ecran.post(
@@ -381,3 +392,138 @@ def test_les_ecrans_http_de_dograh_ne_voient_ni_ne_touchent_une_cle_de_la_biblio
     # R7 : un identifiant HTTP ordinaire reste lisible et supprimable par Dograh.
     assert ecran_amont.get("/credentials/outil-http").status_code == 200
     assert ecran_amont.delete("/credentials/outil-http").status_code == 200
+
+
+# --- Lot 0 bis : la bibliothèque dans « Models » et les réglages de modèle d'un agent ------------
+
+
+def _configuration(llm_cle, tts_cles):
+    return EffectiveAIModelConfiguration.model_validate(
+        {
+            "llm": {
+                "provider": "mistral",
+                "model": "mistral-small-latest",
+                "api_key": llm_cle,
+            },
+            "tts": {
+                "provider": "elevenlabs",
+                "model": "eleven_flash_v2_5",
+                "voice": "v",
+                "api_key": tts_cles,
+            },
+        }
+    )
+
+
+def test_les_fournisseurs_sont_ceux_de_models(ecran):
+    fournisseurs = ecran.get("/cles/fournisseurs").json()
+    assert {"mistral", "elevenlabs", "openai", "deepgram", "cartesia"} <= set(
+        fournisseurs
+    )
+    assert (
+        ecran.post(
+            "/cles",
+            json={"fournisseur": "openai", "nom": "OpenAI", "cle": "sk-12345678"},
+        ).status_code
+        == 201
+    )
+
+
+def test_une_reference_se_remplace_par_la_cle_et_une_cle_tapee_reste(base):
+    configuration = _configuration(
+        "mark-cle:cle-mistral", ["mark-cle:cle-eleven", "cle-tapee-a-la-main"]
+    )
+    resolue = executer(
+        cles_reference.resoudre_les_cles(configuration, ORG, strict=True)
+    )
+    assert resolue.llm.api_key == "SECRET-M"
+    assert resolue.tts.get_all_api_keys() == ["SECRET-E", "cle-tapee-a-la-main"]
+    # La configuration lue n'est pas modifiée : l'écran garde la référence.
+    assert configuration.llm.api_key == "mark-cle:cle-mistral"
+
+
+def test_une_configuration_sans_reference_ne_lit_pas_la_base(base):
+    configuration = _configuration("cle-tapee", "autre-cle-tapee")
+    base.db.get_credential_by_uuid = AsyncMock(side_effect=AssertionError("lue"))
+    assert (
+        executer(cles_reference.resoudre_les_cles(configuration, ORG, strict=True))
+        is configuration
+    )
+
+
+def test_une_reference_introuvable_refuse_l_enregistrement_et_ne_se_tait_pas_a_l_appel(
+    base,
+):
+    # R7 : la clé d'une autre organisation et une clé d'outil HTTP ne se résolvent pas.
+    for uuid in ("cle-autre-org", "outil-http", "jamais-vue"):
+        configuration = _configuration(f"mark-cle:{uuid}", "cle-tapee")
+        with pytest.raises(cles_reference.CleIntrouvable, match="llm key .* deleted"):
+            executer(cles_reference.resoudre_les_cles(configuration, ORG, strict=True))
+        with patch.object(cles_reference.logger, "error") as erreur:
+            resolue = executer(
+                cles_reference.resoudre_les_cles(configuration, ORG, strict=False)
+            )
+        assert resolue.llm.api_key == f"mark-cle:{uuid}"
+        assert "[.mark]" in erreur.call_args.args[0]
+
+
+def test_l_appel_lit_la_cle_et_la_validation_aussi(base):
+    configuration = _configuration("mark-cle:cle-mistral", "cle-tapee")
+    with patch.object(
+        configuration_modeles,
+        "_effective_for_workflow",
+        AsyncMock(return_value=configuration),
+    ):
+        effective = executer(
+            configuration_modeles.get_effective_ai_model_configuration_for_workflow(
+                organization_id=ORG, workflow_configurations={}
+            )
+        )
+    assert effective.llm.api_key == "SECRET-M"
+
+    vues = []
+    validateur = UserConfigurationValidator()
+
+    def relever(service, *args, **kwargs):
+        if service is not None:
+            vues.append(service.__dict__.get("api_key"))
+        return []
+
+    validateur._validate_service = relever
+    executer(validateur.validate(configuration, organization_id=ORG))
+    assert vues[0] == "SECRET-M"
+    with pytest.raises(ValueError, match="deleted"):
+        executer(
+            validateur.validate(
+                _configuration("mark-cle:jamais-vue", "x"), organization_id=ORG
+            )
+        )
+
+
+def test_une_reference_n_est_pas_masquee_une_cle_si():
+    assert mask_key("mark-cle:cle-mistral") == "mark-cle:cle-mistral"
+    assert "SECRET" not in mask_key("SECRET-MISTRAL-1234")
+
+
+def test_les_usages_comptent_models_et_les_reglages_de_modele_des_agents(ecran, base):
+    base.modeles.return_value = SimpleNamespace(
+        model_dump_json=lambda: '{"llm": {"api_key": "mark-cle:cle-mistral"}}'
+    )
+    base.db.get_all_workflows.return_value = [
+        SimpleNamespace(
+            name="essai_ndf",
+            current_definition=SimpleNamespace(
+                workflow_json={},
+                workflow_configurations={
+                    "model_overrides": {"tts": {"api_key": "mark-cle:cle-eleven"}}
+                },
+            ),
+            workflow_configurations=None,
+        )
+    ]
+    assert ecran.get("/cles/cle-mistral/usages").json() == [
+        {"ou": "modeles_organisation", "nom": None}
+    ]
+    assert ecran.get("/cles/cle-eleven/usages").json() == [
+        {"ou": "modeles_agent", "nom": "essai_ndf"}
+    ]

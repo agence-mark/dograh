@@ -12,6 +12,7 @@ from groq import Groq
 from api.schemas.ai_model_configuration import (
     EffectiveAIModelConfiguration,
 )
+from api.services.cles_reference import resoudre_les_cles
 from api.services.configuration.registry import (
     MISTRAL_EU_BASE_URL,
     ServiceConfig,
@@ -88,6 +89,11 @@ class UserConfigurationValidator:
         # A managed configuration commonly repeats one service key across LLM,
         # STT, TTS, and embeddings. Validate that credential once per request.
         self._dograh_service_key_validation_cache.clear()
+        # [.mark] A key of the key library chosen by reference is tested as the key itself; a
+        # reference to a deleted key refuses the save, saying so (direct-et-passe-muette, P21, P22).
+        configuration = await resoudre_les_cles(
+            configuration, organization_id, strict=True
+        )
         self._auth_context: AuthContext = {
             "organization_id": organization_id,
             "created_by": created_by,
@@ -269,7 +275,9 @@ class UserConfigurationValidator:
         the key leaves, never audio.
         """
         base_url = getattr(service_config, "base_url", None) if service_config else None
-        hote = "api.eu.soniox.com" if region_soniox(base_url) == "eu" else "api.soniox.com"
+        hote = (
+            "api.eu.soniox.com" if region_soniox(base_url) == "eu" else "api.soniox.com"
+        )
         try:
             response = httpx.get(
                 f"https://{hote}/v1/models",

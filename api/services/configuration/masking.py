@@ -13,6 +13,7 @@ import copy
 from typing import Any, Dict, Optional
 
 from api.schemas.ai_model_configuration import EffectiveAIModelConfiguration
+from api.services.cles_reference import est_reference
 from api.services.configuration.registry import ServiceConfig
 from api.services.integrations import get_node_secret_fields
 
@@ -66,6 +67,10 @@ def mask_key(real_key: str, visible: int = VISIBLE_CHARS) -> str:
     """
     if real_key is None:
         return ""
+    # [.mark] A reference to a key of the key library is not a secret: shown as it is, so the
+    # screen can name the key (direct-et-passe-muette, lot 0 bis, P21).
+    if est_reference(real_key):
+        return real_key
 
     if visible <= 0 or visible >= len(real_key):
         # mask entire key or nothing to mask – edge-cases

@@ -57,6 +57,7 @@ vi.mock("@/client", () => ({
     usagesDUneCleApiV1ClesUuidUsagesGet: (...a: unknown[]) => m.usagesCle(...a),
     supprimerUneCleApiV1ClesUuidDelete: (...a: unknown[]) => m.supprimerCle(...a),
     identifiantDesigneApiV1ClesDesigneeUuidGet: (...a: unknown[]) => m.designee(...a),
+    fournisseursDesClesApiV1ClesFournisseursGet: async () => ({ data: ["mistral", "elevenlabs", "openai"] }),
     getWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGet: (...a: unknown[]) => m.analyse(...a),
 }));
 vi.mock("@/client/sdk.gen", () => ({ createWorkflowRunApiV1WorkflowWorkflowIdRunsPost: vi.fn() }));

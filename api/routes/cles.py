@@ -25,6 +25,7 @@ from api.db.models import UserModel
 from api.enums import WebhookCredentialType
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.bibliotheque_cles import (
+    FOURNISSEURS,
     Fournisseur,
     Usage,
     donnees_d_une_cle,
@@ -134,6 +135,14 @@ async def ajouter_une_cle(
             raise deja_pris from None
         raise HTTPException(status_code=500, detail="Key not saved") from None
     return _vue(identifiant)
+
+
+@router.get("/fournisseurs", response_model=list[str])
+async def fournisseurs_des_cles(
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """P19 : les fournisseurs qu'une clé de la bibliothèque peut servir (ceux de « Models »)."""
+    return list(FOURNISSEURS)
 
 
 @router.get("/designee/{uuid}", response_model=Designation)
