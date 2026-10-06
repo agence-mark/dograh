@@ -39,6 +39,7 @@ from api.schemas.etablissements import (
     EtablissementServi,
     ValeurHeritee,
 )
+from api.schemas.phrases import CataloguePhrases
 
 CLE_ETABLISSEMENT_CHOISI = "etablissement_id"
 CLE_NOM = "etablissement"
@@ -190,29 +191,52 @@ async def _numeros_de_lagent(organization_id: int, workflow_id: int | None) -> l
     return [adresse for adresse, _libelle, agent, _nom, actif in lignes if agent == workflow_id and actif]
 
 
+@dataclass
+class LectureDeLappel:
+    """What a call reads at pick-up from the copy: its establishment (or none) and the
+    organization's catalogue of sentences (E5), which applies with or without one."""
+
+    servi: EtablissementDeLappel | None = None
+    phrases: CataloguePhrases = field(default_factory=CataloguePhrases)
+
+
+async def lire_lappel(
+    organization_id: int | None,
+    workflow_id: int | None,
+    contexte: dict,
+) -> LectureDeLappel:
+    """Read the copy once, choose the establishment. Never raises: on any problem,
+    no establishment and no sentence -- the call of before."""
+    try:
+        from api.services.etablissements.copie import lire_copie_complete
+
+        copie = await lire_copie_complete(organization_id)
+        lecture = LectureDeLappel(phrases=copie.phrases)
+        catalogue = copie.etablissements
+        if not catalogue.etablissements:
+            return lecture
+        numeros = []
+        if _vide((contexte or {}).get("called_number")) and not (contexte or {}).get(CLE_ETABLISSEMENT_CHOISI):
+            numeros = await _numeros_de_lagent(organization_id, workflow_id)
+        choix = choisir_etablissement(catalogue, contexte or {}, numeros)
+        if choix is not None:
+            etablissement, source = choix
+            lecture.servi = EtablissementDeLappel(
+                etablissement=etablissement, source=source, lu_depuis=copie.lu_depuis
+            )
+        return lecture
+    except Exception as erreur:  # noqa: BLE001 -- the call must go on
+        logger.warning(f"[.mark] Establishment of the call not resolved, none used: {erreur!r}")
+        return LectureDeLappel()
+
+
 async def etablissement_de_lappel(
     organization_id: int | None,
     workflow_id: int | None,
     contexte: dict,
 ) -> EtablissementDeLappel | None:
-    """Read the copy, choose the establishment. ``None`` on any problem."""
-    try:
-        from api.services.etablissements.copie import lire_copie
-
-        catalogue, lu_depuis = await lire_copie(organization_id)
-        if not catalogue.etablissements:
-            return None
-        numeros = []
-        if _vide((contexte or {}).get("called_number")) and not (contexte or {}).get(CLE_ETABLISSEMENT_CHOISI):
-            numeros = await _numeros_de_lagent(organization_id, workflow_id)
-        choix = choisir_etablissement(catalogue, contexte or {}, numeros)
-        if choix is None:
-            return None
-        etablissement, source = choix
-        return EtablissementDeLappel(etablissement=etablissement, source=source, lu_depuis=lu_depuis)
-    except Exception as erreur:  # noqa: BLE001 -- the call must go on
-        logger.warning(f"[.mark] Establishment of the call not resolved, none used: {erreur!r}")
-        return None
+    """The establishment alone (screen and tools). ``None`` on any problem."""
+    return (await lire_lappel(organization_id, workflow_id, contexte)).servi
 
 
 # --------------------------------------------------------------------------- #

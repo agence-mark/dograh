@@ -19,12 +19,14 @@ import { toast } from "sonner";
 import {
     getEtablissementsApiV1OrganizationsEtablissementsGet,
     getNumerosApiV1OrganizationsEtablissementsNumerosGet,
+    getPhrasesApiV1OrganizationsPhrasesGet,
     saveEtablissementsApiV1OrganizationsEtablissementsPut,
 } from "@/client/sdk.gen";
 import type {
     AdresseEtablissement,
     Etablissement,
     NumeroDeLorganisation,
+    Phrase,
     ReglagesAnnonceOuverture,
 } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
@@ -81,7 +83,27 @@ const nettoyer = (e: Etablissement): Etablissement => {
         horaires_ouverture: vide(e.horaires_ouverture),
         annonce_fermeture: vide(e.annonce_fermeture),
         annonce_pause: vide(e.annonce_pause),
+        phrases: Object.fromEntries(
+            Object.entries(e.phrases ?? {})
+                .filter(([, v]) => v && v.trim())
+                .map(([k, v]) => [k, v.trim()]),
+        ),
+        termes_lexique: e.termes_lexique ?? [],
     };
+};
+
+/** One term per line -> the establishment's terms, keeping a term already there as it was. */
+export const termesDepuisTexte = (texte: string, avant: Etablissement["termes_lexique"]) => {
+    const connus = new Map((avant ?? []).map((x) => [x.terme, x]));
+    const vus = new Set<string>();
+    const termes: NonNullable<Etablissement["termes_lexique"]> = [];
+    for (const ligne of texte.split("\n")) {
+        const terme = ligne.trim();
+        if (!terme || vus.has(terme)) continue;
+        vus.add(terme);
+        termes.push(connus.get(terme) ?? { terme, variantes: [], type: "nom", a_ecouter: false, propose: false });
+    }
+    return termes;
 };
 
 export const charge_utile_etablissements = (liste: Etablissement[]) => ({
@@ -172,6 +194,9 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
     const { t } = useLangue();
     const [liste, setListe] = useState<Etablissement[] | null>(null);
     const [numeros, setNumeros] = useState<NumeroDeLorganisation[]>([]);
+    const [phrasesEtablissement, setPhrasesEtablissement] = useState<Phrase[]>([]);
+    // The terms as typed: a line being written is kept until it is left.
+    const [termesSaisis, setTermesSaisis] = useState<Record<string, string>>({});
     const [choisi, setChoisi] = useState(0);
     const [erreur, setErreur] = useState<string | null>(null);
     const [enCours, setEnCours] = useState(false);
@@ -189,10 +214,12 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
         setChoisi(0);
         setOuverts({});
         void (async () => {
-            const [catalogue, telephonie] = await Promise.all([
+            const [catalogue, telephonie, phrases] = await Promise.all([
                 getEtablissementsApiV1OrganizationsEtablissementsGet(),
                 getNumerosApiV1OrganizationsEtablissementsNumerosGet(),
+                getPhrasesApiV1OrganizationsPhrasesGet(),
             ]);
+            setPhrasesEtablissement((phrases.data?.phrases ?? []).filter((p) => p.niveau === "etablissement"));
             if (catalogue.error || !catalogue.data) {
                 // ⛔ Unreadable: nothing to edit, or the save would replace what is there.
                 setErreur(detailFromError(catalogue.error, "Establishments unreadable"));
@@ -475,6 +502,66 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                     />
                                 </ChampHerite>
 
+                                {phrasesEtablissement.map((p) => {
+                                    const cle = `phrase:${p.variable}`;
+                                    const propre = (courant.phrases ?? {})[p.variable];
+                                    return (
+                                        <ChampHerite
+                                            key={cle}
+                                            id={p.variable}
+                                            libelle={{ en: p.description || p.variable, fr: p.description || p.variable }}
+                                            aide={{
+                                                en: `A sentence of the catalogue placed at the establishment's level, given to the agents as {{${p.variable}}}.`,
+                                                fr: `Une phrase du catalogue placée au niveau de l'établissement, donnée aux agents comme {{${p.variable}}}.`,
+                                            }}
+                                            herite={p.contenu ?? null}
+                                            origine={{ en: "Inherited from the organization", fr: "Hérité de l'organisation" }}
+                                            personnalise={Boolean(propre) || Boolean(ouverts[`${courant.id}:${cle}`])}
+                                            onPersonnaliser={() => setOuverts((a) => ({ ...a, [`${courant.id}:${cle}`]: true }))}
+                                            onHeriter={() => {
+                                                setOuverts((a) => ({ ...a, [`${courant.id}:${cle}`]: false }));
+                                                const reste = { ...(courant.phrases ?? {}) };
+                                                delete reste[p.variable];
+                                                modifier({ phrases: reste });
+                                            }}
+                                        >
+                                            <Textarea
+                                                id={`etablissement-phrase-${p.variable}`}
+                                                rows={2}
+                                                maxLength={1000}
+                                                value={propre ?? ""}
+                                                onChange={(e) => modifier({ phrases: { ...(courant.phrases ?? {}), [p.variable]: e.target.value } })}
+                                            />
+                                        </ChampHerite>
+                                    );
+                                })}
+
+                                <div className="space-y-1">
+                                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                        <label htmlFor="etablissement-termes" className="text-sm font-medium">
+                                            {t({ en: "Terms added to the trade vocabulary", fr: "Termes ajoutés au lexique métier" })}
+                                        </label>
+                                        <code className="text-xs text-muted-foreground">termes_lexique</code>
+                                    </div>
+                                    <Textarea
+                                        id="etablissement-termes"
+                                        rows={3}
+                                        placeholder={t({ en: "One brand or name per line", fr: "Une marque ou un nom par ligne" })}
+                                        value={termesSaisis[courant.id] ?? (courant.termes_lexique ?? []).map((x) => x.terme).join("\n")}
+                                        onChange={(e) => {
+                                            const texte = e.target.value;
+                                            setTermesSaisis((a) => ({ ...a, [courant.id]: texte }));
+                                            modifier({ termes_lexique: termesDepuisTexte(texte, courant.termes_lexique) });
+                                        }}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        {t({
+                                            en: "Recognised like the organization's names on this establishment's calls; a spelling already in the organization's vocabulary is ignored.",
+                                            fr: "Reconnus comme les noms de l'organisation sur les appels de cet établissement ; une orthographe déjà dans le lexique de l'organisation est ignorée.",
+                                        })}
+                                    </p>
+                                </div>
+
                                 {(["annonce_fermeture", "annonce_pause"] as const).map((cle) => (
                                     <ChampHerite
                                         key={cle}
@@ -507,8 +594,8 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                         )}
                         {fautes.length > 0 && (
                             <ul className="text-sm text-destructive md:col-span-2" data-testid="fautes-etablissements">
-                                {fautes.map((f) => (
-                                    <li key={f}>{f}</li>
+                                {fautes.map((f, i) => (
+                                    <li key={i}>{f}</li>
                                 ))}
                             </ul>
                         )}

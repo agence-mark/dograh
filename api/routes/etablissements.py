@@ -26,6 +26,7 @@ from api.schemas.etablissements import (
     EtablissementsDeLagent,
     NumeroDeLorganisation,
 )
+from api.schemas.phrases import CataloguePhrases
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.communes.adresse import (
     AdresseInvalide,
@@ -35,7 +36,9 @@ from api.services.communes.adresse import (
 from api.services.etablissements.appel import etablissements_de_lagent
 from api.services.etablissements.stockage import (
     enregistrer_etablissements,
+    enregistrer_phrases,
     lire_etablissements_strict,
+    lire_phrases_strict,
 )
 
 router = APIRouter(prefix="/organizations/etablissements", tags=["organizations"])
@@ -86,9 +89,20 @@ async def save_etablissements(
 
     organization_id = user.selected_organization_id
     siens = {n.numero for n in await _numeros_de_lorganisation(organization_id)}
+    try:
+        phrases = await lire_phrases_strict(organization_id)
+    except Exception:  # noqa: BLE001 -- unreadable: no establishment sentence can be checked
+        phrases = CataloguePhrases()
+    au_niveau_etablissement = {p.variable for p in phrases.phrases if p.niveau == "etablissement"}
     verifies = []
     for rang, etablissement in enumerate(request.etablissements):
         loc = ["body", "etablissements", rang]
+        for variable in etablissement.phrases:
+            if variable not in au_niveau_etablissement:
+                raise _refus(
+                    f"{etablissement.nom}: « {variable} » is not a sentence placed at the establishment's level.",
+                    loc + ["phrases", variable],
+                )
         if etablissement.horaires_ouverture:
             try:
                 vers_expression_osm(etablissement.horaires_ouverture)
@@ -150,3 +164,32 @@ async def post_etablissements_de_lagent(
         texte_adresse(adresse_org) if adresse_org else None,
         await lire_annonce_ouverture(organization_id),
     )
+
+
+# --------------------------------------------------------------------------- #
+# The catalogue of sentences (L2, E5): .mark creates, changes and places them here
+# --------------------------------------------------------------------------- #
+
+routeur_phrases = APIRouter(prefix="/organizations/phrases", tags=["organizations"])
+
+
+@routeur_phrases.get("", response_model=CataloguePhrases)
+async def get_phrases(user: UserModel = Depends(get_user_with_selected_organization)):
+    """⛔ Strict: shown empty because unreadable, the next save would replace them."""
+    try:
+        return await lire_phrases_strict(user.selected_organization_id)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Sentences unreadable for the screen: {erreur!r}")
+        raise HTTPException(
+            status_code=500,
+            detail="The sentences saved for this organization cannot be read. Nothing was changed; saving now would replace them.",
+        ) from None
+
+
+@routeur_phrases.put("", response_model=CataloguePhrases)
+async def save_phrases(
+    request: CataloguePhrases,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """Replace the catalogue. Bounds and reserved names: 422 before writing."""
+    return await enregistrer_phrases(user.selected_organization_id, request)

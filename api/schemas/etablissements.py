@@ -30,12 +30,15 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from api.schemas.lexique_metier import TermeLexique
 from api.schemas.organization_preferences import AdresseEtablissement
 
 MAX_ETABLISSEMENTS = 50
 MAX_NUMEROS = 10
 MAX_LONGUEUR_HORAIRES = 4000
 MAX_LONGUEUR_ANNONCE = 300
+MAX_TERMES_ETABLISSEMENT = 200
+MAX_LONGUEUR_PHRASE = 1000
 
 # E.164: a plus sign and 8 to 15 digits. The screen offers the organization's
 # own numbers; the second number and the transfer number are typed.
@@ -100,6 +103,33 @@ class Etablissement(BaseModel):
         max_length=MAX_LONGUEUR_ANNONCE,
         description="None: the organization's break announcement.",
     )
+
+    phrases: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "This establishment's content for the sentences placed at the establishment's level "
+            "(variable -> content). Absent: the organization's content."
+        ),
+    )
+    termes_lexique: list[TermeLexique] = Field(
+        default_factory=list,
+        max_length=MAX_TERMES_ETABLISSEMENT,
+        description="Terms this establishment adds to the organization's trade vocabulary (E6).",
+    )
+
+    @field_validator("phrases", mode="before")
+    @classmethod
+    def _phrases(cls, value):
+        """Empty content = inherited: the key goes away."""
+        if not isinstance(value, dict):
+            return value
+        propres = {}
+        for cle, contenu in value.items():
+            if isinstance(contenu, str) and contenu.strip():
+                if len(contenu) > MAX_LONGUEUR_PHRASE:
+                    raise ValueError(f"The sentence « {cle} » is longer than {MAX_LONGUEUR_PHRASE} characters.")
+                propres[cle] = contenu.strip()
+        return propres
 
     @field_validator("id")
     @classmethod

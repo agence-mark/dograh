@@ -40,7 +40,7 @@ from api.services.lexique.ecoute import (
     injecter_lexique_propose,
     termes_proposes,
 )
-from api.services.lexique.reglages import lire_lexique_de_lappel
+from api.services.lexique.reglages import interrupteur_allume, lire_lexique_de_lappel
 from api.services.observability.active_calls import (
     register_active_call as register_worker_active_call,
 )
@@ -58,8 +58,12 @@ from api.services.annonce.stockage import lire_annonce_ouverture
 from api.services.etablissements.appel import (
     annonce_heritee,
     configuration_heritee,
-    etablissement_de_lappel,
     injecter_etablissement,
+    lire_lappel,
+)
+from api.services.etablissements.phrases import (
+    injecter_phrases,
+    lexique_avec_etablissement,
 )
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
@@ -911,9 +915,10 @@ async def _run_pipeline_impl(
     # Its hours, address and sentences are handed to the three injections
     # below, the agent's own values first. No establishment: the SAME
     # configuration and announcement come back, the call is the call of before.
-    etablissement_servi = await etablissement_de_lappel(
+    lecture_de_lappel = await lire_lappel(
         workflow.organization_id, workflow_id, merged_call_context_vars
     )
+    etablissement_servi = lecture_de_lappel.servi
     configs_heritees, origines_heritees = configuration_heritee(
         run_configs, etablissement_servi.etablissement if etablissement_servi else None
     )
@@ -924,6 +929,12 @@ async def _run_pipeline_impl(
         etablissement_servi.origines.update(origines_heritees)
     merged_call_context_vars = injecter_etablissement(
         merged_call_context_vars, etablissement_servi
+    )
+    # [.mark] The catalogue of sentences (E5), the establishment's content first.
+    merged_call_context_vars = injecter_phrases(
+        merged_call_context_vars,
+        lecture_de_lappel.phrases,
+        etablissement_servi.etablissement if etablissement_servi else None,
     )
     # [.mark] Opening state, computed once at call set-up, Paris time (D8).
     # BEFORE the persistence below and BEFORE the pre-call fetch, which is
@@ -955,6 +966,12 @@ async def _run_pipeline_impl(
     # for, the names corrected before the model reads them, and how the voice
     # says them. Empty when the agent's switch is off, and never raises.
     lexique_metier = await lire_lexique_de_lappel(run_configs, workflow.organization_id)
+    # [.mark] The establishment's own terms (E6), added to the organization's, only
+    # when the agent's switch is on (an empty vocabulary stays empty).
+    if etablissement_servi is not None and interrupteur_allume(run_configs):
+        lexique_metier = lexique_avec_etablissement(
+            lexique_metier, etablissement_servi.etablissement
+        )
 
     # Extract configurations from the version's workflow_configurations
     max_call_duration_seconds = DEFAULT_MAX_CALL_DURATION_SECONDS

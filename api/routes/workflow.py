@@ -398,6 +398,9 @@ class UpdateWorkflowStatusRequest(BaseModel):
 class CreateWorkflowRunRequest(BaseModel):
     mode: str
     name: str
+    # [.mark] The establishment chosen in the test window (chantier l-agent-travaille,
+    # E3): a browser test has no called number. None: the agent's first.
+    etablissement_id: str | None = Field(default=None, max_length=40)
 
 
 class CreateWorkflowRunResponse(BaseModel):
@@ -1567,6 +1570,11 @@ async def create_workflow_run(
             else CallType.INBOUND
         )
         initial_context["direction"] = call_type.value
+
+    # [.mark] Only an identifier: it selects within THIS organization's catalogue at
+    # call set-up, so it can never reach another organization's establishment.
+    if request.etablissement_id:
+        initial_context["etablissement_id"] = request.etablissement_id
 
     run = await db_client.create_workflow_run(
         request.name,

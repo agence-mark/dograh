@@ -1499,6 +1499,24 @@ export type CatalogueEtablissements = {
 };
 
 /**
+ * CataloguePhrases
+ */
+export type CataloguePhrases = {
+    /**
+     * Format
+     */
+    format?: 'phrases-mark';
+    /**
+     * Version
+     */
+    version?: 1;
+    /**
+     * Phrases
+     */
+    phrases?: Array<Phrase>;
+};
+
+/**
  * ChampFiche
  */
 export type ChampFiche = {
@@ -2110,6 +2128,10 @@ export type CreateWorkflowRunRequest = {
      * Name
      */
     name: string;
+    /**
+     * Etablissement Id
+     */
+    etablissement_id?: string | null;
 };
 
 /**
@@ -3393,6 +3415,20 @@ export type Etablissement = {
      * None: the organization's break announcement.
      */
     annonce_pause?: string | null;
+    /**
+     * Phrases
+     *
+     * This establishment's content for the sentences placed at the establishment's level (variable -> content). Absent: the organization's content.
+     */
+    phrases?: {
+        [key: string]: string;
+    };
+    /**
+     * Termes Lexique
+     *
+     * Terms this establishment adds to the organization's trade vocabulary (E6).
+     */
+    termes_lexique?: Array<TermeLexique>;
 };
 
 /**
@@ -5844,6 +5880,36 @@ export type PhoneNumberUpdateRequest = {
     extra_metadata?: {
         [key: string]: unknown;
     } | null;
+};
+
+/**
+ * Phrase
+ */
+export type Phrase = {
+    /**
+     * Variable
+     *
+     * Given to the agents as {{variable}}: lower case, digits, underscores.
+     */
+    variable: string;
+    /**
+     * Description
+     *
+     * What it is for.
+     */
+    description?: string;
+    /**
+     * Contenu
+     *
+     * Said word for word. Empty: nothing given.
+     */
+    contenu?: string;
+    /**
+     * Niveau
+     *
+     * organisation: the same for every establishment. etablissement: each establishment may have its own.
+     */
+    niveau?: 'organisation' | 'etablissement';
 };
 
 /**
@@ -13484,6 +13550,84 @@ export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostR
 };
 
 export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostResponse = PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostResponses[keyof PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostResponses];
+
+export type GetPhrasesApiV1OrganizationsPhrasesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/phrases';
+};
+
+export type GetPhrasesApiV1OrganizationsPhrasesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPhrasesApiV1OrganizationsPhrasesGetError = GetPhrasesApiV1OrganizationsPhrasesGetErrors[keyof GetPhrasesApiV1OrganizationsPhrasesGetErrors];
+
+export type GetPhrasesApiV1OrganizationsPhrasesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CataloguePhrases;
+};
+
+export type GetPhrasesApiV1OrganizationsPhrasesGetResponse = GetPhrasesApiV1OrganizationsPhrasesGetResponses[keyof GetPhrasesApiV1OrganizationsPhrasesGetResponses];
+
+export type SavePhrasesApiV1OrganizationsPhrasesPutData = {
+    body: CataloguePhrases;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/phrases';
+};
+
+export type SavePhrasesApiV1OrganizationsPhrasesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SavePhrasesApiV1OrganizationsPhrasesPutError = SavePhrasesApiV1OrganizationsPhrasesPutErrors[keyof SavePhrasesApiV1OrganizationsPhrasesPutErrors];
+
+export type SavePhrasesApiV1OrganizationsPhrasesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: CataloguePhrases;
+};
+
+export type SavePhrasesApiV1OrganizationsPhrasesPutResponse = SavePhrasesApiV1OrganizationsPhrasesPutResponses[keyof SavePhrasesApiV1OrganizationsPhrasesPutResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;

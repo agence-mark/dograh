@@ -35,11 +35,13 @@ from api.routes import etablissements as route_etablissements
 from api.schemas.annonce_ouverture import ReglagesAnnonceOuverture
 from api.schemas.etablissements import CatalogueEtablissements, Etablissement
 from api.schemas.organization_preferences import OrganizationPreferences
+from api.schemas.phrases import CataloguePhrases
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.etablissements import copie as module_copie
 from api.services.etablissements import stockage as module_stockage
 from api.services.etablissements.appel import (
     EtablissementDeLappel,
+    LectureDeLappel,
     annonce_heritee,
     choisir_etablissement,
     configuration_heritee,
@@ -205,6 +207,7 @@ async def test_la_copie_est_lue_en_memoire_puis_reconstruite_si_absente():
     with (
         patch.object(module_copie, "_redis", AsyncMock(return_value=redis)),
         patch.object(module_stockage, "lire_etablissements", AsyncMock(return_value=CATALOGUE)) as stockage,
+        patch.object(module_stockage, "lire_phrases", AsyncMock(return_value=CataloguePhrases())),
     ):
         catalogue, origine = await module_copie.lire_copie(ORGANISATION)
         assert (catalogue, origine) == (CATALOGUE, "stockage")
@@ -218,6 +221,7 @@ async def test_redis_en_panne_le_stockage_prend_le_relais():
     with (
         patch.object(module_copie, "_redis", AsyncMock(return_value=_RedisFactice(en_panne=True))),
         patch.object(module_stockage, "lire_etablissements", AsyncMock(return_value=CATALOGUE)),
+        patch.object(module_stockage, "lire_phrases", AsyncMock(return_value=CataloguePhrases())),
     ):
         assert await module_copie.lire_copie(ORGANISATION) == (CATALOGUE, "stockage")
 
@@ -230,6 +234,11 @@ async def test_un_enregistrement_met_la_copie_a_jour_aussitot():
         patch.object(module_stockage, "db_client") as base,
     ):
         base.upsert_configuration = AsyncMock()
+        base.get_configuration = AsyncMock(
+            side_effect=lambda _org, cle: SimpleNamespace(value=CATALOGUE.model_dump(mode="json"))
+            if cle == "ETABLISSEMENTS"
+            else None
+        )
         await module_stockage.enregistrer_etablissements(ORGANISATION, CATALOGUE)
         assert await module_copie.lire_copie(ORGANISATION) == (CATALOGUE, "copie")
 
@@ -331,12 +340,16 @@ MARDI_11H = datetime(2026, 10, 6, 11, 0, tzinfo=ZoneInfo("Europe/Paris"))
 DIMANCHE_11H = datetime(2026, 10, 4, 11, 0, tzinfo=ZoneInfo("Europe/Paris"))
 
 
-async def _clavier(catalogue, configurations=None, contexte=None, maintenant=DIMANCHE_11H):
+async def _clavier(catalogue, configurations=None, contexte=None, maintenant=DIMANCHE_11H, phrases=None, preferences=None):
     from api.services.pipecat import etat_ouverture
 
     reel = etat_ouverture.injecter_etat_ouverture
     with (
-        patch.object(module_copie, "lire_copie", AsyncMock(return_value=(catalogue, "copie"))),
+        patch.object(
+            module_copie,
+            "lire_copie_complete",
+            AsyncMock(return_value=module_copie.CopieOrganisation(etablissements=catalogue, phrases=phrases or CataloguePhrases(), lu_depuis="copie")),
+        ),
         patch.object(
             text_chat_runner,
             "injecter_etat_ouverture",
@@ -345,7 +358,7 @@ async def _clavier(catalogue, configurations=None, contexte=None, maintenant=DIM
         patch.object(text_chat_runner, "lire_annonce_ouverture", AsyncMock(return_value=ReglagesAnnonceOuverture())),
     ):
         return await _jouer_au_clavier(
-            configurations or {}, contexte or {"direction": "inbound"}, OrganizationPreferences()
+            configurations or {}, contexte or {"direction": "inbound"}, preferences or OrganizationPreferences()
         )
 
 
@@ -369,7 +382,7 @@ async def test_clavier_sans_etablissement_lappel_davant_a_lidentique():
     the one of an organization that never heard of the feature."""
     avec_agent = {"horaires_ouverture": HORAIRES_AGENT}
     vide = await _clavier(CatalogueEtablissements(), avec_agent)
-    with patch.object(text_chat_runner, "etablissement_de_lappel", AsyncMock(return_value=None)):
+    with patch.object(text_chat_runner, "lire_lappel", AsyncMock(return_value=LectureDeLappel())):
         avant = await _clavier(CatalogueEtablissements(), avec_agent)
     assert vide == avant
     assert "etablissement" not in vide and "etablissement" not in vide["runtime_configuration"]
@@ -384,13 +397,13 @@ def _position(source: str, motif: str, quoi: str) -> int:
 
 def test_le_telephone_resout_letablissement_avant_les_trois_injections_et_lestampille():
     source = inspect.getsource(run_pipeline)
-    resolution = _position(source, r"etablissement_servi = await etablissement_de_lappel\(", "resolution")
+    resolution = _position(source, r"lecture_de_lappel = await lire_lappel\(", "resolution")
     ouverture = _position(source, r"injecter_etat_ouverture\(\s*merged_call_context_vars,\s*configs_heritees", "opening state")
     adresse = _position(source, r"lire_adresse_etablissement\(\s*configs_heritees", "address")
     estampille = _position(source, r'runtime_configuration\["etablissement"\]', "stamp")
     persistance = _position(source, r"await db_client\.update_workflow_run\(\s*workflow_run_id, initial_context", "persistence")
     assert resolution < ouverture < adresse < estampille < persistance
-    assert len(re.findall(r"etablissement_de_lappel\(", source)) == 1
+    assert len(re.findall(r"lire_lappel\(", source)) == 1
 
 
 def test_les_deux_chemins_derivent_la_configuration_heritee_de_celle_de_lagent():

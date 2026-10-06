@@ -45,14 +45,19 @@ from api.services.communes.adresse import (
 )
 from api.services.configuration.registry import ServiceProviders
 from api.services.lexique.ecoute import injecter_lexique_propose, termes_proposes
-from api.services.lexique.reglages import lire_lexique_de_lappel
+from api.services.lexique.reglages import interrupteur_allume, lire_lexique_de_lappel
 from api.services.pipecat.audio_config import create_audio_config
 from api.services.annonce.stockage import lire_annonce_ouverture
 from api.services.etablissements.appel import (
     annonce_heritee,
     configuration_heritee,
-    etablissement_de_lappel,
     injecter_etablissement,
+    lire_lappel,
+)
+from api.services.etablissements.phrases import (
+    injecter_phrases,
+    lexique_avec_etablissement,
+    lexique_de_lappel_avec_etablissement,
 )
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
@@ -633,9 +638,10 @@ async def execute_text_chat_pending_turn(
     # E3): no called number here, so the one chosen in the test window, else
     # the agent's first, else the organization's first. Same inheritance as a
     # call; no establishment, the same configuration comes back.
-    etablissement_servi = await etablissement_de_lappel(
+    lecture_de_lappel = await lire_lappel(
         workflow.organization_id, workflow_id, initial_context
     )
+    etablissement_servi = lecture_de_lappel.servi
     configs_heritees, origines_heritees = configuration_heritee(
         run_configs, etablissement_servi.etablissement if etablissement_servi else None
     )
@@ -646,6 +652,12 @@ async def execute_text_chat_pending_turn(
         etablissement_servi.origines.update(origines_heritees)
         initial_context["runtime_configuration"]["etablissement"] = etablissement_servi.estampille()
     initial_context = injecter_etablissement(initial_context, etablissement_servi)
+    # [.mark] The catalogue of sentences (E5), the establishment's content first.
+    initial_context = injecter_phrases(
+        initial_context,
+        lecture_de_lappel.phrases,
+        etablissement_servi.etablissement if etablissement_servi else None,
+    )
     initial_context = injecter_etat_ouverture(
         initial_context, configs_heritees, reglages=reglages_annonce
     )
@@ -664,6 +676,12 @@ async def execute_text_chat_pending_turn(
     # the keyboard bench reads a typed message like a call's. Empty when the
     # agent's switch is off, and never raises.
     lexique_metier = await lire_lexique_de_lappel(run_configs, workflow.organization_id)
+    # [.mark] The establishment's own terms (E6), added to the organization's, only
+    # when the agent's switch is on (an empty vocabulary stays empty).
+    if etablissement_servi is not None and interrupteur_allume(run_configs):
+        lexique_metier = lexique_avec_etablissement(
+            lexique_metier, etablissement_servi.etablissement
+        )
     initial_context = injecter_lexique_propose(
         initial_context, termes_proposes(lexique_metier)
     )
@@ -1129,7 +1147,10 @@ async def extract_text_chat_final_variables(
             fiche=(
                 ReglagesFiche.depuis(
                     run_configs,
-                    lexique=await lire_lexique_de_lappel(run_configs, organization_id),
+                    # [.mark] With the establishment's terms the conversation read (L2).
+                    lexique=await lexique_de_lappel_avec_etablissement(
+                        run_configs, organization_id, workflow_id, initial_context
+                    ),
                 )
                 if fiche_allumee
                 else None

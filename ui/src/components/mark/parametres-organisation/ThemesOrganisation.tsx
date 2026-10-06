@@ -37,6 +37,7 @@ import {
 } from "../SectionAnnonceOuverture";
 import { SectionLexiqueMetier } from "../SectionLexiqueMetier";
 import { ModaleEtablissements, useResumeEtablissements } from "./ModaleEtablissements";
+import { ModalePhrases } from "./ModalePhrases";
 import { ModaleFenetreDuRun } from "./ModaleFenetreDuRun";
 import type { EtatPreferences } from "./preferences";
 import type { ThemeOrganisation } from "./references/cas-organisation";
@@ -299,6 +300,7 @@ export const ThemeEtablissementOrganisation = ({
     // that saves itself (E4); it is not part of this theme's draft.
     const etablissements = useResumeEtablissements();
     const [modaleEtablissements, setModaleEtablissements] = useState(false);
+    const [modalePhrases, setModalePhrases] = useState(false);
     const nombre = etablissements.liste?.length ?? 0;
 
     return (
@@ -368,6 +370,26 @@ export const ThemeEtablissementOrganisation = ({
                         {t({ en: "Edit establishments…", fr: "Modifier les établissements…" })}
                     </Button>
                 </ChampReglage>
+                <ChampReglage
+                    cle="phrases"
+                    libelle={{ en: "Sentences", fr: "Phrases" }}
+                    aides={[
+                        {
+                            en: "Sentences said word for word, given to the agents as {{variable}}, the same for all or per establishment.",
+                            fr: "Des phrases dites mot pour mot, données aux agents comme {{variable}}, communes ou par établissement.",
+                        },
+                    ]}
+                    disposition="colonne"
+                >
+                    <Button variant="outline" size="sm" onClick={() => setModalePhrases(true)} data-testid="ouvrir-phrases">
+                        {t({ en: "Edit sentences…", fr: "Modifier les phrases…" })}
+                    </Button>
+                </ChampReglage>
+                <ModalePhrases
+                    ouverte={modalePhrases}
+                    onFermer={() => setModalePhrases(false)}
+                    annonceOrganisation={annonce.enregistre}
+                />
                 <ModaleEtablissements
                     ouverte={modaleEtablissements}
                     onFermer={(enregistre) => {

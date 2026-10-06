@@ -72,6 +72,8 @@ vi.mock("@/client/sdk.gen", () => ({
         Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [] } }),
     getNumerosApiV1OrganizationsEtablissementsNumerosGet: () => Promise.resolve({ data: [] }),
     saveEtablissementsApiV1OrganizationsEtablissementsPut: vi.fn(),
+    getPhrasesApiV1OrganizationsPhrasesGet: () => Promise.resolve({ data: { format: "phrases-mark", version: 1, phrases: [] } }),
+    savePhrasesApiV1OrganizationsPhrasesPut: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/context/UnsavedChangesContext", () => ({ useUnsavedChanges: () => undefined }));

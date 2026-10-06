@@ -209,6 +209,9 @@ class OrganizationConfigurationKey(Enum):
     # (chantier l-agent-travaille, L1). Same free-text key, no migration.
     # Format: api/schemas/etablissements.py
     ETABLISSEMENTS = "ETABLISSEMENTS"
+    # [.mark] The catalogue of deterministic sentences (chantier l-agent-travaille, L2, E5).
+    # Format: api/schemas/phrases.py
+    PHRASES = "PHRASES"
 
 
 class UserConfigurationKey(Enum):
