@@ -101,11 +101,12 @@ export function texteUsage(u: Usage): Texte {
     }
 }
 
-/** The keys of the organization, of one provider or all. */
-export function useCles(fournisseur?: Fournisseur) {
+/** The keys of the organization, of one provider or all; read only when `actif`. */
+export function useCles(fournisseur?: Fournisseur, actif = true) {
     const [cles, setCles] = useState<Cle[] | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
     const recharger = useCallback(async () => {
+        if (!actif) return;
         const reponse = await listerLesClesApiV1ClesGet({ query: fournisseur ? { fournisseur } : undefined });
         if (reponse.error) {
             setErreur(detailFromError(reponse.error, "Keys unreadable"));
@@ -113,7 +114,7 @@ export function useCles(fournisseur?: Fournisseur) {
         }
         setErreur(null);
         setCles((reponse.data as Cle[] | undefined) ?? []);
-    }, [fournisseur]);
+    }, [fournisseur, actif]);
     useEffect(() => {
         void recharger();
     }, [recharger]);

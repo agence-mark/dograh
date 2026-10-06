@@ -46,7 +46,8 @@ export function ChampCleModele({
 }) {
     const { t } = useLangue();
     const reference = estReference(valeur);
-    const { cles, recharger } = useCles();
+    // Read only when a key of the library shows: a key typed by hand needs no list.
+    const { cles, recharger } = useCles(undefined, reference);
     const [bibliotheque, setBibliotheque] = useState(false);
     const designee = reference ? cles?.find((c) => `${PREFIXE_REFERENCE}${c.uuid}` === valeur) : undefined;
     const libelleCles: Texte = { en: "Keys…", fr: "Clés…" };
