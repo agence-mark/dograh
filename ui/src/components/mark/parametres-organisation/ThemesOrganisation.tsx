@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * [.mark] The five themes of the Platform Settings page (convention § 2):
- * Organization, Business, Listening, Integrations, Developers.
+ * [.mark] The seven themes of the Platform Settings page (convention § 2):
+ * Organization, Establishments, Team and routing, Listening, Client data,
+ * Integrations, Developers (Team and Client data added by l-agent-travaille, L3).
  *
  * Organization, Business and Integrations save with their theme button, which
  * stays ENABLED untouched like the cards they come from (E6: the PUT replaces
@@ -10,7 +11,18 @@
  * Developers keep the buttons of what they contain (the trade vocabulary, MCP
  * and Telemetry, reused as they are).
  */
-import { Building2, Code, Ear, ExternalLink, type LucideIcon, Plug, Settings, SlidersHorizontal } from "lucide-react";
+import {
+    Building2,
+    Code,
+    Database,
+    Ear,
+    ExternalLink,
+    type LucideIcon,
+    Plug,
+    Settings,
+    SlidersHorizontal,
+    Users,
+} from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import TimezoneSelect, { type ITimezoneOption } from "react-timezone-select";
 
@@ -37,15 +49,18 @@ import {
 } from "../SectionAnnonceOuverture";
 import { SectionLexiqueMetier } from "../SectionLexiqueMetier";
 import { ModaleEtablissements, useResumeEtablissements } from "./ModaleEtablissements";
-import { ModalePhrases } from "./ModalePhrases";
 import { ModaleFenetreDuRun } from "./ModaleFenetreDuRun";
+import { ModalePhrases } from "./ModalePhrases";
 import type { EtatPreferences } from "./preferences";
 import type { ThemeOrganisation } from "./references/cas-organisation";
 
 export const THEMES_ORGANISATION: Array<{ id: ThemeOrganisation; titre: Texte; icone: LucideIcon }> = [
     { id: "organisation", titre: { en: "Organization", fr: "Organisation" }, icone: Settings },
     { id: "etablissement", titre: { en: "Establishments", fr: "Établissements" }, icone: Building2 },
+    // [.mark] L3 (chantier l-agent-travaille), in the order validated on 06/10.
+    { id: "equipe", titre: { en: "Team and routing", fr: "Équipe et routage" }, icone: Users },
     { id: "ecoute", titre: { en: "Listening", fr: "Écoute" }, icone: Ear },
+    { id: "donnees", titre: { en: "Client data", fr: "Données du client" }, icone: Database },
     { id: "integrations", titre: { en: "Integrations", fr: "Intégrations" }, icone: Plug },
     { id: "developpeurs", titre: { en: "Developers", fr: "Développeurs" }, icone: Code },
 ];
@@ -65,7 +80,7 @@ const CHARGEMENT: Texte = { en: "Loading...", fr: "Chargement..." };
 const differe = (a: unknown, b: unknown) => JSON.stringify(a) !== JSON.stringify(b);
 
 /** Reports the dots to the page, and clears them when the theme goes away. */
-const useSignaler = (
+export const useSignaler = (
     id: ThemeOrganisation,
     modifie: boolean,
     enErreur: boolean,

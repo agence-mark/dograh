@@ -28,6 +28,8 @@ from api.schemas.etablissements import (
 )
 from api.schemas.phrases import CataloguePhrases
 from api.services.auth.depends import get_user_with_selected_organization
+from api.services.base_client.rattachement import auteur_de
+from api.db.bases_clients.connexion import BaseClientIndisponible
 from api.services.communes.adresse import (
     AdresseInvalide,
     texte_adresse,
@@ -48,11 +50,18 @@ def _refus(message: str, loc: list) -> HTTPException:
     return HTTPException(status_code=422, detail=[{"msg": message, "loc": loc}])
 
 
+def _base_injoignable(erreur: Exception) -> HTTPException:
+    """L3: the client's database is the source and does not answer. Nothing was written."""
+    return HTTPException(status_code=503, detail=f"{erreur} Nothing was changed.")
+
+
 @router.get("", response_model=CatalogueEtablissements)
 async def get_etablissements(user: UserModel = Depends(get_user_with_selected_organization)):
     """⛔ Strict: shown empty because unreadable, the next save would replace them."""
     try:
         return await lire_etablissements_strict(user.selected_organization_id)
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[.mark] Establishments unreadable for the screen: {erreur!r}")
         raise HTTPException(
@@ -122,9 +131,12 @@ async def save_etablissements(
             except AdresseInvalide as erreur:
                 raise _refus(f"{etablissement.nom}: {erreur}", loc + ["adresse"]) from None
         verifies.append(etablissement.model_copy(update={"adresse": adresse}))
-    return await enregistrer_etablissements(
-        organization_id, request.model_copy(update={"etablissements": verifies})
-    )
+    try:
+        return await enregistrer_etablissements(
+            organization_id, request.model_copy(update={"etablissements": verifies}), auteur_de(user)
+        )
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None
 
 
 class DemandeEtablissementsDeLagent(BaseModel):
@@ -144,6 +156,11 @@ async def post_etablissements_de_lagent(
         raise HTTPException(status_code=404, detail="Agent not found")
     try:
         catalogue = await lire_etablissements_strict(organization_id)
+    except BaseClientIndisponible:
+        # A summary only: the mirror (last values known good) is enough to show it.
+        from api.services.etablissements.stockage import lire_etablissements
+
+        catalogue = await lire_etablissements(organization_id)
     except (ValidationError, ValueError):
         catalogue = CatalogueEtablissements()
     lignes = await db_client.lister_numeros_de_lorganisation(organization_id)
@@ -178,6 +195,8 @@ async def get_phrases(user: UserModel = Depends(get_user_with_selected_organizat
     """⛔ Strict: shown empty because unreadable, the next save would replace them."""
     try:
         return await lire_phrases_strict(user.selected_organization_id)
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[.mark] Sentences unreadable for the screen: {erreur!r}")
         raise HTTPException(
@@ -192,4 +211,7 @@ async def save_phrases(
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
     """Replace the catalogue. Bounds and reserved names: 422 before writing."""
-    return await enregistrer_phrases(user.selected_organization_id, request)
+    try:
+        return await enregistrer_phrases(user.selected_organization_id, request, auteur_de(user))
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None

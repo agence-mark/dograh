@@ -13,7 +13,14 @@ import type { Geste } from "../../reglages-agent/references/cas-agent";
 
 export type CarteOrganisation = "preferences" | "annonce" | "correspondance";
 
-export type ThemeOrganisation = "organisation" | "etablissement" | "ecoute" | "integrations" | "developpeurs";
+export type ThemeOrganisation =
+    | "organisation"
+    | "etablissement"
+    | "equipe"
+    | "ecoute"
+    | "donnees"
+    | "integrations"
+    | "developpeurs";
 
 export interface CasOrganisation {
     id: string;

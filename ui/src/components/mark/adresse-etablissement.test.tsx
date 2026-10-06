@@ -58,6 +58,16 @@ vi.mock("@/client/sdk.gen", () => ({
     saveEtablissementsApiV1OrganizationsEtablissementsPut: vi.fn(),
     getPhrasesApiV1OrganizationsPhrasesGet: () => Promise.resolve({ data: { format: "phrases-mark", version: 1, phrases: [] } }),
     savePhrasesApiV1OrganizationsPhrasesPut: vi.fn(),
+    // [.mark] L3: the « Client data » theme reads its state; no database attached.
+    getBaseClientApiV1OrganizationsBaseClientGet: () =>
+        Promise.resolve({ data: { serveur_configure: true, version_attendue: 3, nom_base: null, joignable: false, refus: [], conservation: [] } }),
+    putBaseClientApiV1OrganizationsBaseClientPut: vi.fn(),
+    postCreerApiV1OrganizationsBaseClientCreerPost: vi.fn(),
+    postMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPost: vi.fn(),
+    postResynchroniserApiV1OrganizationsBaseClientResynchroniserPost: vi.fn(),
+    putConservationApiV1OrganizationsBaseClientConservationPut: vi.fn(),
+    getEquipeApiV1OrganizationsEquipeGet: vi.fn(),
+    putEquipeApiV1OrganizationsEquipePut: vi.fn(),
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: mocks.communes,
     getPreferencesApiV1OrganizationsPreferencesGet: mocks.getPreferences,
     savePreferencesApiV1OrganizationsPreferencesPut: mocks.savePreferences,

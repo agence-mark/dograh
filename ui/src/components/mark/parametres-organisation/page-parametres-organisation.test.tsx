@@ -62,6 +62,16 @@ vi.mock("@/client/sdk.gen", () => ({
     saveEtablissementsApiV1OrganizationsEtablissementsPut: vi.fn(),
     getPhrasesApiV1OrganizationsPhrasesGet: () => Promise.resolve({ data: { format: "phrases-mark", version: 1, phrases: [] } }),
     savePhrasesApiV1OrganizationsPhrasesPut: vi.fn(),
+    // [.mark] L3: the « Client data » theme reads its state; no database attached.
+    getBaseClientApiV1OrganizationsBaseClientGet: () =>
+        Promise.resolve({ data: { serveur_configure: true, version_attendue: 3, nom_base: null, joignable: false, refus: [], conservation: [] } }),
+    putBaseClientApiV1OrganizationsBaseClientPut: vi.fn(),
+    postCreerApiV1OrganizationsBaseClientCreerPost: vi.fn(),
+    postMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPost: vi.fn(),
+    postResynchroniserApiV1OrganizationsBaseClientResynchroniserPost: vi.fn(),
+    putConservationApiV1OrganizationsBaseClientConservationPut: vi.fn(),
+    getEquipeApiV1OrganizationsEquipeGet: vi.fn(),
+    putEquipeApiV1OrganizationsEquipePut: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/context/UserConfigContext", () => ({ useUserConfig: () => ({ refreshConfig: () => Promise.resolve() }) }));
@@ -115,7 +125,7 @@ afterEach(() => {
 
 const ouvrirLaPage = async (enveloppe?: (n: ReactNode) => ReactNode) => {
     render(<>{enveloppe ? enveloppe(<SettingsPage />) : <SettingsPage />}</>);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(5));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(7));
 };
 
 const ouvrirLeTheme = async (id: string) => {

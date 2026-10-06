@@ -58,6 +58,7 @@ REDIS_SETTINGS = RedisSettings(
     ssl_check_hostname=False if use_ssl else None,
 )
 
+from api.services.base_client.synchro import tic_de_synchro
 from api.tasks.appel_simule import jouer_serie_simulee
 from api.tasks.campaign_tasks import (
     process_campaign_batch,
@@ -101,6 +102,15 @@ class WorkerSettings:
             sweep_inactive_text_chat_sessions,
             minute=set(range(0, 60, TEXT_CHAT_INACTIVITY_SWEEP_INTERVAL_MINUTES)),
             second=30,
+            run_at_startup=True,
+        ),
+        # [.mark] The client databases (chantier l-agent-travaille, L3, B3): listen to the
+        # ones attached since the last tick, and resync every copy (the safety net of the
+        # notification). Nothing attached: a single read of organization_configurations.
+        cron(
+            tic_de_synchro,
+            minute=set(range(2, 60, 5)),
+            second=15,
             run_at_startup=True,
         ),
     ]

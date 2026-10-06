@@ -129,7 +129,7 @@ def test_une_phrase_detablissement_doit_etre_placee_a_ce_niveau():
     with (
         patch.object(route_etablissements, "db_client") as base,
         patch.object(route_etablissements, "lire_phrases_strict", AsyncMock(return_value=PHRASES)),
-        patch.object(route_etablissements, "enregistrer_etablissements", AsyncMock(side_effect=lambda _o, c: c)) as ecrit,
+        patch.object(route_etablissements, "enregistrer_etablissements", AsyncMock(side_effect=lambda _o, c, _auteur="dograh": c)) as ecrit,
     ):
         base.lister_numeros_de_lorganisation = AsyncMock(return_value=lignes)
         reponse = TestClient(app).put("/organizations/etablissements", json=corps.model_dump(mode="json"))
@@ -142,7 +142,7 @@ def test_une_phrase_detablissement_doit_etre_placee_a_ce_niveau():
 def test_le_catalogue_senregistre_et_refuse_un_nom_reserve():
     app, _ = _application()
     app.include_router(route_etablissements.routeur_phrases)
-    with patch.object(route_etablissements, "enregistrer_phrases", AsyncMock(side_effect=lambda _o, c: c)) as ecrit:
+    with patch.object(route_etablissements, "enregistrer_phrases", AsyncMock(side_effect=lambda _o, c, _auteur="dograh": c)) as ecrit:
         client = TestClient(app)
         assert client.put("/organizations/phrases", json=PHRASES.model_dump(mode="json")).status_code == 200
         refuse = client.put("/organizations/phrases", json={"phrases": [{"variable": "annonce_pause", "contenu": "x"}]})

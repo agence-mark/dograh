@@ -262,7 +262,9 @@ def _put(corps, numeros=("+33344000001", "+33344000002")):
     app, lignes = _application(numeros)
     with (
         patch.object(route_etablissements, "db_client") as base,
-        patch.object(route_etablissements, "enregistrer_etablissements", AsyncMock(side_effect=lambda _o, c: c)) as ecrit,
+        patch.object(route_etablissements, "enregistrer_etablissements", AsyncMock(side_effect=lambda _o, c, _auteur="dograh": c)) as ecrit,
+        # No real database behind the route test (a TestClient runs on its own loop).
+        patch.object(route_etablissements, "lire_phrases_strict", AsyncMock(return_value=CataloguePhrases())),
     ):
         base.lister_numeros_de_lorganisation = AsyncMock(return_value=lignes)
         reponse = TestClient(app).put("/organizations/etablissements", json=corps)

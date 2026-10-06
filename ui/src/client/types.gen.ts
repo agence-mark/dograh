@@ -1802,6 +1802,28 @@ export type Comportements = {
 };
 
 /**
+ * Conservation
+ */
+export type Conservation = {
+    /**
+     * Table Nom
+     */
+    table_nom: string;
+    /**
+     * Duree Jours
+     */
+    duree_jours: number;
+    /**
+     * Colonne Date
+     */
+    colonne_date?: string | null;
+    /**
+     * Source
+     */
+    source?: string | null;
+};
+
+/**
  * ContextDestinationMappingConfig
  *
  * Resolve a transfer destination from gathered or initial context.
@@ -2644,6 +2666,16 @@ export type DemandeEtablissementsDeLagent = {
 };
 
 /**
+ * DemandeRattachement
+ */
+export type DemandeRattachement = {
+    /**
+     * Nom Base
+     */
+    nom_base?: string | null;
+};
+
+/**
  * Designation
  *
  * Ce que devient l'identifiant qu'un réglage désigne : une clé de la bibliothèque, un
@@ -3358,6 +3390,20 @@ export type EndTextChatSessionRequest = {
 };
 
 /**
+ * Equipe
+ */
+export type Equipe = {
+    /**
+     * Personnes
+     */
+    personnes?: Array<Personne>;
+    /**
+     * Sujets
+     */
+    sujets?: Array<Sujet>;
+};
+
+/**
  * Etablissement
  *
  * One establishment. Every optional field left empty is inherited.
@@ -3472,6 +3518,50 @@ export type EtablissementsDeLagent = {
      * Numbers of this agent attached to no establishment: their calls behave as before.
      */
     numeros_sans_etablissement?: Array<string>;
+};
+
+/**
+ * EtatBaseClient
+ */
+export type EtatBaseClient = {
+    /**
+     * Serveur Configure
+     */
+    serveur_configure: boolean;
+    /**
+     * Nom Base
+     */
+    nom_base?: string | null;
+    /**
+     * Joignable
+     */
+    joignable?: boolean;
+    /**
+     * Erreur
+     */
+    erreur?: string | null;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Version Attendue
+     */
+    version_attendue: number;
+    /**
+     * Derniere Ecriture
+     */
+    derniere_ecriture?: string | null;
+    /**
+     * Conservation
+     */
+    conservation?: Array<Conservation>;
+    /**
+     * Refus
+     *
+     * Values written in the database that Dograh refused.
+     */
+    refus?: Array<string>;
 };
 
 /**
@@ -5715,6 +5805,52 @@ export type OrganizationSummary = {
 export type OrigineChamp = 'dicte' | 'deduit';
 
 /**
+ * Personne
+ */
+export type Personne = {
+    /**
+     * Cle
+     *
+     * Stable identifier (lower case, digits, hyphens).
+     */
+    cle: string;
+    /**
+     * Prenom
+     */
+    prenom: string;
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Role
+     */
+    role?: string | null;
+    /**
+     * Mail
+     */
+    mail?: string | null;
+    /**
+     * Telephone
+     */
+    telephone?: string | null;
+    /**
+     * Etablissement
+     *
+     * Identifier of its establishment; None: the whole company.
+     */
+    etablissement?: string | null;
+    /**
+     * Destinataire Defaut
+     */
+    destinataire_defaut?: boolean;
+    /**
+     * Actif
+     */
+    actif?: boolean;
+};
+
+/**
  * PhoneNumberCreateRequest
  *
  * Create a new phone number under a telephony configuration.
@@ -7523,6 +7659,38 @@ export type SpeechmaticsSttConfiguration = {
      * ISO 639-1 language code.
      */
     language?: string;
+};
+
+/**
+ * Sujet
+ */
+export type Sujet = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Mots Declencheurs
+     */
+    mots_declencheurs?: Array<string>;
+    /**
+     * Urgent
+     */
+    urgent?: boolean;
+    /**
+     * Actif
+     */
+    actif?: boolean;
+    /**
+     * Destinataires
+     *
+     * Identifiers of the people, in order of priority.
+     */
+    destinataires?: Array<string>;
 };
 
 /**
@@ -13628,6 +13796,321 @@ export type SavePhrasesApiV1OrganizationsPhrasesPutResponses = {
 };
 
 export type SavePhrasesApiV1OrganizationsPhrasesPutResponse = SavePhrasesApiV1OrganizationsPhrasesPutResponses[keyof SavePhrasesApiV1OrganizationsPhrasesPutResponses];
+
+export type GetBaseClientApiV1OrganizationsBaseClientGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client';
+};
+
+export type GetBaseClientApiV1OrganizationsBaseClientGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetBaseClientApiV1OrganizationsBaseClientGetError = GetBaseClientApiV1OrganizationsBaseClientGetErrors[keyof GetBaseClientApiV1OrganizationsBaseClientGetErrors];
+
+export type GetBaseClientApiV1OrganizationsBaseClientGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type GetBaseClientApiV1OrganizationsBaseClientGetResponse = GetBaseClientApiV1OrganizationsBaseClientGetResponses[keyof GetBaseClientApiV1OrganizationsBaseClientGetResponses];
+
+export type PutBaseClientApiV1OrganizationsBaseClientPutData = {
+    body: DemandeRattachement;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client';
+};
+
+export type PutBaseClientApiV1OrganizationsBaseClientPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutBaseClientApiV1OrganizationsBaseClientPutError = PutBaseClientApiV1OrganizationsBaseClientPutErrors[keyof PutBaseClientApiV1OrganizationsBaseClientPutErrors];
+
+export type PutBaseClientApiV1OrganizationsBaseClientPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type PutBaseClientApiV1OrganizationsBaseClientPutResponse = PutBaseClientApiV1OrganizationsBaseClientPutResponses[keyof PutBaseClientApiV1OrganizationsBaseClientPutResponses];
+
+export type PostCreerApiV1OrganizationsBaseClientCreerPostData = {
+    body: DemandeRattachement;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client/creer';
+};
+
+export type PostCreerApiV1OrganizationsBaseClientCreerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostCreerApiV1OrganizationsBaseClientCreerPostError = PostCreerApiV1OrganizationsBaseClientCreerPostErrors[keyof PostCreerApiV1OrganizationsBaseClientCreerPostErrors];
+
+export type PostCreerApiV1OrganizationsBaseClientCreerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type PostCreerApiV1OrganizationsBaseClientCreerPostResponse = PostCreerApiV1OrganizationsBaseClientCreerPostResponses[keyof PostCreerApiV1OrganizationsBaseClientCreerPostResponses];
+
+export type PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client/mettre-a-niveau';
+};
+
+export type PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostError = PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostErrors[keyof PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostErrors];
+
+export type PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostResponse = PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostResponses[keyof PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostResponses];
+
+export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client/resynchroniser';
+};
+
+export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostError = PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostErrors[keyof PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostErrors];
+
+export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponse = PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponses[keyof PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponses];
+
+export type PutConservationApiV1OrganizationsBaseClientConservationPutData = {
+    /**
+     * Request
+     */
+    body: Array<Conservation>;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client/conservation';
+};
+
+export type PutConservationApiV1OrganizationsBaseClientConservationPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutConservationApiV1OrganizationsBaseClientConservationPutError = PutConservationApiV1OrganizationsBaseClientConservationPutErrors[keyof PutConservationApiV1OrganizationsBaseClientConservationPutErrors];
+
+export type PutConservationApiV1OrganizationsBaseClientConservationPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type PutConservationApiV1OrganizationsBaseClientConservationPutResponse = PutConservationApiV1OrganizationsBaseClientConservationPutResponses[keyof PutConservationApiV1OrganizationsBaseClientConservationPutResponses];
+
+export type GetEquipeApiV1OrganizationsEquipeGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/equipe';
+};
+
+export type GetEquipeApiV1OrganizationsEquipeGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetEquipeApiV1OrganizationsEquipeGetError = GetEquipeApiV1OrganizationsEquipeGetErrors[keyof GetEquipeApiV1OrganizationsEquipeGetErrors];
+
+export type GetEquipeApiV1OrganizationsEquipeGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Equipe;
+};
+
+export type GetEquipeApiV1OrganizationsEquipeGetResponse = GetEquipeApiV1OrganizationsEquipeGetResponses[keyof GetEquipeApiV1OrganizationsEquipeGetResponses];
+
+export type PutEquipeApiV1OrganizationsEquipePutData = {
+    body: Equipe;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/equipe';
+};
+
+export type PutEquipeApiV1OrganizationsEquipePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutEquipeApiV1OrganizationsEquipePutError = PutEquipeApiV1OrganizationsEquipePutErrors[keyof PutEquipeApiV1OrganizationsEquipePutErrors];
+
+export type PutEquipeApiV1OrganizationsEquipePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: Equipe;
+};
+
+export type PutEquipeApiV1OrganizationsEquipePutResponse = PutEquipeApiV1OrganizationsEquipePutResponses[keyof PutEquipeApiV1OrganizationsEquipePutResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;

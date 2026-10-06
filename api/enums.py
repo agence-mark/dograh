@@ -212,6 +212,10 @@ class OrganizationConfigurationKey(Enum):
     # [.mark] The catalogue of deterministic sentences (chantier l-agent-travaille, L2, E5).
     # Format: api/schemas/phrases.py
     PHRASES = "PHRASES"
+    # [.mark] The NAME of the client's own database (chantier l-agent-travaille, L3, B4).
+    # The server, user and password are the installation's (MARK_BASES_CLIENTS_URL).
+    # Format: api/schemas/base_client.py
+    BASE_CLIENT = "BASE_CLIENT"
 
 
 class UserConfigurationKey(Enum):
