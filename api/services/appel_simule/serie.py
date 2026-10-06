@@ -335,22 +335,34 @@ async def cle_d_identifiant(
     return None
 
 
+def _cle_supprimee(quoi: str) -> str:
+    """P16 : une clé choisie puis supprimée de la bibliothèque (ou inutilisable) se nomme."""
+    return (
+        f"The {quoi} chosen in the simulated caller settings was deleted or is unusable: "
+        "pick another in « Keys »."
+    )
+
+
 async def _cles(
     organization_id: int, reglages: ReglagesAppelantSimule
 ) -> tuple[str, str]:
     if reglages.appelant.identifiant != reglages.juge.identifiant:
         raise SerieRefusee(
-            "The simulated caller and the judge must use the same model credential."
+            "The simulated caller and the judge must use the same model key."
         )
     cle_modele = await cle_d_identifiant(organization_id, reglages.appelant.identifiant)
     if not cle_modele:
         raise SerieRefusee(
-            "Choose the model credential of the simulated caller in its settings."
+            _cle_supprimee("model key")
+            if reglages.appelant.identifiant
+            else "Choose the model key of the simulated caller in its settings."
         )
     cle_voix = await cle_d_identifiant(organization_id, reglages.voix.identifiant)
     if not cle_voix:
         raise SerieRefusee(
-            "Choose the ElevenLabs credential of the simulated caller's voice."
+            _cle_supprimee("ElevenLabs key")
+            if reglages.voix.identifiant
+            else "Choose the ElevenLabs key of the simulated caller's voice."
         )
     if not reglages.voix.voix.strip():
         raise SerieRefusee("Choose the simulated caller's voice.")

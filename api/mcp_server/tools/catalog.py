@@ -8,6 +8,7 @@ list the catalog before populating those fields with real UUIDs.
 from api.db import db_client
 from api.mcp_server.auth import authenticate_mcp_request
 from api.mcp_server.tracing import traced_tool
+from api.services.bibliotheque_cles import fournisseur_de
 
 
 @traced_tool
@@ -76,6 +77,8 @@ async def list_credentials() -> list[dict]:
             "credential_type": c.credential_type,
         }
         for c in credentials
+        # [.mark] Keys of the key library are not HTTP credentials (direct-et-passe-muette).
+        if fournisseur_de(c) is None
     ]
 
 

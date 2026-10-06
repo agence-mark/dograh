@@ -1677,6 +1677,30 @@ export type CircuitBreakerConfigResponse = {
 };
 
 /**
+ * Cle
+ *
+ * Une clé de la bibliothèque, telle que l'écran la voit : jamais la valeur.
+ */
+export type Cle = {
+    /**
+     * Uuid
+     */
+    uuid: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Fournisseur
+     */
+    fournisseur: 'mistral' | 'elevenlabs' | 'deepgram' | 'soniox';
+    /**
+     * Creee Le
+     */
+    creee_le?: string | null;
+};
+
+/**
  * CloudonixConfigurationRequest
  *
  * Request schema for Cloudonix configuration.
@@ -2554,6 +2578,23 @@ export type DefaultConfigurationsResponse = {
     default_answer_classifier_prompt: string;
     text_chat_inactivity_timeout_constraints: TextChatInactivityTimeoutConstraints;
     widget_text_defaults: WidgetTexts;
+};
+
+/**
+ * Designation
+ *
+ * Ce que devient l'identifiant qu'un réglage désigne : une clé de la bibliothèque, un
+ * identifiant d'avant la bibliothèque (toujours valable), ou rien (supprimé).
+ */
+export type Designation = {
+    /**
+     * Etat
+     */
+    etat: 'bibliotheque' | 'hors_bibliotheque' | 'supprimee';
+    /**
+     * Nom
+     */
+    nom?: string | null;
 };
 
 /**
@@ -4961,6 +5002,24 @@ export type NodeTypesResponse = {
 };
 
 /**
+ * NouvelleCle
+ */
+export type NouvelleCle = {
+    /**
+     * Fournisseur
+     */
+    fournisseur: 'mistral' | 'elevenlabs' | 'deepgram' | 'soniox';
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Cle
+     */
+    cle: string;
+};
+
+/**
  * NumberInputOptions
  *
  * Renderer hints for numeric inputs.
@@ -7317,6 +7376,24 @@ export type SuperuserWorkflowRunsListResponse = {
 };
 
 /**
+ * Suppression
+ */
+export type Suppression = {
+    /**
+     * Status
+     */
+    status?: 'deleted';
+    /**
+     * Uuid
+     */
+    uuid: string;
+    /**
+     * Usages
+     */
+    usages: Array<Usage>;
+};
+
+/**
  * TTSCacheEntry
  */
 export type TtsCacheEntry = {
@@ -8669,6 +8746,22 @@ export type UpdateWorkflowStatusRequest = {
      * Status
      */
     status: string;
+};
+
+/**
+ * Usage
+ *
+ * Un endroit où la clé sert encore ; l'écran le traduit (``nom`` : outil ou agent).
+ */
+export type Usage = {
+    /**
+     * Ou
+     */
+    ou: 'reglages_modele' | 'reglages_voix' | 'outil' | 'agent';
+    /**
+     * Nom
+     */
+    nom?: string | null;
 };
 
 /**
@@ -12720,6 +12813,225 @@ export type ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponses
 };
 
 export type ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponse = ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponses[keyof ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostResponses];
+
+export type ListerLesClesApiV1ClesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Fournisseur
+         */
+        fournisseur?: 'mistral' | 'elevenlabs' | 'deepgram' | 'soniox' | null;
+    };
+    url: '/api/v1/cles';
+};
+
+export type ListerLesClesApiV1ClesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesClesApiV1ClesGetError = ListerLesClesApiV1ClesGetErrors[keyof ListerLesClesApiV1ClesGetErrors];
+
+export type ListerLesClesApiV1ClesGetResponses = {
+    /**
+     * Response Lister Les Cles Api V1 Cles Get
+     *
+     * Successful Response
+     */
+    200: Array<Cle>;
+};
+
+export type ListerLesClesApiV1ClesGetResponse = ListerLesClesApiV1ClesGetResponses[keyof ListerLesClesApiV1ClesGetResponses];
+
+export type AjouterUneCleApiV1ClesPostData = {
+    body: NouvelleCle;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/cles';
+};
+
+export type AjouterUneCleApiV1ClesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AjouterUneCleApiV1ClesPostError = AjouterUneCleApiV1ClesPostErrors[keyof AjouterUneCleApiV1ClesPostErrors];
+
+export type AjouterUneCleApiV1ClesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: Cle;
+};
+
+export type AjouterUneCleApiV1ClesPostResponse = AjouterUneCleApiV1ClesPostResponses[keyof AjouterUneCleApiV1ClesPostResponses];
+
+export type IdentifiantDesigneApiV1ClesDesigneeUuidGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Uuid
+         */
+        uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/cles/designee/{uuid}';
+};
+
+export type IdentifiantDesigneApiV1ClesDesigneeUuidGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IdentifiantDesigneApiV1ClesDesigneeUuidGetError = IdentifiantDesigneApiV1ClesDesigneeUuidGetErrors[keyof IdentifiantDesigneApiV1ClesDesigneeUuidGetErrors];
+
+export type IdentifiantDesigneApiV1ClesDesigneeUuidGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Designation;
+};
+
+export type IdentifiantDesigneApiV1ClesDesigneeUuidGetResponse = IdentifiantDesigneApiV1ClesDesigneeUuidGetResponses[keyof IdentifiantDesigneApiV1ClesDesigneeUuidGetResponses];
+
+export type UsagesDUneCleApiV1ClesUuidUsagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Uuid
+         */
+        uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/cles/{uuid}/usages';
+};
+
+export type UsagesDUneCleApiV1ClesUuidUsagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UsagesDUneCleApiV1ClesUuidUsagesGetError = UsagesDUneCleApiV1ClesUuidUsagesGetErrors[keyof UsagesDUneCleApiV1ClesUuidUsagesGetErrors];
+
+export type UsagesDUneCleApiV1ClesUuidUsagesGetResponses = {
+    /**
+     * Response Usages D Une Cle Api V1 Cles  Uuid  Usages Get
+     *
+     * Successful Response
+     */
+    200: Array<Usage>;
+};
+
+export type UsagesDUneCleApiV1ClesUuidUsagesGetResponse = UsagesDUneCleApiV1ClesUuidUsagesGetResponses[keyof UsagesDUneCleApiV1ClesUuidUsagesGetResponses];
+
+export type SupprimerUneCleApiV1ClesUuidDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Uuid
+         */
+        uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/cles/{uuid}';
+};
+
+export type SupprimerUneCleApiV1ClesUuidDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUneCleApiV1ClesUuidDeleteError = SupprimerUneCleApiV1ClesUuidDeleteErrors[keyof SupprimerUneCleApiV1ClesUuidDeleteErrors];
+
+export type SupprimerUneCleApiV1ClesUuidDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: Suppression;
+};
+
+export type SupprimerUneCleApiV1ClesUuidDeleteResponse = SupprimerUneCleApiV1ClesUuidDeleteResponses[keyof SupprimerUneCleApiV1ClesUuidDeleteResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;

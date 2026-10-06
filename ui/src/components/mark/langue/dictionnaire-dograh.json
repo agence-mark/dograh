@@ -1329,6 +1329,7 @@
   "Terms of Service": "Conditions d'utilisation",
   "Test Agent": "Tester l'agent",
   "Test Audio": "Tester l'audio",
+  "Test the agent over a voice call. Some telephony-only tools, like call transfer, are not yet supported here.": "Testez l'agent par un appel vocal. Certains outils propres au téléphone, comme le transfert d'appel, ne sont pas encore pris en charge ici.",
   "Test Chat": "Tester par écrit",
   "Test connection": "Tester la connexion",
   "Test mode runs the latest draft so you can verify changes before publishing. Production runs the published agent. Both require an API key in the X-API-Key header.": "Le mode test lance le dernier brouillon pour vérifier vos changements avant de publier. La production lance l'agent publié. Les deux demandent une clé API dans l'en-tête X-API-Key.",
@@ -1602,5 +1603,15 @@
   "Your Tools": "Vos outils",
   "Your voice agent run has been completed successfully. You can preview or download the transcript and recording.": "L'appel de votre agent vocal s'est bien terminé. Vous pouvez afficher ou télécharger la transcription et l'enregistrement.",
   "Zoom in": "Zoom avant",
-  "Zoom out": "Zoom arrière"
+  "Zoom out": "Zoom arrière",
+  "A few quick questions so we can tailor your experience. Takes ~20 seconds.": "Quelques questions rapides pour adapter votre expérience. Environ 20 secondes.",
+  "Building good voice agents is nuanced. Tell us what you need and we'll take it end-to-end.": "Construire un bon agent vocal demande de la finesse. Dites-nous ce dont vous avez besoin, nous nous occupons de tout.",
+  "Pick a time that works for you.": "Choisissez un créneau qui vous convient.",
+  "Select a credential for authenticating with the MCP server, or leave empty for no auth.": "Choisissez un identifiant pour s'authentifier auprès du serveur MCP, ou laissez vide pour ne pas s'authentifier.",
+  "Select a credential for the resolver endpoint, or leave empty for no auth.": "Choisissez un identifiant pour l'adresse du résolveur, ou laissez vide pour ne pas s'authentifier.",
+  "SSO, on-prem, data residency, committed volume. Tell us about your environment.": "Authentification unique, hébergement sur site, localisation des données, volume engagé. Parlez-nous de votre environnement.",
+  "Test the agent over a text conversation. Send messages and see how it responds, with tool calls, transitions, and rewind support.": "Testez l'agent par une conversation écrite. Envoyez des messages et voyez comment il répond, avec les appels d'outils, les transitions et le retour en arrière.",
+  "Wording the call button cycles through while a call connects and runs.": "Les libellés qu'affiche tour à tour le bouton d'appel pendant la connexion puis l'appel.",
+  "Wording visitors see inside the chat panel.": "Les libellés que les visiteurs voient dans le panneau de discussion.",
+  "Wording visitors see on the call panel across the call lifecycle.": "Les libellés que les visiteurs voient sur le panneau d'appel, du début à la fin de l'appel."
 }

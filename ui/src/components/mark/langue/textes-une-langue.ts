@@ -9,7 +9,8 @@
  *
  *   - text written directly between JSX tags (`<p>Save</p>`);
  *   - a string given to an attribute a person reads (`placeholder`, `title`,
- *     `aria-label`, `alt`) or to a toast (`toast.success("Saved")`).
+ *     `aria-label`, `alt`, and `description`, added on 06/10 after a notice of the test panel
+ *     stayed English in French) or to a toast (`toast.success("Saved")`).
  *
  * Not reported, on purpose (T4: never translated):
  *   - text inside `<code>`: a technical name, a placeholder of the prompts, an
@@ -31,7 +32,7 @@ export interface TexteUneLangue {
     texte: string;
 }
 
-const ATTRIBUTS_LUS = new Set(["placeholder", "title", "aria-label", "alt"]);
+const ATTRIBUTS_LUS = new Set(["placeholder", "title", "aria-label", "alt", "description"]);
 
 /** A string a person reads: at least two letters in a row, outside a technical name. */
 const estUnTexte = (brut: string): boolean => {
