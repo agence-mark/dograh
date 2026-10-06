@@ -209,7 +209,7 @@ async def lancer_le_lanceur(
     if processus.returncode not in (0, 1):
         logger.warning(
             f"[appel simulé] lanceur sorti en {processus.returncode} : "
-            f"{_masquer(erreurs.decode(errors='replace')[-1500:], secrets)}"
+            f"{_masquer(erreurs.decode(errors='replace'), secrets)[-1500:]}"
         )
     verdict = lire_le_verdict(sortie.decode(errors="replace"))
     if "error" in verdict:
