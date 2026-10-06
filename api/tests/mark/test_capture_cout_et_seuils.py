@@ -309,16 +309,27 @@ def test_le_seuil_du_tour_lent_vient_de_l_organisation():
     )
 
 
-def test_sur_les_35_vrais_runs_trois_silences_dont_une_signature_du_5960():
-    """Constat du 05/10 (journal du chantier) : sur 357 résultats d'outil, au seuil de 5 s, trois
-    silences rompus par l'appelant ; un seul sans passe du modèle après l'outil (run 964, tour 2)."""
+def test_sur_les_35_vrais_runs_aucun_silence_apres_un_outil():
+    """Constat du 05/10 : sur 357 résultats d'outil, trois silences au seuil de 5 s (909 t3, 964 t2,
+    967 t9). Lot B du 06/10 : aucun n'en était un. Dans les trois, la voix a démarré 1,2 à 1,6 s
+    après l'outil ; son texte était rangé sous un autre tour par le journal de l'amont."""
     corpus = json.loads(CORPUS.read_text(encoding="utf-8"))["runs"]
-    trouves = [
-        (r["id"], s["turn"], s["model_pass_after_tool"])
-        for r in corpus
-        for s in silences_apres_outil(r, 5.0)
-    ]
-    assert sorted(trouves) == [(909, 3, True), (964, 2, False), (967, 9, True)]
+    assert [s for r in corpus for s in silences_apres_outil(r, 5.0)] == []
+
+
+def test_la_voix_qui_parle_apres_l_outil_n_est_pas_un_silence_meme_sans_texte_du_tour():
+    # 909 t3 : la réplique est rangée sous un autre tour, la voix a pourtant démarré 1,6 s après.
+    run = _run(
+        _ev("rtf-function-call-end", 3, 4.0, function_name="noter_information"),
+        _ev("rtf-ttfb-metric", 3, 5.6, processor="ElevenLabsTTSService#2", kind="tts"),
+        _ev("rtf-ttfb-metric", 4, 11.0, processor="DeepgramFluxSTTService#2"),
+        _dit("caller", 4, 10.0, 11.0),
+    )
+    assert silences_apres_outil(run, 5.0) == []
+    # La transcription n'est pas une voix : sans elle, le silence reste signalé.
+    run["logs"]["realtime_feedback_events"].pop(1)
+    [silence] = silences_apres_outil(run, 5.0)
+    assert silence["broken_by"] == "caller" and silence["secs"] == 6.0
 
 
 def test_les_seuils_sont_bornes():
