@@ -19,7 +19,6 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy.exc import IntegrityError
 
 from api.db import db_client
 from api.db.models import UserModel
@@ -128,9 +127,12 @@ async def ajouter_une_cle(
             credential_type=WebhookCredentialType.BEARER_TOKEN.value,
             credential_data=donnees_d_une_cle(request.fournisseur, cle),
         )
-    except IntegrityError:
-        # Nom d'un identifiant supprimé hors de la bibliothèque (route /credentials de Dograh).
-        raise deja_pris from None
+    except Exception as erreur:  # noqa: BLE001
+        # Nom d'un identifiant supprimé hors de la bibliothèque (route /credentials de Dograh) ;
+        # même lecture que la route de l'amont : aucun import de la base hors de api/db/.
+        if "unique_org_credential_name" in str(erreur):
+            raise deja_pris from None
+        raise HTTPException(status_code=500, detail="Key not saved") from None
     return _vue(identifiant)
 
 

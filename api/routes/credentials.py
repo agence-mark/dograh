@@ -11,6 +11,7 @@ from api.db.models import UserModel
 from api.enums import WebhookCredentialType
 from api.sdk_expose import sdk_expose
 from api.services.auth.depends import get_user
+from api.services.bibliotheque_cles import fournisseur_de
 
 router = APIRouter(prefix="/credentials")
 
@@ -96,6 +97,17 @@ def validate_credential_data(
             )
 
 
+async def _hors_bibliotheque(credential_uuid: str, organization_id: int) -> None:
+    """[.mark] A key of the key library (direct-et-passe-muette, lot 0, decision of 06/10) is
+    managed in « Keys » only: these routes neither show, change nor delete it, so it never
+    leaves the library silently nor skips the warning on where it is used."""
+    credential = await db_client.get_credential_by_uuid(
+        credential_uuid, organization_id
+    )
+    if credential is not None and fournisseur_de(credential) is not None:
+        raise HTTPException(status_code=409, detail="This key is managed in « Keys »")
+
+
 def build_credential_response(credential) -> CredentialResponse:
     """Build a response from a credential model (excluding sensitive data)."""
     return CredentialResponse(
@@ -133,7 +145,12 @@ async def list_credentials(
         user.selected_organization_id
     )
 
-    return [build_credential_response(cred) for cred in credentials]
+    # [.mark] Keys of the key library stay out of the HTTP credential lists.
+    return [
+        build_credential_response(cred)
+        for cred in credentials
+        if fournisseur_de(cred) is None
+    ]
 
 
 @router.post("/")
@@ -199,6 +216,7 @@ async def get_credential(
             status_code=400, detail="No organization selected for the user"
         )
 
+    await _hors_bibliotheque(credential_uuid, user.selected_organization_id)  # [.mark]
     credential = await db_client.get_credential_by_uuid(
         credential_uuid, user.selected_organization_id
     )
@@ -229,6 +247,8 @@ async def update_credential(
         raise HTTPException(
             status_code=400, detail="No organization selected for the user"
         )
+
+    await _hors_bibliotheque(credential_uuid, user.selected_organization_id)  # [.mark]
 
     # Validate credential data if provided
     if request.credential_type and request.credential_data:
@@ -281,6 +301,7 @@ async def delete_credential(
             status_code=400, detail="No organization selected for the user"
         )
 
+    await _hors_bibliotheque(credential_uuid, user.selected_organization_id)  # [.mark]
     deleted = await db_client.delete_credential(
         credential_uuid, user.selected_organization_id
     )

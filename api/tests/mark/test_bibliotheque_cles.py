@@ -22,12 +22,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError
 
 from api.routes import cles as route
+from api.routes import credentials as route_amont
 from api.schemas.appel_simule import ReglagesAppelantSimule, RoleSimule, VoixSimulee
 from api.services import bibliotheque_cles as bibliotheque
 from api.services.appel_simule import reglages as stockage
 from api.services.appel_simule import serie as moteur
 from api.services.appel_simule.serie import SerieRefusee
-from api.services.auth.depends import get_user_with_selected_organization
+from api.services.auth.depends import get_user, get_user_with_selected_organization
 from api.tests.mark.boucle_isolee import (
     executer_sans_toucher_la_boucle_courante as executer,
 )
@@ -48,9 +49,11 @@ class Coffre:
             credential_uuid=uuid,
             organization_id=org,
             name=nom,
+            description=None,
             credential_type="bearer_token",
             credential_data=donnees,
             created_at=datetime(2026, 10, 6, tzinfo=UTC),
+            updated_at=None,
             is_active=True,
         )
 
@@ -146,6 +149,7 @@ def base():
     db.get_all_workflows = AsyncMock(return_value=[])
     with (
         patch.object(route, "db_client", db),
+        patch.object(route_amont, "db_client", db),
         patch.object(bibliotheque, "db_client", db),
         patch.object(stockage, "db_client", db),
         patch.object(moteur, "db_client", db),
@@ -345,3 +349,35 @@ def test_ce_que_designe_un_reglage(ecran):
     assert ecran.get("/cles/designee/cle-autre-org").json()["etat"] == "supprimee"
     ecran.delete("/cles/cle-eleven")
     assert ecran.get("/cles/designee/cle-eleven").json()["etat"] == "supprimee"
+
+
+@pytest.fixture
+def ecran_amont(base):
+    app = FastAPI()
+    app.include_router(route_amont.router)
+    app.dependency_overrides[get_user] = lambda: SimpleNamespace(
+        id=3, selected_organization_id=ORG
+    )
+    return TestClient(app)
+
+
+def test_les_ecrans_http_de_dograh_ne_voient_ni_ne_touchent_une_cle_de_la_bibliotheque(
+    ecran_amont, base
+):
+    # Décision d'Evan, 06/10 : une clé de la bibliothèque se gère dans « Keys » seulement.
+    assert [c["uuid"] for c in ecran_amont.get("/credentials/").json()] == [
+        "outil-http"
+    ]
+    for requete in (
+        lambda: ecran_amont.get("/credentials/cle-mistral"),
+        lambda: ecran_amont.put("/credentials/cle-mistral", json={"name": "Renommée"}),
+        lambda: ecran_amont.delete("/credentials/cle-mistral"),
+    ):
+        reponse = requete()
+        assert reponse.status_code == 409
+        assert "managed in « Keys »" in reponse.json()["detail"]
+    assert base.coffre.lignes["cle-mistral"].is_active
+    assert base.coffre.lignes["cle-mistral"].name == "Mistral org 2"
+    # R7 : un identifiant HTTP ordinaire reste lisible et supprimable par Dograh.
+    assert ecran_amont.get("/credentials/outil-http").status_code == 200
+    assert ecran_amont.delete("/credentials/outil-http").status_code == 200
