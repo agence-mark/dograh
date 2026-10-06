@@ -30,6 +30,28 @@ class EntreeInvalide(ValueError):
     pass
 
 
+def sans_outils_vides(completion):
+    """Scenario appelle toujours le modèle de l'appelant simulé avec ``tools=[]`` ; litellm le
+    transmet tel quel et Mistral refuse une liste d'outils vide (« at least 1 item »). Les appels
+    sans outil partent sans le champ ; ceux qui en ont (le juge) sont inchangés (direct-et-passe-
+    muette, 06/10 : trois appels refusés en 1 s sur le premier tour de l'appelant simulé)."""
+
+    def appeler(*args, **kwargs):
+        if "tools" in kwargs and not kwargs["tools"]:
+            kwargs.pop("tools")
+        return completion(*args, **kwargs)
+
+    return appeler
+
+
+def message_d_erreur(e: BaseException) -> str:
+    """Le message du fournisseur d'abord : l'exception de litellm commence parfois par les
+    en-têtes HTTP, et le corps (la vraie raison) se perdait à la troncature (06/10)."""
+    corps = getattr(e, "message", None) or getattr(e, "body", None)
+    texte = str(corps) if corps else str(e)
+    return f"{type(e).__name__}: {texte}"
+
+
 def _texte(valeur: Any, champ: str) -> str:
     if not isinstance(valeur, str) or not valeur.strip():
         raise EntreeInvalide(f"{champ} manquant")
@@ -105,8 +127,11 @@ def verdict(resultat: Any) -> dict:
 
 
 async def jouer(entree: dict) -> dict:
+    import litellm
     import scenario
     from scenario import ElevenLabsSTTProvider, PipecatAgentAdapter
+
+    litellm.completion = sans_outils_vides(litellm.completion)
 
     cle = os.environ.get(CLE_MODELE) or None
     # La transcription de l'agent (pour l'appelant et le juge) passe par la même clé ElevenLabs
@@ -149,7 +174,7 @@ def main() -> int:
     try:
         sortie = asyncio.run(jouer(entree))
     except Exception as e:  # le verdict doit toujours sortir, même en échec
-        sortie = {"error": f"{type(e).__name__}: {e}"}
+        sortie = {"error": message_d_erreur(e)}
     print(MARQUE + json.dumps(sortie, ensure_ascii=False), flush=True)
     return 0 if "error" not in sortie else 1
 

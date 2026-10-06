@@ -818,3 +818,13 @@ async def test_le_rapport_quotidien_ignore_les_appels_simules():
         )
     )
     assert "workflow_runs.mode != 'simulated'" in sql
+
+
+def test_une_erreur_longue_garde_son_debut_et_sa_fin():
+    # 06/10 : les 500 premiers caractères n'étaient que des en-têtes HTTP ; la raison est à la fin.
+    erreur = "BadRequestError: " + "en-tête " * 200 + "List should have at least 1 item"
+    tronquee = moteur._tronquer(erreur)
+    assert tronquee.startswith("BadRequestError: ")
+    assert tronquee.endswith("List should have at least 1 item")
+    assert len(tronquee) == 150 + 3 + 650
+    assert moteur._tronquer("courte") == "courte"
