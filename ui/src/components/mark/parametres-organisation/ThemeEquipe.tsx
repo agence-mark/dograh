@@ -13,11 +13,13 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
+    getChoixTraducteursApiV1ConnecteursTraducteursChoixGet,
     getEquipeApiV1OrganizationsEquipeGet,
     getEtablissementsApiV1OrganizationsEtablissementsGet,
+    getTraducteursApiV1ConnecteursTraducteursGet,
     putEquipeApiV1OrganizationsEquipePut,
 } from "@/client/sdk.gen";
-import type { Equipe, Etablissement, Personne, Sujet } from "@/client/types.gen";
+import type { Equipe, Etablissement, Personne, Sujet, TraducteurVue } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -58,6 +60,11 @@ export const charge_utile_equipe = (equipe: Equipe): Equipe => ({
         divulguer_telephone: p.divulguer_telephone ?? false,
         divulguer_mail: p.divulguer_mail ?? false,
         joignable_par_transfert: p.joignable_par_transfert ?? false,
+        // l-agent-collegue, L4 (H7): her agenda in each calendar software; null = left as it is.
+        agendas:
+            p.agendas == null
+                ? null
+                : Object.fromEntries(Object.entries(p.agendas).map(([s, a]) => [s, (a ?? "").trim()]).filter(([, a]) => a)),
     })),
     sujets: (equipe.sujets ?? []).map((s) => ({
         ...s,
@@ -72,17 +79,22 @@ function ModaleEquipe({ ouverte, onFermer }: { ouverte: boolean; onFermer: (enre
     const [etablissements, setEtablissements] = useState<Etablissement[]>([]);
     const [erreur, setErreur] = useState<string | null>(null);
     const [enCours, setEnCours] = useState(false);
+    // l-agent-collegue, L4 (H7): the calendar software chosen in « Integrations », if any.
+    const [agenda, setAgenda] = useState<TraducteurVue | null>(null);
 
     useEffect(() => {
         if (!ouverte) return;
         setEquipe(null);
         setErreur(null);
         void (async () => {
-            const [reponse, sites] = await Promise.all([
+            const [reponse, sites, choix, traducteurs] = await Promise.all([
                 getEquipeApiV1OrganizationsEquipeGet(),
                 getEtablissementsApiV1OrganizationsEtablissementsGet(),
+                getChoixTraducteursApiV1ConnecteursTraducteursChoixGet(),
+                getTraducteursApiV1ConnecteursTraducteursGet(),
             ]);
             setEtablissements(sites.data?.etablissements ?? []);
+            setAgenda((traducteurs?.data ?? []).find((x) => x.systeme === choix?.data?.agenda) ?? null);
             if (reponse.error || !reponse.data) {
                 setErreur(detailFromError(reponse.error, "Team unreadable"));
                 return;
@@ -219,6 +231,30 @@ function ModaleEquipe({ ouverte, onFermer }: { ouverte: boolean; onFermer: (enre
                                         />
                                         {t({ en: "The agent may give the e-mail address", fr: "L'agent peut donner son e-mail" })}
                                     </label>
+                                    {/* l-agent-collegue, L4 (H7): her agenda in the calendar software chosen in
+                                        « Integrations ». Shown only when one is chosen (E8): otherwise it plays no role. */}
+                                    {agenda && (
+                                        <div className="space-y-1 sm:col-span-3" data-reglage="agendas">
+                                            <Input
+                                                aria-label={t({ en: `Agenda in ${agenda.libelle}`, fr: `Agenda dans ${agenda.libelle}` })}
+                                                placeholder={t({ en: `Agenda in ${agenda.libelle}`, fr: `Agenda dans ${agenda.libelle}` })}
+                                                data-testid={`agenda-${p.cle}`}
+                                                value={p.agendas?.[agenda.systeme] ?? ""}
+                                                onChange={(e) =>
+                                                    modifierPersonne(i, { agendas: { ...(p.agendas ?? {}), [agenda.systeme]: e.target.value } })
+                                                }
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                {t({ en: agenda.reference_agenda?.en ?? "", fr: agenda.reference_agenda?.fr ?? "" })}
+                                                {". "}
+                                                {t({
+                                                    en: "Empty: the planner never books with this person.",
+                                                    fr: "Vide : le planificateur ne pose jamais de rendez-vous avec cette personne.",
+                                                })}{" "}
+                                                <code data-cle-technique className="text-[11px]">agendas.{agenda.systeme}</code>
+                                            </p>
+                                        </div>
+                                    )}
                                     {p.joignable_par_transfert && !(p.telephone ?? "").trim() && (
                                         <p className="text-xs text-muted-foreground sm:col-span-3" role="note" data-testid="transfert-sans-telephone">
                                             {t({

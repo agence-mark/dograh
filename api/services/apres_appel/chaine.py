@@ -194,6 +194,17 @@ async def _ecriture(ctx: ContexteModule, bloc: dict) -> dict:
                 ctx.envoi["equipe"].get("assignee"),
                 ctx.envoi["equipe"].get("gestes") or [],
             )
+        # l-agent-collegue, L4 (H6): the appointments booked during the call, idempotent.
+        if (ctx.envoi.get("hub") or {}).get("rendez_vous"):
+            from api.db.bases_clients.hub import ecrire_rendez_vous
+
+            await ecrire_rendez_vous(
+                connexion,
+                resultat.get("appel_id"),
+                resultat.get("demande_id"),
+                resultat.get("contact_id"),
+                ctx.envoi["hub"]["rendez_vous"],
+            )
         # A summary made while the write was failing is written now.
         if (
             bloc.get("synthese")

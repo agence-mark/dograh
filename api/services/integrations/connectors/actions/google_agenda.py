@@ -1,6 +1,11 @@
 """[.mark] Google Agenda (plan connecteurs-agent D13, chantier l-agent-travaille L5): declared and
 wired, not switched on. The real trial waits for the Google application (Q3).
 
+l-agent-collegue, L4 (H2, H8): this file also declares Google Agenda's TRANSLATOR for the hub
+(bottom of the file), MULTI-agenda: one person = one agenda (``lien_externe``, H7), a search
+reads every agenda asked in one ``freeBusy`` call. The two actions above are unchanged; the
+booking they make is noted for the hub (``au_hub``) and written after the call (H6).
+
 - ``find_free_slots`` (reads; may be anticipated, D17): up to three free slots that respect the
   client's rules (D9): duration by reason, opening ranges, minimum notice, horizon.
 - ``book_appointment`` (writes; never anticipated): the event, its title and description built
@@ -17,6 +22,13 @@ from typing import Any
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
+from api.services.hub.traducteurs import (
+    Champ,
+    ObjetTraduit,
+    Operation,
+    Traducteur,
+    declarer_traducteur,
+)
 from api.services.integrations.connectors.catalogue import (
     Action,
     Connecteur,
@@ -231,6 +243,25 @@ def _resultat_rendez_vous(reponse: Any, params: dict, ctx: ContexteAction) -> di
     }
 
 
+def _au_hub_rendez_vous(resultat: dict, params: dict, ctx: ContexteAction) -> dict | None:
+    """l-agent-collegue, H6: the booking, in the hub's format, for the after-call."""
+    if not (resultat or {}).get("identifiant"):
+        return None
+    r = {**REGLAGES_RENDEZ_VOUS, **ctx.reglages}
+    debut = datetime.fromisoformat(str(params["debut"]))
+    if debut.tzinfo is None:
+        debut = debut.replace(tzinfo=ZoneInfo(r["fuseau"]))
+    motif = params.get("motif") or ctx.modele.motif
+    return {
+        "systeme": "google_agenda",
+        "agenda": r["agenda"],
+        "id_externe": str(resultat["identifiant"]),
+        "debut": debut.isoformat(),
+        "fin": (debut + timedelta(minutes=duree(r, motif))).isoformat(),
+        "motif": motif,
+    }
+
+
 GOOGLE_AGENDA = declarer(
     Connecteur(
         nom="google_agenda",
@@ -276,6 +307,120 @@ GOOGLE_AGENDA = declarer(
                 preparer=_preparer_rendez_vous,
                 resultat=_resultat_rendez_vous,
                 reglages_par_defaut=REGLAGES_RENDEZ_VOUS,
+                au_hub=_au_hub_rendez_vous,
+            ),
+        ),
+    )
+)
+
+
+# --------------------------------------------------------------------------- #
+# The translator of the hub (l-agent-collegue, L4, H2, H8)
+# --------------------------------------------------------------------------- #
+
+
+def _instant(texte: str) -> datetime:
+    return datetime.fromisoformat(str(texte).replace("Z", "+00:00"))
+
+
+def _chemin_evenements(agenda: str) -> str:
+    if not agenda:
+        raise ValueError("An appointment lives in an agenda: none given.")
+    return f"/calendar/v3/calendars/{quote(str(agenda), safe='')}/events"
+
+
+def _chercher(arguments: dict, _o: ObjetTraduit) -> Requete:
+    return Requete(
+        "POST",
+        "/calendar/v3/freeBusy",
+        json={
+            "timeMin": arguments["debut"],
+            "timeMax": arguments["fin"],
+            "timeZone": "UTC",
+            "items": [{"id": a} for a in arguments.get("agendas") or []],
+        },
+    )
+
+
+def _lire_occupations(reponse: Any, arguments: dict, _o: ObjetTraduit) -> dict:
+    """Agenda -> busy intervals. An agenda with ``errors`` (unknown, not shared) is left OUT:
+    unknown is never free."""
+    calendriers = (reponse or {}).get("calendars") or {}
+    sortie = {}
+    for agenda in arguments.get("agendas") or []:
+        entree = calendriers.get(agenda)
+        if not isinstance(entree, dict) or entree.get("errors"):
+            continue
+        sortie[agenda] = [
+            (_instant(b["start"]), _instant(b["end"]))
+            for b in entree.get("busy") or []
+            if b.get("start") and b.get("end")
+        ]
+    return sortie
+
+
+CORRESPONDANCE_EVENEMENT = (
+    Champ("id_externe", "id"),
+    Champ("titre", "summary"),
+    Champ("description", "description"),
+    Champ("lieu", "location"),
+    Champ("debut", "start.dateTime"),
+    Champ("fin", "end.dateTime"),
+    Champ("fuseau", "start.timeZone"),
+    Champ("fuseau", "end.timeZone"),
+)
+
+
+def _corps(arguments: dict, o: ObjetTraduit) -> dict:
+    return o.vers_logiciel({k: v for k, v in arguments.items() if k not in ("agenda", "id_externe")})
+
+
+def _creer(arguments: dict, o: ObjetTraduit) -> Requete:
+    return Requete("POST", _chemin_evenements(arguments.get("agenda")), json=_corps(arguments, o))
+
+
+def _un_evenement(arguments: dict) -> str:
+    if not arguments.get("id_externe"):
+        raise ValueError("Which appointment: no identifier given.")
+    return f"{_chemin_evenements(arguments.get('agenda'))}/{quote(str(arguments['id_externe']), safe='')}"
+
+
+def _lire(arguments: dict, _o: ObjetTraduit) -> Requete:
+    return Requete("GET", _un_evenement(arguments))
+
+
+def _modifier(arguments: dict, o: ObjetTraduit) -> Requete:
+    return Requete("PATCH", _un_evenement(arguments), json=_corps(arguments, o))
+
+
+def _evenement(reponse: Any, arguments: dict, o: ObjetTraduit) -> dict:
+    return {**o.depuis_logiciel(reponse or {}), "agenda": arguments.get("agenda")}
+
+
+TRADUCTEUR = declarer_traducteur(
+    Traducteur(
+        systeme="google_agenda",
+        libelle="Google Agenda",
+        integration="google-calendar",
+        domaine="agenda",
+        reference_agenda={
+            "en": "Calendar ID (often the person's Google address)",
+            "fr": "Identifiant de l'agenda (souvent l'adresse Google de la personne)",
+        },
+        objets=(
+            ObjetTraduit(
+                "disponibilites",
+                correspondance=(),
+                operations={"chercher": Operation(_chercher, _lire_occupations)},
+            ),
+            ObjetTraduit(
+                "rendez_vous",
+                correspondance=CORRESPONDANCE_EVENEMENT,
+                operations={
+                    "creer": Operation(_creer, _evenement),
+                    "lire": Operation(_lire, _evenement),
+                    "modifier": Operation(_modifier, _evenement),
+                },
             ),
         ),
     )

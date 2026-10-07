@@ -42,7 +42,17 @@ const m = vi.hoisted(() => ({
     saveAnnonce: vi.fn(),
     getReglagesFenetreDuRun: vi.fn(),
     saveReglagesFenetreDuRun: vi.fn(),
+    saveChoixTraducteurs: vi.fn(),
+    lien: vi.fn(),
 }));
+
+// l-agent-collegue, L4: the calendar software of the hub (theme « Integrations »).
+const TRADUCTEURS = [
+    { systeme: "google_agenda", libelle: "Google Agenda", domaine: "agenda", integration: "google-calendar",
+      reference_agenda: { en: "Calendar ID", fr: "Identifiant de l'agenda" }, operations: {} },
+    { systeme: "outlook_agenda", libelle: "Microsoft Outlook (agenda)", domaine: "agenda", integration: "outlook",
+      reference_agenda: { en: "Mailbox", fr: "Boîte aux lettres" }, operations: {} },
+];
 
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getPreferencesApiV1OrganizationsPreferencesGet: m.getPreferences,
@@ -72,6 +82,13 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-fact
     putConservationApiV1OrganizationsBaseClientConservationPut: vi.fn(),
     getEquipeApiV1OrganizationsEquipeGet: vi.fn(),
     putEquipeApiV1OrganizationsEquipePut: vi.fn(),
+    getTraducteursApiV1ConnecteursTraducteursGet: () => Promise.resolve({ data: TRADUCTEURS }),
+    getChoixTraducteursApiV1ConnecteursTraducteursChoixGet: () => Promise.resolve({ data: { agenda: null } }),
+    putChoixTraducteursApiV1ConnecteursTraducteursChoixPut: m.saveChoixTraducteurs,
+    getConnexionsApiV1ConnecteursConnexionsGet: () =>
+        Promise.resolve({ data: { nango_configure: true, connexions: [{ integration: "google-calendar", connection_id: "cx" }] } }),
+    getCatalogueApiV1ConnecteursCatalogueGet: () => Promise.resolve({ data: [] }),
+    postLienApiV1ConnecteursLienPost: m.lien,
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/context/UserConfigContext", () => ({ useUserConfig: () => ({ refreshConfig: () => Promise.resolve() }) }));
@@ -337,5 +354,34 @@ describe("[.mark] the incident thresholds (L6, L18)", () => {
             lignes: [],
             seuils: { silence_apres_outil_s: 6, tour_lent_s: 3 },
         });
+    });
+});
+
+
+describe("[.mark] l-agent-collegue L4: the calendar software in « Integrations »", () => {
+    it("offers the translators, shows the connection of the one chosen and saves exactly it", async () => {
+        m.saveChoixTraducteurs.mockReset().mockImplementation(async ({ body }) => ({ data: body }));
+        m.lien.mockReset().mockResolvedValue({ data: { lien: "https://connect.example.org/o", expire_le: null } });
+        await ouvrirLaPage();
+        const theme = await ouvrirLeTheme("integrations");
+        const menu = (await waitFor(() => {
+            const el = theme.querySelector("#traducteur-agenda");
+            if (!el) throw new Error("menu not drawn");
+            return el;
+        })) as HTMLSelectElement;
+        expect(theme.querySelector('[data-reglage="agenda"]')).not.toBeNull();
+        expect([...menu.options].map((o) => o.value)).toEqual(["", "google_agenda", "outlook_agenda"]);
+        const enregistrer = screen.getByTestId("enregistrer-traducteur") as HTMLButtonElement;
+        expect(enregistrer.disabled).toBe(true); // nothing changed
+        fireEvent.change(menu, { target: { value: "outlook_agenda" } });
+        expect(screen.getByTestId("etat-traducteur").textContent).toMatch(/Not connected/);
+        fireEvent.click(screen.getByRole("button", { name: "Authorization link for the client" }));
+        await waitFor(() => expect(m.lien).toHaveBeenCalledWith({ body: { connecteurs: ["outlook_agenda"] } }));
+        fireEvent.change(menu, { target: { value: "google_agenda" } });
+        expect(screen.getByTestId("etat-traducteur").textContent).toMatch(/Connected/);
+        fireEvent.click(enregistrer);
+        await waitFor(() => expect(m.saveChoixTraducteurs).toHaveBeenCalledWith({ body: { agenda: "google_agenda" } }));
+        // Nothing of the theme's own row is sent by this block (it acts at once, E6).
+        expect(m.savePreferences).not.toHaveBeenCalled();
     });
 });

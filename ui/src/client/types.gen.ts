@@ -1690,6 +1690,18 @@ export type ChampFiche = {
 };
 
 /**
+ * ChoixTraducteurs
+ */
+export type ChoixTraducteurs = {
+    /**
+     * Agenda
+     *
+     * The calendar software the agent books in (a translator's name). None: none.
+     */
+    agenda?: string | null;
+};
+
+/**
  * ChunkResponseSchema
  *
  * Response schema for a document chunk.
@@ -6359,6 +6371,14 @@ export type Personne = {
      * The agent may transfer a call to this person (a phone number is needed).
      */
     joignable_par_transfert?: boolean;
+    /**
+     * Agendas
+     *
+     * Her agenda in each calendar software: translator -> agenda identifier.
+     */
+    agendas?: {
+        [key: string]: string;
+    } | null;
 };
 
 /**
@@ -9255,6 +9275,44 @@ export type ToolTestResponse = {
      * Duration Ms
      */
     duration_ms: number;
+};
+
+/**
+ * TraducteurVue
+ */
+export type TraducteurVue = {
+    /**
+     * Systeme
+     */
+    systeme: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Domaine
+     */
+    domaine: string;
+    /**
+     * Integration
+     */
+    integration: string;
+    /**
+     * Reference Agenda
+     *
+     * What identifies a person's agenda, {en, fr}.
+     */
+    reference_agenda?: {
+        [key: string]: string;
+    };
+    /**
+     * Operations
+     *
+     * Object of the hub -> operations this translator does.
+     */
+    operations?: {
+        [key: string]: Array<string>;
+    };
 };
 
 /**
@@ -21889,6 +21947,125 @@ export type PostLienApiV1ConnecteursLienPostResponses = {
 };
 
 export type PostLienApiV1ConnecteursLienPostResponse = PostLienApiV1ConnecteursLienPostResponses[keyof PostLienApiV1ConnecteursLienPostResponses];
+
+export type GetTraducteursApiV1ConnecteursTraducteursGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/traducteurs';
+};
+
+export type GetTraducteursApiV1ConnecteursTraducteursGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTraducteursApiV1ConnecteursTraducteursGetError = GetTraducteursApiV1ConnecteursTraducteursGetErrors[keyof GetTraducteursApiV1ConnecteursTraducteursGetErrors];
+
+export type GetTraducteursApiV1ConnecteursTraducteursGetResponses = {
+    /**
+     * Response Get Traducteurs Api V1 Connecteurs Traducteurs Get
+     *
+     * Successful Response
+     */
+    200: Array<TraducteurVue>;
+};
+
+export type GetTraducteursApiV1ConnecteursTraducteursGetResponse = GetTraducteursApiV1ConnecteursTraducteursGetResponses[keyof GetTraducteursApiV1ConnecteursTraducteursGetResponses];
+
+export type GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/traducteurs/choix';
+};
+
+export type GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetError = GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetErrors[keyof GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetErrors];
+
+export type GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ChoixTraducteurs;
+};
+
+export type GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetResponse = GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetResponses[keyof GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetResponses];
+
+export type PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutData = {
+    body: ChoixTraducteurs;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/traducteurs/choix';
+};
+
+export type PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutError = PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutErrors[keyof PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutErrors];
+
+export type PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ChoixTraducteurs;
+};
+
+export type PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutResponse = PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutResponses[keyof PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutResponses];
 
 export type HealthApiV1HealthGetData = {
     body?: never;

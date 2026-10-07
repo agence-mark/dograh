@@ -293,7 +293,10 @@ class CustomToolManager:
                     delai = float(integration.config_de(tool).get("delai_ms") or 5000) / 1000
                     # l-agent-collegue (L2): an internal action may transfer the call; it gets
                     # the transfer's deadline and its place as a workflow-control boundary.
-                    interne = integration.connecteur_interne(tool) is not None
+                    # l-agent-collegue (L5): only an internal connector that may transfer
+                    # (the team's) is a boundary; the planner's are ordinary actions.
+                    interne_ = integration.connecteur_interne(tool)
+                    interne = interne_ is not None and interne_.peut_transferer
                     if interne:
                         from api.services.equipe.diriger import delai_du_transfert
 

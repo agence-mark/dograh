@@ -2,7 +2,8 @@
 
 All scoped to the signed-in user's organization (D6): the catalogue, this organization's
 connections and their state, and the authorization link to send the client. Nothing in a
-request names another organization.
+request names another organization. l-agent-collegue (L4): the hub's translators and the one
+the organization books in (« Integrations »).
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from api.db.models import UserModel
+from api.schemas.traducteurs import ChoixTraducteurs, TraducteurVue
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.integrations.connectors import nango
 from api.services.integrations.connectors.catalogue import connecteur, connecteurs
@@ -124,17 +126,27 @@ async def get_connexions(
 async def post_lien(
     demande: DemandeLien, user: UserModel = Depends(get_user_with_selected_organization)
 ):
+    from api.services.hub.traducteurs import traducteur
+
     integrations = []
     for nom in demande.connecteurs:
         c = connecteur(nom)
         if c is None:
-            raise HTTPException(status_code=422, detail=f"Unknown connector « {nom} ».")
+            # l-agent-collegue (L4): a translator of the hub with no action of its own (Outlook)
+            # is connected the same way, by its software's integration.
+            t = traducteur(nom)
+            if t is None:
+                raise HTTPException(status_code=422, detail=f"Unknown connector « {nom} ».")
+            if t.integration not in integrations:
+                integrations.append(t.integration)
+            continue
         if c.interne:
             raise HTTPException(
                 status_code=422,
                 detail=f"« {c.libelle} » is internal: there is nothing to connect.",
             )
-        integrations.append(c.integration)
+        if c.integration not in integrations:
+            integrations.append(c.integration)
     try:
         return Lien(
             **await nango.lien_d_autorisation(
@@ -143,3 +155,54 @@ async def post_lien(
         )
     except nango.NangoIndisponible as erreur:
         raise HTTPException(status_code=503, detail=str(erreur)) from None
+
+
+# --------------------------------------------------------------------------- #
+# l-agent-collegue, L4 (H2, H8): the hub's translators, and the one this organization uses
+# --------------------------------------------------------------------------- #
+
+
+@router.get("/traducteurs", response_model=list[TraducteurVue])
+async def get_traducteurs(
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    from api.services.hub.traducteurs import traducteurs
+
+    return [
+        TraducteurVue(
+            systeme=t.systeme,
+            libelle=t.libelle,
+            domaine=t.domaine,
+            integration=t.integration,
+            reference_agenda=t.reference_agenda,
+            operations={o.objet: list(o.operations) for o in t.objets},
+        )
+        for t in traducteurs()
+    ]
+
+
+@router.get("/traducteurs/choix", response_model=ChoixTraducteurs)
+async def get_choix_traducteurs(
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    from api.services.hub.choix import lire_choix
+
+    return await lire_choix(user.selected_organization_id)
+
+
+@router.put("/traducteurs/choix", response_model=ChoixTraducteurs)
+async def put_choix_traducteurs(
+    choix: ChoixTraducteurs,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    from api.services.hub.choix import ecrire_choix
+    from api.services.hub.traducteurs import traducteur
+
+    if choix.agenda is not None:
+        t = traducteur(choix.agenda)
+        if t is None or t.domaine != "agenda":
+            raise HTTPException(
+                status_code=422,
+                detail=f"« {choix.agenda} » is not a calendar software of the hub.",
+            )
+    return await ecrire_choix(user.selected_organization_id, choix)

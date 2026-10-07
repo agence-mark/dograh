@@ -32,6 +32,10 @@ async def lire_equipe(connexion: asyncpg.Connection) -> Equipe:
     liens = await connexion.fetch(
         "SELECT * FROM mark.personne_sujet ORDER BY sujet_id, priorite, personne_id"
     )
+    # l-agent-collegue, L4 (H7): each person's agendas, one line of lien_externe per software.
+    from api.db.bases_clients.hub import agendas_par_personne
+
+    agendas = await agendas_par_personne(connexion)
     return Equipe(
         personnes=[
             Personne(
@@ -48,6 +52,7 @@ async def lire_equipe(connexion: asyncpg.Connection) -> Equipe:
                 divulguer_telephone=bool(p.get("divulguer_telephone")),
                 divulguer_mail=bool(p.get("divulguer_mail")),
                 joignable_par_transfert=bool(p.get("joignable_par_transfert")),
+                agendas=agendas.get(p["id"]) or None,
             )
             for p in personnes
         ],
@@ -120,6 +125,13 @@ async def ecrire_equipe(
         await connexion.execute(
             "UPDATE mark.personne SET actif = false WHERE actif AND cle IS NOT NULL AND NOT (cle = ANY($1::text[]))",
             list(ids),
+        )
+        # l-agent-collegue, L4 (H7): the agendas sent (None: left as they are).
+        from api.db.bases_clients.hub import ecrire_agendas
+
+        await ecrire_agendas(
+            connexion,
+            {ids[p.cle]: p.agendas for p in equipe.personnes if p.agendas is not None},
         )
         codes: list[str] = []
         for s in equipe.sujets:

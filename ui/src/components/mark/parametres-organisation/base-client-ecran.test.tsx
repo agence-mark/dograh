@@ -26,6 +26,7 @@ const m = vi.hoisted(() => ({
     conservation: vi.fn(),
     equipe: vi.fn(),
     saveEquipe: vi.fn(),
+    choix: vi.fn(),
 }));
 
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
@@ -37,6 +38,12 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-fact
     putConservationApiV1OrganizationsBaseClientConservationPut: m.conservation,
     getEquipeApiV1OrganizationsEquipeGet: m.equipe,
     putEquipeApiV1OrganizationsEquipePut: m.saveEquipe,
+    getChoixTraducteursApiV1ConnecteursTraducteursChoixGet: m.choix,
+    getTraducteursApiV1ConnecteursTraducteursGet: () =>
+        Promise.resolve({
+            data: [{ systeme: "google_agenda", libelle: "Google Agenda", domaine: "agenda", integration: "google-calendar",
+                     reference_agenda: { en: "Calendar ID", fr: "Identifiant de l'agenda" }, operations: {} }],
+        }),
     getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
         Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [{ id: "creil", nom: "Site A", numeros: [] }] } }),
 }));
@@ -186,6 +193,35 @@ describe("Team and routing", () => {
             joignable_par_transfert: true,
             divulguer_mail: true,
             divulguer_telephone: false,
+        });
+    });
+
+    it("l-agent-collegue L4 (H7): the person's agenda in the software chosen, saved as typed", async () => {
+        m.equipe.mockResolvedValue({
+            data: { personnes: [{ cle: "p1", prenom: "Alice", actif: true, agendas: { outlook_agenda: "a@x.org" } }], sujets: [] },
+        });
+        m.saveEquipe.mockReset();
+        m.saveEquipe.mockImplementation(async ({ body }) => ({ data: body }));
+        // Nothing chosen in « Integrations »: no agenda field (E8, it plays no role).
+        m.choix.mockResolvedValue({ data: { agenda: null } });
+        rendre(<ThemeEquipe ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee />);
+        fireEvent.click(screen.getByTestId("ouvrir-equipe"));
+        await screen.findByDisplayValue("Alice");
+        expect(screen.queryByTestId("agenda-p1")).toBeNull();
+        cleanup();
+
+        m.choix.mockResolvedValue({ data: { agenda: "google_agenda" } });
+        rendre(<ThemeEquipe ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee />);
+        fireEvent.click(screen.getByTestId("ouvrir-equipe"));
+        const champ = (await screen.findByTestId("agenda-p1")) as HTMLInputElement;
+        expect(screen.getByText(/Identifiant de l'agenda|Calendar ID/)).toBeTruthy();
+        fireEvent.change(champ, { target: { value: " alice@example.org " } });
+        fireEvent.click(screen.getByTestId("enregistrer-equipe"));
+        await waitFor(() => expect(m.saveEquipe).toHaveBeenCalledTimes(1));
+        // The other software's agenda is kept; the one typed is trimmed.
+        expect(m.saveEquipe.mock.calls[0][0].body.personnes[0].agendas).toEqual({
+            outlook_agenda: "a@x.org",
+            google_agenda: "alice@example.org",
         });
     });
 

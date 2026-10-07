@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import httpx
 
@@ -221,3 +221,24 @@ async def relayer(
         return reponse.json()
     except ValueError:
         return {}
+
+
+async def jeton_a_la_demande(organization_id: int, integration: str) -> str:
+    """l-agent-collegue (H3): the access token of THIS organization's connection, asked from
+    Nango at the moment it is needed, for an official library of a software that cannot go
+    through the relay. ⛔ Never stored, never logged, never put in an error message: the
+    caller uses it for one call and lets it go. Nango keeps renewing it."""
+    connexion = await connexion_de(organization_id, integration)
+    reponse = await _requete(
+        "GET",
+        f"/connection/{quote(connexion.connection_id, safe='')}",
+        params={"provider_config_key": integration},
+    )
+    if reponse.status_code != 200:
+        raise NangoIndisponible(
+            f"Nango refused the connection's token (HTTP {reponse.status_code})."
+        )
+    jeton = ((reponse.json() or {}).get("credentials") or {}).get("access_token")
+    if not jeton:
+        raise NangoIndisponible("Nango gave no token for this connection.")
+    return str(jeton)

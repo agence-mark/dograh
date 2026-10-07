@@ -38,6 +38,7 @@ import { Switch } from "@/components/ui/switch";
 
 import { ChampAdresseEtablissement } from "../ChampAdresseEtablissement";
 import { ChampEtiquettes } from "../ChampEtiquettes";
+import { BlocTraducteurs } from "../connecteurs/BlocTraducteurs";
 import { BlocConnexions } from "../connecteurs/ConfigOutilIntegration";
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { ChampReglage } from "../ecran/ChampReglage";
@@ -657,6 +658,12 @@ export const ThemeIntegrations = ({
                             })}
                         </p>
                         <BlocConnexions connecteurs={connecteurs} />
+                    </Intertitre>
+
+                    {/* [.mark] l-agent-collegue, L4 (H2, H8): the calendar software the planner
+                        books in (a translator of the hub). Acts at once, its own button. */}
+                    <Intertitre id="integrations-agenda" titre={{ en: "Calendar software", fr: "Logiciel d'agenda" }}>
+                        <BlocTraducteurs connecteurs={connecteurs} />
                     </Intertitre>
 
                     {/* [.mark] L7 (PN5): the emergency address of the outage fallback. */}

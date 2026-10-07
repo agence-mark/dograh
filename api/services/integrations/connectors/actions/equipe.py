@@ -45,6 +45,7 @@ EQUIPE = declarer(
         integration="interne",
         interne=True,
         gestionnaire_interne=_gestionnaire,
+        peut_transferer=True,
         actions=(
             Action(
                 nom="diriger_vers_personne",

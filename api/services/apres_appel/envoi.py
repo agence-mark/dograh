@@ -205,8 +205,22 @@ def construire_envoi(
             "assignee": assignation,
         }
     envoi_equipe = {"equipe": {"gestes": gestes, "assignee": assignation}} if (gestes or assignation) else {}
+    # [.mark] l-agent-collegue, L4 (H6): the appointments booked during the call, written in the
+    # hub after it. A booked appointment always has its request (a rendez_vous belongs to one).
+    # Absent from the record (every agent of before): the envoi is exactly the one of before.
+    poses = contexte.get("hub_rendez_vous")
+    poses = [r for r in poses if isinstance(r, dict)] if isinstance(poses, list) else []
+    if poses and demande is None:
+        demande = {
+            "type": type_demande or "autre",
+            "sujet": (sujet or {}).get("code"),
+            "priorite": 1 if (sujet or {}).get("urgent") else 2,
+            "degre_urgence": valeur("degre_urgence"),
+        }
+    envoi_hub = {"hub": {"rendez_vous": poses}} if poses else {}
     return {
         **envoi_equipe,
+        **envoi_hub,
         "dograh_run_id": run.id,
         "dograh_workflow_id": run.workflow_id,
         "agent_nom": getattr(getattr(run, "workflow", None), "name", None),
