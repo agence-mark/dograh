@@ -776,8 +776,12 @@ async def _deja_pose(ctx, delai_s: float, debut: datetime, creneau: dict, estamp
         existants = await hub_agenda.evenements(
             ctx.organization_id, en_cours["systeme"], en_cours["agenda"],
             debut_cree - timedelta(minutes=1), fin + timedelta(minutes=1), delai=max(0.5, delai_s / 3),
+            marqueur=_marqueur(ctx),
         )
-        trouve = next((e for e in existants if e["debut"] == debut_cree and e["fin"] == fin), None)
+        # Same start, same end AND the planner's own marker: an appointment put by hand in the
+        # same slot is never adopted as ours.
+        trouve = next((e for e in existants
+                       if e["debut"] == debut_cree and e["fin"] == fin and e.get("marque")), None)
     except Exception as erreur:  # noqa: BLE001 -- unknown: no second event on a doubt
         logger.warning(f"[.mark] Booking of the previous try not checked: {erreur!r}")
     if trouve is None:
@@ -794,6 +798,12 @@ async def _deja_pose(ctx, delai_s: float, debut: datetime, creneau: dict, estamp
     # Found: adopted. Its identifier when the software gives it (else the hub does not link it).
     adopte = {**en_cours, "id_externe": trouve.get("id_externe")}
     return {"adopte": adopte}
+
+
+def _marqueur(ctx) -> str:
+    """The text the planner puts first in the description of every event it creates (one per
+    organization and call): how its own event is told from one put by hand in the same slot."""
+    return f"Réf. assistant : {int(ctx.organization_id)}-{int(ctx.run_id)}"
 
 
 def _incertain(erreur: BaseException) -> bool:
@@ -893,7 +903,7 @@ async def _poser(ctx, delai_s: float, debut_calcul: float, debut: datetime, cren
         nom = " ".join(x for x in (modele.contact.prenom, modele.contact.nom) if x) or "appelant"
         adresse = proposition.get("adresse_appelant") or None
         lieu = modele.adresse.texte()
-        lignes = [f"Type : {choisi.libelle}", f"Contact : {nom}",
+        lignes = [_marqueur(ctx), f"Type : {choisi.libelle}", f"Contact : {nom}",
                   *([f"Téléphone : {modele.contact.telephone}"] if modele.contact.telephone else []),
                   *([f"Adresse : {lieu}"] if lieu else []),
                   *([f"Motif : {modele.motif}"] if modele.motif else []),

@@ -170,7 +170,9 @@ def _chercher_evenements(arguments: dict, _o: ObjetTraduit) -> Requete:
         params={
             "startDateTime": borne(arguments["debut"]),
             "endDateTime": borne(arguments["fin"]),
-            "$select": "id,start,end,location,isCancelled,isAllDay,showAs",
+            # The start of the body is asked ONLY to look for the planner's marker, never returned.
+            "$select": "id,start,end,location,isCancelled,isAllDay,showAs"
+                       + (",bodyPreview" if arguments.get("marqueur") else ""),
             "$orderby": "start/dateTime",
             "$top": 250,
         },
@@ -191,7 +193,11 @@ def _lire_evenements(reponse: Any, arguments: dict, o: ObjetTraduit) -> list[dic
             or not e.get("end")
         ):
             continue
-        sortie.append({**o.depuis_logiciel(e), "agenda": arguments.get("agenda")})
+        valeurs = {**o.depuis_logiciel(e), "agenda": arguments.get("agenda")}
+        valeurs.pop("description", None)
+        if arguments.get("marqueur"):
+            valeurs["marque"] = str(arguments["marqueur"]) in str(e.get("bodyPreview") or "")
+        sortie.append(valeurs)
     return sortie
 
 

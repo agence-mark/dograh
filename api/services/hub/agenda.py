@@ -52,11 +52,13 @@ async def evenements(
     fin: datetime,
     *,
     delai: float,
+    marqueur: str | None = None,
 ) -> list[dict]:
     """The appointments of one agenda between two instants, in the hub's format and in the order
     of their start: ``{debut, fin}`` as aware datetimes, ``lieu`` (text or None), ``id_externe`` (the
     software's identifier when it gives one: used to find again an event created by a try whose answer was
-    lost, ``planificateur/action.py``). All-day,
+    lost, ``planificateur/action.py``). With ``marqueur``, ``marque`` tells whether the event carries
+    that text in its description (the text itself is never returned). All-day,
     cancelled and « free » events are left out by the translator. Raises like ``operer`` (a
     translator without ``chercher`` on ``rendez_vous`` included): the caller falls back."""
     brut = await operer(
@@ -64,7 +66,8 @@ async def evenements(
         systeme,
         "rendez_vous",
         "chercher",
-        {"agenda": agenda, "debut": debut.isoformat(), "fin": fin.isoformat()},
+        {"agenda": agenda, "debut": debut.isoformat(), "fin": fin.isoformat(),
+         **({"marqueur": marqueur} if marqueur else {})},
         delai=delai,
     )
     sortie = []
@@ -77,7 +80,8 @@ async def evenements(
         if a.tzinfo is None or b.tzinfo is None:
             continue
         sortie.append({"debut": a, "fin": b, "lieu": (e.get("lieu") or "").strip() or None,
-                       "id_externe": str(e["id_externe"]) if e.get("id_externe") else None})
+                       "id_externe": str(e["id_externe"]) if e.get("id_externe") else None,
+                       **({"marque": bool(e.get("marque"))} if marqueur else {})})
     return sorted(sortie, key=lambda x: x["debut"])
 
 

@@ -409,7 +409,9 @@ def _chercher_evenements(arguments: dict, _o: ObjetTraduit) -> Requete:
             "singleEvents": "true",
             "orderBy": "startTime",
             "maxResults": 250,
-            "fields": "items(id,status,transparency,start,end,location)",
+            # The description is asked ONLY to look for the planner's marker, and never returned.
+            "fields": "items(id,status,transparency,start,end,location"
+                      + (",description)" if arguments.get("marqueur") else ")"),
         },
     )
 
@@ -421,6 +423,9 @@ def _lire_evenements(reponse: Any, arguments: dict, o: ObjetTraduit) -> list[dic
         if not isinstance(e, dict) or e.get("status") == "cancelled" or e.get("transparency") == "transparent":
             continue
         valeurs = {**o.depuis_logiciel(e), "agenda": arguments.get("agenda")}
+        valeurs.pop("description", None)
+        if arguments.get("marqueur"):
+            valeurs["marque"] = str(arguments["marqueur"]) in str(e.get("description") or "")
         if valeurs.get("debut") and valeurs.get("fin"):
             sortie.append(valeurs)
     return sortie

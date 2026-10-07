@@ -308,7 +308,8 @@ class Agendas(FauxNango):
             if self.evenements_visibles is not None:
                 return httpx.Response(200, json={"items": self.evenements_visibles})
             return httpx.Response(200, json={"items": [
-                {"id": f"evt-{i + 1}", "status": "confirmed", "start": c["start"], "end": c["end"]}
+                {"id": f"evt-{i + 1}", "status": "confirmed", "start": c["start"], "end": c["end"],
+                 "description": c.get("description", "")}
                 for i, (ch, c) in enumerate(self.poses) if ch == chemin]})
         if chemin.startswith("/proxy/calendar/v3/calendars/"):
             if self.refus_pose:
@@ -572,6 +573,28 @@ async def test_un_evenement_cree_introuvable_n_en_cree_pas_un_autre(installe, mo
     r = await _appeler(enregistres["poser"][0], {"debut": premier})
     assert r["status"] == "booking_uncertain" and len(installe.agendas.poses) == 1
     assert "previous booking unconfirmed" in [x["raison"] for x in engine._gathered_context["planificateur_rappel"]]
+
+
+async def test_un_rendez_vous_pose_a_la_main_au_meme_creneau_n_est_pas_adopte(installe, monkeypatch):
+    """Same start, same end, but no marker of the planner: put by a person, it is not ours."""
+    installe.agendas.reponse_perdue = 1
+    engine, enregistres, [premier, *_] = await _deux_creneaux(installe, monkeypatch, delai_poser=900)
+    await _appeler(enregistres["poser"][0], {"debut": premier})
+    [(_chemin, cree)] = installe.agendas.poses
+    installe.agendas.reponse_perdue = 0
+    installe.agendas.lecture_des_evenements = True
+    installe.agendas.evenements_visibles = [  # by hand: same slot, same hours, another description
+        {"id": "evt-main", "status": "confirmed", "start": cree["start"], "end": cree["end"],
+         "description": "Rendez-vous noté par un collègue"}]
+    r = await _appeler(enregistres["poser"][0], {"debut": premier})
+    assert r["status"] == "booking_uncertain" and len(installe.agendas.poses) == 1
+    assert "hub_rendez_vous" not in engine._gathered_context
+    # The planner's own event (marker first in its description) is still found.
+    installe.agendas.evenements_visibles = [{**installe.agendas.evenements_visibles[0], "id": "evt-1",
+                                             "description": cree["description"]}]
+    r = await _appeler(enregistres["poser"][0], {"debut": premier})
+    assert r["pose"] is True and len(installe.agendas.poses) == 1
+    assert cree["description"].startswith("Réf. assistant : ")
 
 
 async def test_un_refus_net_du_logiciel_permet_de_reessayer(installe, monkeypatch):
