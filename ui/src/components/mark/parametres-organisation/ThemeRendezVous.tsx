@@ -2,7 +2,7 @@
 
 /**
  * [.mark] Theme « Appointments » (chantier l-agent-collegue, L5, P2, P3, P7, P8, P10; new theme
- * decided by Evan in the plan, 07/10).
+ * decided by Evan in the plan, 07/10; R-7: the fairness window of the « In turn » distribution).
  *
  * The planner's rules, written in the client's database (``reglage_planificateur``,
  * ``type_rendez_vous``): the organization's level, then each establishment's, where an empty
@@ -46,6 +46,17 @@ const NOMBRES: Nombre[] = [
     { cle: "horizon_jours", libelle: { en: "Search horizon (days)", fr: "Horizon de recherche (jours)" }, aide: { en: "How far ahead slots are looked for.", fr: "Jusqu'où les créneaux sont cherchés." }, min: 1, max: 90 },
     { cle: "pas_min", libelle: { en: "Grid of the slots (minutes)", fr: "Pas des créneaux (minutes)" }, aide: { en: "A slot starts every this many minutes from the start of a range.", fr: "Un créneau commence toutes les tant de minutes depuis le début d'une plage." }, min: 5, max: 240 },
 ];
+/** R-7: the fairness window of the « In turn » distribution (shown in the group Distribution). */
+const FENETRE: Nombre = {
+    cle: "fenetre_equite_jours",
+    libelle: { en: "Fairness window (days)", fr: "Fenêtre du tour de rôle (jours)" },
+    aide: {
+        en: "« In turn » counts the appointments of the type given over this many days to decide whose turn it is: a shorter window forgets sooner, a longer one evens out over more time.",
+        fr: "Le « tour de rôle » compte les rendez-vous du type donnés sur ce nombre de jours pour savoir à qui c'est le tour : une fenêtre courte oublie plus vite, une longue rééquilibre sur plus de temps.",
+    },
+    min: 1,
+    max: 365,
+};
 const NOMBRES_TRAJETS: Nombre[] = [
     { cle: "coefficient_trajet", libelle: { en: "Road coefficient", fr: "Coefficient de route" }, aide: { en: "The distance as the crow flies is multiplied by this to estimate the road.", fr: "La distance à vol d'oiseau est multipliée par ce coefficient pour estimer la route." }, min: 1, max: 3, pas: 0.05 },
     { cle: "vitesse_kmh", libelle: { en: "Average speed (km/h)", fr: "Vitesse moyenne (km/h)" }, aide: { en: "Used to turn the road distance into minutes.", fr: "Sert à convertir la distance de route en minutes." }, min: 5, max: 130 },
@@ -268,7 +279,7 @@ export const ThemeRendezVous = ({
     if (brouillon) {
         const niveaux: Array<[string, ReglagesPlanificateur]> = [[ORGANISATION, brouillon.reglages ?? {}], ...Object.entries(brouillon.par_etablissement ?? {})];
         for (const [n, r] of niveaux)
-            for (const f of [...NOMBRES, ...NOMBRES_TRAJETS]) {
+            for (const f of [...NOMBRES, ...NOMBRES_TRAJETS, FENETRE]) {
                 const v = r[f.cle] as number | null | undefined;
                 if (v !== null && v !== undefined && !(v >= f.min && v <= f.max))
                     erreurs.push({ cle: f.cle, libelle: t(f.libelle), message: t({ en: `between ${f.min} and ${f.max}`, fr: `entre ${f.min} et ${f.max}` }), afficher: () => setNiveau(n) });
@@ -292,8 +303,26 @@ export const ThemeRendezVous = ({
     };
 
     const typesIci = (brouillon?.types ?? []).filter((x) => (x.etablissement ?? "") === niveau);
+    /** E8: the fairness window plays a role only when a level uses « In turn »; otherwise it stays
+     *  shown and says so (nothing is hidden that could matter once an establishment picks the mode). */
+    const modeIci = (courant.repartition ?? herite("repartition")) as string | null | undefined;
+    const tourDeRoleUtile =
+        modeIci === "tour_de_role" ||
+        (!niveau && Object.values(brouillon?.par_etablissement ?? {}).some((r) => r?.repartition === "tour_de_role"));
+    const sansEffet: Texte = {
+        en: "No effect here: this level does not distribute in turn.",
+        fr: "Sans effet ici : ce niveau ne répartit pas au tour de rôle.",
+    };
     const nombre = (f: Nombre) => (
-        <ChampReglage key={f.cle} cle={f.cle} idControle={`rdv-${f.cle}`} libelle={f.libelle} aides={[f.aide]} bornes={bornesDe(f.min, f.max)}>
+        <ChampReglage
+            key={f.cle}
+            cle={f.cle}
+            idControle={`rdv-${f.cle}`}
+            libelle={f.libelle}
+            aides={[f.aide]}
+            bornes={bornesDe(f.min, f.max)}
+            note={f.cle === FENETRE.cle && !tourDeRoleUtile ? sansEffet : null}
+        >
             <Input
                 id={`rdv-${f.cle}`}
                 type="number"
@@ -438,6 +467,7 @@ export const ThemeRendezVous = ({
 
                     <Intertitre id="rdv-groupe-repartition" titre={{ en: "Distribution and fallback", fr: "Répartition et repli" }}>
                         {choix(CHOIX[0])}
+                        {nombre(FENETRE)}
                         {ouiNon(OUI_NON[1])}
                         {choix(CHOIX[1])}
                     </Intertitre>

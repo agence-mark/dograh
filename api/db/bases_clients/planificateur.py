@@ -28,7 +28,10 @@ class ReferenceInconnue(ValueError):
 
 
 def _reglages(ligne) -> ReglagesPlanificateur:
-    valeurs = {c: ligne[c] for c in COLONNES}
+    # A client database still at version 12 has no ``fenetre_equite_jours``: read as inherited (the
+    # default), so a call never fails in the gap between the deployment and « Upgrade » (013).
+    colonnes_lues = set(ligne.keys())
+    valeurs = {c: (ligne[c] if c in colonnes_lues else None) for c in COLONNES}
     for cle in ("delai_minimal_h", "zone_rayon_km", "coefficient_trajet", "vitesse_kmh"):
         if valeurs[cle] is not None:
             valeurs[cle] = float(valeurs[cle])

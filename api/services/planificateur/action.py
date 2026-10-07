@@ -76,8 +76,6 @@ PLAGES_DEFAUT = "\n".join(
     [f"{j} : 9h-12h, 14h-18h" for j in ("lundi", "mardi", "mercredi", "jeudi", "vendredi")]
     + ["samedi : fermé", "dimanche : fermé"]
 )
-# The window of the turn's fairness (P7): appointments of the type given over these days.
-FENETRE_EQUITE_JOURS = 30
 # R-6: how many agenda places are placed on a map at most per call, how many at once, and the time
 # given to read the agendas' events and place their addresses (a slice of the action's deadline).
 MAX_LIEUX = 40
@@ -173,7 +171,9 @@ async def lire(ctx, type_code: str | None) -> tuple[Lecture, TypeRendezVous | No
         if choisi is not None:
             lecture.personnes = await personnes_du_type(connexion, choisi.sujet, site, systeme)
             lecture.attributions = await attributions_par_personne(
-                connexion, choisi.code, datetime.now(UTC) - timedelta(days=FENETRE_EQUITE_JOURS)
+                connexion, choisi.code,
+                # R-7: the window of the turn's fairness (P7), a setting with its inheritance.
+                datetime.now(UTC) - timedelta(days=int(reglages.fenetre_equite_jours or DEFAUTS.fenetre_equite_jours)),
             )
     finally:
         await connexion.close()

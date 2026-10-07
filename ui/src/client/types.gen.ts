@@ -7539,6 +7539,12 @@ export type ReglagesPlanificateur = {
      * Jours Feries
      */
     jours_feries?: 'metropole' | 'alsace_moselle' | null;
+    /**
+     * Fenetre Equite Jours
+     *
+     * Days over which « tour_de_role » counts the appointments given (R-7, migration 013).
+     */
+    fenetre_equite_jours?: number | null;
 };
 
 /**

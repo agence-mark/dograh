@@ -21,7 +21,7 @@ import { charge_utile_planificateur, ThemeRendezVous } from "./ThemeRendezVous";
 const DEFAUTS = {
     nombre_creneaux: 3, delai_minimal_h: 24, horizon_jours: 14, pas_min: 30, plages: null, zone_rayon_km: null,
     zone_communes: null, trajets_comptes: false, coefficient_trajet: 1.3, vitesse_kmh: 50, repartition: "premier_libre",
-    repli: "humain_puis_rappel", personne_visible: false, jours_feries: "metropole",
+    repli: "humain_puis_rappel", personne_visible: false, jours_feries: "metropole", fenetre_equite_jours: 30,
 };
 const LU = {
     reglages: { nombre_creneaux: 2 },
@@ -83,7 +83,7 @@ describe("[.mark] l-agent-collegue L5: the theme « Appointments »", () => {
         const { container } = rendre(true);
         await screen.findByTestId("ouvrir-types-rdv");
         const cles = clesDuType("ReglagesPlanificateur");
-        expect(cles.length).toBe(14);
+        expect(cles.length).toBe(15);
         for (const cle of cles) expect(container.querySelector(`[data-reglage="${cle}"]`), cle).not.toBeNull();
         expect(container.querySelector('[data-reglage="types"]')).not.toBeNull();
         expect((document.getElementById("rdv-nombre_creneaux") as HTMLInputElement).value).toBe("2");
@@ -123,6 +123,47 @@ describe("[.mark] l-agent-collegue L5: the theme « Appointments »", () => {
                 { code: "type_1", etablissement: "nord", libelle: "Visite longue", duree_min: 90, sujet: null, marge_avant_min: 0, marge_apres_min: 0, actif: true },
             ],
         });
+    });
+
+    it("R-7: the fairness window is on screen with its bounds, inherited from the organization, and saved as set", async () => {
+        m.lire.mockResolvedValue({ data: { ...structuredClone(LU), reglages: { repartition: "tour_de_role", fenetre_equite_jours: 45 } } });
+        m.enregistrer.mockImplementation(async ({ body }) => ({ data: { ...body, defauts: DEFAUTS } }));
+        const { container } = rendre(true);
+        await screen.findByTestId("ouvrir-types-rdv");
+        const champ = container.querySelector('[data-reglage="fenetre_equite_jours"]')!;
+        expect(champ.textContent).toMatch(/Fairness window \(days\)|Fenêtre du tour de rôle/);
+        expect(champ.textContent).toContain("≥ 1 · ≤ 365"); // the bounds, shown
+        const entree = document.getElementById("rdv-fenetre_equite_jours") as HTMLInputElement;
+        expect(entree.value).toBe("45");
+        expect(champ.textContent).not.toMatch(/No effect here|Sans effet/); // the mode is « In turn »
+        // An establishment inherits the ORGANIZATION's 45 days, and sets its own.
+        fireEvent.change(document.getElementById("rdv-niveau-choix")!, { target: { value: "nord" } });
+        const nord = document.getElementById("rdv-fenetre_equite_jours") as HTMLInputElement;
+        expect(nord.value).toBe("");
+        expect(nord.placeholder).toMatch(/45/);
+        fireEvent.change(nord, { target: { value: "7" } });
+        fireEvent.click(screen.getByRole("button", { name: /Save Appointments|Enregistrer Rendez-vous/ }));
+        await waitFor(() => expect(m.enregistrer).toHaveBeenCalledTimes(1));
+        expect(m.enregistrer.mock.calls[0][0].body).toEqual({
+            reglages: { repartition: "tour_de_role", fenetre_equite_jours: 45 },
+            par_etablissement: { nord: { fenetre_equite_jours: 7 } },
+            types: LU.types,
+        });
+    });
+
+    it("R-7: the window says it has no effect while no level distributes in turn, and is named out of bounds", async () => {
+        m.lire.mockResolvedValue({ data: structuredClone(LU) });
+        const { container } = rendre(true);
+        await screen.findByTestId("ouvrir-types-rdv");
+        const champ = () => container.querySelector('[data-reglage="fenetre_equite_jours"]')!.textContent ?? "";
+        expect((document.getElementById("rdv-fenetre_equite_jours") as HTMLInputElement).placeholder).toMatch(/30/); // the default
+        expect(champ()).toMatch(/No effect here|Sans effet ici/);
+        fireEvent.change(document.getElementById("rdv-repartition")!, { target: { value: "tour_de_role" } });
+        expect(champ()).not.toMatch(/No effect here|Sans effet ici/);
+        fireEvent.change(document.getElementById("rdv-fenetre_equite_jours")!, { target: { value: "400" } });
+        expect(screen.getByRole("button", { name: /Save Appointments|Enregistrer Rendez-vous/ }).hasAttribute("disabled")).toBe(true);
+        expect(document.body.textContent).toContain("fenetre_equite_jours");
+        expect(m.enregistrer).not.toHaveBeenCalled();
     });
 
     it("names a value out of bounds and blocks the save", async () => {

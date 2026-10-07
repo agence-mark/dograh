@@ -1,6 +1,6 @@
 """[.mark] The planner's rules (chantier l-agent-collegue, L5, P2, P3, P7, P8, P10).
 
-Data of the CLIENT's database (migration 010), edited on screen (theme « Appointments »), by hand
+Data of the CLIENT's database (migration 010; 013 adds ``fenetre_equite_jours``), edited on screen (theme « Appointments »), by hand
 (``PUT /organizations/planificateur`` or a row of ``reglage_planificateur``) and later by the
 client in Metabase.
 
@@ -67,6 +67,12 @@ class ReglagesPlanificateur(BaseModel):
     repli: Repli | None = None
     personne_visible: bool | None = None
     jours_feries: JoursFeries | None = None
+    fenetre_equite_jours: int | None = Field(
+        default=None,
+        ge=1,
+        le=365,
+        description="Days over which « tour_de_role » counts the appointments given (R-7, migration 013).",
+    )
 
     @field_validator("plages")
     @classmethod
@@ -102,6 +108,7 @@ DEFAUTS = ReglagesPlanificateur(
     repli="humain_puis_rappel",
     personne_visible=False,
     jours_feries="metropole",
+    fenetre_equite_jours=30,
 )
 
 
