@@ -1029,6 +1029,7 @@
           "modifiees": {
             "apres_appel": {
               "actif": true,
+              "essais": false,
               "synthese": true,
               "mail": true,
               "modules": [],

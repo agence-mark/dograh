@@ -219,7 +219,9 @@ def est_un_mobile(e164: str | None) -> bool:
 
 
 class SmsEnvoi(BaseModel):
-    actif: bool = Field(default=False, description="Send this SMS after each call (off by default).")
+    actif: bool = Field(
+        default=False, description="Send this SMS after each call (off by default)."
+    )
     texte: str | None = Field(
         default=None,
         max_length=480,
@@ -235,7 +237,9 @@ class SmsEnvoi(BaseModel):
 
 
 class SmsEquipe(SmsEnvoi):
-    numeros: list[str] = Field(default_factory=list, max_length=5, description="The team's mobile numbers.")
+    numeros: list[str] = Field(
+        default_factory=list, max_length=5, description="The team's mobile numbers."
+    )
 
     @field_validator("numeros")
     @classmethod
@@ -273,7 +277,9 @@ class SmsAgent(BaseModel):
     def _expediteur(cls, valeur: str | None) -> str | None:
         valeur = (valeur or "").strip() or None
         if valeur and not _EXPEDITEUR.match(valeur):
-            raise ValueError("A sender name is 1 to 11 letters, digits or spaces, with one letter at least.")
+            raise ValueError(
+                "A sender name is 1 to 11 letters, digits or spaces, with one letter at least."
+            )
         return valeur
 
 
@@ -286,6 +292,14 @@ class ApresAppelAgent(BaseModel):
             "Write each call in the client's database, then summarise it and mail the "
             "request, in the background after the call. Off: nothing is written, nothing "
             "is sent, the agent behaves exactly as before."
+        ),
+    )
+    essais: bool = Field(
+        default=False,
+        description=(
+            "Decision of Evan, 07/10: a test call (browser, keyboard, simulated series) writes "
+            "nothing at the client's and sends nothing, unless this is on. Real calls are not "
+            "concerned."
         ),
     )
     synthese: bool = Field(default=True, description="Summarise the call (A3).")
@@ -305,7 +319,9 @@ class ApresAppelAgent(BaseModel):
         ),
     )
 
-    sms: SmsAgent = Field(default_factory=SmsAgent, description="The SMS of the module « sms » (L6).")
+    sms: SmsAgent = Field(
+        default_factory=SmsAgent, description="The SMS of the module « sms » (L6)."
+    )
 
     @field_validator("modules")
     @classmethod
@@ -356,6 +372,10 @@ class EtapeApresAppel(BaseModel):
 class ApresAppelDuRun(BaseModel):
     actif: bool = Field(
         description="False: this run's agent does not use the after-call."
+    )
+    essai: bool = Field(
+        default=False,
+        description="A test call kept out of the after-call (decision of Evan, 07/10).",
     )
     etapes: list[EtapeApresAppel] = Field(default_factory=list)
     appel_id: int | None = None

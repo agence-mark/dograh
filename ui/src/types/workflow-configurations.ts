@@ -277,6 +277,7 @@ export type PanneAgent = { actif: boolean; delai_modele_s: number; delai_voix_s:
 
 export type ApresAppelAgent = {
     actif?: boolean;
+    essais?: boolean;
     synthese?: boolean;
     mail?: boolean;
     modules?: string[];

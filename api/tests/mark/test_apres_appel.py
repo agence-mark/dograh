@@ -235,7 +235,9 @@ def _evenements():
     ]
 
 
-async def _organisation(async_session, db_session, *, actif=True, modules=()):
+async def _organisation(
+    async_session, db_session, *, actif=True, modules=(), essais=False
+):
     suffixe = uuid.uuid4().hex[:10]
     organisation = OrganizationModel(provider_id=f"apres-appel-org-{suffixe}")
     async_session.add(organisation)
@@ -256,7 +258,9 @@ async def _organisation(async_session, db_session, *, actif=True, modules=()):
     definition = agent.current_definition
     definition.workflow_configurations = {
         **(definition.workflow_configurations or {}),
-        "apres_appel": ApresAppelAgent(actif=actif, modules=list(modules)).model_dump(),
+        "apres_appel": ApresAppelAgent(
+            actif=actif, modules=list(modules), essais=essais
+        ).model_dump(),
     }
     await async_session.flush()
     return SimpleNamespace(
@@ -317,11 +321,13 @@ async def _regler(
     )
 
 
-async def _run(db_session, org, numero="+33612345678"):
+async def _run(db_session, org, numero="+33612345678", mode="twilio"):
+    """A REAL call by default (Twilio): since the 07/10 decision, a test call (browser,
+    keyboard, simulated) skips the after-call unless the agent lets it through."""
     run = await db_session.create_workflow_run(
         name="essai",
         workflow_id=org.agent.id,
-        mode="smallwebrtc",
+        mode=mode,
         user_id=org.utilisateur.id,
         call_type=CallType.INBOUND,
         organization_id=org.organisation.id,
@@ -609,7 +615,7 @@ async def test_fin_dappel_ecrit_resume_et_envoie_le_mail(
         appel = await connexion.fetchrow(
             "SELECT * FROM mark.appel WHERE dograh_run_id = $1", run.id
         )
-        assert appel["synthese"] == SYNTHESE_FACTICE and appel["canal"] == "navigateur"
+        assert appel["synthese"] == SYNTHESE_FACTICE and appel["canal"] == "telephone"
         assert appel["duree_s"] == 42 and appel["issue"] == "rappel_demande"
         assert appel["site_id"] == await connexion.fetchval(
             "SELECT id FROM mark.site WHERE cle = 'site-a'"
@@ -725,6 +731,49 @@ async def test_mail_dune_demande_nee_dune_panne_a_son_objet(
         await process_workflow_completion(None, run.id)
     assert smtp.sujets() == ["À rappeler : appel perdu par une panne"]
     assert [m["a"] for m in smtp.messages] == [["accueil@example.org"]]
+
+
+@pytest.mark.parametrize("mode", ["smallwebrtc", "textchat", "simulated"])
+async def test_un_essai_ne_passe_pas_par_l_apres_appel_par_defaut(
+    mode, base_v4, smtp, modele, db_session, async_session
+):
+    """Décision d'Evan du 07/10 (point 3): a test call (browser, keyboard, simulated series)
+    writes nothing at the client's and sends nothing, through the real chain; the run's
+    section says why. The agent's switch lets the tests through."""
+    from api.tasks.workflow_completion import process_workflow_completion
+
+    org = await _organisation(async_session, db_session)
+    await _regler(db_session, org, base_v4, smtp)
+    await _equipe(base_v4)
+    run = await _run(db_session, org, mode=mode)
+    file: list[dict] = []
+    with patch("api.tasks.arq.enqueue_job", await _executer_tout_de_suite(file)):
+        await process_workflow_completion(None, run.id)
+    bloc = await db_session.lire_apres_appel(run.id)
+    assert bloc.get("essai") is True and not bloc.get("etapes")
+    assert smtp.messages == [] and modele.requetes == [] and file == []
+    connexion = await schema.connecter(base_v4)
+    try:
+        assert await connexion.fetchval("SELECT count(*) FROM mark.appel") == 0
+    finally:
+        await connexion.close()
+
+
+async def test_un_essai_passe_par_l_apres_appel_si_l_agent_le_permet(
+    base_v4, smtp, modele, db_session, async_session
+):
+    from api.tasks.workflow_completion import process_workflow_completion
+
+    org = await _organisation(async_session, db_session, essais=True)
+    await _regler(db_session, org, base_v4, smtp)
+    await _equipe(base_v4)
+    run = await _run(db_session, org, mode="smallwebrtc")
+    file: list[dict] = []
+    with patch("api.tasks.arq.enqueue_job", await _executer_tout_de_suite(file)):
+        await process_workflow_completion(None, run.id)
+    bloc = await db_session.lire_apres_appel(run.id)
+    assert {e["statut"] for e in bloc["etapes"].values()} == {"ok"}
+    assert len(smtp.messages) == 1
 
 
 async def test_fin_dappel_rejouee_ne_refait_rien_qui_a_abouti(

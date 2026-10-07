@@ -23,7 +23,7 @@ import { BoutonSms, erreursSms, SMS_ETEINT } from "./ModaleSms";
 /** What the screen holds; ``sms`` stays absent until it is stored or edited (a frozen payload never gains it). */
 export type EtatApresAppel = Required<Omit<ApresAppelAgent, "sms">> & { sms?: SmsAgent };
 
-export const APRES_APPEL_ETEINT: EtatApresAppel = { actif: false, synthese: true, mail: true, modules: [], champs: {} };
+export const APRES_APPEL_ETEINT: EtatApresAppel = { actif: false, essais: false, synthese: true, mail: true, modules: [], champs: {} };
 
 export const smsInvalides = (valeur: EtatApresAppel) => (valeur.actif && valeur.modules.includes("sms") && valeur.sms ? erreursSms(valeur.sms) : []);
 
@@ -108,6 +108,21 @@ export function SectionApresAppelAgent({
             </ChampReglage>
             {valeur.actif && (
                 <>
+                    <ChampReglage
+                        cle="apres_appel.essais"
+                        idControle="apres_appel_essais"
+                        libelle={{ en: "Test calls go through the after-call", fr: "Les essais passent par l'après-appel" }}
+                        aides={[
+                            {
+                                en: "Off: a test call (browser, keyboard, simulated series) writes nothing in the client's database and sends no mail, SMS, webhook nor deferred action; the run says so. Real phone calls are not concerned.",
+                                fr: "Éteint : un appel d'essai (navigateur, clavier, série simulée) n'écrit rien dans la base du client et n'envoie ni mail, ni SMS, ni webhook, ni action mise de côté ; le run le dit. Les vrais appels téléphoniques ne sont pas concernés.",
+                            },
+                        ]}
+                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                        disposition="ligne"
+                    >
+                        <Switch id="apres_appel_essais" checked={valeur.essais} onCheckedChange={(essais) => poser({ essais })} />
+                    </ChampReglage>
                     <ChampReglage
                         cle="apres_appel.synthese"
                         idControle="apres_appel_synthese"

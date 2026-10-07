@@ -210,6 +210,7 @@ def _vue(run, bloc: dict) -> ApresAppelDuRun:
             continue
     return ApresAppelDuRun(
         actif=actif,
+        essai=bool(bloc.get("essai")),
         etapes=etapes,
         appel_id=bloc.get("appel_id"),
         demande_id=bloc.get("demande_id"),

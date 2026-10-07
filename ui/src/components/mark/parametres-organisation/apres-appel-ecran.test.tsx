@@ -146,6 +146,12 @@ describe("After the call (run window)", () => {
         );
     });
 
+    it("says a test call was kept out of the after-call (decision of 07/10)", async () => {
+        m.run.mockResolvedValue({ data: { actif: false, essai: true, etapes: [] } });
+        rendre(<SectionApresAppel workflowId={7} runId={42} />);
+        expect((await screen.findByTestId("bloc-apres-appel-essai")).textContent).toMatch(/après-appel non exécuté|after-call not run/);
+    });
+
     it("shows nothing when the agent does not use the after-call (X2)", async () => {
         m.run.mockResolvedValue({ data: { actif: false, etapes: [] } });
         const { container } = rendre(<SectionApresAppel workflowId={7} runId={42} />);
@@ -176,6 +182,6 @@ describe("After the call (agent)", () => {
         expect(await screen.findByLabelText(/Summarise the call|Résumer l'appel/)).toBeTruthy();
         fireEvent.click(screen.getByLabelText(/Custom webhook|Webhook sur mesure/));
         fireEvent.change(document.getElementById("apres_appel_champ_nom")!, { target: { value: "nom_client" } });
-        expect(onValeur).toHaveBeenLastCalledWith({ actif: true, synthese: true, mail: true, modules: ["webhook"], champs: { nom: "nom_client" } });
+        expect(onValeur).toHaveBeenLastCalledWith({ actif: true, essais: false, synthese: true, mail: true, modules: ["webhook"], champs: { nom: "nom_client" } });
     });
 });

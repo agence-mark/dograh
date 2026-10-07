@@ -47,6 +47,8 @@ from api.services.apres_appel.reglages import (
 from api.services.base_client.rattachement import nom_de_la_base
 
 TENTATIVES_MAX = 3
+# Decision of Evan, 07/10 (point 3): the test calls, kept out of the after-call by default.
+MODES_ESSAI = frozenset({"smallwebrtc", "webrtc", "textchat", "simulated"})
 SUJET_PANNE = "À rappeler : appel perdu par une panne"
 DELAIS_S = (60, 300)  # after the 1st and the 2nd attempt
 NOM_TACHE = "apres_appel_mark"
@@ -98,6 +100,8 @@ async def _etapes_a_jouer(
 ) -> list[str]:
     """The steps of this run, or [] when the chain does not concern it. ONE rule, read by
     ``demarrer`` and by ``executer`` alike (revue 2)."""
+    if est_un_essai_exclu(run, agent):
+        return []
     if agent.actif:
         return etapes_de(agent)
     if await _panne_a_ecrire(run, organization_id):
@@ -105,6 +109,10 @@ async def _etapes_a_jouer(
         # agent whose after-call is off, as soon as a client database is attached.
         return ["ecriture"]
     return []
+
+
+def est_un_essai_exclu(run, agent: ApresAppelAgent) -> bool:
+    return getattr(run, "mode", None) in MODES_ESSAI and not agent.essais
 
 
 def _ok(bloc: dict, etape: str) -> bool:
@@ -122,6 +130,11 @@ async def demarrer(run_id: int, enqueue=None) -> bool:
             return False
         etapes = await _etapes_a_jouer(run, organization_id, agent)
         if not etapes:
+            if agent.actif and est_un_essai_exclu(run, agent):
+                # Said on the run's « After the call » section, never silent.
+                await db_client.fusionner_apres_appel(
+                    run_id, racine={"essai": True, "le": _maintenant()}
+                )
             return False
         bloc = await db_client.lire_apres_appel(run_id)
         etapes = [e for e in etapes if not _ok(bloc, e)]

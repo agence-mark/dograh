@@ -520,6 +520,12 @@ export type ApresAppelDuRun = {
      */
     actif: boolean;
     /**
+     * Essai
+     *
+     * A test call kept out of the after-call (decision of Evan, 07/10).
+     */
+    essai?: boolean;
+    /**
      * Etapes
      */
     etapes?: Array<EtapeApresAppel>;

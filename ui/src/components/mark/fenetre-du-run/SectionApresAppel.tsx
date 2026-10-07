@@ -107,6 +107,15 @@ export function SectionApresAppel({ workflowId, runId }: { workflowId: number; r
                 {t({ en: "After the call unavailable", fr: "Après l'appel indisponible" })} : {erreur}
             </p>
         );
+    if (donnees?.essai && !donnees.actif)
+        return (
+            <p className="text-sm text-muted-foreground" data-testid="bloc-apres-appel-essai">
+                {t({
+                    en: "After the call: test call, after-call not run (the agent keeps test calls out; « Test calls go through the after-call » lets them in).",
+                    fr: "Après l'appel : essai, après-appel non exécuté (l'agent tient les essais à l'écart ; « Les essais passent par l'après-appel » les laisse passer).",
+                })}
+            </p>
+        );
     if (!donnees || !donnees.actif) return null;
 
     const echecs = (donnees.etapes ?? []).filter((e) => e.statut === "echec").length;
