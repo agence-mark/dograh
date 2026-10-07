@@ -32,7 +32,7 @@ vi.mock("@/client", () => ({
     supprimerUneCleApiV1ClesUuidDelete: vi.fn(),
     identifiantDesigneApiV1ClesDesigneeUuidGet: vi.fn(),
 }));
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), {
     getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet: vi.fn(),
 }));
 vi.mock("@/context/UserConfigContext", () => ({ useUserConfig: () => ({ userConfig: null }) }));

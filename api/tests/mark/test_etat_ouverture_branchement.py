@@ -88,7 +88,7 @@ def test_le_chemin_telephonique_injecte_avant_la_persistance_et_le_pre_call_fetc
     injection = _position(
         source,
         r"merged_call_context_vars = injecter_etat_ouverture\(\s*merged_call_context_vars,"
-        r"\s*run_configs,\s*reglages=reglages_annonce,\s*direction=call_direction,\s*\)",
+        r"\s*configs_heritees,\s*reglages=reglages_annonce,\s*direction=call_direction,\s*\)",
         "The opening-state injection on the phone path",
     )
     assert direction < injection, (
@@ -150,7 +150,7 @@ def test_le_chemin_clavier_injecte_avant_le_pre_call_fetch_et_la_persistance():
     )
     injection = _position(
         source,
-        r"initial_context = injecter_etat_ouverture\(\s*initial_context,\s*run_configs,"
+        r"initial_context = injecter_etat_ouverture\(\s*initial_context,\s*configs_heritees,"
         r"\s*reglages=reglages_annonce\s*\)",
         "The opening-state injection on the keyboard path",
     )

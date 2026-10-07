@@ -60,6 +60,9 @@ const NOMS: Record<string, string> = {
     gladia: "Gladia",
     minimax: "MiniMax",
     xai: "xAI",
+    // [.mark] l-agent-travaille, L4: two secrets that are not model keys (the after-call).
+    smtp: "SMTP",
+    webhook: "Webhook",
 };
 export const nomDu = (f: string) => NOMS[f] ?? f;
 
@@ -98,6 +101,8 @@ export function texteUsage(u: Usage): Texte {
             return { en: "Models of the organization", fr: "Modèles de l'organisation" };
         case "modeles_agent":
             return { en: `Agent « ${u.nom ?? ""} » · model settings`, fr: `Agent « ${u.nom ?? ""} » · réglages de modèle` };
+        case "apres_appel":
+            return { en: "After the call (summary, mail server, webhook)", fr: "Après l'appel (synthèse, serveur de mail, webhook)" };
     }
 }
 

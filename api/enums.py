@@ -205,6 +205,29 @@ class OrganizationConfigurationKey(Enum):
     APPELANT_SIMULE = "APPELANT_SIMULE"
     SCENARIOS_SIMULES = "SCENARIOS_SIMULES"
     SERIES_SIMULEES = "SERIES_SIMULEES"
+    # [.mark] The establishments of the organization and what each overrides
+    # (chantier l-agent-travaille, L1). Same free-text key, no migration.
+    # Format: api/schemas/etablissements.py
+    ETABLISSEMENTS = "ETABLISSEMENTS"
+    # [.mark] The catalogue of deterministic sentences (chantier l-agent-travaille, L2, E5).
+    # Format: api/schemas/phrases.py
+    PHRASES = "PHRASES"
+    # [.mark] The NAME of the client's own database (chantier l-agent-travaille, L3, B4).
+    # The server, user and password are the installation's (MARK_BASES_CLIENTS_URL).
+    # Format: api/schemas/base_client.py
+    BASE_CLIENT = "BASE_CLIENT"
+    # [.mark] The after-call of the organization (chantier l-agent-travaille, L4, A1 to A10):
+    # summary, mail server, recap, modules. Same free-text key, no migration.
+    # Format: api/schemas/apres_appel.py
+    APRES_APPEL = "APRES_APPEL"
+    # [.mark] The outage fallback of the organization (chantier l-agent-travaille, L7, PN5):
+    # the address of its TwiML Bin. Format: api/schemas/panne.py
+    PANNE = "PANNE"
+    # [.mark] The installation's settings, held by .mark's own organization (decision of
+    # Evan, 07/10, n° 319): the .mark notification addresses and the backup mail server.
+    # The organization that holds this key IS .mark's (one holder, enforced on save).
+    # Format: api/schemas/apres_appel.py (ReglagesInstallation)
+    INSTALLATION_MARK = "INSTALLATION_MARK"
 
 
 class UserConfigurationKey(Enum):

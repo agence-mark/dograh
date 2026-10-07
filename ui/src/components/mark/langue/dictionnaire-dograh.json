@@ -1613,5 +1613,6 @@
   "Test the agent over a text conversation. Send messages and see how it responds, with tool calls, transitions, and rewind support.": "Testez l'agent par une conversation écrite. Envoyez des messages et voyez comment il répond, avec les appels d'outils, les transitions et le retour en arrière.",
   "Wording the call button cycles through while a call connects and runs.": "Les libellés qu'affiche tour à tour le bouton d'appel pendant la connexion puis l'appel.",
   "Wording visitors see inside the chat panel.": "Les libellés que les visiteurs voient dans le panneau de discussion.",
-  "Wording visitors see on the call panel across the call lifecycle.": "Les libellés que les visiteurs voient sur le panneau d'appel, du début à la fin de l'appel."
+  "Wording visitors see on the call panel across the call lifecycle.": "Les libellés que les visiteurs voient sur le panneau d'appel, du début à la fin de l'appel.",
+  "This tool has no action: create it again from « Tools ».": "Cet outil n'a pas d'action : recréez-le depuis « Outils »."
 }

@@ -73,7 +73,7 @@ vi.mock("@/hooks/useAudioPlayback", () => ({ useAudioPlayback: () => ({ playingI
 vi.mock("@/lib/modelConfigurationPricing", () => ({ fetchModelConfigurationPricing: () => Promise.resolve(null) }));
 vi.mock("@/components/ui/select", () => import("./select-natif"));
 
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../../sdk-factice")).sdkFactice(await importOriginal(), {
     getWorkflowApiV1WorkflowFetchWorkflowIdGet: () => Promise.resolve({
         data: {
             id: 1,

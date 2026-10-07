@@ -24,6 +24,7 @@ import { getSignedUrl } from "@/lib/files";
 import { cn } from "@/lib/utils";
 
 import { type Texte, useLangue } from "../langue/langue";
+import { SectionApresAppel } from "./SectionApresAppel";
 import type {
     AnalyseDuRun,
     Bloc,
@@ -80,6 +81,8 @@ const INCIDENTS: Record<string, Texte> = {
     provider_error: { en: "Provider connection error", fr: "Erreur de connexion d'un fournisseur" },
     silence_after_tool: { en: "Silence after a tool result", fr: "Silence après un résultat d'outil" },
     slow_turn: { en: "Slow turn", fr: "Tour lent" },
+    outage_fallback: { en: "Outage: call handed over or call-back promised", fr: "Panne : appel renvoyé ou rappel promis" },
+    model_timeout: { en: "Model too slow to answer", fr: "Modèle trop lent à répondre" },
 };
 
 const MARQUES: Record<string, Texte> = {
@@ -781,6 +784,8 @@ export function FenetreDuRun({
             <Section titre={{ en: "Summary", fr: "Résumé" }} bloc={analyse.summary} ouverte testId="bloc-summary">
                 <BlocResume resume={analyse.summary} incidents={analyse.incidents} />
             </Section>
+            {/* [.mark] l-agent-travaille, L4 (A9): shown only when the agent uses the after-call. */}
+            <SectionApresAppel workflowId={workflowId} runId={runId} />
             <Section
                 titre={{ en: "Latency, turn by turn", fr: "Latence, tour par tour" }}
                 bloc={analyse.latency}

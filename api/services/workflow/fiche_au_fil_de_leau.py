@@ -2701,6 +2701,12 @@ async def noter(
         a_proposer.append(releve)
     note.a_confirmer = a_confirmer
     note.a_proposer = a_proposer
+    # [.mark] l-agent-travaille, L5 (D17): an anticipated action whose fields just landed.
+    # Never raises (a note is never lost to an anticipation).
+    if ecrits:
+        from api.services.integrations.connectors.anticipation import apres_une_note
+
+        apres_une_note(fiche())
     return note
 
 

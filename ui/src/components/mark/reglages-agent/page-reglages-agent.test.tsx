@@ -47,7 +47,7 @@ vi.mock("@/context/OrgConfigContext", () => ({
 vi.mock("@/hooks/useAudioPlayback", () => ({ useAudioPlayback: () => ({ playingId: null, toggle: vi.fn() }) }));
 vi.mock("@/lib/modelConfigurationPricing", () => ({ fetchModelConfigurationPricing: () => Promise.resolve(null) }));
 vi.mock("@/components/ui/select", () => import("./references/select-natif"));
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getWorkflowApiV1WorkflowFetchWorkflowIdGet: () =>
         Promise.resolve({
             data: { id: 1, name: "Agent", workflow_uuid: "u-u-i-d", workflow_definition: m.definition, template_context_variables: {}, workflow_configurations: {} },

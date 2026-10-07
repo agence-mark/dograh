@@ -48,7 +48,7 @@ const mocks = vi.hoisted(() => ({
     toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), {
     getAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGet: mocks.getAnnonce,
     saveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePut: mocks.saveAnnonce,
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: mocks.communes,
@@ -57,6 +57,16 @@ vi.mock("@/client/sdk.gen", () => ({
     getLexiqueApiV1OrganizationsLexiqueGet: mocks.getLexique,
     saveLexiqueApiV1OrganizationsLexiquePut: vi.fn(),
     importLexiqueApiV1OrganizationsLexiqueImportPost: vi.fn(),
+    // [.mark] L3: the « Client data » theme reads its state; no database attached.
+    getBaseClientApiV1OrganizationsBaseClientGet: () =>
+        Promise.resolve({ data: { serveur_configure: true, version_attendue: 3, nom_base: null, joignable: false, refus: [], conservation: [] } }),
+    putBaseClientApiV1OrganizationsBaseClientPut: vi.fn(),
+    postCreerApiV1OrganizationsBaseClientCreerPost: vi.fn(),
+    postMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPost: vi.fn(),
+    postResynchroniserApiV1OrganizationsBaseClientResynchroniserPost: vi.fn(),
+    putConservationApiV1OrganizationsBaseClientConservationPut: vi.fn(),
+    getEquipeApiV1OrganizationsEquipeGet: vi.fn(),
+    putEquipeApiV1OrganizationsEquipePut: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));
 vi.mock("@/context/UnsavedChangesContext", () => ({ useUnsavedChanges: () => undefined }));
@@ -341,7 +351,7 @@ describe("[.mark] the announcement settings, on the Platform Settings page", () 
         // export (BigQuery, its only destination) is neutralised and absent
         // from the screen; the server refuses it anyway.
         render(<PageReglagesPlateforme />);
-        await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(5));
+        await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(8));
         for (const entete of document.querySelectorAll<HTMLButtonElement>("[data-theme] > button[aria-expanded]")) fireEvent.click(entete);
         await screen.findByText("Closed-business announcement");
         expect(screen.queryByText("Call events")).toBeNull();

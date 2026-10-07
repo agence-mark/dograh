@@ -1019,6 +1019,46 @@
         }
       ]
     },
+    "apres-appel": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "apres_appel": {
+              "actif": true,
+              "essais": false,
+              "synthese": true,
+              "mail": true,
+              "modules": [],
+              "champs": {}
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "panne": {
+      "carte": "ajout-mark",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "panne": {
+              "actif": true,
+              "delai_modele_s": 4,
+              "delai_voix_s": 3,
+              "sonnerie_s": 20
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
     "greffier": {
       "carte": "ajout-mark",
       "theme": "donnees",

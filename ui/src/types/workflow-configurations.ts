@@ -262,6 +262,29 @@ export const completerChampsFiche = <T,>(
     })) as ChampFiche[];
 };
 
+/** [.mark] l-agent-travaille, L4: the after-call of an agent (api/schemas/apres_appel.py). */
+export type SmsEnvoi = { actif: boolean; texte: string | null };
+
+/** [.mark] L6: the SMS of the module « sms » (plan sms-recapitulatif). */
+export type SmsAgent = {
+    expediteur: string | null;
+    appelant: SmsEnvoi;
+    equipe: SmsEnvoi & { numeros: string[] };
+};
+
+/** [.mark] L7: the outage fallback of an agent (api/schemas/panne.py). */
+export type PanneAgent = { actif: boolean; delai_modele_s: number; delai_voix_s: number; sonnerie_s: number };
+
+export type ApresAppelAgent = {
+    actif?: boolean;
+    essais?: boolean;
+    synthese?: boolean;
+    mail?: boolean;
+    modules?: string[];
+    champs?: Record<string, string>;
+    sms?: SmsAgent;
+};
+
 export type WorkflowConfigurations = WorkflowConfigurationBase & {
     ambient_noise_configuration: AmbientNoiseConfiguration;
     max_call_duration: number;  // Maximum call duration in seconds
@@ -299,6 +322,11 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // the model's reply after a tool is kept when the result beats the end of the
     // caller's turn. Absent means off, Pipecat's behaviour.
     relance_apres_outil?: boolean;
+    // [.mark] Chantier l-agent-travaille, L4 (A6): what this agent does after the call.
+    // Absent or off: nothing is written or sent, the behaviour of before.
+    apres_appel?: ApresAppelAgent | null;
+    // [.mark] L7: the outage fallback of the agent (off by default).
+    panne?: Partial<PanneAgent> | null;
     // [.mark] Part 2: the clerk's model, shaped like a model override (its key
     // comes back masked and is restored on save), and its instructions (absent:
     // the generic ones written in the code).

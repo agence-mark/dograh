@@ -13,7 +13,15 @@ import type { Geste } from "../../reglages-agent/references/cas-agent";
 
 export type CarteOrganisation = "preferences" | "annonce" | "correspondance";
 
-export type ThemeOrganisation = "organisation" | "etablissement" | "ecoute" | "integrations" | "developpeurs";
+export type ThemeOrganisation =
+    | "organisation"
+    | "etablissement"
+    | "equipe"
+    | "ecoute"
+    | "donnees"
+    | "apres-appel"
+    | "integrations"
+    | "developpeurs";
 
 export interface CasOrganisation {
     id: string;
@@ -47,6 +55,11 @@ export const CAS_ORGANISATION: CasOrganisation[] = [
     ]),
     c("fuseau", "preferences", "organisation", ["timezone"], [
         { type: "choisir", id: "settings-timezone", valeur: "America/New_York" },
+    ]),
+    // [.mark] l-agent-travaille, L4 (A5): a new key, its case added by hand (the page as it
+    // was had no such field; its frozen payload is the reference plus this key).
+    c("adresses-notification", "preferences", "organisation", ["adresses_notification"], [
+        { type: "etiquette", id: "settings-adresses-notification", valeur: "alertes@example.org" },
     ]),
     c("adresse-voie", "preferences", "etablissement", ["adresse_etablissement"], [
         { type: "saisir", id: "settings-business-address-voie", valeur: "7 rue Neuve" },

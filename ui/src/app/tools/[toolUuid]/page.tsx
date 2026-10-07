@@ -28,6 +28,8 @@ import {
     type ToolParameter,
     validateUrl,
 } from "@/components/http";
+import { ConfigOutilIntegration, EnteteOutilIntegration } from "@/components/mark/connecteurs/ConfigOutilIntegration";
+import { type ConfigIntegration, useConnecteurs } from "@/components/mark/connecteurs/useConnecteurs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -50,6 +52,7 @@ import {
     type ContextDestinationRuleRow,
     contextMappingToRuleRows,
     createContextDestinationRuleRow,
+    createIntegrationDefinition,
     createMcpDefinition,
     createTransferAgentDefinition,
     DEFAULT_END_CALL_REASON_DESCRIPTION,
@@ -185,6 +188,11 @@ export default function ToolDetailPage() {
     const [mcpCredentialUuid, setMcpCredentialUuid] = useState("");
     const [mcpToolsFilter, setMcpToolsFilter] = useState("");
 
+    // [.mark] Integration form state (L5): the connector's action and its settings.
+    const connecteurs = useConnecteurs();
+    const [integrationConfig, setIntegrationConfig] = useState<ConfigIntegration | null>(null);
+    const [integrationValide, setIntegrationValide] = useState(true);
+
     // Org-level recordings for audio dropdowns
     const [recordings, setRecordings] = useState<RecordingResponseSchema[]>([]);
 
@@ -306,6 +314,8 @@ export default function ToolDetailPage() {
             );
             setTransferAgentMessage(config?.message ?? DEFAULT_TRANSFER_AGENT_MESSAGE);
             setTransferAgentPlayGreeting(config?.play_greeting ?? true);
+        } else if (tool.category === "integration") {
+            setIntegrationConfig((tool.definition?.config as ConfigIntegration | undefined) ?? null);
         } else if (tool.category === "mcp") {
             // Populate MCP specific fields
             const config = tool.definition?.config as
@@ -544,6 +554,11 @@ export default function ToolDetailPage() {
                     }
                 }
             }
+        } else if (tool.category === "integration") {
+            if (!integrationConfig || !integrationValide) {
+                setError("The client's rules are not valid JSON");
+                return;
+            }
         } else if (tool.category === "mcp") {
             // Validate MCP server URL (must be http(s))
             if (!mcpUrl.trim()) {
@@ -693,6 +708,12 @@ export default function ToolDetailPage() {
                         type: "transfer_call",
                         config: transferConfig,
                     } as UpdateToolRequest["definition"],
+                };
+            } else if (tool.category === "integration" && integrationConfig) {
+                requestBody = {
+                    name,
+                    description: description || undefined,
+                    definition: createIntegrationDefinition(integrationConfig),
                 };
             } else if (tool.category === "mcp") {
                 requestBody = {
@@ -905,6 +926,7 @@ const data = await response.json();`;
     const isTransferAgentTool = tool.category === "transfer_agent";
     const isBuiltinTool = tool.category === "calculator";
     const isMcpTool = tool.category === "mcp";
+    const isIntegrationTool = tool.category === "integration";
     const isHttpApiTool = tool.category === "http_api";
     const hasUnsavedHttpChanges =
         isHttpApiTool &&
@@ -1066,6 +1088,29 @@ const data = await response.json();`;
                             playGreeting={transferAgentPlayGreeting}
                             onPlayGreetingChange={setTransferAgentPlayGreeting}
                         />
+                    ) : isIntegrationTool ? (
+                        <>
+                            <EnteteOutilIntegration
+                                name={name}
+                                onNameChange={setName}
+                                description={description}
+                                onDescriptionChange={setDescription}
+                            />
+                            <Card className="mt-4">
+                                <CardContent className="pt-6">
+                                    {integrationConfig ? (
+                                        <ConfigOutilIntegration
+                                            connecteurs={connecteurs}
+                                            valeur={integrationConfig}
+                                            onChange={setIntegrationConfig}
+                                            onValide={setIntegrationValide}
+                                        />
+                                    ) : (
+                                        <p className="text-sm text-destructive">This tool has no action: create it again from « Tools ».</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </>
                     ) : isMcpTool ? (
                         <Card>
                             <CardHeader>

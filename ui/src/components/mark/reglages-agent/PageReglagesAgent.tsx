@@ -232,10 +232,12 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                                     {...commun(ID_THEME_DONNEES)!}
                                     issuesParDefaut={defaultCallDispositions}
                                     etapesSansPremiereReplique={etapesSansPremiere}
+                                    workflowId={workflowId}
                                 />
                                 <ThemeEtablissement
                                     {...commun(ID_THEME_ETABLISSEMENT)!}
                                     consignesParDefaut={defaultAnswerClassifierPrompt}
+                                    workflowId={workflowId}
                                 />
                             </>
                         )}

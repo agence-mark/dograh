@@ -51,7 +51,23 @@ const mocks = vi.hoisted(() => ({
     codesSysteme: ["do_not_call"],
 }));
 
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), {
+    getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
+        Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [] } }),
+    getNumerosApiV1OrganizationsEtablissementsNumerosGet: () => Promise.resolve({ data: [] }),
+    saveEtablissementsApiV1OrganizationsEtablissementsPut: vi.fn(),
+    getPhrasesApiV1OrganizationsPhrasesGet: () => Promise.resolve({ data: { format: "phrases-mark", version: 1, phrases: [] } }),
+    savePhrasesApiV1OrganizationsPhrasesPut: vi.fn(),
+    // [.mark] L3: the « Client data » theme reads its state; no database attached.
+    getBaseClientApiV1OrganizationsBaseClientGet: () =>
+        Promise.resolve({ data: { serveur_configure: true, version_attendue: 3, nom_base: null, joignable: false, refus: [], conservation: [] } }),
+    putBaseClientApiV1OrganizationsBaseClientPut: vi.fn(),
+    postCreerApiV1OrganizationsBaseClientCreerPost: vi.fn(),
+    postMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPost: vi.fn(),
+    postResynchroniserApiV1OrganizationsBaseClientResynchroniserPost: vi.fn(),
+    putConservationApiV1OrganizationsBaseClientConservationPut: vi.fn(),
+    getEquipeApiV1OrganizationsEquipeGet: vi.fn(),
+    putEquipeApiV1OrganizationsEquipePut: vi.fn(),
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: mocks.communes,
     getPreferencesApiV1OrganizationsPreferencesGet: mocks.getPreferences,
     savePreferencesApiV1OrganizationsPreferencesPut: mocks.savePreferences,
@@ -229,7 +245,7 @@ const ouvrirPlateforme = async () => {
     await ouvrirLeTheme("etablissement");
     await waitFor(() => expect(document.getElementById("settings-business-address-code-postal")).not.toBeNull());
 };
-const ENREGISTRER = { name: "Save Business" };
+const ENREGISTRER = { name: "Save Establishments" };
 
 describe("[.mark] business address on the Platform Settings page", () => {
     it("is on the page, in the Business theme", async () => {

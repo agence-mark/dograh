@@ -11,6 +11,8 @@ import type {
     EndCallConfig,
     EndCallToolDefinition,
     HttpApiToolDefinition,
+    IntegrationToolConfig,
+    IntegrationToolDefinition,
     McpToolDefinition,
     TransferAgentConfig,
     TransferAgentToolDefinition,
@@ -169,12 +171,13 @@ export const TOOL_CATEGORIES: ToolCategoryConfig[] = [
     },
     {
         value: "integration",
-        label: "Integration (Coming Soon)",
-        description: "Third-party integrations like Google Calendar",
+        // [.mark] On since chantier l-agent-travaille (L5): an action of a connector of the
+        // catalogue, through the installation's Nango (components/mark/connecteurs).
+        label: "Integration",
+        description: "An action in the client's software (calendar, CRM) during the call",
         icon: Puzzle,
         iconName: "puzzle",
         iconColor: "#2a2a2a",
-        disabled: true,
     },
 ];
 
@@ -245,7 +248,13 @@ export type ToolDefinition =
     | TransferCallToolDefinition
     | TransferAgentToolDefinition
     | CalculatorToolDefinition
-    | McpToolDefinition;
+    | McpToolDefinition
+    | IntegrationToolDefinition;
+
+/** [.mark] An integration tool: a connector's action and its settings (L5). */
+export function createIntegrationDefinition(config: IntegrationToolConfig): IntegrationToolDefinition {
+    return { schema_version: 1, type: "integration", config };
+}
 
 export function createEndCallDefinition(config: EndCallConfig): EndCallToolDefinition {
     return {

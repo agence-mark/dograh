@@ -296,6 +296,11 @@ def register_event_handlers(
         """
         if error is not None:
             logger.error(f"Pipeline error for workflow run {workflow_run_id}: {error}")
+            # [.mark] L7: an error the call cannot survive gives the outage fallback (an
+            # agent that switched it on), BEFORE the call ends. Never raises.
+            from api.services.panne.declencheurs import sur_erreur_terminale
+
+            await sur_erreur_terminale(engine, error)
         await engine.end_call_with_reason(reason, abort_immediately=True)
 
     termination_funnel.set_termination_handler(dispose_call)

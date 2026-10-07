@@ -29,7 +29,7 @@ const { lireAnalyse, lireRun, lireAgent } = vi.hoisted(() => ({
 vi.mock("@/client", () => ({
     getWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGet: (...a: unknown[]) => lireAnalyse(...a),
 }));
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), {
     getWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGet: (...a: unknown[]) => lireRun(...a),
     getWorkflowApiV1WorkflowFetchWorkflowIdGet: (...a: unknown[]) => lireAgent(...a),
 }));

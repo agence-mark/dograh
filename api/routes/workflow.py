@@ -377,6 +377,29 @@ class UpdateWorkflowRequest(BaseModel):
             raise ValueError(
                 "Transitions in the reply require the Postscript note-taking mode"
             )
+        # [.mark] l-agent-travaille, L4 : l'après-appel de l'agent, vérifié ici (module
+        # inconnu, champ mal nommé) pour la même raison que les horaires.
+        if value is not None and value.apres_appel:
+            from api.schemas.apres_appel import ApresAppelAgent
+
+            try:
+                value.apres_appel = ApresAppelAgent.model_validate(
+                    value.apres_appel
+                ).model_dump()
+            except ValidationError as erreur:
+                raise ValueError(
+                    "; ".join(e["msg"] for e in erreur.errors())
+                ) from None
+        # [.mark] l-agent-travaille, L7 : le repli en cas de panne, vérifié de même (bornes).
+        if value is not None and value.panne:
+            from api.schemas.panne import PanneAgent
+
+            try:
+                value.panne = PanneAgent.model_validate(value.panne).model_dump()
+            except ValidationError as erreur:
+                raise ValueError(
+                    "; ".join(e["msg"] for e in erreur.errors())
+                ) from None
         return value
 
 
@@ -398,6 +421,9 @@ class UpdateWorkflowStatusRequest(BaseModel):
 class CreateWorkflowRunRequest(BaseModel):
     mode: str
     name: str
+    # [.mark] The establishment chosen in the test window (chantier l-agent-travaille,
+    # E3): a browser test has no called number. None: the agent's first.
+    etablissement_id: str | None = Field(default=None, max_length=40)
 
 
 class CreateWorkflowRunResponse(BaseModel):
@@ -1567,6 +1593,11 @@ async def create_workflow_run(
             else CallType.INBOUND
         )
         initial_context["direction"] = call_type.value
+
+    # [.mark] Only an identifier: it selects within THIS organization's catalogue at
+    # call set-up, so it can never reach another organization's establishment.
+    if request.etablissement_id:
+        initial_context["etablissement_id"] = request.etablissement_id
 
     run = await db_client.create_workflow_run(
         request.name,

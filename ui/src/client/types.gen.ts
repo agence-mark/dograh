@@ -227,6 +227,38 @@ export type AwsNovaSonicRealtimeLlmConfiguration = {
 };
 
 /**
+ * ActionVue
+ */
+export type ActionVue = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Ecrit
+     */
+    ecrit: boolean;
+    /**
+     * Anticipable Permis
+     */
+    anticipable_permis: boolean;
+    /**
+     * Parametres
+     */
+    parametres: Array<ParametreVue>;
+    /**
+     * Reglages Par Defaut
+     */
+    reglages_par_defaut: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * ActiveCallsResponse
  */
 export type ActiveCallsResponse = {
@@ -286,6 +318,23 @@ export type AdresseEtablissement = {
 };
 
 /**
+ * AdressesNotification
+ *
+ * A5, PN6: the organization's addresses (only its own calls) and the .mark ones of
+ * the installation (everything, read-only on screen).
+ */
+export type AdressesNotification = {
+    /**
+     * Organisation
+     */
+    organisation?: Array<string>;
+    /**
+     * Installation
+     */
+    installation?: Array<string>;
+};
+
+/**
  * AmbientNoiseConfigurationDefaults
  */
 export type AmbientNoiseConfigurationDefaults = {
@@ -340,6 +389,36 @@ export type AmbientNoiseUploadResponse = {
      * Storage Backend
      */
     storage_backend: string;
+};
+
+/**
+ * ApercuSms
+ */
+export type ApercuSms = {
+    /**
+     * Texte
+     */
+    texte: string;
+    /**
+     * Longueur
+     */
+    longueur: number;
+    /**
+     * Coupe
+     */
+    coupe: boolean;
+    /**
+     * Parties
+     */
+    parties: number;
+    /**
+     * Encodage
+     */
+    encodage: string;
+    /**
+     * Run Id
+     */
+    run_id?: number | null;
 };
 
 /**
@@ -428,6 +507,44 @@ export type AppendTextChatMessageRequest = {
      * Expected Revision
      */
     expected_revision?: number | null;
+};
+
+/**
+ * ApresAppelDuRun
+ */
+export type ApresAppelDuRun = {
+    /**
+     * Actif
+     *
+     * False: this run's agent does not use the after-call.
+     */
+    actif: boolean;
+    /**
+     * Essai
+     *
+     * A test call kept out of the after-call (decision of Evan, 07/10).
+     */
+    essai?: boolean;
+    /**
+     * Etapes
+     */
+    etapes?: Array<EtapeApresAppel>;
+    /**
+     * Appel Id
+     */
+    appel_id?: number | null;
+    /**
+     * Demande Id
+     */
+    demande_id?: number | null;
+    /**
+     * Synthese
+     */
+    synthese?: string | null;
+    /**
+     * Autre Demande Ouverte Id
+     */
+    autre_demande_ouverte_id?: number | null;
 };
 
 /**
@@ -1479,6 +1596,44 @@ export type CartesiaTtsConfiguration = {
 };
 
 /**
+ * CatalogueEtablissements
+ *
+ * All the establishments of one organization, in the order of the screen.
+ */
+export type CatalogueEtablissements = {
+    /**
+     * Format
+     */
+    format?: 'etablissements-mark';
+    /**
+     * Version
+     */
+    version?: 1;
+    /**
+     * Etablissements
+     */
+    etablissements?: Array<Etablissement>;
+};
+
+/**
+ * CataloguePhrases
+ */
+export type CataloguePhrases = {
+    /**
+     * Format
+     */
+    format?: 'phrases-mark';
+    /**
+     * Version
+     */
+    version?: 1;
+    /**
+     * Phrases
+     */
+    phrases?: Array<Phrase>;
+};
+
+/**
  * ChampFiche
  */
 export type ChampFiche = {
@@ -1690,7 +1845,10 @@ export type Cle = {
      * Nom
      */
     nom: string;
-    fournisseur: ServiceProviders;
+    /**
+     * Fournisseur
+     */
+    fournisseur: 'openai' | 'atlascloud' | 'deepgram' | 'groq' | 'openrouter' | 'inworld' | 'cartesia' | 'elevenlabs' | 'google' | 'azure' | 'azure_speech' | 'dograh' | 'sarvam' | 'speechmatics' | 'camb' | 'aws_bedrock' | 'speaches' | 'huggingface' | 'assemblyai' | 'gladia' | 'rime' | 'minimax' | 'google_vertex' | 'openai_realtime' | 'grok_realtime' | 'ultravox_realtime' | 'google_realtime' | 'google_vertex_realtime' | 'azure_realtime' | 'aws_nova_sonic' | 'smallest' | 'xai' | 'lmnt' | 'mistral' | 'speechify' | 'soniox' | 'smtp' | 'webhook';
     /**
      * Creee Le
      */
@@ -1761,6 +1919,86 @@ export type Comportements = {
      * Se Tait
      */
     se_tait?: boolean;
+};
+
+/**
+ * CompteurSms
+ */
+export type CompteurSms = {
+    /**
+     * Envoyes
+     */
+    envoyes: number;
+};
+
+/**
+ * ConnecteurVue
+ */
+export type ConnecteurVue = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Integration
+     */
+    integration: string;
+    /**
+     * Actions
+     */
+    actions: Array<ActionVue>;
+};
+
+/**
+ * ConnexionVue
+ */
+export type ConnexionVue = {
+    /**
+     * Connecteur
+     */
+    connecteur?: string | null;
+    /**
+     * Integration
+     */
+    integration: string;
+    /**
+     * Connection Id
+     */
+    connection_id: string;
+    /**
+     * Creee Le
+     */
+    creee_le?: string | null;
+    /**
+     * Erreurs
+     */
+    erreurs?: number;
+};
+
+/**
+ * Conservation
+ */
+export type Conservation = {
+    /**
+     * Table Nom
+     */
+    table_nom: string;
+    /**
+     * Duree Jours
+     */
+    duree_jours: number;
+    /**
+     * Colonne Date
+     */
+    colonne_date?: string | null;
+    /**
+     * Source
+     */
+    source?: string | null;
 };
 
 /**
@@ -2059,7 +2297,9 @@ export type CreateToolRequest = {
         type: 'calculator';
     } & CalculatorToolDefinition) | ({
         type: 'mcp';
-    } & McpToolDefinition);
+    } & McpToolDefinition) | ({
+        type: 'integration';
+    } & IntegrationToolDefinition);
 };
 
 /**
@@ -2090,6 +2330,10 @@ export type CreateWorkflowRunRequest = {
      * Name
      */
     name: string;
+    /**
+     * Etablissement Id
+     */
+    etablissement_id?: string | null;
 };
 
 /**
@@ -2578,6 +2822,74 @@ export type DefaultConfigurationsResponse = {
 };
 
 /**
+ * DemandeApercuSms
+ */
+export type DemandeApercuSms = {
+    /**
+     * Texte
+     */
+    texte: string;
+};
+
+/**
+ * DemandeEtablissementsDeLagent
+ */
+export type DemandeEtablissementsDeLagent = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Horaires Ouverture
+     *
+     * The agent's own hours, as on its screen.
+     */
+    horaires_ouverture?: string | null;
+    /**
+     * Adresse Etablissement
+     *
+     * The agent's own address, as on its screen.
+     */
+    adresse_etablissement?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * DemandeLien
+ */
+export type DemandeLien = {
+    /**
+     * Connecteurs
+     */
+    connecteurs: Array<string>;
+};
+
+/**
+ * DemandeRattachement
+ */
+export type DemandeRattachement = {
+    /**
+     * Nom Base
+     */
+    nom_base?: string | null;
+};
+
+/**
+ * DemandeSecours
+ */
+export type DemandeSecours = {
+    /**
+     * Numero
+     */
+    numero: string;
+    /**
+     * Effacer
+     */
+    effacer?: boolean;
+};
+
+/**
  * Designation
  *
  * Ce que devient l'identifiant qu'un réglage désigne : une clé de la bibliothèque, un
@@ -3027,6 +3339,61 @@ export type DuplicateTemplateRequest = {
 };
 
 /**
+ * EcranApresAppel
+ */
+export type EcranApresAppel = {
+    reglages: ReglagesApresAppel;
+    adresses: AdressesNotification;
+    /**
+     * Smtp Installation
+     */
+    smtp_installation: boolean;
+    /**
+     * Base Rattachee
+     */
+    base_rattachee: boolean;
+    /**
+     * Derniere Nuit
+     */
+    derniere_nuit?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * EcranInstallation
+ *
+ * What a superuser sees: the settings, which organization holds them (its id), and
+ * whether it is the one selected.
+ */
+export type EcranInstallation = {
+    reglages: ReglagesInstallation;
+    /**
+     * Organisation Mark
+     */
+    organisation_mark?: number | null;
+    /**
+     * Ici
+     */
+    ici?: boolean;
+};
+
+/**
+ * EcranPanne
+ */
+export type EcranPanne = {
+    reglages: ReglagesPanne;
+    /**
+     * Texte Du Bin
+     */
+    texte_du_bin: string;
+    /**
+     * Texte Du Bin Promesse
+     */
+    texte_du_bin_promesse: string;
+};
+
+/**
  * ElevenLabs
  */
 export type ElevenlabsSttConfiguration = {
@@ -3289,6 +3656,251 @@ export type EndTextChatSessionRequest = {
      * Expected Revision
      */
     expected_revision?: number | null;
+};
+
+/**
+ * Equipe
+ */
+export type Equipe = {
+    /**
+     * Personnes
+     */
+    personnes?: Array<Personne>;
+    /**
+     * Sujets
+     */
+    sujets?: Array<Sujet>;
+};
+
+/**
+ * EssaiMail
+ */
+export type EssaiMail = {
+    /**
+     * Destinataire
+     */
+    destinataire: string;
+};
+
+/**
+ * Etablissement
+ *
+ * One establishment. Every optional field left empty is inherited.
+ */
+export type Etablissement = {
+    /**
+     * Id
+     *
+     * Stable identifier, lower case, digits and hyphens (« site-nord »).
+     */
+    id: string;
+    /**
+     * Nom
+     *
+     * Name, as the team says it.
+     */
+    nom: string;
+    /**
+     * Numeros
+     *
+     * The numbers callers dial to reach this establishment, chosen among the organization's Telephony numbers. Empty: the establishment is not attached yet.
+     */
+    numeros?: Array<string>;
+    /**
+     * Second Numero
+     *
+     * The number reached when the agent cannot answer (outage, chantier panne).
+     */
+    second_numero?: string | null;
+    /**
+     * Numero Transfert
+     *
+     * Given to the agents as {{numero_transfert}}, for the transfer tool's destination.
+     */
+    numero_transfert?: string | null;
+    /**
+     * None: the organization's address.
+     */
+    adresse?: AdresseEtablissement | null;
+    /**
+     * Horaires Ouverture
+     *
+     * Opening hours, readable format, closures as dated lines « 24/12/2026 : fermé ». None: the agent's own hours, if any.
+     */
+    horaires_ouverture?: string | null;
+    /**
+     * Annonce Fermeture
+     *
+     * None: the organization's closing announcement.
+     */
+    annonce_fermeture?: string | null;
+    /**
+     * Annonce Pause
+     *
+     * None: the organization's break announcement.
+     */
+    annonce_pause?: string | null;
+    /**
+     * Phrases
+     *
+     * This establishment's content for the sentences placed at the establishment's level (variable -> content). Absent: the organization's content.
+     */
+    phrases?: {
+        [key: string]: string;
+    };
+    /**
+     * Termes Lexique
+     *
+     * Terms this establishment adds to the organization's trade vocabulary (E6).
+     */
+    termes_lexique?: Array<TermeLexique>;
+};
+
+/**
+ * EtablissementServi
+ *
+ * What the agent's screen shows: an establishment it serves, values resolved.
+ */
+export type EtablissementServi = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Numeros
+     */
+    numeros: Array<string>;
+    horaires_ouverture: ValeurHeritee;
+    adresse: ValeurHeritee;
+    annonce_fermeture: ValeurHeritee;
+    annonce_pause: ValeurHeritee;
+    numero_transfert: ValeurHeritee;
+};
+
+/**
+ * EtablissementsDeLagent
+ *
+ * The establishments an agent serves through its numbers (E3).
+ */
+export type EtablissementsDeLagent = {
+    /**
+     * Etablissements
+     */
+    etablissements?: Array<EtablissementServi>;
+    /**
+     * Numeros Sans Etablissement
+     *
+     * Numbers of this agent attached to no establishment: their calls behave as before.
+     */
+    numeros_sans_etablissement?: Array<string>;
+};
+
+/**
+ * EtapeApresAppel
+ */
+export type EtapeApresAppel = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Statut
+     */
+    statut: 'en_attente' | 'en_cours' | 'ok' | 'echec' | 'ignoree';
+    /**
+     * Tentatives
+     */
+    tentatives?: number;
+    /**
+     * Definitive
+     */
+    definitive?: boolean;
+    /**
+     * Detail
+     */
+    detail?: string | null;
+    /**
+     * Le
+     */
+    le?: string | null;
+    /**
+     * Envois
+     */
+    envois?: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
+ * EtatBaseClient
+ */
+export type EtatBaseClient = {
+    /**
+     * Serveur Configure
+     */
+    serveur_configure: boolean;
+    /**
+     * Nom Base
+     */
+    nom_base?: string | null;
+    /**
+     * Joignable
+     */
+    joignable?: boolean;
+    /**
+     * Erreur
+     */
+    erreur?: string | null;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Version Attendue
+     */
+    version_attendue: number;
+    /**
+     * A Mettre A Niveau
+     *
+     * The connection account has no rights in this database yet: « Upgrade » gives them.
+     */
+    a_mettre_a_niveau?: boolean;
+    /**
+     * Derniere Ecriture
+     */
+    derniere_ecriture?: string | null;
+    /**
+     * Conservation
+     */
+    conservation?: Array<Conservation>;
+    /**
+     * Refus
+     *
+     * Values written in the database that Dograh refused.
+     */
+    refus?: Array<string>;
+};
+
+/**
+ * EtatConnexions
+ */
+export type EtatConnexions = {
+    /**
+     * Nango Configure
+     */
+    nango_configure: boolean;
+    /**
+     * Connexions
+     */
+    connexions?: Array<ConnexionVue>;
+    /**
+     * Erreur
+     */
+    erreur?: string | null;
 };
 
 /**
@@ -4165,6 +4777,91 @@ export type InitiateCallRequest = {
 };
 
 /**
+ * IntegrationToolConfig
+ *
+ * [.mark] A connector's action (chantier l-agent-travaille, L5; plan connecteurs-agent D5 to D9,
+ * D17, D18). The organization is never here: the engine gives it (D6).
+ */
+export type IntegrationToolConfig = {
+    /**
+     * Connecteur
+     *
+     * Connector of the catalogue.
+     */
+    connecteur: string;
+    /**
+     * Action
+     *
+     * Action of that connector.
+     */
+    action: string;
+    /**
+     * Reglages
+     *
+     * The client's rules for this action (durations, ranges, notice…), from the audit.
+     */
+    reglages?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Delai Ms
+     *
+     * Deadline of the action during the call.
+     */
+    delai_ms?: number;
+    /**
+     * Phrase Attente
+     *
+     * Said while the action runs.
+     */
+    phrase_attente?: string | null;
+    /**
+     * Phrase Repli
+     *
+     * Said when the deadline passes or the software fails.
+     */
+    phrase_repli?: string | null;
+    /**
+     * Anticipable
+     *
+     * Read-only actions only: launch it as soon as its trigger fields are in the record.
+     */
+    anticipable?: boolean;
+    /**
+     * Declencheurs
+     *
+     * Parameter of the action → field of the record that gives it (anticipation).
+     */
+    declencheurs?: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * IntegrationToolDefinition
+ *
+ * [.mark] Tool definition of a connector's action (type ``integration``).
+ */
+export type IntegrationToolDefinition = {
+    /**
+     * Schema Version
+     *
+     * Schema version.
+     */
+    schema_version?: number;
+    /**
+     * Type
+     *
+     * Tool type.
+     */
+    type: 'integration';
+    /**
+     * Connector, action and the client's rules.
+     */
+    config: IntegrationToolConfig;
+};
+
+/**
  * Inworld
  *
  * Inworld AI streaming text-to-speech with built-in and cloned voices. Defaults to the Ashley system voice on inworld-tts-2.
@@ -4326,6 +5023,20 @@ export type LexiqueMetier = {
      * The N most frequent French words are never read as a name of the vocabulary; a rarer common word may only be recommended, never sure.
      */
     seuil_mots_courants?: number;
+};
+
+/**
+ * Lien
+ */
+export type Lien = {
+    /**
+     * Lien
+     */
+    lien: string | null;
+    /**
+     * Expire Le
+     */
+    expire_le?: string | null;
 };
 
 /**
@@ -5024,7 +5735,10 @@ export type NodeTypesResponse = {
  * NouvelleCle
  */
 export type NouvelleCle = {
-    fournisseur: ServiceProviders;
+    /**
+     * Fournisseur
+     */
+    fournisseur: 'openai' | 'atlascloud' | 'deepgram' | 'groq' | 'openrouter' | 'inworld' | 'cartesia' | 'elevenlabs' | 'google' | 'azure' | 'azure_speech' | 'dograh' | 'sarvam' | 'speechmatics' | 'camb' | 'aws_bedrock' | 'speaches' | 'huggingface' | 'assemblyai' | 'gladia' | 'rime' | 'minimax' | 'google_vertex' | 'openai_realtime' | 'grok_realtime' | 'ultravox_realtime' | 'google_realtime' | 'google_vertex_realtime' | 'azure_realtime' | 'aws_nova_sonic' | 'smallest' | 'xai' | 'lmnt' | 'mistral' | 'speechify' | 'soniox' | 'smtp' | 'webhook';
     /**
      * Nom
      */
@@ -5047,6 +5761,26 @@ export type NumberInputOptions = {
      * Allow arbitrary fractional values via step='any'.
      */
     fractional?: boolean;
+};
+
+/**
+ * NumeroDeLorganisation
+ *
+ * A Telephony number of the organization, for the establishment's choice list.
+ */
+export type NumeroDeLorganisation = {
+    /**
+     * Numero
+     */
+    numero: string;
+    /**
+     * Libelle
+     */
+    libelle?: string | null;
+    /**
+     * Agent
+     */
+    agent?: string | null;
 };
 
 /**
@@ -5434,6 +6168,12 @@ export type OrganizationPreferences = {
      */
     adresse_etablissement?: AdresseEtablissement | null;
     /**
+     * Adresses Notification
+     *
+     * [.mark] Where this organization's alerts go (chantier l-agent-travaille, A5, PN6): a failed after-call step, a failed purge, a call to call back after a failure. One or more mail addresses; the .mark addresses of the installation receive them too.
+     */
+    adresses_notification?: Array<string> | null;
+    /**
      * External Pbx Integrations Enabled
      */
     external_pbx_integrations_enabled?: boolean;
@@ -5468,6 +6208,12 @@ export type OrganizationPreferencesResponse = {
      * [.mark] The business's address. Helps recognise the towns callers name, and is given to agents as {{adresse_etablissement}}.
      */
     adresse_etablissement?: AdresseEtablissement | null;
+    /**
+     * Adresses Notification
+     *
+     * [.mark] Where this organization's alerts go (chantier l-agent-travaille, A5, PN6): a failed after-call step, a failed purge, a call to call back after a failure. One or more mail addresses; the .mark addresses of the installation receive them too.
+     */
+    adresses_notification?: Array<string> | null;
     /**
      * External Pbx Integrations Enabled
      */
@@ -5510,6 +6256,74 @@ export type OrganizationSummary = {
  * D4 : un champ DICTÉ subit le contrôle de citation, un champ DÉDUIT non.
  */
 export type OrigineChamp = 'dicte' | 'deduit';
+
+/**
+ * ParametreVue
+ */
+export type ParametreVue = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Type
+     */
+    type: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Obligatoire
+     */
+    obligatoire: boolean;
+};
+
+/**
+ * Personne
+ */
+export type Personne = {
+    /**
+     * Cle
+     *
+     * Stable identifier (lower case, digits, hyphens).
+     */
+    cle: string;
+    /**
+     * Prenom
+     */
+    prenom: string;
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Role
+     */
+    role?: string | null;
+    /**
+     * Mail
+     */
+    mail?: string | null;
+    /**
+     * Telephone
+     */
+    telephone?: string | null;
+    /**
+     * Etablissement
+     *
+     * Identifier of its establishment; None: the whole company.
+     */
+    etablissement?: string | null;
+    /**
+     * Destinataire Defaut
+     */
+    destinataire_defaut?: boolean;
+    /**
+     * Actif
+     */
+    actif?: boolean;
+};
 
 /**
  * PhoneNumberCreateRequest
@@ -5677,6 +6491,36 @@ export type PhoneNumberUpdateRequest = {
     extra_metadata?: {
         [key: string]: unknown;
     } | null;
+};
+
+/**
+ * Phrase
+ */
+export type Phrase = {
+    /**
+     * Variable
+     *
+     * Given to the agents as {{variable}}: lower case, digits, underscores.
+     */
+    variable: string;
+    /**
+     * Description
+     *
+     * What it is for.
+     */
+    description?: string;
+    /**
+     * Contenu
+     *
+     * Said word for word. Empty: nothing given.
+     */
+    contenu?: string;
+    /**
+     * Niveau
+     *
+     * organisation: the same for every establishment. etablissement: each establishment may have its own.
+     */
+    niveau?: 'organisation' | 'etablissement';
 };
 
 /**
@@ -6356,6 +7200,24 @@ export type ReglagesAppelantSimule = {
 };
 
 /**
+ * ReglagesApresAppel
+ */
+export type ReglagesApresAppel = {
+    /**
+     * Format
+     */
+    format?: 'apres-appel-mark';
+    /**
+     * Version
+     */
+    version?: 1;
+    synthese?: ReglagesSynthese;
+    smtp?: ReglagesSmtp;
+    recapitulatif?: ReglagesRecapitulatif;
+    webhook?: ReglagesWebhook;
+};
+
+/**
  * ReglagesFenetreDuRun
  */
 export type ReglagesFenetreDuRun = {
@@ -6379,6 +7241,173 @@ export type ReglagesFenetreDuRun = {
 };
 
 /**
+ * ReglagesInstallation
+ *
+ * Decision of Evan, 07/10 (n° 319, option A): the installation's settings, kept in
+ * .mark's organization and changed by superusers only. The addresses receive every
+ * organization's alerts; the mail server sends them for an organization without its
+ * own (its password: a key of .mark's « Keys »).
+ */
+export type ReglagesInstallation = {
+    /**
+     * Adresses Notification
+     */
+    adresses_notification?: Array<string>;
+    smtp?: ReglagesSmtp;
+};
+
+/**
+ * ReglagesPanne
+ */
+export type ReglagesPanne = {
+    /**
+     * Format
+     */
+    format?: string;
+    /**
+     * Version
+     */
+    version?: number;
+    /**
+     * Url Secours
+     *
+     * The address of the TwiML Bin « hand-over then promise » created once in the client's Twilio console (PN5). Empty: no instruction after the stream, the 40 s pause of before.
+     */
+    url_secours?: string | null;
+    /**
+     * Url Secours Promesse
+     *
+     * Decision of Evan, 07/10: the second TwiML Bin, « promise only », for the establishments without a second number. Empty: they get the first Bin.
+     */
+    url_secours_promesse?: string | null;
+};
+
+/**
+ * ReglagesRecapitulatif
+ */
+export type ReglagesRecapitulatif = {
+    /**
+     * Actif
+     */
+    actif?: boolean;
+    /**
+     * Heures
+     *
+     * Hours of the day (0-23, the organization's timezone) the recap leaves.
+     */
+    heures?: Array<number>;
+};
+
+/**
+ * ReglagesSmtp
+ *
+ * A generic mail server (Q1: the service is chosen at the Scaleway migration).
+ */
+export type ReglagesSmtp = {
+    /**
+     * Hote
+     */
+    hote?: string | null;
+    /**
+     * Port
+     */
+    port?: number;
+    /**
+     * Securite
+     */
+    securite?: 'starttls' | 'ssl' | 'aucune';
+    /**
+     * Utilisateur
+     */
+    utilisateur?: string | null;
+    /**
+     * Mot De Passe
+     *
+     * A reference to the « Keys » library.
+     */
+    mot_de_passe?: string | null;
+    /**
+     * Expediteur
+     */
+    expediteur?: string | null;
+    /**
+     * Nom Expediteur
+     */
+    nom_expediteur?: string | null;
+};
+
+/**
+ * ReglagesSynthese
+ */
+export type ReglagesSynthese = {
+    /**
+     * Modele
+     *
+     * Mistral model of the summary (A3): a smaller one than the agent's, its own rate limit.
+     */
+    modele?: string;
+    /**
+     * Cle
+     *
+     * The client's Mistral key, a reference to the « Keys » library.
+     */
+    cle?: string | null;
+    /**
+     * Nom Assistant
+     *
+     * How the summary names the voice assistant. Empty: « the voice assistant ».
+     */
+    nom_assistant?: string | null;
+    /**
+     * Nom Entreprise
+     *
+     * The company the assistant answers for. Empty: not named.
+     */
+    nom_entreprise?: string | null;
+    /**
+     * Consigne
+     *
+     * The summary's instructions. Empty: the generic instructions written in the code.
+     */
+    consigne?: string | null;
+};
+
+/**
+ * ReglagesWebhook
+ *
+ * A7: a custom n8n workflow after the call. The organization travels in the secret
+ * of the header, never as a field the model fills.
+ */
+export type ReglagesWebhook = {
+    /**
+     * Url
+     */
+    url?: string | null;
+    /**
+     * Secret
+     *
+     * A reference to the « Keys » library.
+     */
+    secret?: string | null;
+};
+
+/**
+ * ResultatAction
+ */
+export type ResultatAction = {
+    /**
+     * Statut
+     */
+    statut: string;
+    /**
+     * Detail
+     */
+    detail?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
  * ResultatImport
  */
 export type ResultatImport = {
@@ -6394,6 +7423,46 @@ export type ResultatImport = {
      * Terms left untouched: one of their spellings was already there.
      */
     deja_presents: number;
+};
+
+/**
+ * ResultatRattrapage
+ */
+export type ResultatRattrapage = {
+    /**
+     * Appels Lus
+     */
+    appels_lus: number;
+    /**
+     * Demandes Creees
+     */
+    demandes_creees: number;
+    /**
+     * Deja Connus
+     */
+    deja_connus: number;
+    /**
+     * Erreurs
+     */
+    erreurs: Array<string>;
+};
+
+/**
+ * ResultatSecours
+ */
+export type ResultatSecours = {
+    /**
+     * Numero
+     */
+    numero: string;
+    /**
+     * Adresse
+     */
+    adresse: string | null;
+    /**
+     * Ecrit
+     */
+    ecrit: boolean;
 };
 
 /**
@@ -6900,11 +7969,6 @@ export type ServiceKeyResponse = {
 };
 
 /**
- * ServiceProviders
- */
-export type ServiceProviders = 'openai' | 'atlascloud' | 'deepgram' | 'groq' | 'openrouter' | 'inworld' | 'cartesia' | 'elevenlabs' | 'google' | 'azure' | 'azure_speech' | 'dograh' | 'sarvam' | 'speechmatics' | 'camb' | 'aws_bedrock' | 'speaches' | 'huggingface' | 'assemblyai' | 'gladia' | 'rime' | 'minimax' | 'google_vertex' | 'openai_realtime' | 'grok_realtime' | 'ultravox_realtime' | 'google_realtime' | 'google_vertex_realtime' | 'azure_realtime' | 'aws_nova_sonic' | 'smallest' | 'xai' | 'lmnt' | 'mistral' | 'speechify' | 'soniox';
-
-/**
  * SetupStep
  *
  * One thing the customer must do before a configuration can carry calls.
@@ -7290,6 +8354,38 @@ export type SpeechmaticsSttConfiguration = {
      * ISO 639-1 language code.
      */
     language?: string;
+};
+
+/**
+ * Sujet
+ */
+export type Sujet = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Mots Declencheurs
+     */
+    mots_declencheurs?: Array<string>;
+    /**
+     * Urgent
+     */
+    urgent?: boolean;
+    /**
+     * Actif
+     */
+    actif?: boolean;
+    /**
+     * Destinataires
+     *
+     * Identifiers of the people, in order of priority.
+     */
+    destinataires?: Array<string>;
 };
 
 /**
@@ -8729,7 +9825,9 @@ export type UpdateToolRequest = {
         type: 'calculator';
     } & CalculatorToolDefinition) | ({
         type: 'mcp';
-    } & McpToolDefinition) | null;
+    } & McpToolDefinition) | ({
+        type: 'integration';
+    } & IntegrationToolDefinition) | null;
     /**
      * Status
      */
@@ -8778,7 +9876,7 @@ export type Usage = {
     /**
      * Ou
      */
-    ou: 'reglages_modele' | 'reglages_voix' | 'outil' | 'agent' | 'modeles_organisation' | 'modeles_agent';
+    ou: 'reglages_modele' | 'reglages_voix' | 'outil' | 'agent' | 'modeles_organisation' | 'modeles_agent' | 'apres_appel';
     /**
      * Nom
      */
@@ -8897,6 +9995,22 @@ export type UserResponse = {
      * Provider Id
      */
     provider_id?: string | null;
+};
+
+/**
+ * ValeurHeritee
+ *
+ * A value as the call will read it, and the level it comes from.
+ */
+export type ValeurHeritee = {
+    /**
+     * Valeur
+     */
+    valeur?: string | null;
+    /**
+     * Origine
+     */
+    origine?: 'agent' | 'etablissement' | 'organisation' | 'aucune';
 };
 
 /**
@@ -9650,6 +10764,22 @@ export type WorkflowConfigurationDefaults = {
      * Reuse generated speech for repeated phrases. Supports MiniMax TTS.
      */
     tts_cache_enabled?: boolean;
+    /**
+     * Apres Appel
+     *
+     * After the call: write each call in the client's database, summarise it, mail the request, and run the organization's modules this agent uses. Empty or off: nothing is written or sent, the agent behaves exactly as before.
+     */
+    apres_appel?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Panne
+     *
+     * Outage fallback: when a part of the agent fails, Twilio hands the call to the establishment's second number or promises a call-back. Empty or off: as before.
+     */
+    panne?: {
+        [key: string]: unknown;
+    } | null;
     /**
      * Call Dispositions
      *
@@ -12901,7 +14031,7 @@ export type ListerLesClesApiV1ClesGetData = {
         /**
          * Fournisseur
          */
-        fournisseur?: ServiceProviders | null;
+        fournisseur?: 'openai' | 'atlascloud' | 'deepgram' | 'groq' | 'openrouter' | 'inworld' | 'cartesia' | 'elevenlabs' | 'google' | 'azure' | 'azure_speech' | 'dograh' | 'sarvam' | 'speechmatics' | 'camb' | 'aws_bedrock' | 'speaches' | 'huggingface' | 'assemblyai' | 'gladia' | 'rime' | 'minimax' | 'google_vertex' | 'openai_realtime' | 'grok_realtime' | 'ultravox_realtime' | 'google_realtime' | 'google_vertex_realtime' | 'azure_realtime' | 'aws_nova_sonic' | 'smallest' | 'xai' | 'lmnt' | 'mistral' | 'speechify' | 'soniox' | 'smtp' | 'webhook' | null;
     };
     url: '/api/v1/cles';
 };
@@ -13143,6 +14273,1174 @@ export type SupprimerUneCleApiV1ClesUuidDeleteResponses = {
 };
 
 export type SupprimerUneCleApiV1ClesUuidDeleteResponse = SupprimerUneCleApiV1ClesUuidDeleteResponses[keyof SupprimerUneCleApiV1ClesUuidDeleteResponses];
+
+export type GetEtablissementsApiV1OrganizationsEtablissementsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/etablissements';
+};
+
+export type GetEtablissementsApiV1OrganizationsEtablissementsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetEtablissementsApiV1OrganizationsEtablissementsGetError = GetEtablissementsApiV1OrganizationsEtablissementsGetErrors[keyof GetEtablissementsApiV1OrganizationsEtablissementsGetErrors];
+
+export type GetEtablissementsApiV1OrganizationsEtablissementsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CatalogueEtablissements;
+};
+
+export type GetEtablissementsApiV1OrganizationsEtablissementsGetResponse = GetEtablissementsApiV1OrganizationsEtablissementsGetResponses[keyof GetEtablissementsApiV1OrganizationsEtablissementsGetResponses];
+
+export type SaveEtablissementsApiV1OrganizationsEtablissementsPutData = {
+    body: CatalogueEtablissements;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/etablissements';
+};
+
+export type SaveEtablissementsApiV1OrganizationsEtablissementsPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveEtablissementsApiV1OrganizationsEtablissementsPutError = SaveEtablissementsApiV1OrganizationsEtablissementsPutErrors[keyof SaveEtablissementsApiV1OrganizationsEtablissementsPutErrors];
+
+export type SaveEtablissementsApiV1OrganizationsEtablissementsPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: CatalogueEtablissements;
+};
+
+export type SaveEtablissementsApiV1OrganizationsEtablissementsPutResponse = SaveEtablissementsApiV1OrganizationsEtablissementsPutResponses[keyof SaveEtablissementsApiV1OrganizationsEtablissementsPutResponses];
+
+export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/etablissements/numeros';
+};
+
+export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetError = GetNumerosApiV1OrganizationsEtablissementsNumerosGetErrors[keyof GetNumerosApiV1OrganizationsEtablissementsNumerosGetErrors];
+
+export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponses = {
+    /**
+     * Response Get Numeros Api V1 Organizations Etablissements Numeros Get
+     *
+     * Successful Response
+     */
+    200: Array<NumeroDeLorganisation>;
+};
+
+export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponse = GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponses[keyof GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponses];
+
+export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostData = {
+    body: DemandeEtablissementsDeLagent;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/etablissements/agent';
+};
+
+export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostError = PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostErrors[keyof PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostErrors];
+
+export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtablissementsDeLagent;
+};
+
+export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostResponse = PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostResponses[keyof PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostResponses];
+
+export type GetPhrasesApiV1OrganizationsPhrasesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/phrases';
+};
+
+export type GetPhrasesApiV1OrganizationsPhrasesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPhrasesApiV1OrganizationsPhrasesGetError = GetPhrasesApiV1OrganizationsPhrasesGetErrors[keyof GetPhrasesApiV1OrganizationsPhrasesGetErrors];
+
+export type GetPhrasesApiV1OrganizationsPhrasesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CataloguePhrases;
+};
+
+export type GetPhrasesApiV1OrganizationsPhrasesGetResponse = GetPhrasesApiV1OrganizationsPhrasesGetResponses[keyof GetPhrasesApiV1OrganizationsPhrasesGetResponses];
+
+export type SavePhrasesApiV1OrganizationsPhrasesPutData = {
+    body: CataloguePhrases;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/phrases';
+};
+
+export type SavePhrasesApiV1OrganizationsPhrasesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SavePhrasesApiV1OrganizationsPhrasesPutError = SavePhrasesApiV1OrganizationsPhrasesPutErrors[keyof SavePhrasesApiV1OrganizationsPhrasesPutErrors];
+
+export type SavePhrasesApiV1OrganizationsPhrasesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: CataloguePhrases;
+};
+
+export type SavePhrasesApiV1OrganizationsPhrasesPutResponse = SavePhrasesApiV1OrganizationsPhrasesPutResponses[keyof SavePhrasesApiV1OrganizationsPhrasesPutResponses];
+
+export type GetBaseClientApiV1OrganizationsBaseClientGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client';
+};
+
+export type GetBaseClientApiV1OrganizationsBaseClientGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetBaseClientApiV1OrganizationsBaseClientGetError = GetBaseClientApiV1OrganizationsBaseClientGetErrors[keyof GetBaseClientApiV1OrganizationsBaseClientGetErrors];
+
+export type GetBaseClientApiV1OrganizationsBaseClientGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type GetBaseClientApiV1OrganizationsBaseClientGetResponse = GetBaseClientApiV1OrganizationsBaseClientGetResponses[keyof GetBaseClientApiV1OrganizationsBaseClientGetResponses];
+
+export type PutBaseClientApiV1OrganizationsBaseClientPutData = {
+    body: DemandeRattachement;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client';
+};
+
+export type PutBaseClientApiV1OrganizationsBaseClientPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutBaseClientApiV1OrganizationsBaseClientPutError = PutBaseClientApiV1OrganizationsBaseClientPutErrors[keyof PutBaseClientApiV1OrganizationsBaseClientPutErrors];
+
+export type PutBaseClientApiV1OrganizationsBaseClientPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type PutBaseClientApiV1OrganizationsBaseClientPutResponse = PutBaseClientApiV1OrganizationsBaseClientPutResponses[keyof PutBaseClientApiV1OrganizationsBaseClientPutResponses];
+
+export type PostCreerApiV1OrganizationsBaseClientCreerPostData = {
+    body: DemandeRattachement;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client/creer';
+};
+
+export type PostCreerApiV1OrganizationsBaseClientCreerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostCreerApiV1OrganizationsBaseClientCreerPostError = PostCreerApiV1OrganizationsBaseClientCreerPostErrors[keyof PostCreerApiV1OrganizationsBaseClientCreerPostErrors];
+
+export type PostCreerApiV1OrganizationsBaseClientCreerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type PostCreerApiV1OrganizationsBaseClientCreerPostResponse = PostCreerApiV1OrganizationsBaseClientCreerPostResponses[keyof PostCreerApiV1OrganizationsBaseClientCreerPostResponses];
+
+export type PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client/mettre-a-niveau';
+};
+
+export type PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostError = PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostErrors[keyof PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostErrors];
+
+export type PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostResponse = PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostResponses[keyof PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostResponses];
+
+export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client/resynchroniser';
+};
+
+export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostError = PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostErrors[keyof PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostErrors];
+
+export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponse = PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponses[keyof PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponses];
+
+export type PutConservationApiV1OrganizationsBaseClientConservationPutData = {
+    /**
+     * Request
+     */
+    body: Array<Conservation>;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client/conservation';
+};
+
+export type PutConservationApiV1OrganizationsBaseClientConservationPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutConservationApiV1OrganizationsBaseClientConservationPutError = PutConservationApiV1OrganizationsBaseClientConservationPutErrors[keyof PutConservationApiV1OrganizationsBaseClientConservationPutErrors];
+
+export type PutConservationApiV1OrganizationsBaseClientConservationPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatBaseClient;
+};
+
+export type PutConservationApiV1OrganizationsBaseClientConservationPutResponse = PutConservationApiV1OrganizationsBaseClientConservationPutResponses[keyof PutConservationApiV1OrganizationsBaseClientConservationPutResponses];
+
+export type GetApresAppelApiV1OrganizationsApresAppelGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/apres-appel';
+};
+
+export type GetApresAppelApiV1OrganizationsApresAppelGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetApresAppelApiV1OrganizationsApresAppelGetError = GetApresAppelApiV1OrganizationsApresAppelGetErrors[keyof GetApresAppelApiV1OrganizationsApresAppelGetErrors];
+
+export type GetApresAppelApiV1OrganizationsApresAppelGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EcranApresAppel;
+};
+
+export type GetApresAppelApiV1OrganizationsApresAppelGetResponse = GetApresAppelApiV1OrganizationsApresAppelGetResponses[keyof GetApresAppelApiV1OrganizationsApresAppelGetResponses];
+
+export type PutApresAppelApiV1OrganizationsApresAppelPutData = {
+    body: ReglagesApresAppel;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/apres-appel';
+};
+
+export type PutApresAppelApiV1OrganizationsApresAppelPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutApresAppelApiV1OrganizationsApresAppelPutError = PutApresAppelApiV1OrganizationsApresAppelPutErrors[keyof PutApresAppelApiV1OrganizationsApresAppelPutErrors];
+
+export type PutApresAppelApiV1OrganizationsApresAppelPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EcranApresAppel;
+};
+
+export type PutApresAppelApiV1OrganizationsApresAppelPutResponse = PutApresAppelApiV1OrganizationsApresAppelPutResponses[keyof PutApresAppelApiV1OrganizationsApresAppelPutResponses];
+
+export type GetInstallationApiV1OrganizationsApresAppelInstallationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/apres-appel/installation';
+};
+
+export type GetInstallationApiV1OrganizationsApresAppelInstallationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetInstallationApiV1OrganizationsApresAppelInstallationGetError = GetInstallationApiV1OrganizationsApresAppelInstallationGetErrors[keyof GetInstallationApiV1OrganizationsApresAppelInstallationGetErrors];
+
+export type GetInstallationApiV1OrganizationsApresAppelInstallationGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EcranInstallation;
+};
+
+export type GetInstallationApiV1OrganizationsApresAppelInstallationGetResponse = GetInstallationApiV1OrganizationsApresAppelInstallationGetResponses[keyof GetInstallationApiV1OrganizationsApresAppelInstallationGetResponses];
+
+export type PutInstallationApiV1OrganizationsApresAppelInstallationPutData = {
+    body: ReglagesInstallation;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/apres-appel/installation';
+};
+
+export type PutInstallationApiV1OrganizationsApresAppelInstallationPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutInstallationApiV1OrganizationsApresAppelInstallationPutError = PutInstallationApiV1OrganizationsApresAppelInstallationPutErrors[keyof PutInstallationApiV1OrganizationsApresAppelInstallationPutErrors];
+
+export type PutInstallationApiV1OrganizationsApresAppelInstallationPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EcranInstallation;
+};
+
+export type PutInstallationApiV1OrganizationsApresAppelInstallationPutResponse = PutInstallationApiV1OrganizationsApresAppelInstallationPutResponses[keyof PutInstallationApiV1OrganizationsApresAppelInstallationPutResponses];
+
+export type PostEssaiMailApiV1OrganizationsApresAppelEssaiMailPostData = {
+    body: EssaiMail;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/apres-appel/essai-mail';
+};
+
+export type PostEssaiMailApiV1OrganizationsApresAppelEssaiMailPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostEssaiMailApiV1OrganizationsApresAppelEssaiMailPostError = PostEssaiMailApiV1OrganizationsApresAppelEssaiMailPostErrors[keyof PostEssaiMailApiV1OrganizationsApresAppelEssaiMailPostErrors];
+
+export type PostEssaiMailApiV1OrganizationsApresAppelEssaiMailPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatAction;
+};
+
+export type PostEssaiMailApiV1OrganizationsApresAppelEssaiMailPostResponse = PostEssaiMailApiV1OrganizationsApresAppelEssaiMailPostResponses[keyof PostEssaiMailApiV1OrganizationsApresAppelEssaiMailPostResponses];
+
+export type PostNuitApiV1OrganizationsApresAppelNuitPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/apres-appel/nuit';
+};
+
+export type PostNuitApiV1OrganizationsApresAppelNuitPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostNuitApiV1OrganizationsApresAppelNuitPostError = PostNuitApiV1OrganizationsApresAppelNuitPostErrors[keyof PostNuitApiV1OrganizationsApresAppelNuitPostErrors];
+
+export type PostNuitApiV1OrganizationsApresAppelNuitPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatAction;
+};
+
+export type PostNuitApiV1OrganizationsApresAppelNuitPostResponse = PostNuitApiV1OrganizationsApresAppelNuitPostResponses[keyof PostNuitApiV1OrganizationsApresAppelNuitPostResponses];
+
+export type PostRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/apres-appel/recapitulatif';
+};
+
+export type PostRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPostError = PostRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPostErrors[keyof PostRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPostErrors];
+
+export type PostRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatAction;
+};
+
+export type PostRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPostResponse = PostRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPostResponses[keyof PostRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPostResponses];
+
+export type GetApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Run Id
+         */
+        run_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/runs/{run_id}/apres-appel';
+};
+
+export type GetApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGetError = GetApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGetErrors[keyof GetApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGetErrors];
+
+export type GetApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApresAppelDuRun;
+};
+
+export type GetApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGetResponse = GetApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGetResponses[keyof GetApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGetResponses];
+
+export type PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Run Id
+         */
+        run_id: number;
+        /**
+         * Etape
+         */
+        etape: string;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/runs/{run_id}/apres-appel/{etape}/relancer';
+};
+
+export type PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostError = PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostErrors[keyof PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostErrors];
+
+export type PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApresAppelDuRun;
+};
+
+export type PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostResponse = PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostResponses[keyof PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostResponses];
+
+export type GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/sms';
+};
+
+export type GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetError = GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetErrors[keyof GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetErrors];
+
+export type GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CompteurSms;
+};
+
+export type GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetResponse = GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetResponses[keyof GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetResponses];
+
+export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostData = {
+    body: DemandeApercuSms;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/sms/apercu';
+};
+
+export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostError = PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostErrors[keyof PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostErrors];
+
+export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApercuSms;
+};
+
+export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponse = PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponses[keyof PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponses];
+
+export type GetPanneApiV1OrganizationsPanneGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/panne';
+};
+
+export type GetPanneApiV1OrganizationsPanneGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPanneApiV1OrganizationsPanneGetError = GetPanneApiV1OrganizationsPanneGetErrors[keyof GetPanneApiV1OrganizationsPanneGetErrors];
+
+export type GetPanneApiV1OrganizationsPanneGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EcranPanne;
+};
+
+export type GetPanneApiV1OrganizationsPanneGetResponse = GetPanneApiV1OrganizationsPanneGetResponses[keyof GetPanneApiV1OrganizationsPanneGetResponses];
+
+export type PutPanneApiV1OrganizationsPannePutData = {
+    body: ReglagesPanne;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/panne';
+};
+
+export type PutPanneApiV1OrganizationsPannePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutPanneApiV1OrganizationsPannePutError = PutPanneApiV1OrganizationsPannePutErrors[keyof PutPanneApiV1OrganizationsPannePutErrors];
+
+export type PutPanneApiV1OrganizationsPannePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EcranPanne;
+};
+
+export type PutPanneApiV1OrganizationsPannePutResponse = PutPanneApiV1OrganizationsPannePutResponses[keyof PutPanneApiV1OrganizationsPannePutResponses];
+
+export type PostRattrapageApiV1OrganizationsPanneRattrapagePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/panne/rattrapage';
+};
+
+export type PostRattrapageApiV1OrganizationsPanneRattrapagePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostRattrapageApiV1OrganizationsPanneRattrapagePostError = PostRattrapageApiV1OrganizationsPanneRattrapagePostErrors[keyof PostRattrapageApiV1OrganizationsPanneRattrapagePostErrors];
+
+export type PostRattrapageApiV1OrganizationsPanneRattrapagePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatRattrapage;
+};
+
+export type PostRattrapageApiV1OrganizationsPanneRattrapagePostResponse = PostRattrapageApiV1OrganizationsPanneRattrapagePostResponses[keyof PostRattrapageApiV1OrganizationsPanneRattrapagePostResponses];
+
+export type PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostData = {
+    body: DemandeSecours;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/panne/adresse-de-secours';
+};
+
+export type PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostError = PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostErrors[keyof PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostErrors];
+
+export type PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatSecours;
+};
+
+export type PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostResponse = PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostResponses[keyof PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostResponses];
+
+export type GetEquipeApiV1OrganizationsEquipeGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/equipe';
+};
+
+export type GetEquipeApiV1OrganizationsEquipeGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetEquipeApiV1OrganizationsEquipeGetError = GetEquipeApiV1OrganizationsEquipeGetErrors[keyof GetEquipeApiV1OrganizationsEquipeGetErrors];
+
+export type GetEquipeApiV1OrganizationsEquipeGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Equipe;
+};
+
+export type GetEquipeApiV1OrganizationsEquipeGetResponse = GetEquipeApiV1OrganizationsEquipeGetResponses[keyof GetEquipeApiV1OrganizationsEquipeGetResponses];
+
+export type PutEquipeApiV1OrganizationsEquipePutData = {
+    body: Equipe;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/equipe';
+};
+
+export type PutEquipeApiV1OrganizationsEquipePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutEquipeApiV1OrganizationsEquipePutError = PutEquipeApiV1OrganizationsEquipePutErrors[keyof PutEquipeApiV1OrganizationsEquipePutErrors];
+
+export type PutEquipeApiV1OrganizationsEquipePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: Equipe;
+};
+
+export type PutEquipeApiV1OrganizationsEquipePutResponse = PutEquipeApiV1OrganizationsEquipePutResponses[keyof PutEquipeApiV1OrganizationsEquipePutResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;
@@ -19430,6 +21728,125 @@ export type GetNodeTypeApiV1NodeTypesNameGetResponses = {
 };
 
 export type GetNodeTypeApiV1NodeTypesNameGetResponse = GetNodeTypeApiV1NodeTypesNameGetResponses[keyof GetNodeTypeApiV1NodeTypesNameGetResponses];
+
+export type GetCatalogueApiV1ConnecteursCatalogueGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/catalogue';
+};
+
+export type GetCatalogueApiV1ConnecteursCatalogueGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCatalogueApiV1ConnecteursCatalogueGetError = GetCatalogueApiV1ConnecteursCatalogueGetErrors[keyof GetCatalogueApiV1ConnecteursCatalogueGetErrors];
+
+export type GetCatalogueApiV1ConnecteursCatalogueGetResponses = {
+    /**
+     * Response Get Catalogue Api V1 Connecteurs Catalogue Get
+     *
+     * Successful Response
+     */
+    200: Array<ConnecteurVue>;
+};
+
+export type GetCatalogueApiV1ConnecteursCatalogueGetResponse = GetCatalogueApiV1ConnecteursCatalogueGetResponses[keyof GetCatalogueApiV1ConnecteursCatalogueGetResponses];
+
+export type GetConnexionsApiV1ConnecteursConnexionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/connexions';
+};
+
+export type GetConnexionsApiV1ConnecteursConnexionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetConnexionsApiV1ConnecteursConnexionsGetError = GetConnexionsApiV1ConnecteursConnexionsGetErrors[keyof GetConnexionsApiV1ConnecteursConnexionsGetErrors];
+
+export type GetConnexionsApiV1ConnecteursConnexionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatConnexions;
+};
+
+export type GetConnexionsApiV1ConnecteursConnexionsGetResponse = GetConnexionsApiV1ConnecteursConnexionsGetResponses[keyof GetConnexionsApiV1ConnecteursConnexionsGetResponses];
+
+export type PostLienApiV1ConnecteursLienPostData = {
+    body: DemandeLien;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/lien';
+};
+
+export type PostLienApiV1ConnecteursLienPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostLienApiV1ConnecteursLienPostError = PostLienApiV1ConnecteursLienPostErrors[keyof PostLienApiV1ConnecteursLienPostErrors];
+
+export type PostLienApiV1ConnecteursLienPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Lien;
+};
+
+export type PostLienApiV1ConnecteursLienPostResponse = PostLienApiV1ConnecteursLienPostResponses[keyof PostLienApiV1ConnecteursLienPostResponses];
 
 export type HealthApiV1HealthGetData = {
     body?: never;

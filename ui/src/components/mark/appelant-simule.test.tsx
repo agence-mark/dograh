@@ -62,7 +62,7 @@ vi.mock("@/client", () => ({
     fournisseursDesClesApiV1ClesFournisseursGet: async () => ({ data: ["mistral", "elevenlabs", "openai"] }),
     getWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGet: (...a: unknown[]) => m.analyse(...a),
 }));
-vi.mock("@/client/sdk.gen", () => ({ createWorkflowRunApiV1WorkflowWorkflowIdRunsPost: vi.fn() }));
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), { createWorkflowRunApiV1WorkflowWorkflowIdRunsPost: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
 const AUTH = { isAuthenticated: true, loading: false, user: { id: "u-1" }, getAccessToken: async () => "jeton" };

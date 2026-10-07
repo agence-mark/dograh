@@ -58,6 +58,12 @@ REDIS_SETTINGS = RedisSettings(
     ssl_check_hostname=False if use_ssl else None,
 )
 
+from api.services.apres_appel.chaine import NOM_TACHE as APRES_APPEL
+from api.services.apres_appel.chaine import tache_apres_appel
+from api.services.apres_appel.taches import nuit as nuit_apres_appel
+from api.services.apres_appel.taches import recapitulatif as recapitulatif_apres_appel
+from api.services.panne.rattrapage import rattrapage_horaire as rattrapage_panne
+from api.services.base_client.synchro import tic_de_synchro
 from api.tasks.appel_simule import jouer_serie_simulee
 from api.tasks.campaign_tasks import (
     process_campaign_batch,
@@ -85,6 +91,9 @@ class WorkerSettings:
         # [.mark] A series of the simulated caller lasts up to hours, and is never retried:
         # a retry would replay (and pay) calls already played (langwatch-et-fenetre-du-run).
         func(jouer_serie_simulee, timeout=6 * 3600, max_tries=1),
+        # [.mark] The after-call chain of a run (chantier l-agent-travaille, L4). Its retries
+        # are its own (one job per retried step, spaced), never arq's: max_tries=1.
+        func(tache_apres_appel, name=APRES_APPEL, timeout=600, max_tries=1),
     ]
     cron_jobs = [
         # Safety net for webhook deliveries whose ARQ job was lost (worker
@@ -101,6 +110,21 @@ class WorkerSettings:
             sweep_inactive_text_chat_sessions,
             minute=set(range(0, 60, TEXT_CHAT_INACTIVITY_SWEEP_INTERVAL_MINUTES)),
             second=30,
+            run_at_startup=True,
+        ),
+        # [.mark] The client databases (chantier l-agent-travaille, L3, B3): listen to the
+        # ones attached since the last tick, and resync every copy (the safety net of the
+        # notification). Nothing attached: a single read of organization_configurations.
+        # [.mark] L4 (A8): the night task of every attached client database (purge table by
+        # table, the day's counters, the proof kept); and the recap mails (A4), hourly.
+        cron(nuit_apres_appel, hour={3}, minute={17}, second=0, timeout=1800),
+        cron(recapitulatif_apres_appel, minute={0}, second=45, timeout=600),
+        # [.mark] L7 (PN5): the calls lost while the server was down, rebuilt from Twilio.
+        cron(rattrapage_panne, minute={25}, second=10, timeout=900),
+        cron(
+            tic_de_synchro,
+            minute=set(range(2, 60, 5)),
+            second=15,
             run_at_startup=True,
         ),
     ]

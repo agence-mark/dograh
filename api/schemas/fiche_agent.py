@@ -210,6 +210,9 @@ NOMS_RESERVES = frozenset(
         "fiche_etat",
         "fiche_journal",
         "tour_appelant",
+        # [.mark] l-agent-travaille, L5 : les traces des connecteurs
+        "connecteurs",
+        "connecteurs_differes",
     }
 )
 

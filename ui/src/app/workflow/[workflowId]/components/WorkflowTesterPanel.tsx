@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { createWorkflowRunApiV1WorkflowWorkflowIdRunsPost } from "@/client/sdk.gen";
+import { ChoixEtablissementEssai } from "@/components/mark/etablissements/ChoixEtablissementEssai";
 import { AppelantSimule, TitreOngletAppelantSimule } from "@/components/mark/appelant-simule/AppelantSimule";
 import { OnboardingTooltip } from "@/components/onboarding/OnboardingTooltip";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,11 @@ export function WorkflowTesterPanel({
     const [creatingVoiceRun, setCreatingVoiceRun] = useState(false);
     const [tokenReady, setTokenReady] = useState(false);
     const runTestButtonRef = useRef<HTMLButtonElement>(null);
+    // [.mark] The establishment the test plays (l-agent-travaille, E3). Empty: the agent's first.
+    const [etablissementEssai, setEtablissementEssai] = useState("");
+    const contexteEssai = etablissementEssai
+        ? { ...(initialContextVariables ?? {}), etablissement_id: etablissementEssai }
+        : initialContextVariables;
 
     useEffect(() => {
         let ignore = false;
@@ -110,6 +116,7 @@ export function WorkflowTesterPanel({
                 body: {
                     mode: WORKFLOW_RUN_MODES.SMALL_WEBRTC,
                     name: `WR-${getRandomId()}`,
+                    ...(etablissementEssai ? { etablissement_id: etablissementEssai } : {}),
                 },
             });
 
@@ -130,7 +137,7 @@ export function WorkflowTesterPanel({
         } finally {
             setCreatingVoiceRun(false);
         }
-    }, [accessToken, disabled, markActionCompleted, workflowId]);
+    }, [accessToken, disabled, etablissementEssai, markActionCompleted, workflowId]);
 
     const authUnavailableReason = tokenReady && !accessToken
         ? "Authentication is required before testing can start."
@@ -196,6 +203,11 @@ export function WorkflowTesterPanel({
                             </Button>
                         ) : null}
                     </div>
+                    <ChoixEtablissementEssai
+                        valeur={etablissementEssai}
+                        onChange={setEtablissementEssai}
+                        desactive={voiceRunId !== null || chatActive}
+                    />
                 </div>
 
                 <TabsContent value="audio" className="min-h-0 flex-1 px-4 py-4">
@@ -213,7 +225,7 @@ export function WorkflowTesterPanel({
                             <EmbeddedVoiceTester
                                 workflowId={workflowId}
                                 workflowRunId={voiceRunId}
-                                initialContextVariables={initialContextVariables}
+                                initialContextVariables={contexteEssai}
                                 accessToken={accessToken}
                                 onReset={() => setVoiceRunId(null)}
                                 onNodeTransition={onRuntimeNodeTransition}
@@ -273,7 +285,7 @@ export function WorkflowTesterPanel({
                                 key={chatSessionKey}
                                 workflowId={workflowId}
                                 ready={tokenReady && !!accessToken}
-                                initialContextVariables={initialContextVariables}
+                                initialContextVariables={contexteEssai}
                                 disabled={testerBlocked}
                                 disabledReason={effectiveDisabledReason}
                                 onActiveChange={setChatActive}

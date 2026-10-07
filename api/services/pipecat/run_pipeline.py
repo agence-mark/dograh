@@ -40,7 +40,7 @@ from api.services.lexique.ecoute import (
     injecter_lexique_propose,
     termes_proposes,
 )
-from api.services.lexique.reglages import lire_lexique_de_lappel
+from api.services.lexique.reglages import interrupteur_allume, lire_lexique_de_lappel
 from api.services.observability.active_calls import (
     register_active_call as register_worker_active_call,
 )
@@ -55,6 +55,16 @@ from api.services.pipecat.agent_runtime_factory import (
 )
 from api.services.pipecat.audio_config import AudioConfig, create_audio_config
 from api.services.annonce.stockage import lire_annonce_ouverture
+from api.services.etablissements.appel import (
+    annonce_heritee,
+    configuration_heritee,
+    injecter_etablissement,
+    lire_lappel,
+)
+from api.services.etablissements.phrases import (
+    injecter_phrases,
+    lexique_avec_etablissement,
+)
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -779,6 +789,49 @@ async def _run_pipeline_smallwebrtc_impl(
     )
 
 
+async def _brancher_la_panne(
+    engine, task, llm, tts, workflow_run, organization_id, workflow_id,
+    run_configs, reglages_annonce, call_direction, provider_call_id, is_realtime,
+) -> None:
+    """[.mark] L7: plug the outage guard (``api/services/panne``). Never raises."""
+    try:
+        from api.schemas.panne import panne_de_lagent
+
+        reglages = panne_de_lagent(run_configs)
+        if not reglages.actif or is_realtime:
+            return
+        from api.services.panne.declencheurs import brancher
+        from api.services.panne.gardien import ContextePanne
+        from api.services.pipecat.etat_ouverture import est_sortant
+        from api.utils.common import get_backend_endpoints
+
+        twilio = str(getattr(workflow_run, "mode", "") or "") == "twilio" and bool(provider_call_id)
+        url_resultat = None
+        if twilio:
+            backend, _ = await get_backend_endpoints()
+            url_resultat = f"{backend}/api/v1/telephony/twilio/panne/{workflow_run.id}/resultat"
+        brancher(
+            engine,
+            task,
+            llm,
+            tts,
+            ContextePanne(
+                run_id=workflow_run.id,
+                organization_id=organization_id,
+                workflow_id=workflow_id,
+                reglages=reglages,
+                entrant=not est_sortant(call_direction),
+                call_sid=provider_call_id if twilio else None,
+                run=workflow_run,
+                url_resultat=url_resultat,
+                reglages_annonce=reglages_annonce,
+                workflow_configurations=run_configs,
+            ),
+        )
+    except Exception as erreur:  # noqa: BLE001 -- the call goes on as before
+        logger.error(f"[.mark] Outage fallback not plugged: {erreur!r}")
+
+
 async def _run_pipeline(
     transport,
     workflow_id: int,
@@ -900,13 +953,39 @@ async def _run_pipeline_impl(
     # reglages-annonce-ouverture, 18/09). Read once here, like the address and
     # the trade vocabulary; the defaults on any problem, and never raises.
     reglages_annonce = await lire_annonce_ouverture(workflow.organization_id)
+    # [.mark] The establishment this call serves (chantier l-agent-travaille,
+    # E2 to E4): found from the called number, read from the in-memory copy.
+    # Its hours, address and sentences are handed to the three injections
+    # below, the agent's own values first. No establishment: the SAME
+    # configuration and announcement come back, the call is the call of before.
+    lecture_de_lappel = await lire_lappel(
+        workflow.organization_id, workflow_id, merged_call_context_vars
+    )
+    etablissement_servi = lecture_de_lappel.servi
+    configs_heritees, origines_heritees = configuration_heritee(
+        run_configs, etablissement_servi.etablissement if etablissement_servi else None
+    )
+    reglages_annonce = annonce_heritee(
+        reglages_annonce, etablissement_servi.etablissement if etablissement_servi else None
+    )
+    if etablissement_servi is not None:
+        etablissement_servi.origines.update(origines_heritees)
+    merged_call_context_vars = injecter_etablissement(
+        merged_call_context_vars, etablissement_servi
+    )
+    # [.mark] The catalogue of sentences (E5), the establishment's content first.
+    merged_call_context_vars = injecter_phrases(
+        merged_call_context_vars,
+        lecture_de_lappel.phrases,
+        etablissement_servi.etablissement if etablissement_servi else None,
+    )
     # [.mark] Opening state, computed once at call set-up, Paris time (D8).
     # BEFORE the persistence below and BEFORE the pre-call fetch, which is
     # merged over it and therefore wins (D7). No hours on the agent and no
     # forced state: the context is left exactly as it was (D6). Never raises (D9).
     merged_call_context_vars = injecter_etat_ouverture(
         merged_call_context_vars,
-        run_configs,
+        configs_heritees,
         reglages=reglages_annonce,
         direction=call_direction,
     )
@@ -920,7 +999,7 @@ async def _run_pipeline_impl(
     # above: the pre-call fetch wins, nothing raises. Read once here, it also
     # gives the town recognition its location clue.
     adresse_etablissement = await lire_adresse_etablissement(
-        run_configs, workflow.organization_id
+        configs_heritees, workflow.organization_id
     )
     merged_call_context_vars = injecter_adresse_etablissement(
         merged_call_context_vars, adresse_etablissement
@@ -930,6 +1009,12 @@ async def _run_pipeline_impl(
     # for, the names corrected before the model reads them, and how the voice
     # says them. Empty when the agent's switch is off, and never raises.
     lexique_metier = await lire_lexique_de_lappel(run_configs, workflow.organization_id)
+    # [.mark] The establishment's own terms (E6), added to the organization's, only
+    # when the agent's switch is on (an empty vocabulary stays empty).
+    if etablissement_servi is not None and interrupteur_allume(run_configs):
+        lexique_metier = lexique_avec_etablissement(
+            lexique_metier, etablissement_servi.etablissement
+        )
 
     # Extract configurations from the version's workflow_configurations
     max_call_duration_seconds = DEFAULT_MAX_CALL_DURATION_SECONDS
@@ -1168,6 +1253,10 @@ async def _run_pipeline_impl(
             f"[run {workflow_run_id}] Failed to stamp the pipeline settings: {e}. "
             f"The call goes on; it simply cannot say afterwards what it ran with."
         )
+    # [.mark] Which establishment the call served, and where each value came
+    # from (B3): read at pick-up, so a later change never rewrites the past.
+    if etablissement_servi is not None:
+        runtime_configuration["etablissement"] = etablissement_servi.estampille()
     merged_call_context_vars = {
         **merged_call_context_vars,
         "runtime_configuration": runtime_configuration,
@@ -1644,6 +1733,12 @@ async def _run_pipeline_impl(
     task.add_observer(ObservateurDesInterruptions(in_memory_logs_buffer))
     brancher_les_connexions({"transcription": stt, "voice": tts}, in_memory_logs_buffer)
     setattr(engine, ATTRIBUT_JOURNAL, in_memory_logs_buffer)
+    # [.mark] l-agent-travaille, L7: the outage fallback of this call, for an agent that
+    # switched it on (X2). Off: nothing here runs, the call is the call of before.
+    await _brancher_la_panne(
+        engine, task, llm, tts, workflow_run, workflow.organization_id, workflow_id,
+        run_configs, reglages_annonce, call_direction, provider_call_id, is_realtime,
+    )
     engine.greeting.log_generated_speech = feedback_observer.log_speech
 
     if not is_realtime:

@@ -57,7 +57,7 @@ const m = vi.hoisted(() => ({
     saveAnnonce: vi.fn(),
 }));
 
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../../sdk-factice")).sdkFactice(await importOriginal(), {
     getPreferencesApiV1OrganizationsPreferencesGet: () => Promise.resolve({ data: structuredClone(PREFERENCES) }),
     savePreferencesApiV1OrganizationsPreferencesPut: m.savePreferences,
     getAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGet: () => Promise.resolve({ data: structuredClone(ANNONCE) }),
@@ -68,6 +68,29 @@ vi.mock("@/client/sdk.gen", () => ({
         Promise.resolve({ data: { format: "lexique-mark", version: 1, termes: [] } }),
     saveLexiqueApiV1OrganizationsLexiquePut: vi.fn(),
     importLexiqueApiV1OrganizationsLexiqueImportPost: vi.fn(),
+    getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
+        Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [] } }),
+    getNumerosApiV1OrganizationsEtablissementsNumerosGet: () => Promise.resolve({ data: [] }),
+    saveEtablissementsApiV1OrganizationsEtablissementsPut: vi.fn(),
+    getPhrasesApiV1OrganizationsPhrasesGet: () => Promise.resolve({ data: { format: "phrases-mark", version: 1, phrases: [] } }),
+    savePhrasesApiV1OrganizationsPhrasesPut: vi.fn(),
+    // [.mark] L3: the « Client data » theme reads its state; no database attached.
+    getBaseClientApiV1OrganizationsBaseClientGet: () =>
+        Promise.resolve({ data: { serveur_configure: true, version_attendue: 3, nom_base: null, joignable: false, refus: [], conservation: [] } }),
+    putBaseClientApiV1OrganizationsBaseClientPut: vi.fn(),
+    postCreerApiV1OrganizationsBaseClientCreerPost: vi.fn(),
+    postMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPost: vi.fn(),
+    postResynchroniserApiV1OrganizationsBaseClientResynchroniserPost: vi.fn(),
+    putConservationApiV1OrganizationsBaseClientConservationPut: vi.fn(),
+    getEquipeApiV1OrganizationsEquipeGet: vi.fn(),
+    // [.mark] L4: the « After the call » theme reads its settings; nothing set.
+    getApresAppelApiV1OrganizationsApresAppelGet: () =>
+        Promise.resolve({ data: { reglages: {}, adresses: { organisation: [], installation: [] }, smtp_installation: false, base_rattachee: false } }),
+    putApresAppelApiV1OrganizationsApresAppelPut: vi.fn(),
+    postEssaiMailApiV1OrganizationsApresAppelEssaiMailPost: vi.fn(),
+    postNuitApiV1OrganizationsApresAppelNuitPost: vi.fn(),
+    postRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPost: vi.fn(),
+    putEquipeApiV1OrganizationsEquipePut: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/context/UnsavedChangesContext", () => ({ useUnsavedChanges: () => undefined }));
@@ -147,15 +170,18 @@ const relever = (): AppelOrganisation[] =>
 
 const TITRE_ANGLAIS: Record<ThemeOrganisation, string> = {
     organisation: "Organization",
-    etablissement: "Business",
+    etablissement: "Establishments",
+    equipe: "Team and routing",
     ecoute: "Listening",
+    donnees: "Client data",
+    "apres-appel": "After the call",
     integrations: "Integrations",
     developpeurs: "Developers",
 };
 
 const ouvrirLaPage = async () => {
     render(<SettingsPage />);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(5));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(8));
 };
 
 const ouvrirLeTheme = async (theme: ThemeOrganisation) => {

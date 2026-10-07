@@ -48,6 +48,7 @@ import {
     NOMS_AVEC_TEMPERATURE,
 } from "./consigne-greffier";
 import { useEnregistrementTheme } from "./enregistrement";
+import { champsInvalides, lireApresAppel, pourEnvoyer, SectionApresAppelAgent, smsInvalides } from "./SectionApresAppelAgent";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useEtatTheme, useRevelation } from "./theme-commun";
 
 export const ID_THEME_DONNEES = "donnees";
@@ -102,7 +103,10 @@ export const ThemeDonnees = ({
     ouvrir,
     issuesParDefaut,
     etapesSansPremiereReplique = [],
+    workflowId,
 }: ProprietesThemeAgent & {
+    /** L6: the SMS preview and counter are read for this agent. */
+    workflowId?: number;
     issuesParDefaut: CallDispositionOption[];
     /** Plan porte-parlee (D3): steps a transition leads to, with no first reply. */
     etapesSansPremiereReplique?: string[];
@@ -192,6 +196,14 @@ export const ThemeDonnees = ({
     const consigneModifiee = consigneEnvoyee !== consigneEnregistree;
     const cleEnregistree = typeof greffierEnregistre?.api_key === "string" && greffierEnregistre.api_key !== "" && !cleRetiree;
 
+    // ---- After the call (chantier l-agent-travaille, L4, A6) ------------------
+    const apresAppelEnregistre = JSON.stringify(pourEnvoyer(lireApresAppel(resolue.apres_appel)));
+    const [apresAppel, setApresAppel] = useState(() => lireApresAppel(resolue.apres_appel));
+    useEffect(() => setApresAppel(JSON.parse(apresAppelEnregistre)), [apresAppelEnregistre]);
+    // Absent and « off with the defaults » are the same agent: not a modification.
+    const apresAppelModifie =
+        JSON.stringify(pourEnvoyer(apresAppel)) !== apresAppelEnregistre;
+
     // ---- Dograh's « General » parts ------------------------------------------
     const [lignesIssues, setLignesIssues] = useState<CallDispositionRow[]>(() => createCallDispositionRows(resolue.call_dispositions));
     const issuesNormalisees = useMemo(() => normalizeCallDispositions(lignesIssues), [lignesIssues]);
@@ -246,6 +258,20 @@ export const ThemeDonnees = ({
             message: { en: "the temperature must be a number.", fr: "la température doit être un nombre." },
         });
     }
+    const erreurSms = smsInvalides(apresAppel)[0];
+    if (erreurSms) {
+        erreurs.push({ cle: "apres_appel.sms", libelle: { en: "SMS after the call", fr: "SMS après l'appel" }, message: erreurSms });
+    }
+    if (apresAppel.actif && champsInvalides(apresAppel).length > 0) {
+        erreurs.push({
+            cle: "apres_appel.champs",
+            libelle: { en: "Record fields read after the call", fr: "Champs de la fiche lus après l'appel" },
+            message: {
+                en: "a field name starts with a letter and holds only letters, digits and _.",
+                fr: "un nom de champ commence par une lettre et ne contient que lettres, chiffres et _.",
+            },
+        });
+    }
     if (!issuesValides) {
         erreurs.push({
             cle: "call_dispositions",
@@ -275,7 +301,7 @@ export const ThemeDonnees = ({
     }
 
     const modifie =
-        ficheModifiee || modeModifie || portesModifiees || greffierModifie || consigneModifiee || generalModifie;
+        ficheModifiee || modeModifie || portesModifiees || greffierModifie || consigneModifiee || generalModifie || apresAppelModifie;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -301,6 +327,12 @@ export const ThemeDonnees = ({
                 nom: { en: "Transitions in the reply", fr: "Portes dans la réponse" },
                 modifie: portesModifiees,
                 config: () => ({ portes_dans_la_reponse: portesEnvoyees }),
+            },
+            {
+                // L4: its own part, sent only when changed (E6).
+                nom: { en: "After the call", fr: "Après l'appel" },
+                modifie: apresAppelModifie,
+                config: () => ({ apres_appel: pourEnvoyer(apresAppel) }),
             },
             {
                 // The clerk's two parts, each sent only when changed (E6).
@@ -482,6 +514,11 @@ export const ThemeDonnees = ({
                 <div id="reglage-call_dispositions" data-reglage="call_dispositions">
                     <CallDispositionEditor rows={lignesIssues} onChange={setLignesIssues} defaultDispositions={issuesParDefaut} />
                 </div>
+            </Intertitre>
+
+            {/* [.mark] Chantier l-agent-travaille, L4 (A6). */}
+            <Intertitre id="donnees-apres-appel" titre={{ en: "After the call", fr: "Après l'appel" }}>
+                <SectionApresAppelAgent valeur={apresAppel} onChange={setApresAppel} workflowId={workflowId} champsFiche={champs.map((c) => c.nom)} />
             </Intertitre>
 
             <Intertitre

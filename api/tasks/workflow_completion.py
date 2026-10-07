@@ -1,6 +1,7 @@
 from loguru import logger
 from pipecat.utils.run_context import set_current_run_id
 
+from api.services.apres_appel.chaine import demarrer as demarrer_apres_appel
 from api.services.telephony.external_pbx_writeback import (
     sync_external_pbx_call_record,
 )
@@ -56,5 +57,13 @@ async def process_workflow_completion(
         logger.error(
             f"Error writing back to external PBX for workflow {workflow_run_id}: {e}"
         )
+
+    # [.mark] The after-call chain (chantier l-agent-travaille, L4), after everything
+    # above for the same reason as the write-back: the record must have landed. An agent
+    # that did not switch it on is left alone (one read).
+    try:
+        await demarrer_apres_appel(workflow_run_id)
+    except Exception as e:
+        logger.error(f"[.mark] After-call of workflow {workflow_run_id} not started: {e}")
 
     logger.info(f"Completed workflow completion processing for run {workflow_run_id}")
