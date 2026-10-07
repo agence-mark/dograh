@@ -352,7 +352,7 @@ async def test_apres_lappel_assignee_mail_et_transferts(
         )
         envoi = (await db_session.get_workflow_run_by_id(run.id)).gathered_context
         ecrit = await ecrire_gestes(connexion, appel_id, demande_id, "camille", envoi["equipe_gestes"])
-        assert ecrit == {"assignee_id": None, "transferts": 0}
+        assert ecrit == {"assignee_id": None, "transferts": 0, "mentions": 0}
         assert await connexion.fetchval("SELECT count(*) FROM mark.transfert") == 1
     finally:
         await connexion.close()

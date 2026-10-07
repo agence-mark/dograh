@@ -202,6 +202,14 @@ async def _ecriture(ctx: ContexteModule, bloc: dict) -> dict:
         ):
             await sql.ecrire_synthese(connexion, resultat["appel_id"], bloc["synthese"])
             resultat["synthese_ecrite"] = True
+        # l-agent-collegue, L3 (C11, C12): the names of the team cited in the record (and in
+        # a summary already made), only with the agent's switch on.
+        await _mentions_des_noms(
+            ctx,
+            connexion,
+            resultat.get("appel_id"),
+            _textes_a_lire(ctx) + ([bloc["synthese"]] if bloc.get("synthese") else []),
+        )
     except Exception as erreur:  # noqa: BLE001
         raise EtapeEnEchec(
             f"The client's database refused the call ({type(erreur).__name__}: {erreur})."
@@ -259,6 +267,8 @@ async def _synthese(ctx: ContexteModule, bloc: dict, analyse: dict) -> dict:
             try:
                 await sql.ecrire_synthese(connexion, appel_id, texte)
                 racine["synthese_ecrite"] = True
+                # l-agent-collegue, L3 (C12): the names the summary cites.
+                await _mentions_des_noms(ctx, connexion, appel_id, [texte])
             finally:
                 await connexion.close()
         except Exception as erreur:  # noqa: BLE001 -- the write step will write it later
@@ -266,6 +276,37 @@ async def _synthese(ctx: ContexteModule, bloc: dict, analyse: dict) -> dict:
                 f"[.mark] Summary of run {ctx.run.id} not written yet: {erreur!r}"
             )
     return {"racine": racine, "detail": ctx.reglages.synthese.modele}
+
+
+def _equipe_active(ctx: ContexteModule) -> bool:
+    """X2: the mentions found by name, and the recipients' mentions, only when the agent's
+    « Team known to the agent » is on."""
+    from api.services.equipe.appel import interrupteur_allume
+
+    definition = getattr(ctx.run, "definition", None)
+    return interrupteur_allume(getattr(definition, "workflow_configurations", None))
+
+
+def _textes_a_lire(ctx: ContexteModule) -> list[str]:
+    from api.services.equipe.mentions import textes_de_la_fiche
+
+    return textes_de_la_fiche(ctx.envoi.get("champs") or [], ctx.agent)
+
+
+async def _mentions_des_noms(ctx: ContexteModule, connexion, appel_id, textes: list[str]) -> None:
+    """L3 (C11 to C13): ``nom_cite`` mentions. Never fails the step: a mention not written
+    is logged (the call and its summary are what the step is for)."""
+    if not appel_id or not _equipe_active(ctx):
+        return
+    try:
+        from api.db.bases_clients.equipe import lire_equipe
+        from api.db.bases_clients.gestes import ecrire_mentions
+        from api.services.equipe.mentions import mentions_des_noms
+
+        personnes = [p for p in (await lire_equipe(connexion)).personnes if p.actif]
+        await ecrire_mentions(connexion, appel_id, mentions_des_noms(personnes, textes))
+    except Exception as erreur:  # noqa: BLE001
+        logger.error(f"[.mark] Mentions of run {ctx.run.id} not written: {erreur!r}")
 
 
 async def _noms_de_lequipe(ctx: ContexteModule) -> list[str]:
@@ -383,6 +424,17 @@ async def _mail(ctx: ContexteModule, bloc: dict) -> dict:
             valeur={"envoye_a": adresses, "envoye_le": _maintenant()},
         )
         await _noter_mails(ctx, bloc, connexion, adresses)
+        # l-agent-collegue, L3 (C11): the people the mail went to are certain mentions.
+        if bloc.get("appel_id") and _equipe_active(ctx):
+            from api.db.bases_clients.gestes import ecrire_mentions
+            from api.services.equipe.mentions import mentions_des_destinataires
+
+            try:
+                await ecrire_mentions(
+                    connexion, bloc["appel_id"], mentions_des_destinataires(destinataires)
+                )
+            except Exception as erreur:  # noqa: BLE001 -- the mail left: never resend it
+                logger.error(f"[.mark] Recipient mentions of run {ctx.run.id} not written: {erreur!r}")
     finally:
         await connexion.close()
     return _mail_fait(adresses)

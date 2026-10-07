@@ -43,12 +43,12 @@ async def ecrire_gestes(
     assignee: str | None,
     gestes: list[dict],
 ) -> dict:
-    """``{assignee_id, transferts}``: what was written."""
+    """``{assignee_id, transferts, mentions}``: what was written."""
     transferts = [g for g in gestes or [] if isinstance(g, dict) and g.get("geste") == "transfert"]
     ids = await ids_des_personnes(
         connexion, [g.get("personne") for g in transferts if g.get("personne")] + ([assignee] if assignee else [])
     )
-    ecrit = {"assignee_id": None, "transferts": 0}
+    ecrit = {"assignee_id": None, "transferts": 0, "mentions": 0}
     async with connexion.transaction():
         if demande_id and assignee and ids.get(assignee):
             ecrit["assignee_id"] = await connexion.fetchval(
@@ -73,6 +73,8 @@ async def ecrire_gestes(
                         g.get("duree_s") if isinstance(g.get("duree_s"), int) else None,
                     )
                     ecrit["transferts"] += 1
+    # L3 (C11): each gesture is a certain mention of the person.
+    ecrit["mentions"] = await ecrire_mentions(connexion, appel_id, mentions_des_gestes(gestes))
     return ecrit
 
 
@@ -88,3 +90,74 @@ async def destinataire_assigne(connexion: asyncpg.Connection, cle: str | None) -
             cle,
         )
     ]
+
+
+# --------------------------------------------------------------------------- #
+# The mentions (L3, C11): every time a person of the team is concerned by a call
+# --------------------------------------------------------------------------- #
+
+async def ecrire_mentions(
+    connexion: asyncpg.Connection, appel_id: int | None, mentions: list[dict]
+) -> int:
+    """``mentions``: ``{cle, source, certitude, extrait?}``. One row per call, person and
+    source; a replay writes nothing twice, a surer finding replaces a less sure one.
+    Returns how many rows were written or made surer."""
+    if not appel_id or not mentions:
+        return 0
+    ids = await ids_des_personnes(connexion, [m.get("cle") for m in mentions if m.get("cle")])
+    ecrites = 0
+    for m in mentions:
+        personne_id = ids.get(m.get("cle"))
+        if personne_id is None:
+            continue
+        statut = await connexion.execute(
+            """
+            INSERT INTO mark.mention (appel_id, personne_id, source, certitude, extrait)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (appel_id, personne_id, source) DO UPDATE
+                SET certitude = EXCLUDED.certitude, extrait = EXCLUDED.extrait
+                WHERE (CASE mark.mention.certitude WHEN 'certaine' THEN 2 WHEN 'detectee' THEN 1 ELSE 0 END)
+                    < (CASE EXCLUDED.certitude WHEN 'certaine' THEN 2 WHEN 'detectee' THEN 1 ELSE 0 END)
+            """,
+            appel_id,
+            personne_id,
+            m["source"],
+            m["certitude"],
+            (m.get("extrait") or None) and str(m["extrait"])[:200],
+        )
+        ecrites += int(statut.split()[-1]) if statut else 0
+    return ecrites
+
+
+def mentions_des_gestes(gestes: list[dict]) -> list[dict]:
+    """C11: a gesture made by the code is a CERTAIN mention (transfer, passing on)."""
+    sources = {"transfert": "transfert", "transmission": "transmission"}
+    return [
+        {"cle": g["personne"], "source": sources[g["geste"]], "certitude": "certaine",
+         "extrait": g.get("motif")}
+        for g in gestes or []
+        if isinstance(g, dict) and g.get("geste") in sources and g.get("personne")
+    ]
+
+
+# --------------------------------------------------------------------------- #
+# The access of each employee (L3, C14, C15): the base is ready, the accounts come with
+# Metabase (chantier Scaleway). With the OWNER's connection (it creates the roles).
+# --------------------------------------------------------------------------- #
+
+
+async def donner_acces(
+    connexion_proprietaire: asyncpg.Connection,
+    cle: str,
+    mot_de_passe: str,
+    sites: list[str] | None = None,
+) -> str:
+    """The employee's login role (``<base>_p_<id>``): her mentions and the calls of her
+    establishment (and of ``sites``, keys). The password is never stored nor logged."""
+    return await connexion_proprietaire.fetchval(
+        "SELECT mark.donner_acces($1, $2, $3::text[])", cle, mot_de_passe, sites
+    )
+
+
+async def retirer_acces(connexion_proprietaire: asyncpg.Connection, cle: str) -> None:
+    await connexion_proprietaire.execute("SELECT mark.retirer_acces($1)", cle)
