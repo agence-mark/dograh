@@ -180,12 +180,27 @@ async def lire_copie_complete(organization_id: int | None) -> CopieOrganisation:
     if copie.repli:
         # The database is slow or down: never publish the mirror as the copy; rebuild it
         # from the database, without the short delay, after the call has its answer.
-        tache = asyncio.get_running_loop().create_task(publier_copie(organization_id))
+        tache = asyncio.get_running_loop().create_task(
+            _refaire_depuis_la_base(organization_id)
+        )
         _EN_ARRIERE_PLAN.add(tache)
         tache.add_done_callback(_EN_ARRIERE_PLAN.discard)
     else:
         await publier_copie(organization_id, copie)
     return copie
+
+
+async def _refaire_depuis_la_base(organization_id: int) -> None:
+    """The background rebuild of revue 10: published ONLY when the client's database
+    answered (never the mirror: the next call would then read it as the copy)."""
+    try:
+        copie = await lire_source(organization_id)
+        if copie.source == "base_client":
+            await publier_copie(organization_id, copie)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(
+            f"[.mark] Background rebuild of the copy of organization {organization_id} failed: {erreur!r}"
+        )
 
 
 async def lire_copie(
