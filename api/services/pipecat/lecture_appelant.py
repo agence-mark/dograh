@@ -332,6 +332,7 @@ def _lire(
     forces: bool = False,
     question_avant: str | None = None,
     avant_dans_le_tour: str = "",
+    telephones: bool = False,
 ):
     """Blocking: runs in a worker thread. Returns (text for the model, records...).
 
@@ -392,6 +393,11 @@ def _lire(
                 codes_dits | lecteur._codes_retenus(trace_nombres),
             ),
         )
+
+    if telephones:
+        # [.mark] l-agent-collegue, L7 (QD7): only at a step that collects a phone, with the
+        # agent's « Check the data » on; the text written does not change.
+        lecture = replace(lecture, nombres=lecteur.telephones_incomplets(lecture.nombres))
 
     lu = reecrire(texte, lecture.nombres, lecture.choix_cp) if conversion else arrive
 
@@ -475,6 +481,7 @@ async def lire_texte(
     variables_ref: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT,
     champs_fiche: tuple[str, ...] | None = None,
     message: object = None,
+    variables_tel: tuple[str, ...] | None = None,
     termes_du_lexique: dict[str, str] | None = None,
     question_avant: str | None = None,
     avant_dans_le_tour: str = "",
@@ -518,6 +525,7 @@ async def lire_texte(
         termes_du_lexique=termes_du_lexique,
         question_avant=question_avant,
         avant_dans_le_tour=avant_dans_le_tour,
+        variables_tel=variables_tel,
     )
     return f"{lu} {mention_lexique}" if mention_lexique else lu
 
@@ -549,6 +557,7 @@ async def _lire_texte_de_lappelant(
     termes_du_lexique: dict[str, str] | None = None,
     question_avant: str | None = None,
     avant_dans_le_tour: str = "",
+    variables_tel: tuple[str, ...] | None = None,
 ) -> str:
     # C2 (patch du banc, 25/09) : le tour est compté AVANT toute sortie anticipée.
     # Un message lu sans trace reste un tour : sinon la trace sûre d'un tour
@@ -614,6 +623,8 @@ async def _lire_texte_de_lappelant(
             marquer_le_tour,
             question_avant,
             avant_dans_le_tour if marquer_le_tour else "",
+            # L7: None when the agent's « Check the data » is off (X2: nothing changes).
+            telephones=bool(conversion and variables_tel and etape_concernee(noeud, variables_tel)),
         )
         if consigner is not None:
             entrees: list[tuple[str, dict]] = []
@@ -703,9 +714,11 @@ class LectureAppelantProcessor(FrameProcessor):
         variables_ref: tuple[str, ...] = VARIABLES_REFERENCE_PAR_DEFAUT,
         champs_fiche: tuple[str, ...] | None = None,
         termes_du_lexique: dict[str, str] | None = None,
+        variables_tel: tuple[str, ...] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self._variables_tel = variables_tel
         self._termes_du_lexique = termes_du_lexique
         self._variables_ref = variables_ref
         self._champs_fiche = champs_fiche
@@ -770,6 +783,7 @@ class LectureAppelantProcessor(FrameProcessor):
             termes_du_lexique=self._termes_du_lexique,
             question_avant=_question_avant(messages, rang),
             avant_dans_le_tour=_avant_dans_le_tour(messages, rang),
+            variables_tel=self._variables_tel,
         )
         # Marked AFTER the reading: an interruption that cancels this task
         # during the await leaves the message unmarked, so the next context
@@ -830,7 +844,15 @@ def creer_lecture_appelant(
         variables_ref=variables_reference(run_configs),
         champs_fiche=champs_de_la_fiche(run_configs),
         termes_du_lexique=formes_des_termes(lexique),
+        variables_tel=_variables_tel(run_configs),
     )
+
+
+def _variables_tel(run_configs: dict | None) -> tuple[str, ...] | None:
+    """L7: the agent's phone fields when « Check the data » is on, else None (off, X2)."""
+    from api.services.fiche.reconnaissance import controle_allume, noms
+
+    return noms(run_configs, "telephone") if controle_allume(run_configs) else None
 
 
 async def lire_message_tape(
@@ -859,6 +881,7 @@ async def lire_message_tape(
             variables_ref=variables_reference(run_configs),
             champs_fiche=champs_de_la_fiche(run_configs),
             termes_du_lexique=formes_des_termes(lexique),
+            variables_tel=_variables_tel(run_configs),
         )
     except Exception as erreur:  # noqa: BLE001
         logger.warning(

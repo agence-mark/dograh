@@ -90,6 +90,41 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // ---- Field recognition (chantier l-agent-collegue, L7; plan qualite-des-donnees, QD1) ----
+    controle_donnees: d({
+        type: "interrupteur",
+        libelle: { en: "Check the data", fr: "Contrôler les données" },
+        aides: [
+            {
+                en: "During the call: a phone number dictated with 9 or 11 digits is signalled to the model at a step that collects a phone (needs « Write dictated numbers as digits »). At the end of the call: the record is checked (phone, postcode and town, e-mail, date, empty fields of the steps the call went through) and the verdict written with the call, shown in « After the call » and in the request's mail (needs the agent's after-call).",
+                fr: "Pendant l'appel : un numéro dicté avec 9 ou 11 chiffres est signalé au modèle à une étape qui recueille un téléphone (demande « Écrire les nombres dictés en chiffres »). En fin d'appel : la fiche est contrôlée (téléphone, code postal et commune, e-mail, date, champs vides des étapes traversées) et le verdict écrit avec l'appel, montré dans « Après l'appel » et dans le mail de la demande (demande l'après-appel de l'agent).",
+            },
+            {
+                en: "Fields are recognised by their name. A trailing * means « starts with ». A custom list replaces the default. The check never changes a value.",
+                fr: "Les champs sont reconnus par leur nom. Un * final veut dire « commence par ». Une liste personnalisée remplace le défaut. Le contrôle ne modifie jamais une valeur.",
+            },
+        ],
+    }),
+    variables_telephone: d({
+        type: "texte",
+        libelle: { en: "Phone fields", fr: "Champs de téléphone" },
+        aides: [{ en: "Default: telephone*, tel_*, portable*, numero_telephone*, rappel_numero*.", fr: "Par défaut : telephone*, tel_*, portable*, numero_telephone*, rappel_numero*." }],
+    }),
+    variables_code_postal: d({
+        type: "texte",
+        libelle: { en: "Postcode fields", fr: "Champs de code postal" },
+        aides: [{ en: "Default: code_postal*, cp_*.", fr: "Par défaut : code_postal*, cp_*." }],
+    }),
+    variables_courriel: d({
+        type: "texte",
+        libelle: { en: "Email fields", fr: "Champs d'e-mail" },
+        aides: [{ en: "Default: email*, courriel*, mail*.", fr: "Par défaut : email*, courriel*, mail*." }],
+    }),
+    variables_date: d({
+        type: "texte",
+        libelle: { en: "Date fields", fr: "Champs de date" },
+        aides: [{ en: "Default: date*. The town fields are those of the town check.", fr: "Par défaut : date*. Les champs de commune sont ceux de la vérification des communes." }],
+    }),
     verification_communes: d({
         type: "interrupteur",
         libelle: { en: "Recognise the caller's town", fr: "Reconnaître la commune de l'appelant" },
@@ -508,7 +543,15 @@ const lire = (brut: string, lecture: Lecture): number | undefined => {
 
 /** The message a setting of the catalogue shows, or null (bounds, variable names). */
 export const erreurDuReglage = (cle: CleCatalogue, valeur: unknown): Texte | null => {
-    if (cle === "variables_commune" || cle === "variables_reference") return texteErreurVariables(valeur as string);
+    if (
+        cle === "variables_commune"
+        || cle === "variables_reference"
+        || cle === "variables_telephone"
+        || cle === "variables_code_postal"
+        || cle === "variables_courriel"
+        || cle === "variables_date"
+    )
+        return texteErreurVariables(valeur as string);
     if (typeof valeur === "number" || valeur === null || valeur === undefined) {
         return texteHorsBornes(cle, valeur as number | null | undefined);
     }

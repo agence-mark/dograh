@@ -89,6 +89,11 @@ export const LONGUEURS_MAX: Record<string, number> = {
     user_idle_goodbye_prompt: 2000,
     variables_commune: 500,
     variables_reference: 500,
+    // l-agent-collegue, L7: « Field recognition ».
+    variables_telephone: 500,
+    variables_code_postal: 500,
+    variables_courriel: 500,
+    variables_date: 500,
 };
 
 /**

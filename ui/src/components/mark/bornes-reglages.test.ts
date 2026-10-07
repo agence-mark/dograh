@@ -44,6 +44,7 @@ import {
     CLES_TRANSCRIPTION,
     CLES_VOIX,
 } from "./SectionReglagesPipecat";
+import { CLES_ECOUTE } from "./reglages-agent/ThemeEcoute";
 
 // vitest runs with the ui/ package as its working directory; the schema is one
 // level up, in the API.
@@ -134,7 +135,8 @@ describe("Les bornes affichees a l'ecran", () => {
         // Oubliees au premier passage, trouvees par la relecture : les deux
         // consignes de relance sont plafonnees a 2000 caracteres cote serveur
         // et rien ne le disait a l'ecran.
-        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL] as string[];
+        // l-agent-collegue, L7: the theme Listening carries more text settings than the old card.
+        const cles = [...new Set([...CLES_TRANSCRIPTION, ...CLES_ECOUTE, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL])] as string[];
         const textesPlafonnes = cles.filter((cle) => {
             const s = bornesDuSchema(cle);
             return s !== null && s.maxLength !== null && !s.estUneListe;

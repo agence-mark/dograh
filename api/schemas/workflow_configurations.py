@@ -110,6 +110,19 @@ _NOM_VARIABLE_COMMUNE = re.compile(r"^(?:[\w-]+|[\w-]{3,}\*)$")
 # whose name starts with `reference`.
 DEFAULT_VARIABLES_REFERENCE = "reference*"
 
+# [.mark] Chantier l-agent-collegue, L7 (plan qualite-des-donnees, QD1): the fields recognised by
+# their NAME for the record's check and the phone read during the call. Same grammar as above.
+DEFAULT_VARIABLES_TELEPHONE = "telephone*, tel_*, portable*, numero_telephone*, rappel_numero*"
+DEFAULT_VARIABLES_CODE_POSTAL = "code_postal*, cp_*"
+DEFAULT_VARIABLES_COURRIEL = "email*, courriel*, mail*"
+DEFAULT_VARIABLES_DATE = "date*"
+VARIABLES_RECONNUES = {
+    "variables_telephone": DEFAULT_VARIABLES_TELEPHONE,
+    "variables_code_postal": DEFAULT_VARIABLES_CODE_POSTAL,
+    "variables_courriel": DEFAULT_VARIABLES_COURRIEL,
+    "variables_date": DEFAULT_VARIABLES_DATE,
+}
+
 
 def decouper_variables_commune(
     valeur: str | None, defaut: str = DEFAULT_VARIABLES_COMMUNE
@@ -589,6 +602,36 @@ class WorkflowConfigurationDefaults(BaseModel):
             "quote or order numbers), same format as above. Empty: reference*."
         ),
     )
+    # [.mark] Chantier l-agent-collegue, L7 (qualite-des-donnees, lots 2 to 4; Q-1, Q-2): off by
+    # default (X2). On: a phone dictated with a digit too many or too few is said to the model at a
+    # step that collects a phone, and the record is checked at the end of the call (signalled,
+    # never corrected, QD8).
+    controle_donnees: bool = Field(
+        default=False,
+        description=(
+            "Checks the data: during the call, a phone number dictated with 9 or 11 digits is "
+            "signalled to the model at a step that collects a phone; at the end of the call the "
+            "record is checked (phone, postcode and town, e-mail, date, empty fields of the steps "
+            "the call went through) and the verdict written with the call. Never changes a value. "
+            "Off: as before."
+        ),
+    )
+    variables_telephone: str = Field(
+        default=DEFAULT_VARIABLES_TELEPHONE, max_length=500,
+        description="Phone fields, same format as the town variables. Empty: the default.",
+    )
+    variables_code_postal: str = Field(
+        default=DEFAULT_VARIABLES_CODE_POSTAL, max_length=500,
+        description="Postcode fields, same format. Empty: the default.",
+    )
+    variables_courriel: str = Field(
+        default=DEFAULT_VARIABLES_COURRIEL, max_length=500,
+        description="E-mail fields, same format. Empty: the default.",
+    )
+    variables_date: str = Field(
+        default=DEFAULT_VARIABLES_DATE, max_length=500,
+        description="Date fields, same format. Empty: the default.",
+    )
     horaires_ouverture: str | None = Field(
         default=DEFAULT_HORAIRES_OUVERTURE,
         max_length=4000,
@@ -1005,6 +1048,18 @@ class WorkflowConfigurationDefaults(BaseModel):
             if not value.strip():
                 return DEFAULT_VARIABLES_REFERENCE
             decouper_variables_commune(value, DEFAULT_VARIABLES_REFERENCE)
+            return value.strip()
+        return value
+
+    @field_validator(*VARIABLES_RECONNUES, mode="before")
+    @classmethod
+    def variables_reconnues_valides(cls, value: object, info) -> object:
+        """[.mark] L7 (QD1): blank means the default; an invalid name is refused (422 on save)."""
+        if isinstance(value, str):
+            defaut = VARIABLES_RECONNUES[info.field_name]
+            if not value.strip():
+                return defaut
+            decouper_variables_commune(value, defaut)
             return value.strip()
         return value
 

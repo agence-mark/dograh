@@ -1458,6 +1458,80 @@
           "retirees": []
         }
       ]
+    },
+    "controle-donnees": {
+      "carte": "ajout-mark",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "controle_donnees": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "variables-telephone": {
+      "carte": "ajout-mark",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "controle_donnees": true,
+            "variables_telephone": "portable, telephone*"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "variables-code-postal": {
+      "carte": "ajout-mark",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "controle_donnees": true,
+            "variables_code_postal": "cp"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "variables-courriel": {
+      "carte": "ajout-mark",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "controle_donnees": true,
+            "variables_courriel": "mail_contact"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "variables-date": {
+      "carte": "ajout-mark",
+      "theme": "ecoute",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "controle_donnees": true,
+            "variables_date": "date*, jour_*"
+          },
+          "retirees": []
+        }
+      ]
     }
   }
 }

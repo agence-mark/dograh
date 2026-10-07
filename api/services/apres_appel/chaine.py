@@ -19,6 +19,7 @@ carries chooses it.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -51,6 +52,17 @@ TENTATIVES_MAX = 3
 MODES_ESSAI = frozenset({"smallwebrtc", "webrtc", "textchat", "simulated"})
 SUJET_PANNE = "À rappeler : appel perdu par une panne"
 DELAIS_S = (60, 300)  # after the 1st and the 2nd attempt
+# l-agent-collegue, L7: what each problem of the record's check says in the mail (French).
+LIBELLES_PROBLEMES = {
+    "telephone_invalide": "téléphone invalide",
+    "code_postal_inconnu": "code postal inconnu",
+    "commune_code_postal_incoherents": "commune et code postal ne vont pas ensemble",
+    "courriel_invalide": "e-mail invalide",
+    "courriel_domaine_douteux": "domaine de l'e-mail douteux",
+    "date_invalide": "date illisible",
+    "date_improbable": "date improbable",
+    "champ_vide": "champ vide",
+}
 NOM_TACHE = "apres_appel_mark"
 
 
@@ -205,6 +217,13 @@ async def _ecriture(ctx: ContexteModule, bloc: dict) -> dict:
                 resultat.get("contact_id"),
                 ctx.envoi["hub"]["rendez_vous"],
             )
+        # l-agent-collegue, L7 (Q-2): the record's verdict, next to the call (idempotent).
+        if ctx.envoi.get("qualite_fiche") and resultat.get("appel_id"):
+            await connexion.execute(
+                "UPDATE mark.appel SET qualite_fiche = $2::jsonb WHERE id = $1",
+                resultat["appel_id"],
+                json.dumps(ctx.envoi["qualite_fiche"]),
+            )
         # l-agent-collegue, L6 (V6): every verification attempt, idempotent.
         if ctx.envoi.get("verifications"):
             from api.db.bases_clients.dossier import ecrire_verifications
@@ -241,6 +260,8 @@ async def _ecriture(ctx: ContexteModule, bloc: dict) -> dict:
     }
     if resultat.get("synthese_ecrite"):
         racine["synthese_ecrite"] = True
+    if ctx.envoi.get("qualite_fiche"):
+        racine["qualite_fiche"] = ctx.envoi["qualite_fiche"]
     detail = (
         "already written (replay)"
         if resultat.get("doublon")
@@ -376,6 +397,13 @@ def texte_du_mail(ctx: ContexteModule, bloc: dict) -> tuple[str, str]:
         lignes.append(
             f"⚠ Une autre demande ouverte vient du même numéro (n° {bloc['autre_demande_ouverte_id']})."
         )
+    qualite = envoi.get("qualite_fiche") or {}
+    if qualite.get("statut") == "a_reprendre":
+        # l-agent-collegue, L7 (Q-2): said, never corrected (QD8).
+        lignes.append("⚠ Fiche à reprendre :")
+        for p in qualite.get("problemes") or []:
+            detail = f" ({p['detail']})" if p.get("detail") else ""
+            lignes.append(f"- {p.get('champ')} : {LIBELLES_PROBLEMES.get(p.get('code'), p.get('code'))}{detail}")
     lignes.append("")
     lignes.append("Résumé :")
     lignes.append(bloc.get("synthese") or "(résumé indisponible)")
@@ -559,6 +587,12 @@ async def executer(
     except Exception:  # noqa: BLE001 -- the write step reports the database
         pass
     envoi = construire_envoi(run, analyse, agent, sujets)
+    # l-agent-collegue, L7 (Q-2): the record checked, with the agent's « Check the data » on.
+    from api.services.fiche.verdict import verdict_du_run
+
+    verdict = await verdict_du_run(run)
+    if verdict is not None:
+        envoi["qualite_fiche"] = verdict
     from api.services.apres_appel.taches import _fuseau
 
     contexte = ContexteModule(

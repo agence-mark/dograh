@@ -33,7 +33,7 @@ de lecture »). A change here changes what the model is told: the bench decides.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from typing import Iterable
 
@@ -46,6 +46,9 @@ REFERENCE = "reference"
 CODE_POSTAL = "code_postal"
 DEPARTEMENT = "departement"
 AUTRE = "autre"
+# [.mark] l-agent-collegue, L7 (qualite-des-donnees, lot 2, QD7): a phone dictated with a digit
+# too many or too few, ONLY at a step that collects a phone (``telephones_incomplets``).
+TELEPHONE_INCOMPLET = "telephone_incomplet"
 # Lot 3 du chantier correctifs-modules : un nombre ordinaire lu DANS le nom d'une
 # commune (« cent lits » → Senlis) ; il reste en lettres.
 DANS_UNE_COMMUNE = "dans_une_commune"
@@ -663,6 +666,31 @@ def lire_nombres(
         occupes = {k for n in lus for k in range(n.debut, n.fin)}
         lus.extend(_departements_nommes(p, departements, occupes))
     return sorted(lus, key=lambda n: n.debut)
+
+
+def chiffres_du_telephone(nombre: NombreLu) -> int | None:
+    """The national digits of a number that looks like a phone (``0…``, or ``plus trente-trois
+    …`` counted without the 33), else None."""
+    chiffres = _chiffres_de(nombre.entendu)
+    if nombre.entendu.lower().startswith("plus") or nombre.ecrit.startswith("+"):
+        return len(chiffres) - 2 + 1 if chiffres.startswith("33") else None
+    return len(chiffres) if chiffres.startswith("0") else None
+
+
+def telephones_incomplets(nombres: list[NombreLu]) -> list[NombreLu]:
+    """[.mark] L7 (QD7): at a step that collects a phone ONLY (the caller decides), a run of 9
+    or 11 digits starting with 0 (or « plus trente-trois » with 8 or 10 digits after) becomes a
+    ``TELEPHONE_INCOMPLET``. The text written is unchanged; nothing else is reclassified: an
+    amount, a postal code, a reference with letters or dashes stays what it is."""
+    sortie = []
+    for n in nombres:
+        # A « reference » announced by « numéro » but made of digits only, starting with 0, is a
+        # phone at THIS step (« mon numéro c'est zéro six… »); one with letters or dashes stays.
+        reference_chiffree = n.type == REFERENCE and re.fullmatch(r"0[\d ]+", n.ecrit) is not None
+        if (n.type in (AUTRE, TELEPHONE) or reference_chiffree) and chiffres_du_telephone(n) in (9, 11):
+            n = replace(n, type=TELEPHONE_INCOMPLET, lectures_tel=())
+        sortie.append(n)
+    return sortie
 
 
 # --------------------------------------------------------------------------- #
