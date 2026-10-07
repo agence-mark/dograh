@@ -195,7 +195,7 @@ def retirer_traducteur(systeme: str) -> None:
 
 def _charger() -> None:
     from api.services.integrations.connectors import (
-        actions,
+        actions,  # noqa: F401 -- each software's file declares its translator
     )
 
 

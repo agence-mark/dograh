@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * [.mark] The Platform Settings page in 8 themes (chantier
+ * [.mark] The Platform Settings page in 9 themes (chantier
  * reorganisation-ecran-reglages, step 5, convention § 2).
  *
  * Called from Dograh's `app/settings/page.tsx` in place of its cards (the one
@@ -20,6 +20,7 @@ import type { ThemeOrganisation } from "./references/cas-organisation";
 import { ThemeApresAppel, useApresAppel } from "./ThemeApresAppel";
 import { ThemeDonneesClient, useBaseClient } from "./ThemeDonneesClient";
 import { ThemeEquipe } from "./ThemeEquipe";
+import { ThemeRendezVous } from "./ThemeRendezVous";
 import {
     ThemeDeveloppeurs,
     ThemeEcouteOrganisation,
@@ -73,6 +74,7 @@ export const PageParametresOrganisation = () => {
                 />
                 <ThemeEtablissementOrganisation {...commun("etablissement")} preferences={preferences} annonce={annonce} />
                 <ThemeEquipe {...commun("equipe")} baseRattachee={base.etat ? Boolean(base.etat.nom_base) : null} />
+                <ThemeRendezVous {...commun("rendez-vous")} baseRattachee={base.etat ? Boolean(base.etat.nom_base) : null} />
                 <ThemeEcouteOrganisation {...commun("ecoute")} />
                 <ThemeDonneesClient {...commun("donnees")} base={base} />
                 <ThemeApresAppel {...commun("apres-appel")} apresAppel={apresAppel} />

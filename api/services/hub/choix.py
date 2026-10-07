@@ -27,7 +27,7 @@ async def lire_choix(organization_id: int | None) -> ChoixTraducteurs:
         if ligne is None or not ligne.value:
             return ChoixTraducteurs()
         return ChoixTraducteurs.model_validate(ligne.value)
-    except Exception as erreur:
+    except Exception as erreur:  # noqa: BLE001 -- never raises during a call: stamped and logged
         logger.error(
             f"[.mark] Translators of organization {organization_id} unreadable, none used: {erreur!r}"
         )

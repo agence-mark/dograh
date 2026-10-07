@@ -1967,6 +1967,10 @@ export type ConnecteurVue = {
      * Interne
      */
     interne?: boolean;
+    /**
+     * Gestionnaire Propre
+     */
+    gestionnaire_propre?: boolean;
 };
 
 /**
@@ -6580,6 +6584,31 @@ export type Phrase = {
 };
 
 /**
+ * Planificateur
+ *
+ * What the theme « Appointments » shows and saves.
+ */
+export type Planificateur = {
+    reglages?: ReglagesPlanificateur;
+    /**
+     * Par Etablissement
+     *
+     * Establishment id -> what it overrides.
+     */
+    par_etablissement?: {
+        [key: string]: ReglagesPlanificateur;
+    };
+    /**
+     * Types
+     */
+    types?: Array<TypeRendezVous>;
+    /**
+     * The common defaults (read only, shown as placeholders).
+     */
+    defauts?: ReglagesPlanificateur;
+};
+
+/**
  * PlivoConfigurationRequest
  *
  * Request schema for Plivo configuration.
@@ -7336,6 +7365,70 @@ export type ReglagesPanne = {
      * Decision of Evan, 07/10: the second TwiML Bin, « promise only », for the establishments without a second number. Empty: they get the first Bin.
      */
     url_secours_promesse?: string | null;
+};
+
+/**
+ * ReglagesPlanificateur
+ */
+export type ReglagesPlanificateur = {
+    /**
+     * Nombre Creneaux
+     */
+    nombre_creneaux?: number | null;
+    /**
+     * Delai Minimal H
+     */
+    delai_minimal_h?: number | null;
+    /**
+     * Horizon Jours
+     */
+    horizon_jours?: number | null;
+    /**
+     * Pas Min
+     */
+    pas_min?: number | null;
+    /**
+     * Plages
+     *
+     * Booking ranges in the readable hours format; None: the establishment's hours.
+     */
+    plages?: string | null;
+    /**
+     * Zone Rayon Km
+     */
+    zone_rayon_km?: number | null;
+    /**
+     * Zone Communes
+     */
+    zone_communes?: Array<string> | null;
+    /**
+     * Trajets Comptes
+     */
+    trajets_comptes?: boolean | null;
+    /**
+     * Coefficient Trajet
+     */
+    coefficient_trajet?: number | null;
+    /**
+     * Vitesse Kmh
+     */
+    vitesse_kmh?: number | null;
+    /**
+     * Repartition
+     */
+    repartition?: 'premier_libre' | 'tour_de_role' | 'charge' | 'zone' | null;
+    /**
+     * Repli
+     */
+    repli?: 'humain_puis_rappel' | 'toujours_rappel' | null;
+    /**
+     * Personne Visible
+     */
+    personne_visible?: boolean | null;
+    /**
+     * Jours Feries
+     */
+    jours_feries?: 'metropole' | 'alsace_moselle' | null;
 };
 
 /**
@@ -9799,6 +9892,50 @@ export type TwilioConfigurationRequest = {
      * Twilio Auth Token
      */
     auth_token: string;
+};
+
+/**
+ * TypeRendezVous
+ */
+export type TypeRendezVous = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Etablissement
+     *
+     * Establishment it applies to; None: the whole organization.
+     */
+    etablissement?: string | null;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Duree Min
+     *
+     * Length of the appointment, in minutes.
+     */
+    duree_min: number;
+    /**
+     * Sujet
+     *
+     * Code of the subject whose people do it (« Team and routing »); None: the whole team.
+     */
+    sujet?: string | null;
+    /**
+     * Marge Avant Min
+     */
+    marge_avant_min?: number;
+    /**
+     * Marge Apres Min
+     */
+    marge_apres_min?: number;
+    /**
+     * Actif
+     */
+    actif?: boolean;
 };
 
 /**
@@ -15541,6 +15678,84 @@ export type PutEquipeApiV1OrganizationsEquipePutResponses = {
 };
 
 export type PutEquipeApiV1OrganizationsEquipePutResponse = PutEquipeApiV1OrganizationsEquipePutResponses[keyof PutEquipeApiV1OrganizationsEquipePutResponses];
+
+export type GetPlanificateurApiV1OrganizationsPlanificateurGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/planificateur';
+};
+
+export type GetPlanificateurApiV1OrganizationsPlanificateurGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPlanificateurApiV1OrganizationsPlanificateurGetError = GetPlanificateurApiV1OrganizationsPlanificateurGetErrors[keyof GetPlanificateurApiV1OrganizationsPlanificateurGetErrors];
+
+export type GetPlanificateurApiV1OrganizationsPlanificateurGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Planificateur;
+};
+
+export type GetPlanificateurApiV1OrganizationsPlanificateurGetResponse = GetPlanificateurApiV1OrganizationsPlanificateurGetResponses[keyof GetPlanificateurApiV1OrganizationsPlanificateurGetResponses];
+
+export type PutPlanificateurApiV1OrganizationsPlanificateurPutData = {
+    body: Planificateur;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/planificateur';
+};
+
+export type PutPlanificateurApiV1OrganizationsPlanificateurPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutPlanificateurApiV1OrganizationsPlanificateurPutError = PutPlanificateurApiV1OrganizationsPlanificateurPutErrors[keyof PutPlanificateurApiV1OrganizationsPlanificateurPutErrors];
+
+export type PutPlanificateurApiV1OrganizationsPlanificateurPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: Planificateur;
+};
+
+export type PutPlanificateurApiV1OrganizationsPlanificateurPutResponse = PutPlanificateurApiV1OrganizationsPlanificateurPutResponses[keyof PutPlanificateurApiV1OrganizationsPlanificateurPutResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;

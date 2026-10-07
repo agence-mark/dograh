@@ -172,6 +172,7 @@ const TITRE_ANGLAIS: Record<ThemeOrganisation, string> = {
     organisation: "Organization",
     etablissement: "Establishments",
     equipe: "Team and routing",
+    "rendez-vous": "Appointments",
     ecoute: "Listening",
     donnees: "Client data",
     "apres-appel": "After the call",
@@ -181,7 +182,7 @@ const TITRE_ANGLAIS: Record<ThemeOrganisation, string> = {
 
 const ouvrirLaPage = async () => {
     render(<SettingsPage />);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(8));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(9));
 };
 
 const ouvrirLeTheme = async (theme: ThemeOrganisation) => {

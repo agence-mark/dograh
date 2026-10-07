@@ -39,6 +39,7 @@ const CATALOGUE = [
         libelle: "Team (internal)",
         integration: "interne",
         interne: true,
+        gestionnaire_propre: true,
         actions: [
             {
                 nom: "diriger_vers_personne",
@@ -47,6 +48,24 @@ const CATALOGUE = [
                 anticipable_permis: false,
                 parametres: [{ nom: "personne", type: "string", description: "", obligatoire: true, choix: [], liste_du_contexte: "equipe_cles" }],
                 reglages_par_defaut: { delai_transfert_s: 30 },
+            },
+        ],
+    },
+    // l-agent-collegue (L5): internal, but run like any action (no handler of its own).
+    {
+        nom: "planificateur",
+        libelle: "Planner (internal)",
+        integration: "interne",
+        interne: true,
+        gestionnaire_propre: false,
+        actions: [
+            {
+                nom: "proposer_creneaux",
+                description: "Find slots.",
+                ecrit: false,
+                anticipable_permis: true,
+                parametres: [{ nom: "souhait", type: "string", description: "", obligatoire: false }],
+                reglages_par_defaut: {},
             },
         ],
     },
@@ -150,6 +169,26 @@ describe("[.mark] the integration tool on screen", () => {
             expect(container.querySelector(id), id).toBeNull();
         expect(container.querySelector("#integration-reglages")).not.toBeNull();
         expect(screen.queryByText("Team (internal)", { selector: "span.font-medium" })).toBeNull();
+    });
+
+    it("l-agent-collegue L5: the planner is internal yet shows its deadline, phrases and anticipation", async () => {
+        m.connexions.mockResolvedValue({ data: { nango_configure: true, connexions: [] } });
+        const Planificateur = () => {
+            const connecteurs = useConnecteurs();
+            const [valeur, setValeur] = useState<ConfigIntegration | null>(null);
+            if (connecteurs.catalogue && !valeur) setValeur(configParDefaut(connecteurs.catalogue, "planificateur"));
+            if (!valeur) return null;
+            return <ConfigOutilIntegration connecteurs={connecteurs} valeur={valeur} onChange={setValeur} onValide={() => undefined} />;
+        };
+        const { container } = render(
+            <FournisseurLangue>
+                <Planificateur />
+            </FournisseurLangue>,
+        );
+        await waitFor(() => expect(container.querySelector("#connecteur-interne")).not.toBeNull());
+        for (const id of ["#integration-delai", "#integration-phrase-attente", "#integration-phrase-repli", "#integration-anticipable"])
+            expect(container.querySelector(id), id).not.toBeNull();
+        expect(container.textContent).toMatch(/thème « Rendez-vous »/);
     });
 
     it("reads the rules typed", () => {

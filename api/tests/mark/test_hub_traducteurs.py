@@ -466,5 +466,5 @@ async def test_apres_l_appel_le_rendez_vous_entre_dans_le_hub_une_seule_fois(
 
 
 # Fixtures of the client database's and the after-call's tests.
-from api.tests.mark.test_apres_appel import base_v4, modele, smtp
-from api.tests.mark.test_base_client import base_essai, base_prete
+from api.tests.mark.test_apres_appel import base_v4, modele, smtp  # noqa: E402, F401
+from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: E402, F401

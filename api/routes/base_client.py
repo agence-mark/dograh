@@ -10,6 +10,7 @@ attached to THAT organization, never a name taken from the request but to attach
 - ``POST /organizations/base-client/resynchroniser``  rebuild the copy the calls read (test)
 - ``PUT  /organizations/base-client/conservation`` change retention durations (bounded, logged)
 - ``GET/PUT /organizations/equipe``                the team and the routing
+- ``GET/PUT /organizations/planificateur``         the planner's rules (l-agent-collegue, L5)
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ from api.schemas.base_client import (
     Equipe,
     EtatBaseClient,
 )
+from api.schemas.planificateur import Planificateur
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
 
@@ -251,3 +253,53 @@ async def put_equipe(
     # hears this save without waiting for the notification (which follows anyway).
     await _apres_changement_de_source(user.selected_organization_id)
     return relue
+
+
+# --------------------------------------------------------------------------- #
+# l-agent-collegue, L5 (P2, P3): the planner's rules, in the client's database
+# --------------------------------------------------------------------------- #
+
+routeur_planificateur = APIRouter(prefix="/organizations/planificateur", tags=["organizations"])
+
+
+@routeur_planificateur.get("", response_model=Planificateur)
+async def get_planificateur(user: UserModel = Depends(get_user_with_selected_organization)):
+    from api.db.bases_clients.planificateur import lire_planificateur
+
+    connexion = await _connexion_de(user.selected_organization_id)
+    try:
+        return await lire_planificateur(connexion)
+    finally:
+        await connexion.close()
+
+
+@routeur_planificateur.put("", response_model=Planificateur)
+async def put_planificateur(
+    request: Planificateur, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    from api.db.bases_clients.planificateur import (
+        ReferenceInconnue,
+        ecrire_planificateur,
+        lire_planificateur,
+    )
+    from api.services.pipecat.etat_ouverture import (
+        HorairesInvalides,
+        vers_expression_osm,
+    )
+
+    # The booking ranges are read like the opening hours: refused when SAVED, never at a call.
+    for niveau, reglages in [("organization", request.reglages), *request.par_etablissement.items()]:
+        if reglages.plages:
+            try:
+                vers_expression_osm(reglages.plages)
+            except HorairesInvalides as erreur:
+                raise _refus(f"Booking ranges ({niveau}): {erreur}") from None
+    connexion = await _connexion_de(user.selected_organization_id)
+    try:
+        try:
+            await ecrire_planificateur(connexion, request, rattachement.auteur_de(user))
+        except ReferenceInconnue as erreur:
+            raise _refus(str(erreur)) from None
+        return await lire_planificateur(connexion)
+    finally:
+        await connexion.close()

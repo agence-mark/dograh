@@ -146,6 +146,9 @@ export function ConfigOutilIntegration({
     // neither the deadline, nor the two phrases, nor the anticipation (the same rule as the
     // code, ``outil.creer_gestionnaire``): they play no role and are not shown (E8).
     const interne = Boolean(catalogue.find((c) => c.nom === valeur.connecteur)?.interne);
+    // l-agent-collegue (L5): the planner is internal but run like any action (deadline, phrases,
+    // anticipation play their role): only an internal connector with its own handler hides them.
+    const gestionPropre = interne && Boolean(catalogue.find((c) => c.nom === valeur.connecteur)?.gestionnaire_propre);
 
     if (connecteurs.erreur) return <p className="text-sm text-destructive">{connecteurs.erreur}</p>;
     if (!connecteurs.catalogue) return <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>;
@@ -159,7 +162,12 @@ export function ConfigOutilIntegration({
                 idControle="integration-reglages"
                 libelle={{ en: "The client's rules", fr: "Les règles du client" }}
                 aides={[
-                    interne
+                    interne && !gestionPropre
+                        ? {
+                              en: "Nothing to set here: the planner's rules (appointment types, ranges, zone, journeys, distribution, fallback) are in the theme « Appointments » of the Platform Settings, inherited by each establishment.",
+                              fr: "Rien à régler ici : les règles du planificateur (types de rendez-vous, plages, zone, trajets, répartition, repli) sont dans le thème « Rendez-vous » des Paramètres de la plateforme, héritées par chaque établissement.",
+                          }
+                        : interne
                         ? {
                               en: "As JSON: delai_transfert_s, the seconds the person's phone rings before the request is passed on to her instead (default 30). The sentences said come from the catalogue: phrase_transfert_personne and phrase_transmission_personne, {{prenom}} being her first name.",
                               fr: "En JSON : delai_transfert_s, les secondes pendant lesquelles le téléphone de la personne sonne avant que la demande lui soit transmise à la place (30 par défaut). Les phrases dites viennent du catalogue : phrase_transfert_personne et phrase_transmission_personne, {{prenom}} étant son prénom.",
@@ -186,7 +194,7 @@ export function ConfigOutilIntegration({
                 )}
             </ChampReglage>
 
-            {!interne && (
+            {!gestionPropre && (
             <>
             <ChampReglage
                 cle="config.delai_ms"
@@ -261,7 +269,7 @@ export function ConfigOutilIntegration({
             </ChampReglage>
             </>
             )}
-            {!interne && valeur.anticipable && action?.anticipable_permis && (
+            {!gestionPropre && valeur.anticipable && action?.anticipable_permis && (
                 <ChampReglage
                     cle="config.declencheurs"
                     libelle={{ en: "Record field of each parameter", fr: "Champ de la fiche de chaque paramètre" }}

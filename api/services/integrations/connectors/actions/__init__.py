@@ -5,4 +5,5 @@ from api.services.integrations.connectors.actions import (  # noqa: F401
     equipe,
     google_agenda,
     outlook_agenda,
+    planificateur,
 )

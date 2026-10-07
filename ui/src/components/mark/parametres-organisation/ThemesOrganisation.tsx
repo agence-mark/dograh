@@ -14,6 +14,7 @@
  */
 import {
     Building2,
+    CalendarClock,
     Code,
     Database,
     Ear,
@@ -66,6 +67,8 @@ export const THEMES_ORGANISATION: Array<{ id: ThemeOrganisation; titre: Texte; i
     { id: "etablissement", titre: { en: "Establishments", fr: "Établissements" }, icone: Building2 },
     // [.mark] L3 (chantier l-agent-travaille), in the order validated on 06/10.
     { id: "equipe", titre: { en: "Team and routing", fr: "Équipe et routage" }, icone: Users },
+    // [.mark] l-agent-collegue, L5: the planner's rules, inherited by each establishment.
+    { id: "rendez-vous", titre: { en: "Appointments", fr: "Rendez-vous" }, icone: CalendarClock },
     { id: "ecoute", titre: { en: "Listening", fr: "Écoute" }, icone: Ear },
     { id: "donnees", titre: { en: "Client data", fr: "Données du client" }, icone: Database },
     // [.mark] L4 (chantier l-agent-travaille), the 6th theme of the order validated on 06/10.

@@ -237,6 +237,17 @@ async def ecrire_suite_du_rendez_vous(
     entree: dict,
     intervenant_id: int | None,
 ) -> None:
-    """What else an appointment carries into the hub (the planner's attribution, L5).
-    Nothing for an appointment booked by a plain connector action."""
-    return
+    """What else an appointment carries into the hub: the planner's type and attribution (L5,
+    P7). Nothing for an appointment booked by a plain connector action."""
+    if not (entree.get("type") or isinstance(entree.get("attribution"), dict)):
+        return
+    from api.db.bases_clients.planificateur import ecrire_attribution
+
+    await ecrire_attribution(
+        connexion,
+        rendez_vous_id,
+        appel_id,
+        intervenant_id,
+        entree.get("attribution") if isinstance(entree.get("attribution"), dict) else {},
+        str(entree["type"]) if entree.get("type") else None,
+    )

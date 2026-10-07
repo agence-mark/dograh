@@ -44,6 +44,10 @@ class ConnecteurVue(BaseModel):
     integration: str
     actions: list[ActionVue]
     interne: bool = False
+    # l-agent-collegue (L5): an internal connector with its own handler (the team's) reads
+    # neither the deadline, nor the phrases, nor the anticipation; one that only gives its
+    # computation (the planner's) is run like any action and reads them all.
+    gestionnaire_propre: bool = False
 
 
 class ConnexionVue(BaseModel):
@@ -77,6 +81,7 @@ async def get_catalogue(user: UserModel = Depends(get_user_with_selected_organiz
             libelle=c.libelle,
             integration=c.integration,
             interne=c.interne,
+            gestionnaire_propre=c.interne and c.gestionnaire_interne is not None,
             actions=[
                 ActionVue(
                     nom=a.nom,

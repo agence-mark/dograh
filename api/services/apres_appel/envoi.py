@@ -217,6 +217,28 @@ def construire_envoi(
             "priorite": 1 if (sujet or {}).get("urgent") else 2,
             "degre_urgence": valeur("degre_urgence"),
         }
+    # [.mark] l-agent-collegue, L5 (P8): no appointment could be booked -- the call-back request
+    # exists, with the caller's wish noted (never a lost caller).
+    rappels = contexte.get("planificateur_rappel")
+    rappels = [r for r in rappels if isinstance(r, dict)] if isinstance(rappels, list) else []
+    if rappels and not poses:
+        dernier = rappels[-1]
+        demande = dict(
+            demande
+            or {
+                "type": type_demande or "autre",
+                "sujet": (sujet or {}).get("code"),
+                "priorite": 1 if (sujet or {}).get("urgent") else 2,
+                "degre_urgence": valeur("degre_urgence"),
+            }
+        )
+        souhait = dernier.get("souhait")
+        demande["resume"] = demande.get("resume") or (
+            "Rendez-vous à rappeler pour le fixer"
+            + (f" (souhait de l'appelant : « {souhait} »)" if souhait else "")
+            + (f" ; créneau choisi : {dernier['creneau_choisi']}" if dernier.get("creneau_choisi") else "")
+            + "."
+        )
     envoi_hub = {"hub": {"rendez_vous": poses}} if poses else {}
     return {
         **envoi_equipe,
