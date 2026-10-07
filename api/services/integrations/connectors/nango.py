@@ -3,7 +3,9 @@
 Nango keeps each client's keys (authorization, encrypted storage, renewal) and presents them in
 our place through its relay. One Nango per installation (D2), reached at ``NANGO_URL`` with the
 installation's secret key ``NANGO_SECRET_KEY`` (environment, never on screen, never in a
-database). No migration (D4): a client's connection is found in Nango by its tag
+database). The authorization link carries ``apiURL`` = ``NANGO_PUBLIC_URL`` (the public
+address of the same server): the client's browser cannot reach ``NANGO_URL`` (private network),
+and without it Nango's connect screen calls Nango's cloud. No migration (D4): a client's connection is found in Nango by its tag
 ``organization_id``.
 
 ⛔ Tenant isolation (D6): every function takes the organization FROM THE SERVER (the call's
@@ -19,11 +21,13 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 
 VARIABLE_URL = "NANGO_URL"
 VARIABLE_CLE = "NANGO_SECRET_KEY"
+VARIABLE_URL_PUBLIQUE = "NANGO_PUBLIC_URL"
 ETIQUETTE = "organization_id"
 DELAI_GESTION_S = 10.0
 
@@ -150,7 +154,24 @@ async def lien_d_autorisation(
             f"Nango refused the authorization link (HTTP {reponse.status_code})."
         )
     donnees = (reponse.json() or {}).get("data") or {}
-    return {"lien": donnees.get("connect_link"), "expire_le": donnees.get("expires_at")}
+    return {
+        "lien": _avec_api_publique(donnees.get("connect_link")),
+        "expire_le": donnees.get("expires_at"),
+    }
+
+
+def _avec_api_publique(lien: str | None) -> str | None:
+    """Add ``apiURL`` (the public address of our Nango) to the connect link, unless absent
+    from the environment or already there. Without it the connect screen calls Nango's cloud."""
+    publique = os.environ.get(VARIABLE_URL_PUBLIQUE, "").strip().rstrip("/")
+    if not lien or not publique:
+        return lien
+    morceaux = urlsplit(lien)
+    parametres = parse_qsl(morceaux.query, keep_blank_values=True)
+    if any(nom == "apiURL" for nom, _ in parametres):
+        return lien
+    parametres.append(("apiURL", publique))
+    return urlunsplit(morceaux._replace(query=urlencode(parametres)))
 
 
 @dataclass(frozen=True)
