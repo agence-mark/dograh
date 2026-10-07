@@ -57,7 +57,7 @@ const m = vi.hoisted(() => ({
     saveAnnonce: vi.fn(),
 }));
 
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../../sdk-factice")).sdkFactice(await importOriginal(), {
     getPreferencesApiV1OrganizationsPreferencesGet: () => Promise.resolve({ data: structuredClone(PREFERENCES) }),
     savePreferencesApiV1OrganizationsPreferencesPut: m.savePreferences,
     getAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGet: () => Promise.resolve({ data: structuredClone(ANNONCE) }),

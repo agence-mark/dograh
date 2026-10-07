@@ -17,7 +17,7 @@ import { PHRASES_DE_PANNE } from "../parametres-organisation/ModalePhrases";
 import { erreursPanne, lirePanne, PANNE_ETEINTE, SectionPanneAgent } from "./SectionPanneAgent";
 
 const m = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), rattrapage: vi.fn(), secours: vi.fn() }));
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getPanneApiV1OrganizationsPanneGet: m.get,
     putPanneApiV1OrganizationsPannePut: m.put,
     postRattrapageApiV1OrganizationsPanneRattrapagePost: m.rattrapage,

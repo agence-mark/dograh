@@ -88,7 +88,7 @@ const agent = {
     workflow_configurations: {},
 };
 
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), {
     getWorkflowApiV1WorkflowFetchWorkflowIdGet: () =>
         Promise.resolve({ data: agent, error: null }),
     getModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Get: () =>

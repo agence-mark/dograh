@@ -31,7 +31,7 @@ const m = vi.hoisted(() => ({
     installationPut: vi.fn(),
 }));
 
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getApresAppelApiV1OrganizationsApresAppelGet: m.get,
     putApresAppelApiV1OrganizationsApresAppelPut: m.put,
     postEssaiMailApiV1OrganizationsApresAppelEssaiMailPost: m.essai,

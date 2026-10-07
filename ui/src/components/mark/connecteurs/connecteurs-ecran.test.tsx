@@ -36,7 +36,7 @@ const CATALOGUE = [
 ];
 
 const m = vi.hoisted(() => ({ connexions: vi.fn(), lien: vi.fn() }));
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getCatalogueApiV1ConnecteursCatalogueGet: () => Promise.resolve({ data: CATALOGUE }),
     getConnexionsApiV1ConnecteursConnexionsGet: m.connexions,
     postLienApiV1ConnecteursLienPost: m.lien,

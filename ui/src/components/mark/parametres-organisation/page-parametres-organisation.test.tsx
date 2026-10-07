@@ -44,7 +44,7 @@ const m = vi.hoisted(() => ({
     saveReglagesFenetreDuRun: vi.fn(),
 }));
 
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getPreferencesApiV1OrganizationsPreferencesGet: m.getPreferences,
     savePreferencesApiV1OrganizationsPreferencesPut: m.savePreferences,
     getAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGet: m.getAnnonce,

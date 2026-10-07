@@ -16,7 +16,7 @@ import { erreursSms, SMS_ETEINT } from "./ModaleSms";
 import { APRES_APPEL_ETEINT, type EtatApresAppel, lireApresAppel, pourEnvoyer, SectionApresAppelAgent } from "./SectionApresAppelAgent";
 
 const m = vi.hoisted(() => ({ compteur: vi.fn(), apercu: vi.fn() }));
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getCompteurSmsApiV1WorkflowWorkflowIdSmsGet: m.compteur,
     postApercuSmsApiV1WorkflowWorkflowIdSmsApercuPost: m.apercu,
 }));

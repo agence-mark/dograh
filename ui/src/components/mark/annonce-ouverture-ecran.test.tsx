@@ -48,7 +48,7 @@ const mocks = vi.hoisted(() => ({
     toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), {
     getAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGet: mocks.getAnnonce,
     saveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePut: mocks.saveAnnonce,
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: mocks.communes,

@@ -51,7 +51,7 @@ const mocks = vi.hoisted(() => ({
     codesSysteme: ["do_not_call"],
 }));
 
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), {
     getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
         Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [] } }),
     getNumerosApiV1OrganizationsEtablissementsNumerosGet: () => Promise.resolve({ data: [] }),

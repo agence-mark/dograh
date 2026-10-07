@@ -39,7 +39,7 @@ const sdk = vi.hoisted(() => ({
     importLexiqueApiV1OrganizationsLexiqueImportPost: vi.fn(),
     budgetLexiqueApiV1OrganizationsLexiqueBudgetPost: vi.fn(),
 }));
-vi.mock("@/client/sdk.gen", () => sdk);
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), sdk));
 
 vi.mock("@/context/UnsavedChangesContext", () => ({
     useUnsavedChanges: () => undefined,

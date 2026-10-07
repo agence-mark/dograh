@@ -28,7 +28,7 @@ const m = vi.hoisted(() => ({
     savePhrases: vi.fn(),
 }));
 
-vi.mock("@/client/sdk.gen", () => ({
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getEtablissementsApiV1OrganizationsEtablissementsGet: m.get,
     getNumerosApiV1OrganizationsEtablissementsNumerosGet: m.numeros,
     saveEtablissementsApiV1OrganizationsEtablissementsPut: m.save,
