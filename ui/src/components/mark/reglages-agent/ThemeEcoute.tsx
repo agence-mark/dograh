@@ -25,6 +25,11 @@ export const ID_THEME_ECOUTE = "ecoute";
 export const CLES_ECOUTE = [
     "conversion_nombres_transcription",
     "variables_reference",
+    "controle_donnees",
+    "variables_telephone",
+    "variables_code_postal",
+    "variables_courriel",
+    "variables_date",
     "verification_communes",
     "variables_commune",
     "sons_communes",
@@ -61,7 +66,10 @@ export const ThemeEcoute = ({
     const dicoModifie = dico !== dictionnaire;
     const modifie = reglagesModifies || dicoModifie;
 
-    const erreurs = erreursDuCatalogue(["variables_commune", "variables_reference"], brouillon);
+    const erreurs = erreursDuCatalogue(
+        ["variables_commune", "variables_reference", "variables_telephone", "variables_code_postal", "variables_courriel", "variables_date"],
+        brouillon,
+    );
 
     useEtatTheme(ID_THEME_ECOUTE, modifie, erreurs.length > 0);
 
@@ -114,6 +122,14 @@ export const ThemeEcoute = ({
             <Intertitre id="ecoute-nombres" titre={{ en: "Numbers and references", fr: "Nombres et références" }}>
                 {r("conversion_nombres_transcription")}
                 {r("variables_reference", Boolean(brouillon.conversion_nombres_transcription))}
+            </Intertitre>
+            {/* [.mark] Chantier l-agent-collegue, L7 (QD1): the names are read only when the check is on (E8). */}
+            <Intertitre id="ecoute-reconnaissance" titre={{ en: "Field recognition", fr: "Reconnaissance des champs" }}>
+                {r("controle_donnees")}
+                {r("variables_telephone", Boolean(brouillon.controle_donnees))}
+                {r("variables_code_postal", Boolean(brouillon.controle_donnees))}
+                {r("variables_courriel", Boolean(brouillon.controle_donnees))}
+                {r("variables_date", Boolean(brouillon.controle_donnees))}
             </Intertitre>
             <Intertitre id="ecoute-communes" titre={{ en: "Town and street", fr: "Commune et rue" }}>
                 {r("verification_communes")}

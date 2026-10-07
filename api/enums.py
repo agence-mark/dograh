@@ -228,6 +228,14 @@ class OrganizationConfigurationKey(Enum):
     # The organization that holds this key IS .mark's (one holder, enforced on save).
     # Format: api/schemas/apres_appel.py (ReglagesInstallation)
     INSTALLATION_MARK = "INSTALLATION_MARK"
+    # [.mark] The translators of the hub an organization uses, by domain (chantier
+    # l-agent-collegue, L4, H2): the calendar software of the planner. Same free-text key,
+    # no migration. Format: api/schemas/traducteurs.py
+    TRADUCTEURS = "TRADUCTEURS"
+    # [.mark] The caller's verification of an organization (chantier l-agent-collegue, L6, V2):
+    # factors, control fields, levels by kind of data, where records are read. Same free-text
+    # key, no migration. Format: api/schemas/verification.py
+    VERIFICATION_APPELANT = "VERIFICATION_APPELANT"
 
 
 class UserConfigurationKey(Enum):

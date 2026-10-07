@@ -114,6 +114,12 @@ export const CAS_AGENT: CasAgent[] = [
     // ---- Speech Tuning (.mark) --------------------------------------------
     c("nombres", "speech-tuning", "ecoute", ["conversion_nombres_transcription"], [inter("conversion_nombres_transcription")]),
     c("variables-reference", "speech-tuning", "ecoute", ["variables_reference"], [saisir("variables_reference", "reference*, facture")]),
+    // Chantier l-agent-collegue, L7 (QD1): « Field recognition », frozen once.
+    c("controle-donnees", "ajout-mark", "ecoute", ["controle_donnees"], [inter("controle_donnees")]),
+    c("variables-telephone", "ajout-mark", "ecoute", ["controle_donnees", "variables_telephone"], [inter("controle_donnees"), saisir("variables_telephone", "portable, telephone*")]),
+    c("variables-code-postal", "ajout-mark", "ecoute", ["controle_donnees", "variables_code_postal"], [inter("controle_donnees"), saisir("variables_code_postal", "cp")]),
+    c("variables-courriel", "ajout-mark", "ecoute", ["controle_donnees", "variables_courriel"], [inter("controle_donnees"), saisir("variables_courriel", "mail_contact")]),
+    c("variables-date", "ajout-mark", "ecoute", ["controle_donnees", "variables_date"], [inter("controle_donnees"), saisir("variables_date", "date*, jour_*")]),
     c("communes", "speech-tuning", "ecoute", ["verification_communes"], [inter("verification_communes")]),
     c("variables-commune", "speech-tuning", "ecoute", ["variables_commune"], [saisir("variables_commune", "ville, adresse*")]),
     c("sons-communes", "speech-tuning", "ecoute", ["sons_communes"], [inter("sons_communes")]),
@@ -168,6 +174,10 @@ export const CAS_AGENT: CasAgent[] = [
     ]),
     // Chantier l-agent-travaille, L4 (A6): the after-call of the agent, frozen once.
     c("apres-appel", "ajout-mark", "donnees", ["apres_appel"], [inter("apres_appel_actif")]),
+    // Chantier l-agent-collegue, L1 (C5): the team known to the agent, frozen once.
+    c("equipe-connue", "ajout-mark", "donnees", ["equipe_connue"], [inter("equipe_connue")]),
+    // Chantier l-agent-collegue, L6 (V7): the caller's verification, frozen once.
+    c("verification-appelant", "ajout-mark", "donnees", ["verification_appelant"], [inter("verification_appelant")]),
     // Chantier l-agent-travaille, L7: the outage fallback of the agent, frozen once.
     c("panne", "ajout-mark", "etablissement", ["panne"], [inter("panne_actif")]),
     // Plan mode-prise-de-notes, part 2: the clerk's dialog, frozen once.

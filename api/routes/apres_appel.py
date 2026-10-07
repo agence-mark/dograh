@@ -279,7 +279,25 @@ async def get_apres_appel_du_run(
     run = await _run_de_lorganisation(
         workflow_id, run_id, user.selected_organization_id
     )
-    return _vue(run, await db_client.lire_apres_appel(run_id))
+    return await _vue_complete(
+        run, await db_client.lire_apres_appel(run_id), user.selected_organization_id
+    )
+
+
+async def _vue_complete(run, bloc: dict, organization_id: int) -> ApresAppelDuRun:
+    """l-agent-collegue, L8: the section with its « Mentions » (the client's database of THIS
+    organization, read for this call only) and the actions for the team (the run's record)."""
+    from api.services.equipe.vue_du_run import actions_pour_lequipe, lire_mentions
+
+    vue = _vue(run, bloc)
+    if not vue.actif:
+        return vue
+    mentions, noms, illisible = await lire_mentions(organization_id, vue.appel_id)
+    vue.mentions = mentions
+    vue.mentions_illisibles = illisible
+    vue.actions_equipe = actions_pour_lequipe(run.gathered_context or {}, noms)
+    vue.qualite_fiche = bloc.get("qualite_fiche") if isinstance(bloc.get("qualite_fiche"), dict) else None
+    return vue
 
 
 @routeur_run.post(
@@ -304,7 +322,9 @@ async def post_relancer_etape(
             status_code=409, detail="Only a failed or skipped step can be retried"
         )
     await chaine.relancer(run_id, etape)
-    return _vue(run, await db_client.lire_apres_appel(run_id))
+    return await _vue_complete(
+        run, await db_client.lire_apres_appel(run_id), user.selected_organization_id
+    )
 
 
 # --------------------------------------------------------------------------- #

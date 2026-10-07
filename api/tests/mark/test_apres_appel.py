@@ -1109,7 +1109,11 @@ async def test_une_base_en_version_3_se_met_a_niveau_en_4(base_essai):  # noqa: 
             async with connexion.transaction():
                 await connexion.execute(sql_brut)
         assert await schema.version_de(connexion) == 3
-        assert await schema.appliquer_migrations(connexion) == [4, 5, 6, 7]
+        # Every migration after 3, whatever the chantiers added since (008 and after:
+        # l-agent-collegue): a list written by hand reddened at each new migration.
+        assert await schema.appliquer_migrations(connexion) == list(
+            range(4, schema.version_attendue() + 1)
+        )
         assert await connexion.fetchval(
             "SELECT to_regprocedure('mark.recevoir_appel(jsonb)') IS NOT NULL"
         )

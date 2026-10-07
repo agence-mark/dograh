@@ -74,6 +74,50 @@ export const PHRASES_DE_PANNE: Phrase[] = [
     },
 ];
 
+/** [.mark] l-agent-collegue (R-4, decision of Evan 07/10): the sentences the CODE says for the team
+ * and the actions, each a fiche of the catalogue with the default the server says when it is
+ * absent or empty (kept word for word: ``services/equipe/diriger.py``, ``services/planificateur/
+ * action.py``, ``services/verification/action.py``; a test compares them). The content is said to
+ * the caller in French; its description is written in the language of the screen. */
+export const PHRASES_DES_ACTIONS: Array<{ variable: string; description: Texte; contenu: string; niveau: Phrase["niveau"] }> = [
+    {
+        variable: "phrase_transfert_personne",
+        description: {
+            en: "Said before the call is put through to a person of the team ({{prenom}}: her first name).",
+            fr: "Dite avant que l'appel soit passé à une personne de l'équipe ({{prenom}} : son prénom).",
+        },
+        contenu: "Je vous mets en relation avec {{prenom}}, ne quittez pas.",
+        niveau: "organisation",
+    },
+    {
+        variable: "phrase_transmission_personne",
+        description: {
+            en: "Said when the request is passed on to a person, or when she does not take the transfer and will call back ({{prenom}}: her first name).",
+            fr: "Dite quand la demande est transmise à une personne, ou quand elle ne prend pas le transfert et rappellera ({{prenom}} : son prénom).",
+        },
+        contenu: "Je transmets votre demande à {{prenom}}, qui reviendra vers vous.",
+        niveau: "organisation",
+    },
+    {
+        variable: "phrase_planificateur_rappel",
+        description: {
+            en: "Said when the planner finds no slot: the request is noted for a call-back ({{souhait}}: the caller's wish).",
+            fr: "Dite quand le planificateur ne trouve aucun créneau : la demande est notée pour un rappel ({{souhait}} : le souhait de l'appelant).",
+        },
+        contenu: "Je n'ai pas de créneau qui convienne pour le moment : je note votre demande, on vous rappelle pour fixer le rendez-vous.",
+        niveau: "organisation",
+    },
+    {
+        variable: "phrase_verification_rappel",
+        description: {
+            en: "Said when the caller could not be verified after two attempts: nothing of his record is read, a colleague calls back.",
+            fr: "Dite quand l'appelant n'a pas pu être vérifié après deux tentatives : rien de son dossier n'est lu, un collègue rappelle.",
+        },
+        contenu: "Je ne peux pas vous donner ces informations sans vérifier votre identité : je note votre demande, un collègue vous rappelle.",
+        niveau: "organisation",
+    },
+];
+
 export function ModalePhrases({
     ouverte,
     onFermer,
@@ -240,6 +284,27 @@ export function ModalePhrases({
                             >
                                 <Plus className="mr-1 h-4 w-4" />
                                 {t({ en: "Add the outage sentences", fr: "Ajouter les phrases de panne" })}
+                            </Button>
+                        )}
+                        {PHRASES_DES_ACTIONS.some((d) => !liste.some((p) => p.variable === d.variable)) && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                data-testid="ajouter-phrases-actions"
+                                onClick={() =>
+                                    setListe((avant) => [
+                                        ...(avant ?? []),
+                                        ...PHRASES_DES_ACTIONS.filter((d) => !(avant ?? []).some((p) => p.variable === d.variable)).map((d) => ({
+                                            variable: d.variable,
+                                            description: t(d.description),
+                                            contenu: d.contenu,
+                                            niveau: d.niveau,
+                                        })),
+                                    ])
+                                }
+                            >
+                                <Plus className="mr-1 h-4 w-4" />
+                                {t({ en: "Add the sentences of the team and the actions", fr: "Ajouter les phrases de l'équipe et des actions" })}
                             </Button>
                         )}
                         {fautes.length > 0 && (

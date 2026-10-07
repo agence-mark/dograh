@@ -16,6 +16,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 from api.schemas.apres_appel import ApresAppelAgent
+from api.services.apres_appel.rappels import (
+    ORIGINE_EQUIPE,
+    ORIGINE_PLANIFICATEUR,
+    ORIGINE_VERIFICATION,
+    origine,
+    rappels_de,
+    resume_du_rappel,
+)
 
 CANAUX = {
     "smallwebrtc": "navigateur",
@@ -69,6 +77,17 @@ def _jetons(usage: dict) -> tuple[int | None, int | None, int | None]:
         sortie += int(valeur.get("completion_tokens") or 0)
         cache += int(valeur.get("cache_read_input_tokens") or 0)
     return entree, cache, sortie
+
+
+def _rappel_permis(origine_du_rappel: str, configurations: dict) -> bool:
+    from api.services.equipe import appel as equipe
+    from api.services.verification import reglages as verification
+
+    if origine_du_rappel == ORIGINE_EQUIPE:
+        return equipe.interrupteur_allume(configurations)
+    if origine_du_rappel == ORIGINE_VERIFICATION:
+        return verification.interrupteur_allume(configurations)
+    return True  # the planner: its tool is on the agent only when the agent was given it
 
 
 def construire_envoi(
@@ -184,7 +203,80 @@ def construire_envoi(
             "resume": "Appel interrompu par une panne de l'agent : à rappeler.",
             "nee_d_une_panne": True,
         }
+    # [.mark] l-agent-collegue, L2 (C8, C10): what the agent did for the team. A request
+    # passed on to a person exists even with nothing noted, and is assigned to her. Absent
+    # from the record (every agent of before): the envoi is exactly the one of before.
+    gestes = contexte.get("equipe_gestes")
+    gestes = [g for g in gestes if isinstance(g, dict)] if isinstance(gestes, list) else []
+    assignation = contexte.get("equipe_assignation")
+    assignation = assignation if isinstance(assignation, str) and assignation else None
+    if assignation:
+        demande = {
+            **(
+                demande
+                or {
+                    "type": type_demande or "autre",
+                    "sujet": (sujet or {}).get("code"),
+                    "priorite": 1 if (sujet or {}).get("urgent") else 2,
+                    "degre_urgence": valeur("degre_urgence"),
+                }
+            ),
+            "assignee": assignation,
+        }
+    envoi_equipe = {"equipe": {"gestes": gestes, "assignee": assignation}} if (gestes or assignation) else {}
+    # [.mark] l-agent-collegue, L4 (H6): the appointments booked during the call, written in the
+    # hub after it. A booked appointment always has its request (a rendez_vous belongs to one).
+    # Absent from the record (every agent of before): the envoi is exactly the one of before.
+    poses = contexte.get("hub_rendez_vous")
+    poses = [r for r in poses if isinstance(r, dict)] if isinstance(poses, list) else []
+    if poses and demande is None:
+        demande = {
+            "type": type_demande or "autre",
+            "sujet": (sujet or {}).get("code"),
+            "priorite": 1 if (sujet or {}).get("urgent") else 2,
+            "degre_urgence": valeur("degre_urgence"),
+        }
+    # [.mark] l-agent-collegue, L5 (P8), R-3, L6 (V6): a call-back decided during the call -- no
+    # appointment could be booked, the person did not take the transfer, the caller could not be
+    # verified. The request exists, its summary says what is to be done (never a lost caller).
+    # The planner's only when nothing was booked; the others always.
+    # X2: a call-back of the team or of the verification counts only when the agent's own switch
+    # is on; an agent that switched nothing on keeps the mail of before, character for character.
+    rappels = [
+        r for r in rappels_de(contexte)
+        if not (poses and origine(r) == ORIGINE_PLANIFICATEUR)
+        and _rappel_permis(origine(r), configurations)
+    ]
+    if rappels:
+        dernier = rappels[-1]
+        demande = dict(
+            demande
+            or {
+                "type": type_demande or "autre",
+                "sujet": (sujet or {}).get("code"),
+                "priorite": 1 if (sujet or {}).get("urgent") else 2,
+                "degre_urgence": valeur("degre_urgence"),
+            }
+        )
+        # Every call-back decided in the call says what is to be done (number, object, wish): a
+        # summary written by the extraction comes AFTER them, it never replaces them.
+        a_faire = list(dict.fromkeys(resume_du_rappel(r) for r in rappels))
+        demande["resume"] = " ".join([*a_faire, *([demande["resume"]] if demande.get("resume") else [])])
+        if origine(dernier) != ORIGINE_PLANIFICATEUR:
+            # R-3, V6: the mail's subject says it is a call-back to make.
+            demande["a_rappeler"] = True
+    envoi_hub = {"hub": {"rendez_vous": poses}} if poses else {}
+    # [.mark] l-agent-collegue, L6 (V6): each verification attempt, never an answer. Absent from
+    # the record (every agent of before): the envoi is exactly the one of before.
+    verifications = contexte.get("verification_appelant")
+    verifications = (
+        [v for v in verifications if isinstance(v, dict)] if isinstance(verifications, list) else []
+    )
+    if verifications:
+        envoi_hub = {**envoi_hub, "verifications": verifications}
     return {
+        **envoi_equipe,
+        **envoi_hub,
         "dograh_run_id": run.id,
         "dograh_workflow_id": run.workflow_id,
         "agent_nom": getattr(getattr(run, "workflow", None), "name", None),

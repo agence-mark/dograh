@@ -8,6 +8,10 @@
  * « Retry » on a failed or skipped step. Read from `GET /workflow/{id}/runs/{run}/apres-appel`;
  * refreshed while a step is waiting or running. Shown only when the run's agent uses the
  * after-call: an agent that switched nothing on shows nothing new (X2).
+ *
+ * Chantier l-agent-collegue, L8: the sub-part « Mentions » -- the people of the team this call
+ * concerns (person, source, certainty) and what the agent did for the team (transfers, requests
+ * passed on, call-backs, appointments, verifications); and the record's verdict (L7, Q-2).
  */
 import { ChevronDown } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -16,7 +20,7 @@ import {
     getApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGet,
     postRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPost,
 } from "@/client/sdk.gen";
-import type { ApresAppelDuRun, EtapeApresAppel } from "@/client/types.gen";
+import type { ActionEquipe, ApresAppelDuRun, EtapeApresAppel, MentionDuRun } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -44,6 +48,120 @@ const STATUTS: Record<EtapeApresAppel["statut"], Texte> = {
     echec: { en: "failed", fr: "en échec" },
     ignoree: { en: "skipped", fr: "sans objet" },
 };
+
+// Chantier l-agent-collegue, L8: the words of the sub-part « Mentions ».
+export const SOURCES_MENTION: Record<string, Texte> = {
+    transfert: { en: "transfer", fr: "transfert" },
+    transmission: { en: "request passed on", fr: "demande transmise" },
+    destinataire: { en: "mail recipient", fr: "destinataire du mail" },
+    rendez_vous: { en: "appointment", fr: "rendez-vous" },
+    nom_cite: { en: "name cited", fr: "nom cité" },
+};
+export const CERTITUDES: Record<string, Texte> = {
+    certaine: { en: "certain", fr: "certaine" },
+    detectee: { en: "detected", fr: "détectée" },
+    a_confirmer: { en: "to confirm", fr: "à confirmer" },
+};
+export const ACTIONS_EQUIPE: Record<string, Texte> = {
+    transfert: { en: "Transfer", fr: "Transfert" },
+    transmission: { en: "Request passed on", fr: "Demande transmise" },
+    rappel: { en: "Call-back to make", fr: "Rappel à faire" },
+    rendez_vous: { en: "Appointment booked", fr: "Rendez-vous posé" },
+    verification: { en: "Caller verification", fr: "Vérification de l'appelant" },
+    dossier_lu: { en: "Record read", fr: "Dossier lu" },
+};
+export const PROBLEMES_FICHE: Record<string, Texte> = {
+    telephone_invalide: { en: "invalid phone", fr: "téléphone invalide" },
+    code_postal_inconnu: { en: "unknown postcode", fr: "code postal inconnu" },
+    commune_code_postal_incoherents: { en: "town and postcode do not match", fr: "commune et code postal ne vont pas ensemble" },
+    courriel_invalide: { en: "invalid e-mail", fr: "e-mail invalide" },
+    courriel_domaine_douteux: { en: "doubtful e-mail domain", fr: "domaine de l'e-mail douteux" },
+    date_invalide: { en: "unreadable date", fr: "date illisible" },
+    date_improbable: { en: "improbable date", fr: "date improbable" },
+    champ_vide: { en: "empty field", fr: "champ vide" },
+};
+const STATUTS_FICHE: Record<string, Texte> = {
+    complete: { en: "complete", fr: "complète" },
+    a_reprendre: { en: "to take up again", fr: "à reprendre" },
+    non_controle: { en: "not checked", fr: "non contrôlée" },
+};
+
+const traduire = (table: Record<string, Texte>, cle: string, t: (x: Texte) => string) => (table[cle] ? t(table[cle]) : cle);
+
+function SousPartieMentions({ donnees }: { donnees: ApresAppelDuRun }) {
+    const { t } = useLangue();
+    const mentions: MentionDuRun[] = donnees.mentions ?? [];
+    const actions: ActionEquipe[] = donnees.actions_equipe ?? [];
+    if (!mentions.length && !actions.length && !donnees.mentions_illisibles) return null;
+    return (
+        <div className="space-y-2" data-testid="mentions-du-run">
+            <p className="font-medium">{t({ en: "Mentions", fr: "Mentions" })}</p>
+            {donnees.mentions_illisibles && (
+                <p className="text-destructive" role="alert">
+                    {t({ en: "The client's database could not be read for the mentions.", fr: "La base du client n'a pas pu être lue pour les mentions." })}
+                </p>
+            )}
+            {mentions.length > 0 && (
+                <ul className="space-y-1" data-testid="liste-mentions">
+                    {mentions.map((m, i) => (
+                        <li key={i} className="flex flex-wrap items-baseline gap-x-2 break-words" data-testid="mention" data-certitude={m.certitude}>
+                            <span className="font-medium">{m.personne}</span>
+                            <span className="text-muted-foreground">{traduire(SOURCES_MENTION, m.source, t)}</span>
+                            <span
+                                className={cn(
+                                    "rounded px-1.5 py-0.5 text-xs",
+                                    m.certitude === "certaine" ? "border border-(--signal-ok) text-(--signal-ok)" : "bg-muted text-muted-foreground",
+                                )}
+                            >
+                                {traduire(CERTITUDES, m.certitude, t)}
+                            </span>
+                            {m.extrait && <span className="min-w-0 text-xs text-muted-foreground">« {m.extrait} »</span>}
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {actions.length > 0 && (
+                <div data-testid="actions-equipe">
+                    <p className="text-xs font-medium text-muted-foreground">{t({ en: "What the agent did for the team", fr: "Ce que l'agent a fait pour l'équipe" })}</p>
+                    <ul className="space-y-1">
+                        {actions.map((a, i) => (
+                            <li key={i} className="break-words" data-testid="action-equipe" data-type={a.type}>
+                                <span className="font-medium">{traduire(ACTIONS_EQUIPE, a.type, t)}</span>
+                                {a.personne ? ` · ${a.personne}` : ""}
+                                {a.detail ? <span className="text-muted-foreground"> · {a.detail}</span> : null}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function VerdictFiche({ donnees }: { donnees: ApresAppelDuRun }) {
+    const { t } = useLangue();
+    const q = donnees.qualite_fiche as { statut?: string; problemes?: Array<{ champ: string; code: string; detail?: string | null }> } | null | undefined;
+    if (!q?.statut) return null;
+    return (
+        <div data-testid="qualite-fiche" data-statut={q.statut}>
+            <p className="font-medium">
+                {t({ en: "Record", fr: "Fiche" })} :{" "}
+                <span className={cn(q.statut === "a_reprendre" && "text-destructive")}>{traduire(STATUTS_FICHE, q.statut, t)}</span>
+            </p>
+            {(q.problemes ?? []).length > 0 && (
+                <ul className="text-muted-foreground">
+                    {(q.problemes ?? []).map((p, i) => (
+                        <li key={i} className="break-words">
+                            {p.champ} : {traduire(PROBLEMES_FICHE, p.code, t)}
+                            {p.detail ? ` (${p.detail})` : ""}
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <p className="text-xs text-muted-foreground">{t({ en: "Signalled, never corrected: the record stays as noted.", fr: "Signalé, jamais corrigé : la fiche reste telle que notée." })}</p>
+        </div>
+    );
+}
 
 const INTERVALLE_MS = 3000;
 const RELECTURES_MAX = 60;
@@ -191,6 +309,8 @@ export function SectionApresAppel({ workflowId, runId }: { workflowId: number; r
                                 </li>
                             ))}
                         </ul>
+                        <VerdictFiche donnees={donnees} />
+                        <SousPartieMentions donnees={donnees} />
                         {donnees.synthese && (
                             <div data-testid="synthese-du-run">
                                 <p className="font-medium">{t({ en: "Summary", fr: "Synthèse" })}</p>

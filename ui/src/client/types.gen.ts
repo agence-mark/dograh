@@ -227,6 +227,32 @@ export type AwsNovaSonicRealtimeLlmConfiguration = {
 };
 
 /**
+ * ActionEquipe
+ *
+ * l-agent-collegue, L8: what the agent did for the team during the call, read in the record.
+ */
+export type ActionEquipe = {
+    /**
+     * Type
+     *
+     * transfert, transmission, rappel, rendez_vous, verification, dossier_lu
+     */
+    type: string;
+    /**
+     * Personne
+     */
+    personne?: string | null;
+    /**
+     * Detail
+     */
+    detail?: string | null;
+    /**
+     * Le
+     */
+    le?: string | null;
+};
+
+/**
  * ActionVue
  */
 export type ActionVue = {
@@ -545,6 +571,28 @@ export type ApresAppelDuRun = {
      * Autre Demande Ouverte Id
      */
     autre_demande_ouverte_id?: number | null;
+    /**
+     * Mentions
+     */
+    mentions?: Array<MentionDuRun>;
+    /**
+     * Mentions Illisibles
+     *
+     * The client's database could not be read for the mentions.
+     */
+    mentions_illisibles?: boolean;
+    /**
+     * Actions Equipe
+     */
+    actions_equipe?: Array<ActionEquipe>;
+    /**
+     * Qualite Fiche
+     *
+     * The record's verdict: statut (complete, a_reprendre, non_controle) and problemes.
+     */
+    qualite_fiche?: {
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
@@ -1690,6 +1738,18 @@ export type ChampFiche = {
 };
 
 /**
+ * ChoixTraducteurs
+ */
+export type ChoixTraducteurs = {
+    /**
+     * Agenda
+     *
+     * The calendar software the agent books in (a translator's name). None: none.
+     */
+    agenda?: string | null;
+};
+
+/**
  * ChunkResponseSchema
  *
  * Response schema for a document chunk.
@@ -1951,6 +2011,14 @@ export type ConnecteurVue = {
      * Actions
      */
     actions: Array<ActionVue>;
+    /**
+     * Interne
+     */
+    interne?: boolean;
+    /**
+     * Gestionnaire Propre
+     */
+    gestionnaire_propre?: boolean;
 };
 
 /**
@@ -5128,6 +5196,20 @@ export type LmntTtsConfiguration = {
 };
 
 /**
+ * LogicielDossier
+ */
+export type LogicielDossier = {
+    /**
+     * Systeme
+     */
+    systeme: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+};
+
+/**
  * LoginRequest
  */
 export type LoginRequest = {
@@ -5393,6 +5475,36 @@ export type McpToolDefinition = {
 };
 
 /**
+ * MentionDuRun
+ *
+ * l-agent-collegue, L8: a person of the team concerned by this call (``mark.mention``).
+ */
+export type MentionDuRun = {
+    /**
+     * Personne
+     *
+     * First and last name, as the client wrote them (else the key).
+     */
+    personne: string;
+    /**
+     * Source
+     *
+     * transfert, transmission, destinataire, rendez_vous, nom_cite
+     */
+    source: string;
+    /**
+     * Certitude
+     *
+     * certaine, detectee, a_confirmer
+     */
+    certitude: string;
+    /**
+     * Extrait
+     */
+    extrait?: string | null;
+};
+
+/**
  * MiniMaxLLMConfiguration
  */
 export type MiniMaxLlmConfiguration = {
@@ -5634,6 +5746,24 @@ export type MoveWorkflowToFolderRequest = {
      * Folder Id
      */
     folder_id?: number | null;
+};
+
+/**
+ * NiveauLecture
+ */
+export type NiveauLecture = {
+    /**
+     * Facteurs Requis
+     *
+     * How many distinct factors must have passed.
+     */
+    facteurs_requis?: number;
+    /**
+     * Champs
+     *
+     * The fields the agent may read.
+     */
+    champs?: Array<string>;
 };
 
 /**
@@ -6277,6 +6407,14 @@ export type ParametreVue = {
      * Obligatoire
      */
     obligatoire: boolean;
+    /**
+     * Choix
+     */
+    choix?: Array<string>;
+    /**
+     * Liste Du Contexte
+     */
+    liste_du_contexte?: string | null;
 };
 
 /**
@@ -6323,6 +6461,38 @@ export type Personne = {
      * Actif
      */
     actif?: boolean;
+    /**
+     * Description
+     *
+     * What this person takes care of, in plain words (the agent reads it).
+     */
+    description?: string | null;
+    /**
+     * Divulguer Telephone
+     *
+     * The agent may give this person's phone number to a caller.
+     */
+    divulguer_telephone?: boolean;
+    /**
+     * Divulguer Mail
+     *
+     * The agent may give this person's e-mail address to a caller.
+     */
+    divulguer_mail?: boolean;
+    /**
+     * Joignable Par Transfert
+     *
+     * The agent may transfer a call to this person (a phone number is needed).
+     */
+    joignable_par_transfert?: boolean;
+    /**
+     * Agendas
+     *
+     * Her agenda in each calendar software: translator -> agenda identifier.
+     */
+    agendas?: {
+        [key: string]: string;
+    } | null;
 };
 
 /**
@@ -6521,6 +6691,31 @@ export type Phrase = {
      * organisation: the same for every establishment. etablissement: each establishment may have its own.
      */
     niveau?: 'organisation' | 'etablissement';
+};
+
+/**
+ * Planificateur
+ *
+ * What the theme « Appointments » shows and saves.
+ */
+export type Planificateur = {
+    reglages?: ReglagesPlanificateur;
+    /**
+     * Par Etablissement
+     *
+     * Establishment id -> what it overrides.
+     */
+    par_etablissement?: {
+        [key: string]: ReglagesPlanificateur;
+    };
+    /**
+     * Types
+     */
+    types?: Array<TypeRendezVous>;
+    /**
+     * The common defaults (read only, shown as placeholders).
+     */
+    defauts?: ReglagesPlanificateur;
 };
 
 /**
@@ -7283,6 +7478,76 @@ export type ReglagesPanne = {
 };
 
 /**
+ * ReglagesPlanificateur
+ */
+export type ReglagesPlanificateur = {
+    /**
+     * Nombre Creneaux
+     */
+    nombre_creneaux?: number | null;
+    /**
+     * Delai Minimal H
+     */
+    delai_minimal_h?: number | null;
+    /**
+     * Horizon Jours
+     */
+    horizon_jours?: number | null;
+    /**
+     * Pas Min
+     */
+    pas_min?: number | null;
+    /**
+     * Plages
+     *
+     * Booking ranges in the readable hours format; None: the establishment's hours.
+     */
+    plages?: string | null;
+    /**
+     * Zone Rayon Km
+     */
+    zone_rayon_km?: number | null;
+    /**
+     * Zone Communes
+     */
+    zone_communes?: Array<string> | null;
+    /**
+     * Trajets Comptes
+     */
+    trajets_comptes?: boolean | null;
+    /**
+     * Coefficient Trajet
+     */
+    coefficient_trajet?: number | null;
+    /**
+     * Vitesse Kmh
+     */
+    vitesse_kmh?: number | null;
+    /**
+     * Repartition
+     */
+    repartition?: 'premier_libre' | 'tour_de_role' | 'charge' | 'zone' | null;
+    /**
+     * Repli
+     */
+    repli?: 'humain_puis_rappel' | 'toujours_rappel' | null;
+    /**
+     * Personne Visible
+     */
+    personne_visible?: boolean | null;
+    /**
+     * Jours Feries
+     */
+    jours_feries?: 'metropole' | 'alsace_moselle' | null;
+    /**
+     * Fenetre Equite Jours
+     *
+     * Days over which « tour_de_role » counts the appointments given (R-7, migration 013).
+     */
+    fenetre_equite_jours?: number | null;
+};
+
+/**
  * ReglagesRecapitulatif
  */
 export type ReglagesRecapitulatif = {
@@ -7370,6 +7635,46 @@ export type ReglagesSynthese = {
      * The summary's instructions. Empty: the generic instructions written in the code.
      */
     consigne?: string | null;
+};
+
+/**
+ * ReglagesVerification
+ */
+export type ReglagesVerification = {
+    /**
+     * Numero
+     *
+     * The number calling matches the record.
+     */
+    numero?: boolean;
+    /**
+     * Question
+     *
+     * A control question on the fields chosen.
+     */
+    question?: boolean;
+    /**
+     * Code Sms
+     *
+     * A one-time code sent by SMS to the record's mobile, through the client's Twilio.
+     */
+    code_sms?: boolean;
+    /**
+     * Champs Controle
+     */
+    champs_controle?: Array<string>;
+    /**
+     * Lisibles
+     */
+    lisibles?: {
+        [key: string]: NiveauLecture;
+    };
+    /**
+     * Logiciel
+     *
+     * A translator of the domain « dossier » that holds the records. None: the client database.
+     */
+    logiciel?: string | null;
 };
 
 /**
@@ -9222,6 +9527,44 @@ export type ToolTestResponse = {
 };
 
 /**
+ * TraducteurVue
+ */
+export type TraducteurVue = {
+    /**
+     * Systeme
+     */
+    systeme: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Domaine
+     */
+    domaine: string;
+    /**
+     * Integration
+     */
+    integration: string;
+    /**
+     * Reference Agenda
+     *
+     * What identifies a person's agenda, {en, fr}.
+     */
+    reference_agenda?: {
+        [key: string]: string;
+    };
+    /**
+     * Operations
+     *
+     * Object of the hub -> operations this translator does.
+     */
+    operations?: {
+        [key: string]: Array<string>;
+    };
+};
+
+/**
  * TrafficDefinitionStats
  */
 export type TrafficDefinitionStats = {
@@ -9705,6 +10048,50 @@ export type TwilioConfigurationRequest = {
      * Twilio Auth Token
      */
     auth_token: string;
+};
+
+/**
+ * TypeRendezVous
+ */
+export type TypeRendezVous = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Etablissement
+     *
+     * Establishment it applies to; None: the whole organization.
+     */
+    etablissement?: string | null;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Duree Min
+     *
+     * Length of the appointment, in minutes.
+     */
+    duree_min: number;
+    /**
+     * Sujet
+     *
+     * Code of the subject whose people do it (« Team and routing »); None: the whole team.
+     */
+    sujet?: string | null;
+    /**
+     * Marge Avant Min
+     */
+    marge_avant_min?: number;
+    /**
+     * Marge Apres Min
+     */
+    marge_apres_min?: number;
+    /**
+     * Actif
+     */
+    actif?: boolean;
 };
 
 /**
@@ -10609,6 +10996,36 @@ export type WorkflowConfigurationDefaults = {
      */
     variables_reference?: string;
     /**
+     * Controle Donnees
+     *
+     * Checks the data: during the call, a phone number dictated with 9 or 11 digits is signalled to the model at a step that collects a phone; at the end of the call the record is checked (phone, postcode and town, e-mail, date, empty fields of the steps the call went through) and the verdict written with the call. Never changes a value. Off: as before.
+     */
+    controle_donnees?: boolean;
+    /**
+     * Variables Telephone
+     *
+     * Phone fields, same format as the town variables. Empty: the default.
+     */
+    variables_telephone?: string;
+    /**
+     * Variables Code Postal
+     *
+     * Postcode fields, same format. Empty: the default.
+     */
+    variables_code_postal?: string;
+    /**
+     * Variables Courriel
+     *
+     * E-mail fields, same format. Empty: the default.
+     */
+    variables_courriel?: string;
+    /**
+     * Variables Date
+     *
+     * Date fields, same format. Empty: the default.
+     */
+    variables_date?: string;
+    /**
      * Horaires Ouverture
      *
      * Opening hours in the readable French format. Computes etat_ouverture, reouverture, horaires_ouverture and annonce_ouverture at call start. The last one is the sentence to say when picking up, empty when the business is reachable; use it in the start node greeting as {{initial_context.annonce_ouverture}}. Empty: nothing is computed.
@@ -10780,6 +11197,18 @@ export type WorkflowConfigurationDefaults = {
     panne?: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Equipe Connue
+     *
+     * Gives the agent the team of the establishment called, as {{equipe}}: first name, last name, role and what each person takes care of; a phone number or an e-mail only where the client allowed it. Also gives the summary the names to spell. Off: the agent knows no one, exactly as before.
+     */
+    equipe_connue?: boolean;
+    /**
+     * Verification Appelant
+     *
+     * Lets the actions « verify the caller » and « read the record » run for this agent, with the factors and levels of the organization (theme « Caller verification »). Off: they answer that verification is unavailable and nothing of a record is read.
+     */
+    verification_appelant?: boolean;
     /**
      * Call Dispositions
      *
@@ -15441,6 +15870,203 @@ export type PutEquipeApiV1OrganizationsEquipePutResponses = {
 };
 
 export type PutEquipeApiV1OrganizationsEquipePutResponse = PutEquipeApiV1OrganizationsEquipePutResponses[keyof PutEquipeApiV1OrganizationsEquipePutResponses];
+
+export type GetPlanificateurApiV1OrganizationsPlanificateurGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/planificateur';
+};
+
+export type GetPlanificateurApiV1OrganizationsPlanificateurGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPlanificateurApiV1OrganizationsPlanificateurGetError = GetPlanificateurApiV1OrganizationsPlanificateurGetErrors[keyof GetPlanificateurApiV1OrganizationsPlanificateurGetErrors];
+
+export type GetPlanificateurApiV1OrganizationsPlanificateurGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Planificateur;
+};
+
+export type GetPlanificateurApiV1OrganizationsPlanificateurGetResponse = GetPlanificateurApiV1OrganizationsPlanificateurGetResponses[keyof GetPlanificateurApiV1OrganizationsPlanificateurGetResponses];
+
+export type PutPlanificateurApiV1OrganizationsPlanificateurPutData = {
+    body: Planificateur;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/planificateur';
+};
+
+export type PutPlanificateurApiV1OrganizationsPlanificateurPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutPlanificateurApiV1OrganizationsPlanificateurPutError = PutPlanificateurApiV1OrganizationsPlanificateurPutErrors[keyof PutPlanificateurApiV1OrganizationsPlanificateurPutErrors];
+
+export type PutPlanificateurApiV1OrganizationsPlanificateurPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: Planificateur;
+};
+
+export type PutPlanificateurApiV1OrganizationsPlanificateurPutResponse = PutPlanificateurApiV1OrganizationsPlanificateurPutResponses[keyof PutPlanificateurApiV1OrganizationsPlanificateurPutResponses];
+
+export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/verification-appelant';
+};
+
+export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetError = GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetErrors[keyof GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetErrors];
+
+export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesVerification;
+};
+
+export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetResponse = GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetResponses[keyof GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetResponses];
+
+export type PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutData = {
+    body: ReglagesVerification;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/verification-appelant';
+};
+
+export type PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutError = PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutErrors[keyof PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutErrors];
+
+export type PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesVerification;
+};
+
+export type PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutResponse = PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutResponses[keyof PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutResponses];
+
+export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/verification-appelant/logiciels';
+};
+
+export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetError = GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetErrors[keyof GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetErrors];
+
+export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses = {
+    /**
+     * Response Get Logiciels Dossier Api V1 Organizations Verification Appelant Logiciels Get
+     *
+     * Successful Response
+     */
+    200: Array<LogicielDossier>;
+};
+
+export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponse = GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses[keyof GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;
@@ -21847,6 +22473,125 @@ export type PostLienApiV1ConnecteursLienPostResponses = {
 };
 
 export type PostLienApiV1ConnecteursLienPostResponse = PostLienApiV1ConnecteursLienPostResponses[keyof PostLienApiV1ConnecteursLienPostResponses];
+
+export type GetTraducteursApiV1ConnecteursTraducteursGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/traducteurs';
+};
+
+export type GetTraducteursApiV1ConnecteursTraducteursGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTraducteursApiV1ConnecteursTraducteursGetError = GetTraducteursApiV1ConnecteursTraducteursGetErrors[keyof GetTraducteursApiV1ConnecteursTraducteursGetErrors];
+
+export type GetTraducteursApiV1ConnecteursTraducteursGetResponses = {
+    /**
+     * Response Get Traducteurs Api V1 Connecteurs Traducteurs Get
+     *
+     * Successful Response
+     */
+    200: Array<TraducteurVue>;
+};
+
+export type GetTraducteursApiV1ConnecteursTraducteursGetResponse = GetTraducteursApiV1ConnecteursTraducteursGetResponses[keyof GetTraducteursApiV1ConnecteursTraducteursGetResponses];
+
+export type GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/traducteurs/choix';
+};
+
+export type GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetError = GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetErrors[keyof GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetErrors];
+
+export type GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ChoixTraducteurs;
+};
+
+export type GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetResponse = GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetResponses[keyof GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetResponses];
+
+export type PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutData = {
+    body: ChoixTraducteurs;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/traducteurs/choix';
+};
+
+export type PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutError = PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutErrors[keyof PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutErrors];
+
+export type PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ChoixTraducteurs;
+};
+
+export type PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutResponse = PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutResponses[keyof PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutResponses];
 
 export type HealthApiV1HealthGetData = {
     body?: never;

@@ -154,7 +154,12 @@ async def base_essai(monkeypatch):
         connexion = await asyncpg.connect(f"{_serveur()}/postgres", timeout=5)
         try:
             await connexion.execute(f'DROP DATABASE IF EXISTS "{nom}" WITH (FORCE)')
-            for suffixe in ("direction", "interface", "ecriture"):
+            # l-agent-collegue (009): the employees' roles and their group, then the base's.
+            for role in await connexion.fetch(
+                "SELECT rolname FROM pg_roles WHERE rolname LIKE $1", rf"{nom}\_p\_%"
+            ):
+                await connexion.execute(f'DROP ROLE IF EXISTS "{role["rolname"]}"')
+            for suffixe in ("salarie", "direction", "interface", "ecriture"):
                 await connexion.execute(f'DROP ROLE IF EXISTS "{nom}_{suffixe}"')
         finally:
             await connexion.close()
@@ -272,6 +277,8 @@ async def test_creer_puis_mettre_a_niveau_napplique_rien_deux_fois(base_essai):
             f"{base_essai}_ecriture",
             f"{base_essai}_interface",
             f"{base_essai}_direction",
+            # 009 (l-agent-collegue): the group of the employees' logins.
+            f"{base_essai}_salarie",
         }
     finally:
         await connexion.close()

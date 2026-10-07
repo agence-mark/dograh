@@ -13,11 +13,13 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
+    getChoixTraducteursApiV1ConnecteursTraducteursChoixGet,
     getEquipeApiV1OrganizationsEquipeGet,
     getEtablissementsApiV1OrganizationsEtablissementsGet,
+    getTraducteursApiV1ConnecteursTraducteursGet,
     putEquipeApiV1OrganizationsEquipePut,
 } from "@/client/sdk.gen";
-import type { Equipe, Etablissement, Personne, Sujet } from "@/client/types.gen";
+import type { Equipe, Etablissement, Personne, Sujet, TraducteurVue } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -28,6 +30,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { detailFromError } from "@/lib/apiError";
 
 import { ChampReglage } from "../ecran/ChampReglage";
@@ -40,6 +43,8 @@ import type { ProprietesThemeOrganisation } from "./ThemesOrganisation";
 export const TITRE_EQUIPE: Texte = { en: "Team and routing", fr: "Équipe et routage" };
 
 const VIDE: Equipe = { personnes: [], sujets: [] };
+/** C1: the same bound as the server (``Personne.description``, 300). */
+export const DESCRIPTION_MAX = 300;
 
 export const charge_utile_equipe = (equipe: Equipe): Equipe => ({
     personnes: (equipe.personnes ?? []).map((p) => ({
@@ -50,6 +55,16 @@ export const charge_utile_equipe = (equipe: Equipe): Equipe => ({
         mail: p.mail?.trim() || null,
         telephone: p.telephone?.trim() || null,
         etablissement: p.etablissement || null,
+        // l-agent-collegue, L1 (C1): what the agent knows of the person.
+        description: p.description?.trim() || null,
+        divulguer_telephone: p.divulguer_telephone ?? false,
+        divulguer_mail: p.divulguer_mail ?? false,
+        joignable_par_transfert: p.joignable_par_transfert ?? false,
+        // l-agent-collegue, L4 (H7): her agenda in each calendar software; null = left as it is.
+        agendas:
+            p.agendas == null
+                ? null
+                : Object.fromEntries(Object.entries(p.agendas).map(([s, a]) => [s, (a ?? "").trim()]).filter(([, a]) => a)),
     })),
     sujets: (equipe.sujets ?? []).map((s) => ({
         ...s,
@@ -64,17 +79,22 @@ function ModaleEquipe({ ouverte, onFermer }: { ouverte: boolean; onFermer: (enre
     const [etablissements, setEtablissements] = useState<Etablissement[]>([]);
     const [erreur, setErreur] = useState<string | null>(null);
     const [enCours, setEnCours] = useState(false);
+    // l-agent-collegue, L4 (H7): the calendar software chosen in « Integrations », if any.
+    const [agenda, setAgenda] = useState<TraducteurVue | null>(null);
 
     useEffect(() => {
         if (!ouverte) return;
         setEquipe(null);
         setErreur(null);
         void (async () => {
-            const [reponse, sites] = await Promise.all([
+            const [reponse, sites, choix, traducteurs] = await Promise.all([
                 getEquipeApiV1OrganizationsEquipeGet(),
                 getEtablissementsApiV1OrganizationsEtablissementsGet(),
+                getChoixTraducteursApiV1ConnecteursTraducteursChoixGet(),
+                getTraducteursApiV1ConnecteursTraducteursGet(),
             ]);
             setEtablissements(sites.data?.etablissements ?? []);
+            setAgenda((traducteurs?.data ?? []).find((x) => x.systeme === choix?.data?.agenda) ?? null);
             if (reponse.error || !reponse.data) {
                 setErreur(detailFromError(reponse.error, "Team unreadable"));
                 return;
@@ -93,6 +113,13 @@ function ModaleEquipe({ ouverte, onFermer }: { ouverte: boolean; onFermer: (enre
     const fautes: string[] = [];
     personnes.forEach((p) => {
         if (!p.prenom.trim()) fautes.push(t({ en: "A person has no first name.", fr: "Une personne n'a pas de prénom." }));
+        if ((p.description ?? "").trim().length > DESCRIPTION_MAX)
+            fautes.push(
+                t({
+                    en: `${p.prenom || p.cle}: the description is longer than ${DESCRIPTION_MAX} characters.`,
+                    fr: `${p.prenom || p.cle} : la description dépasse ${DESCRIPTION_MAX} caractères.`,
+                }),
+            );
     });
     sujets.forEach((s) => {
         if (!s.libelle.trim()) fautes.push(t({ en: "A subject has no name.", fr: "Un sujet n'a pas de nom." }));
@@ -119,8 +146,8 @@ function ModaleEquipe({ ouverte, onFermer }: { ouverte: boolean; onFermer: (enre
                     <DialogTitle>{t(TITRE_EQUIPE)}</DialogTitle>
                     <DialogDescription>
                         {t({
-                            en: "Who works where, and who receives each subject, in order. Someone removed is deactivated, never deleted: past requests keep their name.",
-                            fr: "Qui travaille où, et qui reçoit chaque sujet, dans l'ordre. Une personne retirée est désactivée, jamais supprimée : les demandes passées gardent son nom.",
+                            en: "Who works where, and who receives each subject, in order. Someone removed is deactivated, never deleted: past requests keep their name. What a person takes care of, and what the agent may do or say about them, is read by agents whose « Team known to the agent » is on.",
+                            fr: "Qui travaille où, et qui reçoit chaque sujet, dans l'ordre. Une personne retirée est désactivée, jamais supprimée : les demandes passées gardent son nom. Ce dont une personne s'occupe, et ce que l'agent peut faire ou dire d'elle, est lu par les agents dont « Équipe connue de l'agent » est allumé.",
                         })}
                     </DialogDescription>
                 </DialogHeader>
@@ -163,6 +190,79 @@ function ModaleEquipe({ ouverte, onFermer }: { ouverte: boolean; onFermer: (enre
                                         <input type="checkbox" checked={p.actif ?? true} onChange={(e) => modifierPersonne(i, { actif: e.target.checked })} />
                                         {t({ en: "Active", fr: "Active" })}
                                     </label>
+                                    {/* l-agent-collegue, L1 (C1): what the agent knows and may say of this person. */}
+                                    <div className="space-y-1 sm:col-span-3">
+                                        <Textarea
+                                            aria-label={t({ en: "What this person takes care of", fr: "Ce dont cette personne s'occupe" })}
+                                            placeholder={t({
+                                                en: "What this person takes care of, in plain words (the agent reads it)",
+                                                fr: "Ce dont cette personne s'occupe, en clair (l'agent le lit)",
+                                            })}
+                                            rows={2}
+                                            maxLength={DESCRIPTION_MAX}
+                                            value={p.description ?? ""}
+                                            onChange={(e) => modifierPersonne(i, { description: e.target.value })}
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            {(p.description ?? "").length} / {DESCRIPTION_MAX}
+                                        </p>
+                                    </div>
+                                    <label className="flex items-center gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            checked={p.joignable_par_transfert ?? false}
+                                            onChange={(e) => modifierPersonne(i, { joignable_par_transfert: e.target.checked })}
+                                        />
+                                        {t({ en: "The agent may transfer calls to this person", fr: "L'agent peut lui transférer un appel" })}
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            checked={p.divulguer_telephone ?? false}
+                                            onChange={(e) => modifierPersonne(i, { divulguer_telephone: e.target.checked })}
+                                        />
+                                        {t({ en: "The agent may give the phone number", fr: "L'agent peut donner son téléphone" })}
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            checked={p.divulguer_mail ?? false}
+                                            onChange={(e) => modifierPersonne(i, { divulguer_mail: e.target.checked })}
+                                        />
+                                        {t({ en: "The agent may give the e-mail address", fr: "L'agent peut donner son e-mail" })}
+                                    </label>
+                                    {/* l-agent-collegue, L4 (H7): her agenda in the calendar software chosen in
+                                        « Integrations ». Shown only when one is chosen (E8): otherwise it plays no role. */}
+                                    {agenda && (
+                                        <div className="space-y-1 sm:col-span-3" data-reglage="agendas">
+                                            <Input
+                                                aria-label={t({ en: `Agenda in ${agenda.libelle}`, fr: `Agenda dans ${agenda.libelle}` })}
+                                                placeholder={t({ en: `Agenda in ${agenda.libelle}`, fr: `Agenda dans ${agenda.libelle}` })}
+                                                data-testid={`agenda-${p.cle}`}
+                                                value={p.agendas?.[agenda.systeme] ?? ""}
+                                                onChange={(e) =>
+                                                    modifierPersonne(i, { agendas: { ...(p.agendas ?? {}), [agenda.systeme]: e.target.value } })
+                                                }
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                {t({ en: agenda.reference_agenda?.en ?? "", fr: agenda.reference_agenda?.fr ?? "" })}
+                                                {". "}
+                                                {t({
+                                                    en: "Empty: the planner never books with this person.",
+                                                    fr: "Vide : le planificateur ne pose jamais de rendez-vous avec cette personne.",
+                                                })}{" "}
+                                                <code data-cle-technique className="text-[11px]">agendas.{agenda.systeme}</code>
+                                            </p>
+                                        </div>
+                                    )}
+                                    {p.joignable_par_transfert && !(p.telephone ?? "").trim() && (
+                                        <p className="text-xs text-muted-foreground sm:col-span-3" role="note" data-testid="transfert-sans-telephone">
+                                            {t({
+                                                en: "No phone number: the agent will pass the request on instead of transferring.",
+                                                fr: "Pas de téléphone : l'agent transmettra la demande au lieu de transférer.",
+                                            })}
+                                        </p>
+                                    )}
                                 </div>
                             ))}
                             <Button

@@ -20,7 +20,13 @@ The wording is fixed by the plan (nombres-dictes, 2026-09-16), word for word:
 
 from __future__ import annotations
 
-from api.services.nombres.lecture import MONTANT, REFERENCE, NombreLu
+from api.services.nombres.lecture import (
+    MONTANT,
+    REFERENCE,
+    TELEPHONE_INCOMPLET,
+    NombreLu,
+    chiffres_du_telephone,
+)
 
 MARQUE = "[Lecture des nombres"
 
@@ -35,6 +41,13 @@ def phrase_de_mention(nombre: NombreLu) -> str | None:
         return (
             f"{MARQUE} : « {nombre.entendu} » peut être {_euros(courant)} € ou "
             f"{_euros(arithmetique)} €. Si tu notes ce montant, note les deux.]"
+        )
+    if nombre.type == TELEPHONE_INCOMPLET:
+        # [.mark] l-agent-collegue, L7 (qualite-des-donnees, lot 2): the wording of the plan.
+        n = chiffres_du_telephone(nombre)
+        return (
+            f"{MARQUE} : le numéro entendu « {nombre.entendu} » a {n} chiffres au lieu de 10. "
+            "Fais-le répéter avant de le noter.]"
         )
     if nombre.type == REFERENCE:
         return (

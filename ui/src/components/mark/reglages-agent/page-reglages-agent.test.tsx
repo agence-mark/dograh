@@ -108,7 +108,7 @@ describe("[.mark] the agent page in themes", () => {
     it("draws every setting the inventory puts on screen, in its theme", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
         for (const [cle, entree] of Object.entries(INVENTAIRE_AGENT)) {
-            if ("horsEcran" in entree || "via" in entree || SEULEMENT_DANS_UN_MODE.includes(cle)) continue;
+            if ("horsEcran" in entree || "via" in entree || SEULEMENT_DANS_UN_MODE.includes(cle) || SEULEMENT_AVEC_CONTROLE.includes(cle)) continue;
             const theme = ouvrirLeTheme(entree.theme);
             await waitFor(() => {
                 const trouve =
@@ -127,6 +127,21 @@ describe("[.mark] the agent page in themes", () => {
     // Plan porte-parlee: « Transitions in the reply » only in Postscript (tested below).
     const SEULEMENT_EN_GREFFIER = ["greffier_llm", "greffier_consigne"];
     const SEULEMENT_DANS_UN_MODE = [...SEULEMENT_EN_GREFFIER, "portes_dans_la_reponse"];
+    // Chantier l-agent-collegue, L7: the names of « Field recognition » are read only when « Check
+    // the data » is on, and drawn only then (E8, the same rule as the code).
+    const SEULEMENT_AVEC_CONTROLE = ["variables_telephone", "variables_code_postal", "variables_courriel", "variables_date"];
+    it("draws the fields recognised by their name only with « Check the data » on", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        let theme = ouvrirLeTheme("ecoute");
+        await waitFor(() => expect(theme.querySelector('[data-reglage="controle_donnees"]')).not.toBeNull());
+        for (const cle of SEULEMENT_AVEC_CONTROLE) expect(theme.querySelector(`[data-reglage="${cle}"]`), cle).toBeNull();
+        cleanup();
+        await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), controle_donnees: true }, NOVA);
+        theme = ouvrirLeTheme("ecoute");
+        for (const cle of SEULEMENT_AVEC_CONTROLE) {
+            await waitFor(() => expect(theme.querySelector(`[data-reglage="${cle}"]`), cle).not.toBeNull());
+        }
+    });
     it("draws the clerk's settings in the clerk mode only", async () => {
         await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), fiche_mode_de_note: "greffier" }, NOVA);
         const theme = ouvrirLeTheme("donnees");

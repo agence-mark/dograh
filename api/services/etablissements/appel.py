@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 
 from loguru import logger
 
+from api.schemas.base_client import Equipe
 from api.schemas.etablissements import (
     CatalogueEtablissements,
     Etablissement,
@@ -198,6 +199,13 @@ class LectureDeLappel:
 
     servi: EtablissementDeLappel | None = None
     phrases: CataloguePhrases = field(default_factory=CataloguePhrases)
+    # l-agent-collegue, C3: the team read with them (empty without a client database).
+    equipe: Equipe = field(default_factory=Equipe)
+    lu_depuis: str = "aucune"
+
+    @property
+    def etablissement_id(self) -> str | None:
+        return self.servi.etablissement.id if self.servi else None
 
 
 async def lire_lappel(
@@ -211,7 +219,9 @@ async def lire_lappel(
         from api.services.etablissements.copie import lire_copie_complete
 
         copie = await lire_copie_complete(organization_id)
-        lecture = LectureDeLappel(phrases=copie.phrases)
+        lecture = LectureDeLappel(
+            phrases=copie.phrases, equipe=copie.equipe, lu_depuis=copie.lu_depuis
+        )
         catalogue = copie.etablissements
         if not catalogue.etablissements:
             return lecture

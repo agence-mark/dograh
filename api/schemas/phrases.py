@@ -56,6 +56,9 @@ VARIABLES_RESERVEES = frozenset(
         "runtime_configuration",
         "initial_context",
         "gathered_context",
+        # l-agent-collegue (C4, C7): the team known to the agent and its closed list.
+        "equipe",
+        "equipe_cles",
     }
 )
 

@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -64,7 +65,14 @@ def manquants(action: Action, arguments: dict[str, Any]) -> list[str]:
 
 
 def contexte_de(
-    action: Action, reglages: dict | None, fiche: dict | None, numero: str | None = None
+    action: Action,
+    reglages: dict | None,
+    fiche: dict | None,
+    numero: str | None = None,
+    *,
+    organization_id: int | None = None,
+    appel: dict | None = None,
+    run_id: int | None = None,
 ) -> ContexteAction:
     extraites = (
         (fiche or {}).get("extracted_variables")
@@ -74,6 +82,10 @@ def contexte_de(
     return ContexteAction(
         reglages={**action.reglages_par_defaut, **(reglages or {})},
         modele=depuis_la_fiche(extraites or {}, None, numero),
+        organization_id=organization_id,
+        appel=dict(appel or {}),
+        run_id=run_id,
+        fiche=fiche if isinstance(fiche, dict) else None,
     )
 
 
@@ -85,7 +97,16 @@ async def appeler(
     ctx: ContexteAction,
     delai_s: float,
 ) -> dict:
-    """One action, through the relay of THIS organization's connection. Raises on failure."""
+    """One action, through the relay of THIS organization's connection. Raises on failure.
+
+    l-agent-collegue (L5): an internal connector's action is computed in the fork
+    (``executer_interne``), never sent to the relay; the organization is the engine's."""
+    if connecteur.interne:
+        if connecteur.executer_interne is None:
+            raise RuntimeError("An internal action never goes through the relay.")
+        if ctx.organization_id is None:
+            ctx = dataclasses.replace(ctx, organization_id=organization_id)
+        return await connecteur.executer_interne(action, arguments, ctx, delai_s)
     requetes = action.preparer(arguments, ctx)
     requetes = requetes if isinstance(requetes, list) else [requetes]
     reponse: Any = None
@@ -109,6 +130,8 @@ async def executer(
     fiche: dict | None = None,
     numero: str | None = None,
     anticipee: asyncio.Future | None = None,
+    appel: dict | None = None,
+    run_id: int | None = None,
 ) -> Resultat:
     """Run the tool's action within its deadline. Never raises: an error is a fallback."""
     trouve = trouver(config.get("connecteur", ""), config.get("action", ""))
@@ -128,7 +151,15 @@ async def executer(
     delai_s = max(
         0.5, min(float(config.get("delai_ms") or DELAI_DEFAUT_MS), 15000) / 1000
     )
-    ctx = contexte_de(action, config.get("reglages"), fiche, numero)
+    ctx = contexte_de(
+        action,
+        config.get("reglages"),
+        fiche,
+        numero,
+        organization_id=organization_id,
+        appel=appel,
+        run_id=run_id,
+    )
     debut = time.monotonic()
     try:
         if anticipee is not None:
@@ -138,7 +169,9 @@ async def executer(
                 appeler(organization_id, connecteur, action, args, ctx, delai_s),
                 timeout=delai_s,
             )
-        return Resultat("ok", donnees, int((time.monotonic() - debut) * 1000))
+        resultat = Resultat("ok", donnees, int((time.monotonic() - debut) * 1000))
+        noter_au_hub(fiche, action, donnees, args, ctx)
+        return resultat
     except (
         asyncio.TimeoutError,
         nango.NangoIndisponible,
@@ -173,3 +206,22 @@ def mettre_de_cote(fiche: dict | None, config: dict, arguments: dict) -> None:
                 "arguments": arguments,
             }
         )
+
+
+CLE_HUB = "hub_rendez_vous"
+
+
+def noter_au_hub(
+    fiche: dict | None, action: Action, donnees: dict, arguments: dict, ctx: ContexteAction
+) -> None:
+    """l-agent-collegue (H6): what the action leaves for the hub, written after the call.
+    Never raises: a note lost is logged, the call goes on."""
+    if action.au_hub is None or not isinstance(fiche, dict):
+        return
+    try:
+        entree = action.au_hub(donnees, arguments, ctx)
+    except Exception as erreur:  # noqa: BLE001 -- R1: logged
+        logger.error(f"[.mark] Hub note of {action.nom} not made: {erreur!r}")
+        return
+    if isinstance(entree, dict):
+        fiche.setdefault(CLE_HUB, []).append(entree)

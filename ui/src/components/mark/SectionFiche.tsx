@@ -84,6 +84,14 @@ export const NOMS_RESERVES = [
     // Chantier l-agent-travaille (L5): the connectors' stamps and the writes put aside.
     "connecteurs",
     "connecteurs_differes",
+    // Chantier l-agent-collegue (L2 to L6, R-3): the team, the hub, the planner, the verification.
+    "equipe_gestes",
+    "equipe_assignation",
+    "hub_rendez_vous",
+    "planificateur",
+    "planificateur_rappel",
+    "verification_appelant",
+    "dossier_lu",
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */

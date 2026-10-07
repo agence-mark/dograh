@@ -190,7 +190,10 @@ class CustomToolManager:
                     from api.services.integrations.connectors import outil as integration
 
                     nom = tool_to_function_schema(tool)["function"]["name"]
-                    fs = integration.schema(tool, nom)
+                    # l-agent-collegue (C7): a closed list built at pick-up is read here.
+                    fs = integration.schema(
+                        tool, nom, getattr(self._engine, "_call_context_vars", None)
+                    )
                     if fs is not None:
                         schemas.append(fs)
                     continue
@@ -288,12 +291,23 @@ class CustomToolManager:
                     if integration.schema(tool, nom) is None:
                         continue
                     delai = float(integration.config_de(tool).get("delai_ms") or 5000) / 1000
+                    # l-agent-collegue (L2): an internal action may transfer the call; it gets
+                    # the transfer's deadline and its place as a workflow-control boundary.
+                    # l-agent-collegue (L5): only an internal connector that may transfer
+                    # (the team's) is a boundary; the planner's are ordinary actions.
+                    interne_ = integration.connecteur_interne(tool)
+                    interne = interne_ is not None and interne_.peut_transferer
+                    if interne:
+                        from api.services.equipe.diriger import delai_du_transfert
+
+                        delai = delai_du_transfert(tool) - 5.0
                     self._agent.llm.register_function(
                         nom,
                         self._agent.bind_tool(
                             self._engine, integration.creer_gestionnaire(self, tool, nom)
                         ),
                         timeout_secs=delai + 5.0,
+                        is_node_transition=interne,
                     )
                     integration.inscrire_l_anticipation(
                         self._engine, tool, nom, organization_id

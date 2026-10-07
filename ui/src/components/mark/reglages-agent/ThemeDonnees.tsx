@@ -76,6 +76,34 @@ export const AIDES_MODE_DE_NOTE: Texte[] = [
     },
 ];
 
+// Chantier l-agent-collegue, L1 (C4 to C6): what the switch gives the agent and the summary.
+export const AIDES_EQUIPE_CONNUE: Texte[] = [
+    {
+        en: "At pick-up the agent receives {{equipe}}: one line per active person of the establishment called and of the whole company, with the role and what the person takes care of. Place {{equipe}} in the prompt.",
+        fr: "Au décroché, l'agent reçoit {{equipe}} : une ligne par personne active de l'établissement appelé et de toute l'entreprise, avec son poste et ce dont elle s'occupe. Placez {{equipe}} dans le prompt.",
+    },
+    {
+        en: "A phone number or an e-mail appears only for a person whose disclosure is allowed (theme « Team and routing » of the organization).",
+        fr: "Un téléphone ou un e-mail n'apparaît que pour une personne dont la divulgation est autorisée (thème « Équipe et routage » de l'organisation).",
+    },
+    {
+        en: "The summary after the call also receives the names, to spell them right. Needs a client database: without one, the agent knows no one.",
+        fr: "La synthèse d'après l'appel reçoit aussi les noms, pour les écrire correctement. Demande une base du client : sans elle, l'agent ne connaît personne.",
+    },
+];
+
+// Chantier l-agent-collegue, L6 (V1, V7): what the switch lets the agent do.
+export const AIDES_VERIFICATION_APPELANT: Texte[] = [
+    {
+        en: "Lets the tools « verify the caller » and « read the record » (connector « Record » in Tools) run for this agent. The code checks the caller with the factors of the organization (theme « Caller verification »); the agent receives a record only after that.",
+        fr: "Laisse les outils « vérifier l'appelant » et « lire le dossier » (connecteur « Dossier » dans Outils) tourner pour cet agent. Le code vérifie l'appelant avec les facteurs de l'organisation (thème « Vérification de l'appelant ») ; l'agent ne reçoit un dossier qu'après.",
+    },
+    {
+        en: "Off: the tools answer that verification is unavailable, nothing of a record is ever read. To switch on at a client only after the legal check.",
+        fr: "Éteint : les outils répondent que la vérification est indisponible, rien d'un dossier n'est jamais lu. À allumer chez un client seulement après la vérification juridique.",
+    },
+];
+
 // Plan porte-parlee (D14, D16): the box under the note-taking mode, Postscript only.
 export const AIDES_PORTES_DANS_LA_REPONSE: Texte[] = [
     {
@@ -204,6 +232,18 @@ export const ThemeDonnees = ({
     const apresAppelModifie =
         JSON.stringify(pourEnvoyer(apresAppel)) !== apresAppelEnregistre;
 
+    // ---- The team known to the agent (chantier l-agent-collegue, L1, C5) ---------
+    const equipeConnueEnregistree = resolue.equipe_connue ?? false;
+    const [equipeConnue, setEquipeConnue] = useState(equipeConnueEnregistree);
+    useEffect(() => setEquipeConnue(equipeConnueEnregistree), [equipeConnueEnregistree]);
+    const equipeConnueModifiee = equipeConnue !== equipeConnueEnregistree;
+
+    // ---- The caller's verification (chantier l-agent-collegue, L6, V7) -------------
+    const verificationEnregistree = resolue.verification_appelant ?? false;
+    const [verification, setVerification] = useState(verificationEnregistree);
+    useEffect(() => setVerification(verificationEnregistree), [verificationEnregistree]);
+    const verificationModifiee = verification !== verificationEnregistree;
+
     // ---- Dograh's « General » parts ------------------------------------------
     const [lignesIssues, setLignesIssues] = useState<CallDispositionRow[]>(() => createCallDispositionRows(resolue.call_dispositions));
     const issuesNormalisees = useMemo(() => normalizeCallDispositions(lignesIssues), [lignesIssues]);
@@ -301,7 +341,15 @@ export const ThemeDonnees = ({
     }
 
     const modifie =
-        ficheModifiee || modeModifie || portesModifiees || greffierModifie || consigneModifiee || generalModifie || apresAppelModifie;
+        ficheModifiee
+        || modeModifie
+        || portesModifiees
+        || greffierModifie
+        || consigneModifiee
+        || generalModifie
+        || apresAppelModifie
+        || equipeConnueModifiee
+        || verificationModifiee;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -327,6 +375,18 @@ export const ThemeDonnees = ({
                 nom: { en: "Transitions in the reply", fr: "Portes dans la réponse" },
                 modifie: portesModifiees,
                 config: () => ({ portes_dans_la_reponse: portesEnvoyees }),
+            },
+            {
+                // l-agent-collegue, L1: its own part, sent only when changed (E6).
+                nom: { en: "Team known to the agent", fr: "Équipe connue de l'agent" },
+                modifie: equipeConnueModifiee,
+                config: () => ({ equipe_connue: equipeConnue }),
+            },
+            {
+                // l-agent-collegue, L6: its own part, sent only when changed (E6).
+                nom: { en: "Caller verification", fr: "Vérification de l'appelant" },
+                modifie: verificationModifiee,
+                config: () => ({ verification_appelant: verification }),
             },
             {
                 // L4: its own part, sent only when changed (E6).
@@ -514,6 +574,31 @@ export const ThemeDonnees = ({
                 <div id="reglage-call_dispositions" data-reglage="call_dispositions">
                     <CallDispositionEditor rows={lignesIssues} onChange={setLignesIssues} defaultDispositions={issuesParDefaut} />
                 </div>
+            </Intertitre>
+
+            {/* [.mark] Chantier l-agent-collegue, L1 (C4 to C6). */}
+            <Intertitre id="donnees-equipe" titre={{ en: "Team", fr: "Équipe" }}>
+                <ChampReglage
+                    cle="equipe_connue"
+                    idControle="equipe_connue"
+                    libelle={{ en: "Team known to the agent", fr: "Équipe connue de l'agent" }}
+                    aides={AIDES_EQUIPE_CONNUE}
+                    bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                    disposition="ligne"
+                >
+                    <Switch id="equipe_connue" checked={equipeConnue} onCheckedChange={setEquipeConnue} />
+                </ChampReglage>
+                {/* [.mark] Chantier l-agent-collegue, L6 (V7). */}
+                <ChampReglage
+                    cle="verification_appelant"
+                    idControle="verification_appelant"
+                    libelle={{ en: "Caller verification", fr: "Vérification de l'appelant" }}
+                    aides={AIDES_VERIFICATION_APPELANT}
+                    bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                    disposition="ligne"
+                >
+                    <Switch id="verification_appelant" checked={verification} onCheckedChange={setVerification} />
+                </ChampReglage>
             </Intertitre>
 
             {/* [.mark] Chantier l-agent-travaille, L4 (A6). */}

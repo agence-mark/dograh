@@ -55,6 +55,7 @@ from api.services.pipecat.agent_runtime_factory import (
 )
 from api.services.pipecat.audio_config import AudioConfig, create_audio_config
 from api.services.annonce.stockage import lire_annonce_ouverture
+from api.services.equipe.appel import injecter_equipe
 from api.services.etablissements.appel import (
     annonce_heritee,
     configuration_heritee,
@@ -979,6 +980,15 @@ async def _run_pipeline_impl(
         lecture_de_lappel.phrases,
         etablissement_servi.etablissement if etablissement_servi else None,
     )
+    # [.mark] The team known to the agent (chantier l-agent-collegue, C4, C5): only when
+    # the agent's switch is on; nothing changes otherwise, not even the stamp.
+    merged_call_context_vars, estampille_equipe = injecter_equipe(
+        merged_call_context_vars,
+        run_configs,
+        lecture_de_lappel.equipe,
+        lecture_de_lappel.etablissement_id,
+        lecture_de_lappel.lu_depuis,
+    )
     # [.mark] Opening state, computed once at call set-up, Paris time (D8).
     # BEFORE the persistence below and BEFORE the pre-call fetch, which is
     # merged over it and therefore wins (D7). No hours on the agent and no
@@ -1257,6 +1267,8 @@ async def _run_pipeline_impl(
     # from (B3): read at pick-up, so a later change never rewrites the past.
     if etablissement_servi is not None:
         runtime_configuration["etablissement"] = etablissement_servi.estampille()
+    if estampille_equipe is not None:
+        runtime_configuration["equipe"] = estampille_equipe
     merged_call_context_vars = {
         **merged_call_context_vars,
         "runtime_configuration": runtime_configuration,

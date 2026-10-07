@@ -38,8 +38,11 @@ async def lire_depuis_la_base(
     try:
         journal_id = await dernier_journal(connexion)
         referentiel = await lire_referentiel(connexion, avant, phrases_avant)
+        # l-agent-collegue, C3: the team and its subjects, in the same connection.
+        equipe, refus_equipe = await _equipe_de(connexion)
     finally:
         await connexion.close()
+    referentiel.refus.extend(refus_equipe)
     for refus in referentiel.refus:
         logger.error(
             f"[.mark] Client database of organization {organization_id}: {refus}"
@@ -47,11 +50,25 @@ async def lire_depuis_la_base(
     return CopieOrganisation(
         etablissements=referentiel.etablissements,
         phrases=referentiel.phrases,
+        equipe=equipe,
         lu_depuis="stockage",
         source="base_client",
         refus=referentiel.refus,
         journal_id=journal_id,
     )
+
+
+async def _equipe_de(connexion):
+    """The team as the calls read it, and the refusal to report. A bad row (a phone written
+    by hand that does not parse) never empties the establishments: the team is then read
+    empty and the refusal is shown like the others (« Client data »)."""
+    from api.db.bases_clients.equipe import lire_equipe
+    from api.schemas.base_client import Equipe
+
+    try:
+        return await lire_equipe(connexion), []
+    except Exception as erreur:  # noqa: BLE001
+        return Equipe(), [f"team refused ({erreur}); the agent knows no one until it is corrected"]
 
 
 _VERROUS: dict[int, asyncio.Lock] = {}
@@ -104,6 +121,7 @@ async def _resynchroniser(organization_id: int) -> str:
         nouveau = {
             "catalogue": copie.etablissements.model_dump(mode="json"),
             "phrases": copie.phrases.model_dump(mode="json"),
+            "equipe": copie.equipe.model_dump(mode="json"),
         }
         ancien = {k: (avant_doc or {}).get(k) for k in nouveau}
         await publier_copie(organization_id, copie)

@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 _CLE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 _CODE = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
+_SYSTEME = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
 
 
 class RattachementBaseClient(BaseModel):
@@ -73,6 +74,56 @@ class Personne(BaseModel):
     )
     destinataire_defaut: bool = False
     actif: bool = True
+    # [.mark] l-agent-collegue, L1 (C1): what the agent knows of this person during a call.
+    description: str | None = Field(
+        default=None,
+        max_length=300,
+        description="What this person takes care of, in plain words (the agent reads it).",
+    )
+    divulguer_telephone: bool = Field(
+        default=False,
+        description="The agent may give this person's phone number to a caller.",
+    )
+    divulguer_mail: bool = Field(
+        default=False,
+        description="The agent may give this person's e-mail address to a caller.",
+    )
+    joignable_par_transfert: bool = Field(
+        default=False,
+        description="The agent may transfer a call to this person (a phone number is needed).",
+    )
+    # [.mark] l-agent-collegue, L4 (H7): this person's agenda in each calendar software
+    # (translator name -> the software's identifier of her agenda). Kept in ``lien_externe``
+    # (objet_type = personne). None on a save: left as it is.
+    agendas: dict[str, str] | None = Field(
+        default=None,
+        description="Her agenda in each calendar software: translator -> agenda identifier.",
+    )
+
+    @field_validator("agendas")
+    @classmethod
+    def _agendas(cls, value):
+        if value is None:
+            return None
+        propres = {}
+        for systeme, agenda in dict(value).items():
+            if not _SYSTEME.match(str(systeme)):
+                raise ValueError(f"« {systeme} » is not a translator's name.")
+            texte = str(agenda or "").strip()
+            if not texte:
+                continue
+            if len(texte) > 200 or any(c.isspace() for c in texte):
+                raise ValueError(f"« {texte[:40]} » is not an agenda identifier.")
+            propres[str(systeme)] = texte
+        return propres
+
+    @field_validator("description")
+    @classmethod
+    def _description(cls, value):
+        if value is None:
+            return None
+        texte = " ".join(str(value).split())
+        return texte or None
 
     @field_validator("cle")
     @classmethod
@@ -136,6 +187,15 @@ class Equipe(BaseModel):
         cles = [p.cle for p in self.personnes]
         if len(set(cles)) != len(cles):
             raise ValueError("Two people share the same identifier.")
+        # H7: one agenda belongs to one person in a software (``lien_externe`` is unique).
+        vus: dict[tuple[str, str], str] = {}
+        for p in self.personnes:
+            for systeme, agenda in (p.agendas or {}).items():
+                autre = vus.setdefault((systeme, agenda.casefold()), p.cle)
+                if autre != p.cle:
+                    raise ValueError(
+                        f"{p.prenom} and another person share the same agenda « {agenda} »."
+                    )
         codes = [s.code for s in self.sujets]
         if len(set(codes)) != len(codes):
             raise ValueError("Two subjects share the same code.")

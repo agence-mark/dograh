@@ -10,9 +10,12 @@ attached to THAT organization, never a name taken from the request but to attach
 - ``POST /organizations/base-client/resynchroniser``  rebuild the copy the calls read (test)
 - ``PUT  /organizations/base-client/conservation`` change retention durations (bounded, logged)
 - ``GET/PUT /organizations/equipe``                the team and the routing
+- ``GET/PUT /organizations/planificateur``         the planner's rules (l-agent-collegue, L5)
 """
 
 from __future__ import annotations
+
+from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
@@ -24,8 +27,10 @@ from api.db.bases_clients.connexion import (
     appliquer_migrations,
     assurer_compte_courant,
     connecter,
+    ERREURS_SCHEMA_EN_RETARD,
     connecter_proprietaire,
     creer_base,
+    version_attendue,
     version_de,
 )
 from api.db.models import UserModel
@@ -35,6 +40,7 @@ from api.schemas.base_client import (
     Equipe,
     EtatBaseClient,
 )
+from api.schemas.planificateur import Planificateur
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
 
@@ -44,6 +50,25 @@ routeur_equipe = APIRouter(prefix="/organizations/equipe", tags=["organizations"
 
 def _refus(message: str, code: int = 422) -> HTTPException:
     return HTTPException(status_code=code, detail=message)
+
+
+@asynccontextmanager
+async def _schema_a_jour(connexion):
+    """A database behind this installation (a column or a table of a later migration is missing)
+    answers with the way out, not with « Internal Server Error »: nothing was saved."""
+    try:
+        yield
+    except ERREURS_SCHEMA_EN_RETARD:
+        try:
+            actuelle = await version_de(connexion)
+        except Exception:  # noqa: BLE001 -- the message is still useful without the number
+            actuelle = None
+        raise _refus(
+            f"The client database is behind this installation (version {actuelle if actuelle is not None else '?'}, "
+            f"expected {version_attendue()}): click « Upgrade » in the theme « Client data », then save again. "
+            "Nothing was saved.",
+            409,
+        ) from None
 
 
 async def _etat(organization_id: int) -> EtatBaseClient:
@@ -241,9 +266,65 @@ async def put_equipe(
     connexion = await _connexion_de(user.selected_organization_id)
     try:
         try:
-            await ecrire_equipe(connexion, request, rattachement.auteur_de(user))
+            async with _schema_a_jour(connexion):
+                await ecrire_equipe(connexion, request, rattachement.auteur_de(user))
         except EtablissementInconnu as erreur:
             raise _refus(str(erreur)) from None
-        return await lire_equipe(connexion)
+        relue = await lire_equipe(connexion)
+    finally:
+        await connexion.close()
+    # l-agent-collegue, C3: the team is in the copy the calls read; the next pick-up
+    # hears this save without waiting for the notification (which follows anyway).
+    await _apres_changement_de_source(user.selected_organization_id)
+    return relue
+
+
+# --------------------------------------------------------------------------- #
+# l-agent-collegue, L5 (P2, P3): the planner's rules, in the client's database
+# --------------------------------------------------------------------------- #
+
+routeur_planificateur = APIRouter(prefix="/organizations/planificateur", tags=["organizations"])
+
+
+@routeur_planificateur.get("", response_model=Planificateur)
+async def get_planificateur(user: UserModel = Depends(get_user_with_selected_organization)):
+    from api.db.bases_clients.planificateur import lire_planificateur
+
+    connexion = await _connexion_de(user.selected_organization_id)
+    try:
+        return await lire_planificateur(connexion)
+    finally:
+        await connexion.close()
+
+
+@routeur_planificateur.put("", response_model=Planificateur)
+async def put_planificateur(
+    request: Planificateur, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    from api.db.bases_clients.planificateur import (
+        ReferenceInconnue,
+        ecrire_planificateur,
+        lire_planificateur,
+    )
+    from api.services.pipecat.etat_ouverture import (
+        HorairesInvalides,
+        vers_expression_osm,
+    )
+
+    # The booking ranges are read like the opening hours: refused when SAVED, never at a call.
+    for niveau, reglages in [("organization", request.reglages), *request.par_etablissement.items()]:
+        if reglages.plages:
+            try:
+                vers_expression_osm(reglages.plages)
+            except HorairesInvalides as erreur:
+                raise _refus(f"Booking ranges ({niveau}): {erreur}") from None
+    connexion = await _connexion_de(user.selected_organization_id)
+    try:
+        try:
+            async with _schema_a_jour(connexion):
+                await ecrire_planificateur(connexion, request, rattachement.auteur_de(user))
+        except ReferenceInconnue as erreur:
+            raise _refus(str(erreur)) from None
+        return await lire_planificateur(connexion)
     finally:
         await connexion.close()

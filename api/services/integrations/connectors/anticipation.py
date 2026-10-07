@@ -49,6 +49,9 @@ class OutilAnticipable:
     config: dict
     organization_id: int
     lancements: dict[str, Lancement] = field(default_factory=dict)
+    # l-agent-collegue (L5): the call an internal action reads (context, run).
+    appel: dict = field(default_factory=dict)
+    run_id: int | None = None
 
 
 class Anticipateur:
@@ -57,7 +60,14 @@ class Anticipateur:
     def __init__(self) -> None:
         self.outils: dict[str, OutilAnticipable] = {}
 
-    def inscrire(self, nom: str, config: dict, organization_id: int) -> None:
+    def inscrire(
+        self,
+        nom: str,
+        config: dict,
+        organization_id: int,
+        appel: dict | None = None,
+        run_id: int | None = None,
+    ) -> None:
         trouve = trouver(config.get("connecteur", ""), config.get("action", ""))
         if (
             trouve is None
@@ -66,7 +76,9 @@ class Anticipateur:
             or not config.get("anticipable")
         ):
             return
-        self.outils[nom] = OutilAnticipable(nom, config, organization_id)
+        self.outils[nom] = OutilAnticipable(
+            nom, config, organization_id, appel=dict(appel or {}), run_id=run_id
+        )
 
     def arguments_de_la_fiche(
         self, outil: OutilAnticipable, fiche: dict
@@ -97,7 +109,15 @@ class Anticipateur:
             connecteur, action = trouver(
                 outil.config["connecteur"], outil.config["action"]
             )
-            ctx = contexte_de(action, outil.config.get("reglages"), fiche)
+            ctx = contexte_de(
+                action,
+                outil.config.get("reglages"),
+                fiche,
+                outil.appel.get("caller_number"),
+                organization_id=outil.organization_id,
+                appel=outil.appel,
+                run_id=outil.run_id,
+            )
             delai = max(0.5, float(outil.config.get("delai_ms") or 5000) / 1000) * 3
             lancement = Lancement(k, None, time.monotonic())  # type: ignore[arg-type]
 

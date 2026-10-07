@@ -23,12 +23,15 @@ import redis.asyncio as aioredis
 from loguru import logger
 
 from api.constants import REDIS_URL
+from api.schemas.base_client import Equipe
 from api.schemas.etablissements import CatalogueEtablissements
 from api.schemas.phrases import CataloguePhrases
 
 # v2 (L2): the copy carries the establishments AND the catalogue of sentences. A v1
 # copy left in Redis is simply never read again (rebuilt from the source).
-PREFIXE = "mark:etablissements:v2:"
+# v3 (l-agent-collegue, L1, C3): it carries the TEAM and its subjects too (read from the
+# client's database; none without one). A v2 copy is never read again either.
+PREFIXE = "mark:etablissements:v3:"
 # Short on purpose: Redis is local to the call. A copy that takes longer than
 # this is treated as absent and the stored catalogue is read instead.
 DELAI_REDIS_S = 0.25
@@ -64,6 +67,9 @@ class CopieOrganisation:
         default_factory=CatalogueEtablissements
     )
     phrases: CataloguePhrases = field(default_factory=CataloguePhrases)
+    # v3 (C3): the people and the subjects. They live in the client's database only: no
+    # database (or a database that does not answer), no team.
+    equipe: Equipe = field(default_factory=Equipe)
     lu_depuis: str = "aucune"  # copie | stockage | aucune
     source: str = "dograh"  # dograh | base_client (L3)
     # L3: values written in the client's database that Dograh refused (the previous
@@ -134,6 +140,7 @@ async def publier_copie(
             "source": copie.source,
             "catalogue": copie.etablissements.model_dump(mode="json"),
             "phrases": copie.phrases.model_dump(mode="json"),
+            "equipe": copie.equipe.model_dump(mode="json"),
             "refus": copie.refus,
             "journal_id": copie.journal_id,
         }
@@ -167,6 +174,7 @@ async def lire_copie_complete(organization_id: int | None) -> CopieOrganisation:
                     document["catalogue"]
                 ),
                 phrases=CataloguePhrases.model_validate(document.get("phrases") or {}),
+                equipe=_equipe(document.get("equipe")),
                 lu_depuis="copie",
                 source=document.get("source", "dograh"),
                 refus=list(document.get("refus") or []),
@@ -201,6 +209,15 @@ async def _refaire_depuis_la_base(organization_id: int) -> None:
         logger.warning(
             f"[.mark] Background rebuild of the copy of organization {organization_id} failed: {erreur!r}"
         )
+
+
+def _equipe(brut) -> Equipe:
+    """The team kept in the copy. Unreadable: no team (the call goes on without it)."""
+    try:
+        return Equipe.model_validate(brut or {})
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Team of the copy unreadable, none used: {erreur!r}")
+        return Equipe()
 
 
 async def lire_copie(
