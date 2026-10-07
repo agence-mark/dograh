@@ -702,6 +702,31 @@ async def test_panne_agent_eteint_la_demande_a_rappeler_est_ecrite(
     assert demande["priorite"] == 1 and "panne" in demande["resume"]
 
 
+async def test_mail_dune_demande_nee_dune_panne_a_son_objet(
+    base_v4, smtp, modele, db_session, async_session
+):
+    """Décision d'Evan du 07/10 (formulaire, point 7): the mail of a request born of an outage
+    is titled « À rappeler : appel perdu par une panne », through the real chain."""
+    from api.tasks.workflow_completion import process_workflow_completion
+
+    org = await _organisation(async_session, db_session)
+    await _regler(db_session, org, base_v4, smtp)
+    await _equipe(base_v4)
+    run = await _run(db_session, org)
+    await db_session.update_workflow_run(
+        run.id,
+        gathered_context={
+            "extracted_variables": {},
+            "panne": {"a_rappeler": "+33612345678", "raison": "voix_lente"},
+        },
+    )
+    file: list[dict] = []
+    with patch("api.tasks.arq.enqueue_job", await _executer_tout_de_suite(file)):
+        await process_workflow_completion(None, run.id)
+    assert smtp.sujets() == ["À rappeler : appel perdu par une panne"]
+    assert [m["a"] for m in smtp.messages] == [["accueil@example.org"]]
+
+
 async def test_fin_dappel_rejouee_ne_refait_rien_qui_a_abouti(
     base_v4, smtp, modele, db_session, async_session
 ):

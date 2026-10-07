@@ -47,6 +47,7 @@ from api.services.apres_appel.reglages import (
 from api.services.base_client.rattachement import nom_de_la_base
 
 TENTATIVES_MAX = 3
+SUJET_PANNE = "À rappeler : appel perdu par une panne"
 DELAIS_S = (60, 300)  # after the 1st and the 2nd attempt
 NOM_TACHE = "apres_appel_mark"
 
@@ -253,6 +254,9 @@ def texte_du_mail(ctx: ContexteModule, bloc: dict) -> tuple[str, str]:
     envoi = ctx.envoi
     motif = envoi.get("motif") or "—"
     sujet = f"Nouvelle demande : {motif}"[:150]
+    if (envoi.get("demande") or {}).get("nee_d_une_panne"):
+        # Decision of Evan, 07/10 (form, point 7). The mails are written in French.
+        sujet = SUJET_PANNE
     lignes = [
         f"Appel du {_heure_locale(envoi.get('debut'), ctx.fuseau)}",
         f"Numéro : {envoi.get('numero_appelant') or 'inconnu'}",

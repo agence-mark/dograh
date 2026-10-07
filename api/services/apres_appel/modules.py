@@ -133,8 +133,15 @@ async def _connecteurs(contexte: ContexteModule) -> ResultatModule:
     during the call (deadline, software down) are done now, through the same relay, with this
     run's organization (never one the call carries)."""
     from api.services.integrations.connectors.catalogue import trouver
-    from api.services.integrations.connectors.execution import CLE_DIFFERES, appeler, contexte_de
-    from api.services.integrations.connectors.nango import ConnexionAbsente, NangoIndisponible
+    from api.services.integrations.connectors.execution import (
+        CLE_DIFFERES,
+        appeler,
+        contexte_de,
+    )
+    from api.services.integrations.connectors.nango import (
+        ConnexionAbsente,
+        NangoIndisponible,
+    )
 
     differes = (contexte.run.gathered_context or {}).get(CLE_DIFFERES) or []
     if not differes:
@@ -144,31 +151,54 @@ async def _connecteurs(contexte: ContexteModule) -> ResultatModule:
     fiche = contexte.run.gathered_context or {}
     # A retry never redoes an action already done (a booking made twice is worse than none).
     bloc = await db_client.lire_apres_appel(contexte.run.id)
-    faites = set(((bloc.get("etapes") or {}).get("module:connecteurs") or {}).get("faites") or [])
+    faites = set(
+        ((bloc.get("etapes") or {}).get("module:connecteurs") or {}).get("faites") or []
+    )
     envois, echecs = [], []
     for indice, entree in enumerate(differes):
         if indice in faites:
             continue
         trouve = trouver(entree.get("connecteur", ""), entree.get("action", ""))
         if trouve is None:
-            echecs.append(f"unknown action {entree.get('connecteur')}.{entree.get('action')}")
+            echecs.append(
+                f"unknown action {entree.get('connecteur')}.{entree.get('action')}"
+            )
             continue
         connecteur, action = trouve
-        ctx = contexte_de(action, entree.get("reglages"), fiche, contexte.envoi.get("numero_appelant"))
+        ctx = contexte_de(
+            action, entree.get("reglages"), fiche, contexte.envoi.get("numero_appelant")
+        )
         try:
-            await appeler(contexte.organization_id, connecteur, action, entree.get("arguments") or {}, ctx, 20.0)
+            await appeler(
+                contexte.organization_id,
+                connecteur,
+                action,
+                entree.get("arguments") or {},
+                ctx,
+                20.0,
+            )
             faites.add(indice)
             await db_client.fusionner_apres_appel(
-                contexte.run.id, etape="module:connecteurs", valeur={"faites": sorted(faites)}
+                contexte.run.id,
+                etape="module:connecteurs",
+                valeur={"faites": sorted(faites)},
             )
-            envois.append({"canal": "agenda" if "agenda" in connecteur.nom else "crm", "destinataire": f"{connecteur.libelle} · {action.nom}", "statut": "envoyee"})
+            envois.append(
+                {
+                    "canal": "agenda" if "agenda" in connecteur.nom else "crm",
+                    "destinataire": f"{connecteur.libelle} · {action.nom}",
+                    "statut": "envoyee",
+                }
+            )
         except ConnexionAbsente as erreur:
             raise ModuleEnEchec(str(erreur), definitif=True) from None
         except (NangoIndisponible, Exception) as erreur:  # noqa: BLE001 -- retried by the chain
             echecs.append(f"{connecteur.nom}.{action.nom}: {erreur}")
     if echecs:
         raise ModuleEnEchec("; ".join(echecs))
-    return ResultatModule(detail=f"{len(envois)} action(s) done after the call", envois=envois)
+    return ResultatModule(
+        detail=f"{len(envois)} action(s) done after the call", envois=envois
+    )
 
 
 async def _sms(contexte: ContexteModule) -> ResultatModule:
@@ -187,26 +217,45 @@ async def _sms(contexte: ContexteModule) -> ResultatModule:
 
     a_envoyer: list[tuple[str, str, str]] = []  # (who, number, text template)
     if reglage.appelant.actif:
-        numero = sms.numero_de_l_appelant(contexte.run, contexte.envoi, contexte.agent.champ("numero_rappel"))
+        numero = sms.numero_de_l_appelant(
+            contexte.run, contexte.envoi, contexte.agent.champ("numero_rappel")
+        )
         if numero:
             a_envoyer.append(("appelant", numero, reglage.appelant.texte or ""))
     if reglage.equipe.actif:
-        a_envoyer += [("equipe", n, reglage.equipe.texte or "") for n in reglage.equipe.numeros]
+        a_envoyer += [
+            ("equipe", n, reglage.equipe.texte or "") for n in reglage.equipe.numeros
+        ]
     if not a_envoyer:
         raise ModuleSansObjet("The caller's number is not a French mobile: no SMS.")
 
     try:
-        fournisseur = await get_telephony_provider_for_run(contexte.run, contexte.organization_id)
+        fournisseur = await get_telephony_provider_for_run(
+            contexte.run, contexte.organization_id
+        )
     except Exception as erreur:  # noqa: BLE001 -- no telephony set: nothing to retry
-        raise ModuleEnEchec(f"No telephony account to send the SMS ({type(erreur).__name__}).", definitif=True) from None
-    sid, jeton = getattr(fournisseur, "account_sid", None), getattr(fournisseur, "auth_token", None)
+        raise ModuleEnEchec(
+            f"No telephony account to send the SMS ({type(erreur).__name__}).",
+            definitif=True,
+        ) from None
+    sid, jeton = (
+        getattr(fournisseur, "account_sid", None),
+        getattr(fournisseur, "auth_token", None),
+    )
     if not (sid and jeton):
-        raise ModuleEnEchec("The SMS goes through a Twilio account of « Telephony »; none is set.", definitif=True)
-    expediteur = reglage.expediteur or getattr(fournisseur, "default_from_number", None) or next(
-        iter(getattr(fournisseur, "from_numbers", None) or []), None
+        raise ModuleEnEchec(
+            "The SMS goes through a Twilio account of « Telephony »; none is set.",
+            definitif=True,
+        )
+    expediteur = (
+        reglage.expediteur
+        or getattr(fournisseur, "default_from_number", None)
+        or next(iter(getattr(fournisseur, "from_numbers", None) or []), None)
     )
     if not expediteur:
-        raise ModuleEnEchec("No sender: set a sender name or a number in « Telephony ».", definitif=True)
+        raise ModuleEnEchec(
+            "No sender: set a sender name or a number in « Telephony ».", definitif=True
+        )
 
     # D6: what was already sent for this call is never sent again (a retry, a replay).
     bloc = await db_client.lire_apres_appel(contexte.run.id)
@@ -216,7 +265,14 @@ async def _sms(contexte: ContexteModule) -> ResultatModule:
         cle = f"{contexte.run.id}:{numero}"
         texte, coupe = sms.remplir(modele, fiche)
         if cle in deja:
-            envois.append({"canal": "sms", "destinataire": numero, "statut": "envoyee", "deja": True})
+            envois.append(
+                {
+                    "canal": "sms",
+                    "destinataire": numero,
+                    "statut": "envoyee",
+                    "deja": True,
+                }
+            )
             continue
         try:
             await sms.envoyer(sid, jeton, expediteur, numero, texte)
@@ -225,8 +281,17 @@ async def _sms(contexte: ContexteModule) -> ResultatModule:
             definitif = definitif and erreur.definitif
             continue
         deja.add(cle)
-        await db_client.fusionner_apres_appel(contexte.run.id, etape=sms.ETAPE, valeur={"envoyes": sorted(deja)})
-        envois.append({"canal": "sms", "destinataire": numero, "statut": "envoyee", "coupe": coupe})
+        await db_client.fusionner_apres_appel(
+            contexte.run.id, etape=sms.ETAPE, valeur={"envoyes": sorted(deja)}
+        )
+        envois.append(
+            {
+                "canal": "sms",
+                "destinataire": numero,
+                "statut": "envoyee",
+                "coupe": coupe,
+            }
+        )
     if echecs:
         raise ModuleEnEchec("; ".join(echecs), definitif=definitif)
     return ResultatModule(detail=f"{len(envois)} SMS sent", envois=envois)

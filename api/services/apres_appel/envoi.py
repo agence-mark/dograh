@@ -182,6 +182,7 @@ def construire_envoi(
             **(demande or {"type": "autre", "sujet": None, "degre_urgence": None}),
             "priorite": 1,
             "resume": "Appel interrompu par une panne de l'agent : à rappeler.",
+            "nee_d_une_panne": True,
         }
     return {
         "dograh_run_id": run.id,
