@@ -160,6 +160,20 @@ async def _connecter(nom_base: str, variable: str = VARIABLE_ENV) -> asyncpg.Con
         raise BaseClientIndisponible(
             f"The database « {nom_base} » does not exist on the clients' Postgres."
         ) from None
+    except (
+        asyncpg.InvalidPasswordError,
+        asyncpg.InvalidAuthorizationSpecificationError,
+    ):
+        if variable == VARIABLE_COMPTE:
+            # The connection account does not exist yet, or its password changed:
+            # « Upgrade » (the owner) creates it or sets its password again.
+            raise CompteSansDroits(
+                f"The connection account cannot log in to « {nom_base} » yet: upgrade the "
+                "database (« Client data »)."
+            ) from None
+        raise BaseClientIndisponible(
+            "The clients' Postgres refused the owner's account."
+        ) from None
     except Exception as erreur:  # noqa: BLE001 -- the message must not carry the DSN
         raise BaseClientIndisponible(
             f"The clients' Postgres does not answer ({type(erreur).__name__})."

@@ -323,8 +323,11 @@ async def test_la_connexion_courante_n_a_que_les_droits_d_ecriture_de_sa_base(
         await connexion.close()
 
 
+@pytest.mark.parametrize("compte_inconnu", [False, True])
 @pytest.mark.asyncio
-async def test_une_base_sans_droits_pour_le_compte_courant_se_met_a_niveau(base_prete):
+async def test_une_base_sans_droits_pour_le_compte_courant_se_met_a_niveau(
+    base_prete, compte_inconnu
+):
     """A database whose connection account has no rights (made before 006): the screen says
     « upgrade », and « Upgrade » (the owner) gives the rights back."""
     import httpx
@@ -334,6 +337,10 @@ async def test_une_base_sans_droits_pour_le_compte_courant_se_met_a_niveau(base_
     c = await asyncpg.connect(f"{_serveur()}/{base_prete}")
     try:
         await c.execute(f'REVOKE "{base_prete}_ecriture" FROM "{COMPTE_ESSAI[0]}"')
+        if compte_inconnu:
+            # Found on the local instance: the account does not exist yet (or its password
+            # changed): the login itself fails. « Upgrade » must be offered too.
+            await c.execute(f"ALTER ROLE \"{COMPTE_ESSAI[0]}\" PASSWORD 'un-autre'")
     finally:
         await c.close()
     miroir, redis = _Miroir(base_prete), _RedisFactice()
