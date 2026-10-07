@@ -50,7 +50,7 @@ import { EXEMPLE_HORAIRES } from "../SectionHorairesOuverture";
 
 export const ETABLISSEMENTS_ENREGISTRES: Texte = { en: "Establishments saved", fr: "Établissements enregistrés" };
 
-/** « Magasin de Creil » -> « magasin-de-creil », unique in the list. */
+/** « Magasin du centre » -> « magasin-du-centre », unique in the list. */
 export function identifiantPour(nom: string, pris: string[]): string {
     const base =
         nom

@@ -169,8 +169,8 @@ export const ThemeDonneesClient = ({
                                 libelle={{ en: "Database name", fr: "Nom de la base" }}
                                 aides={[
                                     {
-                                        en: "Lower case letters, digits and underscores (« client_nuances »). The server and its password are the installation's, never typed here.",
-                                        fr: "Minuscules, chiffres et tirets bas (« client_nuances »). Le serveur et son mot de passe sont ceux de l'installation, jamais saisis ici.",
+                                        en: "Lower case letters, digits and underscores (« client_exemple »). The server and its password are the installation's, never typed here.",
+                                        fr: "Minuscules, chiffres et tirets bas (« client_exemple »). Le serveur et son mot de passe sont ceux de l'installation, jamais saisis ici.",
                                     },
                                 ]}
                             >

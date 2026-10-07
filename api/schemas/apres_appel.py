@@ -263,7 +263,7 @@ class SmsAgent(BaseModel):
 
     expediteur: str | None = Field(
         default=None,
-        description="The sender name (« NUANCESFEU », 11 characters at most). Empty: the number of « Telephony ».",
+        description="The sender name (« ENTREPRISE », 11 characters at most). Empty: the number of « Telephony ».",
     )
     appelant: SmsEnvoi = Field(default_factory=SmsEnvoi)
     equipe: SmsEquipe = Field(default_factory=SmsEquipe)

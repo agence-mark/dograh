@@ -3663,7 +3663,7 @@ export type Etablissement = {
     /**
      * Id
      *
-     * Stable identifier, lower case, digits and hyphens (« saint-maximin »).
+     * Stable identifier, lower case, digits and hyphens (« site-nord »).
      */
     id: string;
     /**

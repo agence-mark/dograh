@@ -61,7 +61,7 @@ class Etablissement(BaseModel):
     """One establishment. Every optional field left empty is inherited."""
 
     id: str = Field(
-        description="Stable identifier, lower case, digits and hyphens (« saint-maximin »).",
+        description="Stable identifier, lower case, digits and hyphens (« site-nord »).",
         min_length=1,
         max_length=40,
     )
