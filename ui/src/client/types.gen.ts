@@ -3836,6 +3836,12 @@ export type EtatBaseClient = {
      */
     version_attendue: number;
     /**
+     * A Mettre A Niveau
+     *
+     * The connection account has no rights in this database yet: « Upgrade » gives them.
+     */
+    a_mettre_a_niveau?: boolean;
+    /**
      * Derniere Ecriture
      */
     derniere_ecriture?: string | null;

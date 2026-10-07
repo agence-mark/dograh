@@ -103,6 +103,12 @@ describe("Client data", () => {
         expect(erreur.textContent).not.toContain("attached to another organization");
     });
 
+    it("offers Upgrade when the connection account has no rights in the database yet (n° 317)", async () => {
+        m.etat.mockResolvedValue({ data: { ...RATTACHEE, joignable: false, version: null, a_mettre_a_niveau: true, erreur: "upgrade the database" } });
+        rendre(<Donnees />);
+        expect(await screen.findByTestId("mettre-a-niveau-base-client")).toBeTruthy();
+    });
+
     it("offers Upgrade when behind, lists the refusals and lights the red dot", async () => {
         const signaler = vi.fn();
         m.etat.mockResolvedValue({ data: { ...RATTACHEE, version: 2, refus: ["Site A: hours refused (ligne 1)"] } });

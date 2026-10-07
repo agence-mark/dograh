@@ -114,6 +114,21 @@ def _serveur() -> str | None:
     return urlunsplit((m.scheme, m.netloc, "", "", ""))
 
 
+# n° 317: the connection account of the tests (created by « Create », no privilege of its own).
+COMPTE_ESSAI = ("mark_courant_essai", "essai-courant-local")
+
+
+def _compte() -> str | None:
+    serveur = _serveur()
+    if not serveur:
+        return None
+    m = urlsplit(serveur)
+    hote = m.netloc.rsplit("@", 1)[-1]
+    return urlunsplit(
+        (m.scheme, f"{COMPTE_ESSAI[0]}:{COMPTE_ESSAI[1]}@{hote}", "", "", "")
+    )
+
+
 async def _postgres_joignable() -> bool:
     serveur = _serveur()
     if not serveur:
@@ -131,6 +146,7 @@ async def base_essai(monkeypatch):
     if not await _postgres_joignable():
         pytest.skip("No Postgres for the tests (DATABASE_URL)")
     monkeypatch.setenv(schema.VARIABLE_ENV, _serveur())
+    monkeypatch.setenv(schema.VARIABLE_COMPTE, _compte())
     nom = f"mark_essai_{uuid.uuid4().hex[:10]}"
     try:
         yield nom
@@ -264,6 +280,123 @@ async def test_creer_puis_mettre_a_niveau_napplique_rien_deux_fois(base_essai):
 # --------------------------------------------------------------------------- #
 # 2. The referential written by Dograh comes back identical (B2)
 # --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_la_connexion_courante_n_a_que_les_droits_d_ecriture_de_sa_base(
+    base_prete,
+):
+    """Décision d'Evan du 07/10 (n° 317) : a usual connection (calls, after-call, sync,
+    purge, catch-up) is NOT the server's owner: it writes in ``mark`` as ``<base>_ecriture``,
+    cannot write elsewhere, cannot drop a database, cannot switch row security off."""
+    connexion = await schema.connecter(base_prete)
+    try:
+        assert (
+            await connexion.fetchval("SELECT current_user") == f"{base_prete}_ecriture"
+        )
+        drapeaux = await connexion.fetchrow(
+            "SELECT rolsuper, rolbypassrls, rolcreatedb, rolcreaterole FROM pg_roles"
+            " WHERE rolname = session_user"
+        )
+        assert tuple(drapeaux) == (False, False, False, False)
+        # It does its work: the after-call's function, the night task.
+        await connexion.execute(
+            "INSERT INTO mark.entreprise (raison_sociale) VALUES ('Entreprise')"
+        )
+        await connexion.fetchval("SELECT mark.nuit()")
+        with pytest.raises(asyncpg.InsufficientPrivilegeError):
+            await connexion.execute("CREATE TABLE public.intrus (x int)")
+        with pytest.raises(asyncpg.PostgresError):
+            await connexion.execute(f'DROP DATABASE "{base_prete}"')
+        with pytest.raises(asyncpg.PostgresError):
+            await connexion.execute(
+                "ALTER TABLE mark.demande DISABLE ROW LEVEL SECURITY"
+            )
+        with pytest.raises(asyncpg.PostgresError):
+            await connexion.execute(
+                "INSERT INTO mark.schema_version (version, description) VALUES (99, 'x')"
+            )
+        await connexion.execute("SET row_security = off")
+        with pytest.raises(asyncpg.PostgresError):
+            await connexion.fetchval("SELECT count(*) FROM mark.demande")
+    finally:
+        await connexion.close()
+
+
+@pytest.mark.asyncio
+async def test_une_base_sans_droits_pour_le_compte_courant_se_met_a_niveau(base_prete):
+    """A database whose connection account has no rights (made before 006): the screen says
+    « upgrade », and « Upgrade » (the owner) gives the rights back."""
+    import httpx
+
+    from api.routes import base_client as route_base_client
+
+    c = await asyncpg.connect(f"{_serveur()}/{base_prete}")
+    try:
+        await c.execute(f'REVOKE "{base_prete}_ecriture" FROM "{COMPTE_ESSAI[0]}"')
+    finally:
+        await c.close()
+    miroir, redis = _Miroir(base_prete), _RedisFactice()
+    app = FastAPI()
+    app.include_router(route_base_client.router)
+    app.dependency_overrides[get_user_with_selected_organization] = lambda: (
+        SimpleNamespace(id=1, provider_id="p", selected_organization_id=ORGANISATION)
+    )
+    a, b, d = _rattachee(miroir, redis)
+    with a, b, d:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://t"
+        ) as client:
+            etat = (await client.get("/organizations/base-client")).json()
+            assert etat["a_mettre_a_niveau"] is True and etat["joignable"] is False
+            etat = (
+                await client.post("/organizations/base-client/mettre-a-niveau")
+            ).json()
+            assert etat["joignable"] is True and etat["a_mettre_a_niveau"] is False
+
+
+@pytest.mark.asyncio
+async def test_un_role_d_etablissement_ne_voit_que_ses_lignes(base_prete):
+    """A site's role sees only its site's requests and calls (row security, migration 006:
+    the policy is evaluated for the role that asks, not for the function's owner)."""
+    proprietaire = await asyncpg.connect(f"{_serveur()}/{base_prete}")
+    role = f"{base_prete}_site_a"
+    try:
+        await proprietaire.execute(
+            "INSERT INTO mark.entreprise (raison_sociale) VALUES ('E')"
+        )
+        a = await proprietaire.fetchval(
+            "INSERT INTO mark.site (entreprise_id, cle, nom) SELECT id, 'a', 'A' FROM mark.entreprise RETURNING id"
+        )
+        b = await proprietaire.fetchval(
+            "INSERT INTO mark.site (entreprise_id, cle, nom) SELECT id, 'b', 'B' FROM mark.entreprise RETURNING id"
+        )
+        await proprietaire.execute(
+            "INSERT INTO mark.demande (site_id, type) VALUES ($1, 'autre'), ($2, 'autre')",
+            a,
+            b,
+        )
+        await proprietaire.execute(
+            f'CREATE ROLE "{role}" NOLOGIN IN ROLE "{base_prete}_interface"'
+        )
+        await proprietaire.execute(
+            "INSERT INTO mark.role_site VALUES ($1, $2)", role, a
+        )
+        await proprietaire.execute(f'SET ROLE "{role}"')
+        assert await proprietaire.fetchval("SELECT count(*) FROM mark.demande") == 1
+        await proprietaire.execute("RESET ROLE")
+        await proprietaire.execute(f'SET ROLE "{base_prete}_direction"')
+        assert await proprietaire.fetchval("SELECT count(*) FROM mark.demande") == 2
+        await proprietaire.execute("RESET ROLE")
+    finally:
+        await proprietaire.execute("RESET ROLE")
+        await proprietaire.execute(f'DROP OWNED BY "{role}"')
+        await proprietaire.close()
+        maintenance = await asyncpg.connect(f"{_serveur()}/postgres")
+        try:
+            await maintenance.execute(f'DROP ROLE IF EXISTS "{role}"')
+        finally:
+            await maintenance.close()
 
 
 @pytest.mark.asyncio

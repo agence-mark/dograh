@@ -102,7 +102,8 @@ export const ThemeDonneesClient = ({
     }, [etat]);
 
     const rattachee = Boolean(etat?.nom_base);
-    const enRetard = rattachee && etat?.version != null && etat.version < etat.version_attendue;
+    // n° 317: a database whose connection account has no rights yet is upgraded too.
+    const enRetard = rattachee && ((etat?.version != null && etat.version < etat.version_attendue) || !!etat?.a_mettre_a_niveau);
     const conservationModifiee = JSON.stringify(conservation) !== JSON.stringify(etat?.conservation ?? []);
     useSignaler("donnees", conservationModifiee, Boolean(etat?.refus?.length), signaler);
 

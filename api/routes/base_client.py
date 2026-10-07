@@ -22,7 +22,9 @@ from api.db.bases_clients.connexion import (
     BaseDejaExistante,
     NomDeBaseInvalide,
     appliquer_migrations,
+    assurer_compte_courant,
     connecter,
+    connecter_proprietaire,
     creer_base,
     version_de,
 )
@@ -70,14 +72,21 @@ async def put_base_client(
         except rattachement.BaseDejaRattachee as erreur:
             raise _refus(str(erreur), 409) from None
         try:
-            connexion = await connecter(request.nom_base)
+            # The owner's connection (n° 317): it checks the schema and gives the connection
+            # account its rights in this database.
+            connexion = await connecter_proprietaire(request.nom_base)
         except (BaseClientIndisponible, NomDeBaseInvalide) as erreur:
             raise _refus(str(erreur)) from None
         try:
-            if not await version_de(connexion):
+            version = await version_de(connexion)
+            if not version or version < 3:
                 raise _refus(
                     f"« {request.nom_base} » has no .mark schema: create it or upgrade it first."
                 )
+            try:
+                await assurer_compte_courant(connexion, request.nom_base)
+            except BaseClientIndisponible as erreur:
+                raise _refus(str(erreur)) from None
         finally:
             await connexion.close()
     try:
@@ -124,11 +133,14 @@ async def post_mettre_a_niveau(
     if not nom:
         raise _refus("No client database is attached to this organization.")
     try:
-        connexion = await connecter(nom)
+        connexion = await connecter_proprietaire(nom)
     except BaseClientIndisponible as erreur:
         raise _refus(str(erreur), 503) from None
     try:
         appliquees = await appliquer_migrations(connexion)
+        await assurer_compte_courant(connexion, nom)
+    except BaseClientIndisponible as erreur:
+        raise _refus(str(erreur), 503) from None
     finally:
         await connexion.close()
     logger.info(

@@ -17,6 +17,7 @@ from loguru import logger
 from api.db import db_client
 from api.db.bases_clients.connexion import (
     BaseClientIndisponible,
+    CompteSansDroits,
     connecter,
     serveur_configure,
     verifier_nom,
@@ -109,6 +110,10 @@ async def etat(organization_id: int, refus: list[str] | None = None) -> EtatBase
         return resultat
     try:
         connexion = await connecter(nom)
+    except CompteSansDroits as erreur:
+        resultat.erreur = str(erreur)
+        resultat.a_mettre_a_niveau = True
+        return resultat
     except BaseClientIndisponible as erreur:
         resultat.erreur = str(erreur)
         return resultat

@@ -48,6 +48,10 @@ class EtatBaseClient(BaseModel):
     erreur: str | None = None
     version: int | None = None
     version_attendue: int
+    a_mettre_a_niveau: bool = Field(
+        default=False,
+        description="The connection account has no rights in this database yet: « Upgrade » gives them.",
+    )
     derniere_ecriture: datetime | None = None
     conservation: list[Conservation] = Field(default_factory=list)
     refus: list[str] = Field(
