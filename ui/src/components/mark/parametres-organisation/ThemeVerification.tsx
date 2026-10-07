@@ -47,7 +47,7 @@ export const FACTEURS: Array<{ cle: "numero" | "question" | "code_sms"; libelle:
     {
         cle: "code_sms",
         libelle: { en: "Code by SMS", fr: "Code par SMS" },
-        aide: { en: "A one-time code sent during the call to the record's mobile, through the client's Twilio (« Telephony »). Never sent in a test call (keyboard, browser, simulated caller). Wired, never tried for real: switch it on only with a client who asks for it. Default: off.", fr: "Un code à usage unique envoyé pendant l'appel au mobile du dossier, par le Twilio du client (« Téléphonie »). Jamais envoyé dans un appel d'essai (clavier, navigateur, appelant simulé). Branché, jamais essayé en réel : à allumer seulement avec un client qui le demande. Par défaut : éteint." },
+        aide: { en: "A one-time code sent during the call to the record's mobile, through the client's Twilio (« Telephony »). Wired, never tried for real: switch it on only with a client who asks for it. Default: off.", fr: "Un code à usage unique envoyé pendant l'appel au mobile du dossier, par le Twilio du client (« Téléphonie »). Branché, jamais essayé en réel : à allumer seulement avec un client qui le demande. Par défaut : éteint." },
     },
 ];
 
@@ -88,7 +88,6 @@ export const charge_utile_verification = (r: ReglagesVerification): ReglagesVeri
     numero: r.numero ?? true,
     question: r.question ?? true,
     code_sms: r.code_sms ?? false,
-    envois_max_par_numero: r.envois_max_par_numero ?? 3,
     champs_controle: r.champs_controle ?? [],
     lisibles: r.lisibles ?? {},
     logiciel: r.logiciel || null,
@@ -189,27 +188,6 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler }: ProprietesTh
                                 <Switch id={`verif-${f.cle}`} checked={Boolean(brouillon[f.cle])} onCheckedChange={(v) => poser({ [f.cle]: v })} />
                             </ChampReglage>
                         ))}
-                        <ChampReglage
-                            cle="envois_max_par_numero"
-                            idControle="verif-envois-max"
-                            libelle={{ en: "Codes by SMS per number and hour", fr: "Codes par SMS par numéro et par heure" }}
-                            aides={[{ en: "A number never receives more codes than this in an hour, all calls together (protects a record's holder from a flood). Shown only with the code by SMS on.", fr: "Un numéro ne reçoit jamais plus de codes que ce nombre en une heure, tous appels confondus (protège le titulaire d'un dossier d'un envoi en rafale). Affiché seulement avec le code par SMS allumé." }]}
-                            bornes={{ en: "1 to 20, default 3", fr: "1 à 20, 3 par défaut" }}
-                        >
-                            {brouillon.code_sms ? (
-                                <input
-                                    id="verif-envois-max"
-                                    type="number"
-                                    min={1}
-                                    max={20}
-                                    className="w-20 rounded border border-border bg-background px-2 py-1 text-sm"
-                                    value={brouillon.envois_max_par_numero ?? 3}
-                                    onChange={(e) => poser({ envois_max_par_numero: Math.min(20, Math.max(1, Number(e.target.value) || 1)) })}
-                                />
-                            ) : (
-                                <span className="text-xs text-muted-foreground">{t({ en: "Code by SMS off.", fr: "Code par SMS éteint." })}</span>
-                            )}
-                        </ChampReglage>
                         <ChampReglage
                             cle="champs_controle"
                             libelle={{ en: "Fields of the question", fr: "Champs de la question" }}

@@ -54,7 +54,6 @@ PHRASE_RAPPEL_DEFAUT = (
     "Je ne peux pas vous donner ces informations sans vérifier votre identité : "
     "je note votre demande, un collègue vous rappelle."
 )
-ENVOIS_FENETRE_S = 3600  # the window of the per-number cap on codes sent
 INDISPONIBLE = {
     "status": "unavailable",
     "instruction": (
@@ -111,39 +110,13 @@ async def _garder(org: int, run_id: int, etat: etats.Etat) -> None:
     await asyncio.shield(etats.enregistrer(org, run_id, etat))
 
 
-async def _plafond_envois(org: int, numero: str, maximum: int) -> bool:
-    """True while the recipient may still receive a code (a counter with a lifetime, per number
-    AND organization). Redis unreachable: False (fail closed, no SMS)."""
-    from api.services.etablissements.copie import _redis
-
-    cle = f"{etats.PREFIXE}sms:{int(org)}:{numero}"
-    try:
-        redis = await _redis()
-        n = await redis.incr(cle)
-        if n == 1:
-            await redis.expire(cle, ENVOIS_FENETRE_S)
-        return n <= maximum
-    except Exception as erreur:  # noqa: BLE001 -- fail closed
-        logger.error(f"[.mark] SMS counter unreadable, no code sent: {erreur!r}")
-        return False
-
-
-async def _envoyer_code(ctx, run, dossier: dict, etat: etats.Etat, reglages: ReglagesVerification, reste) -> bool:
+async def _envoyer_code(ctx, run, dossier: dict, etat: etats.Etat, delai: float) -> bool:
     """V5: the code by the client's Twilio, DURING the call. Wired, off, never tried for real:
-    proven by stand-ins only. False when it cannot leave (no mobile, no account, test call,
-    too many codes to this number, timeout).
-
-    The state (the digest, the count) is kept BEFORE the slow send, so a deadline that cancels
-    the send loses nothing."""
+    proven by stand-ins only. False when it cannot leave (no mobile, no account, timeout)."""
     from api.schemas.apres_appel import est_un_mobile, numero_e164
     from api.services.apres_appel import sms
     from api.services.telephony.factory import get_telephony_provider_for_run
-    from api.services.workflow.renvoi_en_test import MODES_DE_TEST
 
-    # A test (keyboard, simulated call, browser) simulates the transfer and sends no real SMS.
-    if getattr(run, "mode", None) in MODES_DE_TEST:
-        logger.info("[.mark] Verification code not sent: a test call")
-        return False
     mobile = next(
         (n for n in (numero_e164(t) for t in dossier.get("telephones") or []) if est_un_mobile(n)), None
     )
@@ -156,22 +129,12 @@ async def _envoyer_code(ctx, run, dossier: dict, etat: etats.Etat, reglages: Reg
     )
     if not (sid and jeton and expediteur):
         return False
-    if not await _plafond_envois(ctx.organization_id, mobile, reglages.envois_max_par_numero):
-        logger.warning("[.mark] Verification code not sent: too many codes to this number")
-        return False
     code, sel, empreinte = etats.nouveau_code(CODE_LONGUEUR)
     texte = f"Votre code de vérification : {code}. Il expire dans {CODE_VALIDITE_S // 60} minutes."
+    await asyncio.wait_for(sms.envoyer(sid, jeton, expediteur, mobile, texte), timeout=delai)
     etat.code_empreinte, etat.code_sel = empreinte, sel
     etat.code_expire = time.time() + CODE_VALIDITE_S
     etat.code_envois += 1
-    await _garder(ctx.organization_id, ctx.run_id, etat)
-    try:
-        await asyncio.wait_for(sms.envoyer(sid, jeton, expediteur, mobile, texte), timeout=reste())
-    except Exception:
-        # Not sent: the code kept would be one nobody received.
-        etat.code_empreinte = etat.code_sel = etat.code_expire = None
-        await _garder(ctx.organization_id, ctx.run_id, etat)
-        raise
     return True
 
 
@@ -276,13 +239,19 @@ async def _verifier(arguments: dict, ctx, delai_s: float, debut: float, reglages
         envoye = False
         if dossier is not None:
             try:
-                envoye = await _envoyer_code(ctx, run, dossier, etat, reglages, reste)
+                envoye = await _envoyer_code(ctx, run, dossier, etat, reste())
             except Exception as erreur:  # noqa: BLE001 -- never raises during a call: logged
                 logger.warning(f"[.mark] Verification code not sent: {erreur!r}")
         resultat_code = (
             {"code": "sent", "instruction": "Ask the caller for the code he just received by SMS, then call again with « code »."}
             if envoye else {"code": "not_sent"}
         )
+        if envoye:
+            try:
+                await _garder(org, run_id, etat)  # the digest of the code just sent
+            except Exception as erreur:  # noqa: BLE001 -- fail closed: no code is expected
+                logger.error(f"[.mark] Verification state not kept after the send: {erreur!r}")
+                return dict(INDISPONIBLE)
 
     peut_lire = lisibles(reglages, etat)
     issue = (

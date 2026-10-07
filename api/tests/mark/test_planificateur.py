@@ -111,6 +111,9 @@ def test_le_lecteur_des_dates_passees_n_a_pas_change():
     from pathlib import Path
 
     racine = Path(__file__).resolve().parents[3]
+    connu = subprocess.run(["git", "cat-file", "-e", "03adc42a^{commit}"], cwd=racine, capture_output=True)
+    if connu.returncode != 0:
+        pytest.skip("the base commit is not in this checkout (shallow clone of the CI)")
     diff = subprocess.run(
         ["git", "diff", "--stat", "03adc42a", "--", "api/services/workflow/dates_relatives.py"],
         cwd=racine, capture_output=True, text=True,

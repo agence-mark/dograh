@@ -32,7 +32,6 @@ TYPES_LISIBLES: dict[str, tuple[str, ...]] = {
 TENTATIVES_MAX = 2  # V6
 CODE_LONGUEUR = 6
 CODE_VALIDITE_S = 600
-ENVOIS_MAX_DEFAUT = 3  # codes by SMS to one number, per hour
 _SYSTEME = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
 
 
@@ -56,10 +55,6 @@ class ReglagesVerification(BaseModel):
     code_sms: bool = Field(
         default=False,
         description="A one-time code sent by SMS to the record's mobile, through the client's Twilio.",
-    )
-    envois_max_par_numero: int = Field(
-        default=ENVOIS_MAX_DEFAUT, ge=1, le=20,
-        description="How many codes by SMS one number may receive in an hour (all calls of the organization).",
     )
     champs_controle: list[str] = Field(default_factory=lambda: ["nom", "code_postal"])
     lisibles: dict[str, NiveauLecture] = Field(default_factory=_defauts_lisibles)

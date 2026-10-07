@@ -442,14 +442,12 @@ def test_les_reglages_refusent_ce_qui_ne_tient_pas():
     with pytest.raises(ValueError):
         ReglagesVerification(lisibles={"demandes": NiveauLecture(facteurs_requis=3, champs=["statut"])})
     ReglagesVerification(numero=False, lisibles={"demandes": NiveauLecture(facteurs_requis=3, champs=[])})  # never read
-    with pytest.raises(ValueError):
-        ReglagesVerification(envois_max_par_numero=0)
     defaut = ReglagesVerification()
     assert defaut.facteurs_actifs() == ["numero", "question"] and not defaut.code_sms
 
 
 # --------------------------------------------------------------------------- #
-# 8. Revue du 07/10 : appels d'outils en parallèle, appels d'essai, état gardé avant l'envoi lent
+# 8. Revue du 07/10 : appels d'outils en parallèle, état gardé avant tout appel lent
 # --------------------------------------------------------------------------- #
 
 
@@ -488,12 +486,6 @@ async def test_une_reussite_en_parallele_n_est_pas_ecrasee_par_un_echec(installe
     assert "question" in etat.reussis, "a success was overwritten by a parallel failure"
 
 
-async def _sans_plafond() -> None:
-    redis = await etats._redis()
-    for cle in [c async for c in redis.scan_iter(f"{etats.PREFIXE}sms:*")]:
-        await redis.delete(cle)
-
-
 def _doublures_sms(monkeypatch, *, lent: bool = False):
     from api.services.apres_appel import sms
     from api.services.telephony import factory
@@ -516,74 +508,15 @@ def _doublures_sms(monkeypatch, *, lent: bool = False):
     return envoyes
 
 
-@pytest.mark.parametrize("mode", ["smallwebrtc", "textchat", "simulated"])
-async def test_aucun_code_sms_pendant_un_essai(installe, monkeypatch, mode):
-    """A test call (browser, keyboard, simulated caller) simulates the transfer: it sends no SMS."""
-    await _sans_plafond()
-    envoyes = _doublures_sms(monkeypatch)
-    await _regler(installe, numero=False, question=False, code_sms=True, lisibles=UN_FACTEUR)
-    run = await installe.t._run(installe.db, installe.org, numero=DUPONT, mode=mode)
-    _e, verifier, _l = await _pret(installe, monkeypatch, run_id=run.id)
-    r = await _appeler(verifier, {"envoyer_code": True})
-    assert r["code"] == "not_sent" and envoyes == []
-    etat = await etats.charger(installe.org.organisation.id, run.id)
-    assert etat.code_envois == 0 and etat.code_empreinte is None
-
-
-async def test_un_numero_ne_recoit_pas_plus_de_codes_que_le_plafond(installe, monkeypatch):
-    await _sans_plafond()
-    envoyes = _doublures_sms(monkeypatch)
-    await _regler(installe, numero=False, question=False, code_sms=True, envois_max_par_numero=1,
-                  lisibles=UN_FACTEUR)
-    try:
-        _e, verifier, _l = await _pret(installe, monkeypatch)
-        assert (await _appeler(verifier, {"envoyer_code": True}))["code"] == "sent"
-        # Another call, the same recipient: the cap is by number, not by call.
-        autre = await installe.t._run(installe.db, installe.org, numero=DUPONT)
-        _e2, verifier2, _l2 = await _pret(installe, monkeypatch, run_id=autre.id)
-        assert (await _appeler(verifier2, {"envoyer_code": True}))["code"] == "not_sent"
-        assert len(envoyes) == 1
-    finally:
-        await _sans_plafond()
-
-
 async def test_la_tentative_ratee_n_est_pas_perdue_si_le_delai_tombe_pendant_l_envoi(installe, monkeypatch):
     """The deadline of the tool cancels the action while the telephony account is being read: the
     failed attempt of THIS call was already kept (state first, slow work after)."""
-    await _sans_plafond()
     envoyes = _doublures_sms(monkeypatch, lent=True)
     await _regler(installe, numero=False, code_sms=True, lisibles=UN_FACTEUR)
-    try:
-        _e, verifier, _l = await _pret(installe, monkeypatch, delai_ms=700)
-        await _appeler(verifier, {"nom": "Durand", "code_postal": "60100", "envoyer_code": True})
-        etat = await etats.charger(installe.org.organisation.id, installe.run.id)
-        assert etat.tentatives_echouees == 1 and envoyes == []
-    finally:
-        await _sans_plafond()
-
-
-async def test_le_code_est_garde_avant_l_envoi_lent_et_retire_s_il_n_est_pas_parti(installe, monkeypatch):
-    import asyncio
-
-    from api.services.apres_appel import sms
-
-    await _sans_plafond()
-    _doublures_sms(monkeypatch)
-
-    async def lent(*a, **k):
-        await asyncio.sleep(3)
-
-    monkeypatch.setattr(sms, "envoyer", lent)
-    await _regler(installe, numero=False, question=False, code_sms=True, lisibles=UN_FACTEUR)
-    try:
-        _e, verifier, _l = await _pret(installe, monkeypatch, delai_ms=900)
-        r = await _appeler(verifier, {"envoyer_code": True})
-        assert r["code"] == "not_sent"
-        etat = await etats.charger(installe.org.organisation.id, installe.run.id)
-        # Counted (no endless retries), and no code kept that nobody received.
-        assert etat.code_envois == 1 and etat.code_empreinte is None
-    finally:
-        await _sans_plafond()
+    _e, verifier, _l = await _pret(installe, monkeypatch, delai_ms=700)
+    await _appeler(verifier, {"nom": "Durand", "code_postal": "60100", "envoyer_code": True})
+    etat = await etats.charger(installe.org.organisation.id, installe.run.id)
+    assert etat.tentatives_echouees == 1 and envoyes == []
 
 
 # Fixtures of the after-call's tests (a real client database, an SMTP stand-in, a model stand-in).
