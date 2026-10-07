@@ -138,3 +138,33 @@ async def derniere_nuit(connexion: asyncpg.Connection) -> dict | None:
     if isinstance(sortie.get("resultat"), str):
         sortie["resultat"] = json.loads(sortie["resultat"])
     return sortie
+
+
+async def recevoir_appel_perdu(
+    connexion: asyncpg.Connection,
+    call_sid: str | None,
+    numero_appelant: str | None,
+    numero_appele: str | None,
+    debut: datetime,
+    statut: str | None,
+) -> dict:
+    """[.mark] L7 (PN5), migration ``005``: the request « to call back » of a call lost while
+    our server was down, written ONCE per Twilio call (``doublon`` when already known)."""
+    brut = await connexion.fetchval(
+        "SELECT mark.recevoir_appel_perdu($1, $2, $3, $4, $5)",
+        call_sid,
+        numero_appelant,
+        numero_appele,
+        debut,
+        statut,
+    )
+    return json.loads(brut) if isinstance(brut, str) else dict(brut or {})
+
+
+async def a_le_journal_des_taches(connexion: asyncpg.Connection) -> bool:
+    """A database before ``004`` has no ``execution_tache``."""
+    return bool(
+        await connexion.fetchval(
+            "SELECT to_regclass('mark.execution_tache') IS NOT NULL"
+        )
+    )

@@ -77,8 +77,22 @@ async def _perdu(organization_id: int, appel: dict, maintenant: datetime) -> boo
     )
 
 
+async def _premiere_alerte(organization_id: int, appel: dict) -> bool:
+    """Revue 8: one alert per lost Twilio call, whatever the number of hourly passes (a mark
+    in Redis, kept a little longer than the window read). Without Redis: alerted anyway."""
+    from api.services.etablissements.copie import _redis
+
+    marque = f"mark:panne:alerte:{organization_id}:{appel.get('sid') or ''}"
+    try:
+        redis = await _redis()
+        return bool(await redis.set(marque, "1", nx=True, ex=(FENETRE_H + 1) * 3600))
+    except Exception:  # noqa: BLE001
+        return True
+
+
 async def rattraper(organization_id: int, maintenant: datetime | None = None) -> dict:
     """``{appels_lus, demandes_creees, deja_connus, erreurs}``. Never raises."""
+    from api.db.bases_clients import apres_appel as sql
     from api.db.bases_clients.connexion import BaseClientIndisponible, connecter
     from api.services.apres_appel.notification import notifier
     from api.services.base_client.rattachement import nom_de_la_base
@@ -129,20 +143,13 @@ async def rattraper(organization_id: int, maintenant: datetime | None = None) ->
             return bilan
         try:
             for appel in perdus:
-                resultat = await connexion.fetchval(
-                    "SELECT mark.recevoir_appel_perdu($1, $2, $3, $4, $5)",
+                resultat = await sql.recevoir_appel_perdu(
+                    connexion,
                     appel.get("sid"),
                     appel.get("from"),
                     appel.get("to"),
                     _date(appel.get("start_time")) or maintenant,
                     appel.get("status"),
-                )
-                import json
-
-                resultat = (
-                    json.loads(resultat)
-                    if isinstance(resultat, str)
-                    else (resultat or {})
                 )
                 if resultat.get("doublon"):
                     bilan["deja_connus"] += 1
@@ -151,6 +158,7 @@ async def rattraper(organization_id: int, maintenant: datetime | None = None) ->
                     nouveaux.append(appel)
         finally:
             await connexion.close()
+    nouveaux = [a for a in nouveaux if await _premiere_alerte(organization_id, a)]
     if nouveaux:
         lignes = [
             f"{len(nouveaux)} appel(s) perdu(s) pendant une panne, à rappeler :"

@@ -718,6 +718,10 @@ async def test_rattrapage_cree_chaque_demande_une_seule_fois(base_v5, monkeypatc
     )
     alertes = AsyncMock(return_value=["a@example.org"])
     monkeypatch.setattr("api.services.apres_appel.notification.notifier", alertes)
+    from api.services.etablissements import copie as module_copie
+    from api.tests.mark.test_base_client import _RedisFactice
+
+    monkeypatch.setattr(module_copie, "_redis", AsyncMock(return_value=_RedisFactice()))
     with patch.object(
         client_twilio,
         "nouveau_client",
@@ -743,6 +747,47 @@ async def test_rattrapage_cree_chaque_demande_une_seule_fois(base_v5, monkeypatc
         assert await connexion.fetchval("SELECT count(*) FROM mark.appel_perdu") == 2
     finally:
         await connexion.close()
+
+
+async def test_rattrapage_sans_base_n_alerte_qu_une_fois_par_appel(monkeypatch):
+    """Revue 8: without a client database the lost calls are only alerted; the hourly pass
+    must not alert the same Twilio call again (a mark per call, like the recap)."""
+    from api.services.etablissements import copie as module_copie
+    from api.tests.mark.test_base_client import _RedisFactice
+
+    appels = [
+        {
+            "sid": "CAseul",
+            "direction": "inbound",
+            "status": "completed",
+            "from": "+33612345678",
+            "to": "+33100000001",
+        }
+    ]
+    faux = FauxTwilio(appels=appels)
+    monkeypatch.setattr("api.db.db_client.run_par_appel", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        rattrapage,
+        "_comptes",
+        AsyncMock(return_value=[("ACessai", "jeton", ["+33100000001"])]),
+    )
+    monkeypatch.setattr(
+        "api.services.base_client.rattachement.nom_de_la_base",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(module_copie, "_redis", AsyncMock(return_value=_RedisFactice()))
+    alertes = AsyncMock(return_value=["a@example.org"])
+    monkeypatch.setattr("api.services.apres_appel.notification.notifier", alertes)
+    with patch.object(
+        client_twilio,
+        "nouveau_client",
+        lambda **o: httpx.AsyncClient(transport=httpx.MockTransport(faux), **o),
+    ):
+        await rattrapage.rattraper(1)
+        await rattrapage.rattraper(1)
+        await rattrapage.rattraper(2)  # another organization: its own marks
+    assert alertes.await_count == 2
+    assert [c.args[0] for c in alertes.await_args_list] == [1, 2]
 
 
 def test_les_defauts_de_l_ecran_sont_ceux_du_serveur():

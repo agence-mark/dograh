@@ -70,9 +70,7 @@ async def _ecran(organization_id: int) -> EcranApresAppel:
         try:
             connexion = await connecter(nom)
             try:
-                if await connexion.fetchval(
-                    "SELECT to_regclass('mark.execution_tache') IS NOT NULL"
-                ):
+                if await sql.a_le_journal_des_taches(connexion):
                     derniere = await sql.derniere_nuit(connexion)
             finally:
                 await connexion.close()
@@ -282,7 +280,9 @@ class ApercuSms(BaseModel):
 
 
 async def _agent_de_lorganisation(workflow_id: int, organization_id: int):
-    workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
+    workflow = await db_client.get_workflow(
+        workflow_id, organization_id=organization_id
+    )
     if workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
     return workflow
@@ -307,4 +307,11 @@ async def post_apercu_sms(
     run_id, fiche = await db_client.derniere_fiche(workflow_id)
     texte, coupe = sms.remplir(demande.texte, fiche)
     nombre, encodage = sms.parties(texte)
-    return ApercuSms(texte=texte, longueur=len(texte), coupe=coupe, parties=nombre, encodage=encodage, run_id=run_id)
+    return ApercuSms(
+        texte=texte,
+        longueur=len(texte),
+        coupe=coupe,
+        parties=nombre,
+        encodage=encodage,
+        run_id=run_id,
+    )

@@ -157,8 +157,11 @@ class _RedisFactice:
     async def get(self, cle):
         return self.valeurs.get(cle)
 
-    async def set(self, cle, valeur):
+    async def set(self, cle, valeur, nx=False, ex=None, **_options):
+        if nx and cle in self.valeurs:
+            return None
         self.valeurs[cle] = valeur
+        return True
 
 
 class _Miroir:
