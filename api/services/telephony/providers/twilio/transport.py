@@ -12,10 +12,21 @@ from api.services.pipecat.transport_params import (
     filtre_de_bruit_overrides,
     realtime_param_overrides,
 )
+from api.services.panne import raccroche
 from api.services.telephony.factory import load_credentials_for_transport
 
 from .serializers import TwilioFrameSerializer
 from .strategies import TwilioConferenceStrategy, TwilioHangupStrategy
+
+
+class TwilioHangupStrategyMark(TwilioHangupStrategy):
+    """[.mark] L7 (C2): a call handed over by the outage fallback is left alone (Twilio
+    follows its new instruction and hangs up itself); every other call as before."""
+
+    async def execute_hangup(self, context):
+        if raccroche.est_renvoye(context.get("call_sid")):
+            return True
+        return await super().execute_hangup(context)
 
 
 async def create_transport(
@@ -51,7 +62,8 @@ async def create_transport(
         account_sid=account_sid,
         auth_token=auth_token,
         transfer_strategy=TwilioConferenceStrategy(),
-        hangup_strategy=TwilioHangupStrategy(),
+        # [.mark] L7 (C2): leaves a call handed over by the outage fallback alone.
+        hangup_strategy=TwilioHangupStrategyMark(),
     )
 
     mixer = await build_audio_out_mixer(

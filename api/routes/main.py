@@ -13,6 +13,8 @@ from api.routes.campaign import router as campaign_router
 from api.routes.cles import router as cles_router
 from api.routes.apres_appel import router as apres_appel_router
 from api.routes.apres_appel import routeur_run as apres_appel_run_router
+from api.services.panne.routes import router as panne_router
+from api.services.panne.routes import routeur_twilio as panne_twilio_router
 from api.routes.base_client import router as base_client_router
 from api.routes.base_client import routeur_equipe as equipe_router
 from api.routes.etablissements import router as etablissements_router
@@ -73,6 +75,9 @@ router.include_router(base_client_router)
 # [.mark] l-agent-travaille, L4: the after-call settings and the run's section.
 router.include_router(apres_appel_router)
 router.include_router(apres_appel_run_router)
+# [.mark] l-agent-travaille, L7: the outage fallback.
+router.include_router(panne_router)
+router.include_router(panne_twilio_router)
 router.include_router(equipe_router)
 router.include_router(user_router)
 router.include_router(campaign_router)

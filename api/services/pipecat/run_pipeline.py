@@ -789,6 +789,49 @@ async def _run_pipeline_smallwebrtc_impl(
     )
 
 
+async def _brancher_la_panne(
+    engine, task, llm, tts, workflow_run, organization_id, workflow_id,
+    run_configs, reglages_annonce, call_direction, provider_call_id, is_realtime,
+) -> None:
+    """[.mark] L7: plug the outage guard (``api/services/panne``). Never raises."""
+    try:
+        from api.schemas.panne import panne_de_lagent
+
+        reglages = panne_de_lagent(run_configs)
+        if not reglages.actif or is_realtime:
+            return
+        from api.services.panne.declencheurs import brancher
+        from api.services.panne.gardien import ContextePanne
+        from api.services.pipecat.etat_ouverture import est_sortant
+        from api.utils.common import get_backend_endpoints
+
+        twilio = str(getattr(workflow_run, "mode", "") or "") == "twilio" and bool(provider_call_id)
+        url_resultat = None
+        if twilio:
+            backend, _ = await get_backend_endpoints()
+            url_resultat = f"{backend}/api/v1/telephony/twilio/panne/{workflow_run.id}/resultat"
+        brancher(
+            engine,
+            task,
+            llm,
+            tts,
+            ContextePanne(
+                run_id=workflow_run.id,
+                organization_id=organization_id,
+                workflow_id=workflow_id,
+                reglages=reglages,
+                entrant=not est_sortant(call_direction),
+                call_sid=provider_call_id if twilio else None,
+                run=workflow_run,
+                url_resultat=url_resultat,
+                reglages_annonce=reglages_annonce,
+                workflow_configurations=run_configs,
+            ),
+        )
+    except Exception as erreur:  # noqa: BLE001 -- the call goes on as before
+        logger.error(f"[.mark] Outage fallback not plugged: {erreur!r}")
+
+
 async def _run_pipeline(
     transport,
     workflow_id: int,
@@ -1690,6 +1733,12 @@ async def _run_pipeline_impl(
     task.add_observer(ObservateurDesInterruptions(in_memory_logs_buffer))
     brancher_les_connexions({"transcription": stt, "voice": tts}, in_memory_logs_buffer)
     setattr(engine, ATTRIBUT_JOURNAL, in_memory_logs_buffer)
+    # [.mark] l-agent-travaille, L7: the outage fallback of this call, for an agent that
+    # switched it on (X2). Off: nothing here runs, the call is the call of before.
+    await _brancher_la_panne(
+        engine, task, llm, tts, workflow_run, workflow.organization_id, workflow_id,
+        run_configs, reglages_annonce, call_direction, provider_call_id, is_realtime,
+    )
     engine.greeting.log_generated_speech = feedback_observer.log_speech
 
     if not is_realtime:

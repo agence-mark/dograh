@@ -220,6 +220,9 @@ class OrganizationConfigurationKey(Enum):
     # summary, mail server, recap, modules. Same free-text key, no migration.
     # Format: api/schemas/apres_appel.py
     APRES_APPEL = "APRES_APPEL"
+    # [.mark] The outage fallback of the organization (chantier l-agent-travaille, L7, PN5):
+    # the address of its TwiML Bin. Format: api/schemas/panne.py
+    PANNE = "PANNE"
 
 
 class UserConfigurationKey(Enum):

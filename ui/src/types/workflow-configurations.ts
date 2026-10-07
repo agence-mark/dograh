@@ -272,6 +272,9 @@ export type SmsAgent = {
     equipe: SmsEnvoi & { numeros: string[] };
 };
 
+/** [.mark] L7: the outage fallback of an agent (api/schemas/panne.py). */
+export type PanneAgent = { actif: boolean; delai_modele_s: number; delai_voix_s: number; sonnerie_s: number };
+
 export type ApresAppelAgent = {
     actif?: boolean;
     synthese?: boolean;
@@ -321,6 +324,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Chantier l-agent-travaille, L4 (A6): what this agent does after the call.
     // Absent or off: nothing is written or sent, the behaviour of before.
     apres_appel?: ApresAppelAgent | null;
+    // [.mark] L7: the outage fallback of the agent (off by default).
+    panne?: Partial<PanneAgent> | null;
     // [.mark] Part 2: the clerk's model, shaped like a model override (its key
     // comes back masked and is restored on save), and its instructions (absent:
     // the generic ones written in the code).

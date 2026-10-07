@@ -174,6 +174,15 @@ def construire_envoi(
         if champs
         else None
     )
+    # [.mark] L7 (PN1): a call lost by an outage always makes its request « to call back »,
+    # even with nothing noted, first in the list.
+    panne = contexte.get("panne")
+    if isinstance(panne, dict) and panne.get("a_rappeler"):
+        demande = {
+            **(demande or {"type": "autre", "sujet": None, "degre_urgence": None}),
+            "priorite": 1,
+            "resume": "Appel interrompu par une panne de l'agent : à rappeler.",
+        }
     return {
         "dograh_run_id": run.id,
         "dograh_workflow_id": run.workflow_id,

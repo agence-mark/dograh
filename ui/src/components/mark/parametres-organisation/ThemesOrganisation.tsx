@@ -53,6 +53,7 @@ import {
     EtatLectureAnnonce,
 } from "../SectionAnnonceOuverture";
 import { SectionLexiqueMetier } from "../SectionLexiqueMetier";
+import { BlocSecoursPanne } from "./BlocSecoursPanne";
 import { ModaleEtablissements, useResumeEtablissements } from "./ModaleEtablissements";
 import { ModaleFenetreDuRun } from "./ModaleFenetreDuRun";
 import { ModalePhrases } from "./ModalePhrases";
@@ -656,6 +657,11 @@ export const ThemeIntegrations = ({
                             })}
                         </p>
                         <BlocConnexions connecteurs={connecteurs} />
+                    </Intertitre>
+
+                    {/* [.mark] L7 (PN5): the emergency address of the outage fallback. */}
+                    <Intertitre id="integrations-panne" titre={{ en: "Outage fallback", fr: "Repli en cas de panne" }}>
+                        <BlocSecoursPanne />
                     </Intertitre>
 
                     {/* The mapping list saves at once, as it did: the row as stored,

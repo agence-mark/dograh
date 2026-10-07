@@ -390,6 +390,16 @@ class UpdateWorkflowRequest(BaseModel):
                 raise ValueError(
                     "; ".join(e["msg"] for e in erreur.errors())
                 ) from None
+        # [.mark] l-agent-travaille, L7 : le repli en cas de panne, vérifié de même (bornes).
+        if value is not None and value.panne:
+            from api.schemas.panne import PanneAgent
+
+            try:
+                value.panne = PanneAgent.model_validate(value.panne).model_dump()
+            except ValidationError as erreur:
+                raise ValueError(
+                    "; ".join(e["msg"] for e in erreur.errors())
+                ) from None
         return value
 
 

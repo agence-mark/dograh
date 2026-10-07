@@ -81,6 +81,8 @@ const INCIDENTS: Record<string, Texte> = {
     provider_error: { en: "Provider connection error", fr: "Erreur de connexion d'un fournisseur" },
     silence_after_tool: { en: "Silence after a tool result", fr: "Silence après un résultat d'outil" },
     slow_turn: { en: "Slow turn", fr: "Tour lent" },
+    outage_fallback: { en: "Outage: call handed over or call-back promised", fr: "Panne : appel renvoyé ou rappel promis" },
+    model_timeout: { en: "Model too slow to answer", fr: "Modèle trop lent à répondre" },
 };
 
 const MARQUES: Record<string, Texte> = {

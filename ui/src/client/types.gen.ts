@@ -2870,6 +2870,20 @@ export type DemandeRattachement = {
 };
 
 /**
+ * DemandeSecours
+ */
+export type DemandeSecours = {
+    /**
+     * Numero
+     */
+    numero: string;
+    /**
+     * Effacer
+     */
+    effacer?: boolean;
+};
+
+/**
  * Designation
  *
  * Ce que devient l'identifiant qu'un réglage désigne : une clé de la bibliothèque, un
@@ -3338,6 +3352,17 @@ export type EcranApresAppel = {
     derniere_nuit?: {
         [key: string]: unknown;
     } | null;
+};
+
+/**
+ * EcranPanne
+ */
+export type EcranPanne = {
+    reglages: ReglagesPanne;
+    /**
+     * Texte Du Bin
+     */
+    texte_du_bin: string;
 };
 
 /**
@@ -7182,6 +7207,26 @@ export type ReglagesFenetreDuRun = {
 };
 
 /**
+ * ReglagesPanne
+ */
+export type ReglagesPanne = {
+    /**
+     * Format
+     */
+    format?: string;
+    /**
+     * Version
+     */
+    version?: number;
+    /**
+     * Url Secours
+     *
+     * The address of the TwiML Bin created once in the client's Twilio console (PN5). Empty: no instruction after the stream, the 40 s pause of before.
+     */
+    url_secours?: string | null;
+};
+
+/**
  * ReglagesRecapitulatif
  */
 export type ReglagesRecapitulatif = {
@@ -7322,6 +7367,46 @@ export type ResultatImport = {
      * Terms left untouched: one of their spellings was already there.
      */
     deja_presents: number;
+};
+
+/**
+ * ResultatRattrapage
+ */
+export type ResultatRattrapage = {
+    /**
+     * Appels Lus
+     */
+    appels_lus: number;
+    /**
+     * Demandes Creees
+     */
+    demandes_creees: number;
+    /**
+     * Deja Connus
+     */
+    deja_connus: number;
+    /**
+     * Erreurs
+     */
+    erreurs: Array<string>;
+};
+
+/**
+ * ResultatSecours
+ */
+export type ResultatSecours = {
+    /**
+     * Numero
+     */
+    numero: string;
+    /**
+     * Adresse
+     */
+    adresse: string | null;
+    /**
+     * Ecrit
+     */
+    ecrit: boolean;
 };
 
 /**
@@ -10629,6 +10714,14 @@ export type WorkflowConfigurationDefaults = {
      * After the call: write each call in the client's database, summarise it, mail the request, and run the organization's modules this agent uses. Empty or off: nothing is written or sent, the agent behaves exactly as before.
      */
     apres_appel?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Panne
+     *
+     * Outage fallback: when a part of the agent fails, Twilio hands the call to the establishment's second number or promises a call-back. Empty or off: as before.
+     */
+    panne?: {
         [key: string]: unknown;
     } | null;
     /**
@@ -14980,6 +15073,162 @@ export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponses = {
 };
 
 export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponse = PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponses[keyof PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponses];
+
+export type GetPanneApiV1OrganizationsPanneGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/panne';
+};
+
+export type GetPanneApiV1OrganizationsPanneGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPanneApiV1OrganizationsPanneGetError = GetPanneApiV1OrganizationsPanneGetErrors[keyof GetPanneApiV1OrganizationsPanneGetErrors];
+
+export type GetPanneApiV1OrganizationsPanneGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EcranPanne;
+};
+
+export type GetPanneApiV1OrganizationsPanneGetResponse = GetPanneApiV1OrganizationsPanneGetResponses[keyof GetPanneApiV1OrganizationsPanneGetResponses];
+
+export type PutPanneApiV1OrganizationsPannePutData = {
+    body: ReglagesPanne;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/panne';
+};
+
+export type PutPanneApiV1OrganizationsPannePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutPanneApiV1OrganizationsPannePutError = PutPanneApiV1OrganizationsPannePutErrors[keyof PutPanneApiV1OrganizationsPannePutErrors];
+
+export type PutPanneApiV1OrganizationsPannePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EcranPanne;
+};
+
+export type PutPanneApiV1OrganizationsPannePutResponse = PutPanneApiV1OrganizationsPannePutResponses[keyof PutPanneApiV1OrganizationsPannePutResponses];
+
+export type PostRattrapageApiV1OrganizationsPanneRattrapagePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/panne/rattrapage';
+};
+
+export type PostRattrapageApiV1OrganizationsPanneRattrapagePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostRattrapageApiV1OrganizationsPanneRattrapagePostError = PostRattrapageApiV1OrganizationsPanneRattrapagePostErrors[keyof PostRattrapageApiV1OrganizationsPanneRattrapagePostErrors];
+
+export type PostRattrapageApiV1OrganizationsPanneRattrapagePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatRattrapage;
+};
+
+export type PostRattrapageApiV1OrganizationsPanneRattrapagePostResponse = PostRattrapageApiV1OrganizationsPanneRattrapagePostResponses[keyof PostRattrapageApiV1OrganizationsPanneRattrapagePostResponses];
+
+export type PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostData = {
+    body: DemandeSecours;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/panne/adresse-de-secours';
+};
+
+export type PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostError = PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostErrors[keyof PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostErrors];
+
+export type PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatSecours;
+};
+
+export type PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostResponse = PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostResponses[keyof PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostResponses];
 
 export type GetEquipeApiV1OrganizationsEquipeGetData = {
     body?: never;

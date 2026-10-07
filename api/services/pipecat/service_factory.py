@@ -40,6 +40,7 @@ from api.services.pipecat.gemini_json_schema_adapter import (
     DograhGeminiJSONSchemaAdapter,
 )
 from api.services.lexique.ecoute import regles_de_prononciation
+from api.services.panne.delai_modele import DelaiModeleMixin
 from api.services.pipecat.minimax_tts import (
     MiniMaxCachingTTSService,
     MiniMaxOwnedSessionTTSService,
@@ -397,7 +398,7 @@ def stt_uses_external_turns(user_config) -> bool:
     return False
 
 
-class DograhMistralLLMService(MistralLLMService):
+class DograhMistralLLMService(DelaiModeleMixin, MistralLLMService):
     """Send Mistral's ``random_seed`` in a way OpenAI's client will carry.
 
     ⛔ Why this class exists rather than a fix upstream: the seed never left
@@ -428,6 +429,8 @@ class DograhMistralLLMService(MistralLLMService):
         # [.mark] Empty means no key at all, never an empty one in the request.
         self._prompt_cache_key = prompt_cache_key or None
         super().__init__(**kwargs)
+        # [.mark] L7 (PN2): the answer's delay, set by the outage fallback; unset, unchanged.
+        self._mark_enregistrer_evenements()
 
     def build_chat_completion_params(
         self, params_from_context: OpenAILLMInvocationParams

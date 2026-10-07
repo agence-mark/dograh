@@ -553,12 +553,17 @@ class TwilioProvider(TelephonyProvider):
             status_callback_url = f"{backend_endpoint}/api/v1/telephony/twilio/status-callback/{workflow_run_id}"
             status_callback_attr = f' statusCallback="{status_callback_url}"'
 
+        # [.mark] L7 (PN5): for an agent with the outage fallback on, the verb after the
+        # stream sends the caller to the organization's TwiML Bin instead of 40 s of silence.
+        from api.services.panne.entree import apres_le_flux
+
+        apres = await apres_le_flux(workflow_run_id)
         twiml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Connect>
         <Stream url="{websocket_url}"{status_callback_attr}></Stream>
     </Connect>
-    <Pause length="40"/>
+    {apres}
 </Response>"""
 
         return Response(content=twiml_content, media_type="application/xml")

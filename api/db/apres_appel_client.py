@@ -95,3 +95,19 @@ class ApresAppelClient(BaseDBClient):
                 if isinstance(fiche, dict) and fiche:
                     return run_id, fiche
             return None, {}
+
+    async def run_par_appel(self, organization_id: int, call_sid: str):
+        """L7: the run of a Twilio call in THIS organization (``gathered_context.call_id``)."""
+        from api.db.models import WorkflowModel
+
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(WorkflowRunModel)
+                .join(WorkflowModel, WorkflowModel.id == WorkflowRunModel.workflow_id)
+                .where(
+                    WorkflowModel.organization_id == organization_id,
+                    text("workflow_runs.gathered_context::jsonb ->> 'call_id' = :sid").bindparams(sid=call_sid),
+                )
+                .limit(1)
+            )
+            return result.scalars().first()

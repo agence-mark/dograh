@@ -51,6 +51,29 @@ export const charge_utile_phrases = (liste: Phrase[]) => ({
     })),
 });
 
+/** [.mark] L7 (PN7): the three sentences of the outage fallback, with the defaults the server
+ * says when they are absent or empty (``api/schemas/panne.py``, kept word for word). */
+export const PHRASES_DE_PANNE: Phrase[] = [
+    {
+        variable: "phrase_renvoi_panne",
+        description: "Said by Twilio when the agent fails, before ringing the second number.",
+        contenu: "Je rencontre un souci technique, je vous passe un collaborateur, ne quittez pas.",
+        niveau: "etablissement",
+    },
+    {
+        variable: "phrase_rappel_panne",
+        description: "Said when closed or when nobody answers; {reouverture} and the [ ] like the closing announcement.",
+        contenu: "Je rencontre un souci technique. Nous vous rappelons [dès la réouverture, {reouverture}]. Merci et au revoir.",
+        niveau: "etablissement",
+    },
+    {
+        variable: "phrase_excuse_panne",
+        description: "Said on an outbound call when the agent fails, before hanging up.",
+        contenu: "Je rencontre un souci technique, je vous prie de m'excuser. Nous vous rappellerons. Au revoir.",
+        niveau: "organisation",
+    },
+];
+
 export function ModalePhrases({
     ouverte,
     onFermer,
@@ -203,6 +226,22 @@ export function ModalePhrases({
                             <Plus className="mr-1 h-4 w-4" />
                             {t({ en: "Add a sentence", fr: "Ajouter une phrase" })}
                         </Button>
+                        {PHRASES_DE_PANNE.some((d) => !liste.some((p) => p.variable === d.variable)) && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                data-testid="ajouter-phrases-panne"
+                                onClick={() =>
+                                    setListe((avant) => [
+                                        ...(avant ?? []),
+                                        ...PHRASES_DE_PANNE.filter((d) => !(avant ?? []).some((p) => p.variable === d.variable)),
+                                    ])
+                                }
+                            >
+                                <Plus className="mr-1 h-4 w-4" />
+                                {t({ en: "Add the outage sentences", fr: "Ajouter les phrases de panne" })}
+                            </Button>
+                        )}
                         {fautes.length > 0 && (
                             <ul className="text-sm text-destructive" data-testid="fautes-phrases">
                                 {fautes.map((f, i) => (

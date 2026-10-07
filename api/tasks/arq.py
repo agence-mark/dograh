@@ -62,6 +62,7 @@ from api.services.apres_appel.chaine import NOM_TACHE as APRES_APPEL
 from api.services.apres_appel.chaine import tache_apres_appel
 from api.services.apres_appel.taches import nuit as nuit_apres_appel
 from api.services.apres_appel.taches import recapitulatif as recapitulatif_apres_appel
+from api.services.panne.rattrapage import rattrapage_horaire as rattrapage_panne
 from api.services.base_client.synchro import tic_de_synchro
 from api.tasks.appel_simule import jouer_serie_simulee
 from api.tasks.campaign_tasks import (
@@ -118,6 +119,8 @@ class WorkerSettings:
         # table, the day's counters, the proof kept); and the recap mails (A4), hourly.
         cron(nuit_apres_appel, hour={3}, minute={17}, second=0, timeout=1800),
         cron(recapitulatif_apres_appel, minute={0}, second=45, timeout=600),
+        # [.mark] L7 (PN5): the calls lost while the server was down, rebuilt from Twilio.
+        cron(rattrapage_panne, minute={25}, second=10, timeout=900),
         cron(
             tic_de_synchro,
             minute=set(range(2, 60, 5)),

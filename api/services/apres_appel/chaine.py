@@ -85,13 +85,27 @@ async def _charger(run_id: int):
     )
 
 
+async def _panne_a_ecrire(run, organization_id: int) -> bool:
+    panne = (run.gathered_context or {}).get("panne")
+    if not (isinstance(panne, dict) and panne.get("a_rappeler")):
+        return False
+    return bool(await nom_de_la_base(organization_id))
+
+
 async def demarrer(run_id: int, enqueue=None) -> bool:
     """Queue the chain if the run's agent switched it on. Never raises."""
     try:
         run, organization_id, agent = await _charger(run_id)
-        if run is None or not agent.actif:
+        if run is None:
             return False
-        etapes = etapes_de(agent)
+        if agent.actif:
+            etapes = etapes_de(agent)
+        elif await _panne_a_ecrire(run, organization_id):
+            # L7 (PN1): the outage fallback writes its request « to call back » even for an
+            # agent whose after-call is off, as soon as a client database is attached.
+            etapes = ["ecriture"]
+        else:
+            return False
         await db_client.fusionner_apres_appel(
             run_id, racine={"actif": True, "lance_le": _maintenant()}
         )

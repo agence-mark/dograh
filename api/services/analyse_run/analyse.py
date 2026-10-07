@@ -734,6 +734,29 @@ def _incidents(run: dict, latence: dict, seuils: Any = None) -> dict:
                     "detail": _nombre_fini(charge.get("lost_secs")),
                 }
             )
+    # [.mark] l-agent-travaille, L7 (PN8): the outage fallback and the model's timeouts.
+    for e in _evenements(run):
+        charge = e.get("payload") or {}
+        if e.get("type") == "mark-panne":
+            elements.append(
+                {
+                    "turn": e.get("turn"),
+                    "kind": "outage_fallback",
+                    "fatal": True,
+                    "processor": charge.get("brique"),
+                    "detail": f"{charge.get('raison')} → {charge.get('decision')}",
+                }
+            )
+        elif e.get("type") == "mark-delai-modele-depasse":
+            elements.append(
+                {
+                    "turn": e.get("turn"),
+                    "kind": "model_timeout",
+                    "fatal": False,
+                    "processor": None,
+                    "detail": f"{charge.get('moment')} > {charge.get('delay_secs')} s (attempt {charge.get('attempt')})",
+                }
+            )
     debuts = [e for e in _evenements(run) if e.get("type") == "rtf-function-call-start"]
     fins = {
         (e.get("payload") or {}).get("tool_call_id")

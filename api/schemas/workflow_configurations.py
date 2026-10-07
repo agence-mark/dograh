@@ -855,6 +855,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Empty or off: nothing is written or sent, the agent behaves exactly as before."
         ),
     )
+    # [.mark] Chantier l-agent-travaille, L7 : le repli en cas de panne de cet agent, éteint
+    # par défaut (X2). Un dict pour la même raison que ``apres_appel`` ; vérifié à
+    # l'enregistrement, lu sans lever (``panne_de_lagent``). Format : ``api/schemas/panne.py``.
+    panne: dict | None = Field(
+        default=None,
+        description=(
+            "Outage fallback: when a part of the agent fails, Twilio hands the call to the "
+            "establishment's second number or promises a call-back. Empty or off: as before."
+        ),
+    )
     call_dispositions: list[CallDispositionOption] = Field(
         default_factory=list,
         max_length=MAX_CALL_DISPOSITIONS,
