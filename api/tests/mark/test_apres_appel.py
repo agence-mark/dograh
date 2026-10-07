@@ -1030,7 +1030,7 @@ async def test_postgres_des_tests_joignable_sinon_saute():
 
 
 async def test_une_base_en_version_3_se_met_a_niveau_en_4(base_essai):  # noqa: F811
-    """« Upgrade » on screen: a database made before L4 (version 3) receives 004 and the ones after it (005 since L7, 006 since the 07/10 decisions)."""
+    """« Upgrade » on screen: a database made before L4 (version 3) receives 004 and the ones after it (005 since L7, 006 and 007 since the 07/10 decisions)."""
     maintenance = await asyncpg.connect(f"{_serveur()}/postgres", timeout=5)
     try:
         await maintenance.execute(f'CREATE DATABASE "{base_essai}"')
@@ -1047,7 +1047,7 @@ async def test_une_base_en_version_3_se_met_a_niveau_en_4(base_essai):  # noqa: 
             async with connexion.transaction():
                 await connexion.execute(sql_brut)
         assert await schema.version_de(connexion) == 3
-        assert await schema.appliquer_migrations(connexion) == [4, 5, 6]
+        assert await schema.appliquer_migrations(connexion) == [4, 5, 6, 7]
         assert await connexion.fetchval(
             "SELECT to_regprocedure('mark.recevoir_appel(jsonb)') IS NOT NULL"
         )

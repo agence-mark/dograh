@@ -407,6 +407,82 @@ async def test_un_role_d_etablissement_ne_voit_que_ses_lignes(base_prete):
 
 
 @pytest.mark.asyncio
+async def test_a_travers_les_vues_un_etablissement_ne_voit_que_son_site_et_jamais_le_numero(
+    base_prete,
+):
+    """Decision of Evan, 07/10 (n° 318, option B): the views keep their owner's rights (the
+    number stays masked, the 90 days stay) and filter by site themselves. A site's role
+    reads only its site through ``v_cahier_appels`` and ``v_a_rappeler``, never another
+    site's request as a hint, and never the table ``appel`` itself."""
+    proprietaire = await asyncpg.connect(f"{_serveur()}/{base_prete}")
+    role = f"{base_prete}_site_a"
+    try:
+        await proprietaire.execute(
+            "INSERT INTO mark.entreprise (raison_sociale) VALUES ('E')"
+        )
+        a = await proprietaire.fetchval(
+            "INSERT INTO mark.site (entreprise_id, cle, nom) SELECT id, 'a', 'A' FROM mark.entreprise RETURNING id"
+        )
+        b = await proprietaire.fetchval(
+            "INSERT INTO mark.site (entreprise_id, cle, nom) SELECT id, 'b', 'B' FROM mark.entreprise RETURNING id"
+        )
+        version = await proprietaire.fetchval(
+            "WITH ag AS (INSERT INTO mark.agent (dograh_workflow_id, nom) VALUES (1, 'x') RETURNING id) "
+            "INSERT INTO mark.version_agent (agent_id, dograh_definition_id) SELECT id, 1 FROM ag RETURNING id"
+        )
+        for run, site in ((1, a), (2, b)):
+            demande = await proprietaire.fetchval(
+                "INSERT INTO mark.demande (site_id, type) VALUES ($1, 'autre') RETURNING id",
+                site,
+            )
+            await proprietaire.execute(
+                "INSERT INTO mark.appel (dograh_run_id, version_agent_id, site_id, demande_id, canal, numero_appelant, debut) "
+                "VALUES ($1, $2, $3, $4, 'telephone', '+33612345678', now())",
+                run,
+                version,
+                site,
+                demande,
+            )
+        await proprietaire.execute(
+            f'CREATE ROLE "{role}" NOLOGIN IN ROLE "{base_prete}_interface"'
+        )
+        await proprietaire.execute(
+            "INSERT INTO mark.role_site VALUES ($1, $2)", role, a
+        )
+        await proprietaire.execute(f'SET ROLE "{role}"')
+        cahier = await proprietaire.fetch(
+            "SELECT site, numero_masque FROM mark.v_cahier_appels"
+        )
+        assert [(r["site"], r["numero_masque"]) for r in cahier] == [
+            ("A", "+33612••••78")
+        ]
+        rappels = await proprietaire.fetch(
+            "SELECT site, autre_demande_ouverte_id FROM mark.v_a_rappeler"
+        )
+        assert [(r["site"], r["autre_demande_ouverte_id"]) for r in rappels] == [
+            ("A", None)
+        ]
+        with pytest.raises(asyncpg.InsufficientPrivilegeError):
+            await proprietaire.fetch("SELECT numero_appelant FROM mark.appel")
+        await proprietaire.execute("RESET ROLE")
+        await proprietaire.execute(f'SET ROLE "{base_prete}_direction"')
+        assert (
+            await proprietaire.fetchval("SELECT count(*) FROM mark.v_cahier_appels")
+            == 2
+        )
+        await proprietaire.execute("RESET ROLE")
+    finally:
+        await proprietaire.execute("RESET ROLE")
+        await proprietaire.execute(f'DROP OWNED BY "{role}"')
+        await proprietaire.close()
+        maintenance = await asyncpg.connect(f"{_serveur()}/postgres")
+        try:
+            await maintenance.execute(f'DROP ROLE IF EXISTS "{role}"')
+        finally:
+            await maintenance.close()
+
+
+@pytest.mark.asyncio
 async def test_le_referentiel_ecrit_revient_identique_et_journalise(base_prete):
     connexion = await schema.connecter(base_prete)
     try:
