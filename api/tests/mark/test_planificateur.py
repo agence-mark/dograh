@@ -791,6 +791,34 @@ async def test_le_geocodeur_ne_garde_qu_une_adresse_sure(monkeypatch):
     assert trajets.duree_trajet_min((49.43, 2.08), (49.4179, 2.8261), coefficient=1.3, vitesse_kmh=50) == 85
 
 
+async def test_la_memoire_du_geocodeur_est_par_organisation_et_expire(monkeypatch):
+    """Revue du 07/10: an address placed for one client was answered to another from the same memory,
+    for ever. Now: per organization, and an hour at most."""
+    from api.services.planificateur import trajets
+
+    trajets.oublier()
+    demandes = []
+
+    def repondre(requete):
+        demandes.append(requete.url.params["q"])
+        return httpx.Response(200, json={"features": [{"geometry": {"coordinates": [2.08, 49.43]},
+                                                       "properties": {"score": 0.9, "citycode": "60057"}}]})
+
+    monkeypatch.setattr(trajets, "nouveau_client",
+                        lambda **o: httpx.AsyncClient(transport=httpx.MockTransport(repondre), **o))
+    for organisation, attendu in ((1, 1), (1, 1), (2, 2)):
+        trajets.ORGANISATION.set(organisation)
+        assert (await trajets.geocoder("1 rue X Beauvais", "60057"))["latitude"] == 49.43
+        assert len(demandes) == attendu  # the same organization: from memory; another: asked again
+    trajets.ORGANISATION.set(1)
+    reel = horloge.monotonic
+    monkeypatch.setattr(trajets.time, "monotonic", lambda: reel() + trajets.DUREE_MEMOIRE_S + 1)
+    await trajets.geocoder("1 rue X Beauvais", "60057")
+    assert len(demandes) == 3  # expired: asked again
+    trajets.ORGANISATION.set(None)
+    trajets.oublier()
+
+
 def test_la_route_du_planificateur_refuse_des_plages_illisibles(base_prete, monkeypatch):
     """G1, « by hand »: GET/PUT /organizations/planificateur; ranges checked when SAVED."""
     from fastapi import FastAPI

@@ -6,14 +6,16 @@
 - ``geocoder``: the position of an address by the Base Adresse Nationale (free, public, via the
   Géoplateforme), asked at the moment of the computation (repli 7: our street lists carry no
   position). Unreachable, unsure (score below ``SCORE_SUR``) or in another commune: None, and the
-  journeys are not counted (said in the stamp). Kept a while in memory (the establishment's
-  address is asked at every call); the caller's is written in ``adresse`` after the call (H6).
+  journeys are not counted (said in the stamp). Kept an hour in memory, per organization (the
+  establishment's address is asked at every call); the caller's is written in ``adresse`` after the call (H6).
 """
 
 from __future__ import annotations
 
 import math
+import time
 from collections import OrderedDict
+from contextvars import ContextVar
 
 import httpx
 from loguru import logger
@@ -23,8 +25,14 @@ SCORE_SUR = 0.6
 DELAI_S = 1.5
 Position = tuple[float, float]  # (latitude, longitude)
 
-_MEMOIRE: OrderedDict[tuple[str, str | None], dict | None] = OrderedDict()
+# What was placed, kept for a short time and PER ORGANIZATION: an address a client's caller gave is
+# never answered from another client's memory (revue du 07/10). key -> (answer, expiry).
+_MEMOIRE: OrderedDict[tuple[int | None, str, str | None], tuple[dict | None, float]] = OrderedDict()
 _MAX = 500
+DUREE_MEMOIRE_S = 3600
+# The organization of the call being served, set by the planner's actions on entry (a task started
+# from there inherits it): the geocoder needs no extra argument in every function between.
+ORGANISATION: ContextVar[int | None] = ContextVar("organisation_du_geocodage", default=None)
 
 
 def nouveau_client(**options) -> httpx.AsyncClient:
@@ -52,10 +60,12 @@ async def geocoder(texte: str | None, code_insee: str | None = None) -> dict | N
     texte = " ".join((texte or "").split())
     if len(texte) < 3:
         return None
-    cle = (texte.casefold(), code_insee)
-    if cle in _MEMOIRE:
+    cle = (ORGANISATION.get(), texte.casefold(), code_insee)
+    gardee = _MEMOIRE.get(cle)
+    if gardee is not None and gardee[1] > time.monotonic():
         _MEMOIRE.move_to_end(cle)
-        return _MEMOIRE[cle]
+        return gardee[0]
+    _MEMOIRE.pop(cle, None)
     params = {"q": texte[:200], "limit": 1, "index": "address"}
     if code_insee:
         params["citycode"] = code_insee
@@ -87,7 +97,7 @@ async def geocoder(texte: str | None, code_insee: str | None = None) -> dict | N
                 "score": round(score, 3),
                 "code_insee": commune,
             }
-    _MEMOIRE[cle] = resultat
+    _MEMOIRE[cle] = (resultat, time.monotonic() + DUREE_MEMOIRE_S)
     while len(_MEMOIRE) > _MAX:
         _MEMOIRE.popitem(last=False)
     return resultat

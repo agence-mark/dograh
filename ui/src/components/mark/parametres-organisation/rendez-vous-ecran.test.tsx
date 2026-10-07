@@ -55,10 +55,10 @@ afterEach(() => {
     vi.clearAllMocks();
 });
 
-const rendre = (baseRattachee: boolean | null) =>
+const rendre = (baseRattachee: boolean | null, adresseConnue: boolean | null = null) =>
     render(
         <FournisseurLangue>
-            <ThemeRendezVous ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee={baseRattachee} />
+            <ThemeRendezVous ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee={baseRattachee} adresseConnue={adresseConnue} />
         </FournisseurLangue>,
     );
 
@@ -71,6 +71,23 @@ const clesDuType = (nom: string): string[] => {
 };
 
 describe("[.mark] l-agent-collegue L5: the theme « Appointments »", () => {
+    it("says when a radius is set but no business address is saved (the zone would not apply)", async () => {
+        m.lire.mockResolvedValue({ data: { ...structuredClone(LU), reglages: { zone_rayon_km: 30 } } });
+        const { unmount } = rendre(true, false);
+        expect(await screen.findByTestId("rdv-rayon-sans-adresse")).toBeTruthy();
+        unmount();
+        // An address saved, or none known yet: nothing said. No radius: nothing said either.
+        m.lire.mockResolvedValue({ data: { ...structuredClone(LU), reglages: { zone_rayon_km: 30 } } });
+        const avecAdresse = rendre(true, true);
+        await screen.findByTestId("ouvrir-types-rdv");
+        expect(screen.queryByTestId("rdv-rayon-sans-adresse")).toBeNull();
+        avecAdresse.unmount();
+        m.lire.mockResolvedValue({ data: structuredClone(LU) });
+        rendre(true, false);
+        await screen.findByTestId("ouvrir-types-rdv");
+        expect(screen.queryByTestId("rdv-rayon-sans-adresse")).toBeNull();
+    });
+
     it("without a database, says where the rules live and offers nothing", () => {
         rendre(false);
         expect(screen.getByTestId("rdv-sans-base")).toBeTruthy();

@@ -386,6 +386,32 @@ def test_r3_lenvoi_fait_la_demande_de_rappel_assignee():
     )
 
 
+def test_les_rappels_ne_sont_pas_perdus_quand_un_resume_est_deja_la():
+    """Revue du 07/10: a summary already on the request (here the outage's) used to replace the
+    call-back's number and object, and only the last call-back was kept. All of them come first."""
+    from api.schemas.apres_appel import ApresAppelAgent
+    from api.services.apres_appel.envoi import construire_envoi
+
+    run = SimpleNamespace(
+        id=1, workflow_id=1, definition_id=1, mode="twilio", call_type="inbound",
+        initial_context={"caller_number": "+33612345678"},
+        gathered_context={
+            "panne": {"a_rappeler": True},
+            "planificateur_rappel": [
+                {"origine": "equipe", "personne": "camille", "prenom": "Camille", "numero": "+33612345678",
+                 "objet": "facture"},
+                {"origine": "verification", "mode": "rappel", "numero": "+33612345678"},
+            ],
+        },
+        usage_info={}, created_at=None, definition=None, workflow=None,
+    )
+    envoi = construire_envoi(run, {}, ApresAppelAgent(), [])
+    resume = envoi["demande"]["resume"]
+    assert "numéro de l'appelant : +33612345678 ; objet : facture" in resume
+    assert "son identité n'a pas pu être vérifiée" in resume  # the first call-back is not lost either
+    assert resume.endswith("Appel interrompu par une panne de l'agent : à rappeler.")
+
+
 @pytest.fixture
 def _apres_appel():
     from api.tests.mark import test_apres_appel as t

@@ -15,7 +15,10 @@ from __future__ import annotations
 import uuid
 from urllib.parse import urlsplit
 
+from types import SimpleNamespace
+
 import asyncpg
+import httpx
 import pytest
 
 from api.db.bases_clients import connexion as schema
@@ -175,6 +178,39 @@ async def test_un_salarie_ne_peut_plus_demander_qui_est_un_autre_role(base_revue
             await alice.close()
     finally:
         await proprietaire.close()
+
+
+async def test_une_base_anterieure_a_la_008_dit_quoi_faire_a_l_enregistrement_de_l_equipe(base_revue, monkeypatch):
+    """Revue du 07/10 (g): the team saved on a database not yet upgraded used to end in an
+    « Internal Server Error »; now it names the way out and saves nothing."""
+    from fastapi import FastAPI
+
+    from api.routes import base_client as route
+    from api.services.auth.depends import get_user_with_selected_organization
+
+    proprietaire = await schema.connecter_proprietaire(base_revue)
+    try:
+        # What a database at version 7 is: the four columns of 008 and the later versions are not there.
+        for colonne in ("description", "divulguer_telephone", "divulguer_mail", "joignable_par_transfert"):
+            await proprietaire.execute(f"ALTER TABLE mark.personne DROP COLUMN {colonne}")
+        await proprietaire.execute("DELETE FROM mark.schema_version WHERE version >= 8")
+    finally:
+        await proprietaire.close()
+
+    async def nom(_organisation):
+        return base_revue
+
+    monkeypatch.setattr(route.rattachement, "nom_de_la_base", nom)
+    app = FastAPI()
+    app.include_router(route.routeur_equipe)
+    app.dependency_overrides[get_user_with_selected_organization] = lambda: SimpleNamespace(
+        id=1, provider_id="p", selected_organization_id=1, email="essai@example.org")
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://essai") as client:
+        r = await client.put("/organizations/equipe", json={"personnes": [{"cle": "alice", "prenom": "Alice"}]})
+    assert r.status_code == 409
+    detail = r.json()["detail"]
+    assert "Upgrade" in detail and "version 7" in detail and f"expected {schema.version_attendue()}" in detail
+    assert "Nothing was saved" in detail
 
 
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: E402, F401

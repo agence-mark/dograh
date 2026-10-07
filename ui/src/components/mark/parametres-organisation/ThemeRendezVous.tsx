@@ -226,7 +226,8 @@ export const ThemeRendezVous = ({
     onBasculer,
     signaler,
     baseRattachee,
-}: ProprietesThemeOrganisation & { baseRattachee: boolean | null }) => {
+    adresseConnue = null,
+}: ProprietesThemeOrganisation & { baseRattachee: boolean | null; adresseConnue?: boolean | null }) => {
     const { t } = useLangue();
     const { user, loading: authLoading } = useAuth();
     const [enregistre, setEnregistre] = useState<Planificateur | null>(null);
@@ -286,6 +287,10 @@ export const ThemeRendezVous = ({
             }
     }
     useSignaler("rendez-vous", modifie, erreurs.length > 0, signaler);
+    /** A radius at any level: it measures from the business address, which the server needs to apply it. */
+    const rayonRegle = [brouillon?.reglages, ...Object.values(brouillon?.par_etablissement ?? {})].some(
+        (r) => r?.zone_rayon_km !== null && r?.zone_rayon_km !== undefined,
+    );
 
     const enregistrer = async () => {
         if (!brouillon) return;
@@ -447,6 +452,14 @@ export const ThemeRendezVous = ({
                     <Intertitre id="rdv-groupe-zone" titre={{ en: "Zone and journeys", fr: "Zone et trajets" }}>
                         {ouiNon(OUI_NON[0])}
                         {NOMBRES_TRAJETS.map(nombre)}
+                        {adresseConnue === false && rayonRegle && (
+                            <p className="text-xs text-destructive" data-testid="rdv-rayon-sans-adresse" role="note">
+                                {t({
+                                    en: "A radius is set, but no business address is saved (theme « Establishments »): the zone is not applied to a call whose establishment has no address of its own.",
+                                    fr: "Un rayon est réglé, mais aucune adresse de l'entreprise n'est enregistrée (thème « Établissements ») : la zone n'est pas appliquée à un appel dont l'établissement n'a pas d'adresse propre.",
+                                })}
+                            </p>
+                        )}
                         <ChampReglage
                             cle="zone_communes"
                             idControle="rdv-zone_communes"

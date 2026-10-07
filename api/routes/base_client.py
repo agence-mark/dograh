@@ -15,6 +15,9 @@ attached to THAT organization, never a name taken from the request but to attach
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
+import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 
@@ -27,6 +30,7 @@ from api.db.bases_clients.connexion import (
     connecter,
     connecter_proprietaire,
     creer_base,
+    version_attendue,
     version_de,
 )
 from api.db.models import UserModel
@@ -46,6 +50,25 @@ routeur_equipe = APIRouter(prefix="/organizations/equipe", tags=["organizations"
 
 def _refus(message: str, code: int = 422) -> HTTPException:
     return HTTPException(status_code=code, detail=message)
+
+
+@asynccontextmanager
+async def _schema_a_jour(connexion):
+    """A database behind this installation (a column or a table of a later migration is missing)
+    answers with the way out, not with « Internal Server Error »: nothing was saved."""
+    try:
+        yield
+    except (asyncpg.UndefinedColumnError, asyncpg.UndefinedTableError, asyncpg.UndefinedFunctionError):
+        try:
+            actuelle = await version_de(connexion)
+        except Exception:  # noqa: BLE001 -- the message is still useful without the number
+            actuelle = None
+        raise _refus(
+            f"The client database is behind this installation (version {actuelle if actuelle is not None else '?'}, "
+            f"expected {version_attendue()}): click « Upgrade » in the theme « Client data », then save again. "
+            "Nothing was saved.",
+            409,
+        ) from None
 
 
 async def _etat(organization_id: int) -> EtatBaseClient:
@@ -243,7 +266,8 @@ async def put_equipe(
     connexion = await _connexion_de(user.selected_organization_id)
     try:
         try:
-            await ecrire_equipe(connexion, request, rattachement.auteur_de(user))
+            async with _schema_a_jour(connexion):
+                await ecrire_equipe(connexion, request, rattachement.auteur_de(user))
         except EtablissementInconnu as erreur:
             raise _refus(str(erreur)) from None
         relue = await lire_equipe(connexion)
@@ -297,7 +321,8 @@ async def put_planificateur(
     connexion = await _connexion_de(user.selected_organization_id)
     try:
         try:
-            await ecrire_planificateur(connexion, request, rattachement.auteur_de(user))
+            async with _schema_a_jour(connexion):
+                await ecrire_planificateur(connexion, request, rattachement.auteur_de(user))
         except ReferenceInconnue as erreur:
             raise _refus(str(erreur)) from None
         return await lire_planificateur(connexion)

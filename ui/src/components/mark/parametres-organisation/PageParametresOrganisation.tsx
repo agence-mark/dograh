@@ -75,7 +75,11 @@ export const PageParametresOrganisation = () => {
                 />
                 <ThemeEtablissementOrganisation {...commun("etablissement")} preferences={preferences} annonce={annonce} />
                 <ThemeEquipe {...commun("equipe")} baseRattachee={base.etat ? Boolean(base.etat.nom_base) : null} />
-                <ThemeRendezVous {...commun("rendez-vous")} baseRattachee={base.etat ? Boolean(base.etat.nom_base) : null} />
+                <ThemeRendezVous
+                    {...commun("rendez-vous")}
+                    baseRattachee={base.etat ? Boolean(base.etat.nom_base) : null}
+                    adresseConnue={preferences.chargement ? null : Boolean(preferences.enregistrees.adresse_etablissement)}
+                />
                 <ThemeVerification {...commun("verification")} />
                 <ThemeEcouteOrganisation {...commun("ecoute")} />
                 <ThemeDonneesClient {...commun("donnees")} base={base} />

@@ -493,6 +493,7 @@ def repli(ctx, reglages: ReglagesPlanificateur, raison: str, souhait: Souhait | 
 
 
 async def proposer(arguments: dict, ctx, delai_s: float) -> dict:
+    trajets.ORGANISATION.set(ctx.organization_id)  # the geocoder's memory is per organization
     from api.services.hub import agenda as hub_agenda
 
     debut_calcul = horloge.monotonic()

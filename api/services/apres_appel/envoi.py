@@ -242,7 +242,10 @@ def construire_envoi(
                 "degre_urgence": valeur("degre_urgence"),
             }
         )
-        demande["resume"] = demande.get("resume") or resume_du_rappel(dernier)
+        # Every call-back decided in the call says what is to be done (number, object, wish): a
+        # summary written by the extraction comes AFTER them, it never replaces them.
+        a_faire = list(dict.fromkeys(resume_du_rappel(r) for r in rappels))
+        demande["resume"] = " ".join([*a_faire, *([demande["resume"]] if demande.get("resume") else [])])
         if origine(dernier) != ORIGINE_PLANIFICATEUR:
             # R-3, V6: the mail's subject says it is a call-back to make.
             demande["a_rappeler"] = True
