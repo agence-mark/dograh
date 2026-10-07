@@ -23,6 +23,7 @@ Dograh is played in its test mode, which simulates the answer), the bench.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -364,6 +365,43 @@ def test_lenvoi_sans_geste_reste_celui_davant():
     assert vide["demande"]["type"] == "autre" and vide["demande"]["assignee"] == "sacha"
 
 
+# The agent's switches (« Team known to the agent », caller verification) are on.
+_DEFINITION_ALLUMEE = SimpleNamespace(
+    workflow_configurations={"equipe_connue": True, "verification_appelant": True}, version_number=1
+)
+
+
+def _run_avec_rappels(definition, rappels):
+    return SimpleNamespace(
+        id=1, workflow_id=1, definition_id=1, mode="twilio", call_type="inbound",
+        initial_context={"caller_number": "+33612345678"},
+        gathered_context={"extracted_variables": {"motif": "facture"}, **({"planificateur_rappel": rappels} if rappels else {})},
+        usage_info={}, created_at=datetime(2026, 10, 7, 9, 0, tzinfo=UTC), definition=definition, workflow=None,
+    )
+
+
+def test_un_agent_sans_le_chantier_garde_le_resume_et_le_sujet_d_avant():
+    """X2, both sides: with the switches off the call-backs of the team and of the verification
+    change nothing in the request (the mail of before, character for character); with them on
+    they come first in the summary."""
+    from api.schemas.apres_appel import ApresAppelAgent
+    from api.services.apres_appel.envoi import construire_envoi
+
+    rappels = [{"origine": "equipe", "personne": "camille", "prenom": "Camille", "numero": "+33612345678"},
+               {"origine": "verification", "mode": "rappel"}]
+    eteinte = SimpleNamespace(workflow_configurations={}, version_number=1)
+    base = construire_envoi(_run_avec_rappels(eteinte, []), {}, ApresAppelAgent(), [])
+    sans = construire_envoi(_run_avec_rappels(eteinte, rappels), {}, ApresAppelAgent(), [])
+    assert sans == base and "a_rappeler" not in (sans["demande"] or {})
+    allume = construire_envoi(_run_avec_rappels(_DEFINITION_ALLUMEE, rappels), {}, ApresAppelAgent(), [])
+    assert allume["demande"]["a_rappeler"] is True
+    assert "Camille n'a pas pu prendre l'appel transféré" in allume["demande"]["resume"]
+    # One switch only: only its own call-back counts.
+    seule = SimpleNamespace(workflow_configurations={"verification_appelant": True}, version_number=1)
+    un = construire_envoi(_run_avec_rappels(seule, rappels), {}, ApresAppelAgent(), [])
+    assert "Camille" not in un["demande"]["resume"] and "identité" in un["demande"]["resume"]
+
+
 def test_r3_lenvoi_fait_la_demande_de_rappel_assignee():
     from api.schemas.apres_appel import ApresAppelAgent
     from api.services.apres_appel.envoi import construire_envoi
@@ -376,7 +414,7 @@ def test_r3_lenvoi_fait_la_demande_de_rappel_assignee():
             "planificateur_rappel": [{"origine": "equipe", "personne": "camille", "prenom": "Camille",
                                       "numero": "+33612345678", "objet": "facture", "souhait": "lundi"}],
         },
-        usage_info={}, created_at=None, definition=None, workflow=None,
+        usage_info={}, created_at=None, definition=_DEFINITION_ALLUMEE, workflow=None,
     )
     envoi = construire_envoi(run, {}, ApresAppelAgent(), [])
     assert envoi["demande"]["assignee"] == "camille" and envoi["demande"]["a_rappeler"] is True
@@ -403,7 +441,7 @@ def test_les_rappels_ne_sont_pas_perdus_quand_un_resume_est_deja_la():
                 {"origine": "verification", "mode": "rappel", "numero": "+33612345678"},
             ],
         },
-        usage_info={}, created_at=None, definition=None, workflow=None,
+        usage_info={}, created_at=None, definition=_DEFINITION_ALLUMEE, workflow=None,
     )
     envoi = construire_envoi(run, {}, ApresAppelAgent(), [])
     resume = envoi["demande"]["resume"]
@@ -507,6 +545,8 @@ async def test_r3_apres_lappel_le_rappel_arrive_chez_la_personne(
 
     t = _apres_appel
     org = await t._organisation(async_session, db_session)
+    org.definition.workflow_configurations = {**org.definition.workflow_configurations, "equipe_connue": True}
+    await async_session.flush()
     await t._regler(db_session, org, base_v4, smtp)
     await t._equipe(base_v4)
     connexion = await schema.connecter(base_v4)

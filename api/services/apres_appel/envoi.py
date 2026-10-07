@@ -17,7 +17,9 @@ from typing import Any
 
 from api.schemas.apres_appel import ApresAppelAgent
 from api.services.apres_appel.rappels import (
+    ORIGINE_EQUIPE,
     ORIGINE_PLANIFICATEUR,
+    ORIGINE_VERIFICATION,
     origine,
     rappels_de,
     resume_du_rappel,
@@ -75,6 +77,17 @@ def _jetons(usage: dict) -> tuple[int | None, int | None, int | None]:
         sortie += int(valeur.get("completion_tokens") or 0)
         cache += int(valeur.get("cache_read_input_tokens") or 0)
     return entree, cache, sortie
+
+
+def _rappel_permis(origine_du_rappel: str, configurations: dict) -> bool:
+    from api.services.equipe import appel as equipe
+    from api.services.verification import reglages as verification
+
+    if origine_du_rappel == ORIGINE_EQUIPE:
+        return equipe.interrupteur_allume(configurations)
+    if origine_du_rappel == ORIGINE_VERIFICATION:
+        return verification.interrupteur_allume(configurations)
+    return True  # the planner: its tool is on the agent only when the agent was given it
 
 
 def construire_envoi(
@@ -227,9 +240,12 @@ def construire_envoi(
     # appointment could be booked, the person did not take the transfer, the caller could not be
     # verified. The request exists, its summary says what is to be done (never a lost caller).
     # The planner's only when nothing was booked; the others always.
+    # X2: a call-back of the team or of the verification counts only when the agent's own switch
+    # is on; an agent that switched nothing on keeps the mail of before, character for character.
     rappels = [
         r for r in rappels_de(contexte)
         if not (poses and origine(r) == ORIGINE_PLANIFICATEUR)
+        and _rappel_permis(origine(r), configurations)
     ]
     if rappels:
         dernier = rappels[-1]
