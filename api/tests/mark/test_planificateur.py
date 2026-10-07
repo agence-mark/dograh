@@ -105,20 +105,32 @@ def test_cas_rouge_connu_pas_le_lundi_n_est_jamais_lundi():
     assert not s.accepte(datetime(2026, 10, 13, 10, 0, tzinfo=PARIS))
 
 
+# sha256 of ``dates_relatives.py`` as of 03adc42a (line ends normalised); works without git history.
+EMPREINTE_DATES_RELATIVES = "9d6d9558ec3df156ddf92f78c32279bd203cf1a1286da1f5efc0aee12e7ca642"
+
+
+def _empreinte(octets: bytes) -> str:
+    import hashlib
+
+    return hashlib.sha256(octets.replace(b"\r\n", b"\n")).hexdigest()
+
+
 def test_le_lecteur_des_dates_passees_n_a_pas_change():
-    """Repli 6: the planner's reader is a function of its own; dates_relatives untouched."""
-    import subprocess
+    """Repli 6: the planner's reader is a function of its own; dates_relatives untouched (a
+    fingerprint, so that the guard also runs in the CI, which has no history)."""
     from pathlib import Path
 
-    racine = Path(__file__).resolve().parents[3]
-    connu = subprocess.run(["git", "cat-file", "-e", "03adc42a^{commit}"], cwd=racine, capture_output=True)
-    if connu.returncode != 0:
-        pytest.skip("the base commit is not in this checkout (shallow clone of the CI)")
-    diff = subprocess.run(
-        ["git", "diff", "--stat", "03adc42a", "--", "api/services/workflow/dates_relatives.py"],
-        cwd=racine, capture_output=True, text=True,
-    )
-    assert diff.returncode == 0 and diff.stdout.strip() == ""
+    fichier = Path(__file__).resolve().parents[3] / "api" / "services" / "workflow" / "dates_relatives.py"
+    assert _empreinte(fichier.read_bytes()) == EMPREINTE_DATES_RELATIVES
+
+
+def test_l_empreinte_change_au_moindre_caractere():
+    from pathlib import Path
+
+    fichier = Path(__file__).resolve().parents[3] / "api" / "services" / "workflow" / "dates_relatives.py"
+    octets = fichier.read_bytes()
+    assert _empreinte(octets + b" ") != EMPREINTE_DATES_RELATIVES
+    assert _empreinte(octets.replace(b"a", b"b", 1)) != EMPREINTE_DATES_RELATIVES
 
 
 # --------------------------------------------------------------------------- #
