@@ -25,6 +25,7 @@ from api.services.pipecat.termination_funnel_processor import (
 from api.services.pipecat.tracing_config import get_trace_url
 from api.services.pipecat.transcript_log_coordinator import TranscriptLogCoordinator
 from api.services.posthog_client import capture_event
+from api.services.equipe.appel import reaffirmer_equipe
 from api.services.pipecat.etat_ouverture import rafraichir_annonce
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
@@ -183,6 +184,8 @@ def register_event_handlers(
                     engine._call_context_vars = rafraichir_annonce(
                         engine._call_context_vars, reglages_annonce, direction_appel
                     )
+                    # [.mark] The closed list of the team is the code's, whatever the fetch carried.
+                    engine._call_context_vars = reaffirmer_equipe(engine._call_context_vars)
                     try:
                         await db_client.update_workflow_run(
                             workflow_run_id,

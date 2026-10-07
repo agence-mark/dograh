@@ -39,7 +39,7 @@ from loguru import logger
 
 from api.schemas.base_client import Personne
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_EQUIPE
-from api.services.equipe.appel import CLE_CLES
+from api.services.equipe.appel import cles_de_lappel
 from api.utils.template_renderer import render_template
 
 CLE_GESTES = "equipe_gestes"
@@ -60,11 +60,23 @@ def phrase(contexte: dict | None, variable: str, defaut: str, personne: Personne
     return " ".join(str(rendu or "").split())
 
 
-async def personne_de_la_copie(organization_id: int, cle: str) -> Personne | None:
+async def personne_de_la_copie(
+    organization_id: int, cle: str, etablissement_id: str | None
+) -> Personne | None:
+    """The active person of this organization AND reachable from the establishment served
+    (hers, or one of the whole company): a key that slipped into the list from elsewhere
+    reaches no one of another establishment."""
     from api.services.etablissements.copie import lire_copie_complete
 
     equipe = (await lire_copie_complete(organization_id)).equipe
-    return next((p for p in equipe.personnes if p.cle == cle and p.actif), None)
+    return next(
+        (
+            p
+            for p in equipe.personnes
+            if p.cle == cle and p.actif and (p.etablissement is None or p.etablissement == etablissement_id)
+        ),
+        None,
+    )
 
 
 def _noter(fiche: dict | None, geste: dict) -> None:
@@ -105,8 +117,10 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
         motif = str(arguments.get("motif") or "").strip()[:300] or None
         souhait = str(arguments.get("rappel_souhaite") or "").strip()[:200] or None
 
-        # 1. The closed list (C7).
-        if cle not in (contexte.get(CLE_CLES) or []):
+        # 1. The closed list (C7): the one the code stamped on the run at pick-up, never the one in
+        # the context the pre-call fetch or a replay may have written.
+        cles_permises, etablissement_servi = cles_de_lappel(contexte)
+        if cle not in cles_permises:
             logger.warning(
                 f"[.mark] « Direct to a person » refused: « {cle[:40]} » is not a key of the team"
             )
@@ -116,7 +130,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                     "status": "refused",
                     "reason": "unknown_person",
                     "instruction": "Name the person by her key from the team list; never a phone number nor an e-mail.",
-                    "keys": list(contexte.get(CLE_CLES) or []),
+                    "keys": list(cles_permises),
                 }
             )
             return
@@ -124,7 +138,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
         # 2. The person, from the copy (C8).
         organization_id = await manager.get_organization_id()
         personne = (
-            await personne_de_la_copie(organization_id, cle) if organization_id else None
+            await personne_de_la_copie(organization_id, cle, etablissement_servi) if organization_id else None
         )
         if personne is None:
             _estampiller(fiche, nom_de_fonction, "refus", "person no longer in the team")

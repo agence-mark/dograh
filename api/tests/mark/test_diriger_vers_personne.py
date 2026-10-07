@@ -66,6 +66,14 @@ def _moteur(monkeypatch, contexte=None):
     engine._call_context_vars = contexte if contexte is not None else {
         "equipe_cles": ["camille", "sacha"]
     }
+    # The closed list is read from the stamp the CODE put on the run at pick-up (reserved key); a
+    # test that only gives the list gets the stamp it would have had (no establishment served).
+    if "equipe_cles" in engine._call_context_vars and "runtime_configuration" not in engine._call_context_vars:
+        engine._call_context_vars = {
+            **engine._call_context_vars,
+            "runtime_configuration": {"equipe": {"cles": list(engine._call_context_vars["equipe_cles"]),
+                                                 "etablissement": None}},
+        }
     engine._workflow_run_id = 7
     engine.queue_text_message = AsyncMock()
     engine.queue_speech = AsyncMock(return_value=None)
@@ -177,6 +185,43 @@ async def test_une_cle_de_la_liste_mais_hors_equipe_est_refusee(monkeypatch):
     await mgr.register_handlers(["uuid-Diriger"])
     r = await _appeler(enregistres["diriger"][0], {"personne": "noa"})
     assert r["status"] == "refused" and r["reason"] == "person_unavailable"
+
+
+async def test_une_liste_ecrite_ailleurs_que_par_le_code_ne_donne_acces_a_personne(monkeypatch):
+    """The context's list (a replay, the client's pre-call fetch) names « noa »: the list the code
+    stamped does not, so nothing is dialled, assigned nor passed on."""
+    engine, mgr, enregistres = _moteur(monkeypatch, {
+        "equipe_cles": ["camille", "sacha", "noa"],
+        "runtime_configuration": {"equipe": {"cles": ["camille", "sacha"], "etablissement": "creil"}},
+    })
+    composes = _essai(monkeypatch, "accepte")
+    await mgr.register_handlers(["uuid-Diriger"])
+    r = await _appeler(enregistres["diriger"][0], {"personne": "noa"})
+    assert r["status"] == "refused" and r["reason"] == "unknown_person" and r["keys"] == ["camille", "sacha"]
+    assert composes == [] and "equipe_gestes" not in engine._gathered_context
+    # No stamp at all (switch off): the tool reaches no one, whatever the context says.
+    engine2, mgr2, enregistres2 = _moteur(monkeypatch, {"equipe_cles": ["camille"], "runtime_configuration": {}})
+    await mgr2.register_handlers(["uuid-Diriger"])
+    assert (await _appeler(enregistres2["diriger"][0], {"personne": "camille"}))["reason"] == "unknown_person"
+
+
+async def test_une_personne_d_un_autre_etablissement_est_refusee_meme_dans_la_liste(monkeypatch):
+    noa = Personne(cle="noa", prenom="Noa", telephone="+33633333333", etablissement="senlis", joignable_par_transfert=True)
+    equipe = Equipe(personnes=[JOIGNABLE, noa])
+    engine, mgr, enregistres = _moteur(monkeypatch, {
+        "equipe_cles": ["camille", "noa"],
+        "runtime_configuration": {"equipe": {"cles": ["camille", "noa"], "etablissement": "creil"}},
+    })
+    monkeypatch.setattr(module_copie, "lire_copie_complete",
+                        AsyncMock(return_value=module_copie.CopieOrganisation(equipe=equipe)))
+    composes = _essai(monkeypatch, "accepte")
+    await mgr.register_handlers(["uuid-Diriger"])
+    r = await _appeler(enregistres["diriger"][0], {"personne": "noa"})
+    assert r["status"] == "refused" and r["reason"] == "person_unavailable" and composes == []
+    # The same person, the call served at HER establishment: reached.
+    engine._call_context_vars["runtime_configuration"]["equipe"]["etablissement"] = "senlis"
+    r = await _appeler(enregistres["diriger"][0], {"personne": "noa"})
+    assert r["status"] == "transfer_success" and composes == ["+33633333333"]
 
 
 # --------------------------------------------------------------------------- #

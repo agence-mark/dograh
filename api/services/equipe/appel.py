@@ -72,7 +72,9 @@ def injecter_equipe(
     lu_depuis: str | None = None,
 ) -> tuple[dict, dict | None]:
     """The context with ``equipe`` and ``equipe_cles``, and the stamp (None: switch off).
-    A value already in the context is kept (a replay, a pre-call fetch). Never raises."""
+    The text ``equipe`` already in the context is kept (a replay, a pre-call fetch); the closed
+    list ``equipe_cles`` NEVER is: it decides who the tool may reach, so it is always the one
+    the code just built (revue du 07/10). Never raises."""
     if not interrupteur_allume(run_configs):
         return contexte, None
     try:
@@ -80,8 +82,7 @@ def injecter_equipe(
         enrichi = dict(contexte)
         if not enrichi.get(CLE_EQUIPE):
             enrichi[CLE_EQUIPE] = "\n".join(ligne(p) for p in personnes)
-        if not enrichi.get(CLE_CLES):
-            enrichi[CLE_CLES] = [p.cle for p in personnes]
+        enrichi[CLE_CLES] = [p.cle for p in personnes]
         estampille = {
             "personnes": len(personnes),
             "cles": [p.cle for p in personnes],
@@ -97,6 +98,33 @@ def injecter_equipe(
     except Exception as erreur:  # noqa: BLE001 -- the call must go on
         logger.error(f"[.mark] Team not injected, the call goes on without it: {erreur!r}")
         return contexte, {"personnes": 0, "erreur": type(erreur).__name__}
+
+
+def cles_de_lappel(contexte: dict | None) -> tuple[list[str], str | None]:
+    """The closed list and the establishment served, as the CODE stamped them on the run
+    (``runtime_configuration.equipe``: a reserved key, no pre-call fetch nor caller can write
+    it). ([], None) when nothing was stamped: the tool then reaches no one."""
+    estampille = ((contexte or {}).get("runtime_configuration") or {}).get("equipe")
+    if not isinstance(estampille, dict):
+        return [], None
+    cles = estampille.get("cles")
+    etablissement = estampille.get("etablissement")
+    return (
+        [c for c in cles if isinstance(c, str)] if isinstance(cles, list) else [],
+        etablissement if isinstance(etablissement, str) else None,
+    )
+
+
+def reaffirmer_equipe(contexte: dict) -> dict:
+    """After the pre-call fetch (which is merged over the context and may carry any key): the
+    closed list is again the stamped one, or absent when nothing was stamped."""
+    reaffirme = dict(contexte)
+    cles, _etablissement = cles_de_lappel(contexte)
+    if ((contexte.get("runtime_configuration") or {}).get("equipe")) is None:
+        reaffirme.pop(CLE_CLES, None)
+    else:
+        reaffirme[CLE_CLES] = cles
+    return reaffirme
 
 
 def noms_pour_la_synthese(equipe: Equipe | None) -> list[str]:

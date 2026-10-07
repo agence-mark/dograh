@@ -132,6 +132,24 @@ def test_une_valeur_deja_la_est_gardee():
     assert enrichi["equipe_cles"] == ["camille", "sacha"]
 
 
+def test_la_liste_fermee_n_est_jamais_celle_qu_un_autre_a_ecrite():
+    """``equipe_cles`` decides who the tool may reach: a list already in the context (a replay,
+    the client's pre-call fetch) never survives the injection; after a fetch it is put back."""
+    from api.services.equipe.appel import reaffirmer_equipe
+
+    enrichi, estampille = injecter_equipe(
+        {"equipe_cles": ["noa", "inconnu"]}, {"equipe_connue": True}, EQUIPE, "creil"
+    )
+    assert enrichi["equipe_cles"] == ["camille", "sacha"]
+    contexte = {**enrichi, "runtime_configuration": {"equipe": estampille}}
+    # The pre-call fetch is merged over the context after the injection.
+    empoisonne = {**contexte, "equipe_cles": ["noa"]}
+    assert reaffirmer_equipe(empoisonne)["equipe_cles"] == ["camille", "sacha"]
+    # Nothing stamped (switch off): a list that came from elsewhere is removed.
+    assert "equipe_cles" not in reaffirmer_equipe({"equipe_cles": ["noa"], "runtime_configuration": {}})
+    assert reaffirmer_equipe({"direction": "inbound"}) == {"direction": "inbound"}
+
+
 def test_la_description_est_bornee_et_ramenee_a_une_ligne():
     with pytest.raises(ValueError):
         Personne(cle="x", prenom="X", description="a" * 301)
