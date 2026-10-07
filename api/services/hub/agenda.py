@@ -54,7 +54,9 @@ async def evenements(
     delai: float,
 ) -> list[dict]:
     """The appointments of one agenda between two instants, in the hub's format and in the order
-    of their start: ``{debut, fin}`` as aware datetimes, ``lieu`` (text or None). All-day,
+    of their start: ``{debut, fin}`` as aware datetimes, ``lieu`` (text or None), ``id_externe`` (the
+    software's identifier when it gives one: used to find again an event created by a try whose answer was
+    lost, ``planificateur/action.py``). All-day,
     cancelled and « free » events are left out by the translator. Raises like ``operer`` (a
     translator without ``chercher`` on ``rendez_vous`` included): the caller falls back."""
     brut = await operer(
@@ -74,7 +76,8 @@ async def evenements(
             continue
         if a.tzinfo is None or b.tzinfo is None:
             continue
-        sortie.append({"debut": a, "fin": b, "lieu": (e.get("lieu") or "").strip() or None})
+        sortie.append({"debut": a, "fin": b, "lieu": (e.get("lieu") or "").strip() or None,
+                       "id_externe": str(e["id_externe"]) if e.get("id_externe") else None})
     return sorted(sortie, key=lambda x: x["debut"])
 
 

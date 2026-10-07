@@ -26,6 +26,7 @@ leaves the machine; no SMS, no call.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time as horloge
 from datetime import date, datetime, time, timedelta
@@ -276,17 +277,43 @@ class Agendas(FauxNango):
         self.occupe: dict[str, list[tuple[str, str]]] = {}
         self.lectures = 0
         self.poses: list[tuple[str, dict]] = []
+        # Faults and behaviours of a real software, off by default (revue du 07/10).
+        self.lenteur_lecture = 0.0  # seconds before freeBusy answers
+        self.occupe_par_pose = False  # an event created makes its slot busy
+        self.reponse_perdue = 0.0  # the event is created, the answer comes after this many seconds
+        self.refus_pose = 0  # the next N creations are refused (HTTP 500), nothing created
+        self.lecture_des_evenements = False  # GET .../events lists what was created
+        self.evenements_visibles: list | None = None  # None: what was created
+
+    def _occupe_de(self, agenda: str) -> list[dict]:
+        occupe = [{"start": a, "end": b} for a, b in self.occupe.get(agenda, [])]
+        if self.occupe_par_pose:
+            occupe += [{"start": c["start"]["dateTime"], "end": c["end"]["dateTime"]}
+                       for ch, c in self.poses if ch.endswith(agenda.replace("@", "%40") + "/events")]
+        return occupe
 
     async def __call__(self, requete: httpx.Request) -> httpx.Response:
         chemin = requete.url.raw_path.decode().split("?")[0]
         if chemin == "/proxy/calendar/v3/freeBusy":
             self.lectures += 1
             corps = json.loads(requete.content)
-            return httpx.Response(200, json={"calendars": {
-                i["id"]: {"busy": [{"start": a, "end": b} for a, b in self.occupe.get(i["id"], [])]}
-                for i in corps["items"]}})
+            lu = {i["id"]: {"busy": self._occupe_de(i["id"])} for i in corps["items"]}  # as of the request
+            if self.lenteur_lecture:
+                await asyncio.sleep(self.lenteur_lecture)
+            return httpx.Response(200, json={"calendars": lu})
+        if requete.method == "GET" and chemin.startswith("/proxy/calendar/v3/calendars/") and self.lecture_des_evenements:
+            if self.evenements_visibles is not None:
+                return httpx.Response(200, json={"items": self.evenements_visibles})
+            return httpx.Response(200, json={"items": [
+                {"id": f"evt-{i + 1}", "status": "confirmed", "start": c["start"], "end": c["end"]}
+                for i, (ch, c) in enumerate(self.poses) if ch == chemin]})
         if chemin.startswith("/proxy/calendar/v3/calendars/"):
+            if self.refus_pose:
+                self.refus_pose -= 1
+                return httpx.Response(500, json={})
             self.poses.append((chemin, json.loads(requete.content)))
+            if self.reponse_perdue:
+                await asyncio.sleep(self.reponse_perdue)
             return httpx.Response(200, json={"id": f"evt-{len(self.poses)}"})
         return await super().__call__(requete)
 
@@ -326,7 +353,7 @@ async def installe(base_v4, smtp, modele, db_session, async_session, monkeypatch
                         lambda **o: httpx.AsyncClient(transport=httpx.MockTransport(agendas), **o))
     monkeypatch.setattr(module_action, "maintenant", lambda: MAINTENANT)
     run = await t._run(db_session, org)
-    return SimpleNamespace(org=org, base=base_v4, agendas=agendas, run=run, t=t, smtp=smtp)
+    return SimpleNamespace(org=org, base=base_v4, agendas=agendas, run=run, t=t, smtp=smtp, db=db_session)
 
 
 async def _regles(installe, **reglages) -> None:
@@ -452,6 +479,103 @@ async def test_un_creneau_pris_entre_temps_n_est_jamais_pose(installe, monkeypat
     installe.agendas.occupe = {CAMILLE: TOUTE_LA_PERIODE}
     pris = await _appeler(enregistres["poser"][0], {"debut": premier})
     assert pris["status"] == "slot_taken" and installe.agendas.poses == []
+
+
+# --------------------------------------------------------------------------- #
+# Revue du 07/10 : un seul rendez-vous par appel, jamais deux en parallèle, jamais un doublon
+# --------------------------------------------------------------------------- #
+
+
+async def _deux_creneaux(installe, monkeypatch, delai_poser=5000):
+    engine, mgr, enregistres = _moteur(installe, monkeypatch, [
+        _outil("proposer_creneaux", "Creneaux"), _outil("poser_rendez_vous", "Poser", delai_ms=delai_poser)])
+    await mgr.register_handlers(["uuid-Creneaux", "uuid-Poser"])
+    r = await _appeler(enregistres["creneaux"][0], {})
+    return engine, enregistres, [c["debut"] for c in r["creneaux"]]
+
+
+async def test_un_second_rendez_vous_dans_le_meme_appel_est_refuse_le_meme_creneau_ne_cree_rien_de_plus(installe, monkeypatch):
+    engine, enregistres, [premier, second, *_] = await _deux_creneaux(installe, monkeypatch)
+    assert (await _appeler(enregistres["poser"][0], {"debut": premier}))["pose"] is True
+    # « Finalement… » : another slot is refused, a call-back to change it is noted, nothing is created.
+    r = await _appeler(enregistres["poser"][0], {"debut": second})
+    assert r["status"] == "already_booked" and "colleague" in r["instruction"]
+    assert [x["raison"] for x in engine._gathered_context["planificateur_rappel"]] == [
+        "change of the appointment booked in this call"]
+    # The same slot again: the same answer, not a second event.
+    assert (await _appeler(enregistres["poser"][0], {"debut": premier}))["pose"] is True
+    assert len(installe.agendas.poses) == 1
+    assert len(engine._gathered_context["hub_rendez_vous"]) == 1
+
+
+async def test_deux_poses_en_parallele_ne_creent_qu_un_evenement(installe, monkeypatch):
+    import asyncio
+
+    installe.agendas.lenteur_lecture = 0.15  # both read the agenda before either writes
+    _engine, enregistres, [premier, second, *_] = await _deux_creneaux(installe, monkeypatch)
+    r = await asyncio.gather(_appeler(enregistres["poser"][0], {"debut": premier}),
+                             _appeler(enregistres["poser"][0], {"debut": second}))
+    assert sorted(x.get("status") or "pose" for x in r) == ["already_booked", "pose"]
+    assert len(installe.agendas.poses) == 1
+    r = await asyncio.gather(_appeler(enregistres["poser"][0], {"debut": premier}),
+                             _appeler(enregistres["poser"][0], {"debut": premier}))
+    assert all(x.get("pose") is True or x.get("status") == "already_booked" for x in r)
+    assert len(installe.agendas.poses) == 1
+
+
+async def test_deux_appels_ne_prennent_pas_le_meme_creneau_de_la_meme_agenda(installe, monkeypatch):
+    """Two different calls, one slot, one agenda: the second finds it taken (the agenda lock)."""
+    import asyncio
+
+    installe.agendas.lenteur_lecture = 0.4
+    installe.agendas.occupe_par_pose = True  # an event created makes its slot busy, like a real agenda
+    engine, enregistres, [premier, *_] = await _deux_creneaux(installe, monkeypatch)
+    autre_run = await installe.t._run(installe.db, installe.org)
+    engine2, mgr2, enregistres2 = _moteur(installe, monkeypatch, [
+        _outil("proposer_creneaux", "Creneaux"), _outil("poser_rendez_vous", "Poser")])
+    engine2._workflow_run_id = autre_run.id
+    await mgr2.register_handlers(["uuid-Creneaux", "uuid-Poser"])
+    r2 = await _appeler(enregistres2["creneaux"][0], {})
+    assert r2["creneaux"][0]["debut"] == premier
+    r = await asyncio.gather(_appeler(enregistres["poser"][0], {"debut": premier}),
+                             _appeler(enregistres2["poser"][0], {"debut": premier}))
+    assert sorted(x.get("status") or "pose" for x in r) == ["pose", "slot_taken"]
+    assert len(installe.agendas.poses) == 1
+
+
+async def test_un_evenement_cree_dont_la_reponse_est_perdue_est_retrouve_sans_doublon(installe, monkeypatch):
+    installe.agendas.reponse_perdue = 3  # created, then the answer never comes back in time
+    engine, enregistres, [premier, *_] = await _deux_creneaux(installe, monkeypatch, delai_poser=900)
+    perdu = await _appeler(enregistres["poser"][0], {"debut": premier})
+    assert perdu.get("pose") is not True and len(installe.agendas.poses) == 1
+    # The next try of the call finds the event in the agenda and gives it as booked: no second one.
+    installe.agendas.reponse_perdue = 0
+    installe.agendas.lecture_des_evenements = True
+    r = await _appeler(enregistres["poser"][0], {"debut": premier})
+    assert r["pose"] is True and len(installe.agendas.poses) == 1
+    [note] = engine._gathered_context["hub_rendez_vous"]
+    assert note["id_externe"] == "evt-1"
+
+
+async def test_un_evenement_cree_introuvable_n_en_cree_pas_un_autre(installe, monkeypatch):
+    installe.agendas.reponse_perdue = 3
+    engine, enregistres, [premier, *_] = await _deux_creneaux(installe, monkeypatch, delai_poser=900)
+    await _appeler(enregistres["poser"][0], {"debut": premier})
+    installe.agendas.reponse_perdue = 0
+    installe.agendas.lecture_des_evenements = True
+    installe.agendas.evenements_visibles = []  # the agenda does not show it (yet)
+    r = await _appeler(enregistres["poser"][0], {"debut": premier})
+    assert r["status"] == "booking_uncertain" and len(installe.agendas.poses) == 1
+    assert "previous booking unconfirmed" in [x["raison"] for x in engine._gathered_context["planificateur_rappel"]]
+
+
+async def test_un_refus_net_du_logiciel_permet_de_reessayer(installe, monkeypatch):
+    installe.agendas.refus_pose = 1
+    engine, enregistres, [premier, *_] = await _deux_creneaux(installe, monkeypatch)
+    echec = await _appeler(enregistres["poser"][0], {"debut": premier})
+    assert echec["status"] == "no_slot" and installe.agendas.poses == []
+    r = await _appeler(enregistres["poser"][0], {"debut": premier})
+    assert r["pose"] is True and len(installe.agendas.poses) == 1
 
 
 @pytest.mark.parametrize("mode", ["toujours_rappel", "humain_puis_rappel"])

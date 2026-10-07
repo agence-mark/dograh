@@ -51,7 +51,9 @@ from api.schemas.planificateur import (
     effectifs,
 )
 from api.services.apres_appel.rappels import CLE_RAPPEL
+from api.services.integrations.connectors import nango
 from api.services.integrations.connectors.outil import CLE_A_DIRE, CLE_A_NOTER
+from api.services.planificateur import pose as etat_pose
 from api.services.planificateur import trajets
 from api.services.planificateur.calcul import (
     Candidat,
@@ -61,6 +63,7 @@ from api.services.planificateur.calcul import (
     calculer,
 )
 from api.services.planificateur.souhaits import Souhait, lire_souhait
+from api.services.verrou import Occupe, verrou
 from api.utils.template_renderer import render_template
 
 FUSEAU = ZoneInfo("Europe/Paris")
@@ -691,8 +694,6 @@ def _derniers_proposes(fiche: dict | None) -> list[dict]:
 
 
 async def poser(arguments: dict, ctx, delai_s: float) -> dict:
-    from api.services.hub import agenda as hub_agenda
-
     debut_calcul = horloge.monotonic()
     brut = str(arguments.get("debut") or "")
     try:
@@ -713,6 +714,149 @@ async def poser(arguments: dict, ctx, delai_s: float) -> dict:
     estampille: dict = {"action": "poser_rendez_vous", "le": datetime.now(UTC).isoformat(),
                         "debut": creneau["debut"], "personne": creneau["personne"],
                         "type": proposition.get("type")}
+    if not (ctx.organization_id and ctx.run_id):
+        return repli(ctx, DEFAUTS, "no run to book for", None, [], estampille,
+                     proposition.get("type"), creneau["debut"])
+    # Pipecat runs the tool calls of a turn in parallel, and a caller changes his mind: ONE booking
+    # at a time per call (first lock) and per agenda (second, across calls), always in this order.
+    attente = max(1.0, delai_s - 0.5)
+    try:
+        async with (
+            verrou(f"planificateur-run:{int(ctx.organization_id)}:{int(ctx.run_id)}", attente_s=attente),
+            verrou(f"planificateur-agenda:{int(ctx.organization_id)}:{creneau.get('agenda')}", attente_s=attente),
+        ):
+            return await _poser(ctx, delai_s, debut_calcul, debut, creneau, proposition, estampille)
+    except Occupe:
+        logger.warning("[.mark] Appointment not booked, planner busy")
+        return repli(ctx, DEFAUTS, "booking busy", None, [], estampille,
+                     proposition.get("type"), creneau["debut"])
+
+
+async def _deja_pose(ctx, delai_s: float, debut: datetime, creneau: dict, estampille: dict) -> dict | None:
+    """What this call already booked, if anything: the same slot again gives the same answer
+    (nothing is created twice); another slot is refused; a creation whose answer was lost is
+    looked for in the agenda before anything is created again."""
+    from api.services.hub import agenda as hub_agenda
+
+    try:
+        etat = await etat_pose.lire(ctx.organization_id, ctx.run_id)
+    except Exception as erreur:  # fail closed: no second event on a doubt
+        logger.error(f"[.mark] Booking state unreadable, nothing booked: {erreur!r}")
+        raise Indisponible("booking state unreadable") from erreur
+    pose = etat.get("pose")
+    if pose:
+        if pose.get("debut") == debut.isoformat() and pose.get("agenda") == creneau.get("agenda"):
+            return {"pose": True, "libelle": pose.get("libelle"), "deja": True,
+                    **({"avec": pose["avec"]} if pose.get("avec") else {}),
+                    CLE_A_NOTER: {CLE_ESTAMPILLE: {**estampille, "refus": "already_booked_same_slot",
+                                                    "id_externe": pose.get("id_externe")}}}
+        return {
+            "status": "already_booked",
+            "libelle": pose.get("libelle"),
+            "instruction": (
+                "An appointment is already booked in this call (" + str(pose.get("libelle")) + "). "
+                "Do not book another one. If the caller wants another moment, tell him a colleague will call "
+                "him back to change it: a call-back request was noted."
+            ),
+            CLE_A_NOTER: {
+                CLE_ESTAMPILLE: {**estampille, "refus": "already_booked"},
+                CLE_RAPPEL: {"raison": "change of the appointment booked in this call", "creneau_choisi": creneau["debut"],
+                             "mode": "rappel", "le": datetime.now(UTC).isoformat()},
+            },
+        }
+    en_cours = etat.get("en_cours")
+    if not en_cours:
+        return None
+    # A creation was started and its answer is not known (deadline, cut): is the event there?
+    fin = datetime.fromisoformat(en_cours["fin"])
+    debut_cree = datetime.fromisoformat(en_cours["debut"])
+    trouve = None
+    try:
+        existants = await hub_agenda.evenements(
+            ctx.organization_id, en_cours["systeme"], en_cours["agenda"],
+            debut_cree - timedelta(minutes=1), fin + timedelta(minutes=1), delai=max(0.5, delai_s / 3),
+        )
+        trouve = next((e for e in existants if e["debut"] == debut_cree and e["fin"] == fin), None)
+    except Exception as erreur:  # noqa: BLE001 -- unknown: no second event on a doubt
+        logger.warning(f"[.mark] Booking of the previous try not checked: {erreur!r}")
+    if trouve is None:
+        return {
+            "status": "booking_uncertain",
+            "instruction": ("The previous booking may have gone through but is not confirmed. Do not book again: "
+                            "tell the caller a colleague will confirm the appointment."),
+            CLE_A_NOTER: {
+                CLE_ESTAMPILLE: {**estampille, "refus": "previous_booking_unknown"},
+                CLE_RAPPEL: {"raison": "previous booking unconfirmed", "creneau_choisi": en_cours["debut"],
+                             "mode": "rappel", "le": datetime.now(UTC).isoformat()},
+            },
+        }
+    # Found: adopted. Its identifier when the software gives it (else the hub does not link it).
+    adopte = {**en_cours, "id_externe": trouve.get("id_externe")}
+    return {"adopte": adopte}
+
+
+def _incertain(erreur: BaseException) -> bool:
+    """True when the software may have created the event although the answer is an error: a
+    deadline, a cut line. False when it said no (a refusal, no connection, a malformed request)."""
+    if isinstance(erreur, nango.NangoIndisponible):
+        return not str(erreur).startswith("The software refused")
+    return not isinstance(erreur, (nango.ConnexionAbsente, ValueError, Indisponible))
+
+
+async def _creer(ctx, note_hub: dict, libelle_rdv: str, avec: str | None, rendez_vous: dict, reste: float) -> str:
+    """The event created in the software, and what was done kept in the call's booking state.
+
+    The state is written BEFORE (``en_cours``) and AFTER (``pose``) in a task the tool's deadline
+    cannot cancel: if the deadline falls while the software answers, the event is still noted
+    once the answer comes, and the next try of this call finds it instead of creating another."""
+    from api.services.hub import agenda as hub_agenda
+
+    org, run = ctx.organization_id, ctx.run_id
+    intention = {"systeme": note_hub["systeme"], "agenda": note_hub["agenda"], "debut": note_hub["debut"],
+                 "fin": note_hub["fin"], "libelle": libelle_rdv, "avec": avec, "note_hub": note_hub}
+    await etat_pose.ecrire(org, run, {"en_cours": intention})
+
+    async def creer_et_noter() -> str:
+        try:
+            id_externe = await hub_agenda.poser(org, note_hub["systeme"], rendez_vous, delai=reste)
+            if not id_externe:
+                raise Indisponible("the software gave no identifier")
+        except BaseException as erreur:
+            if not _incertain(erreur):
+                await etat_pose.ecrire(org, run, {})  # the software said no: nothing to look for
+            raise
+        await etat_pose.ecrire(org, run, {"pose": {**intention, "id_externe": id_externe,
+                                                   "note_hub": {**note_hub, "id_externe": id_externe}}})
+        return id_externe
+
+    return await asyncio.shield(asyncio.ensure_future(creer_et_noter()))
+
+
+async def _adopter(ctx, en_cours: dict, estampille: dict) -> dict:
+    """The event of a previous try, found in the agenda: given as booked, noted once."""
+    id_externe = en_cours.get("id_externe")
+    note_hub = {**en_cours["note_hub"], "id_externe": id_externe}
+    await etat_pose.ecrire(ctx.organization_id, ctx.run_id,
+                           {"pose": {**en_cours, "id_externe": id_externe, "note_hub": note_hub}})
+    notes = {CLE_ESTAMPILLE: {**estampille, "id_externe": id_externe, "adopte": True}}
+    if id_externe:
+        notes[CLE_HUB] = note_hub  # without the software's identifier the hub cannot link it
+    return {"pose": True, "libelle": en_cours.get("libelle"),
+            **({"avec": en_cours["avec"]} if en_cours.get("avec") else {}), CLE_A_NOTER: notes}
+
+
+async def _poser(ctx, delai_s: float, debut_calcul: float, debut: datetime, creneau: dict,
+                 proposition: dict, estampille: dict) -> dict:
+    from api.services.hub import agenda as hub_agenda
+
+    try:
+        deja = await _deja_pose(ctx, delai_s, debut, creneau, estampille)
+    except Indisponible as erreur:
+        return repli(ctx, DEFAUTS, str(erreur), None, [], estampille, proposition.get("type"), creneau["debut"])
+    if deja is not None:
+        if "adopte" not in deja:
+            return deja
+        return await _adopter(ctx, deja["adopte"], estampille)
     try:
         lecture, choisi, _types = await lire(ctx, proposition.get("type"))
     except Indisponible as erreur:
@@ -754,12 +898,20 @@ async def poser(arguments: dict, ctx, delai_s: float) -> dict:
                   *([f"Motif : {modele.motif}"] if modele.motif else []),
                   "Posé par l'assistant vocal."]
         reste = max(0.5, delai_s - (horloge.monotonic() - debut_calcul) - 0.3)
-        id_externe = await hub_agenda.poser(
-            ctx.organization_id, lecture.systeme,
+        note_hub = {
+            "systeme": lecture.systeme, "agenda": personne["agenda"], "id_externe": None,
+            "debut": debut.isoformat(), "fin": fin.isoformat(), "personne": personne["cle"],
+            "motif": ctx.modele.motif or choisi.libelle, "type": choisi.code, "adresse": adresse,
+            "attribution": {"mode": proposition.get("repartition") or "premier_libre",
+                            "rang": creneau.get("rang"),
+                            "motif": f"rang {creneau.get('rang')} de l'ordre {proposition.get('repartition')}"},
+        }
+        id_externe = await _creer(
+            ctx, note_hub, libelle(debut), personne["prenom"] if reglages.personne_visible else None,
             {"agenda": personne["agenda"], "debut": debut.isoformat(), "fin": fin.isoformat(),
              "fuseau": str(FUSEAU), "titre": f"{choisi.libelle} · {nom}",
              "description": "\n".join(lignes), "lieu": lieu},
-            delai=reste,
+            reste,
         )
         if not id_externe:
             raise Indisponible("the software gave no identifier")
@@ -769,14 +921,7 @@ async def poser(arguments: dict, ctx, delai_s: float) -> dict:
                      lecture.personnes, estampille, choisi.code, creneau["debut"])
     estampille["id_externe"] = id_externe
     estampille["duree_ms"] = int((horloge.monotonic() - debut_calcul) * 1000)
-    note_hub = {
-        "systeme": lecture.systeme, "agenda": personne["agenda"], "id_externe": id_externe,
-        "debut": debut.isoformat(), "fin": fin.isoformat(), "personne": personne["cle"],
-        "motif": ctx.modele.motif or choisi.libelle, "type": choisi.code, "adresse": adresse,
-        "attribution": {"mode": proposition.get("repartition") or "premier_libre",
-                        "rang": creneau.get("rang"),
-                        "motif": f"rang {creneau.get('rang')} de l'ordre {proposition.get('repartition')}"},
-    }
+    note_hub["id_externe"] = id_externe
     return {
         "pose": True,
         "libelle": libelle(debut),
