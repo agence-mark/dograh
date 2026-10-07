@@ -42,8 +42,23 @@ def config_de(tool: Any) -> dict:
     )
 
 
-def schema(tool: Any, nom_de_fonction: str) -> FunctionSchema | None:
-    """The function the model sees: the action's description and declared parameters."""
+def _propriete(p, contexte: dict | None) -> dict:
+    propriete = {"type": TYPES.get(p.type, "string"), "description": p.description}
+    # l-agent-collegue (C7): a closed list, fixed or built at pick-up in the call context.
+    liste = list(p.choix)
+    if p.liste_du_contexte:
+        valeurs = (contexte or {}).get(p.liste_du_contexte)
+        liste = [str(v) for v in valeurs] if isinstance(valeurs, list) else []
+    if liste:
+        propriete["enum"] = liste
+    return propriete
+
+
+def schema(
+    tool: Any, nom_de_fonction: str, contexte: dict | None = None
+) -> FunctionSchema | None:
+    """The function the model sees: the action's description and declared parameters.
+    ``contexte``: the call's context, where a closed list built at pick-up is read."""
     config = config_de(tool)
     trouve = trouver(config.get("connecteur", ""), config.get("action", ""))
     if trouve is None:
@@ -55,10 +70,7 @@ def schema(tool: Any, nom_de_fonction: str) -> FunctionSchema | None:
     return FunctionSchema(
         name=nom_de_fonction,
         description=(getattr(tool, "description", None) or action.description),
-        properties={
-            p.nom: {"type": TYPES.get(p.type, "string"), "description": p.description}
-            for p in action.parametres
-        },
+        properties={p.nom: _propriete(p, contexte) for p in action.parametres},
         required=[p.nom for p in action.parametres if p.obligatoire],
     )
 
@@ -76,9 +88,21 @@ def inscrire_l_anticipation(
         )
 
 
+def connecteur_interne(tool: Any):
+    """The internal connector of this tool (l-agent-collegue), or None."""
+    from api.services.integrations.connectors.catalogue import connecteur
+
+    c = connecteur(config_de(tool).get("connecteur", ""))
+    return c if c is not None and c.interne else None
+
+
 def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
     """The handler of one integration tool. ``manager``: the engine's custom tool manager."""
     config = config_de(tool)
+    interne = connecteur_interne(tool)
+    if interne is not None:
+        # l-agent-collegue: an internal action is played by its own handler, never the relay.
+        return interne.gestionnaire_interne(manager, tool, nom_de_fonction)
 
     async def gestionnaire(params) -> None:
         engine = manager._engine

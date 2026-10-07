@@ -184,7 +184,29 @@ def construire_envoi(
             "resume": "Appel interrompu par une panne de l'agent : à rappeler.",
             "nee_d_une_panne": True,
         }
+    # [.mark] l-agent-collegue, L2 (C8, C10): what the agent did for the team. A request
+    # passed on to a person exists even with nothing noted, and is assigned to her. Absent
+    # from the record (every agent of before): the envoi is exactly the one of before.
+    gestes = contexte.get("equipe_gestes")
+    gestes = [g for g in gestes if isinstance(g, dict)] if isinstance(gestes, list) else []
+    assignation = contexte.get("equipe_assignation")
+    assignation = assignation if isinstance(assignation, str) and assignation else None
+    if assignation:
+        demande = {
+            **(
+                demande
+                or {
+                    "type": type_demande or "autre",
+                    "sujet": (sujet or {}).get("code"),
+                    "priorite": 1 if (sujet or {}).get("urgent") else 2,
+                    "degre_urgence": valeur("degre_urgence"),
+                }
+            ),
+            "assignee": assignation,
+        }
+    envoi_equipe = {"equipe": {"gestes": gestes, "assignee": assignation}} if (gestes or assignation) else {}
     return {
+        **envoi_equipe,
         "dograh_run_id": run.id,
         "dograh_workflow_id": run.workflow_id,
         "agent_nom": getattr(getattr(run, "workflow", None), "name", None),

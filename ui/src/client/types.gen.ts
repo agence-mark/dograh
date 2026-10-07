@@ -1951,6 +1951,10 @@ export type ConnecteurVue = {
      * Actions
      */
     actions: Array<ActionVue>;
+    /**
+     * Interne
+     */
+    interne?: boolean;
 };
 
 /**
@@ -6277,6 +6281,14 @@ export type ParametreVue = {
      * Obligatoire
      */
     obligatoire: boolean;
+    /**
+     * Choix
+     */
+    choix?: Array<string>;
+    /**
+     * Liste Du Contexte
+     */
+    liste_du_contexte?: string | null;
 };
 
 /**

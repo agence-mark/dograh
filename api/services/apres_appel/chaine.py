@@ -183,6 +183,17 @@ async def _ecriture(ctx: ContexteModule, bloc: dict) -> dict:
     connexion = await _base(ctx.organization_id)
     try:
         resultat = await sql.recevoir_appel(connexion, ctx.envoi)
+        # l-agent-collegue, L2 (C8, C10): the assignee and the transfers, idempotent.
+        if ctx.envoi.get("equipe"):
+            from api.db.bases_clients.gestes import ecrire_gestes
+
+            await ecrire_gestes(
+                connexion,
+                resultat.get("appel_id"),
+                resultat.get("demande_id"),
+                ctx.envoi["equipe"].get("assignee"),
+                ctx.envoi["equipe"].get("gestes") or [],
+            )
         # A summary made while the write was failing is written now.
         if (
             bloc.get("synthese")
@@ -321,7 +332,13 @@ async def _mail(ctx: ContexteModule, bloc: dict) -> dict:
         raise EtapeSansObjet("No request in this call (nothing noted).")
     connexion = await _base(ctx.organization_id)
     try:
-        destinataires = await sql.destinataires_de(
+        # l-agent-collegue, C8: a request passed on to a person goes to her first; the
+        # routing by subject only when she has no mail (or is no longer active).
+        from api.db.bases_clients.gestes import destinataire_assigne
+
+        destinataires = await destinataire_assigne(
+            connexion, (ctx.envoi.get("demande") or {}).get("assignee")
+        ) or await sql.destinataires_de(
             connexion,
             (ctx.envoi.get("demande") or {}).get("sujet"),
             ctx.envoi.get("etablissement"),

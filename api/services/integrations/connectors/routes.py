@@ -23,6 +23,8 @@ class ParametreVue(BaseModel):
     type: str
     description: str
     obligatoire: bool
+    choix: list[str] = []
+    liste_du_contexte: str | None = None
 
 
 class ActionVue(BaseModel):
@@ -39,6 +41,7 @@ class ConnecteurVue(BaseModel):
     libelle: str
     integration: str
     actions: list[ActionVue]
+    interne: bool = False
 
 
 class ConnexionVue(BaseModel):
@@ -71,13 +74,17 @@ async def get_catalogue(user: UserModel = Depends(get_user_with_selected_organiz
             nom=c.nom,
             libelle=c.libelle,
             integration=c.integration,
+            interne=c.interne,
             actions=[
                 ActionVue(
                     nom=a.nom,
                     description=a.description,
                     ecrit=a.ecrit,
                     anticipable_permis=a.anticipable_permis,
-                    parametres=[ParametreVue(**p.__dict__) for p in a.parametres],
+                    parametres=[
+                        ParametreVue(**{**p.__dict__, "choix": list(p.choix)})
+                        for p in a.parametres
+                    ],
                     reglages_par_defaut=a.reglages_par_defaut,
                 )
                 for a in c.actions
@@ -122,6 +129,11 @@ async def post_lien(
         c = connecteur(nom)
         if c is None:
             raise HTTPException(status_code=422, detail=f"Unknown connector « {nom} ».")
+        if c.interne:
+            raise HTTPException(
+                status_code=422,
+                detail=f"« {c.libelle} » is internal: there is nothing to connect.",
+            )
         integrations.append(c.integration)
     try:
         return Lien(

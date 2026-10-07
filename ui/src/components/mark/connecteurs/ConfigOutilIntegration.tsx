@@ -90,9 +90,14 @@ export function ChoixAction({
             {action && (
                 <p className="text-xs text-muted-foreground sm:col-span-2">
                     {action.description}{" "}
-                    {action.ecrit
-                        ? t({ en: "It writes in the software: never anticipated, put aside for after the call if it fails.", fr: "Elle écrit dans le logiciel : jamais anticipée, mise de côté pour l'après-appel si elle échoue." })
-                        : t({ en: "It only reads.", fr: "Elle ne fait que lire." })}
+                    {catalogue.find((c) => c.nom === valeur.connecteur)?.interne
+                        ? t({
+                              en: "It runs inside the agent: the code chooses the gesture it can make and never fails in silence.",
+                              fr: "Elle s'exécute dans l'agent : le code choisit le geste possible et n'échoue jamais en silence.",
+                          })
+                        : action.ecrit
+                          ? t({ en: "It writes in the software: never anticipated, put aside for after the call if it fails.", fr: "Elle écrit dans le logiciel : jamais anticipée, mise de côté pour l'après-appel si elle échoue." })
+                          : t({ en: "It only reads.", fr: "Elle ne fait que lire." })}
                 </p>
             )}
         </div>
@@ -137,6 +142,10 @@ export function ConfigOutilIntegration({
 
     const poser = (partiel: Partial<ConfigIntegration>) => onChange({ ...valeur, ...partiel });
     const declencheurs = valeur.declencheurs ?? {};
+    // l-agent-collegue (L2): an internal action is played by its own handler, which reads
+    // neither the deadline, nor the two phrases, nor the anticipation (the same rule as the
+    // code, ``outil.creer_gestionnaire``): they play no role and are not shown (E8).
+    const interne = Boolean(catalogue.find((c) => c.nom === valeur.connecteur)?.interne);
 
     if (connecteurs.erreur) return <p className="text-sm text-destructive">{connecteurs.erreur}</p>;
     if (!connecteurs.catalogue) return <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>;
@@ -150,10 +159,15 @@ export function ConfigOutilIntegration({
                 idControle="integration-reglages"
                 libelle={{ en: "The client's rules", fr: "Les règles du client" }}
                 aides={[
-                    {
-                        en: "From the audit, as JSON: for the slots, the duration by reason (keys are words of the reason separated by « | », in minutes), the opening hours by weekday (0 is Monday), the notice in hours, the number of slots proposed, the calendar.",
-                        fr: "Issues de l'audit, en JSON : pour les créneaux, la durée par motif (clés = mots du motif séparés par « | », en minutes), les horaires par jour (0 = lundi), le délai minimal en heures, le nombre de créneaux proposés, l'agenda.",
-                    },
+                    interne
+                        ? {
+                              en: "As JSON: delai_transfert_s, the seconds the person's phone rings before the request is passed on to her instead (default 30). The sentences said come from the catalogue: phrase_transfert_personne and phrase_transmission_personne, {{prenom}} being her first name.",
+                              fr: "En JSON : delai_transfert_s, les secondes pendant lesquelles le téléphone de la personne sonne avant que la demande lui soit transmise à la place (30 par défaut). Les phrases dites viennent du catalogue : phrase_transfert_personne et phrase_transmission_personne, {{prenom}} étant son prénom.",
+                          }
+                        : {
+                              en: "From the audit, as JSON: for the slots, the duration by reason (keys are words of the reason separated by « | », in minutes), the opening hours by weekday (0 is Monday), the notice in hours, the number of slots proposed, the calendar.",
+                              fr: "Issues de l'audit, en JSON : pour les créneaux, la durée par motif (clés = mots du motif séparés par « | », en minutes), les horaires par jour (0 = lundi), le délai minimal en heures, le nombre de créneaux proposés, l'agenda.",
+                          },
                 ]}
             >
                 <Textarea
@@ -172,6 +186,8 @@ export function ConfigOutilIntegration({
                 )}
             </ChampReglage>
 
+            {!interne && (
+            <>
             <ChampReglage
                 cle="config.delai_ms"
                 idControle="integration-delai"
@@ -243,7 +259,9 @@ export function ConfigOutilIntegration({
                     onCheckedChange={(anticipable) => poser({ anticipable, declencheurs: anticipable ? declencheurs : {} })}
                 />
             </ChampReglage>
-            {valeur.anticipable && action?.anticipable_permis && (
+            </>
+            )}
+            {!interne && valeur.anticipable && action?.anticipable_permis && (
                 <ChampReglage
                     cle="config.declencheurs"
                     libelle={{ en: "Record field of each parameter", fr: "Champ de la fiche de chaque paramètre" }}
@@ -270,7 +288,17 @@ export function ConfigOutilIntegration({
                 </ChampReglage>
             )}
 
-            <BlocConnexions connecteurs={connecteurs} seulement={valeur.connecteur} />
+            {catalogue.find((c) => c.nom === valeur.connecteur)?.interne ? (
+                // l-agent-collegue (L2): an internal connector runs in the fork, nothing to connect.
+                <p className="text-sm text-muted-foreground" id="connecteur-interne">
+                    {t({
+                        en: "Internal: runs inside the agent, with the organization's own data. Nothing to connect.",
+                        fr: "Interne : s'exécute dans l'agent, avec les données de l'organisation. Rien à connecter.",
+                    })}
+                </p>
+            ) : (
+                <BlocConnexions connecteurs={connecteurs} seulement={valeur.connecteur} />
+            )}
         </div>
     );
 }
@@ -279,7 +307,8 @@ export function BlocConnexions({ connecteurs, seulement }: { connecteurs: Connec
     const { t } = useLangue();
     const [lien, setLien] = useState<{ connecteur: string; url: string } | null>(null);
     const [enCours, setEnCours] = useState<string | null>(null);
-    const catalogue = (connecteurs.catalogue ?? []).filter((c) => !seulement || c.nom === seulement);
+    // l-agent-collegue (L2): an internal connector has no connection to show.
+    const catalogue = (connecteurs.catalogue ?? []).filter((c) => !c.interne && (!seulement || c.nom === seulement));
     const etat = connecteurs.etat;
 
     if (!etat) return null;
