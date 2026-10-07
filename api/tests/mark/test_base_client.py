@@ -573,6 +573,41 @@ async def test_des_horaires_illisibles_sont_refuses_et_les_precedents_gardes(
 
 
 @pytest.mark.asyncio
+async def test_copie_absente_et_base_lente_le_decroche_n_attend_pas(
+    base_prete, monkeypatch
+):
+    """Revue 10: no copy in memory and a client database slow to answer: the pick-up reads
+    the mirror within a short delay instead of waiting for the database ; the copy is then
+    rebuilt from the database in the background (B3)."""
+    import time
+
+    miroir, redis = _Miroir(base_prete), _RedisFactice()
+    miroir.lignes["ETABLISSEMENTS"] = CATALOGUE.model_dump(mode="json")
+    vraie = synchro.connecter
+
+    async def lente(nom):
+        await asyncio.sleep(2)
+        return await vraie(nom)
+
+    monkeypatch.setattr(synchro, "connecter", lente)
+    a, b, c = _rattachee(miroir, redis)
+    with a, b, c:
+        debut = time.monotonic()
+        copie = await module_copie.lire_copie_complete(ORGANISATION)
+        assert time.monotonic() - debut < 1.2
+        assert copie.etablissements == CATALOGUE and copie.lu_depuis == "stockage"
+        for _ in range(40):
+            brut = redis.valeurs.get(module_copie.cle_copie(ORGANISATION))
+            if brut and json.loads(brut)["source"] == "base_client":
+                break
+            await asyncio.sleep(0.1)
+        assert (
+            json.loads(redis.valeurs[module_copie.cle_copie(ORGANISATION)])["source"]
+            == "base_client"
+        )
+
+
+@pytest.mark.asyncio
 async def test_base_injoignable_lappel_lit_le_miroir(monkeypatch):
     """The call never depends on the client's database answering: no copy in memory and
     the database down, the mirror (last values known good) is read."""

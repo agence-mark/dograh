@@ -14,6 +14,7 @@ establishment », and the call behaves exactly as before the feature.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -31,6 +32,10 @@ PREFIXE = "mark:etablissements:v2:"
 # Short on purpose: Redis is local to the call. A copy that takes longer than
 # this is treated as absent and the stored catalogue is read instead.
 DELAI_REDIS_S = 0.25
+# Revue 10: at pick-up, with no copy in memory, the client's database gets this long; past
+# it the mirror kept in Dograh answers and the copy is rebuilt in the background (B3).
+DELAI_DECROCHE_S = 0.5
+_EN_ARRIERE_PLAN: set[asyncio.Task] = set()
 
 _client: aioredis.Redis | None = None
 
@@ -66,9 +71,13 @@ class CopieOrganisation:
     refus: list[str] = field(default_factory=list)
     # Revue 9: the last line of the client database's journal read with these values.
     journal_id: int | None = None
+    # Revue 10: the client's database is attached but slower than the pick-up delay.
+    repli: bool = False
 
 
-async def lire_source(organization_id: int) -> CopieOrganisation:
+async def lire_source(
+    organization_id: int, delai_s: float | None = None
+) -> CopieOrganisation:
     """The source of truth, read in full. Never raises (each part falls back to empty).
 
     L3: with a client database attached, the source is that database; when it does not
@@ -90,12 +99,22 @@ async def lire_source(organization_id: int) -> CopieOrganisation:
 
         nom = await nom_de_la_base_strict(organization_id)
         if nom:
-            return await lire_depuis_la_base(
-                organization_id, nom, miroir.etablissements
-            )
+            lecture = lire_depuis_la_base(organization_id, nom, miroir.etablissements)
+            if delai_s is None:
+                return await lecture
+            try:
+                return await asyncio.wait_for(lecture, delai_s)
+            except TimeoutError:
+                # Slow, not down: the mirror now, the database in the background.
+                miroir.repli = True
+                logger.warning(
+                    f"[.mark] Client database of organization {organization_id} slower than "
+                    f"{delai_s} s at pick-up: mirror used, copy rebuilt in the background"
+                )
+                return miroir
     except Exception as erreur:  # noqa: BLE001 -- the mirror takes over, the call goes on
         logger.warning(
-            f"[.mark] Client database of organization {organization_id} not read, mirror used: {erreur}"
+            f"[.mark] Client database of organization {organization_id} not read, mirror used: {erreur!r}"
         )
     return miroir
 
@@ -155,8 +174,15 @@ async def lire_copie_complete(organization_id: int | None) -> CopieOrganisation:
             f"[.mark] Copy of the establishments of organization {organization_id} unreadable, "
             f"source read instead: {erreur!r}"
         )
-    copie = await lire_source(organization_id)
-    await publier_copie(organization_id, copie)
+    copie = await lire_source(organization_id, delai_s=DELAI_DECROCHE_S)
+    if copie.repli:
+        # The database is slow or down: never publish the mirror as the copy; rebuild it
+        # from the database, without the short delay, after the call has its answer.
+        tache = asyncio.get_running_loop().create_task(publier_copie(organization_id))
+        _EN_ARRIERE_PLAN.add(tache)
+        tache.add_done_callback(_EN_ARRIERE_PLAN.discard)
+    else:
+        await publier_copie(organization_id, copie)
     return copie
 
 
