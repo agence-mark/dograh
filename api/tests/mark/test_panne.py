@@ -646,33 +646,6 @@ async def test_resultat_du_renvoi_signe_seulement(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-def test_appel_en_panne_porte_toujours_sa_demande_a_rappeler():
-    from api.services.apres_appel.envoi import construire_envoi
-
-    run = SimpleNamespace(
-        id=11,
-        workflow_id=3,
-        definition_id=2,
-        definition=None,
-        mode="twilio",
-        usage_info={},
-        created_at=datetime.now(UTC),
-        initial_context={"caller_number": "+33612345678", "direction": "inbound"},
-        gathered_context={
-            "extracted_variables": {},
-            "panne": {"a_rappeler": "+33612345678"},
-        },
-        logs={},
-    )
-    from api.schemas.apres_appel import ApresAppelAgent
-
-    envoi = construire_envoi(run, {}, ApresAppelAgent())
-    assert envoi["demande"]["priorite"] == 1 and "panne" in envoi["demande"]["resume"]
-    run.gathered_context = {"extracted_variables": {}}
-    sans = construire_envoi(run, {}, ApresAppelAgent())
-    assert sans["demande"] is None
-
-
 @pytest.fixture
 async def base_v5(base_essai):  # noqa: F811
     from api.db.bases_clients import connexion as schema

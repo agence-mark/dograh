@@ -662,6 +662,110 @@ async def test_agent_eteint_rien_ne_change(
     assert await db_session.lire_apres_appel(run.id) == {}
 
 
+async def test_panne_agent_eteint_la_demande_a_rappeler_est_ecrite(
+    base_v4, smtp, modele, db_session, async_session
+):
+    """Revue 2 (PN1): an outage run of an agent whose after-call is OFF writes its request
+    « to call back », through the real ``process_workflow_completion`` → ``demarrer`` →
+    ``executer`` ; nothing else runs (no summary, no mail)."""
+    from api.tasks.workflow_completion import process_workflow_completion
+
+    org = await _organisation(async_session, db_session, actif=False)
+    await _regler(db_session, org, base_v4, smtp)
+    run = await _run(db_session, org)
+    await db_session.update_workflow_run(
+        run.id,
+        gathered_context={
+            "extracted_variables": {},
+            "panne": {"a_rappeler": "+33612345678", "raison": "modele_lent"},
+        },
+    )
+    file: list[dict] = []
+    with patch("api.tasks.arq.enqueue_job", await _executer_tout_de_suite(file)):
+        await process_workflow_completion(None, run.id)
+
+    bloc = await db_session.lire_apres_appel(run.id)
+    assert {n: e["statut"] for n, e in bloc["etapes"].items()} == {"ecriture": "ok"}
+    assert smtp.messages == [] and modele.requetes == []
+    connexion = await schema.connecter(base_v4)
+    try:
+        demande = await connexion.fetchrow(
+            "SELECT d.priorite, d.resume FROM mark.demande d JOIN mark.appel a ON a.demande_id = d.id"
+            " WHERE a.dograh_run_id = $1",
+            run.id,
+        )
+    finally:
+        await connexion.close()
+    assert demande["priorite"] == 1 and "panne" in demande["resume"]
+
+
+async def test_fin_dappel_rejouee_ne_refait_rien_qui_a_abouti(
+    base_v4, smtp, modele, db_session, async_session
+):
+    """Revue 3: ``process_workflow_completion`` played twice for the same run never resets a
+    step already « ok » : no second summary, no second mail, the steps keep their date."""
+    from api.tasks.workflow_completion import process_workflow_completion
+
+    org = await _organisation(async_session, db_session)
+    await _regler(db_session, org, base_v4, smtp)
+    await _equipe(base_v4)
+    run = await _run(db_session, org)
+    file: list[dict] = []
+    with patch("api.tasks.arq.enqueue_job", await _executer_tout_de_suite(file)):
+        await process_workflow_completion(None, run.id)
+    avant = await db_session.lire_apres_appel(run.id)
+    assert {e["statut"] for e in avant["etapes"].values()} == {"ok"}
+
+    with patch("api.tasks.arq.enqueue_job", await _executer_tout_de_suite(file)):
+        await process_workflow_completion(None, run.id)
+    apres = await db_session.lire_apres_appel(run.id)
+    assert apres["etapes"] == avant["etapes"] and apres["lance_le"] == avant["lance_le"]
+    assert len(smtp.messages) == 1 and len(modele.requetes) == 1
+
+
+async def test_mail_envoye_puis_trace_ratee_jamais_renvoye(
+    base_v4, smtp, modele, db_session, async_session, monkeypatch
+):
+    """Revue 4 (A10): the mail left, then writing its « action » row failed: the step is
+    retried, the mail is NOT sent again ; its rows are written at the retry."""
+    org = await _organisation(async_session, db_session)
+    await _regler(db_session, org, base_v4, smtp)
+    await _equipe(base_v4)
+    run = await _run(db_session, org)
+    await chaine.executer(run.id, ["ecriture", "synthese"])
+
+    vraie = sql.noter_action
+    coupee = {"fois": 0}
+
+    async def noter_action_qui_tombe(*args, **kwargs):
+        if kwargs.get("statut") == "envoyee" and coupee["fois"] == 0:
+            coupee["fois"] += 1
+            raise ConnectionError("database gone right after the sending")
+        return await vraie(*args, **kwargs)
+
+    monkeypatch.setattr(sql, "noter_action", noter_action_qui_tombe)
+    file: list[dict] = []
+    enqueue = await _executer_tout_de_suite(file)
+    await chaine.executer(run.id, ["mail"], 1, enqueue=enqueue)
+    assert len(smtp.messages) == 1
+    assert (await db_session.lire_apres_appel(run.id))["etapes"]["mail"][
+        "statut"
+    ] == "echec"
+    # The retry (deferred, played here by hand).
+    await chaine.executer(run.id, ["mail"], 2, enqueue=enqueue)
+    bloc = await db_session.lire_apres_appel(run.id)
+    assert bloc["etapes"]["mail"]["statut"] == "ok"
+    assert len(smtp.messages) == 1
+    connexion = await schema.connecter(base_v4)
+    try:
+        actions = await connexion.fetch(
+            "SELECT canal, destinataire, statut FROM mark.action"
+        )
+    finally:
+        await connexion.close()
+    assert [tuple(a) for a in actions] == [("mail", "tech@example.org", "envoyee")]
+
+
 # --------------------------------------------------------------------------- #
 # 3. A step forced to fail (A9, A10, A5)
 # --------------------------------------------------------------------------- #

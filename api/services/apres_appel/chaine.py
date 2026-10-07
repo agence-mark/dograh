@@ -92,23 +92,44 @@ async def _panne_a_ecrire(run, organization_id: int) -> bool:
     return bool(await nom_de_la_base(organization_id))
 
 
+async def _etapes_a_jouer(
+    run, organization_id: int, agent: ApresAppelAgent
+) -> list[str]:
+    """The steps of this run, or [] when the chain does not concern it. ONE rule, read by
+    ``demarrer`` and by ``executer`` alike (revue 2)."""
+    if agent.actif:
+        return etapes_de(agent)
+    if await _panne_a_ecrire(run, organization_id):
+        # L7 (PN1): the outage fallback writes its request « to call back » even for an
+        # agent whose after-call is off, as soon as a client database is attached.
+        return ["ecriture"]
+    return []
+
+
+def _ok(bloc: dict, etape: str) -> bool:
+    return ((bloc.get("etapes") or {}).get(etape) or {}).get("statut") == "ok"
+
+
 async def demarrer(run_id: int, enqueue=None) -> bool:
-    """Queue the chain if the run's agent switched it on. Never raises."""
+    """Queue the chain if the run's agent switched it on. Never raises.
+
+    Played again for the same run (``process_workflow_completion`` replayed): a step already
+    « ok » is never reset nor queued again (revue 3)."""
     try:
         run, organization_id, agent = await _charger(run_id)
         if run is None:
             return False
-        if agent.actif:
-            etapes = etapes_de(agent)
-        elif await _panne_a_ecrire(run, organization_id):
-            # L7 (PN1): the outage fallback writes its request « to call back » even for an
-            # agent whose after-call is off, as soon as a client database is attached.
-            etapes = ["ecriture"]
-        else:
+        etapes = await _etapes_a_jouer(run, organization_id, agent)
+        if not etapes:
             return False
-        await db_client.fusionner_apres_appel(
-            run_id, racine={"actif": True, "lance_le": _maintenant()}
-        )
+        bloc = await db_client.lire_apres_appel(run_id)
+        etapes = [e for e in etapes if not _ok(bloc, e)]
+        if not etapes:
+            return True
+        if not bloc.get("lance_le"):
+            await db_client.fusionner_apres_appel(
+                run_id, racine={"actif": True, "lance_le": _maintenant()}
+            )
         for etape in etapes:
             await db_client.fusionner_apres_appel(
                 run_id,
@@ -271,6 +292,14 @@ async def _mail(ctx: ContexteModule, bloc: dict) -> dict:
                 definitif=True,
             )
         adresses = [d["mail"] for d in destinataires]
+        deja = ((bloc.get("etapes") or {}).get("mail") or {}).get("envoye_a")
+        if deja:
+            # Revue 4 (A10): the mail left at an earlier try; never send it again, only
+            # write its rows if that is what failed.
+            adresses = list(deja)
+            if not ((bloc.get("etapes") or {}).get("mail") or {}).get("actions_notees"):
+                await _noter_mails(ctx, bloc, connexion, adresses)
+            return _mail_fait(adresses)
         sujet, texte = texte_du_mail(ctx, bloc)
         try:
             await service_mail.envoyer(
@@ -290,18 +319,37 @@ async def _mail(ctx: ContexteModule, bloc: dict) -> dict:
                     reessais=ctx.tentative - 1,
                 )
             raise EtapeEnEchec(str(erreur), definitif=definitif) from None
-        for adresse in adresses:
-            await sql.noter_action(
-                connexion,
-                appel_id=bloc.get("appel_id"),
-                demande_id=bloc.get("demande_id"),
-                canal="mail",
-                destinataire=adresse,
-                statut="envoyee",
-                reessais=ctx.tentative - 1,
-            )
+        # Marked as sent on the run BEFORE anything else can fail.
+        await db_client.fusionner_apres_appel(
+            ctx.run.id,
+            etape="mail",
+            valeur={"envoye_a": adresses, "envoye_le": _maintenant()},
+        )
+        await _noter_mails(ctx, bloc, connexion, adresses)
     finally:
         await connexion.close()
+    return _mail_fait(adresses)
+
+
+async def _noter_mails(
+    ctx: ContexteModule, bloc: dict, connexion, adresses: list[str]
+) -> None:
+    for adresse in adresses:
+        await sql.noter_action(
+            connexion,
+            appel_id=bloc.get("appel_id"),
+            demande_id=bloc.get("demande_id"),
+            canal="mail",
+            destinataire=adresse,
+            statut="envoyee",
+            reessais=ctx.tentative - 1,
+        )
+    await db_client.fusionner_apres_appel(
+        ctx.run.id, etape="mail", valeur={"actions_notees": True}
+    )
+
+
+def _mail_fait(adresses: list[str]) -> dict:
     return {
         "detail": ", ".join(adresses),
         "envois": [
@@ -327,7 +375,9 @@ async def _module(nom: str, ctx: ContexteModule, bloc: dict) -> dict:
             connexion = await _base(ctx.organization_id)
             try:
                 for e in resultat.envois:
-                    if e.get("deja"):  # sent by an earlier try: its row is already there
+                    if e.get(
+                        "deja"
+                    ):  # sent by an earlier try: its row is already there
                         continue
                     await sql.noter_action(
                         connexion,
@@ -360,7 +410,8 @@ async def executer(
     if run is None:
         logger.warning(f"[.mark] After-call: run {run_id} not found")
         return {}
-    if not agent.actif:
+    permises = await _etapes_a_jouer(run, organization_id, agent)
+    if not permises:
         return await db_client.lire_apres_appel(run_id)
     from api.services.analyse_run.du_run import analyser_le_run
 
@@ -387,9 +438,9 @@ async def executer(
         tentative=tentative,
     )
     contexte.fuseau = str(await _fuseau(organization_id))
-    for etape in etapes or etapes_de(agent):
+    for etape in [e for e in (etapes or permises) if e in permises]:
         bloc = await db_client.lire_apres_appel(run_id)
-        if ((bloc.get("etapes") or {}).get(etape) or {}).get("statut") == "ok":
+        if _ok(bloc, etape):
             continue
         await db_client.fusionner_apres_appel(
             run_id,
