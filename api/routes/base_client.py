@@ -244,6 +244,10 @@ async def put_equipe(
             await ecrire_equipe(connexion, request, rattachement.auteur_de(user))
         except EtablissementInconnu as erreur:
             raise _refus(str(erreur)) from None
-        return await lire_equipe(connexion)
+        relue = await lire_equipe(connexion)
     finally:
         await connexion.close()
+    # l-agent-collegue, C3: the team is in the copy the calls read; the next pick-up
+    # hears this save without waiting for the notification (which follows anyway).
+    await _apres_changement_de_source(user.selected_organization_id)
+    return relue

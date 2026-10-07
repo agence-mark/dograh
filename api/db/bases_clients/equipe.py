@@ -44,6 +44,10 @@ async def lire_equipe(connexion: asyncpg.Connection) -> Equipe:
                 etablissement=sites.get(p["site_id"]),
                 destinataire_defaut=p["destinataire_defaut"],
                 actif=p["actif"],
+                description=p.get("description"),
+                divulguer_telephone=bool(p.get("divulguer_telephone")),
+                divulguer_mail=bool(p.get("divulguer_mail")),
+                joignable_par_transfert=bool(p.get("joignable_par_transfert")),
             )
             for p in personnes
         ],
@@ -88,12 +92,15 @@ async def ecrire_equipe(
                 )
             ids[p.cle] = await connexion.fetchval(
                 """
-                INSERT INTO mark.personne (cle, site_id, prenom, nom, role, mail, telephone, destinataire_defaut, actif)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                INSERT INTO mark.personne (cle, site_id, prenom, nom, role, mail, telephone, destinataire_defaut, actif,
+                    description, divulguer_telephone, divulguer_mail, joignable_par_transfert)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                 ON CONFLICT (cle) DO UPDATE SET site_id = EXCLUDED.site_id, prenom = EXCLUDED.prenom,
                     nom = EXCLUDED.nom, role = EXCLUDED.role, mail = EXCLUDED.mail,
                     telephone = EXCLUDED.telephone, destinataire_defaut = EXCLUDED.destinataire_defaut,
-                    actif = EXCLUDED.actif
+                    actif = EXCLUDED.actif, description = EXCLUDED.description,
+                    divulguer_telephone = EXCLUDED.divulguer_telephone, divulguer_mail = EXCLUDED.divulguer_mail,
+                    joignable_par_transfert = EXCLUDED.joignable_par_transfert
                 RETURNING id
                 """,
                 p.cle,
@@ -105,6 +112,10 @@ async def ecrire_equipe(
                 p.telephone,
                 p.destinataire_defaut,
                 p.actif,
+                p.description,
+                p.divulguer_telephone,
+                p.divulguer_mail,
+                p.joignable_par_transfert,
             )
         await connexion.execute(
             "UPDATE mark.personne SET actif = false WHERE actif AND cle IS NOT NULL AND NOT (cle = ANY($1::text[]))",

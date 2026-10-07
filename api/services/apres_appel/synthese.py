@@ -76,7 +76,9 @@ def consigne(reglages: ReglagesSynthese, noms_des_champs: list[str]) -> str:
     )
 
 
-def message_utilisateur(lignes: list[dict], fiche: dict) -> str:
+def message_utilisateur(
+    lignes: list[dict], fiche: dict, noms_equipe: list[str] | None = None
+) -> str:
     conversation = "\n".join(
         f"{'Assistant' if l.get('speaker') == 'agent' else 'Personne'} : {l.get('text')}"
         for l in lignes
@@ -87,7 +89,15 @@ def message_utilisateur(lignes: list[dict], fiche: dict) -> str:
         for nom, valeur in fiche.items()
         if valeur not in (None, "")
     )
-    return f"La fiche :\n{champs or '(vide)'}\n\nLa conversation :\n{conversation or '(aucune parole)'}"
+    texte = f"La fiche :\n{champs or '(vide)'}\n\nLa conversation :\n{conversation or '(aucune parole)'}"
+    if noms_equipe:
+        # l-agent-collegue, C6: the transcription deforms names; the summary spells the
+        # team's as the client wrote them (the code checks the names afterwards, C11).
+        texte += (
+            "\n\nLes personnes de l'entreprise, dont tu écris le nom exactement ainsi "
+            f"si la conversation les évoque : {', '.join(noms_equipe)}."
+        )
+    return texte
 
 
 async def resumer(
@@ -96,6 +106,7 @@ async def resumer(
     lignes: list[dict],
     fiche: dict,
     client: httpx.AsyncClient | None = None,
+    noms_equipe: list[str] | None = None,
 ) -> tuple[str, dict]:
     """``(summary, usage)``. ⛔ The key is never put in an error message."""
     if not any(l.get("text") for l in lignes):
@@ -106,7 +117,10 @@ async def resumer(
         "max_tokens": 400,
         "messages": [
             {"role": "system", "content": consigne(reglages, list(fiche))},
-            {"role": "user", "content": message_utilisateur(lignes, fiche)},
+            {
+                "role": "user",
+                "content": message_utilisateur(lignes, fiche, noms_equipe),
+            },
         ],
     }
     url = os.environ.get(VARIABLE_URL, "").strip().rstrip("/") or URL_PAR_DEFAUT

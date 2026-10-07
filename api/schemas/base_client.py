@@ -73,6 +73,32 @@ class Personne(BaseModel):
     )
     destinataire_defaut: bool = False
     actif: bool = True
+    # [.mark] l-agent-collegue, L1 (C1): what the agent knows of this person during a call.
+    description: str | None = Field(
+        default=None,
+        max_length=300,
+        description="What this person takes care of, in plain words (the agent reads it).",
+    )
+    divulguer_telephone: bool = Field(
+        default=False,
+        description="The agent may give this person's phone number to a caller.",
+    )
+    divulguer_mail: bool = Field(
+        default=False,
+        description="The agent may give this person's e-mail address to a caller.",
+    )
+    joignable_par_transfert: bool = Field(
+        default=False,
+        description="The agent may transfer a call to this person (a phone number is needed).",
+    )
+
+    @field_validator("description")
+    @classmethod
+    def _description(cls, value):
+        if value is None:
+            return None
+        texte = " ".join(str(value).split())
+        return texte or None
 
     @field_validator("cle")
     @classmethod

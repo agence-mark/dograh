@@ -230,7 +230,11 @@ async def _synthese(ctx: ContexteModule, bloc: dict, analyse: dict) -> dict:
     fiche = {c["nom"]: c["valeur"] for c in ctx.envoi.get("champs") or []}
     try:
         texte, _usage = await service_synthese.resumer(
-            cle, ctx.reglages.synthese, lignes, fiche
+            cle,
+            ctx.reglages.synthese,
+            lignes,
+            fiche,
+            noms_equipe=await _noms_de_lequipe(ctx),
         )
     except service_synthese.SyntheseImpossible as erreur:
         if not any(l.get("text") for l in lignes):
@@ -251,6 +255,25 @@ async def _synthese(ctx: ContexteModule, bloc: dict, analyse: dict) -> dict:
                 f"[.mark] Summary of run {ctx.run.id} not written yet: {erreur!r}"
             )
     return {"racine": racine, "detail": ctx.reglages.synthese.modele}
+
+
+async def _noms_de_lequipe(ctx: ContexteModule) -> list[str]:
+    """l-agent-collegue, C6: the team's names for the summary, only when the agent's
+    « Team known to the agent » is on (X2). Read from the in-memory copy; never raises."""
+    from api.services.equipe.appel import interrupteur_allume, noms_pour_la_synthese
+
+    definition = getattr(ctx.run, "definition", None)
+    if not interrupteur_allume(getattr(definition, "workflow_configurations", None)):
+        return []
+    try:
+        from api.services.etablissements.copie import lire_copie_complete
+
+        return noms_pour_la_synthese(
+            (await lire_copie_complete(ctx.organization_id)).equipe
+        )
+    except Exception as erreur:  # noqa: BLE001 -- the summary goes on without the names
+        logger.warning(f"[.mark] Team names not given to the summary: {erreur!r}")
+        return []
 
 
 def _heure_locale(iso: str | None, fuseau: str | None) -> str:

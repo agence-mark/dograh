@@ -160,6 +160,35 @@ describe("Team and routing", () => {
         expect(envoye.personnes[1].cle).toBe("personne-2");
     });
 
+    it("l-agent-collegue C1: description, transfer and disclosures are on screen and saved as set", async () => {
+        m.equipe.mockResolvedValue({
+            data: { personnes: [{ cle: "p1", prenom: "Alice", etablissement: "creil", actif: true }], sujets: [] },
+        });
+        m.saveEquipe.mockReset();
+        m.saveEquipe.mockImplementation(async ({ body }) => ({ data: body }));
+        rendre(<ThemeEquipe ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee />);
+        fireEvent.click(screen.getByTestId("ouvrir-equipe"));
+        await screen.findByDisplayValue("Alice");
+        const description = screen.getByLabelText(/What this person takes care of|Ce dont cette personne s'occupe/) as HTMLTextAreaElement;
+        expect(description.maxLength).toBe(300);
+        fireEvent.change(description, { target: { value: "  Les rendez-vous et les factures.  " } });
+        const transfert = screen.getByLabelText(/may transfer calls|lui transférer un appel/) as HTMLInputElement;
+        expect(transfert.checked).toBe(false); // off by default (C1)
+        fireEvent.click(transfert);
+        // No phone: the modal says the agent will pass the request on instead.
+        expect(screen.getByTestId("transfert-sans-telephone")).toBeTruthy();
+        fireEvent.click(screen.getByLabelText(/may give the e-mail|donner son e-mail/));
+        expect((screen.getByLabelText(/may give the phone|donner son téléphone/) as HTMLInputElement).checked).toBe(false);
+        fireEvent.click(screen.getByTestId("enregistrer-equipe"));
+        await waitFor(() => expect(m.saveEquipe).toHaveBeenCalledTimes(1));
+        expect(m.saveEquipe.mock.calls[0][0].body.personnes[0]).toMatchObject({
+            description: "Les rendez-vous et les factures.",
+            joignable_par_transfert: true,
+            divulguer_mail: true,
+            divulguer_telephone: false,
+        });
+    });
+
     it("the payload trims, and empties become null", () => {
         const charge = charge_utile_equipe({
             personnes: [{ cle: "p1", prenom: " A ", nom: "  ", mail: "", etablissement: "" }],

@@ -865,6 +865,17 @@ class WorkflowConfigurationDefaults(BaseModel):
             "establishment's second number or promises a call-back. Empty or off: as before."
         ),
     )
+    # [.mark] Chantier l-agent-collegue, L1 (C5) : l'équipe connue de l'agent, éteinte par
+    # défaut (X2). Lue au décroché par ``services/equipe/appel.py``.
+    equipe_connue: bool = Field(
+        default=False,
+        description=(
+            "Gives the agent the team of the establishment called, as {{equipe}}: first name, "
+            "last name, role and what each person takes care of; a phone number or an e-mail "
+            "only where the client allowed it. Also gives the summary the names to spell. "
+            "Off: the agent knows no one, exactly as before."
+        ),
+    )
     call_dispositions: list[CallDispositionOption] = Field(
         default_factory=list,
         max_length=MAX_CALL_DISPOSITIONS,

@@ -48,6 +48,7 @@ from api.services.lexique.ecoute import injecter_lexique_propose, termes_propose
 from api.services.lexique.reglages import interrupteur_allume, lire_lexique_de_lappel
 from api.services.pipecat.audio_config import create_audio_config
 from api.services.annonce.stockage import lire_annonce_ouverture
+from api.services.equipe.appel import injecter_equipe
 from api.services.etablissements.appel import (
     annonce_heritee,
     configuration_heritee,
@@ -658,6 +659,17 @@ async def execute_text_chat_pending_turn(
         lecture_de_lappel.phrases,
         etablissement_servi.etablissement if etablissement_servi else None,
     )
+    # [.mark] The team known to the agent (chantier l-agent-collegue, C4, C5): only when
+    # the agent's switch is on; nothing changes otherwise, not even the stamp.
+    initial_context, estampille_equipe = injecter_equipe(
+        initial_context,
+        run_configs,
+        lecture_de_lappel.equipe,
+        lecture_de_lappel.etablissement_id,
+        lecture_de_lappel.lu_depuis,
+    )
+    if estampille_equipe is not None:
+        initial_context["runtime_configuration"]["equipe"] = estampille_equipe
     initial_context = injecter_etat_ouverture(
         initial_context, configs_heritees, reglages=reglages_annonce
     )

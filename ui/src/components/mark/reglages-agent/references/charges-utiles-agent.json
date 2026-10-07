@@ -1040,6 +1040,20 @@
         }
       ]
     },
+    "equipe-connue": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "equipe_connue": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "panne": {
       "carte": "ajout-mark",
       "theme": "etablissement",

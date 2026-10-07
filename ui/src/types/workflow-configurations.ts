@@ -327,6 +327,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     apres_appel?: ApresAppelAgent | null;
     // [.mark] L7: the outage fallback of the agent (off by default).
     panne?: Partial<PanneAgent> | null;
+    // [.mark] Chantier l-agent-collegue, L1 (C5): the team given to the agent as
+    // {{equipe}} at pick-up. Absent means off, the behaviour of before.
+    equipe_connue?: boolean;
     // [.mark] Part 2: the clerk's model, shaped like a model override (its key
     // comes back masked and is restored on save), and its instructions (absent:
     // the generic ones written in the code).

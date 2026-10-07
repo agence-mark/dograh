@@ -6323,6 +6323,30 @@ export type Personne = {
      * Actif
      */
     actif?: boolean;
+    /**
+     * Description
+     *
+     * What this person takes care of, in plain words (the agent reads it).
+     */
+    description?: string | null;
+    /**
+     * Divulguer Telephone
+     *
+     * The agent may give this person's phone number to a caller.
+     */
+    divulguer_telephone?: boolean;
+    /**
+     * Divulguer Mail
+     *
+     * The agent may give this person's e-mail address to a caller.
+     */
+    divulguer_mail?: boolean;
+    /**
+     * Joignable Par Transfert
+     *
+     * The agent may transfer a call to this person (a phone number is needed).
+     */
+    joignable_par_transfert?: boolean;
 };
 
 /**
@@ -10780,6 +10804,12 @@ export type WorkflowConfigurationDefaults = {
     panne?: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Equipe Connue
+     *
+     * Gives the agent the team of the establishment called, as {{equipe}}: first name, last name, role and what each person takes care of; a phone number or an e-mail only where the client allowed it. Also gives the summary the names to spell. Off: the agent knows no one, exactly as before.
+     */
+    equipe_connue?: boolean;
     /**
      * Call Dispositions
      *
