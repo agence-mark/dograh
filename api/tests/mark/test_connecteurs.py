@@ -168,6 +168,26 @@ async def test_une_organisation_n_atteint_jamais_la_connexion_d_une_autre(faux_n
         await nango.connexions("1")  # never a value read from a request
 
 
+async def test_le_lien_d_autorisation_porte_l_adresse_publique_de_notre_nango(
+    faux_nango, monkeypatch
+):
+    """Without ``apiURL`` the connect screen calls Nango's cloud (seen in production, 07/10)."""
+    monkeypatch.delenv(nango.VARIABLE_URL_PUBLIQUE, raising=False)
+    assert (await nango.lien_d_autorisation(2, ["google-calendar"]))["lien"] == (
+        "https://connect/2"
+    )
+    monkeypatch.setenv(nango.VARIABLE_URL_PUBLIQUE, "https://nango.exemple/")
+    lien = (await nango.lien_d_autorisation(2, ["google-calendar"]))["lien"]
+    assert lien == "https://connect/2?apiURL=https%3A%2F%2Fnango.exemple"
+    # A link that already has query parameters keeps them; an existing apiURL is untouched.
+    assert (
+        nango._avec_api_publique("https://connect/x?session_token=abc")
+        == "https://connect/x?session_token=abc&apiURL=https%3A%2F%2Fnango.exemple"
+    )
+    assert nango._avec_api_publique("https://c/x?apiURL=y") == "https://c/x?apiURL=y"
+    assert nango._avec_api_publique(None) is None
+
+
 async def test_une_connexion_sans_etiquette_n_est_a_personne(faux_nango):
     """Revue 5: a connection without tags (made by hand in Nango, or by another tool) is
     nobody's: never served to an organization, even if the listing sends it back."""
