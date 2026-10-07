@@ -91,22 +91,22 @@ async def test_la_migration_013_est_additive_et_une_base_en_version_12_se_lit_sa
 
     connexion = await schema.connecter_proprietaire(base_prete)  # DDL and « Upgrade »: the owner's
     try:
-        assert schema.version_attendue() == 13 and await schema.version_de(connexion) == 13
+        assert await schema.version_de(connexion) == schema.version_attendue() >= 13
         await connexion.execute("INSERT INTO mark.entreprise (raison_sociale) VALUES ('E')")
         await ecrire_planificateur(
             connexion, Planificateur(reglages=ReglagesPlanificateur(nombre_creneaux=2, repartition="tour_de_role")), "test")
         # Back to version 12: the column and the version row are gone (what a database not yet upgraded is).
         await connexion.execute("ALTER TABLE mark.reglage_planificateur DROP COLUMN fenetre_equite_jours")
-        await connexion.execute("DELETE FROM mark.schema_version WHERE version = 13")
+        await connexion.execute("DELETE FROM mark.schema_version WHERE version >= 13")  # 013 and the later ones
         lu = await lire_planificateur(connexion)  # a call in the gap between the deployment and « Upgrade »
         assert lu.reglages.nombre_creneaux == 2 and lu.reglages.fenetre_equite_jours is None
         assert effectifs(lu.reglages).fenetre_equite_jours == 30
-        # « Upgrade »: only 013 is played, the organization's row survives, the new field is empty.
-        assert await schema.appliquer_migrations(connexion) == [13]
+        # « Upgrade »: only 013 and the later ones are played (each replayable), the organization's row survives, the new field is empty.
+        assert await schema.appliquer_migrations(connexion) == list(range(13, schema.version_attendue() + 1))
         lu = await lire_planificateur(connexion)
         assert (lu.reglages.nombre_creneaux, lu.reglages.repartition, lu.reglages.fenetre_equite_jours) == (
             2, "tour_de_role", None)
-        assert await schema.version_de(connexion) == 13
+        assert await schema.version_de(connexion) == schema.version_attendue()
     finally:
         await connexion.close()
 
