@@ -35,6 +35,7 @@ import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
 import { allerAuReglage } from "../ecran/useThemesOuverts";
 import { type Texte, useLangue } from "../langue/langue";
+import { BlocInstallationMark } from "./BlocInstallationMark";
 import { type ProprietesThemeOrganisation, useSignaler } from "./ThemesOrganisation";
 
 export const TITRE_APRES_APPEL: Texte = { en: "After the call", fr: "Après l'appel" };
@@ -398,6 +399,8 @@ export const ThemeApresAppel = ({
                     {t({ en: "Run the purge now", fr: "Lancer la purge maintenant" })}
                 </Button>
             </Intertitre>
+
+            <BlocInstallationMark />
         </Theme>
     );
 };

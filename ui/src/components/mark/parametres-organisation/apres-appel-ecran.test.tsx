@@ -27,6 +27,8 @@ const m = vi.hoisted(() => ({
     recap: vi.fn(),
     run: vi.fn(),
     relancer: vi.fn(),
+    installation: vi.fn(),
+    installationPut: vi.fn(),
 }));
 
 vi.mock("@/client/sdk.gen", () => ({
@@ -37,6 +39,8 @@ vi.mock("@/client/sdk.gen", () => ({
     postRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPost: m.recap,
     getApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGet: m.run,
     postRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPost: m.relancer,
+    getInstallationApiV1OrganizationsApresAppelInstallationGet: m.installation,
+    putInstallationApiV1OrganizationsApresAppelInstallationPut: m.installationPut,
     listerLesClesApiV1ClesGet: () =>
         Promise.resolve({ data: [{ uuid: "u-mistral", nom: "Mistral du client", fournisseur: "mistral" }, { uuid: "u-smtp", nom: "Boîte mail", fournisseur: "smtp" }] }),
     fournisseursDesClesApiV1ClesFournisseursGet: () => Promise.resolve({ data: ["mistral", "smtp", "webhook"] }),
@@ -63,6 +67,9 @@ const ECRAN = {
 afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    // Not a superuser unless a test says so: the installation block stays hidden.
+    m.installation.mockReset();
+    m.installationPut.mockReset();
 });
 
 const rendre = (noeud: React.ReactNode) => render(<FournisseurLangue>{noeud}</FournisseurLangue>);
@@ -73,6 +80,46 @@ const Apres = ({ signaler = vi.fn() }: { signaler?: (id: string, modifie: boolea
 };
 
 describe("After the call (organization)", () => {
+    it("hides the installation settings from anyone but a superuser (n° 319)", async () => {
+        m.get.mockResolvedValue({ data: structuredClone(ECRAN) });
+        m.installation.mockResolvedValue({ error: { detail: "Access denied. Superuser privileges required." } });
+        rendre(<Apres />);
+        await screen.findByLabelText(/^(Server|Serveur)$/);
+        await waitFor(() => expect(m.installation).toHaveBeenCalledTimes(1));
+        expect(screen.queryByTestId("installation-porteur")).toBeNull();
+        expect(screen.queryByLabelText(/\.mark notification addresses|Adresses de notification \.mark/)).toBeNull();
+    });
+
+    it("lets a superuser set the .mark addresses and the backup server, password by key (n° 319)", async () => {
+        const reglages = { adresses_notification: ["equipe@example.org"], smtp: { ...ECRAN.reglages.smtp, hote: null, mot_de_passe: null, expediteur: null, utilisateur: null } };
+        m.get.mockResolvedValue({ data: structuredClone(ECRAN) });
+        m.installation.mockResolvedValue({ data: { reglages, organisation_mark: null, ici: false } });
+        m.installationPut.mockImplementation(async ({ body }) => ({ data: { reglages: body, organisation_mark: 7, ici: true } }));
+        rendre(<Apres />);
+        expect((await screen.findByTestId("installation-porteur")).textContent).toMatch(/first save|premier enregistrement/);
+        fireEvent.change(screen.getByLabelText(/Backup mail server|Serveur de mail de secours/), { target: { value: "smtp.mark.example.org" } });
+        fireEvent.change(screen.getByLabelText(/^(Sender|Expéditeur)$/, { selector: "#installation-smtp-expediteur" }), {
+            target: { value: "alertes@example.org" },
+        });
+        expect(document.querySelector('input[type="password"]')).toBeNull();
+        fireEvent.click(screen.getByTestId("installation-enregistrer"));
+        await waitFor(() => expect(m.installationPut).toHaveBeenCalledTimes(1));
+        expect(m.installationPut.mock.calls[0][0].body).toEqual({
+            adresses_notification: ["equipe@example.org"],
+            smtp: { ...reglages.smtp, hote: "smtp.mark.example.org", expediteur: "alertes@example.org" },
+        });
+        expect((await screen.findByTestId("installation-porteur")).textContent).toMatch(/n° 7/);
+    });
+
+    it("refuses to save from another organization than .mark's (n° 319)", async () => {
+        m.get.mockResolvedValue({ data: structuredClone(ECRAN) });
+        m.installation.mockResolvedValue({ data: { reglages: { adresses_notification: [], smtp: ECRAN.reglages.smtp }, organisation_mark: 3, ici: false } });
+        rendre(<Apres />);
+        expect((await screen.findByTestId("installation-porteur")).textContent).toMatch(/n° 3/);
+        fireEvent.change(screen.getByLabelText(/Backup mail server|Serveur de mail de secours/), { target: { value: "autre.example.org" } });
+        expect((screen.getByTestId("installation-enregistrer") as HTMLButtonElement).disabled).toBe(true);
+    });
+
     it("shows what is saved, and saves exactly what is typed", async () => {
         m.get.mockResolvedValue({ data: structuredClone(ECRAN) });
         m.put.mockImplementation(async ({ body }) => ({ data: { ...ECRAN, reglages: body } }));
