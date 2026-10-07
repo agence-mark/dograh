@@ -3361,6 +3361,24 @@ export type EcranApresAppel = {
 };
 
 /**
+ * EcranInstallation
+ *
+ * What a superuser sees: the settings, which organization holds them (its id), and
+ * whether it is the one selected.
+ */
+export type EcranInstallation = {
+    reglages: ReglagesInstallation;
+    /**
+     * Organisation Mark
+     */
+    organisation_mark?: number | null;
+    /**
+     * Ici
+     */
+    ici?: boolean;
+};
+
+/**
  * EcranPanne
  */
 export type EcranPanne = {
@@ -7220,6 +7238,22 @@ export type ReglagesFenetreDuRun = {
      */
     lignes?: Array<LignePrix>;
     seuils?: Seuils;
+};
+
+/**
+ * ReglagesInstallation
+ *
+ * Decision of Evan, 07/10 (n° 319, option A): the installation's settings, kept in
+ * .mark's organization and changed by superusers only. The addresses receive every
+ * organization's alerts; the mail server sends them for an organization without its
+ * own (its password: a key of .mark's « Keys »).
+ */
+export type ReglagesInstallation = {
+    /**
+     * Adresses Notification
+     */
+    adresses_notification?: Array<string>;
+    smtp?: ReglagesSmtp;
 };
 
 /**
@@ -14790,6 +14824,84 @@ export type PutApresAppelApiV1OrganizationsApresAppelPutResponses = {
 };
 
 export type PutApresAppelApiV1OrganizationsApresAppelPutResponse = PutApresAppelApiV1OrganizationsApresAppelPutResponses[keyof PutApresAppelApiV1OrganizationsApresAppelPutResponses];
+
+export type GetInstallationApiV1OrganizationsApresAppelInstallationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/apres-appel/installation';
+};
+
+export type GetInstallationApiV1OrganizationsApresAppelInstallationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetInstallationApiV1OrganizationsApresAppelInstallationGetError = GetInstallationApiV1OrganizationsApresAppelInstallationGetErrors[keyof GetInstallationApiV1OrganizationsApresAppelInstallationGetErrors];
+
+export type GetInstallationApiV1OrganizationsApresAppelInstallationGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EcranInstallation;
+};
+
+export type GetInstallationApiV1OrganizationsApresAppelInstallationGetResponse = GetInstallationApiV1OrganizationsApresAppelInstallationGetResponses[keyof GetInstallationApiV1OrganizationsApresAppelInstallationGetResponses];
+
+export type PutInstallationApiV1OrganizationsApresAppelInstallationPutData = {
+    body: ReglagesInstallation;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/apres-appel/installation';
+};
+
+export type PutInstallationApiV1OrganizationsApresAppelInstallationPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutInstallationApiV1OrganizationsApresAppelInstallationPutError = PutInstallationApiV1OrganizationsApresAppelInstallationPutErrors[keyof PutInstallationApiV1OrganizationsApresAppelInstallationPutErrors];
+
+export type PutInstallationApiV1OrganizationsApresAppelInstallationPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EcranInstallation;
+};
+
+export type PutInstallationApiV1OrganizationsApresAppelInstallationPutResponse = PutInstallationApiV1OrganizationsApresAppelInstallationPutResponses[keyof PutInstallationApiV1OrganizationsApresAppelInstallationPutResponses];
 
 export type PostEssaiMailApiV1OrganizationsApresAppelEssaiMailPostData = {
     body: EssaiMail;

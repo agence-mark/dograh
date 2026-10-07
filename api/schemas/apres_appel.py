@@ -392,6 +392,30 @@ class AdressesNotification(BaseModel):
     installation: list[str] = Field(default_factory=list)
 
 
+class ReglagesInstallation(BaseModel):
+    """Decision of Evan, 07/10 (n° 319, option A): the installation's settings, kept in
+    .mark's organization and changed by superusers only. The addresses receive every
+    organization's alerts; the mail server sends them for an organization without its
+    own (its password: a key of .mark's « Keys »)."""
+
+    adresses_notification: list[str] = Field(default_factory=list)
+    smtp: ReglagesSmtp = Field(default_factory=ReglagesSmtp)
+
+    @field_validator("adresses_notification")
+    @classmethod
+    def _adresses(cls, valeurs: list[str]) -> list[str]:
+        return verifier_adresses(valeurs)
+
+
+class EcranInstallation(BaseModel):
+    """What a superuser sees: the settings, which organization holds them (its id), and
+    whether it is the one selected."""
+
+    reglages: ReglagesInstallation
+    organisation_mark: int | None = None
+    ici: bool = False
+
+
 class EssaiMail(BaseModel):
     destinataire: str
 

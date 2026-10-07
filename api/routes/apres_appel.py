@@ -7,6 +7,8 @@ organization's run, or another agent's than the address says, is a 404).
 - ``POST    /organizations/apres-appel/essai-mail``   a test mail through the mail server
 - ``POST    /organizations/apres-appel/nuit``         the night task now (purge, counters)
 - ``POST    /organizations/apres-appel/recapitulatif`` the recap mail now
+- ``GET/PUT /organizations/apres-appel/installation`` the installation's settings, superusers
+  only, kept in .mark's organization (decision of Evan, 07/10, n° 319)
 - ``GET     /workflow/{id}/runs/{run}/apres-appel``    the section « After the call » of a run
 - ``POST    /workflow/{id}/runs/{run}/apres-appel/{etape}/relancer``  « Retry »
 - ``GET     /workflow/{id}/sms`` · ``POST /workflow/{id}/sms/apercu``  the SMS counter and preview (L6)
@@ -25,15 +27,20 @@ from api.db.models import UserModel
 from api.schemas.apres_appel import (
     AdressesNotification,
     ApresAppelDuRun,
+    EcranInstallation,
     EssaiMail,
     EtapeApresAppel,
     ReglagesApresAppel,
+    ReglagesInstallation,
 )
 from api.services.apres_appel import chaine, mail, sms, taches
-from api.services.apres_appel.notification import smtp_de_linstallation
+from api.services.apres_appel.installation import (
+    InstallationAilleurs,
+    ecrire_installation,
+    lire_installation,
+)
 from api.services.apres_appel.reglages import (
     adresses_de_lorganisation,
-    adresses_mark,
     ecrire_reglages,
     lire_reglages,
     reglages_de_lagent,
@@ -60,7 +67,7 @@ class ResultatAction(BaseModel):
     detail: dict | None = None
 
 
-async def _ecran(organization_id: int) -> EcranApresAppel:
+async def _ecran(organization_id: int, superutilisateur: bool) -> EcranApresAppel:
     from api.db.bases_clients import apres_appel as sql
     from api.db.bases_clients.connexion import connecter
 
@@ -76,13 +83,15 @@ async def _ecran(organization_id: int) -> EcranApresAppel:
                 await connexion.close()
         except BaseClientIndisponible:
             pass
+    _, installation = await lire_installation()
     return EcranApresAppel(
         reglages=await lire_reglages(organization_id),
         adresses=AdressesNotification(
             organisation=await adresses_de_lorganisation(organization_id),
-            installation=adresses_mark(),
+            # n° 319: the .mark addresses are shown to superusers only.
+            installation=installation.adresses_notification if superutilisateur else [],
         ),
-        smtp_installation=smtp_de_linstallation() is not None,
+        smtp_installation=installation.smtp.configure,
         base_rattachee=bool(nom),
         derniere_nuit=derniere,
     )
@@ -92,7 +101,7 @@ async def _ecran(organization_id: int) -> EcranApresAppel:
 async def get_apres_appel(
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
-    return await _ecran(user.selected_organization_id)
+    return await _ecran(user.selected_organization_id, bool(user.is_superuser))
 
 
 @router.put("", response_model=EcranApresAppel)
@@ -106,7 +115,47 @@ async def put_apres_appel(
     except CleIntrouvable as erreur:
         raise HTTPException(status_code=422, detail=str(erreur)) from None
     await ecrire_reglages(org, reglages)
-    return await _ecran(org)
+    return await _ecran(org, bool(user.is_superuser))
+
+
+def _superutilisateur(user: UserModel) -> None:
+    if not user.is_superuser:
+        raise HTTPException(
+            status_code=403, detail="Access denied. Superuser privileges required."
+        )
+
+
+async def _ecran_installation(organization_id: int) -> EcranInstallation:
+    organisation_mark, reglages = await lire_installation()
+    return EcranInstallation(
+        reglages=reglages,
+        organisation_mark=organisation_mark,
+        ici=organisation_mark == organization_id,
+    )
+
+
+@router.get("/installation", response_model=EcranInstallation)
+async def get_installation(
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    _superutilisateur(user)
+    return await _ecran_installation(user.selected_organization_id)
+
+
+@router.put("/installation", response_model=EcranInstallation)
+async def put_installation(
+    reglages: ReglagesInstallation,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    _superutilisateur(user)
+    org = user.selected_organization_id
+    try:
+        await ecrire_installation(org, reglages)
+    except InstallationAilleurs as erreur:
+        raise HTTPException(status_code=409, detail=str(erreur)) from None
+    except CleIntrouvable as erreur:
+        raise HTTPException(status_code=422, detail=str(erreur)) from None
+    return await _ecran_installation(org)
 
 
 @router.post("/essai-mail", response_model=ResultatAction)

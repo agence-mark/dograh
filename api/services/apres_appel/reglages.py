@@ -7,7 +7,6 @@ carries can point at another organization's settings, database or keys.
 
 from __future__ import annotations
 
-import os
 
 from loguru import logger
 
@@ -22,10 +21,6 @@ from api.services.cles_reference import CleIntrouvable, _cle, est_reference, uui
 
 CLE = OrganizationConfigurationKey.APRES_APPEL.value
 CLE_AGENT = "apres_appel"
-# A5, PN6: the .mark addresses of the installation (they receive everything). An
-# installation setting like MARK_BASES_CLIENTS_URL: read from the environment, shown
-# read-only on screen.
-VARIABLE_ADRESSES_MARK = "MARK_ADRESSES_NOTIFICATION"
 
 
 async def lire_reglages(organization_id: int) -> ReglagesApresAppel:
@@ -63,15 +58,6 @@ def reglages_de_lagent(workflow_configurations: dict | None) -> ApresAppelAgent:
             f"[.mark] After-call settings of an agent unreadable, read as off: {erreur!r}"
         )
         return ApresAppelAgent()
-
-
-def adresses_mark() -> list[str]:
-    brut = os.environ.get(VARIABLE_ADRESSES_MARK, "")
-    try:
-        return verifier_adresses([a for a in brut.replace(";", ",").split(",")])
-    except ValueError as erreur:
-        logger.error(f"[.mark] {VARIABLE_ADRESSES_MARK} unreadable: {erreur}")
-        return []
 
 
 async def adresses_de_lorganisation(organization_id: int) -> list[str]:

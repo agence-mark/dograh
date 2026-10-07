@@ -223,6 +223,11 @@ class OrganizationConfigurationKey(Enum):
     # [.mark] The outage fallback of the organization (chantier l-agent-travaille, L7, PN5):
     # the address of its TwiML Bin. Format: api/schemas/panne.py
     PANNE = "PANNE"
+    # [.mark] The installation's settings, held by .mark's own organization (decision of
+    # Evan, 07/10, n° 319): the .mark notification addresses and the backup mail server.
+    # The organization that holds this key IS .mark's (one holder, enforced on save).
+    # Format: api/schemas/apres_appel.py (ReglagesInstallation)
+    INSTALLATION_MARK = "INSTALLATION_MARK"
 
 
 class UserConfigurationKey(Enum):

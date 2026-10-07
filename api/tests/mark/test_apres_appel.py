@@ -999,6 +999,68 @@ async def test_routes_cloisonnees(base_v4, smtp, modele, db_session, async_sessi
     assert (await client_b.post("/organizations/apres-appel/nuit")).status_code == 422
 
 
+async def test_reglages_de_linstallation_aux_seuls_superutilisateurs_de_mark(
+    smtp, db_session, async_session
+):
+    """Decision of Evan, 07/10 (n° 319, option A): the .mark notification addresses and
+    the backup mail server live in .mark's organization, shown and changed by superusers
+    only. The .mark organization is the one that holds the setting (by its id, never its
+    name): the first save fixes it, any other organization is refused. A user of another
+    organization neither sees nor changes them; its failures still reach .mark."""
+    mark = await _organisation(async_session, db_session)
+    mark.utilisateur.is_superuser = True
+    autre_superutilisateur = await _organisation(async_session, db_session)
+    autre_superutilisateur.utilisateur.is_superuser = True
+    client = await _organisation(async_session, db_session)
+    await async_session.flush()
+    chemin = "/organizations/apres-appel/installation"
+    cle_mark = await _cle(db_session, mark, "smtp", "mdp-smtp-mark-0123", "SMTP .mark")
+    cle_client = await _cle(db_session, client, "smtp", "mdp-smtp-client", "SMTP")
+    reglages = {
+        "adresses_notification": ["equipe@mark.example.org"],
+        "smtp": {
+            "hote": "127.0.0.1",
+            "port": smtp.port,
+            "securite": "aucune",
+            "expediteur": "alertes@mark.example.org",
+            "mot_de_passe": cle_mark,
+        },
+    }
+    c_mark, c_autre, c_client = (
+        _app(mark.utilisateur),
+        _app(autre_superutilisateur.utilisateur),
+        _app(client.utilisateur),
+    )
+
+    # A user of another organization neither sees nor changes them.
+    assert (await c_client.get(chemin)).status_code == 403
+    assert (await c_client.put(chemin, json=reglages)).status_code == 403
+    # The password is a key of .mark's « Keys », never another organization's.
+    faux = {**reglages, "smtp": {**reglages["smtp"], "mot_de_passe": cle_client}}
+    assert (await c_mark.put(chemin, json=faux)).status_code == 422
+    # The first save designates .mark's organization; another one is refused.
+    ecran = (await c_mark.put(chemin, json=reglages)).json()
+    assert ecran["organisation_mark"] == mark.organisation.id and ecran["ici"] is True
+    assert "mdp-smtp-mark" not in json.dumps(ecran)
+    refus = await c_autre.put(chemin, json=reglages)
+    assert (
+        refus.status_code == 409 and str(mark.organisation.id) in refus.json()["detail"]
+    )
+    assert (await c_autre.get(chemin)).json()["ici"] is False
+
+    # The client's screen no longer lists the .mark addresses.
+    vue = (await c_client.get("/organizations/apres-appel")).json()
+    assert vue["adresses"]["installation"] == [] and vue["smtp_installation"] is True
+    # A failure of the client (no mail server, no address of its own) reaches .mark
+    # through .mark's mail server.
+    from api.services.apres_appel.notification import notifier
+
+    assert await notifier(client.organisation.id, "essai", "texte") == [
+        "equipe@mark.example.org"
+    ]
+    assert smtp.messages[-1]["a"] == ["equipe@mark.example.org"]
+
+
 async def test_reglage_agent_verifie_a_lenregistrement():
     from api.routes.workflow import UpdateWorkflowRequest
 
