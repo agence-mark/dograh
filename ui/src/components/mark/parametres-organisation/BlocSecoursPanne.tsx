@@ -183,7 +183,14 @@ export function BlocSecoursPanne() {
                 texte={ecran.texte_du_bin_promesse}
             />
             <div className="flex flex-wrap items-center gap-3">
-                <Button type="button" variant="outline" size="sm" disabled={enCours} onClick={() => void rattraper()}>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-auto max-w-full whitespace-normal py-1.5 text-left"
+                    disabled={enCours}
+                    onClick={() => void rattraper()}
+                >
                     <RefreshCw className="mr-2 h-3.5 w-3.5" />
                     {t({ en: "Catch up the calls lost during an outage", fr: "Rattraper les appels perdus pendant une panne" })}
                 </Button>
