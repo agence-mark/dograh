@@ -166,3 +166,21 @@ async def donner_acces(
 
 async def retirer_acces(connexion_proprietaire: asyncpg.Connection, cle: str) -> None:
     await connexion_proprietaire.execute("SELECT mark.retirer_acces($1)", cle)
+
+
+async def personnes_de_la_base(connexion: asyncpg.Connection) -> list:
+    """The people of the team (key, first name, name): labels of the run window."""
+    return await connexion.fetch("SELECT cle, prenom, nom FROM mark.personne")
+
+
+async def mentions_de_l_appel(connexion: asyncpg.Connection, appel_id: int) -> list:
+    """The mentions of one call, the certain ones first."""
+    return await connexion.fetch(
+        """
+        SELECT p.cle, m.source, m.certitude, m.extrait
+        FROM mark.mention m JOIN mark.personne p ON p.id = m.personne_id
+        WHERE m.appel_id = $1
+        ORDER BY CASE m.certitude WHEN 'certaine' THEN 0 WHEN 'detectee' THEN 1 ELSE 2 END, m.id
+        """,
+        appel_id,
+    )

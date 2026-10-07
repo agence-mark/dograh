@@ -27,6 +27,7 @@ def _nom(prenom: str | None, nom: str | None, cle: str) -> str:
 async def lire_mentions(organization_id: int, appel_id: int | None) -> tuple[list[MentionDuRun], dict[str, str], bool]:
     """(mentions, names by key, unreadable). Nothing when the call is not written yet."""
     from api.db.bases_clients.connexion import connecter
+    from api.db.bases_clients.gestes import mentions_de_l_appel, personnes_de_la_base
     from api.services.base_client.rattachement import nom_de_la_base
 
     noms: dict[str, str] = {}
@@ -36,19 +37,11 @@ async def lire_mentions(organization_id: int, appel_id: int | None) -> tuple[lis
             return [], noms, False
         connexion = await connecter(base)
         try:
-            for r in await connexion.fetch("SELECT cle, prenom, nom FROM mark.personne"):
+            for r in await personnes_de_la_base(connexion):
                 noms[r["cle"]] = _nom(r["prenom"], r["nom"], r["cle"])
             if not appel_id:
                 return [], noms, False
-            lignes = await connexion.fetch(
-                """
-                SELECT p.cle, m.source, m.certitude, m.extrait
-                FROM mark.mention m JOIN mark.personne p ON p.id = m.personne_id
-                WHERE m.appel_id = $1
-                ORDER BY CASE m.certitude WHEN 'certaine' THEN 0 WHEN 'detectee' THEN 1 ELSE 2 END, m.id
-                """,
-                appel_id,
-            )
+            lignes = await mentions_de_l_appel(connexion, appel_id)
         finally:
             await connexion.close()
     except Exception as erreur:  # noqa: BLE001 -- the section shows the rest

@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 
@@ -28,6 +27,7 @@ from api.db.bases_clients.connexion import (
     appliquer_migrations,
     assurer_compte_courant,
     connecter,
+    ERREURS_SCHEMA_EN_RETARD,
     connecter_proprietaire,
     creer_base,
     version_attendue,
@@ -58,7 +58,7 @@ async def _schema_a_jour(connexion):
     answers with the way out, not with « Internal Server Error »: nothing was saved."""
     try:
         yield
-    except (asyncpg.UndefinedColumnError, asyncpg.UndefinedTableError, asyncpg.UndefinedFunctionError):
+    except ERREURS_SCHEMA_EN_RETARD:
         try:
             actuelle = await version_de(connexion)
         except Exception:  # noqa: BLE001 -- the message is still useful without the number

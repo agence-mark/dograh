@@ -24,6 +24,13 @@ from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
 
+# A database behind this installation: a column, a table or a function of a later migration is missing.
+ERREURS_SCHEMA_EN_RETARD = (
+    asyncpg.UndefinedColumnError,
+    asyncpg.UndefinedTableError,
+    asyncpg.UndefinedFunctionError,
+)
+
 VARIABLE_ENV = "MARK_BASES_CLIENTS_URL"
 # Décision d'Evan du 07/10 (n° 317): the OWNER account above only creates and upgrades a
 # database. Every usual connection uses this account instead (``postgresql://user:password@
