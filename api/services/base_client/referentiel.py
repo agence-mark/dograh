@@ -29,11 +29,14 @@ class Referentiel:
 
 
 async def lire_referentiel(
-    connexion, avant: CatalogueEtablissements | None = None
+    connexion,
+    avant: CatalogueEtablissements | None = None,
+    phrases_avant: CataloguePhrases | None = None,
 ) -> Referentiel:
     """The establishments and sentences as a call reads them, and what was refused.
 
-    ``avant``: the copy currently in memory; a refused value keeps its value from it.
+    ``avant`` / ``phrases_avant``: the copy currently in memory; a refused value keeps its
+    value from it (hours, address, lexicon terms, a sentence, the whole catalogue alike).
     """
     from api.services.pipecat.etat_ouverture import (
         HorairesInvalides,
@@ -50,12 +53,19 @@ async def lire_referentiel(
         lignes.phrases,
     )
 
+    phrases_precedentes = {
+        p.variable: p for p in (phrases_avant.phrases if phrases_avant else [])
+    }
     phrases: list[Phrase] = []
     for ligne in lignes_phrases:
         try:
             phrases.append(Phrase(**dict(ligne)))
         except Exception as erreur:  # noqa: BLE001
-            refus.append(f"sentence « {ligne['variable']} »: {erreur}")
+            refus.append(
+                f"sentence « {ligne['variable']} »: {erreur}; the previous one is kept"
+            )
+            if ligne["variable"] in phrases_precedentes:
+                phrases.append(phrases_precedentes[ligne["variable"]])
 
     etablissements: list[Etablissement] = []
     for site in sites:
@@ -87,7 +97,11 @@ async def lire_referentiel(
             try:
                 termes.append(TermeLexique.model_validate(brut))
             except Exception as erreur:  # noqa: BLE001
-                refus.append(f"{site['nom']}: term refused ({erreur})")
+                refus.append(
+                    f"{site['nom']}: term refused ({erreur}); the previous terms are kept"
+                )
+                termes = list(precedent.termes_lexique) if precedent else []
+                break
         donnees = {
             "id": cle,
             "nom": site["nom"],
@@ -123,6 +137,8 @@ async def lire_referentiel(
     try:
         catalogue_phrases = CataloguePhrases(phrases=phrases)
     except Exception as erreur:  # noqa: BLE001
-        refus.append(f"sentences refused as a whole ({erreur})")
-        catalogue_phrases = CataloguePhrases()
+        refus.append(
+            f"sentences refused as a whole ({erreur}); the previous catalogue is kept"
+        )
+        catalogue_phrases = phrases_avant or CataloguePhrases()
     return Referentiel(etablissements=catalogue, phrases=catalogue_phrases, refus=refus)

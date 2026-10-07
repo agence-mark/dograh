@@ -99,7 +99,9 @@ async def lire_source(
 
         nom = await nom_de_la_base_strict(organization_id)
         if nom:
-            lecture = lire_depuis_la_base(organization_id, nom, miroir.etablissements)
+            lecture = lire_depuis_la_base(
+                organization_id, nom, miroir.etablissements, miroir.phrases
+            )
             if delai_s is None:
                 return await lecture
             try:

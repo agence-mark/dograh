@@ -608,6 +608,42 @@ async def test_copie_absente_et_base_lente_le_decroche_n_attend_pas(
 
 
 @pytest.mark.asyncio
+async def test_terme_et_phrase_refuses_gardent_leur_valeur_precedente(base_prete):
+    """Revue 11: like the hours, a refused lexicon term or sentence keeps its previous value
+    (never silently dropped), and the refusal is reported."""
+    from api.schemas.phrases import MAX_LONGUEUR_CONTENU
+
+    miroir, redis = _Miroir(base_prete), _RedisFactice()
+    a, b, c = _rattachee(miroir, redis)
+    with a, b, c:
+        await module_stockage.enregistrer_etablissements(
+            ORGANISATION, CATALOGUE, "dograh:essai"
+        )
+        await module_stockage.enregistrer_phrases(ORGANISATION, PHRASES, "dograh:essai")
+        await synchro.resynchroniser(ORGANISATION)
+        client = await asyncpg.connect(f"{_serveur()}/{base_prete}")
+        try:
+            await client.execute(
+                "UPDATE mark.site SET termes_lexique = '[{\"terme\": \"\"}]' WHERE cle = 'creil'"
+            )
+            await client.execute(
+                "UPDATE mark.phrase SET contenu = $1 WHERE variable = 'mentions'",
+                "x" * (MAX_LONGUEUR_CONTENU + 1),
+            )
+        finally:
+            await client.close()
+        await synchro.resynchroniser(ORGANISATION)
+        copie = await module_copie.lire_copie_complete(ORGANISATION)
+        creil = copie.etablissements.etablissements[0]
+        assert [t.terme for t in creil.termes_lexique] == ["Gamme Alpha"]
+        assert {p.variable: p.contenu for p in copie.phrases.phrases}["mentions"] == (
+            "Cet appel est noté."
+        )
+        assert any("term refused" in r for r in copie.refus)
+        assert any("mentions" in r for r in copie.refus)
+
+
+@pytest.mark.asyncio
 async def test_base_injoignable_lappel_lit_le_miroir(monkeypatch):
     """The call never depends on the client's database answering: no copy in memory and
     the database down, the mirror (last values known good) is read."""

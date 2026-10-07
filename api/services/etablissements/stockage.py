@@ -65,7 +65,9 @@ async def _referentiel_de_la_base(organization_id: int, nom_base: str):
     connexion = await connecter(nom_base)
     try:
         return await lire_referentiel(
-            connexion, await lire_etablissements(organization_id)
+            connexion,
+            await lire_etablissements(organization_id),
+            await lire_phrases(organization_id),
         )
     finally:
         await connexion.close()

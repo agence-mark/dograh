@@ -26,7 +26,9 @@ from api.db.bases_clients.connexion import BaseClientIndisponible, connecter, ec
 CANAL = "mark_referentiel"
 
 
-async def lire_depuis_la_base(organization_id: int, nom_base: str, avant=None):
+async def lire_depuis_la_base(
+    organization_id: int, nom_base: str, avant=None, phrases_avant=None
+):
     """The copy rebuilt from the client's database (raises ``BaseClientIndisponible``)."""
     from api.db.bases_clients.referentiel import dernier_journal
     from api.services.base_client.referentiel import lire_referentiel
@@ -35,7 +37,7 @@ async def lire_depuis_la_base(organization_id: int, nom_base: str, avant=None):
     connexion = await connecter(nom_base)
     try:
         journal_id = await dernier_journal(connexion)
-        referentiel = await lire_referentiel(connexion, avant)
+        referentiel = await lire_referentiel(connexion, avant, phrases_avant)
     finally:
         await connexion.close()
     for refus in referentiel.refus:
@@ -78,14 +80,22 @@ async def _resynchroniser(organization_id: int) -> str:
         brut = await (await _redis()).get(cle_copie(organization_id))
         avant_doc = json.loads(brut) if brut else None
         from api.schemas.etablissements import CatalogueEtablissements
+        from api.schemas.phrases import CataloguePhrases
 
         avant = (
             CatalogueEtablissements.model_validate(avant_doc["catalogue"])
             if avant_doc
             else None
         )
+        phrases_avant = (
+            CataloguePhrases.model_validate(avant_doc.get("phrases") or {})
+            if avant_doc
+            else None
+        )
         try:
-            copie = await lire_depuis_la_base(organization_id, nom, avant)
+            copie = await lire_depuis_la_base(
+                organization_id, nom, avant, phrases_avant
+            )
         except BaseClientIndisponible as erreur:
             logger.error(
                 f"[.mark] Resync of organization {organization_id}: {erreur}; the copy is kept"
