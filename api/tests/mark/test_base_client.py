@@ -481,6 +481,72 @@ async def test_la_resynchronisation_rattrape_une_notification_manquee(base_prete
 
 
 @pytest.mark.asyncio
+async def test_deux_ecritures_rapprochees_la_copie_garde_la_plus_recente(
+    base_prete, monkeypatch
+):
+    """Revue 9: two notifications close together start two resyncs; the one that read the
+    OLDER state must never publish over the newer one."""
+    horaires_3 = chr(10).join([f"{j} : 10h-12h" for j in JOURS] + ["dimanche : fermé"])
+    miroir, redis = _Miroir(base_prete), _RedisFactice()
+    a, b, c = _rattachee(miroir, redis)
+    with a, b, c:
+        await module_stockage.enregistrer_etablissements(
+            ORGANISATION, CATALOGUE, "dograh:essai"
+        )
+        await synchro.resynchroniser(ORGANISATION)
+
+        vraie = synchro.lire_depuis_la_base
+        feu = asyncio.Event()
+        appels = {"n": 0}
+
+        async def lente_la_premiere_fois(*args, **kwargs):
+            appels["n"] += 1
+            premiere = appels["n"] == 1
+            copie = await vraie(*args, **kwargs)
+            if premiere:
+                await feu.wait()  # held between its read and its publication
+            return copie
+
+        monkeypatch.setattr(synchro, "lire_depuis_la_base", lente_la_premiere_fois)
+
+        async def ecrire(horaires):
+            client = await asyncpg.connect(f"{_serveur()}/{base_prete}")
+            try:
+                await client.execute(
+                    "UPDATE mark.site SET horaires_texte = $1 WHERE cle = 'creil'",
+                    horaires,
+                )
+            finally:
+                await client.close()
+
+        await ecrire(HORAIRES_DIMANCHE)
+        premiere = asyncio.create_task(synchro.resynchroniser(ORGANISATION))
+        await asyncio.sleep(0.3)  # the first one has read write 1
+        await ecrire(horaires_3)
+        seconde = asyncio.create_task(synchro.resynchroniser(ORGANISATION))
+        await asyncio.sleep(0.5)
+        feu.set()
+        await asyncio.gather(premiere, seconde)
+        copie = await module_copie.lire_copie_complete(ORGANISATION)
+        assert copie.etablissements.etablissements[0].horaires_ouverture == horaires_3
+
+
+@pytest.mark.asyncio
+async def test_une_copie_plus_ancienne_ne_remplace_jamais_la_publiee():
+    """Revue 9, across processes (no shared lock): the journal line read decides."""
+    redis = _RedisFactice()
+    with patch.object(module_copie, "_redis", AsyncMock(return_value=redis)):
+        recente = module_copie.CopieOrganisation(
+            etablissements=CATALOGUE, source="base_client", journal_id=5
+        )
+        ancienne = module_copie.CopieOrganisation(source="base_client", journal_id=4)
+        assert await module_copie.publier_copie(ORGANISATION, recente) is True
+        assert await module_copie.publier_copie(ORGANISATION, ancienne) is False
+        document = json.loads(redis.valeurs[module_copie.cle_copie(ORGANISATION)])
+        assert document["journal_id"] == 5 and document["catalogue"]["etablissements"]
+
+
+@pytest.mark.asyncio
 async def test_des_horaires_illisibles_sont_refuses_et_les_precedents_gardes(
     base_prete,
 ):

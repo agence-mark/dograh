@@ -28,11 +28,13 @@ CANAL = "mark_referentiel"
 
 async def lire_depuis_la_base(organization_id: int, nom_base: str, avant=None):
     """The copy rebuilt from the client's database (raises ``BaseClientIndisponible``)."""
+    from api.db.bases_clients.referentiel import dernier_journal
     from api.services.base_client.referentiel import lire_referentiel
     from api.services.etablissements.copie import CopieOrganisation
 
     connexion = await connecter(nom_base)
     try:
+        journal_id = await dernier_journal(connexion)
         referentiel = await lire_referentiel(connexion, avant)
     finally:
         await connexion.close()
@@ -46,12 +48,26 @@ async def lire_depuis_la_base(organization_id: int, nom_base: str, avant=None):
         lu_depuis="stockage",
         source="base_client",
         refus=referentiel.refus,
+        journal_id=journal_id,
     )
+
+
+_VERROUS: dict[int, asyncio.Lock] = {}
 
 
 async def resynchroniser(organization_id: int) -> str:
     """Rebuild the copy from the source. Returns ``identique``, ``corrigee``,
-    ``indisponible`` or ``sans_base``. Never raises."""
+    ``indisponible`` or ``sans_base``. Never raises.
+
+    Revue 9: one resync at a time per organization in this process (two notifications close
+    together are played in order), and across processes the copy is never published over
+    one that read a later line of the journal (``publier_copie``)."""
+    verrou = _VERROUS.setdefault(organization_id, asyncio.Lock())
+    async with verrou:
+        return await _resynchroniser(organization_id)
+
+
+async def _resynchroniser(organization_id: int) -> str:
     from api.services.base_client.rattachement import nom_de_la_base
     from api.services.etablissements.copie import _redis, cle_copie, publier_copie
 

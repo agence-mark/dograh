@@ -64,6 +64,8 @@ class CopieOrganisation:
     # L3: values written in the client's database that Dograh refused (the previous
     # value was kept). Shown on the « Client data » theme.
     refus: list[str] = field(default_factory=list)
+    # Revue 9: the last line of the client database's journal read with these values.
+    journal_id: int | None = None
 
 
 async def lire_source(organization_id: int) -> CopieOrganisation:
@@ -112,8 +114,16 @@ async def publier_copie(
             "catalogue": copie.etablissements.model_dump(mode="json"),
             "phrases": copie.phrases.model_dump(mode="json"),
             "refus": copie.refus,
+            "journal_id": copie.journal_id,
         }
-        await (await _redis()).set(cle_copie(organization_id), json.dumps(document))
+        redis = await _redis()
+        if copie.journal_id is not None:
+            # Revue 9: never over a copy that read a LATER line of the journal.
+            brut = await redis.get(cle_copie(organization_id))
+            publie = (json.loads(brut) if brut else {}).get("journal_id")
+            if isinstance(publie, int) and publie > copie.journal_id:
+                return False
+        await redis.set(cle_copie(organization_id), json.dumps(document))
         return True
     except Exception as erreur:  # noqa: BLE001
         logger.warning(

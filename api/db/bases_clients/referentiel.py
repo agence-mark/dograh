@@ -179,3 +179,11 @@ async def lignes_du_referentiel(connexion: asyncpg.Connection) -> LignesDuRefere
         surcharges=[dict(s) for s in surcharges],
         phrases=[dict(p) for p in phrases],
     )
+
+
+async def dernier_journal(connexion: asyncpg.Connection) -> int:
+    """[.mark] Revue 9: the last line of ``journal_modif`` (0 when empty), read BEFORE the
+    referential: a copy is never published over one that read a later line."""
+    return int(
+        await connexion.fetchval("SELECT coalesce(max(id), 0) FROM mark.journal_modif")
+    )
