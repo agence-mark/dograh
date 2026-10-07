@@ -104,11 +104,10 @@ async def connexions(organization_id: int) -> list[Connexion]:
         )
     sortie = []
     for c in (reponse.json() or {}).get("connections") or []:
-        # Belt and braces: the tag is checked again here, a listing filter never trusted alone.
+        # Belt and braces: the tag is checked again here, a listing filter never trusted
+        # alone. Strict equality: a connection WITHOUT the tag is nobody's (revue 5).
         etiquettes = c.get("tags") or {}
-        if etiquettes and str(etiquettes.get(ETIQUETTE)) != _organisation(
-            organization_id
-        ):
+        if str(etiquettes.get(ETIQUETTE, "")) != _organisation(organization_id):
             continue
         sortie.append(
             Connexion(

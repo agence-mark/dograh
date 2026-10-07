@@ -51,8 +51,11 @@ from api.services.apres_appel import chaine, synthese
 from api.services.apres_appel.envoi import choisir_sujet
 from api.services.bibliotheque_cles import donnees_d_une_cle
 from api.services.cles_reference import reference_de
-from api.tests.mark.test_base_client import _postgres_joignable, _serveur  # noqa: F401
-from api.tests.mark.test_base_client import base_essai  # noqa: F401  (fixture)
+from api.tests.mark.test_base_client import (  # noqa: F401
+    _postgres_joignable,
+    _serveur,
+    base_essai,  # noqa: F401  (fixture)
+)
 
 # --------------------------------------------------------------------------- #
 # A small SMTP server on the loopback (the real smtplib conversation)

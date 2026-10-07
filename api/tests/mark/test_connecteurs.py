@@ -79,7 +79,11 @@ class FauxNango:
             tag = requete.url.params.get("tags[organization_id]")
             # Like the real one; the test « listing not trusted » sends both back.
             gardees = (
-                [c for c in self.connexions if c["tags"]["organization_id"] == tag]
+                [
+                    c
+                    for c in self.connexions
+                    if (c.get("tags") or {}).get("organization_id") == tag
+                ]
                 if not getattr(self, "tout", False)
                 else self.connexions
             )
@@ -162,6 +166,26 @@ async def test_une_organisation_n_atteint_jamais_la_connexion_d_une_autre(faux_n
         )
     with pytest.raises(ValueError):
         await nango.connexions("1")  # never a value read from a request
+
+
+async def test_une_connexion_sans_etiquette_n_est_a_personne(faux_nango):
+    """Revue 5: a connection without tags (made by hand in Nango, or by another tool) is
+    nobody's: never served to an organization, even if the listing sends it back."""
+    faux_nango.connexions.append(
+        {"connection_id": "cx-orpheline", "provider_config_key": "google-calendar"}
+    )
+    faux_nango.connexions.append(
+        {
+            "connection_id": "cx-vide",
+            "provider_config_key": "google-calendar",
+            "tags": {},
+        }
+    )
+    faux_nango.tout = True
+    assert [c.connection_id for c in await nango.connexions(1)] == ["cx-a"]
+    assert [c.connection_id for c in await nango.connexions(3)] == []
+    with pytest.raises(nango.ConnexionAbsente):
+        await nango.connexion_de(3, "google-calendar")
 
 
 async def test_l_organisation_envoyee_par_le_modele_ne_voyage_jamais(faux_nango):
