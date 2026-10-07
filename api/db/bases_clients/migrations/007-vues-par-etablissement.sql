@@ -1,21 +1,26 @@
 -- =====================================================================
 --  007 : les vues de l'interface filtrent elles-mêmes par établissement
---  (chantier l-agent-travaille, décision d'Evan du 07/10, n° 318 option B).
---  Additive seulement : mêmes colonnes, même ordre, mêmes droits.
+--  (chantier l-agent-travaille, décisions d'Evan du 07/10 : n° 318 option B,
+--  et le numéro de l'appelant n'est jamais masqué, la « parade 4 » est retirée).
+--  Mêmes colonnes, même ordre, mêmes droits ; numero_masque devient
+--  numero_appelant, en clair.
 --
 --  Les vues gardent les droits de leur propriétaire (pas de security_invoker) :
---  le rôle d'interface n'a aucun droit sur appel ni contact, donc le numéro
---  reste masqué et la fenêtre de 90 jours tient. La sécurité par ligne des
+--  le rôle d'interface n'a aucun droit sur appel ni contact, il ne lit que ce
+--  que les vues exposent, et la fenêtre de 90 jours du cahier tient (« parade
+--  3 »). La sécurité par ligne des
 --  tables ne s'applique pas à travers elles (le propriétaire la contourne) :
 --  chaque vue applique donc la même règle, voit_le_site(site_id, current_user),
 --  current_user étant dans une vue le rôle qui lit.
 -- =====================================================================
 SET search_path = mark;
 
+ALTER VIEW v_cahier_appels RENAME COLUMN numero_masque TO numero_appelant;
+
 CREATE OR REPLACE VIEW v_cahier_appels AS
 SELECT a.id, a.debut, s.nom AS site, a.issue, a.motif, a.degre_urgence,
        a.duree_s, a.hors_horaires, a.synthese,
-       left(a.numero_appelant, 6) || '••••' || right(a.numero_appelant, 2) AS numero_masque,
+       a.numero_appelant,
        c.nom AS contact_nom, d.id AS demande_id, d.statut AS demande_statut
 FROM appel a
 LEFT JOIN site s    ON s.id = a.site_id
@@ -48,4 +53,4 @@ WHERE d.rappelee_le IS NULL AND d.close_le IS NULL AND d.rattachee_a_id IS NULL
 ORDER BY d.priorite, d.creee_le;
 
 INSERT INTO schema_version (version, description) VALUES
-    (7, 'Vues de l''interface filtrées par établissement (droits du propriétaire gardés : numéro masqué, 90 jours)');
+    (7, 'Vues de l''interface filtrées par établissement (droits du propriétaire, 90 jours du cahier), numéro de l''appelant en clair');

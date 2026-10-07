@@ -407,13 +407,14 @@ async def test_un_role_d_etablissement_ne_voit_que_ses_lignes(base_prete):
 
 
 @pytest.mark.asyncio
-async def test_a_travers_les_vues_un_etablissement_ne_voit_que_son_site_et_jamais_le_numero(
+async def test_a_travers_les_vues_un_etablissement_ne_voit_que_son_site_numero_en_clair(
     base_prete,
 ):
-    """Decision of Evan, 07/10 (n° 318, option B): the views keep their owner's rights (the
-    number stays masked, the 90 days stay) and filter by site themselves. A site's role
-    reads only its site through ``v_cahier_appels`` and ``v_a_rappeler``, never another
-    site's request as a hint, and never the table ``appel`` itself."""
+    """Decisions of Evan, 07/10 (n° 318, option B, and its complement): the views keep their
+    owner's rights and filter by site themselves. A site's role reads only its site through
+    ``v_cahier_appels`` and ``v_a_rappeler``, never another site's request as a hint, never
+    the table ``appel`` itself. The caller's number is never masked (Evan, 07/10: « parade
+    4 » withdrawn); the call book keeps its 90 days (« parade 3 »)."""
     proprietaire = await asyncpg.connect(f"{_serveur()}/{base_prete}")
     role = f"{base_prete}_site_a"
     try:
@@ -430,18 +431,25 @@ async def test_a_travers_les_vues_un_etablissement_ne_voit_que_son_site_et_jamai
             "WITH ag AS (INSERT INTO mark.agent (dograh_workflow_id, nom) VALUES (1, 'x') RETURNING id) "
             "INSERT INTO mark.version_agent (agent_id, dograh_definition_id) SELECT id, 1 FROM ag RETURNING id"
         )
-        for run, site in ((1, a), (2, b)):
-            demande = await proprietaire.fetchval(
-                "INSERT INTO mark.demande (site_id, type) VALUES ($1, 'autre') RETURNING id",
-                site,
-            )
+        for run, site, jours, avec_demande in (
+            (1, a, 10, True),
+            (2, b, 0, True),
+            (3, a, 100, False),
+        ):
+            demande = None
+            if avec_demande:
+                demande = await proprietaire.fetchval(
+                    "INSERT INTO mark.demande (site_id, type) VALUES ($1, 'autre') RETURNING id",
+                    site,
+                )
             await proprietaire.execute(
                 "INSERT INTO mark.appel (dograh_run_id, version_agent_id, site_id, demande_id, canal, numero_appelant, debut) "
-                "VALUES ($1, $2, $3, $4, 'telephone', '+33612345678', now())",
+                "VALUES ($1, $2, $3, $4, 'telephone', '+33612345678', now() - make_interval(days => $5))",
                 run,
                 version,
                 site,
                 demande,
+                jours,
             )
         await proprietaire.execute(
             f'CREATE ROLE "{role}" NOLOGIN IN ROLE "{base_prete}_interface"'
@@ -451,17 +459,17 @@ async def test_a_travers_les_vues_un_etablissement_ne_voit_que_son_site_et_jamai
         )
         await proprietaire.execute(f'SET ROLE "{role}"')
         cahier = await proprietaire.fetch(
-            "SELECT site, numero_masque FROM mark.v_cahier_appels"
+            "SELECT site, numero_appelant FROM mark.v_cahier_appels"
         )
-        assert [(r["site"], r["numero_masque"]) for r in cahier] == [
-            ("A", "+33612••••78")
+        assert [(r["site"], r["numero_appelant"]) for r in cahier] == [
+            ("A", "+33612345678")
         ]
         rappels = await proprietaire.fetch(
-            "SELECT site, autre_demande_ouverte_id FROM mark.v_a_rappeler"
+            "SELECT site, telephone, autre_demande_ouverte_id FROM mark.v_a_rappeler"
         )
-        assert [(r["site"], r["autre_demande_ouverte_id"]) for r in rappels] == [
-            ("A", None)
-        ]
+        assert [
+            (r["site"], r["telephone"], r["autre_demande_ouverte_id"]) for r in rappels
+        ] == [("A", "+33612345678", None)]
         with pytest.raises(asyncpg.InsufficientPrivilegeError):
             await proprietaire.fetch("SELECT numero_appelant FROM mark.appel")
         await proprietaire.execute("RESET ROLE")
