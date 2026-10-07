@@ -55,6 +55,29 @@ def adresse_de_secours(url_secours: str, numero: str | None) -> str:
     return url_secours if not numero else f"{url_secours}?Renvoi={quote(numero)}"
 
 
+def bin_de_secours(
+    url_secours: str | None, url_promesse: str | None, numero: str | None
+) -> tuple[str | None, str | None]:
+    """Decision of Evan, 07/10 (two Bins): (address, number). With a second number, the
+    « hand-over then promise » Bin and its number; without, the « promise only » Bin (or the
+    first one when the second is not set: its ringing fails, the promise follows)."""
+    if numero and url_secours:
+        return url_secours, numero
+    return (url_promesse or url_secours), None
+
+
+def texte_du_bin_promesse(
+    phrase: str = "Je rencontre un souci technique. " + DEFAUT_RAPPEL_SANS_DATE,
+) -> str:
+    """The second Bin (decision of Evan, 07/10): the promise only, for the establishments
+    without a second number. To paste ONCE in the client's Twilio console."""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n'
+        f"  {_dire(phrase)}\n"
+        "  <Hangup/>\n</Response>\n"
+    )
+
+
 def texte_du_bin(
     phrase_renvoi: str = DEFAUT_RENVOI,
     phrase_rappel: str = DEFAUT_RAPPEL_SANS_DATE,

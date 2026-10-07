@@ -74,6 +74,7 @@ async def post_resultat_du_renvoi(run_id: int, request: Request):
 class EcranPanne(BaseModel):
     reglages: ReglagesPanne
     texte_du_bin: str
+    texte_du_bin_promesse: str
 
 
 async def lire_reglages(organization_id: int) -> ReglagesPanne:
@@ -89,6 +90,7 @@ async def get_panne(user: UserModel = Depends(get_user_with_selected_organizatio
     return EcranPanne(
         reglages=await lire_reglages(user.selected_organization_id),
         texte_du_bin=consigne.texte_du_bin(),
+        texte_du_bin_promesse=consigne.texte_du_bin_promesse(),
     )
 
 
@@ -100,7 +102,11 @@ async def put_panne(
     await db_client.upsert_configuration(
         user.selected_organization_id, CLE, reglages.model_dump()
     )
-    return EcranPanne(reglages=reglages, texte_du_bin=consigne.texte_du_bin())
+    return EcranPanne(
+        reglages=reglages,
+        texte_du_bin=consigne.texte_du_bin(),
+        texte_du_bin_promesse=consigne.texte_du_bin_promesse(),
+    )
 
 
 class ResultatRattrapage(BaseModel):
@@ -145,7 +151,9 @@ async def post_adresse_de_secours(
 
     organization_id = user.selected_organization_id
     reglages = await lire_reglages(organization_id)
-    if not demande.effacer and not reglages.url_secours:
+    if not demande.effacer and not (
+        reglages.url_secours or reglages.url_secours_promesse
+    ):
         raise HTTPException(
             status_code=422, detail="Set the emergency address (TwiML Bin) first."
         )
@@ -171,7 +179,10 @@ async def post_adresse_de_secours(
             getattr(getattr(servi, "etablissement", None), "second_numero", None)
             or None
         )
-        adresse = consigne.adresse_de_secours(reglages.url_secours, second)
+        url, second = consigne.bin_de_secours(
+            reglages.url_secours, reglages.url_secours_promesse, second
+        )
+        adresse = consigne.adresse_de_secours(url, second)
     try:
         ecrit = await client_twilio.ecrire_adresse_de_secours(
             compte[0], compte[1], demande.numero, adresse

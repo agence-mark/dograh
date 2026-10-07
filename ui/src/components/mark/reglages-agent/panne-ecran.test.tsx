@@ -59,20 +59,27 @@ describe("[.mark] the outage fallback on screen", () => {
         expect(erreursPanne({ ...PANNE_ETEINTE, delai_voix_s: 0.1 })).toEqual([]);
     });
 
-    it("saves the emergency address, shows the Bin and catches up at once", async () => {
-        m.get.mockResolvedValue({ data: { reglages: { format: "panne-mark", version: 1, url_secours: null }, texte_du_bin: "<Response>{{Renvoi}}</Response>" } });
-        m.put.mockImplementation(({ body }) => Promise.resolve({ data: { reglages: body, texte_du_bin: "<Response>{{Renvoi}}</Response>" } }));
+    it("saves the two emergency addresses, shows the two Bins and catches up at once", async () => {
+        const textes = { texte_du_bin: "<Response>{{Renvoi}}</Response>", texte_du_bin_promesse: "<Response><Hangup/></Response>" };
+        m.get.mockResolvedValue({ data: { reglages: { format: "panne-mark", version: 1, url_secours: null, url_secours_promesse: null }, ...textes } });
+        m.put.mockImplementation(({ body }) => Promise.resolve({ data: { reglages: body, ...textes } }));
         m.rattrapage.mockResolvedValue({ data: { appels_lus: 4, demandes_creees: 2, deja_connus: 0, erreurs: [] } });
         render(
             <FournisseurLangue>
                 <BlocSecoursPanne />
             </FournisseurLangue>,
         );
-        const champ = (await screen.findByPlaceholderText("https://handler.twilio.com/twiml/EH…")) as HTMLInputElement;
+        await screen.findAllByPlaceholderText("https://handler.twilio.com/twiml/EH…");
         expect((document.getElementById("panne-texte-bin") as HTMLTextAreaElement).value).toContain("{{Renvoi}}");
-        fireEvent.change(champ, { target: { value: " https://handler.twilio.com/twiml/EHessai " } });
+        expect((document.getElementById("panne-texte-bin-promesse") as HTMLTextAreaElement).value).toContain("<Hangup/>");
+        fireEvent.change(document.getElementById("panne-url-secours") as HTMLInputElement, { target: { value: " https://handler.twilio.com/twiml/EHessai " } });
+        fireEvent.change(document.getElementById("panne-url-secours-promesse") as HTMLInputElement, { target: { value: "https://handler.twilio.com/twiml/EHpromesse" } });
         fireEvent.click(screen.getByRole("button", { name: /Enregistrer l'adresse/ }));
-        await waitFor(() => expect(m.put).toHaveBeenCalledWith({ body: { format: "panne-mark", version: 1, url_secours: "https://handler.twilio.com/twiml/EHessai" } }));
+        await waitFor(() =>
+            expect(m.put).toHaveBeenCalledWith({
+                body: { format: "panne-mark", version: 1, url_secours: "https://handler.twilio.com/twiml/EHessai", url_secours_promesse: "https://handler.twilio.com/twiml/EHpromesse" },
+            }),
+        );
         fireEvent.click(screen.getByRole("button", { name: /Rattraper les appels perdus/ }));
         expect(await screen.findByText(/2 demande\(s\) à rappeler créée\(s\)/)).toBeTruthy();
         expect(m.secours).not.toHaveBeenCalled(); // writing at Twilio is never automatic

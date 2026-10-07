@@ -75,12 +75,21 @@ class ReglagesPanne(BaseModel):
         default=None,
         max_length=500,
         description=(
-            "The address of the TwiML Bin created once in the client's Twilio console (PN5). "
-            "Empty: no instruction after the stream, the 40 s pause of before."
+            "The address of the TwiML Bin « hand-over then promise » created once in the "
+            "client's Twilio console (PN5). Empty: no instruction after the stream, the 40 s "
+            "pause of before."
+        ),
+    )
+    url_secours_promesse: str | None = Field(
+        default=None,
+        max_length=500,
+        description=(
+            "Decision of Evan, 07/10: the second TwiML Bin, « promise only », for the "
+            "establishments without a second number. Empty: they get the first Bin."
         ),
     )
 
-    @field_validator("url_secours")
+    @field_validator("url_secours", "url_secours_promesse")
     @classmethod
     def _url(cls, valeur: str | None) -> str | None:
         valeur = (valeur or "").strip() or None

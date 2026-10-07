@@ -39,7 +39,7 @@ async def apres_le_flux(workflow_run_id: int | None) -> str:
         if organization_id is None:
             return PAUSE
         reglages = await lire_reglages(organization_id)
-        if not reglages.url_secours:
+        if not (reglages.url_secours or reglages.url_secours_promesse):
             return PAUSE
         servi = await etablissement_de_lappel(
             organization_id, run.workflow_id, dict(run.initial_context or {})
@@ -48,7 +48,10 @@ async def apres_le_flux(workflow_run_id: int | None) -> str:
             getattr(getattr(servi, "etablissement", None), "second_numero", None)
             or None
         )
-        return consigne.redirection_de_secours(reglages.url_secours, numero)
+        adresse, numero = consigne.bin_de_secours(
+            reglages.url_secours, reglages.url_secours_promesse, numero
+        )
+        return consigne.redirection_de_secours(adresse, numero)
     except Exception as erreur:  # noqa: BLE001 -- the call must be answered
         logger.warning(
             f"[.mark] Emergency instruction not built, the 40 s pause stays: {erreur!r}"

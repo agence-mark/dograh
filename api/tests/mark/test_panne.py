@@ -349,6 +349,74 @@ async def test_raccroche_evite_pour_l_appel_renvoye_seulement(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
+async def test_deux_bins_sans_second_numero_la_promesse_seule(monkeypatch):
+    """Décision d'Evan du 07/10 (point 4): two Bins. An establishment WITHOUT a second number
+    is sent to the « promise only » Bin, through the real inbound instruction; with one, to
+    the « hand-over then promise » Bin with its number."""
+    from api.db import db_client
+    from api.services.telephony.providers.twilio.provider import TwilioProvider
+
+    allume = SimpleNamespace(
+        workflow_id=3,
+        definition=SimpleNamespace(workflow_configurations={"panne": {"actif": True}}),
+        initial_context={"called_number": "+33100000001"},
+    )
+    monkeypatch.setattr(
+        db_client, "get_workflow_run_by_id", AsyncMock(return_value=allume)
+    )
+    monkeypatch.setattr(
+        db_client,
+        "get_workflow_by_id",
+        AsyncMock(return_value=SimpleNamespace(organization_id=1)),
+    )
+    monkeypatch.setattr(
+        "api.services.panne.routes.lire_reglages",
+        AsyncMock(
+            return_value=ReglagesPanne(
+                url_secours="https://handler.twilio.com/twiml/EHrenvoi",
+                url_secours_promesse="https://handler.twilio.com/twiml/EHpromesse",
+            )
+        ),
+    )
+    second = {"numero": None}
+    monkeypatch.setattr(
+        "api.services.etablissements.appel.etablissement_de_lappel",
+        AsyncMock(
+            side_effect=lambda *a, **k: SimpleNamespace(
+                etablissement=SimpleNamespace(second_numero=second["numero"])
+            )
+        ),
+    )
+    fournisseur = TwilioProvider(
+        {"account_sid": "AC", "auth_token": "t", "from_numbers": []}
+    )
+
+    async def corps():
+        reponse = await fournisseur.start_inbound_stream(
+            websocket_url="wss://x/ws",
+            workflow_run_id=5,
+            normalized_data=None,
+            backend_endpoint="https://b",
+        )
+        return reponse.body.decode()
+
+    assert (
+        '<Redirect method="POST">https://handler.twilio.com/twiml/EHpromesse</Redirect>'
+        in await corps()
+    )
+    second["numero"] = "+33344000000"
+    assert (
+        '<Redirect method="POST">https://handler.twilio.com/twiml/EHrenvoi?Renvoi=%2B33344000000</Redirect>'
+        in await corps()
+    )
+    promesse = consigne.texte_du_bin_promesse()
+    assert (
+        "<Dial" not in promesse
+        and "<Hangup/>" in promesse
+        and "{{Renvoi}}" not in promesse
+    )
+
+
 async def test_consigne_d_entree_pause_d_avant_sauf_agent_allume(monkeypatch):
     from api.services.telephony.providers.twilio.provider import TwilioProvider
 

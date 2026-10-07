@@ -3363,6 +3363,10 @@ export type EcranPanne = {
      * Texte Du Bin
      */
     texte_du_bin: string;
+    /**
+     * Texte Du Bin Promesse
+     */
+    texte_du_bin_promesse: string;
 };
 
 /**
@@ -7227,9 +7231,15 @@ export type ReglagesPanne = {
     /**
      * Url Secours
      *
-     * The address of the TwiML Bin created once in the client's Twilio console (PN5). Empty: no instruction after the stream, the 40 s pause of before.
+     * The address of the TwiML Bin « hand-over then promise » created once in the client's Twilio console (PN5). Empty: no instruction after the stream, the 40 s pause of before.
      */
     url_secours?: string | null;
+    /**
+     * Url Secours Promesse
+     *
+     * Decision of Evan, 07/10: the second TwiML Bin, « promise only », for the establishments without a second number. Empty: they get the first Bin.
+     */
+    url_secours_promesse?: string | null;
 };
 
 /**

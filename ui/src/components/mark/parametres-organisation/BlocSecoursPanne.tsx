@@ -30,13 +30,38 @@ import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { ChampReglage } from "../ecran/ChampReglage";
-import { useLangue } from "../langue/langue";
+import { type Texte, useLangue } from "../langue/langue";
+
+function TexteDuBin({ id, titre, texte }: { id: string; titre: Texte; texte: string }) {
+    const { t } = useLangue();
+    return (
+        <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>{t(titre)}</span>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={t({ en: "Copy the text of the Bin", fr: "Copier le texte du Bin" })}
+                    onClick={() => {
+                        void navigator.clipboard?.writeText(texte);
+                        toast.success(t({ en: "Copied", fr: "Copié" }));
+                    }}
+                >
+                    <Copy className="h-3.5 w-3.5" />
+                </Button>
+            </div>
+            <Textarea id={id} readOnly rows={texte.split("\n").length + 1} className="font-mono text-xs" value={texte} />
+        </div>
+    );
+}
 
 export function BlocSecoursPanne() {
     const { t } = useLangue();
     const { user, loading } = useAuth();
     const [ecran, setEcran] = useState<EcranPanne | null>(null);
     const [url, setUrl] = useState("");
+    const [urlPromesse, setUrlPromesse] = useState("");
     const [enCours, setEnCours] = useState(false);
     const [bilan, setBilan] = useState<ResultatRattrapage | null>(null);
     const [numero, setNumero] = useState("");
@@ -51,6 +76,7 @@ export function BlocSecoursPanne() {
                 if (r.data) {
                     setEcran(r.data);
                     setUrl(r.data.reglages.url_secours ?? "");
+                    setUrlPromesse(r.data.reglages.url_secours_promesse ?? "");
                 }
             } catch {
                 // Unreachable: the block stays hidden, the theme works without it.
@@ -59,11 +85,12 @@ export function BlocSecoursPanne() {
     }, [loading, user]);
 
     if (!ecran) return null;
-    const modifie = (ecran.reglages.url_secours ?? "") !== url.trim();
+    const modifie =
+        (ecran.reglages.url_secours ?? "") !== url.trim() || (ecran.reglages.url_secours_promesse ?? "") !== urlPromesse.trim();
 
     const enregistrer = async () => {
         setEnCours(true);
-        const r = await putPanneApiV1OrganizationsPannePut({ body: { ...ecran.reglages, url_secours: url.trim() || null } });
+        const r = await putPanneApiV1OrganizationsPannePut({ body: { ...ecran.reglages, url_secours: url.trim() || null, url_secours_promesse: urlPromesse.trim() || null } });
         setEnCours(false);
         if (r.error || !r.data) {
             toast.error(detailFromError(r.error, "Emergency address not saved"));
@@ -126,24 +153,35 @@ export function BlocSecoursPanne() {
                     </Button>
                 </div>
             </ChampReglage>
-            <div className="space-y-1">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{t({ en: "Text of the TwiML Bin, to paste in the Twilio console:", fr: "Texte du TwiML Bin, à coller dans la console Twilio :" })}</span>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        aria-label={t({ en: "Copy the text of the Bin", fr: "Copier le texte du Bin" })}
-                        onClick={() => {
-                            void navigator.clipboard?.writeText(ecran.texte_du_bin);
-                            toast.success(t({ en: "Copied", fr: "Copié" }));
-                        }}
-                    >
-                        <Copy className="h-3.5 w-3.5" />
-                    </Button>
-                </div>
-                <Textarea id="panne-texte-bin" readOnly rows={7} className="font-mono text-xs" value={ecran.texte_du_bin} />
-            </div>
+            <ChampReglage
+                cle="panne.url_secours_promesse"
+                idControle="panne-url-secours-promesse"
+                libelle={{ en: "Emergency address « promise only » (second TwiML Bin)", fr: "Adresse de secours « promesse seule » (second TwiML Bin)" }}
+                aides={[
+                    {
+                        en: "For the establishments without a second number: Twilio only promises a call-back and hangs up. Create this second Bin with the second text below. Empty: they get the first Bin (its ringing fails, then the promise).",
+                        fr: "Pour les établissements sans second numéro : Twilio promet seulement un rappel et raccroche. Créez ce second Bin avec le second texte ci-dessous. Vide : ils reçoivent le premier Bin (sa sonnerie échoue, puis la promesse).",
+                    },
+                ]}
+            >
+                <Input
+                    id="panne-url-secours-promesse"
+                    className="min-w-0"
+                    value={urlPromesse}
+                    placeholder="https://handler.twilio.com/twiml/EH…"
+                    onChange={(e) => setUrlPromesse(e.target.value)}
+                />
+            </ChampReglage>
+            <TexteDuBin
+                id="panne-texte-bin"
+                titre={{ en: "Text of the TwiML Bin « hand-over then promise », to paste in the Twilio console:", fr: "Texte du TwiML Bin « renvoi puis promesse », à coller dans la console Twilio :" }}
+                texte={ecran.texte_du_bin}
+            />
+            <TexteDuBin
+                id="panne-texte-bin-promesse"
+                titre={{ en: "Text of the TwiML Bin « promise only »:", fr: "Texte du TwiML Bin « promesse seule » :" }}
+                texte={ecran.texte_du_bin_promesse}
+            />
             <div className="flex flex-wrap items-center gap-3">
                 <Button type="button" variant="outline" size="sm" disabled={enCours} onClick={() => void rattraper()}>
                     <RefreshCw className="mr-2 h-3.5 w-3.5" />
@@ -172,7 +210,7 @@ export function BlocSecoursPanne() {
             >
                 <div className="flex flex-wrap gap-2">
                     <Input id="panne-numero-secours" className="min-w-0 flex-1" value={numero} placeholder="+33…" onChange={(e) => setNumero(e.target.value)} />
-                    <Button type="button" variant="outline" size="sm" disabled={!numero.trim() || !ecran.reglages.url_secours || enCours} onClick={() => void ecrireSurLeNumero()}>
+                    <Button type="button" variant="outline" size="sm" disabled={!numero.trim() || !(ecran.reglages.url_secours || ecran.reglages.url_secours_promesse) || enCours} onClick={() => void ecrireSurLeNumero()}>
                         {t({ en: "Write at Twilio", fr: "Écrire chez Twilio" })}
                     </Button>
                 </div>
