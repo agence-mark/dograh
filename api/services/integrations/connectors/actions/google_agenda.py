@@ -397,6 +397,35 @@ def _evenement(reponse: Any, arguments: dict, o: ObjetTraduit) -> dict:
     return {**o.depuis_logiciel(reponse or {}), "agenda": arguments.get("agenda")}
 
 
+def _chercher_evenements(arguments: dict, _o: ObjetTraduit) -> Requete:
+    """l-agent-collegue, R-6: the appointments of one agenda with their place. Only the times, the
+    place and the state are asked (``fields``): never a title, a description or a guest."""
+    return Requete(
+        "GET",
+        _chemin_evenements(arguments.get("agenda")),
+        params={
+            "timeMin": arguments["debut"],
+            "timeMax": arguments["fin"],
+            "singleEvents": "true",
+            "orderBy": "startTime",
+            "maxResults": 250,
+            "fields": "items(id,status,transparency,start,end,location)",
+        },
+    )
+
+
+def _lire_evenements(reponse: Any, arguments: dict, o: ObjetTraduit) -> list[dict]:
+    """Cancelled, « free » (transparent) and all-day events (no ``dateTime``) are left out."""
+    sortie = []
+    for e in (reponse or {}).get("items") or []:
+        if not isinstance(e, dict) or e.get("status") == "cancelled" or e.get("transparency") == "transparent":
+            continue
+        valeurs = {**o.depuis_logiciel(e), "agenda": arguments.get("agenda")}
+        if valeurs.get("debut") and valeurs.get("fin"):
+            sortie.append(valeurs)
+    return sortie
+
+
 TRADUCTEUR = declarer_traducteur(
     Traducteur(
         systeme="google_agenda",
@@ -418,6 +447,7 @@ TRADUCTEUR = declarer_traducteur(
                 correspondance=CORRESPONDANCE_EVENEMENT,
                 operations={
                     "creer": Operation(_creer, _evenement),
+                    "chercher": Operation(_chercher_evenements, _lire_evenements),
                     "lire": Operation(_lire, _evenement),
                     "modifier": Operation(_modifier, _evenement),
                 },

@@ -128,7 +128,7 @@ def test_les_traducteurs_livres_sont_declares_et_eteints():
     assert ChoixTraducteurs().agenda is None
     for systeme in ("google_agenda", "outlook_agenda"):
         t = traducteur(systeme)
-        assert set(t.objet("rendez_vous").operations) == {"creer", "lire", "modifier"}
+        assert set(t.objet("rendez_vous").operations) == {"creer", "chercher", "lire", "modifier"}
         assert set(t.objet("disponibilites").operations) == {"chercher"}
 
 
@@ -246,6 +246,81 @@ async def test_outlook_pose_le_rendez_vous_en_utc(nango_hub):
     }
     lu = traducteur("outlook_agenda").objet("rendez_vous").depuis_logiciel(nango_hub.reponse_relais)
     assert lu["debut"] == "2030-01-07T09:00:00+00:00" and lu["id_externe"] == "AAMkAG-1"
+
+
+async def test_google_lit_le_lieu_des_rendez_vous_sans_titre_ni_invite(nango_hub):
+    """R-6: events of one agenda with their place; cancelled, « free » and all-day left out; only
+    the times, the place and the state are asked (never a title or a guest)."""
+    nango_hub.reponse_relais = {"items": [
+        {"id": "a", "status": "confirmed", "location": "1 rue de l'Exemple, 60000 Beauvais",
+         "start": {"dateTime": "2030-01-07T09:00:00+01:00"}, "end": {"dateTime": "2030-01-07T10:00:00+01:00"}},
+        {"id": "b", "status": "confirmed", "start": {"dateTime": "2030-01-07T11:00:00+01:00"},
+         "end": {"dateTime": "2030-01-07T12:00:00+01:00"}},
+        {"id": "c", "status": "cancelled", "location": "x", "start": {"dateTime": "2030-01-07T13:00:00+01:00"},
+         "end": {"dateTime": "2030-01-07T14:00:00+01:00"}},
+        {"id": "d", "transparency": "transparent", "location": "x",
+         "start": {"dateTime": "2030-01-07T15:00:00+01:00"}, "end": {"dateTime": "2030-01-07T16:00:00+01:00"}},
+        {"id": "e", "location": "x", "start": {"date": "2030-01-07"}, "end": {"date": "2030-01-08"}},
+    ]}
+    vus = await hub_agenda.evenements(
+        1, "google_agenda", "camille@example.org",
+        datetime.fromisoformat(DEBUT), datetime.fromisoformat(FIN), delai=2,
+    )
+    assert [(e["debut"].hour, e["lieu"]) for e in vus] == [(9, "1 rue de l'Exemple, 60000 Beauvais"), (11, None)]
+    [requete] = nango_hub.relais
+    assert requete.method == "GET"
+    assert requete.url.raw_path.decode().split("?")[0] == "/proxy/calendar/v3/calendars/camille%40example.org/events"
+    assert requete.url.params["fields"] == "items(id,status,transparency,start,end,location)"
+    assert requete.url.params["singleEvents"] == "true"
+
+
+async def test_outlook_lit_le_lieu_des_rendez_vous_en_utc(nango_hub):
+    nango_hub.reponse_relais = {"value": [
+        {"id": "a", "showAs": "busy", "isCancelled": False, "isAllDay": False,
+         "location": {"displayName": "2 rue de l'Essai, 60200 Compiègne"},
+         "start": {"dateTime": "2030-01-07T08:00:00.0000000", "timeZone": "UTC"},
+         "end": {"dateTime": "2030-01-07T09:00:00.0000000", "timeZone": "UTC"}},
+        {"id": "b", "showAs": "free", "location": {"displayName": "x"},
+         "start": {"dateTime": "2030-01-07T10:00:00.0000000", "timeZone": "UTC"},
+         "end": {"dateTime": "2030-01-07T11:00:00.0000000", "timeZone": "UTC"}},
+        {"id": "c", "showAs": "busy", "isAllDay": True, "location": {"displayName": "x"},
+         "start": {"dateTime": "2030-01-07T00:00:00.0000000", "timeZone": "UTC"},
+         "end": {"dateTime": "2030-01-08T00:00:00.0000000", "timeZone": "UTC"}},
+        {"id": "d", "showAs": "oof", "isCancelled": True, "location": {"displayName": "x"},
+         "start": {"dateTime": "2030-01-07T12:00:00.0000000", "timeZone": "UTC"},
+         "end": {"dateTime": "2030-01-07T13:00:00.0000000", "timeZone": "UTC"}},
+        {"id": "e", "showAs": "tentative", "location": {"displayName": ""},
+         "start": {"dateTime": "2030-01-07T14:00:00.0000000", "timeZone": "UTC"},
+         "end": {"dateTime": "2030-01-07T15:00:00.0000000", "timeZone": "UTC"}},
+    ]}
+    vus = await hub_agenda.evenements(
+        1, "outlook_agenda", "camille@example.org",
+        datetime.fromisoformat(DEBUT), datetime.fromisoformat(FIN), delai=2,
+    )
+    assert [(e["debut"], e["lieu"]) for e in vus] == [
+        (datetime(2030, 1, 7, 8, tzinfo=UTC), "2 rue de l'Essai, 60200 Compiègne"),
+        (datetime(2030, 1, 7, 14, tzinfo=UTC), None),
+    ]
+    [requete] = nango_hub.relais
+    assert requete.url.path == "/proxy/v1.0/users/camille@example.org/calendarView"
+    assert requete.url.params["startDateTime"] == "2030-01-06T23:00:00+00:00"
+    assert requete.url.params["$select"] == "id,start,end,location,isCancelled,isAllDay,showAs"
+
+
+async def test_un_traducteur_sans_recherche_d_evenements_fait_lever_et_le_planificateur_se_replie(faux_nango):
+    """R-6: a translator that does not search events raises ``TraducteurInconnu``; the planner's
+    reader catches every failure (see test_planificateur)."""
+    faux_nango.connexions.append(
+        {"connection_id": "cx-essai", "provider_config_key": "agenda-essai", "tags": {"organization_id": "1"}})
+    essai = Operation(lambda a, o: Requete("POST", "/c", json=a), lambda r, a, o: r)
+    declarer_traducteur(Traducteur("essai_sans_lieu", "Essai", "agenda-essai", "agenda",
+                                   (ObjetTraduit("rendez_vous", (), {"creer": essai}),)))
+    try:
+        with pytest.raises(TraducteurInconnu):
+            await hub_agenda.evenements(1, "essai_sans_lieu", "a", datetime.fromisoformat(DEBUT),
+                                        datetime.fromisoformat(FIN), delai=2)
+    finally:
+        retirer_traducteur("essai_sans_lieu")
 
 
 # --------------------------------------------------------------------------- #

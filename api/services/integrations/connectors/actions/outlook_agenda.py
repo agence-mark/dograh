@@ -11,6 +11,9 @@ Microsoft Graph, through Nango's relay (integration ``outlook``, base ``graph.mi
   (unknown, not shared) is left OUT: unknown is never free. Busy = ``busy``, ``tentative``,
   ``oof``, ``workingElsewhere``; ``free`` is not.
 - create, read, update: ``/v1.0/users/{mailbox}/calendar/events[/{id}]``.
+- search of the events of one agenda (R-6, the place of the previous appointment):
+  ``GET /v1.0/users/{mailbox}/calendarView`` with ``$select`` of the times, the place and the
+  state only (never a subject, a body or an attendee).
 
 Times: Graph takes a date-time WITHOUT offset plus a time zone; the translator always sends
 UTC (``timeZone: "UTC"``) and reads the answer's own time zone (UTC unless asked otherwise),
@@ -157,6 +160,41 @@ def _evenement(reponse: Any, arguments: dict, o: ObjetTraduit) -> dict:
     return {**o.depuis_logiciel(reponse or {}), "agenda": arguments.get("agenda")}
 
 
+def _chercher_evenements(arguments: dict, _o: ObjetTraduit) -> Requete:
+    def borne(texte: str) -> str:
+        return datetime.fromisoformat(str(texte).replace("Z", "+00:00")).astimezone(UTC).isoformat(timespec="seconds")
+
+    return Requete(
+        "GET",
+        f"/v1.0/users/{_boite(arguments.get('agenda'))}/calendarView",
+        params={
+            "startDateTime": borne(arguments["debut"]),
+            "endDateTime": borne(arguments["fin"]),
+            "$select": "id,start,end,location,isCancelled,isAllDay,showAs",
+            "$orderby": "start/dateTime",
+            "$top": 250,
+        },
+    )
+
+
+def _lire_evenements(reponse: Any, arguments: dict, o: ObjetTraduit) -> list[dict]:
+    """Cancelled, all-day and « free » events are left out. Graph answers in UTC (no ``Prefer``
+    header is sent), which ``_depuis_graph`` reads."""
+    sortie = []
+    for e in (reponse or {}).get("value") or []:
+        if (
+            not isinstance(e, dict)
+            or e.get("isCancelled")
+            or e.get("isAllDay")
+            or str(e.get("showAs") or "busy").casefold() == "free"
+            or not e.get("start")
+            or not e.get("end")
+        ):
+            continue
+        sortie.append({**o.depuis_logiciel(e), "agenda": arguments.get("agenda")})
+    return sortie
+
+
 TRADUCTEUR = declarer_traducteur(
     Traducteur(
         systeme="outlook_agenda",
@@ -178,6 +216,7 @@ TRADUCTEUR = declarer_traducteur(
                 correspondance=CORRESPONDANCE_EVENEMENT,
                 operations={
                     "creer": Operation(_creer, _evenement),
+                    "chercher": Operation(_chercher_evenements, _lire_evenements),
                     "lire": Operation(_lire, _evenement),
                     "modifier": Operation(_modifier, _evenement),
                 },

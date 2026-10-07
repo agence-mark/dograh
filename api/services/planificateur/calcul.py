@@ -9,7 +9,10 @@ A slot of person P starting at T holds when:
    planner's own ranges), on a day that is not a public holiday (P10);
 3. the caller's wish accepts T (``Souhait.accepte``);
 4. P's agenda is free on [T - margin before - journey, T + length + margin after + journey]
-   (the journey from P's base, counted only when it could be, P5, P6).
+   (the journey counted only when it could be, P5, P6). The journey is one number both ways
+   (``Candidat.trajet_min``, from the establishment), or -- R-6 -- what ``Candidat.trajets``
+   says for THIS slot: from the previous appointment of P's agenda that day, to the next one,
+   each falling back on the establishment. The slot keeps what was counted (``Creneau.trajets``).
 
 The distribution (P7) orders the people:
 
@@ -26,6 +29,7 @@ is missing. Offers are spread: no offer starts inside another one (T to T + leng
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
@@ -36,12 +40,25 @@ Intervalle = tuple[datetime, datetime]
 
 
 @dataclass
+class Trajets:
+    """The journeys counted around ONE slot (R-6): minutes before and after, and for each side
+    where it started from and why (``origine``, ``libelle``, ``pourquoi``: see ``action.py``)."""
+
+    avant_min: int = 0
+    apres_min: int = 0
+    avant: dict = field(default_factory=dict)
+    apres: dict = field(default_factory=dict)
+
+
+@dataclass
 class Candidat:
     cle: str
     prenom: str = ""
     agenda: str = ""
     occupe: list[Intervalle] = field(default_factory=list)
-    trajet_min: int = 0  # one way, 0 when journeys are not counted
+    trajet_min: int = 0  # one way from the establishment, 0 when journeys are not counted
+    # R-6: the journeys of a slot [start, end] given the person's agenda; None = ``trajet_min`` both ways.
+    trajets: Callable[[datetime, datetime], Trajets] | None = None
     distance_km: float | None = None
     attributions: int = 0
     charge_min: int = 0
@@ -53,6 +70,7 @@ class Creneau:
     fin: datetime
     cle: str
     rang: int  # place of the person in the order of distribution (1 = first)
+    trajets: Trajets | None = None  # what was counted around it (only when ``Candidat.trajets`` is set)
 
 
 @dataclass
@@ -119,9 +137,21 @@ def calculer(
     apres = timedelta(minutes=regles.marge_apres_min)
     instants = [t for t in moments(ouvertures, regles, premier, horizon) if souhait.accepte(t)]
 
-    def tient(c: Candidat, t: datetime) -> bool:
-        trajet = timedelta(minutes=c.trajet_min)
-        return _libre(c.occupe, t - avant - trajet, t + longueur + apres + trajet)
+    def tient(c: Candidat, t: datetime) -> Trajets | None:
+        """The journeys counted when P holds the slot, None when P does not."""
+        if c.trajets is not None:
+            compte = c.trajets(t, t + longueur)
+        else:
+            compte = Trajets(c.trajet_min, c.trajet_min)
+        libre = _libre(
+            c.occupe,
+            t - avant - timedelta(minutes=compte.avant_min),
+            t + longueur + apres + timedelta(minutes=compte.apres_min),
+        )
+        return compte if libre else None
+
+    def retenu(c: Candidat, t: datetime, rang: int, compte: Trajets) -> Creneau:
+        return Creneau(t, t + longueur, c.cle, rang, compte if c.trajets is not None else None)
 
     retenus: list[Creneau] = []
     if regles.repartition == "premier_libre":
@@ -132,8 +162,9 @@ def calculer(
             if prochain is not None and t < prochain:
                 continue
             for rang, c in enumerate(ordre, start=1):
-                if tient(c, t):
-                    retenus.append(Creneau(t, t + longueur, c.cle, rang))
+                compte = tient(c, t)
+                if compte is not None:
+                    retenus.append(retenu(c, t, rang, compte))
                     prochain = t + longueur
                     break
         return retenus
@@ -146,8 +177,9 @@ def calculer(
             # Spread: never inside a slot already offered, whoever it is with.
             if (prochain is not None and t < prochain) or any(r.debut <= t < r.fin for r in retenus):
                 continue
-            if tient(c, t):
-                retenus.append(Creneau(t, t + longueur, c.cle, rang))
+            compte = tient(c, t)
+            if compte is not None:
+                retenus.append(retenu(c, t, rang, compte))
                 prochain = t + longueur
         if len(retenus) >= regles.nombre:
             break

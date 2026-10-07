@@ -20,13 +20,23 @@ open and someone can take the call, the model is told to put the caller through;
 catalogue is SAID by the code (``phrase_planificateur_rappel``, default text below). Either way
 the after-call makes the request (never a silence, never a lost caller).
 
+Journeys (R-6): a person's journey to the caller starts from the address of the PREVIOUS appointment
+of her agenda that day (the last event ending before the slot) when it carries a readable address,
+otherwise from the establishment; the journey back to the NEXT appointment follows the same rule.
+Always through ``trajets.duree_trajet_min`` (the one function that counts a journey). An address the
+Base Adresse Nationale cannot place, an agenda that cannot be read, a lack of time: the establishment,
+never an error. The stamp says, for each slot offered, where each journey started from and why.
+
 Every run leaves its stamp in the record (``planificateur``): slots computed, by whom, the time of
 the computation, whether journeys were counted and why not, the wish as read.
 """
 
 from __future__ import annotations
 
+import asyncio
 import time as horloge
+from bisect import bisect_left, bisect_right
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
@@ -43,7 +53,13 @@ from api.schemas.planificateur import (
 from api.services.apres_appel.rappels import CLE_RAPPEL
 from api.services.integrations.connectors.outil import CLE_A_DIRE, CLE_A_NOTER
 from api.services.planificateur import trajets
-from api.services.planificateur.calcul import Candidat, Creneau, Regles, calculer
+from api.services.planificateur.calcul import (
+    Candidat,
+    Creneau,
+    Regles,
+    Trajets,
+    calculer,
+)
 from api.services.planificateur.souhaits import Souhait, lire_souhait
 from api.utils.template_renderer import render_template
 
@@ -62,6 +78,11 @@ PLAGES_DEFAUT = "\n".join(
 )
 # The window of the turn's fairness (P7): appointments of the type given over these days.
 FENETRE_EQUITE_JOURS = 30
+# R-6: how many agenda places are placed on a map at most per call, how many at once, and the time
+# given to read the agendas' events and place their addresses (a slice of the action's deadline).
+MAX_LIEUX = 40
+PARALLELE_LIEUX = 8
+TEMPS_MAX_LIEUX_S = 2.5
 JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
 MOIS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
         "septembre", "octobre", "novembre", "décembre")
@@ -246,6 +267,171 @@ async def position_etablissement(ctx, etablissement) -> tuple[float, float] | No
 
 
 # --------------------------------------------------------------------------- #
+# Journeys from the previous appointment (R-6)
+# --------------------------------------------------------------------------- #
+
+ORIGINE_RENDEZ_VOUS = "previous_appointment"
+ORIGINE_ETABLISSEMENT = "establishment"
+LIBELLES_ORIGINE = {
+    ORIGINE_RENDEZ_VOUS: "depuis le rendez-vous précédent",
+    ORIGINE_ETABLISSEMENT: "depuis l'établissement",
+}
+
+
+@dataclass
+class Etape:
+    """One appointment of a person's agenda: when, and where when a position was found.
+    ``sans_position`` says why not (English, goes into the stamp)."""
+
+    debut: datetime
+    fin: datetime
+    position: tuple[float, float] | None = None
+    code_insee: str | None = None
+    sans_position: str | None = None
+
+
+def lieu_lisible(lieu: str | None) -> str | None:
+    """The place of an event when it could be an address; None otherwise (empty, a link of a video
+    call, a few characters). The Base Adresse Nationale has the last word."""
+    texte = " ".join((lieu or "").split())
+    if not 5 <= len(texte) <= 200 or "://" in texte or not any(c.isalpha() for c in texte):
+        return None
+    return texte
+
+
+async def _positionner(lieux: list[str], delai: float) -> dict[str, dict | None]:
+    """Place the addresses by the Base Adresse Nationale, a few at a time, within ``delai``.
+    An address absent from the answer was not placed in time."""
+    trouves: dict[str, dict | None] = {}
+    feu = asyncio.Semaphore(PARALLELE_LIEUX)
+
+    async def un(lieu: str) -> None:
+        async with feu:
+            trouves[lieu] = await trajets.geocoder(lieu)
+
+    taches = [asyncio.create_task(un(lieu)) for lieu in lieux]
+    if taches:
+        _, restantes = await asyncio.wait(taches, timeout=delai)
+        for tache in restantes:
+            tache.cancel()
+        await asyncio.gather(*restantes, return_exceptions=True)
+    return trouves
+
+
+async def etapes_des_agendas(
+    ctx, systeme: str, agendas: list[str], debut: datetime, fin: datetime, delai: float
+) -> tuple[dict[str, list[Etape]], dict]:
+    """For each agenda, its appointments with the position of their address (R-6), and what was
+    done, for the stamp. An agenda that cannot be read is absent from the answer (its person
+    starts from the establishment). Never raises."""
+    from api.services.hub import agenda as hub_agenda
+
+    async def lire_un(agenda: str):
+        try:
+            return agenda, await hub_agenda.evenements(
+                ctx.organization_id, systeme, agenda, debut, fin, delai=delai
+            )
+        except Exception as erreur:  # noqa: BLE001 -- never raises during a call: stamped and logged
+            logger.warning(f"[.mark] Agenda events not read, journeys from the establishment: {erreur!r}")
+            return agenda, None
+
+    lus = dict(await asyncio.gather(*(lire_un(a) for a in agendas)))
+    bilan = {
+        "agendas_lus": sum(1 for v in lus.values() if v is not None),
+        "agendas_non_lus": sum(1 for v in lus.values() if v is None),
+        "evenements": 0,
+        "adresses_placees": 0,
+    }
+    # The places to place: distinct, in the order of the agendas, within the cap.
+    voulus: list[str] = []
+    for evenements in lus.values():
+        for e in evenements or []:
+            lieu = lieu_lisible(e["lieu"])
+            if lieu and lieu not in voulus:
+                voulus.append(lieu)
+    voulus = voulus[:MAX_LIEUX]
+    placees = await _positionner(voulus, delai)
+    sortie: dict[str, list[Etape]] = {}
+    for agenda, evenements in lus.items():
+        if evenements is None:
+            continue
+        etapes = []
+        for e in evenements:
+            bilan["evenements"] += 1
+            lieu = lieu_lisible(e["lieu"])
+            etape = Etape(e["debut"], e["fin"])
+            if lieu is None:
+                etape.sans_position = "no readable address on the appointment"
+            elif lieu not in voulus:
+                etape.sans_position = "too many addresses to place"
+            elif lieu not in placees:
+                etape.sans_position = "address not placed in time"
+            elif placees[lieu] is None:
+                etape.sans_position = "address not found by the Base Adresse Nationale (or unreachable)"
+            else:
+                etape.position = (placees[lieu]["latitude"], placees[lieu]["longitude"])
+                etape.code_insee = placees[lieu].get("code_insee")
+                bilan["adresses_placees"] += 1
+            etapes.append(etape)
+        sortie[agenda] = etapes
+    return sortie, bilan
+
+
+def trajets_du_creneau(
+    etapes: list[Etape],
+    *,
+    appelant: tuple[float, float],
+    base_min: int,
+    coefficient: float,
+    vitesse_kmh: float,
+) -> Callable[[datetime, datetime], Trajets]:
+    """The journeys around a slot for a person whose agenda holds ``etapes`` (R-6).
+
+    Before: the last appointment ending at or before the start, the same day (business time); after:
+    the first one starting at or after the end, the same day. With a position: the journey from (to)
+    it, by ``duree_trajet_min``. Otherwise ``base_min``, the establishment's, and the stamp says why."""
+    par_fin = sorted(etapes, key=lambda e: e.fin)
+    fins = [e.fin for e in par_fin]
+    par_debut = sorted(etapes, key=lambda e: e.debut)
+    debuts = [e.debut for e in par_debut]
+
+    def de_l_etablissement(pourquoi: str) -> tuple[int, dict]:
+        return base_min, {
+            "origine": ORIGINE_ETABLISSEMENT,
+            "libelle": LIBELLES_ORIGINE[ORIGINE_ETABLISSEMENT],
+            "pourquoi": pourquoi,
+            "minutes": base_min,
+        }
+
+    def un_cote(etape: Etape | None, jour, avant: bool) -> tuple[int, dict]:
+        voisin = "previous" if avant else "next"
+        if etape is None or etape.fin.astimezone(FUSEAU).date() != jour or etape.debut.astimezone(FUSEAU).date() != jour:
+            return de_l_etablissement(f"no {voisin} appointment that day")
+        if etape.position is None:
+            return de_l_etablissement(f"the {voisin} appointment: {etape.sans_position}")
+        a, b = (etape.position, appelant) if avant else (appelant, etape.position)
+        minutes = trajets.duree_trajet_min(a, b, coefficient=coefficient, vitesse_kmh=vitesse_kmh)
+        repere = (etape.fin if avant else etape.debut).astimezone(FUSEAU).strftime("%H:%M")
+        return minutes, {
+            "origine": ORIGINE_RENDEZ_VOUS,
+            "libelle": LIBELLES_ORIGINE[ORIGINE_RENDEZ_VOUS],
+            "pourquoi": f"the {voisin} appointment {'ends' if avant else 'starts'} at {repere}, its address is placed",
+            "minutes": minutes,
+            **({"code_insee": etape.code_insee} if etape.code_insee else {}),
+        }
+
+    def calcul(debut: datetime, fin: datetime) -> Trajets:
+        jour = debut.astimezone(FUSEAU).date()
+        i = bisect_right(fins, debut) - 1
+        j = bisect_left(debuts, fin)
+        avant_min, avant = un_cote(par_fin[i] if i >= 0 else None, jour, True)
+        apres_min, apres = un_cote(par_debut[j] if j < len(par_debut) else None, jour, False)
+        return Trajets(avant_min, apres_min, avant, apres)
+
+    return calcul
+
+
+# --------------------------------------------------------------------------- #
 # The fallback (P8)
 # --------------------------------------------------------------------------- #
 
@@ -385,6 +571,24 @@ async def proposer(arguments: dict, ctx, delai_s: float) -> dict:
         return repli(ctx, reglages, f"agendas unreadable ({type(erreur).__name__})", souhait,
                      lecture.personnes, estampille, choisi.code)
 
+    # R-6: with journeys counted, where each person comes from (her previous appointment) and goes
+    # to (the next one); any failure leaves her on the establishment's journey.
+    etapes: dict[str, list[Etape]] = {}
+    if reglages.trajets_comptes and raison_trajets is None:
+        reste_lieux = min(TEMPS_MAX_LIEUX_S, max(0.3, delai_s - (horloge.monotonic() - debut_calcul) - 0.8))
+        try:
+            etapes, bilan = await asyncio.wait_for(
+                etapes_des_agendas(
+                    ctx, lecture.systeme, [a for a in agendas.values() if a in occupe],
+                    present - timedelta(days=1), horizon + timedelta(days=1), reste_lieux,
+                ),
+                timeout=reste_lieux + 1.0,
+            )
+        except Exception as erreur:  # noqa: BLE001 -- never raises during a call: stamped and logged
+            logger.warning(f"[.mark] Appointment places not read, journeys from the establishment: {erreur!r}")
+            etapes, bilan = {}, {"agendas_lus": 0, "erreur": type(erreur).__name__}
+        estampille["lieux_des_agendas"] = bilan
+
     candidats = []
     for p in lecture.personnes:
         if p["agenda"] not in occupe:
@@ -396,6 +600,13 @@ async def proposer(arguments: dict, ctx, delai_s: float) -> dict:
         candidats.append(Candidat(
             cle=p["cle"], prenom=p["prenom"], agenda=p["agenda"], occupe=intervalles,
             trajet_min=trajet_min, attributions=lecture.attributions.get(p["cle"], 0),
+            trajets=(
+                trajets_du_creneau(
+                    etapes[p["agenda"]], appelant=appelant["position"], base_min=trajet_min,
+                    coefficient=reglages.coefficient_trajet or 1.3, vitesse_kmh=reglages.vitesse_kmh or 50,
+                )
+                if p["agenda"] in etapes else None
+            ),
             charge_min=max(0, charge),
             distance_km=trajets.distance_km(base, position) if (base and position) else None,
         ))
@@ -443,8 +654,13 @@ async def proposer(arguments: dict, ctx, delai_s: float) -> dict:
 
 
 def _creneau(c: Creneau, agendas: dict[str, str]) -> dict:
-    return {"debut": c.debut.isoformat(), "fin": c.fin.isoformat(), "personne": c.cle,
-            "agenda": agendas.get(c.cle), "rang": c.rang}
+    sortie = {"debut": c.debut.isoformat(), "fin": c.fin.isoformat(), "personne": c.cle,
+              "agenda": agendas.get(c.cle), "rang": c.rang}
+    if c.trajets is not None:
+        # R-6: what was counted around this slot and where each journey started from, and why.
+        sortie["trajets"] = {"avant_min": c.trajets.avant_min, "apres_min": c.trajets.apres_min,
+                             "avant": c.trajets.avant, "apres": c.trajets.apres}
+    return sortie
 
 
 # --------------------------------------------------------------------------- #
@@ -511,8 +727,10 @@ async def poser(arguments: dict, ctx, delai_s: float) -> dict:
                      lecture.personnes, estampille, choisi.code, creneau["debut"])
     fin = datetime.fromisoformat(creneau["fin"])
     trajet = int(((proposition.get("trajets") or {}).get("minutes")) or 0)
-    garde_avant = timedelta(minutes=choisi.marge_avant_min + trajet)
-    garde_apres = timedelta(minutes=choisi.marge_apres_min + trajet)
+    # R-6: the journeys counted around THIS slot (from the previous appointment or the establishment).
+    propres = creneau.get("trajets") or {}
+    garde_avant = timedelta(minutes=choisi.marge_avant_min + int(propres.get("avant_min", trajet) or 0))
+    garde_apres = timedelta(minutes=choisi.marge_apres_min + int(propres.get("apres_min", trajet) or 0))
     try:
         reste = max(0.5, (delai_s - (horloge.monotonic() - debut_calcul)) / 2)
         occupe = await hub_agenda.occupations(
