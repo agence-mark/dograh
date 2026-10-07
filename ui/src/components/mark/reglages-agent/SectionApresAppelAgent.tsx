@@ -23,6 +23,13 @@ export const APRES_APPEL_ETEINT: Required<ApresAppelAgent> = { actif: false, syn
 
 export const MODULES_APRES_APPEL: Array<{ nom: string; libelle: Texte }> = [
     { nom: "webhook", libelle: { en: "Custom webhook (n8n)", fr: "Webhook sur mesure (n8n)" } },
+    {
+        nom: "connecteurs",
+        libelle: {
+            en: "Redo the software actions put aside during the call (an appointment the calendar did not take in time)",
+            fr: "Refaire les actions mises de côté pendant l'appel (un rendez-vous que l'agenda n'a pas pris à temps)",
+        },
+    },
 ];
 
 const ROLES: Array<{ role: string; libelle: Texte }> = [

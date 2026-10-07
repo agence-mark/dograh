@@ -30,6 +30,7 @@ const NOMS_DES_ETAPES: Record<string, Texte> = {
     synthese: { en: "Summary", fr: "Synthèse" },
     mail: { en: "Mail of the request", fr: "Mail de la demande" },
     "module:webhook": { en: "Module · custom webhook", fr: "Module · webhook sur mesure" },
+    "module:connecteurs": { en: "Module · software actions put aside", fr: "Module · actions mises de côté" },
 };
 
 export const nomDeLEtape = (nom: string): Texte =>

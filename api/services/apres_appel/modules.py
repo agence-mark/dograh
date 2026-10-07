@@ -128,6 +128,51 @@ async def _webhook(contexte: ContexteModule) -> ResultatModule:
     )
 
 
+async def _connecteurs(contexte: ContexteModule) -> ResultatModule:
+    """L5 (A1, A6; replaces D10 of the connectors plan): the actions that WRITE and fell back
+    during the call (deadline, software down) are done now, through the same relay, with this
+    run's organization (never one the call carries)."""
+    from api.services.integrations.connectors.catalogue import trouver
+    from api.services.integrations.connectors.execution import CLE_DIFFERES, appeler, contexte_de
+    from api.services.integrations.connectors.nango import ConnexionAbsente, NangoIndisponible
+
+    differes = (contexte.run.gathered_context or {}).get(CLE_DIFFERES) or []
+    if not differes:
+        raise ModuleSansObjet("No connector action was put aside during the call.")
+    from api.db import db_client
+
+    fiche = contexte.run.gathered_context or {}
+    # A retry never redoes an action already done (a booking made twice is worse than none).
+    bloc = await db_client.lire_apres_appel(contexte.run.id)
+    faites = set(((bloc.get("etapes") or {}).get("module:connecteurs") or {}).get("faites") or [])
+    envois, echecs = [], []
+    for indice, entree in enumerate(differes):
+        if indice in faites:
+            continue
+        trouve = trouver(entree.get("connecteur", ""), entree.get("action", ""))
+        if trouve is None:
+            echecs.append(f"unknown action {entree.get('connecteur')}.{entree.get('action')}")
+            continue
+        connecteur, action = trouve
+        ctx = contexte_de(action, entree.get("reglages"), fiche, contexte.envoi.get("numero_appelant"))
+        try:
+            await appeler(contexte.organization_id, connecteur, action, entree.get("arguments") or {}, ctx, 20.0)
+            faites.add(indice)
+            await db_client.fusionner_apres_appel(
+                contexte.run.id, etape="module:connecteurs", valeur={"faites": sorted(faites)}
+            )
+            envois.append({"canal": "agenda" if "agenda" in connecteur.nom else "crm", "destinataire": f"{connecteur.libelle} · {action.nom}", "statut": "envoyee"})
+        except ConnexionAbsente as erreur:
+            raise ModuleEnEchec(str(erreur), definitif=True) from None
+        except (NangoIndisponible, Exception) as erreur:  # noqa: BLE001 -- retried by the chain
+            echecs.append(f"{connecteur.nom}.{action.nom}: {erreur}")
+    if echecs:
+        raise ModuleEnEchec("; ".join(echecs))
+    return ResultatModule(detail=f"{len(envois)} action(s) done after the call", envois=envois)
+
+
 MODULES: dict[str, Executeur] = {
     "webhook": _webhook,
+    # L5: the connector actions put aside during the call.
+    "connecteurs": _connecteurs,
 }

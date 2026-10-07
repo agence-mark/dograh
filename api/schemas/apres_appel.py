@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from api.services.cles_reference import est_reference
 
 _ADRESSE = re.compile(r"^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$")
-MODULES_CONNUS = ("webhook",)
+MODULES_CONNUS = ("webhook", "connecteurs")
 
 # The names of the steps, in their order on screen (A9).
 ETAPES = ("ecriture", "synthese", "mail")

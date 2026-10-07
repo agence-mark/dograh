@@ -614,13 +614,65 @@ class McpToolDefinition(BaseModel):
     config: McpToolConfig = Field(description="MCP server configuration.")
 
 
+class IntegrationToolConfig(BaseModel):
+    """[.mark] A connector's action (chantier l-agent-travaille, L5; plan connecteurs-agent D5 to D9,
+    D17, D18). The organization is never here: the engine gives it (D6)."""
+
+    connecteur: str = Field(min_length=1, max_length=64, description="Connector of the catalogue.")
+    action: str = Field(min_length=1, max_length=64, description="Action of that connector.")
+    reglages: dict[str, Any] = Field(
+        default_factory=dict,
+        description="The client's rules for this action (durations, ranges, notice…), from the audit.",
+    )
+    delai_ms: int = Field(default=5000, ge=500, le=15000, description="Deadline of the action during the call.")
+    phrase_attente: str | None = Field(default=None, max_length=300, description="Said while the action runs.")
+    phrase_repli: str | None = Field(
+        default=None, max_length=300, description="Said when the deadline passes or the software fails."
+    )
+    anticipable: bool = Field(
+        default=False,
+        description="Read-only actions only: launch it as soon as its trigger fields are in the record.",
+    )
+    declencheurs: dict[str, str] = Field(
+        default_factory=dict,
+        description="Parameter of the action → field of the record that gives it (anticipation).",
+    )
+
+    @model_validator(mode="after")
+    def _action_connue(self) -> "IntegrationToolConfig":
+        from api.services.integrations.connectors.catalogue import trouver
+
+        trouve = trouver(self.connecteur, self.action)
+        if trouve is None:
+            raise ValueError(f"Unknown action « {self.connecteur}.{self.action} ».")
+        action = trouve[1]
+        if self.anticipable and (action.ecrit or not action.anticipable_permis):
+            raise ValueError("An action that writes is never anticipated.")
+        noms = {p.nom for p in action.parametres}
+        inconnus = sorted(set(self.declencheurs) - noms)
+        if inconnus:
+            raise ValueError(f"Not a parameter of the action: {', '.join(inconnus)}.")
+        if self.anticipable and not self.declencheurs:
+            raise ValueError("An anticipated action needs its trigger fields.")
+        return self
+
+
+class IntegrationToolDefinition(BaseModel):
+    """[.mark] Tool definition of a connector's action (type ``integration``)."""
+
+    schema_version: int = Field(default=1, description="Schema version.")
+    type: Literal["integration"] = Field(description="Tool type.")
+    config: IntegrationToolConfig = Field(description="Connector, action and the client's rules.")
+
+
 ToolDefinition = Annotated[
     HttpApiToolDefinition
     | EndCallToolDefinition
     | TransferCallToolDefinition
     | TransferAgentToolDefinition
     | CalculatorToolDefinition
-    | McpToolDefinition,
+    | McpToolDefinition
+    | IntegrationToolDefinition,
     Field(discriminator="type"),
 ]
 

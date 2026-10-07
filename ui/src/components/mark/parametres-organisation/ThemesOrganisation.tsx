@@ -38,6 +38,8 @@ import { Switch } from "@/components/ui/switch";
 
 import { ChampAdresseEtablissement } from "../ChampAdresseEtablissement";
 import { ChampEtiquettes } from "../ChampEtiquettes";
+import { BlocConnexions } from "../connecteurs/ConfigOutilIntegration";
+import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
@@ -540,6 +542,7 @@ export const ThemeIntegrations = ({
 }: ProprietesThemeOrganisation & { preferences: EtatPreferences }) => {
     const { t } = useLangue();
     const [correspondanceOuverte, setCorrespondanceOuverte] = useState(false);
+    const connecteurs = useConnecteurs();
     const { enregistre, brouillon, setBrouillon } = useBrouillonPreferences(preferences, CLES_INTEGRATIONS);
     const modifie = differe(brouillon, enregistre);
     useSignaler("integrations", modifie, false, signaler);
@@ -641,6 +644,18 @@ export const ThemeIntegrations = ({
                                 </code>
                             </div>
                         )}
+                    </Intertitre>
+
+                    {/* [.mark] L5: the client's software connected through Nango, and the link
+                        to send the client. Acts at once; nothing of the theme's « Save ». */}
+                    <Intertitre id="integrations-logiciels" titre={{ en: "Connected software", fr: "Logiciels connectés" }}>
+                        <p className="text-xs text-muted-foreground">
+                            {t({
+                                en: "The client authorizes his software once with the link; the « Integration » tools of « Tools » then act in it during the call.",
+                                fr: "Le client autorise son logiciel une fois avec le lien ; les outils « Intégration » de « Outils » y agissent ensuite pendant l'appel.",
+                            })}
+                        </p>
+                        <BlocConnexions connecteurs={connecteurs} />
                     </Intertitre>
 
                     {/* The mapping list saves at once, as it did: the row as stored,

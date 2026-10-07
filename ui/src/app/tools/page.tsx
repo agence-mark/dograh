@@ -13,6 +13,8 @@ import {
 } from "@/client/sdk.gen";
 import type { CreateToolRequest, ToolResponse } from "@/client/types.gen";
 import { CredentialSelector } from "@/components/http";
+import { ChampsCreationIntegration } from "@/components/mark/connecteurs/ConfigOutilIntegration";
+import type { ConfigIntegration } from "@/components/mark/connecteurs/useConnecteurs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +46,7 @@ import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import {
+    createIntegrationDefinition,
     createMcpDefinition,
     createToolDefinition,
     createTransferAgentDefinition,
@@ -78,6 +81,8 @@ export default function ToolsPage() {
     const [agentOptions, setAgentOptions] = useState<{ id: number; name: string }[]>([]);
 
     const [mcpUrl, setMcpUrl] = useState("");
+    // [.mark] The connector's action chosen in the dialog (L5).
+    const [integrationConfig, setIntegrationConfig] = useState<ConfigIntegration | null>(null);
     const [mcpCredentialUuid, setMcpCredentialUuid] = useState("");
     const [mcpToolsFilter, setMcpToolsFilter] = useState("");
 
@@ -169,6 +174,11 @@ export default function ToolsPage() {
             return;
         }
 
+        if (newToolCategory === "integration" && !integrationConfig) {
+            setCreateError("Choose the software and the action");
+            return;
+        }
+
         try {
             setIsCreating(true);
             setCreateError(null);
@@ -179,6 +189,8 @@ export default function ToolsPage() {
             let definition: ToolDefinition;
             if (newToolCategory === "mcp") {
                 definition = createMcpDefinition(mcpUrl, mcpCredentialUuid, mcpToolsFilter);
+            } else if (newToolCategory === "integration" && integrationConfig) {
+                definition = createIntegrationDefinition(integrationConfig);
             } else if (newToolCategory === "transfer_agent") {
                 definition = createTransferAgentDefinition({
                     workflow_id: Number(newTransferAgentWorkflowId),
@@ -651,6 +663,8 @@ export default function ToolsPage() {
                                 </Select>
                             </div>
                         )}
+
+                        {newToolCategory === "integration" && <ChampsCreationIntegration onChange={setIntegrationConfig} />}
 
                         {newToolCategory === "mcp" && (
                             <>

@@ -81,6 +81,9 @@ export const NOMS_RESERVES = [
     "fiche_etat",
     "fiche_journal",
     "tour_appelant",
+    // Chantier l-agent-travaille (L5): the connectors' stamps and the writes put aside.
+    "connecteurs",
+    "connecteurs_differes",
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */

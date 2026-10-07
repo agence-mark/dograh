@@ -227,6 +227,38 @@ export type AwsNovaSonicRealtimeLlmConfiguration = {
 };
 
 /**
+ * ActionVue
+ */
+export type ActionVue = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Ecrit
+     */
+    ecrit: boolean;
+    /**
+     * Anticipable Permis
+     */
+    anticipable_permis: boolean;
+    /**
+     * Parametres
+     */
+    parametres: Array<ParametreVue>;
+    /**
+     * Reglages Par Defaut
+     */
+    reglages_par_defaut: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * ActiveCallsResponse
  */
 export type ActiveCallsResponse = {
@@ -1854,6 +1886,54 @@ export type Comportements = {
 };
 
 /**
+ * ConnecteurVue
+ */
+export type ConnecteurVue = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Integration
+     */
+    integration: string;
+    /**
+     * Actions
+     */
+    actions: Array<ActionVue>;
+};
+
+/**
+ * ConnexionVue
+ */
+export type ConnexionVue = {
+    /**
+     * Connecteur
+     */
+    connecteur?: string | null;
+    /**
+     * Integration
+     */
+    integration: string;
+    /**
+     * Connection Id
+     */
+    connection_id: string;
+    /**
+     * Creee Le
+     */
+    creee_le?: string | null;
+    /**
+     * Erreurs
+     */
+    erreurs?: number;
+};
+
+/**
  * Conservation
  */
 export type Conservation = {
@@ -2171,7 +2251,9 @@ export type CreateToolRequest = {
         type: 'calculator';
     } & CalculatorToolDefinition) | ({
         type: 'mcp';
-    } & McpToolDefinition);
+    } & McpToolDefinition) | ({
+        type: 'integration';
+    } & IntegrationToolDefinition);
 };
 
 /**
@@ -2715,6 +2797,16 @@ export type DemandeEtablissementsDeLagent = {
     adresse_etablissement?: {
         [key: string]: unknown;
     } | null;
+};
+
+/**
+ * DemandeLien
+ */
+export type DemandeLien = {
+    /**
+     * Connecteurs
+     */
+    connecteurs: Array<string>;
 };
 
 /**
@@ -3685,6 +3777,24 @@ export type EtatBaseClient = {
 };
 
 /**
+ * EtatConnexions
+ */
+export type EtatConnexions = {
+    /**
+     * Nango Configure
+     */
+    nango_configure: boolean;
+    /**
+     * Connexions
+     */
+    connexions?: Array<ConnexionVue>;
+    /**
+     * Erreur
+     */
+    erreur?: string | null;
+};
+
+/**
  * EtatDuRenvoi
  */
 export type EtatDuRenvoi = {
@@ -4558,6 +4668,91 @@ export type InitiateCallRequest = {
 };
 
 /**
+ * IntegrationToolConfig
+ *
+ * [.mark] A connector's action (chantier l-agent-travaille, L5; plan connecteurs-agent D5 to D9,
+ * D17, D18). The organization is never here: the engine gives it (D6).
+ */
+export type IntegrationToolConfig = {
+    /**
+     * Connecteur
+     *
+     * Connector of the catalogue.
+     */
+    connecteur: string;
+    /**
+     * Action
+     *
+     * Action of that connector.
+     */
+    action: string;
+    /**
+     * Reglages
+     *
+     * The client's rules for this action (durations, ranges, notice…), from the audit.
+     */
+    reglages?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Delai Ms
+     *
+     * Deadline of the action during the call.
+     */
+    delai_ms?: number;
+    /**
+     * Phrase Attente
+     *
+     * Said while the action runs.
+     */
+    phrase_attente?: string | null;
+    /**
+     * Phrase Repli
+     *
+     * Said when the deadline passes or the software fails.
+     */
+    phrase_repli?: string | null;
+    /**
+     * Anticipable
+     *
+     * Read-only actions only: launch it as soon as its trigger fields are in the record.
+     */
+    anticipable?: boolean;
+    /**
+     * Declencheurs
+     *
+     * Parameter of the action → field of the record that gives it (anticipation).
+     */
+    declencheurs?: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * IntegrationToolDefinition
+ *
+ * [.mark] Tool definition of a connector's action (type ``integration``).
+ */
+export type IntegrationToolDefinition = {
+    /**
+     * Schema Version
+     *
+     * Schema version.
+     */
+    schema_version?: number;
+    /**
+     * Type
+     *
+     * Tool type.
+     */
+    type: 'integration';
+    /**
+     * Connector, action and the client's rules.
+     */
+    config: IntegrationToolConfig;
+};
+
+/**
  * Inworld
  *
  * Inworld AI streaming text-to-speech with built-in and cloned voices. Defaults to the Ashley system voice on inworld-tts-2.
@@ -4719,6 +4914,20 @@ export type LexiqueMetier = {
      * The N most frequent French words are never read as a name of the vocabulary; a rarer common word may only be recommended, never sure.
      */
     seuil_mots_courants?: number;
+};
+
+/**
+ * Lien
+ */
+export type Lien = {
+    /**
+     * Lien
+     */
+    lien: string | null;
+    /**
+     * Expire Le
+     */
+    expire_le?: string | null;
 };
 
 /**
@@ -5938,6 +6147,28 @@ export type OrganizationSummary = {
  * D4 : un champ DICTÉ subit le contrôle de citation, un champ DÉDUIT non.
  */
 export type OrigineChamp = 'dicte' | 'deduit';
+
+/**
+ * ParametreVue
+ */
+export type ParametreVue = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Type
+     */
+    type: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Obligatoire
+     */
+    obligatoire: boolean;
+};
 
 /**
  * Personne
@@ -9403,7 +9634,9 @@ export type UpdateToolRequest = {
         type: 'calculator';
     } & CalculatorToolDefinition) | ({
         type: 'mcp';
-    } & McpToolDefinition) | null;
+    } & McpToolDefinition) | ({
+        type: 'integration';
+    } & IntegrationToolDefinition) | null;
     /**
      * Status
      */
@@ -20974,6 +21207,125 @@ export type GetNodeTypeApiV1NodeTypesNameGetResponses = {
 };
 
 export type GetNodeTypeApiV1NodeTypesNameGetResponse = GetNodeTypeApiV1NodeTypesNameGetResponses[keyof GetNodeTypeApiV1NodeTypesNameGetResponses];
+
+export type GetCatalogueApiV1ConnecteursCatalogueGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/catalogue';
+};
+
+export type GetCatalogueApiV1ConnecteursCatalogueGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCatalogueApiV1ConnecteursCatalogueGetError = GetCatalogueApiV1ConnecteursCatalogueGetErrors[keyof GetCatalogueApiV1ConnecteursCatalogueGetErrors];
+
+export type GetCatalogueApiV1ConnecteursCatalogueGetResponses = {
+    /**
+     * Response Get Catalogue Api V1 Connecteurs Catalogue Get
+     *
+     * Successful Response
+     */
+    200: Array<ConnecteurVue>;
+};
+
+export type GetCatalogueApiV1ConnecteursCatalogueGetResponse = GetCatalogueApiV1ConnecteursCatalogueGetResponses[keyof GetCatalogueApiV1ConnecteursCatalogueGetResponses];
+
+export type GetConnexionsApiV1ConnecteursConnexionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/connexions';
+};
+
+export type GetConnexionsApiV1ConnecteursConnexionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetConnexionsApiV1ConnecteursConnexionsGetError = GetConnexionsApiV1ConnecteursConnexionsGetErrors[keyof GetConnexionsApiV1ConnecteursConnexionsGetErrors];
+
+export type GetConnexionsApiV1ConnecteursConnexionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtatConnexions;
+};
+
+export type GetConnexionsApiV1ConnecteursConnexionsGetResponse = GetConnexionsApiV1ConnecteursConnexionsGetResponses[keyof GetConnexionsApiV1ConnecteursConnexionsGetResponses];
+
+export type PostLienApiV1ConnecteursLienPostData = {
+    body: DemandeLien;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/lien';
+};
+
+export type PostLienApiV1ConnecteursLienPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostLienApiV1ConnecteursLienPostError = PostLienApiV1ConnecteursLienPostErrors[keyof PostLienApiV1ConnecteursLienPostErrors];
+
+export type PostLienApiV1ConnecteursLienPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Lien;
+};
+
+export type PostLienApiV1ConnecteursLienPostResponse = PostLienApiV1ConnecteursLienPostResponses[keyof PostLienApiV1ConnecteursLienPostResponses];
 
 export type HealthApiV1HealthGetData = {
     body?: never;

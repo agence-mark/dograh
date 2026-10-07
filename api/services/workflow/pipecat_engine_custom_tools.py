@@ -185,6 +185,16 @@ class CustomToolManager:
                     schemas.extend(session.function_schemas(allowed))
                     continue
 
+                # [.mark] l-agent-travaille, L5: a connector's action (its declared parameters).
+                if tool.category == ToolCategory.INTEGRATION.value:
+                    from api.services.integrations.connectors import outil as integration
+
+                    nom = tool_to_function_schema(tool)["function"]["name"]
+                    fs = integration.schema(tool, nom)
+                    if fs is not None:
+                        schemas.append(fs)
+                    continue
+
                 raw_schema = tool_to_function_schema(tool)
                 function_name = raw_schema["function"]["name"]
 
@@ -266,6 +276,27 @@ class CustomToolManager:
                     logger.debug(
                         f"Registered {len(mcp_schemas)} MCP "
                         f"handlers for tool '{tool.name}' ({tool.tool_uuid})"
+                    )
+                    continue
+
+                # [.mark] l-agent-travaille, L5: a connector's action. Its deadline is its own
+                # (the fallback phrase is said past it); Pipecat's is a margin above.
+                if tool.category == ToolCategory.INTEGRATION.value:
+                    from api.services.integrations.connectors import outil as integration
+
+                    nom = tool_to_function_schema(tool)["function"]["name"]
+                    if integration.schema(tool, nom) is None:
+                        continue
+                    delai = float(integration.config_de(tool).get("delai_ms") or 5000) / 1000
+                    self._agent.llm.register_function(
+                        nom,
+                        self._agent.bind_tool(
+                            self._engine, integration.creer_gestionnaire(self, tool, nom)
+                        ),
+                        timeout_secs=delai + 5.0,
+                    )
+                    integration.inscrire_l_anticipation(
+                        self._engine, tool, nom, organization_id
                     )
                     continue
 
