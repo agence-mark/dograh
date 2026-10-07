@@ -213,6 +213,15 @@ NOMS_RESERVES = frozenset(
         # [.mark] l-agent-travaille, L5 : les traces des connecteurs
         "connecteurs",
         "connecteurs_differes",
+        # [.mark] l-agent-collegue : les traces de l'équipe, du hub, du planificateur et de la
+        # vérification de l'appelant (L2 à L6, R-3)
+        "equipe_gestes",
+        "equipe_assignation",
+        "hub_rendez_vous",
+        "planificateur",
+        "planificateur_rappel",
+        "verification_appelant",
+        "dossier_lu",
     }
 )
 

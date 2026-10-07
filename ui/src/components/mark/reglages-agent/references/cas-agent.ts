@@ -170,6 +170,8 @@ export const CAS_AGENT: CasAgent[] = [
     c("apres-appel", "ajout-mark", "donnees", ["apres_appel"], [inter("apres_appel_actif")]),
     // Chantier l-agent-collegue, L1 (C5): the team known to the agent, frozen once.
     c("equipe-connue", "ajout-mark", "donnees", ["equipe_connue"], [inter("equipe_connue")]),
+    // Chantier l-agent-collegue, L6 (V7): the caller's verification, frozen once.
+    c("verification-appelant", "ajout-mark", "donnees", ["verification_appelant"], [inter("verification_appelant")]),
     // Chantier l-agent-travaille, L7: the outage fallback of the agent, frozen once.
     c("panne", "ajout-mark", "etablissement", ["panne"], [inter("panne_actif")]),
     // Plan mode-prise-de-notes, part 2: the clerk's dialog, frozen once.

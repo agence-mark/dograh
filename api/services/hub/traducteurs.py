@@ -44,6 +44,22 @@ OBJETS: dict[str, tuple[str, ...]] = {
         "lieu",
     ),
     "disponibilites": ("agendas", "debut", "fin"),
+    # l-agent-collegue, L6 (V3, V4): a caller's record, read only after his verification. Lists
+    # (``telephones``, ``references``, ``demandes``, ``rendez_vous``) keep their own common format
+    # (``db/bases_clients/dossier.py``). ``chercher`` takes ``telephone`` or ``reference`` and
+    # returns a list of records; ``lire`` takes ``id_externe``.
+    "dossier": (
+        "id_externe",
+        "telephones",
+        "nom",
+        "prenom",
+        "mail",
+        "code_postal",
+        "commune",
+        "references",
+        "demandes",
+        "rendez_vous",
+    ),
 }
 
 _SYSTEME = re.compile(r"^[a-z][a-z0-9_]{1,39}$")

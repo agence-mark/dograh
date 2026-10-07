@@ -92,6 +92,18 @@ export const AIDES_EQUIPE_CONNUE: Texte[] = [
     },
 ];
 
+// Chantier l-agent-collegue, L6 (V1, V7): what the switch lets the agent do.
+export const AIDES_VERIFICATION_APPELANT: Texte[] = [
+    {
+        en: "Lets the tools « verify the caller » and « read the record » (connector « Record » in Tools) run for this agent. The code checks the caller with the factors of the organization (theme « Caller verification »); the agent receives a record only after that.",
+        fr: "Laisse les outils « vérifier l'appelant » et « lire le dossier » (connecteur « Dossier » dans Outils) tourner pour cet agent. Le code vérifie l'appelant avec les facteurs de l'organisation (thème « Vérification de l'appelant ») ; l'agent ne reçoit un dossier qu'après.",
+    },
+    {
+        en: "Off: the tools answer that verification is unavailable, nothing of a record is ever read. To switch on at a client only after the legal check.",
+        fr: "Éteint : les outils répondent que la vérification est indisponible, rien d'un dossier n'est jamais lu. À allumer chez un client seulement après la vérification juridique.",
+    },
+];
+
 // Plan porte-parlee (D14, D16): the box under the note-taking mode, Postscript only.
 export const AIDES_PORTES_DANS_LA_REPONSE: Texte[] = [
     {
@@ -226,6 +238,12 @@ export const ThemeDonnees = ({
     useEffect(() => setEquipeConnue(equipeConnueEnregistree), [equipeConnueEnregistree]);
     const equipeConnueModifiee = equipeConnue !== equipeConnueEnregistree;
 
+    // ---- The caller's verification (chantier l-agent-collegue, L6, V7) -------------
+    const verificationEnregistree = resolue.verification_appelant ?? false;
+    const [verification, setVerification] = useState(verificationEnregistree);
+    useEffect(() => setVerification(verificationEnregistree), [verificationEnregistree]);
+    const verificationModifiee = verification !== verificationEnregistree;
+
     // ---- Dograh's « General » parts ------------------------------------------
     const [lignesIssues, setLignesIssues] = useState<CallDispositionRow[]>(() => createCallDispositionRows(resolue.call_dispositions));
     const issuesNormalisees = useMemo(() => normalizeCallDispositions(lignesIssues), [lignesIssues]);
@@ -330,7 +348,8 @@ export const ThemeDonnees = ({
         || consigneModifiee
         || generalModifie
         || apresAppelModifie
-        || equipeConnueModifiee;
+        || equipeConnueModifiee
+        || verificationModifiee;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -362,6 +381,12 @@ export const ThemeDonnees = ({
                 nom: { en: "Team known to the agent", fr: "Équipe connue de l'agent" },
                 modifie: equipeConnueModifiee,
                 config: () => ({ equipe_connue: equipeConnue }),
+            },
+            {
+                // l-agent-collegue, L6: its own part, sent only when changed (E6).
+                nom: { en: "Caller verification", fr: "Vérification de l'appelant" },
+                modifie: verificationModifiee,
+                config: () => ({ verification_appelant: verification }),
             },
             {
                 // L4: its own part, sent only when changed (E6).
@@ -562,6 +587,17 @@ export const ThemeDonnees = ({
                     disposition="ligne"
                 >
                     <Switch id="equipe_connue" checked={equipeConnue} onCheckedChange={setEquipeConnue} />
+                </ChampReglage>
+                {/* [.mark] Chantier l-agent-collegue, L6 (V7). */}
+                <ChampReglage
+                    cle="verification_appelant"
+                    idControle="verification_appelant"
+                    libelle={{ en: "Caller verification", fr: "Vérification de l'appelant" }}
+                    aides={AIDES_VERIFICATION_APPELANT}
+                    bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                    disposition="ligne"
+                >
+                    <Switch id="verification_appelant" checked={verification} onCheckedChange={setVerification} />
                 </ChampReglage>
             </Intertitre>
 

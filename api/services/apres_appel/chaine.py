@@ -205,6 +205,13 @@ async def _ecriture(ctx: ContexteModule, bloc: dict) -> dict:
                 resultat.get("contact_id"),
                 ctx.envoi["hub"]["rendez_vous"],
             )
+        # l-agent-collegue, L6 (V6): every verification attempt, idempotent.
+        if ctx.envoi.get("verifications"):
+            from api.db.bases_clients.dossier import ecrire_verifications
+
+            await ecrire_verifications(
+                connexion, resultat.get("appel_id"), ctx.envoi["verifications"]
+            )
         # A summary made while the write was failing is written now.
         if (
             bloc.get("synthese")

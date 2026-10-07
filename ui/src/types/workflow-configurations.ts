@@ -330,6 +330,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Chantier l-agent-collegue, L1 (C5): the team given to the agent as
     // {{equipe}} at pick-up. Absent means off, the behaviour of before.
     equipe_connue?: boolean;
+    // [.mark] Chantier l-agent-collegue, L6 (V7): the caller's verification and the record's
+    // reading, for this agent. Absent means off, the behaviour of before.
+    verification_appelant?: boolean;
     // [.mark] Part 2: the clerk's model, shaped like a model override (its key
     // comes back masked and is restored on save), and its instructions (absent:
     // the generic ones written in the code).

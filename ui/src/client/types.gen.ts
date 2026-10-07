@@ -5148,6 +5148,20 @@ export type LmntTtsConfiguration = {
 };
 
 /**
+ * LogicielDossier
+ */
+export type LogicielDossier = {
+    /**
+     * Systeme
+     */
+    systeme: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+};
+
+/**
  * LoginRequest
  */
 export type LoginRequest = {
@@ -5654,6 +5668,24 @@ export type MoveWorkflowToFolderRequest = {
      * Folder Id
      */
     folder_id?: number | null;
+};
+
+/**
+ * NiveauLecture
+ */
+export type NiveauLecture = {
+    /**
+     * Facteurs Requis
+     *
+     * How many distinct factors must have passed.
+     */
+    facteurs_requis?: number;
+    /**
+     * Champs
+     *
+     * The fields the agent may read.
+     */
+    champs?: Array<string>;
 };
 
 /**
@@ -7519,6 +7551,46 @@ export type ReglagesSynthese = {
      * The summary's instructions. Empty: the generic instructions written in the code.
      */
     consigne?: string | null;
+};
+
+/**
+ * ReglagesVerification
+ */
+export type ReglagesVerification = {
+    /**
+     * Numero
+     *
+     * The number calling matches the record.
+     */
+    numero?: boolean;
+    /**
+     * Question
+     *
+     * A control question on the fields chosen.
+     */
+    question?: boolean;
+    /**
+     * Code Sms
+     *
+     * A one-time code sent by SMS to the record's mobile, through the client's Twilio.
+     */
+    code_sms?: boolean;
+    /**
+     * Champs Controle
+     */
+    champs_controle?: Array<string>;
+    /**
+     * Lisibles
+     */
+    lisibles?: {
+        [key: string]: NiveauLecture;
+    };
+    /**
+     * Logiciel
+     *
+     * A translator of the domain « dossier » that holds the records. None: the client database.
+     */
+    logiciel?: string | null;
 };
 
 /**
@@ -11017,6 +11089,12 @@ export type WorkflowConfigurationDefaults = {
      * Gives the agent the team of the establishment called, as {{equipe}}: first name, last name, role and what each person takes care of; a phone number or an e-mail only where the client allowed it. Also gives the summary the names to spell. Off: the agent knows no one, exactly as before.
      */
     equipe_connue?: boolean;
+    /**
+     * Verification Appelant
+     *
+     * Lets the actions « verify the caller » and « read the record » run for this agent, with the factors and levels of the organization (theme « Caller verification »). Off: they answer that verification is unavailable and nothing of a record is read.
+     */
+    verification_appelant?: boolean;
     /**
      * Call Dispositions
      *
@@ -15756,6 +15834,125 @@ export type PutPlanificateurApiV1OrganizationsPlanificateurPutResponses = {
 };
 
 export type PutPlanificateurApiV1OrganizationsPlanificateurPutResponse = PutPlanificateurApiV1OrganizationsPlanificateurPutResponses[keyof PutPlanificateurApiV1OrganizationsPlanificateurPutResponses];
+
+export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/verification-appelant';
+};
+
+export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetError = GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetErrors[keyof GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetErrors];
+
+export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesVerification;
+};
+
+export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetResponse = GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetResponses[keyof GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetResponses];
+
+export type PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutData = {
+    body: ReglagesVerification;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/verification-appelant';
+};
+
+export type PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutError = PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutErrors[keyof PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutErrors];
+
+export type PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesVerification;
+};
+
+export type PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutResponse = PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutResponses[keyof PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutResponses];
+
+export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/verification-appelant/logiciels';
+};
+
+export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetError = GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetErrors[keyof GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetErrors];
+
+export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses = {
+    /**
+     * Response Get Logiciels Dossier Api V1 Organizations Verification Appelant Logiciels Get
+     *
+     * Successful Response
+     */
+    200: Array<LogicielDossier>;
+};
+
+export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponse = GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses[keyof GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;

@@ -876,6 +876,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Off: the agent knows no one, exactly as before."
         ),
     )
+    # [.mark] Chantier l-agent-collegue, L6 (V7) : la vérification de l'appelant, éteinte par
+    # défaut (X2). Lue par les actions ``dossier`` (``services/verification``).
+    verification_appelant: bool = Field(
+        default=False,
+        description=(
+            "Lets the actions « verify the caller » and « read the record » run for this agent, "
+            "with the factors and levels of the organization (theme « Caller verification »). "
+            "Off: they answer that verification is unavailable and nothing of a record is read."
+        ),
+    )
     call_dispositions: list[CallDispositionOption] = Field(
         default_factory=list,
         max_length=MAX_CALL_DISPOSITIONS,

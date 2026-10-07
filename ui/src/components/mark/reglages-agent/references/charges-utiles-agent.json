@@ -1054,6 +1054,20 @@
         }
       ]
     },
+    "verification-appelant": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "verification_appelant": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "panne": {
       "carte": "ajout-mark",
       "theme": "etablissement",

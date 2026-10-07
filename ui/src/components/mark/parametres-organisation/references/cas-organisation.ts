@@ -18,6 +18,7 @@ export type ThemeOrganisation =
     | "etablissement"
     | "equipe"
     | "rendez-vous"
+    | "verification"
     | "ecoute"
     | "donnees"
     | "apres-appel"

@@ -101,6 +101,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     fiche_champs: { theme: "donnees", cas: ["fiche-champ"] },
     apres_appel: { theme: "donnees", cas: ["apres-appel"] },
     equipe_connue: { theme: "donnees", cas: ["equipe-connue"] },
+    verification_appelant: { theme: "donnees", cas: ["verification-appelant"] },
     panne: { theme: "etablissement", cas: ["panne"] },
     call_dispositions: { theme: "donnees", cas: ["issues-eteintes"] },
     transcript_configuration: { theme: "donnees", cas: ["transcription-horodatee"] },

@@ -23,6 +23,7 @@ import {
     Mail,
     Plug,
     Settings,
+    ShieldCheck,
     SlidersHorizontal,
     Users,
 } from "lucide-react";
@@ -69,6 +70,8 @@ export const THEMES_ORGANISATION: Array<{ id: ThemeOrganisation; titre: Texte; i
     { id: "equipe", titre: { en: "Team and routing", fr: "Équipe et routage" }, icone: Users },
     // [.mark] l-agent-collegue, L5: the planner's rules, inherited by each establishment.
     { id: "rendez-vous", titre: { en: "Appointments", fr: "Rendez-vous" }, icone: CalendarClock },
+    // [.mark] l-agent-collegue, L6: what the code checks before a caller's record is read.
+    { id: "verification", titre: { en: "Caller verification", fr: "Vérification de l'appelant" }, icone: ShieldCheck },
     { id: "ecoute", titre: { en: "Listening", fr: "Écoute" }, icone: Ear },
     { id: "donnees", titre: { en: "Client data", fr: "Données du client" }, icone: Database },
     // [.mark] L4 (chantier l-agent-travaille), the 6th theme of the order validated on 06/10.

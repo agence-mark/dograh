@@ -247,6 +247,14 @@ def construire_envoi(
             # R-3, V6: the mail's subject says it is a call-back to make.
             demande["a_rappeler"] = True
     envoi_hub = {"hub": {"rendez_vous": poses}} if poses else {}
+    # [.mark] l-agent-collegue, L6 (V6): each verification attempt, never an answer. Absent from
+    # the record (every agent of before): the envoi is exactly the one of before.
+    verifications = contexte.get("verification_appelant")
+    verifications = (
+        [v for v in verifications if isinstance(v, dict)] if isinstance(verifications, list) else []
+    )
+    if verifications:
+        envoi_hub = {**envoi_hub, "verifications": verifications}
     return {
         **envoi_equipe,
         **envoi_hub,
