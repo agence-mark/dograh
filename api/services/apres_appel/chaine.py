@@ -356,10 +356,15 @@ def texte_du_mail(ctx: ContexteModule, bloc: dict) -> tuple[str, str]:
     if (envoi.get("demande") or {}).get("nee_d_une_panne"):
         # Decision of Evan, 07/10 (form, point 7). The mails are written in French.
         sujet = SUJET_PANNE
+    elif (envoi.get("demande") or {}).get("a_rappeler"):
+        # l-agent-collegue, R-3 and V6: a call-back to make, said in the subject.
+        sujet = f"À rappeler : {motif}"[:150]
     lignes = [
         f"Appel du {_heure_locale(envoi.get('debut'), ctx.fuseau)}",
         f"Numéro : {envoi.get('numero_appelant') or 'inconnu'}",
     ]
+    if (envoi.get("demande") or {}).get("a_rappeler") and (envoi.get("demande") or {}).get("resume"):
+        lignes.append(f"À faire : {envoi['demande']['resume']}")
     if bloc.get("autre_demande_ouverte_id"):
         lignes.append(
             f"⚠ Une autre demande ouverte vient du même numéro (n° {bloc['autre_demande_ouverte_id']})."

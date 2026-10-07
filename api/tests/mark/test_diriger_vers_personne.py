@@ -217,6 +217,50 @@ async def test_transfert_sans_reponse_la_demande_est_transmise_et_dite(monkeypat
     assert engine._gathered_context["equipe_assignation"] == "camille"
 
 
+async def test_r3_personne_qui_ne_decroche_pas_rappel_a_faire_chez_elle(monkeypatch):
+    """R-3 (Evan, 07/10): the transfer fails, the agent takes the call back and the request
+    reaches her as a call-back to make -- the caller's number from the CALL (a number the model
+    sends is never taken), the object, the slot he wished."""
+    engine, mgr, enregistres = _moteur(
+        monkeypatch, {"equipe_cles": ["camille", "sacha"], "caller_number": "+33655555555"}
+    )
+    _essai(monkeypatch, "refuse")
+    await mgr.register_handlers(["uuid-Diriger"])
+    r = await _appeler(
+        enregistres["diriger"][0],
+        {"personne": "camille", "motif": "suivi de commande", "rappel_souhaite": "demain matin",
+         "numero": "+33699999999"},
+    )
+    assert r["status"] == "passed_on" and r["callback"] is True
+    [rappel] = engine._gathered_context["planificateur_rappel"]
+    assert rappel == {
+        "origine": "equipe", "mode": "rappel", "personne": "camille", "prenom": "Camille",
+        "numero": "+33655555555", "objet": "suivi de commande", "souhait": "demain matin",
+        "raison": rappel["raison"], "le": rappel["le"],
+    }
+    assert rappel["raison"].startswith("transfer failed")
+    _transfert, transmission = engine._gathered_context["equipe_gestes"]
+    assert transmission["rappel"] is True
+    assert engine._gathered_context["equipe_assignation"] == "camille"
+    # Her mention says it is a call-back to make.
+    from api.db.bases_clients.gestes import mentions_des_gestes
+
+    assert [m["extrait"] for m in mentions_des_gestes(engine._gathered_context["equipe_gestes"])] == [
+        "suivi de commande", "À rappeler : suivi de commande",
+    ]
+
+
+async def test_r3_une_simple_transmission_nest_pas_un_rappel(monkeypatch):
+    """Scope of R-3: only a FAILED transfer makes a call-back; a request passed on by choice
+    (or to someone not reachable by transfer) stays what it was (C8)."""
+    engine, mgr, enregistres = _moteur(monkeypatch)
+    _essai(monkeypatch, "accepte")
+    await mgr.register_handlers(["uuid-Diriger"])
+    r = await _appeler(enregistres["diriger"][0], {"personne": "sacha"})
+    assert r["status"] == "passed_on" and "callback" not in r
+    assert "planificateur_rappel" not in engine._gathered_context
+
+
 async def test_personne_non_joignable_transmission_sans_rien_composer(monkeypatch):
     engine, mgr, enregistres = _moteur(monkeypatch)
     composes = _essai(monkeypatch, "accepte")
@@ -273,6 +317,28 @@ def test_lenvoi_sans_geste_reste_celui_davant():
     # A request passed on exists even with nothing noted.
     vide = construire_envoi(run({"equipe_assignation": "sacha"}), {}, ApresAppelAgent(), [])
     assert vide["demande"]["type"] == "autre" and vide["demande"]["assignee"] == "sacha"
+
+
+def test_r3_lenvoi_fait_la_demande_de_rappel_assignee():
+    from api.schemas.apres_appel import ApresAppelAgent
+    from api.services.apres_appel.envoi import construire_envoi
+
+    run = SimpleNamespace(
+        id=1, workflow_id=1, definition_id=1, mode="twilio", call_type="inbound",
+        initial_context={"caller_number": "+33612345678"},
+        gathered_context={
+            "equipe_assignation": "camille",
+            "planificateur_rappel": [{"origine": "equipe", "personne": "camille", "prenom": "Camille",
+                                      "numero": "+33612345678", "objet": "facture", "souhait": "lundi"}],
+        },
+        usage_info={}, created_at=None, definition=None, workflow=None,
+    )
+    envoi = construire_envoi(run, {}, ApresAppelAgent(), [])
+    assert envoi["demande"]["assignee"] == "camille" and envoi["demande"]["a_rappeler"] is True
+    assert envoi["demande"]["resume"] == (
+        "Rappel à faire : Camille n'a pas pu prendre l'appel transféré ; numéro de l'appelant : "
+        "+33612345678 ; objet : facture ; créneau souhaité : « lundi »."
+    )
 
 
 @pytest.fixture
@@ -354,6 +420,77 @@ async def test_apres_lappel_assignee_mail_et_transferts(
         ecrit = await ecrire_gestes(connexion, appel_id, demande_id, "camille", envoi["equipe_gestes"])
         assert ecrit == {"assignee_id": None, "transferts": 0, "mentions": 0}
         assert await connexion.fetchval("SELECT count(*) FROM mark.transfert") == 1
+    finally:
+        await connexion.close()
+
+
+async def test_r3_apres_lappel_le_rappel_arrive_chez_la_personne(
+    base_v4, smtp, modele, db_session, async_session, _apres_appel
+):
+    """R-3 through the real after-call: the request to call back is written assigned to her,
+    its summary carries the number, the object and the slot; the mail goes to her with
+    « À rappeler » in its subject; her mention says it."""
+    from api.db.bases_clients import connexion as schema
+    from api.db.bases_clients.equipe import ecrire_equipe
+    from api.tasks.workflow_completion import process_workflow_completion
+
+    t = _apres_appel
+    org = await t._organisation(async_session, db_session)
+    await t._regler(db_session, org, base_v4, smtp)
+    await t._equipe(base_v4)
+    connexion = await schema.connecter(base_v4)
+    try:
+        await ecrire_equipe(
+            connexion,
+            Equipe(personnes=[
+                Personne(cle="accueil", prenom="Accueil", mail="accueil@example.org", destinataire_defaut=True),
+                Personne(cle="camille", prenom="Camille", mail="camille@example.org",
+                         telephone="+33611111111", joignable_par_transfert=True),
+            ]),
+            "test",
+        )
+    finally:
+        await connexion.close()
+    run = await t._run(db_session, org)
+    await db_session.update_workflow_run(
+        run.id,
+        gathered_context={
+            **run.gathered_context,
+            "equipe_assignation": "camille",
+            "equipe_gestes": [
+                {"geste": "transfert", "personne": "camille", "numero": "+33611111111",
+                 "le": "2026-10-07T09:00:05+00:00", "decroche": False, "duree_s": 30, "motif": "facture"},
+                {"geste": "transmission", "personne": "camille", "motif": "facture", "rappel": True},
+            ],
+            "planificateur_rappel": [
+                {"origine": "equipe", "mode": "rappel", "personne": "camille", "prenom": "Camille",
+                 "numero": "+33612345678", "objet": "facture", "souhait": "demain matin"},
+            ],
+        },
+    )
+    file: list[dict] = []
+    with patch("api.tasks.arq.enqueue_job", await t._executer_tout_de_suite(file)):
+        await process_workflow_completion(None, run.id)
+
+    [mail] = smtp.messages
+    assert mail["a"] == ["camille@example.org"]
+    [sujet], [texte] = smtp.sujets(), smtp.textes()
+    assert sujet.startswith("À rappeler : ")
+    assert "À faire : Rappel à faire : Camille" in texte
+    assert "créneau souhaité : « demain matin »" in texte
+    connexion = await schema.connecter(base_v4)
+    try:
+        demande = await connexion.fetchrow(
+            "SELECT p.cle, d.resume FROM mark.demande d JOIN mark.personne p ON p.id = d.assignee_id"
+        )
+        assert demande["cle"] == "camille"
+        assert demande["resume"].startswith("Rappel à faire : Camille n'a pas pu prendre l'appel")
+        assert "+33612345678" in demande["resume"]
+        mentions = await connexion.fetch(
+            "SELECT m.source, m.extrait FROM mark.mention m JOIN mark.personne p ON p.id = m.personne_id "
+            "WHERE p.cle = 'camille' ORDER BY m.source"
+        )
+        assert ("transmission", "À rappeler : facture") in [(m["source"], m["extrait"]) for m in mentions]
     finally:
         await connexion.close()
 

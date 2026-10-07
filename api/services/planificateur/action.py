@@ -40,6 +40,7 @@ from api.schemas.planificateur import (
     TypeRendezVous,
     effectifs,
 )
+from api.services.apres_appel.rappels import CLE_RAPPEL
 from api.services.integrations.connectors.outil import CLE_A_DIRE, CLE_A_NOTER
 from api.services.planificateur import trajets
 from api.services.planificateur.calcul import Candidat, Creneau, Regles, calculer
@@ -48,7 +49,6 @@ from api.utils.template_renderer import render_template
 
 FUSEAU = ZoneInfo("Europe/Paris")
 CLE_ESTAMPILLE = "planificateur"
-CLE_RAPPEL = "planificateur_rappel"
 CLE_HUB = "hub_rendez_vous"
 VARIABLE_PHRASE_RAPPEL = "phrase_planificateur_rappel"
 PHRASE_RAPPEL_DEFAUT = (

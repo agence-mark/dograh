@@ -134,7 +134,12 @@ def mentions_des_gestes(gestes: list[dict]) -> list[dict]:
     sources = {"transfert": "transfert", "transmission": "transmission"}
     return [
         {"cle": g["personne"], "source": sources[g["geste"]], "certitude": "certaine",
-         "extrait": g.get("motif")}
+         # R-3: a passing on after a failed transfer is a call-back to make, said in her mention.
+         "extrait": (
+             " : ".join(x for x in ("À rappeler", g.get("motif")) if x)
+             if g.get("rappel")
+             else g.get("motif")
+         )}
         for g in gestes or []
         if isinstance(g, dict) and g.get("geste") in sources and g.get("personne")
     ]

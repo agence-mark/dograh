@@ -16,6 +16,12 @@ from datetime import UTC, datetime
 from typing import Any
 
 from api.schemas.apres_appel import ApresAppelAgent
+from api.services.apres_appel.rappels import (
+    ORIGINE_PLANIFICATEUR,
+    origine,
+    rappels_de,
+    resume_du_rappel,
+)
 
 CANAUX = {
     "smallwebrtc": "navigateur",
@@ -217,11 +223,15 @@ def construire_envoi(
             "priorite": 1 if (sujet or {}).get("urgent") else 2,
             "degre_urgence": valeur("degre_urgence"),
         }
-    # [.mark] l-agent-collegue, L5 (P8): no appointment could be booked -- the call-back request
-    # exists, with the caller's wish noted (never a lost caller).
-    rappels = contexte.get("planificateur_rappel")
-    rappels = [r for r in rappels if isinstance(r, dict)] if isinstance(rappels, list) else []
-    if rappels and not poses:
+    # [.mark] l-agent-collegue, L5 (P8), R-3, L6 (V6): a call-back decided during the call -- no
+    # appointment could be booked, the person did not take the transfer, the caller could not be
+    # verified. The request exists, its summary says what is to be done (never a lost caller).
+    # The planner's only when nothing was booked; the others always.
+    rappels = [
+        r for r in rappels_de(contexte)
+        if not (poses and origine(r) == ORIGINE_PLANIFICATEUR)
+    ]
+    if rappels:
         dernier = rappels[-1]
         demande = dict(
             demande
@@ -232,13 +242,10 @@ def construire_envoi(
                 "degre_urgence": valeur("degre_urgence"),
             }
         )
-        souhait = dernier.get("souhait")
-        demande["resume"] = demande.get("resume") or (
-            "Rendez-vous à rappeler pour le fixer"
-            + (f" (souhait de l'appelant : « {souhait} »)" if souhait else "")
-            + (f" ; créneau choisi : {dernier['creneau_choisi']}" if dernier.get("creneau_choisi") else "")
-            + "."
-        )
+        demande["resume"] = demande.get("resume") or resume_du_rappel(dernier)
+        if origine(dernier) != ORIGINE_PLANIFICATEUR:
+            # R-3, V6: the mail's subject says it is a call-back to make.
+            demande["a_rappeler"] = True
     envoi_hub = {"hub": {"rendez_vous": poses}} if poses else {}
     return {
         **envoi_equipe,

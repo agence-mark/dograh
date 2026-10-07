@@ -18,6 +18,11 @@ The handler of the internal action ``equipe.diriger_vers_personne``:
 5. Every gesture is written in the record (``equipe_gestes``) for the after-call: the
    transfer with the number dialled, whether she answered and how long it took (C10), the
    passing on with the reason. The request's assignee is ``equipe_assignation``.
+6. R-3 (decision of Evan, 07/10): when the transfer FAILED (no answer, refused, error), the
+   agent takes the call back and the request reaches her as a CALL-BACK TO MAKE: the
+   caller's number (from the call, never from the model), the object, the slot he wished if
+   he said it (``rappel_souhaite``). The same call-back request as the planner's
+   (``services/apres_appel/rappels.py``), assigned to her, a certain mention of her.
 
 R1: nothing here is swallowed in silence; every outcome is stamped in ``connecteurs`` too.
 """
@@ -33,6 +38,7 @@ from typing import Any
 from loguru import logger
 
 from api.schemas.base_client import Personne
+from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_EQUIPE
 from api.services.equipe.appel import CLE_CLES
 from api.utils.template_renderer import render_template
 
@@ -97,6 +103,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
         cle = str(arguments.get("personne") or "").strip()
         geste = str(arguments.get("geste") or "transferer").strip()
         motif = str(arguments.get("motif") or "").strip()[:300] or None
+        souhait = str(arguments.get("rappel_souhaite") or "").strip()[:200] or None
 
         # 1. The closed list (C7).
         if cle not in (contexte.get(CLE_CLES) or []):
@@ -130,15 +137,23 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
             )
             return
 
-        async def transmettre(raison: str | None = None) -> None:
+        async def transmettre(raison: str | None = None, rappel: bool = False) -> None:
             texte = phrase(contexte, VARIABLE_PHRASE_TRANSMISSION, PHRASE_TRANSMISSION_DEFAUT, personne)
+            le = datetime.now(UTC).isoformat()
             _noter(
                 fiche,
                 {"geste": "transmission", "personne": personne.cle, "motif": motif,
-                 "le": datetime.now(UTC).isoformat(), "raison": raison},
+                 "le": le, "raison": raison, **({"rappel": True} if rappel else {})},
             )
             if isinstance(fiche, dict):
                 fiche[CLE_ASSIGNATION] = personne.cle
+                if rappel:
+                    # R-3: a call-back to make, by her. The number is the call's, never the model's.
+                    fiche.setdefault(CLE_RAPPEL, []).append(
+                        {"origine": ORIGINE_EQUIPE, "mode": "rappel", "personne": personne.cle,
+                         "prenom": personne.prenom, "numero": contexte.get("caller_number") or None,
+                         "objet": motif, "souhait": souhait, "raison": raison, "le": le}
+                    )
             _estampiller(fiche, nom_de_fonction, "transmis", raison)
             await engine.queue_text_message(texte, mute_user=True)
             await params.result_callback(
@@ -146,7 +161,13 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                     "status": "passed_on",
                     "person": personne.prenom,
                     "said_to_caller": texte,
-                    "instruction": "The request was passed on; do not repeat this sentence, go on with the call.",
+                    **({"callback": True} if rappel else {}),
+                    "instruction": (
+                        "She could not take the call: she will call the caller back. Do not repeat "
+                        "this sentence, take the call back and go on with it."
+                        if rappel
+                        else "The request was passed on; do not repeat this sentence, go on with the call."
+                    ),
                 }
             )
 
@@ -194,14 +215,16 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 return await params.result_callback(resultat, *args, **kwargs)
             # 4. Failed transfer: the request is passed on, said, never a silence (C9).
             rendu["fait"] = True
-            await transmettre(f"transfer failed ({(resultat or {}).get('reason', 'unknown')})")
+            await transmettre(
+                f"transfer failed ({(resultat or {}).get('reason', 'unknown')})", rappel=True
+            )
 
         await manager._create_transfer_call_handler(outil_de_transfert, nom_de_fonction)(
             dataclasses.replace(params, result_callback=au_resultat)
         )
         if not rendu:
             # The transfer handler returned without an outcome: never leave the model waiting.
-            await transmettre("transfer gave no outcome")
+            await transmettre("transfer gave no outcome", rappel=True)
 
     return gestionnaire
 

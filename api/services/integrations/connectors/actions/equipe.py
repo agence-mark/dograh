@@ -74,6 +74,14 @@ EQUIPE = declarer(
                         description="What the caller wants, in a few words.",
                         obligatoire=False,
                     ),
+                    Parametre(
+                        "rappel_souhaite",
+                        description=(
+                            "When the caller would like to be called back, in his own words, "
+                            "only if he said it. Used when she cannot take the call."
+                        ),
+                        obligatoire=False,
+                    ),
                 ),
                 ecrit=True,
                 preparer=_jamais,
