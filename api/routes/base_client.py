@@ -19,6 +19,7 @@ from loguru import logger
 
 from api.db.bases_clients.connexion import (
     BaseClientIndisponible,
+    BaseDejaExistante,
     NomDeBaseInvalide,
     appliquer_migrations,
     connecter,
@@ -65,6 +66,10 @@ async def put_base_client(
     organization_id = user.selected_organization_id
     if request.nom_base:
         try:
+            await rattachement.verifier_libre(organization_id, request.nom_base)
+        except rattachement.BaseDejaRattachee as erreur:
+            raise _refus(str(erreur), 409) from None
+        try:
             connexion = await connecter(request.nom_base)
         except (BaseClientIndisponible, NomDeBaseInvalide) as erreur:
             raise _refus(str(erreur)) from None
@@ -96,7 +101,10 @@ async def post_creer(
     if await rattachement.nom_de_la_base(organization_id):
         raise _refus("A database is already attached: detach it first.")
     try:
+        await rattachement.verifier_libre(organization_id, request.nom_base)
         await creer_base(request.nom_base)
+    except (rattachement.BaseDejaRattachee, BaseDejaExistante) as erreur:
+        raise _refus(str(erreur), 409) from None
     except (BaseClientIndisponible, NomDeBaseInvalide) as erreur:
         raise _refus(str(erreur)) from None
     await _verser_dans_la_base(

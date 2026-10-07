@@ -35,6 +35,11 @@ class BaseClientIndisponible(RuntimeError):
     """The server is not configured, or does not answer. Message safe to show."""
 
 
+class BaseDejaExistante(ValueError):
+    """[.mark] « Create » on a name the server already has: never reuse a database silently
+    (it may be another client's)."""
+
+
 class NomDeBaseInvalide(ValueError):
     pass
 
@@ -139,8 +144,9 @@ async def appliquer_migrations(connexion: asyncpg.Connection) -> list[int]:
     return appliquees
 
 
-async def creer_base(nom_base: str) -> list[int]:
-    """CREATE DATABASE on the clients' Postgres, then every migration."""
+async def creer_base(nom_base: str, *, reprendre: bool = False) -> list[int]:
+    """CREATE DATABASE on the clients' Postgres, then every migration. A name the server
+    already has is refused (``BaseDejaExistante``) unless ``reprendre`` (tests, scripts)."""
     verifier_nom(nom_base)
     # The server's maintenance database: the only place a CREATE DATABASE can run from.
     maintenance = await _connecter("postgres")
@@ -148,6 +154,11 @@ async def creer_base(nom_base: str) -> list[int]:
         existe = await maintenance.fetchval(
             "SELECT 1 FROM pg_database WHERE datname = $1", nom_base
         )
+        if existe and not reprendre:
+            raise BaseDejaExistante(
+                f"A database named « {nom_base} » already exists on the server: choose another "
+                "name, or attach it if it is this organization's."
+            )
         if not existe:
             # An identifier cannot be a parameter; the name was checked by the pattern above.
             await maintenance.execute(f'CREATE DATABASE "{nom_base}"')

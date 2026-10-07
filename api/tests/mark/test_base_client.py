@@ -231,7 +231,9 @@ def test_les_migrations_sont_numerotees_sans_trou():
 
 @pytest.mark.asyncio
 async def test_creer_puis_mettre_a_niveau_napplique_rien_deux_fois(base_essai):
-    assert await schema.creer_base(base_essai) == list(range(1, schema.version_attendue() + 1))
+    assert await schema.creer_base(base_essai) == list(
+        range(1, schema.version_attendue() + 1)
+    )
     connexion = await schema.connecter(base_essai)
     try:
         assert await schema.version_de(connexion) == schema.version_attendue()
@@ -629,6 +631,87 @@ def test_creer_a_lecran_verse_lexistant_puis_rattache(base_essai):
         assert (
             client.post("/organizations/base-client/mettre-a-niveau").json()["version"]
             == etat["version_attendue"]
+        )
+
+
+class _MiroirMulti:
+    """organization_configurations of SEVERAL organizations, in memory."""
+
+    def __init__(self):
+        self.lignes = {}
+
+    async def get_configuration(self, organisation, cle):
+        valeur = self.lignes.get((organisation, cle))
+        return SimpleNamespace(value=valeur) if valeur is not None else None
+
+    async def upsert_configuration(self, organisation, cle, valeur):
+        self.lignes[(organisation, cle)] = valeur
+
+    async def get_all_configurations_by_key(self, cle):
+        return [
+            {"organization_id": org, "value": valeur}
+            for (org, c), valeur in self.lignes.items()
+            if c == cle and valeur
+        ]
+
+
+def test_une_base_dune_autre_organisation_ne_se_rattache_ni_ne_se_recree(base_essai):
+    """Revue 1 (cloisonnement) : the name of a database attached to organization A is refused
+    to organization B, by « attach » and by « create » ; « create » refuses a database that
+    already exists on the server, even unattached."""
+    from api.routes import base_client as route_base_client
+
+    autre = ORGANISATION + 1
+    miroir, redis = _MiroirMulti(), _RedisFactice()
+    app = FastAPI()
+    app.include_router(route_base_client.router)
+    qui = {"org": ORGANISATION}
+    app.dependency_overrides[get_user_with_selected_organization] = lambda: (
+        SimpleNamespace(id=1, provider_id="p", selected_organization_id=qui["org"])
+    )
+    a, b, c = _rattachee(miroir, redis)
+    with a, b, c:
+        client = TestClient(app)
+        cree = client.post(
+            "/organizations/base-client/creer", json={"nom_base": base_essai}
+        )
+        assert cree.status_code == 200, cree.text
+
+        qui["org"] = autre
+        rattache = client.put(
+            "/organizations/base-client", json={"nom_base": base_essai}
+        )
+        assert rattache.status_code == 409, rattache.text
+        assert "another organization" in rattache.json()["detail"]
+        recree = client.post(
+            "/organizations/base-client/creer", json={"nom_base": base_essai}
+        )
+        assert recree.status_code == 409, recree.text
+        assert miroir.lignes.get((autre, "BASE_CLIENT")) in (
+            None,
+            {"nom_base": None, "rattachee_le": None},
+        )
+
+        # Detached from A, the database still exists: « create » still refuses it, « attach » now works.
+        qui["org"] = ORGANISATION
+        assert (
+            client.put(
+                "/organizations/base-client", json={"nom_base": None}
+            ).status_code
+            == 200
+        )
+        qui["org"] = autre
+        assert (
+            client.post(
+                "/organizations/base-client/creer", json={"nom_base": base_essai}
+            ).status_code
+            == 409
+        )
+        assert (
+            client.put(
+                "/organizations/base-client", json={"nom_base": base_essai}
+            ).status_code
+            == 200
         )
 
 

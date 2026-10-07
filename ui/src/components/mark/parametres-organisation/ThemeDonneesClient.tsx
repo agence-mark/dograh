@@ -63,13 +63,14 @@ export const useBaseClient = () => {
         dejaLu.current = true;
         void relire();
     }, [authLoading, user, relire]);
-    const agir = useCallback(async (action: () => Promise<{ data?: EtatBaseClient; error?: unknown }>, succes: string) => {
+    const agir = useCallback(async (action: () => Promise<{ data?: EtatBaseClient; error?: unknown; response?: Response }>, succes: string) => {
         setEnCours(true);
         setErreur(null);
         const reponse = await action();
         setEnCours(false);
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "Action refused"));
+            // 409: the name is taken (another organization's database, or one the server already has).
+            setErreur(reponse.response?.status === 409 ? NOM_PRIS : detailFromError(reponse.error, "Action refused"));
             return false;
         }
         setEtat(reponse.data);
@@ -77,6 +78,13 @@ export const useBaseClient = () => {
         return true;
     }, []);
     return { etat, erreur, enCours, relire, agir };
+};
+
+// [.mark] Revue 1 (cloisonnement): shown instead of the server's English detail.
+const NOM_PRIS = "mark:nom-de-base-pris";
+const MESSAGE_NOM_PRIS: Texte = {
+    en: "This database name is taken: it belongs to another organization, or already exists on the server. Choose another name.",
+    fr: "Ce nom de base est déjà pris : il appartient à une autre organisation, ou la base existe déjà sur le serveur. Choisissez un autre nom.",
 };
 
 export const ThemeDonneesClient = ({
@@ -124,7 +132,7 @@ export const ThemeDonneesClient = ({
         >
             {erreur && (
                 <p className="text-sm text-destructive" role="alert" data-testid="erreur-base-client">
-                    {erreur}
+                    {erreur === NOM_PRIS ? t(MESSAGE_NOM_PRIS) : erreur}
                 </p>
             )}
             {!etat ? (

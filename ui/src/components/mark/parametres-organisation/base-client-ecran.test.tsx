@@ -91,6 +91,18 @@ describe("Client data", () => {
         expect(screen.queryByTestId("mettre-a-niveau-base-client")).toBeNull();
     });
 
+    it("says in the screen's language that a taken name is refused (409), never the server's English", async () => {
+        m.etat.mockResolvedValue({ data: SANS_BASE });
+        m.creer.mockResolvedValue({ error: { detail: "« client_essai » is attached to another organization" }, response: { status: 409 } });
+        rendre(<Donnees />);
+        const champ = (await screen.findByLabelText(/Database name|Nom de la base/)) as HTMLInputElement;
+        fireEvent.change(champ, { target: { value: "client_essai" } });
+        fireEvent.click(screen.getByTestId("creer-base-client"));
+        const erreur = await screen.findByTestId("erreur-base-client");
+        expect(erreur.textContent).toMatch(/Ce nom de base est déjà pris|This database name is taken/);
+        expect(erreur.textContent).not.toContain("attached to another organization");
+    });
+
     it("offers Upgrade when behind, lists the refusals and lights the red dot", async () => {
         const signaler = vi.fn();
         m.etat.mockResolvedValue({ data: { ...RATTACHEE, version: 2, refus: ["Site A: hours refused (ligne 1)"] } });

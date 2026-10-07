@@ -53,11 +53,25 @@ async def nom_de_la_base(organization_id: int | None) -> str | None:
     return (await lire_rattachement(organization_id)).nom_base
 
 
+class BaseDejaRattachee(ValueError):
+    """The database is another organization's: never attach it (tenant isolation)."""
+
+
+async def verifier_libre(organization_id: int, nom_base: str) -> None:
+    """Refuse a database name already attached to ANOTHER organization."""
+    for organisation, nom in await organisations_rattachees():
+        if nom == nom_base and organisation != organization_id:
+            raise BaseDejaRattachee(
+                f"« {nom_base} » is attached to another organization: it cannot be attached here."
+            )
+
+
 async def rattacher(
     organization_id: int, nom_base: str | None
 ) -> RattachementBaseClient:
     if nom_base:
         verifier_nom(nom_base)
+        await verifier_libre(organization_id, nom_base)
     reglage = RattachementBaseClient(
         nom_base=nom_base or None, rattachee_le=datetime.now(UTC) if nom_base else None
     )
