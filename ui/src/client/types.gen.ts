@@ -7660,6 +7660,12 @@ export type ReglagesVerification = {
      */
     code_sms?: boolean;
     /**
+     * Envois Max Par Numero
+     *
+     * How many codes by SMS one number may receive in an hour (all calls of the organization).
+     */
+    envois_max_par_numero?: number;
+    /**
      * Champs Controle
      */
     champs_controle?: Array<string>;

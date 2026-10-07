@@ -36,6 +36,9 @@ from api.tests.mark.test_connecteurs import FauxNango, stub_agent_runtime
 
 DUPONT = "+33612345678"
 MARTIN = "+33698765432"
+# One factor switched on cannot satisfy the default level (2): the settings are refused, so a test
+# that switches the number off asks for the level it can reach.
+UN_FACTEUR = {"demandes": NiveauLecture(facteurs_requis=1, champs=["statut"])}
 
 
 def test_les_deux_actions_sont_internes_et_jamais_anticipees():
@@ -101,17 +104,17 @@ async def _regler(installe, **reglages) -> None:
         ReglagesVerification(**reglages).model_dump(mode="json"))
 
 
-def _outil(action, nom):
+def _outil(action, nom, delai_ms=5000):
     t = MagicMock()
     t.tool_uuid = f"uuid-{nom}"
     t.name = nom
     t.description = None
     t.category = ToolCategory.INTEGRATION.value
-    t.definition = {"type": "integration", "config": {"connecteur": "dossier", "action": action, "delai_ms": 5000}}
+    t.definition = {"type": "integration", "config": {"connecteur": "dossier", "action": action, "delai_ms": delai_ms}}
     return t
 
 
-def _moteur(installe, monkeypatch, numero=DUPONT, run_id=None, organisation=None, contexte=None):
+def _moteur(installe, monkeypatch, numero=DUPONT, run_id=None, organisation=None, contexte=None, delai_ms=5000):
     engine = MagicMock()
     engine.active_agent = stub_agent_runtime(llm=MagicMock())
     engine._gathered_context = {"extracted_variables": {"motif": "où en est ma demande"}}
@@ -123,7 +126,7 @@ def _moteur(installe, monkeypatch, numero=DUPONT, run_id=None, organisation=None
     from api.db import db_client
 
     monkeypatch.setattr(db_client, "get_tools_by_uuids", AsyncMock(
-        return_value=[_outil("verifier_appelant", "Verifier"), _outil("lire_dossier", "Lire")]))
+        return_value=[_outil("verifier_appelant", "Verifier", delai_ms), _outil("lire_dossier", "Lire", delai_ms)]))
     mgr = CustomToolManager(engine)
     mgr.get_organization_id = AsyncMock(return_value=organisation or installe.org.organisation.id)
     return engine, mgr, enregistres
@@ -227,7 +230,7 @@ async def test_niveau_deux_par_la_question_nom_au_son_et_code_postal(installe, m
 
 
 async def test_deux_echecs_bloquent_le_rappel_est_dit_et_note(installe, monkeypatch):
-    await _regler(installe, numero=False)
+    await _regler(installe, numero=False, lisibles=UN_FACTEUR)
     engine, verifier, lire = await _pret(installe, monkeypatch, contexte={"phrase_verification_rappel": "Un collègue vous rappelle."})
     r = await _appeler(verifier, {"nom": "Durand", "code_postal": "60100"})
     assert r["status"] == "not_verified" and r["attempts_left"] == 1
@@ -330,7 +333,7 @@ async def test_apres_lappel_les_tentatives_sont_ecrites_une_fois_sans_reponse(in
     from api.db.bases_clients.dossier import ecrire_verifications
     from api.tasks.workflow_completion import process_workflow_completion
 
-    await _regler(installe, numero=False)
+    await _regler(installe, numero=False, lisibles=UN_FACTEUR)
     engine, verifier, _l = await _pret(installe, monkeypatch)
     await _appeler(verifier, {"nom": "Durand", "code_postal": "60100"})
     await _appeler(verifier, {"nom": "Durand", "code_postal": "60100"})
@@ -433,8 +436,154 @@ def test_les_reglages_refusent_ce_qui_ne_tient_pas():
         ReglagesVerification(lisibles={"factures": NiveauLecture()})
     with pytest.raises(ValueError):
         ReglagesVerification(lisibles={"demandes": NiveauLecture(champs=["montant"])})
+    # A level above the factors switched on can never be reached: refused, not silently saved.
+    with pytest.raises(ValueError):
+        ReglagesVerification(numero=False)  # the default level (2) with a single factor on
+    with pytest.raises(ValueError):
+        ReglagesVerification(lisibles={"demandes": NiveauLecture(facteurs_requis=3, champs=["statut"])})
+    ReglagesVerification(numero=False, lisibles={"demandes": NiveauLecture(facteurs_requis=3, champs=[])})  # never read
+    with pytest.raises(ValueError):
+        ReglagesVerification(envois_max_par_numero=0)
     defaut = ReglagesVerification()
     assert defaut.facteurs_actifs() == ["numero", "question"] and not defaut.code_sms
+
+
+# --------------------------------------------------------------------------- #
+# 8. Revue du 07/10 : appels d'outils en parallèle, appels d'essai, état gardé avant l'envoi lent
+# --------------------------------------------------------------------------- #
+
+
+async def test_quatre_appels_en_parallele_comptent_deux_essais_au_plus(installe, monkeypatch):
+    """Pipecat runs the tool calls of a turn in parallel: without a lock, four wrong answers are
+    all read at 0 attempts and none blocks (the lock makes the check-and-write one step)."""
+    import asyncio
+
+    await _regler(installe, numero=False, lisibles=UN_FACTEUR)
+    _e, verifier, lire = await _pret(installe, monkeypatch)
+    faux = {"nom": "Durand", "code_postal": "60100"}
+    r = await asyncio.gather(*[_appeler(verifier, faux) for _ in range(4)])
+    assert sorted(x["status"] for x in r) == ["blocked", "blocked", "blocked", "not_verified"]
+    etat = await etats.charger(installe.org.organisation.id, installe.run.id)
+    assert etat.tentatives_echouees == 2 and etat.bloque
+    assert (await _appeler(lire, {"quoi": "demandes"}))["status"] == "refused"
+
+
+async def test_une_reussite_en_parallele_n_est_pas_ecrasee_par_un_echec(installe, monkeypatch):
+    import asyncio
+
+    await _regler(installe, numero=False, lisibles=UN_FACTEUR)
+    _e, verifier, _lire = await _pret(installe, monkeypatch)
+    # The read is slowed so that both calls read the state BEFORE either writes it back.
+    charger = etats.charger
+
+    async def charger_lent(*a, **k):
+        lu = await charger(*a, **k)
+        await asyncio.sleep(0.2)
+        return lu
+
+    monkeypatch.setattr(etats, "charger", charger_lent)
+    bon, faux = {"nom": "Dupont", "code_postal": "60100"}, {"nom": "Durand", "code_postal": "60100"}
+    await asyncio.gather(_appeler(verifier, bon), _appeler(verifier, faux))
+    etat = await etats.charger(installe.org.organisation.id, installe.run.id)
+    assert "question" in etat.reussis, "a success was overwritten by a parallel failure"
+
+
+async def _sans_plafond() -> None:
+    redis = await etats._redis()
+    for cle in [c async for c in redis.scan_iter(f"{etats.PREFIXE}sms:*")]:
+        await redis.delete(cle)
+
+
+def _doublures_sms(monkeypatch, *, lent: bool = False):
+    from api.services.apres_appel import sms
+    from api.services.telephony import factory
+
+    envoyes = []
+
+    async def envoyer(sid, jeton, expediteur, destinataire, texte):
+        envoyes.append((destinataire, texte))
+        return "SM1"
+
+    async def fournisseur(*a, **k):
+        if lent:
+            import asyncio
+
+            await asyncio.sleep(3)
+        return SimpleNamespace(account_sid="AC1", auth_token="jeton", default_from_number="+33900000000")
+
+    monkeypatch.setattr(sms, "envoyer", envoyer)
+    monkeypatch.setattr(factory, "get_telephony_provider_for_run", fournisseur)
+    return envoyes
+
+
+@pytest.mark.parametrize("mode", ["smallwebrtc", "textchat", "simulated"])
+async def test_aucun_code_sms_pendant_un_essai(installe, monkeypatch, mode):
+    """A test call (browser, keyboard, simulated caller) simulates the transfer: it sends no SMS."""
+    await _sans_plafond()
+    envoyes = _doublures_sms(monkeypatch)
+    await _regler(installe, numero=False, question=False, code_sms=True, lisibles=UN_FACTEUR)
+    run = await installe.t._run(installe.db, installe.org, numero=DUPONT, mode=mode)
+    _e, verifier, _l = await _pret(installe, monkeypatch, run_id=run.id)
+    r = await _appeler(verifier, {"envoyer_code": True})
+    assert r["code"] == "not_sent" and envoyes == []
+    etat = await etats.charger(installe.org.organisation.id, run.id)
+    assert etat.code_envois == 0 and etat.code_empreinte is None
+
+
+async def test_un_numero_ne_recoit_pas_plus_de_codes_que_le_plafond(installe, monkeypatch):
+    await _sans_plafond()
+    envoyes = _doublures_sms(monkeypatch)
+    await _regler(installe, numero=False, question=False, code_sms=True, envois_max_par_numero=1,
+                  lisibles=UN_FACTEUR)
+    try:
+        _e, verifier, _l = await _pret(installe, monkeypatch)
+        assert (await _appeler(verifier, {"envoyer_code": True}))["code"] == "sent"
+        # Another call, the same recipient: the cap is by number, not by call.
+        autre = await installe.t._run(installe.db, installe.org, numero=DUPONT)
+        _e2, verifier2, _l2 = await _pret(installe, monkeypatch, run_id=autre.id)
+        assert (await _appeler(verifier2, {"envoyer_code": True}))["code"] == "not_sent"
+        assert len(envoyes) == 1
+    finally:
+        await _sans_plafond()
+
+
+async def test_la_tentative_ratee_n_est_pas_perdue_si_le_delai_tombe_pendant_l_envoi(installe, monkeypatch):
+    """The deadline of the tool cancels the action while the telephony account is being read: the
+    failed attempt of THIS call was already kept (state first, slow work after)."""
+    await _sans_plafond()
+    envoyes = _doublures_sms(monkeypatch, lent=True)
+    await _regler(installe, numero=False, code_sms=True, lisibles=UN_FACTEUR)
+    try:
+        _e, verifier, _l = await _pret(installe, monkeypatch, delai_ms=700)
+        await _appeler(verifier, {"nom": "Durand", "code_postal": "60100", "envoyer_code": True})
+        etat = await etats.charger(installe.org.organisation.id, installe.run.id)
+        assert etat.tentatives_echouees == 1 and envoyes == []
+    finally:
+        await _sans_plafond()
+
+
+async def test_le_code_est_garde_avant_l_envoi_lent_et_retire_s_il_n_est_pas_parti(installe, monkeypatch):
+    import asyncio
+
+    from api.services.apres_appel import sms
+
+    await _sans_plafond()
+    _doublures_sms(monkeypatch)
+
+    async def lent(*a, **k):
+        await asyncio.sleep(3)
+
+    monkeypatch.setattr(sms, "envoyer", lent)
+    await _regler(installe, numero=False, question=False, code_sms=True, lisibles=UN_FACTEUR)
+    try:
+        _e, verifier, _l = await _pret(installe, monkeypatch, delai_ms=900)
+        r = await _appeler(verifier, {"envoyer_code": True})
+        assert r["code"] == "not_sent"
+        etat = await etats.charger(installe.org.organisation.id, installe.run.id)
+        # Counted (no endless retries), and no code kept that nobody received.
+        assert etat.code_envois == 1 and etat.code_empreinte is None
+    finally:
+        await _sans_plafond()
 
 
 # Fixtures of the after-call's tests (a real client database, an SMTP stand-in, a model stand-in).

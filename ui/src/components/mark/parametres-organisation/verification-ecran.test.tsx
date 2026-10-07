@@ -21,6 +21,7 @@ const LU = {
     numero: true,
     question: true,
     code_sms: false,
+    envois_max_par_numero: 3,
     champs_controle: ["nom", "code_postal"],
     lisibles: {
         demandes: { facteurs_requis: 2, champs: ["reference", "type", "statut", "creee_le"] },
@@ -64,7 +65,7 @@ describe("[.mark] l-agent-collegue L6: the theme « Caller verification »", () 
         const { container } = rendre();
         await screen.findByTestId("verif-champs-controle");
         const cles = clesDuType("ReglagesVerification");
-        expect(cles).toEqual(["numero", "question", "code_sms", "champs_controle", "lisibles", "logiciel"]);
+        expect(cles).toEqual(["numero", "question", "code_sms", "envois_max_par_numero", "champs_controle", "lisibles", "logiciel"]);
         for (const cle of cles) {
             const ici = cle === "lisibles" ? '[data-reglage^="lisibles."]' : `[data-reglage="${cle}"]`;
             expect(container.querySelector(ici), cle).not.toBeNull();
@@ -111,6 +112,8 @@ describe("[.mark] l-agent-collegue L6: the theme « Caller verification »", () 
         rendre();
         await screen.findByTestId("verif-champs-controle");
         expect(screen.getByTestId("verif-inaccessible-demandes").textContent).toMatch(/jamais lu/);
+        // The server refuses such settings: the screen names it and blocks the save too.
+        expect((screen.getByRole("button", { name: /Enregistrer/ }) as HTMLButtonElement).disabled).toBe(true);
     });
 
     it("every text has its two languages", () => {

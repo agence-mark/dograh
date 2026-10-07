@@ -45,6 +45,7 @@ from api.services.verification import etat as etats
 from api.services.verification import source as sources
 from api.services.verification.comparer import egal
 from api.services.verification.reglages import interrupteur_allume, lire_reglages
+from api.services.verrou import Occupe, verrou
 
 CLE_TRACE = "verification_appelant"
 CLE_LECTURES = "dossier_lu"
@@ -53,6 +54,7 @@ PHRASE_RAPPEL_DEFAUT = (
     "Je ne peux pas vous donner ces informations sans vérifier votre identité : "
     "je note votre demande, un collègue vous rappelle."
 )
+ENVOIS_FENETRE_S = 3600  # the window of the per-number cap on codes sent
 INDISPONIBLE = {
     "status": "unavailable",
     "instruction": (
@@ -103,13 +105,45 @@ def _a_demander(reglages: ReglagesVerification, etat: etats.Etat) -> list[str]:
     return reste
 
 
-async def _envoyer_code(ctx, run, dossier: dict, etat: etats.Etat, delai: float) -> bool:
+async def _garder(org: int, run_id: int, etat: etats.Etat) -> None:
+    """The state kept even if the tool's deadline cancels the call meanwhile (``shield``): a
+    failed attempt or a code sent is never lost for being slow."""
+    await asyncio.shield(etats.enregistrer(org, run_id, etat))
+
+
+async def _plafond_envois(org: int, numero: str, maximum: int) -> bool:
+    """True while the recipient may still receive a code (a counter with a lifetime, per number
+    AND organization). Redis unreachable: False (fail closed, no SMS)."""
+    from api.services.etablissements.copie import _redis
+
+    cle = f"{etats.PREFIXE}sms:{int(org)}:{numero}"
+    try:
+        redis = await _redis()
+        n = await redis.incr(cle)
+        if n == 1:
+            await redis.expire(cle, ENVOIS_FENETRE_S)
+        return n <= maximum
+    except Exception as erreur:  # noqa: BLE001 -- fail closed
+        logger.error(f"[.mark] SMS counter unreadable, no code sent: {erreur!r}")
+        return False
+
+
+async def _envoyer_code(ctx, run, dossier: dict, etat: etats.Etat, reglages: ReglagesVerification, reste) -> bool:
     """V5: the code by the client's Twilio, DURING the call. Wired, off, never tried for real:
-    proven by stand-ins only. False when it cannot leave (no mobile, no account, timeout)."""
+    proven by stand-ins only. False when it cannot leave (no mobile, no account, test call,
+    too many codes to this number, timeout).
+
+    The state (the digest, the count) is kept BEFORE the slow send, so a deadline that cancels
+    the send loses nothing."""
     from api.schemas.apres_appel import est_un_mobile, numero_e164
     from api.services.apres_appel import sms
     from api.services.telephony.factory import get_telephony_provider_for_run
+    from api.services.workflow.renvoi_en_test import MODES_DE_TEST
 
+    # A test (keyboard, simulated call, browser) simulates the transfer and sends no real SMS.
+    if getattr(run, "mode", None) in MODES_DE_TEST:
+        logger.info("[.mark] Verification code not sent: a test call")
+        return False
     mobile = next(
         (n for n in (numero_e164(t) for t in dossier.get("telephones") or []) if est_un_mobile(n)), None
     )
@@ -122,12 +156,22 @@ async def _envoyer_code(ctx, run, dossier: dict, etat: etats.Etat, delai: float)
     )
     if not (sid and jeton and expediteur):
         return False
+    if not await _plafond_envois(ctx.organization_id, mobile, reglages.envois_max_par_numero):
+        logger.warning("[.mark] Verification code not sent: too many codes to this number")
+        return False
     code, sel, empreinte = etats.nouveau_code(CODE_LONGUEUR)
     texte = f"Votre code de vérification : {code}. Il expire dans {CODE_VALIDITE_S // 60} minutes."
-    await asyncio.wait_for(sms.envoyer(sid, jeton, expediteur, mobile, texte), timeout=delai)
     etat.code_empreinte, etat.code_sel = empreinte, sel
     etat.code_expire = time.time() + CODE_VALIDITE_S
     etat.code_envois += 1
+    await _garder(ctx.organization_id, ctx.run_id, etat)
+    try:
+        await asyncio.wait_for(sms.envoyer(sid, jeton, expediteur, mobile, texte), timeout=reste())
+    except Exception:
+        # Not sent: the code kept would be one nobody received.
+        etat.code_empreinte = etat.code_sel = etat.code_expire = None
+        await _garder(ctx.organization_id, ctx.run_id, etat)
+        raise
     return True
 
 
@@ -146,6 +190,18 @@ async def verifier(arguments: dict, ctx, delai_s: float) -> dict:
     except Indisponible as raison:
         logger.info(f"[.mark] Caller verification unavailable: {raison}")
         return dict(INDISPONIBLE)
+    org, run_id = ctx.organization_id, ctx.run_id
+    # Pipecat runs the tool calls of a turn in parallel: read, compare, write is ONE step per
+    # call, or four wrong answers would count as two attempts and a success could be overwritten.
+    try:
+        async with verrou(f"verification:{int(org)}:{int(run_id)}", attente_s=max(1.0, delai_s - 0.5)):
+            return await _verifier(arguments, ctx, delai_s, debut, reglages, run)
+    except Occupe:
+        logger.warning("[.mark] Caller verification busy, nothing read")
+        return dict(INDISPONIBLE)
+
+
+async def _verifier(arguments: dict, ctx, delai_s: float, debut: float, reglages: ReglagesVerification, run) -> dict:
     org, run_id = ctx.organization_id, ctx.run_id
     etat = await etats.charger(org, run_id)
     source = sources.source_de(reglages)
@@ -184,7 +240,7 @@ async def verifier(arguments: dict, ctx, delai_s: float) -> dict:
     if reglages.question and "question" not in etat.reussis and reponses:
         manquants = [c for c in reglages.champs_controle if c not in reponses]
         if manquants:
-            await etats.enregistrer(org, run_id, etat)
+            await _garder(org, run_id, etat)
             return {"status": "ask", "ask_for": manquants,
                     "instruction": "Ask the caller for these too, then call again with all of them."}
         essayes.append("question")
@@ -193,33 +249,41 @@ async def verifier(arguments: dict, ctx, delai_s: float) -> dict:
         else:
             rate = True
 
-    # 2c. The code by SMS (V5).
+    # 2c. The code by SMS (V5): the code given back is checked here; the send comes LAST.
     resultat_code: dict = {}
-    if reglages.code_sms and "code_sms" not in etat.reussis:
-        if arguments.get("code"):
-            essayes.append("code_sms")
-            if etats.code_juste(etat, str(arguments["code"]), time.time()):
-                etat.reussis.append("code_sms")
-                etat.code_empreinte = etat.code_sel = etat.code_expire = None
-            else:
-                rate = True
-        elif arguments.get("envoyer_code") in (True, "true", "oui", 1) and dossier is not None:
-            try:
-                envoye = await _envoyer_code(ctx, run, dossier, etat, reste())
-            except Exception as erreur:  # noqa: BLE001 -- never raises during a call: logged
-                logger.warning(f"[.mark] Verification code not sent: {erreur!r}")
-                envoye = False
-            resultat_code = (
-                {"code": "sent", "instruction": "Ask the caller for the code he just received by SMS, then call again with « code »."}
-                if envoye else {"code": "not_sent"}
-            )
-        elif arguments.get("envoyer_code") in (True, "true", "oui", 1):
-            resultat_code = {"code": "not_sent"}
+    envoi_demande = arguments.get("envoyer_code") in (True, "true", "oui", 1)
+    if reglages.code_sms and "code_sms" not in etat.reussis and arguments.get("code"):
+        essayes.append("code_sms")
+        if etats.code_juste(etat, str(arguments["code"]), time.time()):
+            etat.reussis.append("code_sms")
+            etat.code_empreinte = etat.code_sel = etat.code_expire = None
+        else:
+            rate = True
+        envoi_demande = False
 
     if rate:
         etat.tentatives_echouees += 1
     if etat.tentatives_echouees >= TENTATIVES_MAX:
         etat.bloque = True
+    # The attempt is kept BEFORE anything slow (the send): a deadline must not lose a failure.
+    try:
+        await _garder(org, run_id, etat)
+    except Exception as erreur:  # noqa: BLE001 -- fail closed: nothing is readable
+        logger.error(f"[.mark] Verification state not kept, nothing readable: {erreur!r}")
+        return dict(INDISPONIBLE)
+
+    if envoi_demande and reglages.code_sms and "code_sms" not in etat.reussis and not etat.bloque:
+        envoye = False
+        if dossier is not None:
+            try:
+                envoye = await _envoyer_code(ctx, run, dossier, etat, reglages, reste)
+            except Exception as erreur:  # noqa: BLE001 -- never raises during a call: logged
+                logger.warning(f"[.mark] Verification code not sent: {erreur!r}")
+        resultat_code = (
+            {"code": "sent", "instruction": "Ask the caller for the code he just received by SMS, then call again with « code »."}
+            if envoye else {"code": "not_sent"}
+        )
+
     peut_lire = lisibles(reglages, etat)
     issue = (
         "bloque" if etat.bloque
@@ -227,11 +291,6 @@ async def verifier(arguments: dict, ctx, delai_s: float) -> dict:
         else "verifie" if peut_lire
         else "insuffisant"
     )
-    try:
-        await etats.enregistrer(org, run_id, etat)
-    except Exception as erreur:  # noqa: BLE001 -- fail closed: nothing is readable
-        logger.error(f"[.mark] Verification state not kept, nothing readable: {erreur!r}")
-        return dict(INDISPONIBLE)
 
     trace = {"le": datetime.now(UTC).isoformat(), "source": etat.source or source, "dossier": etat.dossier,
              "facteurs_essayes": essayes, "facteurs_reussis": sorted(set(etat.reussis)), "resultat": issue}
