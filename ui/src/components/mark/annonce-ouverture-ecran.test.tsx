@@ -351,7 +351,7 @@ describe("[.mark] the announcement settings, on the Platform Settings page", () 
         // export (BigQuery, its only destination) is neutralised and absent
         // from the screen; the server refuses it anyway.
         render(<PageReglagesPlateforme />);
-        await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(7));
+        await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(8));
         for (const entete of document.querySelectorAll<HTMLButtonElement>("[data-theme] > button[aria-expanded]")) fireEvent.click(entete);
         await screen.findByText("Closed-business announcement");
         expect(screen.queryByText("Call events")).toBeNull();

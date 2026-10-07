@@ -16,6 +16,7 @@ export type EntreeInventaireOrganisation =
 export const INVENTAIRE_PREFERENCES: Record<string, EntreeInventaireOrganisation> = {
     test_phone_number: { theme: "organisation", cas: ["telephone"] },
     timezone: { theme: "organisation", cas: ["fuseau"] },
+    adresses_notification: { theme: "organisation", cas: ["adresses-notification"] },
     adresse_etablissement: { theme: "etablissement", cas: ["adresse-voie"] },
     external_pbx_integrations_enabled: { theme: "integrations", cas: ["standard-externe"] },
     disposition_mapping_enabled: { theme: "integrations", cas: ["correspondance"] },

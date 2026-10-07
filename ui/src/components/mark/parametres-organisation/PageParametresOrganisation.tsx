@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * [.mark] The Platform Settings page in 7 themes (chantier
+ * [.mark] The Platform Settings page in 8 themes (chantier
  * reorganisation-ecran-reglages, step 5, convention § 2).
  *
  * Called from Dograh's `app/settings/page.tsx` in place of its cards (the one
@@ -17,6 +17,7 @@ import { useLangue } from "../langue/langue";
 import { useAnnonceOuverture } from "../SectionAnnonceOuverture";
 import { usePreferencesOrganisation } from "./preferences";
 import type { ThemeOrganisation } from "./references/cas-organisation";
+import { ThemeApresAppel, useApresAppel } from "./ThemeApresAppel";
 import { ThemeDonneesClient, useBaseClient } from "./ThemeDonneesClient";
 import { ThemeEquipe } from "./ThemeEquipe";
 import {
@@ -36,6 +37,7 @@ export const PageParametresOrganisation = () => {
     const preferences = usePreferencesOrganisation();
     const annonce = useAnnonceOuverture();
     const base = useBaseClient();
+    const apresAppel = useApresAppel();
     const [etats, setEtats] = useState<Partial<Record<ThemeOrganisation, Etat>>>({});
 
     const signaler = useCallback((id: ThemeOrganisation, modifie: boolean, enErreur: boolean) => {
@@ -64,11 +66,16 @@ export const PageParametresOrganisation = () => {
                     </p>
                 </div>
 
-                <ThemeOrganisationGenerale {...commun("organisation")} preferences={preferences} />
+                <ThemeOrganisationGenerale
+                    {...commun("organisation")}
+                    preferences={preferences}
+                    adressesMark={apresAppel.ecran?.adresses.installation ?? []}
+                />
                 <ThemeEtablissementOrganisation {...commun("etablissement")} preferences={preferences} annonce={annonce} />
                 <ThemeEquipe {...commun("equipe")} baseRattachee={base.etat ? Boolean(base.etat.nom_base) : null} />
                 <ThemeEcouteOrganisation {...commun("ecoute")} />
                 <ThemeDonneesClient {...commun("donnees")} base={base} />
+                <ThemeApresAppel {...commun("apres-appel")} apresAppel={apresAppel} />
                 <ThemeIntegrations {...commun("integrations")} preferences={preferences} />
                 <ThemeDeveloppeurs {...commun("developpeurs")} />
                 {/* No "Call events" card: its only destination is the BigQuery

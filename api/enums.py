@@ -216,6 +216,10 @@ class OrganizationConfigurationKey(Enum):
     # The server, user and password are the installation's (MARK_BASES_CLIENTS_URL).
     # Format: api/schemas/base_client.py
     BASE_CLIENT = "BASE_CLIENT"
+    # [.mark] The after-call of the organization (chantier l-agent-travaille, L4, A1 to A10):
+    # summary, mail server, recap, modules. Same free-text key, no migration.
+    # Format: api/schemas/apres_appel.py
+    APRES_APPEL = "APRES_APPEL"
 
 
 class UserConfigurationKey(Enum):

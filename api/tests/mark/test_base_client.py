@@ -231,7 +231,7 @@ def test_les_migrations_sont_numerotees_sans_trou():
 
 @pytest.mark.asyncio
 async def test_creer_puis_mettre_a_niveau_napplique_rien_deux_fois(base_essai):
-    assert await schema.creer_base(base_essai) == [1, 2, 3]
+    assert await schema.creer_base(base_essai) == list(range(1, schema.version_attendue() + 1))
     connexion = await schema.connecter(base_essai)
     try:
         assert await schema.version_de(connexion) == schema.version_attendue()

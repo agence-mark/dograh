@@ -83,6 +83,13 @@ vi.mock("@/client/sdk.gen", () => ({
     postResynchroniserApiV1OrganizationsBaseClientResynchroniserPost: vi.fn(),
     putConservationApiV1OrganizationsBaseClientConservationPut: vi.fn(),
     getEquipeApiV1OrganizationsEquipeGet: vi.fn(),
+    // [.mark] L4: the « After the call » theme reads its settings; nothing set.
+    getApresAppelApiV1OrganizationsApresAppelGet: () =>
+        Promise.resolve({ data: { reglages: {}, adresses: { organisation: [], installation: [] }, smtp_installation: false, base_rattachee: false } }),
+    putApresAppelApiV1OrganizationsApresAppelPut: vi.fn(),
+    postEssaiMailApiV1OrganizationsApresAppelEssaiMailPost: vi.fn(),
+    postNuitApiV1OrganizationsApresAppelNuitPost: vi.fn(),
+    postRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPost: vi.fn(),
     putEquipeApiV1OrganizationsEquipePut: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -167,13 +174,14 @@ const TITRE_ANGLAIS: Record<ThemeOrganisation, string> = {
     equipe: "Team and routing",
     ecoute: "Listening",
     donnees: "Client data",
+    "apres-appel": "After the call",
     integrations: "Integrations",
     developpeurs: "Developers",
 };
 
 const ouvrirLaPage = async () => {
     render(<SettingsPage />);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(7));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(8));
 };
 
 const ouvrirLeTheme = async (theme: ThemeOrganisation) => {

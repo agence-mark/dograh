@@ -262,6 +262,15 @@ export const completerChampsFiche = <T,>(
     })) as ChampFiche[];
 };
 
+/** [.mark] l-agent-travaille, L4: the after-call of an agent (api/schemas/apres_appel.py). */
+export type ApresAppelAgent = {
+    actif?: boolean;
+    synthese?: boolean;
+    mail?: boolean;
+    modules?: string[];
+    champs?: Record<string, string>;
+};
+
 export type WorkflowConfigurations = WorkflowConfigurationBase & {
     ambient_noise_configuration: AmbientNoiseConfiguration;
     max_call_duration: number;  // Maximum call duration in seconds
@@ -299,6 +308,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // the model's reply after a tool is kept when the result beats the end of the
     // caller's turn. Absent means off, Pipecat's behaviour.
     relance_apres_outil?: boolean;
+    // [.mark] Chantier l-agent-travaille, L4 (A6): what this agent does after the call.
+    // Absent or off: nothing is written or sent, the behaviour of before.
+    apres_appel?: ApresAppelAgent | null;
     // [.mark] Part 2: the clerk's model, shaped like a model override (its key
     // comes back masked and is restored on save), and its instructions (absent:
     // the generic ones written in the code).

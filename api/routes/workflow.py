@@ -377,6 +377,19 @@ class UpdateWorkflowRequest(BaseModel):
             raise ValueError(
                 "Transitions in the reply require the Postscript note-taking mode"
             )
+        # [.mark] l-agent-travaille, L4 : l'après-appel de l'agent, vérifié ici (module
+        # inconnu, champ mal nommé) pour la même raison que les horaires.
+        if value is not None and value.apres_appel:
+            from api.schemas.apres_appel import ApresAppelAgent
+
+            try:
+                value.apres_appel = ApresAppelAgent.model_validate(
+                    value.apres_appel
+                ).model_dump()
+            except ValidationError as erreur:
+                raise ValueError(
+                    "; ".join(e["msg"] for e in erreur.errors())
+                ) from None
         return value
 
 

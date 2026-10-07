@@ -11,6 +11,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel
 
 from api.db import db_client
+from api.enums import OrganizationConfigurationKey
 from api.services.appel_simule import reglages as reglages_simules
 from api.services.cles_reference import MARQUE, reference_de
 from api.services.configuration.ai_model_configuration import (
@@ -19,8 +20,14 @@ from api.services.configuration.ai_model_configuration import (
 from api.services.configuration.registry import ServiceProviders
 
 # P19 : tous les fournisseurs de Dograh, ceux que propose « Models ».
-Fournisseur = ServiceProviders
-FOURNISSEURS: tuple[str, ...] = tuple(p.value for p in ServiceProviders)
+# [.mark] l-agent-travaille, L4 : plus deux secrets qui ne sont pas des clés de modèle, choisis
+# par référence comme les autres (A4 mot de passe du serveur de mail, A7 secret du workflow
+# sur mesure). Ni « Models » ni un agent ne les proposent : seulement « Après l'appel ».
+FOURNISSEURS_HORS_MODELES: tuple[str, ...] = ("smtp", "webhook")
+FOURNISSEURS: tuple[str, ...] = (
+    tuple(p.value for p in ServiceProviders) + FOURNISSEURS_HORS_MODELES
+)
+Fournisseur = Literal[FOURNISSEURS]  # type: ignore[valid-type]
 
 
 class Usage(BaseModel):
@@ -33,6 +40,7 @@ class Usage(BaseModel):
         "agent",
         "modeles_organisation",
         "modeles_agent",
+        "apres_appel",
     ]
     nom: Optional[str] = None
 
@@ -72,6 +80,12 @@ async def usages_de(uuid: str, organization_id: int) -> list[Usage]:
     for outil in await db_client.get_tools_for_organization(organization_id):
         if uuid in str(outil.definition or {}):
             usages.append(Usage(ou="outil", nom=outil.name))
+    # [.mark] L4 : la clé de la synthèse, le mot de passe du serveur de mail, le secret du webhook.
+    apres_appel = await db_client.get_configuration(
+        organization_id, OrganizationConfigurationKey.APRES_APPEL.value
+    )
+    if apres_appel is not None and reference in str(apres_appel.value or {}):
+        usages.append(Usage(ou="apres_appel"))
     modeles = await get_organization_ai_model_configuration_v2(organization_id)
     if modeles is not None and reference in modeles.model_dump_json():
         usages.append(Usage(ou="modeles_organisation"))

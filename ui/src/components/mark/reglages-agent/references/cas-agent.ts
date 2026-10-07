@@ -166,6 +166,8 @@ export const CAS_AGENT: CasAgent[] = [
         choisir("fiche_mode_de_note", "post_scriptum"),
         inter("portes_dans_la_reponse"),
     ]),
+    // Chantier l-agent-travaille, L4 (A6): the after-call of the agent, frozen once.
+    c("apres-appel", "ajout-mark", "donnees", ["apres_appel"], [inter("apres_appel_actif")]),
     // Plan mode-prise-de-notes, part 2: the clerk's dialog, frozen once.
     c("greffier", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_llm"], [
         choisir("fiche_mode_de_note", "greffier"),

@@ -107,6 +107,13 @@ export const usePreferencesOrganisation = () => {
                     ...(suivantes.adresse_etablissement
                         ? { adresse_etablissement: suivantes.adresse_etablissement }
                         : {}),
+                    // [.mark] L4 (A5): sent only once the organization has some or had
+                    // some (the server keeps an absent key), so every save of before
+                    // sends exactly what it sent.
+                    ...(suivantes.adresses_notification !== undefined &&
+                    ((suivantes.adresses_notification ?? []).length > 0 || (enregistrees.adresses_notification ?? []).length > 0)
+                        ? { adresses_notification: suivantes.adresses_notification }
+                        : {}),
                 },
             });
 

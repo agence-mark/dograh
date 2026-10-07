@@ -39,6 +39,8 @@ const LIBELLES_TABLES: Record<string, Texte> = {
     demande: { en: "Requests", fr: "Demandes" },
     contact: { en: "Contacts (after their last activity)", fr: "Contacts (après leur dernière activité)" },
     action: { en: "Actions (mails, SMS…)", fr: "Actions (mails, SMS…)" },
+    // [.mark] L4 (A8): 6 months by default, shorter if the client wants.
+    verbatim: { en: "Transcripts (verbatim)", fr: "Transcriptions (verbatim)" },
 };
 
 export const useBaseClient = () => {

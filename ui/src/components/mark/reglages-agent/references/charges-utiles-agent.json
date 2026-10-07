@@ -1019,6 +1019,26 @@
         }
       ]
     },
+    "apres-appel": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "apres_appel": {
+              "actif": true,
+              "synthese": true,
+              "mail": true,
+              "modules": [],
+              "champs": {}
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
     "greffier": {
       "carte": "ajout-mark",
       "theme": "donnees",

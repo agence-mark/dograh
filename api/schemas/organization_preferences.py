@@ -57,6 +57,15 @@ class OrganizationPreferences(BaseModel):
             "name, and is given to agents as {{adresse_etablissement}}."
         ),
     )
+    # None, never [] (stored rows keep their keys: exclude_none at write, X2).
+    adresses_notification: list[str] | None = Field(
+        default=None,
+        description=(
+            "[.mark] Where this organization's alerts go (chantier l-agent-travaille, A5, PN6): "
+            "a failed after-call step, a failed purge, a call to call back after a failure. "
+            "One or more mail addresses; the .mark addresses of the installation receive them too."
+        ),
+    )
     external_pbx_integrations_enabled: bool = False
     disposition_mapping_enabled: bool = False
     disposition_mapping: dict[str, str] = Field(
@@ -69,6 +78,15 @@ class OrganizationPreferences(BaseModel):
             "the mapping pass through unchanged."
         ),
     )
+
+    @field_validator("adresses_notification")
+    @classmethod
+    def _adresses_notification(cls, value: list[str] | None) -> list[str] | None:
+        """[.mark] Trimmed, de-duplicated, each a mail address (422 otherwise); none = None,
+        so a row that never had any is stored exactly as before."""
+        from api.schemas.apres_appel import verifier_adresses
+
+        return verifier_adresses(value or []) or None
 
     @field_validator("disposition_mapping", mode="before")
     @classmethod

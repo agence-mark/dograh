@@ -125,7 +125,7 @@ afterEach(() => {
 
 const ouvrirLaPage = async (enveloppe?: (n: ReactNode) => ReactNode) => {
     render(<>{enveloppe ? enveloppe(<SettingsPage />) : <SettingsPage />}</>);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(7));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(8));
 };
 
 const ouvrirLeTheme = async (id: string) => {

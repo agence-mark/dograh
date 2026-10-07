@@ -842,6 +842,19 @@ class WorkflowConfigurationDefaults(BaseModel):
         default=False,
         description="Reuse generated speech for repeated phrases. Supports MiniMax TTS.",
     )
+    # [.mark] Chantier l-agent-travaille, L4 (A6) : l'après-appel de cet agent, éteint par
+    # défaut (X2). Un dict ici et non le modèle ``ApresAppelAgent`` : ce schéma est relu à la
+    # mise en place de l'appel, une levée y tuerait l'appel ; il est vérifié à
+    # l'ENREGISTREMENT (``UpdateWorkflowRequest``) et lu sans jamais lever
+    # (``reglages_de_lagent``). Format : ``api/schemas/apres_appel.py``.
+    apres_appel: dict | None = Field(
+        default=None,
+        description=(
+            "After the call: write each call in the client's database, summarise it, "
+            "mail the request, and run the organization's modules this agent uses. "
+            "Empty or off: nothing is written or sent, the agent behaves exactly as before."
+        ),
+    )
     call_dispositions: list[CallDispositionOption] = Field(
         default_factory=list,
         max_length=MAX_CALL_DISPOSITIONS,

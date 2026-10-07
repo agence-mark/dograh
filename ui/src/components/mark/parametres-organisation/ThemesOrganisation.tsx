@@ -3,7 +3,8 @@
 /**
  * [.mark] The seven themes of the Platform Settings page (convention § 2):
  * Organization, Establishments, Team and routing, Listening, Client data,
- * Integrations, Developers (Team and Client data added by l-agent-travaille, L3).
+ * After the call, Integrations, Developers (Team and Client data added by
+ * l-agent-travaille, L3; After the call by L4).
  *
  * Organization, Business and Integrations save with their theme button, which
  * stays ENABLED untouched like the cards they come from (E6: the PUT replaces
@@ -18,6 +19,7 @@ import {
     Ear,
     ExternalLink,
     type LucideIcon,
+    Mail,
     Plug,
     Settings,
     SlidersHorizontal,
@@ -35,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
 import { ChampAdresseEtablissement } from "../ChampAdresseEtablissement";
+import { ChampEtiquettes } from "../ChampEtiquettes";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
@@ -61,6 +64,8 @@ export const THEMES_ORGANISATION: Array<{ id: ThemeOrganisation; titre: Texte; i
     { id: "equipe", titre: { en: "Team and routing", fr: "Équipe et routage" }, icone: Users },
     { id: "ecoute", titre: { en: "Listening", fr: "Écoute" }, icone: Ear },
     { id: "donnees", titre: { en: "Client data", fr: "Données du client" }, icone: Database },
+    // [.mark] L4 (chantier l-agent-travaille), the 6th theme of the order validated on 06/10.
+    { id: "apres-appel", titre: { en: "After the call", fr: "Après l'appel" }, icone: Mail },
     { id: "integrations", titre: { en: "Integrations", fr: "Intégrations" }, icone: Plug },
     { id: "developpeurs", titre: { en: "Developers", fr: "Développeurs" }, icone: Code },
 ];
@@ -148,14 +153,15 @@ const stylesFuseau = {
 };
 
 const PREFERENCES_ENREGISTREES: Texte = { en: "Preferences saved", fr: "Préférences enregistrées" };
-const CLES_ORGANISATION = ["test_phone_number", "timezone"] as const;
+const CLES_ORGANISATION = ["test_phone_number", "timezone", "adresses_notification"] as const;
 
 export const ThemeOrganisationGenerale = ({
     preferences,
     ouvert,
     onBasculer,
     signaler,
-}: ProprietesThemeOrganisation & { preferences: EtatPreferences }) => {
+    adressesMark = [],
+}: ProprietesThemeOrganisation & { preferences: EtatPreferences; adressesMark?: string[] }) => {
     const { t } = useLangue();
     const idFuseau = useId();
     const { enregistre, brouillon, setBrouillon } = useBrouillonPreferences(preferences, CLES_ORGANISATION);
@@ -203,6 +209,33 @@ export const ThemeOrganisationGenerale = ({
                             value={brouillon.test_phone_number || ""}
                             onChange={(event) => setBrouillon((avant) => ({ ...avant, test_phone_number: event.target.value }))}
                             placeholder="+15551234567"
+                        />
+                    </ChampReglage>
+                    {/* [.mark] l-agent-travaille, L4 (A5, PN6): where this organization's alerts go. */}
+                    <ChampReglage
+                        cle="adresses_notification"
+                        idControle="settings-adresses-notification"
+                        libelle={{ en: "Notification addresses", fr: "Adresses de notification" }}
+                        aides={[
+                            {
+                                en: "One or more mail addresses: a failed after-call step, a failed night purge, a call to call back after a breakdown. Only this organization's calls.",
+                                fr: "Une ou plusieurs adresses mail : une étape d'après-appel en échec, une purge de nuit en échec, un appel à rappeler après une panne. Seulement les appels de cette organisation.",
+                            },
+                            ...(adressesMark.length > 0
+                                ? [
+                                      {
+                                          en: `The .mark addresses of the installation also receive everything: ${adressesMark.join(", ")}.`,
+                                          fr: `Les adresses .mark de l'installation reçoivent aussi tout : ${adressesMark.join(", ")}.`,
+                                      },
+                                  ]
+                                : []),
+                        ]}
+                    >
+                        <ChampEtiquettes
+                            id="settings-adresses-notification"
+                            valeurs={brouillon.adresses_notification ?? []}
+                            onChange={(valeurs) => setBrouillon((avant) => ({ ...avant, adresses_notification: valeurs }))}
+                            placeholder={t({ en: "alerts@example.org", fr: "alertes@example.org" })}
                         />
                     </ChampReglage>
                     <ChampReglage cle="timezone" libelle={{ en: "Timezone", fr: "Fuseau horaire" }}>

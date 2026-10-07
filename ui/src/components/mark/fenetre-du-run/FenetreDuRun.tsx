@@ -24,6 +24,7 @@ import { getSignedUrl } from "@/lib/files";
 import { cn } from "@/lib/utils";
 
 import { type Texte, useLangue } from "../langue/langue";
+import { SectionApresAppel } from "./SectionApresAppel";
 import type {
     AnalyseDuRun,
     Bloc,
@@ -781,6 +782,8 @@ export function FenetreDuRun({
             <Section titre={{ en: "Summary", fr: "Résumé" }} bloc={analyse.summary} ouverte testId="bloc-summary">
                 <BlocResume resume={analyse.summary} incidents={analyse.incidents} />
             </Section>
+            {/* [.mark] l-agent-travaille, L4 (A9): shown only when the agent uses the after-call. */}
+            <SectionApresAppel workflowId={workflowId} runId={runId} />
             <Section
                 titre={{ en: "Latency, turn by turn", fr: "Latence, tour par tour" }}
                 bloc={analyse.latency}

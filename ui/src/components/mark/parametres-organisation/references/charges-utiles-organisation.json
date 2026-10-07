@@ -95,6 +95,33 @@
         }
       ]
     },
+    "adresses-notification": {
+      "carte": "preferences",
+      "theme": "organisation",
+      "appels": [
+        {
+          "route": "preferences",
+          "corps": {
+            "test_phone_number": "+33344000000",
+            "timezone": "Europe/Paris",
+            "external_pbx_integrations_enabled": false,
+            "disposition_mapping_enabled": true,
+            "disposition_mapping": {
+              "voicemail": "AM"
+            },
+            "adresse_etablissement": {
+              "code_postal": "60000",
+              "code_insee": "60057",
+              "commune": "Beauvais",
+              "voie": "4 rue des Artisans"
+            },
+            "adresses_notification": [
+              "alertes@example.org"
+            ]
+          }
+        }
+      ]
+    },
     "adresse-voie": {
       "carte": "preferences",
       "theme": "etablissement",
