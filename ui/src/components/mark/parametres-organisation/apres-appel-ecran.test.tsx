@@ -199,6 +199,49 @@ describe("After the call (run window)", () => {
         expect((await screen.findByTestId("bloc-apres-appel-essai")).textContent).toMatch(/après-appel non exécuté|after-call not run/);
     });
 
+    it("l-agent-collegue L8: shows the mentions, what the agent did for the team and the record's verdict", async () => {
+        m.run.mockResolvedValue({
+            data: {
+                actif: true,
+                etapes: [{ nom: "ecriture", statut: "ok", tentatives: 1, definitive: true, detail: "call 3", envois: [] }],
+                appel_id: 3,
+                mentions: [
+                    { personne: "Camille Martin", source: "transmission", certitude: "certaine", extrait: "À rappeler : facture" },
+                    { personne: "Sacha", source: "nom_cite", certitude: "a_confirmer", extrait: "voir avec Sasha" },
+                ],
+                actions_equipe: [
+                    { type: "transfert", personne: "Camille Martin", detail: "pas de réponse, 30 s" },
+                    { type: "rappel", personne: "Camille Martin", detail: "facture" },
+                ],
+                qualite_fiche: { statut: "a_reprendre", problemes: [{ champ: "email", code: "courriel_domaine_douteux", detail: "gmial.com, peut-être gmail.com" }] },
+            },
+        });
+        rendre(<SectionApresAppel workflowId={7} runId={42} />);
+        const mentions = await screen.findAllByTestId("mention");
+        expect(mentions.map((x) => x.getAttribute("data-certitude"))).toEqual(["certaine", "a_confirmer"]);
+        expect(mentions[0].textContent).toContain("Camille Martin");
+        expect(mentions[0].textContent).toMatch(/demande transmise|request passed on/);
+        expect(mentions[1].textContent).toMatch(/à confirmer|to confirm/);
+        expect(screen.getAllByTestId("action-equipe").map((x) => x.getAttribute("data-type"))).toEqual(["transfert", "rappel"]);
+        expect(screen.getByTestId("actions-equipe").textContent).toMatch(/Rappel à faire|Call-back to make/);
+        expect(screen.getByTestId("qualite-fiche").getAttribute("data-statut")).toBe("a_reprendre");
+        expect(screen.getByTestId("qualite-fiche").textContent).toContain("gmial.com, peut-être gmail.com");
+    });
+
+    it("l-agent-collegue L8: no mention, no action, no verdict: nothing new is drawn (X2)", async () => {
+        m.run.mockResolvedValue({ data: { actif: true, etapes: [], appel_id: 3, mentions: [], actions_equipe: [], qualite_fiche: null } });
+        rendre(<SectionApresAppel workflowId={7} runId={42} />);
+        await screen.findByTestId("bloc-apres-appel");
+        expect(screen.queryByTestId("mentions-du-run")).toBeNull();
+        expect(screen.queryByTestId("qualite-fiche")).toBeNull();
+    });
+
+    it("l-agent-collegue L8: every word of the sub-part has its two languages", async () => {
+        const { ACTIONS_EQUIPE, CERTITUDES, PROBLEMES_FICHE, SOURCES_MENTION } = await import("../fenetre-du-run/SectionApresAppel");
+        for (const table of [ACTIONS_EQUIPE, CERTITUDES, PROBLEMES_FICHE, SOURCES_MENTION])
+            for (const x of Object.values(table)) expect(x.en && x.fr).toBeTruthy();
+    });
+
     it("shows nothing when the agent does not use the after-call (X2)", async () => {
         m.run.mockResolvedValue({ data: { actif: false, etapes: [] } });
         const { container } = rendre(<SectionApresAppel workflowId={7} runId={42} />);

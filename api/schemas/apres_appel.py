@@ -369,6 +369,26 @@ class EtapeApresAppel(BaseModel):
     envois: list[dict] = Field(default_factory=list)
 
 
+class MentionDuRun(BaseModel):
+    """l-agent-collegue, L8: a person of the team concerned by this call (``mark.mention``)."""
+
+    personne: str = Field(description="First and last name, as the client wrote them (else the key).")
+    source: str = Field(description="transfert, transmission, destinataire, rendez_vous, nom_cite")
+    certitude: str = Field(description="certaine, detectee, a_confirmer")
+    extrait: str | None = None
+
+
+class ActionEquipe(BaseModel):
+    """l-agent-collegue, L8: what the agent did for the team during the call, read in the record."""
+
+    type: str = Field(
+        description="transfert, transmission, rappel, rendez_vous, verification, dossier_lu"
+    )
+    personne: str | None = None
+    detail: str | None = None
+    le: datetime | None = None
+
+
 class ApresAppelDuRun(BaseModel):
     actif: bool = Field(
         description="False: this run's agent does not use the after-call."
@@ -382,6 +402,16 @@ class ApresAppelDuRun(BaseModel):
     demande_id: int | None = None
     synthese: str | None = None
     autre_demande_ouverte_id: int | None = None
+    # l-agent-collegue, L8: the sub-part « Mentions » of the section, and the record's verdict (L7, Q-2).
+    mentions: list[MentionDuRun] = Field(default_factory=list)
+    mentions_illisibles: bool = Field(
+        default=False, description="The client's database could not be read for the mentions."
+    )
+    actions_equipe: list[ActionEquipe] = Field(default_factory=list)
+    qualite_fiche: dict | None = Field(
+        default=None,
+        description="The record's verdict: statut (complete, a_reprendre, non_controle) and problemes.",
+    )
 
 
 class AdressesNotification(BaseModel):

@@ -227,6 +227,32 @@ export type AwsNovaSonicRealtimeLlmConfiguration = {
 };
 
 /**
+ * ActionEquipe
+ *
+ * l-agent-collegue, L8: what the agent did for the team during the call, read in the record.
+ */
+export type ActionEquipe = {
+    /**
+     * Type
+     *
+     * transfert, transmission, rappel, rendez_vous, verification, dossier_lu
+     */
+    type: string;
+    /**
+     * Personne
+     */
+    personne?: string | null;
+    /**
+     * Detail
+     */
+    detail?: string | null;
+    /**
+     * Le
+     */
+    le?: string | null;
+};
+
+/**
  * ActionVue
  */
 export type ActionVue = {
@@ -545,6 +571,28 @@ export type ApresAppelDuRun = {
      * Autre Demande Ouverte Id
      */
     autre_demande_ouverte_id?: number | null;
+    /**
+     * Mentions
+     */
+    mentions?: Array<MentionDuRun>;
+    /**
+     * Mentions Illisibles
+     *
+     * The client's database could not be read for the mentions.
+     */
+    mentions_illisibles?: boolean;
+    /**
+     * Actions Equipe
+     */
+    actions_equipe?: Array<ActionEquipe>;
+    /**
+     * Qualite Fiche
+     *
+     * The record's verdict: statut (complete, a_reprendre, non_controle) and problemes.
+     */
+    qualite_fiche?: {
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
@@ -5424,6 +5472,36 @@ export type McpToolDefinition = {
      * MCP server configuration.
      */
     config: McpToolConfig;
+};
+
+/**
+ * MentionDuRun
+ *
+ * l-agent-collegue, L8: a person of the team concerned by this call (``mark.mention``).
+ */
+export type MentionDuRun = {
+    /**
+     * Personne
+     *
+     * First and last name, as the client wrote them (else the key).
+     */
+    personne: string;
+    /**
+     * Source
+     *
+     * transfert, transmission, destinataire, rendez_vous, nom_cite
+     */
+    source: string;
+    /**
+     * Certitude
+     *
+     * certaine, detectee, a_confirmer
+     */
+    certitude: string;
+    /**
+     * Extrait
+     */
+    extrait?: string | null;
 };
 
 /**
@@ -10911,6 +10989,36 @@ export type WorkflowConfigurationDefaults = {
      * The extraction variables that trigger the reference reader (invoice, quote or order numbers), same format as above. Empty: reference*.
      */
     variables_reference?: string;
+    /**
+     * Controle Donnees
+     *
+     * Checks the data: during the call, a phone number dictated with 9 or 11 digits is signalled to the model at a step that collects a phone; at the end of the call the record is checked (phone, postcode and town, e-mail, date, empty fields of the steps the call went through) and the verdict written with the call. Never changes a value. Off: as before.
+     */
+    controle_donnees?: boolean;
+    /**
+     * Variables Telephone
+     *
+     * Phone fields, same format as the town variables. Empty: the default.
+     */
+    variables_telephone?: string;
+    /**
+     * Variables Code Postal
+     *
+     * Postcode fields, same format. Empty: the default.
+     */
+    variables_code_postal?: string;
+    /**
+     * Variables Courriel
+     *
+     * E-mail fields, same format. Empty: the default.
+     */
+    variables_courriel?: string;
+    /**
+     * Variables Date
+     *
+     * Date fields, same format. Empty: the default.
+     */
+    variables_date?: string;
     /**
      * Horaires Ouverture
      *
