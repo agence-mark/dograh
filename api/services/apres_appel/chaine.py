@@ -313,6 +313,8 @@ async def _module(nom: str, ctx: ContexteModule, bloc: dict) -> dict:
             connexion = await _base(ctx.organization_id)
             try:
                 for e in resultat.envois:
+                    if e.get("deja"):  # sent by an earlier try: its row is already there
+                        continue
                     await sql.noter_action(
                         connexion,
                         appel_id=bloc.get("appel_id"),

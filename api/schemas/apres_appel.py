@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from api.services.cles_reference import est_reference
 
 _ADRESSE = re.compile(r"^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$")
-MODULES_CONNUS = ("webhook", "connecteurs")
+MODULES_CONNUS = ("webhook", "connecteurs", "sms")
 
 # The names of the steps, in their order on screen (A9).
 ETAPES = ("ecriture", "synthese", "mail")
@@ -189,6 +189,94 @@ ROLES_DE_LA_FICHE = (
 )
 
 
+# --------------------------------------------------------------------------- #
+# The SMS of an agent (L6, plan sms-recapitulatif D1 to D11)
+# --------------------------------------------------------------------------- #
+
+LONGUEUR_SMS = 160
+# A sender name Twilio accepts in France: 1 to 11 letters, digits or spaces, one letter at least.
+_EXPEDITEUR = re.compile(r"^(?=.*[A-Za-z])[A-Za-z0-9 ]{1,11}$")
+_E164 = re.compile(r"^\+[1-9]\d{7,14}$")
+
+
+def numero_e164(brut: str | None) -> str | None:
+    """« 06 12 34 56 78 », « +33 6… », « 0033 6… » → « +33612345678 »; None when it is
+    not a number. A national number without its country is read as French."""
+    if not brut:
+        return None
+    chiffres = re.sub(r"[\s.\-()]", "", str(brut))
+    if chiffres.startswith("00"):
+        chiffres = "+" + chiffres[2:]
+    elif re.fullmatch(r"0[1-9]\d{8}", chiffres):
+        chiffres = "+33" + chiffres[1:]
+    return chiffres if _E164.match(chiffres) else None
+
+
+def est_un_mobile(e164: str | None) -> bool:
+    """D4: a French mobile (06, 07). A foreign number is not taken (no SMS): telling a
+    foreign mobile from a landline needs ``phonenumbers``, not in the image (R5)."""
+    return bool(e164 and re.fullmatch(r"\+33[67]\d{8}", e164))
+
+
+class SmsEnvoi(BaseModel):
+    actif: bool = Field(default=False, description="Send this SMS after each call (off by default).")
+    texte: str | None = Field(
+        default=None,
+        max_length=480,
+        description="The text with blanks ({{nom}}, {{motif}}…), filled by the record. Cut to 160 characters once filled.",
+    )
+
+    @model_validator(mode="after")
+    def _texte_si_actif(self):
+        self.texte = (self.texte or "").strip() or None
+        if self.actif and not self.texte:
+            raise ValueError("An SMS switched on needs its text.")
+        return self
+
+
+class SmsEquipe(SmsEnvoi):
+    numeros: list[str] = Field(default_factory=list, max_length=5, description="The team's mobile numbers.")
+
+    @field_validator("numeros")
+    @classmethod
+    def _numeros(cls, valeurs: list[str]) -> list[str]:
+        propres = []
+        for brut in valeurs:
+            numero = numero_e164(brut)
+            if numero is None:
+                raise ValueError(f"« {brut} » is not a phone number.")
+            if not est_un_mobile(numero):
+                raise ValueError(f"« {brut} » is not a French mobile number (06, 07).")
+            if numero not in propres:
+                propres.append(numero)
+        return propres
+
+    @model_validator(mode="after")
+    def _numeros_si_actif(self):
+        if self.actif and not self.numeros:
+            raise ValueError("The team SMS needs one number at least.")
+        return self
+
+
+class SmsAgent(BaseModel):
+    """D1 to D11: sent by the client's Twilio after the call, never written by the model."""
+
+    expediteur: str | None = Field(
+        default=None,
+        description="The sender name (« NUANCESFEU », 11 characters at most). Empty: the number of « Telephony ».",
+    )
+    appelant: SmsEnvoi = Field(default_factory=SmsEnvoi)
+    equipe: SmsEquipe = Field(default_factory=SmsEquipe)
+
+    @field_validator("expediteur")
+    @classmethod
+    def _expediteur(cls, valeur: str | None) -> str | None:
+        valeur = (valeur or "").strip() or None
+        if valeur and not _EXPEDITEUR.match(valeur):
+            raise ValueError("A sender name is 1 to 11 letters, digits or spaces, with one letter at least.")
+        return valeur
+
+
 class ApresAppelAgent(BaseModel):
     """What this agent's calls do after the call (A6). Off by default (X2)."""
 
@@ -216,6 +304,8 @@ class ApresAppelAgent(BaseModel):
             "urgency, request type, call-back number). Empty: the field of the same name."
         ),
     )
+
+    sms: SmsAgent = Field(default_factory=SmsAgent, description="The SMS of the module « sms » (L6).")
 
     @field_validator("modules")
     @classmethod

@@ -48,7 +48,7 @@ import {
     NOMS_AVEC_TEMPERATURE,
 } from "./consigne-greffier";
 import { useEnregistrementTheme } from "./enregistrement";
-import { champsInvalides, lireApresAppel, pourEnvoyer, SectionApresAppelAgent } from "./SectionApresAppelAgent";
+import { champsInvalides, lireApresAppel, pourEnvoyer, SectionApresAppelAgent, smsInvalides } from "./SectionApresAppelAgent";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useEtatTheme, useRevelation } from "./theme-commun";
 
 export const ID_THEME_DONNEES = "donnees";
@@ -103,7 +103,10 @@ export const ThemeDonnees = ({
     ouvrir,
     issuesParDefaut,
     etapesSansPremiereReplique = [],
+    workflowId,
 }: ProprietesThemeAgent & {
+    /** L6: the SMS preview and counter are read for this agent. */
+    workflowId?: number;
     issuesParDefaut: CallDispositionOption[];
     /** Plan porte-parlee (D3): steps a transition leads to, with no first reply. */
     etapesSansPremiereReplique?: string[];
@@ -254,6 +257,10 @@ export const ThemeDonnees = ({
             libelle: { en: "Clerk", fr: "Greffier" },
             message: { en: "the temperature must be a number.", fr: "la température doit être un nombre." },
         });
+    }
+    const erreurSms = smsInvalides(apresAppel)[0];
+    if (erreurSms) {
+        erreurs.push({ cle: "apres_appel.sms", libelle: { en: "SMS after the call", fr: "SMS après l'appel" }, message: erreurSms });
     }
     if (apresAppel.actif && champsInvalides(apresAppel).length > 0) {
         erreurs.push({
@@ -511,7 +518,7 @@ export const ThemeDonnees = ({
 
             {/* [.mark] Chantier l-agent-travaille, L4 (A6). */}
             <Intertitre id="donnees-apres-appel" titre={{ en: "After the call", fr: "Après l'appel" }}>
-                <SectionApresAppelAgent valeur={apresAppel} onChange={setApresAppel} />
+                <SectionApresAppelAgent valeur={apresAppel} onChange={setApresAppel} workflowId={workflowId} champsFiche={champs.map((c) => c.nom)} />
             </Intertitre>
 
             <Intertitre

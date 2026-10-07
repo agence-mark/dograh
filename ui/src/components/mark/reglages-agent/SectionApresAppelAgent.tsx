@@ -14,12 +14,18 @@
  */
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import type { ApresAppelAgent } from "@/types/workflow-configurations";
+import type { ApresAppelAgent, SmsAgent } from "@/types/workflow-configurations";
 
 import { ChampReglage } from "../ecran/ChampReglage";
 import { type Texte, useLangue } from "../langue/langue";
+import { BoutonSms, erreursSms, SMS_ETEINT } from "./ModaleSms";
 
-export const APRES_APPEL_ETEINT: Required<ApresAppelAgent> = { actif: false, synthese: true, mail: true, modules: [], champs: {} };
+/** What the screen holds; ``sms`` stays absent until it is stored or edited (a frozen payload never gains it). */
+export type EtatApresAppel = Required<Omit<ApresAppelAgent, "sms">> & { sms?: SmsAgent };
+
+export const APRES_APPEL_ETEINT: EtatApresAppel = { actif: false, synthese: true, mail: true, modules: [], champs: {} };
+
+export const smsInvalides = (valeur: EtatApresAppel) => (valeur.actif && valeur.modules.includes("sms") && valeur.sms ? erreursSms(valeur.sms) : []);
 
 export const MODULES_APRES_APPEL: Array<{ nom: string; libelle: Texte }> = [
     { nom: "webhook", libelle: { en: "Custom webhook (n8n)", fr: "Webhook sur mesure (n8n)" } },
@@ -30,6 +36,7 @@ export const MODULES_APRES_APPEL: Array<{ nom: string; libelle: Texte }> = [
             fr: "Refaire les actions mises de côté pendant l'appel (un rendez-vous que l'agenda n'a pas pris à temps)",
         },
     },
+    { nom: "sms", libelle: { en: "SMS to the caller and the team (the client's Twilio)", fr: "SMS à l'appelant et à l'équipe (Twilio du client)" } },
 ];
 
 const ROLES: Array<{ role: string; libelle: Texte }> = [
@@ -45,7 +52,7 @@ const ROLES: Array<{ role: string; libelle: Texte }> = [
 export const NOM_DE_CHAMP = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 
 /** What the screen holds, completed with the defaults; compared and sent as such. */
-export const lireApresAppel = (brut: ApresAppelAgent | null | undefined): Required<ApresAppelAgent> => ({
+export const lireApresAppel = (brut: ApresAppelAgent | null | undefined): EtatApresAppel => ({
     ...APRES_APPEL_ETEINT,
     ...(brut ?? {}),
     modules: [...(brut?.modules ?? [])],
@@ -53,7 +60,7 @@ export const lireApresAppel = (brut: ApresAppelAgent | null | undefined): Requir
 });
 
 /** The fields typed, without the empty ones and those equal to their role (the default). */
-export const pourEnvoyer = (valeur: Required<ApresAppelAgent>): Required<ApresAppelAgent> => ({
+export const pourEnvoyer = (valeur: EtatApresAppel): EtatApresAppel => ({
     ...valeur,
     champs: Object.fromEntries(
         Object.entries(valeur.champs)
@@ -62,18 +69,22 @@ export const pourEnvoyer = (valeur: Required<ApresAppelAgent>): Required<ApresAp
     ),
 });
 
-export const champsInvalides = (valeur: Required<ApresAppelAgent>) =>
+export const champsInvalides = (valeur: EtatApresAppel) =>
     Object.values(valeur.champs).filter((champ) => (champ ?? "").trim() !== "" && !NOM_DE_CHAMP.test((champ ?? "").trim()));
 
 export function SectionApresAppelAgent({
     valeur,
     onChange,
+    workflowId,
+    champsFiche = [],
 }: {
-    valeur: Required<ApresAppelAgent>;
-    onChange: (valeur: Required<ApresAppelAgent>) => void;
+    valeur: EtatApresAppel;
+    onChange: (valeur: EtatApresAppel) => void;
+    workflowId?: number;
+    champsFiche?: string[];
 }) {
     const { t } = useLangue();
-    const poser = (partiel: Partial<ApresAppelAgent>) => onChange({ ...valeur, ...partiel } as Required<ApresAppelAgent>);
+    const poser = (partiel: Partial<ApresAppelAgent>) => onChange({ ...valeur, ...partiel } as EtatApresAppel);
     return (
         <>
             <ChampReglage
@@ -142,6 +153,14 @@ export function SectionApresAppelAgent({
                             ))}
                         </div>
                     </ChampReglage>
+                    {valeur.modules.includes("sms") && (
+                        <BoutonSms
+                            workflowId={workflowId}
+                            valeur={valeur.sms ?? SMS_ETEINT}
+                            onChange={(sms) => poser({ sms } as Partial<EtatApresAppel>)}
+                            champsFiche={champsFiche}
+                        />
+                    )}
                     <ChampReglage
                         cle="apres_appel.champs"
                         libelle={{ en: "Record fields read after the call", fr: "Champs de la fiche lus après l'appel" }}

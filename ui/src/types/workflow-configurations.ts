@@ -263,12 +263,22 @@ export const completerChampsFiche = <T,>(
 };
 
 /** [.mark] l-agent-travaille, L4: the after-call of an agent (api/schemas/apres_appel.py). */
+export type SmsEnvoi = { actif: boolean; texte: string | null };
+
+/** [.mark] L6: the SMS of the module « sms » (plan sms-recapitulatif). */
+export type SmsAgent = {
+    expediteur: string | null;
+    appelant: SmsEnvoi;
+    equipe: SmsEnvoi & { numeros: string[] };
+};
+
 export type ApresAppelAgent = {
     actif?: boolean;
     synthese?: boolean;
     mail?: boolean;
     modules?: string[];
     champs?: Record<string, string>;
+    sms?: SmsAgent;
 };
 
 export type WorkflowConfigurations = WorkflowConfigurationBase & {

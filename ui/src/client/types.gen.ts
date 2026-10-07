@@ -392,6 +392,36 @@ export type AmbientNoiseUploadResponse = {
 };
 
 /**
+ * ApercuSms
+ */
+export type ApercuSms = {
+    /**
+     * Texte
+     */
+    texte: string;
+    /**
+     * Longueur
+     */
+    longueur: number;
+    /**
+     * Coupe
+     */
+    coupe: boolean;
+    /**
+     * Parties
+     */
+    parties: number;
+    /**
+     * Encodage
+     */
+    encodage: string;
+    /**
+     * Run Id
+     */
+    run_id?: number | null;
+};
+
+/**
  * AppelDeSerie
  */
 export type AppelDeSerie = {
@@ -1886,6 +1916,16 @@ export type Comportements = {
 };
 
 /**
+ * CompteurSms
+ */
+export type CompteurSms = {
+    /**
+     * Envoyes
+     */
+    envoyes: number;
+};
+
+/**
  * ConnecteurVue
  */
 export type ConnecteurVue = {
@@ -2773,6 +2813,16 @@ export type DefaultConfigurationsResponse = {
     default_answer_classifier_prompt: string;
     text_chat_inactivity_timeout_constraints: TextChatInactivityTimeoutConstraints;
     widget_text_defaults: WidgetTexts;
+};
+
+/**
+ * DemandeApercuSms
+ */
+export type DemandeApercuSms = {
+    /**
+     * Texte
+     */
+    texte: string;
 };
 
 /**
@@ -14842,6 +14892,94 @@ export type PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRela
 };
 
 export type PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostResponse = PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostResponses[keyof PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRelancerPostResponses];
+
+export type GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/sms';
+};
+
+export type GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetError = GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetErrors[keyof GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetErrors];
+
+export type GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CompteurSms;
+};
+
+export type GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetResponse = GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetResponses[keyof GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetResponses];
+
+export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostData = {
+    body: DemandeApercuSms;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/sms/apercu';
+};
+
+export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostError = PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostErrors[keyof PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostErrors];
+
+export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApercuSms;
+};
+
+export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponse = PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponses[keyof PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostResponses];
 
 export type GetEquipeApiV1OrganizationsEquipeGetData = {
     body?: never;

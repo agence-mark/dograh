@@ -12,7 +12,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowRunModel
@@ -66,3 +66,32 @@ class ApresAppelClient(BaseDBClient):
             )
             annotations = result.scalar_one_or_none() or {}
             return dict(annotations.get(CLE_ANNOTATION) or {})
+
+    async def compter_sms(self, workflow_id: int) -> int:
+        """L6, D9: the SMS sent by this agent's calls (the caller checks the organization)."""
+        async with self.async_session() as session:
+            total = await session.execute(
+                text(
+                    "SELECT COALESCE(SUM(jsonb_array_length("
+                    "COALESCE(annotations::jsonb #> '{mark_apres_appel,etapes,module:sms,envoyes}', '[]'::jsonb)"
+                    ")), 0) FROM workflow_runs WHERE workflow_id = :w "
+                    "AND annotations::jsonb #> '{mark_apres_appel,etapes,module:sms,envoyes}' IS NOT NULL"
+                ),
+                {"w": workflow_id},
+            )
+            return int(total.scalar_one() or 0)
+
+    async def derniere_fiche(self, workflow_id: int) -> tuple[int | None, dict[str, Any]]:
+        """L6: the record of this agent's last call that holds one (the SMS preview)."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(WorkflowRunModel.id, WorkflowRunModel.gathered_context)
+                .where(WorkflowRunModel.workflow_id == workflow_id)
+                .order_by(WorkflowRunModel.id.desc())
+                .limit(50)
+            )
+            for run_id, contexte in result.all():
+                fiche = (contexte or {}).get("extracted_variables") or {}
+                if isinstance(fiche, dict) and fiche:
+                    return run_id, fiche
+            return None, {}

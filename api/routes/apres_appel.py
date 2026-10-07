@@ -9,6 +9,7 @@ organization's run, or another agent's than the address says, is a 404).
 - ``POST    /organizations/apres-appel/recapitulatif`` the recap mail now
 - ``GET     /workflow/{id}/runs/{run}/apres-appel``    the section « After the call » of a run
 - ``POST    /workflow/{id}/runs/{run}/apres-appel/{etape}/relancer``  « Retry »
+- ``GET     /workflow/{id}/sms`` · ``POST /workflow/{id}/sms/apercu``  the SMS counter and preview (L6)
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from api.db import db_client
 from api.db.bases_clients.connexion import BaseClientIndisponible
@@ -28,7 +29,7 @@ from api.schemas.apres_appel import (
     EtapeApresAppel,
     ReglagesApresAppel,
 )
-from api.services.apres_appel import chaine, mail, taches
+from api.services.apres_appel import chaine, mail, sms, taches
 from api.services.apres_appel.notification import smtp_de_linstallation
 from api.services.apres_appel.reglages import (
     adresses_de_lorganisation,
@@ -256,3 +257,54 @@ async def post_relancer_etape(
         )
     await chaine.relancer(run_id, etape)
     return _vue(run, await db_client.lire_apres_appel(run_id))
+
+
+# --------------------------------------------------------------------------- #
+# The SMS of an agent (L6): the counter (D9) and the preview filled by a real call
+# --------------------------------------------------------------------------- #
+
+
+class CompteurSms(BaseModel):
+    envoyes: int
+
+
+class DemandeApercuSms(BaseModel):
+    texte: str = Field(max_length=480)
+
+
+class ApercuSms(BaseModel):
+    texte: str
+    longueur: int
+    coupe: bool
+    parties: int
+    encodage: str
+    run_id: int | None = None
+
+
+async def _agent_de_lorganisation(workflow_id: int, organization_id: int):
+    workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
+    if workflow is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return workflow
+
+
+@routeur_run.get("/{workflow_id}/sms", response_model=CompteurSms)
+async def get_compteur_sms(
+    workflow_id: int,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    await _agent_de_lorganisation(workflow_id, user.selected_organization_id)
+    return CompteurSms(envoyes=await db_client.compter_sms(workflow_id))
+
+
+@routeur_run.post("/{workflow_id}/sms/apercu", response_model=ApercuSms)
+async def post_apercu_sms(
+    workflow_id: int,
+    demande: DemandeApercuSms,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    await _agent_de_lorganisation(workflow_id, user.selected_organization_id)
+    run_id, fiche = await db_client.derniere_fiche(workflow_id)
+    texte, coupe = sms.remplir(demande.texte, fiche)
+    nombre, encodage = sms.parties(texte)
+    return ApercuSms(texte=texte, longueur=len(texte), coupe=coupe, parties=nombre, encodage=encodage, run_id=run_id)

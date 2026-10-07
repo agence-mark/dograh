@@ -171,8 +171,71 @@ async def _connecteurs(contexte: ContexteModule) -> ResultatModule:
     return ResultatModule(detail=f"{len(envois)} action(s) done after the call", envois=envois)
 
 
+async def _sms(contexte: ContexteModule) -> ResultatModule:
+    """L6 (plan sms-recapitulatif): the SMS to the caller and to the team, by the client's Twilio."""
+    from api.db import db_client
+    from api.services.apres_appel import sms
+    from api.services.telephony.factory import get_telephony_provider_for_run
+
+    reglage = contexte.agent.sms
+    if not (reglage.appelant.actif or reglage.equipe.actif):
+        raise ModuleSansObjet("No SMS switched on for this agent.")
+    raison = sms.sans_objet(contexte.envoi)
+    if raison:
+        raise ModuleSansObjet(raison)
+    fiche = sms.fiche_de_l_envoi(contexte.envoi)
+
+    a_envoyer: list[tuple[str, str, str]] = []  # (who, number, text template)
+    if reglage.appelant.actif:
+        numero = sms.numero_de_l_appelant(contexte.run, contexte.envoi, contexte.agent.champ("numero_rappel"))
+        if numero:
+            a_envoyer.append(("appelant", numero, reglage.appelant.texte or ""))
+    if reglage.equipe.actif:
+        a_envoyer += [("equipe", n, reglage.equipe.texte or "") for n in reglage.equipe.numeros]
+    if not a_envoyer:
+        raise ModuleSansObjet("The caller's number is not a French mobile: no SMS.")
+
+    try:
+        fournisseur = await get_telephony_provider_for_run(contexte.run, contexte.organization_id)
+    except Exception as erreur:  # noqa: BLE001 -- no telephony set: nothing to retry
+        raise ModuleEnEchec(f"No telephony account to send the SMS ({type(erreur).__name__}).", definitif=True) from None
+    sid, jeton = getattr(fournisseur, "account_sid", None), getattr(fournisseur, "auth_token", None)
+    if not (sid and jeton):
+        raise ModuleEnEchec("The SMS goes through a Twilio account of « Telephony »; none is set.", definitif=True)
+    expediteur = reglage.expediteur or getattr(fournisseur, "default_from_number", None) or next(
+        iter(getattr(fournisseur, "from_numbers", None) or []), None
+    )
+    if not expediteur:
+        raise ModuleEnEchec("No sender: set a sender name or a number in « Telephony ».", definitif=True)
+
+    # D6: what was already sent for this call is never sent again (a retry, a replay).
+    bloc = await db_client.lire_apres_appel(contexte.run.id)
+    deja = set(((bloc.get("etapes") or {}).get(sms.ETAPE) or {}).get("envoyes") or [])
+    envois, echecs, definitif = [], [], True
+    for qui, numero, modele in a_envoyer:
+        cle = f"{contexte.run.id}:{numero}"
+        texte, coupe = sms.remplir(modele, fiche)
+        if cle in deja:
+            envois.append({"canal": "sms", "destinataire": numero, "statut": "envoyee", "deja": True})
+            continue
+        try:
+            await sms.envoyer(sid, jeton, expediteur, numero, texte)
+        except sms.EchecTwilio as erreur:
+            echecs.append(f"{qui}: {erreur}")
+            definitif = definitif and erreur.definitif
+            continue
+        deja.add(cle)
+        await db_client.fusionner_apres_appel(contexte.run.id, etape=sms.ETAPE, valeur={"envoyes": sorted(deja)})
+        envois.append({"canal": "sms", "destinataire": numero, "statut": "envoyee", "coupe": coupe})
+    if echecs:
+        raise ModuleEnEchec("; ".join(echecs), definitif=definitif)
+    return ResultatModule(detail=f"{len(envois)} SMS sent", envois=envois)
+
+
 MODULES: dict[str, Executeur] = {
     "webhook": _webhook,
     # L5: the connector actions put aside during the call.
     "connecteurs": _connecteurs,
+    # L6: the SMS to the caller and the team.
+    "sms": _sms,
 }
