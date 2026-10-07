@@ -56,7 +56,7 @@ from api.tests.mark.test_connecteurs import (
     _appeler,
     _moteur,
     _outil,
-    faux_nango,
+    faux_nango,  # noqa: F401 -- a fixture, found by its name
 )
 
 DEBUT = "2030-01-07T00:00:00+01:00"

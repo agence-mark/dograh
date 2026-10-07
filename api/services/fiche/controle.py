@@ -152,7 +152,7 @@ def controler(
             if correspond(champ, noms.get("commune", ())):
                 communes.append((champ, valeur))
         if base_communes is not None and normaliser is not None and len(cps) == 1 and len(communes) == 1:
-            (champ_cp, cp), (champ_commune, commune) = cps[0], communes[0]
+            (_champ_cp, cp), (champ_commune, commune) = cps[0], communes[0]
             portees = base_communes.communes_du_code_postal(cp) if len(cp) == 5 else []
             # Only a value that IS a town's name (an address field is not compared: that is the
             # town check's work during the call).
