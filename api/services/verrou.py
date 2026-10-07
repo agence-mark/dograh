@@ -20,6 +20,7 @@ fails closed (nothing is read, nothing is booked).
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import secrets
 from contextlib import asynccontextmanager
 
@@ -42,6 +43,21 @@ class Occupe(RuntimeError):
 # name -> [lock, number of users]; an entry lives only while someone uses it (no lock stays
 # attached to the event loop of a call that is over).
 _locaux: dict[str, list] = {}
+
+
+# The protected writes (``garder``) of the locks held by the current task: a lock is given back
+# only once they are over, or a waiting call would read the old state and overwrite the new one.
+_ecritures: contextvars.ContextVar[tuple[set, ...]] = contextvars.ContextVar("mark_verrou_ecritures", default=())
+
+
+async def garder(coro):
+    """Runs ``coro`` to its end even if the caller is cancelled (the tool's deadline), and makes
+    every lock held by the caller wait for it before it is released."""
+    tache = asyncio.ensure_future(coro)
+    for lot in _ecritures.get():
+        lot.add(tache)
+        tache.add_done_callback(lot.discard)
+    return await asyncio.shield(tache)
 
 
 async def _redis():
@@ -81,14 +97,33 @@ async def verrou(nom: str, *, bail_s: float = BAIL_S, attente_s: float = ATTENTE
         except BaseException:  # cancelled while waiting: never keep the local lock
             entree[0].release()
             raise
+        mon_lot: set = set()
+        jeton_ctx = _ecritures.set((*_ecritures.get(), mon_lot))
+        annule = False
         try:
             yield
         finally:
             try:
-                await asyncio.shield(redis.eval(_LIBERER, 1, cle, jeton))
-            except BaseException as erreur:  # noqa: BLE001 -- the lease ends by itself
-                logger.warning(f"[.mark] Lock « {nom} » not released, its lease will end: {erreur!r}")
-            entree[0].release()
+                _ecritures.reset(jeton_ctx)
+            except ValueError:  # another context (generator closed elsewhere): nothing to restore
+                pass
+            try:
+                # The protected writes end BEFORE the lock goes back.
+                while mon_lot:
+                    try:
+                        await asyncio.wait(set(mon_lot))
+                    except asyncio.CancelledError:
+                        annule = True
+                try:
+                    await asyncio.shield(redis.eval(_LIBERER, 1, cle, jeton))
+                except asyncio.CancelledError:
+                    annule = True  # the lease ends by itself; the cancellation is passed on below
+                except Exception as erreur:  # noqa: BLE001 -- the lease ends by itself
+                    logger.warning(f"[.mark] Lock « {nom} » not released, its lease will end: {erreur!r}")
+            finally:
+                entree[0].release()
+            if annule:
+                raise asyncio.CancelledError
     finally:
         entree[1] -= 1
         if entree[1] <= 0 and _locaux.get(nom) is entree:

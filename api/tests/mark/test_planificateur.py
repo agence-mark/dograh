@@ -283,7 +283,7 @@ class Agendas(FauxNango):
         # Faults and behaviours of a real software, off by default (revue du 07/10).
         self.lenteur_lecture = 0.0  # seconds before freeBusy answers
         self.occupe_par_pose = False  # an event created makes its slot busy
-        self.reponse_perdue = 0.0  # the event is created, the answer comes after this many seconds
+        self.reponse_perdue = 0  # truthy: the event is created, the line is cut before the answer
         self.refus_pose = 0  # the next N creations are refused (HTTP 500), nothing created
         self.lecture_des_evenements = False  # GET .../events lists what was created
         self.evenements_visibles: list | None = None  # None: what was created
@@ -316,7 +316,9 @@ class Agendas(FauxNango):
                 return httpx.Response(500, json={})
             self.poses.append((chemin, json.loads(requete.content)))
             if self.reponse_perdue:
-                await asyncio.sleep(self.reponse_perdue)
+                # The event exists, the line is cut before the answer (the lock now waits for the
+                # protected write, so a slow answer would simply be waited for).
+                raise httpx.ReadTimeout("answer lost", request=requete)
             return httpx.Response(200, json={"id": f"evt-{len(self.poses)}"})
         return await super().__call__(requete)
 

@@ -63,7 +63,7 @@ from api.services.planificateur.calcul import (
     calculer,
 )
 from api.services.planificateur.souhaits import Souhait, lire_souhait
-from api.services.verrou import Occupe, verrou
+from api.services.verrou import Occupe, garder, verrou
 from api.utils.template_renderer import render_template
 
 FUSEAU = ZoneInfo("Europe/Paris")
@@ -830,7 +830,7 @@ async def _creer(ctx, note_hub: dict, libelle_rdv: str, avec: str | None, rendez
                                                    "note_hub": {**note_hub, "id_externe": id_externe}}})
         return id_externe
 
-    return await asyncio.shield(asyncio.ensure_future(creer_et_noter()))
+    return await garder(creer_et_noter())
 
 
 async def _adopter(ctx, en_cours: dict, estampille: dict) -> dict:

@@ -18,10 +18,11 @@ Nothing here is a business word or a client's: a slot, an agenda, an identifier.
 
 from __future__ import annotations
 
-import asyncio
 import json
 
 from loguru import logger
+
+from api.services.verrou import garder
 
 PREFIXE = "mark:planificateur:pose:v1:"
 DUREE_S = 4 * 3600
@@ -53,9 +54,7 @@ async def lire(organization_id: int, run_id: int) -> dict:
 
 async def ecrire(organization_id: int, run_id: int, etat: dict) -> None:
     """Kept even if the tool's deadline cancels the caller meanwhile (``shield``)."""
-    await asyncio.shield(
-        _ecrire(organization_id, run_id, etat)
-    )
+    await garder(_ecrire(organization_id, run_id, etat))
 
 
 async def _ecrire(organization_id: int, run_id: int, etat: dict) -> None:

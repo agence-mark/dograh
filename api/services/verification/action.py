@@ -45,7 +45,7 @@ from api.services.verification import etat as etats
 from api.services.verification import source as sources
 from api.services.verification.comparer import egal
 from api.services.verification.reglages import interrupteur_allume, lire_reglages
-from api.services.verrou import Occupe, verrou
+from api.services.verrou import Occupe, garder, verrou
 
 CLE_TRACE = "verification_appelant"
 CLE_LECTURES = "dossier_lu"
@@ -107,7 +107,7 @@ def _a_demander(reglages: ReglagesVerification, etat: etats.Etat) -> list[str]:
 async def _garder(org: int, run_id: int, etat: etats.Etat) -> None:
     """The state kept even if the tool's deadline cancels the call meanwhile (``shield``): a
     failed attempt or a code sent is never lost for being slow."""
-    await asyncio.shield(etats.enregistrer(org, run_id, etat))
+    await garder(etats.enregistrer(org, run_id, etat))
 
 
 async def _envoyer_code(ctx, run, dossier: dict, etat: etats.Etat, delai: float) -> bool:
