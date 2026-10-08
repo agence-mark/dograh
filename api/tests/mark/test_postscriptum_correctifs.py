@@ -40,7 +40,6 @@ def _montage(config):
     [
         (NOTE_D_ABORD, ['{"motif": "entretien"}\n|||\n']),
         (NOTE_D_ABORD, ['{"motif": "entretien"}']),
-        (ALLUMEE, ['|||\n{"motif": "entretien"}']),
     ],
 )
 async def test_c3_une_note_seule_fait_reparler_le_modele(config, morceaux):
@@ -65,6 +64,14 @@ async def test_c3_une_phrase_ou_une_porte_ne_relance_pas(morceaux):
 
 
 @pytest.mark.asyncio
+async def test_c3_l_ordre_d_avant_ne_relance_jamais():
+    # Formulaire du lot 4 (Evan, 08/10) : C3 joue dans l'ordre « porte, note, phrase » seulement.
+    montage = _montage(ALLUMEE)
+    await montage.reponse('|||\n{"motif": "entretien"}')
+    assert montage.moteur.relances == 0
+
+
+@pytest.mark.asyncio
 async def test_c3_le_moteur_ne_relance_qu_une_fois_par_replique():
     envoyees = []
 
@@ -84,10 +91,11 @@ async def test_c3_le_moteur_ne_relance_qu_une_fois_par_replique():
     assert len(envoyees) == 2
 
 
-def _moteur_sur(etape_courante, aretes, etapes):
+def _moteur_sur(etape_courante, aretes, etapes, note_d_abord=True):
     """Un moteur réduit à ce que `_porte_de_l_etape` lit."""
     noeud = SimpleNamespace(is_end=False, out_edges=aretes)
     return SimpleNamespace(
+        fiche=SimpleNamespace(note_d_abord=note_d_abord),
         active_agent=SimpleNamespace(
             current_node=noeud,
             workflow=SimpleNamespace(nodes={k: SimpleNamespace(name=v) for k, v in etapes.items()}),
@@ -113,6 +121,14 @@ def test_c9_deux_portes_vers_la_meme_etape_le_code_ne_choisit_pas():
     b = _arete("panne_sans_marque", "n2")
     moteur = _moteur_sur("panne", [a, b], {"n2": "coordonnees"})
     assert PipecatEngine._porte_de_l_etape(moteur, "coordonnees") is None
+
+
+def test_c9_l_ordre_d_avant_ne_lit_que_le_nom_de_la_porte():
+    # Formulaire du lot 4 (Evan, 08/10) : C9 joue dans l'ordre « porte, note, phrase » seulement.
+    a = _arete("nom_numero_et_adresse_notes", "n2")
+    moteur = _moteur_sur("panne", [a], {"n2": "coordonnees"}, note_d_abord=False)
+    assert PipecatEngine._porte_de_l_etape(moteur, "coordonnees") is None
+    assert PipecatEngine._porte_de_l_etape(moteur, "nom_numero_et_adresse_notes") is a
 
 
 # --------------------------------------------------------------------------- #

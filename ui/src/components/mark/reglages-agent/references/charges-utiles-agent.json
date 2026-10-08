@@ -1058,7 +1058,7 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "fiche_mode_de_note": "post_scriptum",
-            "indices_des_modules": false
+            "indices_des_modules": true
           },
           "retirees": []
         }

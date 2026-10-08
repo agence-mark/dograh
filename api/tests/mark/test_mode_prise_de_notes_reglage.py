@@ -111,7 +111,7 @@ def test_l_estampille_dit_le_mode_joue():
         CLE_MODE: MODE_POST_SCRIPTUM,
         # Plan postscriptum-note-d-abord : l'ordre et les indices joués en Postscript.
         CLE_ORDRE_DE_LA_REPONSE: ORDRE_PHRASE_PUIS_NOTE,
-        CLE_INDICES_DES_MODULES: True,
+        CLE_INDICES_DES_MODULES: False,  # formulaire du lot 4 : éteints dans l'ordre d'avant
     }
 
 

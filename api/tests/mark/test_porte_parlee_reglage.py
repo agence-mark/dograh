@@ -113,7 +113,7 @@ def test_l_estampille_porte_la_case_jouee():
         CLE_PORTES_DANS_LA_REPONSE: True,
         # Plan postscriptum-note-d-abord : l'ordre et les indices joués en Postscript.
         CLE_ORDRE_DE_LA_REPONSE: ORDRE_PHRASE_PUIS_NOTE,
-        CLE_INDICES_DES_MODULES: True,
+        CLE_INDICES_DES_MODULES: False,  # formulaire du lot 4 : éteints dans l'ordre d'avant
     }
 
 
@@ -122,7 +122,7 @@ def test_eteinte_l_estampille_est_celle_d_avant():
         CLE_MODE: MODE_POST_SCRIPTUM,
         # Plan postscriptum-note-d-abord : l'ordre et les indices joués en Postscript.
         CLE_ORDRE_DE_LA_REPONSE: ORDRE_PHRASE_PUIS_NOTE,
-        CLE_INDICES_DES_MODULES: True,
+        CLE_INDICES_DES_MODULES: False,  # formulaire du lot 4 : éteints dans l'ordre d'avant
     }
 
 

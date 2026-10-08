@@ -185,16 +185,18 @@ export const ThemeDonnees = ({
     const portesEnvoyees = modeDeNote === "post_scriptum" && portes;
     const portesModifiees = portesEnvoyees !== portesEnregistrees;
     // Plan postscriptum-note-d-abord: the order and the hints, Postscript only (the
-    // server refuses « note first » outside it). Absent: the order of before, hints on.
+    // server refuses « note first » outside it). Absent: the order of before; the hints
+    // then follow the order (lot 4 form, 08/10): on with « note first », off otherwise.
     const ordreEnregistre: OrdreDeLaReponse = resolue.ordre_de_la_reponse ?? "porte_phrase_note";
     const [ordre, setOrdre] = useState<OrdreDeLaReponse>(ordreEnregistre);
     useEffect(() => setOrdre(ordreEnregistre), [ordreEnregistre]);
     const ordreEnvoye: OrdreDeLaReponse = modeDeNote === "post_scriptum" ? ordre : "porte_phrase_note";
     const ordreModifie = ordreEnvoye !== ordreEnregistre;
-    const indicesEnregistres = resolue.indices_des_modules ?? true;
-    const [indices, setIndices] = useState(indicesEnregistres);
-    useEffect(() => setIndices(indicesEnregistres), [indicesEnregistres]);
-    const indicesModifies = indices !== indicesEnregistres;
+    const indicesEnregistres = resolue.indices_des_modules ?? null;
+    const [indicesChoisis, setIndicesChoisis] = useState<boolean | null>(indicesEnregistres);
+    useEffect(() => setIndicesChoisis(indicesEnregistres), [indicesEnregistres]);
+    const indices = indicesChoisis ?? ordre === "porte_note_phrase";
+    const indicesModifies = indicesChoisis !== indicesEnregistres;
     // As the call record card did (24/09): follow the record the server stored,
     // keyed on its CONTENT so another theme's save does not wipe an edit here.
     const ficheEnregistree = JSON.stringify([ficheActiveEnregistree, modeEnregistre, champsEnregistres]);
@@ -417,7 +419,7 @@ export const ThemeDonnees = ({
             {
                 nom: { en: "Module hints", fr: "Indices des modules" },
                 modifie: indicesModifies,
-                config: () => ({ indices_des_modules: indices }),
+                config: () => ({ indices_des_modules: indicesChoisis }),
             },
             {
                 // l-agent-collegue, L1: its own part, sent only when changed (E6).
@@ -582,10 +584,13 @@ export const ThemeDonnees = ({
                         idControle="indices_des_modules"
                         libelle={{ en: "Module hints", fr: "Indices des modules" }}
                         aides={AIDES_INDICES_DES_MODULES}
-                        bornes={{ en: "Default: on", fr: "Par défaut : allumé" }}
+                        bornes={{
+                            en: "Default: on with « Transition, note, reply », off otherwise",
+                            fr: "Par défaut : allumé avec « Porte, note, phrase », éteint sinon",
+                        }}
                         disposition="ligne"
                     >
-                        <Switch id="indices_des_modules" checked={indices} onCheckedChange={setIndices} />
+                        <Switch id="indices_des_modules" checked={indices} onCheckedChange={setIndicesChoisis} />
                     </ChampReglage>
                 )}
                 {ficheActive && modeDeNote === "post_scriptum" && portes && etapesSansPremiereReplique.length > 0 && (

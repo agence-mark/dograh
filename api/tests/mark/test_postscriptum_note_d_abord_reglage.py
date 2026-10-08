@@ -4,7 +4,7 @@ Plan `Labo-agent-vocal/plans/postscriptum-note-d-abord/`, lot 2 (Q1, Q2, Q2 bis,
 
 | Test | Ce qu'il prouve |
 |---|---|
-| défauts | sans les clés : l'ordre d'avant, les indices allumés (Postscript seul) |
+| défauts | sans les clés : l'ordre d'avant, les indices éteints ; en note d'abord, allumés (Postscript seul) |
 | route | « note d'abord » écrit en Postscript, refusé hors Postscript ; l'ordre d'avant accepté partout |
 | clavier | une réponse « note, séparateur, phrase » : la phrase est dite, jamais la note ; la note est dans la fiche ; l'estampille dit l'ordre joué |
 """
@@ -38,7 +38,13 @@ def test_les_defauts():
     assert WorkflowConfigurationDefaults().indices_des_modules is None
     reglages = ReglagesFiche.depuis(POST_SCRIPTUM)
     assert reglages.ordre == ORDRE_PHRASE_PUIS_NOTE
-    assert reglages.indices_des_modules is True
+    # Formulaire du lot 4 (Evan, 08/10) : sans la clé, les indices suivent l'ordre.
+    assert reglages.indices_des_modules is False
+    assert ReglagesFiche.depuis(NOTE_D_ABORD).indices_des_modules is True
+    assert (
+        ReglagesFiche.depuis({**POST_SCRIPTUM, CLE_INDICES_DES_MODULES: True}).indices_des_modules
+        is True
+    )
 
 
 def test_les_indices_eteints_et_hors_postscript():

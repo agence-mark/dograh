@@ -595,7 +595,10 @@ class PipecatEngine:
         # [.mark] Plan postscriptum-note-d-abord (C9, run 1041) : le modèle écrit le NOM
         # DE L'ÉTAPE d'arrivée (« → coordonnees ») au lieu de celui de la porte. Une
         # seule porte de l'étape y mène : c'est elle, sans ambiguïté. Deux ou plus :
-        # rien (le code ne choisit jamais entre deux portes).
+        # rien (le code ne choisit jamais entre deux portes). Formulaire du lot 4
+        # (Evan, 08/10) : en « porte, note, phrase » seulement.
+        if not getattr(self.fiche, "note_d_abord", False):
+            return None
         vers_l_etape = [
             e
             for e in node.out_edges

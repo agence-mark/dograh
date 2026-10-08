@@ -110,7 +110,7 @@ async def test_le_cumulatif_ajoute_les_notes_courtes():
 
 def test_les_indices_lisent_les_listes_du_garage():
     ligne = indices_des_modules(
-        ReglagesFiche.depuis(GARAGE),
+        ReglagesFiche.depuis(NOTE_D_ABORD),
         "c'est pour le contrôle technique et une vidange",
         {},
     )

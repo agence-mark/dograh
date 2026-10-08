@@ -256,21 +256,28 @@ class ReglagesFiche:
                 for c in champs
             ]
         mode = _mode(run_configs)
+        ordre = _ordre_de_la_reponse(run_configs, mode)
+        indices = run_configs.get(CLE_INDICES_DES_MODULES)
         return cls(
             champs=tuple(champs),
             termes_du_lexique=termes,
             mode=mode,
             portes_dans_la_reponse=_portes_dans_la_reponse(run_configs, mode),
-            ordre=_ordre_de_la_reponse(run_configs, mode),
+            ordre=ordre,
             noms_du_lexique=frozenset(
                 t.terme
                 for t in getattr(lexique, "termes", None) or []
                 if getattr(t, "type", "nom") == "nom"
             ),
-            # Q2 bis : allumés par défaut (clé absente ou vide), Postscript seul.
+            # Q2 bis, formulaire du lot 4 (Evan, 08/10) : sans la clé, allumés en
+            # « porte, note, phrase », éteints dans l'ordre d'avant ; Postscript seul.
             indices_des_modules=(
                 mode == MODE_POST_SCRIPTUM
-                and run_configs.get(CLE_INDICES_DES_MODULES) is not False
+                and (
+                    indices
+                    if isinstance(indices, bool)
+                    else ordre == ORDRE_NOTE_PUIS_PHRASE
+                )
             ),
         )
 

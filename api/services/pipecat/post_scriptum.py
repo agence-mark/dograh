@@ -284,8 +284,14 @@ class PostScriptumProcessor(FrameProcessor):
                 trace = await self._finir(direction)
                 if portes[0]:
                     await self._porte_protegee(portes, trace, relancer=not self._dit)
-                elif trace is not None and not self._dit and attendu:
+                elif (
+                    trace is not None
+                    and not self._dit
+                    and attendu
+                    and self._reglages.note_d_abord
+                ):
                     # C3 : ni phrase ni porte (une note seule) : le modèle reparle, une fois.
+                    # Formulaire du lot 4 (Evan, 08/10) : en « porte, note, phrase » seulement.
                     relancer = getattr(self._portes, "relancer_une_reponse_muette", None)
                     if relancer is not None and await relancer():
                         trace["relance_muette"] = True
