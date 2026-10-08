@@ -223,3 +223,28 @@ async def test_c4_au_clavier_l_etape_d_arrivee_avec_un_outil_fait_reparler_le_mo
     affiche = _affiche(charge)
     assert "Je vous mets en relation." in affiche, affiche
     assert "Un instant, je transfère." in affiche, affiche
+
+
+# --------------------------------------------------------------------------- #
+# Piste de latence : un champ recopié des mots de l'appelant
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_un_champ_recopie_porte_les_mots_exacts_de_la_replique():
+    from api.services.workflow.fiche_au_fil_de_leau import ReglagesFiche, consigne_du_mode, noter
+
+    config = {
+        "fiche_au_fil_de_leau": True,
+        "fiche_mode_de_note": "post_scriptum",
+        "fiche_champs": [
+            {"nom": "verbatim_demande", "origine": "dicte", "description": "La demande, mot pour mot", "copie_de_la_parole": True},
+            {"nom": "motif", "origine": "deduit", "description": "Le motif"},
+        ],
+    }
+    reglages = ReglagesFiche.depuis(config)
+    assert 'écris seulement "="' in consigne_du_mode(reglages)
+    fiche: dict = {}
+    parole = "Oui bonjour, mon poêle à granulés s'arrête tout seul depuis hier soir."
+    await noter(lambda: fiche, reglages, {"verbatim_demande": "="}, paroles=[parole], question=None, source="post_scriptum")
+    assert fiche.get("verbatim_demande") == parole

@@ -2683,6 +2683,13 @@ async def noter(
     # Plusieurs notes d'un même tour : appliquées dans l'ordre d'arrivée,
     # chaque champ seul.
     for champ, valeur in champs.items():
+        definition = reglages.par_nom.get(champ)
+        if definition is not None and definition.copie_de_la_parole and paroles:
+            # Piste de latence : les mots exacts de sa dernière réplique, sans les
+            # notes des modules ; le modèle n'a écrit que « = » (ou autre chose).
+            dernieres = paroles_sans_notes(paroles[-1:], fiche())
+            if dernieres and dernieres[-1].strip():
+                valeur = dernieres[-1].strip()
         verdict = ecrire_dans_la_fiche(
             fiche(),
             reglages,
@@ -2905,6 +2912,13 @@ CONSIGNE_POST_SCRIPTUM_NOTE_D_ABORD = (
 )
 
 
+# Piste de latence : un champ que le code recopie des mots de l'appelant.
+COPIE_DE_LA_PAROLE = (
+    ' (pour ce champ, écris seulement "=" : le code recopie les mots exacts de sa '
+    "réplique)"
+)
+
+
 # Plan mode-prise-de-notes, partie 2 : ce que l'agent sait du greffier. Il ne
 # note rien et n'appelle rien pour la fiche ; il voit ce qui est écrit (état).
 CONSIGNE_AGENT_DU_GREFFIER = (
@@ -2931,6 +2945,7 @@ def consigne_du_mode(reglages: ReglagesFiche | None) -> str | None:
         return None
     champs = "\n".join(
         f"- {champ.nom} : {_propriete(champ)['description']}"
+        + (COPIE_DE_LA_PAROLE if champ.copie_de_la_parole else "")
         for champ in reglages.champs
     )
     consigne = (

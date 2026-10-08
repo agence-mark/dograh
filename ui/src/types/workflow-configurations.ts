@@ -241,6 +241,8 @@ export interface ChampFiche {
     valeurs?: string[] | null;
     // [.mark] D7 (correctifs-modules): each note is added, nothing overwritten. Absent: false.
     cumulatif?: boolean;
+    // [.mark] Plan postscriptum-note-d-abord: the code copies the caller's words.
+    copie_de_la_parole?: boolean;
     // [.mark] C1 (correctifs-banc-34): how many digits the value must hold. Empty (null or absent): no check.
     chiffres?: number | null;
     // [.mark] D3 (correctifs-second-banc-34): the end-of-call pass may fill it. Absent: true.

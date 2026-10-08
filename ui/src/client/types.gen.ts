@@ -1722,6 +1722,12 @@ export type ChampFiche = {
      *
      * Cumulative: each note is added to what the field already holds, nothing is overwritten; not checked against the caller's exact words.
      */
+    /**
+     * Copie De La Parole
+     *
+     * Copied from the caller's words: when the model notes this field, the code writes the caller's exact words of that reply; the model only writes '='. Saves the model copying a whole sentence.
+     */
+    copie_de_la_parole?: boolean;
     cumulatif?: boolean;
     /**
      * Chiffres

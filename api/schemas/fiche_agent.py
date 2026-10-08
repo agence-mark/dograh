@@ -85,6 +85,19 @@ class ChampFiche(BaseModel):
         ),
     )
 
+    # Plan postscriptum-note-d-abord (piste de latence) : le code recopie les mots
+    # exacts de la réplique où le modèle note ce champ ; le modèle n'écrit que « = »
+    # (recopier une phrase entière dans la note coûte ≈ 1 s à la première réplique).
+    # Faux par défaut : aucun changement pour un agent qui ne le déclare pas.
+    copie_de_la_parole: bool = Field(
+        default=False,
+        description=(
+            "Copied from the caller's words: when the model notes this field, the "
+            "code writes the caller's exact words of that reply; the model only "
+            "writes '='. Saves the model copying a whole sentence."
+        ),
+    )
+
     # C1 (chantier correctifs-banc-34, 29/09, run 887) : le nombre de chiffres que
     # la valeur doit compter, espaces et signes ignorés. Vide = aucun contrôle (le
     # défaut) : rien ne change pour un agent qui ne le déclare pas.
