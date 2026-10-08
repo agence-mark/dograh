@@ -664,9 +664,11 @@ class PipecatEngine:
             # [.mark] Plan postscriptum-note-d-abord (C4, Q5, run 1034) : l'étape d'arrivée
             # porte un outil (un transfert) : une fois la phrase d'arrivée jouée, le modèle
             # reparle UNE fois dans cette étape pour l'appeler, sans attendre la personne.
+            # Revue du 08/10 : en « porte, note, phrase » seulement (comportement d'avant).
             outil_a_l_arrivee = (
                 not fin
                 and not relancer
+                and getattr(self._fiche, "note_d_abord", False)
                 and bool(agent.workflow.nodes[arete.target].tool_uuids)
             )
             phrase_d_arrivee = (

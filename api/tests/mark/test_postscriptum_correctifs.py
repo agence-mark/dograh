@@ -16,6 +16,8 @@ from api.services.workflow.pipecat_engine import PipecatEngine
 from api.tests.mark.test_porte_parlee_processeur import ALLUMEE, _Moteur, _MontagePortes
 from api.tests.mark.test_postscriptum_note_d_abord import NOTE_D_ABORD
 
+ORDRE_NOTE_D_ABORD = {"ordre_de_la_reponse": "porte_note_phrase"}
+
 
 class _MoteurQuiRelance(_Moteur):
     def __init__(self):
@@ -227,7 +229,7 @@ async def test_c4_au_clavier_l_etape_d_arrivee_avec_un_outil_fait_reparler_le_mo
 
     definition = _definition()
     _noeud(definition, "etape")["data"]["tool_uuids"] = ["outil-de-transfert"]
-    user, workflow = await _monter(db_session, async_session, ALLUMEE, definition)
+    user, workflow = await _monter(db_session, async_session, {**ALLUMEE, **ORDRE_NOTE_D_ABORD}, definition)
     tour = (
         "je veux parler à quelqu'un",
         [
@@ -239,6 +241,32 @@ async def test_c4_au_clavier_l_etape_d_arrivee_avec_un_outil_fait_reparler_le_mo
     affiche = _affiche(charge)
     assert "Je vous mets en relation." in affiche, affiche
     assert "Un instant, je transfère." in affiche, affiche
+
+
+@pytest.mark.asyncio
+async def test_c4_l_ordre_d_avant_attend_la_personne(db_session, async_session, test_client_factory):
+    """Revue du 08/10 : dans l'ordre d'avant, C4 ne joue pas (comportement d'avant)."""
+    from pipecat.tests import MockLLMService
+
+    from api.tests.mark.test_clavier_porte_la_fiche import _monter
+    from api.tests.mark.test_porte_parlee_clavier import ALLUMEE, _affiche
+    from api.tests.mark.test_porte_parlee_consigne import _definition, _noeud
+    from api.tests.mark.test_portes_souples import _messages
+
+    definition = _definition()
+    _noeud(definition, "etape")["data"]["tool_uuids"] = ["outil-de-transfert"]
+    user, workflow = await _monter(db_session, async_session, ALLUMEE, definition)
+    tour = (
+        "je veux parler à quelqu'un",
+        [
+            MockLLMService.create_text_chunks("→ vers_etape\nJe vous mets en relation.\n|||\n{}"),
+            MockLLMService.create_text_chunks("Un instant, je transfère.\n|||\n{}"),
+        ],
+    )
+    charge = await _messages(test_client_factory, user, workflow, [tour])
+    affiche = _affiche(charge)
+    assert "Je vous mets en relation." in affiche, affiche
+    assert "Un instant, je transfère." not in affiche, affiche
 
 
 # --------------------------------------------------------------------------- #
@@ -264,3 +292,67 @@ async def test_un_champ_recopie_porte_les_mots_exacts_de_la_replique():
     parole = "Oui bonjour, mon poêle à granulés s'arrête tout seul depuis hier soir."
     await noter(lambda: fiche, reglages, {"verbatim_demande": "="}, paroles=[parole], question=None, source="post_scriptum")
     assert fiche.get("verbatim_demande") == parole
+
+
+# --------------------------------------------------------------------------- #
+# Revue indépendante du 08/10 : corrections avant la fusion
+# --------------------------------------------------------------------------- #
+
+DEUX_NUMEROS = {
+    "nombres_lus": [
+        {"type": "telephone", "ecrit": "06 12 34 56 78"},
+        {"type": "telephone", "ecrit": "03 44 55 66 77"},
+    ]
+}
+
+
+def test_c10_un_autre_numero_dicte_n_est_jamais_remplace():
+    # Le mobile, puis le fixe : relire le mobile ne doit jamais faire dire le fixe.
+    phrase = "Je relis votre mobile : 06 12 34 56 78, c'est bien ça ?"
+    assert corriger_relecture(phrase, numero_de_reference(DEUX_NUMEROS), DEUX_NUMEROS) == phrase
+
+
+def test_c10_un_numero_sans_rapport_n_est_jamais_remplace():
+    # Le numéro de l'entreprise annoncé par l'agent : trop loin du numéro dicté.
+    phrase = "Vous pouvez aussi joindre le magasin au 03 44 10 20 30."
+    assert corriger_relecture(phrase, numero_de_reference(DICTE), DICTE) == phrase
+
+
+def test_c10_une_erreur_d_un_ou_deux_chiffres_est_corrigee():
+    assert (
+        corriger_relecture("Je relis : 06 47 21 93 59.", numero_de_reference(DICTE), DICTE)
+        == "Je relis : 07 47 21 93 58."
+    )
+
+
+@pytest.mark.asyncio
+async def test_la_recopie_garde_la_valeur_du_modele_s_il_n_a_pas_ecrit_le_signe():
+    from api.services.workflow.fiche_au_fil_de_leau import ReglagesFiche, noter
+
+    reglages = ReglagesFiche.depuis(
+        {
+            "fiche_au_fil_de_leau": True,
+            "fiche_mode_de_note": "post_scriptum",
+            "fiche_champs": [
+                {"nom": "demande", "origine": "deduit", "description": "La demande", "copie_de_la_parole": True},
+            ],
+        }
+    )
+    fiche: dict = {}
+    await noter(
+        lambda: fiche,
+        reglages,
+        {"demande": "un entretien du poêle"},
+        paroles=["je voudrais un entretien du poêle", "oui c'est ça"],
+        question=None,
+        source="post_scriptum",
+    )
+    assert fiche.get("demande") == "un entretien du poêle"
+
+
+def test_les_chiffres_en_lettres_seulement_pour_les_nombres_courts():
+    from api.services.workflow.fiche_au_fil_de_leau import est_cite
+
+    # « il y a 2 ans » se lit « deux » ; un numéro dicté n'ajoute pas « cent », « mille »…
+    assert est_cite("il y a deux ans", ["il y a 2 ans"])
+    assert not est_cite("mille", ["c'est le 0612345678"])

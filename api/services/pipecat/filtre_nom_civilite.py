@@ -327,7 +327,8 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
 
     def _filtrer(self, texte: str) -> str:
         if self._corriger_numeros:
-            texte = corriger_relecture(texte, numero_de_reference(self._contexte()))
+            contexte = self._contexte()
+            texte = corriger_relecture(texte, numero_de_reference(contexte), contexte)
         if not (self._retirer_nom or self._retirer_civilite):
             return texte
         return retirer_nom_et_civilite(

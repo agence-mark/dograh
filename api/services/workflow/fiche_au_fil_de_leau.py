@@ -397,7 +397,11 @@ def est_cite(valeur: Any, paroles: Iterable[str]) -> bool:
         # Plan postscriptum-note-d-abord (rejeu du 08/10, runs 1044, 1046) : la
         # transcription écrit « il y a 2 ans », le modèle note « il y a deux ans » :
         # les chiffres de la parole se lisent aussi en lettres (symétrie de D8).
-        en_lettres = re.sub(r"\d+", lambda m: f" {en_mots(m.group())} ", parole)
+        # Revue du 08/10 : nombres courts seulement (un numéro dicté n'ajoute pas
+        # « cent », « mille »… aux mots dits).
+        en_lettres = re.sub(
+            r"(?<!\d)\d{1,4}(?!\d)", lambda m: f" {en_mots(m.group())} ", parole
+        )
         for forme in dict.fromkeys((parole, _chiffres_comme_lus(parole), en_lettres)):
             mots = _mots(forme)
             dits.update(mots)
@@ -2696,6 +2700,9 @@ async def noter(
             and definition.copie_de_la_parole
             and reglages.mode == MODE_POST_SCRIPTUM
             and paroles
+            # Revue du 08/10 : seulement sur le signe ; une valeur écrite par le
+            # modèle (notée en retard, après « oui c'est ça ») est gardée.
+            and str(valeur).strip() == "="
         ):
             # Piste de latence : les mots exacts de sa dernière réplique, sans les
             # notes des modules ; le modèle n'a écrit que « = » (ou autre chose).

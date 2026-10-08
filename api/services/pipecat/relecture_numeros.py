@@ -10,6 +10,10 @@ ceux du modèle, écrits comme le modèle les avait écrits (en lettres par pair
 ⛔ Ne touche que les numéros de téléphone (dix chiffres, deux lectures complètes) ; jamais un montant,
 un code postal ni une référence. ⛔ Ne lève jamais : une relecture non corrigée ne coûte pas l'appel.
 Option par agent (`relecture_des_numeros`), éteinte par défaut.
+
+Revue du 08/10 : seule une relecture PROCHE du numéro de référence (un ou deux chiffres de
+différence) est corrigée, et jamais un numéro que l'appelant a dicté (un mobile puis un fixe :
+relire le mobile ne fait jamais dire le fixe ; le numéro du magasin n'est jamais touché).
 """
 
 from __future__ import annotations
@@ -28,6 +32,20 @@ TELEPHONE = "telephone"
 
 def _chiffres(texte: str) -> str:
     return re.sub(r"\D", "", texte or "")
+
+
+# Au-delà, ce n'est plus une relecture fautive du même numéro, c'est un autre numéro.
+ECARTS_MAX = 2
+
+
+def numeros_dictes(contexte: dict | None) -> set[str]:
+    """Tous les numéros de téléphone (dix chiffres) lus dans la parole de l'appelant."""
+    return {
+        chiffres
+        for trace in (contexte or {}).get(CLE_NOMBRES_LUS) or []
+        if trace.get("type") == TELEPHONE
+        and len(chiffres := _chiffres(trace.get("ecrit"))) == 10
+    }
 
 
 def numero_de_reference(contexte: dict | None) -> str | None:
@@ -52,12 +70,16 @@ def _par_paires_en_mots(chiffres: str) -> str:
     return ", ".join(mots)
 
 
-def corriger_relecture(texte: str, reference: str | None) -> str:
-    """``texte`` dont le numéro de téléphone relu, s'il diffère de ``reference``,
-    porte les chiffres de ``reference``. Sinon ``texte`` tel quel."""
+def corriger_relecture(
+    texte: str, reference: str | None, contexte: dict | None = None
+) -> str:
+    """``texte`` dont le numéro de téléphone relu, s'il diffère de ``reference`` d'un
+    ou deux chiffres et n'est aucun numéro dicté, porte les chiffres de ``reference``.
+    Sinon ``texte`` tel quel."""
     if not texte or not reference or len(reference) != 10:
         return texte
     try:
+        dictes = numeros_dictes(contexte)
         nombres = [n for n in lire_nombres(texte) if n.type == TELEPHONE]
         if not nombres:
             return texte
@@ -65,7 +87,9 @@ def corriger_relecture(texte: str, reference: str | None) -> str:
         sortie, curseur = [], 0
         for n in nombres:
             relu = _chiffres(n.ecrit)
-            if len(relu) != 10 or relu == reference:
+            if len(relu) != 10 or relu == reference or relu in dictes:
+                continue
+            if sum(a != b for a, b in zip(relu, reference)) > ECARTS_MAX:
                 continue
             debut, fin = phrase.jetons[n.debut].debut, phrase.jetons[n.fin - 1].fin
             original = texte[debut:fin]

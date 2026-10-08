@@ -3,7 +3,7 @@
 Sur la dernière parole de l'appelant, avant le modèle, nos modules repèrent ce qui est
 dit ; une ligne est ajoutée à l'état de la fiche montré au modèle :
 
-    Reconnu par nos modules dans sa dernière réplique (PAS encore dans la fiche : …) : appareil = insert ; marque_appareil = Jøtul
+    Reconnu par nos modules dans sa dernière réplique (PAS encore dans la fiche : …) : <champ> = <valeur de sa liste> ; <champ du lexique> = <nom reconnu>
 
 🔑 Rien n'est écrit dans la fiche (Q3) : c'est le modèle qui note. L'indice l'aide à voir,
 au tour même, ce que la personne vient de dire (cause du banc du 07/10 : redemandes).
