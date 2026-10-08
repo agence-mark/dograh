@@ -646,7 +646,12 @@ export const ThemeDonnees = ({
                     </ChampReglage>
                 )}
                 <div id="reglage-fiche_champs" data-reglage="fiche_champs" className="space-y-2">
-                    <EditeurChampsFiche actif={ficheActive} champs={champs} onChange={setChamps} />
+                    <EditeurChampsFiche
+                        actif={ficheActive}
+                        champs={champs}
+                        onChange={setChamps}
+                        postScriptum={modeDeNote === "post_scriptum"}
+                    />
                 </div>
             </Intertitre>
 

@@ -292,10 +292,13 @@ export const EditeurChampsFiche = ({
     actif,
     champs,
     onChange,
+    postScriptum = false,
 }: {
     actif: boolean;
     champs: ChampFiche[];
     onChange: Dispatch<SetStateAction<ChampFiche[]>>;
+    /** Postscript mode: shows the options that only exist there. */
+    postScriptum?: boolean;
 }) => {
     const { t } = useLangue();
     const [ouvert, setOuvert] = useState(false);
@@ -472,7 +475,8 @@ export const EditeurChampsFiche = ({
                                         })}
                                     </p>
                                 </div>
-                                {/* Plan postscriptum-note-d-abord: the code copies the caller's words. */}
+                                {/* Plan postscriptum-note-d-abord: the code copies the caller's words (Postscript only). */}
+                                {postScriptum && (
                                 <div className="flex items-start gap-2">
                                     <Switch
                                         id={`fiche_copie_de_la_parole_${i}`}
@@ -491,6 +495,7 @@ export const EditeurChampsFiche = ({
                                         </p>
                                     </div>
                                 </div>
+                                )}
                                 <div className="flex items-start gap-2">
                                     <Switch
                                         id={`fiche_cumulatif_${i}`}
@@ -638,7 +643,12 @@ export const SectionFiche = ({
                     ))}
                 </div>
 
-                <EditeurChampsFiche actif={actif} champs={champs} onChange={setChamps} />
+                <EditeurChampsFiche
+                    actif={actif}
+                    champs={champs}
+                    onChange={setChamps}
+                    postScriptum={workflowConfigurations.fiche_mode_de_note === "post_scriptum"}
+                />
                 {erreur && (
                     <p role="alert" className="text-xs text-destructive">
                         {erreur}

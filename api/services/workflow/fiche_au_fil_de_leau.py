@@ -2684,7 +2684,12 @@ async def noter(
     # chaque champ seul.
     for champ, valeur in champs.items():
         definition = reglages.par_nom.get(champ)
-        if definition is not None and definition.copie_de_la_parole and paroles:
+        if (
+            definition is not None
+            and definition.copie_de_la_parole
+            and reglages.mode == MODE_POST_SCRIPTUM
+            and paroles
+        ):
             # Piste de latence : les mots exacts de sa dernière réplique, sans les
             # notes des modules ; le modèle n'a écrit que « = » (ou autre chose).
             dernieres = paroles_sans_notes(paroles[-1:], fiche())
@@ -2918,6 +2923,14 @@ COPIE_DE_LA_PAROLE = (
     "réplique)"
 )
 
+# Règle de standardisation (Evan, 08/10) : un champ cumulatif (D7) s'allonge,
+# chaque note s'ajoute ; en note d'abord, le modèle n'écrit que ce qui s'ajoute
+# (une note plus courte avant la voix). Vaut pour tout champ cumulatif.
+CUMULATIF_EN_POST_SCRIPTUM = (
+    " (champ cumulatif : ta note s'ajoute à ce qui est déjà noté ; écris seulement "
+    "ce qui est nouveau, jamais ce qui y est déjà)"
+)
+
 
 # Plan mode-prise-de-notes, partie 2 : ce que l'agent sait du greffier. Il ne
 # note rien et n'appelle rien pour la fiche ; il voit ce qui est écrit (état).
@@ -2946,6 +2959,11 @@ def consigne_du_mode(reglages: ReglagesFiche | None) -> str | None:
     champs = "\n".join(
         f"- {champ.nom} : {_propriete(champ)['description']}"
         + (COPIE_DE_LA_PAROLE if champ.copie_de_la_parole else "")
+        + (
+            CUMULATIF_EN_POST_SCRIPTUM
+            if champ.cumulatif and reglages.note_d_abord
+            else ""
+        )
         for champ in reglages.champs
     )
     consigne = (
