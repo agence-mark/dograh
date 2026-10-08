@@ -166,6 +166,16 @@ MODE_GREFFIER = "greffier"
 CLE_PORTES_DANS_LA_REPONSE = "portes_dans_la_reponse"
 # Plan mode-prise-de-notes, D1 : les modes qu'un appel peut jouer (partie 2 : le greffier).
 MODES_JOUABLES = (MODE_OUTIL, MODE_POST_SCRIPTUM, MODE_GREFFIER)
+# Plan postscriptum-note-d-abord (Q1, Q2) : l'ordre de la réponse en Postscript.
+# « porte, phrase, note » : l'ordre d'avant, gardé pour comparer. « porte, note,
+# phrase » (S1) : la phrase s'écrit en sachant ce qui vient d'être noté.
+CLE_ORDRE_DE_LA_REPONSE = "ordre_de_la_reponse"
+ORDRE_PHRASE_PUIS_NOTE = "porte_phrase_note"
+ORDRE_NOTE_PUIS_PHRASE = "porte_note_phrase"
+ORDRES_JOUABLES = (ORDRE_PHRASE_PUIS_NOTE, ORDRE_NOTE_PUIS_PHRASE)
+# Plan postscriptum-note-d-abord (Q2 bis, Q3) : les indices des modules de donnée,
+# montrés au modèle avec l'état de la fiche, jamais écrits dans la fiche (S2).
+CLE_INDICES_DES_MODULES = "indices_des_modules"
 
 
 def _mode(run_configs: dict) -> str:
@@ -190,6 +200,16 @@ class ReglagesFiche:
     mode: str = MODE_OUTIL
     # Plan porte-parlee, D1 : la porte se prend dans la réponse (Postscript seulement).
     portes_dans_la_reponse: bool = False
+    # Plan postscriptum-note-d-abord : l'ordre de la réponse et les indices (Postscript seul).
+    ordre: str = ORDRE_PHRASE_PUIS_NOTE
+    indices_des_modules: bool = False
+    # S2 : les termes du lexique de type « nom » (marques…), les seuls qu'un indice
+    # range au champ lu par le lexique ; un « mot du métier » (« ramoner ») jamais.
+    noms_du_lexique: frozenset[str] = frozenset()
+
+    @property
+    def note_d_abord(self) -> bool:
+        return self.mode == MODE_POST_SCRIPTUM and self.ordre == ORDRE_NOTE_PUIS_PHRASE
 
     @property
     def par_nom(self) -> dict[str, ChampFiche]:
@@ -241,7 +261,29 @@ class ReglagesFiche:
             termes_du_lexique=termes,
             mode=mode,
             portes_dans_la_reponse=_portes_dans_la_reponse(run_configs, mode),
+            ordre=_ordre_de_la_reponse(run_configs, mode),
+            noms_du_lexique=frozenset(
+                t.terme
+                for t in getattr(lexique, "termes", None) or []
+                if getattr(t, "type", "nom") == "nom"
+            ),
+            indices_des_modules=(
+                mode == MODE_POST_SCRIPTUM
+                and run_configs.get(CLE_INDICES_DES_MODULES) is True
+            ),
         )
+
+
+def _ordre_de_la_reponse(run_configs: dict, mode: str) -> str:
+    """Plan postscriptum-note-d-abord : l'ordre écrit à l'écran, en Postscript
+    seulement. Sans la clé, hors Postscript ou injouable : l'ordre d'avant."""
+    ordre = run_configs.get(CLE_ORDRE_DE_LA_REPONSE)
+    if mode != MODE_POST_SCRIPTUM or ordre is None:
+        return ORDRE_PHRASE_PUIS_NOTE
+    if ordre not in ORDRES_JOUABLES:
+        logger.warning(f"[fiche] ordre de la réponse injouable : {ordre!r}, l'ordre d'avant")
+        return ORDRE_PHRASE_PUIS_NOTE
+    return ordre
 
 
 def _portes_dans_la_reponse(run_configs: dict, mode: str) -> bool:
@@ -2821,6 +2863,28 @@ CONSIGNE_POST_SCRIPTUM = (
     "{note_descriptions}"
 )
 
+# Plan postscriptum-note-d-abord (S1) : la note AVANT la phrase. La voix attend la
+# fin de la note ; la phrase s'écrit en sachant ce qui vient d'être noté (cause du
+# banc du 07/10 : la question était choisie sur la fiche d'avant le tour).
+CONSIGNE_POST_SCRIPTUM_NOTE_D_ABORD = (
+    "# Ta réponse, à chaque tour : deux parties, toujours dans cet ordre\n"
+    "1. D'abord ta note, sur une ligne : un objet JSON dont les clés sont des noms "
+    "de champs ci-dessous et les valeurs ce que la personne vient de dire ou de "
+    "corriger DANS CE TOUR (ou plus tôt, si ça manque encore à la fiche). Seulement "
+    "ce qui est nouveau : jamais ce que la fiche a déjà. S'il n'y a rien à noter, "
+    "écris {{}}.\n"
+    "2. À la ligne, le séparateur {separateur} seul, puis ce que tu dis à la "
+    "personne : une ou deux phrases parlées, comme d'habitude. Ta phrase tient "
+    "compte de ta note : tu ne demandes jamais ce que tu viens de noter ni ce que "
+    "la fiche a déjà.\n"
+    "Jamais de JSON ni de nom de champ après le séparateur. La note n'est pas lue à "
+    "la personne. Écris chaque valeur telle que la personne l'a dite, sans rien "
+    "compléter ni inventer.\n\n"
+    "# Les champs de la fiche\n"
+    "{champs}\n"
+    "{note_descriptions}"
+)
+
 
 # Plan mode-prise-de-notes, partie 2 : ce que l'agent sait du greffier. Il ne
 # note rien et n'appelle rien pour la fiche ; il voit ce qui est écrit (état).
@@ -2850,10 +2914,23 @@ def consigne_du_mode(reglages: ReglagesFiche | None) -> str | None:
         f"- {champ.nom} : {_propriete(champ)['description']}"
         for champ in reglages.champs
     )
+    consigne = (
+        CONSIGNE_POST_SCRIPTUM_NOTE_D_ABORD
+        if reglages.note_d_abord
+        else CONSIGNE_POST_SCRIPTUM
+    )
+    if reglages.note_d_abord and reglages.portes_dans_la_reponse:
+        # Une porte prise : sa ligne « → » d'abord, puis la note (Q1).
+        consigne = consigne.replace(
+            "1. D'abord ta note",
+            "0. Si tu prends une porte, sa ligne « → » vient tout en haut (voir les "
+            "portes plus bas).\n1. Puis ta note",
+            1,
+        )
     return "\n".join(
         [
             DEBUT_PRISE_DE_NOTES,
-            CONSIGNE_POST_SCRIPTUM.format(
+            consigne.format(
                 separateur=SEPARATEUR,
                 champs=champs,
                 note_descriptions=NOTE_DESCRIPTIONS,
@@ -2959,7 +3036,15 @@ ENTETE_ETAT_GREFFIER = (
 )
 
 
+ENTETE_ETAT_NOTE_D_ABORD = (
+    "[Fiche de l'appel : pour toi seulement, tu ne la lis jamais à voix haute. "
+    f"Elle se remplit par tes notes, écrites avant {SEPARATEUR}.]"
+)
+
+
 def entete_etat(reglages: ReglagesFiche) -> str:
+    if reglages.note_d_abord:
+        return ENTETE_ETAT_NOTE_D_ABORD
     if reglages.mode == MODE_POST_SCRIPTUM:
         return ENTETE_ETAT_POST_SCRIPTUM
     if reglages.mode == MODE_GREFFIER:
@@ -3074,6 +3159,31 @@ def etat_de_la_fiche(
     return "\n".join(lignes)
 
 
+def etat_avec_les_indices(
+    reglages: ReglagesFiche,
+    fiche: dict,
+    notices: Notices | None,
+    messages: Iterable[dict],
+) -> str | None:
+    """L'état de la fiche, plus (S2, case allumée) les indices des modules sur la
+    dernière parole de l'appelant. Les indices seuls suffisent à montrer l'état."""
+    from api.services.workflow.indices_des_modules import indices_des_modules
+
+    texte = etat_de_la_fiche(reglages, fiche, notices)
+    parole = next(
+        (
+            m.get("content")
+            for m in reversed(list(messages))
+            if m.get("role") == "user" and isinstance(m.get("content"), str)
+        ),
+        None,
+    )
+    indices = indices_des_modules(reglages, parole, fiche, fiche.get(CLE_TOUR))
+    if not indices:
+        return texte
+    return f"{texte or entete_etat(reglages)}\n{indices}"
+
+
 def inserer_l_etat(messages: list, texte: str) -> list:
     """D43 : juste avant la dernière parole de l'appelant, dans une COPIE de la
     liste. Sans parole de l'appelant (l'accueil), rien n'est ajouté."""
@@ -3125,7 +3235,9 @@ def montrer_la_fiche(
         params = construire(params_from_context)
         if en_conversation.get():
             try:
-                texte = etat_de_la_fiche(reglages, fiche(), notices)
+                texte = etat_avec_les_indices(
+                    reglages, fiche(), notices, params["messages"]
+                )
                 if texte:
                     params["messages"] = inserer_l_etat(list(params["messages"]), texte)
             except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais l'appel

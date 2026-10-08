@@ -1123,7 +1123,12 @@ class PipecatEngine:
         # [.mark] Plan porte-parlee (D4, D5, D11) : les portes de l'étape et les
         # premières répliques, après la consigne du post-scriptum.
         if portes_parlees:
-            bloc = consigne_des_portes(node, agent.workflow, self._format_prompt)
+            bloc = consigne_des_portes(
+                node,
+                agent.workflow,
+                self._format_prompt,
+                note_d_abord=self._fiche is not None and self._fiche.note_d_abord,
+            )
             if bloc:
                 texte = f"{texte}\n\n{bloc}"
         agent.tools = ToolsSchema(standard_tools=functions)

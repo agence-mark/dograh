@@ -40,6 +40,17 @@ Une seule porte par réponse. Dès que ce que dit la personne correspond à une 
 # La première réplique des étapes où mènent tes portes
 {premieres}"""
 
+# Plan postscriptum-note-d-abord (S1, Q1) : porte → note → phrase.
+CONSIGNE_DES_PORTES_NOTE_D_ABORD = """# Les portes de cette étape
+Quand tu prends une porte, ta réponse commence par une ligne seule : « → » suivi du nom exact de la porte. Cette ligne n'est jamais dite à la personne. Ensuite ta note, puis le séparateur, puis ta phrase, qui est la première réplique de l'étape d'arrivée (liste plus bas), sans redemander ce qui est noté.
+Quand on reste dans cette étape, pas de ligne « → » : ta note, le séparateur, ta phrase.
+Une seule porte par réponse. Dès que ce que dit la personne correspond à une porte, tu la prends dans cette réponse : tu ne poses jamais la question de l'étape suivante sans prendre sa porte.
+
+{portes}
+
+# La première réplique des étapes où mènent tes portes
+{premieres}"""
+
 # D3 : une étape d'arrivée sans première réplique écrite à l'écran.
 SANS_PREMIERE_REPLIQUE = "pose la première question de cette étape."
 
@@ -56,7 +67,10 @@ def etapes_sans_premiere_replique(graphe: WorkflowGraph) -> list[str]:
 
 
 def consigne_des_portes(
-    noeud: Node, graphe: WorkflowGraph, rendre: Callable[[str], str]
+    noeud: Node,
+    graphe: WorkflowGraph,
+    rendre: Callable[[str], str],
+    note_d_abord: bool = False,
 ) -> str | None:
     """D5 : le bloc des portes de l'étape (``nom → étape : condition``), puis une
     fois la première réplique de chaque étape d'arrivée de CES portes, rendue avec
@@ -79,4 +93,5 @@ def consigne_des_portes(
         f"{rendre(etape.premiere_replique) if etape.premiere_replique else SANS_PREMIERE_REPLIQUE}"
         for etape in (graphe.nodes[cible] for cible in arrivees)
     )
-    return CONSIGNE_DES_PORTES.format(portes=portes, premieres=premieres)
+    consigne = CONSIGNE_DES_PORTES_NOTE_D_ABORD if note_d_abord else CONSIGNE_DES_PORTES
+    return consigne.format(portes=portes, premieres=premieres)
