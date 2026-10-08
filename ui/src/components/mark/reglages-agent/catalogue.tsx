@@ -489,6 +489,17 @@ export const CATALOGUE = {
         type: "interrupteur",
         libelle: { en: "Never say Monsieur, Madame or Mademoiselle", fr: "Ne jamais dire Monsieur, Madame ou Mademoiselle" },
     }),
+    // Plan postscriptum-note-d-abord (C10, Q4): off by default.
+    relecture_des_numeros: d({
+        type: "interrupteur",
+        libelle: { en: "Correct a phone number read back", fr: "Corriger un numéro relu" },
+        aides: [
+            {
+                en: "Before the voice, a phone number the agent reads back is compared with the last number the caller dictated (read by our number reader). If a digit differs, the caller's digits are spoken. Only phone numbers.",
+                fr: "Avant la voix, un numéro de téléphone que l'agent relit est comparé au dernier numéro dicté par l'appelant (lu par notre lecteur de nombres). Si un chiffre diffère, ce sont les chiffres de l'appelant qui sont dits. Les numéros de téléphone seulement.",
+            },
+        ],
+    }),
     tts_replacements: d({
         type: "etiquettes",
         indication: "SAV:S. A. V.",

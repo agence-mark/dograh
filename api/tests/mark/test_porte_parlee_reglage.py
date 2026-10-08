@@ -15,11 +15,14 @@ import pytest
 
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.workflow.fiche_au_fil_de_leau import (
+    CLE_INDICES_DES_MODULES,
     CLE_MODE,
+    CLE_ORDRE_DE_LA_REPONSE,
     CLE_PORTES_DANS_LA_REPONSE,
     MODE_GREFFIER,
     MODE_OUTIL,
     MODE_POST_SCRIPTUM,
+    ORDRE_PHRASE_PUIS_NOTE,
     ReglagesFiche,
     estampiller_le_mode,
 )
@@ -108,12 +111,18 @@ def test_l_estampille_porte_la_case_jouee():
     assert estampiller_le_mode({}, ReglagesFiche.depuis(ALLUMEE)) == {
         CLE_MODE: MODE_POST_SCRIPTUM,
         CLE_PORTES_DANS_LA_REPONSE: True,
+        # Plan postscriptum-note-d-abord : l'ordre et les indices joués en Postscript.
+        CLE_ORDRE_DE_LA_REPONSE: ORDRE_PHRASE_PUIS_NOTE,
+        CLE_INDICES_DES_MODULES: False,  # formulaire du lot 4 : éteints dans l'ordre d'avant
     }
 
 
 def test_eteinte_l_estampille_est_celle_d_avant():
     assert estampiller_le_mode({}, ReglagesFiche.depuis(POST_SCRIPTUM)) == {
-        CLE_MODE: MODE_POST_SCRIPTUM
+        CLE_MODE: MODE_POST_SCRIPTUM,
+        # Plan postscriptum-note-d-abord : l'ordre et les indices joués en Postscript.
+        CLE_ORDRE_DE_LA_REPONSE: ORDRE_PHRASE_PUIS_NOTE,
+        CLE_INDICES_DES_MODULES: False,  # formulaire du lot 4 : éteints dans l'ordre d'avant
     }
 
 

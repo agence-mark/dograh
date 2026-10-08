@@ -759,6 +759,7 @@ async def execute_text_chat_pending_turn(
         previous_node_id: str | None,
         previous_node_name: str | None,
         allow_interrupt: bool = False,
+        porte: str | None = None,  # [.mark] C12 : la porte écrite (Postscript)
     ) -> None:
         node_transition_events.append(
             {
@@ -770,6 +771,7 @@ async def execute_text_chat_pending_turn(
                     "previous_node_id": previous_node_id,
                     "previous_node_name": previous_node_name,
                     "allow_interrupt": allow_interrupt,
+                    **({"porte_ecrite": porte} if porte else {}),
                 },
             }
         )

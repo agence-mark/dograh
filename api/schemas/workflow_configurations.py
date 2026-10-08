@@ -773,6 +773,14 @@ class WorkflowConfigurationDefaults(BaseModel):
             "of it: either can be used alone."
         ),
     )
+    # [.mark] Plan postscriptum-note-d-abord (C10, Q4) : la relecture d'un numéro,
+    # corrigée par le code avant la voix. Éteinte par défaut (option par agent).
+    relecture_des_numeros: bool = Field(
+        default=False,
+        description=(
+            "Before the voice, a phone number the agent reads back is compared with the last number the caller dictated, as read by our number reader; if a digit differs, the caller's digits are spoken instead. Only phone numbers, sentence by sentence. Off (default): the agent's read-back as written."
+        ),
+    )
     # [.mark] Chantier correctifs-modules, lot 4 bis : le schéma du parcours.
     generer_schema_parcours: bool = Field(
         default=False,
@@ -830,6 +838,28 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Postscript only. The agent takes a transition inside its reply and "
             "already speaks the next step's first reply: no silence between steps. "
             "Off (default): transitions stay function calls, as before."
+        ),
+    )
+    # [.mark] Plan postscriptum-note-d-abord (Q1, Q2) : l'ordre de la réponse en
+    # Postscript. Absent : l'ordre d'avant (porte, phrase, note). Refusé hors
+    # Postscript à l'enregistrement, comme la porte dans la réponse.
+    ordre_de_la_reponse: Literal["porte_phrase_note", "porte_note_phrase"] | None = Field(
+        default=None,
+        description=(
+            "Postscript only. 'porte_note_phrase': the agent writes its note before "
+            "its sentence, so the sentence knows what was just noted (no question "
+            "asked again). 'porte_phrase_note' (default): the sentence first, then "
+            "the note."
+        ),
+    )
+    # [.mark] Plan postscriptum-note-d-abord (Q2 bis, Q3) : les indices des modules,
+    # montrés au modèle, jamais écrits dans la fiche. Absent : allumés (Q2 bis).
+    indices_des_modules: bool | None = Field(
+        default=None,
+        description=(
+            "Postscript only. Our data readers (list values, trade names, towns, "
+            "numbers, spellings) tell the model what they recognised in the caller's "
+            "last words; nothing is written in the record. Empty: on."
         ),
     )
     # [.mark] Plan mode-prise-de-notes, partie 2 (D8, D10) : le greffier. Son

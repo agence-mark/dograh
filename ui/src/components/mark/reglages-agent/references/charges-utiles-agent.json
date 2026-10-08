@@ -63,6 +63,7 @@
     "tts_markdown_filter_enabled": false,
     "interdire_nom_appelant": false,
     "interdire_civilite_appelant": false,
+    "relecture_des_numeros": false,
     "mute_until_first_bot_complete": true,
     "mute_during_function_call": true,
     "mute_engine_callback": true,
@@ -959,6 +960,20 @@
         }
       ]
     },
+    "relecture-des-numeros": {
+      "carte": "ajout-mark",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "relecture_des_numeros": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "prononciation": {
       "carte": "speech-tuning",
       "theme": "voix",
@@ -1014,6 +1029,36 @@
           "modifiees": {
             "fiche_mode_de_note": "post_scriptum",
             "portes_dans_la_reponse": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "ordre-de-la-reponse": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_mode_de_note": "post_scriptum",
+            "ordre_de_la_reponse": "porte_note_phrase"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "indices-des-modules": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_mode_de_note": "post_scriptum",
+            "indices_des_modules": true
           },
           "retirees": []
         }

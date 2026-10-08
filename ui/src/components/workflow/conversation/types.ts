@@ -50,6 +50,8 @@ export interface RealtimeFeedbackEvent {
         previous_node_id?: string;
         previous_node?: string;
         previous_node_name?: string;
+        // [.mark] Plan postscriptum-note-d-abord (C12): the transition written in the reply.
+        porte_ecrite?: string;
         allow_interrupt?: boolean;
         ttfb_seconds?: number;
         kind?: TtfbKind;

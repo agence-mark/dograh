@@ -1317,6 +1317,7 @@ async def _run_pipeline_impl(
         previous_node_id: Optional[str],
         previous_node_name: Optional[str],
         allow_interrupt: bool = False,
+        porte: Optional[str] = None,  # [.mark] C12 : la porte écrite (Postscript)
     ) -> None:
         """Send node transition event to logs buffer and optionally via WebSocket."""
         # Update current node on the buffer so subsequent events are tagged
@@ -1328,6 +1329,7 @@ async def _run_pipeline_impl(
             previous_node_id=previous_node_id,
             previous_node_name=previous_node_name,
             allow_interrupt=allow_interrupt,
+            porte=porte,
         )
         # Send via WebSocket if available
         if ws_sender:
@@ -1619,6 +1621,10 @@ async def _run_pipeline_impl(
     def variables_appel() -> dict:
         return engine._gathered_context.get("extracted_variables", {})
 
+    # [.mark] C10 : le contexte entier (les numéros lus dans la parole de l'appelant).
+    def contexte_appel() -> dict:
+        return engine._gathered_context
+
     # Build the pipeline
     if is_realtime:
         pipeline = build_realtime_pipeline(
@@ -1781,6 +1787,7 @@ async def _run_pipeline_impl(
             # and the live gathered variables (name and civility filter).
             lexique_metier=lexique_metier,
             variables_appel=variables_appel,
+            contexte_appel=contexte_appel,
         )
         engine.set_agent_factory(agent_factory)
         # The agent this call starts on. Its services were resolved above from
@@ -1802,7 +1809,7 @@ async def _run_pipeline_impl(
         # l'amont, fc76383c). L'état est vivant : le nom n'est pas connu au
         # montage, il arrive avec l'extraction, pendant l'appel.
         agent.filtre_nom_civilite = creer_filtre_nom_civilite(
-            run_configs, variables_appel
+            run_configs, variables_appel, contexte_appel
         )
         # [.mark] Plan mode-prise-de-notes : le post-scriptum ou le déclencheur
         # du greffier, sur l'agent qui porte la fiche (le premier), seulement

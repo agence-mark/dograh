@@ -419,3 +419,21 @@ describe("[.mark] fields sent without their defaulted keys (regenerated client, 
         expect(resolveWorkflowConfigurations(null).fiche_champs).toBeUndefined();
     });
 });
+
+describe("[.mark] Call Record: Postscript-only field option (plan postscriptum-note-d-abord)", () => {
+    it("shows « Copied from the caller's words » in Postscript only", async () => {
+        ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: CHAMPS, fiche_mode_de_note: "outil" });
+        ouvrirLesChamps();
+        await screen.findByRole("dialog");
+        expect(document.getElementById("fiche_copie_de_la_parole_0")).toBeNull();
+        expect(document.getElementById("fiche_cumulatif_0")).not.toBeNull();
+    });
+
+    it("shows it, per field, when the agent notes in Postscript", async () => {
+        ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: CHAMPS, fiche_mode_de_note: "post_scriptum" });
+        ouvrirLesChamps();
+        await screen.findByRole("dialog");
+        expect(document.getElementById("fiche_copie_de_la_parole_0")).not.toBeNull();
+        expect(document.getElementById("fiche_copie_de_la_parole_1")).not.toBeNull();
+    });
+});

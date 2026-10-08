@@ -79,6 +79,9 @@ _DEBUT_JSON_EN_TETE = re.compile(r"^[ \t]*[{`]")
 _FIN_EN_SUSPENS = re.compile(r"[ \t\n|]*$")
 _GUILLEMET_FERMANT = re.compile(r"[\s  ]*»[\s  ]*$")
 _GUILLEMET_OUVRANT = re.compile(r"^[\s  ]*«[\s  ]*")
+# Plan postscriptum-note-d-abord (C8) : en note d'abord, la phrase attend que la note
+# soit écrite dans la fiche (le filtre du nom la lit), au plus ce délai : jamais plus.
+DELAI_NOTE_AVANT_LA_VOIX = 0.3
 # Plan porte-parlee (D9) : case allumée, « || » vaut séparateur à la lecture.
 _SEPARATEUR_TOLERE = re.compile(r"\|{2,}")
 # Ce qui entoure parfois le nom écrit après « → » (guillemets, mise en forme).
@@ -176,6 +179,12 @@ class PostScriptumProcessor(FrameProcessor):
         self._porte_brute = ""
         self._portes_lues: list[str] = []  # les lignes « → » complètes
         self._transition_dite = False
+        # Plan postscriptum-note-d-abord (S1, case « Reply order » sur note d'abord).
+        self._dans_la_note = self._reglages.note_d_abord  # la note n'est pas finie
+        self._note_d_abord = ""  # la note écrite avant la phrase, jamais dite
+        self._note_d_abord_lue = False  # elle est lue (et envoyée à ``noter``)
+        self._champs_d_abord: dict | None = None
+        self._sans_separateur = False  # la note s'est fermée sans séparateur
 
     # --- Vers la voix ----------------------------------------------------------
 
@@ -271,8 +280,21 @@ class PostScriptumProcessor(FrameProcessor):
                 # D6 : la porte est prise à la fin de la réponse, après la phrase et la note.
                 self._clore_la_ligne(complete=True)
                 portes = (list(self._portes_lues), self._transition_dite, self._reponse)
+                attendu = self._attendu()
                 trace = await self._finir(direction)
-                await self._porte_protegee(portes, trace, relancer=not self._dit)
+                if portes[0]:
+                    await self._porte_protegee(portes, trace, relancer=not self._dit)
+                elif (
+                    trace is not None
+                    and not self._dit
+                    and attendu
+                    and self._reglages.note_d_abord
+                ):
+                    # C3 : ni phrase ni porte (une note seule) : le modèle reparle, une fois.
+                    # Formulaire du lot 4 (Evan, 08/10) : en « porte, note, phrase » seulement.
+                    relancer = getattr(self._portes, "relancer_une_reponse_muette", None)
+                    if relancer is not None and await relancer():
+                        trace["relance_muette"] = True
             await self.push_frame(frame, direction)
             return
 
@@ -319,6 +341,15 @@ class PostScriptumProcessor(FrameProcessor):
                 self._vu_du_texte = True
                 return
         self._vu_du_texte = True
+        if self._dans_la_note:
+            # Plan postscriptum-note-d-abord (S1) : la note d'abord, jamais dite.
+            await self._lire_la_note_d_abord(frame, direction)
+            return
+        await self._phrase(frame, direction)
+
+    async def _phrase(self, frame: LLMTextFrame, direction: FrameDirection) -> None:
+        """La phrase vers la voix, la note retenue (l'ordre d'avant ; en note
+        d'abord, ce qui suit le séparateur)."""
         if self._apres:
             self._note += frame.text
             if not self._separateur:
@@ -364,9 +395,100 @@ class PostScriptumProcessor(FrameProcessor):
         await self._dire(texte[: len(texte) - garde], frame, direction)
         self._attente = texte[len(texte) - garde :]
 
+    async def _lire_la_note_d_abord(
+        self, frame: LLMTextFrame, direction: FrameDirection
+    ) -> None:
+        """S1 : tout ce qui précède le séparateur est la note. Dès qu'elle est
+        finie, elle part à ``noter`` et la suite va à la voix comme une phrase.
+
+        Replis (D7 tient toujours) : une réponse qui commence par une phrase (le
+        modèle a gardé l'ordre d'avant) part à la voix tout de suite ; une note
+        fermée (``}``) suivie d'une phrase sans séparateur vaut séparateur."""
+        self._note_d_abord += frame.text
+        tete = self._note_d_abord
+        debut = tete.lstrip(" \t\r\n")
+        if not debut:
+            return
+        trouve = self._separateur_dans(tete)
+        if trouve is None and not debut.startswith(("{", "`", "|")):
+            # L'ordre d'avant : la phrase d'abord. Elle part sans attendre.
+            self._dans_la_note, self._note_d_abord = False, ""
+            frame.text = tete
+            await self._phrase(frame, direction)
+            return
+        if trouve is not None:
+            coupe, apres = trouve
+        else:
+            fin = _fin_de_l_objet(tete)
+            reste = tete[fin:] if fin is not None else ""
+            if fin is None or not reste.strip(" \t\r\n|`"):
+                return  # la note continue, ou le séparateur arrive peut-être
+            coupe = apres = fin
+            self._sans_separateur = True
+        self._dans_la_note = False
+        self._note_d_abord_lue = True
+        self._note_d_abord = tete[:coupe]
+        self._champs_d_abord = lire_la_note(self._note_d_abord)
+        tache = self._noter_en_tache(
+            self._champs_d_abord if self._champs_d_abord else None, self._lus
+        )
+        if self._champs_d_abord:
+            # C8 : la note dans la fiche avant la phrase (le filtre du nom la lit).
+            _, en_retard = await asyncio.wait({tache}, timeout=DELAI_NOTE_AVANT_LA_VOIX)
+            if en_retard:
+                logger.warning("[fiche] note d'abord lente : la phrase part sans l'attendre")
+        if tete[apres:]:
+            frame.text = tete[apres:]
+            await self._phrase(frame, direction)
+
+    def _noter_en_tache(self, champs: dict | None, lus: list[dict]) -> asyncio.Task:
+        tache = asyncio.get_running_loop().create_task(self._noter(champs, lus))
+        self._notes_en_cours.add(tache)
+        tache.add_done_callback(self._notes_en_cours.discard)
+        return tache
+
+    async def _finir_note_d_abord(self, direction: FrameDirection) -> dict | None:
+        """S1, fin de la réponse : le reste de la phrase à la voix ; la note est
+        déjà partie à ``noter`` au séparateur (sinon, elle part maintenant)."""
+        self._dit = False
+        if self._dans_la_note:
+            # Ni séparateur ni phrase après la note : la parole qu'elle contient part.
+            tete = self._note_d_abord
+            await self._dire(sans_json(tete), None, direction, fin=True)
+            champs = lire_la_note(tete) if "{" in tete else None
+            if champs:
+                self._noter_en_tache(champs, self._lus)
+            etat, detail = (PRESENT if champs else ABSENT), {"sans_phrase": True}
+        else:
+            if not self._apres and self._attente.strip(" \t\n|"):
+                await self._dire(self._attente, None, direction, fin=True)
+            if self._apres and not self._separateur:
+                await self._dire(sans_json(self._note), None, direction, fin=True)
+            champs = self._champs_d_abord
+            etat = ILLISIBLE if champs is None else (PRESENT if champs else VIDE)
+            detail = {"sans_separateur": True} if self._sans_separateur else {}
+            # Une seconde note après la phrase (le modèle a écrit les deux ordres).
+            apres = lire_la_note(self._note) if "{" in self._note else None
+            if apres:
+                detail["note_apres_la_phrase"] = True
+                self._noter_en_tache(apres, self._lus)
+        if not self._vu_du_texte:
+            self._oublier()
+            return None
+        self._dit = self._a_dit
+        attendu = self._attendu()
+        self._oublier()
+        if etat == ABSENT and not attendu:
+            return None
+        return self._tracer(etat, sorted(champs or {}), ordre="note_d_abord", **detail)
+
     async def _finir(self, direction: FrameDirection) -> dict | None:
         """Fin de la réponse : le reste à la voix, puis la note. Rend la trace
         écrite pour ce tour (ou ``None``) ; ``self._dit`` : la réponse a parlé."""
+        if self._reglages.note_d_abord and (
+            self._dans_la_note or self._note_d_abord_lue
+        ):
+            return await self._finir_note_d_abord(direction)
         self._dit = False
         if not self._apres and self._attente.strip(" \t\n|"):
             await self._dire(self._attente, None, direction, fin=True)
@@ -590,6 +712,32 @@ class PostScriptumProcessor(FrameProcessor):
                 note = None
             if self._notices is not None:
                 self._notices.retenir(note)
+
+
+def _fin_de_l_objet(texte: str) -> int | None:
+    """Où finit le premier objet JSON de ``texte`` (après son ``}``), ou ``None``
+    s'il n'est pas encore fermé. Les accolades dans les chaînes ne comptent pas."""
+    profondeur, dans_chaine, echappe, vu = 0, False, False, False
+    for i, caractere in enumerate(texte):
+        if dans_chaine:
+            if echappe:
+                echappe = False
+            elif caractere == "\\":
+                echappe = True
+            elif caractere == '"':
+                dans_chaine = False
+        elif caractere == '"':
+            dans_chaine = True
+        elif caractere == "{":
+            profondeur, vu = profondeur + 1, True
+        elif caractere == "}" and profondeur:
+            profondeur -= 1
+            if not profondeur and vu:
+                # Une clôture de bloc de code collée à l'objet reste dans la note.
+                fin = i + 1
+                suite = re.match(r"\s*```", texte[fin:])
+                return fin + suite.end() if suite else fin
+    return None
 
 
 def _nom_de_porte(brut: str) -> str:

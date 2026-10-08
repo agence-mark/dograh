@@ -120,6 +120,7 @@ export const CLES_VOIX = [
     "tts_replacements",
     "interdire_nom_appelant",
     "interdire_civilite_appelant",
+    "relecture_des_numeros",
 ] as const;
 
 export const CLES_RELANCE = [

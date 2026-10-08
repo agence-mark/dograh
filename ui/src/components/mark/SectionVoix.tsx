@@ -31,6 +31,7 @@ export interface ReglagesVoix {
     tts_replacements: string[];
     interdire_nom_appelant: boolean;
     interdire_civilite_appelant: boolean;
+    relecture_des_numeros?: boolean;
 }
 
 interface SectionVoixProps {
@@ -164,6 +165,17 @@ export const SectionVoix = ({ reglages, onChange }: SectionVoixProps) => (
                         onCheckedChange={(coche) =>
                             onChange({ ...reglages, interdire_civilite_appelant: coche })
                         }
+                    />
+                </div>
+                {/* [.mark] Plan postscriptum-note-d-abord (C10). */}
+                <div className="flex items-center justify-between gap-4">
+                    <Label htmlFor="relecture_des_numeros" className="text-sm">
+                        Correct a phone number read back
+                    </Label>
+                    <Switch
+                        id="relecture_des_numeros"
+                        checked={reglages.relecture_des_numeros ?? false}
+                        onCheckedChange={(coche) => onChange({ ...reglages, relecture_des_numeros: coche })}
                     />
                 </div>
                 <p className="text-xs text-muted-foreground">

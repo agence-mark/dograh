@@ -1722,6 +1722,12 @@ export type ChampFiche = {
      *
      * Cumulative: each note is added to what the field already holds, nothing is overwritten; not checked against the caller's exact words.
      */
+    /**
+     * Copie De La Parole
+     *
+     * Copied from the caller's words: when the model notes this field, the code writes the caller's exact words of that reply; the model only writes '='. Saves the model copying a whole sentence.
+     */
+    copie_de_la_parole?: boolean;
     cumulatif?: boolean;
     /**
      * Chiffres
@@ -11114,6 +11120,12 @@ export type WorkflowConfigurationDefaults = {
      */
     interdire_civilite_appelant?: boolean;
     /**
+     * Relecture Des Numeros
+     *
+     * Before the voice, a phone number the agent reads back is compared with the last number the caller dictated, as read by our number reader; if a digit differs, the caller's digits are spoken instead. Only phone numbers, sentence by sentence. Off (default): the agent's read-back as written.
+     */
+    relecture_des_numeros?: boolean;
+    /**
      * Generer Schema Parcours
      *
      * At every save, write the flow map at the end of the global prompt (each step and its exits: exit name to arrival step) and 'Tu es ici' with the step's name at the end of each step's prompt. Only step and exit names; the blocks are replaced at each save, never stacked. Off: blocks left by an earlier save are removed, nothing else changes.
@@ -11143,6 +11155,18 @@ export type WorkflowConfigurationDefaults = {
      * Postscript only. The agent takes a transition inside its reply and already speaks the next step's first reply: no silence between steps. Off (default): transitions stay function calls, as before.
      */
     portes_dans_la_reponse?: boolean;
+    /**
+     * Ordre De La Reponse
+     *
+     * Postscript only. 'porte_note_phrase': the agent writes its note before its sentence, so the sentence knows what was just noted (no question asked again). 'porte_phrase_note' (default): the sentence first, then the note.
+     */
+    ordre_de_la_reponse?: 'porte_phrase_note' | 'porte_note_phrase' | null;
+    /**
+     * Indices Des Modules
+     *
+     * Postscript only. Our data readers (list values, trade names, towns, numbers, spellings) tell the model what they recognised in the caller's last words; nothing is written in the record. Empty: on.
+     */
+    indices_des_modules?: boolean | null;
     /**
      * Greffier Llm
      *

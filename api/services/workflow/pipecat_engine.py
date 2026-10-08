@@ -44,7 +44,11 @@ from api.services.pipecat.speech_playback import (
     SpeechPlaybackTracker,
 )
 from api.services.workflow.agent_runtime import AgentRuntime, new_visit_id
-from api.services.workflow.workflow_graph import Node, WorkflowGraph
+from api.services.workflow.workflow_graph import (  # [.mark] C9 : transition_tool_name
+    Node,
+    WorkflowGraph,
+    transition_tool_name,
+)
 
 if TYPE_CHECKING:
     from pipecat.frames.frames import Frame
@@ -72,6 +76,7 @@ from api.services.workflow.disposition_mapping import (
     get_disposition_mapping,
 )
 from api.services.workflow.fiche_au_fil_de_leau import (
+    CLE_TOUR,
     MODE_OUTIL,
     Notices,
     ReglagesFiche,
@@ -200,6 +205,11 @@ class PipecatEngine:
         self.notes_en_cours: set[asyncio.Task] = set()
         # [.mark] Plan porte-parlee (D7) : les raccrochages après une porte écrite.
         self._taches_de_porte: set[asyncio.Task] = set()
+        # [.mark] Plan postscriptum-note-d-abord (C3) : la réplique de l'appelant déjà
+        # relancée après une réponse muette (une relance par réplique, jamais plus).
+        self._replique_relancee: object = None
+        # [.mark] C12 : la porte écrite qui provoque le changement d'étape en cours.
+        self._porte_ecrite_annoncee: str | None = None
         # Plan mode-prise-de-notes, partie 2 : le greffier de l'appel (None hors
         # de ce mode), clos à la passe de fin.
         self.greffier = None
@@ -579,7 +589,25 @@ class PipecatEngine:
         node = self.active_agent.current_node
         if node is None or node.is_end:
             return None
-        return next((e for e in node.out_edges if e.get_function_name() == nom), None)
+        arete = next((e for e in node.out_edges if e.get_function_name() == nom), None)
+        if arete is not None:
+            return arete
+        # [.mark] Plan postscriptum-note-d-abord (C9, run 1041) : le modèle écrit le NOM
+        # DE L'ÉTAPE d'arrivée (« → coordonnees ») au lieu de celui de la porte. Une
+        # seule porte de l'étape y mène : c'est elle, sans ambiguïté. Deux ou plus :
+        # rien (le code ne choisit jamais entre deux portes). Formulaire du lot 4
+        # (Evan, 08/10) : en « porte, note, phrase » seulement.
+        if not getattr(self.fiche, "note_d_abord", False):
+            return None
+        vers_l_etape = [
+            e
+            for e in node.out_edges
+            if transition_tool_name(self.active_agent.workflow.nodes[e.target].name) == nom
+        ]
+        if len(vers_l_etape) == 1:
+            logger.info(f"[porte] « {nom} » est le nom d'une étape : sa seule porte est prise")
+            return vers_l_etape[0]
+        return None
 
     def phrase_de_transition_ecrite(self, nom: str) -> Optional[str]:
         """D16 : la phrase de transition ÉCRITE de la porte ``nom`` (le processeur
@@ -633,6 +661,21 @@ class PipecatEngine:
             elif arete.transition_speech and not transition_dite:
                 await self.queue_text_message(arete.transition_speech, mute_user=True)
             fin = agent.workflow.nodes[arete.target].is_end
+            # [.mark] Plan postscriptum-note-d-abord (C4, Q5, run 1034) : l'étape d'arrivée
+            # porte un outil (un transfert) : une fois la phrase d'arrivée jouée, le modèle
+            # reparle UNE fois dans cette étape pour l'appeler, sans attendre la personne.
+            # Revue du 08/10 : en « porte, note, phrase » seulement (comportement d'avant).
+            outil_a_l_arrivee = (
+                not fin
+                and not relancer
+                and getattr(self._fiche, "note_d_abord", False)
+                and bool(agent.workflow.nodes[arete.target].tool_uuids)
+            )
+            phrase_d_arrivee = (
+                self.speech_playback.suivre_une_reponse(reponse)
+                if outil_a_l_arrivee and reponse
+                else None
+            )
             phrase_de_fin = (
                 self.speech_playback.suivre_une_reponse(reponse)
                 if fin and reponse and not relancer
@@ -645,7 +688,12 @@ class PipecatEngine:
                 if fin and relancer
                 else None
             )
-            await self.set_node(arete.target, origin_visit_id=agent.visit_id)
+            # C12 : le nom de la porte part avec l'événement du changement d'étape.
+            self._porte_ecrite_annoncee = arete.get_function_name()
+            try:
+                await self.set_node(arete.target, origin_visit_id=agent.visit_id)
+            finally:
+                self._porte_ecrite_annoncee = None
             if fin and not relancer:
                 self._mute_pipeline = True
 
@@ -656,6 +704,18 @@ class PipecatEngine:
                         await self.end_call_with_reason(EndTaskReason.END_CALL.value)
 
                 tache = asyncio.get_running_loop().create_task(raccrocher())
+                self._taches_de_porte.add(tache)
+                tache.add_done_callback(self._taches_de_porte.discard)
+            elif outil_a_l_arrivee:
+
+                async def appeler_l_outil() -> None:
+                    if phrase_d_arrivee is not None:
+                        await phrase_d_arrivee.wait()
+                    if self.agent_can_act(agent):
+                        logger.info("[porte] étape d'arrivée avec un outil : le modèle reparle")
+                        await agent.queue_frame(LLMRunFrame())
+
+                tache = asyncio.get_running_loop().create_task(appeler_l_outil())
                 self._taches_de_porte.add(tache)
                 tache.add_done_callback(self._taches_de_porte.discard)
             elif relancer:
@@ -677,6 +737,28 @@ class PipecatEngine:
         except Exception as e:  # noqa: BLE001 -- une porte ne coûte jamais l'appel
             logger.error(f"[porte] porte écrite « {nom} » en échec : {e!r}")
             return "echec"
+
+    async def relancer_une_reponse_muette(self) -> bool:
+        """[.mark] C3 (banc du 07/10, blancs de 8 à 13 s) : la réponse du modèle n'a
+        rien dit et n'a pris aucune porte (une note seule) : le modèle reparle, UNE
+        fois par réplique de l'appelant. Rend ``True`` si la relance est partie.
+        ⛔ Ne lève jamais."""
+        try:
+            replique = self._gathered_context.get(CLE_TOUR)
+            if replique is None and self.context is not None:
+                replique = sum(
+                    1 for m in self.context.get_messages() if m.get("role") == "user"
+                )
+            if replique is not None and replique == self._replique_relancee:
+                logger.info("[porte] réponse muette déjà relancée à cette réplique : rien")
+                return False
+            self._replique_relancee = replique
+            logger.info("[porte] réponse sans phrase ni porte : le modèle reparle")
+            await self.active_agent.queue_frame(LLMRunFrame())
+            return True
+        except Exception as e:  # noqa: BLE001 -- une relance ne coûte jamais l'appel
+            logger.error(f"[porte] relance d'une réponse muette en échec : {e!r}")
+            return False
 
     async def _register_transition_function_with_llm(
         self,
@@ -1123,7 +1205,12 @@ class PipecatEngine:
         # [.mark] Plan porte-parlee (D4, D5, D11) : les portes de l'étape et les
         # premières répliques, après la consigne du post-scriptum.
         if portes_parlees:
-            bloc = consigne_des_portes(node, agent.workflow, self._format_prompt)
+            bloc = consigne_des_portes(
+                node,
+                agent.workflow,
+                self._format_prompt,
+                note_d_abord=self._fiche is not None and self._fiche.note_d_abord,
+            )
             if bloc:
                 texte = f"{texte}\n\n{bloc}"
         agent.tools = ToolsSchema(standard_tools=functions)
@@ -1197,12 +1284,14 @@ class PipecatEngine:
         # Send node transition event if callback is provided
         if emit_transition_event and self._node_transition_callback:
             try:
+                porte = self._porte_ecrite_annoncee
                 await self._node_transition_callback(
                     node_id,
                     node.name,
                     previous_node_id,
                     previous_node_name,
                     node.allow_interrupt,
+                    **({"porte": porte} if porte else {}),
                 )
             except Exception as e:
                 # Log but don't fail - feedback is non-critical

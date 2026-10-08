@@ -193,6 +193,7 @@ export const pourComparerLaFiche = (champs: ChampFiche[]) =>
         ...c,
         valeurs: c.valeurs?.length ? c.valeurs : null,
         cumulatif: c.cumulatif ?? false,
+        copie_de_la_parole: c.copie_de_la_parole ?? false,
         chiffres: c.chiffres ?? null,
         rempli_en_fin_d_appel: c.rempli_en_fin_d_appel ?? true,
     }));
@@ -291,10 +292,13 @@ export const EditeurChampsFiche = ({
     actif,
     champs,
     onChange,
+    postScriptum = false,
 }: {
     actif: boolean;
     champs: ChampFiche[];
     onChange: Dispatch<SetStateAction<ChampFiche[]>>;
+    /** Postscript mode: shows the options that only exist there. */
+    postScriptum?: boolean;
 }) => {
     const { t } = useLangue();
     const [ouvert, setOuvert] = useState(false);
@@ -471,6 +475,27 @@ export const EditeurChampsFiche = ({
                                         })}
                                     </p>
                                 </div>
+                                {/* Plan postscriptum-note-d-abord: the code copies the caller's words (Postscript only). */}
+                                {postScriptum && (
+                                <div className="flex items-start gap-2">
+                                    <Switch
+                                        id={`fiche_copie_de_la_parole_${i}`}
+                                        checked={champ.copie_de_la_parole ?? false}
+                                        onCheckedChange={(coche) => modifier(i, { copie_de_la_parole: coche })}
+                                    />
+                                    <div className="space-y-1">
+                                        <Label htmlFor={`fiche_copie_de_la_parole_${i}`} className="text-xs">
+                                            {t({ en: "Copied from the caller's words", fr: "Recopié des mots de l'appelant" })}
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            {t({
+                                                en: "The code writes the caller's exact words of the reply where the agent notes this field; the agent only writes a sign. Faster than having the model copy a sentence (for a verbatim).",
+                                                fr: "Le code écrit les mots exacts de la réplique où l'agent note ce champ ; l'agent n'écrit qu'un signe. Plus rapide que de faire recopier une phrase au modèle (pour un verbatim).",
+                                            })}
+                                        </p>
+                                    </div>
+                                </div>
+                                )}
                                 <div className="flex items-start gap-2">
                                     <Switch
                                         id={`fiche_cumulatif_${i}`}
@@ -618,7 +643,12 @@ export const SectionFiche = ({
                     ))}
                 </div>
 
-                <EditeurChampsFiche actif={actif} champs={champs} onChange={setChamps} />
+                <EditeurChampsFiche
+                    actif={actif}
+                    champs={champs}
+                    onChange={setChamps}
+                    postScriptum={workflowConfigurations.fiche_mode_de_note === "post_scriptum"}
+                />
                 {erreur && (
                     <p role="alert" className="text-xs text-destructive">
                         {erreur}

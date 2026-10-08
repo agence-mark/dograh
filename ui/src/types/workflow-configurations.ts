@@ -23,6 +23,8 @@ export type TurnStopStrategy = NonNullable<GeneratedWorkflowConfigurationDefault
 export type TurnStartStrategy = NonNullable<GeneratedWorkflowConfigurationDefaults["turn_start_strategy"]>;
 // [.mark] Plan mode-prise-de-notes (D1).
 export type FicheModeDeNote = NonNullable<GeneratedWorkflowConfigurationDefaults["fiche_mode_de_note"]>;
+// [.mark] Plan postscriptum-note-d-abord (Q1, Q2).
+export type OrdreDeLaReponse = NonNullable<GeneratedWorkflowConfigurationDefaults["ordre_de_la_reponse"]>;
 // [.mark] Part 2: the clerk's model block. Empty fields come from the
 // conversation model; no `api_key` = the conversation's key.
 export type GreffierLlm = {
@@ -73,6 +75,8 @@ export const DEFAUTS_PIPECAT = {
     // client, jamais avant. Aucun agent existant ne change de comportement.
     interdire_nom_appelant: false,
     interdire_civilite_appelant: false,
+    // [.mark] Plan postscriptum-note-d-abord (C10): off by default.
+    relecture_des_numeros: false,
     mute_until_first_bot_complete: true,
     mute_during_function_call: true,
     mute_engine_callback: true,
@@ -237,6 +241,8 @@ export interface ChampFiche {
     valeurs?: string[] | null;
     // [.mark] D7 (correctifs-modules): each note is added, nothing overwritten. Absent: false.
     cumulatif?: boolean;
+    // [.mark] Plan postscriptum-note-d-abord: the code copies the caller's words.
+    copie_de_la_parole?: boolean;
     // [.mark] C1 (correctifs-banc-34): how many digits the value must hold. Empty (null or absent): no check.
     chiffres?: number | null;
     // [.mark] D3 (correctifs-second-banc-34): the end-of-call pass may fill it. Absent: true.
@@ -318,6 +324,12 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Plan porte-parlee: transitions taken inside the reply. Postscript
     // only; absent means off, the behaviour of before.
     portes_dans_la_reponse?: boolean;
+    // [.mark] Plan postscriptum-note-d-abord: the order of the reply in Postscript.
+    // Absent means the order of before (transition, reply, note).
+    ordre_de_la_reponse?: OrdreDeLaReponse | null;
+    // [.mark] Plan postscriptum-note-d-abord: our readers' hints shown to the model.
+    // Postscript only; absent means on.
+    indices_des_modules?: boolean | null;
     // [.mark] Chantier langwatch-et-fenetre-du-run, lot 4 (Pipecat ticket 5960):
     // the model's reply after a tool is kept when the result beats the end of the
     // caller's turn. Absent means off, Pipecat's behaviour.
@@ -359,6 +371,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     tts_replacements: string[];  // heard:spoken, matched literally
     interdire_nom_appelant: boolean;  // [.mark] ne jamais PRONONCER le nom de l'appelant
     interdire_civilite_appelant: boolean;  // [.mark] ni sa civilite
+    relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
     mute_until_first_bot_complete: boolean;
     mute_during_function_call: boolean;
     mute_engine_callback: boolean;

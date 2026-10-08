@@ -161,6 +161,8 @@ export const CAS_AGENT: CasAgent[] = [
     c("silence-duree", "speech-tuning", "voix", ["tts_silence_time_s"], [saisir("tts_silence_time_s", "2")]),
     c("nom-appelant", "speech-tuning", "voix", ["interdire_nom_appelant"], [inter("interdire_nom_appelant")]),
     c("civilite", "speech-tuning", "voix", ["interdire_civilite_appelant"], [inter("interdire_civilite_appelant")]),
+    // Plan postscriptum-note-d-abord (C10): added after the reorganisation, frozen once.
+    c("relecture-des-numeros", "ajout-mark", "voix", ["relecture_des_numeros"], [inter("relecture_des_numeros")]),
     c("prononciation", "speech-tuning", "voix", ["tts_replacements"], [{ type: "etiquette", id: "tts_replacements", valeur: "RGE:R. G. E." }]),
 
     // ---- Call Record (.mark) -----------------------------------------------
@@ -171,6 +173,15 @@ export const CAS_AGENT: CasAgent[] = [
     c("portes-dans-la-reponse", "ajout-mark", "donnees", ["fiche_mode_de_note", "portes_dans_la_reponse"], [
         choisir("fiche_mode_de_note", "post_scriptum"),
         inter("portes_dans_la_reponse"),
+    ]),
+    // Plan postscriptum-note-d-abord (lot 2): both only show in Postscript, frozen once.
+    c("ordre-de-la-reponse", "ajout-mark", "donnees", ["fiche_mode_de_note", "ordre_de_la_reponse"], [
+        choisir("fiche_mode_de_note", "post_scriptum"),
+        choisir("ordre_de_la_reponse", "porte_note_phrase"),
+    ]),
+    c("indices-des-modules", "ajout-mark", "donnees", ["fiche_mode_de_note", "indices_des_modules"], [
+        choisir("fiche_mode_de_note", "post_scriptum"),
+        inter("indices_des_modules"),
     ]),
     // Chantier l-agent-travaille, L4 (A6): the after-call of the agent, frozen once.
     c("apres-appel", "ajout-mark", "donnees", ["apres_appel"], [inter("apres_appel_actif")]),

@@ -34,6 +34,7 @@ import type {
     ExternalPBXFieldMapping,
     FicheModeDeNote,
     GreffierLlm,
+    OrdreDeLaReponse,
 } from "@/types/workflow-configurations";
 
 import { ChampReglage } from "../ecran/ChampReglage";
@@ -116,6 +117,26 @@ export const AIDES_PORTES_DANS_LA_REPONSE: Texte[] = [
     },
 ];
 
+// Plan postscriptum-note-d-abord (Q2): the order of the reply, Postscript only.
+export const AIDES_ORDRE_DE_LA_REPONSE: Texte[] = [
+    {
+        en: "Transition, note, reply: the agent writes its note first, then speaks knowing what it just noted: it no longer asks again for what the caller has just said. About 0.3 s more before it speaks.",
+        fr: "Porte, note, phrase : l'agent écrit sa note d'abord, puis parle en sachant ce qu'il vient de noter : il ne redemande plus ce que l'appelant vient de dire. Environ 0,3 s de plus avant qu'il parle.",
+    },
+    {
+        en: "Transition, reply, note: the order of before, kept to compare. The sentence is chosen on the record as it was before the caller's last words.",
+        fr: "Porte, phrase, note : l'ordre d'avant, gardé pour comparer. La phrase est choisie sur la fiche telle qu'elle était avant les derniers mots de l'appelant.",
+    },
+];
+
+// Plan postscriptum-note-d-abord (Q2 bis, Q3): our readers' hints, Postscript only.
+export const AIDES_INDICES_DES_MODULES: Texte[] = [
+    {
+        en: "Our data readers (values of the record's lists, names of the vocabulary, towns, phone numbers, spellings) tell the model what they recognised in the caller's last words. Nothing is written in the record: the agent notes it. No delay.",
+        fr: "Nos modules de donnée (valeurs des listes de la fiche, noms du lexique, communes, numéros, épellations) disent au modèle ce qu'ils ont reconnu dans les derniers mots de l'appelant. Rien n'est écrit dans la fiche : c'est l'agent qui note. Aucun délai.",
+    },
+];
+
 // The clerk's block, compared key by key whatever the order of its keys.
 const pourComparerLeGreffier = (bloc: GreffierLlm | null | undefined) =>
     bloc && Object.keys(bloc).length > 0
@@ -163,6 +184,19 @@ export const ThemeDonnees = ({
     useEffect(() => setPortes(portesEnregistrees), [portesEnregistrees]);
     const portesEnvoyees = modeDeNote === "post_scriptum" && portes;
     const portesModifiees = portesEnvoyees !== portesEnregistrees;
+    // Plan postscriptum-note-d-abord: the order and the hints, Postscript only (the
+    // server refuses « note first » outside it). Absent: the order of before; the hints
+    // then follow the order (lot 4 form, 08/10): on with « note first », off otherwise.
+    const ordreEnregistre: OrdreDeLaReponse = resolue.ordre_de_la_reponse ?? "porte_phrase_note";
+    const [ordre, setOrdre] = useState<OrdreDeLaReponse>(ordreEnregistre);
+    useEffect(() => setOrdre(ordreEnregistre), [ordreEnregistre]);
+    const ordreEnvoye: OrdreDeLaReponse = modeDeNote === "post_scriptum" ? ordre : "porte_phrase_note";
+    const ordreModifie = ordreEnvoye !== ordreEnregistre;
+    const indicesEnregistres = resolue.indices_des_modules ?? null;
+    const [indicesChoisis, setIndicesChoisis] = useState<boolean | null>(indicesEnregistres);
+    useEffect(() => setIndicesChoisis(indicesEnregistres), [indicesEnregistres]);
+    const indices = indicesChoisis ?? ordre === "porte_note_phrase";
+    const indicesModifies = indicesChoisis !== indicesEnregistres;
     // As the call record card did (24/09): follow the record the server stored,
     // keyed on its CONTENT so another theme's save does not wipe an edit here.
     const ficheEnregistree = JSON.stringify([ficheActiveEnregistree, modeEnregistre, champsEnregistres]);
@@ -377,6 +411,17 @@ export const ThemeDonnees = ({
                 config: () => ({ portes_dans_la_reponse: portesEnvoyees }),
             },
             {
+                // Plan postscriptum-note-d-abord: its own part, sent only when changed (E6).
+                nom: { en: "Reply order", fr: "Ordre de la réponse" },
+                modifie: ordreModifie,
+                config: () => ({ ordre_de_la_reponse: ordreEnvoye }),
+            },
+            {
+                nom: { en: "Module hints", fr: "Indices des modules" },
+                modifie: indicesModifies,
+                config: () => ({ indices_des_modules: indicesChoisis }),
+            },
+            {
                 // l-agent-collegue, L1: its own part, sent only when changed (E6).
                 nom: { en: "Team known to the agent", fr: "Équipe connue de l'agent" },
                 modifie: equipeConnueModifiee,
@@ -508,6 +553,46 @@ export const ThemeDonnees = ({
                         <Switch id="portes_dans_la_reponse" checked={portes} onCheckedChange={setPortes} />
                     </ChampReglage>
                 )}
+                {/* Plan postscriptum-note-d-abord (Q2): a menu with the two orders that keep the
+                    transition and the voice working (free drag and drop dismissed, 07/10). */}
+                {ficheActive && modeDeNote === "post_scriptum" && (
+                    <ChampReglage
+                        cle="ordre_de_la_reponse"
+                        idControle="ordre_de_la_reponse"
+                        libelle={{ en: "Reply order", fr: "Ordre de la réponse" }}
+                        aides={AIDES_ORDRE_DE_LA_REPONSE}
+                        bornes={{ en: "Default: Transition, reply, note", fr: "Par défaut : porte, phrase, note" }}
+                    >
+                        <Select value={ordre} onValueChange={(v: OrdreDeLaReponse) => setOrdre(v)}>
+                            <SelectTrigger id="ordre_de_la_reponse">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="porte_note_phrase">
+                                    {t({ en: "Transition, note, reply", fr: "Porte, note, phrase" })}
+                                </SelectItem>
+                                <SelectItem value="porte_phrase_note">
+                                    {t({ en: "Transition, reply, note", fr: "Porte, phrase, note" })}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </ChampReglage>
+                )}
+                {ficheActive && modeDeNote === "post_scriptum" && (
+                    <ChampReglage
+                        cle="indices_des_modules"
+                        idControle="indices_des_modules"
+                        libelle={{ en: "Module hints", fr: "Indices des modules" }}
+                        aides={AIDES_INDICES_DES_MODULES}
+                        bornes={{
+                            en: "Default: on with « Transition, note, reply », off otherwise",
+                            fr: "Par défaut : allumé avec « Porte, note, phrase », éteint sinon",
+                        }}
+                        disposition="ligne"
+                    >
+                        <Switch id="indices_des_modules" checked={indices} onCheckedChange={setIndicesChoisis} />
+                    </ChampReglage>
+                )}
                 {ficheActive && modeDeNote === "post_scriptum" && portes && etapesSansPremiereReplique.length > 0 && (
                     <p role="note" className="rounded border bg-muted/30 p-3 text-sm">
                         {t({
@@ -566,7 +651,12 @@ export const ThemeDonnees = ({
                     </ChampReglage>
                 )}
                 <div id="reglage-fiche_champs" data-reglage="fiche_champs" className="space-y-2">
-                    <EditeurChampsFiche actif={ficheActive} champs={champs} onChange={setChamps} />
+                    <EditeurChampsFiche
+                        actif={ficheActive}
+                        champs={champs}
+                        onChange={setChamps}
+                        postScriptum={modeDeNote === "post_scriptum"}
+                    />
                 </div>
             </Intertitre>
 
