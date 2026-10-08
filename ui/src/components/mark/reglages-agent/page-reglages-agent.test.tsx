@@ -126,7 +126,13 @@ describe("[.mark] the agent page in themes", () => {
     // its mode, like in the code (no clerk, nothing to set).
     // Plan porte-parlee: « Transitions in the reply » only in Postscript (tested below).
     const SEULEMENT_EN_GREFFIER = ["greffier_llm", "greffier_consigne"];
-    const SEULEMENT_DANS_UN_MODE = [...SEULEMENT_EN_GREFFIER, "portes_dans_la_reponse"];
+    const SEULEMENT_DANS_UN_MODE = [
+        ...SEULEMENT_EN_GREFFIER,
+        "portes_dans_la_reponse",
+        // Plan postscriptum-note-d-abord: Postscript only, like the transitions in the reply.
+        "ordre_de_la_reponse",
+        "indices_des_modules",
+    ];
     // Chantier l-agent-collegue, L7: the names of « Field recognition » are read only when « Check
     // the data » is on, and drawn only then (E8, the same rule as the code).
     const SEULEMENT_AVEC_CONTROLE = ["variables_telephone", "variables_code_postal", "variables_courriel", "variables_date"];

@@ -1019,6 +1019,36 @@
         }
       ]
     },
+    "ordre-de-la-reponse": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_mode_de_note": "post_scriptum",
+            "ordre_de_la_reponse": "porte_note_phrase"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "indices-des-modules": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_mode_de_note": "post_scriptum",
+            "indices_des_modules": false
+          },
+          "retirees": []
+        }
+      ]
+    },
     "apres-appel": {
       "carte": "ajout-mark",
       "theme": "donnees",

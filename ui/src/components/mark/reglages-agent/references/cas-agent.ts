@@ -172,6 +172,15 @@ export const CAS_AGENT: CasAgent[] = [
         choisir("fiche_mode_de_note", "post_scriptum"),
         inter("portes_dans_la_reponse"),
     ]),
+    // Plan postscriptum-note-d-abord (lot 2): both only show in Postscript, frozen once.
+    c("ordre-de-la-reponse", "ajout-mark", "donnees", ["fiche_mode_de_note", "ordre_de_la_reponse"], [
+        choisir("fiche_mode_de_note", "post_scriptum"),
+        choisir("ordre_de_la_reponse", "porte_note_phrase"),
+    ]),
+    c("indices-des-modules", "ajout-mark", "donnees", ["fiche_mode_de_note", "indices_des_modules"], [
+        choisir("fiche_mode_de_note", "post_scriptum"),
+        inter("indices_des_modules"),
+    ]),
     // Chantier l-agent-travaille, L4 (A6): the after-call of the agent, frozen once.
     c("apres-appel", "ajout-mark", "donnees", ["apres_appel"], [inter("apres_appel_actif")]),
     // Chantier l-agent-collegue, L1 (C5): the team known to the agent, frozen once.

@@ -17,7 +17,12 @@ séparateur, la phrase va à la voix ensuite. Le moteur est le témoin de
 
 import pytest
 
-from api.services.pipecat.post_scriptum import ABSENT, PRESENT, TRACE_POST_SCRIPTUM, VIDE
+from api.services.pipecat.post_scriptum import (
+    ABSENT,
+    PRESENT,
+    TRACE_POST_SCRIPTUM,
+    VIDE,
+)
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_ORDRE_DE_LA_REPONSE,
     ORDRE_NOTE_PUIS_PHRASE,
@@ -38,7 +43,7 @@ def _trace(montage):
     "morceaux",
     [
         ['{"motif": "entretien"}\n|||\nQuelle est la marque ?'],
-        ['{"motif": "entre', 'tien"}\n||', '|\nQuelle est ', "la marque ?"],
+        ['{"motif": "entre', 'tien"}\n||', "|\nQuelle est ", "la marque ?"],
         ["```json\n", '{"motif": "entretien"}\n```\n|||', "Quelle est la marque ?"],
     ],
 )
@@ -74,7 +79,9 @@ async def test_note_fermee_sans_separateur():
 @pytest.mark.asyncio
 async def test_le_modele_garde_l_ordre_d_avant():
     montage = _MontagePortes(NOTE_D_ABORD)
-    ordre = await montage.reponse("Quelle est ", "la marque ?\n|||\n", '{"motif": "entretien"}')
+    ordre = await montage.reponse(
+        "Quelle est ", "la marque ?\n|||\n", '{"motif": "entretien"}'
+    )
     assert ordre.dit.strip() == "Quelle est la marque ?"
     assert montage.fiche.get("motif") == "entretien"
 
@@ -124,3 +131,56 @@ def test_une_date_dite_en_chiffres_notee_en_lettres_est_dite():
     assert est_cite("il y a deux ans", paroles)
     assert est_dit_tel_quel("il y a deux ans", paroles)
     assert not est_dit_tel_quel("il y a trois ans", paroles)
+
+
+@pytest.mark.asyncio
+async def test_c8_le_filtre_du_nom_lit_le_nom_de_la_note_avant_la_voix(monkeypatch):
+    """C8 (banc du 07/10, run 1038) : en note d'abord, le nom noté dans la réponse
+    est dans la fiche avant que la phrase n'arrive au filtre : il n'est pas dit.
+    `noter` ralenti (0,1 s, une commune relue) : sans l'attente, le nom passait (R7)."""
+    import asyncio
+
+    import api.services.pipecat.post_scriptum as module
+
+    noter_vrai = module.noter
+
+    async def noter_lent(*args, **kwargs):
+        await asyncio.sleep(0.1)
+        return await noter_vrai(*args, **kwargs)
+
+    monkeypatch.setattr(module, "noter", noter_lent)
+    from pipecat.frames.frames import (
+        LLMFullResponseEndFrame,
+        LLMFullResponseStartFrame,
+        LLMTextFrame,
+    )
+    from pipecat.pipeline.pipeline import Pipeline
+    from pipecat.tests.utils import SleepFrame
+
+    from api.services.pipecat.filtre_nom_civilite import FiltreNomCiviliteProcessor
+    from api.services.workflow.fiche_au_fil_de_leau import attendre_les_notes
+    from api.tests.mark.test_porte_parlee_processeur import DEMARRAGE_S, _Ordre
+    from pipecat.tests import run_test
+
+    montage = _MontagePortes(NOTE_D_ABORD)
+    montage.messages = [{"role": "user", "content": "C'est Dupont, D-U-P-O-N-T."}]
+    filtre = FiltreNomCiviliteProcessor(
+        retirer_nom=True, retirer_civilite=True, variables=lambda: montage.fiche
+    )
+    ordre = _Ordre()
+    await run_test(
+        Pipeline([montage.processeur, filtre, ordre]),
+        frames_to_send=[
+            LLMFullResponseStartFrame(),
+            LLMTextFrame('{"nom": "Dupont"}\n|||\n'),
+            LLMTextFrame("Merci, monsieur"),
+            LLMTextFrame(" Dupont. Votre numéro ?"),
+            LLMFullResponseEndFrame(),
+            SleepFrame(sleep=0.3),
+        ],
+        start_timeout=DEMARRAGE_S,
+    )
+    await attendre_les_notes(montage.notes)
+    assert montage.fiche.get("nom") == "Dupont"
+    assert "Dupont" not in ordre.dit and "monsieur" not in ordre.dit
+    assert "Votre numéro ?" in ordre.dit

@@ -23,6 +23,8 @@ export type TurnStopStrategy = NonNullable<GeneratedWorkflowConfigurationDefault
 export type TurnStartStrategy = NonNullable<GeneratedWorkflowConfigurationDefaults["turn_start_strategy"]>;
 // [.mark] Plan mode-prise-de-notes (D1).
 export type FicheModeDeNote = NonNullable<GeneratedWorkflowConfigurationDefaults["fiche_mode_de_note"]>;
+// [.mark] Plan postscriptum-note-d-abord (Q1, Q2).
+export type OrdreDeLaReponse = NonNullable<GeneratedWorkflowConfigurationDefaults["ordre_de_la_reponse"]>;
 // [.mark] Part 2: the clerk's model block. Empty fields come from the
 // conversation model; no `api_key` = the conversation's key.
 export type GreffierLlm = {
@@ -318,6 +320,12 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Plan porte-parlee: transitions taken inside the reply. Postscript
     // only; absent means off, the behaviour of before.
     portes_dans_la_reponse?: boolean;
+    // [.mark] Plan postscriptum-note-d-abord: the order of the reply in Postscript.
+    // Absent means the order of before (transition, reply, note).
+    ordre_de_la_reponse?: OrdreDeLaReponse | null;
+    // [.mark] Plan postscriptum-note-d-abord: our readers' hints shown to the model.
+    // Postscript only; absent means on.
+    indices_des_modules?: boolean | null;
     // [.mark] Chantier langwatch-et-fenetre-du-run, lot 4 (Pipecat ticket 5960):
     // the model's reply after a tool is kept when the result beats the end of the
     // caller's turn. Absent means off, Pipecat's behaviour.

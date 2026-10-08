@@ -11144,6 +11144,18 @@ export type WorkflowConfigurationDefaults = {
      */
     portes_dans_la_reponse?: boolean;
     /**
+     * Ordre De La Reponse
+     *
+     * Postscript only. 'porte_note_phrase': the agent writes its note before its sentence, so the sentence knows what was just noted (no question asked again). 'porte_phrase_note' (default): the sentence first, then the note.
+     */
+    ordre_de_la_reponse?: 'porte_phrase_note' | 'porte_note_phrase' | null;
+    /**
+     * Indices Des Modules
+     *
+     * Postscript only. Our data readers (list values, trade names, towns, numbers, spellings) tell the model what they recognised in the caller's last words; nothing is written in the record. Empty: on.
+     */
+    indices_des_modules?: boolean | null;
+    /**
      * Greffier Llm
      *
      * The clerk's model, when the note-taking mode is Clerk: provider, model, settings and its own API key. Empty fields come from the conversation model; an empty key uses the conversation's key (and its rate limit).

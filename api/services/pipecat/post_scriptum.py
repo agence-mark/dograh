@@ -79,6 +79,9 @@ _DEBUT_JSON_EN_TETE = re.compile(r"^[ \t]*[{`]")
 _FIN_EN_SUSPENS = re.compile(r"[ \t\n|]*$")
 _GUILLEMET_FERMANT = re.compile(r"[\s  ]*»[\s  ]*$")
 _GUILLEMET_OUVRANT = re.compile(r"^[\s  ]*«[\s  ]*")
+# Plan postscriptum-note-d-abord (C8) : en note d'abord, la phrase attend que la note
+# soit écrite dans la fiche (le filtre du nom la lit), au plus ce délai : jamais plus.
+DELAI_NOTE_AVANT_LA_VOIX = 0.3
 # Plan porte-parlee (D9) : case allumée, « || » vaut séparateur à la lecture.
 _SEPARATEUR_TOLERE = re.compile(r"\|{2,}")
 # Ce qui entoure parfois le nom écrit après « → » (guillemets, mise en forme).
@@ -413,17 +416,23 @@ class PostScriptumProcessor(FrameProcessor):
         self._note_d_abord_lue = True
         self._note_d_abord = tete[:coupe]
         self._champs_d_abord = lire_la_note(self._note_d_abord)
-        self._noter_en_tache(
+        tache = self._noter_en_tache(
             self._champs_d_abord if self._champs_d_abord else None, self._lus
         )
+        if self._champs_d_abord:
+            # C8 : la note dans la fiche avant la phrase (le filtre du nom la lit).
+            _, en_retard = await asyncio.wait({tache}, timeout=DELAI_NOTE_AVANT_LA_VOIX)
+            if en_retard:
+                logger.warning("[fiche] note d'abord lente : la phrase part sans l'attendre")
         if tete[apres:]:
             frame.text = tete[apres:]
             await self._phrase(frame, direction)
 
-    def _noter_en_tache(self, champs: dict | None, lus: list[dict]) -> None:
+    def _noter_en_tache(self, champs: dict | None, lus: list[dict]) -> asyncio.Task:
         tache = asyncio.get_running_loop().create_task(self._noter(champs, lus))
         self._notes_en_cours.add(tache)
         tache.add_done_callback(self._notes_en_cours.discard)
+        return tache
 
     async def _finir_note_d_abord(self, direction: FrameDirection) -> dict | None:
         """S1, fin de la réponse : le reste de la phrase à la voix ; la note est

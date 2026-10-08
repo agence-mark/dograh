@@ -267,9 +267,10 @@ class ReglagesFiche:
                 for t in getattr(lexique, "termes", None) or []
                 if getattr(t, "type", "nom") == "nom"
             ),
+            # Q2 bis : allumés par défaut (clé absente ou vide), Postscript seul.
             indices_des_modules=(
                 mode == MODE_POST_SCRIPTUM
-                and run_configs.get(CLE_INDICES_DES_MODULES) is True
+                and run_configs.get(CLE_INDICES_DES_MODULES) is not False
             ),
         )
 
@@ -311,6 +312,10 @@ def estampiller_le_mode(
         runtime_configuration[CLE_MODE] = reglages.mode
         if reglages.portes_dans_la_reponse:
             runtime_configuration[CLE_PORTES_DANS_LA_REPONSE] = True
+        # Plan postscriptum-note-d-abord : l'ordre et les indices JOUÉS (Postscript).
+        if reglages.mode == MODE_POST_SCRIPTUM:
+            runtime_configuration[CLE_ORDRE_DE_LA_REPONSE] = reglages.ordre
+            runtime_configuration[CLE_INDICES_DES_MODULES] = reglages.indices_des_modules
     return runtime_configuration
 
 

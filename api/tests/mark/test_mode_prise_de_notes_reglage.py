@@ -20,10 +20,13 @@ from pydantic import ValidationError
 
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.workflow.fiche_au_fil_de_leau import (
+    CLE_INDICES_DES_MODULES,
     CLE_MODE,
+    CLE_ORDRE_DE_LA_REPONSE,
     MODE_GREFFIER,
     MODE_OUTIL,
     MODE_POST_SCRIPTUM,
+    ORDRE_PHRASE_PUIS_NOTE,
     ReglagesFiche,
     estampiller_le_mode,
 )
@@ -104,7 +107,12 @@ def test_une_valeur_injouable_ecrite_a_la_main_est_lue_outil(injouable):
 
 def test_l_estampille_dit_le_mode_joue():
     reglages = ReglagesFiche.depuis({**FICHE, CLE_MODE: MODE_POST_SCRIPTUM})
-    assert estampiller_le_mode({}, reglages) == {CLE_MODE: MODE_POST_SCRIPTUM}
+    assert estampiller_le_mode({}, reglages) == {
+        CLE_MODE: MODE_POST_SCRIPTUM,
+        # Plan postscriptum-note-d-abord : l'ordre et les indices joués en Postscript.
+        CLE_ORDRE_DE_LA_REPONSE: ORDRE_PHRASE_PUIS_NOTE,
+        CLE_INDICES_DES_MODULES: True,
+    }
 
 
 def test_fiche_eteinte_aucun_mode_n_est_estampille():

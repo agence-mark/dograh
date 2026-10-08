@@ -377,6 +377,13 @@ class UpdateWorkflowRequest(BaseModel):
             raise ValueError(
                 "Transitions in the reply require the Postscript note-taking mode"
             )
+        # [.mark] Plan postscriptum-note-d-abord : l'ordre « note d'abord » aussi.
+        if (
+            value is not None
+            and value.ordre_de_la_reponse == "porte_note_phrase"
+            and value.fiche_mode_de_note != "post_scriptum"
+        ):
+            raise ValueError("Note before the sentence requires the Postscript note-taking mode")
         # [.mark] l-agent-travaille, L4 : l'après-appel de l'agent, vérifié ici (module
         # inconnu, champ mal nommé) pour la même raison que les horaires.
         if value is not None and value.apres_appel:
