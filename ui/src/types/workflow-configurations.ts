@@ -75,6 +75,8 @@ export const DEFAUTS_PIPECAT = {
     // client, jamais avant. Aucun agent existant ne change de comportement.
     interdire_nom_appelant: false,
     interdire_civilite_appelant: false,
+    // [.mark] Plan postscriptum-note-d-abord (C10): off by default.
+    relecture_des_numeros: false,
     mute_until_first_bot_complete: true,
     mute_during_function_call: true,
     mute_engine_callback: true,
@@ -367,6 +369,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     tts_replacements: string[];  // heard:spoken, matched literally
     interdire_nom_appelant: boolean;  // [.mark] ne jamais PRONONCER le nom de l'appelant
     interdire_civilite_appelant: boolean;  // [.mark] ni sa civilite
+    relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
     mute_until_first_bot_complete: boolean;
     mute_during_function_call: boolean;
     mute_engine_callback: boolean;

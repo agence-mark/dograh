@@ -246,6 +246,19 @@ export function conversationItemsFromRealtimeFeedbackEvents(events: RealtimeFeed
         }
 
         if (event.type === "rtf-node-transition") {
+            // [.mark] Plan postscriptum-note-d-abord (C12): a transition written in the
+            // reply (Postscript) shows like a transition called as a function.
+            const porteEcrite = event.payload.porte_ecrite;
+            if (porteEcrite) {
+                items.push({
+                    kind: "tool-call",
+                    id: `porte-${event.turn}-${index}`,
+                    timestamp: event.timestamp,
+                    functionName: porteEcrite,
+                    status: "completed",
+                    result: "written in the reply",
+                });
+            }
             items.push({
                 kind: "node-transition",
                 id: `node-${event.turn}-${index}`,

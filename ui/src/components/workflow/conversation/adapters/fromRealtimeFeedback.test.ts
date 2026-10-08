@@ -43,3 +43,27 @@ describe("reasoning delay", () => {
         expect(isLlmTtfb("tts")).toBe(false);
     });
 });
+
+// [.mark] Plan postscriptum-note-d-abord (C12).
+describe("transition written in the reply", () => {
+    it("shows the written transition like a called one, before the step change", () => {
+        const items = conversationItemsFromRealtimeFeedbackEvents([
+            {
+                type: "rtf-node-transition",
+                payload: { node_id: "n2", node_name: "coordonnees", previous_node_name: "panne", porte_ecrite: "panne_decrite" },
+                timestamp,
+                turn: 2,
+            },
+        ]);
+        expect(items[0]).toMatchObject({ kind: "tool-call", functionName: "panne_decrite", status: "completed" });
+        expect(items[1]).toMatchObject({ kind: "node-transition", nodeName: "coordonnees" });
+    });
+
+    it("adds nothing for a transition without a written transition", () => {
+        const items = conversationItemsFromRealtimeFeedbackEvents([
+            { type: "rtf-node-transition", payload: { node_id: "n2", node_name: "coordonnees" }, timestamp, turn: 2 },
+        ]);
+        expect(items).toHaveLength(1);
+        expect(items[0]).toMatchObject({ kind: "node-transition" });
+    });
+});

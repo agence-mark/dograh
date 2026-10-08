@@ -63,6 +63,7 @@
     "tts_markdown_filter_enabled": false,
     "interdire_nom_appelant": false,
     "interdire_civilite_appelant": false,
+    "relecture_des_numeros": false,
     "mute_until_first_bot_complete": true,
     "mute_during_function_call": true,
     "mute_engine_callback": true,
@@ -954,6 +955,20 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "interdire_civilite_appelant": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "relecture-des-numeros": {
+      "carte": "ajout-mark",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "relecture_des_numeros": true
           },
           "retirees": []
         }

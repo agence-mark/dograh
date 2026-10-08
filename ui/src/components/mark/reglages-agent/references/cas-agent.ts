@@ -161,6 +161,8 @@ export const CAS_AGENT: CasAgent[] = [
     c("silence-duree", "speech-tuning", "voix", ["tts_silence_time_s"], [saisir("tts_silence_time_s", "2")]),
     c("nom-appelant", "speech-tuning", "voix", ["interdire_nom_appelant"], [inter("interdire_nom_appelant")]),
     c("civilite", "speech-tuning", "voix", ["interdire_civilite_appelant"], [inter("interdire_civilite_appelant")]),
+    // Plan postscriptum-note-d-abord (C10): added after the reorganisation, frozen once.
+    c("relecture-des-numeros", "ajout-mark", "voix", ["relecture_des_numeros"], [inter("relecture_des_numeros")]),
     c("prononciation", "speech-tuning", "voix", ["tts_replacements"], [{ type: "etiquette", id: "tts_replacements", valeur: "RGE:R. G. E." }]),
 
     // ---- Call Record (.mark) -----------------------------------------------

@@ -280,8 +280,15 @@ class PostScriptumProcessor(FrameProcessor):
                 # D6 : la porte est prise à la fin de la réponse, après la phrase et la note.
                 self._clore_la_ligne(complete=True)
                 portes = (list(self._portes_lues), self._transition_dite, self._reponse)
+                attendu = self._attendu()
                 trace = await self._finir(direction)
-                await self._porte_protegee(portes, trace, relancer=not self._dit)
+                if portes[0]:
+                    await self._porte_protegee(portes, trace, relancer=not self._dit)
+                elif trace is not None and not self._dit and attendu:
+                    # C3 : ni phrase ni porte (une note seule) : le modèle reparle, une fois.
+                    relancer = getattr(self._portes, "relancer_une_reponse_muette", None)
+                    if relancer is not None and await relancer():
+                        trace["relance_muette"] = True
             await self.push_frame(frame, direction)
             return
 

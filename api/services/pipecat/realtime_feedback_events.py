@@ -12,17 +12,20 @@ def build_node_transition_event(
     previous_node_id: str | None,
     previous_node_name: str | None,
     allow_interrupt: bool = False,
+    porte: str | None = None,
 ) -> dict[str, Any]:
-    return {
-        "type": RealtimeFeedbackType.NODE_TRANSITION.value,
-        "payload": {
-            "node_id": node_id,
-            "node_name": node_name,
-            "previous_node_id": previous_node_id,
-            "previous_node_name": previous_node_name,
-            "allow_interrupt": allow_interrupt,
-        },
+    payload: dict[str, Any] = {
+        "node_id": node_id,
+        "node_name": node_name,
+        "previous_node_id": previous_node_id,
+        "previous_node_name": previous_node_name,
+        "allow_interrupt": allow_interrupt,
     }
+    # [.mark] Plan postscriptum-note-d-abord (C12) : la porte écrite dans la réponse
+    # (Postscript), affichée dans la conversation du run comme une porte appelée.
+    if porte:
+        payload["porte_ecrite"] = porte
+    return {"type": RealtimeFeedbackType.NODE_TRANSITION.value, "payload": payload}
 
 
 def build_user_transcription_event(

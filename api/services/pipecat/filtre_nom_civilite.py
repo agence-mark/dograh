@@ -48,6 +48,12 @@ from collections.abc import Callable
 
 from loguru import logger
 
+from api.services.pipecat.relecture_numeros import (
+    CLE_RELECTURE_DES_NUMEROS,
+    corriger_relecture,
+    numero_de_reference,
+)
+
 from pipecat.frames.frames import (
     CancelFrame,
     EndFrame,
@@ -270,9 +276,15 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
         variables: Callable[[], dict],
         mode_envoi: str = "sentence",
         champ_du_nom: str = "nom",
+        corriger_numeros: bool = False,
+        contexte: Callable[[], dict] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        # [.mark] Plan postscriptum-note-d-abord (C10) : la relecture d'un numéro,
+        # corrigée sur la phrase recomposée (même endroit, même raison que le nom).
+        self._corriger_numeros = corriger_numeros
+        self._contexte = contexte or (lambda: {})
         self._retirer_nom = retirer_nom
         self._retirer_civilite = retirer_civilite
         self._variables = variables
@@ -314,6 +326,10 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
             return None
 
     def _filtrer(self, texte: str) -> str:
+        if self._corriger_numeros:
+            texte = corriger_relecture(texte, numero_de_reference(self._contexte()))
+        if not (self._retirer_nom or self._retirer_civilite):
+            return texte
         return retirer_nom_et_civilite(
             texte,
             self._nom_de_lappelant(),
@@ -408,13 +424,16 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
 def creer_filtre_nom_civilite(
     run_configs: dict | None,
     variables: Callable[[], dict],
+    contexte: Callable[[], dict] | None = None,
 ) -> FiltreNomCiviliteProcessor | None:
     """Le filtre pour cet agent, ou ``None`` quand les deux interrupteurs sont
     éteints -- ce qui est le défaut, et ce qui vaut pour tout agent existant."""
     run_configs = run_configs or {}
     retirer_nom = bool(run_configs.get("interdire_nom_appelant"))
     retirer_civilite = bool(run_configs.get("interdire_civilite_appelant"))
-    if not retirer_nom and not retirer_civilite:
+    # C10 : la relecture des numéros, option par agent, éteinte par défaut.
+    corriger_numeros = run_configs.get(CLE_RELECTURE_DES_NUMEROS) is True
+    if not retirer_nom and not retirer_civilite and not corriger_numeros:
         return None
     from api.schemas.workflow_configurations import DEFAULT_TTS_TEXT_AGGREGATION_MODE
 
@@ -422,6 +441,8 @@ def creer_filtre_nom_civilite(
         retirer_nom=retirer_nom,
         retirer_civilite=retirer_civilite,
         variables=variables,
+        corriger_numeros=corriger_numeros,
+        contexte=contexte,
         mode_envoi=run_configs.get("tts_text_aggregation_mode")
         or DEFAULT_TTS_TEXT_AGGREGATION_MODE,
     )

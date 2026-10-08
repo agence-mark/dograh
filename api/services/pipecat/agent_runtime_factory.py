@@ -100,9 +100,11 @@ class AgentRuntimeFactory:
         # upstream's behaviour.
         lexique_metier: Any = None,
         variables_appel: Callable[[], dict] | None = None,
+        contexte_appel: Callable[[], dict] | None = None,
     ):
         self._lexique_metier = lexique_metier
         self._variables_appel = variables_appel or (lambda: {})
+        self._contexte_appel = contexte_appel or (lambda: {})
         self._on_agent_error = on_agent_error
         self._use_draft = use_draft
         self._organization_id = organization_id
@@ -270,7 +272,7 @@ class AgentRuntimeFactory:
             entered_at=None,
             # [.mark] This agent's own switches, the call's live variables.
             filtre_nom_civilite=creer_filtre_nom_civilite(
-                run_configs, self._variables_appel
+                run_configs, self._variables_appel, self._contexte_appel
             ),
         )
         try:

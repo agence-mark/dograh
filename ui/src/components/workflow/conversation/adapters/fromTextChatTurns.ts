@@ -48,6 +48,19 @@ function conversationItemsFromTextChatEvents(
 
         if (eventType === "node_transition") {
             const nodeName = asString(payload.node_name) ?? "Node";
+            // [.mark] Plan postscriptum-note-d-abord (C12): the transition written in the reply.
+            const porteEcrite = asString(payload.porte_ecrite);
+            if (porteEcrite) {
+                items.push({
+                    kind: "tool-call",
+                    id: `${turnId}-porte-${index}`,
+                    turnId,
+                    timestamp,
+                    functionName: porteEcrite,
+                    status: "completed",
+                    result: "written in the reply",
+                });
+            }
             items.push({
                 kind: "node-transition",
                 id: `${turnId}-node-${index}`,

@@ -11114,6 +11114,12 @@ export type WorkflowConfigurationDefaults = {
      */
     interdire_civilite_appelant?: boolean;
     /**
+     * Relecture Des Numeros
+     *
+     * Before the voice, a phone number the agent reads back is compared with the last number the caller dictated, as read by our number reader; if a digit differs, the caller's digits are spoken instead. Only phone numbers, sentence by sentence. Off (default): the agent's read-back as written.
+     */
+    relecture_des_numeros?: boolean;
+    /**
      * Generer Schema Parcours
      *
      * At every save, write the flow map at the end of the global prompt (each step and its exits: exit name to arrival step) and 'Tu es ici' with the step's name at the end of each step's prompt. Only step and exit names; the blocks are replaced at each save, never stacked. Off: blocks left by an earlier save are removed, nothing else changes.

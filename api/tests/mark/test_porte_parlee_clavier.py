@@ -62,10 +62,16 @@ async def test_au_clavier_la_porte_ecrite_change_d_etape(
     assert point["gathered_context"].get("motif") == "panne", point["gathered_context"]
     affiche = _affiche(charge)
     assert "Quelle marque ?" in affiche, affiche
-    assert (
-        "→" not in affiche and "|||" not in affiche and "vers_etape" not in affiche
-    ), affiche
+    assert "→" not in affiche and "|||" not in affiche, affiche
     assert "tool_call" not in affiche, affiche
+    # Plan postscriptum-note-d-abord (C12) : le nom de la porte n'est jamais dans le
+    # texte de l'agent ; il est affiché avec le changement d'étape, comme en mode outil.
+    textes = [
+        (t.get("assistant_message") or {}).get("text") or ""
+        for t in charge["session_data"]["turns"]
+    ]
+    assert all("vers_etape" not in texte for texte in textes), textes
+    assert "'porte_ecrite': 'vers_etape'" in affiche, affiche
 
 
 @pytest.mark.asyncio

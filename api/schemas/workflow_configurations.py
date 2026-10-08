@@ -773,6 +773,14 @@ class WorkflowConfigurationDefaults(BaseModel):
             "of it: either can be used alone."
         ),
     )
+    # [.mark] Plan postscriptum-note-d-abord (C10, Q4) : la relecture d'un numéro,
+    # corrigée par le code avant la voix. Éteinte par défaut (option par agent).
+    relecture_des_numeros: bool = Field(
+        default=False,
+        description=(
+            "Before the voice, a phone number the agent reads back is compared with the last number the caller dictated, as read by our number reader; if a digit differs, the caller's digits are spoken instead. Only phone numbers, sentence by sentence. Off (default): the agent's read-back as written."
+        ),
+    )
     # [.mark] Chantier correctifs-modules, lot 4 bis : le schéma du parcours.
     generer_schema_parcours: bool = Field(
         default=False,

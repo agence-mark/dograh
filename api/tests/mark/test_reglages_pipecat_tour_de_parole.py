@@ -521,9 +521,10 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     # adresses-et-epellation, Q11). Then 40 on 2026-09-24: the names that
     # trigger the reference reader (plan fiche-au-fil-de-leau, lot 2). Then 43
     # on 2026-09-26: the greeting (E1, two settings) and the agent-silence
-    # hang-up (E2), rise to upstream 4e6cb22b.
-    assert len(ecran) == 43, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 43. "
+    # hang-up (E2), rise to upstream 4e6cb22b. Then 44 on 2026-10-08: the
+    # correction of a phone number read back (plan postscriptum-note-d-abord, C10).
+    assert len(ecran) == 44, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 44. "
         f"A setting added on one side only renders and is then dropped."
     )
 
