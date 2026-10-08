@@ -102,3 +102,25 @@ def test_sans_le_reglage_l_ordre_d_avant():
     assert ReglagesFiche.depuis(NOTE_D_ABORD).note_d_abord
     hors_postscript = {**NOTE_D_ABORD, "fiche_mode_de_note": "outil"}
     assert not ReglagesFiche.depuis(hors_postscript).note_d_abord
+
+
+def test_consigne_note_d_abord_porte_en_tete_et_note_avant_la_relecture():
+    from api.services.workflow.fiche_au_fil_de_leau import consigne_du_mode
+
+    texte = consigne_du_mode(ReglagesFiche.depuis(NOTE_D_ABORD))
+    assert "0. Si tu prends une porte" in texte
+    assert "la relecture vient après la note" in texte
+    assert "|||" in texte and "{}" in texte
+    avant = consigne_du_mode(ReglagesFiche.depuis(ALLUMEE))
+    assert "0. Si tu prends une porte" not in avant
+
+
+def test_une_date_dite_en_chiffres_notee_en_lettres_est_dite():
+    """Rejeu du 08/10 (runs 1044, 1046) : « il y a 2 ans » transcrit, « il y a deux
+    ans » noté : refusé « non dit », la porte partait sans la date."""
+    from api.services.workflow.fiche_au_fil_de_leau import est_cite, est_dit_tel_quel
+
+    paroles = ["Euh... il y a 2 ans."]
+    assert est_cite("il y a deux ans", paroles)
+    assert est_dit_tel_quel("il y a deux ans", paroles)
+    assert not est_dit_tel_quel("il y a trois ans", paroles)

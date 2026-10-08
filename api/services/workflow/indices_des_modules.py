@@ -3,7 +3,7 @@
 Sur la dernière parole de l'appelant, avant le modèle, nos modules repèrent ce qui est
 dit ; une ligne est ajoutée à l'état de la fiche montré au modèle :
 
-    Repéré dans sa dernière phrase (indices, rien n'est noté) : appareil = insert ; marque_appareil = Jøtul
+    Reconnu par nos modules dans sa dernière réplique (PAS encore dans la fiche : …) : appareil = insert ; marque_appareil = Jøtul
 
 🔑 Rien n'est écrit dans la fiche (Q3) : c'est le modèle qui note. L'indice l'aide à voir,
 au tour même, ce que la personne vient de dire (cause du banc du 07/10 : redemandes).
@@ -23,7 +23,12 @@ from loguru import logger
 
 from api.schemas.lexique_metier import normaliser_terme
 
-ENTETE_INDICES = "Repéré dans sa dernière phrase (indices, rien n'est noté) : "
+# Lot 1 (rejeu du 08/10) : « Repéré… (indices, rien n'est noté) », montré dans le bloc de
+# la fiche, s'est lu comme déjà noté (25 champs perdus contre 17 sans indices).
+ENTETE_INDICES = (
+    "Reconnu par nos modules dans sa dernière réplique (PAS encore dans la fiche : "
+    "mets-le dans ta note si c'est bien ce qu'elle a dit) : "
+)
 # Une valeur de liste trop courte (« oui », « non ») se lit dans toute réponse : jamais un indice.
 LONGUEUR_MIN_VALEUR = 4
 # Les traces des modules de lecture de l'appelant (``lecture_appelant.py``).

@@ -382,7 +382,11 @@ def est_cite(valeur: Any, paroles: Iterable[str]) -> bool:
     dits: set[str] = set()
     suites: list[str] = []
     for parole in paroles:
-        for forme in dict.fromkeys((parole, _chiffres_comme_lus(parole))):
+        # Plan postscriptum-note-d-abord (rejeu du 08/10, runs 1044, 1046) : la
+        # transcription écrit « il y a 2 ans », le modèle note « il y a deux ans » :
+        # les chiffres de la parole se lisent aussi en lettres (symétrie de D8).
+        en_lettres = re.sub(r"\d+", lambda m: f" {en_mots(m.group())} ", parole)
+        for forme in dict.fromkeys((parole, _chiffres_comme_lus(parole), en_lettres)):
             mots = _mots(forme)
             dits.update(mots)
             dits.update(_singulier(m) for m in mots)
@@ -2867,17 +2871,27 @@ CONSIGNE_POST_SCRIPTUM = (
 # fin de la note ; la phrase s'écrit en sachant ce qui vient d'être noté (cause du
 # banc du 07/10 : la question était choisie sur la fiche d'avant le tour).
 CONSIGNE_POST_SCRIPTUM_NOTE_D_ABORD = (
-    "# Ta réponse, à chaque tour : deux parties, toujours dans cet ordre\n"
-    "1. D'abord ta note, sur une ligne : un objet JSON dont les clés sont des noms "
-    "de champs ci-dessous et les valeurs ce que la personne vient de dire ou de "
-    "corriger DANS CE TOUR (ou plus tôt, si ça manque encore à la fiche). Seulement "
-    "ce qui est nouveau : jamais ce que la fiche a déjà. S'il n'y a rien à noter, "
-    "écris {{}}.\n"
+    "# Ta réponse, à chaque tour : ta note d'abord, puis ta phrase\n"
+    "1. Ta note, en premier : un objet JSON sur une seule ligne, sans bloc de code, "
+    "dont les clés sont des noms de champs ci-dessous. Tu y écris tout ce que la dernière réplique de la personne apporte "
+    "à la fiche : ce qu'elle donne, ce qu'elle corrige, et ce qu'elle confirme (à un "
+    "« oui » sur une proposition, ou sur une valeur que la fiche montre « à "
+    "confirmer », cette valeur, en entier). "
+    "Une information se note dans la réplique où elle est dite, même si tu vas la "
+    "relire ou la faire confirmer ensuite : la relecture vient après la note, jamais "
+    "à sa place. Tu n'attends jamais la fin d'une étape pour noter. Ce qu'elle a dit "
+    "plus tôt et qui manque encore à la fiche s'écrit aussi ; ce que la fiche porte "
+    "déjà et qui n'a pas changé ne se réécrit jamais (ta note est courte : seulement "
+    "ce qui change). {{}} seulement quand sa "
+    "réplique n'apporte rien à la fiche.\n"
     "2. À la ligne, le séparateur {separateur} seul, puis ce que tu dis à la "
-    "personne : une ou deux phrases parlées, comme d'habitude. Ta phrase tient "
-    "compte de ta note : tu ne demandes jamais ce que tu viens de noter ni ce que "
-    "la fiche a déjà.\n"
-    "Jamais de JSON ni de nom de champ après le séparateur. La note n'est pas lue à "
+    "personne : une ou deux phrases parlées. Ta phrase s'écrit comme si ta note "
+    "était déjà dans la fiche : ce que tu viens de noter est acquis, et ce que la "
+    "personne vient de faire (donner, épeler, relire, confirmer) est fait. Tu ne le "
+    "redemandes pas ; tu ne le fais confirmer que si une consigne de l'étape le "
+    "demande.\n"
+    "Jamais de JSON, de nom de champ ni de commentaire entre parenthèses après le "
+    "séparateur : tout ce qui le suit est dit à voix haute. La note n'est pas lue à "
     "la personne. Écris chaque valeur telle que la personne l'a dite, sans rien "
     "compléter ni inventer.\n\n"
     "# Les champs de la fiche\n"
@@ -2922,7 +2936,7 @@ def consigne_du_mode(reglages: ReglagesFiche | None) -> str | None:
     if reglages.note_d_abord and reglages.portes_dans_la_reponse:
         # Une porte prise : sa ligne « → » d'abord, puis la note (Q1).
         consigne = consigne.replace(
-            "1. D'abord ta note",
+            "1. Ta note, en premier",
             "0. Si tu prends une porte, sa ligne « → » vient tout en haut (voir les "
             "portes plus bas).\n1. Puis ta note",
             1,
@@ -3038,7 +3052,14 @@ ENTETE_ETAT_GREFFIER = (
 
 ENTETE_ETAT_NOTE_D_ABORD = (
     "[Fiche de l'appel : pour toi seulement, tu ne la lis jamais à voix haute. "
-    f"Elle se remplit par tes notes, écrites avant {SEPARATEUR}.]"
+    f"Elle se remplit par tes notes, écrites avant {SEPARATEUR}. Elle montre ce qui "
+    "était noté AVANT la dernière réplique de la personne : ce que cette réplique "
+    "contient n'y est pas encore, c'est ta note qui l'y met.]"
+)
+# S1 : le retour d'une note arrive au tour suivant, sa phrase déjà dite.
+ENTETE_NOTICES_NOTE_D_ABORD = (
+    "Retour de ta note précédente (ta phrase était déjà dite ; n'en tiens compte "
+    "que si c'est encore utile) : "
 )
 
 
@@ -3139,7 +3160,11 @@ def etat_de_la_fiche(
             a_confirmer.append(ligne)
     retour = _ligne_des_notices(
         notices,
-        ENTETE_NOTICES_GREFFIER if reglages.mode == MODE_GREFFIER else ENTETE_NOTICES,
+        ENTETE_NOTICES_GREFFIER
+        if reglages.mode == MODE_GREFFIER
+        else ENTETE_NOTICES_NOTE_D_ABORD
+        if reglages.note_d_abord
+        else ENTETE_NOTICES,
     )
     if not (notes or a_confirmer or retour):
         return None

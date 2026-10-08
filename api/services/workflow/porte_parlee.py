@@ -42,8 +42,9 @@ Une seule porte par réponse. Dès que ce que dit la personne correspond à une 
 
 # Plan postscriptum-note-d-abord (S1, Q1) : porte → note → phrase.
 CONSIGNE_DES_PORTES_NOTE_D_ABORD = """# Les portes de cette étape
-Quand tu prends une porte, ta réponse commence par une ligne seule : « → » suivi du nom exact de la porte. Cette ligne n'est jamais dite à la personne. Ensuite ta note, puis le séparateur, puis ta phrase, qui est la première réplique de l'étape d'arrivée (liste plus bas), sans redemander ce qui est noté.
+Quand tu prends une porte, ta réponse commence par une ligne seule : « → » suivi du nom exact de la porte. Cette ligne n'est jamais dite à la personne. Ensuite ta note, puis le séparateur, puis ta phrase : la première réplique de l'étape d'arrivée (liste plus bas), réglée sur la fiche avec ta note. Si elle demande ce que tu viens de noter ou ce que la fiche a déjà, tu ne le demandes pas : tu poses sa question sur la première chose qui manque encore.
 Quand on reste dans cette étape, pas de ligne « → » : ta note, le séparateur, ta phrase.
+Une porte dont la condition demande que la fiche porte quelque chose se juge sur la fiche ET sur ta note de cette réponse. Ta note n'y ajoute que ce qui manque encore à la fiche et que la personne a dit : ce que la fiche porte déjà ne se réécrit jamais, même pour prendre une porte. Une porte ne se prend jamais sur une information qui n'a été ni notée avant, ni écrite dans cette note.
 Une seule porte par réponse. Dès que ce que dit la personne correspond à une porte, tu la prends dans cette réponse : tu ne poses jamais la question de l'étape suivante sans prendre sa porte.
 
 {portes}
