@@ -80,7 +80,8 @@ TRACES = {
         {"type": "code_postal", "statut": "sure", "retenu": "60200", "ecrit": "60200"},
         {"type": "telephone", "statut": None, "ecrit": "06 11 22 33 44"},
     ],
-    "epellations_lues": [{"entendu": "M A R T I N", "epele": "Martin"}],
+    "epellations_lues": [{"entendu": "M A R T I N", "epele": "Martin", "tour": 3}],
+    "tour_appelant": 3,
 }
 
 
@@ -108,6 +109,29 @@ def test_les_traces_donnent_les_valeurs_sures_par_les_reglages_de_l_agent():
     # Une commune « à confirmer » n'est jamais prise.
     seule = {"communes_verifiees": [TRACES["communes_verifiees"][0]]}
     assert "commune_garage" not in valeurs_des_traces(_reglages(), seule)
+
+
+def test_une_epellation_seulement_au_tour_meme_et_pour_un_seul_champ_de_nom():
+    """Revue du 10/10 : « D U P O N T » remplissait le nom ET le prénom, et une épellation
+    d'il y a trois tours (une rue, une adresse électronique) partait dans le nom."""
+    plus_tard = dict(TRACES, tour_appelant=6)
+    assert "nom_client" not in valeurs_des_traces(_reglages(), plus_tard)
+    deux_noms = ReglagesFiche.depuis(
+        dict(
+            RUN_CONFIGS,
+            fiche_champs=CHAMPS
+            + [
+                {
+                    "nom": "prenom_client",
+                    "type": "string",
+                    "origine": "dicte",
+                    "description": "Prénom.",
+                }
+            ],
+        )
+    )
+    valeurs = valeurs_des_traces(deux_noms, dict(TRACES))
+    assert "nom_client" not in valeurs and "prenom_client" not in valeurs
 
 
 async def test_l_action_prend_les_traces_sans_attendre_le_greffier():

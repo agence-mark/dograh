@@ -145,7 +145,23 @@ _JOURS_ALT = "|".join(JOURS)
 _MOIS_ALT = "|".join(MOIS)
 _DEPART = r"(?:a partir (?:de|du|d)|des|apres)"  # « from » bounds
 _FIN = r"(?:avant|jusqu a|jusqu au|jusqu en)"  # « until » bounds
-_MARQUEURS_NON_LUS = r" (?:pas|sauf|ni|jamais|ou|avant|apres|partir|des|jusqu|jusqua) "
+# « des » et « ou » sont aussi l'article et « où » (revue du 10/10 : « des disponibilités jeudi »,
+# « où vous voulez mardi » devenaient non compris) : ils ne comptent que suivis d'un mot de temps.
+_TEMPS = (
+    r"(?:\d|1er|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|demain|apres demain|"
+    r"aujourd hui|semaine|matin|midi|soir|heure|mois|"
+    r"janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)"
+)
+_MARQUEURS_NON_LUS = r" (?:pas|sauf|ni|jamais|avant|apres|partir|jusqu|jusqua) "
+_AMBIGUS = r" (des|ou) (?:(?:le|la|l|ce|cette|en) )?" + _TEMPS
+
+
+def _ambigu_non_lu(origine: str, reste: str) -> bool:
+    """« des » ou « ou » resté non lu (encore dans ``reste``) alors que, dans la phrase
+    d'origine, il précédait un mot de temps (« demain ou après-demain ») : un « ou » de
+    jours que personne n'a consommé. Devant autre chose, c'est l'article ou « où »."""
+    restes = set(re.findall(r" (des|ou) ", reste))
+    return any(m.group(1) in restes for m in re.finditer(_AMBIGUS, origine))
 
 
 def _prochain(nom: str, aujourd_hui: date) -> date:
@@ -176,6 +192,7 @@ def lire_souhait(texte: str | None, maintenant: datetime) -> Souhait:
         souhait.compris = True  # no wish: nothing to read, nothing misunderstood
         return souhait
     t = f" {_normaliser(brut)} "
+    origine = t
     aujourd_hui = maintenant.date()
     lus: list[str] = []
 
@@ -392,7 +409,7 @@ def lire_souhait(texte: str | None, maintenant: datetime) -> Souhait:
     if souhait.heure_min and souhait.heure_max and souhait.heure_min >= souhait.heure_max:
         # Contradictory (« le matin après 14 h »): not understood rather than impossible.
         return Souhait(texte=souhait.texte, compris=False, reconnu=lus)
-    if re.search(_MARQUEURS_NON_LUS, t):
+    if re.search(_MARQUEURS_NON_LUS, t) or _ambigu_non_lu(origine, t):
         # Prudence: a negation or a bound nobody consumed (« pas à 10h », « demain ou après-demain »).
         return Souhait(texte=souhait.texte, compris=False, reconnu=lus)
     souhait.reconnu = lus

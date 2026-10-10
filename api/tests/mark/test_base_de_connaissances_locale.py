@@ -57,6 +57,26 @@ def test_le_decoupage_ne_coupe_jamais_une_question_de_sa_reponse():
     assert len(decouper(FAQ, max_tokens=500)) == 1
 
 
+def test_un_paragraphe_trop_long_est_coupe_aux_fins_de_phrase():
+    """Revue du 10/10 : un fichier sans ligne vide donnait un seul morceau géant."""
+    bloc = " ".join(f"Phrase numéro {i} du document." for i in range(200))
+    morceaux = decouper(bloc, 50)
+    assert len(morceaux) > 1
+    assert all(len(m.split()) * 1.3 <= 50 * 4 + 10 for m in morceaux)
+    assert all(m.endswith(".") for m in morceaux)
+    assert " ".join(morceaux) == bloc
+
+
+def test_un_texte_trop_gros_est_refuse_en_le_disant(tmp_path, monkeypatch):
+    import api.services.gen_ai.documents_locaux as locaux
+
+    monkeypatch.setattr(locaux, "TAILLE_MAX_OCTETS", 100)
+    chemin = tmp_path / "gros.txt"
+    chemin.write_text("x" * 101, encoding="utf-8")
+    with pytest.raises(ValueError, match="too large"):
+        traiter_un_texte(str(chemin), "chunked", 100)
+
+
 def test_les_deux_modes_rendent_la_forme_du_mps(tmp_path):
     chemin = tmp_path / "faq.txt"
     chemin.write_text(FAQ, encoding="utf-8")

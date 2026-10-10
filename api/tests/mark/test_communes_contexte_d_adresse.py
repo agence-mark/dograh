@@ -77,6 +77,15 @@ def test_la_regle_ne_depend_pas_de_l_etablissement(base, saint_maximin, marseill
         ("oui c'est à Brel", "Bresles"),
         ("je suis à Brel", "Bresles"),
         ("nous habitons à Brel", "Bresles"),
+        # Revue du 10/10 : perdues par la première version de B1, données en production.
+        ("je vis à Brel", "Bresles"),
+        ("on vit à Brel", "Bresles"),
+        ("on est domicilié à Brel", "Bresles"),
+        ("j'ai une maison à Brel", "Bresles"),
+        ("je suis basé à Brel", "Bresles"),
+        ("le chantier est à Brel", "Bresles"),
+        ("on loge à Brel", "Bresles"),
+        ("mon appartement à Brel", "Bresles"),
     ],
 )
 def test_la_commune_voulue_et_mal_transcrite_reste_proposee(base, saint_maximin, texte, premiere):

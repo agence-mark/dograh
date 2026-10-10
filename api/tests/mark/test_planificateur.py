@@ -54,6 +54,10 @@ def d(jour: int, mois: int = 10) -> str:
 # (words, jours, jours_exclus, des_le, heure_min, heure_max); None = no constraint.
 CORPUS_SOUHAITS = [
     ("plutôt mardi matin", [d(13)], [], None, None, "12:00"),
+    # Revue du 10/10 : « des » article et « où » ne sont pas des bornes.
+    ("je voudrais des disponibilités jeudi", [d(8)], [], None, None, None),
+    ("des créneaux le matin", None, [], None, None, "12:00"),
+    ("où vous voulez mardi", [d(13)], [], None, None, None),
     ("après 17 heures", None, [], None, "17:00", None),
     ("après dix-sept heures", None, [], None, "17:00", None),
     ("la semaine prochaine", [d(k) for k in range(12, 19)], [], None, None, None),

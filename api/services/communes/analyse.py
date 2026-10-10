@@ -538,14 +538,29 @@ LIEUX_RELATIFS = frozenset(
 
 # B1 (constat du run 1048, plan de réparation globale du 08/10) : « à » seul ne dit pas un lieu
 # (« un poêle à granulés » proposait Grandrû). Il en dit un après un verbe d'être ou d'habitation,
-# ou en tête de réponse, ou après une adresse (type de voie, numéro) ; après un nom, la proposition à
-# confirmer qui n'a que lui pour amorce tombe.
+# ou en tête de réponse, ou après une adresse (type de voie, numéro) ; après un autre mot, la
+# proposition à confirmer qui n'a que lui pour amorce tombe. Revue du 10/10 (zéro perte, décision du
+# 17/09) : « je vis à Brel », « j'ai une maison à Brel » perdaient Bresles ; les verbes et les noms qui
+# situent sont donc listés largement, et chaque tournure perdue entre au corpus du test.
 # ⛔ Aucune règle ne dépend de l'établissement (décision du 17/09, gardée par
 # ``test_aucune_regle_ne_depend_du_magasin``) : le rayon et le son proche du plan sont une décision
 # d'Evan (ils font perdre « Grand Villiers » -> Grandvilliers, « Abrel dans l'Oise » -> Bresles).
 VERBES_DE_LIEU = frozenset(
-    """suis est c habite habitons habitent situe situee sis vais viens vient venons travaille
-    travaillons reside residons demeure demeurons livre livrer installe installer arrive""".split()
+    """suis es est sommes etes sont etais etait c habite habites habitons habitez habitent habiter
+    vis vit vivons vivez vivent vivre loge loges logeons logez logent loger reste restes restons
+    restez restent rester reside residons residez resident resider demeure demeurons demeurent
+    situe situee situes situees sis sise trouve trouvons trouvez trouvent base basee bases basees
+    domicilie domiciliee domicilies domiciliees implante implantee installe installee installes
+    installees installer etabli etablie vais va allons allez vont aller viens vient venons venez
+    viennent venir travaille travailles travaillons travaillez travaillent travailler livre livrer
+    livrez arrive arrivons passer passe passez intervenir intervenez venu venue ne nee""".split()
+)
+# Les noms qui situent : « une maison à », « le chantier est à » (ce dernier par « est »).
+NOMS_DE_LIEU = frozenset(
+    """maison maisons appartement logement domicile residence pavillon ferme propriete terrain
+    chantier adresse commune ville village quartier secteur coin bureau bureaux atelier local
+    locaux entreprise societe magasin boutique agence usine garage siege site habitation gite
+    intervention interventions passage livraison installation visite rendez vous nous""".split()
 )
 
 
@@ -566,7 +581,7 @@ def _a_apres_un_nom(mots: list[str], d: Detection) -> bool:
         return False
     # Le mot juste avant « à » : un verbe d'être ou d'habitation, un sujet (« il y a ») ou un mot vide
     # dit un lieu ; un nom (« poêle à ») ne le dit pas.
-    return avant[-1] not in MOTS_VIDES_REPONSE | VERBES_DE_LIEU | SUJETS
+    return avant[-1] not in MOTS_VIDES_REPONSE | VERBES_DE_LIEU | NOMS_DE_LIEU | SUJETS
 
 
 def _article_du_nom(article: str, nom_normalise: str) -> bool:

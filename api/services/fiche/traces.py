@@ -11,6 +11,11 @@ Quel champ reçoit quoi se lit dans les réglages de l'agent, jamais dans un nom
 le lecteur du champ (``commune``), la reconnaissance des champs (``variables_code_postal``,
 ``variables_telephone``), le nombre de chiffres déclaré (``chiffres``), un champ de nom.
 ⛔ Seulement ce qu'un module a marqué sûr ; une commune « à confirmer » n'est jamais prise.
+Le numéro de téléphone n'a pas de statut chez le lecteur des nombres : il est pris complet
+seulement (le nombre de chiffres déclaré, sinon 9 au moins).
+⛔ Une épellation (revue du 10/10) : seulement au tour même, et seulement si la fiche a UN seul
+champ de nom. Sinon un mot épelé remplirait le nom et le prénom à la fois, ou un nom avec une
+rue épelée trois tours plus tôt.
 """
 
 from __future__ import annotations
@@ -19,6 +24,7 @@ import re
 from typing import Any
 
 from api.schemas.fiche_agent import est_un_champ_de_nom
+from api.services.pipecat.verification_communes import CLE_TOUR
 
 
 def _correspond(nom: str, motifs: tuple[str, ...]) -> bool:
@@ -79,7 +85,16 @@ def valeurs_des_traces(reglages: Any, fiche: dict) -> dict[str, str]:
             fiche.get("nombres_lus"), lambda e: e.get("type") == "telephone"
         )
         chiffres_tel = re.sub(r"\D", "", str((telephone or {}).get("ecrit") or ""))
-        epellation = _dernier(fiche.get("epellations_lues"), lambda e: e.get("epele"))
+        champs_de_nom = [c for c in reglages.champs if est_un_champ_de_nom(c)]
+        tour = fiche.get(CLE_TOUR)
+        epellation = (
+            _dernier(
+                fiche.get("epellations_lues"),
+                lambda e: e.get("epele") and tour is not None and e.get("tour") == tour,
+            )
+            if len(champs_de_nom) == 1
+            else None
+        )
         for champ in reglages.champs:
             nom = champ.nom
             if commune and champ.lecteur_effectif == "commune":

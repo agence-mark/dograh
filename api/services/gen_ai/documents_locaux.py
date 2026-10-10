@@ -17,9 +17,14 @@ réponse dans une FAQ), regroupés tant qu'ils tiennent sous ``max_tokens``. Un 
 from __future__ import annotations
 
 import os
+import re
 
 EXTENSIONS_TEXTE = (".txt", ".md", ".markdown")
 TRAITE_PAR = "mark-local"
+# Revue du 10/10 : le service de l'éditeur bornait la taille ; ici, on la borne nous-mêmes
+# (chaque morceau est un appel d'embeddings facturé). Une FAQ tient en quelques dizaines de Ko.
+TAILLE_MAX_OCTETS = 2 * 1024 * 1024
+PARAGRAPHE_MAX_FOIS = 4
 
 
 def est_un_texte(filename: str, mime_type: str | None) -> bool:
@@ -45,11 +50,34 @@ def paragraphes(texte: str) -> list[str]:
     return blocs
 
 
+def _phrases_regroupees(bloc: str, max_tokens: int) -> list[str]:
+    """Un paragraphe trop long, coupé aux fins de phrase (jamais au milieu d'une phrase)."""
+    morceaux, courant = [], []
+    for phrase in re.split(r"(?<=[.!?…])\s+", bloc):
+        if courant and jetons_estimes(" ".join([*courant, phrase])) > max_tokens:
+            morceaux.append(" ".join(courant))
+            courant = []
+        courant.append(phrase)
+    if courant:
+        morceaux.append(" ".join(courant))
+    return morceaux
+
+
 def decouper(texte: str, max_tokens: int) -> list[str]:
     """Les paragraphes regroupés tant qu'ils tiennent sous ``max_tokens``. Un paragraphe
-    plus long reste seul (jamais coupé au milieu d'une phrase)."""
-    morceaux, courant = [], []
+    plus long reste seul : une question n'est jamais séparée de sa réponse. Au-delà de
+    ``PARAGRAPHE_MAX_FOIS`` fois la taille (un fichier sans ligne vide, revue du 10/10 :
+    un seul morceau géant, refusé par le fournisseur d'embeddings), il est coupé aux fins
+    de phrase, en morceaux de cette taille."""
+    plafond = max_tokens * PARAGRAPHE_MAX_FOIS
+    blocs = []
     for bloc in paragraphes(texte):
+        if jetons_estimes(bloc) > plafond:
+            blocs.extend(_phrases_regroupees(bloc, plafond))
+        else:
+            blocs.append(bloc)
+    morceaux, courant = [], []
+    for bloc in blocs:
         candidat = "\n\n".join([*courant, bloc])
         if courant and jetons_estimes(candidat) > max_tokens:
             morceaux.append("\n\n".join(courant))
@@ -62,7 +90,14 @@ def decouper(texte: str, max_tokens: int) -> list[str]:
 
 
 def traiter_un_texte(chemin: str, retrieval_mode: str, max_tokens: int) -> dict:
-    """La réponse du MPS, fabriquée sur place pour un fichier texte."""
+    """La réponse du MPS, fabriquée sur place pour un fichier texte. Au-delà de
+    ``TAILLE_MAX_OCTETS``, le document est refusé en le disant (rien n'est vectorisé)."""
+    taille = os.path.getsize(chemin)
+    if taille > TAILLE_MAX_OCTETS:
+        raise ValueError(
+            f"Text document too large ({taille // 1024} KB, at most "
+            f"{TAILLE_MAX_OCTETS // 1024} KB): split it before uploading."
+        )
     with open(chemin, encoding="utf-8", errors="replace") as fichier:
         texte = fichier.read().strip()
     metadonnees = {"processed_by": TRAITE_PAR}
