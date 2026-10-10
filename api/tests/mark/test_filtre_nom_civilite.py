@@ -333,3 +333,68 @@ def test_le_filtre_ne_leve_JAMAIS():
             )
             == phrase
         )
+
+
+# ─── L6 (réparation globale) : le son, et les noms de rue ────────────────────
+
+
+@pytest.mark.parametrize(
+    "entree, nom, attendu",
+    [
+        # Le modèle écrit « Flamand », la transcription a gardé « Flamant » : même son.
+        ("Merci Flamand. C'est quel modèle ?", "Flamant", "Merci. C'est quel modèle ?"),
+        ("Merci Dupond. C'est noté.", "Dupont", "Merci. C'est noté."),
+        ("Très bien monsieur Flamand, je note.", "Flamant", "Très bien, je note."),
+        # Un nom à particule dit sans espace.
+        ("Merci Legoff. C'est noté.", "Le Goff", "Merci. C'est noté."),
+    ],
+)
+def test_L6_le_nom_dit_autrement_mais_au_meme_son_est_retire(entree, nom, attendu):
+    assert retirer_nom_et_civilite(entree, nom, retirer_nom=True, retirer_civilite=True) == attendu
+
+
+@pytest.mark.parametrize(
+    "phrase, nom",
+    [
+        ("Merci. Danton est un bon nom.", "Dupont"),  # un autre nom, un autre son
+        ("Merci Moral. C'est noté.", "Morel"),  # proche à l'écrit, pas au son
+        ("Bonjour. Merci de patienter.", "Flamand"),  # des mots courants en tête de phrase
+        ("Vous avez un flamant rose ?", "Flamand"),  # minuscules : le mot ordinaire
+    ],
+)
+def test_L6_le_son_ne_mord_pas_sur_ce_qui_n_est_pas_le_nom(phrase, nom):
+    sortie = retirer_nom_et_civilite(phrase, nom, retirer_nom=True, retirer_civilite=True)
+    assert sortie == phrase
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "Vous habitez rue Danton ?",
+        "Vous habitez au 12 avenue Danton, c'est bien ça ?",
+        "Vous habitez avenue du Général Danton ?",
+        "C'est bien sur le boulevard de Danton ?",
+        "Vous êtes impasse Danton ?",
+    ],
+)
+def test_L6_un_nom_precede_d_un_type_de_voie_n_est_jamais_filtre(phrase):
+    assert retirer_nom_et_civilite(phrase, "Danton", retirer_nom=True, retirer_civilite=True) == phrase
+    # Même au son : « Dantonne » dit pour la rue de l'appelant Danton.
+    assert retirer_nom_et_civilite(phrase.replace("Danton", "Dantonne"), "Danton", retirer_nom=True) == phrase.replace(
+        "Danton", "Dantonne"
+    )
+
+
+def test_L6_le_nom_hors_de_la_rue_part_toujours_dans_la_meme_phrase():
+    sortie = retirer_nom_et_civilite(
+        "Merci Danton. Vous habitez rue Danton ?", "Danton", retirer_nom=True, retirer_civilite=True
+    )
+    assert sortie == "Merci. Vous habitez rue Danton ?"
+
+
+def test_L6_le_son_et_la_rue_valent_pour_un_autre_metier_un_garage():
+    """Aucun mot de métier dans le filtre : un client de garage nommé Vasseur, rue Vasseur."""
+    sortie = retirer_nom_et_civilite(
+        "Merci Vasseure. Le véhicule est garé rue Vasseur ?", "Vasseur", retirer_nom=True
+    )
+    assert sortie == "Merci. Le véhicule est garé rue Vasseur ?"
