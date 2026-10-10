@@ -67,7 +67,11 @@ from api.services.pipecat.etat_ouverture import (
 )
 from api.services.pipecat.lecture_appelant import lire_message_tape
 from api.services.pipecat.pipeline_builder import create_pipeline_task
-from api.services.pipecat.greffier import greffier_du_moteur, preparer_le_greffier
+from api.services.pipecat.greffier import (
+    greffier_du_moteur,
+    preparer_le_greffier,
+    resoudre_le_bloc_du_greffier,
+)
 from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
@@ -702,7 +706,8 @@ async def execute_text_chat_pending_turn(
     reglages_fiche = ReglagesFiche.depuis(run_configs, lexique=lexique_metier)
     reglages_fiche, service_greffier = preparer_le_greffier(
         reglages_fiche,
-        run_configs,
+        # [.mark] Lot C d'agent-leger-greffier : la clé de bibliothèque du greffier.
+        await resoudre_le_bloc_du_greffier(run_configs, workflow.organization_id),
         user_config,
         initial_context["runtime_configuration"],
     )

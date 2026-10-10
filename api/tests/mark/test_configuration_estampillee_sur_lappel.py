@@ -85,12 +85,13 @@ def test_la_temperature_seule_suffit_a_declencher_lestampille():
 
 def test_un_fournisseur_sans_reglage_declare_nest_pas_estampille_a_vide():
     """An empty dict would read as "played with no settings", which is false:
-    OpenAI still receives the 0.1 written in the factory. Saying nothing is the
-    honest answer until that provider declares its settings too."""
-    from api.services.configuration.registry import OpenAILLMService as OpenAIConfig
+    Groq still receives the 0.1 written in the factory. Saying nothing is the
+    honest answer until that provider declares its settings too. (OpenAI was the
+    witness until lot C of agent-leger-greffier, where it declared its own.)"""
+    from api.services.configuration.registry import GroqLLMService as GroqConfig
 
     stampe = stamp_sampling_settings(
-        _configuration_de_base(), OpenAIConfig(api_key="openai-key")
+        _configuration_de_base(), GroqConfig(api_key="groq-key")
     )
 
     assert "llm_sampling" not in stampe

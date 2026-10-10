@@ -359,7 +359,10 @@ async def test_clavier_autre_fournisseur_aucune_estampille():
         "version_number",
         "definition_status",
     }
+    # Lot C d'agent-leger-greffier : OpenAI declares its sampling settings now,
+    # and the temperature it is sent is stamped (truthful) -- but no cache key.
     assert configuration == {
         "llm_provider": "openai",
         "llm_model": "gpt-4.1",
+        "llm_sampling": {"temperature": 0.1},
     }

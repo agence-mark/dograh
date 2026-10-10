@@ -233,8 +233,10 @@ def test_model_override_wrapper_preserves_openai_base_url():
         )
     )
 
+    # [.mark] Lot C d'agent-leger-greffier: the OpenAI provider is built through
+    # its .mark subclass (delay guard, cache key); the wrapper's guarantee is unchanged.
     with patch(
-        "api.services.pipecat.service_factory.OpenAILLMService"
+        "api.services.pipecat.service_factory.DograhOpenAILLMService"
     ) as openai_service:
         result = create_llm_service_with_model_override(
             config,

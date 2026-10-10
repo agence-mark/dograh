@@ -379,6 +379,18 @@ ECRAN_MISTRAL_LLM: EcranMark = {
     "base_url": ("technique", "Base URL", "Adresse du service"),
     "seed": ("technique", "Seed", "Graine"),
 }
+# [.mark] Chantier agent-leger-greffier, lot C : the OpenAI-compatible model (Scaleway).
+ECRAN_OPENAI_LLM: EcranMark = {
+    "temperature": ("generation", "Temperature", "Température"),
+    "top_p": ("generation", "Top p", "Échantillonnage (top p)"),
+    "max_tokens": ("generation", "Max tokens", "Longueur maximale d'une réponse"),
+    "reasoning_effort": ("generation", "Reasoning effort", "Niveau de raisonnement"),
+    "frequency_penalty": ("repetition", "Frequency penalty", "Pénalité de fréquence"),
+    "presence_penalty": ("repetition", "Presence penalty", "Pénalité de présence"),
+    "base_url": ("technique", "Base URL", "Adresse du service"),
+    "seed": ("technique", "Seed", "Graine"),
+    "prompt_cache": ("technique", "Prompt cache key", "Clé de cache du prompt"),
+}
 ECRAN_ELEVENLABS_TTS: EcranMark = {
     "voice": ("voix", "Voice", "Voix"),
     "speed": ("voix", "Speed", "Vitesse"),
@@ -540,7 +552,7 @@ AWS_BEDROCK_MODELS = [
 
 @register_llm
 class OpenAILLMService(BaseLLMConfiguration):
-    model_config = OPENAI_PROVIDER_MODEL_CONFIG
+    model_config = ecran_mark(OPENAI_PROVIDER_MODEL_CONFIG, ECRAN_OPENAI_LLM)  # [.mark] écran Modèles
     provider: Literal[ServiceProviders.OPENAI] = ServiceProviders.OPENAI
     model: str = Field(
         default="gpt-4.1",
@@ -550,6 +562,78 @@ class OpenAILLMService(BaseLLMConfiguration):
     base_url: str = Field(
         default="https://api.openai.com/v1",
         description="Override only if using an OpenAI-compatible API (e.g. local LLM, proxy).",
+    )
+    # [.mark] Chantier agent-leger-greffier, lot C (B7, B9) : the settings an
+    # OpenAI-compatible model (Scaleway first) actually receives. Each one is a
+    # key of the request the client library sends; empty means not sent, so a
+    # request with nothing set is exactly the one sent before (temperature 0.1).
+    # Bounds are OpenAI's (temperature up to 2); Scaleway accepted every key in
+    # 200 on 2026-10-09 (fiche fournisseurs/2026-10-09-fiche-scaleway-modeles.md).
+    temperature: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=2.0,
+        description=(
+            "How much randomness goes into each word. Low keeps answers "
+            "predictable and on-script. Defaults to 0.1, the value that was "
+            "hardcoded before this field existed."
+        ),
+    )
+    top_p: float | None = Field(
+        default=None,
+        gt=0.0,
+        le=1.0,
+        description=(
+            "Restricts the draw to the most likely words. Acts on the same "
+            "phenomenon as temperature: change one or the other, not both."
+        ),
+    )
+    max_tokens: int | None = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Longest answer the model may produce, in tokens. A guard against "
+            "a reasoning model that runs away. Left empty, the model stops when "
+            "it has finished."
+        ),
+    )
+    seed: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Fixes the draw where the provider honours it: a laboratory tool for "
+            "comparing two settings. Left empty, each call is drawn afresh."
+        ),
+    )
+    frequency_penalty: float | None = Field(
+        default=None,
+        ge=-2.0,
+        le=2.0,
+        description="Discourages repeating a word already used often. From -2 to 2.",
+    )
+    presence_penalty: float | None = Field(
+        default=None,
+        ge=-2.0,
+        le=2.0,
+        description="Pushes the model towards subjects not brought up yet. From -2 to 2.",
+    )
+    reasoning_effort: Literal["none", "minimal", "low", "medium", "high"] | None = Field(
+        default=None,
+        description=(
+            "How long a reasoning model thinks before answering (gpt-oss, GLM, "
+            "DeepSeek, recent Qwen). Each step up costs seconds before the voice "
+            "on the phone: 'low' is the setting for a conversation. Left empty, "
+            "the model's own default (medium for gpt-oss); 'gpt-5' models keep "
+            "'minimal'. A model that does not reason may refuse the key."
+        ),
+    )
+    prompt_cache: bool = Field(
+        default=False,
+        description=(
+            "Sends the agent's cache key (mark-wf-<agent>) so the provider can "
+            "reuse the start of the prompt from one turn to the next. It names "
+            "the agent only, never the caller. Off: no key is sent."
+        ),
     )
 
 
@@ -650,6 +734,10 @@ MISTRAL_SAMPLING_FIELDS: tuple[str, ...] = (
     "frequency_penalty",
     "presence_penalty",
 )
+# [.mark] Lot C d'agent-leger-greffier : the same six, sent by pipecat's OpenAI
+# request builder under the same names. `reasoning_effort` travels apart (it is
+# not a pipecat setting): see `create_llm_service_from_provider`.
+OPENAI_SAMPLING_FIELDS: tuple[str, ...] = MISTRAL_SAMPLING_FIELDS
 
 
 @register_llm
