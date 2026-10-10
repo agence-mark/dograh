@@ -26,7 +26,15 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { ChampReglage } from "../ecran/ChampReglage";
 import { useLangue } from "../langue/langue";
-import { type ConfigIntegration, configParDefaut, type Connecteurs, DELAI_DEFAUT_MS, useConnecteurs } from "./useConnecteurs";
+import {
+    ATTENTE_MAX_DEFAUT_MS,
+    type ConfigIntegration,
+    configParDefaut,
+    type Connecteurs,
+    DELAI_DEFAUT_MS,
+    SEUIL_PATIENCE_DEFAUT_MS,
+    useConnecteurs,
+} from "./useConnecteurs";
 
 const actionDe = (catalogue: ConnecteurVue[], config: ConfigIntegration) =>
     catalogue.find((c) => c.nom === config.connecteur)?.actions.find((a) => a.nom === config.action);
@@ -72,7 +80,15 @@ export function ChoixAction({
                     value={valeur.action}
                     onValueChange={(nom) => {
                         const nouveau = configParDefaut(catalogue, valeur.connecteur, nom);
-                        if (nouveau) onChange({ ...nouveau, delai_ms: valeur.delai_ms, phrase_attente: valeur.phrase_attente, phrase_repli: valeur.phrase_repli });
+                        if (nouveau)
+                            onChange({
+                                ...nouveau,
+                                delai_ms: valeur.delai_ms,
+                                phrase_attente: valeur.phrase_attente,
+                                phrase_repli: valeur.phrase_repli,
+                                seuil_patience_ms: valeur.seuil_patience_ms,
+                                attente_max_ms: valeur.attente_max_ms,
+                            });
                     }}
                 >
                     <SelectTrigger id="integration-action">
@@ -217,14 +233,81 @@ export function ConfigOutilIntegration({
             <ChampReglage
                 cle="config.phrase_attente"
                 idControle="integration-phrase-attente"
-                libelle={{ en: "Waiting phrase", fr: "Phrase d'attente" }}
-                aides={[{ en: "Said while the action runs. Empty: nothing is said.", fr: "Dite pendant que l'action tourne. Vide : rien n'est dit." }]}
+                libelle={{ en: "Patience phrase", fr: "Phrase de patience" }}
+                aides={[
+                    {
+                        en: "Said by the code, after the model's sentence, only when the tool has not finished after the threshold below. Empty: nothing is ever said.",
+                        fr: "Dite par le code, après la phrase du modèle, seulement si l'outil n'a pas fini au bout du seuil ci-dessous. Vide : rien n'est jamais dit.",
+                    },
+                ]}
             >
                 <Input
                     id="integration-phrase-attente"
                     value={valeur.phrase_attente ?? ""}
                     placeholder={t({ en: "One moment, I am looking at the calendar.", fr: "Un instant, je regarde l'agenda." })}
                     onChange={(e) => poser({ phrase_attente: e.target.value.trim() === "" ? null : e.target.value })}
+                />
+            </ChampReglage>
+
+            <ChampReglage
+                cle="config.seuil_patience_ms"
+                idControle="integration-seuil-patience"
+                libelle={{ en: "Patience threshold", fr: "Seuil de patience" }}
+                aides={[{ en: "Below it, nothing is said: the caller hears no phrase for a short wait.", fr: "En dessous, rien n'est dit : la personne n'entend pas de phrase pour une attente courte." }]}
+                bornes={{ en: "0 to 15,000 ms · default 1,200", fr: "0 à 15 000 ms · défaut 1 200" }}
+            >
+                <Input
+                    id="integration-seuil-patience"
+                    type="number"
+                    min={0}
+                    max={15000}
+                    step={100}
+                    value={valeur.seuil_patience_ms ?? SEUIL_PATIENCE_DEFAUT_MS}
+                    onChange={(e) => poser({ seuil_patience_ms: Number(e.target.value) || 0 })}
+                />
+            </ChampReglage>
+
+            <ChampReglage
+                cle="config.champs_requis"
+                idControle="integration-champs-requis"
+                libelle={{ en: "Fields the action needs", fr: "Champs requis par l'action" }}
+                aides={[
+                    {
+                        en: "Fields of the record, separated by commas. Before the action, the code looks for each missing one in what the reading modules just read, then waits for the clerk; still missing, the model asks the caller. Empty: the tool runs as before.",
+                        fr: "Des champs de la fiche, séparés par des virgules. Avant l'action, le code cherche chaque champ manquant dans ce que les modules de lecture viennent de lire, puis attend le greffier ; s'il manque encore, le modèle le demande. Vide : l'outil se joue comme avant.",
+                    },
+                ]}
+            >
+                <Input
+                    id="integration-champs-requis"
+                    value={(valeur.champs_requis ?? []).join(", ")}
+                    placeholder="commune, code_postal"
+                    onChange={(e) =>
+                        poser({
+                            champs_requis: e.target.value
+                                .split(",")
+                                .map((c) => c.trim())
+                                .filter((c) => c !== ""),
+                        })
+                    }
+                />
+            </ChampReglage>
+
+            <ChampReglage
+                cle="config.attente_max_ms"
+                idControle="integration-attente-max"
+                libelle={{ en: "Longest wait for the clerk", fr: "Attente maximale du greffier" }}
+                aides={[{ en: "How long the code waits for the clerk's pass when a required field is still missing.", fr: "Combien de temps le code attend la passe du greffier quand un champ requis manque encore." }]}
+                bornes={{ en: "0 to 15,000 ms · default 2,500", fr: "0 à 15 000 ms · défaut 2 500" }}
+            >
+                <Input
+                    id="integration-attente-max"
+                    type="number"
+                    min={0}
+                    max={15000}
+                    step={100}
+                    value={valeur.attente_max_ms ?? ATTENTE_MAX_DEFAUT_MS}
+                    onChange={(e) => poser({ attente_max_ms: Number(e.target.value) || 0 })}
                 />
             </ChampReglage>
 

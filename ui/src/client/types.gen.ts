@@ -4886,9 +4886,33 @@ export type IntegrationToolConfig = {
     /**
      * Phrase Attente
      *
-     * Said while the action runs.
+     * The patience phrase: said by the code, after the model's text, only when the tool has not finished after the patience threshold. Empty: nothing is ever said.
      */
     phrase_attente?: string | null;
+    /**
+     * Seuil Patience Ms
+     *
+     * Patience threshold: below it, nothing is said.
+     */
+    seuil_patience_ms?: number;
+    /**
+     * Champs Requis
+     *
+     * Fields of the record the action needs. Missing ones are looked for in the reading modules' traces, then the clerk is waited for; still missing, the model is told to ask for them. Empty: the tool runs as before.
+     */
+    champs_requis?: Array<string>;
+    /**
+     * Attente Max Ms
+     *
+     * Longest wait for the clerk's pass.
+     */
+    attente_max_ms?: number;
+    /**
+     * Sources Champs
+     *
+     * Where the required fields are looked for, in this order.
+     */
+    sources_champs?: Array<'fiche' | 'traces' | 'greffier'>;
     /**
      * Phrase Repli
      *

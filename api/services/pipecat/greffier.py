@@ -313,6 +313,27 @@ class Greffier:
         self._notes_en_cours.add(tache)
         tache.add_done_callback(self._notes_en_cours.discard)
 
+    async def rattraper(self, delai: float) -> bool:
+        """Lot D d'agent-leger-greffier : une action a besoin d'un champ que la personne
+        vient peut-être de dire, et que le greffier n'a pas encore relu (il relit APRÈS
+        la réponse de l'agent). Demande une passe sur la conversation de maintenant et
+        l'attend, ``delai`` secondes au plus. ``True`` si elle a fini à temps. Ne lève
+        jamais ; la passe continue après le délai (elle écrira pour la suite)."""
+        if self._clos or delai <= 0:
+            return False
+        try:
+            self.declencher()
+            tache = self._en_vol
+            if tache is None:
+                return False
+            await asyncio.wait_for(asyncio.shield(tache), timeout=delai)
+            return True
+        except (TimeoutError, asyncio.TimeoutError):
+            return False
+        except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
+            logger.warning(f"[fiche] rattrapage du greffier en échec : {erreur!r}")
+            return False
+
     async def _tourner(self) -> None:
         while True:
             await self.une_passe()

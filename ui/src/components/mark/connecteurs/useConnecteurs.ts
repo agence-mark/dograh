@@ -19,6 +19,9 @@ import { useAuth } from "@/lib/auth";
 export type ConfigIntegration = IntegrationToolConfig;
 
 export const DELAI_DEFAUT_MS = 5000;
+// Lot D d'agent-leger-greffier : mirrors of `api/schemas/tool.py` (IntegrationToolConfig).
+export const SEUIL_PATIENCE_DEFAUT_MS = 1200;
+export const ATTENTE_MAX_DEFAUT_MS = 2500;
 
 /** The definition of a new integration tool: the first action of the catalogue, its defaults. */
 export const configParDefaut = (catalogue: ConnecteurVue[], connecteur?: string, action?: string): ConfigIntegration | null => {
@@ -34,6 +37,9 @@ export const configParDefaut = (catalogue: ConnecteurVue[], connecteur?: string,
         phrase_repli: null,
         anticipable: false,
         declencheurs: {},
+        seuil_patience_ms: SEUIL_PATIENCE_DEFAUT_MS,
+        champs_requis: [],
+        attente_max_ms: ATTENTE_MAX_DEFAUT_MS,
     };
 };
 

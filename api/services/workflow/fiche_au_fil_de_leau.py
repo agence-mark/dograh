@@ -206,6 +206,9 @@ class ReglagesFiche:
     # S2 : les termes du lexique de type « nom » (marques…), les seuls qu'un indice
     # range au champ lu par le lexique ; un « mot du métier » (« ramoner ») jamais.
     noms_du_lexique: frozenset[str] = frozenset()
+    # Lot D d'agent-leger-greffier : les noms de champs reconnus par type (« Field
+    # recognition » de l'agent), pour lire les traces des modules (``fiche/traces.py``).
+    motifs_des_types: dict = field(default_factory=dict)
 
     @property
     def note_d_abord(self) -> bool:
@@ -262,6 +265,7 @@ class ReglagesFiche:
             champs=tuple(champs),
             termes_du_lexique=termes,
             mode=mode,
+            motifs_des_types=_motifs_des_types(run_configs),
             portes_dans_la_reponse=_portes_dans_la_reponse(run_configs, mode),
             ordre=ordre,
             noms_du_lexique=frozenset(
@@ -2272,6 +2276,14 @@ def _recopie_d_un_autre_champ(
     mots = _mots(str(valeur))
     if not mots:
         return None
+    # B2 (run 1049, lot D d'agent-leger-greffier) : une valeur de la liste fermée du
+    # champ n'est jamais une recopie (`degre_urgence` = « panne » refusé parce que le
+    # motif disait « panne ») : la liste la tient déjà.
+    definition = reglages.par_nom.get(champ)
+    if definition is not None and definition.valeurs and any(
+        _mots(str(v)) == mots for v in definition.valeurs
+    ):
+        return None
     for autre in reglages.champs:
         if autre.nom == champ or _est_vide(fiche.get(autre.nom)):
             continue
@@ -2392,6 +2404,45 @@ def _marquer_les_numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> Non
         )
 
 
+def _motifs_des_types(run_configs: dict | None) -> dict:
+    """Lot D d'agent-leger-greffier : les noms reconnus par type, lus comme le reste
+    (une valeur illisible = le défaut). Jamais une exception : ``{}`` au pire."""
+    try:
+        from api.services.fiche.reconnaissance import tous_les_noms
+
+        return tous_les_noms(run_configs)
+    except Exception as erreur:  # noqa: BLE001 -- la fiche passe avant
+        logger.warning(f"[fiche] reconnaissance des champs illisible : {erreur!r}")
+        return {}
+
+
+def ecrire_depuis_les_traces(
+    reglages: ReglagesFiche, fiche: dict, paroles: Iterable[str]
+) -> dict:
+    """Lot D d'agent-leger-greffier : les champs encore vides que les modules de lecture
+    ont établis (valeurs sûres, ``fiche/traces.py``), écrits par le point d'écriture
+    unique, donc avec ses contrôles. Sans requête au modèle."""
+    from api.services.fiche.traces import valeurs_des_traces
+
+    ecrits = {}
+    for nom, valeur in valeurs_des_traces(reglages, fiche).items():
+        champ = reglages.par_nom.get(nom)
+        if champ is None or not champ.rempli_en_fin_d_appel or not _est_vide(fiche.get(nom)):
+            continue
+        verdict = ecrire_dans_la_fiche(
+            fiche,
+            reglages,
+            nom,
+            valeur,
+            source="traces",
+            paroles=paroles,
+            seulement_si_vide=True,
+        )
+        if verdict.statut == "ecrit":
+            ecrits[nom] = verdict.valeur
+    return ecrits
+
+
 async def balayer_la_fiche(
     reglages: ReglagesFiche,
     extraire: Callable[[list[ExtractionVariableDTO], str], Any],
@@ -2400,8 +2451,15 @@ async def balayer_la_fiche(
 ) -> dict:
     """Le filet contre l'oubli d'appeler l'outil : relit la conversation pour les
     SEULS champs restés vides, et les écrit par le point d'écriture unique, donc
-    avec les mêmes contrôles (D35). N'écrase jamais ce que l'outil a écrit."""
+    avec les mêmes contrôles (D35). N'écrase jamais ce que l'outil a écrit.
+
+    Lot D d'agent-leger-greffier : les traces des modules d'abord (sans modèle), puis
+    la passe sur ce qui reste vide."""
     _marquer_les_numeros_en_conflit(reglages, fiche)
+    messages = list(messages)
+    depuis_les_traces = ecrire_depuis_les_traces(
+        reglages, fiche, paroles_de_l_appelant(messages)
+    )
     # D3 (correctifs-second-banc-34) : un champ décoché « rempli en fin d'appel »
     # n'est même pas demandé à la passe.
     vides = [
@@ -2410,7 +2468,7 @@ async def balayer_la_fiche(
         if c.rempli_en_fin_d_appel and _est_vide(fiche.get(c.nom))
     ]
     if not vides:
-        return {}
+        return depuis_les_traces
     trouve = await extraire(
         [
             # D9 (chantier correctifs-modules) : les valeurs des listes fermées,
@@ -2423,9 +2481,9 @@ async def balayer_la_fiche(
         CONSIGNE_BALAYAGE,
     )
     if not isinstance(trouve, dict):
-        return {}
+        return depuis_les_traces
     paroles = paroles_de_l_appelant(messages)
-    ecrits = {}
+    ecrits = dict(depuis_les_traces)
     for champ in vides:
         if champ.nom not in trouve:
             continue

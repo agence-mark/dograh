@@ -339,9 +339,10 @@ async def test_outil_integration_par_le_vrai_repartiteur(faux_nango, monkeypatch
     assert (
         set(r) == {"creneaux"} and len(r["creneaux"]) == 3
     )  # D8: the useful result only
-    engine.queue_text_message.assert_awaited_with(
-        "Je regarde l'agenda.", mute_user=True
-    )
+    # Lot D d'agent-leger-greffier (D6) : une action qui répond avant le seuil de
+    # patience ne fait rien dire ; la phrase n'est dite qu'au-delà
+    # (test_champs_requis_et_traces.py).
+    engine.queue_text_message.assert_not_awaited()
     trace = engine._gathered_context["connecteurs"][-1]
     assert trace["statut"] == "ok" and trace["duree_ms"] is not None
 

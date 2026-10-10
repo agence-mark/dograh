@@ -11,7 +11,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from api.enums import ToolCategory
 
@@ -625,7 +632,37 @@ class IntegrationToolConfig(BaseModel):
         description="The client's rules for this action (durations, ranges, notice…), from the audit.",
     )
     delai_ms: int = Field(default=5000, ge=500, le=15000, description="Deadline of the action during the call.")
-    phrase_attente: str | None = Field(default=None, max_length=300, description="Said while the action runs.")
+    phrase_attente: str | None = Field(
+        default=None,
+        max_length=300,
+        description=(
+            "The patience phrase: said by the code, after the model's text, only when the tool "
+            "has not finished after the patience threshold. Empty: nothing is ever said."
+        ),
+    )
+    # [.mark] Lot D d'agent-leger-greffier (D6): the threshold of the patience phrase, and
+    # the fields the action reads, found by the code before it runs (record, traces, clerk).
+    seuil_patience_ms: int = Field(
+        default=1200, ge=0, le=15000, description="Patience threshold: below it, nothing is said."
+    )
+    champs_requis: list[
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+    ] = Field(
+        default_factory=list,
+        max_length=20,
+        description=(
+            "Fields of the record the action needs. Missing ones are looked for in the reading "
+            "modules' traces, then the clerk is waited for; still missing, the model is told to "
+            "ask for them. Empty: the tool runs as before."
+        ),
+    )
+    attente_max_ms: int = Field(
+        default=2500, ge=0, le=15000, description="Longest wait for the clerk's pass."
+    )
+    sources_champs: list[Literal["fiche", "traces", "greffier"]] = Field(
+        default_factory=lambda: ["fiche", "traces", "greffier"],
+        description="Where the required fields are looked for, in this order.",
+    )
     phrase_repli: str | None = Field(
         default=None, max_length=300, description="Said when the deadline passes or the software fails."
     )

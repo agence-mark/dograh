@@ -73,12 +73,17 @@ def contexte_de(
     organization_id: int | None = None,
     appel: dict | None = None,
     run_id: int | None = None,
+    complements: dict | None = None,
 ) -> ContexteAction:
     extraites = (
         (fiche or {}).get("extracted_variables")
         if isinstance((fiche or {}).get("extracted_variables"), dict)
         else (fiche or {})
     )
+    if complements:
+        # Lot D d'agent-leger-greffier : les valeurs sûres des traces, pour CETTE action
+        # seulement ; la fiche n'est pas touchée (le greffier l'écrit, avec ses contrôles).
+        extraites = {**(extraites or {}), **complements}
     return ContexteAction(
         reglages={**action.reglages_par_defaut, **(reglages or {})},
         modele=depuis_la_fiche(extraites or {}, None, numero),
@@ -132,6 +137,7 @@ async def executer(
     anticipee: asyncio.Future | None = None,
     appel: dict | None = None,
     run_id: int | None = None,
+    complements: dict | None = None,
 ) -> Resultat:
     """Run the tool's action within its deadline. Never raises: an error is a fallback."""
     trouve = trouver(config.get("connecteur", ""), config.get("action", ""))
@@ -159,6 +165,7 @@ async def executer(
         organization_id=organization_id,
         appel=appel,
         run_id=run_id,
+        complements=complements,
     )
     debut = time.monotonic()
     try:
