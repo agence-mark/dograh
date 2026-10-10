@@ -13,6 +13,7 @@ from loguru import logger
 from api.db import db_client
 from api.db.models import KnowledgeBaseChunkModel
 from api.services.gen_ai import build_embedding_service
+from api.services.gen_ai.documents_locaux import est_un_texte, traiter_un_texte
 from api.services.mps_service_key_client import mps_service_key_client
 from api.services.storage import storage_fs
 
@@ -177,16 +178,25 @@ async def process_knowledge_base_document(
                     f"model={embeddings_model}"
                 )
 
-        logger.info(f"Delegating document processing to MPS (mode={retrieval_mode})")
-        mps_response = await mps_service_key_client.process_document(
-            file_path=temp_file_path,
-            filename=filename,
-            content_type=mime_type or "application/octet-stream",
-            retrieval_mode=retrieval_mode,
-            max_tokens=max_tokens,
-            organization_id=organization_id,
-            created_by=created_by_provider_id,
-        )
+        # [.mark] Lot C d'agent-leger-greffier : un fichier texte est lu et découpé ici ;
+        # le MPS (services.dograh.com) est coupé par notre patch n° 60, et sans ce
+        # chemin aucun document n'entrait dans la base de connaissances.
+        if est_un_texte(filename, mime_type):
+            logger.info(f"Processing text document locally (mode={retrieval_mode})")
+            mps_response = traiter_un_texte(temp_file_path, retrieval_mode, max_tokens)
+        else:
+            logger.info(
+                f"Delegating document processing to MPS (mode={retrieval_mode})"
+            )
+            mps_response = await mps_service_key_client.process_document(
+                file_path=temp_file_path,
+                filename=filename,
+                content_type=mime_type or "application/octet-stream",
+                retrieval_mode=retrieval_mode,
+                max_tokens=max_tokens,
+                organization_id=organization_id,
+                created_by=created_by_provider_id,
+            )
 
         docling_metadata = mps_response.get("docling_metadata", {})
 

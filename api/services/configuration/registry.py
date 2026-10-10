@@ -3169,7 +3169,22 @@ class OpenAIEmbeddingsConfiguration(BaseEmbeddingsConfiguration):
     model: str = Field(
         default="text-embedding-3-small",
         description="OpenAI embedding model.",
-        json_schema_extra={"examples": OPENAI_EMBEDDING_MODELS},
+        # [.mark] Lot C d'agent-leger-greffier: any OpenAI-compatible model (Scaleway).
+        json_schema_extra={
+            "examples": OPENAI_EMBEDDING_MODELS + ["qwen3-embedding-8b"],
+            "allow_custom_input": True,
+        },
+    )
+    # [.mark] Lot C d'agent-leger-greffier : an OpenAI-compatible embeddings API (the
+    # European Scaleway first). Such a model is asked for 1536 numbers per text, the
+    # size the knowledge base stores (``dimensions_demandees``).
+    base_url: str = Field(
+        default="https://api.openai.com/v1",
+        description=(
+            "Override only for an OpenAI-compatible API (e.g. https://api.scaleway.ai/v1). "
+            "The model must be able to return 1536 numbers per text: "
+            "qwen3-embedding-8b can, bge-multilingual-gemma2 cannot."
+        ),
     )
 
 
