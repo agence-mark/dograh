@@ -246,3 +246,10 @@ def test_b2_une_valeur_de_la_liste_fermee_n_est_jamais_une_recopie(valeur):
         )
         == "prestation"
     )
+
+
+def test_le_compteur_des_tours_est_celui_des_modules():
+    from api.services.fiche import traces
+    from api.services.pipecat.verification_communes import CLE_TOUR
+
+    assert traces.CLE_TOUR == CLE_TOUR

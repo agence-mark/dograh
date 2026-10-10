@@ -62,6 +62,11 @@ def _sans_version(configuration: dict) -> dict:
     configuration = dict(configuration)
     version = configuration.pop("mark_version", None)
     assert isinstance(version, dict) and "app_version" in version, "mark_version absente"
+    # [.mark] Chantier agent-leger-greffier, lot C : le fournisseur OpenAI declare sa
+    # temperature (0,1 par defaut), donc l'estampille la porte, comme pour Mistral.
+    if configuration.get("llm_provider") == "openai":
+        echantillonnage = configuration.pop("llm_sampling", None)
+        assert echantillonnage == {"temperature": 0.1}, "llm_sampling absente"
     return configuration
 
 

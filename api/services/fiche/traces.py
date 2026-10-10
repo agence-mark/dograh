@@ -24,7 +24,10 @@ import re
 from typing import Any
 
 from api.schemas.fiche_agent import est_un_champ_de_nom
-from api.services.pipecat.verification_communes import CLE_TOUR
+
+# Le compteur des tours de l'appelant (``verification_communes.CLE_TOUR``), repris ici pour
+# garder ce module léger (comme ``fiche_au_fil_de_leau.py``) ; un test vérifie qu'ils sont égaux.
+CLE_TOUR = "tour_appelant"
 
 
 def _correspond(nom: str, motifs: tuple[str, ...]) -> bool:

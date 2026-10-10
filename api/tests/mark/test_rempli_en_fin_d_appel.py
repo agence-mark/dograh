@@ -67,7 +67,11 @@ async def test_D3_au_clavier_la_passe_de_fin_ne_demande_pas_un_champ_decoche(
             "c'est Girard, g i r a r d",
             finir=True,
         )
-    assert demandes == [["nom"]], demandes
+    # Lot D d'agent-leger-greffier : le nom épelé au dernier tour est écrit par les traces
+    # des modules AVANT la passe du modèle, qui n'a donc plus rien à demander. Ce que ce
+    # test garde : le champ décoché (« autre ») n'est jamais demandé.
+    assert all("autre" not in d for d in demandes), demandes
+    assert demandes in ([], [["nom"]]), demandes
     contexte = charge["gathered_context"]
     assert contexte.get("nom") == "Girard", contexte
     assert not contexte.get("autre"), contexte
