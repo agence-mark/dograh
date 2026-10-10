@@ -41,13 +41,9 @@ import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
+import { type BlocModele, ChampsFournisseurLlm } from "../modeles/ChampsFournisseurLlm";
 import { AIDES_FICHE, EditeurChampsFiche, pourComparerLaFiche, texteErreursDesChamps } from "../SectionFiche";
-import {
-    CONSIGNE_GENERIQUE_GREFFIER,
-    fournisseurDuGreffier,
-    FOURNISSEURS_AVEC_TEMPERATURE,
-    NOMS_AVEC_TEMPERATURE,
-} from "./consigne-greffier";
+import { CONSIGNE_GENERIQUE_GREFFIER } from "./consigne-greffier";
 import { useEnregistrementTheme } from "./enregistrement";
 import { champsInvalides, lireApresAppel, pourEnvoyer, SectionApresAppelAgent, smsInvalides } from "./SectionApresAppelAgent";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useEtatTheme, useRevelation } from "./theme-commun";
@@ -161,7 +157,7 @@ export const ThemeDonnees = ({
     etapesSansPremiereReplique?: string[];
 }) => {
     const { t } = useLangue();
-    const { externalPbxIntegrationsEnabled, userConfig } = useOrgConfig();
+    const { externalPbxIntegrationsEnabled } = useOrgConfig();
     const { afficher } = useRevelation(ouvrir);
 
     // ---- The call record ---------------------------------------------------
@@ -213,50 +209,24 @@ export const ThemeDonnees = ({
     // Dograh »). A key typed replaces it; « conversation's key » removes it.
     const greffierEnregistre = useMemo(() => (resolue.greffier_llm ?? null) as GreffierLlm | null, [resolue.greffier_llm]);
     const consigneEnregistree = resolue.greffier_consigne ?? null;
-    const [fournisseurGreffier, setFournisseurGreffier] = useState("");
-    const [modeleGreffier, setModeleGreffier] = useState("");
-    const [temperatureGreffier, setTemperatureGreffier] = useState("");
-    const [cleGreffier, setCleGreffier] = useState("");
-    const [cleRetiree, setCleRetiree] = useState(false);
+    // [.mark] Lot C d'agent-leger-greffier (D9) : the block edited by the generated form of
+    // its provider (`ChampsFournisseurLlm`), saved as it is in `greffier_llm`.
+    const [blocEdite, setBlocEdite] = useState<BlocModele>({});
     const [consigne, setConsigne] = useState(consigneEnregistree ?? CONSIGNE_GENERIQUE_GREFFIER);
     const greffierRelu = JSON.stringify([greffierEnregistre, consigneEnregistree]);
     useEffect(() => {
         const [bloc, texte] = JSON.parse(greffierRelu) as [GreffierLlm | null, string | null];
-        setFournisseurGreffier(bloc?.provider ?? "");
-        setModeleGreffier(bloc?.model ?? "");
-        setTemperatureGreffier(bloc?.temperature === undefined || bloc?.temperature === null ? "" : String(bloc.temperature));
-        setCleGreffier("");
-        setCleRetiree(false);
+        setBlocEdite((bloc ?? {}) as BlocModele);
         setConsigne(texte ?? CONSIGNE_GENERIQUE_GREFFIER);
     }, [greffierRelu]);
-    // The temperature only plays where the provider declares one (registry.py):
-    // elsewhere the server ignores it, so the field is greyed out. Unknown
-    // provider (no configuration loaded): left open.
-    const fournisseurEffectif = fournisseurDuGreffier(fournisseurGreffier, resolue, userConfig);
-    const temperatureJoue = fournisseurEffectif === undefined || FOURNISSEURS_AVEC_TEMPERATURE.includes(fournisseurEffectif);
-    const temperatureValide = temperatureGreffier.trim() === "" || Number.isFinite(Number(temperatureGreffier.replace(",", ".")));
-    const blocGreffier = (): GreffierLlm | null => {
-        const bloc: GreffierLlm = { ...(greffierEnregistre ?? {}) };
-        const poser = (cle: string, valeur: unknown) => {
-            if (valeur === undefined) delete bloc[cle];
-            else bloc[cle] = valeur;
-        };
-        poser("provider", fournisseurGreffier.trim().toLowerCase() || undefined);
-        poser("model", modeleGreffier.trim() || undefined);
-        poser(
-            "temperature",
-            temperatureGreffier.trim() && temperatureValide ? Number(temperatureGreffier.replace(",", ".")) : undefined,
-        );
-        if (cleGreffier.trim()) poser("api_key", cleGreffier.trim());
-        else if (cleRetiree) poser("api_key", undefined);
-        return Object.keys(bloc).length > 0 ? bloc : null;
-    };
+    const blocGreffier = (): GreffierLlm | null =>
+        Object.keys(blocEdite).length > 0 ? (blocEdite as GreffierLlm) : null;
     const greffierModifie = pourComparerLeGreffier(blocGreffier()) !== pourComparerLeGreffier(greffierEnregistre);
     // Saved equal to the template (or emptied), the instructions are sent empty:
     // the agent then follows the template when the template improves.
     const consigneEnvoyee = consigne.trim() === "" || consigne === CONSIGNE_GENERIQUE_GREFFIER ? null : consigne;
     const consigneModifiee = consigneEnvoyee !== consigneEnregistree;
-    const cleEnregistree = typeof greffierEnregistre?.api_key === "string" && greffierEnregistre.api_key !== "" && !cleRetiree;
+    const cleEnregistree = typeof blocEdite.api_key === "string" && blocEdite.api_key !== "";
 
     // ---- After the call (chantier l-agent-travaille, L4, A6) ------------------
     const apresAppelEnregistre = JSON.stringify(pourEnvoyer(lireApresAppel(resolue.apres_appel)));
@@ -310,26 +280,6 @@ export const ThemeDonnees = ({
                 en: "a field has a problem: open the fields to fix it.",
                 fr: "un champ a un problème : ouvrez les champs pour le corriger.",
             },
-        });
-    }
-    // A saved key only goes back to ITS provider (the server refuses it elsewhere):
-    // a changed provider needs its key typed, or the conversation's key.
-    const fournisseurChange = (fournisseurGreffier.trim() || undefined) !== (greffierEnregistre?.provider || undefined);
-    if (fournisseurChange && cleEnregistree && !cleGreffier.trim()) {
-        erreurs.push({
-            cle: "greffier_llm",
-            libelle: { en: "Clerk", fr: "Greffier" },
-            message: {
-                en: "the provider changed: type its API key, or use the conversation's key.",
-                fr: "le fournisseur a changé : tapez sa clé API, ou prenez la clé de la conversation.",
-            },
-        });
-    }
-    if (!temperatureValide) {
-        erreurs.push({
-            cle: "greffier_llm",
-            libelle: { en: "Clerk", fr: "Greffier" },
-            message: { en: "the temperature must be a number.", fr: "la température doit être un nombre." },
         });
     }
     const erreurSms = smsInvalides(apresAppel)[0];
@@ -616,8 +566,8 @@ export const ThemeDonnees = ({
                     >
                         <div className="flex items-center justify-between gap-3 rounded border p-3 text-sm">
                             <span>
-                                {modeleGreffier.trim() || t({ en: "Model by default", fr: "Modèle par défaut" })} ·{" "}
-                                {cleGreffier.trim() || cleEnregistree
+                                {(typeof blocEdite.model === "string" && blocEdite.model) || t({ en: "Model by default", fr: "Modèle par défaut" })} ·{" "}
+                                {cleEnregistree
                                     ? t({ en: "own key", fr: "clé propre" })
                                     : t({ en: "conversation's key", fr: "clé de la conversation" })}
                             </span>
@@ -788,114 +738,7 @@ export const ThemeDonnees = ({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                            <div className="space-y-1">
-                                <label htmlFor="greffier_fournisseur" className="text-sm font-medium">
-                                    {t({ en: "Provider", fr: "Fournisseur" })}
-                                </label>
-                                <Input
-                                    id="greffier_fournisseur"
-                                    value={fournisseurGreffier}
-                                    onChange={(e) => setFournisseurGreffier(e.target.value)}
-                                    placeholder={t({ en: "as the conversation", fr: "comme la conversation" })}
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label htmlFor="greffier_modele" className="text-sm font-medium">
-                                    {t({ en: "Model", fr: "Modèle" })}
-                                </label>
-                                <Input
-                                    id="greffier_modele"
-                                    value={modeleGreffier}
-                                    onChange={(e) => setModeleGreffier(e.target.value)}
-                                    placeholder={t({ en: "mistral-large-2512", fr: "mistral-large-2512" })}
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label htmlFor="greffier_temperature" className="text-sm font-medium">
-                                    {t({ en: "Temperature", fr: "Température" })}
-                                </label>
-                                <Input
-                                    id="greffier_temperature"
-                                    inputMode="decimal"
-                                    disabled={!temperatureJoue}
-                                    value={temperatureGreffier}
-                                    onChange={(e) => setTemperatureGreffier(e.target.value)}
-                                    placeholder={t({ en: "as the conversation", fr: "comme la conversation" })}
-                                />
-                                {!temperatureJoue && (
-                                    <p className="text-xs text-muted-foreground">
-                                        {t({
-                                            en: `No effect with ${fournisseurEffectif}: only ${NOMS_AVEC_TEMPERATURE("and")} take a temperature.`,
-                                            fr: `Sans effet chez ${fournisseurEffectif} : seuls ${NOMS_AVEC_TEMPERATURE("et")} prennent une température.`,
-                                        })}
-                                    </p>
-                                )}
-                                {/* A value kept from another provider would play again on a return to it: it can be cleared. */}
-                                {!temperatureJoue && temperatureGreffier.trim() !== "" && (
-                                    <Button type="button" variant="outline" size="sm" onClick={() => setTemperatureGreffier("")}>
-                                        {t({ en: "Clear the temperature", fr: "Effacer la température" })}
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            {t({
-                                en: "Provider as named in the model settings (for example mistral). Without a model, Mistral uses mistral-large-2512.",
-                                fr: "Le fournisseur tel qu'il est nommé dans les réglages des modèles (par exemple mistral). Sans modèle, Mistral prend mistral-large-2512.",
-                            })}
-                        </p>
-                        {!temperatureValide && (
-                            <p className="text-xs text-destructive">
-                                {t({ en: "The temperature must be a number.", fr: "La température doit être un nombre." })}
-                            </p>
-                        )}
-                        <div className="space-y-1">
-                            <label htmlFor="greffier_cle" className="text-sm font-medium">
-                                {t({ en: "API key", fr: "Clé API" })}
-                            </label>
-                            <div className="flex gap-2">
-                                <Input
-                                    id="greffier_cle"
-                                    type="password"
-                                    autoComplete="off"
-                                    value={cleGreffier}
-                                    onChange={(e) => setCleGreffier(e.target.value)}
-                                    placeholder={
-                                        cleEnregistree
-                                            ? `${t({ en: "Saved key", fr: "Clé enregistrée" })} ${String(greffierEnregistre?.api_key)}`
-                                            : t({ en: "Empty: the conversation's key", fr: "Vide : la clé de la conversation" })
-                                    }
-                                />
-                                {(cleEnregistree || cleGreffier) && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                            setCleGreffier("");
-                                            setCleRetiree(true);
-                                        }}
-                                    >
-                                        {t({ en: "Use the conversation's key", fr: "Prendre la clé de la conversation" })}
-                                    </Button>
-                                )}
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                {t({
-                                    en: "A saved key is never shown again. Empty, the clerk uses the conversation's key, and its rate limit: Mistral limits each organization, so for the clerk not to share the agent's limit, the key must come from another Mistral organization.",
-                                    fr: "Une clé enregistrée n'est jamais réaffichée. Vide, le greffier prend la clé de la conversation, et son quota : Mistral limite chaque organisation, donc pour que le greffier ne partage pas la limite de l'agent, la clé doit venir d'une autre organisation Mistral.",
-                                })}
-                            </p>
-                            {fournisseurChange && cleEnregistree && !cleGreffier.trim() && (
-                                <p className="text-xs text-destructive">
-                                    {t({
-                                        en: "The provider changed: type its API key, or use the conversation's key.",
-                                        fr: "Le fournisseur a changé : tapez sa clé API, ou prenez la clé de la conversation.",
-                                    })}
-                                </p>
-                            )}
-                        </div>
+                        <ChampsFournisseurLlm bloc={blocEdite} onChange={setBlocEdite} />
                         <div className="space-y-1">
                             <div className="flex items-center justify-between gap-2">
                                 <label htmlFor="greffier_consigne" className="text-sm font-medium">

@@ -37,7 +37,10 @@ export function ChampCleModele({
     fournisseur,
     placeholder,
     onChange,
+    id,
 }: {
+    /** [.mark] Lot C d'agent-leger-greffier: the id of the typed-key input, for its label. */
+    id?: string;
     valeur: string;
     /** The provider chosen in the form: the library opens on its keys. */
     fournisseur: string;
@@ -69,7 +72,7 @@ export function ChampCleModele({
                         </span>
                     </div>
                 ) : (
-                    <Input type="text" placeholder={placeholder} value={valeur} onChange={(e) => onChange(e.target.value)} />
+                    <Input id={id} type="text" placeholder={placeholder} value={valeur} onChange={(e) => onChange(e.target.value)} />
                 )}
                 <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setBibliotheque(true)}>
                     {t(libelleCles)}

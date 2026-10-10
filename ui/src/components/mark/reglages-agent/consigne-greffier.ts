@@ -29,14 +29,6 @@ export const CONSIGNE_GENERIQUE_GREFFIER =
     "- Tu n'écris jamais ce que l'agent a dit, seulement ce que la personne a dit ou confirmé.\n" +
     "- Tu n'écris pas une information dont tu n'as pas compris le sens : l'agent la fera répéter.\n";
 
-/**
- * [.mark] The providers whose model configuration declares a temperature
- * (`registry.py`): anywhere else the clerk's temperature is ignored by the
- * server, so the screen greys the field out. ⛔ Checked against the registry
- * by `api/tests/mark/test_greffier_ecran.py`.
- */
-export const FOURNISSEURS_AVEC_TEMPERATURE: readonly string[] = ["minimax", "mistral", "sarvam"];
-
 type AvecLlm = { llm?: { provider?: unknown } | null } | null | undefined;
 const fournisseurDe = (valeur: unknown): string | undefined => {
     const llm = (valeur as AvecLlm)?.llm;
@@ -74,9 +66,3 @@ export const fournisseurDuGreffier = (
     return fournisseurDe(agent?.model_overrides) || fournisseurDe(organisation);
 };
 
-/** The providers that take a temperature, as said on screen: « Mistral, MiniMax and Sarvam ». */
-export const NOMS_AVEC_TEMPERATURE = (et: string): string => {
-    const noms: Record<string, string> = { minimax: "MiniMax", mistral: "Mistral", sarvam: "Sarvam" };
-    const liste = FOURNISSEURS_AVEC_TEMPERATURE.map((f) => noms[f] ?? f);
-    return liste.length > 1 ? `${liste.slice(0, -1).join(", ")} ${et} ${liste[liste.length - 1]}` : liste.join("");
-};

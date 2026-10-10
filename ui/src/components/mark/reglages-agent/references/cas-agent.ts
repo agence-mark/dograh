@@ -195,8 +195,10 @@ export const CAS_AGENT: CasAgent[] = [
     c("greffier", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_llm"], [
         choisir("fiche_mode_de_note", "greffier"),
         { type: "cliquer", nom: "Configure the clerk" },
-        saisir("greffier_modele", "mistral-small-2603"),
-        saisir("greffier_cle", "cle-de-reference"),
+        // Lot C d'agent-leger-greffier (D9): the provider's generated form.
+        saisir("greffier_provider", "mistral"),
+        saisir("greffier_model", "mistral-small-2603"),
+        saisir("greffier_api_key", "cle-de-reference"),
         { type: "cliquer", nom: "Done" },
     ]),
     c("greffier-consigne", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_consigne"], [

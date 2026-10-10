@@ -1142,6 +1142,7 @@
           "modifiees": {
             "fiche_mode_de_note": "greffier",
             "greffier_llm": {
+              "provider": "mistral",
               "model": "mistral-small-2603",
               "api_key": "cle-de-reference"
             }
