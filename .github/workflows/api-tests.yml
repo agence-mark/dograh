@@ -26,6 +26,9 @@ on:
       - "pipecat/**"
       - "scripts/**"
       - ".github/workflows/api-tests.yml"
+  # [.mark] 2026-10-10 : relancer a la main (un envoi passe pendant un blocage
+  # d'Actions ne se rejoue pas tout seul, et `paths` ignore un commit vide).
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
