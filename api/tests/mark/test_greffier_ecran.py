@@ -6,7 +6,6 @@
 | clé des passes | l'encadré de la page d'un appel lit la clé que le greffier écrit |
 """
 
-import re
 from pathlib import Path
 
 from api.services.configuration.registry import REGISTRY, ServiceType
