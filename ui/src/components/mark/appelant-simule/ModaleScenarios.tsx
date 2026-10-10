@@ -84,6 +84,25 @@ export const fautesDesScenarios = (scenarios: ScenarioSimule[], t: (texte: Texte
     return fautes;
 };
 
+/** The expected record as text, one « field = value » per line (a value left empty: must stay empty). */
+export const ficheAttendueEnTexte = (fiche: ScenarioSimule["fiche_attendue"]): string =>
+    Object.entries(fiche ?? {})
+        .map(([champ, valeur]) => `${champ} = ${valeur ?? ""}`)
+        .join("\n");
+
+/** The text back to the expected record; null when no line names a field. */
+export const texteEnFicheAttendue = (texte: string): ScenarioSimule["fiche_attendue"] => {
+    const fiche: Record<string, string | null> = {};
+    for (const ligne of texte.split("\n")) {
+        const coupe = ligne.indexOf("=");
+        const champ = (coupe === -1 ? ligne : ligne.slice(0, coupe)).trim();
+        if (!champ) continue;
+        const valeur = coupe === -1 ? "" : ligne.slice(coupe + 1).trim();
+        fiche[champ] = valeur === "" ? null : valeur;
+    }
+    return Object.keys(fiche).length ? fiche : null;
+};
+
 const nettoyer = (s: ScenarioSimule): ScenarioSimule => ({
     ...s,
     nom: s.nom.trim(),
@@ -98,6 +117,9 @@ function EditeurScenario({
     onChange: (morceau: Partial<ScenarioSimule>) => void;
 }) {
     const { t } = useLangue();
+    // The text being typed is kept apart from the parsed record, or a half-typed line would vanish.
+    const [ficheTexte, setFicheTexte] = useState(() => ficheAttendueEnTexte(scenario.fiche_attendue));
+    useEffect(() => setFicheTexte(ficheAttendueEnTexte(scenario.fiche_attendue)), [scenario.id]); // eslint-disable-line react-hooks/exhaustive-deps
     return (
         <div className="space-y-3" data-testid="editeur-scenario">
             <label className="block space-y-1 text-xs text-muted-foreground">
@@ -183,6 +205,23 @@ function EditeurScenario({
                     {t({ en: "Add a criterion", fr: "Ajouter un critère" })}
                 </Button>
             </div>
+            <label className="block space-y-1 text-xs text-muted-foreground">
+                <span>
+                    {t({
+                        en: "Expected call record (optional, one « field = value » per line; no value: the field must stay empty)",
+                        fr: "Fiche attendue (facultatif, un « champ = valeur » par ligne ; sans valeur : le champ doit rester vide)",
+                    })}
+                </span>
+                <Textarea
+                    value={ficheTexte}
+                    onChange={(e) => {
+                        setFicheTexte(e.target.value);
+                        onChange({ fiche_attendue: texteEnFicheAttendue(e.target.value) });
+                    }}
+                    className="min-h-16 font-mono text-sm"
+                    aria-label={t({ en: "Expected call record", fr: "Fiche attendue" })}
+                />
+            </label>
             <div className="grid gap-2 sm:grid-cols-3">
                 <label className="space-y-1 text-xs text-muted-foreground">
                     <span>{t({ en: "Turns at most", fr: "Tours au plus" })}</span>

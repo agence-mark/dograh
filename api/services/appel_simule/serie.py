@@ -39,6 +39,7 @@ from api.schemas.appel_simule import ReglagesAppelantSimule, ScenarioSimule
 from api.services.analyse_run.cout import lire_reglages_fenetre
 from api.services.analyse_run.du_run import analyser_le_run
 from api.services.appel_simule.entree import CLE_EXTRA, adresse_ws, creer_run_simule
+from api.services.appel_simule.fiche_attendue import rangs_de_la_fiche
 from api.services.appel_simule.reglages import (
     AppelDeSerie,
     SerieSimulee,
@@ -285,9 +286,14 @@ def cout_de_l_appelant(verdict: dict, duree_s: float | None, table) -> dict:
 
 
 def resultat_de_l_appel(
-    verdict: dict, analyse: dict, scenario: ScenarioSimule, cout_appelant: dict
+    verdict: dict,
+    analyse: dict,
+    scenario: ScenarioSimule,
+    cout_appelant: dict,
+    contexte: dict | None = None,
 ) -> dict:
-    """Le verdict rangé dans le run : celui du juge, plus le seuil de latence du scénario."""
+    """Le verdict rangé dans le run : celui du juge, plus le seuil de latence du scénario, plus la
+    fiche attendue rangée par le code (``contexte`` : le contexte recueilli du run)."""
     latence = analyse.get("latency") or {}
     pire = (latence.get("stats") or {}).get("worst_silence_secs")
     echecs = list(verdict.get("failed_criteria") or [])
@@ -301,6 +307,11 @@ def resultat_de_l_appel(
         echecs.append(f"latency: worst turn {pire:.2f} s > {scenario.latence_max_s} s")
     cout_agent = (analyse.get("summary") or {}).get("cost") or {}
     return {
+        **(
+            {"fiche": rangs_de_la_fiche(scenario.fiche_attendue, contexte)}
+            if scenario.fiche_attendue
+            else {}
+        ),
         "success": reussi,
         "error": verdict.get("error"),
         "reasoning": verdict.get("reasoning"),
@@ -535,7 +546,11 @@ async def _jouer_un_appel(
         "call_duration_seconds"
     )
     resultat = resultat_de_l_appel(
-        verdict, analyse, scenario, cout_de_l_appelant(verdict, duree, table)
+        verdict,
+        analyse,
+        scenario,
+        cout_de_l_appelant(verdict, duree, table),
+        getattr(lu, "gathered_context", None),
     )
     extra = dict((lu.extra if lu is not None else None) or {})
     simulation = dict(extra.get(CLE_EXTRA) or {})

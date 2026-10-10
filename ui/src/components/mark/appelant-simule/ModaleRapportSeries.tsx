@@ -24,7 +24,17 @@ type Resultat = {
     worst_silence_secs?: number | null;
     median_silence_secs?: number | null;
     incidents?: number;
+    /** Rating of each expected field of the record, computed by the code (`fiche_attendue`). */
+    fiche?: Record<string, string>;
 };
+
+/** The four ratings of an expected field, best first. */
+export const RANGS_FICHE: { rang: string; libelle: Texte }[] = [
+    { rang: "juste_sur", libelle: { en: "right and sure", fr: "juste et sûr" } },
+    { rang: "juste_a_confirmer", libelle: { en: "right, to confirm", fr: "juste, à confirmer" } },
+    { rang: "vide", libelle: { en: "empty", fr: "vide" } },
+    { rang: "faux", libelle: { en: "wrong", fr: "faux" } },
+];
 
 export const ETATS_SERIE: Record<NonNullable<SerieSimulee["etat"]>, Texte> = {
     en_cours: { en: "playing", fr: "en cours" },
@@ -61,6 +71,12 @@ export const bilanDeSerie = (rapport: RapportSerie) => {
         ),
         pireTour: pires.length ? Math.max(...pires) : null,
         incidents: resultats.reduce((n, r) => n + (r.incidents ?? 0), 0),
+        fiche: Object.fromEntries(
+            RANGS_FICHE.map(({ rang }) => [
+                rang,
+                resultats.reduce((n, r) => n + Object.values(r.fiche ?? {}).filter((v) => v === rang).length, 0),
+            ]),
+        ) as Record<string, number>,
         cout: rapport.serie.cout ?? 0,
         coutPartiel: Boolean(rapport.serie.cout_partiel),
         devise: rapport.serie.devise ?? "USD",
@@ -71,7 +87,7 @@ const csv = (valeur: unknown) => `"${String(valeur ?? "").replaceAll('"', '""')}
 
 export const exportCsv = (rapport: RapportSerie): string => {
     const lignes = [
-        ["series", "scenario", "run", "state", "passed", "criteria_met", "criteria_failed", "worst_turn_s", "median_s", "incidents", "cost"],
+        ["series", "scenario", "run", "state", "passed", "criteria_met", "criteria_failed", "worst_turn_s", "median_s", "incidents", "record", "cost"],
         ...rapport.appels.map((a) => {
             const r = (a.resultat ?? {}) as Resultat;
             return [
@@ -85,6 +101,9 @@ export const exportCsv = (rapport: RapportSerie): string => {
                 r.worst_silence_secs,
                 r.median_silence_secs,
                 r.incidents,
+                Object.entries(r.fiche ?? {})
+                    .map(([champ, rang]) => `${champ}:${rang}`)
+                    .join(" | "),
                 a.cout,
             ];
         }),
@@ -129,6 +148,12 @@ function ColonneRapport({ rapport, workflowId }: { rapport: RapportSerie; workfl
                     })}
                 </li>
                 <li>{t({ en: `Incidents: ${b.incidents}`, fr: `Incidents : ${b.incidents}` })}</li>
+                {RANGS_FICHE.some(({ rang }) => b.fiche[rang] > 0) ? (
+                    <li data-testid="bilan-fiche">
+                        {t({ en: "Expected record: ", fr: "Fiche attendue : " })}
+                        {RANGS_FICHE.map(({ rang, libelle }) => `${b.fiche[rang]} ${t(libelle)}`).join(" · ")}
+                    </li>
+                ) : null}
                 <li>
                     {t({
                         en: `Cost ${b.cout} ${b.devise}${b.coutPartiel ? " (partial)" : ""} · cap ${rapport.serie.plafond}`,

@@ -8155,6 +8155,14 @@ export type ScenarioSimule = {
      * If set, a turn slower than this fails the scenario.
      */
     latence_max_s?: number | null;
+    /**
+     * Fiche Attendue
+     *
+     * The call record the scenario expects, field -> value (null: the field must stay empty). Rated by the code at the end of the run: juste_sur, juste_a_confirmer, vide, faux.
+     */
+    fiche_attendue?: {
+        [key: string]: string | null;
+    } | null;
 };
 
 /**

@@ -34,6 +34,15 @@ from types import SimpleNamespace
 
 from api.schemas.lexique_metier import LexiqueMetier, normaliser_terme
 from api.schemas.organization_preferences import AdresseEtablissement
+from api.services.appel_simule.fiche_attendue import (  # noqa: F401 -- le rang est partagé avec la série (D7)
+    FAUX,
+    JUSTE_A_CONFIRMER,
+    JUSTE_SUR,
+    NOMS_DES_RANGS,
+    VIDE,
+    pareil as _pareil,
+    rang,
+)
 from api.services.communes.base import charger_base
 from api.services.pipecat.lecture_appelant import creer_lecture_appelant
 from api.services.pipecat.reconnaissance_lexique import creer_reconnaissance_lexique
@@ -50,17 +59,12 @@ CORPUS = Path(__file__).parent / "donnees" / "rejeu_runs_861_881.json"
 # Ce qu'un appelant dit pour confirmer, en tête de sa réponse (mesure « après un oui »).
 _OUI = ("oui", "ouais", "c'est ça", "c est ça", "exactement", "voilà", "tout à fait", "absolument")
 
-# Le rang d'un champ par rapport à sa cible, du meilleur au pire (zéro perte = jamais pire).
-JUSTE_SUR, JUSTE_A_CONFIRMER, VIDE, FAUX = 3, 2, 1, 0
-NOMS_DES_RANGS = {JUSTE_SUR: "juste_sur", JUSTE_A_CONFIRMER: "juste_a_confirmer", VIDE: "vide", FAUX: "faux"}
+# Le rang d'un champ par rapport à sa cible (JUSTE_SUR ... FAUX) et la fonction ``rang`` vivent dans
+# ``services/appel_simule/fiche_attendue.py`` : la série simulée range sa fiche attendue de la même façon.
 
 
 def charger(chemin: Path = CORPUS) -> dict:
     return json.loads(chemin.read_text(encoding="utf-8"))
-
-
-def _pareil(a, b) -> bool:
-    return normaliser_terme(str(a or "")) == normaliser_terme(str(b or ""))
 
 
 def est_un_oui(texte: str) -> bool:
@@ -157,18 +161,6 @@ def _lire_resultat(texte):
         return ast.literal_eval(texte)
     except (ValueError, SyntaxError):
         return {"brut": texte}
-
-
-def rang(fiche: dict, champ: str, cible) -> int:
-    valeur = fiche.get(champ)
-    if cible is None:
-        return JUSTE_SUR if valeur in (None, "") else FAUX
-    if valeur in (None, ""):
-        return VIDE
-    if not _pareil(valeur, cible):
-        return FAUX
-    sure = ((fiche.get(CLE_ETAT) or {}).get(champ) or {}).get("sure")
-    return JUSTE_SUR if sure else JUSTE_A_CONFIRMER
 
 
 def _champs_a_faire_confirmer(resultat: dict | None) -> set[str]:
