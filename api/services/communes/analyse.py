@@ -536,6 +536,39 @@ LIEUX_RELATIFS = frozenset(
 )
 
 
+# B1 (constat du run 1048, plan de réparation globale du 08/10) : « à » seul ne dit pas un lieu
+# (« un poêle à granulés » proposait Grandrû). Il en dit un après un verbe d'être ou d'habitation,
+# ou en tête de réponse, ou après une adresse (type de voie, numéro) ; après un nom, la proposition à
+# confirmer qui n'a que lui pour amorce tombe.
+# ⛔ Aucune règle ne dépend de l'établissement (décision du 17/09, gardée par
+# ``test_aucune_regle_ne_depend_du_magasin``) : le rayon et le son proche du plan sont une décision
+# d'Evan (ils font perdre « Grand Villiers » -> Grandvilliers, « Abrel dans l'Oise » -> Bresles).
+VERBES_DE_LIEU = frozenset(
+    """suis est c habite habitons habitent situe situee sis vais viens vient venons travaille
+    travaillons reside residons demeure demeurons livre livrer installe installer arrive""".split()
+)
+
+
+SUJETS = frozenset({"il", "elle", "ils", "elles", "y"})
+
+
+def _a_apres_un_nom(mots: list[str], d: Detection) -> bool:
+    """Les mots de ``d`` ne sont-ils introduits que par un « à » qui suit un nom (« poêle à granulés ») ?
+    Un code postal dit dans la phrase, une adresse avant lui, ou « à » en tête de réponse ou juste
+    après un verbe d'être ou d'habitation (« je suis à », « c'est à », « j'habite à »), garde la
+    proposition."""
+    i = d.debut
+    if d.codes_postaux_dits or i <= 1 or mots[i - 1] != "a":
+        return False
+    avant = mots[: i - 1]
+    # Une adresse avant lui (« douze rue des Lilas à Bovet ») : « à » y dit bien la commune.
+    if any(m in TYPES_VOIE or m.isdigit() or (m in MOTS_NOMBRE and m not in ("un", "une")) for m in avant):
+        return False
+    # Le mot juste avant « à » : un verbe d'être ou d'habitation, un sujet (« il y a ») ou un mot vide
+    # dit un lieu ; un nom (« poêle à ») ne le dit pas.
+    return avant[-1] not in MOTS_VIDES_REPONSE | VERBES_DE_LIEU | SUJETS
+
+
 def _article_du_nom(article: str, nom_normalise: str) -> bool:
     """« la signy » can be Lassigny, « la morley » Lamorlaye: the article may be
     glued in the commune's name. « l'année » is not Anet, « la maison » not Maisons."""
@@ -563,6 +596,10 @@ def propositions_fondees(texte: str, detections: list[Detection], base: BaseComm
     production: « Grand Villiers, au Moulin. », « Compiagnes, au Clos des
     Roses. », « Bovet. Au revoir. », « Champly, à la zone industrielle. ».
 
+    3. B1 (plan of 2026-10-08, run 1048): a proposal to confirm whose only lead is an « à » that
+       follows a noun (``_a_apres_un_nom``) is dropped: « poêle à granulés » is not Grandrû. A
+       commune backed by a postal code or written exactly as its name is kept.
+
     ⛔ No resemblance threshold and no radius around the shop (decision of Evan,
     2026-09-17, option d): measured on the real corpus with five shops, a 40 km
     radius lost « perçant » -> Persan, « Abrel » -> Bresles and « bonsoir Oise »
@@ -571,7 +608,7 @@ def propositions_fondees(texte: str, detections: list[Detection], base: BaseComm
     code, last sure town), as in production.
 
     ⚠️ Known limits: « L'année dernière » still proposes Lanne (Hautes-Pyrénées),
-    « poêle à granulés » Grandrû, Grans and Grane. These are said outside the
+    a lone « Delaunay » Launay (rule 3 closes « poêle à granulés » only). These are said outside the
     address question: the remedy is a dedicated identity step in the agent, not
     this module.
 
@@ -618,7 +655,13 @@ def propositions_fondees(texte: str, detections: list[Detection], base: BaseComm
                 return False
             return True
 
-        lectures = tuple(l for l in d.lectures if fondee(l))
+        a_apres_un_nom = _a_apres_un_nom(mots, d)
+
+        def hors_contexte(l: Lecture) -> bool:
+            # Un nom écrit exactement n'est jamais un accident (deux « Abbécourt » : les deux restent).
+            return a_apres_un_nom and not l.par_code and l.ortho < 100
+
+        lectures = tuple(l for l in d.lectures if fondee(l) and not hors_contexte(l))
         if lectures:
             gardees.append(d if lectures == d.lectures else replace(d, lectures=lectures))
     return gardees
