@@ -78,7 +78,56 @@ CORPUS_SOUHAITS = [
     ("le plus tôt possible", None, [], None, None, None),
 ]
 
-PAS_COMPRIS = ["n'importe quoi", "quand mon mari rentre", "le matin après 14h", "dès que la neige fond"]
+PAS_COMPRIS = ["n'importe quoi", "quand mon mari rentre", "le matin après 14h", "dès que la neige fond",
+               # L1 prudence rule: a negation or a bound word nobody consumed = not understood.
+               "pas à 10h", "sauf le week-end", "demain ou après-demain", "pas mardi sauf le matin ou jamais"]
+
+# L1 (reparation-globale): the 8 phrasings added, truth posed by hand. Today: Wednesday 7 October 2026.
+# (words, expected fields of the stamp; the fields not listed must be the "nothing" value).
+CORPUS_SOUHAITS_L1 = [
+    ("pas avant 10h", {"heure_min": "10:00"}),
+    ("pas cette semaine", {"dates_exclues": [d(k) for k in range(7, 12)]}),
+    ("pas la semaine prochaine", {"dates_exclues": [d(k) for k in range(12, 19)]}),
+    ("à partir de mardi", {"des_le": d(13)}),
+    ("après le 20", {"des_le": d(21)}),
+    ("avant vendredi", {"jusqu_au": d(8)}),
+    ("lundi ou mardi", {"jours": [d(12), d(13)]}),
+    ("mardi ou jeudi après-midi", {"jours": [d(8), d(13)], "heure_min": "12:00"}),
+    # Around the new rules: still read as before, and the bounds combine with the rest.
+    ("jusqu'à vendredi", {"jusqu_au": d(9)}),
+    ("pas après 17h", {"heure_max": "17:00"}),
+    ("à partir de mardi après 14h", {"des_le": d(13), "heure_min": "14:00"}),
+]
+RIEN = {"jours": None, "jours_exclus": [], "dates_exclues": [], "des_le": None, "jusqu_au": None,
+        "heure_min": None, "heure_max": None}
+
+
+@pytest.mark.parametrize("texte,attendu", CORPUS_SOUHAITS_L1)
+def test_le_souhait_des_bornes_negations_et_unions(texte, attendu):
+    s = lire_souhait(texte, MAINTENANT)
+    e = s.estampille()
+    assert s.compris, texte
+    assert {cle: e[cle] for cle in RIEN} == {**RIEN, **attendu}, texte
+
+
+def test_les_bornes_et_les_semaines_exclues_filtrent_les_creneaux():
+    s = lire_souhait("avant vendredi", MAINTENANT)
+    assert s.accepte(h(8, 10)) and not s.accepte(h(9, 10))
+    s = lire_souhait("pas la semaine prochaine", MAINTENANT)
+    assert s.accepte(h(9, 10)) and not s.accepte(h(13, 10)) and s.accepte(h(19, 10))
+    s = lire_souhait("lundi ou mardi", MAINTENANT)
+    assert s.accepte(h(12, 10)) and s.accepte(h(13, 10)) and not s.accepte(h(14, 10))
+
+
+def test_preuve_par_un_autre_metier_un_garage_et_un_type_de_rendez_vous():
+    """The reader knows no trade: a garage booking an « entretien » (a person called « mecano »)."""
+    from api.services.planificateur.calcul import Candidat, Regles, calculer
+
+    mecano = Candidat("mecano")
+    regles = Regles(duree_min=60, nombre=4)
+    s = lire_souhait("pas avant 10h, lundi ou mardi", MAINTENANT)
+    pris = calculer([mecano], ouvert(12, 13, 14), regles, s, h(7, 11), h(16, 0))
+    assert [c.debut.strftime("%d %H:%M") for c in pris] == ["12 10:00", "12 11:00", "12 14:00", "12 15:00"]
 
 
 @pytest.mark.parametrize("texte,jours,exclus,des_le,hmin,hmax", CORPUS_SOUHAITS)
