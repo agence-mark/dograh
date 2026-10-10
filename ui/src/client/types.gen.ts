@@ -1722,13 +1722,13 @@ export type ChampFiche = {
      *
      * Cumulative: each note is added to what the field already holds, nothing is overwritten; not checked against the caller's exact words.
      */
+    cumulatif?: boolean;
     /**
      * Copie De La Parole
      *
      * Copied from the caller's words: when the model notes this field, the code writes the caller's exact words of that reply; the model only writes '='. Saves the model copying a whole sentence.
      */
     copie_de_la_parole?: boolean;
-    cumulatif?: boolean;
     /**
      * Chiffres
      *
@@ -6016,6 +6016,12 @@ export type OpenAiEmbeddingsConfiguration = {
      * OpenAI embedding model.
      */
     model?: string;
+    /**
+     * Base Url
+     *
+     * Override only for an OpenAI-compatible API (e.g. https://api.scaleway.ai/v1). The model must be able to return 1536 numbers per text: qwen3-embedding-8b can, bge-multilingual-gemma2 cannot.
+     */
+    base_url?: string;
 };
 
 /**
@@ -6042,6 +6048,54 @@ export type OpenAillmService = {
      * Override only if using an OpenAI-compatible API (e.g. local LLM, proxy).
      */
     base_url?: string;
+    /**
+     * Temperature
+     *
+     * How much randomness goes into each word. Low keeps answers predictable and on-script. Defaults to 0.1, the value that was hardcoded before this field existed.
+     */
+    temperature?: number;
+    /**
+     * Top P
+     *
+     * Restricts the draw to the most likely words. Acts on the same phenomenon as temperature: change one or the other, not both.
+     */
+    top_p?: number | null;
+    /**
+     * Max Tokens
+     *
+     * Longest answer the model may produce, in tokens. A guard against a reasoning model that runs away. Left empty, the model stops when it has finished.
+     */
+    max_tokens?: number | null;
+    /**
+     * Seed
+     *
+     * Fixes the draw where the provider honours it: a laboratory tool for comparing two settings. Left empty, each call is drawn afresh.
+     */
+    seed?: number | null;
+    /**
+     * Frequency Penalty
+     *
+     * Discourages repeating a word already used often. From -2 to 2.
+     */
+    frequency_penalty?: number | null;
+    /**
+     * Presence Penalty
+     *
+     * Pushes the model towards subjects not brought up yet. From -2 to 2.
+     */
+    presence_penalty?: number | null;
+    /**
+     * Reasoning Effort
+     *
+     * How long a reasoning model thinks before answering (gpt-oss, GLM, DeepSeek, recent Qwen). Each step up costs seconds before the voice on the phone: 'low' is the setting for a conversation. Left empty, the model's own default (medium for gpt-oss); 'gpt-5' models keep 'minimal'. A model that does not reason may refuse the key.
+     */
+    reasoning_effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | null;
+    /**
+     * Prompt Cache
+     *
+     * Sends the agent's cache key (mark-wf-<agent>) so the provider can reuse the start of the prompt from one turn to the next. It names the agent only, never the caller. Off: no key is sent.
+     */
+    prompt_cache?: boolean;
 };
 
 /**
@@ -11194,17 +11248,17 @@ export type WorkflowConfigurationDefaults = {
      */
     ordre_de_la_reponse?: 'porte_phrase_note' | 'porte_note_phrase' | null;
     /**
-     * Indices Des Modules
-     *
-     * Postscript only. Our data readers (list values, trade names, towns, numbers, spellings) tell the model what they recognised in the caller's last words; nothing is written in the record. Empty: on.
-     */
-    indices_des_modules?: boolean | null;
-    /**
      * Etiquettes Des Etapes
      *
      * Each step lists the record fields it gathers, in order of priority; at each turn the code reminds the model of the next missing ones, as a suggestion it may set aside. Every note-taking mode. Off (default): the steps' field lists are kept but nothing is shown to the model.
      */
     etiquettes_des_etapes?: boolean;
+    /**
+     * Indices Des Modules
+     *
+     * Postscript only. Our data readers (list values, trade names, towns, numbers, spellings) tell the model what they recognised in the caller's last words; nothing is written in the record. Empty: on.
+     */
+    indices_des_modules?: boolean | null;
     /**
      * Greffier Llm
      *
