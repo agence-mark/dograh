@@ -491,7 +491,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         id,
         additionalData,
     });
-    const { saveWorkflow, tools, documents, recordings } = useWorkflow();
+    const { saveWorkflow, tools, documents, recordings, champsFiche } = useWorkflow();
     const { bySpecName } = useNodeSpecs();
     const { config: appConfig } = useAppConfig();
     const spec = bySpecName.get(type);
@@ -693,6 +693,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                                 tools: tools ?? [],
                                 documents: documents ?? [],
                                 recordings: recordings ?? [],
+                                champsFiche: champsFiche ?? [],
                                 mcpToolFilters:
                                     (values.mcp_tool_filters as
                                         | Record<string, string[]>

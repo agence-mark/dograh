@@ -894,6 +894,18 @@ class WorkflowConfigurationDefaults(BaseModel):
     )
     # [.mark] Plan postscriptum-note-d-abord (Q2 bis, Q3) : les indices des modules,
     # montrés au modèle, jamais écrits dans la fiche. Absent : allumés (Q2 bis).
+    # [.mark] Lot E d'agent-leger-greffier (P1, D7) : les étiquettes de champs des étapes.
+    # Allumé, le code souffle au modèle, à chaque tour, le prochain champ manquant de
+    # l'étape (une suggestion, jamais un ordre). Tous les modes de prise de notes.
+    etiquettes_des_etapes: bool = Field(
+        default=False,
+        description=(
+            "Each step lists the record fields it gathers, in order of priority; at "
+            "each turn the code reminds the model of the next missing ones, as a "
+            "suggestion it may set aside. Every note-taking mode. Off (default): "
+            "the steps' field lists are kept but nothing is shown to the model."
+        ),
+    )
     indices_des_modules: bool | None = Field(
         default=None,
         description=(

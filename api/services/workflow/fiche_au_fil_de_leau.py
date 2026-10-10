@@ -176,6 +176,9 @@ ORDRES_JOUABLES = (ORDRE_PHRASE_PUIS_NOTE, ORDRE_NOTE_PUIS_PHRASE)
 # Plan postscriptum-note-d-abord (Q2 bis, Q3) : les indices des modules de donnée,
 # montrés au modèle avec l'état de la fiche, jamais écrits dans la fiche (S2).
 CLE_INDICES_DES_MODULES = "indices_des_modules"
+# Lot E d'agent-leger-greffier (P1).
+CLE_ETIQUETTES = "etiquettes_des_etapes"
+SOUFFLE_MAX = 2
 
 
 def _mode(run_configs: dict) -> str:
@@ -209,6 +212,8 @@ class ReglagesFiche:
     # Lot D d'agent-leger-greffier : les noms de champs reconnus par type (« Field
     # recognition » de l'agent), pour lire les traces des modules (``fiche/traces.py``).
     motifs_des_types: dict = field(default_factory=dict)
+    # Lot E d'agent-leger-greffier (P1) : les étiquettes des étapes, tous modes.
+    etiquettes: bool = False
 
     @property
     def note_d_abord(self) -> bool:
@@ -266,6 +271,7 @@ class ReglagesFiche:
             termes_du_lexique=termes,
             mode=mode,
             motifs_des_types=_motifs_des_types(run_configs),
+            etiquettes=bool(run_configs.get(CLE_ETIQUETTES)),
             portes_dans_la_reponse=_portes_dans_la_reponse(run_configs, mode),
             ordre=ordre,
             noms_du_lexique=frozenset(
@@ -3294,17 +3300,54 @@ def etat_de_la_fiche(
     return "\n".join(lignes)
 
 
+def souffle_de_l_etape(
+    reglages: ReglagesFiche, fiche: dict, champs_etape: Iterable[str]
+) -> str | None:
+    """Lot E d'agent-leger-greffier (P1, D7) : les prochains champs manquants de
+    l'étape, dans son ordre de priorité, deux au plus ; ``None`` sans étiquettes,
+    case éteinte, ou rien qui manque.
+
+    ⛔ Une suggestion, jamais un ordre (Evan, 09/10) : la conversation passe avant.
+    ⛔ Pas la liste de tout ce qui manque (A7, run 835) : seulement l'étape en cours.
+    Ce qu'un module a déjà lu au tour même (traces sûres) compte comme obtenu : en
+    mode greffier la fiche a un tour de retard, et le modèle redemanderait."""
+    if not reglages.etiquettes:
+        return None
+    from api.services.fiche.traces import valeurs_des_traces
+
+    lues = valeurs_des_traces(reglages, fiche)
+    connus = reglages.par_nom
+    manquants = [
+        nom
+        for nom in champs_etape
+        if nom in connus and _est_vide(fiche.get(nom)) and nom not in lues
+    ][:SOUFFLE_MAX]
+    if not manquants:
+        return None
+    noms = [nom.replace("_", " ") for nom in manquants]
+    suite = noms[0] if len(noms) == 1 else f"{noms[0]}, puis {noms[1]}"
+    return (
+        f"Il manque encore dans cette étape : {suite}. C'est une suggestion : ce que "
+        "la personne vient de dire compte comme obtenu, et la conversation passe avant."
+    )
+
+
 def etat_avec_les_indices(
     reglages: ReglagesFiche,
     fiche: dict,
     notices: Notices | None,
     messages: Iterable[dict],
+    champs_etape: Iterable[str] = (),
 ) -> str | None:
     """L'état de la fiche, plus (S2, case allumée) les indices des modules sur la
-    dernière parole de l'appelant. Les indices seuls suffisent à montrer l'état."""
+    dernière parole de l'appelant. Les indices seuls suffisent à montrer l'état.
+    Lot E d'agent-leger-greffier : plus, case allumée, le souffle de l'étape."""
     from api.services.workflow.indices_des_modules import indices_des_modules
 
     texte = etat_de_la_fiche(reglages, fiche, notices)
+    souffle = souffle_de_l_etape(reglages, fiche, champs_etape)
+    if souffle:
+        texte = f"{texte or entete_etat(reglages)}\n{souffle}"
     parole = next(
         (
             m.get("content")
@@ -3333,6 +3376,7 @@ def montrer_la_fiche(
     reglages: ReglagesFiche,
     fiche: Callable[[], dict],
     notices: Notices | None = None,
+    champs_etape: Callable[[], Iterable[str]] | None = None,
 ) -> bool:
     """Ajoute l'état de la fiche à chaque requête de CONVERSATION du modèle.
 
@@ -3371,7 +3415,11 @@ def montrer_la_fiche(
         if en_conversation.get():
             try:
                 texte = etat_avec_les_indices(
-                    reglages, fiche(), notices, params["messages"]
+                    reglages,
+                    fiche(),
+                    notices,
+                    params["messages"],
+                    champs_etape() if champs_etape else (),
                 )
                 if texte:
                     params["messages"] = inserer_l_etat(list(params["messages"]), texte)

@@ -150,6 +150,24 @@ class _PremiereRepliqueNodeDataMixin(BaseModel):
     )
 
 
+class _ChampsEtapeNodeDataMixin(BaseModel):
+    # [.mark] Lot E d'agent-leger-greffier (P1) : les champs de la fiche que l'étape
+    # recueille, dans l'ordre de priorité, séparés par des virgules. Une chaîne et non
+    # une liste : le SDK et le validateur du MCP la lisent sans changement. Lue
+    # seulement quand « Step field labels » est allumé. Vide = absent.
+    champs_etape: Optional[str] = spec_field(
+        default=None,
+        ui_type=PropertyType.string,
+        display_name="Step field labels",
+        description=(
+            "Record fields this step gathers, in order of priority, separated by "
+            'commas. Used only when "Step field labels" is on in the agent\'s settings: '
+            "the code then reminds the model of the next missing ones, as a suggestion."
+        ),
+        max_length=1000,
+    )
+
+
 class _ExtractionNodeDataMixin(BaseModel):
     extraction_enabled: bool = spec_field(
         default=False,
@@ -450,6 +468,7 @@ class StartCallNodeData(
         "name",
         "prompt",
         "premiere_replique",
+        "champs_etape",
         "allow_interrupt",
         "add_global_prompt",
         "extraction_enabled",
@@ -492,6 +511,7 @@ class AgentNodeData(
     BaseNodeData,
     _PromptedNodeDataMixin,
     _PremiereRepliqueNodeDataMixin,
+    _ChampsEtapeNodeDataMixin,
     _ExtractionNodeDataMixin,
     _ToolDocumentRefsMixin,
 ):
@@ -1197,6 +1217,9 @@ def _sanitize_node(node):
     # pas reste identique à ce qu'il était avant le champ.
     if not str(data.get("premiere_replique") or "").strip():
         data.pop("premiere_replique", None)
+    # [.mark] Lot E d'agent-leger-greffier : même règle pour les étiquettes de l'étape.
+    if not str(data.get("champs_etape") or "").strip():
+        data.pop("champs_etape", None)
     return {**node, "data": data}
 
 

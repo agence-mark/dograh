@@ -1064,6 +1064,20 @@
         }
       ]
     },
+    "etiquettes-des-etapes": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "etiquettes_des_etapes": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "apres-appel": {
       "carte": "ajout-mark",
       "theme": "donnees",

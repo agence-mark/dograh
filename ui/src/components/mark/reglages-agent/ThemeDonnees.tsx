@@ -193,6 +193,11 @@ export const ThemeDonnees = ({
     useEffect(() => setIndicesChoisis(indicesEnregistres), [indicesEnregistres]);
     const indices = indicesChoisis ?? ordre === "porte_note_phrase";
     const indicesModifies = indicesChoisis !== indicesEnregistres;
+    // Lot E d'agent-leger-greffier (P1, D7): the steps' field labels, every mode.
+    const etiquettesEnregistrees = resolue.etiquettes_des_etapes ?? false;
+    const [etiquettes, setEtiquettes] = useState(etiquettesEnregistrees);
+    useEffect(() => setEtiquettes(etiquettesEnregistrees), [etiquettesEnregistrees]);
+    const etiquettesModifiees = etiquettes !== etiquettesEnregistrees;
     // As the call record card did (24/09): follow the record the server stored,
     // keyed on its CONTENT so another theme's save does not wipe an edit here.
     const ficheEnregistree = JSON.stringify([ficheActiveEnregistree, modeEnregistre, champsEnregistres]);
@@ -333,7 +338,8 @@ export const ThemeDonnees = ({
         || generalModifie
         || apresAppelModifie
         || equipeConnueModifiee
-        || verificationModifiee;
+        || verificationModifiee
+        || etiquettesModifiees;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -370,6 +376,11 @@ export const ThemeDonnees = ({
                 nom: { en: "Module hints", fr: "Indices des modules" },
                 modifie: indicesModifies,
                 config: () => ({ indices_des_modules: indicesChoisis }),
+            },
+            {
+                nom: { en: "Step field labels", fr: "Étiquettes des étapes" },
+                modifie: etiquettesModifiees,
+                config: () => ({ etiquettes_des_etapes: etiquettes }),
             },
             {
                 // l-agent-collegue, L1: its own part, sent only when changed (E6).
@@ -541,6 +552,24 @@ export const ThemeDonnees = ({
                         disposition="ligne"
                     >
                         <Switch id="indices_des_modules" checked={indices} onCheckedChange={setIndicesChoisis} />
+                    </ChampReglage>
+                )}
+                {/* Lot E d'agent-leger-greffier (P1, D7): every note-taking mode. */}
+                {ficheActive && (
+                    <ChampReglage
+                        cle="etiquettes_des_etapes"
+                        idControle="etiquettes_des_etapes"
+                        libelle={{ en: "Step field labels", fr: "Étiquettes des étapes" }}
+                        aides={[
+                            {
+                                en: "Each step lists, under its prompt, the record fields it gathers, in order of priority. At each turn the code reminds the model of the next two missing ones, as a suggestion: what the caller says comes first. Off, the labels are kept and nothing is shown to the model.",
+                                fr: "Chaque étape liste, sous son prompt, les champs de la fiche qu'elle recueille, par ordre de priorité. À chaque tour, le code rappelle au modèle les deux prochains qui manquent, en suggestion : ce que dit la personne passe avant. Éteint, les étiquettes restent et rien n'est montré au modèle.",
+                            },
+                        ]}
+                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                        disposition="ligne"
+                    >
+                        <Switch id="etiquettes_des_etapes" checked={etiquettes} onCheckedChange={setEtiquettes} />
                     </ChampReglage>
                 )}
                 {ficheActive && modeDeNote === "post_scriptum" && portes && etapesSansPremiereReplique.length > 0 && (

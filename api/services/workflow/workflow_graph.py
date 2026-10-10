@@ -146,6 +146,12 @@ class Node:
         self.premiere_replique = (
             getattr(data, "premiere_replique", None) or ""
         ).strip() or None
+        # [.mark] Lot E d'agent-leger-greffier (P1) : les champs de l'étape, dans l'ordre.
+        self.champs_etape: tuple[str, ...] = tuple(
+            c.strip()
+            for c in (getattr(data, "champs_etape", None) or "").split(",")
+            if c.strip()
+        )
 
         self.data = data
 

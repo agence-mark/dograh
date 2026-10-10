@@ -559,6 +559,14 @@ function RenderWorkflow({
     );
 
     // Memoize the context value to prevent unnecessary re-renders
+    // [.mark] Lot E d'agent-leger-greffier: the record fields a step can label.
+    const champsFiche = useMemo(
+        () =>
+            ((workflowConfigurations?.fiche_champs ?? []) as Array<{ nom?: string }>)
+                .map((c) => c?.nom)
+                .filter((n): n is string => typeof n === "string" && n !== ""),
+        [workflowConfigurations?.fiche_champs],
+    );
     const workflowContextValue = useMemo(() => ({
         saveWorkflow: guardedSaveWorkflow,
         documents,
@@ -566,12 +574,14 @@ function RenderWorkflow({
         updateTool,
         recordings,
         readOnly: isViewingHistoricalVersion,
+        champsFiche,
     }), [
         guardedSaveWorkflow,
         documents,
         tools,
         updateTool,
         recordings,
+        champsFiche,
         isViewingHistoricalVersion,
     ]);
 

@@ -281,7 +281,7 @@ export function ConfigOutilIntegration({
                 <Input
                     id="integration-champs-requis"
                     value={(valeur.champs_requis ?? []).join(", ")}
-                    placeholder="commune, code_postal"
+                    placeholder={t({ en: "field_a, field_b", fr: "champ_a, champ_b" })}
                     onChange={(e) =>
                         poser({
                             champs_requis: e.target.value

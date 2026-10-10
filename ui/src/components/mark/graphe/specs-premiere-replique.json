@@ -70,6 +70,26 @@
         "renderer_options": null
       },
       {
+        "name": "champs_etape",
+        "type": "string",
+        "display_name": "Step field labels",
+        "description": "Record fields this step gathers, in order of priority, separated by commas. Used only when \"Step field labels\" is on in the agent's settings: the code then reminds the model of the next missing ones, as a suggestion.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": 1000,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
         "name": "allow_interrupt",
         "type": "boolean",
         "display_name": "Allow Interruption",

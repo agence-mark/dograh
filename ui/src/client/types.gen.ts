@@ -11192,6 +11192,12 @@ export type WorkflowConfigurationDefaults = {
      */
     indices_des_modules?: boolean | null;
     /**
+     * Etiquettes Des Etapes
+     *
+     * Each step lists the record fields it gathers, in order of priority; at each turn the code reminds the model of the next missing ones, as a suggestion it may set aside. Every note-taking mode. Off (default): the steps' field lists are kept but nothing is shown to the model.
+     */
+    etiquettes_des_etapes?: boolean;
+    /**
      * Greffier Llm
      *
      * The clerk's model, when the note-taking mode is Clerk: provider, model, settings and its own API key. Empty fields come from the conversation model; an empty key uses the conversation's key (and its rate limit).
