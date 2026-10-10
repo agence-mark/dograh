@@ -105,7 +105,14 @@ export function ChoixAction({
             </label>
             {action && (
                 <p className="text-xs text-muted-foreground sm:col-span-2">
+                    {/* n° 315 (decision « one description »): the action's description is ONE text, in
+                        English, because the model reads it too; doubling it would let the screen and
+                        the model say two different things. The screen says so instead of hiding it. */}
                     {action.description}{" "}
+                    {t({
+                        en: "(Description in English: the model reads it as it is.)",
+                        fr: "(Description en anglais : le modèle la lit telle quelle.)",
+                    })}{" "}
                     {catalogue.find((c) => c.nom === valeur.connecteur)?.interne
                         ? t({
                               en: "It runs inside the agent: the code chooses the gesture it can make and never fails in silence.",
