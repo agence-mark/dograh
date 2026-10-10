@@ -104,4 +104,30 @@ async def build_embedding_service(
         api_key=api_key,
         model_id=model_id,
         base_url=base_url,
+        dimensions=dimensions_demandees(provider, base_url),
     )
+
+
+OPENAI_HOST = "api.openai.com"
+
+
+def dimensions_demandees(
+    provider: Optional[str], base_url: Optional[str]
+) -> Optional[int]:
+    """[.mark] Lot C d'agent-leger-greffier : the knowledge base stores 1536 numbers per
+    text (column ``vector(1536)``, no migration). An OpenAI-compatible model hosted
+    elsewhere than OpenAI (Scaleway's ``qwen3-embedding-8b`` gives 4096 by default) is
+    asked for exactly that; one that cannot (``bge-multilingual-gemma2``: HTTP 400)
+    fails at ingestion with the provider's own message, never with a silently
+    unusable vector. OpenAI itself, OpenRouter and the others: request unchanged."""
+    from urllib.parse import urlparse
+
+    from api.services.configuration.registry import ServiceProviders
+
+    if str(getattr(provider, "value", provider)) != ServiceProviders.OPENAI.value:
+        return None
+    if not base_url or urlparse(base_url).hostname in (None, OPENAI_HOST):
+        return None
+    from .openai_service import EMBEDDING_DIMENSION
+
+    return EMBEDDING_DIMENSION

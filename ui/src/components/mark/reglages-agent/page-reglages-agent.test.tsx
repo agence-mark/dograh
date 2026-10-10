@@ -31,6 +31,27 @@ const m = vi.hoisted(() => ({
     save: vi.fn(() => Promise.resolve(undefined)),
     // Plan porte-parlee: the graph the page is opened with.
     definition: { nodes: [], edges: [] } as unknown,
+    // Lot C d'agent-leger-greffier (D9): the schemas the clerk's generated form reads.
+    schemasLlm: {
+        mistral: {
+            title: "Mistral",
+            properties: {
+                provider: {}, api_key: {},
+                model: { type: "string", examples: ["mistral-large-2512"] },
+                temperature: { type: "number", default: 0.1, mark_groupe: "generation", mark_libelle: { en: "Temperature", fr: "Température" } },
+            },
+        },
+        openai: {
+            title: "OpenAI",
+            properties: {
+                provider: {}, api_key: {},
+                model: { type: "string", examples: ["gpt-4.1"] },
+                temperature: { type: "number", default: 0.1, mark_groupe: "generation" },
+                reasoning_effort: { anyOf: [{ type: "string", enum: ["none", "minimal", "low", "medium", "high"] }, { type: "null" }], mark_groupe: "generation" },
+                base_url: { type: "string", default: "https://api.openai.com/v1", mark_groupe: "technique" },
+            },
+        },
+    } as Record<string, unknown>,
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -56,6 +77,7 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-fact
     getModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Get: () =>
         Promise.resolve({ data: { source: "organization_v2", configuration: {}, effective_configuration: {} }, error: null }),
     getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet: () => Promise.resolve({ data: {}, error: null }),
+    getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet: () => Promise.resolve({ data: { llm: m.schemasLlm }, error: null }),
     listRecordingsApiV1WorkflowRecordingsGet: () => Promise.resolve({ data: { recordings: [] }, error: null }),
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: () => Promise.resolve({ data: [{ code_insee: "60057", nom: "Beauvais" }], error: null }),
 }));
@@ -295,7 +317,7 @@ describe("[.mark] the note-taking mode in the call data theme", () => {
     });
 });
 
-describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2)", () => {
+describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2; D9 of agent-leger-greffier)", () => {
     const MASQUE = "sk-***abcd";
     const GREFFIER = {
         fiche_au_fil_de_leau: true,
@@ -313,32 +335,72 @@ describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2)", () => 
         await waitFor(() => expect(m.save).toHaveBeenCalled());
         return envoye();
     };
-    const regler = async () => {
-        await ouvrir(GREFFIER, NOVA);
+    const regler = async (config: Record<string, unknown> = GREFFIER) => {
+        await ouvrir(config, NOVA);
         ouvrirLeTheme("donnees");
         fireEvent.click(await screen.findByRole("button", { name: "Configure the clerk" }));
-        await waitFor(() => expect(document.getElementById("greffier_modele")).not.toBeNull());
+        await waitFor(() => expect(document.getElementById("greffier_model")).not.toBeNull());
     };
     const saisir = (id: string, valeur: string) =>
         fireEvent.change(document.getElementById(id) as HTMLElement, { target: { value: valeur } });
-
-    it("never shows the saved key, and sends its mask back untouched", async () => {
-        await regler();
-        expect((document.getElementById("greffier_cle") as HTMLInputElement).value).toBe("");
-        expect((document.getElementById("greffier_cle") as HTMLInputElement).type).toBe("password");
-        saisir("greffier_modele", "mistral-large-2512");
+    const ouvrirLeGroupe = (nom: RegExp) => fireEvent.click(screen.getByRole("button", { name: nom }));
+    const termine = async () => {
         fireEvent.click(screen.getByRole("button", { name: "Done" }));
-        const charge = await enregistrer();
+        return enregistrer();
+    };
+
+    it("the saved key goes back as its mask, untouched, with the model changed", async () => {
+        await regler();
+        saisir("greffier_model", "mistral-large-2512");
+        const charge = await termine();
         expect(charge.greffier_llm).toEqual({ provider: "mistral", model: "mistral-large-2512", api_key: MASQUE });
         expect(charge.greffier_consigne ?? null).toBeNull();
     });
 
-    it("« Use the conversation's key » removes the key", async () => {
+    it("the provider's own settings are generated from its schema and saved in the block", async () => {
         await regler();
-        fireEvent.click(screen.getByRole("button", { name: "Use the conversation's key" }));
-        fireEvent.click(screen.getByRole("button", { name: "Done" }));
-        const charge = await enregistrer();
-        expect(charge.greffier_llm).toEqual({ provider: "mistral", model: "mistral-small-2603" });
+        saisir("greffier_provider", "openai");
+        saisir("greffier_model", "mistral-small-3.2-24b-instruct-2506");
+        ouvrirLeGroupe(/Generation/);
+        saisir("greffier_reasoning_effort", "low");
+        saisir("greffier_temperature", "0,2");
+        ouvrirLeGroupe(/Technical/);
+        saisir("greffier_base_url", "https://api.scaleway.ai/v1");
+        const charge = await termine();
+        // Another provider: the key and the settings of the previous one never carry over.
+        expect(charge.greffier_llm).toEqual({
+            provider: "openai",
+            model: "mistral-small-3.2-24b-instruct-2506",
+            reasoning_effort: "low",
+            temperature: 0.2,
+            base_url: "https://api.scaleway.ai/v1",
+        });
+    });
+
+    it("a key of the library is kept as its reference, named and never shown", async () => {
+        const ref = "mark-cle:343322ca-f4d1-4806-8bf6-b2c7ed904a4a";
+        await regler({ ...GREFFIER, greffier_llm: { provider: "openai", model: "x", api_key: ref } });
+        expect(screen.getByTestId("cle-de-la-bibliotheque")).toBeTruthy();
+        const charge = await termine().catch(() => null);
+        // Nothing changed: the theme has nothing to save, the reference stays as it is.
+        expect(charge === null || (charge.greffier_llm as Record<string, unknown>).api_key === ref).toBe(true);
+    });
+
+    it("an emptied setting leaves the block: it then comes from the conversation", async () => {
+        await regler({ ...GREFFIER, greffier_llm: { provider: "mistral", model: "m", temperature: 0.3 } });
+        ouvrirLeGroupe(/Generation/);
+        saisir("greffier_temperature", "");
+        const charge = await termine();
+        expect(charge.greffier_llm).toEqual({ provider: "mistral", model: "m" });
+    });
+
+    it("« as the conversation » empties the block, and no key nor setting is offered", async () => {
+        await regler();
+        saisir("greffier_provider", "__comme_la_conversation__");
+        expect(document.querySelector("[data-champ-fournisseur]")).toBeNull();
+        expect(screen.queryByText("API key")).toBeNull();
+        const charge = await termine();
+        expect(charge.greffier_llm ?? null).toBeNull();
     });
 
     it("instructions back to the template are sent empty", async () => {
@@ -352,48 +414,6 @@ describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2)", () => 
         const charge = await enregistrer();
         expect(charge.greffier_consigne).toBeNull();
         expect(charge.greffier_llm).toEqual(GREFFIER.greffier_llm);
-    });
-
-    it("a changed provider asks for its key: the saved one never goes to another provider", async () => {
-        await regler();
-        saisir("greffier_fournisseur", "openai");
-        expect(screen.getAllByText(/The provider changed: type its API key/).length).toBeGreaterThan(0);
-        saisir("greffier_cle", "une-cle-openai");
-        expect(screen.queryAllByText(/The provider changed: type its API key/)).toHaveLength(0);
-    });
-
-    it("greys the temperature out where the provider takes none, and says why", async () => {
-        await regler();
-        const temperature = () => document.getElementById("greffier_temperature") as HTMLInputElement;
-        expect(temperature().disabled).toBe(false); // mistral
-        saisir("greffier_fournisseur", "openai");
-        expect(temperature().disabled).toBe(true);
-        expect(screen.getAllByText(/No effect with openai/).length).toBeGreaterThan(0);
-    });
-
-    it("a temperature kept from another provider can be cleared, and a capital letter changes nothing", async () => {
-        await ouvrir({ ...GREFFIER, greffier_llm: { ...GREFFIER.greffier_llm, provider: "openai", temperature: 0.3 } }, NOVA);
-        ouvrirLeTheme("donnees");
-        fireEvent.click(await screen.findByRole("button", { name: "Configure the clerk" }));
-        await waitFor(() => expect(document.getElementById("greffier_temperature")).not.toBeNull());
-        fireEvent.click(screen.getByRole("button", { name: "Clear the temperature" }));
-        expect((document.getElementById("greffier_temperature") as HTMLInputElement).value).toBe("");
-        saisir("greffier_fournisseur", "Mistral");
-        expect((document.getElementById("greffier_temperature") as HTMLInputElement).disabled).toBe(false);
-    });
-
-    it("an empty provider follows the conversation's", async () => {
-        await ouvrir({ ...GREFFIER, greffier_llm: { model: "gpt-x" } }, { ...NOVA, llm: { provider: "openrouter" } });
-        ouvrirLeTheme("donnees");
-        fireEvent.click(await screen.findByRole("button", { name: "Configure the clerk" }));
-        await waitFor(() => expect(document.getElementById("greffier_temperature")).not.toBeNull());
-        expect((document.getElementById("greffier_temperature") as HTMLInputElement).disabled).toBe(true);
-    });
-
-    it("a temperature that is not a number blocks the save", async () => {
-        await regler();
-        saisir("greffier_temperature", "chaud");
-        expect(screen.getAllByText(/must be a number/).length).toBeGreaterThan(0);
     });
 });
 
@@ -482,5 +502,39 @@ describe("[.mark] transitions in the reply, in the call data theme", () => {
         fireEvent.click(caseAPorte() as HTMLElement);
         fireEvent.click(caseAPorte() as HTMLElement);
         expect(screen.queryByRole("note")).not.toBeNull();
+    });
+});
+
+// [.mark] Constat B4 de la réparation globale: le bouton Enregistrer d'un thème reste gris quand
+// seuls « Ordre de la réponse » ou « Indices des modules » changent.
+describe("[.mark] the save button follows the reply order and the module hints", () => {
+    const POST_SCRIPTUM = {
+        fiche_au_fil_de_leau: true,
+        fiche_champs: [{ nom: "nom", type: "string", origine: "dicte", description: "Nom", lecteur: null, valeurs: null }],
+        fiche_mode_de_note: "post_scriptum",
+    };
+    const bouton = async () => (await screen.findByRole("button", { name: "Save Call data" })) as HTMLButtonElement;
+
+    it("is grey with nothing changed", async () => {
+        await ouvrir(POST_SCRIPTUM, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(document.getElementById("indices_des_modules")).not.toBeNull());
+        expect((await bouton()).disabled).toBe(true);
+    });
+
+    it("turns on when only the module hints switch is flipped", async () => {
+        await ouvrir(POST_SCRIPTUM, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(document.getElementById("indices_des_modules")).not.toBeNull());
+        fireEvent.click(document.getElementById("indices_des_modules") as HTMLElement);
+        await waitFor(async () => expect((await bouton()).disabled).toBe(false));
+    });
+
+    it("turns on when only the reply order is changed", async () => {
+        await ouvrir(POST_SCRIPTUM, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(document.getElementById("ordre_de_la_reponse")).not.toBeNull());
+        fireEvent.change(document.getElementById("ordre_de_la_reponse") as HTMLElement, { target: { value: "porte_note_phrase" } });
+        await waitFor(async () => expect((await bouton()).disabled).toBe(false));
     });
 });

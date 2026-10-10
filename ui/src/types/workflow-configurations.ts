@@ -330,6 +330,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Plan postscriptum-note-d-abord: our readers' hints shown to the model.
     // Postscript only; absent means on.
     indices_des_modules?: boolean | null;
+    // [.mark] Lot E d'agent-leger-greffier (P1): the steps' field labels, every mode.
+    etiquettes_des_etapes?: boolean;
     // [.mark] Chantier langwatch-et-fenetre-du-run, lot 4 (Pipecat ticket 5960):
     // the model's reply after a tool is kept when the result beats the end of the
     // caller's turn. Absent means off, Pipecat's behaviour.

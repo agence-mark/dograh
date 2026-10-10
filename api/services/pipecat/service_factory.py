@@ -25,6 +25,7 @@ from api.services.configuration.registry import (
     DEEPGRAM_FLUX_FIELDS,
     DEEPGRAM_STT_FIELDS,
     MISTRAL_SAMPLING_FIELDS,
+    OPENAI_SAMPLING_FIELDS,
     ServiceProviders,
     SonioxSTTConfiguration,
     adresse_soniox,
@@ -463,6 +464,34 @@ class DograhMistralLLMService(DelaiModeleMixin, MistralLLMService):
         return params
 
 
+class DograhOpenAILLMService(DelaiModeleMixin, OpenAILLMService):
+    """[.mark] The OpenAI-compatible conversation model (Scaleway first).
+
+    Chantier ``agent-leger-greffier``, lot C (B7, B9): the same two .mark
+    additions as ``DograhMistralLLMService`` -- the model-delay guard of the
+    outage module, and the agent's prompt cache key -- for every model reached
+    through the ``openai`` provider. The sampling settings and the reasoning
+    effort go through pipecat's own request builder (settings and ``extra``),
+    so nothing else changes. ``prompt_cache_key`` is a keyword of OpenAI's
+    client library (checked by ``test_fournisseur_compatible_openai.py``), so it
+    rides at the top level, unlike Mistral where it has to go in ``extra_body``.
+    """
+
+    def __init__(self, *, prompt_cache_key: str | None = None, **kwargs):
+        # Empty means no key at all, never an empty one in the request.
+        self._prompt_cache_key = prompt_cache_key or None
+        super().__init__(**kwargs)
+        self._mark_enregistrer_evenements()
+
+    def build_chat_completion_params(
+        self, params_from_context: OpenAILLMInvocationParams
+    ) -> dict:
+        params = super().build_chat_completion_params(params_from_context)
+        if self._prompt_cache_key:
+            params["prompt_cache_key"] = self._prompt_cache_key
+        return params
+
+
 def cle_de_cache(workflow_id: int) -> str:
     """[.mark] The Mistral prompt cache key of an agent: ``mark-wf-<id>``.
 
@@ -484,12 +513,20 @@ def stamp_prompt_cache_key(
     exactly like ``create_llm_service`` hands the key on: a stamp on another
     provider would claim a key that never left.
     """
-    if (
-        prompt_cache_key
-        and getattr(llm_config, "provider", None) == ServiceProviders.MISTRAL.value
-    ):
+    if prompt_cache_key and _envoie_la_cle_de_cache(llm_config):
         runtime_configuration["llm_prompt_cache_key"] = prompt_cache_key
     return runtime_configuration
+
+
+def _envoie_la_cle_de_cache(llm_config) -> bool:
+    """[.mark] Mistral always; the OpenAI-compatible provider only when its
+    screen asks for it (lot C d'agent-leger-greffier); nobody else."""
+    fournisseur = getattr(llm_config, "provider", None)
+    if fournisseur == ServiceProviders.MISTRAL.value:
+        return True
+    return fournisseur == ServiceProviders.OPENAI.value and bool(
+        getattr(llm_config, "prompt_cache", False)
+    )
 
 
 class DograhGoogleLLMService(GoogleLLMService):
@@ -1634,6 +1671,11 @@ def stamp_sampling_settings(runtime_configuration: dict, llm_config) -> dict:
     #     own temperature) live under `user_config.realtime`. Two realtime calls
     #     played at two temperatures stay indistinguishable after the fact.
     sampling = collect_sampling_settings(llm_config, MISTRAL_SAMPLING_FIELDS)
+    # [.mark] Lot C d'agent-leger-greffier: the reasoning effort decides the
+    # delay before the voice on a reasoning model; a run must say which it had.
+    effort = getattr(llm_config, "reasoning_effort", None)
+    if effort:
+        sampling["reasoning_effort"] = effort
     if sampling:
         runtime_configuration["llm_sampling"] = sampling
     return runtime_configuration
@@ -1914,6 +1956,8 @@ def create_llm_service_from_provider(
     usage_context: str | None = None,
     sampling: dict | None = None,
     prompt_cache_key: str | None = None,
+    reasoning_effort: str | None = None,
+    openai_prompt_cache_key: str | None = None,
 ):
     """Create an LLM service from explicit provider/model/api_key.
 
@@ -1927,7 +1971,11 @@ def create_llm_service_from_provider(
             (temperature, seed, max_tokens...). Empty or absent means the
             request keeps the values hardcoded below, unchanged.
         prompt_cache_key: [.mark] Mistral's prompt cache key (``cle_de_cache``).
-            Used by Mistral only, ignored by every other provider.
+            Used by Mistral only, ignored by every other provider (D5).
+        reasoning_effort: [.mark] OpenAI-compatible provider only (lot C).
+        openai_prompt_cache_key: [.mark] The same key for the OpenAI-compatible
+            provider, apart so that D5 stays true: only ``create_llm_service``
+            hands it on, and only when the provider's screen asks for it (lot C).
     """
     # Vertex builds its endpoint from the location, so it is part of what this
     # service is, not a separate event. Resolved here to keep it on one line.
@@ -1950,18 +1998,28 @@ def create_llm_service_from_provider(
         if base_url:
             _validate_runtime_service_url(base_url, "base_url")
             kwargs["base_url"] = base_url
+        # [.mark] Lot C d'agent-leger-greffier (B7): the reasoning effort set on
+        # screen wins; empty, "gpt-5" keeps its "minimal" and the others send none.
         if "gpt-5" in model:
-            return OpenAILLMService(
+            return DograhOpenAILLMService(
                 api_key=api_key,
                 settings=OpenAILLMSettings(
                     model=model,
-                    extra={"reasoning_effort": "minimal", "verbosity": "low"},
+                    extra={
+                        "reasoning_effort": reasoning_effort or "minimal",
+                        "verbosity": "low",
+                    },
                 ),
+                prompt_cache_key=openai_prompt_cache_key,
                 **kwargs,
             )
-        return OpenAILLMService(
+        # 0.1 stays the default temperature; a configured value replaces it.
+        openai_settings = {"temperature": 0.1, **(sampling or {})}
+        extra = {"reasoning_effort": reasoning_effort} if reasoning_effort else {}
+        return DograhOpenAILLMService(
             api_key=api_key,
-            settings=OpenAILLMSettings(model=model, temperature=0.1),
+            settings=OpenAILLMSettings(model=model, extra=extra, **openai_settings),
+            prompt_cache_key=openai_prompt_cache_key,
             **kwargs,
         )
     elif provider == ServiceProviders.MISTRAL.value:
@@ -2341,7 +2399,8 @@ def create_llm_service(
 ):
     """Create and return appropriate LLM service based on user configuration.
 
-    ``prompt_cache_key`` [.mark]: handed on to Mistral only; every other
+    ``prompt_cache_key`` [.mark]: handed on to Mistral, and to the
+    OpenAI-compatible provider when its screen asks for it; every other
     provider is built exactly as before, whatever is passed.
     """
     provider = user_config.llm.provider
@@ -2354,6 +2413,14 @@ def create_llm_service(
         ServiceProviders.ATLASCLOUD.value,
     ):
         kwargs["base_url"] = user_config.llm.base_url
+        # [.mark] Lot C d'agent-leger-greffier: what the OpenAI screen declares
+        # (Atlas Cloud declares none of it, so its request stays as before).
+        kwargs["sampling"] = collect_sampling_settings(
+            user_config.llm, OPENAI_SAMPLING_FIELDS
+        )
+        kwargs["reasoning_effort"] = getattr(user_config.llm, "reasoning_effort", None)
+        if _envoie_la_cle_de_cache(user_config.llm):
+            kwargs["openai_prompt_cache_key"] = prompt_cache_key
     elif provider == ServiceProviders.MISTRAL.value:
         kwargs["base_url"] = user_config.llm.base_url
         kwargs["sampling"] = collect_sampling_settings(

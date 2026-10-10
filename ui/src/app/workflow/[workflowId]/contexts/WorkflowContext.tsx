@@ -13,6 +13,8 @@ interface WorkflowContextType {
     ) => void;
     recordings?: RecordingResponseSchema[];
     readOnly?: boolean;
+    /** [.mark] Lot E d'agent-leger-greffier: the agent's record fields (step labels). */
+    champsFiche?: string[];
 }
 
 const WorkflowContext = createContext<WorkflowContextType | undefined>(undefined);

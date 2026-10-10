@@ -313,6 +313,27 @@ class Greffier:
         self._notes_en_cours.add(tache)
         tache.add_done_callback(self._notes_en_cours.discard)
 
+    async def rattraper(self, delai: float) -> bool:
+        """Lot D d'agent-leger-greffier : une action a besoin d'un champ que la personne
+        vient peut-être de dire, et que le greffier n'a pas encore relu (il relit APRÈS
+        la réponse de l'agent). Demande une passe sur la conversation de maintenant et
+        l'attend, ``delai`` secondes au plus. ``True`` si elle a fini à temps. Ne lève
+        jamais ; la passe continue après le délai (elle écrira pour la suite)."""
+        if self._clos or delai <= 0:
+            return False
+        try:
+            self.declencher()
+            tache = self._en_vol
+            if tache is None:
+                return False
+            await asyncio.wait_for(asyncio.shield(tache), timeout=delai)
+            return True
+        except (TimeoutError, asyncio.TimeoutError):
+            return False
+        except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
+            logger.warning(f"[fiche] rattrapage du greffier en échec : {erreur!r}")
+            return False
+
     async def _tourner(self) -> None:
         while True:
             await self.une_passe()
@@ -442,12 +463,14 @@ def configuration_du_greffier(user_config: Any, bloc: dict | None) -> Any:
         if valeur is not None and valeur != ""
     }
     # Revue du lot 0 bis (06/10) : ce bloc s'applique APRÈS la résolution des clés de la
-    # bibliothèque ; une référence y partirait telle quelle chez le fournisseur. Refusée en le
-    # disant : l'appelant repasse en mode outil (repli déjà prévu), jamais une clé fausse envoyée.
+    # bibliothèque. Depuis le lot C d'agent-leger-greffier, la référence du bloc est résolue
+    # avant (``resoudre_le_bloc_du_greffier``) ; une référence ENCORE là est introuvable ou
+    # d'un autre fournisseur : refusée en le disant, l'appelant repasse en mode outil (repli
+    # déjà prévu), jamais une référence envoyée au fournisseur comme si c'était une clé.
     if est_reference(surcharge.get("api_key")):
         raise ValueError(
-            "The scribe's own key cannot be a key of the key library yet: type it, "
-            "or leave it empty to use the conversation's key."
+            "The clerk's key chosen in the key library was deleted or belongs to "
+            "another provider: pick another in « Set up the clerk »."
         )
     fournisseur = surcharge.get("provider") or getattr(
         getattr(user_config, "llm", None), "provider", None
@@ -474,6 +497,34 @@ def configuration_du_greffier(user_config: Any, bloc: dict | None) -> Any:
     if remis:
         configuration.llm = llm.model_copy(update=remis)
     return configuration
+
+
+async def resoudre_le_bloc_du_greffier(
+    run_configs: dict | None, organization_id: int | None
+) -> dict | None:
+    """[.mark] Lot C d'agent-leger-greffier : le bloc ``greffier_llm`` dont la clé est
+    une référence de la bibliothèque (``mark-cle:<uuid>``), rendu avec la vraie clé,
+    lue dans l'organisation de l'appel et seulement si elle est du même fournisseur
+    que le greffier (``resoudre_les_cles``, la règle de la conversation). Une copie :
+    ``run_configs`` n'est jamais modifié (il est estampillé ailleurs, la clé n'y entre
+    pas). Sans référence, rendu tel quel, sans lecture de la base. Ne lève jamais :
+    une référence introuvable reste, et ``configuration_du_greffier`` refuse alors
+    (appel joué en mode outil)."""
+    from api.services.cles_reference import cle_d_une_reference, est_reference
+
+    bloc = (run_configs or {}).get("greffier_llm")
+    if not isinstance(bloc, dict) or not est_reference(bloc.get("api_key")):
+        return run_configs
+    try:
+        cle = await cle_d_une_reference(
+            bloc["api_key"], bloc.get("provider"), organization_id, "clerk"
+        )
+    except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
+        logger.error(f"[fiche] clé du greffier non résolue : {type(erreur).__name__}")
+        return run_configs
+    if cle is None:
+        return run_configs
+    return {**run_configs, "greffier_llm": {**bloc, "api_key": cle}}
 
 
 def service_du_greffier(

@@ -176,6 +176,9 @@ ORDRES_JOUABLES = (ORDRE_PHRASE_PUIS_NOTE, ORDRE_NOTE_PUIS_PHRASE)
 # Plan postscriptum-note-d-abord (Q2 bis, Q3) : les indices des modules de donnée,
 # montrés au modèle avec l'état de la fiche, jamais écrits dans la fiche (S2).
 CLE_INDICES_DES_MODULES = "indices_des_modules"
+# Lot E d'agent-leger-greffier (P1).
+CLE_ETIQUETTES = "etiquettes_des_etapes"
+SOUFFLE_MAX = 2
 
 
 def _mode(run_configs: dict) -> str:
@@ -206,6 +209,11 @@ class ReglagesFiche:
     # S2 : les termes du lexique de type « nom » (marques…), les seuls qu'un indice
     # range au champ lu par le lexique ; un « mot du métier » (« ramoner ») jamais.
     noms_du_lexique: frozenset[str] = frozenset()
+    # Lot D d'agent-leger-greffier : les noms de champs reconnus par type (« Field
+    # recognition » de l'agent), pour lire les traces des modules (``fiche/traces.py``).
+    motifs_des_types: dict = field(default_factory=dict)
+    # Lot E d'agent-leger-greffier (P1) : les étiquettes des étapes, tous modes.
+    etiquettes: bool = False
 
     @property
     def note_d_abord(self) -> bool:
@@ -262,6 +270,8 @@ class ReglagesFiche:
             champs=tuple(champs),
             termes_du_lexique=termes,
             mode=mode,
+            motifs_des_types=_motifs_des_types(run_configs),
+            etiquettes=bool(run_configs.get(CLE_ETIQUETTES)),
             portes_dans_la_reponse=_portes_dans_la_reponse(run_configs, mode),
             ordre=ordre,
             noms_du_lexique=frozenset(
@@ -2272,6 +2282,14 @@ def _recopie_d_un_autre_champ(
     mots = _mots(str(valeur))
     if not mots:
         return None
+    # B2 (run 1049, lot D d'agent-leger-greffier) : une valeur de la liste fermée du
+    # champ n'est jamais une recopie (`degre_urgence` = « panne » refusé parce que le
+    # motif disait « panne ») : la liste la tient déjà.
+    definition = reglages.par_nom.get(champ)
+    if definition is not None and definition.valeurs and any(
+        _mots(str(v)) == mots for v in definition.valeurs
+    ):
+        return None
     for autre in reglages.champs:
         if autre.nom == champ or _est_vide(fiche.get(autre.nom)):
             continue
@@ -2392,6 +2410,45 @@ def _marquer_les_numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> Non
         )
 
 
+def _motifs_des_types(run_configs: dict | None) -> dict:
+    """Lot D d'agent-leger-greffier : les noms reconnus par type, lus comme le reste
+    (une valeur illisible = le défaut). Jamais une exception : ``{}`` au pire."""
+    try:
+        from api.services.fiche.reconnaissance import tous_les_noms
+
+        return tous_les_noms(run_configs)
+    except Exception as erreur:  # noqa: BLE001 -- la fiche passe avant
+        logger.warning(f"[fiche] reconnaissance des champs illisible : {erreur!r}")
+        return {}
+
+
+def ecrire_depuis_les_traces(
+    reglages: ReglagesFiche, fiche: dict, paroles: Iterable[str]
+) -> dict:
+    """Lot D d'agent-leger-greffier : les champs encore vides que les modules de lecture
+    ont établis (valeurs sûres, ``fiche/traces.py``), écrits par le point d'écriture
+    unique, donc avec ses contrôles. Sans requête au modèle."""
+    from api.services.fiche.traces import valeurs_des_traces
+
+    ecrits = {}
+    for nom, valeur in valeurs_des_traces(reglages, fiche).items():
+        champ = reglages.par_nom.get(nom)
+        if champ is None or not champ.rempli_en_fin_d_appel or not _est_vide(fiche.get(nom)):
+            continue
+        verdict = ecrire_dans_la_fiche(
+            fiche,
+            reglages,
+            nom,
+            valeur,
+            source="traces",
+            paroles=paroles,
+            seulement_si_vide=True,
+        )
+        if verdict.statut == "ecrit":
+            ecrits[nom] = verdict.valeur
+    return ecrits
+
+
 async def balayer_la_fiche(
     reglages: ReglagesFiche,
     extraire: Callable[[list[ExtractionVariableDTO], str], Any],
@@ -2400,8 +2457,15 @@ async def balayer_la_fiche(
 ) -> dict:
     """Le filet contre l'oubli d'appeler l'outil : relit la conversation pour les
     SEULS champs restés vides, et les écrit par le point d'écriture unique, donc
-    avec les mêmes contrôles (D35). N'écrase jamais ce que l'outil a écrit."""
+    avec les mêmes contrôles (D35). N'écrase jamais ce que l'outil a écrit.
+
+    Lot D d'agent-leger-greffier : les traces des modules d'abord (sans modèle), puis
+    la passe sur ce qui reste vide."""
     _marquer_les_numeros_en_conflit(reglages, fiche)
+    messages = list(messages)
+    depuis_les_traces = ecrire_depuis_les_traces(
+        reglages, fiche, paroles_de_l_appelant(messages)
+    )
     # D3 (correctifs-second-banc-34) : un champ décoché « rempli en fin d'appel »
     # n'est même pas demandé à la passe.
     vides = [
@@ -2410,7 +2474,7 @@ async def balayer_la_fiche(
         if c.rempli_en_fin_d_appel and _est_vide(fiche.get(c.nom))
     ]
     if not vides:
-        return {}
+        return depuis_les_traces
     trouve = await extraire(
         [
             # D9 (chantier correctifs-modules) : les valeurs des listes fermées,
@@ -2423,9 +2487,9 @@ async def balayer_la_fiche(
         CONSIGNE_BALAYAGE,
     )
     if not isinstance(trouve, dict):
-        return {}
+        return depuis_les_traces
     paroles = paroles_de_l_appelant(messages)
-    ecrits = {}
+    ecrits = dict(depuis_les_traces)
     for champ in vides:
         if champ.nom not in trouve:
             continue
@@ -3236,17 +3300,54 @@ def etat_de_la_fiche(
     return "\n".join(lignes)
 
 
+def souffle_de_l_etape(
+    reglages: ReglagesFiche, fiche: dict, champs_etape: Iterable[str]
+) -> str | None:
+    """Lot E d'agent-leger-greffier (P1, D7) : les prochains champs manquants de
+    l'étape, dans son ordre de priorité, deux au plus ; ``None`` sans étiquettes,
+    case éteinte, ou rien qui manque.
+
+    ⛔ Une suggestion, jamais un ordre (Evan, 09/10) : la conversation passe avant.
+    ⛔ Pas la liste de tout ce qui manque (A7, run 835) : seulement l'étape en cours.
+    Ce qu'un module a déjà lu au tour même (traces sûres) compte comme obtenu : en
+    mode greffier la fiche a un tour de retard, et le modèle redemanderait."""
+    if not reglages.etiquettes:
+        return None
+    from api.services.fiche.traces import valeurs_des_traces
+
+    lues = valeurs_des_traces(reglages, fiche)
+    connus = reglages.par_nom
+    manquants = [
+        nom
+        for nom in champs_etape
+        if nom in connus and _est_vide(fiche.get(nom)) and nom not in lues
+    ][:SOUFFLE_MAX]
+    if not manquants:
+        return None
+    noms = [nom.replace("_", " ") for nom in manquants]
+    suite = noms[0] if len(noms) == 1 else f"{noms[0]}, puis {noms[1]}"
+    return (
+        f"Il manque encore dans cette étape : {suite}. C'est une suggestion : ce que "
+        "la personne vient de dire compte comme obtenu, et la conversation passe avant."
+    )
+
+
 def etat_avec_les_indices(
     reglages: ReglagesFiche,
     fiche: dict,
     notices: Notices | None,
     messages: Iterable[dict],
+    champs_etape: Iterable[str] = (),
 ) -> str | None:
     """L'état de la fiche, plus (S2, case allumée) les indices des modules sur la
-    dernière parole de l'appelant. Les indices seuls suffisent à montrer l'état."""
+    dernière parole de l'appelant. Les indices seuls suffisent à montrer l'état.
+    Lot E d'agent-leger-greffier : plus, case allumée, le souffle de l'étape."""
     from api.services.workflow.indices_des_modules import indices_des_modules
 
     texte = etat_de_la_fiche(reglages, fiche, notices)
+    souffle = souffle_de_l_etape(reglages, fiche, champs_etape)
+    if souffle:
+        texte = f"{texte or entete_etat(reglages)}\n{souffle}"
     parole = next(
         (
             m.get("content")
@@ -3275,6 +3376,7 @@ def montrer_la_fiche(
     reglages: ReglagesFiche,
     fiche: Callable[[], dict],
     notices: Notices | None = None,
+    champs_etape: Callable[[], Iterable[str]] | None = None,
 ) -> bool:
     """Ajoute l'état de la fiche à chaque requête de CONVERSATION du modèle.
 
@@ -3313,7 +3415,11 @@ def montrer_la_fiche(
         if en_conversation.get():
             try:
                 texte = etat_avec_les_indices(
-                    reglages, fiche(), notices, params["messages"]
+                    reglages,
+                    fiche(),
+                    notices,
+                    params["messages"],
+                    champs_etape() if champs_etape else (),
                 )
                 if texte:
                     params["messages"] = inserer_l_etat(list(params["messages"]), texte)

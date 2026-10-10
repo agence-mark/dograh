@@ -828,3 +828,71 @@ def test_une_erreur_longue_garde_son_debut_et_sa_fin():
     assert tronquee.endswith("List should have at least 1 item")
     assert len(tronquee) == 150 + 3 + 650
     assert moteur._tronquer("courte") == "courte"
+
+
+# --- D7 (réparation globale, L8) : la fiche attendue, rangée par le code -----------------------------
+
+# Un garage : aucun mot de métier dans le code, les champs et les valeurs sont ceux du scénario.
+FICHE_ATTENDUE_GARAGE = {"plaque": "AB-123-CD", "modele": "Clio", "kilometrage": None, "ville": "Senlis"}
+CONTEXTE_GARAGE = {
+    "extracted_variables": {"plaque": "ab 123 cd", "modele": "Twingo", "kilometrage": "", "ville": "senlis"},
+    "fiche_etat": {"plaque": {"sure": True}, "ville": {"sure": False}},
+}
+
+
+def test_la_fiche_attendue_est_rangee_par_le_code_en_quatre_rangs():
+    verdict = {"success": True, "passed_criteria": ["a"], "failed_criteria": []}
+    cout = {"total": 0.01, "unpriced": []}
+    scenario = _scenario(fiche_attendue={"plaque": "AB-123-CD", "modele": "Clio", "kilometrage": None,
+                                         "ville": "Senlis", "mail": "a@b.fr"})
+    contexte = {
+        "extracted_variables": {"plaque": "ab 123 cd", "modele": "Twingo", "kilometrage": "", "ville": "senlis"},
+        "fiche_etat": {"plaque": {"sure": True}, "ville": {"sure": False}},
+    }
+    resultat = moteur.resultat_de_l_appel(verdict, _analyse(), scenario, cout, contexte)
+    assert resultat["fiche"]["plaque"] == "juste_sur"  # « ab 123 cd » vaut « AB-123-CD »
+    assert resultat["fiche"]["modele"] == "faux"
+    assert resultat["fiche"]["kilometrage"] == "juste_sur"
+    assert resultat["fiche"]["ville"] == "juste_a_confirmer"
+    assert resultat["fiche"]["mail"] == "vide"
+    assert set(resultat["fiche"].values()) <= {"juste_sur", "juste_a_confirmer", "vide", "faux"}
+    # Le rang du juge n'est pas touché : le code range la fiche, le juge juge la conversation.
+    assert resultat["success"] is True
+
+
+def test_sans_fiche_attendue_le_resultat_reste_celui_d_avant():
+    verdict = {"success": True, "passed_criteria": ["a"], "failed_criteria": []}
+    resultat = moteur.resultat_de_l_appel(verdict, _analyse(), _scenario(), {"total": 0.01, "unpriced": []},
+                                          CONTEXTE_GARAGE)
+    assert "fiche" not in resultat
+
+
+def test_une_fiche_attendue_sans_contexte_est_toute_vide():
+    verdict = {"success": True, "passed_criteria": [], "failed_criteria": []}
+    resultat = moteur.resultat_de_l_appel(
+        verdict, _analyse(), _scenario(fiche_attendue={"plaque": "AB-123-CD"}), {"total": 0, "unpriced": []}, None
+    )
+    assert resultat["fiche"] == {"plaque": "vide"}
+
+
+def test_la_fiche_attendue_se_nettoie_et_se_borne():
+    s = _scenario(fiche_attendue={" plaque ": " AB-123-CD ", "": "x", "kilometrage": "  "})
+    assert s.fiche_attendue == {"plaque": "AB-123-CD", "kilometrage": None}
+    assert _scenario(fiche_attendue={}).fiche_attendue is None
+    with pytest.raises(ValueError):
+        _scenario(fiche_attendue={"c" * 81: "x"})
+    with pytest.raises(ValueError):
+        _scenario(fiche_attendue={f"c{i}": "x" for i in range(41)})
+    # Sans migration : le champ vit dans le JSON existant du scénario, et son absence est valable.
+    assert "fiche_attendue" in ScenarioSimule.model_fields
+    assert ScenarioSimule.model_validate(_scenario().model_dump(exclude={"fiche_attendue"})).fiche_attendue is None
+
+
+def test_le_rejeu_des_vrais_appels_et_la_serie_simulee_rangent_avec_la_meme_fonction():
+    from api.services.appel_simule import fiche_attendue
+    from api.tests.mark import rejeu_corpus
+
+    assert rejeu_corpus.rang is fiche_attendue.rang
+    assert rejeu_corpus.NOMS_DES_RANGS is fiche_attendue.NOMS_DES_RANGS
+    fiche = {"modele": "Clio", "fiche_etat": {"modele": {"sure": True}}}
+    assert fiche_attendue.rang(fiche, "modele", "clio") == fiche_attendue.JUSTE_SUR

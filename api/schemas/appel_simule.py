@@ -52,6 +52,7 @@ CONSIGNE_JUGE = (
 PLAFOND_SIMULTANES = 3
 MAX_SCENARIOS = 300
 MAX_CRITERES = 12
+MAX_CHAMPS_ATTENDUS = 40
 
 
 class RoleSimule(BaseModel):
@@ -137,6 +138,15 @@ class ScenarioSimule(BaseModel):
         le=30,
         description="If set, a turn slower than this fails the scenario.",
     )
+    # D7 (réparation globale, L8): lives in the scenario's JSON, no migration.
+    fiche_attendue: dict[str, str | None] | None = Field(
+        default=None,
+        max_length=MAX_CHAMPS_ATTENDUS,
+        description=(
+            "The call record the scenario expects, field -> value (null: the field must stay empty). "
+            "Rated by the code at the end of the run: juste_sur, juste_a_confirmer, vide, faux."
+        ),
+    )
 
     @model_validator(mode="after")
     def _criteres_non_vides(self) -> ScenarioSimule:
@@ -145,6 +155,15 @@ class ScenarioSimule(BaseModel):
             raise ValueError("A scenario needs at least one criterion.")
         if any(len(c) > 500 for c in self.criteres):
             raise ValueError("A criterion is 500 characters at most.")
+        if self.fiche_attendue is not None:
+            nettoyee = {
+                champ.strip(): (valeur.strip() if isinstance(valeur, str) and valeur.strip() else None)
+                for champ, valeur in self.fiche_attendue.items()
+                if champ.strip()
+            }
+            if any(len(champ) > 80 for champ in nettoyee) or any(len(v or "") > 500 for v in nettoyee.values()):
+                raise ValueError("An expected field is 80 characters at most, its value 500.")
+            self.fiche_attendue = nettoyee or None
         return self
 
 

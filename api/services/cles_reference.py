@@ -75,6 +75,37 @@ async def _cle(uuid: str, organization_id: int) -> Optional[tuple[str, str]]:
     return valeur, str(donnees.get("fournisseur") or "")
 
 
+async def cle_d_une_reference(
+    reference: str, fournisseur, organization_id: Optional[int], usage: str
+) -> Optional[str]:
+    """[.mark] Lot C d'agent-leger-greffier : la clé désignée par UNE référence, hors d'une
+    configuration effective (le bloc du greffier). Mêmes règles que ``resoudre_les_cles`` :
+    clé de l'organisation de l'appel, et du même fournisseur (famille). Sinon ``None`` et un
+    journal d'erreur qui dit pourquoi ; jamais la clé, jamais une exception de règle.
+    Sans fournisseur nommé, ``None`` : la famille ne peut pas être vérifiée."""
+    if not est_reference(reference) or organization_id is None or not fournisseur:
+        if est_reference(reference):
+            logger.error(
+                f"[.mark] The {usage} key chosen in the key library needs its provider "
+                f"named next to it (organization {organization_id})."
+            )
+        return None
+    trouvee = await _cle(uuid_de(reference), organization_id)
+    if trouvee is None:
+        logger.error(
+            f"[.mark] The {usage} key chosen in the key library was deleted or is unusable "
+            f"(organization {organization_id})."
+        )
+        return None
+    if famille(trouvee[1]) != famille(fournisseur):
+        logger.error(
+            f"[.mark] The {usage} key chosen in the key library is a {trouvee[1]} key, "
+            f"not a {famille(fournisseur)} one (organization {organization_id})."
+        )
+        return None
+    return trouvee[0]
+
+
 async def resoudre_les_cles(
     configuration, organization_id: Optional[int], *, strict: bool
 ):

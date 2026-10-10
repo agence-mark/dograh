@@ -216,7 +216,16 @@ class PipecatEngine:
         if fiche is not None and llm is not None:
             # D14 : l'état de la fiche, montré à chaque requête de conversation.
             montrer_la_fiche(
-                llm, fiche, lambda: self._gathered_context, self._notices_fiche
+                llm,
+                fiche,
+                lambda: self._gathered_context,
+                self._notices_fiche,
+                # Lot E d'agent-leger-greffier (P1) : les étiquettes de l'étape en cours.
+                lambda: getattr(
+                    getattr(self.active_agent, "current_node", None),
+                    "champs_etape",
+                    (),
+                ),
             )
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context

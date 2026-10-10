@@ -552,10 +552,13 @@ def test_une_cle_se_propose_a_toute_sa_famille_de_fournisseurs(ecran):
     assert cles_reference.famille("openai_realtime") == cles_reference.famille("openai")
 
 
-def test_la_cle_propre_du_greffier_ne_peut_pas_etre_une_reference():
+def test_une_reference_non_resolue_du_greffier_n_est_jamais_envoyee():
+    """Lot C d'agent-leger-greffier : la référence du bloc est résolue avant
+    (``resoudre_le_bloc_du_greffier``) ; une référence ENCORE là (introuvable, autre
+    fournisseur) est refusée : l'appel part en mode outil, jamais la référence."""
     from api.services.pipecat.greffier import configuration_du_greffier
 
-    with pytest.raises(ValueError, match="scribe's own key"):
+    with pytest.raises(ValueError, match="clerk's key chosen in the key library"):
         configuration_du_greffier(
             _configuration("SECRET-M", "x"), {"api_key": "mark-cle:cle-mistral"}
         )

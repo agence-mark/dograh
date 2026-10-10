@@ -108,8 +108,14 @@ def test_une_cle_vide_reste_vide():
         {"temperature": "chaud"},
         {"provider": "mistrall"},
         # Revue du 04/10 : seulement ce que la modale montre, la clé en texte.
+        # Lot C d'agent-leger-greffier (D9) : la modale montre les champs du fournisseur
+        # NOMMÉ ; sans fournisseur, les réglages restent refusés, avec, ils sont validés.
         {"max_tokens": 50},
         {"base_url": "https://ailleurs.example"},
+        {"provider": "openai", "inconnu": 1},
+        {"provider": "openai", "max_tokens": 0},
+        {"provider": "openai", "reasoning_effort": "turbo"},
+        {"provider": "openai", "prompt_cache": "oui"},
         {"api_key": {"cle": "objet"}},
         {"temperature": True},
     ],
@@ -118,3 +124,19 @@ def test_un_bloc_mal_forme_est_refuse(bloc):
     reponse, ecrit = _enregistrer({**EXISTANTES, "greffier_llm": bloc})
     assert reponse.status_code == 422, reponse.text
     assert ecrit is None
+
+
+def test_les_reglages_du_fournisseur_nomme_sont_acceptes():
+    """D9 : la modale enregistre le formulaire généré du fournisseur du greffier."""
+    bloc = {
+        "provider": "openai",
+        "model": "mistral-small-3.2-24b-instruct-2506",
+        "base_url": "https://api.scaleway.ai/v1",
+        "reasoning_effort": "low",
+        "max_tokens": 800,
+        "prompt_cache": False,
+        "api_key": "mark-cle:343322ca-f4d1-4806-8bf6-b2c7ed904a4a",
+    }
+    reponse, ecrit = _enregistrer({**EXISTANTES, "greffier_llm": bloc})
+    assert reponse.status_code == 200, reponse.text
+    assert ecrit["greffier_llm"] == bloc

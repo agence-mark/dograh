@@ -17,10 +17,19 @@ The closed list (French, accents and case ignored):
 - moments: matin / matinée, en fin de matinée, tôt le matin, midi, après-midi, en début
   d'après-midi, en fin d'après-midi, fin de journée, soir / soirée ;
 - hours: après / à partir de / passé H, avant H, vers / à H (one hour around), entre H et H ;
-  H in digits (« 17h », « 17 h 30 », « 17:30 ») or in words up to « vingt ».
+  H in digits (« 17h », « 17 h 30 », « 17:30 ») or in words up to « vingt » ;
+  « pas avant H » = from H, « pas après H » = before H.
+- day bounds: « à partir de / dès mardi », « à partir du 20 » (that day included), « après le 20 »,
+  « après mardi » (the day after), « avant vendredi » (up to the day before), « jusqu'à vendredi »
+  (that day included);
+- or: several days of the week are a UNION (« lundi ou mardi », « mardi ou jeudi après-midi »).
 - no wish: le plus tôt possible, au plus vite, dès que possible, peu importe, n'importe quand ;
-- negation: « pas / sauf » before a day or a moment EXCLUDES it (known red case: « pas le
-  lundi » read as « lundi »).
+- negation: « pas / sauf » before a day, a moment, « cette semaine » or « la semaine prochaine »
+  EXCLUDES it (known red case: « pas le lundi » read as « lundi »).
+
+Prudence rule: a word of negation or of bound (pas, sauf, ni, jamais, ou, avant, après, à partir,
+dès, jusqu'à) that no phrasing above consumed makes the wish « not understood » -- never a wish
+read half, which would offer the opposite of what was asked.
 """
 
 from __future__ import annotations
@@ -49,6 +58,8 @@ class Souhait:
     jours: set[date] | None = None  # allowed days (None: any)
     jours_exclus: set[int] = field(default_factory=set)  # weekdays 0..6 excluded
     des_le: date | None = None  # not before this day
+    jusqu_au: date | None = None  # not after this day (included)
+    dates_exclues: set[date] = field(default_factory=set)  # days excluded (a whole week, for instance)
     heure_min: time | None = None  # the slot starts at or after
     heure_max: time | None = None  # the slot starts strictly before
     reconnu: list[str] = field(default_factory=list)
@@ -60,6 +71,10 @@ class Souhait:
         if debut.weekday() in self.jours_exclus:
             return False
         if self.des_le is not None and jour < self.des_le:
+            return False
+        if self.jusqu_au is not None and jour > self.jusqu_au:
+            return False
+        if jour in self.dates_exclues:
             return False
         heure = debut.timetz().replace(tzinfo=None)
         if self.heure_min is not None and heure < self.heure_min:
@@ -74,6 +89,8 @@ class Souhait:
             "jours": sorted(d.isoformat() for d in self.jours) if self.jours is not None else None,
             "jours_exclus": sorted(self.jours_exclus),
             "des_le": self.des_le.isoformat() if self.des_le else None,
+            "jusqu_au": self.jusqu_au.isoformat() if self.jusqu_au else None,
+            "dates_exclues": sorted(d.isoformat() for d in self.dates_exclues),
             "heure_min": self.heure_min.strftime("%H:%M") if self.heure_min else None,
             "heure_max": self.heure_max.strftime("%H:%M") if self.heure_max else None,
         }
@@ -124,6 +141,49 @@ def _intersecter(souhait: Souhait, jours: set[date]) -> None:
     souhait.jours = set(jours) if souhait.jours is None else (souhait.jours & set(jours)) or set(jours)
 
 
+_JOURS_ALT = "|".join(JOURS)
+_MOIS_ALT = "|".join(MOIS)
+_DEPART = r"(?:a partir (?:de|du|d)|des|apres)"  # « from » bounds
+_FIN = r"(?:avant|jusqu a|jusqu au|jusqu en)"  # « until » bounds
+# « des » et « ou » sont aussi l'article et « où » (revue du 10/10 : « des disponibilités jeudi »,
+# « où vous voulez mardi » devenaient non compris) : ils ne comptent que suivis d'un mot de temps.
+_TEMPS = (
+    r"(?:\d|1er|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|demain|apres demain|"
+    r"aujourd hui|semaine|matin|midi|soir|heure|mois|"
+    r"janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)"
+)
+_MARQUEURS_NON_LUS = r" (?:pas|sauf|ni|jamais|avant|apres|partir|jusqu|jusqua) "
+_AMBIGUS = r" (des|ou) (?:(?:le|la|l|ce|cette|en) )?" + _TEMPS
+
+
+def _ambigu_non_lu(origine: str, reste: str) -> bool:
+    """« des » ou « ou » resté non lu (encore dans ``reste``) alors que, dans la phrase
+    d'origine, il précédait un mot de temps (« demain ou après-demain ») : un « ou » de
+    jours que personne n'a consommé. Devant autre chose, c'est l'article ou « où »."""
+    restes = set(re.findall(r" (des|ou) ", reste))
+    return any(m.group(1) in restes for m in re.finditer(_AMBIGUS, origine))
+
+
+def _prochain(nom: str, aujourd_hui: date) -> date:
+    """The NEXT day of the week with this name, today excluded (as for a bare weekday)."""
+    return aujourd_hui + timedelta(days=(JOURS.index(nom) - aujourd_hui.weekday()) % 7 or 7)
+
+
+def _jour_du_mois(jour: str, mois: str | None, aujourd_hui: date) -> date | None:
+    """« 20 » or « 20 octobre »: the coming one (next month / next year when already past)."""
+    n = 1 if jour == "1er" else int(jour)
+    try:
+        if mois:
+            d = date(aujourd_hui.year, MOIS.index(mois) + 1, n)
+            return d if d >= aujourd_hui else date(aujourd_hui.year + 1, d.month, n)
+        annee, m = aujourd_hui.year, aujourd_hui.month
+        if n < aujourd_hui.day:
+            annee, m = (annee + 1, 1) if m == 12 else (annee, m + 1)
+        return date(annee, m, n)
+    except ValueError:
+        return None
+
+
 def lire_souhait(texte: str | None, maintenant: datetime) -> Souhait:
     """The caller's wish read from the closed list. ``maintenant`` in the business's time."""
     brut = (texte or "").strip()
@@ -132,6 +192,7 @@ def lire_souhait(texte: str | None, maintenant: datetime) -> Souhait:
         souhait.compris = True  # no wish: nothing to read, nothing misunderstood
         return souhait
     t = f" {_normaliser(brut)} "
+    origine = t
     aujourd_hui = maintenant.date()
     lus: list[str] = []
 
@@ -139,8 +200,10 @@ def lire_souhait(texte: str | None, maintenant: datetime) -> Souhait:
         lus.append(motif)
 
     # --- no wish --------------------------------------------------------------------------
-    if re.search(r" (le plus tot possible|au plus vite|des que possible|peu importe|n importe quand|quand vous voulez) ", t):
+    sans_souhait = r" (le plus tot possible|au plus vite|des que possible|peu importe|n importe quand|quand vous voulez) "
+    if re.search(sans_souhait, t):
         lu("aucune contrainte")
+        t = re.sub(sans_souhait, " ", t)
 
     # --- negations first (they consume their words) --------------------------------------
     for i, nom in enumerate(JOURS):
@@ -157,6 +220,64 @@ def lire_souhait(texte: str | None, maintenant: datetime) -> Souhait:
         souhait.heure_max = _min(souhait.heure_max, time(12, 0))
         t = re.sub(rf" {NEGATION} apres midi ", " ", t)
         lu("pas l'après-midi")
+    # « pas avant 10h » = from 10h, « pas après 17h » = before 17h (they consume their words:
+    # neither « avant » nor « après » is then read again as the opposite bound).
+    for mot, cote in (("avant", "min"), ("apres", "max")):
+        for m in list(re.finditer(rf" pas {mot} {_HEURE}(?= )", t)):
+            h = _heure(m.group(1), m.group(2))
+            if h is None:
+                continue
+            if cote == "min":
+                souhait.heure_min = _max(souhait.heure_min, h)
+            else:
+                souhait.heure_max = _min(souhait.heure_max, h)
+            lu(m.group(0).strip())
+            t = t.replace(m.group(0), " ", 1)
+    lundi = aujourd_hui - timedelta(days=aujourd_hui.weekday())
+    motif = rf" {NEGATION} cette semaine "
+    if re.search(motif, t):
+        souhait.dates_exclues |= {aujourd_hui + timedelta(days=k) for k in range(7 - aujourd_hui.weekday())}
+        t = re.sub(motif, " ", t)
+        lu("pas cette semaine")
+    motif = rf" {NEGATION}(?: la)? semaine prochaine "
+    if re.search(motif, t):
+        souhait.dates_exclues |= {lundi + timedelta(days=7 + k) for k in range(7)}
+        t = re.sub(motif, " ", t)
+        lu("pas la semaine prochaine")
+
+    # --- bounds on the days (they consume their words, before the days are read) -------------
+    def borne_min(jour: date) -> None:
+        souhait.des_le = jour if souhait.des_le is None else max(souhait.des_le, jour)
+
+    def borne_max(jour: date) -> None:
+        souhait.jusqu_au = jour if souhait.jusqu_au is None else min(souhait.jusqu_au, jour)
+
+    for m in list(re.finditer(rf" ({_DEPART}) (?:le |ce )?({_JOURS_ALT})s?(?: prochain)? ", t)):
+        borne_min(_prochain(m.group(2), aujourd_hui) + timedelta(days=1 if m.group(1) == "apres" else 0))
+        lu(m.group(0).strip())
+        t = t.replace(m.group(0), " ", 1)
+    for m in list(re.finditer(r" (?:a partir de|des) demain ", t)):
+        borne_min(aujourd_hui + timedelta(days=1))
+        lu(m.group(0).strip())
+        t = t.replace(m.group(0), " ", 1)
+    for m in list(re.finditer(rf" ({_DEPART}) (?:le |du |au )(\d{{1,2}}|1er)(?: ({_MOIS_ALT}))? (?!h |heures? )", t)):
+        jour = _jour_du_mois(m.group(2), m.group(3), aujourd_hui)
+        if jour is None:
+            continue
+        borne_min(jour + timedelta(days=1 if m.group(1) == "apres" else 0))
+        lu(m.group(0).strip())
+        t = t.replace(m.group(0), " ", 1)
+    for m in list(re.finditer(rf" ({_FIN}) (?:le |ce )?({_JOURS_ALT})s?(?: prochain)? ", t)):
+        borne_max(_prochain(m.group(2), aujourd_hui) - timedelta(days=1 if m.group(1) == "avant" else 0))
+        lu(m.group(0).strip())
+        t = t.replace(m.group(0), " ", 1)
+    for m in list(re.finditer(rf" ({_FIN}) (?:le |du |au )(\d{{1,2}}|1er)(?: ({_MOIS_ALT}))? (?!h |heures? )", t)):
+        jour = _jour_du_mois(m.group(2), m.group(3), aujourd_hui)
+        if jour is None:
+            continue
+        borne_max(jour - timedelta(days=1 if m.group(1) == "avant" else 0))
+        lu(m.group(0).strip())
+        t = t.replace(m.group(0), " ", 1)
 
     # --- days ------------------------------------------------------------------------------
     if " apres demain " in t:
@@ -169,14 +290,19 @@ def lire_souhait(texte: str | None, maintenant: datetime) -> Souhait:
     if re.search(r" (aujourd hui|aujourdhui|ce jour) ", t):
         _intersecter(souhait, {aujourd_hui})
         lu("aujourd'hui")
+    # Several days of the week = a UNION (« lundi ou mardi »); the « ou » between two of them is consumed.
+    t = re.sub(rf"({_JOURS_ALT})s?((?: prochain)?) ou (?=(?:le |ce )?(?:{_JOURS_ALT}))", r"\1\2 ", t)
+    nommes: set[date] = set()
     for i, nom in enumerate(JOURS):
         if re.search(rf" {nom}s? ", t):
             ecart = (i - aujourd_hui.weekday()) % 7 or 7
             jour = aujourd_hui + timedelta(days=ecart)
             if re.search(rf" {nom} en huit ", t):
                 jour += timedelta(days=7)
-            _intersecter(souhait, {jour})
+            nommes.add(jour)
             lu(nom)
+    if nommes:
+        _intersecter(souhait, nommes)
     m = re.search(rf" (?:le )?(\d{{1,2}}|1er|premier) ({'|'.join(MOIS)})(?: (\d{{4}}))? ", t)
     if m:
         jour = 1 if m.group(1) in ("1er", "premier") else int(m.group(1))
@@ -216,7 +342,6 @@ def lire_souhait(texte: str | None, maintenant: datetime) -> Souhait:
                 lu(f"le {jour}")
             except ValueError:
                 pass
-    lundi = aujourd_hui - timedelta(days=aujourd_hui.weekday())
     if re.search(r" (la |)semaine prochaine ", t):
         _intersecter(souhait, {lundi + timedelta(days=7 + k) for k in range(7)})
         lu("la semaine prochaine")
@@ -283,6 +408,9 @@ def lire_souhait(texte: str | None, maintenant: datetime) -> Souhait:
 
     if souhait.heure_min and souhait.heure_max and souhait.heure_min >= souhait.heure_max:
         # Contradictory (« le matin après 14 h »): not understood rather than impossible.
+        return Souhait(texte=souhait.texte, compris=False, reconnu=lus)
+    if re.search(_MARQUEURS_NON_LUS, t) or _ambigu_non_lu(origine, t):
+        # Prudence: a negation or a bound nobody consumed (« pas à 10h », « demain ou après-demain »).
         return Souhait(texte=souhait.texte, compris=False, reconnu=lus)
     souhait.reconnu = lus
     souhait.compris = bool(lus)

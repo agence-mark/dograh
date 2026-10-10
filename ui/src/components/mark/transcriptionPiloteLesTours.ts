@@ -75,15 +75,28 @@ const lireStt = (valeur: unknown): ConfigurationTranscription | null => {
     return { provider, model, endpoint_detection };
 };
 
+/**
+ * The transcription of an agent's full configuration (v2), read in its real shape
+ * (`OrganizationAIModelConfigurationV2`): `{mode: "byok", byok: {mode: "pipeline", pipeline: {stt}}}`.
+ * Nothing at its root (n° 298: `lireStt` read `stt` there, where it never is). Null in the modes
+ * where the screen cannot know (Dograh's own, realtime, an unknown shape).
+ */
+const sttDeLaConfigurationComplete = (valeur: unknown): ConfigurationTranscription | null => {
+    if (!valeur || typeof valeur !== "object") return null;
+    const byok = (valeur as { mode?: unknown; byok?: { mode?: unknown; pipeline?: unknown } | null });
+    if (byok.mode !== "byok" || byok.byok?.mode !== "pipeline") return null;
+    return lireStt(byok.byok.pipeline);
+};
+
 /** The transcription service an agent actually runs with. */
 export const transcriptionEffective = ({
     organisation,
     agent,
 }: EntreesDeResolution): ConfigurationTranscription | null => {
     // ⛔ A full v2 override replaces the organization's configuration outright,
-    // it is not merged into it — same as the server.
-    const v2 = lireStt(agent?.model_configuration_v2_override);
-    if (v2) return v2;
+    // it is not merged into it — same as the server. When the screen cannot read its
+    // transcription, it does not borrow the organization's: it does not know.
+    if (agent?.model_configuration_v2_override) return sttDeLaConfigurationComplete(agent.model_configuration_v2_override);
 
     const surcharge = lireStt(agent?.model_overrides);
     const base = lireStt(organisation);

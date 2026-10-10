@@ -18,6 +18,46 @@ from api.constants import (
 from api.schemas.fiche_agent import ChampFiche, verifier_champs
 from api.schemas.organization_preferences import AdresseEtablissement
 
+
+def _classe_llm(fournisseur: object):
+    """[.mark] La déclaration du modèle de conversation d'un fournisseur, ou ``None``
+    (fournisseur absent ou inconnu : refusé plus bas, en le nommant)."""
+    if not isinstance(fournisseur, str) or not fournisseur:
+        return None
+    from api.services.configuration.registry import REGISTRY, ServiceType
+
+    for cle, classe in REGISTRY[ServiceType.LLM].items():
+        if str(getattr(cle, "value", cle)) == fournisseur:
+            return classe
+    return None
+
+
+def _valider_reglages_du_fournisseur(classe, bloc: dict, deja_verifies: set) -> None:
+    """[.mark] Chaque réglage du bloc du greffier, validé par le champ que le
+    fournisseur déclare (type, bornes, liste fermée) : un mauvais enregistrement est
+    refusé (422), jamais lu comme un greffier inutilisable au moment de l'appel.
+    Une valeur vide veut dire « celle de la conversation »."""
+    from pydantic import TypeAdapter, ValidationError
+
+    for nom, valeur in bloc.items():
+        if nom in deja_verifies or valeur is None or valeur == "":
+            continue
+        champ = classe.model_fields[nom]
+        try:
+            type_du_champ = (
+                Annotated[champ.annotation, *champ.metadata]
+                if champ.metadata
+                else champ.annotation
+            )
+            TypeAdapter(type_du_champ).validate_python(
+                valeur, strict=isinstance(valeur, bool)
+            )
+        except ValidationError as erreur:
+            raise ValueError(
+                f"greffier_llm.{nom}: {erreur.errors()[0].get('msg', 'invalid')}"
+            ) from None
+
+
 DEFAULT_MAX_CALL_DURATION_SECONDS = 300
 # Hard ceiling on configurable call duration. Must stay <= the concurrency
 # rate limiter's stale_call_timeout (20 min): a call running past that has
@@ -854,6 +894,18 @@ class WorkflowConfigurationDefaults(BaseModel):
     )
     # [.mark] Plan postscriptum-note-d-abord (Q2 bis, Q3) : les indices des modules,
     # montrés au modèle, jamais écrits dans la fiche. Absent : allumés (Q2 bis).
+    # [.mark] Lot E d'agent-leger-greffier (P1, D7) : les étiquettes de champs des étapes.
+    # Allumé, le code souffle au modèle, à chaque tour, le prochain champ manquant de
+    # l'étape (une suggestion, jamais un ordre). Tous les modes de prise de notes.
+    etiquettes_des_etapes: bool = Field(
+        default=False,
+        description=(
+            "Each step lists the record fields it gathers, in order of priority; at "
+            "each turn the code reminds the model of the next missing ones, as a "
+            "suggestion it may set aside. Every note-taking mode. Off (default): "
+            "the steps' field lists are kept but nothing is shown to the model."
+        ),
+    )
     indices_des_modules: bool | None = Field(
         default=None,
         description=(
@@ -1020,7 +1072,7 @@ class WorkflowConfigurationDefaults(BaseModel):
 
     @field_validator("greffier_llm")
     @classmethod
-    def greffier_llm_valide(cls, value: dict | None) -> dict | None:
+    def greffier_llm_valide(cls, value: dict | None) -> dict | None:  # noqa: C901
         """[.mark] The clerk's model block, the shape of a model override: text
         fields stay text, so a bad save is refused (422) rather than read as
         an unusable clerk at call time."""
@@ -1028,12 +1080,21 @@ class WorkflowConfigurationDefaults(BaseModel):
             return None
         # Revue du 04/10 : seulement ce que la modale montre (un réglage se voit
         # à l'écran), et la clé en texte (un objet ferait lever le masquage).
-        inconnues = sorted(set(value) - {"provider", "model", "temperature", "api_key"})
+        # [.mark] Lot C d'agent-leger-greffier (D9) : la modale montre désormais le
+        # formulaire généré du fournisseur NOMMÉ dans le bloc ; ses champs (adresse,
+        # réglages) sont donc acceptés, chacun validé par la déclaration du fournisseur.
+        # Sans fournisseur nommé, seuls les quatre de toujours.
+        base = {"provider", "model", "temperature", "api_key"}
+        classe = _classe_llm(value.get("provider"))
+        permis = base | (set(classe.model_fields) if classe is not None else set())
+        inconnues = sorted(set(value) - permis)
         if inconnues:
             raise ValueError(
-                f"greffier_llm accepts provider, model, temperature and api_key only, "
-                f"not {', '.join(inconnues)}"
+                f"greffier_llm accepts provider, model, temperature, api_key and the "
+                f"settings of the provider it names, not {', '.join(inconnues)}"
             )
+        if classe is not None:
+            _valider_reglages_du_fournisseur(classe, value, base)
         for cle in ("provider", "model", "api_key"):
             if cle in value and value[cle] is not None and not isinstance(value[cle], str):
                 raise ValueError(f"greffier_llm.{cle} must be text")

@@ -133,6 +133,21 @@ describe("[.mark] the integration tool on screen", () => {
         expect(JSON.parse(screen.getByTestId("envoye").textContent!)).toMatchObject({ anticipable: true, declencheurs: { motif: "motif_appel" } });
     });
 
+    it("n° 315 : la description d'une action est dite en anglais sur l'écran français, et pourquoi", async () => {
+        // Une seule description, celle que le modèle lit : l'écran la montre telle quelle et le dit.
+        m.connexions.mockResolvedValue({ data: { nango_configure: true, connexions: [] } });
+        render(
+            <FournisseurLangue>
+                <Page valide={vi.fn()} />
+            </FournisseurLangue>,
+        );
+        const note = await screen.findByText(/Find slots\./);
+        expect(note.textContent).toMatch(/en anglais/i);
+        expect(note.textContent).toMatch(/modèle/i);
+        // Les phrases en français de l'écran restent en français.
+        expect(note.textContent).toContain("Elle ne fait que lire.");
+    });
+
     it("shows the connection state and asks the link for that connector only", async () => {
         m.connexions.mockResolvedValue({ data: { nango_configure: true, connexions: [] } });
         m.lien.mockResolvedValue({ data: { lien: "https://connect.example.org/x", expire_le: null } });

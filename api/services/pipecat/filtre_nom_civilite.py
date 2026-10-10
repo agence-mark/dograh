@@ -109,6 +109,69 @@ def _motif_du_nom(nom: str) -> str:
     return re.sub(r"['’]", "['’]", re.escape(nom.strip()))
 
 
+# Les types de voie : un nom qui en est précédé est une rue, pas la personne (« rue Danton »
+# chez un appelant nommé Danton). ⛔ Aucun mot de métier : ce sont des mots d'adresse.
+TYPES_DE_VOIE = (
+    "rue", "avenue", "av", "boulevard", "bd", "impasse", "allée", "allee", "chemin", "place", "route",
+    "quai", "chaussée", "chaussee", "square", "cours", "passage", "résidence", "residence", "lotissement",
+    "rond-point", "ruelle", "venelle", "sentier", "cité", "cite", "hameau", "lieu-dit", "domaine", "clos",
+    "villa", "voie", "faubourg", "esplanade", "parvis", "traverse", "montée", "montee", "côte", "cote",
+)
+_APRES_UN_TYPE_DE_VOIE = re.compile(
+    r"(?<![\w-])(?:" + "|".join(TYPES_DE_VOIE) + r")\s+(?:[\w’'.-]+\s+){0,3}$",
+    re.IGNORECASE,
+)
+
+# Un nom dit « au son » : écrit autrement, prononcé pareil (« Flamand » pour « Flamant »).
+_MOT_MAJUSCULE = re.compile(r"(?<![-\w])[A-ZÀ-ÖØ-ÞŒ][a-zà-öø-ÿœ’'-]{3,}(?![-\w])")
+_PLANCHER_ORTHOGRAPHE = 60  # deux mots courts qui partagent un son ne sont pas le même nom
+
+
+def _derriere_un_type_de_voie(texte: str, position: int) -> bool:
+    """Le groupe qui commence à ``position`` suit-il un type de voie (« rue », « avenue du Général ») ?"""
+    return bool(_APRES_UN_TYPE_DE_VOIE.search(texte[:position]))
+
+
+def _variantes_au_son(texte: str, nom: str) -> list[str]:
+    """Les mots à majuscule du texte qui se prononcent comme ``nom`` sans s'écrire pareil.
+
+    🔑 Le son (``phonetic_fr`` ou notre clé sonore) ET une orthographe assez proche : deux mots
+    qui partagent un son par hasard ne sont pas un nom. En tête de phrase, un mot courant
+    (« Merci ») n'est pas un nom : la majuscule n'y prouve rien.
+    """
+    from api.services.communes.base import cle_phonetique, cle_sonore, normaliser
+
+    cible = normaliser(nom).replace(" ", "")
+    if len(cible) < 4:
+        return []
+    try:
+        son_cible, son_maison = cle_phonetique(cible), cle_sonore(cible)
+        from rapidfuzz import fuzz
+
+        from api.services.lexique.analyse import mots_courants
+
+        courants = mots_courants()
+    except Exception:  # noqa: BLE001 -- sans module de son, on retombe sur le nom exact
+        return []
+    trouves: list[str] = []
+    for trouve in _MOT_MAJUSCULE.finditer(texte):
+        mot = trouve.group(0)
+        norm = normaliser(mot).replace(" ", "")
+        if mot.casefold() == nom.strip().casefold() or mot in trouves:
+            continue
+        en_tete = not re.search(r"[^.!?…\s]", texte[: trouve.start()]) or bool(
+            re.search(r"[.!?…]\s*$", texte[: trouve.start()])
+        )
+        if en_tete and norm in courants:
+            continue
+        if fuzz.ratio(norm, cible) < _PLANCHER_ORTHOGRAPHE:
+            continue
+        meme_son = cle_phonetique(norm) == son_cible or (bool(son_maison) and cle_sonore(norm) == son_maison)
+        if meme_son:
+            trouves.append(mot)
+    return trouves
+
+
 def _porte_une_majuscule(valeur: str) -> bool:
     """Un nom de personne, par opposition au mot ordinaire de même forme.
 
@@ -153,6 +216,10 @@ def retirer_nom_et_civilite(
         morceaux = []
         if nom_utilisable:
             motif_nom = _motif_du_nom(nom_utilisable)
+            # Le même nom écrit autrement mais dit pareil (« Flamand » pour « Flamant »).
+            variantes = _variantes_au_son(texte, nom_utilisable)
+            if variantes:
+                motif_nom = "(?:" + "|".join([motif_nom, *(_motif_du_nom(v) for v in variantes)]) + ")"
             if civilites:
                 # La civilité accolée au nom part d'un bloc : « monsieur Dupont ».
                 morceaux.append(rf"(?:{civilites})\s+{motif_nom}")
@@ -187,6 +254,9 @@ def retirer_nom_et_civilite(
             if not commence_par_civilite and not _porte_une_majuscule(valeur):
                 # Le nom en minuscules reste : c'est le mot ordinaire, pas la
                 # personne (« passé chez le boulanger » chez M. Boulanger).
+                return trouve.group(0)
+            if not commence_par_civilite and _derriere_un_type_de_voie(texte, trouve.start("noyau")):
+                # « rue Danton » chez un appelant nommé Danton : une adresse, pas la personne.
                 return trouve.group(0)
             retraits += 1
             # « En tête » vaut aussi après une fin de phrase : « …ne quittez

@@ -42,6 +42,10 @@ export interface AgentNode {
      */
     premiere_replique?: string;
     /**
+     * Record fields this step gathers, in order of priority, separated by commas. Used only when "Step field labels" is on in the agent's settings: the code then reminds the model of the next missing ones, as a suggestion.
+     */
+    champs_etape?: string;
+    /**
      * When true, the user can interrupt the agent mid-utterance. Set false for non-interruptible disclosures.
      */
     allow_interrupt?: boolean;

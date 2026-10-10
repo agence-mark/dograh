@@ -74,6 +74,12 @@ vi.mock("@/lib/modelConfigurationPricing", () => ({ fetchModelConfigurationPrici
 vi.mock("@/components/ui/select", () => import("./select-natif"));
 
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../../sdk-factice")).sdkFactice(await importOriginal(), {
+    // Lot C d'agent-leger-greffier (D9): the schema the clerk's generated form reads.
+    getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet: () =>
+        Promise.resolve({
+            data: { llm: { mistral: { title: "Mistral", properties: { provider: {}, api_key: {}, model: { type: "string" } } } } },
+            error: null,
+        }),
     getWorkflowApiV1WorkflowFetchWorkflowIdGet: () => Promise.resolve({
         data: {
             id: 1,

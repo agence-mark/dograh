@@ -183,6 +183,8 @@ export const CAS_AGENT: CasAgent[] = [
         choisir("fiche_mode_de_note", "post_scriptum"),
         inter("indices_des_modules"),
     ]),
+    // Lot E d'agent-leger-greffier (P1): the steps' field labels, frozen once.
+    c("etiquettes-des-etapes", "ajout-mark", "donnees", ["etiquettes_des_etapes"], [inter("etiquettes_des_etapes")]),
     // Chantier l-agent-travaille, L4 (A6): the after-call of the agent, frozen once.
     c("apres-appel", "ajout-mark", "donnees", ["apres_appel"], [inter("apres_appel_actif")]),
     // Chantier l-agent-collegue, L1 (C5): the team known to the agent, frozen once.
@@ -195,8 +197,10 @@ export const CAS_AGENT: CasAgent[] = [
     c("greffier", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_llm"], [
         choisir("fiche_mode_de_note", "greffier"),
         { type: "cliquer", nom: "Configure the clerk" },
-        saisir("greffier_modele", "mistral-small-2603"),
-        saisir("greffier_cle", "cle-de-reference"),
+        // Lot C d'agent-leger-greffier (D9): the provider's generated form.
+        saisir("greffier_provider", "mistral"),
+        saisir("greffier_model", "mistral-small-2603"),
+        saisir("greffier_api_key", "cle-de-reference"),
         { type: "cliquer", nom: "Done" },
     ]),
     c("greffier-consigne", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_consigne"], [

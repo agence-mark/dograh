@@ -11,6 +11,7 @@ import { MentionTextarea } from "@/components/flow/MentionTextarea";
 import { RecordingSelect } from "@/components/flow/TextOrAudioInput";
 import { ToolSelector } from "@/components/flow/ToolSelector";
 import { CredentialSelector, UrlInput } from "@/components/http";
+import { EtiquettesEtape } from "@/components/mark/graphe/EtiquettesEtape";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,8 @@ export interface RendererContext {
     mcpToolFilters?: Record<string, string[]>;
     /** Persist a new mcp_tool_filters object onto the node form values. */
     onMcpToolFiltersChange?: (next: Record<string, string[]>) => void;
+    /** [.mark] Lot E d'agent-leger-greffier: the agent's record fields, for the step labels. */
+    champsFiche?: string[];
 }
 
 export interface PropertyInputProps {
@@ -51,6 +54,16 @@ export interface PropertyInputProps {
  * mounting them.
  */
 export function PropertyInput({ spec, value, onChange, context }: PropertyInputProps) {
+    // [.mark] Lot E d'agent-leger-greffier (P1): the step's field labels, a string for the
+    // SDK and the MCP, drawn as labels to add, remove and order.
+    if (spec.name === "champs_etape") {
+        return (
+            <div className="grid gap-2">
+                <StackedLabel spec={spec} />
+                <EtiquettesEtape valeur={value} champsFiche={context.champsFiche ?? []} onChange={onChange} />
+            </div>
+        );
+    }
     switch (spec.type) {
         case "string":
             return <StringWidget spec={spec} value={value} onChange={onChange} />;

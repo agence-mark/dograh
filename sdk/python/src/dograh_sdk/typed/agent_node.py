@@ -63,6 +63,14 @@ class AgentNode(TypedNode):
     "Transitions in the reply" is on. Supports {{template_variables}}.
     """
 
+    champs_etape: Optional[str] = None
+    """
+    Record fields this step gathers, in order of priority, separated by
+    commas. Used only when "Step field labels" is on in the agent's
+    settings: the code then reminds the model of the next missing ones, as a
+    suggestion.
+    """
+
     allow_interrupt: bool = True
     """
     When true, the user can interrupt the agent mid-utterance. Set false for

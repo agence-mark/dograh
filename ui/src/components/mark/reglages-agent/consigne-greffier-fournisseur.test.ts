@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { fournisseurDuGreffier, NOMS_AVEC_TEMPERATURE } from "./consigne-greffier";
+import { fournisseurDuGreffier } from "./consigne-greffier";
 
 const ORGANISATION = { llm: { provider: "mistral" } };
 const complete = (provider: string, mode: "pipeline" | "realtime" = "pipeline") => ({
@@ -33,7 +33,4 @@ describe("the clerk's provider", () => {
         expect(fournisseurDuGreffier("", null, null)).toBeUndefined();
     });
 
-    it("names the providers that take a temperature from the list itself", () => {
-        expect(NOMS_AVEC_TEMPERATURE("and")).toBe("MiniMax, Mistral and Sarvam");
-    });
 });

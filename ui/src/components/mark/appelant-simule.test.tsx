@@ -22,7 +22,7 @@ import { WorkflowTesterPanel } from "@/app/workflow/[workflowId]/components/Work
 import { AppelantSimule, estimation } from "./appelant-simule/AppelantSimule";
 import { bilanDeSerie, exportCsv, ModaleRapportSeries } from "./appelant-simule/ModaleRapportSeries";
 import { ModaleReglagesAppelantSimule } from "./appelant-simule/ModaleReglagesAppelantSimule";
-import { ModaleScenarios } from "./appelant-simule/ModaleScenarios";
+import { ficheAttendueEnTexte, ModaleScenarios, texteEnFicheAttendue } from "./appelant-simule/ModaleScenarios";
 import { FenetreDuRun } from "./fenetre-du-run/FenetreDuRun";
 import { FournisseurLangue } from "./langue/langue";
 
@@ -234,6 +234,29 @@ describe("[.mark] running a series", () => {
     });
 });
 
+describe("[.mark] the expected record of a scenario (D7)", () => {
+    it("goes from text to record and back, an empty value meaning « stays empty »", () => {
+        expect(texteEnFicheAttendue("nom = Dupont\nville=  Senlis \n\nmail =\nrien")).toEqual({
+            nom: "Dupont", ville: "Senlis", mail: null, rien: null,
+        });
+        expect(texteEnFicheAttendue("  \n ")).toBeNull();
+        expect(ficheAttendueEnTexte({ nom: "Dupont", mail: null })).toBe("nom = Dupont\nmail = ");
+        expect(ficheAttendueEnTexte(null)).toBe("");
+    });
+
+    it("is typed in the editor and sent with the scenario", async () => {
+        render(<ModaleScenarios workflowId={34} ouverte onFermer={vi.fn()} />);
+        await screen.findByTestId("liste-scenarios");
+        const zone = screen.getByLabelText("Expected call record") as HTMLTextAreaElement;
+        fireEvent.change(zone, { target: { value: "nom = Dupont" } });
+        fireEvent.change(zone, { target: { value: "nom = Dupont\nville" } });
+        expect(zone.value).toBe("nom = Dupont\nville");
+        fireEvent.click(bouton("Save"));
+        await waitFor(() => expect(m.saveScenarios).toHaveBeenCalledTimes(1));
+        expect(m.saveScenarios.mock.calls[0][0].body[0].fiche_attendue).toEqual({ nom: "Dupont", ville: null });
+    });
+});
+
 describe("[.mark] the scenario library (L10, L18)", () => {
     it("names the faults, then sends the agent's scenarios cleaned", async () => {
         const fermer = vi.fn();
@@ -373,6 +396,33 @@ describe("[.mark] the series report (L18)", () => {
         expect(bilan).toContain("Criteria met: 1 / 2");
         expect(bilan).toContain("Median latency 1.20 s · worst turn 2.50 s");
         expect(bilan).toContain("Cost 0.12 USD (partial) · cap 5");
+    });
+
+    it("D7 : counts the expected record's ratings in the summary and in the CSV", async () => {
+        const avecFiche = {
+            ...RAPPORT,
+            appels: RAPPORT.appels.map((a) =>
+                a.resultat
+                    ? { ...a, resultat: { ...a.resultat, fiche: { nom: "juste_sur", ville: "juste_a_confirmer", mail: "vide", tel: "faux" } } }
+                    : a,
+            ),
+        };
+        expect(bilanDeSerie(avecFiche as never).fiche).toEqual({ juste_sur: 1, juste_a_confirmer: 1, vide: 1, faux: 1 });
+        expect(exportCsv(avecFiche as never)).toContain('"nom:juste_sur | ville:juste_a_confirmer | mail:vide | tel:faux"');
+        m.getSeries.mockResolvedValue({ data: [SERIE] });
+        m.getRapport.mockResolvedValue({ data: avecFiche });
+        render(<ModaleRapportSeries workflowId={34} ouverte onFermer={vi.fn()} />);
+        await screen.findByTestId("rapport-serie");
+        expect(texte(await screen.findByTestId("bilan-fiche"))).toBe(
+            "Expected record: 1 right and sure · 1 right, to confirm · 1 empty · 1 wrong",
+        );
+    });
+
+    it("D7 : no line about the record when no scenario expects one", async () => {
+        m.getSeries.mockResolvedValue({ data: [SERIE] });
+        render(<ModaleRapportSeries workflowId={34} ouverte onFermer={vi.fn()} />);
+        await screen.findByTestId("rapport-serie");
+        expect(screen.queryByTestId("bilan-fiche")).toBeNull();
     });
 
     it("exports one CSV line per call, quotes escaped", () => {

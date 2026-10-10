@@ -65,6 +65,13 @@ const afficher = (
 
 const champ = (id: string) => document.getElementById(id) as HTMLInputElement;
 
+// La configuration complete d'un agent, dans sa vraie forme (OrganizationAIModelConfigurationV2).
+const complete = (provider: string, model: string) => ({
+    version: 2,
+    mode: "byok",
+    byok: { mode: "pipeline", pipeline: { stt: { provider, model } } },
+});
+
 describe("Section Tour de parole", () => {
     it("affiche les valeurs d'aujourd'hui, pas des champs vides", () => {
         afficher();
@@ -200,12 +207,42 @@ describe("Quelle transcription pilote les tours", () => {
             transcriptionEffective({
                 organisation: { stt: { provider: "deepgram", model: "flux-general-multi" } },
                 agent: {
-                    model_configuration_v2_override: {
-                        stt: { provider: "deepgram", model: "nova-3-general" },
-                    },
+                    model_configuration_v2_override: complete("deepgram", "nova-3-general"),
                 },
             }),
         ).toEqual({ provider: "deepgram", model: "nova-3-general" });
+    });
+
+    it("n° 298 : la configuration complete est lue dans sa vraie forme (byok > pipeline > stt)", () => {
+        // Un modèle qui pilote les tours dans la configuration complete masque la section, même
+        // quand celui de l'organisation ne les pilote pas.
+        expect(
+            transcriptionPiloteLesTours({
+                organisation: { stt: { provider: "deepgram", model: "nova-3-general" } },
+                agent: { model_configuration_v2_override: complete("deepgram", "flux-general-multi") },
+            }),
+        ).toBe(true);
+        // Et l'inverse : l'organisation pilote les tours, la configuration complete de l'agent non.
+        expect(
+            transcriptionPiloteLesTours({
+                organisation: { stt: { provider: "deepgram", model: "flux-general-multi" } },
+                agent: { model_configuration_v2_override: complete("deepgram", "nova-3-general") },
+            }),
+        ).toBe(false);
+    });
+
+    it("n° 298 : une configuration complete sans transcription connue de l'ecran ne reprend pas l'organisation", () => {
+        // Le serveur la fait gagner en bloc : mode Dograh, temps reel, forme inconnue. L'ecran ne
+        // sait pas, il n'emprunte pas la transcription de l'organisation (la section reste affichee).
+        const organisation = { stt: { provider: "deepgram", model: "flux-general-multi" } };
+        for (const v2 of [
+            { version: 2, mode: "dograh", dograh: {} },
+            { version: 2, mode: "byok", byok: { mode: "realtime", realtime: { llm: { provider: "groq" } } } },
+            { mode: "byok" },
+        ]) {
+            expect(transcriptionEffective({ organisation, agent: { model_configuration_v2_override: v2 } })).toBeNull();
+            expect(transcriptionPiloteLesTours({ organisation, agent: { model_configuration_v2_override: v2 } })).toBe(false);
+        }
     });
 
     it("le temps reel ne masque PAS la section", () => {

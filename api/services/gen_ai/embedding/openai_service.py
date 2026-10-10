@@ -39,6 +39,7 @@ class OpenAIEmbeddingService(BaseEmbeddingService):
         model_id: str = DEFAULT_MODEL_ID,
         base_url: Optional[str] = None,
         default_headers: Optional[Dict[str, str]] = None,
+        dimensions: Optional[int] = None,
     ):
         """Initialize the OpenAI embedding service.
 
@@ -51,6 +52,9 @@ class OpenAIEmbeddingService(BaseEmbeddingService):
         """
         self.db = db_client
         self.model_id = model_id
+        # [.mark] Lot C d'agent-leger-greffier : the size asked of the model, when it
+        # gives more by default (see build_embedding_service). None: not sent.
+        self._dimensions = dimensions
 
         self._api_key_configured = bool(api_key)
         if self._api_key_configured:
@@ -89,9 +93,10 @@ class OpenAIEmbeddingService(BaseEmbeddingService):
         """Extra kwargs merged into every embeddings.create() call.
 
         Override hook for subclasses (e.g. DograhEmbeddingService injects the MPS
-        billing protocol here). The base service adds nothing.
+        billing protocol here). The base service adds nothing, except the size
+        asked of an OpenAI-compatible model [.mark].
         """
-        return {}
+        return {"dimensions": self._dimensions} if self._dimensions else {}
 
     async def embed_texts(self, texts: List[str]) -> List[List[float]]:
         """Embed a batch of texts using OpenAI API.

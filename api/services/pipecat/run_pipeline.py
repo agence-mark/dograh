@@ -93,7 +93,11 @@ from api.services.pipecat.realtime_feedback_observer import (
     register_turn_log_handlers,
 )
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
-from api.services.pipecat.greffier import greffier_du_moteur, preparer_le_greffier
+from api.services.pipecat.greffier import (
+    greffier_du_moteur,
+    preparer_le_greffier,
+    resoudre_le_bloc_du_greffier,
+)
 from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.reconnaissance_lexique import (
     CLE_TRACE_LEXIQUE,
@@ -1207,7 +1211,8 @@ async def _run_pipeline_impl(
     # construit pas, l'appel est joué en mode outil (et estampillé tel).
     reglages_fiche, service_greffier = preparer_le_greffier(
         reglages_fiche,
-        run_configs,
+        # [.mark] Lot C d'agent-leger-greffier : la clé de bibliothèque du greffier.
+        await resoudre_le_bloc_du_greffier(run_configs, workflow.organization_id),
         user_config,
         runtime_configuration,
         correlation_id=mps_correlation_id,

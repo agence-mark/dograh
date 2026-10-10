@@ -23,6 +23,7 @@ from loguru import logger
 from pipecat.adapters.schemas.function_schema import FunctionSchema
 
 from api.services.integrations.connectors import anticipation
+from api.services.integrations.connectors.champs_requis import Patience, resoudre
 from api.services.integrations.connectors.catalogue import trouver
 from api.services.integrations.connectors.execution import (
     PHRASE_REPLI_DEFAUT,
@@ -120,16 +121,32 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
             logger.error("[.mark] Integration tool without an organization: refused")
             await params.result_callback({"status": "error", "error": "unavailable"})
             return
+        # Lot D d'agent-leger-greffier (D6) : la phrase de patience, seulement au-delà du seuil.
+        patience = Patience(engine, config)
+        patience.demarrer()
         try:
             trouve = trouver(config.get("connecteur", ""), config.get("action", ""))
             if trouve is None:
                 raise ActionInconnue(str(config))
             _, action = trouve
             arguments = arguments_permis(action, params.arguments)
-            if config.get("phrase_attente"):
-                await engine.queue_text_message(
-                    config["phrase_attente"], mute_user=True
+            # Lot D : les champs que l'action lit, cherchés avant elle (fiche, traces, greffier).
+            complements, absents = await resoudre(engine, config)
+            if absents:
+                patience.arreter()
+                estampiller(
+                    fiche,
+                    {
+                        "outil": nom_de_fonction,
+                        "connecteur": config.get("connecteur"),
+                        "action": config.get("action"),
+                        "statut": "champs_manquants",
+                        "duree_ms": None,
+                        "message": ", ".join(absents),
+                    },
                 )
+                await params.result_callback({"status": "missing", "ask_for": absents})
+                return
             anticipee = None
             if isinstance(fiche, dict):
                 a = anticipation.pour_la_fiche(fiche, creer=False)
@@ -145,12 +162,15 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 anticipee,
                 appel=appel,
                 run_id=getattr(engine, "_workflow_run_id", None),
+                complements=complements,
             )
         except Exception as erreur:  # noqa: BLE001 -- R1: stamped, spoken, never silent
             logger.error(
                 f"[.mark] Integration tool '{nom_de_fonction}' failed: {erreur!r}"
             )
             resultat = None
+        finally:
+            patience.arreter()
         estampiller(
             fiche,
             {
