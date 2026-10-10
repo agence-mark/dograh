@@ -333,6 +333,8 @@ export const ThemeDonnees = ({
         ficheModifiee
         || modeModifie
         || portesModifiees
+        || ordreModifie
+        || indicesModifies
         || greffierModifie
         || consigneModifiee
         || generalModifie

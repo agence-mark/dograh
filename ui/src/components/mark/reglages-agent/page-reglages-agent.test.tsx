@@ -504,3 +504,37 @@ describe("[.mark] transitions in the reply, in the call data theme", () => {
         expect(screen.queryByRole("note")).not.toBeNull();
     });
 });
+
+// [.mark] Constat B4 de la réparation globale: le bouton Enregistrer d'un thème reste gris quand
+// seuls « Ordre de la réponse » ou « Indices des modules » changent.
+describe("[.mark] the save button follows the reply order and the module hints", () => {
+    const POST_SCRIPTUM = {
+        fiche_au_fil_de_leau: true,
+        fiche_champs: [{ nom: "nom", type: "string", origine: "dicte", description: "Nom", lecteur: null, valeurs: null }],
+        fiche_mode_de_note: "post_scriptum",
+    };
+    const bouton = async () => (await screen.findByRole("button", { name: "Save Call data" })) as HTMLButtonElement;
+
+    it("is grey with nothing changed", async () => {
+        await ouvrir(POST_SCRIPTUM, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(document.getElementById("indices_des_modules")).not.toBeNull());
+        expect((await bouton()).disabled).toBe(true);
+    });
+
+    it("turns on when only the module hints switch is flipped", async () => {
+        await ouvrir(POST_SCRIPTUM, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(document.getElementById("indices_des_modules")).not.toBeNull());
+        fireEvent.click(document.getElementById("indices_des_modules") as HTMLElement);
+        await waitFor(async () => expect((await bouton()).disabled).toBe(false));
+    });
+
+    it("turns on when only the reply order is changed", async () => {
+        await ouvrir(POST_SCRIPTUM, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(document.getElementById("ordre_de_la_reponse")).not.toBeNull());
+        fireEvent.change(document.getElementById("ordre_de_la_reponse") as HTMLElement, { target: { value: "porte_note_phrase" } });
+        await waitFor(async () => expect((await bouton()).disabled).toBe(false));
+    });
+});
