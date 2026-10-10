@@ -540,6 +540,76 @@ async def test_apres_l_appel_le_rendez_vous_entre_dans_le_hub_une_seule_fois(
         await connexion.close()
 
 
+# --------------------------------------------------------------------------- #
+# 6. Every declared translator, one generic check (reparation-globale, L2)
+# --------------------------------------------------------------------------- #
+
+RDV_HUB = {
+    "agenda": "personne@example.org", "titre": "Visite", "description": "Passer par le portail",
+    "lieu": "12 rue des Lilas", "debut": "2030-07-08T09:00:00+02:00", "fin": "2030-07-08T10:00:00+02:00",
+    "fuseau": "Europe/Paris",
+}
+
+
+def _instant(texte: str) -> datetime:
+    return datetime.fromisoformat(str(texte).replace("Z", "+00:00"))
+
+
+def verifier_traducteur(t: Traducteur) -> list[str]:
+    """What a translator of ``rendez_vous`` must keep, whatever the software: hub -> software -> hub
+    loses neither the instants (offset kept, time zone honoured), nor the text; a field the hub does
+    not know never reaches the software; an empty value is not sent. Returns the faults found."""
+    fautes: list[str] = []
+    o = t.objet("rendez_vous")
+    if o is None or "creer" not in o.operations or "lire" not in o.operations:
+        return [f"{t.systeme}: cannot create and read a rendez_vous"]
+    creer, lire = o.operations["creer"], o.operations["lire"]
+    for debut, fin in (("2030-07-08T09:00:00+02:00", "2030-07-08T10:00:00+02:00"),
+                       ("2030-01-07T09:00:00+01:00", "2030-01-07T10:00:00+01:00"),
+                       ("2030-01-07T09:00:00-05:00", "2030-01-07T10:30:00-05:00")):
+        valeurs = {**RDV_HUB, "debut": debut, "fin": fin}
+        requete = creer.preparer({**valeurs, "couleur": "rouge-tomate"}, o)
+        if "rouge-tomate" in json.dumps(requete.json):
+            fautes.append(f"{t.systeme}: an unknown field reached the software")
+        retour = lire.lire({**requete.json, "id": "evt-1"}, {"agenda": valeurs["agenda"]}, o)
+        for cle in ("debut", "fin"):
+            if cle not in retour or _instant(retour[cle]) != _instant(valeurs[cle]):
+                fautes.append(f"{t.systeme}: {cle} {valeurs[cle]} came back as {retour.get(cle)}")
+        for cle in ("titre", "lieu", "description"):
+            if retour.get(cle) != valeurs[cle]:
+                fautes.append(f"{t.systeme}: {cle} came back as {retour.get(cle)!r}")
+        if retour.get("id_externe") != "evt-1":
+            fautes.append(f"{t.systeme}: the software's identifier was lost")
+    vide = creer.preparer({**RDV_HUB, "description": "", "lieu": None, "titre": ""}, o)
+    corps = json.dumps(vide.json)
+    if "Passer par le portail" in corps or "12 rue des Lilas" in corps or '""' in corps or "null" in corps:
+        fautes.append(f"{t.systeme}: an empty value was sent")
+    return fautes
+
+
+@pytest.mark.parametrize("systeme", sorted(t.systeme for t in traducteurs()))
+def test_chaque_traducteur_declare_garde_dates_fuseau_et_champs_vides(systeme):
+    t = traducteur(systeme)
+    assert t.domaine != "agenda" or verifier_traducteur(t) == []
+
+
+def test_le_controle_generique_attrape_un_traducteur_fautif():
+    """R7: the check is proved on a known red case (it sends an empty value and drops the offset)."""
+    fautif = Traducteur("essai_fautif", "Fautif", "x", "agenda", (ObjetTraduit(
+        "rendez_vous",
+        (Champ("id_externe", "id"), Champ("titre", "t", vers=lambda v: v or "?"),
+         Champ("description", "d"), Champ("lieu", "l", vers=lambda v: v or ""),
+         Champ("debut", "s", vers=lambda v: v[:19], depuis=lambda v: v),
+         Champ("fin", "e", vers=lambda v: v[:19], depuis=lambda v: v)),
+        {"creer": Operation(lambda a, o: Requete("POST", "/e", json=o.vers_logiciel(a)),
+                            lambda r, a, o: o.depuis_logiciel(r)),
+         "lire": Operation(lambda a, o: Requete("GET", "/e"), lambda r, a, o: o.depuis_logiciel(r))},
+    ),))
+    fautes = verifier_traducteur(fautif)
+    assert any("came back as" in f for f in fautes) or any("empty" in f for f in fautes)
+    assert fautes
+
+
 # Fixtures of the client database's and the after-call's tests.
 from api.tests.mark.test_apres_appel import base_v4, modele, smtp  # noqa: E402, F401
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: E402, F401
