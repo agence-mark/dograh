@@ -706,7 +706,7 @@ class PostScriptumProcessor(FrameProcessor):
         permis) et les garde à part ; le reste passe tel quel. Morceau par
         morceau : une ligne coupée en plusieurs morceaux est recollée."""
         sortie: list[str] = []
-        for caractere in texte:
+        for rang, caractere in enumerate(texte):
             if self._dans_la_porte:
                 if caractere == "\n":
                     rendu = self._clore_la_ligne(complete=True)
@@ -732,7 +732,14 @@ class PostScriptumProcessor(FrameProcessor):
                     sortie.append(self._blancs + caractere)
                     self._blancs = ""
                     self._ligne_au_debut = caractere == "\n"
-            elif caractere == FLECHE and not self._dans_la_note and not self._apres:
+            elif (
+                caractere == FLECHE
+                and not self._dans_la_note
+                and not self._apres
+                # Revue du 11/10 (point 5) : le séparateur ou la note arrivés plus tôt dans ce
+                # même morceau ne sont pas encore vus par `_apres` ; la flèche est alors dans la note.
+                and not any(c in "|{`" for c in texte[:rang])
+            ):
                 # Q4 (lot 3 du chantier postscriptum-et-communes, run 1089) : la porte écrite
                 # en fin de phrase (« … sont enregistrés. → panne_decrite ») partait à la voix.
                 # Dans la phrase seulement : une flèche dans la note (une valeur JSON) n'est

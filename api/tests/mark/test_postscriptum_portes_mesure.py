@@ -155,3 +155,13 @@ async def test_une_prose_qui_part_faute_de_relance_ne_dit_jamais_de_json():
     montage.moteur.relances = 1  # la garde de C3 est déjà prise à ce tour
     ordre = await montage.reponse('Je note : {"nom": "Dupont"}')
     assert "{" not in ordre.dit and "Dupont\"" not in ordre.dit, ordre.dit
+
+
+@pytest.mark.asyncio
+async def test_une_fleche_dans_la_note_du_meme_morceau_n_est_jamais_une_porte():
+    """Revue du 11/10 (point 5) : séparateur et note dans le même morceau que la flèche."""
+    montage = _montage_qui_relance()
+    ordre = await montage.reponse('Quelle plaque ?|||{"autre": "a → vers_panne"}')
+    assert ordre.dit.strip() == "Quelle plaque ?"
+    assert montage.moteur.prises == []
+    assert montage.traces[-1]["champs"] == ["autre"]
