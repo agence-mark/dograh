@@ -154,6 +154,8 @@ describe("[.mark] the agent page in themes", () => {
         // Plan postscriptum-note-d-abord: Postscript only, like the transitions in the reply.
         "ordre_de_la_reponse",
         "indices_des_modules",
+        // Chantier postscriptum-et-communes, B5: Postscript, « note, reply » order only.
+        "phrase_sans_redemande",
     ];
     // Chantier l-agent-collegue, L7: the names of « Field recognition » are read only when « Check
     // the data » is on, and drawn only then (E8, the same rule as the code).
@@ -535,6 +537,41 @@ describe("[.mark] the save button follows the reply order and the module hints",
         ouvrirLeTheme("donnees");
         await waitFor(() => expect(document.getElementById("ordre_de_la_reponse")).not.toBeNull());
         fireEvent.change(document.getElementById("ordre_de_la_reponse") as HTMLElement, { target: { value: "porte_note_phrase" } });
+        await waitFor(async () => expect((await bouton()).disabled).toBe(false));
+    });
+});
+
+// [.mark] Chantier postscriptum-et-communes, B5: « No repeated question » lives in the Data theme,
+// only in Postscript with the « Transition, note, reply » order, off by default.
+describe("[.mark] the no-repeated-question switch", () => {
+    const BASE = {
+        fiche_au_fil_de_leau: true,
+        fiche_champs: [{ nom: "nom", type: "string", origine: "dicte", description: "Nom", lecteur: null, valeurs: null }],
+        fiche_mode_de_note: "post_scriptum",
+    };
+    const bouton = async () => (await screen.findByRole("button", { name: "Save Call data" })) as HTMLButtonElement;
+    const interrupteur = () => document.getElementById("phrase_sans_redemande");
+
+    it("is drawn in the Data theme with the note-first order, off", async () => {
+        await ouvrir({ ...BASE, ordre_de_la_reponse: "porte_note_phrase" }, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(interrupteur()).not.toBeNull());
+        expect(interrupteur()?.getAttribute("aria-checked")).toBe("false");
+        expect((await bouton()).disabled).toBe(true);
+    });
+
+    it("is not drawn with the order of before", async () => {
+        await ouvrir(BASE, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(document.getElementById("indices_des_modules")).not.toBeNull());
+        expect(interrupteur()).toBeNull();
+    });
+
+    it("turns the save button on when flipped", async () => {
+        await ouvrir({ ...BASE, ordre_de_la_reponse: "porte_note_phrase" }, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(interrupteur()).not.toBeNull());
+        fireEvent.click(interrupteur() as HTMLElement);
         await waitFor(async () => expect((await bouton()).disabled).toBe(false));
     });
 });

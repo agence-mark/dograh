@@ -198,6 +198,13 @@ export const ThemeDonnees = ({
     const [etiquettes, setEtiquettes] = useState(etiquettesEnregistrees);
     useEffect(() => setEtiquettes(etiquettesEnregistrees), [etiquettesEnregistrees]);
     const etiquettesModifiees = etiquettes !== etiquettesEnregistrees;
+    // Chantier postscriptum-et-communes, B5: a sentence that asks again for a field the turn's
+    // note just wrote is held back. Only in « Transition, note, reply » order, like the server.
+    const redemandeEnregistree = resolue.phrase_sans_redemande ?? false;
+    const [redemande, setRedemande] = useState(redemandeEnregistree);
+    useEffect(() => setRedemande(redemandeEnregistree), [redemandeEnregistree]);
+    const redemandeEnvoyee = modeDeNote === "post_scriptum" && ordre === "porte_note_phrase" && redemande;
+    const redemandeModifiee = redemandeEnvoyee !== redemandeEnregistree;
     // As the call record card did (24/09): follow the record the server stored,
     // keyed on its CONTENT so another theme's save does not wipe an edit here.
     const ficheEnregistree = JSON.stringify([ficheActiveEnregistree, modeEnregistre, champsEnregistres]);
@@ -341,7 +348,8 @@ export const ThemeDonnees = ({
         || apresAppelModifie
         || equipeConnueModifiee
         || verificationModifiee
-        || etiquettesModifiees;
+        || etiquettesModifiees
+        || redemandeModifiee;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -383,6 +391,12 @@ export const ThemeDonnees = ({
                 nom: { en: "Step field labels", fr: "Étiquettes des étapes" },
                 modifie: etiquettesModifiees,
                 config: () => ({ etiquettes_des_etapes: etiquettes }),
+            },
+            {
+                // Chantier postscriptum-et-communes, B5: its own part, sent only when changed (E6).
+                nom: { en: "No repeated question", fr: "Pas de question redemandée" },
+                modifie: redemandeModifiee,
+                config: () => ({ phrase_sans_redemande: redemandeEnvoyee }),
             },
             {
                 // l-agent-collegue, L1: its own part, sent only when changed (E6).
@@ -572,6 +586,24 @@ export const ThemeDonnees = ({
                         disposition="ligne"
                     >
                         <Switch id="etiquettes_des_etapes" checked={etiquettes} onCheckedChange={setEtiquettes} />
+                    </ChampReglage>
+                )}
+                {/* Chantier postscriptum-et-communes, B5: « Transition, note, reply » order only. */}
+                {ficheActive && modeDeNote === "post_scriptum" && ordre === "porte_note_phrase" && (
+                    <ChampReglage
+                        cle="phrase_sans_redemande"
+                        idControle="phrase_sans_redemande"
+                        libelle={{ en: "No repeated question", fr: "Pas de question redemandée" }}
+                        aides={[
+                            {
+                                en: "When the note of a turn has written a record field and the reply asks for that same field again, the reply is not spoken and the model answers once more. The reply then waits for its end before it is spoken. When unsure, it is spoken.",
+                                fr: "Quand la note d'un tour a écrit un champ de la fiche et que la phrase en redemande le même, la phrase n'est pas dite et le modèle répond une seconde fois. La phrase attend alors sa fin avant d'être dite. Dans le doute, elle est dite.",
+                            },
+                        ]}
+                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                        disposition="ligne"
+                    >
+                        <Switch id="phrase_sans_redemande" checked={redemande} onCheckedChange={setRedemande} />
                     </ChampReglage>
                 )}
                 {ficheActive && modeDeNote === "post_scriptum" && portes && etapesSansPremiereReplique.length > 0 && (

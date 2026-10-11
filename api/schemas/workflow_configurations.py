@@ -906,6 +906,17 @@ class WorkflowConfigurationDefaults(BaseModel):
             "the steps' field lists are kept but nothing is shown to the model."
         ),
     )
+    # [.mark] Chantier postscriptum-et-communes, B5 : un filet contre la question redemandée.
+    phrase_sans_redemande: bool = Field(
+        default=False,
+        description=(
+            "Postscript, 'note, sentence' order only. When the note of a turn has written a "
+            "record field and the sentence asks for that same field again, the sentence is "
+            "not spoken and the model answers once more. The sentence then waits for its end "
+            "before it is spoken. When unsure, the sentence is spoken. Off (default): "
+            "nothing changes."
+        ),
+    )
     indices_des_modules: bool | None = Field(
         default=None,
         description=(

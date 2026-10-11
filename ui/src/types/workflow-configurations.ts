@@ -332,6 +332,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     indices_des_modules?: boolean | null;
     // [.mark] Lot E d'agent-leger-greffier (P1): the steps' field labels, every mode.
     etiquettes_des_etapes?: boolean;
+    // [.mark] Chantier postscriptum-et-communes, B5: Postscript, « note, reply » order only.
+    phrase_sans_redemande?: boolean;
     // [.mark] Chantier langwatch-et-fenetre-du-run, lot 4 (Pipecat ticket 5960):
     // the model's reply after a tool is kept when the result beats the end of the
     // caller's turn. Absent means off, Pipecat's behaviour.

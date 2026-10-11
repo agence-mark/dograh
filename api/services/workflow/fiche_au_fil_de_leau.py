@@ -178,6 +178,9 @@ ORDRES_JOUABLES = (ORDRE_PHRASE_PUIS_NOTE, ORDRE_NOTE_PUIS_PHRASE)
 CLE_INDICES_DES_MODULES = "indices_des_modules"
 # Lot E d'agent-leger-greffier (P1).
 CLE_ETIQUETTES = "etiquettes_des_etapes"
+# Chantier postscriptum-et-communes, B5 : la phrase qui redemande ce que la note du même tour
+# vient d'écrire n'est pas dite (« porte, note, phrase » seulement). Option par agent, éteinte.
+CLE_PHRASE_SANS_REDEMANDE = "phrase_sans_redemande"
 SOUFFLE_MAX = 2
 
 
@@ -214,6 +217,9 @@ class ReglagesFiche:
     motifs_des_types: dict = field(default_factory=dict)
     # Lot E d'agent-leger-greffier (P1) : les étiquettes des étapes, tous modes.
     etiquettes: bool = False
+    # B5 : en « porte, note, phrase », la phrase qui redemande un champ que la note du tour
+    # vient d'écrire est retenue, et le modèle reparle (une fois). Éteint : rien ne change.
+    phrase_sans_redemande: bool = False
 
     @property
     def note_d_abord(self) -> bool:
@@ -272,6 +278,11 @@ class ReglagesFiche:
             mode=mode,
             motifs_des_types=_motifs_des_types(run_configs),
             etiquettes=bool(run_configs.get(CLE_ETIQUETTES)),
+            phrase_sans_redemande=(
+                run_configs.get(CLE_PHRASE_SANS_REDEMANDE) is True
+                and mode == MODE_POST_SCRIPTUM
+                and ordre == ORDRE_NOTE_PUIS_PHRASE
+            ),
             portes_dans_la_reponse=_portes_dans_la_reponse(run_configs, mode),
             ordre=ordre,
             noms_du_lexique=frozenset(
@@ -333,6 +344,9 @@ def estampiller_le_mode(
         if reglages.mode == MODE_POST_SCRIPTUM:
             runtime_configuration[CLE_ORDRE_DE_LA_REPONSE] = reglages.ordre
             runtime_configuration[CLE_INDICES_DES_MODULES] = reglages.indices_des_modules
+        # B5 : écrit seulement joué, comme la porte dans la réponse.
+        if reglages.phrase_sans_redemande:
+            runtime_configuration[CLE_PHRASE_SANS_REDEMANDE] = True
     return runtime_configuration
 
 

@@ -53,6 +53,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     paroles_de_l_appelant,
 )
 from api.services.workflow.porte_parlee import FLECHE
+from api.services.workflow.redemande_du_champ import champ_redemande
 from api.services.workflow.workflow_graph import transition_tool_name
 from pipecat.frames.frames import (
     CancelFrame,
@@ -83,6 +84,8 @@ _GUILLEMET_OUVRANT = re.compile(r"^[\s  ]*«[\s  ]*")
 # Plan postscriptum-note-d-abord (C8) : en note d'abord, la phrase attend que la note
 # soit écrite dans la fiche (le filtre du nom la lit), au plus ce délai : jamais plus.
 DELAI_NOTE_AVANT_LA_VOIX = 0.3
+# B5 : la phrase retenue attend la fin de la note du tour, au plus ce délai, avant d'être dite.
+DELAI_NOTE_POUR_LA_REDEMANDE = 2.0
 # Plan porte-parlee (D9) : case allumée, « || » vaut séparateur à la lecture.
 _SEPARATEUR_TOLERE = re.compile(r"\|{2,}")
 # Ce qui entoure parfois le nom écrit après « → » (guillemets, mise en forme).
@@ -205,6 +208,9 @@ class PostScriptumProcessor(FrameProcessor):
         # B6 : la réponse commence par « je note » ; décidé une fois le début assez long.
         self._prose_decidee = False
         self._prose = False
+        # B5 : la phrase retenue jusqu'à sa fin (``None`` : rien n'est retenu, comme avant).
+        self._tampon: list[tuple[LLMTextFrame, str]] | None = None
+        self._tache_note: asyncio.Task | None = None
 
     # --- Vers la voix ----------------------------------------------------------
 
@@ -236,6 +242,10 @@ class PostScriptumProcessor(FrameProcessor):
         self._en_debut_de_ligne = texte.endswith("\n")
         porteuse = frame or LLMTextFrame(texte)
         porteuse.text = texte
+        if self._tampon is not None:
+            # B5 : la phrase attend sa fin (la note du tour a écrit un champ).
+            self._tampon.append((porteuse, texte))
+            return
         self._a_dit = True
         await self.push_frame(porteuse, direction)
 
@@ -310,6 +320,7 @@ class PostScriptumProcessor(FrameProcessor):
                     and attendu
                     and self._reglages.note_d_abord
                     and not trace.get("relance_prose")
+                    and not trace.get("relance_redemande")
                 ):
                     # C3 : ni phrase ni porte (une note seule) : le modèle reparle, une fois.
                     # Formulaire du lot 4 (Evan, 08/10) : en « porte, note, phrase » seulement.
@@ -498,6 +509,11 @@ class PostScriptumProcessor(FrameProcessor):
             _, en_retard = await asyncio.wait({tache}, timeout=DELAI_NOTE_AVANT_LA_VOIX)
             if en_retard:
                 logger.warning("[fiche] note d'abord lente : la phrase part sans l'attendre")
+            if self._reglages.phrase_sans_redemande and (
+                en_retard or _champs_ecrits(tache)
+            ):
+                # B5 : la note du tour a écrit un champ (ou le fera) : la phrase attend sa fin.
+                self._tampon, self._tache_note = [], tache
         if tete[apres:]:
             frame.text = tete[apres:]
             await self._phrase(frame, direction)
@@ -507,6 +523,43 @@ class PostScriptumProcessor(FrameProcessor):
         self._notes_en_cours.add(tache)
         tache.add_done_callback(self._notes_en_cours.discard)
         return tache
+
+    async def _lacher_la_phrase(self, direction: FrameDirection) -> str | None:
+        """B5 : la phrase retenue part à la voix, sauf si elle pose la question d'un champ
+        que la note du tour vient d'écrire : alors elle n'est pas dite et le modèle
+        reparle (une fois par tour, par le moteur). Rend ce champ, ou ``None``."""
+        tampon, self._tampon = self._tampon, None
+        if not tampon:
+            return None
+        champ = await self._redemande_de(tampon)
+        if champ:
+            if self._portes is not None and self._portes_lues:
+                # Une porte est prise à la fin de la réponse : elle fait reparler le modèle.
+                return champ
+            relancer = getattr(self._moteur, "relancer_une_reponse_muette", None)
+            if relancer is not None and await relancer():
+                logger.info(f"[fiche] post-scriptum : « {champ} » redemandé, le modèle reparle")
+                return champ
+        for porteuse, texte in tampon:
+            porteuse.text = texte
+            self._a_dit = True
+            await self.push_frame(porteuse, direction)
+        return None
+
+    async def _redemande_de(self, tampon: list[tuple[LLMTextFrame, str]]) -> str | None:
+        """Le champ, écrit par la note de ce tour, dont la phrase retenue pose la question."""
+        tache = self._tache_note
+        if tache is None:
+            return None
+        if not tache.done():
+            await asyncio.wait({tache}, timeout=DELAI_NOTE_POUR_LA_REDEMANDE)
+            if not tache.done():
+                return None
+        return champ_redemande(
+            "".join(texte for _, texte in tampon),
+            _champs_ecrits(tache),
+            {champ.nom: champ.description for champ in self._reglages.champs},
+        )
 
     async def _finir_note_d_abord(self, direction: FrameDirection) -> dict | None:
         """S1, fin de la réponse : le reste de la phrase à la voix ; la note est
@@ -533,6 +586,9 @@ class PostScriptumProcessor(FrameProcessor):
             if apres:
                 detail["note_apres_la_phrase"] = True
                 self._noter_en_tache(apres, self._lus)
+        redemande = await self._lacher_la_phrase(direction)
+        if redemande:
+            detail["relance_redemande"] = redemande
         if not self._vu_du_texte:
             self._oublier()
             return None
@@ -753,14 +809,14 @@ class PostScriptumProcessor(FrameProcessor):
         )
         return True
 
-    async def _noter(self, champs: dict | None, lus: list[dict]) -> None:
+    async def _noter(self, champs: dict | None, lus: list[dict]):
         """La note, par les mêmes contrôles que l'outil ; ses notices au tour suivant (D4).
         ``champs`` à ``None`` : la réponse n'a rien noté, ses notices s'effacent."""
         async with self._une_note_a_la_fois:
             if champs is None:
                 if self._notices is not None:
                     self._notices.retenir(None)
-                return
+                return None
             try:
                 note = await noter(
                     self._fiche,
@@ -775,6 +831,17 @@ class PostScriptumProcessor(FrameProcessor):
                 note = None
             if self._notices is not None:
                 self._notices.retenir(note)
+            return note
+
+
+def _champs_ecrits(tache: asyncio.Task) -> list[str]:
+    """Les champs qu'une note terminée a écrits dans la fiche (B5) ; rien si elle n'est
+    pas finie ou a échoué."""
+    try:
+        note = tache.result() if tache.done() and not tache.cancelled() else None
+    except Exception:  # noqa: BLE001 -- une note en échec n'a rien écrit
+        return []
+    return list(getattr(note, "ecrits", None) or [])
 
 
 def _fin_de_l_objet(texte: str) -> int | None:

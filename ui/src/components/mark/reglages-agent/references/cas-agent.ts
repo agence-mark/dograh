@@ -185,6 +185,12 @@ export const CAS_AGENT: CasAgent[] = [
     ]),
     // Lot E d'agent-leger-greffier (P1): the steps' field labels, frozen once.
     c("etiquettes-des-etapes", "ajout-mark", "donnees", ["etiquettes_des_etapes"], [inter("etiquettes_des_etapes")]),
+    // Chantier postscriptum-et-communes, B5: only shown in Postscript, « Transition, note, reply ».
+    c("phrase-sans-redemande", "ajout-mark", "donnees", ["fiche_mode_de_note", "ordre_de_la_reponse", "phrase_sans_redemande"], [
+        choisir("fiche_mode_de_note", "post_scriptum"),
+        choisir("ordre_de_la_reponse", "porte_note_phrase"),
+        inter("phrase_sans_redemande"),
+    ]),
     // Chantier l-agent-travaille, L4 (A6): the after-call of the agent, frozen once.
     c("apres-appel", "ajout-mark", "donnees", ["apres_appel"], [inter("apres_appel_actif")]),
     // Chantier l-agent-collegue, L1 (C5): the team known to the agent, frozen once.
