@@ -90,6 +90,8 @@ DELAI_NOTE_POUR_LA_REDEMANDE = 2.0
 _SEPARATEUR_TOLERE = re.compile(r"\|{2,}")
 # Ce qui entoure parfois le nom écrit après « → » (guillemets, mise en forme).
 _AUTOUR_DU_NOM = " \t\r«»\"'`*:.,;"
+# Q4 : ce qu'une flèche au milieu de la phrase doit précéder pour être une porte : un nom seul.
+_NOM_SEUL = re.compile(r"[A-Za-z0-9_]+")
 
 
 # B6 (run 1051) : le modèle écrit parfois sa note en prose, sans séparateur, et elle
@@ -196,6 +198,9 @@ class PostScriptumProcessor(FrameProcessor):
         self._ligne_au_debut = True  # le flux est en début de ligne
         self._blancs = ""  # les blancs d'un début de ligne, en attente
         self._dans_la_porte = False  # une ligne « → » est en cours de lecture
+        # Q4 : la ligne en cours a commencé par une flèche AU MILIEU de la phrase ; elle n'est
+        # une porte que si elle se réduit à un nom de porte, sinon elle part à la voix.
+        self._porte_en_fin_de_phrase = False
         self._porte_brute = ""
         self._portes_lues: list[str] = []  # les lignes « → » complètes
         self._transition_dite = False
@@ -308,7 +313,10 @@ class PostScriptumProcessor(FrameProcessor):
                 await self._finir(direction)
             else:
                 # D6 : la porte est prise à la fin de la réponse, après la phrase et la note.
-                self._clore_la_ligne(complete=True)
+                reste = self._clore_la_ligne(complete=True)
+                if reste:
+                    # Q4 : une flèche au milieu de la phrase qui n'était pas une porte se dit.
+                    self._attente += reste.rstrip("\n")
                 portes = (list(self._portes_lues), self._transition_dite, self._reponse)
                 attendu = self._attendu()
                 trace = await self._finir(direction)
@@ -687,8 +695,17 @@ class PostScriptumProcessor(FrameProcessor):
         for caractere in texte:
             if self._dans_la_porte:
                 if caractere == "\n":
-                    self._clore_la_ligne(complete=True)
+                    rendu = self._clore_la_ligne(complete=True)
+                    if rendu:
+                        sortie.append(rendu)
                     self._ligne_au_debut = True
+                elif self._porte_en_fin_de_phrase and caractere in "|{`":
+                    # Q4 : le séparateur ou la note arrivent sur la même ligne : la ligne
+                    # « → » s'arrête là, et ce caractère suit son chemin habituel.
+                    rendu = self._clore_la_ligne(complete=True)
+                    if rendu:
+                        sortie.append(rendu.rstrip("\n"))
+                    sortie.append(caractere)
                 else:
                     self._porte_brute += caractere
             elif self._ligne_au_debut:
@@ -701,22 +718,44 @@ class PostScriptumProcessor(FrameProcessor):
                     sortie.append(self._blancs + caractere)
                     self._blancs = ""
                     self._ligne_au_debut = caractere == "\n"
+            elif caractere == FLECHE and not self._dans_la_note and not self._apres:
+                # Q4 (lot 3 du chantier postscriptum-et-communes, run 1089) : la porte écrite
+                # en fin de phrase (« … sont enregistrés. → panne_decrite ») partait à la voix.
+                # Dans la phrase seulement : une flèche dans la note (une valeur JSON) n'est
+                # jamais lue comme une porte ; et seulement si la suite de la ligne est exactement
+                # un nom de porte (« Du salon → à la cuisine ? » reste dit, revue du 05/10).
+                self._dans_la_porte, self._porte_brute, self._blancs = True, "", ""
+                self._porte_en_fin_de_phrase = True
             else:
                 sortie.append(caractere)
                 self._ligne_au_debut = caractere == "\n"
         return "".join(sortie)
 
-    def _clore_la_ligne(self, *, complete: bool) -> None:
-        """Une ligne « → » en cours est finie (``complete``) ou coupée en route."""
+    def _clore_la_ligne(self, *, complete: bool) -> str:
+        """Une ligne « → » en cours est finie (``complete``) ou coupée en route.
+
+        Rend le texte à rendre à la voix : une flèche au milieu de la phrase suivie d'autre
+        chose qu'un nom de porte (Q4) ; ``""`` sinon. En fin de réponse, ce texte rejoint
+        ce qui reste à dire."""
         if not self._dans_la_porte:
-            return
+            return ""
         self._dans_la_porte = False
+        en_fin_de_phrase, self._porte_en_fin_de_phrase = self._porte_en_fin_de_phrase, False
+        if en_fin_de_phrase and not _NOM_SEUL.fullmatch(
+            self._porte_brute.strip(_AUTOUR_DU_NOM)
+        ):
+            rendu, self._porte_brute = FLECHE + self._porte_brute, ""
+            if complete:
+                return rendu + "\n"
+            self._attente += rendu
+            return ""
         if complete:
             self._portes_lues.append(_nom_de_porte(self._porte_brute))
         else:
             logger.warning("[porte] ligne « → » coupée en route : jamais prise")
             self._portes_lues.append(None)
         self._porte_brute = ""
+        return ""
 
     async def _annoncer_la_transition(self, direction: FrameDirection) -> None:
         """D16 : la phrase de transition écrite de la porte part avant la phrase du
@@ -777,6 +816,13 @@ class PostScriptumProcessor(FrameProcessor):
 
         async def prendre() -> None:
             detail = await self._prendre_la_porte(*portes, relancer=relancer)
+            if relancer and detail.get("porte_etat") in ("inconnue", "sans_nom"):
+                # Q3 (lot 3 du chantier postscriptum-et-communes, run 1089) : une porte qui
+                # n'existe pas et aucune phrase : un silence, que C3 ne relançait pas
+                # (une porte était écrite). Le modèle reparle, une fois (garde de C3).
+                relancer_muet = getattr(self._moteur, "relancer_une_reponse_muette", None)
+                if relancer_muet is not None and await relancer_muet():
+                    detail["relance_muette"] = True
             self._completer_la_trace(trace, detail)
 
         tache = asyncio.get_running_loop().create_task(prendre())

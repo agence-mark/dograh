@@ -1,7 +1,7 @@
 """[.mark] La consigne des portes et les portes retirées des fonctions (plan porte-parlee, lot 3).
 
 Plan `Labo-agent-vocal/plans/porte-parlee/`, D4, D5, D11 : case allumée, les portes ne sont plus
-offertes comme fonctions ; le code les liste après la consigne du post-scriptum (``nom → étape :
+offertes comme fonctions ; le code les liste après la consigne du post-scriptum (``nom (vers l'étape X) :
 condition``), puis une fois les premières répliques de toutes les étapes où mène une porte.
 
 Joué par le vrai ``_prepare_node`` du moteur (ce qui part au modèle : prompt système et outils).
@@ -146,7 +146,7 @@ async def test_case_allumee_le_bloc_suit_la_consigne_du_post_scriptum():
 @pytest.mark.asyncio
 async def test_le_bloc_porte_les_portes_de_l_etape_et_les_premieres_repliques():
     prompt, _ = await _requete("etape", MODE_POST_SCRIPTUM, True)
-    assert "- vers_fin → étape End : Quand c'est fini." in prompt
+    assert "- vers_fin (vers l'étape End) : Quand c'est fini." in prompt
     # Seulement les portes de l'étape en cours.
     assert "- vers_etape →" not in prompt
     assert PHRASE_D11 in prompt
@@ -172,8 +172,8 @@ async def test_d21_seules_les_premieres_repliques_des_etapes_d_arrivee():
 @pytest.mark.asyncio
 async def test_l_accueil_a_le_bloc_et_aucune_fonction_de_porte():
     prompt, noms = await _requete("start", MODE_POST_SCRIPTUM, True)
-    assert "- vers_etape → étape Etape : Quand il faut." in prompt
-    assert "- fin → étape End : Quand c'est fini." in prompt
+    assert "- vers_etape (vers l'étape Etape) : Quand il faut." in prompt
+    assert "- fin (vers l'étape End) : Quand c'est fini." in prompt
     assert not {"vers_etape", "fin"} & set(noms)
 
 
@@ -205,7 +205,7 @@ def test_hors_du_graphe_le_bloc_est_fixe():
     graphe = _graphe()
     bloc = consigne_des_portes(graphe.nodes["etape"], graphe, lambda texte: texte)
     assert bloc == CONSIGNE_DES_PORTES.format(
-        portes="- vers_fin → étape End : Quand c'est fini.",
+        portes="- vers_fin (vers l'étape End) : Quand c'est fini.",
         premieres=f"- End : {SANS_PREMIERE_REPLIQUE}",
     )
     assert consigne_des_portes(graphe.nodes["end"], graphe, str) is None
@@ -225,7 +225,7 @@ def test_une_etape_d_arrivee_n_apparait_qu_une_fois_meme_atteinte_par_deux_porte
     )
     graphe = _graphe(definition)
     bloc = consigne_des_portes(graphe.nodes["etape"], graphe, lambda texte: texte)
-    assert "- vers_fin_bis → étape End : Quand elle raccroche." in bloc
+    assert "- vers_fin_bis (vers l'étape End) : Quand elle raccroche." in bloc
     assert bloc.count("- End :") == 1
 
 
