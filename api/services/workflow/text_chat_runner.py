@@ -518,6 +518,19 @@ async def _wait_for_quiescence(
     )
 
 
+def _derniere_replique_agent(context) -> str | None:
+    """[.mark] Lot 1 (11/10) : la dernière réplique de l'agent dans le contexte, ou None."""
+    try:
+        for message in reversed(list(context.messages)):
+            if isinstance(message, dict) and message.get("role") == "assistant":
+                contenu = message.get("content")
+                if isinstance(contenu, str) and contenu.strip():
+                    return contenu
+    except Exception:  # noqa: BLE001 -- la lecture continue sans la question
+        return None
+    return None
+
+
 async def execute_text_chat_pending_turn(
     *,
     workflow_run_id: int,
@@ -963,6 +976,8 @@ async def execute_text_chat_pending_turn(
                 engine.active_agent.current_node,
                 consigner_dans(lambda: engine._gathered_context),
                 lexique=lexique_metier,
+                # [.mark] Lot 1 (11/10) : la dernière réplique de l'agent, comme au téléphone.
+                question_avant=_derniere_replique_agent(context),
             )
             context.add_message({"role": "user", "content": message_pour_le_modele})
             generation_marker = capture_processor.activity_count
