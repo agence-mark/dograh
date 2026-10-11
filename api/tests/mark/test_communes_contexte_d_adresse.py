@@ -242,3 +242,47 @@ async def test_fiche_eteinte_rien_ne_change():
     )
     await processeur._lire_contexte(SimpleNamespace(context=SimpleNamespace(messages=messages), speculation=False))
     assert not fiche.get("communes_ecartees")
+
+
+# --- Revue du 11/10 : « appeler » veut d'abord dire téléphoner ------------------------------
+
+
+@pytest.mark.asyncio
+async def test_je_vous_appelle_de_garde_la_commune():
+    """« Je vous appelle de Bovais » : « appelle » n'est pas un nom donné, rien n'est écarté."""
+    _, fiche = await _lire("Je vous appelle de Bovais", "Que puis-je pour vous ?")
+    assert not fiche.get("communes_ecartees"), fiche.get("communes_ecartees")
+
+
+@pytest.mark.asyncio
+async def test_d_ou_m_appelez_vous_n_est_pas_la_question_du_nom():
+    _, fiche = await _lire("Bovais", "D'où m'appelez-vous ?")
+    assert not fiche.get("communes_ecartees"), fiche.get("communes_ecartees")
+
+
+@pytest.mark.asyncio
+async def test_comment_vous_appelez_vous_est_la_question_du_nom():
+    _, fiche = await _lire("Delaunay", "Comment vous appelez-vous ?")
+    assert "Launay" not in _proposees(fiche)
+
+
+@pytest.mark.asyncio
+async def test_le_nom_note_apres_une_preposition_de_lieu_reste_une_commune():
+    """Revue du 11/10 : une personne nommée Launay qui dit « à Launay » parle d'un lieu."""
+    _, fiche = await _lire("Dupont, à Launay", "Que puis-je pour vous ?", fiche={"nom": "Launay"})
+    assert not fiche.get("communes_ecartees"), fiche.get("communes_ecartees")
+
+
+def test_le_clavier_lit_la_question_precedente_comme_le_telephone():
+    """Revue du 11/10 (R1) : même fonction des deux côtés, réplique vide comprise."""
+    from api.services.pipecat.lecture_appelant import _question_avant
+    from api.services.workflow.text_chat_runner import _derniere_replique_agent
+
+    for messages in (
+        [{"role": "assistant", "content": "Quel est votre nom ?"}],
+        [{"role": "assistant", "content": "Quel est votre nom ?"}, {"role": "user", "content": "x"},
+         {"role": "assistant", "content": ""}],
+        [{"role": "assistant", "content": None, "tool_calls": []}],
+        [],
+    ):
+        assert _derniere_replique_agent(SimpleNamespace(messages=messages)) == _question_avant(messages, len(messages))

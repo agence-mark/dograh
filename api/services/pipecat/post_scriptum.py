@@ -468,6 +468,13 @@ class PostScriptumProcessor(FrameProcessor):
             or (not self._prose_decidee and _forme_prose(self._attente) == _JE_NOTE)
         ):
             return False
+        if self._portes is not None and self._portes_lues:
+            # Revue du 11/10 : une porte est écrite dans la même réponse ; prise sans rien
+            # dire, c'est elle qui fait reparler le modèle. Relancer ici aussi le ferait
+            # parler deux fois (et une porte de fin raccrocherait après la première).
+            logger.info("[fiche] post-scriptum : prose retenue, la porte fait reparler le modèle")
+            self._attente = ""
+            return True
         relancer = getattr(self._moteur, "relancer_une_reponse_muette", None)
         if relancer is None or not await relancer():
             return False
@@ -619,7 +626,14 @@ class PostScriptumProcessor(FrameProcessor):
         if await self._relancer_la_prose():
             detail["relance_prose"] = True
         if not self._apres and self._attente.strip(" \t\n|"):
-            await self._dire(self._attente, None, direction, fin=True)
+            # Revue du 11/10 : une prose décidée a court-circuité le repérage du JSON (D7) ;
+            # si elle part (relance refusée), son JSON ne part jamais à la voix.
+            await self._dire(
+                sans_json(self._attente) if self._prose else self._attente,
+                None,
+                direction,
+                fin=True,
+            )
         if self._apres and not self._separateur:
             # D7 : du JSON sans séparateur ; la parole écrite autour part quand même.
             await self._dire(sans_json(self._note), None, direction, fin=True)
@@ -731,6 +745,21 @@ class PostScriptumProcessor(FrameProcessor):
                 self._ligne_au_debut = caractere == "\n"
         return "".join(sortie)
 
+    def _porte_de_fin_de_phrase(self, brut: str) -> bool:
+        """Q4, revue du 11/10 : la suite d'une flèche au milieu de la phrase est une porte
+        seulement si c'est un nom seul ET une porte de l'étape en cours (« lundi → mardi »
+        reste dit)."""
+        ligne = brut.strip(_AUTOUR_DU_NOM)
+        if not _NOM_SEUL.fullmatch(ligne):
+            return False
+        est_une_porte = getattr(self._portes, "est_une_porte_de_l_etape", None)
+        if est_une_porte is None:
+            return True
+        try:
+            return bool(est_une_porte(_nom_de_porte(brut)))
+        except Exception:  # noqa: BLE001 -- au doute, la phrase est dite
+            return False
+
     def _clore_la_ligne(self, *, complete: bool) -> str:
         """Une ligne « → » en cours est finie (``complete``) ou coupée en route.
 
@@ -741,9 +770,7 @@ class PostScriptumProcessor(FrameProcessor):
             return ""
         self._dans_la_porte = False
         en_fin_de_phrase, self._porte_en_fin_de_phrase = self._porte_en_fin_de_phrase, False
-        if en_fin_de_phrase and not _NOM_SEUL.fullmatch(
-            self._porte_brute.strip(_AUTOUR_DU_NOM)
-        ):
+        if en_fin_de_phrase and not self._porte_de_fin_de_phrase(self._porte_brute):
             rendu, self._porte_brute = FLECHE + self._porte_brute, ""
             if complete:
                 return rendu + "\n"

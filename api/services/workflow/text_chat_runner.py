@@ -65,7 +65,7 @@ from api.services.pipecat.etat_ouverture import (
     injecter_etat_ouverture,
     rafraichir_annonce,
 )
-from api.services.pipecat.lecture_appelant import lire_message_tape
+from api.services.pipecat.lecture_appelant import _question_avant, lire_message_tape
 from api.services.pipecat.pipeline_builder import create_pipeline_task
 from api.services.pipecat.greffier import (
     greffier_du_moteur,
@@ -519,16 +519,13 @@ async def _wait_for_quiescence(
 
 
 def _derniere_replique_agent(context) -> str | None:
-    """[.mark] Lot 1 (11/10) : la dernière réplique de l'agent dans le contexte, ou None."""
+    """[.mark] Lot 1 (11/10) : la dernière réplique de l'agent, lue EXACTEMENT comme au
+    téléphone (revue du 11/10 : même fonction, ``lecture_appelant._question_avant``)."""
     try:
-        for message in reversed(list(context.messages)):
-            if isinstance(message, dict) and message.get("role") == "assistant":
-                contenu = message.get("content")
-                if isinstance(contenu, str) and contenu.strip():
-                    return contenu
+        messages = list(context.messages)
+        return _question_avant(messages, len(messages))
     except Exception:  # noqa: BLE001 -- la lecture continue sans la question
         return None
-    return None
 
 
 async def execute_text_chat_pending_turn(

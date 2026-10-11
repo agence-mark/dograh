@@ -618,6 +618,14 @@ class PipecatEngine:
             return vers_l_etape[0]
         return None
 
+    def est_une_porte_de_l_etape(self, nom: str) -> bool:
+        """[.mark] Revue du 11/10 (Q4) : ``nom`` désigne-t-il une porte de l'étape en cours ?
+        ⛔ Ne lève jamais."""
+        try:
+            return self._porte_de_l_etape(nom) is not None
+        except Exception:  # noqa: BLE001
+            return False
+
     def phrase_de_transition_ecrite(self, nom: str) -> Optional[str]:
         """D16 : la phrase de transition ÉCRITE de la porte ``nom`` (le processeur
         la pousse avant la phrase du modèle). Un enregistrement audio : None, il

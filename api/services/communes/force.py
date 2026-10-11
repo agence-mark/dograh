@@ -80,9 +80,13 @@ def _ecrite_exactement(detection: Detection, base: BaseCommunes) -> bool:
 
 
 # [.mark] Chantier postscriptum-et-communes, lot 1 (11/10) : le nom de la personne.
-# Ce que dit une personne qui donne son nom, ou un agent qui le demande (« nom », « prénom »,
-# « comment vous appelez-vous », « je m'appelle »). ⛔ Mots de la langue, jamais d'un métier.
-_MOTS_DU_NOM = frozenset("nom noms prenom prenoms appelle appelez appelles appelons appellent".split())
+# Ce que dit une personne qui donne son nom, ou un agent qui le demande. ⛔ Mots de la langue,
+# jamais d'un métier. Revue du 11/10 : « appeler » seul veut d'abord dire téléphoner (« je vous
+# appelle de Beauvais », « d'où m'appelez-vous ? ») ; il ne vaut pour le nom que réfléchi chez la
+# personne (« je m'appelle », « il s'appelle ») ou après « comment » chez l'agent.
+_MOTS_DU_NOM = frozenset("nom noms prenom prenoms".split())
+_APPELER = frozenset("appelle appelles appelez appelons appellent".split())
+_REFLECHIS = frozenset("m s t".split())
 _CIVILITES = frozenset("monsieur madame mademoiselle m mme mlle mr".split())
 # Ce qui, juste avant les mots, en fait un lieu malgré tout : « Dupont, à Creil » garde Creil.
 # ⚠️ Pas « de », « du », « des » : ce sont aussi des particules de nom (« De Launay »).
@@ -122,14 +126,30 @@ def _meme_nom(entendu: str, noms: tuple[str, ...] | list[str]) -> bool:
     return False
 
 
+def _la_personne_donne_son_nom(mots: list[str]) -> bool:
+    """« nom », « prénom », ou « appeler » réfléchi (« je m'appelle », « elle s'appelle »)."""
+    if _MOTS_DU_NOM & set(mots):
+        return True
+    return any(a in _REFLECHIS and b in _APPELER for a, b in zip(mots, mots[1:]))
+
+
+def _l_agent_demande_le_nom(question: str | None) -> bool:
+    """« nom », « prénom », ou « comment » avec « appeler » (« comment vous appelez-vous ? »,
+    « vous vous appelez comment ? ») ; jamais « d'où m'appelez-vous ? »."""
+    mots = normaliser(question or "").split()
+    if _MOTS_DU_NOM & set(mots):
+        return True
+    return "comment" in mots and bool(_APPELER & set(mots))
+
+
 def _le_nom_est_demande_ou_donne(mots: list[str], debut: int, question_avant: str | None) -> bool:
     """La dernière question de l'agent demandait le nom, ou la personne le donne à ce tour
     (« je m'appelle », « mon nom c'est », une civilité juste avant les mots)."""
     if debut > 0 and mots[debut - 1] in _CIVILITES:
         return True
-    if _MOTS_DU_NOM & set(mots[: max(debut, 0)]):
+    if _la_personne_donne_son_nom(mots[: max(debut, 0)]):
         return True
-    return bool(question_avant and _MOTS_DU_NOM & set(normaliser(question_avant).split()))
+    return _l_agent_demande_le_nom(question_avant)
 
 
 def ecarter_le_nom(
@@ -158,7 +178,7 @@ def ecarter_le_nom(
             gardees.append(d)
             continue
         apres_une_preposition = 0 < d.debut <= len(mots) and mots[d.debut - 1] in _PREPOSITIONS_DE_LIEU
-        if _meme_nom(d.entendu, noms_connus) or (
+        if (not apres_une_preposition and _meme_nom(d.entendu, noms_connus)) or (
             d.force == SON
             and not apres_une_preposition
             and d.debut >= 0

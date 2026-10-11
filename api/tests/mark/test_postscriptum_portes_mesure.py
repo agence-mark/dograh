@@ -21,13 +21,16 @@ from types import SimpleNamespace
 import pytest
 
 from api.services.workflow.porte_parlee import consigne_des_portes
-from api.tests.mark.test_porte_parlee_processeur import _MontagePortes, _Moteur
+from api.tests.mark.test_porte_parlee_processeur import PORTES, _MontagePortes, _Moteur
 
 
 class _MoteurQuiRelance(_Moteur):
     def __init__(self):
         super().__init__()
         self.relances = 0
+
+    def est_une_porte_de_l_etape(self, nom):
+        return nom in PORTES
 
     async def relancer_une_reponse_muette(self):
         self.relances += 1
@@ -120,3 +123,35 @@ async def test_une_fleche_dans_la_note_n_est_jamais_une_porte():
     # La note est lue entière, flèche comprise (la fiche de ce banc refuse ensuite le champ).
     assert montage.traces[-1]["champs"] == ["autre"]
     assert montage.fiche["fiche_journal"][-1]["valeur"] == "garage → atelier"
+
+
+# --- Revue du 11/10 -----------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_une_fleche_suivie_d_un_mot_qui_n_est_pas_une_porte_reste_dite():
+    """« lundi → mardi. » : « mardi » n'est pas une porte de l'étape, il est dit."""
+    montage = _montage_qui_relance()
+    ordre = await montage.reponse("Plutôt lundi → mardi|||{}")
+    assert ordre.dit == "Plutôt lundi → mardi"
+    assert montage.moteur.prises == []
+
+
+@pytest.mark.asyncio
+async def test_prose_et_porte_dans_la_meme_reponse_une_seule_relance():
+    """Revue du 11/10 : B6 ne relance pas quand une porte est écrite ; la porte fait reparler."""
+    montage = _montage_qui_relance()
+    ordre = await montage.reponse("→ vers_panne\nJe note votre nom.")
+    assert ordre.dit.strip() == ""
+    assert [p["nom"] for p in montage.moteur.prises] == ["vers_panne"]
+    assert montage.moteur.prises[0]["relancer"] is True
+    assert montage.moteur.relances == 0
+
+
+@pytest.mark.asyncio
+async def test_une_prose_qui_part_faute_de_relance_ne_dit_jamais_de_json():
+    """Revue du 11/10 : relance déjà faite à ce tour, la prose part, son JSON jamais."""
+    montage = _montage_qui_relance()
+    montage.moteur.relances = 1  # la garde de C3 est déjà prise à ce tour
+    ordre = await montage.reponse('Je note : {"nom": "Dupont"}')
+    assert "{" not in ordre.dit and "Dupont\"" not in ordre.dit, ordre.dit
