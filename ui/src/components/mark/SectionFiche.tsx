@@ -70,6 +70,8 @@ export const NOMS_RESERVES = [
     "nodes_visited",
     "agent_visits",
     "communes_verifiees",
+    // Lot 1 of postscriptum-et-communes: the towns set aside because they were the name.
+    "communes_ecartees",
     // Plan mode-prise-de-notes: the trace of each postscript and each clerk pass.
     "post_scriptums",
     "greffier_passes",
