@@ -36,6 +36,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import unicodedata
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -88,6 +89,12 @@ _SEPARATEUR_TOLERE = re.compile(r"\|{2,}")
 _AUTOUR_DU_NOM = " \t\r«»\"'`*:.,;"
 
 
+# B6 (run 1051) : le modèle écrit parfois sa note en prose, sans séparateur, et elle
+# partait à la voix. « Je note » est un mot de la langue, pas d'un métier : une réponse qui
+# commence ainsi (casse, accents et ponctuation ignorés) est retenue jusqu'à savoir.
+_JE_NOTE = "je note"
+
+
 def lire_la_note(brut: str) -> dict | None:
     """La note écrite après le séparateur. ``{}`` : rien à noter (y compris rien
     du tout après le séparateur). ``None`` : illisible. Tolère les clôtures
@@ -107,6 +114,14 @@ def lire_la_note(brut: str) -> dict | None:
         except ValueError:
             return None
     return valeur if isinstance(valeur, dict) else None
+
+
+def _forme_prose(texte: str) -> str:
+    """Le début d'une réponse comparé à « je note » : sans casse, accents ni ponctuation."""
+    sans_accents = "".join(
+        c for c in unicodedata.normalize("NFKD", texte or "") if not unicodedata.combining(c)
+    )
+    return " ".join(re.findall(r"[a-z0-9]+", sans_accents.lower()))
 
 
 def sans_json(texte: str) -> str:
@@ -145,6 +160,8 @@ class PostScriptumProcessor(FrameProcessor):
         # seulement (``None`` : le processeur d'avant, à l'octet).
         self._portes = portes if reglages.portes_dans_la_reponse else None
         self._portes_en_cours: set[asyncio.Task] = set()
+        # B6 : le moteur qui relance le modèle, case des portes ou non (c'est un défaut du format).
+        self._moteur = portes
         self._reglages = reglages
         self._fiche = fiche
         self._messages = messages
@@ -185,6 +202,9 @@ class PostScriptumProcessor(FrameProcessor):
         self._note_d_abord_lue = False  # elle est lue (et envoyée à ``noter``)
         self._champs_d_abord: dict | None = None
         self._sans_separateur = False  # la note s'est fermée sans séparateur
+        # B6 : la réponse commence par « je note » ; décidé une fois le début assez long.
+        self._prose_decidee = False
+        self._prose = False
 
     # --- Vers la voix ----------------------------------------------------------
 
@@ -289,6 +309,7 @@ class PostScriptumProcessor(FrameProcessor):
                     and not self._dit
                     and attendu
                     and self._reglages.note_d_abord
+                    and not trace.get("relance_prose")
                 ):
                     # C3 : ni phrase ni porte (une note seule) : le modèle reparle, une fois.
                     # Formulaire du lot 4 (Evan, 08/10) : en « porte, note, phrase » seulement.
@@ -380,6 +401,10 @@ class PostScriptumProcessor(FrameProcessor):
             self._apres = self._separateur = True
             self._note = texte[apres:]
             return
+        if self._prose_en_cours(texte):
+            # B6 : « je note… » retenu jusqu'au séparateur (la phrase part alors) ou à la fin.
+            self._attente = texte
+            return
         json_ = _DEBUT_JSON_EN_LIGNE.search(texte)
         if json_ is None and self._en_debut_de_ligne:
             json_ = _DEBUT_JSON_EN_TETE.search(texte)
@@ -394,6 +419,42 @@ class PostScriptumProcessor(FrameProcessor):
         garde = self._a_retenir(texte)
         await self._dire(texte[: len(texte) - garde], frame, direction)
         self._attente = texte[len(texte) - garde :]
+
+    def _prose_en_cours(self, texte: str) -> bool:
+        """B6 : la réponse commence-t-elle par « je note » ? Décidé dès que le début
+        est assez long pour trancher ; avant, un début compatible est retenu."""
+        if self._prose_decidee:
+            return self._prose
+        if self._a_dit or self._note_d_abord_lue or not self._en_tete:
+            # Une phrase qui suit une note lue (note d'abord) n'est jamais une prose.
+            self._prose_decidee = True
+            return False
+        forme = _forme_prose(texte)
+        if not forme:
+            return False
+        if len(forme) <= len(_JE_NOTE):
+            return _JE_NOTE.startswith(forme)  # peut-être « je note » : on attend la suite
+        self._prose_decidee = True
+        self._prose = forme.startswith(_JE_NOTE + " ")
+        return self._prose
+
+    async def _relancer_la_prose(self) -> bool:
+        """B6 : la réponse finit sans séparateur après « je note » : elle n'est pas
+        dite et le modèle est relancé, une fois par tour (le moteur le garantit).
+        Rend ``True`` si la relance est partie ; sinon la phrase part, jamais un tour muet."""
+        if self._apres or self._separateur or self._a_dit or self._note_d_abord_lue:
+            return False
+        if not (
+            self._prose
+            or (not self._prose_decidee and _forme_prose(self._attente) == _JE_NOTE)
+        ):
+            return False
+        relancer = getattr(self._moteur, "relancer_une_reponse_muette", None)
+        if relancer is None or not await relancer():
+            return False
+        logger.info("[fiche] post-scriptum : note écrite en prose, retenue, le modèle reparle")
+        self._attente = ""
+        return True
 
     async def _lire_la_note_d_abord(
         self, frame: LLMTextFrame, direction: FrameDirection
@@ -490,6 +551,9 @@ class PostScriptumProcessor(FrameProcessor):
         ):
             return await self._finir_note_d_abord(direction)
         self._dit = False
+        detail: dict = {}
+        if await self._relancer_la_prose():
+            detail["relance_prose"] = True
         if not self._apres and self._attente.strip(" \t\n|"):
             await self._dire(self._attente, None, direction, fin=True)
         if self._apres and not self._separateur:
@@ -500,7 +564,6 @@ class PostScriptumProcessor(FrameProcessor):
             self._oublier()
             return None
         champs: dict | None = None
-        detail: dict = {}
         if self._separateur:
             champs = lire_la_note(self._note)
             if self._portes is not None and await self._rattraper_la_phrase(
@@ -519,7 +582,7 @@ class PostScriptumProcessor(FrameProcessor):
             logger.warning("[fiche] post_scriptum_illisible : rien noté à ce tour")
         elif etat == ABSENT and self._attendu():
             logger.info("[fiche] post_scriptum_absent : rien noté à ce tour")
-        if etat == ABSENT and not self._attendu():
+        if etat == ABSENT and not self._attendu() and not detail:
             # Une étape de fin n'a pas de consigne : son silence n'est pas un oubli.
             return None
         trace = self._tracer(etat, sorted(champs or {}), **detail)
