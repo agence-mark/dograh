@@ -65,7 +65,7 @@ from api.services.pipecat.etat_ouverture import (
     injecter_etat_ouverture,
     rafraichir_annonce,
 )
-from api.services.pipecat.lecture_appelant import lire_message_tape
+from api.services.pipecat.lecture_appelant import _question_avant, lire_message_tape
 from api.services.pipecat.pipeline_builder import create_pipeline_task
 from api.services.pipecat.greffier import (
     greffier_du_moteur,
@@ -518,6 +518,16 @@ async def _wait_for_quiescence(
     )
 
 
+def _derniere_replique_agent(context) -> str | None:
+    """[.mark] Lot 1 (11/10) : la dernière réplique de l'agent, lue EXACTEMENT comme au
+    téléphone (revue du 11/10 : même fonction, ``lecture_appelant._question_avant``)."""
+    try:
+        messages = list(context.messages)
+        return _question_avant(messages, len(messages))
+    except Exception:  # noqa: BLE001 -- la lecture continue sans la question
+        return None
+
+
 async def execute_text_chat_pending_turn(
     *,
     workflow_run_id: int,
@@ -963,6 +973,8 @@ async def execute_text_chat_pending_turn(
                 engine.active_agent.current_node,
                 consigner_dans(lambda: engine._gathered_context),
                 lexique=lexique_metier,
+                # [.mark] Lot 1 (11/10) : la dernière réplique de l'agent, comme au téléphone.
+                question_avant=_derniere_replique_agent(context),
             )
             context.add_message({"role": "user", "content": message_pour_le_modele})
             generation_marker = capture_processor.activity_count

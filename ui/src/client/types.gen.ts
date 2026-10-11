@@ -11254,6 +11254,12 @@ export type WorkflowConfigurationDefaults = {
      */
     etiquettes_des_etapes?: boolean;
     /**
+     * Phrase Sans Redemande
+     *
+     * Postscript, 'note, sentence' order only. When the note of a turn has written a record field and the sentence asks for that same field again, the sentence is not spoken and the model answers once more. The sentence then waits for its end before it is spoken. When unsure, the sentence is spoken. Off (default): nothing changes.
+     */
+    phrase_sans_redemande?: boolean;
+    /**
      * Indices Des Modules
      *
      * Postscript only. Our data readers (list values, trade names, towns, numbers, spellings) tell the model what they recognised in the caller's last words; nothing is written in the record. Empty: on.

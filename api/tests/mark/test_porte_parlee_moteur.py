@@ -68,7 +68,7 @@ async def test_une_porte_connue_change_d_etape_et_la_requete_suit():
     assert agent.current_node.id == "etape"
     # Le prompt de la requête d'après est celui de l'étape d'arrivée, avec ses portes.
     assert "Tu poses la question." in agent.system_prompt
-    assert "- vers_fin → étape End : Quand c'est fini." in agent.system_prompt
+    assert "- vers_fin (vers l'étape End) : Quand c'est fini." in agent.system_prompt
     assert "- vers_etape →" not in agent.system_prompt
     agent.queue_frame.assert_not_awaited()
     engine.queue_text_message.assert_not_awaited()

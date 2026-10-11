@@ -211,6 +211,8 @@ NOMS_RESERVES = frozenset(
         "agent_visits",
         # traces des modules
         "communes_verifiees",
+        # chantier postscriptum-et-communes, lot 1 : les communes lues sur le nom de la personne
+        "communes_ecartees",
         # plan mode-prise-de-notes : la trace de chaque post-scriptum et de chaque passe du greffier
         "post_scriptums",
         "greffier_passes",

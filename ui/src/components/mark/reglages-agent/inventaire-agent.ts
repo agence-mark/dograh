@@ -105,6 +105,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     ordre_de_la_reponse: { theme: "donnees", cas: ["ordre-de-la-reponse"] },
     indices_des_modules: { theme: "donnees", cas: ["indices-des-modules"] },
     etiquettes_des_etapes: { theme: "donnees", cas: ["etiquettes-des-etapes"] },
+    phrase_sans_redemande: { theme: "donnees", cas: ["phrase-sans-redemande"] },
     greffier_llm: { theme: "donnees", cas: ["greffier"] },
     greffier_consigne: { theme: "donnees", cas: ["greffier-consigne"] },
     fiche_champs: { theme: "donnees", cas: ["fiche-champ"] },

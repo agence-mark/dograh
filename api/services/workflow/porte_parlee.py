@@ -73,7 +73,7 @@ def consigne_des_portes(
     rendre: Callable[[str], str],
     note_d_abord: bool = False,
 ) -> str | None:
-    """D5 : le bloc des portes de l'étape (``nom → étape : condition``), puis une
+    """D5 : le bloc des portes de l'étape (``nom (vers l'étape X) : condition``), puis une
     fois la première réplique de chaque étape d'arrivée de CES portes, rendue avec
     les variables de l'appel comme le prompt. ``None`` : l'étape n'a pas de porte.
 
@@ -84,7 +84,11 @@ def consigne_des_portes(
     if not noeud.out_edges:
         return None
     portes = "\n".join(
-        f"- {arete.get_function_name()} → étape {graphe.nodes[arete.target].name} : "
+        # Q1 (lot 3 du chantier postscriptum-et-communes) : jamais la flèche ici. La liste
+        # écrivait « nom → étape cible » : les modèles recopiaient « → <étape> », une porte
+        # inconnue (8 runs sur 16, Qwen et Mistral Large). La flèche n'appartient qu'à la
+        # ligne de porte de la réponse.
+        f"- {arete.get_function_name()} (vers l'étape {graphe.nodes[arete.target].name}) : "
         f"{arete.condition}"
         for arete in noeud.out_edges
     )

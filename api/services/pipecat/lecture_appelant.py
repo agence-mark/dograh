@@ -65,7 +65,7 @@ from api.schemas.workflow_configurations import (
 )
 from api.services.communes.analyse import SURE as SURE_COMMUNE
 from api.services.communes.base import charger_base, obtenir_base
-from api.services.communes.force import appliquer_la_force, signe_de_lieu
+from api.services.communes.force import appliquer_la_force, ecarter_le_nom, signe_de_lieu
 from api.services.communes.mention import deja_mentionne as commune_deja_mentionnee
 from api.services.communes.mention import mentionner
 from api.services.communes.sons import precharger as precharger_sons
@@ -115,6 +115,9 @@ from pipecat.frames.frames import Frame, LLMContextFrame, StartFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 CLE_TRACE_NOMBRES = "nombres_lus"
+# Lot 1 du chantier postscriptum-et-communes (11/10) : les communes lues sur le nom de la
+# personne, écartées ; gardées à part pour que le banc les relise, jamais lues par la fiche.
+CLE_TRACE_COMMUNES_ECARTEES = "communes_ecartees"
 
 
 VARIABLES_REFERENCE_PAR_DEFAUT = decouper_variables_commune(
@@ -157,6 +160,28 @@ def champs_de_la_fiche(run_configs: dict | None) -> tuple[str, ...] | None:
 
     reglages = ReglagesFiche.depuis(run_configs)
     return None if reglages is None else tuple(c.nom for c in reglages.champs)
+
+
+def champs_de_nom_de_la_fiche(run_configs: dict | None) -> tuple[str, ...]:
+    """Lot 1 (11/10) : les champs de la fiche qui portent le nom d'une personne, vide fiche éteinte."""
+    from api.schemas.fiche_agent import est_un_champ_de_nom
+    from api.services.workflow.fiche_au_fil_de_leau import ReglagesFiche
+
+    reglages = ReglagesFiche.depuis(run_configs)
+    return () if reglages is None else tuple(c.nom for c in reglages.champs if est_un_champ_de_nom(c))
+
+
+def _noms_notes(consigner, champs_nom: tuple[str, ...]) -> tuple[str, ...]:
+    """Les noms déjà notés à la fiche de l'appel, lus par le consignateur."""
+    valeur = getattr(consigner, "valeur", None)
+    if not champs_nom or not callable(valeur):
+        return ()
+    noms = []
+    for champ in champs_nom:
+        v = valeur(champ)
+        if isinstance(v, str) and v.strip():
+            noms.append(v.strip())
+    return tuple(noms)
 
 
 def etape_vue_par_la_fiche(noeud, champs: tuple[str, ...] | None):
@@ -333,8 +358,15 @@ def _lire(
     question_avant: str | None = None,
     avant_dans_le_tour: str = "",
     telephones: bool = False,
+    noms_connus: tuple[str, ...] = (),
+    ecartees: list | None = None,
 ):
     """Blocking: runs in a worker thread. Returns (text for the model, records...).
+
+    Lot 1 du chantier postscriptum-et-communes (11/10) : fiche allumée, une commune lue
+    sans signe de lieu dont les mots sont le nom de la personne (``noms_connus`` : le nom
+    noté à la fiche ; ou le nom demandé, ou donné à ce tour) sort des détections ; elle
+    est ajoutée à ``ecartees`` pour sa trace, jamais proposée ni mise à confirmer.
 
     Chantier correctifs-modules, lot 3 (fiche allumée, ``forces``) : chaque commune
     reçoit sa force (D4, ``communes.force``) d'après le tour entier
@@ -393,6 +425,13 @@ def _lire(
                 codes_dits | lecteur._codes_retenus(trace_nombres),
             ),
         )
+        gardees, sans_lieu_nom = ecarter_le_nom(
+            lecture.detections, texte, question_avant, noms_connus
+        )
+        if sans_lieu_nom:
+            lecture = replace(lecture, detections=gardees)
+            if ecartees is not None:
+                ecartees.extend(sans_lieu_nom)
 
     if telephones:
         # [.mark] l-agent-collegue, L7 (QD7): only at a step that collects a phone, with the
@@ -485,6 +524,7 @@ async def lire_texte(
     termes_du_lexique: dict[str, str] | None = None,
     question_avant: str | None = None,
     avant_dans_le_tour: str = "",
+    champs_nom: tuple[str, ...] = (),
 ) -> str:
     """``texte`` as the model must read it, or ``texte`` unchanged. Never raises.
 
@@ -526,6 +566,7 @@ async def lire_texte(
         question_avant=question_avant,
         avant_dans_le_tour=avant_dans_le_tour,
         variables_tel=variables_tel,
+        champs_nom=champs_nom,
     )
     return f"{lu} {mention_lexique}" if mention_lexique else lu
 
@@ -558,6 +599,7 @@ async def _lire_texte_de_lappelant(
     question_avant: str | None = None,
     avant_dans_le_tour: str = "",
     variables_tel: tuple[str, ...] | None = None,
+    champs_nom: tuple[str, ...] = (),
 ) -> str:
     # C2 (patch du banc, 25/09) : le tour est compté AVANT toute sortie anticipée.
     # Un message lu sans trace reste un tour : sinon la trace sûre d'un tour
@@ -604,6 +646,7 @@ async def _lire_texte_de_lappelant(
         trace_communes = lire_trace(CLE_TRACE) if callable(lire_trace) else []
         # V4 (plan voix-et-communes): a postal code said at an earlier turn.
         trace_nombres = lire_trace(CLE_TRACE_NOMBRES) if callable(lire_trace) else []
+        ecartees: list = []
         lu, lecture, base, voie, epellations = await asyncio.to_thread(
             _lire,
             texte,
@@ -625,12 +668,18 @@ async def _lire_texte_de_lappelant(
             avant_dans_le_tour if marquer_le_tour else "",
             # L7: None when the agent's « Check the data » is off (X2: nothing changes).
             telephones=bool(conversion and variables_tel and etape_concernee(noeud, variables_tel)),
+            noms_connus=_noms_notes(consigner, champs_nom) if marquer_le_tour else (),
+            ecartees=ecartees,
         )
         if consigner is not None:
             entrees: list[tuple[str, dict]] = []
             if communes:
                 entrees += [
                     (CLE_TRACE, trace_de(d, base, etape)) for d in lecture.detections
+                ]
+                entrees += [
+                    (CLE_TRACE_COMMUNES_ECARTEES, {**trace_de(d, base, etape), "motif": "nom"})
+                    for d in ecartees
                 ]
             if voie is not None:
                 entrees.append((CLE_TRACE_VOIES, _trace_voie(voie, etape)))
@@ -715,9 +764,11 @@ class LectureAppelantProcessor(FrameProcessor):
         champs_fiche: tuple[str, ...] | None = None,
         termes_du_lexique: dict[str, str] | None = None,
         variables_tel: tuple[str, ...] | None = None,
+        champs_nom: tuple[str, ...] = (),
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self._champs_nom = champs_nom
         self._variables_tel = variables_tel
         self._termes_du_lexique = termes_du_lexique
         self._variables_ref = variables_ref
@@ -784,6 +835,7 @@ class LectureAppelantProcessor(FrameProcessor):
             question_avant=_question_avant(messages, rang),
             avant_dans_le_tour=_avant_dans_le_tour(messages, rang),
             variables_tel=self._variables_tel,
+            champs_nom=self._champs_nom,
         )
         # Marked AFTER the reading: an interruption that cancels this task
         # during the await leaves the message unmarked, so the next context
@@ -845,6 +897,7 @@ def creer_lecture_appelant(
         champs_fiche=champs_de_la_fiche(run_configs),
         termes_du_lexique=formes_des_termes(lexique),
         variables_tel=_variables_tel(run_configs),
+        champs_nom=champs_de_nom_de_la_fiche(run_configs),
     )
 
 
@@ -863,8 +916,12 @@ async def lire_message_tape(
     noeud,
     consigner: Callable[..., None] | None,
     lexique=None,
+    question_avant: str | None = None,
 ) -> str:
-    """R5, keyboard bench: the typed message, read like a call's. Never raises."""
+    """R5, keyboard bench: the typed message, read like a call's. Never raises.
+
+    ``question_avant`` (lot 1, 11/10) : la dernière réplique de l'agent, comme au téléphone ;
+    sans elle, le clavier ne voyait ni la question d'adresse ni celle du nom."""
     try:
         return await lire_texte(
             texte,
@@ -882,6 +939,8 @@ async def lire_message_tape(
             champs_fiche=champs_de_la_fiche(run_configs),
             termes_du_lexique=formes_des_termes(lexique),
             variables_tel=_variables_tel(run_configs),
+            question_avant=question_avant,
+            champs_nom=champs_de_nom_de_la_fiche(run_configs),
         )
     except Exception as erreur:  # noqa: BLE001
         logger.warning(

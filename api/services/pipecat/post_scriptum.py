@@ -36,6 +36,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import unicodedata
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -52,6 +53,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     paroles_de_l_appelant,
 )
 from api.services.workflow.porte_parlee import FLECHE
+from api.services.workflow.redemande_du_champ import champ_redemande
 from api.services.workflow.workflow_graph import transition_tool_name
 from pipecat.frames.frames import (
     CancelFrame,
@@ -82,10 +84,20 @@ _GUILLEMET_OUVRANT = re.compile(r"^[\s  ]*«[\s  ]*")
 # Plan postscriptum-note-d-abord (C8) : en note d'abord, la phrase attend que la note
 # soit écrite dans la fiche (le filtre du nom la lit), au plus ce délai : jamais plus.
 DELAI_NOTE_AVANT_LA_VOIX = 0.3
+# B5 : la phrase retenue attend la fin de la note du tour, au plus ce délai, avant d'être dite.
+DELAI_NOTE_POUR_LA_REDEMANDE = 2.0
 # Plan porte-parlee (D9) : case allumée, « || » vaut séparateur à la lecture.
 _SEPARATEUR_TOLERE = re.compile(r"\|{2,}")
 # Ce qui entoure parfois le nom écrit après « → » (guillemets, mise en forme).
 _AUTOUR_DU_NOM = " \t\r«»\"'`*:.,;"
+# Q4 : ce qu'une flèche au milieu de la phrase doit précéder pour être une porte : un nom seul.
+_NOM_SEUL = re.compile(r"[A-Za-z0-9_]+")
+
+
+# B6 (run 1051) : le modèle écrit parfois sa note en prose, sans séparateur, et elle
+# partait à la voix. « Je note » est un mot de la langue, pas d'un métier : une réponse qui
+# commence ainsi (casse, accents et ponctuation ignorés) est retenue jusqu'à savoir.
+_JE_NOTE = "je note"
 
 
 def lire_la_note(brut: str) -> dict | None:
@@ -107,6 +119,14 @@ def lire_la_note(brut: str) -> dict | None:
         except ValueError:
             return None
     return valeur if isinstance(valeur, dict) else None
+
+
+def _forme_prose(texte: str) -> str:
+    """Le début d'une réponse comparé à « je note » : sans casse, accents ni ponctuation."""
+    sans_accents = "".join(
+        c for c in unicodedata.normalize("NFKD", texte or "") if not unicodedata.combining(c)
+    )
+    return " ".join(re.findall(r"[a-z0-9]+", sans_accents.lower()))
 
 
 def sans_json(texte: str) -> str:
@@ -145,6 +165,8 @@ class PostScriptumProcessor(FrameProcessor):
         # seulement (``None`` : le processeur d'avant, à l'octet).
         self._portes = portes if reglages.portes_dans_la_reponse else None
         self._portes_en_cours: set[asyncio.Task] = set()
+        # B6 : le moteur qui relance le modèle, case des portes ou non (c'est un défaut du format).
+        self._moteur = portes
         self._reglages = reglages
         self._fiche = fiche
         self._messages = messages
@@ -176,6 +198,9 @@ class PostScriptumProcessor(FrameProcessor):
         self._ligne_au_debut = True  # le flux est en début de ligne
         self._blancs = ""  # les blancs d'un début de ligne, en attente
         self._dans_la_porte = False  # une ligne « → » est en cours de lecture
+        # Q4 : la ligne en cours a commencé par une flèche AU MILIEU de la phrase ; elle n'est
+        # une porte que si elle se réduit à un nom de porte, sinon elle part à la voix.
+        self._porte_en_fin_de_phrase = False
         self._porte_brute = ""
         self._portes_lues: list[str] = []  # les lignes « → » complètes
         self._transition_dite = False
@@ -185,6 +210,12 @@ class PostScriptumProcessor(FrameProcessor):
         self._note_d_abord_lue = False  # elle est lue (et envoyée à ``noter``)
         self._champs_d_abord: dict | None = None
         self._sans_separateur = False  # la note s'est fermée sans séparateur
+        # B6 : la réponse commence par « je note » ; décidé une fois le début assez long.
+        self._prose_decidee = False
+        self._prose = False
+        # B5 : la phrase retenue jusqu'à sa fin (``None`` : rien n'est retenu, comme avant).
+        self._tampon: list[tuple[LLMTextFrame, str]] | None = None
+        self._tache_note: asyncio.Task | None = None
 
     # --- Vers la voix ----------------------------------------------------------
 
@@ -216,6 +247,10 @@ class PostScriptumProcessor(FrameProcessor):
         self._en_debut_de_ligne = texte.endswith("\n")
         porteuse = frame or LLMTextFrame(texte)
         porteuse.text = texte
+        if self._tampon is not None:
+            # B5 : la phrase attend sa fin (la note du tour a écrit un champ).
+            self._tampon.append((porteuse, texte))
+            return
         self._a_dit = True
         await self.push_frame(porteuse, direction)
 
@@ -278,7 +313,10 @@ class PostScriptumProcessor(FrameProcessor):
                 await self._finir(direction)
             else:
                 # D6 : la porte est prise à la fin de la réponse, après la phrase et la note.
-                self._clore_la_ligne(complete=True)
+                reste = self._clore_la_ligne(complete=True)
+                if reste:
+                    # Q4 : une flèche au milieu de la phrase qui n'était pas une porte se dit.
+                    self._attente += reste.rstrip("\n")
                 portes = (list(self._portes_lues), self._transition_dite, self._reponse)
                 attendu = self._attendu()
                 trace = await self._finir(direction)
@@ -289,6 +327,8 @@ class PostScriptumProcessor(FrameProcessor):
                     and not self._dit
                     and attendu
                     and self._reglages.note_d_abord
+                    and not trace.get("relance_prose")
+                    and not trace.get("relance_redemande")
                 ):
                     # C3 : ni phrase ni porte (une note seule) : le modèle reparle, une fois.
                     # Formulaire du lot 4 (Evan, 08/10) : en « porte, note, phrase » seulement.
@@ -380,6 +420,10 @@ class PostScriptumProcessor(FrameProcessor):
             self._apres = self._separateur = True
             self._note = texte[apres:]
             return
+        if self._prose_en_cours(texte):
+            # B6 : « je note… » retenu jusqu'au séparateur (la phrase part alors) ou à la fin.
+            self._attente = texte
+            return
         json_ = _DEBUT_JSON_EN_LIGNE.search(texte)
         if json_ is None and self._en_debut_de_ligne:
             json_ = _DEBUT_JSON_EN_TETE.search(texte)
@@ -394,6 +438,49 @@ class PostScriptumProcessor(FrameProcessor):
         garde = self._a_retenir(texte)
         await self._dire(texte[: len(texte) - garde], frame, direction)
         self._attente = texte[len(texte) - garde :]
+
+    def _prose_en_cours(self, texte: str) -> bool:
+        """B6 : la réponse commence-t-elle par « je note » ? Décidé dès que le début
+        est assez long pour trancher ; avant, un début compatible est retenu."""
+        if self._prose_decidee:
+            return self._prose
+        if self._a_dit or self._note_d_abord_lue or not self._en_tete:
+            # Une phrase qui suit une note lue (note d'abord) n'est jamais une prose.
+            self._prose_decidee = True
+            return False
+        forme = _forme_prose(texte)
+        if not forme:
+            return False
+        if len(forme) <= len(_JE_NOTE):
+            return _JE_NOTE.startswith(forme)  # peut-être « je note » : on attend la suite
+        self._prose_decidee = True
+        self._prose = forme.startswith(_JE_NOTE + " ")
+        return self._prose
+
+    async def _relancer_la_prose(self) -> bool:
+        """B6 : la réponse finit sans séparateur après « je note » : elle n'est pas
+        dite et le modèle est relancé, une fois par tour (le moteur le garantit).
+        Rend ``True`` si la relance est partie ; sinon la phrase part, jamais un tour muet."""
+        if self._apres or self._separateur or self._a_dit or self._note_d_abord_lue:
+            return False
+        if not (
+            self._prose
+            or (not self._prose_decidee and _forme_prose(self._attente) == _JE_NOTE)
+        ):
+            return False
+        if self._portes is not None and self._portes_lues:
+            # Revue du 11/10 : une porte est écrite dans la même réponse ; prise sans rien
+            # dire, c'est elle qui fait reparler le modèle. Relancer ici aussi le ferait
+            # parler deux fois (et une porte de fin raccrocherait après la première).
+            logger.info("[fiche] post-scriptum : prose retenue, la porte fait reparler le modèle")
+            self._attente = ""
+            return True
+        relancer = getattr(self._moteur, "relancer_une_reponse_muette", None)
+        if relancer is None or not await relancer():
+            return False
+        logger.info("[fiche] post-scriptum : note écrite en prose, retenue, le modèle reparle")
+        self._attente = ""
+        return True
 
     async def _lire_la_note_d_abord(
         self, frame: LLMTextFrame, direction: FrameDirection
@@ -437,6 +524,11 @@ class PostScriptumProcessor(FrameProcessor):
             _, en_retard = await asyncio.wait({tache}, timeout=DELAI_NOTE_AVANT_LA_VOIX)
             if en_retard:
                 logger.warning("[fiche] note d'abord lente : la phrase part sans l'attendre")
+            if self._reglages.phrase_sans_redemande and (
+                en_retard or _champs_ecrits(tache)
+            ):
+                # B5 : la note du tour a écrit un champ (ou le fera) : la phrase attend sa fin.
+                self._tampon, self._tache_note = [], tache
         if tete[apres:]:
             frame.text = tete[apres:]
             await self._phrase(frame, direction)
@@ -446,6 +538,43 @@ class PostScriptumProcessor(FrameProcessor):
         self._notes_en_cours.add(tache)
         tache.add_done_callback(self._notes_en_cours.discard)
         return tache
+
+    async def _lacher_la_phrase(self, direction: FrameDirection) -> str | None:
+        """B5 : la phrase retenue part à la voix, sauf si elle pose la question d'un champ
+        que la note du tour vient d'écrire : alors elle n'est pas dite et le modèle
+        reparle (une fois par tour, par le moteur). Rend ce champ, ou ``None``."""
+        tampon, self._tampon = self._tampon, None
+        if not tampon:
+            return None
+        champ = await self._redemande_de(tampon)
+        if champ:
+            if self._portes is not None and self._portes_lues:
+                # Une porte est prise à la fin de la réponse : elle fait reparler le modèle.
+                return champ
+            relancer = getattr(self._moteur, "relancer_une_reponse_muette", None)
+            if relancer is not None and await relancer():
+                logger.info(f"[fiche] post-scriptum : « {champ} » redemandé, le modèle reparle")
+                return champ
+        for porteuse, texte in tampon:
+            porteuse.text = texte
+            self._a_dit = True
+            await self.push_frame(porteuse, direction)
+        return None
+
+    async def _redemande_de(self, tampon: list[tuple[LLMTextFrame, str]]) -> str | None:
+        """Le champ, écrit par la note de ce tour, dont la phrase retenue pose la question."""
+        tache = self._tache_note
+        if tache is None:
+            return None
+        if not tache.done():
+            await asyncio.wait({tache}, timeout=DELAI_NOTE_POUR_LA_REDEMANDE)
+            if not tache.done():
+                return None
+        return champ_redemande(
+            "".join(texte for _, texte in tampon),
+            _champs_ecrits(tache),
+            {champ.nom: champ.description for champ in self._reglages.champs},
+        )
 
     async def _finir_note_d_abord(self, direction: FrameDirection) -> dict | None:
         """S1, fin de la réponse : le reste de la phrase à la voix ; la note est
@@ -472,6 +601,9 @@ class PostScriptumProcessor(FrameProcessor):
             if apres:
                 detail["note_apres_la_phrase"] = True
                 self._noter_en_tache(apres, self._lus)
+        redemande = await self._lacher_la_phrase(direction)
+        if redemande:
+            detail["relance_redemande"] = redemande
         if not self._vu_du_texte:
             self._oublier()
             return None
@@ -490,8 +622,18 @@ class PostScriptumProcessor(FrameProcessor):
         ):
             return await self._finir_note_d_abord(direction)
         self._dit = False
+        detail: dict = {}
+        if await self._relancer_la_prose():
+            detail["relance_prose"] = True
         if not self._apres and self._attente.strip(" \t\n|"):
-            await self._dire(self._attente, None, direction, fin=True)
+            # Revue du 11/10 : une prose décidée a court-circuité le repérage du JSON (D7) ;
+            # si elle part (relance refusée), son JSON ne part jamais à la voix.
+            await self._dire(
+                sans_json(self._attente) if self._prose else self._attente,
+                None,
+                direction,
+                fin=True,
+            )
         if self._apres and not self._separateur:
             # D7 : du JSON sans séparateur ; la parole écrite autour part quand même.
             await self._dire(sans_json(self._note), None, direction, fin=True)
@@ -500,7 +642,6 @@ class PostScriptumProcessor(FrameProcessor):
             self._oublier()
             return None
         champs: dict | None = None
-        detail: dict = {}
         if self._separateur:
             champs = lire_la_note(self._note)
             if self._portes is not None and await self._rattraper_la_phrase(
@@ -519,7 +660,7 @@ class PostScriptumProcessor(FrameProcessor):
             logger.warning("[fiche] post_scriptum_illisible : rien noté à ce tour")
         elif etat == ABSENT and self._attendu():
             logger.info("[fiche] post_scriptum_absent : rien noté à ce tour")
-        if etat == ABSENT and not self._attendu():
+        if etat == ABSENT and not self._attendu() and not detail:
             # Une étape de fin n'a pas de consigne : son silence n'est pas un oubli.
             return None
         trace = self._tracer(etat, sorted(champs or {}), **detail)
@@ -565,11 +706,20 @@ class PostScriptumProcessor(FrameProcessor):
         permis) et les garde à part ; le reste passe tel quel. Morceau par
         morceau : une ligne coupée en plusieurs morceaux est recollée."""
         sortie: list[str] = []
-        for caractere in texte:
+        for rang, caractere in enumerate(texte):
             if self._dans_la_porte:
                 if caractere == "\n":
-                    self._clore_la_ligne(complete=True)
+                    rendu = self._clore_la_ligne(complete=True)
+                    if rendu:
+                        sortie.append(rendu)
                     self._ligne_au_debut = True
+                elif self._porte_en_fin_de_phrase and caractere in "|{`":
+                    # Q4 : le séparateur ou la note arrivent sur la même ligne : la ligne
+                    # « → » s'arrête là, et ce caractère suit son chemin habituel.
+                    rendu = self._clore_la_ligne(complete=True)
+                    if rendu:
+                        sortie.append(rendu.rstrip("\n"))
+                    sortie.append(caractere)
                 else:
                     self._porte_brute += caractere
             elif self._ligne_au_debut:
@@ -582,22 +732,64 @@ class PostScriptumProcessor(FrameProcessor):
                     sortie.append(self._blancs + caractere)
                     self._blancs = ""
                     self._ligne_au_debut = caractere == "\n"
+            elif (
+                caractere == FLECHE
+                and not self._dans_la_note
+                and not self._apres
+                # Revue du 11/10 (point 5) : le séparateur ou la note arrivés plus tôt dans ce
+                # même morceau ne sont pas encore vus par `_apres` ; la flèche est alors dans la note.
+                and not any(c in "|{`" for c in texte[:rang])
+            ):
+                # Q4 (lot 3 du chantier postscriptum-et-communes, run 1089) : la porte écrite
+                # en fin de phrase (« … sont enregistrés. → panne_decrite ») partait à la voix.
+                # Dans la phrase seulement : une flèche dans la note (une valeur JSON) n'est
+                # jamais lue comme une porte ; et seulement si la suite de la ligne est exactement
+                # un nom de porte (« Du salon → à la cuisine ? » reste dit, revue du 05/10).
+                self._dans_la_porte, self._porte_brute, self._blancs = True, "", ""
+                self._porte_en_fin_de_phrase = True
             else:
                 sortie.append(caractere)
                 self._ligne_au_debut = caractere == "\n"
         return "".join(sortie)
 
-    def _clore_la_ligne(self, *, complete: bool) -> None:
-        """Une ligne « → » en cours est finie (``complete``) ou coupée en route."""
+    def _porte_de_fin_de_phrase(self, brut: str) -> bool:
+        """Q4, revue du 11/10 : la suite d'une flèche au milieu de la phrase est une porte
+        seulement si c'est un nom seul ET une porte de l'étape en cours (« lundi → mardi »
+        reste dit)."""
+        ligne = brut.strip(_AUTOUR_DU_NOM)
+        if not _NOM_SEUL.fullmatch(ligne):
+            return False
+        est_une_porte = getattr(self._portes, "est_une_porte_de_l_etape", None)
+        if est_une_porte is None:
+            return True
+        try:
+            return bool(est_une_porte(_nom_de_porte(brut)))
+        except Exception:  # noqa: BLE001 -- au doute, la phrase est dite
+            return False
+
+    def _clore_la_ligne(self, *, complete: bool) -> str:
+        """Une ligne « → » en cours est finie (``complete``) ou coupée en route.
+
+        Rend le texte à rendre à la voix : une flèche au milieu de la phrase suivie d'autre
+        chose qu'un nom de porte (Q4) ; ``""`` sinon. En fin de réponse, ce texte rejoint
+        ce qui reste à dire."""
         if not self._dans_la_porte:
-            return
+            return ""
         self._dans_la_porte = False
+        en_fin_de_phrase, self._porte_en_fin_de_phrase = self._porte_en_fin_de_phrase, False
+        if en_fin_de_phrase and not self._porte_de_fin_de_phrase(self._porte_brute):
+            rendu, self._porte_brute = FLECHE + self._porte_brute, ""
+            if complete:
+                return rendu + "\n"
+            self._attente += rendu
+            return ""
         if complete:
             self._portes_lues.append(_nom_de_porte(self._porte_brute))
         else:
             logger.warning("[porte] ligne « → » coupée en route : jamais prise")
             self._portes_lues.append(None)
         self._porte_brute = ""
+        return ""
 
     async def _annoncer_la_transition(self, direction: FrameDirection) -> None:
         """D16 : la phrase de transition écrite de la porte part avant la phrase du
@@ -658,6 +850,13 @@ class PostScriptumProcessor(FrameProcessor):
 
         async def prendre() -> None:
             detail = await self._prendre_la_porte(*portes, relancer=relancer)
+            if relancer and detail.get("porte_etat") in ("inconnue", "sans_nom"):
+                # Q3 (lot 3 du chantier postscriptum-et-communes, run 1089) : une porte qui
+                # n'existe pas et aucune phrase : un silence, que C3 ne relançait pas
+                # (une porte était écrite). Le modèle reparle, une fois (garde de C3).
+                relancer_muet = getattr(self._moteur, "relancer_une_reponse_muette", None)
+                if relancer_muet is not None and await relancer_muet():
+                    detail["relance_muette"] = True
             self._completer_la_trace(trace, detail)
 
         tache = asyncio.get_running_loop().create_task(prendre())
@@ -690,14 +889,14 @@ class PostScriptumProcessor(FrameProcessor):
         )
         return True
 
-    async def _noter(self, champs: dict | None, lus: list[dict]) -> None:
+    async def _noter(self, champs: dict | None, lus: list[dict]):
         """La note, par les mêmes contrôles que l'outil ; ses notices au tour suivant (D4).
         ``champs`` à ``None`` : la réponse n'a rien noté, ses notices s'effacent."""
         async with self._une_note_a_la_fois:
             if champs is None:
                 if self._notices is not None:
                     self._notices.retenir(None)
-                return
+                return None
             try:
                 note = await noter(
                     self._fiche,
@@ -712,6 +911,17 @@ class PostScriptumProcessor(FrameProcessor):
                 note = None
             if self._notices is not None:
                 self._notices.retenir(note)
+            return note
+
+
+def _champs_ecrits(tache: asyncio.Task) -> list[str]:
+    """Les champs qu'une note terminée a écrits dans la fiche (B5) ; rien si elle n'est
+    pas finie ou a échoué."""
+    try:
+        note = tache.result() if tache.done() and not tache.cancelled() else None
+    except Exception:  # noqa: BLE001 -- une note en échec n'a rien écrit
+        return []
+    return list(getattr(note, "ecrits", None) or [])
 
 
 def _fin_de_l_objet(texte: str) -> int | None:

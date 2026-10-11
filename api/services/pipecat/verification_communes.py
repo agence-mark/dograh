@@ -295,6 +295,10 @@ class Consignation:
     def lire(self, cle: str = CLE_TRACE) -> list:
         return list(self._contexte_recueilli().get(cle) or [])
 
+    def valeur(self, cle: str):
+        """[.mark] Lot 1 (11/10) : une valeur de la fiche de l'appel (le nom noté), ou None."""
+        return self._contexte_recueilli().get(cle)
+
     def nouveau_tour(self, message: object = None) -> int:
         """[.mark] C2 (patch du banc, 25/09): a new caller message is read.
 
