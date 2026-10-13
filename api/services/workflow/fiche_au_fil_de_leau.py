@@ -3320,12 +3320,21 @@ def etat_de_la_fiche(
     return "\n".join(lignes)
 
 
+# Lot C de greffier-conversation (C2) : une suggestion comme les autres souffles.
+SOUFFLE_ETAPE_COMPLETE = (
+    "Tout ce que cette étape demande est déjà obtenu : prends ta porte. C'est une "
+    "suggestion : la conversation passe avant."
+)
+
+
 def souffle_de_l_etape(
     reglages: ReglagesFiche, fiche: dict, champs_etape: Iterable[str]
 ) -> str | None:
     """Lot E d'agent-leger-greffier (P1, D7) : les prochains champs manquants de
-    l'étape, dans son ordre de priorité, deux au plus ; ``None`` sans étiquettes,
-    case éteinte, ou rien qui manque.
+    l'étape, dans son ordre de priorité, deux au plus ; ``None`` sans étiquettes ou
+    case éteinte. Chantier greffier-conversation, lot C (C2, D4) : quand TOUT ce que
+    l'étape demande est obtenu, le souffle le dit (« prends ta porte ») au lieu de se
+    taire : l'agent ne récite plus et ne pose plus dans l'étape les questions d'une autre.
 
     ⛔ Une suggestion, jamais un ordre (Evan, 09/10) : la conversation passe avant.
     ⛔ Pas la liste de tout ce qui manque (A7, run 835) : seulement l'étape en cours.
@@ -3337,13 +3346,14 @@ def souffle_de_l_etape(
 
     lues = valeurs_des_traces(reglages, fiche)
     connus = reglages.par_nom
+    de_l_etape = [nom for nom in champs_etape if nom in connus]
+    if not de_l_etape:
+        return None
     manquants = [
-        nom
-        for nom in champs_etape
-        if nom in connus and _est_vide(fiche.get(nom)) and nom not in lues
+        nom for nom in de_l_etape if _est_vide(fiche.get(nom)) and nom not in lues
     ][:SOUFFLE_MAX]
     if not manquants:
-        return None
+        return SOUFFLE_ETAPE_COMPLETE
     noms = [nom.replace("_", " ") for nom in manquants]
     suite = noms[0] if len(noms) == 1 else f"{noms[0]}, puis {noms[1]}"
     return (
