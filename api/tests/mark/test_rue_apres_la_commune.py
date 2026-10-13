@@ -43,7 +43,10 @@ async def _commune_a_proposer_rue_a_confirmer(rue: str) -> Appel:
         propositions=[LIANCOURT],
     )
     r = await appel.note(commune="Lyon-Cours", code_postal="60140", adresse_intervention=rue)
-    assert "adresse_intervention" in _a_faire_confirmer(r), r
+    # Lot D de greffier-conversation (C3) : une rue non ambiguë n'est plus à faire
+    # confirmer (notée telle qu'entendue) ; elle reste non sûre dans la fiche.
+    assert "adresse_intervention" not in _a_faire_confirmer(r), r
+    assert not appel.sure("adresse_intervention"), appel.fiche
     return appel
 
 

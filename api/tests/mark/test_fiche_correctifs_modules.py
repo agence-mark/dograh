@@ -96,7 +96,9 @@ async def _marque_a_confirmer() -> Appel:
     appel = Appel(_reglages(MARQUE))
     appel.dit("j'ai un appareil Zorvex")
     r = await appel.note(marque="Zorvex")
-    assert _a_faire_confirmer(r) == {"marque"} and not appel.sure("marque")
+    # Lot D de greffier-conversation (C3) : une marque n'est plus à faire confirmer
+    # (notée telle qu'entendue) ; elle reste non sûre, et un « oui » la rend sûre.
+    assert not _a_faire_confirmer(r) and not appel.sure("marque")
     return appel
 
 

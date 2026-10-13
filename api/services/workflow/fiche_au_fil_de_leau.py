@@ -2436,10 +2436,72 @@ def _motifs_des_types(run_configs: dict | None) -> dict:
     try:
         from api.services.fiche.reconnaissance import tous_les_noms
 
-        return tous_les_noms(run_configs)
+        motifs = dict(tous_les_noms(run_configs))
     except Exception as erreur:  # noqa: BLE001 -- la fiche passe avant
         logger.warning(f"[fiche] reconnaissance des champs illisible : {erreur!r}")
         return {}
+    # Lot D de greffier-conversation (C3) : les références (« References », réglage
+    # ``variables_reference`` de l'agent), pour les confirmations critiques.
+    try:
+        from api.schemas.workflow_configurations import (
+            DEFAULT_VARIABLES_REFERENCE,
+            decouper_variables_commune,
+        )
+
+        motifs[TYPE_REFERENCE] = decouper_variables_commune(
+            (run_configs or {}).get("variables_reference"), DEFAULT_VARIABLES_REFERENCE
+        )
+    except Exception as erreur:  # noqa: BLE001 -- la fiche passe avant
+        logger.warning(f"[fiche] noms des références illisibles : {erreur!r}")
+    return motifs
+
+
+# Lot D de greffier-conversation (C3, D5 du 13/10) : ce que le code fait confirmer, tout
+# secteur, tout mode de note. Le reste « à confirmer » (une marque, un appareil) est noté tel
+# qu'entendu, sans question à la personne.
+TYPE_REFERENCE = "reference"
+TYPES_CRITIQUES = ("telephone", "courriel", TYPE_REFERENCE)
+LECTEURS_D_ADRESSE = ("commune", "rue")
+
+
+def champ_critique(reglages: ReglagesFiche, nom: str) -> bool:
+    """Le nom de la personne, un téléphone, une adresse e-mail, une référence : reconnus
+    par les réglages de l'agent (champ de nom, ``variables_telephone``,
+    ``variables_courriel``, ``variables_reference``), jamais par un nom écrit ici."""
+    champ = reglages.par_nom.get(nom)
+    if champ is None:
+        return False
+    if est_un_champ_de_nom(champ):
+        return True
+    from api.services.fiche.traces import _correspond
+
+    motifs = reglages.motifs_des_types or {}
+    return any(_correspond(nom, tuple(motifs.get(t) or ())) for t in TYPES_CRITIQUES)
+
+
+def confirmation_critique(reglages: ReglagesFiche, entree: dict) -> bool:
+    """Une valeur « à confirmer » que l'agent fait confirmer : un champ critique, ou une
+    commune ou une rue ambiguë (plusieurs candidates). Un champ inconnu : gardé (au doute,
+    on fait confirmer, comme avant)."""
+    nom = entree.get("champ")
+    champ = reglages.par_nom.get(nom)
+    if champ is None:
+        return True
+    if champ.lecteur_effectif in LECTEURS_D_ADRESSE:
+        return bool(entree.get("options"))
+    return champ_critique(reglages, nom)
+
+
+def a_faire_confirmer(reglages: ReglagesFiche, nom: str, etat: dict) -> bool:
+    """L'état de la fiche : une valeur non sûre est montrée « À confirmer » seulement si elle
+    est critique, ou si c'est une commune ou une rue incohérente (son code postal la
+    contredit) ; sinon elle est montrée notée, telle qu'entendue."""
+    champ = reglages.par_nom.get(nom)
+    if champ is None:
+        return True
+    if champ.lecteur_effectif in LECTEURS_D_ADRESSE:
+        return bool(etat.get(INCOHERENT))
+    return champ_critique(reglages, nom)
 
 
 def ecrire_depuis_les_traces(
@@ -2860,7 +2922,8 @@ async def noter(
         a_confirmer = [c for c in a_confirmer if c["champ"] != releve["champ"]]
         a_proposer = [p for p in a_proposer if p["champ"] != releve["champ"]]
         a_proposer.append(releve)
-    note.a_confirmer = a_confirmer
+    # Lot D de greffier-conversation (C3) : seul le critique est à faire confirmer.
+    note.a_confirmer = [c for c in a_confirmer if confirmation_critique(reglages, c)]
     note.a_proposer = a_proposer
     # [.mark] l-agent-travaille, L5 (D17): an anticipated action whose fields just landed.
     # Never raises (a note is never lost to an anticipation).
@@ -3289,8 +3352,12 @@ def etat_de_la_fiche(
             continue
         ligne = f"{champ.nom} = {_abregee(valeur)}"
         # Une valeur sans état n'a pas été écrite par la fiche : on ne la dit
-        # pas sûre.
-        if (etat.get(champ.nom) or {}).get("sure"):
+        # pas sûre. Lot D de greffier-conversation (C3) : une valeur non sûre qui
+        # n'est pas critique est montrée notée (telle qu'entendue), sans question.
+        etat_du_champ = etat.get(champ.nom) or {}
+        if etat_du_champ.get("sure") or not a_faire_confirmer(
+            reglages, champ.nom, etat_du_champ
+        ):
             notes.append(ligne)
         else:
             a_confirmer.append(ligne)

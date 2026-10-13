@@ -228,5 +228,7 @@ async def test_deux_marques_possibles_une_seule_question():
         ],
     }
     r = await _noter(fiche, [{"role": "user", "content": "c'est une rica"}], marque="rica")
-    assert r["statut"] == "ambigu", r
-    assert r["a_confirmer"][0]["options"] == ["Rika", "Scan"], r
+    # Lot D de greffier-conversation (C3, D5) : une marque, même ambiguë, n'est plus une
+    # question : notée telle qu'entendue (seules la commune et la rue ambiguës le restent).
+    assert r["statut"] == "note", r
+    assert "a_confirmer" not in r, r
