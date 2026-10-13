@@ -50,6 +50,16 @@ def phrase_de_mention(epellation: Epellation, terme: str | None = None) -> str:
             f"{MARQUE} : la personne a donné l'adresse mail « {epellation.epele} ». "
             f"Note exactement cette adresse.{doute}]"
         )
+    if epellation.doutes:
+        # 🆕 courriel-dicte, lot 1 bis : une lettre que son mot ne confirme pas (« B comme
+        # Parapluie »), le mot hors de la liste fermée : la lettre est gardée, on la fait
+        # confirmer. Seul cas où la note demande une confirmation.
+        lettres = ", ".join(f"« {doute} »" for doute in epellation.doutes)
+        return (
+            f"{MARQUE} : la personne a épelé « {epellation.epele} ». Note exactement ces "
+            f"lettres. Une lettre ne s'accorde pas avec son mot ({lettres}) : fais confirmer "
+            "cette lettre à la personne.]"
+        )
     return (
         f"{MARQUE} : la personne a épelé « {epellation.epele} ». "
         "Note exactement ces lettres, sans les corriger et sans les faire répéter.]"

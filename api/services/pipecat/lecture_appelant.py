@@ -236,6 +236,9 @@ def _trace_epellation(epellation, etape: str | None, termes: dict | None = None)
         trace["courriel"] = True
         if epellation.domaine_proche:
             trace["domaine_proche"] = epellation.domaine_proche
+    # Lot 1 bis : une lettre que son mot ne confirme pas (« B comme Parapluie »).
+    if getattr(epellation, "doutes", ()):
+        trace["doutes"] = list(epellation.doutes)
     # Q6 (plan « le lexique ») : ces lettres épellent un terme du lexique.
     terme = terme_epele(epellation.epele, termes)
     if terme:

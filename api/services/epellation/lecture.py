@@ -17,7 +17,10 @@ What it reads (measured on the 136-case corpus of 2026-09-22, all green)
 - letters said alone ("f l a m a n t", "W A T T E B L E D");
 - letter names as the transcription writes them ("effe", "vé", "double vé" = W);
 - "deux T", "double L", "trois S" — a letter repeated;
-- "F comme François": the confirming word is skipped, the letter is kept;
+- the telephone alphabet (🆕 plan courriel-dicte, D6): "P comme Pascal", "N pour
+  Nathalie", "C de Carine", "P, Pascal": the confirming word is read, never written; a
+  word of a closed list wins over a letter it does not agree with (P/B, M/N, F/S),
+  and a letter lost before "comme Ursule" is its initial (``_confirmation``);
 - accents, dieresis, cedilla, hyphen, apostrophe, space;
 - e-mail addresses (Q9): "marc point v d k arobase example point f r" ->
   ``marc.vdk@example.fr``; 🆕 said entirely in words too (plan courriel-dicte, D1:
@@ -99,10 +102,98 @@ OUTILS_AVANT_COURRIEL = OUTILS_COURRIEL | frozenset(
     {
         "je", "suis", "moi", "est", "votre", "vous", "il", "elle", "on", "nous", "le",
         "la", "les", "un", "une", "des", "du", "de", "au", "aux", "pour", "par", "avec",
-        "sur", "dans", "ou", "envoyer", "envoyez", "ecrire", "écrire", "mails", "e-mail", "perso", "pro", "professionnelle", "personnelle", "bonjour",
-        "merci", "parfait", "écrivez", "ecrivez", "notez", "note",
+        "sur", "dans", "ou", "envoyer", "envoyez", "ecrire", "écrire", "mails", "e-mail",
+        "perso", "pro", "professionnelle", "personnelle", "bonjour", "merci", "parfait",
+        "écrivez", "ecrivez", "notez", "note",
     }
 )
+
+
+# --- The telephone alphabet (plan courriel-dicte, D6 and lot 1 bis) --------
+# "P comme Pascal", "N pour Nathalie", "C de Carine": the word confirms the letter,
+# it is never written. Links, the longest first; "rien" ("P Pascal") only with a word
+# of the closed list below.
+LIENS_FORTS = ((",", "comme", "dans"), (",", "comme"), ("comme", "dans"), ("comme",))
+LIENS_FAIBLES = ((",", "c'est"), (",",), ("pour",), ("de",), ("c'est",))
+# 🔑 The CLOSED list of confirming words: the French spelling alphabet, then usual
+# first names and words. Only a word of this list may OVERRIDE the letter it follows
+# (rule 2: the network confuses P and B, M and N, F and S; the word exists for that) or
+# stand for a letter the transcription lost (rule 3). Generic: no customer's word here.
+# Written without accents, lowercase (compared through ``_sans_accent``).
+MOTS_DE_CONFIRMATION = frozenset(
+    {
+        # The French spelling alphabet.
+        "anatole", "berthe", "celestin", "desire", "eugene", "francois", "gaston",
+        "henri", "irma", "joseph", "kleber", "louis", "marcel", "nicolas", "oscar",
+        "pierre", "quintal", "raoul", "suzanne", "therese", "ursule", "victor",
+        "william", "xavier", "yvonne", "zoe", "emile",
+        # Usual first names and words said to confirm a letter.
+        "alice", "andre", "antoine", "bernard", "bertrand", "camille", "carine",
+        "caroline", "celine", "charles", "claude", "daniel", "david", "denis", "emilie",
+        "eric", "etienne", "fabien", "frederic", "georges", "gerard", "helene", "hugo",
+        "isabelle", "jacques", "jean", "julie", "julien", "karine", "kevin", "laurent",
+        "leon", "lucie", "marie", "martine", "michel", "nathalie", "noel", "olivier",
+        "pascal", "patrick", "paul", "philippe", "quentin", "rene", "robert", "roger",
+        "simon", "sophie", "sylvie", "thierry", "thomas", "ulysse", "valerie",
+        "vincent", "walter", "yann", "yves", "zorro", "framboise", "zebre",
+    }
+)
+
+
+def _sans_accent(texte: str) -> str:
+    return "".join(
+        c for c in unicodedata.normalize("NFD", texte) if not unicodedata.combining(c)
+    ).lower()
+
+
+def _confirmation(
+    mots: list[tuple[str, int, int]], rang: int, lettre: str | None
+) -> tuple[int, str | None, str | None] | None:
+    """A confirming word starting at ``rang``, right after ``lettre`` (``None``: right
+    after another confirmation, where the letter may have been lost).
+
+    Returns (words consumed, letter to write instead -- or to add when ``lettre`` is
+    ``None`` --, doubt to report) or ``None``. Rules of the plan, lot 1 bis:
+    1. after a letter, a link and a word that STARTS with that letter are swallowed;
+       a weak link ("pour", "de", "c'est", a comma) needs a word of the list or a
+       capitalized one, so "s, sans accent" stays what it is;
+    2. a word of the list that does not agree wins over the letter ("B comme Pascal"
+       is P); a capitalized word outside the list after "comme" keeps the letter and
+       is reported ("B comme Parapluie");
+    3. "comme Pascal" right after a confirmation, the letter lost: the word's initial;
+    4. "de" followed by a confirming word is a link, never the letter D;
+    5. ⛔ no letter before, nothing: "comme Pascal me l'a dit" opens nothing (the
+       caller of this function only calls it inside a sequence already started).
+    """
+    debut = rang
+    if lettre is None and debut < len(mots) and mots[debut][0] == ",":
+        debut += 1
+    liens = [(lien, True) for lien in LIENS_FORTS]
+    if lettre is not None:
+        liens += [(lien, False) for lien in LIENS_FAIBLES] + [((), False)]
+    for lien, fort in liens:
+        n = len(lien)
+        if tuple(m[0].lower() for m in mots[debut:debut + n]) != lien or debut + n >= len(mots):
+            continue
+        mot = mots[debut + n][0]
+        if len(mot) < 3 or not mot.isalpha():
+            continue
+        initiale = _sans_accent(mot)[0]
+        connu = _sans_accent(mot) in MOTS_DE_CONFIRMATION
+        consomme = debut + n + 1 - rang
+        if lettre is None:
+            return (consomme, initiale, None) if connu else None
+        if not lien and not connu:
+            continue
+        if _sans_accent(lettre) == initiale:
+            if connu or fort or mot[0].isupper():
+                return consomme, None, None
+            continue
+        if connu:
+            return consomme, initiale, None
+        if fort and mot[0].isupper():
+            return consomme, None, f"{lettre.upper()} comme {mot}"
+    return None
 
 
 @dataclass(frozen=True)
@@ -120,6 +211,10 @@ class Epellation:
     # 🆕 D3: the known domain the address's domain is close to but is not
     # ("gmial.com" -> "gmail.com"). Reported, never written in its place.
     domaine_proche: str | None = None
+    # 🆕 lot 1 bis: a letter its confirming word does not agree with, the word being
+    # outside the closed list ("B comme Parapluie"): the letter is kept, the note asks
+    # for it to be confirmed.
+    doutes: tuple[str, ...] = ()
 
 
 def _lettre(mot: str) -> str | None:
@@ -185,9 +280,19 @@ def _lire_courriel(
     """
     from api.services.epellation.domaines import formes_dites
 
+    # 🆕 lot 1 bis: "p comme Pascal a u l arobase…" -- the link and its word belong to
+    # the address (they are read), they are never written.
+    confirmations: dict[int, tuple[int, str | None]] = {}
+    for rang in range(place):
+        if _seule(mots, rang) and (lue := _confirmation(mots, rang + 1, mots[rang][0].lower())):
+            confirmations[rang] = (lue[0], lue[1])
+    couverts = {r + k for r, (n, _) in confirmations.items() for k in range(1, n + 1)}
+
     def gauche(rang: int) -> bool:
         if not 0 <= rang < len(mots):
             return False
+        if rang in couverts:
+            return True
         mot = mots[rang][0].lower()
         if mot in ".,;:!?" or "'" in mot or not mot.replace("-", "").isalpha():
             return False
@@ -270,6 +375,15 @@ def _lire_courriel(
     rang = debut
     while rang < place:
         mot = mots[rang][0].lower()
+        if rang in confirmations:
+            consomme, nouvelle = confirmations[rang]
+            local.append(nouvelle or mot)
+            rang += 1 + consomme
+            continue
+        if rang in couverts:
+            # The address starts inside a confirmation: its word is not written.
+            rang += 1
+            continue
         if mot == "tiret" and rang + 1 < place and mots[rang + 1][0].lower() == "bas":
             local.append("_")
             rang += 2
@@ -337,12 +451,32 @@ def lire(texte: str) -> list[Epellation]:
             continue
 
         suivant, lettres, debut, franches = rang, [], None, 0
+        # 🆕 lot 1 bis: what came last ("lettre", "confirmation", other), and the doubts.
+        etat, doutes = None, []
         while suivant < len(mots):
             if suivant in occupes:
                 # A sequence never runs into an address already read.
                 break
             mot = mots[suivant][0]
             minuscule = mot.lower()
+
+            # "P comme Pascal", "N pour Nathalie", "C de Carine" (the telephone alphabet).
+            if lettres and etat in ("lettre", "confirmation"):
+                lue = _confirmation(mots, suivant, lettres[-1] if etat == "lettre" else None)
+                if lue:
+                    consomme, nouvelle, doute = lue
+                    if etat == "lettre" and nouvelle:
+                        lettres[-1] = nouvelle
+                    elif etat == "confirmation":
+                        lettres.append(nouvelle)
+                    if doute:
+                        doutes.append(doute)
+                    # A confirmed letter is a spelled letter.
+                    franches += 1
+                    suivant += consomme
+                    etat = "confirmation"
+                    continue
+            etat = None
 
             if mot in ".,;:!?":
                 # A full stop between two spelled letters does not end them.
@@ -357,6 +491,7 @@ def lire(texte: str) -> list[Epellation]:
                 lettres.append("w")
                 debut = mots[suivant][1] if debut is None else debut
                 suivant += 2
+                etat = "lettre"
                 continue
             if minuscule in REPETITIONS and (repetee := _lettre(apres)):
                 lettres += [repetee] * REPETITIONS[minuscule]
@@ -364,10 +499,7 @@ def lire(texte: str) -> list[Epellation]:
                     franches += 1
                 debut = mots[suivant][1] if debut is None else debut
                 suivant += 2
-                continue
-            # "F comme François": the word that follows confirms the letter.
-            if lettres and minuscule == "comme" and suivant + 1 < len(mots):
-                suivant += 2
+                etat = "lettre"
                 continue
             # "d u p o n avec deux t": a linking word does not end the sequence
             # when it announces a repetition.
@@ -400,6 +532,7 @@ def lire(texte: str) -> list[Epellation]:
                     franches += 1
                 debut = mots[suivant][1] if debut is None else debut
                 suivant += 1
+                etat = "lettre"
                 continue
             break
 
@@ -407,7 +540,13 @@ def lire(texte: str) -> list[Epellation]:
         if compte >= LETTRES_MINIMUM and franches:
             epele = _capitaliser("".join(lettres).strip("- "))
             trouvees.append(
-                Epellation(debut, mots[suivant - 1][2], epele, texte[debut:mots[suivant - 1][2]])
+                Epellation(
+                    debut,
+                    mots[suivant - 1][2],
+                    epele,
+                    texte[debut:mots[suivant - 1][2]],
+                    doutes=tuple(doutes),
+                )
             )
             rang = suivant
         else:

@@ -120,6 +120,9 @@ def _traces_du_tour(fiche: dict, tour: Any) -> list[str]:
                 if trace.get("domaine_proche")
                 else ""
             )
+            if trace.get("doutes"):
+                # Lot 1 bis : une lettre que son mot ne confirme pas.
+                doute += f" (lettre à faire confirmer : {', '.join(trace['doutes'])})"
             indices.append(f"épelé = {trace['epele']}{doute}")
     return indices
 
