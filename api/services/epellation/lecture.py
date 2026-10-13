@@ -69,6 +69,24 @@ ACCENTS = {
 }
 SIGNES = {"tiret": "-", "trait": "-", "apostrophe": "'", "espace": " "}
 REPETITIONS = {"deux": 2, "double": 2, "trois": 3}
+# 🆕 Evan, 14/10 (« toutes les doubles lettres, partout ») : la même répétition quand la
+# transcription écrit le chiffre (« u l y 2 s e »).
+REPETITIONS_EN_CHIFFRES = {"2": 2, "3": 3}
+
+
+def _repetition(mots: list[tuple[str, int, int]], rang: int) -> tuple[int, str] | None:
+    """« deux S », « double L », « trois S », « 2 T », « deux elle » at ``rang``: (how many
+    times, the letter) or None. Every letter, said alone or by its name."""
+    if rang + 1 >= len(mots):
+        return None
+    mot = mots[rang][0].lower()
+    fois = REPETITIONS.get(mot) or REPETITIONS_EN_CHIFFRES.get(mot)
+    if not fois:
+        return None
+    if mot == "double" and mots[rang + 1][0].lower() in ("v", "ve", "vé"):
+        return None  # « double vé » is the letter W
+    lettre = _lettre(mots[rang + 1][0])
+    return (fois, lettre) if lettre else None
 
 # A sequence made only of these is ordinary French ("il y a", "à"), never a
 # spelling.
@@ -406,6 +424,14 @@ def _lire_courriel(
         if len(mot) == 1 and not mot.isascii():
             # "écrire à evan arobase…": "à" is a word, an address carries no accent.
             return False
+        if rang > 0 and _repetition(mots, rang - 1):
+            # « deux elle » : la lettre d'une répétition, même dite par son nom.
+            return True
+        if mot == "avec" and _repetition(mots, rang + 1):
+            # « b o r avec deux s u n arobase… » : « avec » annonce la répétition.
+            return True
+        if mot == "double" and rang + 1 < len(mots) and mots[rang + 1][0].lower() in ("v", "ve", "vé"):
+            return True
         if len(mot) > 1 and mot in OUTILS_AVANT_COURRIEL:
             # "v de k": a letter name between letters is a letter.
             return mot in NOMS_DE_LETTRES and (_seule(mots, rang - 1) or _seule(mots, rang + 1))
@@ -499,9 +525,19 @@ def _lire_courriel(
     rang = debut
     while rang < place:
         mot = mots[rang][0].lower()
-        if mot in REPETITIONS and _seule(mots, rang + 1) and rang + 1 < place:
-            # « b o deux t e » : a repetition, never a number.
-            local.append(mots[rang + 1][0].lower() * REPETITIONS[mot])
+        if mot == "avec" and _repetition(mots, rang + 1):
+            rang += 1
+            continue
+        if mot == "double" and rang + 1 < place and mots[rang + 1][0].lower() in ("v", "ve", "vé"):
+            # « double vé » est la lettre W, dans une adresse comme dans un nom.
+            local.append("w")
+            precedent, rang = rang + 1, rang + 2
+            continue
+        if rang + 1 < place and (repetee := _repetition(mots, rang)):
+            # « b o deux t e », « u l y 2 s e », « deux elle » : une lettre doublée,
+            # jamais un nombre (Evan, 14/10 : l'adresse ne compromet pas l'épellation).
+            fois, lettre = repetee
+            local.append(lettre * fois)
             precedent, rang = rang + 1, rang + 2
             continue
         if mot in NOMBRES_EN_MOTS - {"un"}:
@@ -653,6 +689,11 @@ def lire(texte: str) -> list[Epellation]:
                     apres_virgule = mot == ","
                     suivant += 1
                     continue
+                # 🆕 Evan, 14/10 (question n° 274) : « U, L, Y, deux S, E » ; une virgule
+                # avant une lettre doublée ne coupe plus le nom (« Uly » et « Sse » avant).
+                if lettres and _repetition(mots, suivant + 1):
+                    suivant += 1
+                    continue
                 break
 
             apres = mots[suivant + 1][0].lower() if suivant + 1 < len(mots) else ""
@@ -663,7 +704,7 @@ def lire(texte: str) -> list[Epellation]:
                 suivant += 2
                 etat = "lettre"
                 continue
-            if minuscule in ("2", "3") and lettres and len(apres) == 1 and apres.isalpha():
+            if minuscule in REPETITIONS_EN_CHIFFRES and lettres and _repetition(mots, suivant):
                 # Relecture n° 4 : « d u p o n 2 t » quand la transcription écrit le
                 # chiffre ; depuis que les chiffres sont des mots, il coupait la suite.
                 minuscule = "deux" if minuscule == "2" else "trois"
