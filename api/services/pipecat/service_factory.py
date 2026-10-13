@@ -51,6 +51,7 @@ from api.services.pipecat.mistral_tts import (
     point_entree_mistral,
     resolve_mistral_endpoint,
 )
+from api.services.pipecat.courriels_pour_la_voix import courriels_en_mots
 from api.services.pipecat.nombres_pour_la_voix import nombres_en_mots
 from api.services.pipecat.tts_cache.runtime import get_speech_cache
 from api.utils.url_security import validate_user_configured_service_url
@@ -1085,8 +1086,9 @@ def construire_remplacements_de_voix(
     the model sees keeps the original, which is what makes it safe to bend
     spelling for pronunciation.
 
-    🔑 A French agent also gets its numbers written in words, AFTER the
-    replacements (plan voix-et-communes, V1): what is typed on screen applies
+    🔑 A French agent also gets its e-mail addresses (plan courriel-dicte, lot 2)
+    then its numbers written in words, AFTER the replacements (plan
+    voix-et-communes, V1): what is typed on screen applies
     to the text as the model wrote it. Sentence aggregation only; see
     ``nombres_pour_la_voix.py`` for why a transform and not a filter.
     """
@@ -1095,6 +1097,9 @@ def construire_remplacements_de_voix(
     transformations = [("*", replace_text(regles))] if regles else []
     mode = run_configs.get("tts_text_aggregation_mode") or DEFAULT_TTS_TEXT_AGGREGATION_MODE
     if langue_francaise and str(mode) == "sentence":
+        # 🆕 courriel-dicte, lot 2 : une adresse dite en mots, AVANT les nombres (ses
+        # chiffres sont ensuite dits par eux).
+        transformations.append(("*", courriels_en_mots))
         transformations.append(("*", nombres_en_mots))
     return transformations
 

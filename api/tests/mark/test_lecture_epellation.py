@@ -12,7 +12,7 @@ Ce que ce fichier protège, et pourquoi chaque section existe :
 | 1 | Le **corpus complet** (136 cas) : réel, écrit, négatif. Zéro fausse lecture |
 | 2 | Les **trois règles anti-faux-positif**, chacune payée par un défaut réel |
 | 3 | L'**écriture** : capitale initiale, noms composés |
-| 4 | Les **courriels** (Q9), et la limite posée : pas de lettre épelée, rien lu |
+| 4 | Les **courriels** (Q9), dits épelés ou entièrement en mots (D1 de courriel-dicte) |
 | 5 | La **mention** : texte exact, idempotence, plusieurs épellations |
 | 6 | Le **comptage dans les deux sens** — sans lui un échec de lecture rendrait
       un faux vert (invariant-dans-les-deux-sens) |
@@ -167,11 +167,13 @@ def test_un_courriel_est_lu_une_seule_fois():
     assert len(lire("m a r c point v d k arobase example point f r")) == 1
 
 
-def test_un_courriel_sans_aucune_lettre_epelee_nest_pas_lu():
-    """La limite posée en attendant la réponse d'Evan (IDEE-20260922-1) : ce
-    module lit des LETTRES épelées. Le jour où la réponse arrive, ce test change
-    avec elle — il dit l'état actuel, pas une vérité éternelle."""
-    assert lire("Oui, c'est Marc point ferrand arobase example point com.") == []
+def test_un_courriel_dit_entierement_en_mots_est_lu():
+    """🆕 D1 du plan courriel-dicte (Evan, 12/10, tranche IDEE-20260922-1) : une
+    adresse dite entièrement en mots est lue. Ce test disait la limite d'avant
+    (« rien lu sans lettre épelée ») ; il change avec la réponse, comme annoncé."""
+    assert _lu("Oui, c'est Marc point ferrand arobase example point com.") == [
+        "marc.ferrand@example.com"
+    ]
 
 
 # --- 5. La mention --------------------------------------------------------
@@ -225,7 +227,8 @@ def test_autant_de_mentions_que_depellations_lues_sur_tout_le_corpus():
     )
     assert lues == attendues == mentions
     # Et ce total n'est pas zéro : le corpus porte bien des épellations.
-    assert attendues == 73
+    # 74 depuis D1 (courriel-dicte) : « Marc point ferrand arobase… » est lu.
+    assert attendues == 74
 
 
 def test_chaque_epellation_pointe_sur_le_passage_quelle_a_lu():

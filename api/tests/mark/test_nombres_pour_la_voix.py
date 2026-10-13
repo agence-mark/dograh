@@ -43,6 +43,7 @@ from api.services.nombres.lecture import _TABLE
 from api.services.nombres.voix import code_postal_en_mots, ecrire_pour_la_voix
 from api.services.pipecat.appels_de_fonction_voix import retirer_appels_de_fonction
 from api.services.pipecat.audio_config import AudioConfig
+from api.services.pipecat.courriels_pour_la_voix import courriels_en_mots
 from api.services.pipecat.nombres_pour_la_voix import nombres_en_mots
 from api.services.pipecat.service_factory import (
     construire_remplacements_de_voix,
@@ -277,6 +278,7 @@ def test_chaque_voix_francaise_recoit_la_reecriture(nom):
     # C14 (patch du banc) : le retrait des appels de fonction passe d'abord.
     assert [t for _, t in service._text_transforms] == [
         retirer_appels_de_fonction,
+        courriels_en_mots,  # courriel-dicte, lot 2 : avant les nombres
         nombres_en_mots,
     ]
     assert nombres_en_mots not in service._text_filters
@@ -307,7 +309,8 @@ def test_mot_a_mot_ne_la_recoit_pas():
 @pytest.mark.asyncio
 async def test_apres_les_remplacements_de_lecran():
     transformations = construire_remplacements_de_voix({"tts_replacements": ["SAV:S. A. V."]}, True)
-    assert [t for _, t in transformations][1] is nombres_en_mots
+    # courriel-dicte, lot 2 : l'adresse en mots, puis les nombres.
+    assert [t for _, t in transformations][1:] == [courriels_en_mots, nombres_en_mots]
     texte = "Le SAV au 03 44 22 10 60"
     for _, transformation in transformations:
         texte = await transformation(texte, "sentence")

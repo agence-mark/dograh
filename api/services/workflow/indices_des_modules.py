@@ -114,7 +114,17 @@ def _traces_du_tour(fiche: dict, tour: Any) -> list[str]:
             indices.append(f"{nom} = {trace['ecrit']}")
     for trace in fiche.get(CLE_EPELLATIONS) or []:
         if trace.get("tour") == tour and trace.get("epele"):
-            indices.append(f"épelé = {trace['epele']}")
+            # 🆕 courriel-dicte (D3) : le domaine douteux est signalé, jamais corrigé.
+            doute = (
+                f" (domaine à faire confirmer, proche de {trace['domaine_proche']})"
+                if trace.get("domaine_proche")
+                else ""
+            )
+            if trace.get("doutes"):
+                # Lot 1 bis : une lettre que son mot ne confirme pas.
+                quoi = "à faire confirmer" if trace.get("courriel") else "lettre à faire confirmer"
+                doute += f" ({quoi} : {', '.join(trace['doutes'])})"
+            indices.append(f"épelé = {trace['epele']}{doute}")
     return indices
 
 

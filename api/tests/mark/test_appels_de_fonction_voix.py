@@ -131,7 +131,8 @@ def test_branchement_dans_la_collecte_des_filtres_et_des_transformations():
         {"tts_replacements": ["SAV:S. A. V."]}, True
     )["text_transforms"]
     assert transformations[0] == ("*", retirer_appels_de_fonction)
-    assert len(transformations) == 3  # puis les remplacements, puis les nombres
+    # puis les remplacements, les adresses mail (courriel-dicte, lot 2), les nombres
+    assert len(transformations) == 4
     # Mot à mot, l'appel arrive en morceaux : rien n'est posé.
     assert (
         reglages_de_voix_communs({"tts_text_aggregation_mode": "token"})[

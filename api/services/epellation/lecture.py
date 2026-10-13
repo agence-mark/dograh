@@ -17,10 +17,16 @@ What it reads (measured on the 136-case corpus of 2026-09-22, all green)
 - letters said alone ("f l a m a n t", "W A T T E B L E D");
 - letter names as the transcription writes them ("effe", "vé", "double vé" = W);
 - "deux T", "double L", "trois S" — a letter repeated;
-- "F comme François": the confirming word is skipped, the letter is kept;
+- the telephone alphabet (🆕 plan courriel-dicte, D6): "P comme Pascal", "N pour
+  Nathalie", "C de Carine", "P, Pascal": the confirming word is read, never written; a
+  word of a closed list wins over a letter it does not agree with (P/B, M/N, F/S),
+  and a letter lost before "comme Ursule" is its initial (``_confirmation``);
 - accents, dieresis, cedilla, hyphen, apostrophe, space;
-- e-mail addresses, when at least one letter is spelled (Q9):
-  "marc point v d k arobase example point f r" -> ``marc.vdk@example.fr``.
+- e-mail addresses (Q9): "marc point v d k arobase example point f r" ->
+  ``marc.vdk@example.fr``; 🆕 said entirely in words too (plan courriel-dicte, D1:
+  "evan point jourde arobase gmail point com"), a domain said in several words
+  glued back from ONE list (``domaines.py``: "hot mail" -> ``hotmail``), and a domain
+  close to a known one reported, never replaced (D3).
 
 ⛔ What it must never do
 - Read an ordinary sentence as a spelling. Three rules carry this, each one
@@ -63,6 +69,26 @@ ACCENTS = {
 }
 SIGNES = {"tiret": "-", "trait": "-", "apostrophe": "'", "espace": " "}
 REPETITIONS = {"deux": 2, "double": 2, "trois": 3}
+# 🆕 Evan, 14/10 (« toutes les doubles lettres, partout ») : la même répétition quand la
+# transcription écrit le chiffre (« u l y 2 s e »).
+REPETITIONS_EN_CHIFFRES = {"2": 2, "3": 3}
+
+
+def _repetition(mots: list[tuple[str, int, int]], rang: int) -> tuple[int, str] | None:
+    """« deux S », « double L », « trois S », « 2 T », « deux elle » at ``rang``: (how many
+    times, the letter) or None. Every letter, said alone or by its name."""
+    if rang + 1 >= len(mots):
+        return None
+    mot = mots[rang][0].lower()
+    fois = REPETITIONS.get(mot) or REPETITIONS_EN_CHIFFRES.get(mot)
+    if not fois:
+        return None
+    if mot == "double" and mots[rang + 1][0].lower() in ("v", "ve", "vé"):
+        return None  # « double vé » is the letter W
+    if mot in REPETITIONS_EN_CHIFFRES and mots[rang][2] == mots[rang + 1][1]:
+        return None  # relecture n° 7 : « 3e étage », « 2e » : un ordinal, collé, jamais une répétition
+    lettre = _lettre(mots[rang + 1][0])
+    return (fois, lettre) if lettre else None
 
 # A sequence made only of these is ordinary French ("il y a", "à"), never a
 # spelling.
@@ -71,10 +97,18 @@ VOYELLES_OUTILS = frozenset("ayeo")
 # At least this many letters, or it is not a spelling.
 LETTRES_MINIMUM = 3
 
-MOTS = re.compile(r"[A-Za-zÀ-ÿ']+|[.,;:!?]")
+# 🆕 courriel-dicte (Evan, 13/10 : « un module parfait ») : les chiffres sont des mots
+# à part entière, pour l'adresse mail (« jean75 arobase… »). Une suite épelée s'arrête
+# sur eux ; avant, ils étaient invisibles et la suite les sautait.
+MOTS = re.compile(r"[A-Za-zÀ-ÿ']+|\d+|[.,;:!?]")
 
-# --- E-mail addresses (Q9) ------------------------------------------------
-SEPARATEURS_COURRIEL = {"point": ".", "tiret": "-", "arobase": "@"}
+# --- E-mail addresses (Q9; plan courriel-dicte, D1 and D3) ---------------
+SEPARATEURS_COURRIEL = {"point": ".", "tiret": "-"}
+# How "@" is said. The strong forms make an address on their own; the weak ones
+# ("at", "a commercial") only in front of a whole domain, point included: "at"
+# and "a" are also ordinary words.
+AROBASES = frozenset({"arobase", "arrobase", "arobas", "arrobas", "arobaz"})
+AROBASES_FAIBLES = (("at",), ("a", "commercial"))
 # Words that introduce an address and therefore end it. ⛔ No single letter
 # here: "e" in the set ate the "e" of "e v a n point…".
 OUTILS_COURRIEL = frozenset(
@@ -83,6 +117,147 @@ OUTILS_COURRIEL = frozenset(
         "email", "alors", "donc", "voila", "voilà", "euh", "bah", "ben", "et",
     }
 )
+# 🆕 D1 (an address said entirely in words): the words of the SENTENCE that end the
+# address on its left. Without them, "je suis evan arobase…" glued the whole
+# sentence into the address. A letter name among them ("de") still joins an address
+# next to a letter said alone ("v de k").
+OUTILS_AVANT_COURRIEL = OUTILS_COURRIEL | frozenset(
+    {
+        "je", "suis", "moi", "est", "votre", "vous", "il", "elle", "on", "nous", "le",
+        "la", "les", "un", "une", "des", "du", "de", "au", "aux", "pour", "par", "avec",
+        "sur", "dans", "ou", "envoyer", "envoyez", "ecrire", "écrire", "mails", "e-mail",
+        "perso", "pro", "professionnelle", "personnelle", "bonjour", "merci", "parfait",
+        "écrivez", "ecrivez", "notez", "note",
+        # Revue du 13/10 : « mon prénom point mon nom arobase… », « le nom de la boîte
+        # arobase… » décrivent une adresse, ils n'en sont pas une.
+        "nom", "prénom", "prenom", "société", "societe", "boîte", "boite", "entreprise",
+    }
+)
+
+
+# --- The telephone alphabet (plan courriel-dicte, D6 and lot 1 bis) --------
+# "P comme Pascal", "N pour Nathalie", "C de Carine": the word confirms the letter,
+# it is never written. Links, the longest first; "rien" ("P Pascal") only with a word
+# of the closed list below.
+LIENS_FORTS = ((",", "comme", "dans"), (",", "comme"), ("comme", "dans"), ("comme",))
+LIENS_FAIBLES = ((",", "c'est"), (",",), ("pour",), ("de",), ("c'est",))
+# 🔑 The CLOSED list of confirming words: the French spelling alphabet, then usual
+# first names and words. Only a word of this list may OVERRIDE the letter it follows
+# (rule 2: the network confuses P and B, M and N, F and S; the word exists for that) or
+# stand for a letter the transcription lost (rule 3). Generic: no customer's word here.
+# Written without accents, lowercase (compared through ``_sans_accent``).
+MOTS_DE_CONFIRMATION = frozenset(
+    {
+        # The French spelling alphabet.
+        "anatole", "berthe", "celestin", "desire", "eugene", "francois", "gaston",
+        "henri", "irma", "joseph", "kleber", "louis", "marcel", "nicolas", "oscar",
+        "pierre", "quintal", "raoul", "suzanne", "therese", "ursule", "victor",
+        "william", "xavier", "yvonne", "zoe", "emile",
+        # Usual first names and words said to confirm a letter.
+        "alice", "andre", "antoine", "bernard", "bertrand", "camille", "carine",
+        "caroline", "celine", "charles", "claude", "daniel", "david", "denis", "emilie",
+        "eric", "etienne", "fabien", "frederic", "georges", "gerard", "helene", "hugo",
+        "isabelle", "jacques", "jean", "julie", "julien", "karine", "kevin", "laurent",
+        "leon", "lucie", "marie", "martine", "michel", "nathalie", "noel", "olivier",
+        "pascal", "patrick", "paul", "philippe", "quentin", "rene", "robert", "roger",
+        "simon", "sophie", "sylvie", "thierry", "thomas", "ulysse", "valerie",
+        "vincent", "walter", "yann", "yves", "zorro", "framboise", "zebre",
+    }
+)
+
+
+# The words that carry a spelling on ("m a de double l e"): "de" before them is a letter.
+MOTS_D_EPELLATION = frozenset(
+    {"deux", "double", "trois", "tiret", "accent", "apostrophe", "espace", "trait", "avec"}
+)
+# Un nombre dit en mots dans la partie locale d'une adresse (« jean soixante quinze
+# arobase… ») s'écrit en chiffres (Evan, 13/10 : lire les chiffres, question n° 345).
+NOMBRES_EN_MOTS = frozenset(
+    {
+        "zéro", "zero", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit",
+        "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "vingt",
+        "trente", "quarante", "cinquante", "soixante", "septante", "huitante", "nonante",
+        "cent", "cents", "mille",
+    }
+)
+
+# 🔑 Revue du 13/10 (bloquant) : un mot de la liste ne l'emporte sur la lettre QUE pour les
+# paires que le réseau téléphonique confond (règle 2 du plan). Sans cette borne, « j e a n,
+# Jean » s'écrivait « Jeaj » et « d u p o n t pour Nathalie » « Duponn », en silence.
+LETTRES_CONFONDUES = (frozenset("pb"), frozenset("mn"), frozenset("fs"))
+
+
+def _confondues(une: str, autre: str) -> bool:
+    return frozenset((_sans_accent(une), _sans_accent(autre))) in LETTRES_CONFONDUES
+
+
+def _sans_accent(texte: str) -> str:
+    return "".join(
+        c for c in unicodedata.normalize("NFD", texte) if not unicodedata.combining(c)
+    ).lower()
+
+
+def _confirmation(
+    mots: list[tuple[str, int, int]], rang: int, lettre: str | None
+) -> tuple[int, str | None, str | None] | None:
+    """A confirming word starting at ``rang``, right after ``lettre`` (``None``: right
+    after another confirmation, where the letter may have been lost).
+
+    Returns (words consumed, letter to write instead -- or to add when ``lettre`` is
+    ``None`` --, doubt to report) or ``None``. Rules of the plan, lot 1 bis:
+    1. after a letter, a link and a word that STARTS with that letter are swallowed;
+       a weak link ("pour", "de", "c'est", a comma) needs a word of the list or a
+       capitalized one, so "s, sans accent" stays what it is;
+    2. a word of the list that does not agree wins over the letter ONLY for the pairs
+       the network confuses, P/B, M/N, F/S ("B comme Pascal" is P), and only after
+       "comme"; any other disagreement ends the spelling, nothing swallowed ("j e a n,
+       Jean" stays "Jean", "m a r t i n, Michel" stays "Martin": reviews of 13/10). A capitalized word outside the
+       list after "comme", the spelling going on after it, keeps the letter and is
+       reported ("B comme Parapluie, l e");
+    3. "comme Pascal" right after a confirmation, the letter lost: the word's initial;
+    4. "de" followed by a confirming word is a link, never the letter D;
+    5. ⛔ no letter before, nothing: "comme Pascal me l'a dit" opens nothing (the
+       caller of this function only calls it inside a sequence already started).
+    """
+    debut = rang
+    if lettre is None and debut < len(mots) and mots[debut][0] == ",":
+        debut += 1
+    liens = [(lien, True) for lien in LIENS_FORTS]
+    if lettre is not None:
+        liens += [(lien, False) for lien in LIENS_FAIBLES] + [((), False)]
+    for lien, fort in liens:
+        n = len(lien)
+        if tuple(m[0].lower() for m in mots[debut:debut + n]) != lien or debut + n >= len(mots):
+            continue
+        mot = mots[debut + n][0]
+        if len(mot) < 3 or not mot.isalpha():
+            continue
+        initiale = _sans_accent(mot)[0]
+        connu = _sans_accent(mot) in MOTS_DE_CONFIRMATION
+        consomme = debut + n + 1 - rang
+        if lettre is None:
+            return (consomme, initiale, None) if connu else None
+        if not lien and not connu:
+            continue
+        if _sans_accent(lettre) == initiale:
+            if connu or fort or mot[0].isupper():
+                return consomme, None, None
+            continue
+        if connu:
+            # Revue n° 2 du 13/10 : seulement derrière « comme ». Derrière une virgule,
+            # « pour » ou « de », c'est le prénom qui suit le nom (« m a r t i n,
+            # Michel » écrivait « Martim »).
+            if fort and _confondues(lettre, initiale):
+                return consomme, initiale, None
+            continue
+        # The spelling goes on after the word: a letter said alone, possibly after a
+        # comma. Otherwise "f l a m a n t comme Martin me l'a dit" is a sentence.
+        suite = debut + n + 1
+        if suite < len(mots) and mots[suite][0] == ",":
+            suite += 1
+        if fort and mot[0].isupper() and _seule(mots, suite):
+            return consomme, None, f"« {lettre.upper()} comme {mot} » : le mot ne commence pas par cette lettre"
+    return None
 
 
 @dataclass(frozen=True)
@@ -95,6 +270,15 @@ class Epellation:
     epele: str
     # What the caller's sentence says there, word for word.
     entendu: str
+    # 🆕 courriel-dicte: an e-mail address, spelled or said in words.
+    courriel: bool = False
+    # 🆕 D3: the known domain the address's domain is close to but is not
+    # ("gmial.com" -> "gmail.com"). Reported, never written in its place.
+    domaine_proche: str | None = None
+    # 🆕 lot 1 bis: a letter its confirming word does not agree with, the word being
+    # outside the closed list ("B comme Parapluie"): the letter is kept, the note asks
+    # for it to be confirmed.
+    doutes: tuple[str, ...] = ()
 
 
 def _lettre(mot: str) -> str | None:
@@ -120,50 +304,308 @@ def _franche(lettre: str) -> bool:
     return lettre.isalpha() and unicodedata.normalize("NFD", lettre)[0].lower() not in VOYELLES_OUTILS
 
 
-def _lire_courriel(mots: list[tuple[str, int, int]], place: int) -> tuple[int, int, str] | None:
-    """The address around the "arobase" at ``place``, or None.
+def _seule(mots: list[tuple[str, int, int]], rang: int) -> bool:
+    """A letter said alone at ``rang``."""
+    return 0 <= rang < len(mots) and len(mots[rang][0]) == 1 and mots[rang][0].isalpha()
 
-    A token of the address is a letter said alone, a whole word, or one of
-    "point / tiret / tiret bas / arobase". Anything else ends it.
-    """
 
-    def jeton(rang: int) -> str | None:
-        if not 0 <= rang < len(mots):
-            return None
-        mot = mots[rang][0].lower()
-        if mot in ".,;:!?" or "'" in mot or mot in OUTILS_COURRIEL:
-            return None
-        if mot in SEPARATEURS_COURRIEL or mot == "bas":
-            return mot
-        return mot if mot.isalpha() else None
+def _arobase(mots: list[tuple[str, int, int]], place: int) -> tuple[int, bool] | None:
+    """(how many words say "@" at ``place``, is it a weak form) or None."""
+    mot = mots[place][0].lower()
+    if mot in AROBASES:
+        return 1, False
+    for forme in AROBASES_FAIBLES:
+        bout = [m[0].lower() for m in mots[place:place + len(forme)]]
+        if tuple(bout) == forme:
+            return len(forme), True
+    return None
 
-    debut = fin = place
-    while jeton(debut - 1) is not None:
+
+def _ecrire_mot(mots: list[tuple[str, int, int]], rang: int) -> str:
+    """A word of the address as it is written. 🆕 A letter name next to a letter said
+    alone is that letter ("v de k" -> ``vdk``), not the word."""
+    mot = mots[rang][0].lower()
+    lettre = NOMS_DE_LETTRES.get(mot)
+    if lettre and (_seule(mots, rang - 1) or _seule(mots, rang + 1)):
+        return lettre
+    return mot
+
+
+def _que_des_lettres_deja_dites(mots: list[tuple[str, int, int]], rang: int, deja: set) -> bool:
+    """Relecture n° 5 : after a reconfirmed letter, does the spelling stop, or go on with
+    letters ALL already said (« p a u l, p comme Pierre, l comme Louis »)? A new letter,
+    confirmed or not, means the name goes on: « b o n, N comme Nicolas, E comme Eugène »
+    is « Bonne », « r o s, S comme Simon, I comme Irma » is « Rossi »."""
+    while rang < len(mots):
+        if mots[rang][0] == ",":
+            rang += 1
+            continue
+        if not _seule(mots, rang):
+            return True
+        lettre = mots[rang][0].lower()
+        lue = _confirmation(mots, rang + 1, lettre)
+        if _sans_accent((lue[1] if lue else None) or lettre) not in deja:
+            return False
+        rang += 1 + (lue[0] if lue else 0)
+    return True
+
+
+def _chiffres_isoles(mots: list[tuple[str, int, int]], rang: int) -> bool:
+    """Digits that belong to an address: one group of at most four digits (« jean75 »,
+    « dupont 1975 »), or at most four digits said one by one (« j e a n 7 5 »). Never a
+    run of groups: « 06 12 34 56 78 jean arobase… » is a phone number, not the address."""
+    if not 0 <= rang < len(mots) or not mots[rang][0].isdigit():
+        return False
+    debut = fin = rang
+    while debut > 0 and mots[debut - 1][0].isdigit():
         debut -= 1
-    while jeton(fin + 1) is not None:
+    while fin + 1 < len(mots) and mots[fin + 1][0].isdigit():
         fin += 1
+    groupes = [mots[r][0] for r in range(debut, fin + 1)]
+    if len(groupes) == 1:
+        return len(groupes[0]) <= 4
+    return all(len(g) == 1 for g in groupes) and len(groupes) <= 4
 
-    adresse: list[str] = []
-    rang = debut
-    while rang <= fin:
+
+# Fallback when ``text_to_num`` leaves a small number in words (« deux » stays « deux »).
+UNITES = {
+    "zéro": "0", "zero": "0", "deux": "2", "trois": "3", "quatre": "4", "cinq": "5",
+    "six": "6", "sept": "7", "huit": "8", "neuf": "9", "dix": "10",
+}
+
+
+def _en_chiffres(nombre: list[str]) -> str | None:
+    """« soixante quinze » -> ``75``, « deux mille » -> ``2000``; None if unsure."""
+    try:
+        from text_to_num import alpha2digit
+
+        ecrit = alpha2digit(" ".join(nombre), "fr").replace(" ", "")
+    except Exception:  # noqa: BLE001 -- unsure: no reading
+        return None
+    if ecrit.isdigit():
+        return ecrit
+    chiffres = [UNITES.get(mot) for mot in nombre]
+    return "".join(chiffres) if all(chiffres) else None
+
+
+def _lire_courriel(
+    mots: list[tuple[str, int, int]], place: int, largeur: int, faible: bool
+) -> tuple[int, int, str, tuple[str, ...]] | None:
+    """The address around the "@" said at ``place`` (``largeur`` words), or None.
+
+    Left of "@": letters said alone, whole words, "point / tiret / tiret bas", up to a
+    word of the sentence (``OUTILS_AVANT_COURRIEL``). Right of "@": the domain, a name
+    said in several words glued back from the list of domains ("hot mail"), then
+    "point" and its extension ("com", "f r"); after an extension, only another
+    "point" or "tiret" goes on ("point f r, merci" ends at ``fr``).
+    """
+    from api.services.epellation.domaines import DOMAINES, formes_dites
+
+    noms_de_domaine = {domaine.split(".", 1)[0] for domaine in DOMAINES}
+
+    # 🆕 lot 1 bis: "p comme Pascal a u l arobase…" -- the link and its word belong to
+    # the address (they are read), they are never written.
+    confirmations: dict[int, tuple[int, str | None]] = {}
+    for rang in range(place):
+        if _seule(mots, rang) and (lue := _confirmation(mots, rang + 1, mots[rang][0].lower())):
+            confirmations[rang] = (lue[0], lue[1])
+    couverts = {r + k for r, (n, _) in confirmations.items() for k in range(1, n + 1)}
+
+    def gauche(rang: int) -> bool:
+        if not 0 <= rang < len(mots):
+            return False
+        if rang in couverts:
+            return True
         mot = mots[rang][0].lower()
-        if mot == "tiret" and rang + 1 <= fin and mots[rang + 1][0].lower() == "bas":
-            adresse.append("_")
+        if mot.isdigit():
+            return _chiffres_isoles(mots, rang)
+        if mot in ".,;:!?" or "'" in mot or not mot.replace("-", "").isalpha():
+            return False
+        if mot == "bas":
+            return rang > 0 and mots[rang - 1][0].lower() == "tiret"
+        if len(mot) == 1 and not mot.isascii():
+            # "écrire à evan arobase…": "à" is a word, an address carries no accent.
+            return False
+        if rang > 0 and _repetition(mots, rang - 1):
+            # « deux elle » : la lettre d'une répétition, même dite par son nom.
+            return True
+        if mot == "avec" and _repetition(mots, rang + 1):
+            # « b o r avec deux s u n arobase… » : « avec » annonce la répétition.
+            return True
+        if mot == "double" and rang + 1 < len(mots) and mots[rang + 1][0].lower() in ("v", "ve", "vé"):
+            return True
+        if len(mot) > 1 and mot in OUTILS_AVANT_COURRIEL:
+            # "v de k": a letter name between letters is a letter.
+            return mot in NOMS_DE_LETTRES and (_seule(mots, rang - 1) or _seule(mots, rang + 1))
+        return True
+
+    def libre(rang: int) -> bool:
+        """A word the domain can carry."""
+        if not 0 <= rang < len(mots):
+            return False
+        mot = mots[rang][0].lower()
+        if mot.isdigit():
+            return _chiffres_isoles(mots, rang)
+        return (
+            mot not in ".,;:!?"
+            and "'" not in mot
+            and mot not in OUTILS_COURRIEL
+            and mot not in AROBASES
+            and mot.replace("-", "").isalpha()
+        )
+
+    debut = place
+    while gauche(debut - 1):
+        debut -= 1
+    # Relecture n° 4 : un nombre dit juste avant l'adresse, séparé d'elle par un espace
+    # (« c'est le 15 evan arobase… »), n'en fait pas partie.
+    while (
+        debut < place - 1
+        and mots[debut][0].isdigit()
+        and not mots[debut + 1][0].isdigit()
+        and mots[debut + 1][1] > mots[debut][2]
+    ):
+        debut += 1
+    if debut == place:
+        return None
+
+    formes = formes_dites()
+    plus_longue = max((len(f) for f in formes), default=1)
+    domaine: list[str] = []
+    # Revue du 13/10 : deux mots dits l'un après l'autre sont recollés sans séparateur
+    # (« jean pierre » -> ``jeanpierre``) : une supposition, donc à faire confirmer.
+    colles: list[str] = []
+    doutes_nombres: list[str] = []
+    rang = place + largeur
+    apres_extension = False
+    while libre(rang):
+        mot = mots[rang][0].lower()
+        if mot == "point":
+            if not libre(rang + 1) or mots[rang + 1][0].lower() in SEPARATEURS_COURRIEL:
+                break
+            domaine.append(".")
+            rang += 1
+            if _seule(mots, rang):
+                # "point f r": the letters of the extension, as many as are said.
+                while _seule(mots, rang):
+                    domaine.append(mots[rang][0].lower())
+                    rang += 1
+            else:
+                domaine.append(mots[rang][0].lower())
+                rang += 1
+            apres_extension = True
+            continue
+        if mot == "tiret":
+            if rang + 1 < len(mots) and mots[rang + 1][0].lower() == "bas":
+                domaine.append("_")
+                rang += 2
+            else:
+                domaine.append("-")
+                rang += 1
+            apres_extension = False
+            continue
+        if apres_extension:
+            break
+        # A domain said in several words, the longest form first ("hot mail").
+        for taille in range(min(plus_longue, len(mots) - rang), 1, -1):
+            dite = tuple(m[0].lower() for m in mots[rang:rang + taille])
+            if dite in formes:
+                domaine.append(formes[dite])
+                rang += taille
+                break
+        else:
+            nom = formes.get((mot,))
+            ecrit = nom if nom else _ecrire_mot(mots, rang)
+            if not nom and len(ecrit) > 1 and domaine and len(domaine[-1]) > 1:
+                colles.append(f"{domaine[-1]} {ecrit}")
+            domaine.append(ecrit)
+            rang += 1
+    fin = rang - 1
+
+    local: list[str] = []
+    precedent = None  # the rank of the last word written, to see the space after it
+    rang = debut
+    while rang < place:
+        mot = mots[rang][0].lower()
+        if mot == "avec" and _repetition(mots, rang + 1):
+            rang += 1
+            continue
+        if mot == "double" and rang + 1 < place and mots[rang + 1][0].lower() in ("v", "ve", "vé"):
+            # « double vé » est la lettre W, dans une adresse comme dans un nom.
+            local.append("w")
+            precedent, rang = rang + 1, rang + 2
+            continue
+        if rang + 1 < place and (repetee := _repetition(mots, rang)):
+            # « b o deux t e », « u l y 2 s e », « deux elle » : une lettre doublée,
+            # jamais un nombre (Evan, 14/10 : l'adresse ne compromet pas l'épellation).
+            fois, lettre = repetee
+            if mot.isdigit():
+                # Relecture n° 7 : « jean 2 a » peut être littéral (« 2a ») : à faire confirmer.
+                doutes_nombres.append(f"« {mot} {mots[rang + 1][0]} » écrit {lettre * fois}")
+            local.append(lettre * fois)
+            precedent, rang = rang + 1, rang + 2
+            continue
+        if mot in NOMBRES_EN_MOTS - {"un"}:
+            # 🆕 « jean soixante quinze arobase… » (Evan, 13/10) : le nombre dit en mots
+            # s'écrit en chiffres ; c'est une lecture, donc à faire confirmer.
+            nombre = []
+            while rang < place and mots[rang][0].lower() in NOMBRES_EN_MOTS - {"un"}:
+                nombre.append(mots[rang][0].lower())
+                rang += 1
+            chiffres = _en_chiffres(nombre)
+            if chiffres is None:
+                return None
+            doutes_nombres.append(f"« {' '.join(nombre)} » écrit {chiffres}")
+            local.append(chiffres)
+            precedent = rang - 1
+            continue
+        if rang in confirmations:
+            consomme, nouvelle = confirmations[rang]
+            local.append(nouvelle or mot)
+            rang += 1 + consomme
+            continue
+        if rang in couverts:
+            # The address starts inside a confirmation: its word is not written.
+            rang += 1
+            continue
+        if mot == "tiret" and rang + 1 < place and mots[rang + 1][0].lower() == "bas":
+            local.append("_")
             rang += 2
             continue
-        adresse.append(SEPARATEURS_COURRIEL.get(mot, mot))
+        ecrit = SEPARATEURS_COURRIEL.get(mot) or _ecrire_mot(mots, rang)
+        # Glued only when a SPACE was said between them: « jean75 » is one word.
+        espace = precedent is not None and mots[rang][1] > mots[precedent][2]
+        if len(ecrit) > 1 and local and len(local[-1]) > 1 and espace:
+            colles.append(f"{local[-1]} {ecrit}")
+        local.append(ecrit)
+        precedent = rang
         rang += 1
 
-    ecrit = "".join(adresse)
-    if "@" not in ecrit or ecrit.startswith("@") or ecrit.endswith("@"):
+    partie_locale, partie_domaine = "".join(local), "".join(domaine)
+    if not partie_locale.strip("._-") or not partie_domaine.strip("._-"):
         return None
-    # ⚠️ At least one letter actually SPELLED. This module reads spelled
-    # letters, and Q9 adds the address words to that same reading; an address
-    # dictated entirely in words is a question left open for Evan
-    # (`A-VALIDER.md`, IDEE-20260922-1), not a decision taken here.
-    if not any(len(mots[r][0]) == 1 and mots[r][0].isalpha() for r in range(debut, fin + 1)):
+    epelee = any(_seule(mots, r) for r in range(debut, fin + 1))
+    # 🆕 D1 (Evan, 12/10): an address said entirely in words IS read, but only with a
+    # whole domain, point included. Without a letter said alone, "arobase gmail" is a
+    # beginning, not an address: nothing is invented. A weak "@" ("at") never makes an
+    # address without that point either.
+    if (faible or not epelee) and "." not in partie_domaine.strip("."):
         return None
-    return debut, fin, ecrit
+    if partie_domaine.endswith((".", "-")):
+        return None
+    # Revue du 13/10 : « at » seulement devant un domaine de la liste (« un compte at
+    # home point net » n'est pas une adresse).
+    if faible and partie_domaine.split(".", 1)[0] not in noms_de_domaine:
+        return None
+    adresse = f"{partie_locale}@{partie_domaine}"
+    doutes = [f"« {paire} » écrit sans séparateur" for paire in colles] + doutes_nombres
+    # Revue du 13/10 : une adresse ne porte pas d'accent ; la transcription en met
+    # (« hélène »). Retiré, et signalé : c'est une supposition.
+    sans_accent = _sans_accent(adresse)
+    if sans_accent != adresse:
+        doutes.append(f"accents retirés (« {adresse} »)")
+        adresse = sans_accent
+    return debut, fin, adresse, tuple(doutes)
 
 
 def lire(texte: str) -> list[Epellation]:
@@ -175,29 +617,51 @@ def lire(texte: str) -> list[Epellation]:
     # 🔑 Addresses first: "v d k" is both a spelled sequence and a piece of
     # "marc.vdk@example.fr". Read in word order, the sequence went first and the
     # address came out twice, truncated.
+    from api.services.epellation.domaines import domaine_proche
+
     adresses: dict[int, tuple[int, str]] = {}
     occupes: set[int] = set()
-    for place, (mot, _, _) in enumerate(mots):
-        if mot.lower() != "arobase" or place in occupes:
+    for place in range(len(mots)):
+        if place in occupes:
             continue
-        adresse = _lire_courriel(mots, place)
+        forme = _arobase(mots, place)
+        if forme is None:
+            continue
+        adresse = _lire_courriel(mots, place, *forme)
         if adresse is None:
             continue
-        debut, fin, ecrit = adresse
-        adresses[debut] = (fin, ecrit)
+        debut, fin, ecrit, doutes_adresse = adresse
+        adresses[debut] = (fin, ecrit, doutes_adresse)
         occupes |= set(range(debut, fin + 1))
 
     trouvees: list[Epellation] = []
     rang = 0
     while rang < len(mots):
         if rang in adresses:
-            fin, ecrit = adresses[rang]
-            trouvees.append(Epellation(mots[rang][1], mots[fin][2], ecrit,
-                                       texte[mots[rang][1]:mots[fin][2]]))
+            fin, ecrit, doutes_adresse = adresses[rang]
+            trouvees.append(
+                Epellation(
+                    mots[rang][1],
+                    mots[fin][2],
+                    ecrit,
+                    texte[mots[rang][1]:mots[fin][2]],
+                    courriel=True,
+                    domaine_proche=domaine_proche(ecrit.rsplit("@", 1)[-1]),
+                    doutes=doutes_adresse,
+                )
+            )
             rang = fin + 1
             continue
 
         suivant, lettres, debut, franches = rang, [], None, 0
+        # 🆕 lot 1 bis: what came last ("lettre", "confirmation", other), and the doubts.
+        etat, doutes = None, []
+        # 🆕 « p a u l, P comme Pierre » (Evan, 13/10) : des lettres dites seules, puis,
+        # après une virgule, une lettre DÉJÀ dite confirmée par son mot : c'est une
+        # reconfirmation, pas une lettre de plus (« Paulp » avant). Seulement quand rien
+        # n'a été épelé en alphabet avant : « …, A comme André » dans « Panchaud » est une
+        # vraie lettre.
+        alphabet_avant, apres_virgule = False, False
         while suivant < len(mots):
             if suivant in occupes:
                 # A sequence never runs into an address already read.
@@ -205,11 +669,58 @@ def lire(texte: str) -> list[Epellation]:
             mot = mots[suivant][0]
             minuscule = mot.lower()
 
+            # "P comme Pascal", "N pour Nathalie", "C de Carine" (the telephone alphabet).
+            if lettres and etat in ("lettre", "confirmation"):
+                lue = _confirmation(mots, suivant, lettres[-1] if etat == "lettre" else None)
+                if lue:
+                    consomme, nouvelle, doute = lue
+                    if etat == "lettre" and nouvelle:
+                        lettres[-1] = nouvelle
+                    elif etat == "confirmation":
+                        lettres.append(nouvelle)
+                    if doute:
+                        doutes.append(doute)
+                    alphabet_avant = True
+                    # A confirmed letter is a spelled letter.
+                    franches += 1
+                    suivant += consomme
+                    etat = "confirmation"
+                    continue
+            etat = None
+
             if mot in ".,;:!?":
                 # A full stop between two spelled letters does not end them.
                 if lettres and suivant + 1 < len(mots) and _lettre(mots[suivant + 1][0]):
+                    apres_virgule = mot == ","
                     suivant += 1
                     continue
+                # 🆕 Evan, 14/10 (question n° 274) : « U, L, Y, deux S, E » ; une virgule
+                # avant une lettre doublée ne coupe plus le nom (« Uly » et « Sse » avant).
+                # Relecture n° 7 : seulement une lettre dite SEULE, sans accent, suivie de la
+                # fin, d'une virgule ou d'une autre lettre seule ; sinon « l e r o y, deux à
+                # la fois » s'écrivait « Leroyàà » et « r o u x, deux a la maison » « Rouxaa ».
+                if lettres and _repetition(mots, suivant + 1):
+                    apres_lettre = suivant + 3
+                    lettre_dite = mots[suivant + 2][0]
+                    lettre_repetee = _lettre(lettre_dite)
+                    if (
+                        # une lettre dite seule (sans accent : « à » est un mot) ou par son nom
+                        (
+                            (len(lettre_dite) == 1 and lettre_dite.isascii())
+                            or (len(lettre_dite) > 1 and lettre_repetee)
+                        )
+                        # … et l'épellation continue : fin, virgule, lettre seule, ou le mot
+                        # qui confirme la lettre (« deux S comme Suzanne »)
+                        and (
+                            apres_lettre >= len(mots)
+                            or mots[apres_lettre][0] in ".,;:!?"
+                            or _seule(mots, apres_lettre)
+                            or _confirmation(mots, apres_lettre, lettre_repetee) is not None
+                        )
+                    ):
+                        apres_virgule = mot == ","
+                        suivant += 1
+                        continue
                 break
 
             apres = mots[suivant + 1][0].lower() if suivant + 1 < len(mots) else ""
@@ -218,17 +729,30 @@ def lire(texte: str) -> list[Epellation]:
                 lettres.append("w")
                 debut = mots[suivant][1] if debut is None else debut
                 suivant += 2
+                etat = "lettre"
                 continue
+            if minuscule in REPETITIONS_EN_CHIFFRES and lettres and _repetition(mots, suivant):
+                # Relecture n° 4 : « d u p o n 2 t » quand la transcription écrit le
+                # chiffre ; depuis que les chiffres sont des mots, il coupait la suite.
+                # Relecture n° 8 : « d u p o n t, 2 b » peut être un bâtiment : le chiffre
+                # est une lecture, donc à faire confirmer.
+                doutes.append(f"« {minuscule} {apres} » lu comme une lettre doublée")
+                minuscule = "deux" if minuscule == "2" else "trois"
             if minuscule in REPETITIONS and (repetee := _lettre(apres)):
+                if apres_virgule and lettres and _sans_accent(lettres[-1]) == _sans_accent(repetee):
+                    # Relecture n° 7 : « d u p o n t, deux t » précise une lettre déjà dite
+                    # (« Duponttt » avant) : la dernière lettre est doublée, pas répétée en
+                    # plus, et c'est une lecture, donc à faire confirmer.
+                    while lettres and _sans_accent(lettres[-1]) == _sans_accent(repetee):
+                        lettres.pop()
+                    doutes.append(f"« {minuscule} {mots[suivant + 1][0]} » dit après cette lettre : doublée")
                 lettres += [repetee] * REPETITIONS[minuscule]
                 if len(apres) == 1 and _franche(repetee):
                     franches += 1
                 debut = mots[suivant][1] if debut is None else debut
                 suivant += 2
-                continue
-            # "F comme François": the word that follows confirms the letter.
-            if lettres and minuscule == "comme" and suivant + 1 < len(mots):
-                suivant += 2
+                etat = "lettre"
+                apres_virgule = False
                 continue
             # "d u p o n avec deux t": a linking word does not end the sequence
             # when it announces a repetition.
@@ -245,6 +769,35 @@ def lire(texte: str) -> list[Epellation]:
                 suivant += 1
                 continue
 
+            # Revue du 13/10 : « r o b e r t de Robert » : « de » devant un mot est la
+            # préposition, pas la lettre D (« Robertd »). Il finit la suite.
+            if (
+                minuscule == "de"
+                and len(apres) > 2
+                and apres.isalpha()
+                and not _lettre(apres)
+                and apres not in MOTS_D_EPELLATION
+            ):
+                break
+            if apres_virgule and lettres and not alphabet_avant and len(mot) == 1 and mot.isalpha():
+                lue = _confirmation(mots, suivant + 1, mot.lower())
+                deja = {_sans_accent(x) for x in lettres if x.isalpha()}
+                apres_lue = suivant + 1 + lue[0] if lue else 0
+                if apres_lue < len(mots) and mots[apres_lue][0] == ",":
+                    apres_lue += 1
+                # Relecture n° 4 : seulement quand l'épellation S'ARRÊTE après la
+                # confirmation ; « b o n, N comme Nicolas, e » est « Bonne » (une lettre
+                # doublée, c'est justement là qu'on passe à l'alphabet).
+                if (
+                    lue
+                    and lue[2] is None
+                    and _sans_accent(lue[1] or mot) in deja
+                    and _que_des_lettres_deja_dites(mots, apres_lue, deja)
+                ):
+                    suivant += 1 + lue[0]
+                    apres_virgule = False
+                    continue
+            apres_virgule = False
             lettre = _lettre(mot)
             # Rule 2: a letter name never opens a sequence.
             if lettre and len(mot) > 1 and not lettres:
@@ -261,6 +814,7 @@ def lire(texte: str) -> list[Epellation]:
                     franches += 1
                 debut = mots[suivant][1] if debut is None else debut
                 suivant += 1
+                etat = "lettre"
                 continue
             break
 
@@ -268,7 +822,13 @@ def lire(texte: str) -> list[Epellation]:
         if compte >= LETTRES_MINIMUM and franches:
             epele = _capitaliser("".join(lettres).strip("- "))
             trouvees.append(
-                Epellation(debut, mots[suivant - 1][2], epele, texte[debut:mots[suivant - 1][2]])
+                Epellation(
+                    debut,
+                    mots[suivant - 1][2],
+                    epele,
+                    texte[debut:mots[suivant - 1][2]],
+                    doutes=tuple(doutes),
+                )
             )
             rang = suivant
         else:

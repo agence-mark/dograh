@@ -28,17 +28,14 @@ from datetime import date, datetime
 
 from loguru import logger
 
+# QD3: the common domains. 🆕 courriel-dicte (D3): ONE list for the whole fork, the one
+# the reader uses (``epellation/domaines.py``); this module no longer keeps its own.
+from api.services.epellation.domaines import domaine_proche
+
 COMPLETE = "complete"
 A_REPRENDRE = "a_reprendre"
 NON_CONTROLE = "non_controle"
 
-# QD3: the common domains (generic list, written once).
-DOMAINES_COURANTS = (
-    "gmail.com", "hotmail.fr", "hotmail.com", "outlook.fr", "outlook.com", "live.fr",
-    "yahoo.fr", "yahoo.com", "orange.fr", "wanadoo.fr", "free.fr", "sfr.fr", "neuf.fr",
-    "laposte.net", "icloud.com", "bbox.fr", "aol.com",
-)
-SEUIL_DOMAINE = 85.0
 MOIS = {
     "janvier": 1, "fevrier": 2, "février": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6,
     "juillet": 7, "aout": 8, "août": 8, "septembre": 9, "octobre": 10, "novembre": 11,
@@ -82,12 +79,8 @@ def _courriel(champ: str, valeur: str) -> list[dict]:
     except EmailNotValidError as erreur:
         return [_probleme(champ, "courriel_invalide", valeur, str(erreur)[:120])]
     domaine = valeur.strip().rsplit("@", 1)[-1].lower()
-    if domaine in DOMAINES_COURANTS:
-        return []
-    from rapidfuzz import fuzz
-
-    proche = max(DOMAINES_COURANTS, key=lambda d: fuzz.ratio(domaine, d))
-    if fuzz.ratio(domaine, proche) >= SEUIL_DOMAINE:
+    proche = domaine_proche(domaine)
+    if proche:
         return [_probleme(champ, "courriel_domaine_douteux", valeur, f"{domaine}, peut-être {proche}")]
     return []
 

@@ -230,6 +230,15 @@ def _trace_epellation(epellation, etape: str | None, termes: dict | None = None)
     HEARD form as well as the extracted one (point I1 of the plan, section 5).
     """
     trace = {"etape": etape, "entendu": epellation.entendu, "epele": epellation.epele}
+    # 🆕 courriel-dicte (D3) : une adresse, et son domaine proche d'un connu, pour le
+    # greffier et le banc (il lit les traces, pas la note).
+    if getattr(epellation, "courriel", False):
+        trace["courriel"] = True
+        if epellation.domaine_proche:
+            trace["domaine_proche"] = epellation.domaine_proche
+    # Lot 1 bis : une lettre que son mot ne confirme pas (« B comme Parapluie »).
+    if getattr(epellation, "doutes", ()):
+        trace["doutes"] = list(epellation.doutes)
     # Q6 (plan « le lexique ») : ces lettres épellent un terme du lexique.
     terme = terme_epele(epellation.epele, termes)
     if terme:
@@ -258,6 +267,34 @@ def _trace_nombre(nombre, choix, etape: str | None) -> dict:
         "retenu": retenu,
         "statut": choix.statut if choix is not None else None,
     }
+
+
+# The word that stands in for an address while the other modules read the sentence:
+# letters only, read by none of them (no number, no town, no street).
+ABRI = "courrielabrite"
+
+
+def _abriter_les_adresses(texte: str, epellations: list) -> tuple[str, dict[str, str]]:
+    """``texte`` with every address read replaced by a stand-in word, and the way back.
+    Never raises: on any doubt, ``texte`` unchanged."""
+    try:
+        adresses = [e for e in epellations if getattr(e, "courriel", False)]
+        if not adresses:
+            return texte, {}
+        abris: dict[str, str] = {}
+        for rang, adresse in sorted(enumerate(adresses), key=lambda x: -x[1].debut):
+            mot = f"{ABRI}{chr(ord('a') + rang)}"
+            abris[mot] = texte[adresse.debut:adresse.fin]
+            texte = texte[:adresse.debut] + mot + texte[adresse.fin:]
+        return texte, abris
+    except Exception:  # noqa: BLE001 -- the reading never costs a turn
+        return texte, {}
+
+
+def _rendre_les_adresses(texte: str, abris: dict[str, str]) -> str:
+    for mot, passage in abris.items():
+        texte = texte.replace(mot, passage)
+    return texte
 
 
 def _hors_epellation(detections: list, epellations: list) -> list:
@@ -380,6 +417,11 @@ def _lire(
     The notes are glued in this order: towns, street, spelling, numbers.
     """
     epellations = lire_epellations(texte) if epellation else []
+    # 🆕 courriel-dicte (Evan, 13/10 : « un module parfait qui ne rend pas défectueux nos
+    # autres modules ») : une adresse lue est mise à l'abri des nombres, des communes et des
+    # rues, puis rendue telle quelle. Sans cela, « evan arobase neuf point f r » arrivait
+    # au modèle en « evan arobase 9 point f r » à côté d'une note qui disait ``neuf.fr``.
+    texte, abris = _abriter_les_adresses(texte, epellations)
     # N1 (plan « le lexique », 26/09) : les nombres déjà écrits en chiffres par
     # la transcription, remis dans la forme que la lecture connaît (« 3500€ »,
     # « 14bis », « +33 6… », « 06.12.34.56.78 »). Sans conversion, le modèle
@@ -491,7 +533,7 @@ def _lire(
     if not annoter:
         # D13 (fiche au fil de l'eau) : les modules ne parlent plus au modèle, ils
         # répondent à l'outil par leurs traces. La RÉÉCRITURE ci-dessus reste.
-        return lu, lecture, base, voie, epellations
+        return _rendre_les_adresses(lu, abris), lecture, base, voie, epellations
     if communes and base is not None:
         lu = mentionner(lu, _hors_epellation(lecture.detections, epellations), base)
     if voie is not None:
@@ -500,7 +542,7 @@ def _lire(
         lu = mentionner_epellations(lu, epellations, termes_du_lexique)
     if conversion:
         lu = mentionner_nombres(lu, lecture.nombres, avec_references=references)
-    return lu, lecture, base, voie, epellations
+    return _rendre_les_adresses(lu, abris), lecture, base, voie, epellations
 
 
 async def lire_texte(
