@@ -1,0 +1,363 @@
+"""[.mark] Le transfert garanti à l'arrivée (chantier greffier-conversation, lot E).
+
+Plan `Labo-agent-vocal/plans/greffier-conversation/`, lot E (C4, D6 du 13/10) : case par agent,
+éteinte par défaut. À l'arrivée dans une étape qui porte un outil de transfert d'appel, magasin
+``OUVERT``, c'est le CODE qui lance le transfert une fois la première réplique de l'étape dite
+(runs 1118, 1120 à 1122 : Qwen ne l'appelait qu'une fois sur six).
+
+| Test | Ce qu'il prouve |
+|---|---|
+| réglage | éteint par défaut, lu seulement à ``True``, estampillé seulement joué |
+| conditions | case, magasin OUVERT, étape d'arrivée avec outils, pas une fin |
+| porte écrite | la réplique d'arrivée jouée, le code appelle l'outil ; le modèle ne reparle pas pour ça |
+| porte en fonction | la réponse qui suit le résultat est attendue, puis l'outil est appelé |
+| gardes | pas de double transfert si le modèle l'a appelé ; rien si la personne a parlé, si l'étape a changé, magasin FERMÉ ou case éteinte |
+| clavier (R1) | par les vraies routes : la porte en fonction, la réplique, puis le renvoi simulé (boutons) lancé par le code, et la trace « lance » |
+"""
+
+import asyncio
+import uuid
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from api.services.pipecat.speech_playback import PlaybackOutcome
+from api.services.workflow.fiche_au_fil_de_leau import (
+    CLE_TRANSFERT_GARANTI,
+    ReglagesFiche,
+    estampiller_le_mode,
+)
+from api.services.workflow.pipecat_engine import (
+    CLE_ETAT_OUVERTURE,
+    TRACE_TRANSFERTS_GARANTIS,
+    PipecatEngine,
+)
+from api.tests.mark.test_clavier_porte_la_fiche import FICHE, _monter
+from api.tests.mark.test_fiche_montree import _contexte, _mistral
+from api.tests.mark.test_outil_noter import CONFIG_ALLUMEE
+from api.tests.mark.test_porte_parlee_consigne import _graphe
+from api.tests.mark.test_porte_parlee_premiere_replique import (
+    _definition_a_trois_etapes,
+    _noeud,
+)
+from pipecat.tests import MockLLMService
+
+ALLUME = {**CONFIG_ALLUMEE, CLE_TRANSFERT_GARANTI: True}
+OUTIL = "transfer_team"
+
+
+def test_le_reglage_est_eteint_par_defaut_et_estampille_seulement_joue():
+    from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
+
+    assert WorkflowConfigurationDefaults().transfert_garanti is False
+    assert ReglagesFiche.depuis(CONFIG_ALLUMEE).transfert_garanti is False
+    assert (
+        ReglagesFiche.depuis(
+            {**CONFIG_ALLUMEE, CLE_TRANSFERT_GARANTI: "oui"}
+        ).transfert_garanti
+        is False
+    )
+    assert ReglagesFiche.depuis(ALLUME).transfert_garanti is True
+    assert CLE_TRANSFERT_GARANTI not in estampiller_le_mode(
+        {}, ReglagesFiche.depuis(CONFIG_ALLUMEE)
+    )
+    assert (
+        estampiller_le_mode({}, ReglagesFiche.depuis(ALLUME))[CLE_TRANSFERT_GARANTI]
+        is True
+    )
+
+
+def test_la_cle_de_l_etat_d_ouverture_est_celle_du_module():
+    from api.services.pipecat.etat_ouverture import CLE_ETAT
+
+    assert CLE_ETAT_OUVERTURE == CLE_ETAT
+
+
+# --------------------------------------------------------------------------- #
+# Le moteur
+# --------------------------------------------------------------------------- #
+
+
+def _definition() -> dict:
+    definition = _definition_a_trois_etapes()
+    _noeud(definition, "etape")["data"]["tool_uuids"] = ["outil-de-transfert"]
+    return definition
+
+
+async def _moteur(config=ALLUME, etat="OUVERT", etape="start"):
+    graphe = _graphe(_definition())
+    engine = PipecatEngine(
+        llm=_mistral(),
+        context=_contexte(),
+        workflow=graphe,
+        call_context_vars={CLE_ETAT_OUVERTURE: etat},
+        workflow_run_id=1,
+        fiche=ReglagesFiche.depuis(config),
+    )
+    agent = engine.active_agent
+    await engine._prepare_node(agent, graphe.nodes[etape], apply_settings=False)
+    agent.current_node = graphe.nodes[etape]
+    engine.queue_text_message = AsyncMock(return_value=True)
+    engine.end_call_with_reason = AsyncMock()
+    engine._outil_de_transfert = AsyncMock(return_value=OUTIL)
+    agent.queue_frame = AsyncMock()
+    agent.llm.run_function_calls = AsyncMock()
+    # L'étape d'arrivée enregistre ses outils dans la base : hors sujet ici.
+    engine._prepare_node = _sans_outils(engine._prepare_node)
+    return engine
+
+
+def _sans_outils(preparer):
+    async def preparer_sans_base(agent, node, **kw):
+        with patch.object(type(node), "tool_uuids", new=[], create=True):
+            return await preparer(agent, node, **kw)
+
+    return preparer_sans_base
+
+
+def _appels(engine) -> list[str]:
+    return [
+        appel.args[0][0].function_name
+        for appel in engine.active_agent.llm.run_function_calls.await_args_list
+    ]
+
+
+def _etats(engine) -> list[str]:
+    return [
+        t["etat"] for t in engine._gathered_context.get(TRACE_TRANSFERTS_GARANTIS) or []
+    ]
+
+
+@pytest.mark.asyncio
+async def test_conditions():
+    engine = await _moteur()
+    agent = engine.active_agent
+    assert engine._transfert_garanti_s_applique(agent, "etape")
+    assert not engine._transfert_garanti_s_applique(agent, "end")  # une fin
+    assert not engine._transfert_garanti_s_applique(agent, "start")  # aucun outil
+    assert not (await _moteur(etat="FERME"))._transfert_garanti_s_applique(
+        agent, "etape"
+    )
+    eteint = await _moteur(config=CONFIG_ALLUMEE)
+    assert not eteint._transfert_garanti_s_applique(eteint.active_agent, "etape")
+
+
+async def _porte_ecrite(engine, reponse="reponse-arrivee"):
+    assert await engine.prendre_porte_ecrite("vers_etape", reponse=reponse) == "prise"
+    assert engine.active_agent.current_node.id == "etape"
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == []  # la réplique n'est pas encore jouée
+    return reponse
+
+
+@pytest.mark.asyncio
+async def test_porte_ecrite_la_replique_jouee_le_code_appelle_l_outil():
+    engine = await _moteur()
+    reponse = await _porte_ecrite(engine)
+    engine.speech_playback.pending[reponse].finish(PlaybackOutcome.PLAYED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [OUTIL]
+    assert _etats(engine) == ["lance"]
+    # Le modèle ne reparle pas pour appeler l'outil (c'est le code qui le fait).
+    engine.active_agent.queue_frame.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_pas_de_double_transfert_si_le_modele_l_a_appele():
+    engine = await _moteur()
+    reponse = await _porte_ecrite(engine)
+    engine.context.add_message(
+        {
+            "role": "assistant",
+            "tool_calls": [
+                {
+                    "id": "x",
+                    "type": "function",
+                    "function": {"name": OUTIL, "arguments": "{}"},
+                }
+            ],
+        }
+    )
+    engine.speech_playback.pending[reponse].finish(PlaybackOutcome.PLAYED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == []
+    assert _etats(engine) == ["par_le_modele"]
+
+
+@pytest.mark.asyncio
+async def test_rien_si_la_personne_a_parle_entre_temps():
+    engine = await _moteur()
+    reponse = await _porte_ecrite(engine)
+    engine.context.add_message({"role": "user", "content": "attendez, une question"})
+    engine.speech_playback.pending[reponse].finish(PlaybackOutcome.INTERRUPTED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == []
+    assert _etats(engine) == ["personne_a_parle"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("config,etat", [(CONFIG_ALLUMEE, "OUVERT"), (ALLUME, "FERME")])
+async def test_case_eteinte_ou_magasin_ferme_rien(config, etat):
+    engine = await _moteur(config=config, etat=etat)
+    await engine.prendre_porte_ecrite("vers_etape", reponse="r")
+    await asyncio.sleep(0.05)
+    assert "r" not in engine.speech_playback.pending
+    assert _appels(engine) == [] and _etats(engine) == []
+
+
+@pytest.mark.asyncio
+async def test_porte_seule_la_reponse_suivante_est_attendue():
+    engine = await _moteur()
+    await engine.prendre_porte_ecrite("vers_etape", relancer=True)
+    attendue = engine.speech_playback._expected_response
+    assert attendue is not None  # posée avant de faire reparler le modèle
+    attendue.finish(PlaybackOutcome.PLAYED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [OUTIL]
+
+
+@pytest.mark.asyncio
+async def test_porte_en_fonction_la_reponse_qui_suit_est_attendue():
+    engine = await _moteur()
+    agent = engine.active_agent
+    fonction = await engine._create_transition_func("vers_etape", "etape", agent=agent)
+    rappel = AsyncMock()
+    from types import SimpleNamespace
+
+    await fonction(
+        SimpleNamespace(arguments={}, tool_call_id="t1", result_callback=rappel)
+    )
+    rappel.assert_awaited_once()
+    attendue = engine.speech_playback._expected_response
+    assert attendue is not None
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == []
+    attendue.finish(PlaybackOutcome.PLAYED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [OUTIL]
+
+
+@pytest.mark.asyncio
+async def test_rien_si_l_etape_a_change():
+    engine = await _moteur()
+    reponse = await _porte_ecrite(engine)
+    engine.active_agent.current_node = engine.active_agent.workflow.nodes["start"]
+    engine.speech_playback.pending[reponse].finish(PlaybackOutcome.PLAYED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [] and _etats(engine) == ["etape_quittee"]
+
+
+# --------------------------------------------------------------------------- #
+# Au clavier, par les vraies routes (R1)
+# --------------------------------------------------------------------------- #
+
+
+async def _agent(db_session, async_session):
+    configurations = {**FICHE, CLE_TRANSFERT_GARANTI: True}
+    user, workflow = await _monter(
+        db_session, async_session, configurations, _definition()
+    )
+    outil = await db_session.create_tool(
+        organization_id=workflow.organization_id,
+        user_id=user.id,
+        name="Transfer team",
+        description="Transfer the caller to the team",
+        category="transfer_call",
+        definition={
+            "schema_version": 1,
+            "type": "transfer_call",
+            "config": {"destination": "+33600000000", "timeout": 20},
+        },
+    )
+    definition = _definition()
+    _noeud(definition, "etape")["data"]["tool_uuids"] = [outil.tool_uuid]
+    await db_session.save_workflow_draft(
+        workflow.id,
+        workflow_definition=definition,
+        workflow_configurations=configurations,
+    )
+    await db_session.publish_workflow_draft(workflow.id)
+    return user, workflow
+
+
+@pytest.mark.asyncio
+async def test_au_clavier_le_code_lance_le_renvoi_apres_la_replique(
+    db_session, async_session, test_client_factory
+):
+    from api.services.pipecat import etat_ouverture
+    from api.services.workflow import text_chat_runner
+
+    user, workflow = await _agent(db_session, async_session)
+    appel = uuid.uuid4().hex[:6]
+    llm = [
+        MockLLMService(mock_steps=[], chunk_delay=0.001),
+        MockLLMService(
+            mock_steps=[
+                MockLLMService.create_function_call_chunks(
+                    "vers_etape", {}, tool_call_id=f"p_{appel}"
+                ),
+                MockLLMService.create_text_chunks(
+                    "Je vous mets en relation avec le magasin."
+                ),
+            ],
+            chunk_delay=0.001,
+        ),
+        *[MockLLMService(mock_steps=[], chunk_delay=0.001) for _ in range(3)],
+    ]
+    vrai = etat_ouverture.injecter_etat_ouverture
+
+    def ouvert(contexte, *a, **k):
+        # Le magasin est OUVERT pour ce test, quel que soit le jour (fériés compris).
+        return {**vrai(contexte, *a, **k), CLE_ETAT_OUVERTURE: "OUVERT"}
+
+    vu_en_attente = False
+    async with test_client_factory(user) as client:
+        with (
+            patch(
+                "api.services.workflow.text_chat_runner.create_llm_service",
+                side_effect=llm,
+            ),
+            patch(
+                "api.services.workflow.text_chat_runner.db_client.has_active_recordings",
+                new=AsyncMock(return_value=False),
+            ),
+            patch.object(
+                text_chat_runner, "injecter_etat_ouverture", side_effect=ouvert
+            ),
+        ):
+            creee = await client.post(
+                f"/api/v1/workflow/{workflow.id}/text-chat/sessions", json={}
+            )
+            session = creee.json()
+            run_id = session["workflow_run_id"]
+            url = f"/api/v1/workflow/{workflow.id}/runs/{run_id}/renvoi-en-test"
+
+            async def page():
+                nonlocal vu_en_attente
+                for _ in range(200):
+                    etat = await client.get(url)
+                    if etat.status_code == 200 and etat.json()["en_attente"]:
+                        vu_en_attente = True
+                        clic = await client.post(url, json={"accepte": True})
+                        assert clic.status_code == 200, clic.text
+                        return
+                    await asyncio.sleep(0.1)
+
+            tache = asyncio.create_task(page())
+            reponse = await client.post(
+                f"/api/v1/workflow/{workflow.id}/text-chat/sessions/{run_id}/messages",
+                json={
+                    "text": "mon poêle est en panne",
+                    "expected_revision": session["revision"],
+                },
+            )
+            await tache
+    assert reponse.status_code == 200, reponse.text
+    charge = reponse.json()
+    assert vu_en_attente, "le renvoi n'a jamais été lancé"
+    assert charge["is_completed"] is True, charge["session_data"]["turns"][-1]
+    texte = repr(charge["session_data"]["turns"])
+    assert "Je vous mets en relation avec le magasin." in texte
+    run = await db_session.get_workflow_run_by_id(run_id)
+    traces = (run.gathered_context or {}).get(TRACE_TRANSFERTS_GARANTIS) or []
+    assert [t["etat"] for t in traces] == ["lance"], run.gathered_context

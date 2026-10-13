@@ -77,6 +77,8 @@ export const NOMS_RESERVES = [
     "greffier_passes",
     // greffier-conversation, lot A: the transitions written in the reply (Clerk mode).
     "portes_lues",
+    // greffier-conversation, lot E: the transfer launched by the code.
+    "transferts_garantis",
     "voies_verifiees",
     "epellations_lues",
     "nombres_lus",

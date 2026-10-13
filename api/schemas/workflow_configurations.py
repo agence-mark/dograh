@@ -907,6 +907,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "the steps' field lists are kept but nothing is shown to the model."
         ),
     )
+    # [.mark] Chantier greffier-conversation, lot E (C4, D6 du 13/10) : le transfert garanti.
+    transfert_garanti: bool = Field(
+        default=False,
+        description=(
+            "When the agent arrives in a step that carries a call transfer tool and the "
+            "business is OPEN, the code launches the transfer itself once the step's "
+            "first reply has been said, instead of waiting for the model to call it. "
+            "Every note-taking mode. Off (default): the model decides, as before."
+        ),
+    )
     # [.mark] Chantier postscriptum-et-communes, B5 : un filet contre la question redemandée.
     phrase_sans_redemande: bool = Field(
         default=False,

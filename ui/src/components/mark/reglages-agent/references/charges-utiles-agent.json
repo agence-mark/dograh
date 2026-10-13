@@ -1166,6 +1166,20 @@
         }
       ]
     },
+    "transfert-garanti": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "transfert_garanti": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "phrase-sans-redemande": {
       "carte": "ajout-mark",
       "theme": "donnees",

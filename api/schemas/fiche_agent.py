@@ -218,6 +218,8 @@ NOMS_RESERVES = frozenset(
         "greffier_passes",
         # chantier greffier-conversation, lot A : les portes écrites dans la réponse (greffier)
         "portes_lues",
+        # chantier greffier-conversation, lot E : le transfert lancé par le code
+        "transferts_garantis",
         "voies_verifiees",
         "epellations_lues",
         "nombres_lus",

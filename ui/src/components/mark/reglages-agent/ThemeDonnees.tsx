@@ -200,6 +200,11 @@ export const ThemeDonnees = ({
     const [etiquettes, setEtiquettes] = useState(etiquettesEnregistrees);
     useEffect(() => setEtiquettes(etiquettesEnregistrees), [etiquettesEnregistrees]);
     const etiquettesModifiees = etiquettes !== etiquettesEnregistrees;
+    // greffier-conversation, lot E (C4, D6): the code launches the transfer, every mode.
+    const transfertEnregistre = resolue.transfert_garanti ?? false;
+    const [transfert, setTransfert] = useState(transfertEnregistre);
+    useEffect(() => setTransfert(transfertEnregistre), [transfertEnregistre]);
+    const transfertModifie = transfert !== transfertEnregistre;
     // Chantier postscriptum-et-communes, B5: a sentence that asks again for a field the turn's
     // note just wrote is held back. Only in « Transition, note, reply » order, like the server.
     const redemandeEnregistree = resolue.phrase_sans_redemande ?? false;
@@ -351,6 +356,7 @@ export const ThemeDonnees = ({
         || equipeConnueModifiee
         || verificationModifiee
         || etiquettesModifiees
+        || transfertModifie
         || redemandeModifiee;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
@@ -393,6 +399,11 @@ export const ThemeDonnees = ({
                 nom: { en: "Step field labels", fr: "Étiquettes des étapes" },
                 modifie: etiquettesModifiees,
                 config: () => ({ etiquettes_des_etapes: etiquettes }),
+            },
+            {
+                nom: { en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" },
+                modifie: transfertModifie,
+                config: () => ({ transfert_garanti: transfert }),
             },
             {
                 // Chantier postscriptum-et-communes, B5: its own part, sent only when changed (E6).
@@ -591,6 +602,24 @@ export const ThemeDonnees = ({
                         disposition="ligne"
                     >
                         <Switch id="etiquettes_des_etapes" checked={etiquettes} onCheckedChange={setEtiquettes} />
+                    </ChampReglage>
+                )}
+                {/* greffier-conversation, lot E (C4, D6): every note-taking mode. */}
+                {ficheActive && (
+                    <ChampReglage
+                        cle="transfert_garanti"
+                        idControle="transfert_garanti"
+                        libelle={{ en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" }}
+                        aides={[
+                            {
+                                en: "When the agent arrives in a step that carries a call transfer tool and the business is OPEN, the code launches the transfer itself once the step's first reply has been said. Off, the model decides whether to call it.",
+                                fr: "Quand l'agent arrive dans une étape qui porte un outil de transfert d'appel et que le magasin est OUVERT, le code lance lui-même le transfert une fois la première réplique de l'étape dite. Éteint, c'est le modèle qui décide de l'appeler.",
+                            },
+                        ]}
+                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                        disposition="ligne"
+                    >
+                        <Switch id="transfert_garanti" checked={transfert} onCheckedChange={setTransfert} />
                     </ChampReglage>
                 )}
                 {/* Chantier postscriptum-et-communes, B5: « Transition, note, reply » order only. */}

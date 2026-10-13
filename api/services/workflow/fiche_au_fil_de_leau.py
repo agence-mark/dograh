@@ -181,6 +181,8 @@ CLE_ETIQUETTES = "etiquettes_des_etapes"
 # Chantier postscriptum-et-communes, B5 : la phrase qui redemande ce que la note du même tour
 # vient d'écrire n'est pas dite (« porte, note, phrase » seulement). Option par agent, éteinte.
 CLE_PHRASE_SANS_REDEMANDE = "phrase_sans_redemande"
+# Chantier greffier-conversation, lot E (C4, D6) : le code lance le transfert à l'arrivée.
+CLE_TRANSFERT_GARANTI = "transfert_garanti"
 SOUFFLE_MAX = 2
 
 
@@ -221,6 +223,9 @@ class ReglagesFiche:
     # B5 : en « porte, note, phrase », la phrase qui redemande un champ que la note du tour
     # vient d'écrire est retenue, et le modèle reparle (une fois). Éteint : rien ne change.
     phrase_sans_redemande: bool = False
+    # Lot E de greffier-conversation (C4, D6) : à l'arrivée dans une étape qui porte un
+    # outil de transfert, magasin OUVERT, le code lance le transfert. Tous modes.
+    transfert_garanti: bool = False
 
     @property
     def note_d_abord(self) -> bool:
@@ -279,6 +284,7 @@ class ReglagesFiche:
             mode=mode,
             motifs_des_types=_motifs_des_types(run_configs),
             etiquettes=bool(run_configs.get(CLE_ETIQUETTES)),
+            transfert_garanti=run_configs.get(CLE_TRANSFERT_GARANTI) is True,
             phrase_sans_redemande=(
                 run_configs.get(CLE_PHRASE_SANS_REDEMANDE) is True
                 and mode == MODE_POST_SCRIPTUM
@@ -353,6 +359,9 @@ def estampiller_le_mode(
         # B5 : écrit seulement joué, comme la porte dans la réponse.
         if reglages.phrase_sans_redemande:
             runtime_configuration[CLE_PHRASE_SANS_REDEMANDE] = True
+        # Lot E de greffier-conversation : de même.
+        if reglages.transfert_garanti:
+            runtime_configuration[CLE_TRANSFERT_GARANTI] = True
     return runtime_configuration
 
 
