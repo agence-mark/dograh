@@ -410,6 +410,15 @@ def _lire_courriel(
     debut = place
     while gauche(debut - 1):
         debut -= 1
+    # Relecture n° 4 : un nombre dit juste avant l'adresse, séparé d'elle par un espace
+    # (« c'est le 15 evan arobase… »), n'en fait pas partie.
+    while (
+        debut < place - 1
+        and mots[debut][0].isdigit()
+        and not mots[debut + 1][0].isdigit()
+        and mots[debut + 1][1] > mots[debut][2]
+    ):
+        debut += 1
     if debut == place:
         return None
 
@@ -635,6 +644,10 @@ def lire(texte: str) -> list[Epellation]:
                 suivant += 2
                 etat = "lettre"
                 continue
+            if minuscule in ("2", "3") and lettres and len(apres) == 1 and apres.isalpha():
+                # Relecture n° 4 : « d u p o n 2 t » quand la transcription écrit le
+                # chiffre ; depuis que les chiffres sont des mots, il coupait la suite.
+                minuscule = "deux" if minuscule == "2" else "trois"
             if minuscule in REPETITIONS and (repetee := _lettre(apres)):
                 lettres += [repetee] * REPETITIONS[minuscule]
                 if len(apres) == 1 and _franche(repetee):
@@ -671,7 +684,23 @@ def lire(texte: str) -> list[Epellation]:
             if apres_virgule and lettres and not alphabet_avant and len(mot) == 1 and mot.isalpha():
                 lue = _confirmation(mots, suivant + 1, mot.lower())
                 deja = {_sans_accent(x) for x in lettres if x.isalpha()}
-                if lue and lue[2] is None and _sans_accent(lue[1] or mot) in deja:
+                apres_lue = suivant + 1 + lue[0] if lue else 0
+                if apres_lue < len(mots) and mots[apres_lue][0] == ",":
+                    apres_lue += 1
+                # Relecture n° 4 : seulement quand l'épellation S'ARRÊTE après la
+                # confirmation ; « b o n, N comme Nicolas, e » est « Bonne » (une lettre
+                # doublée, c'est justement là qu'on passe à l'alphabet).
+                if (
+                    lue
+                    and lue[2] is None
+                    and _sans_accent(lue[1] or mot) in deja
+                    and not (
+                        # Une lettre seule SANS mot qui la confirme : le nom continue.
+                        # « p a u l, p comme Pierre, l comme Louis » reste une relecture.
+                        _seule(mots, apres_lue)
+                        and not _confirmation(mots, apres_lue + 1, mots[apres_lue][0].lower())
+                    )
+                ):
                     suivant += 1 + lue[0]
                     apres_virgule = False
                     continue

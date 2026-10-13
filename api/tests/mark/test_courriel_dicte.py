@@ -189,6 +189,9 @@ def test_les_chiffres_de_ladresse_sont_lus(phrase, adresse, a_confirmer):
     [
         "06 12 34 56 78 jean arobase gmail point com",
         "mon numéro c'est le 06 12 34 56 78, et mon mail jean arobase gmail point com",
+        # Relecture n° 4 : un nombre dit avant l'adresse, séparé d'elle, n'y entre pas.
+        "c'est le 15 jean arobase gmail point com",
+        "mon code c'est 1234 jean arobase gmail point com",
     ],
 )
 def test_un_numero_de_telephone_nentre_jamais_dans_ladresse(phrase):

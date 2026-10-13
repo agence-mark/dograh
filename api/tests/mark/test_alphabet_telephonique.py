@@ -135,6 +135,12 @@ CORPUS = [
     ("d u p o n t, D comme Désiré", ["Dupont"]),
     ("p a u l, p comme Pierre, l comme Louis", ["Paul"]),
     ("d u p o n, T comme Thomas", ["Dupont"]),
+    # Relecture n° 4 : si l'épellation continue après la confirmation, la lettre est
+    # une vraie lettre (une lettre doublée : « Bonne », pas « Bone »).
+    ("b o n, N comme Nicolas, e", ["Bonne"]),
+    ("d u p o, N comme Nicolas, t", ["Dupont"]),
+    # Relecture n° 4 : « 2 t » écrit en chiffre vaut « deux t ».
+    ("c'est d u p o n 2 t", ["Dupontt"]),
     # Revue n° 2 : « de » devant un mot d'épellation reste la lettre D.
     ("m a de double l e", ["Madlle"]),
 ]
