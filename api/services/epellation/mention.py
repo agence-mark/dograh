@@ -46,6 +46,14 @@ def phrase_de_mention(epellation: Epellation, terme: str | None = None) -> str:
             if epellation.domaine_proche
             else ""
         )
+        if epellation.doutes:
+            # Revue du 13/10 : des mots recollés ou des accents retirés sont une
+            # supposition ; la note ne dit plus « exactement », elle fait confirmer.
+            raisons = " ; ".join(epellation.doutes)
+            return (
+                f"{MARQUE} : la personne a donné l'adresse mail « {epellation.epele} » "
+                f"({raisons}). Note cette adresse et fais-la confirmer à la personne.{doute}]"
+            )
         return (
             f"{MARQUE} : la personne a donné l'adresse mail « {epellation.epele} ». "
             f"Note exactement cette adresse.{doute}]"

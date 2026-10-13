@@ -11,7 +11,7 @@ les règles du plan, et rejoué sur les 2 944 phrases réelles sans qu'une lectu
 | 3 | La lettre perdue : « comme Ursule » juste après une confirmation |
 | 4 | « de » n'est plus la lettre D quand il relie une lettre à son mot |
 | 5 | Partout : au milieu d'un nom, d'une rue, d'une adresse mail ; les accents |
-| 6 | ⛔ Une phrase ordinaire n'est jamais lue |
+| 6 | ⛔ Une phrase ordinaire n'est jamais lue ; un prénom redit après un nom épelé ne le change pas (revue du 13/10) |
 | 7 | Le désaccord hors liste : la lettre est gardée, la note la fait confirmer |
 | 8 | R1 : la vraie route |
 
@@ -66,7 +66,8 @@ CORPUS = [
     ("F comme Suzanne o r e l", ["Sorel"]),
     ("S comme François a b r e", ["Fabre"]),
     ("B pour Pascal i e r r e", ["Pierre"]),
-    ("T comme Désiré u p o n t", ["Dupont"]),
+    # Hors des paires P/B, M/N, F/S, le mot ne l'emporte pas : la suite s'arrête.
+    ("T comme Désiré", []),
     # 3. La lettre perdue.
     (
         (
@@ -108,6 +109,18 @@ CORPUS = [
     ("f a b r e s, sans accent", ["Fabres"]),
     ("c'est avec un b, c'est l e f e b v r e", ["Lefebvre"]),
     ("je vous appelle comme convenu pour Thomas", []),
+    # Revue du 13/10 (bloquant) : un prénom de la liste qui suit un nom épelé ne
+    # remplace jamais sa dernière lettre (« Jeaj », « Duponn », « Totj » avant).
+    ("j e a n, Jean", ["Jean"]),
+    ("m a r i e, Marie", ["Marie"]),
+    ("l o u i s, Louis", ["Louis"]),
+    ("v i n c e n t comme Vincent", ["Vincent"]),
+    ("r o b e r t de Robert", ["Robert"]),
+    ("d u p o n t pour Nathalie", ["Dupont"]),
+    ("t o t o pour Jean qui est malade", ["Toto"]),
+    # Revue du 13/10 (mineur) : un nom redit, ou une phrase, après « comme » : aucun doute.
+    ("d u p o n t comme Dupont", ["Dupont"]),
+    ("f l a m a n t comme Martin me l'a dit", ["Flamant"]),
 ]
 
 

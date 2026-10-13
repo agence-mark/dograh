@@ -119,6 +119,27 @@ def test_ladresse_sarrete_ou_elle_finit(phrase, attendu):
     assert _lu(phrase) == [attendu]
 
 
+@pytest.mark.parametrize(
+    "phrase,adresse,doute",
+    [
+        ("c'est hélène arobase gmail point com", "helene@gmail.com", "accents retirés"),
+        ("jean pierre arobase gmail point com", "jeanpierre@gmail.com", "« jean pierre »"),
+    ],
+)
+def test_une_supposition_est_a_faire_confirmer(phrase, adresse, doute):
+    """Revue du 13/10 : accents retirés, mots recollés sans séparateur = une supposition.
+    La note ne dit plus « exactement », elle fait confirmer."""
+    (lue,) = lire(phrase)
+    assert lue.epele == adresse
+    assert any(doute in d for d in lue.doutes)
+    note = phrase_de_mention(lue)
+    assert "fais-la confirmer" in note and "exactement" not in note
+
+
+def test_un_chiffre_dans_ladresse_ne_fait_pas_relire_ses_lettres_comme_un_nom():
+    assert lire("jean 75 point v d k arobase gmail point com") == []
+
+
 def test_une_adresse_est_lue_une_seule_fois_et_pointe_sur_ce_qui_a_ete_dit():
     phrase = "Oui, c'est Evan point jourde arobase Gmail point com."
     (lue,) = lire(phrase)
@@ -149,6 +170,15 @@ def test_une_adresse_est_lue_une_seule_fois_et_pointe_sur_ce_qui_a_ete_dit():
         "mon adresse mail, je ne l'ai pas",
         "Non non, je n'ai pas l'adresse mail.",
         "c'est un point important, on en reparle",
+        # Revue du 13/10 : les chiffres ne sont pas lus, l'adresse serait fausse (n° 345).
+        "c'est jean75 arobase gmail point com",
+        "jean point dupont 1975 arobase gmail point com",
+        "jean 75 point v d k arobase gmail point com",
+        # Revue du 13/10 : des mots qui décrivent l'adresse ne la font pas.
+        "c'est mon prénom point mon nom arobase gmail point com",
+        "le nom de la boîte arobase gmail point com",
+        # Revue du 13/10 : « at » seulement devant un domaine de la liste.
+        "j'ai un compte at home point net",
     ],
 )
 def test_rien_nest_lu_sans_adresse(phrase):

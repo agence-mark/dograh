@@ -105,6 +105,9 @@ OUTILS_AVANT_COURRIEL = OUTILS_COURRIEL | frozenset(
         "sur", "dans", "ou", "envoyer", "envoyez", "ecrire", "écrire", "mails", "e-mail",
         "perso", "pro", "professionnelle", "personnelle", "bonjour", "merci", "parfait",
         "écrivez", "ecrivez", "notez", "note",
+        # Revue du 13/10 : « mon prénom point mon nom arobase… », « le nom de la boîte
+        # arobase… » décrivent une adresse, ils n'en sont pas une.
+        "nom", "prénom", "prenom", "société", "societe", "boîte", "boite", "entreprise",
     }
 )
 
@@ -140,6 +143,16 @@ MOTS_DE_CONFIRMATION = frozenset(
 )
 
 
+# 🔑 Revue du 13/10 (bloquant) : un mot de la liste ne l'emporte sur la lettre QUE pour les
+# paires que le réseau téléphonique confond (règle 2 du plan). Sans cette borne, « j e a n,
+# Jean » s'écrivait « Jeaj » et « d u p o n t pour Nathalie » « Duponn », en silence.
+LETTRES_CONFONDUES = (frozenset("pb"), frozenset("mn"), frozenset("fs"))
+
+
+def _confondues(une: str, autre: str) -> bool:
+    return frozenset((_sans_accent(une), _sans_accent(autre))) in LETTRES_CONFONDUES
+
+
 def _sans_accent(texte: str) -> str:
     return "".join(
         c for c in unicodedata.normalize("NFD", texte) if not unicodedata.combining(c)
@@ -157,9 +170,12 @@ def _confirmation(
     1. after a letter, a link and a word that STARTS with that letter are swallowed;
        a weak link ("pour", "de", "c'est", a comma) needs a word of the list or a
        capitalized one, so "s, sans accent" stays what it is;
-    2. a word of the list that does not agree wins over the letter ("B comme Pascal"
-       is P); a capitalized word outside the list after "comme" keeps the letter and
-       is reported ("B comme Parapluie");
+    2. a word of the list that does not agree wins over the letter ONLY for the pairs
+       the network confuses, P/B, M/N, F/S ("B comme Pascal" is P), and only after a
+       link that is said; any other disagreement ends the spelling, nothing swallowed
+       ("j e a n, Jean" stays "Jean", review of 13/10). A capitalized word outside the
+       list after "comme", the spelling going on after it, keeps the letter and is
+       reported ("B comme Parapluie, l e");
     3. "comme Pascal" right after a confirmation, the letter lost: the word's initial;
     4. "de" followed by a confirming word is a link, never the letter D;
     5. ⛔ no letter before, nothing: "comme Pascal me l'a dit" opens nothing (the
@@ -190,8 +206,15 @@ def _confirmation(
                 return consomme, None, None
             continue
         if connu:
-            return consomme, initiale, None
-        if fort and mot[0].isupper():
+            if lien and _confondues(lettre, initiale):
+                return consomme, initiale, None
+            continue
+        # The spelling goes on after the word: a letter said alone, possibly after a
+        # comma. Otherwise "f l a m a n t comme Martin me l'a dit" is a sentence.
+        suite = debut + n + 1
+        if suite < len(mots) and mots[suite][0] == ",":
+            suite += 1
+        if fort and mot[0].isupper() and _seule(mots, suite):
             return consomme, None, f"{lettre.upper()} comme {mot}"
     return None
 
@@ -269,7 +292,7 @@ def _ecrire_mot(mots: list[tuple[str, int, int]], rang: int) -> str:
 
 def _lire_courriel(
     mots: list[tuple[str, int, int]], place: int, largeur: int, faible: bool
-) -> tuple[int, int, str] | None:
+) -> tuple[int, int, str, tuple[str, ...]] | None:
     """The address around the "@" said at ``place`` (``largeur`` words), or None.
 
     Left of "@": letters said alone, whole words, "point / tiret / tiret bas", up to a
@@ -278,7 +301,9 @@ def _lire_courriel(
     "point" and its extension ("com", "f r"); after an extension, only another
     "point" or "tiret" goes on ("point f r, merci" ends at ``fr``).
     """
-    from api.services.epellation.domaines import formes_dites
+    from api.services.epellation.domaines import DOMAINES, formes_dites
+
+    noms_de_domaine = {domaine.split(".", 1)[0] for domaine in DOMAINES}
 
     # 🆕 lot 1 bis: "p comme Pascal a u l arobase…" -- the link and its word belong to
     # the address (they are read), they are never written.
@@ -328,6 +353,9 @@ def _lire_courriel(
     formes = formes_dites()
     plus_longue = max((len(f) for f in formes), default=1)
     domaine: list[str] = []
+    # Revue du 13/10 : deux mots dits l'un après l'autre sont recollés sans séparateur
+    # (« jean pierre » -> ``jeanpierre``) : une supposition, donc à faire confirmer.
+    colles: list[str] = []
     rang = place + largeur
     apres_extension = False
     while libre(rang):
@@ -367,7 +395,10 @@ def _lire_courriel(
                 break
         else:
             nom = formes.get((mot,))
-            domaine.append(nom if nom else _ecrire_mot(mots, rang))
+            ecrit = nom if nom else _ecrire_mot(mots, rang)
+            if not nom and len(ecrit) > 1 and domaine and len(domaine[-1]) > 1:
+                colles.append(f"{domaine[-1]} {ecrit}")
+            domaine.append(ecrit)
             rang += 1
     fin = rang - 1
 
@@ -388,7 +419,10 @@ def _lire_courriel(
             local.append("_")
             rang += 2
             continue
-        local.append(SEPARATEURS_COURRIEL.get(mot) or _ecrire_mot(mots, rang))
+        ecrit = SEPARATEURS_COURRIEL.get(mot) or _ecrire_mot(mots, rang)
+        if len(ecrit) > 1 and local and len(local[-1]) > 1:
+            colles.append(f"{local[-1]} {ecrit}")
+        local.append(ecrit)
         rang += 1
 
     partie_locale, partie_domaine = "".join(local), "".join(domaine)
@@ -403,7 +437,19 @@ def _lire_courriel(
         return None
     if partie_domaine.endswith((".", "-")):
         return None
-    return debut, fin, f"{partie_locale}@{partie_domaine}"
+    # Revue du 13/10 : « at » seulement devant un domaine de la liste (« un compte at
+    # home point net » n'est pas une adresse).
+    if faible and partie_domaine.split(".", 1)[0] not in noms_de_domaine:
+        return None
+    adresse = f"{partie_locale}@{partie_domaine}"
+    doutes = [f"« {paire} » écrit sans séparateur" for paire in colles]
+    # Revue du 13/10 : une adresse ne porte pas d'accent ; la transcription en met
+    # (« hélène »). Retiré, et signalé : c'est une supposition.
+    sans_accent = _sans_accent(adresse)
+    if sans_accent != adresse:
+        doutes.append(f"accents retirés (« {adresse} »)")
+        adresse = sans_accent
+    return debut, fin, adresse, tuple(doutes)
 
 
 def lire(texte: str) -> list[Epellation]:
@@ -428,15 +474,22 @@ def lire(texte: str) -> list[Epellation]:
         adresse = _lire_courriel(mots, place, *forme)
         if adresse is None:
             continue
-        debut, fin, ecrit = adresse
-        adresses[debut] = (fin, ecrit)
+        debut, fin, ecrit, doutes_adresse = adresse
+        # Revue du 13/10 : ``MOTS`` ne lit pas les chiffres ; « jean75 arobase… »
+        # donnait ``jean@…``, une adresse fausse avec l'ordre de la noter exactement.
+        # Un chiffre dans le passage : rien n'est lu (question n° 345).
+        if any(c.isdigit() for c in texte[mots[debut][1]:mots[fin][2]]):
+            # Occupé quand même : ses lettres ne doivent pas se relire comme un nom.
+            occupes |= set(range(debut, fin + 1))
+            continue
+        adresses[debut] = (fin, ecrit, doutes_adresse)
         occupes |= set(range(debut, fin + 1))
 
     trouvees: list[Epellation] = []
     rang = 0
     while rang < len(mots):
         if rang in adresses:
-            fin, ecrit = adresses[rang]
+            fin, ecrit, doutes_adresse = adresses[rang]
             trouvees.append(
                 Epellation(
                     mots[rang][1],
@@ -445,6 +498,7 @@ def lire(texte: str) -> list[Epellation]:
                     texte[mots[rang][1]:mots[fin][2]],
                     courriel=True,
                     domaine_proche=domaine_proche(ecrit.rsplit("@", 1)[-1]),
+                    doutes=doutes_adresse,
                 )
             )
             rang = fin + 1
@@ -516,6 +570,10 @@ def lire(texte: str) -> list[Epellation]:
                 suivant += 1
                 continue
 
+            # Revue du 13/10 : « r o b e r t de Robert » : « de » devant un mot est la
+            # préposition, pas la lettre D (« Robertd »). Il finit la suite.
+            if minuscule == "de" and len(apres) > 2 and apres.isalpha() and not _lettre(apres):
+                break
             lettre = _lettre(mot)
             # Rule 2: a letter name never opens a sequence.
             if lettre and len(mot) > 1 and not lettres:

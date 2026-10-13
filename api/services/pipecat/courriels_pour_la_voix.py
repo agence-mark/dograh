@@ -1,7 +1,8 @@
 """[.mark] The voice says e-mail addresses in words (plan courriel-dicte, lot 2).
 
 A Pipecat text TRANSFORM, for the reason ``nombres_pour_la_voix.py`` gives: it changes
-only the text sent to the voice, the conversation keeps what the model wrote. Branched
+only the text sent to the voice (⚠️ with its same limit for a voice that times each
+word, ElevenLabs among them: see ``epellation/voix.py``). Branched
 at the same place and on the same conditions (French agent, sentence aggregation),
 BEFORE the numbers: the digits of an address ("jean75@…") are then said by them.
 """

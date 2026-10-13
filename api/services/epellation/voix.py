@@ -20,7 +20,12 @@ The rules, each one simple:
 - digits stay digits: the numbers transform, which runs next, says them.
 
 ⛔ Only the text sent to the voice changes (a Pipecat text transform, like the
-numbers): the conversation keeps what the model wrote. Never raises.
+numbers). Never raises.
+
+⚠️ Same limit as the numbers (``nombres_pour_la_voix.py``): with a voice that times
+each word (ElevenLabs, the demonstration agent's voice on 13/10), Pipecat builds the
+history from what was SAID, so the model may read the address in words in its own
+history. Not observed yet: question n° 348 of the lab.
 """
 
 from __future__ import annotations
@@ -31,11 +36,14 @@ from api.services.epellation.domaines import DOMAINES
 
 # An address, possibly wrapped in markdown (``**x@y.fr**``): the stars are left
 # where they are, the markdown filter deals with them.
-COURRIEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._%+-]*@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+")
+# Revue du 13/10 : lettres accentuées comprises (« hélène@gmail.com » était dit « hélè n e »).
+COURRIEL = re.compile(
+    r"[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9._%+-]*@[A-Za-zÀ-ÿ0-9-]+(?:\.[A-Za-zÀ-ÿ0-9-]+)+"
+)
 SIGNES = {".": "point", "-": "tiret", "_": "tiret bas", "+": "plus", "%": "pourcent"}
 EXTENSIONS_DITES = frozenset({"com", "net", "org", "gouv", "info"})
 NOMS_CONNUS = frozenset(domaine.split(".", 1)[0] for domaine in DOMAINES)
-VOYELLES = frozenset("aeiouy")
+VOYELLES = frozenset("aeiouyàâäéèêëîïôöùûüÿ")
 
 
 def _morceau(morceau: str, *, extension: bool = False) -> str:
@@ -50,7 +58,7 @@ def _morceau(morceau: str, *, extension: bool = False) -> str:
     if minuscule in NOMS_CONNUS:
         return minuscule
     # Letters and digits mixed ("jean75"): the letters as below, the digits apart.
-    parties = re.findall(r"[a-z]+|\d+", minuscule)
+    parties = re.findall(r"[a-zà-ÿ]+|\d+", minuscule)
     dites = []
     for partie in parties:
         if partie.isdigit() or (len(partie) > 2 and VOYELLES & set(partie)):
