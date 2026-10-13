@@ -216,6 +216,8 @@ NOMS_RESERVES = frozenset(
         # plan mode-prise-de-notes : la trace de chaque post-scriptum et de chaque passe du greffier
         "post_scriptums",
         "greffier_passes",
+        # chantier greffier-conversation, lot A : les portes écrites dans la réponse (greffier)
+        "portes_lues",
         "voies_verifiees",
         "epellations_lues",
         "nombres_lus",

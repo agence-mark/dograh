@@ -104,8 +104,8 @@ export const AIDES_VERIFICATION_APPELANT: Texte[] = [
 // Plan porte-parlee (D14, D16): the box under the note-taking mode, Postscript only.
 export const AIDES_PORTES_DANS_LA_REPONSE: Texte[] = [
     {
-        en: "The agent takes a transition inside its reply and already speaks the next step's first reply: no silence between steps. Requires Postscript and a First reply on each step.",
-        fr: "L'agent prend une porte dans sa réponse et dit déjà la première réplique de l'étape suivante : aucun silence entre deux étapes. Demande le post-scriptum et une première réplique sur chaque étape.",
+        en: "The agent takes a transition inside its reply and already speaks the next step's first reply: no silence between steps. Requires Postscript or Clerk mode, and a First reply on each step.",
+        fr: "L'agent prend une porte dans sa réponse et dit déjà la première réplique de l'étape suivante : aucun silence entre deux étapes. Demande le post-scriptum ou le greffier, et une première réplique sur chaque étape.",
     },
     {
         en: "A transition's written speech is spoken before the first reply; a recorded one plays after it.",
@@ -173,12 +173,14 @@ export const ThemeDonnees = ({
         || JSON.stringify(pourComparerLaFiche(champs)) !== JSON.stringify(pourComparerLaFiche(champsEnregistres));
     const modeModifie = modeDeNote !== modeEnregistre;
     const erreursFiche = texteErreursDesChamps(champs);
-    // Plan porte-parlee (D1): read only in Postscript, the same rule as the code
-    // (E8); outside it the box is sent off, or the server would refuse the save.
+    // Plan porte-parlee (D1): read only in Postscript and (greffier-conversation, lot A)
+    // in Clerk mode, the same rule as the code (E8); in Tool mode the box is sent off,
+    // or the server would refuse the save.
     const portesEnregistrees = resolue.portes_dans_la_reponse ?? false;
     const [portes, setPortes] = useState(portesEnregistrees);
     useEffect(() => setPortes(portesEnregistrees), [portesEnregistrees]);
-    const portesEnvoyees = modeDeNote === "post_scriptum" && portes;
+    const modeAPortes = modeDeNote === "post_scriptum" || modeDeNote === "greffier";
+    const portesEnvoyees = modeAPortes && portes;
     const portesModifiees = portesEnvoyees !== portesEnregistrees;
     // Plan postscriptum-note-d-abord: the order and the hints, Postscript only (the
     // server refuses « note first » outside it). Absent: the order of before; the hints
@@ -465,7 +467,9 @@ export const ThemeDonnees = ({
                                     portes ? ` · ${t({ en: "transitions in the reply", fr: "portes dans la réponse" })}` : ""
                                 }`
                               : modeDeNote === "greffier"
-                                ? ` · ${t({ en: "Clerk", fr: "Greffier" })}`
+                                ? ` · ${t({ en: "Clerk", fr: "Greffier" })}${
+                                      portes ? ` · ${t({ en: "transitions in the reply", fr: "portes dans la réponse" })}` : ""
+                                  }`
                                 : ""
                       }`
                     : t({ en: "Record off", fr: "Fiche éteinte" }),
@@ -517,8 +521,9 @@ export const ThemeDonnees = ({
                         </Select>
                     </ChampReglage>
                 )}
-                {/* Plan porte-parlee (D1, D3): only in Postscript, the same condition as the code. */}
-                {ficheActive && modeDeNote === "post_scriptum" && (
+                {/* Plan porte-parlee (D1, D3): Postscript and Clerk modes (greffier-conversation,
+                    lot A), the same condition as the code. */}
+                {ficheActive && modeAPortes && (
                     <ChampReglage
                         cle="portes_dans_la_reponse"
                         idControle="portes_dans_la_reponse"
@@ -606,7 +611,7 @@ export const ThemeDonnees = ({
                         <Switch id="phrase_sans_redemande" checked={redemande} onCheckedChange={setRedemande} />
                     </ChampReglage>
                 )}
-                {ficheActive && modeDeNote === "post_scriptum" && portes && etapesSansPremiereReplique.length > 0 && (
+                {ficheActive && modeAPortes && portes && etapesSansPremiereReplique.length > 0 && (
                     <p role="note" className="rounded border bg-muted/30 p-3 text-sm">
                         {t({
                             en: "Steps without a first reply (the agent gets a generic line instead): ",

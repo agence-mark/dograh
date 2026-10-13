@@ -1,7 +1,8 @@
 """[.mark] La porte parlée : changer d'étape sans silence.
 
-Plan ``Labo-agent-vocal/plans/porte-parlee/``. En mode Postscript, avec la case « Transitions in
-the reply » (``portes_dans_la_reponse``), le modèle prend une porte DANS sa réponse :
+Plan ``Labo-agent-vocal/plans/porte-parlee/``. En mode Postscript (et en mode greffier depuis le
+chantier greffier-conversation, sans séparateur ni note), avec la case « Transitions in the
+reply » (``portes_dans_la_reponse``), le modèle prend une porte DANS sa réponse :
 
     → nom_de_la_porte
     Quelle est la marque de votre appareil ?
@@ -52,6 +53,18 @@ Une seule porte par réponse. Dès que ce que dit la personne correspond à une 
 # La première réplique des étapes où mènent tes portes
 {premieres}"""
 
+# Chantier greffier-conversation, lot A (D5 du 09/10) : en mode greffier, ni séparateur ni
+# note (la fiche est tenue à côté) ; la porte, puis la phrase, dans la même réponse.
+CONSIGNE_DES_PORTES_GREFFIER = """# Les portes de cette étape
+Quand tu prends une porte, ta réponse commence par une ligne seule : « → » suivi du nom exact de la porte. Cette ligne n'est jamais dite à la personne. Ensuite, ta phrase, qui est la première réplique de l'étape d'arrivée (liste plus bas), réglée sur la fiche et sur ce que la personne vient de dire : ce qu'elle vient de donner ou que la fiche porte déjà, tu ne le redemandes pas ; tu poses la question sur la première chose qui manque encore.
+Quand on reste dans cette étape, pas de ligne « → » : ta phrase seule.
+Une seule porte par réponse. Dès que ce que dit la personne correspond à une porte, tu la prends dans cette réponse : tu ne poses jamais la question de l'étape suivante sans prendre sa porte.
+
+{portes}
+
+# La première réplique des étapes où mènent tes portes
+{premieres}"""
+
 # D3 : une étape d'arrivée sans première réplique écrite à l'écran.
 SANS_PREMIERE_REPLIQUE = "pose la première question de cette étape."
 
@@ -72,6 +85,7 @@ def consigne_des_portes(
     graphe: WorkflowGraph,
     rendre: Callable[[str], str],
     note_d_abord: bool = False,
+    greffier: bool = False,
 ) -> str | None:
     """D5 : le bloc des portes de l'étape (``nom (vers l'étape X) : condition``), puis une
     fois la première réplique de chaque étape d'arrivée de CES portes, rendue avec
@@ -98,5 +112,11 @@ def consigne_des_portes(
         f"{rendre(etape.premiere_replique) if etape.premiere_replique else SANS_PREMIERE_REPLIQUE}"
         for etape in (graphe.nodes[cible] for cible in arrivees)
     )
-    consigne = CONSIGNE_DES_PORTES_NOTE_D_ABORD if note_d_abord else CONSIGNE_DES_PORTES
+    consigne = (
+        CONSIGNE_DES_PORTES_GREFFIER
+        if greffier
+        else CONSIGNE_DES_PORTES_NOTE_D_ABORD
+        if note_d_abord
+        else CONSIGNE_DES_PORTES
+    )
     return consigne.format(portes=portes, premieres=premieres)

@@ -75,6 +75,8 @@ export const NOMS_RESERVES = [
     // Plan mode-prise-de-notes: the trace of each postscript and each clerk pass.
     "post_scriptums",
     "greffier_passes",
+    // greffier-conversation, lot A: the transitions written in the reply (Clerk mode).
+    "portes_lues",
     "voies_verifiees",
     "epellations_lues",
     "nombres_lus",

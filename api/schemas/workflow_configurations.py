@@ -871,11 +871,12 @@ class WorkflowConfigurationDefaults(BaseModel):
     )
     # [.mark] Plan porte-parlee (05/10), D1 : la porte se prend dans la réponse.
     # Éteinte par défaut ; une configuration sans la clé est lue éteinte. Jouée
-    # seulement en Postscript (refusée à l'enregistrement sinon, D1).
+    # en Postscript et en greffier (lot A de greffier-conversation), refusée à
+    # l'enregistrement en mode outil (D1).
     portes_dans_la_reponse: bool = Field(
         default=False,
         description=(
-            "Postscript only. The agent takes a transition inside its reply and "
+            "Postscript and Clerk modes. The agent takes a transition inside its reply and "
             "already speaks the next step's first reply: no silence between steps. "
             "Off (default): transitions stay function calls, as before."
         ),

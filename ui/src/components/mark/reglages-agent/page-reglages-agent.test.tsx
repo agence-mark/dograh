@@ -450,15 +450,28 @@ describe("[.mark] transitions in the reply, in the call data theme", () => {
         m.definition = { nodes: [], edges: [] };
     });
 
-    it("is shown only in Postscript, like in the code", async () => {
+    it("is shown in Postscript and in Clerk mode, never in Tool mode, like in the code", async () => {
         await ouvrir(FICHE, NOVA);
         ouvrirLeTheme("donnees");
         await waitFor(() => expect(document.getElementById("fiche_mode_de_note")).not.toBeNull());
         expect(caseAPorte()).toBeNull();
         fireEvent.change(document.getElementById("fiche_mode_de_note") as HTMLElement, { target: { value: "post_scriptum" } });
         await waitFor(() => expect(caseAPorte()).not.toBeNull());
+        // greffier-conversation, lot A (D2): the clerk takes its transitions in the reply too.
         fireEvent.change(document.getElementById("fiche_mode_de_note") as HTMLElement, { target: { value: "greffier" } });
+        await waitFor(() => expect(caseAPorte()).not.toBeNull());
+        fireEvent.change(document.getElementById("fiche_mode_de_note") as HTMLElement, { target: { value: "outil" } });
         await waitFor(() => expect(caseAPorte()).toBeNull());
+    });
+
+    it("sends the box in Clerk mode (greffier-conversation, lot A)", async () => {
+        await ouvrir({ ...FICHE, fiche_mode_de_note: "greffier" }, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(caseAPorte()).not.toBeNull());
+        fireEvent.click(caseAPorte() as HTMLElement);
+        const charge = await enregistrer();
+        expect(charge.portes_dans_la_reponse).toBe(true);
+        expect(charge.fiche_mode_de_note).toBe("greffier");
     });
 
     it("is off for an agent saved before it, and reads back what the server stored", async () => {

@@ -77,6 +77,7 @@ from api.services.workflow.disposition_mapping import (
 )
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_TOUR,
+    MODE_GREFFIER,
     MODE_OUTIL,
     Notices,
     ReglagesFiche,
@@ -1227,6 +1228,8 @@ class PipecatEngine:
                 agent.workflow,
                 self._format_prompt,
                 note_d_abord=self._fiche is not None and self._fiche.note_d_abord,
+                # Chantier greffier-conversation, lot A : ni séparateur ni note.
+                greffier=self._fiche is not None and self._fiche.mode == MODE_GREFFIER,
             )
             if bloc:
                 texte = f"{texte}\n\n{bloc}"

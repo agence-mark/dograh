@@ -1,7 +1,8 @@
 """[.mark] Le réglage « porte dans la réponse » : données seules (plan porte-parlee, lot 1).
 
 Plan `Labo-agent-vocal/plans/porte-parlee/`, D1 : une case par agent, éteinte par défaut, qui
-n'existe qu'en mode Postscript. L'estampille du run ne la porte que jouée.
+n'existe qu'en mode Postscript (et en greffier depuis le lot A de greffier-conversation, prouvé
+dans ``test_greffier_portes.py``). L'estampille du run ne la porte que jouée.
 
 | Test | Ce qu'il prouve |
 |---|---|
@@ -19,7 +20,6 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_MODE,
     CLE_ORDRE_DE_LA_REPONSE,
     CLE_PORTES_DANS_LA_REPONSE,
-    MODE_GREFFIER,
     MODE_OUTIL,
     MODE_POST_SCRIPTUM,
     ORDRE_PHRASE_PUIS_NOTE,
@@ -61,7 +61,8 @@ def test_la_route_ecrit_la_case_en_post_scriptum():
     assert ecrit[CLE_PORTES_DANS_LA_REPONSE] is True
 
 
-@pytest.mark.parametrize("mode", [MODE_OUTIL, MODE_GREFFIER, None])
+# Chantier greffier-conversation, lot A : le greffier l'accepte (``test_greffier_portes.py``).
+@pytest.mark.parametrize("mode", [MODE_OUTIL, None])
 def test_la_route_refuse_la_case_hors_post_scriptum(mode):
     configurations = {**FICHE, CLE_PORTES_DANS_LA_REPONSE: True}
     if mode is not None:
@@ -85,7 +86,7 @@ def test_la_route_accepte_la_case_eteinte_dans_tout_mode():
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("mode", [MODE_OUTIL, MODE_GREFFIER, "inconnu"])
+@pytest.mark.parametrize("mode", [MODE_OUTIL, "inconnu"])
 def test_ecrite_a_la_main_hors_post_scriptum_est_eteinte(mode):
     reglages = ReglagesFiche.depuis(
         {**FICHE, CLE_MODE: mode, CLE_PORTES_DANS_LA_REPONSE: True}

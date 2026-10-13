@@ -37,6 +37,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.pipecat.post_scriptum import lire_la_note
+from api.services.workflow.porte_parlee import FLECHE
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_ETAT,
     CLE_TOUR,
@@ -173,6 +174,12 @@ def message_du_greffier(
         if role not in ("user", "assistant"):
             continue
         texte = _texte(message.get("content")).strip()
+        if role == "assistant":
+            # Lot A de greffier-conversation : une ligne de porte (« → ») n'est jamais
+            # relue, même si elle avait échappé au lecteur de portes.
+            texte = "\n".join(
+                ligne for ligne in texte.splitlines() if not ligne.lstrip().startswith(FLECHE)
+            ).strip()
         if not texte:
             continue
         qui = "Personne" if role == "user" else "Agent"
@@ -558,8 +565,8 @@ def service_du_greffier(
 
 def greffier_du_moteur(
     engine: Any, service: Any, consigne: str | None
-) -> DeclencheurDuGreffier | None:
-    """Le déclencheur du greffier, branché sur le moteur de l'appel : sa fiche,
+) -> FrameProcessor | None:
+    """Le déclencheur du greffier (ou le lecteur de portes, case allumée), branché sur le moteur de l'appel : sa fiche,
     sa conversation, ses notices, ses notes en cours. ``None`` hors mode
     greffier ou sans service. Une seule fabrique pour le téléphone et le clavier."""
     reglages = engine.fiche
@@ -576,7 +583,11 @@ def greffier_du_moteur(
     )
     # Le moteur le clôt à la passe de fin (revue du 04/10).
     engine.greffier = greffier
-    return DeclencheurDuGreffier(greffier)
+    # Chantier greffier-conversation, lot A : case « portes dans la réponse » allumée, le
+    # lecteur de portes prend la place du déclencheur (et déclenche le greffier lui-même).
+    from api.services.pipecat.lecteur_de_portes import lecteur_de_portes_du_moteur
+
+    return lecteur_de_portes_du_moteur(engine, greffier) or DeclencheurDuGreffier(greffier)
 
 
 CLE_ESTAMPILLE = "greffier_modele"

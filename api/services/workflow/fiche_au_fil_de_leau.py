@@ -204,7 +204,8 @@ class ReglagesFiche:
     termes_du_lexique: dict[str, str] = field(default_factory=dict)
     # Plan mode-prise-de-notes, D1 : comment la fiche s'écrit pendant l'appel.
     mode: str = MODE_OUTIL
-    # Plan porte-parlee, D1 : la porte se prend dans la réponse (Postscript seulement).
+    # Plan porte-parlee, D1 : la porte se prend dans la réponse (Postscript ; greffier
+    # depuis le lot A de greffier-conversation).
     portes_dans_la_reponse: bool = False
     # Plan postscriptum-note-d-abord : l'ordre de la réponse et les indices (Postscript seul).
     ordre: str = ORDRE_PHRASE_PUIS_NOTE
@@ -315,15 +316,20 @@ def _ordre_de_la_reponse(run_configs: dict, mode: str) -> str:
     return ordre
 
 
+# Chantier greffier-conversation, lot A (D5 du 09/10, D2 du 13/10) : les modes où la porte
+# se prend dans la réponse. L'outil n'en est pas : la fiche s'y écrit par un appel de fonction.
+MODES_DES_PORTES_DANS_LA_REPONSE = (MODE_POST_SCRIPTUM, MODE_GREFFIER)
+
+
 def _portes_dans_la_reponse(run_configs: dict, mode: str) -> bool:
-    """Plan porte-parlee, D1 : allumée seulement par ``True`` et en Postscript.
-    Sans la clé : éteinte. Écrite à la main hors Postscript : éteinte, jamais un
-    appel perdu (l'enregistrement le refuse, D1)."""
+    """Plan porte-parlee, D1 : allumée seulement par ``True``, en Postscript ou (lot A de
+    greffier-conversation) en greffier. Sans la clé : éteinte. Écrite à la main en mode
+    outil : éteinte, jamais un appel perdu (l'enregistrement le refuse, D1)."""
     if run_configs.get(CLE_PORTES_DANS_LA_REPONSE) is not True:
         return False
-    if mode != MODE_POST_SCRIPTUM:
+    if mode not in MODES_DES_PORTES_DANS_LA_REPONSE:
         logger.warning(
-            f"[fiche] porte dans la réponse ignorée hors Postscript (mode {mode})"
+            f"[fiche] porte dans la réponse ignorée en mode {mode}"
         )
         return False
     return True
