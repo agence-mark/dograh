@@ -345,7 +345,9 @@ async def test_une_passe_trop_longue_est_abandonnee_et_tracee():
 
 
 @pytest.mark.asyncio
-async def test_le_declencheur_part_apres_la_reponse_de_l_agent_et_ne_l_attend_pas():
+async def test_le_repli_part_apres_la_reponse_de_l_agent_et_ne_l_attend_pas():
+    """Le repli du lot B de greffier-conversation (service sans requête de conversation) :
+    l'ancien déclenchement, à la fin de la réponse."""
     modele = _Modele({"nom": "Dupont"}, delai=0.5)
     montage = _Montage(modele)
     aval = _Aval()
@@ -507,13 +509,14 @@ async def test_la_fabrique_du_moteur_joue_ses_lectures(three_node_workflow):
         fiche=ReglagesFiche.depuis(FICHE_GREFFIER),
     )
     modele = _Modele({"nom": "Dupont", "motif": "Martin"})
-    declencheur = greffier_du_moteur(engine, modele, None)
-    assert isinstance(declencheur, DeclencheurDuGreffier)
-    await run_test(
-        Pipeline([declencheur, _Aval()]),
-        frames_to_send=[LLMFullResponseEndFrame(), SleepFrame(sleep=0.05)],
-        start_timeout=DEMARRAGE_S,
-    )
+    # Lot B de greffier-conversation : la requête de l'agent déclenche le greffier ; la
+    # requête elle-même n'est jamais envoyée ici (client remplacé).
+    agent = AsyncMock(return_value=None)
+    engine._llm_de_la_fiche.get_chat_completions = agent
+    # Rien à placer après le modèle (case des portes éteinte) : plus de déclencheur.
+    assert greffier_du_moteur(engine, modele, None) is None
+    await engine._llm_de_la_fiche.get_chat_completions(engine.context)
+    agent.assert_awaited_once()
     await attendre_les_notes(engine.notes_en_cours, delai=5)
     fiche = engine._gathered_context
     assert fiche["nom"] == "Dupont"  # dit dans la conversation lue par la fabrique
@@ -600,3 +603,123 @@ async def test_le_moteur_clot_le_greffier_a_la_passe_de_fin(three_node_workflow)
     ):
         await engine._balayer_la_fiche()
     assert engine.greffier._clos is True
+
+
+# --------------------------------------------------------------------------- #
+# 8. Chantier greffier-conversation, lot B (C1, D3) : dès la fin de parole
+# --------------------------------------------------------------------------- #
+
+
+class _Agent:
+    """Le modèle de l'agent : sa requête de conversation, lente, et ce qu'il a vu."""
+
+    def __init__(self, delai: float = 0.0):
+        self.delai = delai
+        self.requetes = 0
+
+    async def get_chat_completions(self, context):
+        self.requetes += 1
+        await asyncio.sleep(self.delai)
+        return "flux"
+
+
+def _contexte_de(*messages):
+    return SimpleNamespace(get_messages=lambda: list(messages))
+
+
+@pytest.mark.asyncio
+async def test_la_passe_part_avec_la_requete_de_l_agent_sans_l_attendre():
+    modele = _Modele({"nom": "Dupont"}, delai=0.3)
+    montage = _Montage(modele)
+    agent = _Agent(delai=0.05)
+    assert module.declencher_a_la_requete(agent, montage.greffier) is True
+    # La requête de l'agent rend la main avant la fin de la passe : rien n'attend le greffier.
+    assert await agent.get_chat_completions(_contexte_de(*montage.messages)) == "flux"
+    assert agent.requetes == 1
+    assert "nom" not in montage.fiche
+    await attendre_les_notes(montage.notes, delai=5)
+    assert montage.fiche["nom"] == "Dupont"
+    assert len(modele.lus) == 1
+
+
+@pytest.mark.asyncio
+async def test_une_passe_par_replique_jamais_sur_une_relance():
+    """Une requête sans réplique nouvelle (accueil, relance après une porte ou un outil)
+    ne déclenche rien : une passe par réplique, pas de coût en plus (D3)."""
+    modele = _Modele({}, {}, {})
+    montage = _Montage(modele)
+    agent = _Agent()
+    module.declencher_a_la_requete(agent, montage.greffier)
+    accueil = [{"role": "assistant", "content": "Bonjour."}]
+    await agent.get_chat_completions(_contexte_de(*accueil))
+    await attendre_les_notes(montage.notes, delai=5)
+    assert modele.lus == []  # l'accueil : aucune réplique
+    replique = [*accueil, {"role": "user", "content": PAROLE}]
+    await agent.get_chat_completions(_contexte_de(*replique))
+    await attendre_les_notes(montage.notes, delai=5)
+    # La relance après une porte : même réplique, aucune passe de plus.
+    relance = [*replique, {"role": "assistant", "content": "Très bien."}]
+    await agent.get_chat_completions(_contexte_de(*relance))
+    await attendre_les_notes(montage.notes, delai=5)
+    assert len(modele.lus) == 1
+    # Un second « oui » identique au premier est une réplique nouvelle.
+    oui = [*relance, {"role": "user", "content": PAROLE}]
+    await agent.get_chat_completions(_contexte_de(*oui))
+    await attendre_les_notes(montage.notes, delai=5)
+    assert len(modele.lus) == 2
+
+
+@pytest.mark.asyncio
+async def test_plus_de_passe_a_la_fin_de_la_reponse():
+    """D3 : la passe d'après la réponse a disparu. La fabrique ne place plus rien après
+    le modèle (case des portes éteinte), et le lecteur de portes ne déclenche rien."""
+    from api.services.pipecat.lecteur_de_portes import LecteurDePortes
+
+    assert not hasattr(LecteurDePortes, "_greffier")
+    assert (
+        "LLMFullResponseEndFrame"
+        not in open(
+            module.__file__.replace("greffier.py", "lecteur_de_portes.py"),
+            encoding="utf-8",
+        ).read()
+    )
+
+
+@pytest.mark.asyncio
+async def test_un_service_sans_requete_garde_l_ancien_declenchement(
+    three_node_workflow,
+):
+    from api.services.workflow.pipecat_engine import PipecatEngine
+    from api.tests.mark.test_fiche_montree import _contexte
+
+    engine = PipecatEngine(
+        llm=SimpleNamespace(),
+        context=_contexte({"role": "user", "content": PAROLE}),
+        workflow=three_node_workflow,
+        call_context_vars={},
+        workflow_run_id=1,
+        fiche=ReglagesFiche.depuis(FICHE_GREFFIER),
+    )
+    assert isinstance(
+        greffier_du_moteur(engine, _Modele({}), None), DeclencheurDuGreffier
+    )
+
+
+@pytest.mark.asyncio
+async def test_rattraper_n_ajoute_pas_de_passe_quand_la_replique_est_relue_ou_en_vol():
+    modele = _Modele({"nom": "Dupont"}, {}, delai=0.2)
+    montage = _Montage(modele)
+    agent = _Agent()
+    module.declencher_a_la_requete(agent, montage.greffier)
+    await agent.get_chat_completions(_contexte_de(*montage.messages))
+    # En vol sur la dernière réplique : attendue, aucune passe de plus.
+    assert await montage.greffier.rattraper(5) is True
+    assert len(modele.lus) == 1
+    assert montage.fiche["nom"] == "Dupont"
+    # Déjà relue : rien à attendre, rien à demander.
+    assert await montage.greffier.rattraper(5) is True
+    assert len(modele.lus) == 1
+    # Une réplique que le greffier n'a pas vue : une passe est demandée.
+    montage.messages.append({"role": "user", "content": "et mon prénom c'est Jean"})
+    assert await montage.greffier.rattraper(5) is True
+    assert len(modele.lus) == 2

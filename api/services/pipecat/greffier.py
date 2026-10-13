@@ -2,17 +2,21 @@
 
 Plan `Labo-agent-vocal/plans/mode-prise-de-notes/`, partie 2 (lots 10 et 11). En mode greffier,
 l'agent n'a ni outil de note ni post-scriptum (``consigne_du_mode`` lui dit que la fiche est tenue
-à côté de lui). Après chaque réponse de l'agent, le greffier relit **toute** la conversation et la
-fiche, et rend la fiche entière en JSON ; seuls les champs **nouveaux ou changés** passent par
+à côté de lui). À chaque nouvelle réplique de la personne, le greffier relit **toute** la
+conversation et la fiche, et rend la fiche entière en JSON ; seuls les champs **nouveaux ou changés** passent par
 ``noter(…, source="greffier")`` : les mêmes contrôles que l'outil et le post-scriptum (méthode du
 rejeu du 02/10, `agents/nuances-de-feu/essais/2026-10-01-benchmark-small-4/`).
 
 Ce que le module garantit :
 
-- **D9, jamais avant l'agent** : le greffier part à la fin de la réponse de l'agent (sa requête est
-  finie) ; **une seule passe en vol** ; une demande arrivée pendant une passe est gardée, une seule,
-  et rejouée à la fin de la passe sur la conversation de ce moment-là : **la plus récente gagne**,
-  les demandes intermédiaires sont sautées (elles sont comprises dans la relecture complète).
+- **Dès la fin de parole de la personne** (chantier greffier-conversation, lot B, C1 et D3 du 13/10,
+  qui remplacent D9 « jamais avant l'agent ») : la passe part quand la parole de la personne part au
+  modèle de l'agent, **en même temps** que sa requête, jamais en l'attendant (aucune latence
+  ajoutée) ; **une passe par réplique**, la passe d'après la réponse a disparu (pas de coût en plus).
+  Ainsi la fiche est à jour quand l'agent arrive dans l'étape suivante.
+- **Une seule passe en vol** ; une demande arrivée pendant une passe est gardée, une seule, et
+  rejouée à la fin de la passe sur la conversation de ce moment-là : **la plus récente gagne**, les
+  demandes intermédiaires sont sautées (elles sont comprises dans la relecture complète).
 - **Un 429 saute le tour** : journalisé, tracé, la passe suivante relit tout l'appel.
 - ⛔ **Il ne coûte jamais l'appel** : il ne bloque ni l'audio, ni la voix, ni l'agent ; une erreur,
   une réponse illisible ou un module en panne sont tracés, rien de plus. La passe de fin reste le filet.
@@ -52,8 +56,9 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     noter,
     paroles_de_l_appelant,
 )
-from pipecat.frames.frames import Frame, LLMFullResponseEndFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.frames.frames import Frame, LLMFullResponseEndFrame
+from pipecat.pipeline.pipeline import Pipeline
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 # La trace de chaque passe du greffier, dans la fiche de l'appel.
@@ -178,7 +183,9 @@ def message_du_greffier(
             # Lot A de greffier-conversation : une ligne de porte (« → ») n'est jamais
             # relue, même si elle avait échappé au lecteur de portes.
             texte = "\n".join(
-                ligne for ligne in texte.splitlines() if not ligne.lstrip().startswith(FLECHE)
+                ligne
+                for ligne in texte.splitlines()
+                if not ligne.lstrip().startswith(FLECHE)
             ).strip()
         if not texte:
             continue
@@ -300,6 +307,11 @@ class Greffier:
         # Fin de l'appel (revue du 04/10) : plus de passe, et une passe encore
         # en vol n'écrit plus (la passe de fin est passée, la fiche est partie).
         self._clos = False
+        # Lot B de greffier-conversation : la réplique de la personne qui a déjà
+        # déclenché une passe, celle que lit la passe en vol, celle déjà relue.
+        self._replique_vue: tuple | None = None
+        self._replique_en_vol: tuple | None = None
+        self._replique_lue: tuple | None = None
 
     def clore(self) -> None:
         """La fin de l'appel : aucune passe ne part ni n'écrit plus."""
@@ -320,16 +332,39 @@ class Greffier:
         self._notes_en_cours.add(tache)
         tache.add_done_callback(self._notes_en_cours.discard)
 
+    def nouvelle_replique(self, messages: Iterable[dict]) -> bool:
+        """Lot B de greffier-conversation (C1) : la conversation qui part au modèle de
+        l'agent. Une réplique de la personne pas encore vue déclenche une passe ; une
+        requête sans réplique nouvelle (l'accueil, la relance après une porte ou un
+        outil) n'en déclenche aucune. Rend ``True`` si une passe est demandée."""
+        marque = _derniere_replique(messages)
+        if marque is None or marque == self._replique_vue:
+            return False
+        self._replique_vue = marque
+        self.declencher()
+        return True
+
     async def rattraper(self, delai: float) -> bool:
         """Lot D d'agent-leger-greffier : une action a besoin d'un champ que la personne
-        vient peut-être de dire, et que le greffier n'a pas encore relu (il relit APRÈS
-        la réponse de l'agent). Demande une passe sur la conversation de maintenant et
-        l'attend, ``delai`` secondes au plus. ``True`` si elle a fini à temps. Ne lève
-        jamais ; la passe continue après le délai (elle écrira pour la suite)."""
+        vient peut-être de dire. Depuis le lot B de greffier-conversation, la passe sur
+        cette réplique est déjà partie à la fin de sa parole : déjà relue, rien à
+        attendre ; en vol, elle est attendue sans en demander une autre ; sinon une passe
+        est demandée sur la conversation de maintenant. Attend ``delai`` secondes au plus.
+        ``True`` si la fiche a relu la dernière réplique à temps. Ne lève jamais ; la passe
+        continue après le délai (elle écrira pour la suite)."""
         if self._clos or delai <= 0:
             return False
         try:
-            self.declencher()
+            maintenant = _derniere_replique(self._messages())
+            en_vol = self._en_vol is not None and not self._en_vol.done()
+            if (
+                maintenant is not None
+                and not en_vol
+                and maintenant == self._replique_lue
+            ):
+                return True
+            if not (en_vol and maintenant == self._replique_en_vol):
+                self.declencher()
             tache = self._en_vol
             if tache is None:
                 return False
@@ -355,6 +390,7 @@ class Greffier:
         try:
             fiche = self._fiche()
             lus = list(self._messages())
+            self._replique_en_vol = _derniere_replique(lus)
             message = message_du_greffier(self._reglages, fiche, lus, self._refus)
             texte, jetons = await asyncio.wait_for(
                 interroger(self._service, self._systeme, message), self._delai
@@ -407,6 +443,7 @@ class Greffier:
             self._notices.retenir(
                 replace(note, refuses=[]) if note is not None else None
             )
+        self._replique_lue = _derniere_replique(lus)
         self._tracer(ECRIT if a_noter else RIEN, sorted(a_noter), debut, **jetons)
 
     def _tracer(self, etat: str, champs: list[str], debut: float, **detail) -> None:
@@ -425,9 +462,45 @@ class Greffier:
             logger.warning(f"[fiche] trace du greffier non écrite : {erreur!r}")
 
 
+def _derniere_replique(messages: Iterable[dict]) -> tuple | None:
+    """La dernière réplique de la personne : (son rang parmi ses répliques, son texte),
+    ou ``None`` s'il n'y en a pas. Le rang distingue deux « oui » de suite."""
+    rang, texte = 0, None
+    for message in messages:
+        if message.get("role") == "user":
+            rang += 1
+            texte = _texte(message.get("content"))
+    return None if texte is None else (rang, texte)
+
+
+def declencher_a_la_requete(llm: Any, greffier: Greffier) -> bool:
+    """Lot B de greffier-conversation (C1, D3) : chaque requête de CONVERSATION du modèle
+    de l'agent passe d'abord par le greffier, qui part en même temps si une réplique
+    nouvelle de la personne y est : jamais en l'attendant. Même point d'accroche que
+    l'état de la fiche (``montrer_la_fiche``), au téléphone comme au clavier.
+    ``False`` : service sans requête de conversation, rien n'est branché."""
+    obtenir = getattr(llm, "get_chat_completions", None)
+    if obtenir is None:
+        logger.warning(
+            "[fiche] service sans requête de conversation : greffier non branché"
+        )
+        return False
+
+    async def get_chat_completions(context, *args, **kwargs):
+        try:
+            greffier.nouvelle_replique(context.get_messages())
+        except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
+            logger.error(f"[fiche] greffier non déclenché : {erreur!r}")
+        return await obtenir(context, *args, **kwargs)
+
+    llm.get_chat_completions = get_chat_completions
+    return True
+
+
 class DeclencheurDuGreffier(FrameProcessor):
-    """Placé après le modèle de l'agent : à la fin de chaque réponse, une passe
-    du greffier (D9 : jamais avant la requête de l'agent). Laisse tout passer."""
+    """Le repli du lot B : un service sans requête de conversation (aucun des modèles de
+    .mark aujourd'hui) garde l'ancien déclenchement, à la fin de chaque réponse de
+    l'agent, plutôt qu'un greffier qui ne part jamais. Laisse tout passer."""
 
     def __init__(self, greffier: Greffier, **kwargs):
         super().__init__(**kwargs)
@@ -566,9 +639,12 @@ def service_du_greffier(
 def greffier_du_moteur(
     engine: Any, service: Any, consigne: str | None
 ) -> FrameProcessor | None:
-    """Le déclencheur du greffier (ou le lecteur de portes, case allumée), branché sur le moteur de l'appel : sa fiche,
-    sa conversation, ses notices, ses notes en cours. ``None`` hors mode
-    greffier ou sans service. Une seule fabrique pour le téléphone et le clavier."""
+    """Le greffier de l'appel, branché sur le moteur : sa fiche, sa conversation, ses
+    notices, ses notes en cours, et (lot B de greffier-conversation) la requête du
+    modèle de l'agent qui le déclenche. Rend le processeur à placer après le modèle :
+    le lecteur de portes, case « portes dans la réponse » allumée (lot A), sinon
+    ``None`` (rien à placer). ``None`` aussi hors mode greffier ou sans service.
+    Une seule fabrique pour le téléphone et le clavier."""
     reglages = engine.fiche
     if service is None or reglages is None or reglages.mode != MODE_GREFFIER:
         return None
@@ -583,11 +659,16 @@ def greffier_du_moteur(
     )
     # Le moteur le clôt à la passe de fin (revue du 04/10).
     engine.greffier = greffier
-    # Chantier greffier-conversation, lot A : case « portes dans la réponse » allumée, le
-    # lecteur de portes prend la place du déclencheur (et déclenche le greffier lui-même).
+    # Le modèle qui porte la fiche (le premier agent), comme l'état de la fiche.
+    branche = declencher_a_la_requete(engine._llm_de_la_fiche, greffier)
     from api.services.pipecat.lecteur_de_portes import lecteur_de_portes_du_moteur
 
-    return lecteur_de_portes_du_moteur(engine, greffier) or DeclencheurDuGreffier(greffier)
+    lecteur = lecteur_de_portes_du_moteur(engine)
+    if branche:
+        return lecteur
+    # Repli : l'ancien déclenchement, après le lecteur s'il y en a un.
+    declencheur = DeclencheurDuGreffier(greffier)
+    return Pipeline([lecteur, declencheur]) if lecteur is not None else declencheur
 
 
 CLE_ESTAMPILLE = "greffier_modele"

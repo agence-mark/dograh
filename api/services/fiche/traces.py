@@ -1,7 +1,7 @@
 """[.mark] Ce que les modules de lecture ont déjà établi, au tour même (lot D d'agent-leger-greffier).
 
-En mode greffier, la fiche a un tour de retard : le greffier relit la conversation APRÈS la
-réponse de l'agent. Les modules de lecture, eux, ont lu la parole de l'appelant AVANT le
+En mode greffier, la fiche pouvait avoir un tour de retard (avant le lot B de greffier-conversation, le greffier relisait APRÈS la
+réponse de l'agent ; il part désormais en même temps qu'elle). Les modules de lecture, eux, ont lu la parole de l'appelant AVANT le
 modèle, et laissé leurs traces dans l'appel (``communes_verifiees``, ``nombres_lus``,
 ``epellations_lues``). Ce module en tire les valeurs SÛRES, champ par champ, pour deux
 lecteurs : une action qui a besoin d'un champ maintenant (``connectors/champs_requis.py``)

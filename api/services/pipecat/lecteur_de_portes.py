@@ -38,7 +38,6 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     MODE_GREFFIER,
     ReglagesFiche,
 )
-from pipecat.frames.frames import Frame, LLMFullResponseEndFrame
 from pipecat.processors.frame_processor import FrameDirection
 
 # La trace de chaque porte écrite dans la réponse, en mode greffier.
@@ -56,11 +55,8 @@ class LecteurDePortes(PostScriptumProcessor):
         messages: Callable[[], Iterable[dict]],
         attendu: Callable[[], bool],
         portes: Any,
-        greffier: Any = None,
         **kwargs,
     ):
-        # Le greffier de l'appel, déclenché à la fin de chaque réponse (D9 d'avant).
-        self._greffier = greffier
         super().__init__(
             reglages=reglages,
             fiche=fiche,
@@ -72,14 +68,6 @@ class LecteurDePortes(PostScriptumProcessor):
             portes=portes,
             **kwargs,
         )
-
-    async def process_frame(self, frame: Frame, direction: FrameDirection):
-        await super().process_frame(frame, direction)
-        if self._greffier is not None and isinstance(frame, LLMFullResponseEndFrame):
-            try:
-                self._greffier.declencher()
-            except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
-                logger.error(f"[fiche] greffier non déclenché : {erreur!r}")
 
     # Pas de séparateur ni de note : la réponse est une phrase, avec peut-être une porte.
     def _separateur_dans(self, texte: str) -> tuple[int, int] | None:
@@ -120,9 +108,7 @@ class LecteurDePortes(PostScriptumProcessor):
             return None
 
 
-def lecteur_de_portes_du_moteur(
-    engine: Any, greffier: Any = None
-) -> LecteurDePortes | None:
+def lecteur_de_portes_du_moteur(engine: Any) -> LecteurDePortes | None:
     """Le lecteur, branché sur le moteur de l'appel, ou ``None`` : hors mode greffier ou
     case éteinte (le comportement d'avant, à l'octet). Téléphone et clavier."""
     reglages = engine.fiche
@@ -138,5 +124,4 @@ def lecteur_de_portes_du_moteur(
         messages=lambda: engine.context.get_messages() if engine.context else [],
         attendu=engine.post_scriptum_attendu,
         portes=engine,
-        greffier=greffier,
     )

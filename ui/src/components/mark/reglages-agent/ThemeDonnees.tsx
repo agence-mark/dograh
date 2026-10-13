@@ -64,8 +64,8 @@ export const AIDES_MODE_DE_NOTE: Texte[] = [
         fr: "Post-scriptum : l'agent parle, puis écrit sa note après un séparateur dans la même réponse. Une seule passe, la note n'est jamais dite ; ce que les contrôles demandent arrive à l'agent au tour suivant.",
     },
     {
-        en: "Clerk: a second model keeps the record alongside the agent, which only speaks. It rereads the whole conversation after each answer of the agent; one pass at a time, a pass refused for rate limit is skipped. Its model, key and instructions are set in « Configure the clerk ».",
-        fr: "Greffier : un second modèle tient la fiche à côté de l'agent, qui parle seulement. Il relit toute la conversation après chaque réponse de l'agent ; une passe à la fois, une passe refusée pour quota est sautée. Son modèle, sa clé et sa consigne se règlent dans « Régler le greffier ».",
+        en: "Clerk: a second model keeps the record alongside the agent, which only speaks. It rereads the whole conversation as soon as the caller stops speaking, alongside the agent (no added wait); one pass at a time, a pass refused for rate limit is skipped. Its model, key and instructions are set in « Configure the clerk ».",
+        fr: "Greffier : un second modèle tient la fiche à côté de l'agent, qui parle seulement. Il relit toute la conversation dès que la personne a fini de parler, en même temps que l'agent (aucune attente ajoutée) ; une passe à la fois, une passe refusée pour quota est sautée. Son modèle, sa clé et sa consigne se règlent dans « Régler le greffier ».",
     },
     {
         en: "Switching mode changes no prompt: write « you note it », never the tool's name. The end-of-call pass stays in every mode.",
