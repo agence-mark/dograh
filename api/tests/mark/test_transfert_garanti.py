@@ -430,3 +430,25 @@ async def test_au_clavier_le_code_lance_le_renvoi_apres_la_replique(
     run = await db_session.get_workflow_run_by_id(run_id)
     traces = (run.gathered_context or {}).get(TRACE_TRANSFERTS_GARANTIS) or []
     assert [t["etat"] for t in traces] == ["lance"], run.gathered_context
+
+
+@pytest.mark.asyncio
+async def test_une_reponse_suivie_apres_sa_sortie_compte_comme_jouee():
+    """Essai du 13/10 (run 1139, clavier) : le texte de la réplique d'arrivée sort avant
+    que le moteur la suive ; sa fin la donne jouée, pas muette (sinon pas de transfert)."""
+    from pipecat.frames.frames import SpeechBoundaryFrame
+
+    from api.services.pipecat.speech_playback import SpeechPlaybackTracker
+
+    suivi = SpeechPlaybackTracker()
+    suivi.after_output(None, SpeechBoundaryFrame("r1", beginning=True))
+    suivi.note_output()
+    phrase = suivi.suivre_une_reponse("r1")
+    suivi.after_output(None, SpeechBoundaryFrame("r1", beginning=False))
+    assert await phrase.wait() is True
+    # Une réponse sans aucune sortie reste en échec.
+    suivi.after_output(None, SpeechBoundaryFrame("r2", beginning=True))
+    muette = suivi.suivre_une_reponse("r2")
+    suivi.after_output(None, SpeechBoundaryFrame("r2", beginning=False))
+    assert await muette.wait() is False
+    assert muette.outcome is PlaybackOutcome.FAILED
