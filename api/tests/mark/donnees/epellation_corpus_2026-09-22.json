@@ -90,7 +90,7 @@
  {
   "famille": "reel",
   "phrase": "Oui, c'est Marc point ferrand arobase example point com.",
-  "attendu": [],
+  "attendu": ["marc.ferrand@example.com"],
   "run": 324
  },
  {

@@ -35,6 +35,21 @@ def phrase_de_mention(epellation: Epellation, terme: str | None = None) -> str:
             f"{MARQUE} : la personne a épelé « {epellation.epele} », c'est « {terme} » "
             "(lexique de l'entreprise) : ce n'est jamais le nom de la personne.]"
         )
+    if epellation.courriel:
+        # 🆕 courriel-dicte (D3) : l'adresse lue ; un domaine proche d'un connu est
+        # à faire confirmer, jamais corrigé en silence. La relecture de l'adresse
+        # elle-même vient du code (C3), pas de cette note (D9).
+        domaine = epellation.epele.rsplit("@", 1)[-1]
+        doute = (
+            f" Le domaine « {domaine} » ressemble à « {epellation.domaine_proche} » : "
+            "fais confirmer le domaine à la personne, sans le corriger toi-même."
+            if epellation.domaine_proche
+            else ""
+        )
+        return (
+            f"{MARQUE} : la personne a donné l'adresse mail « {epellation.epele} ». "
+            f"Note exactement cette adresse.{doute}]"
+        )
     return (
         f"{MARQUE} : la personne a épelé « {epellation.epele} ». "
         "Note exactement ces lettres, sans les corriger et sans les faire répéter.]"

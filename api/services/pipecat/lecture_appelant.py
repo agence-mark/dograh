@@ -230,6 +230,12 @@ def _trace_epellation(epellation, etape: str | None, termes: dict | None = None)
     HEARD form as well as the extracted one (point I1 of the plan, section 5).
     """
     trace = {"etape": etape, "entendu": epellation.entendu, "epele": epellation.epele}
+    # 🆕 courriel-dicte (D3) : une adresse, et son domaine proche d'un connu, pour le
+    # greffier et le banc (il lit les traces, pas la note).
+    if getattr(epellation, "courriel", False):
+        trace["courriel"] = True
+        if epellation.domaine_proche:
+            trace["domaine_proche"] = epellation.domaine_proche
     # Q6 (plan « le lexique ») : ces lettres épellent un terme du lexique.
     terme = terme_epele(epellation.epele, termes)
     if terme:
