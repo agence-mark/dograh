@@ -179,12 +179,21 @@ def test_la_liste_fermee_est_sans_accent_et_porte_lalphabet_francais():
 def test_un_mot_hors_liste_qui_ne_confirme_pas_garde_la_lettre_et_la_fait_confirmer():
     (lue,) = lire("b o u comme Parapluie l e")
     assert lue.epele == "Boule"
-    assert lue.doutes == ("U comme Parapluie",)
-    assert phrase_de_mention(lue) == (
-        f"{MARQUE} : la personne a épelé « Boule ». Note exactement ces lettres. Une lettre ne "
-        "s'accorde pas avec son mot (« U comme Parapluie ») : fais confirmer cette lettre à la "
-        "personne.]"
+    assert lue.doutes == (
+        "« U comme Parapluie » : le mot ne commence pas par cette lettre",
     )
+    assert phrase_de_mention(lue) == (
+        f"{MARQUE} : la personne a épelé « Boule ». Note ces lettres et fais confirmer "
+        "l'orthographe à la personne (« U comme Parapluie » : le mot ne commence pas par cette "
+        "lettre).]"
+    )
+
+
+def test_une_lettre_doublee_apres_la_lettre_deja_dite_est_a_confirmer():
+    """Relecture n° 7 : « d u p o n t, deux t » précise la lettre : doublée, pas ajoutée."""
+    (lue,) = lire("d u p o n t, deux t")
+    assert lue.epele == "Dupontt"
+    assert "fais confirmer" in phrase_de_mention(lue)
 
 
 def test_sans_desaccord_la_note_ne_change_pas():

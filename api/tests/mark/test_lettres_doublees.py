@@ -45,6 +45,9 @@ CAS = [
     for x in LETTRES
     for _, forme, fois in FORMES
     if not (x == "v" and forme.startswith("double"))
+    # « b o r, deux r » : la lettre doublée suit la même lettre après une virgule, c'est
+    # une précision (doublée et à faire confirmer) : testé à part, pas ici.
+    and not (x == "r" and forme.startswith(","))
 ]
 
 
@@ -77,11 +80,11 @@ def test_une_lettre_doublee_dans_une_adresse(x, forme, fois):
     ],
 )
 def test_une_lettre_dite_par_son_nom(nom, lettre):
-    assert [e.epele for e in lire(f"c'est b o r deux {nom} u n")] == [
-        "Bor" + lettre * 2 + "un"
+    assert [e.epele for e in lire(f"c'est b o deux {nom} u n")] == [
+        "Bo" + lettre * 2 + "un"
     ]
-    assert [e.epele for e in lire(f"c'est b o r, deux {nom}, u n")] == [
-        "Bor" + lettre * 2 + "un"
+    assert [e.epele for e in lire(f"c'est b o, deux {nom}, u n")] == [
+        "Bo" + lettre * 2 + "un"
     ]
 
 
@@ -98,6 +101,27 @@ def test_une_lettre_dite_par_son_nom(nom, lettre):
 )
 def test_ulysse(phrase):
     assert [e.epele for e in lire(phrase)] == ["Ulysse"]
+
+
+@pytest.mark.parametrize(
+    "phrase,attendu",
+    [
+        # Relecture n° 7 : des phrases ordinaires après un nom épelé, jamais des lettres.
+        ("c'est m a r t i n, 3e étage", ["Martin"]),
+        ("c'est d u p o n t, 2e étage porte b", ["Dupont"]),
+        ("c'est d u p o n t 2e étage", ["Dupont"]),
+        ("c'est r o u x, deux a la maison", ["Roux"]),
+        ("c'est d u r a n d, deux elle sont venues", ["Durand"]),
+        ("c'est l e r o y, deux à la fois", ["Leroy"]),
+        ("il y a, deux ans", []),
+        ("f l a m a n t, deux fois", ["Flamant"]),
+        # Les vrais appels (question n° 274).
+        ("Le nom de ma grand-mère c'est Perrin, P, E, deux R, I, N.", ["Perrin"]),
+        ("Rousseau. R, O, U, deux S, E, A, U.", ["Rousseau"]),
+    ],
+)
+def test_jamais_de_lettre_doublee_inventee(phrase, attendu):
+    assert [e.epele for e in lire(phrase)] == attendu
 
 
 def test_la_seule_limite_double_ve_est_la_lettre_w():

@@ -85,6 +85,8 @@ def _repetition(mots: list[tuple[str, int, int]], rang: int) -> tuple[int, str] 
         return None
     if mot == "double" and mots[rang + 1][0].lower() in ("v", "ve", "vé"):
         return None  # « double vé » is the letter W
+    if mot in REPETITIONS_EN_CHIFFRES and mots[rang][2] == mots[rang + 1][1]:
+        return None  # relecture n° 7 : « 3e étage », « 2e » : un ordinal, collé, jamais une répétition
     lettre = _lettre(mots[rang + 1][0])
     return (fois, lettre) if lettre else None
 
@@ -254,7 +256,7 @@ def _confirmation(
         if suite < len(mots) and mots[suite][0] == ",":
             suite += 1
         if fort and mot[0].isupper() and _seule(mots, suite):
-            return consomme, None, f"{lettre.upper()} comme {mot}"
+            return consomme, None, f"« {lettre.upper()} comme {mot} » : le mot ne commence pas par cette lettre"
     return None
 
 
@@ -537,6 +539,9 @@ def _lire_courriel(
             # « b o deux t e », « u l y 2 s e », « deux elle » : une lettre doublée,
             # jamais un nombre (Evan, 14/10 : l'adresse ne compromet pas l'épellation).
             fois, lettre = repetee
+            if mot.isdigit():
+                # Relecture n° 7 : « jean 2 a » peut être littéral (« 2a ») : à faire confirmer.
+                doutes_nombres.append(f"« {mot} {mots[rang + 1][0]} » écrit {lettre * fois}")
             local.append(lettre * fois)
             precedent, rang = rang + 1, rang + 2
             continue
@@ -691,9 +696,31 @@ def lire(texte: str) -> list[Epellation]:
                     continue
                 # 🆕 Evan, 14/10 (question n° 274) : « U, L, Y, deux S, E » ; une virgule
                 # avant une lettre doublée ne coupe plus le nom (« Uly » et « Sse » avant).
+                # Relecture n° 7 : seulement une lettre dite SEULE, sans accent, suivie de la
+                # fin, d'une virgule ou d'une autre lettre seule ; sinon « l e r o y, deux à
+                # la fois » s'écrivait « Leroyàà » et « r o u x, deux a la maison » « Rouxaa ».
                 if lettres and _repetition(mots, suivant + 1):
-                    suivant += 1
-                    continue
+                    apres_lettre = suivant + 3
+                    lettre_dite = mots[suivant + 2][0]
+                    lettre_repetee = _lettre(lettre_dite)
+                    if (
+                        # une lettre dite seule (sans accent : « à » est un mot) ou par son nom
+                        (
+                            (len(lettre_dite) == 1 and lettre_dite.isascii())
+                            or (len(lettre_dite) > 1 and lettre_repetee)
+                        )
+                        # … et l'épellation continue : fin, virgule, lettre seule, ou le mot
+                        # qui confirme la lettre (« deux S comme Suzanne »)
+                        and (
+                            apres_lettre >= len(mots)
+                            or mots[apres_lettre][0] in ".,;:!?"
+                            or _seule(mots, apres_lettre)
+                            or _confirmation(mots, apres_lettre, lettre_repetee) is not None
+                        )
+                    ):
+                        apres_virgule = mot == ","
+                        suivant += 1
+                        continue
                 break
 
             apres = mots[suivant + 1][0].lower() if suivant + 1 < len(mots) else ""
@@ -709,12 +736,20 @@ def lire(texte: str) -> list[Epellation]:
                 # chiffre ; depuis que les chiffres sont des mots, il coupait la suite.
                 minuscule = "deux" if minuscule == "2" else "trois"
             if minuscule in REPETITIONS and (repetee := _lettre(apres)):
+                if apres_virgule and lettres and _sans_accent(lettres[-1]) == _sans_accent(repetee):
+                    # Relecture n° 7 : « d u p o n t, deux t » précise une lettre déjà dite
+                    # (« Duponttt » avant) : la dernière lettre est doublée, pas répétée en
+                    # plus, et c'est une lecture, donc à faire confirmer.
+                    while lettres and _sans_accent(lettres[-1]) == _sans_accent(repetee):
+                        lettres.pop()
+                    doutes.append(f"« {minuscule} {mots[suivant + 1][0]} » dit après cette lettre : doublée")
                 lettres += [repetee] * REPETITIONS[minuscule]
                 if len(apres) == 1 and _franche(repetee):
                     franches += 1
                 debut = mots[suivant][1] if debut is None else debut
                 suivant += 2
                 etat = "lettre"
+                apres_virgule = False
                 continue
             # "d u p o n avec deux t": a linking word does not end the sequence
             # when it announces a repetition.
