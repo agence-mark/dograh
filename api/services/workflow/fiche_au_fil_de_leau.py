@@ -224,7 +224,7 @@ class ReglagesFiche:
     # vient d'écrire est retenue, et le modèle reparle (une fois). Éteint : rien ne change.
     phrase_sans_redemande: bool = False
     # Lot E de greffier-conversation (C4, D6) : à l'arrivée dans une étape qui porte un
-    # outil de transfert, magasin OUVERT, le code lance le transfert. Tous modes.
+    # outil de transfert, entreprise ouverte (OUVERT), le code lance le transfert. Tous modes.
     transfert_garanti: bool = False
 
     @property
