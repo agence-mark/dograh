@@ -414,12 +414,10 @@ async def test_A2_commune_retenue_et_rue_a_confirmer_les_deux_consignes():
         )
     )
     (resultat,) = resultats
-    # Lot D de greffier-conversation (C3) : la rue non ambiguë n'est plus à faire
-    # confirmer ; seule reste la consigne de l'écriture retenue de la commune.
-    assert resultat["statut"] == "note"
+    assert resultat["statut"] == "a_confirmer"
     assert resultat["ecriture_retenue"] == {"commune": "Pont-Sainte-Maxence"}
-    assert CONSIGNE_A_CONFIRMER not in resultat["consigne"]
-    assert resultat["consigne"] == CONSIGNE_ECRITURE_RETENUE
+    assert resultat["consigne"].startswith(CONSIGNE_A_CONFIRMER)
+    assert f"Pour commune : {CONSIGNE_ECRITURE_RETENUE}" in resultat["consigne"]
 
 
 def test_la_trace_la_plus_recente_gagne():

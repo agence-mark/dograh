@@ -1,17 +1,19 @@
 """[.mark] Le code ne fait confirmer que le critique (chantier greffier-conversation, lot D).
 
 Plan `Labo-agent-vocal/plans/greffier-conversation/`, lot D (C3, D5 du 13/10) : tout secteur,
-tout mode de note, le code ne fait confirmer que le **nom**, le **téléphone**, la **commune ou la
-rue ambiguë**, l'**adresse e-mail** et les **références**, reconnus par les réglages de l'agent
-(champ de nom, ``variables_telephone``, ``variables_courriel``, ``variables_reference``). Le reste
-« à confirmer » (une marque, un appareil) est noté tel qu'entendu, sans question (runs 1123, 1124 :
-« la marque est Edilcama, c'est bien cela ? »).
+tout mode de note, le code ne fait confirmer que le **nom**, le **téléphone**, l'**adresse e-mail**
+et les **références**, reconnus par les réglages de l'agent (champ de nom, ``variables_telephone``,
+``variables_courriel``, ``variables_reference``), plus, comme avant (Evan, 13/10), une **adresse non
+reconnue** et **toute valeur ambiguë** (deux marques possibles = une question, règle du 28/09). Le
+reste « à confirmer » (une marque d'un seul son, un appareil) est noté tel qu'entendu, sans question
+(runs 1123, 1124 : « la marque est Edilcama, c'est bien cela ? »).
 
 | Test | Ce qu'il prouve |
 |---|---|
 | critiques | nom, téléphone, e-mail, référence reconnus par les réglages, y compris un nom réglé à la main |
-| adresse | commune ou rue : seulement ambiguë (notice) ou contredite par le code postal (état) |
-| reste | une marque, un appareil : jamais une question, mais toujours non sûrs dans la fiche |
+| adresse | commune ou rue non reconnue : toujours une question, comme avant (notice et état) |
+| ambigu | deux possibilités, quel que soit le champ (une marque aussi) : une question |
+| reste | une marque d'un seul son, un appareil : pas de question, mais toujours non sûrs dans la fiche |
 | outil (R1) | par le vrai gestionnaire de l'outil : une marque hors lexique n'est plus « à confirmer » ; un nom non cité, lui, est refusé comme avant |
 | greffier | la notice d'une passe du greffier ne porte que le critique |
 """
@@ -85,19 +87,20 @@ def test_une_reference_reglee_a_la_main_est_critique():
 
 
 @pytest.mark.parametrize("nom", ["commune", "adresse_intervention"])
-def test_une_commune_ou_une_rue_seulement_ambigue(nom):
+def test_une_adresse_non_reconnue_reste_une_question_comme_avant(nom):
     reglages = _reglages()
     assert confirmation_critique(reglages, {"champ": nom, "options": ["A", "B"]})
-    assert not confirmation_critique(reglages, {"champ": nom, "valeur": "A"})
+    assert confirmation_critique(reglages, {"champ": nom, "valeur": "A"})
     assert a_faire_confirmer(reglages, nom, {"sure": False, INCOHERENT: True})
-    assert not a_faire_confirmer(reglages, nom, {"sure": False})
+    assert a_faire_confirmer(reglages, nom, {"sure": False})
 
 
-def test_une_marque_meme_ambigue_n_est_jamais_une_question():
+def test_une_marque_ambigue_reste_une_question_regle_du_28_09():
     reglages = _reglages()
-    assert not confirmation_critique(
+    assert confirmation_critique(
         reglages, {"champ": "marque", "options": ["Rika", "Scan"]}
     )
+    assert not confirmation_critique(reglages, {"champ": "marque", "valeur": "Zorvex"})
 
 
 def test_la_reponse_de_l_outil_ne_porte_que_ce_qui_reste():

@@ -2511,7 +2511,8 @@ def _motifs_des_types(run_configs: dict | None) -> dict:
 
 
 # Lot D de greffier-conversation (C3, D5 du 13/10) : ce que le code fait confirmer, tout
-# secteur, tout mode de note. Le reste « à confirmer » (une marque, un appareil) est noté tel
+# secteur, tout mode de note : le critique, l'adresse non reconnue, toute valeur ambiguë.
+# Le reste « à confirmer » (une marque reconnue d'un seul son, un appareil) est noté tel
 # qu'entendu, sans question à la personne.
 TYPE_REFERENCE = "reference"
 TYPES_CRITIQUES = ("telephone", "courriel", TYPE_REFERENCE)
@@ -2533,28 +2534,43 @@ def champ_critique(reglages: ReglagesFiche, nom: str) -> bool:
     return any(correspond(nom, tuple(motifs.get(t) or ())) for t in TYPES_CRITIQUES)
 
 
+def est_une_adresse(reglages: ReglagesFiche, champ: ChampFiche) -> bool:
+    """Une commune ou une rue : par son lecteur, par son nom (``commune*``, ``adresse*``,
+    ``rue*``), ou par les noms de communes réglés pour l'agent (``variables_commune``)."""
+    from api.schemas.fiche_agent import lecteur_par_defaut
+    from api.services.fiche.controle import correspond
+
+    return (
+        champ.lecteur_effectif in LECTEURS_D_ADRESSE
+        or lecteur_par_defaut(champ.nom) in LECTEURS_D_ADRESSE
+        or correspond(champ.nom, tuple((reglages.motifs_des_types or {}).get("commune") or ()))
+    )
+
+
 def confirmation_critique(reglages: ReglagesFiche, entree: dict) -> bool:
-    """Une valeur « à confirmer » que l'agent fait confirmer : un champ critique, ou une
-    commune ou une rue ambiguë (plusieurs candidates). Un champ inconnu : gardé (au doute,
-    on fait confirmer, comme avant)."""
+    """Une valeur « à confirmer » que l'agent fait confirmer : un champ critique ; une
+    adresse (commune ou rue) non reconnue, comme avant (Evan, 13/10 : le module des
+    communes ne change pas) ; toute valeur ambiguë, plusieurs possibilités (Evan, 13/10 :
+    la règle du 28/09 « deux marques possibles = une question » est gardée). Un champ
+    inconnu : gardé (au doute, on fait confirmer, comme avant)."""
     nom = entree.get("champ")
     champ = reglages.par_nom.get(nom)
-    if champ is None:
+    if champ is None or entree.get("options"):
         return True
-    if champ.lecteur_effectif in LECTEURS_D_ADRESSE:
-        return bool(entree.get("options"))
+    if est_une_adresse(reglages, champ):
+        return True
     return champ_critique(reglages, nom)
 
 
 def a_faire_confirmer(reglages: ReglagesFiche, nom: str, etat: dict) -> bool:
-    """L'état de la fiche : une valeur non sûre est montrée « À confirmer » seulement si elle
-    est critique, ou si c'est une commune ou une rue incohérente (son code postal la
-    contredit) ; sinon elle est montrée notée, telle qu'entendue."""
+    """L'état de la fiche : une valeur non sûre est montrée « À confirmer » si elle est
+    critique ou si c'est une adresse (commune ou rue), comme avant ; sinon elle est
+    montrée notée, telle qu'entendue."""
     champ = reglages.par_nom.get(nom)
     if champ is None:
         return True
-    if champ.lecteur_effectif in LECTEURS_D_ADRESSE:
-        return bool(etat.get(INCOHERENT))
+    if est_une_adresse(reglages, champ):
+        return True
     return champ_critique(reglages, nom)
 
 

@@ -99,19 +99,10 @@ def test_etat_noté_et_à_confirmer_dans_l_ordre_de_la_fiche():
             "motif": {"sure": True, "source": "outil"},
         },
     }
-    # Lot D de greffier-conversation (C3) : une commune non sûre (ni ambiguë, ni
-    # contredite par son code postal) est montrée notée, telle qu'entendue.
     assert etat_de_la_fiche(_reglages(), fiche).splitlines() == [
         ENTETE_ETAT,
-        "Noté : nom = « Dupont » ; commune = « Creil » ; motif = « panne »",
-    ]
-    # Un téléphone non sûr, lui, reste à faire confirmer (critique).
-    fiche["telephone"] = "0612345678"
-    fiche[CLE_ETAT]["telephone"] = {"sure": False, "source": "outil"}
-    assert etat_de_la_fiche(_reglages(), fiche).splitlines() == [
-        ENTETE_ETAT,
-        "Noté : nom = « Dupont » ; commune = « Creil » ; motif = « panne »",
-        "À confirmer : telephone = « 0612345678 »",
+        "Noté : nom = « Dupont » ; motif = « panne »",
+        "À confirmer : commune = « Creil »",
     ]
 
 
