@@ -174,6 +174,8 @@ def test_une_adresse_est_lue_une_seule_fois_et_pointe_sur_ce_qui_a_ete_dit():
         "c'est jean75 arobase gmail point com",
         "jean point dupont 1975 arobase gmail point com",
         "jean 75 point v d k arobase gmail point com",
+        # Revue n° 2 : un nombre dit en mots, comme un chiffre.
+        "jean soixante quinze arobase gmail point com",
         # Revue du 13/10 : des mots qui décrivent l'adresse ne la font pas.
         "c'est mon prénom point mon nom arobase gmail point com",
         "le nom de la boîte arobase gmail point com",
@@ -241,6 +243,22 @@ def test_la_note_dune_adresse_sans_doute():
         f"{MARQUE} : la personne a donné l'adresse mail « evan.jourde@gmail.com ». "
         "Note exactement cette adresse.]"
     )
+
+
+def test_lindice_du_greffier_dune_adresse_supposee():
+    fiche = {
+        CLE_TRACE_EPELLATIONS: [
+            {
+                "tour": 4,
+                "epele": "jeanpierre@gmail.com",
+                "courriel": True,
+                "doutes": ["« jean pierre » écrit sans séparateur"],
+            }
+        ]
+    }
+    assert _traces_du_tour(fiche, 4) == [
+        "épelé = jeanpierre@gmail.com (à faire confirmer : « jean pierre » écrit sans séparateur)"
+    ]
 
 
 def test_lindice_du_greffier_porte_le_doute():

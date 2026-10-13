@@ -65,7 +65,7 @@ CORPUS = [
     ("N comme Marcel a r t i n", ["Martin"]),
     ("F comme Suzanne o r e l", ["Sorel"]),
     ("S comme François a b r e", ["Fabre"]),
-    ("B pour Pascal i e r r e", ["Pierre"]),
+    ("B comme dans Pascal i e r r e", ["Pierre"]),
     # Hors des paires P/B, M/N, F/S, le mot ne l'emporte pas : la suite s'arrête.
     ("T comme Désiré", []),
     # 3. La lettre perdue.
@@ -121,6 +121,16 @@ CORPUS = [
     # Revue du 13/10 (mineur) : un nom redit, ou une phrase, après « comme » : aucun doute.
     ("d u p o n t comme Dupont", ["Dupont"]),
     ("f l a m a n t comme Martin me l'a dit", ["Flamant"]),
+    # Revue n° 2 du 13/10 (bloquant) : derrière une virgule ou « pour », le prénom qui
+    # suit le nom ne remplace jamais une lettre, même d'une paire confondue.
+    ("m a r t i n, Michel", ["Martin"]),
+    ("c'est m a r t i n pour Marie", ["Martin"]),
+    ("j e a n, Marie Dupont", ["Jean"]),
+    ("l o u i s, François", ["Louis"]),
+    ("t h o m a s, Fabien", ["Thomas"]),
+    ("j a c o b, Pierre", ["Jacob"]),
+    # Revue n° 2 : « de » devant un mot d'épellation reste la lettre D.
+    ("m a de double l e", ["Madlle"]),
 ]
 
 

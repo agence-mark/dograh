@@ -143,6 +143,21 @@ MOTS_DE_CONFIRMATION = frozenset(
 )
 
 
+# The words that carry a spelling on ("m a de double l e"): "de" before them is a letter.
+MOTS_D_EPELLATION = frozenset(
+    {"deux", "double", "trois", "tiret", "accent", "apostrophe", "espace", "trait", "avec"}
+)
+# Revue n° 2 du 13/10 : un nombre dit en mots dans une adresse (« jean soixante quinze
+# arobase… ») serait collé en lettres ; comme pour les chiffres, rien n'est lu (n° 345).
+NOMBRES_EN_MOTS = frozenset(
+    {
+        "zéro", "zero", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit",
+        "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "vingt",
+        "trente", "quarante", "cinquante", "soixante", "septante", "huitante", "nonante",
+        "cent", "cents", "mille",
+    }
+)
+
 # 🔑 Revue du 13/10 (bloquant) : un mot de la liste ne l'emporte sur la lettre QUE pour les
 # paires que le réseau téléphonique confond (règle 2 du plan). Sans cette borne, « j e a n,
 # Jean » s'écrivait « Jeaj » et « d u p o n t pour Nathalie » « Duponn », en silence.
@@ -171,9 +186,9 @@ def _confirmation(
        a weak link ("pour", "de", "c'est", a comma) needs a word of the list or a
        capitalized one, so "s, sans accent" stays what it is;
     2. a word of the list that does not agree wins over the letter ONLY for the pairs
-       the network confuses, P/B, M/N, F/S ("B comme Pascal" is P), and only after a
-       link that is said; any other disagreement ends the spelling, nothing swallowed
-       ("j e a n, Jean" stays "Jean", review of 13/10). A capitalized word outside the
+       the network confuses, P/B, M/N, F/S ("B comme Pascal" is P), and only after
+       "comme"; any other disagreement ends the spelling, nothing swallowed ("j e a n,
+       Jean" stays "Jean", "m a r t i n, Michel" stays "Martin": reviews of 13/10). A capitalized word outside the
        list after "comme", the spelling going on after it, keeps the letter and is
        reported ("B comme Parapluie, l e");
     3. "comme Pascal" right after a confirmation, the letter lost: the word's initial;
@@ -206,7 +221,10 @@ def _confirmation(
                 return consomme, None, None
             continue
         if connu:
-            if lien and _confondues(lettre, initiale):
+            # Revue n° 2 du 13/10 : seulement derrière « comme ». Derrière une virgule,
+            # « pour » ou « de », c'est le prénom qui suit le nom (« m a r t i n,
+            # Michel » écrivait « Martim »).
+            if fort and _confondues(lettre, initiale):
                 return consomme, initiale, None
             continue
         # The spelling goes on after the word: a letter said alone, possibly after a
@@ -478,7 +496,9 @@ def lire(texte: str) -> list[Epellation]:
         # Revue du 13/10 : ``MOTS`` ne lit pas les chiffres ; « jean75 arobase… »
         # donnait ``jean@…``, une adresse fausse avec l'ordre de la noter exactement.
         # Un chiffre dans le passage : rien n'est lu (question n° 345).
-        if any(c.isdigit() for c in texte[mots[debut][1]:mots[fin][2]]):
+        if any(c.isdigit() for c in texte[mots[debut][1]:mots[fin][2]]) or any(
+            mots[r][0].lower() in NOMBRES_EN_MOTS - {"un"} for r in range(debut, fin + 1)
+        ):
             # Occupé quand même : ses lettres ne doivent pas se relire comme un nom.
             occupes |= set(range(debut, fin + 1))
             continue
@@ -572,7 +592,13 @@ def lire(texte: str) -> list[Epellation]:
 
             # Revue du 13/10 : « r o b e r t de Robert » : « de » devant un mot est la
             # préposition, pas la lettre D (« Robertd »). Il finit la suite.
-            if minuscule == "de" and len(apres) > 2 and apres.isalpha() and not _lettre(apres):
+            if (
+                minuscule == "de"
+                and len(apres) > 2
+                and apres.isalpha()
+                and not _lettre(apres)
+                and apres not in MOTS_D_EPELLATION
+            ):
                 break
             lettre = _lettre(mot)
             # Rule 2: a letter name never opens a sequence.
