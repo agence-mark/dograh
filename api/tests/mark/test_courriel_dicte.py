@@ -82,6 +82,9 @@ def test_les_adresses_des_vrais_appels(phrase, attendu):
         ("c'est paul arobase g mail point com", "paul@gmail.com"),
         ("c'est paul arobase gé mail point com", "paul@gmail.com"),
         ("jean arobase la poste point net", "jean@laposte.net"),
+        # Revue n° 3 : « neuf » est un nombre ET un domaine de la liste.
+        ("c'est evan arobase neuf point f r", "evan@neuf.fr"),
+        ("c'est e v a n arobase neuf point f r", "evan@neuf.fr"),
         ("lucie arobase i cloud point com", "lucie@icloud.com"),
         ("c'est sophie arrobase orange point f r", "sophie@orange.fr"),
         ("c'est sophie arobas wanadoo point f r", "sophie@wanadoo.fr"),

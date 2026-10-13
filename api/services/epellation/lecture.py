@@ -443,6 +443,11 @@ def _lire_courriel(
         local.append(ecrit)
         rang += 1
 
+    # Revue n° 2 du 13/10 : un nombre dit en mots AVANT l'arobase (« jean soixante quinze
+    # arobase… ») : rien n'est lu, comme pour un chiffre (n° 345). Pas après : « neuf »
+    # est aussi un domaine (``neuf.fr``, revue n° 3).
+    if any(mots[r][0].lower() in NOMBRES_EN_MOTS - {"un"} for r in range(debut, place)):
+        return None
     partie_locale, partie_domaine = "".join(local), "".join(domaine)
     if not partie_locale.strip("._-") or not partie_domaine.strip("._-"):
         return None
@@ -496,9 +501,7 @@ def lire(texte: str) -> list[Epellation]:
         # Revue du 13/10 : ``MOTS`` ne lit pas les chiffres ; « jean75 arobase… »
         # donnait ``jean@…``, une adresse fausse avec l'ordre de la noter exactement.
         # Un chiffre dans le passage : rien n'est lu (question n° 345).
-        if any(c.isdigit() for c in texte[mots[debut][1]:mots[fin][2]]) or any(
-            mots[r][0].lower() in NOMBRES_EN_MOTS - {"un"} for r in range(debut, fin + 1)
-        ):
+        if any(c.isdigit() for c in texte[mots[debut][1]:mots[fin][2]]):
             # Occupé quand même : ses lettres ne doivent pas se relire comme un nom.
             occupes |= set(range(debut, fin + 1))
             continue
