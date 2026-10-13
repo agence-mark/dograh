@@ -126,7 +126,11 @@ def test_ladresse_sarrete_ou_elle_finit(phrase, attendu):
     "phrase,adresse,doute",
     [
         ("c'est hélène arobase gmail point com", "helene@gmail.com", "accents retirés"),
-        ("jean pierre arobase gmail point com", "jeanpierre@gmail.com", "« jean pierre »"),
+        (
+            "jean pierre arobase gmail point com",
+            "jeanpierre@gmail.com",
+            "« jean pierre »",
+        ),
     ],
 )
 def test_une_supposition_est_a_faire_confirmer(phrase, adresse, doute):
@@ -139,8 +143,56 @@ def test_une_supposition_est_a_faire_confirmer(phrase, adresse, doute):
     assert "fais-la confirmer" in note and "exactement" not in note
 
 
-def test_un_chiffre_dans_ladresse_ne_fait_pas_relire_ses_lettres_comme_un_nom():
-    assert lire("jean 75 point v d k arobase gmail point com") == []
+# --- 3 bis. Les chiffres de l'adresse (Evan, 13/10 : « un module parfait ») -----------
+
+
+@pytest.mark.parametrize(
+    "phrase,adresse,a_confirmer",
+    [
+        ("c'est jean75 arobase gmail point com", "jean75@gmail.com", False),
+        ("c'est j e a n 7 5 arobase gmail point com", "jean75@gmail.com", False),
+        (
+            "jean point dupont 1975 arobase gmail point com",
+            "jean.dupont1975@gmail.com",
+            True,
+        ),
+        ("c'est jean 75 arobase gmail point com", "jean75@gmail.com", True),
+        # Un nombre dit en mots s'écrit en chiffres : une lecture, donc à faire confirmer.
+        (
+            "c'est jean soixante quinze arobase gmail point com",
+            "jean75@gmail.com",
+            True,
+        ),
+        (
+            "c'est jean soixante-quinze arobase gmail point com",
+            "jean75@gmail.com",
+            True,
+        ),
+        (
+            "jean point dupont deux mille arobase orange point f r",
+            "jean.dupont2000@orange.fr",
+            True,
+        ),
+        ("jean 75 point v d k arobase gmail point com", "jean75.vdk@gmail.com", True),
+        # « deux t » dans une adresse est une répétition, pas un nombre.
+        ("c'est b o deux t e arobase free point f r", "botte@free.fr", False),
+    ],
+)
+def test_les_chiffres_de_ladresse_sont_lus(phrase, adresse, a_confirmer):
+    (lue,) = lire(phrase)
+    assert lue.epele == adresse
+    assert bool(lue.doutes) is a_confirmer
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "06 12 34 56 78 jean arobase gmail point com",
+        "mon numéro c'est le 06 12 34 56 78, et mon mail jean arobase gmail point com",
+    ],
+)
+def test_un_numero_de_telephone_nentre_jamais_dans_ladresse(phrase):
+    assert _lu(phrase) == ["jean@gmail.com"]
 
 
 def test_une_adresse_est_lue_une_seule_fois_et_pointe_sur_ce_qui_a_ete_dit():
@@ -173,12 +225,6 @@ def test_une_adresse_est_lue_une_seule_fois_et_pointe_sur_ce_qui_a_ete_dit():
         "mon adresse mail, je ne l'ai pas",
         "Non non, je n'ai pas l'adresse mail.",
         "c'est un point important, on en reparle",
-        # Revue du 13/10 : les chiffres ne sont pas lus, l'adresse serait fausse (n° 345).
-        "c'est jean75 arobase gmail point com",
-        "jean point dupont 1975 arobase gmail point com",
-        "jean 75 point v d k arobase gmail point com",
-        # Revue n° 2 : un nombre dit en mots, comme un chiffre.
-        "jean soixante quinze arobase gmail point com",
         # Revue du 13/10 : des mots qui décrivent l'adresse ne la font pas.
         "c'est mon prénom point mon nom arobase gmail point com",
         "le nom de la boîte arobase gmail point com",
@@ -349,6 +395,31 @@ async def test_par_la_vraie_route_le_domaine_douteux_est_dans_la_note_et_la_trac
     assert "ressemble à « gmail.com »" in lu
     (trace,) = registre.lire(CLE_TRACE_EPELLATIONS)
     assert trace["domaine_proche"] == "gmail.com"
+
+
+@pytest.mark.parametrize(
+    "texte,adresse",
+    [
+        ("c'est evan arobase neuf point f r", "evan@neuf.fr"),
+        ("c'est jean soixante quinze arobase gmail point com", "jean75@gmail.com"),
+    ],
+)
+async def test_par_la_vraie_route_aucun_autre_module_ne_touche_ladresse(texte, adresse):
+    """🔴 Evan, 13/10 : « un module parfait qui ne rend pas défectueux nos autres modules ».
+    Les nombres réécrivaient « neuf point f r » en « 9 point f r » à côté d'une note qui
+    disait ``neuf.fr`` : l'adresse est mise à l'abri, puis rendue telle que dite."""
+    lu = await _par_la_route(texte, _Registre())
+    assert lu.startswith(texte)
+    assert f"« {adresse} »" in lu
+
+
+async def test_par_la_vraie_route_le_numero_dit_avant_ladresse_reste_converti():
+    texte = "mon numéro c'est le zéro six douze trente-quatre cinquante-six soixante-dix-huit et mon mail jean arobase gmail point com"
+    lu = await _par_la_route(texte, _Registre())
+    assert lu.startswith(
+        "mon numéro c'est le 06 12 34 56 78 et mon mail jean arobase gmail point com"
+    )
+    assert "« jean@gmail.com »" in lu
 
 
 async def test_par_la_vraie_route_une_adresse_ne_fait_jamais_chercher_une_rue():

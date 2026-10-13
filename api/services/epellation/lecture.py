@@ -77,7 +77,10 @@ VOYELLES_OUTILS = frozenset("ayeo")
 # At least this many letters, or it is not a spelling.
 LETTRES_MINIMUM = 3
 
-MOTS = re.compile(r"[A-Za-zÀ-ÿ']+|[.,;:!?]")
+# 🆕 courriel-dicte (Evan, 13/10 : « un module parfait ») : les chiffres sont des mots
+# à part entière, pour l'adresse mail (« jean75 arobase… »). Une suite épelée s'arrête
+# sur eux ; avant, ils étaient invisibles et la suite les sautait.
+MOTS = re.compile(r"[A-Za-zÀ-ÿ']+|\d+|[.,;:!?]")
 
 # --- E-mail addresses (Q9; plan courriel-dicte, D1 and D3) ---------------
 SEPARATEURS_COURRIEL = {"point": ".", "tiret": "-"}
@@ -147,8 +150,8 @@ MOTS_DE_CONFIRMATION = frozenset(
 MOTS_D_EPELLATION = frozenset(
     {"deux", "double", "trois", "tiret", "accent", "apostrophe", "espace", "trait", "avec"}
 )
-# Revue n° 2 du 13/10 : un nombre dit en mots dans une adresse (« jean soixante quinze
-# arobase… ») serait collé en lettres ; comme pour les chiffres, rien n'est lu (n° 345).
+# Un nombre dit en mots dans la partie locale d'une adresse (« jean soixante quinze
+# arobase… ») s'écrit en chiffres (Evan, 13/10 : lire les chiffres, question n° 345).
 NOMBRES_EN_MOTS = frozenset(
     {
         "zéro", "zero", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit",
@@ -308,6 +311,44 @@ def _ecrire_mot(mots: list[tuple[str, int, int]], rang: int) -> str:
     return mot
 
 
+def _chiffres_isoles(mots: list[tuple[str, int, int]], rang: int) -> bool:
+    """Digits that belong to an address: one group of at most four digits (« jean75 »,
+    « dupont 1975 »), or at most four digits said one by one (« j e a n 7 5 »). Never a
+    run of groups: « 06 12 34 56 78 jean arobase… » is a phone number, not the address."""
+    if not 0 <= rang < len(mots) or not mots[rang][0].isdigit():
+        return False
+    debut = fin = rang
+    while debut > 0 and mots[debut - 1][0].isdigit():
+        debut -= 1
+    while fin + 1 < len(mots) and mots[fin + 1][0].isdigit():
+        fin += 1
+    groupes = [mots[r][0] for r in range(debut, fin + 1)]
+    if len(groupes) == 1:
+        return len(groupes[0]) <= 4
+    return all(len(g) == 1 for g in groupes) and len(groupes) <= 4
+
+
+# Fallback when ``text_to_num`` leaves a small number in words (« deux » stays « deux »).
+UNITES = {
+    "zéro": "0", "zero": "0", "deux": "2", "trois": "3", "quatre": "4", "cinq": "5",
+    "six": "6", "sept": "7", "huit": "8", "neuf": "9", "dix": "10",
+}
+
+
+def _en_chiffres(nombre: list[str]) -> str | None:
+    """« soixante quinze » -> ``75``, « deux mille » -> ``2000``; None if unsure."""
+    try:
+        from text_to_num import alpha2digit
+
+        ecrit = alpha2digit(" ".join(nombre), "fr").replace(" ", "")
+    except Exception:  # noqa: BLE001 -- unsure: no reading
+        return None
+    if ecrit.isdigit():
+        return ecrit
+    chiffres = [UNITES.get(mot) for mot in nombre]
+    return "".join(chiffres) if all(chiffres) else None
+
+
 def _lire_courriel(
     mots: list[tuple[str, int, int]], place: int, largeur: int, faible: bool
 ) -> tuple[int, int, str, tuple[str, ...]] | None:
@@ -337,6 +378,8 @@ def _lire_courriel(
         if rang in couverts:
             return True
         mot = mots[rang][0].lower()
+        if mot.isdigit():
+            return _chiffres_isoles(mots, rang)
         if mot in ".,;:!?" or "'" in mot or not mot.replace("-", "").isalpha():
             return False
         if mot == "bas":
@@ -354,6 +397,8 @@ def _lire_courriel(
         if not 0 <= rang < len(mots):
             return False
         mot = mots[rang][0].lower()
+        if mot.isdigit():
+            return _chiffres_isoles(mots, rang)
         return (
             mot not in ".,;:!?"
             and "'" not in mot
@@ -374,6 +419,7 @@ def _lire_courriel(
     # Revue du 13/10 : deux mots dits l'un après l'autre sont recollés sans séparateur
     # (« jean pierre » -> ``jeanpierre``) : une supposition, donc à faire confirmer.
     colles: list[str] = []
+    doutes_nombres: list[str] = []
     rang = place + largeur
     apres_extension = False
     while libre(rang):
@@ -421,9 +467,29 @@ def _lire_courriel(
     fin = rang - 1
 
     local: list[str] = []
+    precedent = None  # the rank of the last word written, to see the space after it
     rang = debut
     while rang < place:
         mot = mots[rang][0].lower()
+        if mot in REPETITIONS and _seule(mots, rang + 1) and rang + 1 < place:
+            # « b o deux t e » : a repetition, never a number.
+            local.append(mots[rang + 1][0].lower() * REPETITIONS[mot])
+            precedent, rang = rang + 1, rang + 2
+            continue
+        if mot in NOMBRES_EN_MOTS - {"un"}:
+            # 🆕 « jean soixante quinze arobase… » (Evan, 13/10) : le nombre dit en mots
+            # s'écrit en chiffres ; c'est une lecture, donc à faire confirmer.
+            nombre = []
+            while rang < place and mots[rang][0].lower() in NOMBRES_EN_MOTS - {"un"}:
+                nombre.append(mots[rang][0].lower())
+                rang += 1
+            chiffres = _en_chiffres(nombre)
+            if chiffres is None:
+                return None
+            doutes_nombres.append(f"« {' '.join(nombre)} » écrit {chiffres}")
+            local.append(chiffres)
+            precedent = rang - 1
+            continue
         if rang in confirmations:
             consomme, nouvelle = confirmations[rang]
             local.append(nouvelle or mot)
@@ -438,16 +504,14 @@ def _lire_courriel(
             rang += 2
             continue
         ecrit = SEPARATEURS_COURRIEL.get(mot) or _ecrire_mot(mots, rang)
-        if len(ecrit) > 1 and local and len(local[-1]) > 1:
+        # Glued only when a SPACE was said between them: « jean75 » is one word.
+        espace = precedent is not None and mots[rang][1] > mots[precedent][2]
+        if len(ecrit) > 1 and local and len(local[-1]) > 1 and espace:
             colles.append(f"{local[-1]} {ecrit}")
         local.append(ecrit)
+        precedent = rang
         rang += 1
 
-    # Revue n° 2 du 13/10 : un nombre dit en mots AVANT l'arobase (« jean soixante quinze
-    # arobase… ») : rien n'est lu, comme pour un chiffre (n° 345). Pas après : « neuf »
-    # est aussi un domaine (``neuf.fr``, revue n° 3).
-    if any(mots[r][0].lower() in NOMBRES_EN_MOTS - {"un"} for r in range(debut, place)):
-        return None
     partie_locale, partie_domaine = "".join(local), "".join(domaine)
     if not partie_locale.strip("._-") or not partie_domaine.strip("._-"):
         return None
@@ -465,7 +529,7 @@ def _lire_courriel(
     if faible and partie_domaine.split(".", 1)[0] not in noms_de_domaine:
         return None
     adresse = f"{partie_locale}@{partie_domaine}"
-    doutes = [f"« {paire} » écrit sans séparateur" for paire in colles]
+    doutes = [f"« {paire} » écrit sans séparateur" for paire in colles] + doutes_nombres
     # Revue du 13/10 : une adresse ne porte pas d'accent ; la transcription en met
     # (« hélène »). Retiré, et signalé : c'est une supposition.
     sans_accent = _sans_accent(adresse)
@@ -498,13 +562,6 @@ def lire(texte: str) -> list[Epellation]:
         if adresse is None:
             continue
         debut, fin, ecrit, doutes_adresse = adresse
-        # Revue du 13/10 : ``MOTS`` ne lit pas les chiffres ; « jean75 arobase… »
-        # donnait ``jean@…``, une adresse fausse avec l'ordre de la noter exactement.
-        # Un chiffre dans le passage : rien n'est lu (question n° 345).
-        if any(c.isdigit() for c in texte[mots[debut][1]:mots[fin][2]]):
-            # Occupé quand même : ses lettres ne doivent pas se relire comme un nom.
-            occupes |= set(range(debut, fin + 1))
-            continue
         adresses[debut] = (fin, ecrit, doutes_adresse)
         occupes |= set(range(debut, fin + 1))
 
@@ -530,6 +587,12 @@ def lire(texte: str) -> list[Epellation]:
         suivant, lettres, debut, franches = rang, [], None, 0
         # 🆕 lot 1 bis: what came last ("lettre", "confirmation", other), and the doubts.
         etat, doutes = None, []
+        # 🆕 « p a u l, P comme Pierre » (Evan, 13/10) : des lettres dites seules, puis,
+        # après une virgule, une lettre DÉJÀ dite confirmée par son mot : c'est une
+        # reconfirmation, pas une lettre de plus (« Paulp » avant). Seulement quand rien
+        # n'a été épelé en alphabet avant : « …, A comme André » dans « Panchaud » est une
+        # vraie lettre.
+        alphabet_avant, apres_virgule = False, False
         while suivant < len(mots):
             if suivant in occupes:
                 # A sequence never runs into an address already read.
@@ -548,6 +611,7 @@ def lire(texte: str) -> list[Epellation]:
                         lettres.append(nouvelle)
                     if doute:
                         doutes.append(doute)
+                    alphabet_avant = True
                     # A confirmed letter is a spelled letter.
                     franches += 1
                     suivant += consomme
@@ -558,6 +622,7 @@ def lire(texte: str) -> list[Epellation]:
             if mot in ".,;:!?":
                 # A full stop between two spelled letters does not end them.
                 if lettres and suivant + 1 < len(mots) and _lettre(mots[suivant + 1][0]):
+                    apres_virgule = mot == ","
                     suivant += 1
                     continue
                 break
@@ -603,6 +668,14 @@ def lire(texte: str) -> list[Epellation]:
                 and apres not in MOTS_D_EPELLATION
             ):
                 break
+            if apres_virgule and lettres and not alphabet_avant and len(mot) == 1 and mot.isalpha():
+                lue = _confirmation(mots, suivant + 1, mot.lower())
+                deja = {_sans_accent(x) for x in lettres if x.isalpha()}
+                if lue and lue[2] is None and _sans_accent(lue[1] or mot) in deja:
+                    suivant += 1 + lue[0]
+                    apres_virgule = False
+                    continue
+            apres_virgule = False
             lettre = _lettre(mot)
             # Rule 2: a letter name never opens a sequence.
             if lettre and len(mot) > 1 and not lettres:

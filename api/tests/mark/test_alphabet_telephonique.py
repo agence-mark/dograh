@@ -129,6 +129,12 @@ CORPUS = [
     ("l o u i s, François", ["Louis"]),
     ("t h o m a s, Fabien", ["Thomas"]),
     ("j a c o b, Pierre", ["Jacob"]),
+    # Evan, 13/10 : une lettre déjà dite, reconfirmée après une virgule, n'est pas
+    # ajoutée (« Paulp » avant) ; sauf si le nom était déjà épelé en alphabet (Panchaud).
+    ("p a u l, P comme Pierre", ["Paul"]),
+    ("d u p o n t, D comme Désiré", ["Dupont"]),
+    ("p a u l, p comme Pierre, l comme Louis", ["Paul"]),
+    ("d u p o n, T comme Thomas", ["Dupont"]),
     # Revue n° 2 : « de » devant un mot d'épellation reste la lettre D.
     ("m a de double l e", ["Madlle"]),
 ]
