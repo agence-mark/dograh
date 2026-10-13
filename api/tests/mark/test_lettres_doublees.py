@@ -124,6 +124,15 @@ def test_jamais_de_lettre_doublee_inventee(phrase, attendu):
     assert [e.epele for e in lire(phrase)] == attendu
 
 
+@pytest.mark.parametrize(
+    "phrase", ["c'est d u p o n t, 2 b", "c'est d u p o n t, 3 a, au deuxième"]
+)
+def test_une_lettre_doublee_ecrite_en_chiffre_est_a_confirmer(phrase):
+    """Relecture n° 8 : « 2 b » après un nom peut être un bâtiment : jamais en silence."""
+    (lue,) = lire(phrase)
+    assert lue.doutes
+
+
 def test_la_seule_limite_double_ve_est_la_lettre_w():
     """« double vé » EST la lettre W en français : il ne peut pas dire aussi V V.
     Deux V se disent « deux V » (couvert par la section 1)."""

@@ -734,6 +734,9 @@ def lire(texte: str) -> list[Epellation]:
             if minuscule in REPETITIONS_EN_CHIFFRES and lettres and _repetition(mots, suivant):
                 # Relecture n° 4 : « d u p o n 2 t » quand la transcription écrit le
                 # chiffre ; depuis que les chiffres sont des mots, il coupait la suite.
+                # Relecture n° 8 : « d u p o n t, 2 b » peut être un bâtiment : le chiffre
+                # est une lecture, donc à faire confirmer.
+                doutes.append(f"« {minuscule} {apres} » lu comme une lettre doublée")
                 minuscule = "deux" if minuscule == "2" else "trois"
             if minuscule in REPETITIONS and (repetee := _lettre(apres)):
                 if apres_virgule and lettres and _sans_accent(lettres[-1]) == _sans_accent(repetee):
