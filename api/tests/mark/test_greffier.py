@@ -32,6 +32,7 @@ from pipecat.frames.frames import (
     LLMTextFrame,
 )
 from pipecat.pipeline.pipeline import Pipeline
+from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.tests.utils import SleepFrame
 
 from api.services.pipecat import greffier as module
@@ -345,7 +346,9 @@ async def test_une_passe_trop_longue_est_abandonnee_et_tracee():
 
 
 @pytest.mark.asyncio
-async def test_le_declencheur_part_apres_la_reponse_de_l_agent_et_ne_l_attend_pas():
+async def test_le_repli_part_apres_la_reponse_de_l_agent_et_ne_l_attend_pas():
+    """Le repli du lot B de greffier-conversation (service sans requête de conversation) :
+    l'ancien déclenchement, à la fin de la réponse."""
     modele = _Modele({"nom": "Dupont"}, delai=0.5)
     montage = _Montage(modele)
     aval = _Aval()
@@ -500,20 +503,19 @@ async def test_la_fabrique_du_moteur_joue_ses_lectures(three_node_workflow):
 
     engine = PipecatEngine(
         llm=_mistral(),
-        context=_contexte({"role": "user", "content": PAROLE}),
+        context=_contexte(),
         workflow=three_node_workflow,
         call_context_vars={},
         workflow_run_id=1,
         fiche=ReglagesFiche.depuis(FICHE_GREFFIER),
     )
     modele = _Modele({"nom": "Dupont", "motif": "Martin"})
-    declencheur = greffier_du_moteur(engine, modele, None)
-    assert isinstance(declencheur, DeclencheurDuGreffier)
-    await run_test(
-        Pipeline([declencheur, _Aval()]),
-        frames_to_send=[LLMFullResponseEndFrame(), SleepFrame(sleep=0.05)],
-        start_timeout=DEMARRAGE_S,
-    )
+    # Rien à placer après le modèle (case des portes éteinte) : plus de déclencheur.
+    assert greffier_du_moteur(engine, modele, None) is None
+    # Lot B de greffier-conversation : la réplique qui entre dans la conversation de
+    # l'appel déclenche le greffier (celle du montage, déjà là, n'a rien déclenché).
+    assert modele.lus == []
+    engine.context.add_message({"role": "user", "content": PAROLE})
     await attendre_les_notes(engine.notes_en_cours, delai=5)
     fiche = engine._gathered_context
     assert fiche["nom"] == "Dupont"  # dit dans la conversation lue par la fabrique
@@ -600,3 +602,135 @@ async def test_le_moteur_clot_le_greffier_a_la_passe_de_fin(three_node_workflow)
     ):
         await engine._balayer_la_fiche()
     assert engine.greffier._clos is True
+
+
+# --------------------------------------------------------------------------- #
+# 8. Chantier greffier-conversation, lot B (C1, D3) : dès la fin de parole
+# --------------------------------------------------------------------------- #
+
+
+def _conversation_branchee(montage) -> LLMContext:
+    """Une vraie conversation Pipecat, branchée sur le greffier du montage, que le
+    greffier relit (comme ``engine.context``)."""
+    contexte = LLMContext(messages=list(montage.messages))
+    montage.greffier._messages = contexte.get_messages
+    assert module.declencher_a_la_conversation(contexte, montage.greffier) is True
+    return contexte
+
+
+@pytest.mark.asyncio
+async def test_la_passe_part_quand_la_replique_entre_dans_la_conversation():
+    modele = _Modele({"nom": "Dupont"}, delai=0.3)
+    montage = _Montage(modele)
+    montage.messages = [{"role": "assistant", "content": "Bonjour."}]
+    contexte = _conversation_branchee(montage)
+    assert modele.lus == []
+    # L'agrégateur écrit la réplique confirmée ; rien n'attend la passe.
+    contexte.add_message({"role": "user", "content": PAROLE})
+    assert "nom" not in montage.fiche
+    await attendre_les_notes(montage.notes, delai=5)
+    assert montage.fiche["nom"] == "Dupont"
+    assert len(modele.lus) == 1 and PAROLE in modele.lus[0]
+
+
+@pytest.mark.asyncio
+async def test_une_passe_par_replique_jamais_sur_une_reponse_ou_une_relance():
+    modele = _Modele({}, {}, {})
+    montage = _Montage(modele)
+    montage.messages = [{"role": "assistant", "content": "Bonjour."}]
+    contexte = _conversation_branchee(montage)
+    contexte.add_message({"role": "user", "content": PAROLE})
+    await attendre_les_notes(montage.notes, delai=5)
+    # La réponse de l'agent, un appel d'outil, son résultat : aucune passe de plus.
+    contexte.add_messages(
+        [
+            {"role": "assistant", "content": "Très bien."},
+            {"role": "tool", "tool_call_id": "t", "content": "{}"},
+        ]
+    )
+    await attendre_les_notes(montage.notes, delai=5)
+    assert len(modele.lus) == 1
+    # Un second « oui » identique au premier est une réplique nouvelle.
+    contexte.add_message({"role": "user", "content": PAROLE})
+    await attendre_les_notes(montage.notes, delai=5)
+    assert len(modele.lus) == 2
+
+
+@pytest.mark.asyncio
+async def test_fin_de_tour_anticipee_la_replique_confirmee_est_lue():
+    """Revue du 13/10 : avec une fin de tour anticipée, le modèle de l'agent est interrogé
+    sur une COPIE provisoire de la conversation ; la réplique n'entre dans la vraie qu'à la
+    confirmation, sans nouvelle requête. Le greffier part à ce moment-là et la lit."""
+    modele = _Modele({"nom": "Dupont"})
+    montage = _Montage(modele)
+    montage.messages = [{"role": "assistant", "content": "Bonjour."}]
+    contexte = _conversation_branchee(montage)
+    provisoire = LLMContext(
+        messages=[*contexte.get_messages(), {"role": "user", "content": PAROLE}]
+    )
+    provisoire.add_message({"role": "assistant", "content": "réponse anticipée"})
+    await attendre_les_notes(montage.notes, delai=5)
+    assert modele.lus == []  # la copie provisoire ne déclenche rien
+    contexte.add_message({"role": "user", "content": PAROLE})  # la confirmation
+    await attendre_les_notes(montage.notes, delai=5)
+    assert len(modele.lus) == 1 and PAROLE in modele.lus[0]
+    assert montage.fiche["nom"] == "Dupont"
+
+
+@pytest.mark.asyncio
+async def test_plus_de_passe_a_la_fin_de_la_reponse():
+    """D3 : la passe d'après la réponse a disparu ; le lecteur de portes ne déclenche rien."""
+    from api.services.pipecat.lecteur_de_portes import LecteurDePortes
+
+    assert not hasattr(LecteurDePortes, "_greffier")
+    assert (
+        "LLMFullResponseEndFrame"
+        not in open(
+            module.__file__.replace("greffier.py", "lecteur_de_portes.py"),
+            encoding="utf-8",
+        ).read()
+    )
+
+
+@pytest.mark.asyncio
+async def test_sans_conversation_l_ancien_declenchement(three_node_workflow):
+    from api.services.workflow.pipecat_engine import PipecatEngine
+    from api.tests.mark.test_fiche_montree import _mistral
+
+    engine = PipecatEngine(
+        llm=_mistral(),
+        context=None,
+        workflow=three_node_workflow,
+        call_context_vars={},
+        workflow_run_id=1,
+        fiche=ReglagesFiche.depuis(FICHE_GREFFIER),
+    )
+    assert isinstance(
+        greffier_du_moteur(engine, _Modele({}), None), DeclencheurDuGreffier
+    )
+
+
+@pytest.mark.asyncio
+async def test_rattraper_n_ajoute_pas_de_passe_quand_la_replique_est_relue_ou_en_vol():
+    modele = _Modele({"nom": "Dupont"}, {}, delai=0.2)
+    montage = _Montage(modele)
+    montage.messages = [{"role": "assistant", "content": "Bonjour."}]
+    contexte = _conversation_branchee(montage)
+    contexte.add_message({"role": "user", "content": PAROLE})
+    # En vol sur la dernière réplique : attendue, aucune passe de plus.
+    assert await montage.greffier.rattraper(5) is True
+    assert len(modele.lus) == 1
+    assert montage.fiche["nom"] == "Dupont"
+    # Déjà relue : rien à attendre, rien à demander.
+    assert await montage.greffier.rattraper(5) is True
+    assert len(modele.lus) == 1
+    # Une réplique que le greffier n'a pas vue (écrite sans passer par l'accroche) :
+    # une passe est demandée.
+    contexte.set_messages(
+        [
+            *contexte.get_messages(),
+            {"role": "user", "content": "et mon prénom c'est Jean"},
+        ]
+    )
+    assert await montage.greffier.rattraper(5) is True
+    assert len(modele.lus) == 2

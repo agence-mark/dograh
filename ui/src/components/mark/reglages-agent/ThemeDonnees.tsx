@@ -64,8 +64,8 @@ export const AIDES_MODE_DE_NOTE: Texte[] = [
         fr: "Post-scriptum : l'agent parle, puis écrit sa note après un séparateur dans la même réponse. Une seule passe, la note n'est jamais dite ; ce que les contrôles demandent arrive à l'agent au tour suivant.",
     },
     {
-        en: "Clerk: a second model keeps the record alongside the agent, which only speaks. It rereads the whole conversation after each answer of the agent; one pass at a time, a pass refused for rate limit is skipped. Its model, key and instructions are set in « Configure the clerk ».",
-        fr: "Greffier : un second modèle tient la fiche à côté de l'agent, qui parle seulement. Il relit toute la conversation après chaque réponse de l'agent ; une passe à la fois, une passe refusée pour quota est sautée. Son modèle, sa clé et sa consigne se règlent dans « Régler le greffier ».",
+        en: "Clerk: a second model keeps the record alongside the agent, which only speaks. It rereads the whole conversation as soon as the caller stops speaking, alongside the agent (no added wait); one pass at a time, a pass refused for rate limit is skipped. Its model, key and instructions are set in « Configure the clerk ».",
+        fr: "Greffier : un second modèle tient la fiche à côté de l'agent, qui parle seulement. Il relit toute la conversation dès que la personne a fini de parler, en même temps que l'agent (aucune attente ajoutée) ; une passe à la fois, une passe refusée pour quota est sautée. Son modèle, sa clé et sa consigne se règlent dans « Régler le greffier ».",
     },
     {
         en: "Switching mode changes no prompt: write « you note it », never the tool's name. The end-of-call pass stays in every mode.",
@@ -104,8 +104,8 @@ export const AIDES_VERIFICATION_APPELANT: Texte[] = [
 // Plan porte-parlee (D14, D16): the box under the note-taking mode, Postscript only.
 export const AIDES_PORTES_DANS_LA_REPONSE: Texte[] = [
     {
-        en: "The agent takes a transition inside its reply and already speaks the next step's first reply: no silence between steps. Requires Postscript and a First reply on each step.",
-        fr: "L'agent prend une porte dans sa réponse et dit déjà la première réplique de l'étape suivante : aucun silence entre deux étapes. Demande le post-scriptum et une première réplique sur chaque étape.",
+        en: "The agent takes a transition inside its reply and already speaks the next step's first reply: no silence between steps. Requires Postscript or Clerk mode, and a First reply on each step.",
+        fr: "L'agent prend une porte dans sa réponse et dit déjà la première réplique de l'étape suivante : aucun silence entre deux étapes. Demande le post-scriptum ou le greffier, et une première réplique sur chaque étape.",
     },
     {
         en: "A transition's written speech is spoken before the first reply; a recorded one plays after it.",
@@ -173,12 +173,14 @@ export const ThemeDonnees = ({
         || JSON.stringify(pourComparerLaFiche(champs)) !== JSON.stringify(pourComparerLaFiche(champsEnregistres));
     const modeModifie = modeDeNote !== modeEnregistre;
     const erreursFiche = texteErreursDesChamps(champs);
-    // Plan porte-parlee (D1): read only in Postscript, the same rule as the code
-    // (E8); outside it the box is sent off, or the server would refuse the save.
+    // Plan porte-parlee (D1): read only in Postscript and (greffier-conversation, lot A)
+    // in Clerk mode, the same rule as the code (E8); in Tool mode the box is sent off,
+    // or the server would refuse the save.
     const portesEnregistrees = resolue.portes_dans_la_reponse ?? false;
     const [portes, setPortes] = useState(portesEnregistrees);
     useEffect(() => setPortes(portesEnregistrees), [portesEnregistrees]);
-    const portesEnvoyees = modeDeNote === "post_scriptum" && portes;
+    const modeAPortes = modeDeNote === "post_scriptum" || modeDeNote === "greffier";
+    const portesEnvoyees = modeAPortes && portes;
     const portesModifiees = portesEnvoyees !== portesEnregistrees;
     // Plan postscriptum-note-d-abord: the order and the hints, Postscript only (the
     // server refuses « note first » outside it). Absent: the order of before; the hints
@@ -198,6 +200,11 @@ export const ThemeDonnees = ({
     const [etiquettes, setEtiquettes] = useState(etiquettesEnregistrees);
     useEffect(() => setEtiquettes(etiquettesEnregistrees), [etiquettesEnregistrees]);
     const etiquettesModifiees = etiquettes !== etiquettesEnregistrees;
+    // greffier-conversation, lot E (C4, D6): the code launches the transfer, every mode.
+    const transfertEnregistre = resolue.transfert_garanti ?? false;
+    const [transfert, setTransfert] = useState(transfertEnregistre);
+    useEffect(() => setTransfert(transfertEnregistre), [transfertEnregistre]);
+    const transfertModifie = transfert !== transfertEnregistre;
     // Chantier postscriptum-et-communes, B5: a sentence that asks again for a field the turn's
     // note just wrote is held back. Only in « Transition, note, reply » order, like the server.
     const redemandeEnregistree = resolue.phrase_sans_redemande ?? false;
@@ -349,6 +356,7 @@ export const ThemeDonnees = ({
         || equipeConnueModifiee
         || verificationModifiee
         || etiquettesModifiees
+        || transfertModifie
         || redemandeModifiee;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
@@ -391,6 +399,11 @@ export const ThemeDonnees = ({
                 nom: { en: "Step field labels", fr: "Étiquettes des étapes" },
                 modifie: etiquettesModifiees,
                 config: () => ({ etiquettes_des_etapes: etiquettes }),
+            },
+            {
+                nom: { en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" },
+                modifie: transfertModifie,
+                config: () => ({ transfert_garanti: transfert }),
             },
             {
                 // Chantier postscriptum-et-communes, B5: its own part, sent only when changed (E6).
@@ -465,7 +478,9 @@ export const ThemeDonnees = ({
                                     portes ? ` · ${t({ en: "transitions in the reply", fr: "portes dans la réponse" })}` : ""
                                 }`
                               : modeDeNote === "greffier"
-                                ? ` · ${t({ en: "Clerk", fr: "Greffier" })}`
+                                ? ` · ${t({ en: "Clerk", fr: "Greffier" })}${
+                                      portes ? ` · ${t({ en: "transitions in the reply", fr: "portes dans la réponse" })}` : ""
+                                  }`
                                 : ""
                       }`
                     : t({ en: "Record off", fr: "Fiche éteinte" }),
@@ -517,8 +532,9 @@ export const ThemeDonnees = ({
                         </Select>
                     </ChampReglage>
                 )}
-                {/* Plan porte-parlee (D1, D3): only in Postscript, the same condition as the code. */}
-                {ficheActive && modeDeNote === "post_scriptum" && (
+                {/* Plan porte-parlee (D1, D3): Postscript and Clerk modes (greffier-conversation,
+                    lot A), the same condition as the code. */}
+                {ficheActive && modeAPortes && (
                     <ChampReglage
                         cle="portes_dans_la_reponse"
                         idControle="portes_dans_la_reponse"
@@ -588,6 +604,24 @@ export const ThemeDonnees = ({
                         <Switch id="etiquettes_des_etapes" checked={etiquettes} onCheckedChange={setEtiquettes} />
                     </ChampReglage>
                 )}
+                {/* greffier-conversation, lot E (C4, D6): every note-taking mode. */}
+                {ficheActive && (
+                    <ChampReglage
+                        cle="transfert_garanti"
+                        idControle="transfert_garanti"
+                        libelle={{ en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" }}
+                        aides={[
+                            {
+                                en: "When the agent arrives in a step that carries a call transfer tool and the business is open (its opening hours), the code launches the transfer itself once the step's first reply has been said in full. Off, the model decides whether to call it.",
+                                fr: "Quand l'agent arrive dans une étape qui porte un outil de transfert d'appel et que l'entreprise est ouverte (ses horaires d'ouverture), le code lance lui-même le transfert une fois la première réplique de l'étape dite en entier. Éteint, c'est le modèle qui décide de l'appeler.",
+                            },
+                        ]}
+                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                        disposition="ligne"
+                    >
+                        <Switch id="transfert_garanti" checked={transfert} onCheckedChange={setTransfert} />
+                    </ChampReglage>
+                )}
                 {/* Chantier postscriptum-et-communes, B5: « Transition, note, reply » order only. */}
                 {ficheActive && modeDeNote === "post_scriptum" && ordre === "porte_note_phrase" && (
                     <ChampReglage
@@ -606,7 +640,7 @@ export const ThemeDonnees = ({
                         <Switch id="phrase_sans_redemande" checked={redemande} onCheckedChange={setRedemande} />
                     </ChampReglage>
                 )}
-                {ficheActive && modeDeNote === "post_scriptum" && portes && etapesSansPremiereReplique.length > 0 && (
+                {ficheActive && modeAPortes && portes && etapesSansPremiereReplique.length > 0 && (
                     <p role="note" className="rounded border bg-muted/30 p-3 text-sm">
                         {t({
                             en: "Steps without a first reply (the agent gets a generic line instead): ",

@@ -181,6 +181,8 @@ CLE_ETIQUETTES = "etiquettes_des_etapes"
 # Chantier postscriptum-et-communes, B5 : la phrase qui redemande ce que la note du même tour
 # vient d'écrire n'est pas dite (« porte, note, phrase » seulement). Option par agent, éteinte.
 CLE_PHRASE_SANS_REDEMANDE = "phrase_sans_redemande"
+# Chantier greffier-conversation, lot E (C4, D6) : le code lance le transfert à l'arrivée.
+CLE_TRANSFERT_GARANTI = "transfert_garanti"
 SOUFFLE_MAX = 2
 
 
@@ -204,7 +206,8 @@ class ReglagesFiche:
     termes_du_lexique: dict[str, str] = field(default_factory=dict)
     # Plan mode-prise-de-notes, D1 : comment la fiche s'écrit pendant l'appel.
     mode: str = MODE_OUTIL
-    # Plan porte-parlee, D1 : la porte se prend dans la réponse (Postscript seulement).
+    # Plan porte-parlee, D1 : la porte se prend dans la réponse (Postscript ; greffier
+    # depuis le lot A de greffier-conversation).
     portes_dans_la_reponse: bool = False
     # Plan postscriptum-note-d-abord : l'ordre de la réponse et les indices (Postscript seul).
     ordre: str = ORDRE_PHRASE_PUIS_NOTE
@@ -220,6 +223,9 @@ class ReglagesFiche:
     # B5 : en « porte, note, phrase », la phrase qui redemande un champ que la note du tour
     # vient d'écrire est retenue, et le modèle reparle (une fois). Éteint : rien ne change.
     phrase_sans_redemande: bool = False
+    # Lot E de greffier-conversation (C4, D6) : à l'arrivée dans une étape qui porte un
+    # outil de transfert, entreprise ouverte (OUVERT), le code lance le transfert. Tous modes.
+    transfert_garanti: bool = False
 
     @property
     def note_d_abord(self) -> bool:
@@ -278,6 +284,7 @@ class ReglagesFiche:
             mode=mode,
             motifs_des_types=_motifs_des_types(run_configs),
             etiquettes=bool(run_configs.get(CLE_ETIQUETTES)),
+            transfert_garanti=run_configs.get(CLE_TRANSFERT_GARANTI) is True,
             phrase_sans_redemande=(
                 run_configs.get(CLE_PHRASE_SANS_REDEMANDE) is True
                 and mode == MODE_POST_SCRIPTUM
@@ -315,15 +322,20 @@ def _ordre_de_la_reponse(run_configs: dict, mode: str) -> str:
     return ordre
 
 
+# Chantier greffier-conversation, lot A (D5 du 09/10, D2 du 13/10) : les modes où la porte
+# se prend dans la réponse. L'outil n'en est pas : la fiche s'y écrit par un appel de fonction.
+MODES_DES_PORTES_DANS_LA_REPONSE = (MODE_POST_SCRIPTUM, MODE_GREFFIER)
+
+
 def _portes_dans_la_reponse(run_configs: dict, mode: str) -> bool:
-    """Plan porte-parlee, D1 : allumée seulement par ``True`` et en Postscript.
-    Sans la clé : éteinte. Écrite à la main hors Postscript : éteinte, jamais un
-    appel perdu (l'enregistrement le refuse, D1)."""
+    """Plan porte-parlee, D1 : allumée seulement par ``True``, en Postscript ou (lot A de
+    greffier-conversation) en greffier. Sans la clé : éteinte. Écrite à la main en mode
+    outil : éteinte, jamais un appel perdu (l'enregistrement le refuse, D1)."""
     if run_configs.get(CLE_PORTES_DANS_LA_REPONSE) is not True:
         return False
-    if mode != MODE_POST_SCRIPTUM:
+    if mode not in MODES_DES_PORTES_DANS_LA_REPONSE:
         logger.warning(
-            f"[fiche] porte dans la réponse ignorée hors Postscript (mode {mode})"
+            f"[fiche] porte dans la réponse ignorée en mode {mode}"
         )
         return False
     return True
@@ -347,6 +359,9 @@ def estampiller_le_mode(
         # B5 : écrit seulement joué, comme la porte dans la réponse.
         if reglages.phrase_sans_redemande:
             runtime_configuration[CLE_PHRASE_SANS_REDEMANDE] = True
+        # Lot E de greffier-conversation : de même.
+        if reglages.transfert_garanti:
+            runtime_configuration[CLE_TRANSFERT_GARANTI] = True
     return runtime_configuration
 
 
@@ -939,6 +954,46 @@ def _dernier_code_postal_lu(fiche: dict) -> str | None:
         ),
         None,
     )
+
+
+def commune_recoupee_au_code_postal(
+    valeur: Any, fiche: dict, reglages: ReglagesFiche, champ: str
+) -> dict | None:
+    """Chantier greffier-conversation, lot F (C6, runs 1121 et 1122) : le greffier écrit la
+    commune telle qu'il l'a comprise (« Abreteuil »), que le module des communes n'a pas
+    retenue ; la personne a aussi dit son code postal (60120). Parmi les communes de ce
+    code, une SEULE ressemble au son à la valeur (Breteuil) : c'est elle, sûre. Aucune ou
+    plusieurs : ``None``, rien ne change (le code postal propose ses communes, C3).
+
+    Le code postal : le champ de code postal qui va avec la commune s'il est rempli,
+    sinon le dernier code postal lu par le module des nombres. ⛔ Ne lève jamais."""
+    try:
+        base = base_si_chargee()
+        if base is None or _est_vide(valeur):
+            return None
+        paire = _commune_et_code_postal(reglages, champ)
+        code = str(fiche.get(paire[1]) or "").strip() if paire else ""
+        if not re.fullmatch(r"\d{5}", code):
+            code = _dernier_code_postal_lu(fiche) or ""
+        if not code:
+            return None
+        proches = [
+            c for c in base.communes_du_code_postal(code) if est_proche(valeur, c.nom)
+        ]
+        if len(proches) != 1:
+            return None
+        commune = proches[0]
+        logger.info(
+            f"[fiche] commune {valeur!r} recoupée au code postal {code} : {commune.nom}"
+        )
+        return {
+            "nom": commune.nom,
+            "code_insee": commune.insee,
+            "codes_postaux": list(commune.cps),
+        }
+    except Exception as erreur:  # noqa: BLE001 -- une lecture ne coûte jamais l'appel
+        logger.warning(f"[fiche] recoupement de la commune impossible : {erreur!r}")
+        return None
 
 
 def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]:
@@ -1794,6 +1849,11 @@ def ecrire_dans_la_fiche(
             valeur = terme_du_lexique
         if definition.lecteur_effectif == "commune":
             lecture = lire_commune(valeur, fiche, paroles)
+            if not lecture.sure and source == MODE_GREFFIER:
+                # Lot F de greffier-conversation (C6) : recoupée avec le code postal.
+                recoupee = commune_recoupee_au_code_postal(valeur, fiche, reglages, champ)
+                if recoupee is not None:
+                    lecture = _commune_sure(recoupee)
         elif definition.lecteur_effectif == "rue":
             lecture = lire_rue(valeur, fiche, paroles, champ)
         elif definition.lecteur_effectif == "lexique":
@@ -2430,10 +2490,88 @@ def _motifs_des_types(run_configs: dict | None) -> dict:
     try:
         from api.services.fiche.reconnaissance import tous_les_noms
 
-        return tous_les_noms(run_configs)
+        motifs = dict(tous_les_noms(run_configs))
     except Exception as erreur:  # noqa: BLE001 -- la fiche passe avant
         logger.warning(f"[fiche] reconnaissance des champs illisible : {erreur!r}")
         return {}
+    # Lot D de greffier-conversation (C3) : les références (« References », réglage
+    # ``variables_reference`` de l'agent), pour les confirmations critiques.
+    try:
+        from api.schemas.workflow_configurations import (
+            DEFAULT_VARIABLES_REFERENCE,
+            decouper_variables_commune,
+        )
+
+        motifs[TYPE_REFERENCE] = decouper_variables_commune(
+            (run_configs or {}).get("variables_reference"), DEFAULT_VARIABLES_REFERENCE
+        )
+    except Exception as erreur:  # noqa: BLE001 -- la fiche passe avant
+        logger.warning(f"[fiche] noms des références illisibles : {erreur!r}")
+    return motifs
+
+
+# Lot D de greffier-conversation (C3, D5 du 13/10) : ce que le code fait confirmer, tout
+# secteur, tout mode de note : le critique, l'adresse non reconnue, toute valeur ambiguë.
+# Le reste « à confirmer » (une marque reconnue d'un seul son, un appareil) est noté tel
+# qu'entendu, sans question à la personne.
+TYPE_REFERENCE = "reference"
+TYPES_CRITIQUES = ("telephone", "courriel", TYPE_REFERENCE)
+LECTEURS_D_ADRESSE = ("commune", "rue")
+
+
+def champ_critique(reglages: ReglagesFiche, nom: str) -> bool:
+    """Le nom de la personne, un téléphone, une adresse e-mail, une référence : reconnus
+    par les réglages de l'agent (champ de nom, ``variables_telephone``,
+    ``variables_courriel``, ``variables_reference``), jamais par un nom écrit ici."""
+    champ = reglages.par_nom.get(nom)
+    if champ is None:
+        return False
+    if est_un_champ_de_nom(champ):
+        return True
+    from api.services.fiche.controle import correspond
+
+    motifs = reglages.motifs_des_types or {}
+    return any(correspond(nom, tuple(motifs.get(t) or ())) for t in TYPES_CRITIQUES)
+
+
+def est_une_adresse(reglages: ReglagesFiche, champ: ChampFiche) -> bool:
+    """Une commune ou une rue : par son lecteur, par son nom (``commune*``, ``adresse*``,
+    ``rue*``), ou par les noms de communes réglés pour l'agent (``variables_commune``)."""
+    from api.schemas.fiche_agent import lecteur_par_defaut
+    from api.services.fiche.controle import correspond
+
+    return (
+        champ.lecteur_effectif in LECTEURS_D_ADRESSE
+        or lecteur_par_defaut(champ.nom) in LECTEURS_D_ADRESSE
+        or correspond(champ.nom, tuple((reglages.motifs_des_types or {}).get("commune") or ()))
+    )
+
+
+def confirmation_critique(reglages: ReglagesFiche, entree: dict) -> bool:
+    """Une valeur « à confirmer » que l'agent fait confirmer : un champ critique ; une
+    adresse (commune ou rue) non reconnue, comme avant (Evan, 13/10 : le module des
+    communes ne change pas) ; toute valeur ambiguë, plusieurs possibilités (Evan, 13/10 :
+    la règle du 28/09 « deux marques possibles = une question » est gardée). Un champ
+    inconnu : gardé (au doute, on fait confirmer, comme avant)."""
+    nom = entree.get("champ")
+    champ = reglages.par_nom.get(nom)
+    if champ is None or entree.get("options"):
+        return True
+    if est_une_adresse(reglages, champ):
+        return True
+    return champ_critique(reglages, nom)
+
+
+def a_faire_confirmer(reglages: ReglagesFiche, nom: str, etat: dict) -> bool:
+    """L'état de la fiche : une valeur non sûre est montrée « À confirmer » si elle est
+    critique ou si c'est une adresse (commune ou rue), comme avant ; sinon elle est
+    montrée notée, telle qu'entendue."""
+    champ = reglages.par_nom.get(nom)
+    if champ is None:
+        return True
+    if est_une_adresse(reglages, champ):
+        return True
+    return champ_critique(reglages, nom)
 
 
 def ecrire_depuis_les_traces(
@@ -2829,6 +2967,36 @@ async def noter(
             )
             if verdict.options:
                 a_proposer.append({"champ": champ, "options": list(verdict.options)})
+    if source == MODE_GREFFIER:
+        # Lot F de greffier-conversation (C6) : le greffier rend la commune avant le code
+        # postal, ou le code postal à une passe suivante, et ne réécrit pas une commune
+        # inchangée. Une commune non sûre dont le code postal vient d'être écrit est relue.
+        for commune in communes:
+            paire = _commune_et_code_postal(reglages, commune)
+            valeur = fiche().get(commune)
+            if (
+                paire is None
+                or paire[1] not in ecrits
+                or _est_vide(valeur)
+                or ((fiche().get(CLE_ETAT) or {}).get(commune) or {}).get("sure")
+                or commune_recoupee_au_code_postal(valeur, fiche(), reglages, commune) is None
+            ):
+                continue
+            verdict = ecrire_dans_la_fiche(
+                fiche(),
+                reglages,
+                commune,
+                valeur,
+                source=source,
+                paroles=paroles,
+                question=question,
+            )
+            if verdict.statut == "ecrit":
+                retenus[commune] = verdict.valeur
+                a_confirmer = [c for c in a_confirmer if c["champ"] != commune]
+                a_proposer = [p for p in a_proposer if p["champ"] != commune]
+                if commune not in ecrits:
+                    ecrits.append(commune)
     redevenues_sures = any(
         c not in sures_avant and ((fiche().get(CLE_ETAT) or {}).get(c) or {}).get("sure")
         for c in communes
@@ -2854,7 +3022,8 @@ async def noter(
         a_confirmer = [c for c in a_confirmer if c["champ"] != releve["champ"]]
         a_proposer = [p for p in a_proposer if p["champ"] != releve["champ"]]
         a_proposer.append(releve)
-    note.a_confirmer = a_confirmer
+    # Lot D de greffier-conversation (C3) : seul le critique est à faire confirmer.
+    note.a_confirmer = [c for c in a_confirmer if confirmation_critique(reglages, c)]
     note.a_proposer = a_proposer
     # [.mark] l-agent-travaille, L5 (D17): an anticipated action whose fields just landed.
     # Never raises (a note is never lost to an anticipation).
@@ -3283,8 +3452,12 @@ def etat_de_la_fiche(
             continue
         ligne = f"{champ.nom} = {_abregee(valeur)}"
         # Une valeur sans état n'a pas été écrite par la fiche : on ne la dit
-        # pas sûre.
-        if (etat.get(champ.nom) or {}).get("sure"):
+        # pas sûre. Lot D de greffier-conversation (C3) : une valeur non sûre qui
+        # n'est pas critique est montrée notée (telle qu'entendue), sans question.
+        etat_du_champ = etat.get(champ.nom) or {}
+        if etat_du_champ.get("sure") or not a_faire_confirmer(
+            reglages, champ.nom, etat_du_champ
+        ):
             notes.append(ligne)
         else:
             a_confirmer.append(ligne)
@@ -3314,12 +3487,24 @@ def etat_de_la_fiche(
     return "\n".join(lignes)
 
 
+# Lot C de greffier-conversation (C2) : une suggestion comme les autres souffles.
+SOUFFLE_ETAPE_COMPLETE = (
+    "Tout ce que cette étape demande est déjà obtenu : prends ta porte. C'est une "
+    "suggestion : la conversation passe avant."
+)
+
+
 def souffle_de_l_etape(
-    reglages: ReglagesFiche, fiche: dict, champs_etape: Iterable[str]
+    reglages: ReglagesFiche,
+    fiche: dict,
+    champs_etape: Iterable[str],
+    a_des_portes: bool = True,
 ) -> str | None:
     """Lot E d'agent-leger-greffier (P1, D7) : les prochains champs manquants de
-    l'étape, dans son ordre de priorité, deux au plus ; ``None`` sans étiquettes,
-    case éteinte, ou rien qui manque.
+    l'étape, dans son ordre de priorité, deux au plus ; ``None`` sans étiquettes ou
+    case éteinte. Chantier greffier-conversation, lot C (C2, D4) : quand TOUT ce que
+    l'étape demande est obtenu, le souffle le dit (« prends ta porte ») au lieu de se
+    taire : l'agent ne récite plus et ne pose plus dans l'étape les questions d'une autre.
 
     ⛔ Une suggestion, jamais un ordre (Evan, 09/10) : la conversation passe avant.
     ⛔ Pas la liste de tout ce qui manque (A7, run 835) : seulement l'étape en cours.
@@ -3331,13 +3516,15 @@ def souffle_de_l_etape(
 
     lues = valeurs_des_traces(reglages, fiche)
     connus = reglages.par_nom
+    de_l_etape = [nom for nom in champs_etape if nom in connus]
+    if not de_l_etape:
+        return None
     manquants = [
-        nom
-        for nom in champs_etape
-        if nom in connus and _est_vide(fiche.get(nom)) and nom not in lues
+        nom for nom in de_l_etape if _est_vide(fiche.get(nom)) and nom not in lues
     ][:SOUFFLE_MAX]
     if not manquants:
-        return None
+        # Revue du 13/10 : jamais « prends ta porte » dans une étape qui n'en a pas.
+        return SOUFFLE_ETAPE_COMPLETE if a_des_portes else None
     noms = [nom.replace("_", " ") for nom in manquants]
     suite = noms[0] if len(noms) == 1 else f"{noms[0]}, puis {noms[1]}"
     return (
@@ -3352,6 +3539,7 @@ def etat_avec_les_indices(
     notices: Notices | None,
     messages: Iterable[dict],
     champs_etape: Iterable[str] = (),
+    a_des_portes: bool = True,
 ) -> str | None:
     """L'état de la fiche, plus (S2, case allumée) les indices des modules sur la
     dernière parole de l'appelant. Les indices seuls suffisent à montrer l'état.
@@ -3359,7 +3547,7 @@ def etat_avec_les_indices(
     from api.services.workflow.indices_des_modules import indices_des_modules
 
     texte = etat_de_la_fiche(reglages, fiche, notices)
-    souffle = souffle_de_l_etape(reglages, fiche, champs_etape)
+    souffle = souffle_de_l_etape(reglages, fiche, champs_etape, a_des_portes)
     if souffle:
         texte = f"{texte or entete_etat(reglages)}\n{souffle}"
     parole = next(
@@ -3391,6 +3579,7 @@ def montrer_la_fiche(
     fiche: Callable[[], dict],
     notices: Notices | None = None,
     champs_etape: Callable[[], Iterable[str]] | None = None,
+    a_des_portes: Callable[[], bool] | None = None,
 ) -> bool:
     """Ajoute l'état de la fiche à chaque requête de CONVERSATION du modèle.
 
@@ -3434,6 +3623,7 @@ def montrer_la_fiche(
                     notices,
                     params["messages"],
                     champs_etape() if champs_etape else (),
+                    a_des_portes() if a_des_portes else True,
                 )
                 if texte:
                     params["messages"] = inserer_l_etat(list(params["messages"]), texte)

@@ -2,7 +2,7 @@
 /**
  * [.mark] The warning after the graph is saved (plan porte-parlee, D3, D18).
  *
- *   - said only when the box can play (record on, Postscript, box on), the same
+ *   - said only when the box can play (record on, Postscript or Clerk, box on), the same
  *     rule as the code and as the settings screen;
  *   - names the steps without a first reply, in both languages;
  *   - the editor's save calls it AFTER a successful save and only warns.
@@ -32,6 +32,12 @@ describe("[.mark] the warning after the graph is saved", () => {
     it("names the steps without a first reply, in the chosen language", () => {
         expect(avertissementApresEnregistrement(GRAPHE, ALLUMEE, "fr")).toBe(`${DEBUT_AVERTISSEMENT.fr}Clôture`);
         expect(avertissementApresEnregistrement(GRAPHE, ALLUMEE, "en")).toBe(`${DEBUT_AVERTISSEMENT.en}Clôture`);
+    });
+
+    it("warns in Clerk mode too (greffier-conversation, lot A)", () => {
+        expect(avertissementApresEnregistrement(GRAPHE, { ...ALLUMEE, fiche_mode_de_note: "greffier" }, "fr")).toBe(
+            `${DEBUT_AVERTISSEMENT.fr}Clôture`,
+        );
     });
 
     it("says nothing when the box cannot play, or when every step has its reply", () => {

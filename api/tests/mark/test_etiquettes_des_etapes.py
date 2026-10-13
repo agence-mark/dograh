@@ -17,6 +17,7 @@ Preuve sur une fiche d'un autre métier (un garage), par simple réglage.
 
 from api.services.workflow.dto import AgentNodeData, sanitize_workflow_definition
 from api.services.workflow.fiche_au_fil_de_leau import (
+    SOUFFLE_ETAPE_COMPLETE,
     ReglagesFiche,
     etat_avec_les_indices,
     montrer_la_fiche,
@@ -75,13 +76,23 @@ def test_ce_qui_est_note_ou_lu_au_tour_meme_n_est_plus_souffle():
     assert "commune" not in souffle
 
 
-def test_rien_case_eteinte_sans_etiquettes_ou_rien_qui_manque():
+def test_rien_case_eteinte_ou_sans_etiquettes():
     assert souffle_de_l_etape(_reglages(allume=False), {}, ETAPE) is None
     assert souffle_de_l_etape(_reglages(), {}, ()) is None
     plein = {"immatriculation": "x", "kilometrage": "1", "commune_garage": "y"}
-    assert souffle_de_l_etape(_reglages(), plein, ETAPE) is None
+    assert souffle_de_l_etape(_reglages(allume=False), plein, ETAPE) is None
     # Un nom qui n'est pas un champ de la fiche est ignoré, jamais soufflé.
     assert souffle_de_l_etape(_reglages(), plein, ("inconnu",)) is None
+
+
+def test_etape_complete_le_souffle_dit_de_prendre_sa_porte():
+    """Chantier greffier-conversation, lot C (C2, runs 1125, 1126, 1131) : tout est obtenu,
+    noté ou lu au tour même par un module : l'agent est poussé vers sa porte."""
+    plein = {"immatriculation": "x", "kilometrage": "1", "commune_garage": "y"}
+    souffle = souffle_de_l_etape(_reglages(), plein, ETAPE)
+    assert souffle == SOUFFLE_ETAPE_COMPLETE
+    assert "prends ta porte" in souffle and "suggestion" in souffle
+    assert "Il manque" not in souffle
 
 
 def test_tous_les_modes():
@@ -141,3 +152,41 @@ def test_le_noeud_porte_ses_etiquettes_et_le_vide_disparait():
         }
     )
     assert "champs_etape" not in definition["nodes"][0]["data"]
+
+
+def test_etape_complete_par_les_traces_du_tour_et_portee_par_la_requete():
+    """Lot C de greffier-conversation : ce qu'un module a lu au tour même compte aussi, et la
+    requête de conversation porte le souffle « étape complète » (avec l'état de la fiche)."""
+    fiche = {
+        "immatriculation": "AB-123-CD",
+        "kilometrage": "120000",
+        "communes_verifiees": [
+            {
+                "statut": "sure",
+                "commune_retenue": {"nom": "Compiègne", "codes_postaux": ["60200"]},
+            }
+        ],
+    }
+    assert souffle_de_l_etape(_reglages(), fiche, ETAPE) == SOUFFLE_ETAPE_COMPLETE
+
+    class Faux:
+        async def get_chat_completions(self, context):
+            return self.build_chat_completion_params({"messages": context})
+
+        def build_chat_completion_params(self, p):
+            return {"messages": list(p["messages"])}
+
+    llm = Faux()
+    montrer_la_fiche(llm, _reglages(), lambda: fiche, None, lambda: ETAPE)
+    params = executer_sans_toucher_la_boucle_courante(
+        llm.get_chat_completions([{"role": "user", "content": "voilà"}])
+    )
+    assert any("prends ta porte" in m["content"] for m in params["messages"])
+
+
+def test_etape_complete_sans_porte_rien_n_est_souffle():
+    """Revue du 13/10 : jamais « prends ta porte » dans une étape qui n'a pas de porte."""
+    plein = {"immatriculation": "x", "kilometrage": "1", "commune_garage": "y"}
+    assert souffle_de_l_etape(_reglages(), plein, ETAPE, a_des_portes=False) is None
+    # Il manque encore quelque chose : le souffle d'avant, porte ou non.
+    assert "Il manque" in souffle_de_l_etape(_reglages(), {}, ETAPE, a_des_portes=False)

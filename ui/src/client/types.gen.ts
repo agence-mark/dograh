@@ -11238,7 +11238,7 @@ export type WorkflowConfigurationDefaults = {
     /**
      * Portes Dans La Reponse
      *
-     * Postscript only. The agent takes a transition inside its reply and already speaks the next step's first reply: no silence between steps. Off (default): transitions stay function calls, as before.
+     * Postscript and Clerk modes. The agent takes a transition inside its reply and already speaks the next step's first reply: no silence between steps. Off (default): transitions stay function calls, as before.
      */
     portes_dans_la_reponse?: boolean;
     /**
@@ -11253,6 +11253,12 @@ export type WorkflowConfigurationDefaults = {
      * Each step lists the record fields it gathers, in order of priority; at each turn the code reminds the model of the next missing ones, as a suggestion it may set aside. Every note-taking mode. Off (default): the steps' field lists are kept but nothing is shown to the model.
      */
     etiquettes_des_etapes?: boolean;
+    /**
+     * Transfert Garanti
+     *
+     * When the agent arrives in a step that carries a call transfer tool and the business is OPEN, the code launches the transfer itself once the step's first reply has been said, instead of waiting for the model to call it. Every note-taking mode. Off (default): the model decides, as before.
+     */
+    transfert_garanti?: boolean;
     /**
      * Phrase Sans Redemande
      *

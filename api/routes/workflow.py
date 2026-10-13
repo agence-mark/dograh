@@ -368,14 +368,15 @@ class UpdateWorkflowRequest(BaseModel):
             except HorairesInvalides as erreur:
                 raise ValueError(str(erreur)) from None
         # [.mark] Plan porte-parlee, D1 : la porte dans la réponse n'existe qu'en
-        # Postscript. Ici et non au schéma, pour la même raison que les horaires.
+        # Postscript, et en greffier depuis le lot A de greffier-conversation (D2).
+        # Ici et non au schéma, pour la même raison que les horaires.
         if (
             value is not None
             and value.portes_dans_la_reponse
-            and value.fiche_mode_de_note != "post_scriptum"
+            and value.fiche_mode_de_note not in ("post_scriptum", "greffier")
         ):
             raise ValueError(
-                "Transitions in the reply require the Postscript note-taking mode"
+                "Transitions in the reply require the Postscript or Clerk note-taking mode"
             )
         # [.mark] Plan postscriptum-note-d-abord : l'ordre « note d'abord » aussi.
         if (
