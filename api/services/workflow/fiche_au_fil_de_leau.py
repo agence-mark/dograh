@@ -2527,10 +2527,10 @@ def champ_critique(reglages: ReglagesFiche, nom: str) -> bool:
         return False
     if est_un_champ_de_nom(champ):
         return True
-    from api.services.fiche.traces import _correspond
+    from api.services.fiche.controle import correspond
 
     motifs = reglages.motifs_des_types or {}
-    return any(_correspond(nom, tuple(motifs.get(t) or ())) for t in TYPES_CRITIQUES)
+    return any(correspond(nom, tuple(motifs.get(t) or ())) for t in TYPES_CRITIQUES)
 
 
 def confirmation_critique(reglages: ReglagesFiche, entree: dict) -> bool:
@@ -3479,7 +3479,10 @@ SOUFFLE_ETAPE_COMPLETE = (
 
 
 def souffle_de_l_etape(
-    reglages: ReglagesFiche, fiche: dict, champs_etape: Iterable[str]
+    reglages: ReglagesFiche,
+    fiche: dict,
+    champs_etape: Iterable[str],
+    a_des_portes: bool = True,
 ) -> str | None:
     """Lot E d'agent-leger-greffier (P1, D7) : les prochains champs manquants de
     l'étape, dans son ordre de priorité, deux au plus ; ``None`` sans étiquettes ou
@@ -3504,7 +3507,8 @@ def souffle_de_l_etape(
         nom for nom in de_l_etape if _est_vide(fiche.get(nom)) and nom not in lues
     ][:SOUFFLE_MAX]
     if not manquants:
-        return SOUFFLE_ETAPE_COMPLETE
+        # Revue du 13/10 : jamais « prends ta porte » dans une étape qui n'en a pas.
+        return SOUFFLE_ETAPE_COMPLETE if a_des_portes else None
     noms = [nom.replace("_", " ") for nom in manquants]
     suite = noms[0] if len(noms) == 1 else f"{noms[0]}, puis {noms[1]}"
     return (
@@ -3519,6 +3523,7 @@ def etat_avec_les_indices(
     notices: Notices | None,
     messages: Iterable[dict],
     champs_etape: Iterable[str] = (),
+    a_des_portes: bool = True,
 ) -> str | None:
     """L'état de la fiche, plus (S2, case allumée) les indices des modules sur la
     dernière parole de l'appelant. Les indices seuls suffisent à montrer l'état.
@@ -3526,7 +3531,7 @@ def etat_avec_les_indices(
     from api.services.workflow.indices_des_modules import indices_des_modules
 
     texte = etat_de_la_fiche(reglages, fiche, notices)
-    souffle = souffle_de_l_etape(reglages, fiche, champs_etape)
+    souffle = souffle_de_l_etape(reglages, fiche, champs_etape, a_des_portes)
     if souffle:
         texte = f"{texte or entete_etat(reglages)}\n{souffle}"
     parole = next(
@@ -3558,6 +3563,7 @@ def montrer_la_fiche(
     fiche: Callable[[], dict],
     notices: Notices | None = None,
     champs_etape: Callable[[], Iterable[str]] | None = None,
+    a_des_portes: Callable[[], bool] | None = None,
 ) -> bool:
     """Ajoute l'état de la fiche à chaque requête de CONVERSATION du modèle.
 
@@ -3601,6 +3607,7 @@ def montrer_la_fiche(
                     notices,
                     params["messages"],
                     champs_etape() if champs_etape else (),
+                    a_des_portes() if a_des_portes else True,
                 )
                 if texte:
                     params["messages"] = inserer_l_etat(list(params["messages"]), texte)

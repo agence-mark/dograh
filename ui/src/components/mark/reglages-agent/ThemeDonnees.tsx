@@ -612,8 +612,8 @@ export const ThemeDonnees = ({
                         libelle={{ en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" }}
                         aides={[
                             {
-                                en: "When the agent arrives in a step that carries a call transfer tool and the business is OPEN, the code launches the transfer itself once the step's first reply has been said. Off, the model decides whether to call it.",
-                                fr: "Quand l'agent arrive dans une étape qui porte un outil de transfert d'appel et que le magasin est OUVERT, le code lance lui-même le transfert une fois la première réplique de l'étape dite. Éteint, c'est le modèle qui décide de l'appeler.",
+                                en: "When the agent arrives in a step that carries a call transfer tool and the business is open (its opening hours), the code launches the transfer itself once the step's first reply has been said in full. Off, the model decides whether to call it.",
+                                fr: "Quand l'agent arrive dans une étape qui porte un outil de transfert d'appel et que l'entreprise est ouverte (ses horaires d'ouverture), le code lance lui-même le transfert une fois la première réplique de l'étape dite en entier. Éteint, c'est le modèle qui décide de l'appeler.",
                             },
                         ]}
                         bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}

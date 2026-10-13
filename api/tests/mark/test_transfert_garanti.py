@@ -185,14 +185,83 @@ async def test_pas_de_double_transfert_si_le_modele_l_a_appele():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "issue",
+    [PlaybackOutcome.INTERRUPTED, PlaybackOutcome.TIMED_OUT, PlaybackOutcome.FAILED],
+)
+async def test_rien_si_la_replique_n_a_pas_ete_jouee_jusqu_au_bout(issue):
+    """Revue du 13/10 : la personne coupe la réplique d'arrivée ; sa parole n'est pas encore
+    dans la conversation (elle n'y entre qu'à sa fin de tour). Le transfert ne part pas."""
+    engine = await _moteur()
+    reponse = await _porte_ecrite(engine)
+    engine.speech_playback.pending[reponse].finish(issue)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == []
+    assert _etats(engine) == ["replique_non_jouee"]
+
+
+@pytest.mark.asyncio
 async def test_rien_si_la_personne_a_parle_entre_temps():
     engine = await _moteur()
     reponse = await _porte_ecrite(engine)
     engine.context.add_message({"role": "user", "content": "attendez, une question"})
-    engine.speech_playback.pending[reponse].finish(PlaybackOutcome.INTERRUPTED)
+    engine.speech_playback.pending[reponse].finish(PlaybackOutcome.PLAYED)
     await asyncio.sleep(0.05)
     assert _appels(engine) == []
     assert _etats(engine) == ["personne_a_parle"]
+
+
+@pytest.mark.asyncio
+async def test_pas_de_double_transfert_si_le_modele_l_appelle_avant_que_la_conversation_le_dise():
+    """Revue du 13/10 : l'appel du modèle est relevé à l'instant où il est fait
+    (``on_function_calls_started``), avant d'entrer dans la conversation."""
+    engine = await _moteur()
+    reponse = await _porte_ecrite(engine)
+    from types import SimpleNamespace
+
+    await engine.active_agent.llm._call_event_handler(
+        "on_function_calls_started", [SimpleNamespace(function_name=OUTIL)]
+    )
+    await asyncio.sleep(0.02)
+    engine.speech_playback.pending[reponse].finish(PlaybackOutcome.PLAYED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == []
+    assert _etats(engine) == ["par_le_modele"]
+
+
+@pytest.mark.asyncio
+async def test_sans_attente_possible_rien_ne_part():
+    engine = await _moteur()
+    engine._lancer_le_transfert_garanti(engine.active_agent, "etape", None)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [] and _etats(engine) == ["sans_attente"]
+
+
+@pytest.mark.asyncio
+async def test_sans_outil_de_transfert_la_relance_d_avant_jamais_un_silence():
+    """Revue du 13/10 : Post-scriptum « porte, note, phrase », l'étape porte une action qui
+    n'est pas un transfert : le modèle reparle pour l'appeler, comme avant la case."""
+    from api.services.workflow.fiche_au_fil_de_leau import (
+        CLE_MODE,
+        CLE_ORDRE_DE_LA_REPONSE,
+    )
+
+    engine = await _moteur(
+        config={
+            **ALLUME,
+            CLE_MODE: "post_scriptum",
+            CLE_ORDRE_DE_LA_REPONSE: "porte_note_phrase",
+        }
+    )
+    engine._outil_de_transfert = AsyncMock(return_value=None)
+    reponse = await _porte_ecrite(engine)
+    engine.speech_playback.pending[reponse].finish(PlaybackOutcome.PLAYED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [] and _etats(engine) == ["sans_outil"]
+    (appel,) = engine.active_agent.queue_frame.await_args_list
+    from pipecat.frames.frames import LLMRunFrame
+
+    assert isinstance(appel.args[0], LLMRunFrame)
 
 
 @pytest.mark.asyncio

@@ -88,8 +88,21 @@ class LecteurDePortes(PostScriptumProcessor):
         if self._apres:
             # D7 : du JSON dans la réponse n'est jamais dit ; la parole autour l'est.
             await self._dire(sans_json(self._note), None, direction, fin=True)
+        muette = (
+            self._vu_du_texte
+            and not self._a_dit
+            and not self._portes_lues
+            and self._attendu()
+        )
         self._dit = self._a_dit
         self._oublier()
+        if muette:
+            # Revue du 13/10 : une réponse faite seulement de JSON (un vieux réflexe) ne
+            # dit rien et ne prend aucune porte : le modèle reparle, une fois par réplique
+            # (la garde du moteur), jamais un tour muet.
+            relancer = getattr(self._moteur, "relancer_une_reponse_muette", None)
+            if relancer is not None and await relancer():
+                logger.info("[porte] réponse sans phrase ni porte : le modèle reparle")
         return None
 
     def _tracer(self, etat: str, champs: list[str], **detail) -> dict | None:

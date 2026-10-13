@@ -234,6 +234,12 @@ class PipecatEngine:
                     "champs_etape",
                     (),
                 ),
+                # Revue du 13/10 (lot C de greffier-conversation) : l'étape a-t-elle des portes ?
+                lambda: bool(
+                    getattr(
+                        getattr(self.active_agent, "current_node", None), "out_edges", None
+                    )
+                ),
             )
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
@@ -697,13 +703,12 @@ class PipecatEngine:
             # porte un outil (un transfert) : une fois la phrase d'arrivée jouée, le modèle
             # reparle UNE fois dans cette étape pour l'appeler, sans attendre la personne.
             # Revue du 08/10 : en « porte, note, phrase » seulement (comportement d'avant).
-            # [.mark] Lot E de greffier-conversation (C4, D6) : case allumée, magasin
-            # OUVERT, c'est le code qui lance le transfert ; le modèle ne reparle pas pour ça.
+            # [.mark] Lot E de greffier-conversation (C4, D6) : case allumée, entreprise
+            # ouverte (``OUVERT``), c'est le code qui lance le transfert.
             garanti = not fin and self._transfert_garanti_s_applique(agent, arete.target)
             outil_a_l_arrivee = (
                 not fin
                 and not relancer
-                and not garanti
                 and getattr(self._fiche, "note_d_abord", False)
                 and bool(agent.workflow.nodes[arete.target].tool_uuids)
             )
@@ -747,6 +752,12 @@ class PipecatEngine:
                 tache = asyncio.get_running_loop().create_task(raccrocher())
                 self._taches_de_porte.add(tache)
                 tache.add_done_callback(self._taches_de_porte.discard)
+            elif garanti and not relancer:
+                # Revue du 13/10 : sans outil de transfert dans l'étape, le repli est la
+                # relance d'avant (« outil à l'arrivée »), jamais un silence.
+                self._lancer_le_transfert_garanti(
+                    agent, arete.target, phrase_garantie, repli=outil_a_l_arrivee
+                )
             elif outil_a_l_arrivee:
 
                 async def appeler_l_outil() -> None:
@@ -759,8 +770,6 @@ class PipecatEngine:
                 tache = asyncio.get_running_loop().create_task(appeler_l_outil())
                 self._taches_de_porte.add(tache)
                 tache.add_done_callback(self._taches_de_porte.discard)
-            elif garanti and not relancer:
-                self._lancer_le_transfert_garanti(agent, arete.target, phrase_garantie)
             elif relancer:
                 if closing is not None:
                     self._mute_pipeline = True
@@ -790,7 +799,7 @@ class PipecatEngine:
 
     def _transfert_garanti_s_applique(self, agent: AgentRuntime, cible: str) -> bool:
         """Case allumée, agent qui porte la fiche, étape d'arrivée (hors fin) qui porte des
-        outils, magasin ``OUVERT`` à l'appel. ⛔ Ne lève jamais."""
+        outils, entreprise ``OUVERT`` à l'appel (ses horaires). ⛔ Ne lève jamais."""
         try:
             if self._fiche is None or not self._fiche.transfert_garanti:
                 return False
@@ -834,11 +843,30 @@ class PipecatEngine:
             return fonction["name"]
         return None
 
-    def _appels_depuis(self, debut: int) -> tuple[set[str], bool]:
-        """Depuis le rang ``debut`` de la conversation : les fonctions appelées, et si la
-        personne a parlé."""
+    def _suivre_les_appels(self, llm) -> None:
+        """Revue du 13/10 : les fonctions que le modèle appelle, relevées à l'instant où il
+        les appelle (``on_function_calls_started``), et non quand l'appel entre dans la
+        conversation (plus tard, par une tâche à part). Une fois par service."""
+        if not hasattr(self, "_fonctions_appelees"):
+            self._fonctions_appelees: list[str] = []
+            self._services_suivis: set[int] = set()
+        if id(llm) in self._services_suivis or not hasattr(llm, "add_event_handler"):
+            return
+        self._services_suivis.add(id(llm))
+
+        async def relever(_service, appels) -> None:
+            self._fonctions_appelees.extend(
+                getattr(appel, "function_name", None) for appel in appels or []
+            )
+
+        llm.add_event_handler("on_function_calls_started", relever)
+
+    def _appels_depuis(self, debut: int, depuis_appels: int) -> tuple[set[str], bool]:
+        """Depuis l'arrivée : les fonctions appelées par le modèle, et si la personne a
+        parlé (sa réplique dans la conversation)."""
         messages = self.context.get_messages()[debut:] if self.context else []
-        appelees = {
+        appelees = set(getattr(self, "_fonctions_appelees", [])[depuis_appels:])
+        appelees |= {
             (appel.get("function") or {}).get("name")
             for message in messages
             if message.get("role") == "assistant"
@@ -854,12 +882,19 @@ class PipecatEngine:
         except Exception as e:  # noqa: BLE001
             logger.warning(f"[transfert] trace non écrite : {e!r}")
 
-    def _lancer_le_transfert_garanti(self, agent: AgentRuntime, cible: str, phrase) -> None:
-        """Une fois la première réplique de l'étape ``cible`` dite (``phrase``), le code
-        appelle l'outil de transfert comme le modèle l'aurait appelé. Rien si l'agent ne
-        peut plus agir, si l'étape a changé, si le modèle l'a appelé lui-même ou si la
-        personne a parlé entre-temps (le modèle lui répond). ⛔ Ne lève jamais."""
+    def _lancer_le_transfert_garanti(
+        self, agent: AgentRuntime, cible: str, phrase, *, repli: bool = False
+    ) -> None:
+        """Une fois la première réplique de l'étape ``cible`` JOUÉE jusqu'au bout
+        (``phrase``), le code appelle l'outil de transfert comme le modèle l'aurait appelé.
+        Rien si la réplique a été coupée, n'a pas été jouée ou n'a pas pu être suivie (revue
+        du 13/10 : la personne parle peut-être, le modèle lui répondra), si l'agent ne peut
+        plus agir, si l'étape a changé, si le modèle l'a appelé lui-même ou si la personne a
+        parlé. Sans outil de transfert dans l'étape et ``repli`` : la relance d'avant
+        (« outil à l'arrivée »). ⛔ Ne lève jamais."""
         debut = len(self.context.get_messages()) if self.context else 0
+        self._suivre_les_appels(agent.llm)
+        depuis_appels = len(self._fonctions_appelees)
 
         async def transferer() -> None:
             try:
@@ -867,16 +902,26 @@ class PipecatEngine:
                 nom = await self._outil_de_transfert(noeud)
                 if nom is None:
                     self._tracer_le_transfert(etape=noeud.name, etat="sans_outil")
+                    if repli:
+                        if phrase is not None:
+                            await phrase.wait()
+                        if self.agent_can_act(agent):
+                            logger.info("[porte] étape d'arrivée avec un outil : le modèle reparle")
+                            await agent.queue_frame(LLMRunFrame())
                     return
-                if phrase is not None:
-                    await phrase.wait()
+                if phrase is None:
+                    self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="sans_attente")
+                    return
+                if not await phrase.wait():
+                    self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="replique_non_jouee")
+                    return
                 if not self.agent_can_act(agent):
                     return
                 courant = agent.current_node
                 if courant is None or courant.id != cible:
                     self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="etape_quittee")
                     return
-                appelees, a_parle = self._appels_depuis(debut)
+                appelees, a_parle = self._appels_depuis(debut, depuis_appels)
                 if nom in appelees:
                     self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="par_le_modele")
                     return
@@ -884,7 +929,6 @@ class PipecatEngine:
                     self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="personne_a_parle")
                     return
                 logger.info(f"[transfert] {nom} lancé par le code à l'arrivée dans {noeud.name}")
-                self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="lance")
                 await agent.llm.run_function_calls(
                     [
                         FunctionCallFromLLM(
@@ -895,6 +939,7 @@ class PipecatEngine:
                         )
                     ]
                 )
+                self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="lance")
             except Exception as e:  # noqa: BLE001 -- un transfert ne coûte jamais l'appel
                 logger.error(f"[transfert] transfert garanti en échec : {e!r}")
 

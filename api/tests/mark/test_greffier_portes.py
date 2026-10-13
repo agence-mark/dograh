@@ -315,3 +315,17 @@ def test_les_notices_ne_sont_pas_celles_du_lecteur():
     montage = _MontageGreffier()
     assert montage.processeur._notices is None
     assert isinstance(montage.notices, Notices)
+
+
+@pytest.mark.asyncio
+async def test_une_reponse_faite_seulement_de_json_fait_reparler_le_modele():
+    """Revue du 13/10 : rien de dit, aucune porte : le modèle reparle (une fois, garde du
+    moteur), jamais un tour muet."""
+    montage = _MontageGreffier()
+    relance = _Relance()
+    montage.processeur._moteur = relance
+    ordre = await montage.reponse('{"motif": "panne"}')
+    assert ordre.dit == ""
+    assert relance.relances == 1
+    await montage.reponse("Quelle marque ?")
+    assert relance.relances == 1  # une phrase dite : aucune relance

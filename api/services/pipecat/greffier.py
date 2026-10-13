@@ -327,16 +327,22 @@ class Greffier:
             self._encore = True
             return
         self._encore = False
+        # Ce que la passe va lire, connu dès maintenant : un rattrapage demandé avant
+        # qu'elle ne démarre l'attend au lieu d'en demander une autre (revue du 13/10).
+        try:
+            self._replique_en_vol = _derniere_replique(self._messages())
+        except Exception:  # noqa: BLE001 -- la passe relira de toute façon
+            self._replique_en_vol = None
         tache = asyncio.get_running_loop().create_task(self._tourner())
         self._en_vol = tache
         self._notes_en_cours.add(tache)
         tache.add_done_callback(self._notes_en_cours.discard)
 
     def nouvelle_replique(self, messages: Iterable[dict]) -> bool:
-        """Lot B de greffier-conversation (C1) : la conversation qui part au modèle de
-        l'agent. Une réplique de la personne pas encore vue déclenche une passe ; une
-        requête sans réplique nouvelle (l'accueil, la relance après une porte ou un
-        outil) n'en déclenche aucune. Rend ``True`` si une passe est demandée."""
+        """Lot B de greffier-conversation (C1) : la conversation de l'appel vient de
+        recevoir un message de la personne. Une réplique pas encore vue déclenche une
+        passe ; la même réplique revue n'en déclenche aucune. Rend ``True`` si une passe
+        est demandée."""
         marque = _derniere_replique(messages)
         if marque is None or marque == self._replique_vue:
             return False
@@ -473,34 +479,48 @@ def _derniere_replique(messages: Iterable[dict]) -> tuple | None:
     return None if texte is None else (rang, texte)
 
 
-def declencher_a_la_requete(llm: Any, greffier: Greffier) -> bool:
-    """Lot B de greffier-conversation (C1, D3) : chaque requête de CONVERSATION du modèle
-    de l'agent passe d'abord par le greffier, qui part en même temps si une réplique
-    nouvelle de la personne y est : jamais en l'attendant. Même point d'accroche que
-    l'état de la fiche (``montrer_la_fiche``), au téléphone comme au clavier.
-    ``False`` : service sans requête de conversation, rien n'est branché."""
-    obtenir = getattr(llm, "get_chat_completions", None)
-    if obtenir is None:
-        logger.warning(
-            "[fiche] service sans requête de conversation : greffier non branché"
-        )
+def declencher_a_la_conversation(context: Any, greffier: Greffier) -> bool:
+    """Lot B de greffier-conversation (C1, D3) : quand une réplique CONFIRMÉE de la personne
+    entre dans la conversation de l'appel (l'agrégateur de la personne l'y écrit juste avant
+    de demander la réponse de l'agent ; le clavier, juste avant le modèle), le greffier part,
+    en même temps que l'agent, jamais en l'attendant.
+
+    Revue du 13/10 : pas à la requête du modèle. Avec une fin de tour anticipée, la requête
+    porte une copie PROVISOIRE de la conversation, et à la confirmation aucune requête ne
+    repart : le greffier aurait marqué la réplique vue sans jamais la lire.
+    ``False`` : pas de conversation, rien n'est branché."""
+    ajouter = getattr(context, "add_message", None)
+    ajouter_plusieurs = getattr(context, "add_messages", None)
+    if ajouter is None or ajouter_plusieurs is None:
+        logger.warning("[fiche] conversation illisible : greffier non branché")
         return False
 
-    async def get_chat_completions(context, *args, **kwargs):
+    def apres(messages: Iterable[dict]) -> None:
         try:
-            greffier.nouvelle_replique(context.get_messages())
+            if any(isinstance(m, dict) and m.get("role") == "user" for m in messages):
+                greffier.nouvelle_replique(context.get_messages())
         except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
             logger.error(f"[fiche] greffier non déclenché : {erreur!r}")
-        return await obtenir(context, *args, **kwargs)
 
-    llm.get_chat_completions = get_chat_completions
+    def add_message(message, *args, **kwargs):
+        resultat = ajouter(message, *args, **kwargs)
+        apres([message])
+        return resultat
+
+    def add_messages(messages, *args, **kwargs):
+        messages = list(messages)
+        resultat = ajouter_plusieurs(messages, *args, **kwargs)
+        apres(messages)
+        return resultat
+
+    context.add_message = add_message
+    context.add_messages = add_messages
     return True
 
 
 class DeclencheurDuGreffier(FrameProcessor):
-    """Le repli du lot B : un service sans requête de conversation (aucun des modèles de
-    .mark aujourd'hui) garde l'ancien déclenchement, à la fin de chaque réponse de
-    l'agent, plutôt qu'un greffier qui ne part jamais. Laisse tout passer."""
+    """Le repli du lot B : sans conversation où s'accrocher, l'ancien déclenchement, à la
+    fin de chaque réponse de l'agent, plutôt qu'un greffier qui ne part jamais."""
 
     def __init__(self, greffier: Greffier, **kwargs):
         super().__init__(**kwargs)
@@ -640,8 +660,8 @@ def greffier_du_moteur(
     engine: Any, service: Any, consigne: str | None
 ) -> FrameProcessor | None:
     """Le greffier de l'appel, branché sur le moteur : sa fiche, sa conversation, ses
-    notices, ses notes en cours, et (lot B de greffier-conversation) la requête du
-    modèle de l'agent qui le déclenche. Rend le processeur à placer après le modèle :
+    notices, ses notes en cours, et (lot B de greffier-conversation) la conversation
+    où la réplique de la personne entre et le déclenche. Rend le processeur à placer après le modèle :
     le lecteur de portes, case « portes dans la réponse » allumée (lot A), sinon
     ``None`` (rien à placer). ``None`` aussi hors mode greffier ou sans service.
     Une seule fabrique pour le téléphone et le clavier."""
@@ -659,8 +679,8 @@ def greffier_du_moteur(
     )
     # Le moteur le clôt à la passe de fin (revue du 04/10).
     engine.greffier = greffier
-    # Le modèle qui porte la fiche (le premier agent), comme l'état de la fiche.
-    branche = declencher_a_la_requete(engine._llm_de_la_fiche, greffier)
+    # La conversation de l'appel : la réplique confirmée de la personne y entre.
+    branche = declencher_a_la_conversation(engine.context, greffier)
     from api.services.pipecat.lecteur_de_portes import lecteur_de_portes_du_moteur
 
     lecteur = lecteur_de_portes_du_moteur(engine)

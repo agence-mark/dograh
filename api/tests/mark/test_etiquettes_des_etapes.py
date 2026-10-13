@@ -182,3 +182,11 @@ def test_etape_complete_par_les_traces_du_tour_et_portee_par_la_requete():
         llm.get_chat_completions([{"role": "user", "content": "voilà"}])
     )
     assert any("prends ta porte" in m["content"] for m in params["messages"])
+
+
+def test_etape_complete_sans_porte_rien_n_est_souffle():
+    """Revue du 13/10 : jamais « prends ta porte » dans une étape qui n'a pas de porte."""
+    plein = {"immatriculation": "x", "kilometrage": "1", "commune_garage": "y"}
+    assert souffle_de_l_etape(_reglages(), plein, ETAPE, a_des_portes=False) is None
+    # Il manque encore quelque chose : le souffle d'avant, porte ou non.
+    assert "Il manque" in souffle_de_l_etape(_reglages(), {}, ETAPE, a_des_portes=False)
