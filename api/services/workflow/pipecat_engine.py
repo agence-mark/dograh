@@ -913,7 +913,13 @@ class PipecatEngine:
                     self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="sans_attente")
                     return
                 if not await phrase.wait():
-                    self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="replique_non_jouee")
+                    issue = phrase.outcome
+                    self._tracer_le_transfert(
+                        etape=noeud.name,
+                        outil=nom,
+                        etat="replique_non_jouee",
+                        issue=getattr(issue, "value", str(issue)),
+                    )
                     return
                 if not self.agent_can_act(agent):
                     return

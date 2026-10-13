@@ -122,6 +122,9 @@ class SpeechPlaybackTracker:
         self._output: FrameProcessor | None = None
         # Direct recordings can nest inside a still-generating TTS response.
         self._output_scopes: list[str] = []
+        # [.mark] Essai du 13/10 : les portées qui ont déjà livré une sortie, pour qu'une
+        # réponse suivie après coup (``suivre_une_reponse``) ne soit pas crue muette.
+        self._scopes_with_output: set[str] = set()
         self._unmarked_response: str | None = None
         self._expected_response: SpeechPlayback | None = None
         self._expected_source: FrameProcessor | None = None
@@ -191,6 +194,7 @@ class SpeechPlaybackTracker:
         speech = SpeechPlayback(self, mute_user=False, timeout=timeout)
         speech.id = speech_id
         speech.started = speech_id in self._output_scopes
+        speech.has_output = speech_id in self._scopes_with_output
         self.pending[speech_id] = speech
         return speech
 
@@ -226,6 +230,7 @@ class SpeechPlaybackTracker:
         for speech in list(self.pending.values()):
             speech.finish(outcome)
         self._output_scopes.clear()
+        self._scopes_with_output.clear()
         self._unmarked_response = None
         self._expected_response = None
         self._expected_source = None
@@ -346,6 +351,7 @@ class SpeechPlaybackTracker:
                     self._complete(speech)
                 if frame.speech_id in self._output_scopes:
                     self._output_scopes.remove(frame.speech_id)
+                self._scopes_with_output.discard(frame.speech_id)
         elif self._output is None and isinstance(
             frame, (LLMFullResponseStartFrame, LLMFullResponseEndFrame)
         ):
@@ -366,6 +372,7 @@ class SpeechPlaybackTracker:
         if speech:
             speech.has_output = True
         if self._output_scopes:
+            self._scopes_with_output.add(self._output_scopes[-1])
             for observer in self._observers:
                 observer.on_output(self._output_scopes[-1])
 
