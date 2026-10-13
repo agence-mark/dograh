@@ -311,6 +311,25 @@ def _ecrire_mot(mots: list[tuple[str, int, int]], rang: int) -> str:
     return mot
 
 
+def _que_des_lettres_deja_dites(mots: list[tuple[str, int, int]], rang: int, deja: set) -> bool:
+    """Relecture n° 5 : after a reconfirmed letter, does the spelling stop, or go on with
+    letters ALL already said (« p a u l, p comme Pierre, l comme Louis »)? A new letter,
+    confirmed or not, means the name goes on: « b o n, N comme Nicolas, E comme Eugène »
+    is « Bonne », « r o s, S comme Simon, I comme Irma » is « Rossi »."""
+    while rang < len(mots):
+        if mots[rang][0] == ",":
+            rang += 1
+            continue
+        if not _seule(mots, rang):
+            return True
+        lettre = mots[rang][0].lower()
+        lue = _confirmation(mots, rang + 1, lettre)
+        if _sans_accent((lue[1] if lue else None) or lettre) not in deja:
+            return False
+        rang += 1 + (lue[0] if lue else 0)
+    return True
+
+
 def _chiffres_isoles(mots: list[tuple[str, int, int]], rang: int) -> bool:
     """Digits that belong to an address: one group of at most four digits (« jean75 »,
     « dupont 1975 »), or at most four digits said one by one (« j e a n 7 5 »). Never a
@@ -694,12 +713,7 @@ def lire(texte: str) -> list[Epellation]:
                     lue
                     and lue[2] is None
                     and _sans_accent(lue[1] or mot) in deja
-                    and not (
-                        # Une lettre seule SANS mot qui la confirme : le nom continue.
-                        # « p a u l, p comme Pierre, l comme Louis » reste une relecture.
-                        _seule(mots, apres_lue)
-                        and not _confirmation(mots, apres_lue + 1, mots[apres_lue][0].lower())
-                    )
+                    and _que_des_lettres_deja_dites(mots, apres_lue, deja)
                 ):
                     suivant += 1 + lue[0]
                     apres_virgule = False

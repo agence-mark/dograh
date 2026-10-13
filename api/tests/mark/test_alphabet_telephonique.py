@@ -138,6 +138,9 @@ CORPUS = [
     # Relecture n° 4 : si l'épellation continue après la confirmation, la lettre est
     # une vraie lettre (une lettre doublée : « Bonne », pas « Bone »).
     ("b o n, N comme Nicolas, e", ["Bonne"]),
+    # Relecture n° 5 : le nom fini en alphabet, la lettre doublée reste.
+    ("b o n, N comme Nicolas, E comme Eugène", ["Bonne"]),
+    ("r o s, S comme Simon, I comme Irma", ["Rossi"]),
     ("d u p o, N comme Nicolas, t", ["Dupont"]),
     # Relecture n° 4 : « 2 t » écrit en chiffre vaut « deux t ».
     ("c'est d u p o n 2 t", ["Dupontt"]),
