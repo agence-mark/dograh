@@ -956,6 +956,46 @@ def _dernier_code_postal_lu(fiche: dict) -> str | None:
     )
 
 
+def commune_recoupee_au_code_postal(
+    valeur: Any, fiche: dict, reglages: ReglagesFiche, champ: str
+) -> dict | None:
+    """Chantier greffier-conversation, lot F (C6, runs 1121 et 1122) : le greffier écrit la
+    commune telle qu'il l'a comprise (« Abreteuil »), que le module des communes n'a pas
+    retenue ; la personne a aussi dit son code postal (60120). Parmi les communes de ce
+    code, une SEULE ressemble au son à la valeur (Breteuil) : c'est elle, sûre. Aucune ou
+    plusieurs : ``None``, rien ne change (le code postal propose ses communes, C3).
+
+    Le code postal : le champ de code postal qui va avec la commune s'il est rempli,
+    sinon le dernier code postal lu par le module des nombres. ⛔ Ne lève jamais."""
+    try:
+        base = base_si_chargee()
+        if base is None or _est_vide(valeur):
+            return None
+        paire = _commune_et_code_postal(reglages, champ)
+        code = str(fiche.get(paire[1]) or "").strip() if paire else ""
+        if not re.fullmatch(r"\d{5}", code):
+            code = _dernier_code_postal_lu(fiche) or ""
+        if not code:
+            return None
+        proches = [
+            c for c in base.communes_du_code_postal(code) if est_proche(valeur, c.nom)
+        ]
+        if len(proches) != 1:
+            return None
+        commune = proches[0]
+        logger.info(
+            f"[fiche] commune {valeur!r} recoupée au code postal {code} : {commune.nom}"
+        )
+        return {
+            "nom": commune.nom,
+            "code_insee": commune.insee,
+            "codes_postaux": list(commune.cps),
+        }
+    except Exception as erreur:  # noqa: BLE001 -- une lecture ne coûte jamais l'appel
+        logger.warning(f"[fiche] recoupement de la commune impossible : {erreur!r}")
+        return None
+
+
 def communes_du_code_postal_lu(fiche: dict, maximum: int = 3) -> tuple[str, ...]:
     """C3 (PB6, run 845) : les communes du DERNIER code postal que le module des
     nombres a lu dans l'appel, les plus peuplées d'abord. Au 845, « soixante
@@ -1809,6 +1849,11 @@ def ecrire_dans_la_fiche(
             valeur = terme_du_lexique
         if definition.lecteur_effectif == "commune":
             lecture = lire_commune(valeur, fiche, paroles)
+            if not lecture.sure and source == MODE_GREFFIER:
+                # Lot F de greffier-conversation (C6) : recoupée avec le code postal.
+                recoupee = commune_recoupee_au_code_postal(valeur, fiche, reglages, champ)
+                if recoupee is not None:
+                    lecture = _commune_sure(recoupee)
         elif definition.lecteur_effectif == "rue":
             lecture = lire_rue(valeur, fiche, paroles, champ)
         elif definition.lecteur_effectif == "lexique":
@@ -2906,6 +2951,36 @@ async def noter(
             )
             if verdict.options:
                 a_proposer.append({"champ": champ, "options": list(verdict.options)})
+    if source == MODE_GREFFIER:
+        # Lot F de greffier-conversation (C6) : le greffier rend la commune avant le code
+        # postal, ou le code postal à une passe suivante, et ne réécrit pas une commune
+        # inchangée. Une commune non sûre dont le code postal vient d'être écrit est relue.
+        for commune in communes:
+            paire = _commune_et_code_postal(reglages, commune)
+            valeur = fiche().get(commune)
+            if (
+                paire is None
+                or paire[1] not in ecrits
+                or _est_vide(valeur)
+                or ((fiche().get(CLE_ETAT) or {}).get(commune) or {}).get("sure")
+                or commune_recoupee_au_code_postal(valeur, fiche(), reglages, commune) is None
+            ):
+                continue
+            verdict = ecrire_dans_la_fiche(
+                fiche(),
+                reglages,
+                commune,
+                valeur,
+                source=source,
+                paroles=paroles,
+                question=question,
+            )
+            if verdict.statut == "ecrit":
+                retenus[commune] = verdict.valeur
+                a_confirmer = [c for c in a_confirmer if c["champ"] != commune]
+                a_proposer = [p for p in a_proposer if p["champ"] != commune]
+                if commune not in ecrits:
+                    ecrits.append(commune)
     redevenues_sures = any(
         c not in sures_avant and ((fiche().get(CLE_ETAT) or {}).get(c) or {}).get("sure")
         for c in communes
