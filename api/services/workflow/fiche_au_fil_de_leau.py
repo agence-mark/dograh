@@ -3555,7 +3555,43 @@ def etat_de_la_fiche(
         )
     if retour:
         lignes.append(retour)
+    if reglages.mode == MODE_GREFFIER:
+        lignes.extend(_confirmations_du_greffier(fiche, a_confirmer, retour))
     return "\n".join(lignes)
+
+
+# courriel-confirmation (run 1144, 14/10, mode greffier) : l'adresse lue avec un doute
+# était juste dans la fiche, « à confirmer », mais l'agent n'a rien fait confirmer.
+# Le greffier écrit APRÈS la réponse du tour : sa consigne arrivait un tour trop tard,
+# l'agent avait déjà pris sa porte ; puis une passe vide l'effaçait.
+CONSIGNE_EPELLATION_DOUTEUSE = (
+    "À faire confirmer maintenant, avant de prendre une porte : la personne vient "
+    "d'épeler « {epele} ». Relis-le-lui et demande si c'est bien ça."
+)
+
+
+def _confirmations_du_greffier(
+    fiche: dict, a_confirmer: list[str], retour: str | None
+) -> list[str]:
+    """Mode greffier seulement. ① Au tour même, ce que le lecteur a lu avec un doute
+    (ou un domaine proche d'un connu) : le code le sait avant que l'agent réponde.
+    ② Une consigne de confirmation gardée tant qu'un champ reste à confirmer, même
+    quand la dernière passe du greffier n'a rien noté (elle effaçait la notice)."""
+    lignes: list[str] = []
+    tour = fiche.get(CLE_TOUR)
+    trace = next(iter(_entrees(fiche, TRACE_EPELLATIONS)), None)
+    if (
+        tour
+        and trace
+        and trace.get("tour") == tour
+        and trace.get("epele")
+        and (trace.get("doutes") or trace.get("domaine_proche"))
+        and not any(f"« {trace['epele']} »" in ligne for ligne in a_confirmer)
+    ):
+        lignes.append(CONSIGNE_EPELLATION_DOUTEUSE.format(epele=trace["epele"]))
+    if a_confirmer and not retour:
+        lignes.append(CONSIGNE_A_CONFIRMER)
+    return lignes
 
 
 # Lot C de greffier-conversation (C2) : une suggestion comme les autres souffles.
