@@ -42,6 +42,8 @@ from api.services.pipecat.gemini_json_schema_adapter import (
 )
 from api.services.lexique.ecoute import regles_de_prononciation
 from api.services.panne.delai_modele import DelaiModeleMixin
+from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
+from api.services.pipecat.trace_modele import TraceModeleMixin
 from api.services.pipecat.minimax_tts import (
     MiniMaxCachingTTSService,
     MiniMaxOwnedSessionTTSService,
@@ -400,7 +402,7 @@ def stt_uses_external_turns(user_config) -> bool:
     return False
 
 
-class DograhMistralLLMService(DelaiModeleMixin, MistralLLMService):
+class DograhMistralLLMService(TraceModeleMixin, DelaiModeleMixin, MistralLLMService):
     """Send Mistral's ``random_seed`` in a way OpenAI's client will carry.
 
     ⛔ Why this class exists rather than a fix upstream: the seed never left
@@ -465,7 +467,9 @@ class DograhMistralLLMService(DelaiModeleMixin, MistralLLMService):
         return params
 
 
-class DograhOpenAILLMService(DelaiModeleMixin, OpenAILLMService):
+class DograhOpenAILLMService(
+    TraceModeleMixin, ReflexionDeRelanceMixin, DelaiModeleMixin, OpenAILLMService
+):
     """[.mark] The OpenAI-compatible conversation model (Scaleway first).
 
     Chantier ``agent-leger-greffier``, lot C (B7, B9): the same two .mark
@@ -490,6 +494,9 @@ class DograhOpenAILLMService(DelaiModeleMixin, OpenAILLMService):
         params = super().build_chat_completion_params(params_from_context)
         if self._prompt_cache_key:
             params["prompt_cache_key"] = self._prompt_cache_key
+        # [.mark] D10 de repliques-coupees : la relance d'une réplique inachevée, seule,
+        # part avec la réflexion de secours de l'agent.
+        params = self._mark_appliquer_le_secours(params)
         return params
 
 

@@ -11260,6 +11260,24 @@ export type WorkflowConfigurationDefaults = {
      */
     transfert_garanti?: boolean;
     /**
+     * Trace Requetes Modele
+     *
+     * Test agents only (Agent theme, Diagnostic). About 20 KB per answer. Each answer the conversation model is asked for is recorded in the run (requetes_modele): the exact request (messages, tools, settings, never a key), every piece of the stream with its finish reason and arrival time, the token count, how the stream ended, and what was spoken. Off (default): nothing is recorded and nothing changes.
+     */
+    trace_requetes_modele?: boolean;
+    /**
+     * Parcours Lisible
+     *
+     * Clerk mode with transitions in the reply (Call data theme). The flow map lists each step with its role (the line under « # Ta mission ici » of its prompt), and each step ends with one block: where the agent is, how to move on, and each way out with its condition and arrival sentence. The note-taking block is dropped. Off (default): the map and the transitions are written as before.
+     */
+    parcours_lisible?: boolean;
+    /**
+     * Reflexion De Relance
+     *
+     * OpenAI-compatible provider, Clerk mode with transitions in the reply (Call data theme). When an answer ends in the middle of a sentence, it is never spoken and the model answers once more; that single retry is sent with this reasoning effort (e.g. 'low' when the agent runs with 'none'). Empty (default): the retry uses the agent's usual setting.
+     */
+    reflexion_de_relance?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | null;
+    /**
      * Phrase Sans Redemande
      *
      * Postscript, 'note, sentence' order only. When the note of a turn has written a record field and the sentence asks for that same field again, the sentence is not spoken and the model answers once more. The sentence then waits for its end before it is spoken. When unsure, the sentence is spoken. Off (default): nothing changes.

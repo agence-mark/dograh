@@ -107,6 +107,10 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     etiquettes_des_etapes: { theme: "donnees", cas: ["etiquettes-des-etapes"] },
     transfert_garanti: { theme: "donnees", cas: ["transfert-garanti"] },
     phrase_sans_redemande: { theme: "donnees", cas: ["phrase-sans-redemande"] },
+    // Chantier repliques-coupees, lot 6 bis (D16): on screen, no longer « hors écran ».
+    trace_requetes_modele: { theme: "agent", cas: ["trace-requetes-modele"] },
+    parcours_lisible: { theme: "donnees", cas: ["parcours-lisible"] },
+    reflexion_de_relance: { theme: "donnees", cas: ["reflexion-de-relance"] },
     greffier_llm: { theme: "donnees", cas: ["greffier"] },
     greffier_consigne: { theme: "donnees", cas: ["greffier-consigne"] },
     fiche_champs: { theme: "donnees", cas: ["fiche-champ"] },

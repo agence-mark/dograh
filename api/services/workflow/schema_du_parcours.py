@@ -14,7 +14,9 @@ refonte), le schéma finit faux dès qu'une porte change. Généré à l'enregis
 il ne peut pas diverger du graphe.
 
 ⛔ Ce qui n'y entre jamais : autre chose que les noms d'étapes et de portes
-(aucun rôle, aucun mot de métier). ⛔ Les blocs sont délimités et remplacés à
+(aucun rôle, aucun mot de métier). Exception, case ``parcours_lisible`` (lot 4 ter de
+repliques-coupees) : chaque étape porte son rôle, recopié de la ligne sous « # Ta mission
+ici » de son prompt (notre texte, pas celui du code), et la carte ne liste plus les portes. ⛔ Les blocs sont délimités et remplacés à
 chaque enregistrement : jamais empilés, jamais au contact du texte écrit à la main
 (une ligne vide les sépare). Éteint : les blocs laissés sont retirés, et un agent
 qui n'en a jamais eu s'enregistre exactement comme avant.
@@ -28,6 +30,13 @@ import re
 from api.services.workflow.workflow_graph import transition_tool_name
 
 CLE_REGLAGE = "generer_schema_parcours"
+# Chantier repliques-coupees, lot 4 ter (D12, D13) : la carte lisible. Une ligne par étape,
+# son nom et son rôle ; ni portes ni « → » (les sorties sont dans le bloc de fin d'étape, et
+# « → » ne sert qu'à changer d'étape) ; plus de « Tu es ici » à part (le bloc de fin d'étape
+# le dit). Le rôle est la ligne sous « # Ta mission ici » du prompt de l'étape, écrite par
+# nous : le code n'y met aucun mot de métier.
+CLE_LISIBLE = "parcours_lisible"
+_MISSION = re.compile(r"^#\s*Ta mission ici[ \t]*\n+[ \t]*(\S.*)$", re.MULTILINE)
 
 # ⛔ Des repères propres au code (revue du 28/09) : ``<parcours>`` est ce qu'écrit
 # à la main le ``schema.js`` des agents de la refonte (n° 34). Des repères
@@ -93,14 +102,35 @@ def parcours(definition: dict) -> str:
     return "\n".join(lignes)
 
 
-def appliquer(definition: dict | None, allume: bool) -> dict | None:
+def _role(noeud: dict) -> str:
+    """La ligne sous « # Ta mission ici » du prompt de l'étape, sans point final."""
+    trouve = _MISSION.search(retirer((noeud.get("data") or {}).get("prompt")) or "")
+    return trouve.group(1).strip().rstrip(".") if trouve else ""
+
+
+def parcours_lisible(definition: dict) -> str:
+    """Lot 4 ter de repliques-coupees : la carte des étapes et de leur rôle."""
+    noeuds = definition.get("nodes") or []
+    etapes = [n for n in noeuds if n.get("type") in TYPES_ETAPE]
+    lignes = [DEBUT_PARCOURS, "# Les étapes de l'appel"]
+    for etape in _ordre_des_etapes(etapes, definition.get("edges") or []):
+        role = _role(etape)
+        lignes.append(f"{_nom(etape)} : {role}" if role else _nom(etape))
+    lignes.append(FIN_PARCOURS)
+    return "\n".join(lignes)
+
+
+def appliquer(
+    definition: dict | None, allume: bool, lisible: bool = False
+) -> dict | None:
     """La définition avec les blocs à jour (allumé) ou retirés (éteint).
+    ``lisible`` (lot 4 ter de repliques-coupees) : la carte des rôles, sans « Tu es ici ».
 
     Toujours une copie ; une définition sans bloc, éteinte, revient identique."""
     if not definition:
         return definition
     resultat = copy.deepcopy(definition)
-    bloc = parcours(resultat) if allume else None
+    bloc = (parcours_lisible(resultat) if lisible else parcours(resultat)) if allume else None
     for noeud in resultat.get("nodes") or []:
         data = noeud.get("data")
         if not isinstance(data, dict) or not isinstance(data.get("prompt"), (str, type(None))):
@@ -111,7 +141,7 @@ def appliquer(definition: dict | None, allume: bool) -> dict | None:
         propre = retirer(data.get("prompt"))
         if allume and type_noeud == TYPE_GLOBAL:
             propre = _ajouter(propre, bloc)
-        elif allume:
+        elif allume and not lisible:
             propre = _ajouter(propre, f"{DEBUT_POSITION}Tu es ici : {_nom(noeud)}{FIN_POSITION}")
         if propre != data.get("prompt"):
             data["prompt"] = propre
@@ -141,21 +171,35 @@ async def a_l_enregistrement(
     from api.db import db_client
 
     allume = reglage_allume(configurations)
+    lisible = _lisible(configurations)
     if allume is None and definition is None:
         return None
     existante = None
-    if allume is None or definition is None:
+    # Revue du 14/10 (retouche 2, Evan) : la base n'est lue que si une valeur manque
+    # vraiment ; la case lisible ne compte que schéma allumé (éteint, les blocs sont retirés).
+    if allume is None or definition is None or (allume and lisible is None):
         workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
-        if workflow is None:
-            return definition
-        brouillon = await db_client.get_draft_version(workflow_id)
-        active = brouillon or workflow.released_definition
+        brouillon = await db_client.get_draft_version(workflow_id) if workflow else None
+        active = (brouillon or workflow.released_definition) if workflow else None
         if active is None:
+            # Comme avant le chantier : un graphe fourni avec la case du schéma est traité.
+            if definition is not None and allume is not None:
+                return appliquer(definition, allume, bool(lisible))
             return definition
         if allume is None:
             allume = bool(reglage_allume(active.workflow_configurations))
+        if lisible is None:
+            lisible = bool(_lisible(active.workflow_configurations))
         existante = active.workflow_json
     if definition is not None:
-        return appliquer(definition, allume)
-    nouvelle = appliquer(existante, allume)
+        return appliquer(definition, allume, bool(lisible))
+    nouvelle = appliquer(existante, allume, bool(lisible))
     return nouvelle if nouvelle != existante else None
+
+
+def _lisible(configurations: dict | None) -> bool | None:
+    """La case du parcours lisible de ces configurations ; ``None`` si elle n'y est pas
+    (comme ``reglage_allume`` : on lit alors la case déjà enregistrée)."""
+    if not configurations or CLE_LISIBLE not in configurations:
+        return None
+    return configurations[CLE_LISIBLE] is True

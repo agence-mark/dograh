@@ -36,11 +36,13 @@ import json
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import replace
+from datetime import datetime
 from typing import Any
 
 from loguru import logger
 
 from api.services.pipecat.post_scriptum import lire_la_note
+from api.services.workflow.dates_relatives import FUSEAU
 from api.services.workflow.porte_parlee import FLECHE
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_ETAT,
@@ -155,15 +157,48 @@ def _texte(contenu: Any) -> str:
     return ""
 
 
+_JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+_MOIS = (
+    "janvier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "décembre",
+)
+
+
+def date_du_jour(maintenant: datetime | None = None) -> str:
+    """[.mark] D3 de repliques-coupees : la date de l'appel, au fuseau de Paris, côté
+    serveur (« Nous sommes le mercredi 14 octobre 2026. »). Sans elle, le greffier
+    écrivait « octobre 2022 » pour « l'an dernier », refusé par le code à chaque tour
+    (run 1175). Le calcul reste au modèle : on ne lui donne que le jour."""
+    jour = (maintenant or datetime.now(FUSEAU)).astimezone(FUSEAU)
+    quantieme = "1er" if jour.day == 1 else str(jour.day)
+    return (
+        f"Nous sommes le {_JOURS[jour.weekday()]} {quantieme} "
+        f"{_MOIS[jour.month - 1]} {jour.year}."
+    )
+
+
 def message_du_greffier(
     reglages: ReglagesFiche,
     fiche: dict,
     messages: Iterable[dict],
     refus: Iterable[dict] = (),
+    *,
+    aujourd_hui: str | None = None,
 ) -> str:
-    """Ce que le greffier lit à chaque passe : la fiche actuelle (valeur, sûre
-    ou à confirmer), ce que sa passe précédente s'est vu refuser, la
-    conversation entière numérotée, la dernière réplique."""
+    """Ce que le greffier lit à chaque passe : la date de l'appel (D3 de
+    repliques-coupees), la fiche actuelle (valeur, sûre ou à confirmer), ce que
+    sa passe précédente s'est vu refuser, la conversation entière numérotée, la
+    dernière réplique."""
     etat = fiche.get(CLE_ETAT) or {}
     lignes_fiche = []
     for champ in reglages.champs:
@@ -198,7 +233,8 @@ def message_du_greffier(
         f"- {r.get('champ')} : {RAISONS_DU_REFUS.get(r.get('raison'), r.get('raison'))}"
         for r in refus
     ]
-    blocs = ["# La fiche actuelle\n" + ("\n".join(lignes_fiche) or "(vide)")]
+    blocs = ["# Aujourd'hui\n" + aujourd_hui] if aujourd_hui else []
+    blocs.append("# La fiche actuelle\n" + ("\n".join(lignes_fiche) or "(vide)"))
     if refuses:
         blocs.append(
             "# Refusé à ta passe précédente (ne le renvoie pas tel quel)\n"
@@ -417,7 +453,9 @@ class Greffier:
             fiche = self._fiche()
             lus = list(self._messages())
             self._replique_en_vol = _derniere_replique(lus)
-            message = message_du_greffier(self._reglages, fiche, lus, self._refus)
+            message = message_du_greffier(
+                self._reglages, fiche, lus, self._refus, aujourd_hui=date_du_jour()
+            )
             texte, jetons = await asyncio.wait_for(
                 interroger(self._service, self._systeme, message), self._delai
             )
