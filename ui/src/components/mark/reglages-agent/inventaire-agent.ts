@@ -107,6 +107,9 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     etiquettes_des_etapes: { theme: "donnees", cas: ["etiquettes-des-etapes"] },
     transfert_garanti: { theme: "donnees", cas: ["transfert-garanti"] },
     phrase_sans_redemande: { theme: "donnees", cas: ["phrase-sans-redemande"] },
+    trace_requetes_modele: {
+        horsEcran: "Diagnostic case for our test agents only (repliques-coupees, D1): set through the API, never shown to a client",
+    },
     greffier_llm: { theme: "donnees", cas: ["greffier"] },
     greffier_consigne: { theme: "donnees", cas: ["greffier-consigne"] },
     fiche_champs: { theme: "donnees", cas: ["fiche-champ"] },

@@ -22,6 +22,8 @@ D6, porte coupée en route jamais prise), et rien d'autre :
 - la ligne « → » n'est jamais dite, et comme la mémoire de l'agent est faite de ce que la voix a
   dit, le greffier ne la relit jamais non plus ;
 - la trace va dans ``portes_lues`` (une ligne par porte écrite), jamais dans ``post_scriptums`` ;
+- case ``trace_requetes_modele`` allumée (repliques-coupees, D1), ce qu'il laisse partir à la
+  voix et les interruptions vont à la trace du cerveau (``trace_modele.py``) ;
 - ⛔ il ne lève jamais (patron du Post-scriptum).
 """
 
@@ -33,11 +35,13 @@ from typing import Any
 from loguru import logger
 
 from api.services.pipecat.post_scriptum import PostScriptumProcessor, sans_json
+from api.services.pipecat.trace_modele import ATTRIBUT_TRACE, TraceDuModele
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_TOUR,
     MODE_GREFFIER,
     ReglagesFiche,
 )
+from pipecat.frames.frames import Frame, InterruptionFrame, LLMTextFrame
 from pipecat.processors.frame_processor import FrameDirection
 
 # La trace de chaque porte écrite dans la réponse, en mode greffier.
@@ -55,8 +59,11 @@ class LecteurDePortes(PostScriptumProcessor):
         messages: Callable[[], Iterable[dict]],
         attendu: Callable[[], bool],
         portes: Any,
+        trace: TraceDuModele | None = None,
         **kwargs,
     ):
+        # D1 de repliques-coupees : ``None`` (case éteinte), rien n'est noté.
+        self._trace_du_modele = trace
         super().__init__(
             reglages=reglages,
             fiche=fiche,
@@ -68,6 +75,15 @@ class LecteurDePortes(PostScriptumProcessor):
             portes=portes,
             **kwargs,
         )
+
+    async def push_frame(self, frame: Frame, direction: FrameDirection = FrameDirection.DOWNSTREAM):
+        trace = self._trace_du_modele
+        if trace is not None and direction == FrameDirection.DOWNSTREAM:
+            if isinstance(frame, InterruptionFrame):
+                trace.interrompue()
+            elif isinstance(frame, LLMTextFrame) and not getattr(frame, "skip_tts", False):
+                trace.dit(frame.text)
+        await super().push_frame(frame, direction)
 
     # Pas de séparateur ni de note : la réponse est une phrase, avec peut-être une porte.
     def _separateur_dans(self, texte: str) -> tuple[int, int] | None:
@@ -137,4 +153,10 @@ def lecteur_de_portes_du_moteur(engine: Any) -> LecteurDePortes | None:
         messages=lambda: engine.context.get_messages() if engine.context else [],
         attendu=engine.post_scriptum_attendu,
         portes=engine,
+        trace=_trace_du(engine),
     )
+
+
+def _trace_du(engine: Any) -> TraceDuModele | None:
+    trace = getattr(engine, ATTRIBUT_TRACE, None)
+    return trace if isinstance(trace, TraceDuModele) else None

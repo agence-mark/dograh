@@ -11260,6 +11260,12 @@ export type WorkflowConfigurationDefaults = {
      */
     transfert_garanti?: boolean;
     /**
+     * Trace Requetes Modele
+     *
+     * Test agents only, no screen. Each answer the conversation model is asked for is recorded in the run (requetes_modele): the exact request (messages, tools, settings, never a key), every piece of the stream with its finish reason and arrival time, the token count, how the stream ended, and what was spoken. Off (default): nothing is recorded and nothing changes.
+     */
+    trace_requetes_modele?: boolean;
+    /**
      * Phrase Sans Redemande
      *
      * Postscript, 'note, sentence' order only. When the note of a turn has written a record field and the sentence asks for that same field again, the sentence is not spoken and the model answers once more. The sentence then waits for its end before it is spoken. When unsure, the sentence is spoken. Off (default): nothing changes.

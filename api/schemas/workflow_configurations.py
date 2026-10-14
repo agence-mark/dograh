@@ -917,6 +917,17 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Every note-taking mode. Off (default): the model decides, as before."
         ),
     )
+    # [.mark] Chantier repliques-coupees, D1 : la trace du cerveau, sans écran (agents d'essai).
+    trace_requetes_modele: bool = Field(
+        default=False,
+        description=(
+            "Test agents only, no screen. Each answer the conversation model is asked for "
+            "is recorded in the run (requetes_modele): the exact request (messages, tools, "
+            "settings, never a key), every piece of the stream with its finish reason and "
+            "arrival time, the token count, how the stream ended, and what was spoken. "
+            "Off (default): nothing is recorded and nothing changes."
+        ),
+    )
     # [.mark] Chantier postscriptum-et-communes, B5 : un filet contre la question redemandée.
     phrase_sans_redemande: bool = Field(
         default=False,
