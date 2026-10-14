@@ -928,6 +928,17 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Off (default): nothing is recorded and nothing changes."
         ),
     )
+    # [.mark] Chantier repliques-coupees, lot 4 ter : le parcours lisible.
+    parcours_lisible: bool = Field(
+        default=False,
+        description=(
+            "Clerk mode with transitions in the reply, no screen. The flow map lists each "
+            "step with its role (the line under « # Ta mission ici » of its prompt), and "
+            "each step ends with one block: where the agent is, how to move on, and each "
+            "way out with its condition and arrival sentence. The note-taking block is "
+            "dropped. Off (default): the map and the transitions are written as before."
+        ),
+    )
     # [.mark] Chantier repliques-coupees, D10 : la réflexion de la relance d'une réplique inachevée.
     reflexion_de_relance: Literal["none", "minimal", "low", "medium", "high"] | None = Field(
         default=None,

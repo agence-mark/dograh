@@ -11266,6 +11266,12 @@ export type WorkflowConfigurationDefaults = {
      */
     trace_requetes_modele?: boolean;
     /**
+     * Parcours Lisible
+     *
+     * Clerk mode with transitions in the reply, no screen. The flow map lists each step with its role (the line under « # Ta mission ici » of its prompt), and each step ends with one block: where the agent is, how to move on, and each way out with its condition and arrival sentence. The note-taking block is dropped. Off (default): the map and the transitions are written as before.
+     */
+    parcours_lisible?: boolean;
+    /**
      * Reflexion De Relance
      *
      * OpenAI-compatible provider, no screen. When an answer ends in the middle of a sentence, it is never spoken and the model answers once more; that single retry is sent with this reasoning effort (e.g. 'low' when the agent runs with 'none'). Empty (default): the retry uses the agent's usual setting.

@@ -183,6 +183,9 @@ CLE_ETIQUETTES = "etiquettes_des_etapes"
 CLE_PHRASE_SANS_REDEMANDE = "phrase_sans_redemande"
 # Chantier greffier-conversation, lot E (C4, D6) : le code lance le transfert à l'arrivée.
 CLE_TRANSFERT_GARANTI = "transfert_garanti"
+# Chantier repliques-coupees, lot 4 ter (D11 à D15) : le parcours lisible (carte des rôles,
+# bloc de fin d'étape unique, plus de bloc de prise de notes). Greffier, portes dans la réponse.
+CLE_PARCOURS_LISIBLE = "parcours_lisible"
 SOUFFLE_MAX = 2
 
 
@@ -226,6 +229,8 @@ class ReglagesFiche:
     # Lot E de greffier-conversation (C4, D6) : à l'arrivée dans une étape qui porte un
     # outil de transfert, entreprise ouverte (OUVERT), le code lance le transfert. Tous modes.
     transfert_garanti: bool = False
+    # Lot 4 ter de repliques-coupees : le parcours lisible (greffier, portes dans la réponse).
+    parcours_lisible: bool = False
 
     @property
     def note_d_abord(self) -> bool:
@@ -285,6 +290,11 @@ class ReglagesFiche:
             motifs_des_types=_motifs_des_types(run_configs),
             etiquettes=bool(run_configs.get(CLE_ETIQUETTES)),
             transfert_garanti=run_configs.get(CLE_TRANSFERT_GARANTI) is True,
+            parcours_lisible=(
+                run_configs.get(CLE_PARCOURS_LISIBLE) is True
+                and mode == MODE_GREFFIER
+                and _portes_dans_la_reponse(run_configs, mode)
+            ),
             phrase_sans_redemande=(
                 run_configs.get(CLE_PHRASE_SANS_REDEMANDE) is True
                 and mode == MODE_POST_SCRIPTUM
@@ -3281,8 +3291,13 @@ def consigne_du_mode(reglages: ReglagesFiche | None) -> str | None:
     fixe pendant l'appel (le début de la requête ne bouge pas, cache intact).
 
     Outil : rien (le comportement d'avant, la description de l'outil suffit).
-    Greffier : la fiche est tenue à côté de l'agent, il parle seulement."""
+    Greffier : la fiche est tenue à côté de l'agent, il parle seulement.
+    Greffier, parcours lisible (lot 4 ter de repliques-coupees) : rien. L'agent n'a aucun
+    outil de note et le message « Fiche de l'appel » dit déjà qu'elle est tenue par le
+    greffier : le bloc répétait ce que la situation dit."""
     if reglages is not None and reglages.mode == MODE_GREFFIER:
+        if reglages.parcours_lisible:
+            return None
         return "\n".join(
             [DEBUT_PRISE_DE_NOTES, CONSIGNE_AGENT_DU_GREFFIER, FIN_PRISE_DE_NOTES]
         )

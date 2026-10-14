@@ -336,6 +336,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     transfert_garanti?: boolean;
     // [.mark] Chantier repliques-coupees, D1: the model trace, no screen (test agents).
     trace_requetes_modele?: boolean;
+    // [.mark] Chantier repliques-coupees, lot 4 ter: the readable flow (map of roles, one exit block).
+    parcours_lisible?: boolean;
     // [.mark] Chantier repliques-coupees, D10: the reasoning effort of the retry of a cut reply.
     reflexion_de_relance?: "none" | "minimal" | "low" | "medium" | "high" | null;
     // [.mark] Chantier postscriptum-et-communes, B5: Postscript, « note, reply » order only.

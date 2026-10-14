@@ -1427,6 +1427,8 @@ class PipecatEngine:
                 note_d_abord=self._fiche is not None and self._fiche.note_d_abord,
                 # Chantier greffier-conversation, lot A : ni séparateur ni note.
                 greffier=self._fiche is not None and self._fiche.mode == MODE_GREFFIER,
+                # Lot 4 ter de repliques-coupees : le bloc de fin d'étape lisible.
+                lisible=self._fiche is not None and self._fiche.parcours_lisible,
             )
             if bloc:
                 texte = f"{texte}\n\n{bloc}"

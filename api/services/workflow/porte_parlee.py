@@ -21,6 +21,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from api.services.workflow.workflow_graph import transition_tool_name
+
 if TYPE_CHECKING:
     from api.services.workflow.workflow_graph import Node, WorkflowGraph
 
@@ -65,6 +67,17 @@ Une seule porte par réponse. Dès que ce que dit la personne correspond à une 
 # La première réplique des étapes où mènent tes portes
 {premieres}"""
 
+# Chantier repliques-coupees, lot 4 ter (D11 à D15, Evan 14/10) : le parcours lisible, en
+# greffier. Un seul bloc en fin d'étape : où l'on est, trois phrases de règle, puis chaque
+# sortie avec sa condition et sa phrase d'arrivée juste dessous. Convention D11 : une porte
+# porte le nom de l'étape où elle mène ; « → » ne sert qu'à l'action de changer d'étape.
+CONSIGNE_DU_PARCOURS_LISIBLE = """# Tu es à l'étape : {etape}
+Pour passer à une autre étape, ta réponse commence par une ligne seule : « → » et le nom de la sortie. Cette ligne n'est jamais dite. Puis tu dis la phrase d'arrivée de cette sortie, sans redemander ce que la personne a déjà donné.
+Dès qu'une condition est remplie, tu passes dans cette réponse. Sinon, tu réponds sans cette ligne. Une seule sortie à la fois.
+
+Tu passes à :
+{sorties}"""
+
 # D3 : une étape d'arrivée sans première réplique écrite à l'écran.
 SANS_PREMIERE_REPLIQUE = "pose la première question de cette étape."
 
@@ -86,6 +99,7 @@ def consigne_des_portes(
     rendre: Callable[[str], str],
     note_d_abord: bool = False,
     greffier: bool = False,
+    lisible: bool = False,
 ) -> str | None:
     """D5 : le bloc des portes de l'étape (``nom (vers l'étape X) : condition``), puis une
     fois la première réplique de chaque étape d'arrivée de CES portes, rendue avec
@@ -97,6 +111,8 @@ def consigne_des_portes(
     l'étape des coordonnées, qui ne mène pas à « infos », ne la voit jamais."""
     if not noeud.out_edges:
         return None
+    if greffier and lisible:
+        return _sorties_lisibles(noeud, graphe, rendre)
     portes = "\n".join(
         # Q1 (lot 3 du chantier postscriptum-et-communes) : jamais la flèche ici. La liste
         # écrivait « nom → étape cible » : les modèles recopiaient « → <étape> », une porte
@@ -120,3 +136,22 @@ def consigne_des_portes(
         else CONSIGNE_DES_PORTES
     )
     return consigne.format(portes=portes, premieres=premieres)
+
+
+def _sorties_lisibles(noeud: Node, graphe: WorkflowGraph, rendre: Callable[[str], str]) -> str:
+    """Lot 4 ter de repliques-coupees : chaque sortie, sa condition, sa phrase d'arrivée.
+    « (vers l'étape X) » seulement quand la porte ne porte pas le nom de son étape."""
+    lignes = []
+    for arete in noeud.out_edges:
+        nom = arete.get_function_name()
+        cible = graphe.nodes[arete.target]
+        # Le nom d'une porte est normalisé (minuscules, « _ ») : on compare à l'étape normalisée.
+        tete = nom if nom == transition_tool_name(cible.name) else f"{nom} (vers l'étape {cible.name})"
+        condition = (arete.condition or "").strip().rstrip(".")
+        phrase = (
+            rendre(cible.premiere_replique)
+            if cible.premiere_replique
+            else SANS_PREMIERE_REPLIQUE
+        )
+        lignes.append(f"- {tete}, quand {condition}.\n  Phrase d'arrivée : {phrase}")
+    return CONSIGNE_DU_PARCOURS_LISIBLE.format(etape=noeud.name, sorties="\n".join(lignes))
