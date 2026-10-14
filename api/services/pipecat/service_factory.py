@@ -464,8 +464,7 @@ class DograhMistralLLMService(TraceModeleMixin, DelaiModeleMixin, MistralLLMServ
                 **(params.get("extra_body") or {}),
                 "prompt_cache_key": self._prompt_cache_key,
             }
-        # [.mark] D1 de repliques-coupees : la requête telle qu'elle part (case allumée).
-        return self._mark_tracer_parametres(params)
+        return params
 
 
 class DograhOpenAILLMService(
@@ -498,8 +497,7 @@ class DograhOpenAILLMService(
         # [.mark] D10 de repliques-coupees : la relance d'une réplique inachevée, seule,
         # part avec la réflexion de secours de l'agent.
         params = self._mark_appliquer_le_secours(params)
-        # [.mark] D1 de repliques-coupees : la requête telle qu'elle part (case allumée).
-        return self._mark_tracer_parametres(params)
+        return params
 
 
 def cle_de_cache(workflow_id: int) -> str:

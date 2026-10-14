@@ -218,8 +218,9 @@ class TraceModeleMixin:
         return trace.flux(flux, entree)
 
     def _mark_tracer_parametres(self, params: dict) -> dict:
-        """Appelé à la fin de ``build_chat_completion_params`` : la requête telle qu'elle part.
-        Hors d'une réponse de la conversation (``run_inference``), rien."""
+        """Appelé par l'enveloppe que pose ``brancher_la_trace``, par-dessus toutes les
+        autres : la requête telle qu'elle part. Hors d'une réponse de la conversation
+        (``run_inference``), rien."""
         entree = self._mark_entree_en_cours
         if entree is not None and self.mark_trace is not None:
             self.mark_trace.parametres(entree, params)
@@ -236,6 +237,16 @@ def brancher_la_trace(engine: Any, llm: Any, run_configs: dict | None) -> TraceD
             return None
         trace = TraceDuModele(lambda: engine._gathered_context)
         llm.mark_trace = trace
+        # La requête se photographie en DERNIER : le moteur a déjà enveloppé le
+        # constructeur de requête pour y glisser l'état de la fiche
+        # (``montrer_la_fiche``, à sa création). Prise dans la méthode du service,
+        # la trace la voyait sans ce message (constat du 14/10, run 1185).
+        construire = llm.build_chat_completion_params
+
+        def build_chat_completion_params(params_from_context):
+            return llm._mark_tracer_parametres(construire(params_from_context))
+
+        llm.build_chat_completion_params = build_chat_completion_params
         setattr(engine, ATTRIBUT_TRACE, trace)
         return trace
     except Exception as erreur:  # noqa: BLE001

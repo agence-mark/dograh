@@ -380,3 +380,27 @@ async def test_au_clavier_case_eteinte_aucune_trace(
         test_client_factory, user, workflow, [MockLLMService.create_text_chunks(PHRASE)]
     )
     assert TRACE_REQUETES not in charge["checkpoint"]["gathered_context"]
+
+
+# --------------------------------------------------------------------------- #
+# 4. La requête telle qu'elle part : l'état de la fiche compris (constat du 14/10)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_la_trace_voit_l_etat_de_la_fiche_ajoute_par_le_moteur():
+    """Run 1185 : la trace photographiait la requête avant que le moteur y glisse l'état
+    de la fiche (``montrer_la_fiche``, posé à sa création, donc AVANT la trace)."""
+    from api.services.workflow.fiche_au_fil_de_leau import montrer_la_fiche
+
+    fiche = {"tour_appelant": 5, "nom": "Delaunay", "fiche_etat": {"nom": {"sure": True}}}
+    service, envoyes = _service()
+    reglages = ReglagesFiche.depuis(GREFFIER_PORTES)
+    assert montrer_la_fiche(service, reglages, lambda: fiche)
+    brancher_la_trace(_moteur(fiche), service, {CLE_TRACE_REQUETES: True})
+    flux = await service.get_chat_completions(_contexte())
+    async for _ in flux:
+        pass
+    parties = fiche[TRACE_REQUETES][0]["parametres"]["messages"]
+    assert any("Delaunay" in str(m.get("content")) for m in parties[:-1]), parties
+    assert parties == envoyes[0]["messages"]
