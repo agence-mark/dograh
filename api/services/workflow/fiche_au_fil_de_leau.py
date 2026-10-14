@@ -1673,39 +1673,56 @@ def epellation_du_tour(
     return meilleur
 
 
-# courriel-ecriture (run 1143, 14/10) : le lecteur lit « r o u deux s e a u soixante
-# point evan arobase gmail point com » en `rousseau60.evan@gmail.com`, le greffier
-# écrit `rou2seau60.evan@gmail.com`, sûr. Une adresse qui RESSEMBLE à une adresse lue
-# pendant l'appel (pas seulement au tour : le greffier relit tout l'appel à chaque
-# passe) est cette adresse. Une adresse sans rapport (une autre, redonnée) passe sous.
+# courriel-ecriture (run 1143, 14/10) : le lecteur lit une adresse dictée lettre à
+# lettre (« r o u deux s e a u soixante… »), le greffier en écrit une autre lecture
+# (« rou2seau60… »), sûre. L'adresse lue prime :
+# - seulement la DERNIÈRE adresse lue (relecture n° 1 : jamais une plus ancienne) ;
+# - sur le message où elle a été dite (même tour, ou ce message est le dernier que
+#   le modèle a lu : une passe du greffier peut finir après le tour suivant), pour
+#   toute écriture qui lui ressemble ;
+# - ensuite, seulement contre une écriture déjà remplacée (le greffier relit tout
+#   l'appel et la répète). Une autre écriture, plus tard, est une correction de la
+#   personne : le chemin ordinaire décide (« non, c'est 61 » n'est jamais écrasé).
 SEUIL_COURRIEL = 80
+CLE_REMPLACEES = "remplacees"
 
 
 def courriel_lu(
-    valeur: Any, fiche: dict, reglages: ReglagesFiche, definition: ChampFiche
+    valeur: Any,
+    fiche: dict,
+    reglages: ReglagesFiche,
+    definition: ChampFiche,
+    paroles: list[str] = (),
 ) -> Lecture | None:
     """L'adresse mail que le lecteur a lue, si le champ est un champ courriel
     (``variables_courriel``) et que la valeur en est une autre écriture. Sûre
     seulement sans doute du lecteur ni domaine proche d'un connu ; sinon à faire
-    confirmer (Evan, 13/10 : la lettre douteuse se fait confirmer)."""
+    confirmer (Evan, 13/10 : la lettre douteuse se fait confirmer). Retient dans
+    la trace l'écriture remplacée, pour la reconnaître aux passes suivantes."""
     from api.services.fiche.controle import correspond
 
     motifs = tuple((reglages.motifs_des_types or {}).get("courriel") or ())
     texte = str(valeur).strip().lower()
     if "@" not in texte or not correspond(definition.nom, motifs):
         return None
-    meilleure, score_max = None, 0.0
-    for trace in _entrees(fiche, TRACE_EPELLATIONS):
-        epele = trace.get("epele")
-        if not trace.get("courriel") or not epele:
-            continue
-        score = fuzz.ratio(texte, str(epele).lower())
-        if score >= SEUIL_COURRIEL and score > score_max:
-            meilleure, score_max = trace, score
-    if meilleure is None:
+    trace = next(
+        (t for t in _entrees(fiche, TRACE_EPELLATIONS) if t.get("courriel") and t.get("epele")),
+        None,
+    )
+    if trace is None:
         return None
-    sure = not meilleure.get("doutes") and not meilleure.get("domaine_proche")
-    return Lecture(meilleure["epele"], sure, None if sure else "a_confirmer")
+    lue = str(trace["epele"])
+    remplacees = trace.get(CLE_REMPLACEES) or []
+    if texte != lue.lower() and texte not in remplacees:
+        dite = "".join(_mots(str(trace.get("entendu") or "")))
+        au_message = trace.get("tour") == fiche.get(CLE_TOUR) or (
+            bool(dite) and bool(paroles) and dite in "".join(_mots(str(paroles[-1])))
+        )
+        if not au_message or fuzz.ratio(texte, lue.lower()) < SEUIL_COURRIEL:
+            return None
+        trace[CLE_REMPLACEES] = [*remplacees, texte]
+    sure = not trace.get("doutes") and not trace.get("domaine_proche")
+    return Lecture(lue, sure, None if sure else "a_confirmer")
 
 
 def cumuler(ancienne: Any, nouvelle: Any) -> Any:
@@ -1830,6 +1847,17 @@ def ecrire_dans_la_fiche(
     lecture: Lecture | None = None
     dit: str | None = None
     pas_une_date = False
+    # courriel-ecriture : l'adresse lue remplace l'écriture du modèle AVANT D8 et D6,
+    # pour qu'un « oui » la rende sûre même si le modèle garde son écriture (relecture n° 1).
+    courriel = (
+        courriel_lu(valeur, fiche, reglages, definition, paroles)
+        if definition is not None
+        and definition.origine == OrigineChamp.dicte
+        and not _est_vide(valeur)
+        else None
+    )
+    if courriel is not None:
+        valeur = courriel.valeur
 
     if definition is None:
         verdict = Verdict(champ, "refuse", "champ_inconnu")
@@ -1896,9 +1924,9 @@ def ecrire_dans_la_fiche(
         elif definition.chiffres:
             # C2 : un numéro que les mots disent de plusieurs façons.
             lecture = lire_numero_a_plusieurs_lectures(valeur, fiche)
-        if lecture is None and definition.origine == OrigineChamp.dicte:
-            # courriel-ecriture (run 1143) : l'adresse lue prime sur celle du modèle.
-            lecture = courriel_lu(valeur, fiche, reglages, definition)
+        if lecture is None:
+            # courriel-ecriture (run 1143) : l'adresse lue, sûre ou à faire confirmer.
+            lecture = courriel
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
             if definition.lecteur_effectif == "rue":
