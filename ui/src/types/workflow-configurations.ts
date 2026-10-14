@@ -336,6 +336,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     transfert_garanti?: boolean;
     // [.mark] Chantier repliques-coupees, D1: the model trace, no screen (test agents).
     trace_requetes_modele?: boolean;
+    // [.mark] Chantier repliques-coupees, D10: the reasoning effort of the retry of a cut reply.
+    reflexion_de_relance?: "none" | "minimal" | "low" | "medium" | "high" | null;
     // [.mark] Chantier postscriptum-et-communes, B5: Postscript, « note, reply » order only.
     phrase_sans_redemande?: boolean;
     // [.mark] Chantier langwatch-et-fenetre-du-run, lot 4 (Pipecat ticket 5960):

@@ -11266,6 +11266,12 @@ export type WorkflowConfigurationDefaults = {
      */
     trace_requetes_modele?: boolean;
     /**
+     * Reflexion De Relance
+     *
+     * OpenAI-compatible provider, no screen. When an answer ends in the middle of a sentence, it is never spoken and the model answers once more; that single retry is sent with this reasoning effort (e.g. 'low' when the agent runs with 'none'). Empty (default): the retry uses the agent's usual setting.
+     */
+    reflexion_de_relance?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | null;
+    /**
      * Phrase Sans Redemande
      *
      * Postscript, 'note, sentence' order only. When the note of a turn has written a record field and the sentence asks for that same field again, the sentence is not spoken and the model answers once more. The sentence then waits for its end before it is spoken. When unsure, the sentence is spoken. Off (default): nothing changes.

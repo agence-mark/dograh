@@ -928,6 +928,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Off (default): nothing is recorded and nothing changes."
         ),
     )
+    # [.mark] Chantier repliques-coupees, D10 : la réflexion de la relance d'une réplique inachevée.
+    reflexion_de_relance: Literal["none", "minimal", "low", "medium", "high"] | None = Field(
+        default=None,
+        description=(
+            "OpenAI-compatible provider, no screen. When an answer ends in the middle of a "
+            "sentence, it is never spoken and the model answers once more; that single retry "
+            "is sent with this reasoning effort (e.g. 'low' when the agent runs with 'none'). "
+            "Empty (default): the retry uses the agent's usual setting."
+        ),
+    )
     # [.mark] Chantier postscriptum-et-communes, B5 : un filet contre la question redemandée.
     phrase_sans_redemande: bool = Field(
         default=False,

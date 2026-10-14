@@ -42,6 +42,7 @@ from api.services.pipecat.gemini_json_schema_adapter import (
 )
 from api.services.lexique.ecoute import regles_de_prononciation
 from api.services.panne.delai_modele import DelaiModeleMixin
+from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
 from api.services.pipecat.trace_modele import TraceModeleMixin
 from api.services.pipecat.minimax_tts import (
     MiniMaxCachingTTSService,
@@ -467,7 +468,9 @@ class DograhMistralLLMService(TraceModeleMixin, DelaiModeleMixin, MistralLLMServ
         return self._mark_tracer_parametres(params)
 
 
-class DograhOpenAILLMService(TraceModeleMixin, DelaiModeleMixin, OpenAILLMService):
+class DograhOpenAILLMService(
+    TraceModeleMixin, ReflexionDeRelanceMixin, DelaiModeleMixin, OpenAILLMService
+):
     """[.mark] The OpenAI-compatible conversation model (Scaleway first).
 
     Chantier ``agent-leger-greffier``, lot C (B7, B9): the same two .mark
@@ -492,6 +495,9 @@ class DograhOpenAILLMService(TraceModeleMixin, DelaiModeleMixin, OpenAILLMServic
         params = super().build_chat_completion_params(params_from_context)
         if self._prompt_cache_key:
             params["prompt_cache_key"] = self._prompt_cache_key
+        # [.mark] D10 de repliques-coupees : la relance d'une réplique inachevée, seule,
+        # part avec la réflexion de secours de l'agent.
+        params = self._mark_appliquer_le_secours(params)
         # [.mark] D1 de repliques-coupees : la requête telle qu'elle part (case allumée).
         return self._mark_tracer_parametres(params)
 

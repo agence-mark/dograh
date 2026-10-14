@@ -110,6 +110,9 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     trace_requetes_modele: {
         horsEcran: "Diagnostic case for our test agents only (repliques-coupees, D1): set through the API, never shown to a client",
     },
+    reflexion_de_relance: {
+        horsEcran: "Model tuning set with the model (repliques-coupees, D10): set through the API with the agent's reasoning effort",
+    },
     greffier_llm: { theme: "donnees", cas: ["greffier"] },
     greffier_consigne: { theme: "donnees", cas: ["greffier-consigne"] },
     fiche_champs: { theme: "donnees", cas: ["fiche-champ"] },

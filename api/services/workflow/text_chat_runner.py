@@ -73,6 +73,7 @@ from api.services.pipecat.greffier import (
     resoudre_le_bloc_du_greffier,
 )
 from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
+from api.services.pipecat.replique_inachevee import brancher_la_relance
 from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
@@ -845,8 +846,10 @@ async def execute_text_chat_pending_turn(
         fiche=reglages_fiche,
     )
     engine._gathered_context = dict(base_checkpoint["gathered_context"])
-    # [.mark] D1 de repliques-coupees : la trace du cerveau, comme au téléphone.
+    # [.mark] D1 et D10 de repliques-coupees : la trace du cerveau et la réflexion
+    # de secours, comme au téléphone.
     brancher_la_trace(engine, llm, run_configs)
+    brancher_la_relance(engine, llm, run_configs)
     capture_processor = _TextChatCaptureProcessor(response_window, context, engine)
     node_transition_events = capture_processor.events
 
