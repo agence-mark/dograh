@@ -393,3 +393,42 @@ async def test_au_clavier_la_replique_coupee_n_est_ni_affichee_ni_gardee(
     assert "pour que nous" in gardes, gardes
     assert "mail pour que\n" not in gardes and not gardes.rstrip().endswith("pour que"), gardes
     assert point["gathered_context"][TRACE_INACHEVEES][0]["relance"] is True
+
+
+# --------------------------------------------------------------------------- #
+# Revue du 14/10, retouche 1 (Evan) : une porte qui ne relance pas désarme le secours.
+# --------------------------------------------------------------------------- #
+
+
+class _MoteurSansRelance(_Moteur):
+    """Le témoin d'un moteur dont la relance d'une réponse muette n'a pas lieu."""
+
+    async def relancer_une_reponse_muette(self):
+        return False
+
+
+@pytest.mark.asyncio
+async def test_une_porte_inconnue_sans_relance_desarme_le_secours():
+    fiche = {CLE_TOUR: 4}
+    moteur, secours = _MoteurSansRelance(), _Secours()
+    await _reponse(
+        _lecteur(fiche, moteur, secours),
+        *_morceaux("→ porte_qui_n_existe_pas\nPas de souci.", " Est-ce qu'il y"),
+    )
+    assert moteur.prises[0]["relancer"] is True
+    # Personne n'a relancé le modèle : la trace ne le dit pas, le secours ne part pas plus tard.
+    assert fiche[TRACE_INACHEVEES][0]["relance"] is False
+    assert secours.armee == 1
+    assert secours.desarmee == 1
+
+
+@pytest.mark.asyncio
+async def test_une_porte_prise_garde_le_secours_arme():
+    fiche = {CLE_TOUR: 9}
+    moteur, secours = _MoteurSansRelance(), _Secours()
+    await _reponse(
+        _lecteur(fiche, moteur, secours),
+        *_morceaux("→ vers_fin\nPas de souci.", " Est-ce qu'il y"),
+    )
+    assert fiche[TRACE_INACHEVEES][0]["relance"] is True
+    assert secours.desarmee == 0

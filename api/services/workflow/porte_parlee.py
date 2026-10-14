@@ -153,5 +153,7 @@ def _sorties_lisibles(noeud: Node, graphe: WorkflowGraph, rendre: Callable[[str]
             if cible.premiere_replique
             else SANS_PREMIERE_REPLIQUE
         )
-        lignes.append(f"- {tete}, quand {condition}.\n  Phrase d'arrivée : {phrase}")
+        # Revue du 14/10 (retouche 4, Evan) : une porte sans condition n'écrit pas « quand . ».
+        quand = f", quand {condition}." if condition else "."
+        lignes.append(f"- {tete}{quand}\n  Phrase d'arrivée : {phrase}")
     return CONSIGNE_DU_PARCOURS_LISIBLE.format(etape=noeud.name, sorties="\n".join(lignes))

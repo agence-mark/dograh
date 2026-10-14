@@ -175,13 +175,16 @@ async def a_l_enregistrement(
     if allume is None and definition is None:
         return None
     existante = None
-    if allume is None or definition is None or lisible is None:
+    # Revue du 14/10 (retouche 2, Evan) : la base n'est lue que si une valeur manque
+    # vraiment ; la case lisible ne compte que schéma allumé (éteint, les blocs sont retirés).
+    if allume is None or definition is None or (allume and lisible is None):
         workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
-        if workflow is None:
-            return definition
-        brouillon = await db_client.get_draft_version(workflow_id)
-        active = brouillon or workflow.released_definition
+        brouillon = await db_client.get_draft_version(workflow_id) if workflow else None
+        active = (brouillon or workflow.released_definition) if workflow else None
         if active is None:
+            # Comme avant le chantier : un graphe fourni avec la case du schéma est traité.
+            if definition is not None and allume is not None:
+                return appliquer(definition, allume, bool(lisible))
             return definition
         if allume is None:
             allume = bool(reglage_allume(active.workflow_configurations))
@@ -189,8 +192,8 @@ async def a_l_enregistrement(
             lisible = bool(_lisible(active.workflow_configurations))
         existante = active.workflow_json
     if definition is not None:
-        return appliquer(definition, allume, lisible)
-    nouvelle = appliquer(existante, allume, lisible)
+        return appliquer(definition, allume, bool(lisible))
+    nouvelle = appliquer(existante, allume, bool(lisible))
     return nouvelle if nouvelle != existante else None
 
 

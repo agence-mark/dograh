@@ -917,11 +917,11 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Every note-taking mode. Off (default): the model decides, as before."
         ),
     )
-    # [.mark] Chantier repliques-coupees, D1 : la trace du cerveau, sans écran (agents d'essai).
+    # [.mark] Chantier repliques-coupees, D1 : la trace du cerveau, à l'écran depuis le lot 6 bis (agents d'essai).
     trace_requetes_modele: bool = Field(
         default=False,
         description=(
-            "Test agents only, no screen. Each answer the conversation model is asked for "
+            "Test agents only (Agent theme, Diagnostic). About 20 KB per answer. Each answer the conversation model is asked for "
             "is recorded in the run (requetes_modele): the exact request (messages, tools, "
             "settings, never a key), every piece of the stream with its finish reason and "
             "arrival time, the token count, how the stream ended, and what was spoken. "
@@ -932,7 +932,7 @@ class WorkflowConfigurationDefaults(BaseModel):
     parcours_lisible: bool = Field(
         default=False,
         description=(
-            "Clerk mode with transitions in the reply, no screen. The flow map lists each "
+            "Clerk mode with transitions in the reply (Call data theme). The flow map lists each "
             "step with its role (the line under « # Ta mission ici » of its prompt), and "
             "each step ends with one block: where the agent is, how to move on, and each "
             "way out with its condition and arrival sentence. The note-taking block is "
@@ -943,7 +943,7 @@ class WorkflowConfigurationDefaults(BaseModel):
     reflexion_de_relance: Literal["none", "minimal", "low", "medium", "high"] | None = Field(
         default=None,
         description=(
-            "OpenAI-compatible provider, no screen. When an answer ends in the middle of a "
+            "OpenAI-compatible provider, Clerk mode with transitions in the reply (Call data theme). When an answer ends in the middle of a "
             "sentence, it is never spoken and the model answers once more; that single retry "
             "is sent with this reasoning effort (e.g. 'low' when the agent runs with 'none'). "
             "Empty (default): the retry uses the agent's usual setting."

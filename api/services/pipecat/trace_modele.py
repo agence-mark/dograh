@@ -17,8 +17,8 @@ réponse coupée, ce qui est parti et ce qui est revenu :
 - ``texte_dit`` : ce que le lecteur de portes a laissé partir à la voix (et donc à l'historique,
   qui est fait de ce qui est dit) ; ``interrompue`` si une interruption est passée.
 
-Une case par agent, ``trace_requetes_modele``, éteinte par défaut, sans écran : allumée sur nos
-agents d'essai seulement (les messages pèsent quelques dizaines de kilo-octets par appel).
+Une case par agent, ``trace_requetes_modele``, éteinte par défaut, à l'écran (thème Agent, « Diagnostic », lot 6 bis) : allumée sur nos
+agents d'essai seulement (environ 20 Ko par réponse : les messages complets à chaque tour).
 Éteinte, rien n'est écrit et le service se comporte comme avant, à l'octet. Seules les réponses
 de la conversation sont tracées (``get_chat_completions``) : jamais les appels ponctuels du même
 service (``run_inference``). ⛔ La trace ne coûte jamais l'appel : elle ne lève jamais.

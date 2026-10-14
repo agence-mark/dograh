@@ -232,3 +232,52 @@ async def test_au_clavier_case_allumee_la_ligne_de_porte_change_d_etape(
     ):
         charge = await _messages(test_client_factory, user, workflow, [TOUR_1])
     assert charge["checkpoint"]["current_node_id"] == "etape", charge["checkpoint"]
+
+
+# --------------------------------------------------------------------------- #
+# Revue du 14/10, retouches 2 et 4 (Evan)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_une_porte_sans_condition_n_ecrit_pas_quand():
+    from api.services.workflow.porte_parlee import _sorties_lisibles
+
+    definition = schema.appliquer(_definition(), True, True)
+    for arete in definition["edges"]:
+        if arete["id"] == "etape-end":
+            # Le schéma refuse le vide ; un point seul passe et se nettoie en rien.
+            arete["data"]["condition"] = " ."
+    graphe = WorkflowGraph(ReactFlowDTO.model_validate(definition))
+    bloc = _sorties_lisibles(graphe.nodes["etape"], graphe, lambda texte: texte)
+    assert "quand ." not in bloc
+    fin = _noeud(definition, "end")["data"]["name"]
+    assert f"- vers_fin (vers l'étape {fin}).\n  Phrase d'arrivée : " in bloc
+
+
+@pytest.mark.asyncio
+async def test_schema_eteint_aucune_lecture_en_base():
+    from unittest.mock import AsyncMock
+
+    from api.db import db_client
+
+    lecture = AsyncMock()
+    with patch.object(db_client, "get_workflow", lecture):
+        resultat = await schema.a_l_enregistrement(
+            1, 1, _definition(), {schema.CLE_REGLAGE: False}
+        )
+    lecture.assert_not_awaited()
+    assert resultat == schema.appliquer(_definition(), False)
+
+
+@pytest.mark.asyncio
+async def test_agent_introuvable_le_graphe_fourni_est_traite():
+    from unittest.mock import AsyncMock
+
+    from api.db import db_client
+
+    with patch.object(db_client, "get_workflow", AsyncMock(return_value=None)):
+        resultat = await schema.a_l_enregistrement(
+            1, 1, _definition(), {schema.CLE_REGLAGE: True}
+        )
+    assert resultat == schema.appliquer(_definition(), True, False)

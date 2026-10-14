@@ -79,6 +79,8 @@ class LecteurDePortes(PostScriptumProcessor):
         self._relance_de_secours = relance
         # D2 : une seule relance d'une réplique inachevée par réplique de l'appelant.
         self._tour_relance: Any = object()
+        # Revue du 14/10 (retouche 1) : la trace d'une inachevée dont la relance attend la porte.
+        self._inachevee_par_porte: dict | None = None
         super().__init__(
             reglages=reglages,
             fiche=fiche,
@@ -199,8 +201,10 @@ class LecteurDePortes(PostScriptumProcessor):
                 secours.armer_la_relance()
                 trace["reflexion"] = secours.mark_reflexion_de_relance
             if portes:
-                # La porte relance le modèle dans l'étape d'arrivée (fin de réponse du parent).
+                # La porte relance le modèle dans l'étape d'arrivée (fin de réponse du parent) ;
+                # si elle n'aboutit pas, ``_completer_la_trace`` défait l'armement.
                 self._dit = False
+                self._inachevee_par_porte = trace
                 relancee = True
             else:
                 relancer = getattr(self._moteur, "relancer_une_reponse_muette", None)
@@ -213,6 +217,22 @@ class LecteurDePortes(PostScriptumProcessor):
                 secours.desarmer_la_relance()
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[filet] réplique inachevée non traitée : {erreur!r}")
+
+    def _completer_la_trace(self, trace: dict | None, detail: dict) -> None:
+        """Revue du 14/10 (retouche 1, Evan) : une porte coupée, inconnue sans relance ou en
+        échec ne relance pas le modèle : la réflexion de secours est désarmée (sinon elle
+        partait avec la requête suivante, sans rapport) et la trace ne dit pas « relancé »."""
+        attente, self._inachevee_par_porte = self._inachevee_par_porte, None
+        if (
+            attente is not None
+            and detail.get("porte_etat") != "prise"
+            and not detail.get("relance_muette")
+        ):
+            attente["relance"] = False
+            if self._relance_de_secours is not None:
+                self._relance_de_secours.desarmer_la_relance()
+            logger.info("[filet] la porte n'a pas relancé le modèle : secours désarmé")
+        super()._completer_la_trace(trace, detail)
 
     def _tracer(self, etat: str, champs: list[str], **detail) -> dict | None:
         """Seules les portes laissent une trace (une coupure sans porte, rien)."""
