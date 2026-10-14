@@ -53,6 +53,8 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     _est_vide,
     _propriete,
     derniere_question,
+    est_cite,
+    est_un_oui,
     noter,
     paroles_de_l_appelant,
 )
@@ -263,15 +265,33 @@ def est_un_429(erreur: BaseException) -> bool:
     return statut == 429 or "429" in str(erreur) or "rate limit" in str(erreur).lower()
 
 
-def champs_a_noter(reglages: ReglagesFiche, fiche: dict, rendue: dict) -> dict:
+def champs_a_noter(
+    reglages: ReglagesFiche,
+    fiche: dict,
+    rendue: dict,
+    oui: bool = False,
+    question: str | None = None,
+) -> dict:
     """Les champs nouveaux ou changés de la fiche rendue par le greffier : un
-    champ inconnu, vide ou identique à la fiche n'est pas renvoyé à ``noter``."""
+    champ inconnu, vide ou identique à la fiche n'est pas renvoyé à ``noter``.
+
+    courriel-confirmation (relecture n° 1) : sauf un champ identique encore à
+    confirmer, quand la personne vient de dire oui à une question qui REDIT sa valeur.
+    Sans lui, le oui ne le rendait jamais sûr (D6 ne joue que sur une note) et l'agent
+    redemandait. Relecture n° 2 : un oui à une autre question (« être rappelé
+    demain ? ») ne confirme jamais une valeur que l'agent n'a pas relue."""
     par_nom = reglages.par_nom
+    etat = fiche.get(CLE_ETAT) or {}
     a_noter = {}
     for nom, valeur in rendue.items():
         if nom not in par_nom or _est_vide(valeur):
             continue
-        if fiche.get(nom) == valeur:
+        if fiche.get(nom) == valeur and not (
+            oui
+            and question
+            and not (etat.get(nom) or {}).get("sure")
+            and est_cite(valeur, [question])
+        ):
             continue
         a_noter[nom] = valeur
     return a_noter
@@ -424,7 +444,14 @@ class Greffier:
             return
         a_noter: dict = {}
         try:
-            a_noter = champs_a_noter(self._reglages, self._fiche(), rendue)
+            replique = _derniere_replique(lus)
+            a_noter = champs_a_noter(
+                self._reglages,
+                self._fiche(),
+                rendue,
+                oui=bool(replique and est_un_oui(replique[1])),
+                question=derniere_question(lus),
+            )
             note = None
             if a_noter:
                 note = await noter(
