@@ -152,11 +152,21 @@ def test_prends_ta_porte_quand_tout_est_sur():
 # --- le greffier et le oui ------------------------------------------------------
 
 
-def test_apres_un_oui_le_champ_inchange_a_confirmer_est_renvoye():
+def test_apres_un_oui_a_la_relecture_le_champ_inchange_est_renvoye():
     fiche = _email_a_confirmer(_fiche(tour=9))
     rendue = {"email": LU, "nom": "Rousseau"}
-    assert champs_a_noter(_reglages(), fiche, rendue, oui=True) == {"email": LU}
-    assert champs_a_noter(_reglages(), fiche, rendue, oui=False) == {}
+    relue = f"Votre adresse est bien {LU} ?"
+    assert champs_a_noter(_reglages(), fiche, rendue, oui=True, question=relue) == {"email": LU}
+    assert champs_a_noter(_reglages(), fiche, rendue, oui=False, question=relue) == {}
+
+
+def test_un_oui_a_une_autre_question_ne_confirme_rien():
+    """Relecture n° 2 : « Souhaitez-vous être rappelé demain matin ? » « oui »."""
+    fiche = _email_a_confirmer(_fiche(tour=9))
+    rendue = {"email": LU}
+    autre = "Souhaitez-vous être rappelé demain matin ?"
+    assert champs_a_noter(_reglages(), fiche, rendue, oui=True, question=autre) == {}
+    assert champs_a_noter(_reglages(), fiche, rendue, oui=True, question=None) == {}
 
 
 # --- les traces --------------------------------------------------------------------
