@@ -1673,6 +1673,41 @@ def epellation_du_tour(
     return meilleur
 
 
+# courriel-ecriture (run 1143, 14/10) : le lecteur lit « r o u deux s e a u soixante
+# point evan arobase gmail point com » en `rousseau60.evan@gmail.com`, le greffier
+# écrit `rou2seau60.evan@gmail.com`, sûr. Une adresse qui RESSEMBLE à une adresse lue
+# pendant l'appel (pas seulement au tour : le greffier relit tout l'appel à chaque
+# passe) est cette adresse. Une adresse sans rapport (une autre, redonnée) passe sous.
+SEUIL_COURRIEL = 80
+
+
+def courriel_lu(
+    valeur: Any, fiche: dict, reglages: ReglagesFiche, definition: ChampFiche
+) -> Lecture | None:
+    """L'adresse mail que le lecteur a lue, si le champ est un champ courriel
+    (``variables_courriel``) et que la valeur en est une autre écriture. Sûre
+    seulement sans doute du lecteur ni domaine proche d'un connu ; sinon à faire
+    confirmer (Evan, 13/10 : la lettre douteuse se fait confirmer)."""
+    from api.services.fiche.controle import correspond
+
+    motifs = tuple((reglages.motifs_des_types or {}).get("courriel") or ())
+    texte = str(valeur).strip().lower()
+    if "@" not in texte or not correspond(definition.nom, motifs):
+        return None
+    meilleure, score_max = None, 0.0
+    for trace in _entrees(fiche, TRACE_EPELLATIONS):
+        epele = trace.get("epele")
+        if not trace.get("courriel") or not epele:
+            continue
+        score = fuzz.ratio(texte, str(epele).lower())
+        if score >= SEUIL_COURRIEL and score > score_max:
+            meilleure, score_max = trace, score
+    if meilleure is None:
+        return None
+    sure = not meilleure.get("doutes") and not meilleure.get("domaine_proche")
+    return Lecture(meilleure["epele"], sure, None if sure else "a_confirmer")
+
+
 def cumuler(ancienne: Any, nouvelle: Any) -> Any:
     """D7 : ce que tient un champ cumulatif après une note. La note qui reprend
     tout l'ancien texte le remplace ; celle qui y est déjà ne change rien ; sinon
@@ -1861,6 +1896,9 @@ def ecrire_dans_la_fiche(
         elif definition.chiffres:
             # C2 : un numéro que les mots disent de plusieurs façons.
             lecture = lire_numero_a_plusieurs_lectures(valeur, fiche)
+        if lecture is None and definition.origine == OrigineChamp.dicte:
+            # courriel-ecriture (run 1143) : l'adresse lue prime sur celle du modèle.
+            lecture = courriel_lu(valeur, fiche, reglages, definition)
         if lecture is not None:
             valeur, sure = lecture.valeur, sure and lecture.sure
             if definition.lecteur_effectif == "rue":
