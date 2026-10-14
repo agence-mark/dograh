@@ -149,6 +149,25 @@ def test_seule_la_derniere_adresse_lue_a_autorite():
     assert courriel_lu(FAUX, fiche, reglages, reglages.par_nom["email"], [ENTENDU]) is None
 
 
+def test_deux_champs_courriel_la_premiere_adresse_reste_elle_meme():
+    """Relecture n° 2 : la seconde adresse épelée (tour 12) ressemble à la première ; le
+    greffier relit tout l'appel et renvoie la première, juste : elle n'est pas remplacée."""
+    fiche = _fiche()
+    seconde = "rousseau60.paul@exemple.fr"
+    fiche[TRACE_EPELLATIONS].append(
+        {"entendu": "rousseau soixante point paul arobase exemple point f r", "epele": seconde, "courriel": True, "tour": 12}
+    )
+    fiche[CLE_TOUR] = 12
+    reglages = _reglages()
+    paroles = ["rousseau soixante point paul arobase exemple point f r"]
+    assert courriel_lu(LU, fiche, reglages, reglages.par_nom["email"], paroles) is None
+    # Ni l'écriture que la première a remplacée.
+    fiche[TRACE_EPELLATIONS][1]["remplacees"] = [FAUX]
+    assert courriel_lu(FAUX, fiche, reglages, reglages.par_nom["email"], paroles) is None
+    # La seconde, mal écrite par le greffier, reçoit bien la seconde lecture.
+    assert courriel_lu("rousseau6o.paul@exemple.fr", fiche, reglages, reglages.par_nom["email"], paroles).valeur == seconde
+
+
 def test_une_adresse_sans_rapport_ne_recoit_pas_celle_lue():
     reglages = _reglages()
     assert courriel_lu("dupont@autre.fr", _fiche(), reglages, reglages.par_nom["email"], [ENTENDU]) is None

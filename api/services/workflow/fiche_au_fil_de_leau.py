@@ -33,7 +33,7 @@ import asyncio
 import json
 import re
 import unicodedata
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -1692,7 +1692,7 @@ def courriel_lu(
     fiche: dict,
     reglages: ReglagesFiche,
     definition: ChampFiche,
-    paroles: list[str] = (),
+    paroles: Sequence[str] = (),
 ) -> Lecture | None:
     """L'adresse mail que le lecteur a lue, si le champ est un champ courriel
     (``variables_courriel``) et que la valeur en est une autre écriture. Sûre
@@ -1705,11 +1705,16 @@ def courriel_lu(
     texte = str(valeur).strip().lower()
     if "@" not in texte or not correspond(definition.nom, motifs):
         return None
-    trace = next(
-        (t for t in _entrees(fiche, TRACE_EPELLATIONS) if t.get("courriel") and t.get("epele")),
-        None,
-    )
-    if trace is None:
+    traces = [t for t in _entrees(fiche, TRACE_EPELLATIONS) if t.get("courriel") and t.get("epele")]
+    if not traces:
+        return None
+    trace = traces[0]
+    # Relecture n° 2 : deux champs courriel. Une adresse lue plus tôt (ou une écriture
+    # qu'elle a remplacée) reste elle-même : la dernière lue ne la remplace jamais.
+    if any(
+        texte == str(t["epele"]).lower() or texte in (t.get(CLE_REMPLACEES) or [])
+        for t in traces[1:]
+    ):
         return None
     lue = str(trace["epele"])
     remplacees = trace.get(CLE_REMPLACEES) or []
