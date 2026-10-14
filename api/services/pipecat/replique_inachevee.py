@@ -41,11 +41,21 @@ _FIN_DE_PHRASE = re.compile(r"[.?!…][\s  ]*(?:[»\"”’)][\s  ]*)*")
 _BLANCS_DE_FIN = re.compile(r"[\s|]+$")
 
 
-def fin_de_la_derniere_phrase(texte: str) -> int:
-    """La position juste après la dernière phrase finie de ``texte`` (0 : aucune)."""
+def fin_de_la_derniere_phrase(texte: str, *, texte_complet: bool = True) -> int:
+    """La position juste après la dernière phrase finie de ``texte`` (0 : aucune).
+
+    Revue du 14/10, retenue par Evan : une ponctuation ne finit une phrase que suivie d'un
+    blanc ou de la fin du texte (« gmail.com », « 1.5 » : pas de fin). ``texte_complet``
+    faux (la réponse arrive encore) : une ponctuation tout au bout attend le caractère
+    suivant, qui dira si c'est une fin (« gmail. » puis « com »)."""
     fin = 0
     for trouve in _FIN_DE_PHRASE.finditer(texte):
-        fin = trouve.end()
+        bout = trouve.end()
+        if bout < len(texte):
+            if texte[bout - 1].isspace():
+                fin = bout
+        elif texte_complet or texte[bout - 1].isspace():
+            fin = bout
     return fin
 
 

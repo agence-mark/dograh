@@ -25,6 +25,7 @@ from api.services.integrations import (
     has_completion_handlers,
     run_completion_handlers,
 )
+from api.services.pipecat.trace_modele import sans_la_trace
 from api.services.pipecat.tracing_config import register_org_langfuse_credentials
 from api.services.workflow.dto import (
     QANodeData,
@@ -390,7 +391,8 @@ def _build_render_context(
         "call_time": (workflow_run.created_at or datetime.now(UTC)).isoformat(),
         # Nested contexts
         "initial_context": workflow_run.initial_context or {},
-        "gathered_context": workflow_run.gathered_context or {},
+        # [.mark] repliques-coupees (revue du 14/10) : la trace du modèle ne sort jamais.
+        "gathered_context": sans_la_trace(workflow_run.gathered_context),
         "cost_info": workflow_run.usage_info or {},
         # Annotations (includes QA results)
         "annotations": workflow_run.annotations or {},

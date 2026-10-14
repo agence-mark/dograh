@@ -39,6 +39,17 @@ TRACE_REQUETES = "requetes_modele"
 # L'attribut du moteur qui porte la trace de l'appel (le lecteur de portes la lit).
 ATTRIBUT_TRACE = "trace_du_modele"
 
+
+
+def sans_la_trace(fiche: dict | None) -> dict:
+    """La fiche de l'appel sans la trace, pour ce qui sort vers un client (webhooks des
+    intégrations). Revue du 14/10, retenue par Evan : la trace porte le prompt et toute la
+    conversation, elle ne quitte jamais Dograh. Sans trace, la fiche telle quelle."""
+    if not fiche or TRACE_REQUETES not in fiche:
+        return fiche or {}
+    return {cle: valeur for cle, valeur in fiche.items() if cle != TRACE_REQUETES}
+
+
 FIN_COMPLETE = "complet"
 FIN_FERMEE = "ferme_avant_la_fin"
 

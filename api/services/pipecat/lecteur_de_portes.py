@@ -114,7 +114,10 @@ class LecteurDePortes(PostScriptumProcessor):
     def _a_retenir(self, texte: str) -> int:
         """D2 : ce qui suit la dernière phrase finie attend la fin de la réponse (la voix
         l'attend déjà : aucune latence), en plus de ce que le Post-scriptum retient."""
-        return max(super()._a_retenir(texte), len(texte) - fin_de_la_derniere_phrase(texte))
+        return max(
+            super()._a_retenir(texte),
+            len(texte) - fin_de_la_derniere_phrase(texte, texte_complet=False),
+        )
 
     async def _finir(self, direction: FrameDirection) -> dict | None:
         """Fin de la réponse : les phrases finies à la voix ; un reste inachevé retenu (D2)."""
@@ -122,7 +125,13 @@ class LecteurDePortes(PostScriptumProcessor):
         reste = ""
         if not self._apres and self._attente.strip(" \t\n|"):
             coupe = fin_de_la_derniere_phrase(self._attente)
-            if self._attente[coupe:].strip(" \t\n|  "):
+            inachevee = bool(self._attente[coupe:].strip(" \t\n|  "))
+            if inachevee and self._deja_relancee():
+                # Revue du 14/10, retenue par Evan : deuxième coupure à la même réplique de
+                # l'appelant, le reste est dit plutôt qu'un silence jusqu'à ce qu'elle reparle.
+                self._tracer_l_inachevee(self._attente[coupe:].strip(), dit=True)
+                await self._dire(self._attente, None, direction, fin=True)
+            elif inachevee:
                 # D2 : ni dit ni gardé (l'historique est fait de ce qui est dit).
                 reste = self._attente[coupe:].strip()
                 if self._attente[:coupe].strip():
@@ -153,19 +162,39 @@ class LecteurDePortes(PostScriptumProcessor):
                 logger.info("[porte] réponse sans phrase ni porte : le modèle reparle")
         return None
 
+    def _deja_relancee(self) -> bool:
+        """Le modèle a-t-il déjà reparlé pour une réplique inachevée à cette réplique de
+        l'appelant ? ⛔ Ne lève jamais."""
+        try:
+            tour = self._fiche().get(CLE_TOUR)
+        except Exception:  # noqa: BLE001
+            return False
+        return tour is not None and tour == self._tour_relance
+
+    def _tracer_l_inachevee(self, reste: str, **detail) -> dict:
+        """Une entrée de ``repliques_inachevees`` ; ``{}`` si la fiche est illisible."""
+        try:
+            fiche = self._fiche()
+            trace: dict = {
+                "tour": fiche.get(CLE_TOUR),
+                "reste": reste,
+                "relance": False,
+                **detail,
+            }
+            fiche.setdefault(TRACE_INACHEVEES, []).append(trace)
+            return trace
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[filet] trace de la réplique inachevée non écrite : {erreur!r}")
+            return {}
+
     async def _retenir_l_inachevee(self, reste: str, *, portes: bool) -> None:
         """D2 et D10 : le modèle reparle une fois par réplique de l'appelant, avec la
         réflexion de secours s'il y en a une. Une porte écrite : la relance se fait dans
         l'étape d'arrivée (``relancer`` de la porte). ⛔ Ne lève jamais."""
         secours = self._relance_de_secours
         try:
-            fiche = self._fiche()
-            tour = fiche.get(CLE_TOUR)
-            trace: dict = {"tour": tour, "reste": reste, "relance": False}
-            fiche.setdefault(TRACE_INACHEVEES, []).append(trace)
-            if tour is not None and tour == self._tour_relance:
-                logger.info("[filet] réplique inachevée déjà relancée à cette réplique : retenue")
-                return
+            trace = self._tracer_l_inachevee(reste)
+            tour = trace.get("tour")
             if secours is not None:
                 secours.armer_la_relance()
                 trace["reflexion"] = secours.mark_reflexion_de_relance

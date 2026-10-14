@@ -404,3 +404,38 @@ async def test_la_trace_voit_l_etat_de_la_fiche_ajoute_par_le_moteur():
     parties = fiche[TRACE_REQUETES][0]["parametres"]["messages"]
     assert any("Delaunay" in str(m.get("content")) for m in parties[:-1]), parties
     assert parties == envoyes[0]["messages"]
+
+
+# --------------------------------------------------------------------------- #
+# Revue du 14/10, retenue par Evan : la trace ne sort jamais vers les webhooks.
+# --------------------------------------------------------------------------- #
+
+
+def test_la_trace_n_est_jamais_envoyee_aux_integrations():
+    from types import SimpleNamespace
+
+    from api.services.pipecat.trace_modele import TRACE_REQUETES, sans_la_trace
+    from api.tasks.run_integrations import _build_render_context
+
+    fiche = {"nom": "Durand", TRACE_REQUETES: [{"tour": 1, "parametres": {"messages": []}}]}
+    run = SimpleNamespace(
+        id=1,
+        name="run",
+        workflow_id=2,
+        workflow=None,
+        campaign_id=None,
+        created_at=None,
+        initial_context={},
+        gathered_context=fiche,
+        usage_info={},
+        annotations={},
+        extra={},
+        recording_url=None,
+        transcript_url=None,
+    )
+    contexte = _build_render_context(run)
+    assert contexte["gathered_context"] == {"nom": "Durand"}
+    # La fiche de l'appel, elle, garde la trace (elle reste dans Dograh).
+    assert TRACE_REQUETES in fiche
+    assert sans_la_trace(None) == {}
+    assert sans_la_trace({"nom": "x"}) == {"nom": "x"}

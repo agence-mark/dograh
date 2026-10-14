@@ -144,6 +144,24 @@ def test_un_reste_sans_ponctuation_n_est_pas_fini(texte):
     assert not est_finie(texte)
 
 
+@pytest.mark.parametrize(
+    "texte",
+    ["Je note jean.dupont@gmail.com", "Notre site est www.nuances-de-feu.fr", "Il fait 1.5 kilowatt"],
+)
+def test_un_point_dans_une_adresse_ou_un_nombre_n_est_pas_une_fin(texte):
+    """Revue du 14/10, retenue par Evan : « com » n'est jamais jeté après « gmail. »."""
+    assert fin_de_la_derniere_phrase(texte) == 0
+    assert not est_finie(texte)
+    assert est_finie(texte + ".")
+
+
+def test_pendant_la_reponse_un_point_tout_au_bout_attend_la_suite():
+    assert fin_de_la_derniere_phrase("Je note jean.dupont@gmail.", texte_complet=False) == 0
+    assert fin_de_la_derniere_phrase("Parfait.", texte_complet=False) == 0
+    assert fin_de_la_derniere_phrase("Parfait. ", texte_complet=False) == len("Parfait. ")
+    assert fin_de_la_derniere_phrase("Parfait.") == len("Parfait.")
+
+
 def test_la_coupe_tombe_apres_la_derniere_phrase_finie():
     texte = "C'est noté. Avez-vous une adresse mail pour que"
     assert texte[: fin_de_la_derniere_phrase(texte)] == "C'est noté. "
@@ -247,11 +265,27 @@ async def test_une_seule_relance_par_replique_de_l_appelant():
         *_morceaux("Parfait. Vous êtes dans quelle commune, et quel est le"),
         *_morceaux("Parfait. Vous êtes dans quelle"),
     )
-    # Deux fois la partie finie, jamais les restes.
-    assert ordre.dit.replace(" ", "") == "Parfait.Parfait."
+    # Le premier reste est retenu ; à la deuxième coupure (revue du 14/10, retenue par Evan),
+    # le reste est dit plutôt qu'un silence jusqu'à ce que la personne reparle.
+    assert ordre.dit.replace(" ", "") == "Parfait.Parfait.Vousêtesdansquelle"
     assert moteur.relances == 1
     assert [t["relance"] for t in fiche[TRACE_INACHEVEES]] == [True, False]
+    assert fiche[TRACE_INACHEVEES][1]["dit"] is True
     assert secours.armee == 1
+
+
+@pytest.mark.asyncio
+async def test_une_adresse_coupee_entre_deux_morceaux_est_dite_entiere():
+    """Le point de « gmail. » arrive en bout de morceau : il n'est pas une fin de phrase."""
+    fiche = {CLE_TOUR: 3}
+    moteur = _MoteurRelance()
+    ordre = await _reponse(
+        _lecteur(fiche, moteur),
+        *_morceaux("Je relis : jean.dupont@gmail.", "com. C'est bien ça ?"),
+    )
+    assert ordre.dit.replace("  ", " ").strip() == "Je relis : jean.dupont@gmail.com. C'est bien ça ?"
+    assert TRACE_INACHEVEES not in fiche
+    assert moteur.relances == 0
 
 
 @pytest.mark.asyncio
