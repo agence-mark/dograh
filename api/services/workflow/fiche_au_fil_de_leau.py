@@ -3502,7 +3502,10 @@ def numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> list[tuple[str, 
 
 
 def etat_de_la_fiche(
-    reglages: ReglagesFiche, fiche: dict, notices: Notices | None = None
+    reglages: ReglagesFiche,
+    fiche: dict,
+    notices: Notices | None = None,
+    parole: str | None = None,
 ) -> str | None:
     """Ce que le modèle a déjà, sûr ou à faire confirmer, dans l'ordre des
     champs de la fiche. ``None`` tant que rien n'est noté.
@@ -3556,7 +3559,9 @@ def etat_de_la_fiche(
     if retour:
         lignes.append(retour)
     if reglages.mode == MODE_GREFFIER:
-        lignes.extend(_confirmations_du_greffier(fiche, a_confirmer, retour))
+        lignes.extend(
+            _confirmations_du_greffier(reglages, fiche, a_confirmer, retour, parole)
+        )
     return "\n".join(lignes)
 
 
@@ -3570,26 +3575,78 @@ CONSIGNE_EPELLATION_DOUTEUSE = (
 )
 
 
-def _confirmations_du_greffier(
-    fiche: dict, a_confirmer: list[str], retour: str | None
-) -> list[str]:
-    """Mode greffier seulement. ① Au tour même, ce que le lecteur a lu avec un doute
-    (ou un domaine proche d'un connu) : le code le sait avant que l'agent réponde.
-    ② Une consigne de confirmation gardée tant qu'un champ reste à confirmer, même
-    quand la dernière passe du greffier n'a rien noté (elle effaçait la notice)."""
-    lignes: list[str] = []
+def _epellations_douteuses_du_tour(fiche: dict) -> list[str]:
+    """Ce que le lecteur a épelé AU TOUR MÊME avec un doute (ou un domaine proche d'un
+    connu), dans l'ordre dit. Un terme du lexique épelé est déjà fixé : jamais relu."""
     tour = fiche.get(CLE_TOUR)
-    trace = next(iter(_entrees(fiche, TRACE_EPELLATIONS)), None)
+    if not tour:
+        return []
+    return list(
+        dict.fromkeys(
+            str(t["epele"])
+            for t in reversed(_entrees(fiche, TRACE_EPELLATIONS))
+            if t.get("tour") == tour
+            and t.get("epele")
+            and not t.get("terme_du_lexique")
+            and (t.get("doutes") or t.get("domaine_proche"))
+        )
+    )
+
+
+def _a_confirmer_depuis_peu(reglages: ReglagesFiche, fiche: dict) -> bool:
+    """Un champ que l'agent doit faire confirmer, écrit à ce tour ou au précédent.
+    Borné (relecture) : un « oui » que le code ne reconnaît pas ne fait pas redemander
+    à chaque tour jusqu'à la fin de l'appel."""
+    tour = fiche.get(CLE_TOUR)
+    if not tour:
+        return False
+    etat = fiche.get(CLE_ETAT) or {}
+    for champ in reglages.champs:
+        etat_du_champ = etat.get(champ.nom) or {}
+        if (
+            _est_vide(fiche.get(champ.nom))
+            or etat_du_champ.get("sure")
+            or not a_faire_confirmer(reglages, champ.nom, etat_du_champ)
+        ):
+            continue
+        note = _derniere_note(fiche, champ.nom)
+        if note and note.get("suite") and note.get("tour") in (tour, tour - 1):
+            return True
+    return False
+
+
+def confirmation_en_attente(reglages: ReglagesFiche, fiche: dict) -> bool:
+    """Mode greffier : l'agent a quelque chose à faire confirmer maintenant. Le souffle
+    de l'étape ne dit alors pas « prends ta porte » (relecture : au run 1144, la porte
+    a été prise sans confirmation)."""
+    return reglages.mode == MODE_GREFFIER and bool(
+        _epellations_douteuses_du_tour(fiche) or _a_confirmer_depuis_peu(reglages, fiche)
+    )
+
+
+def _confirmations_du_greffier(
+    reglages: ReglagesFiche,
+    fiche: dict,
+    a_confirmer: list[str],
+    retour: str | None,
+    parole: str | None,
+) -> list[str]:
+    """Mode greffier seulement. ① Au tour même, ce que le lecteur a lu avec un doute :
+    le code le sait avant que l'agent réponde. ② La consigne de confirmation, gardée
+    quand la dernière passe du greffier n'a rien noté (elle effaçait la notice), mais
+    seulement pour un champ écrit depuis peu, et jamais quand la personne vient de dire
+    oui (le greffier ne l'a pas encore écrit sûr : l'agent redemanderait)."""
+    lignes = [
+        CONSIGNE_EPELLATION_DOUTEUSE.format(epele=epele)
+        for epele in _epellations_douteuses_du_tour(fiche)
+        if not any(f"« {epele} »" in ligne for ligne in a_confirmer)
+    ]
     if (
-        tour
-        and trace
-        and trace.get("tour") == tour
-        and trace.get("epele")
-        and (trace.get("doutes") or trace.get("domaine_proche"))
-        and not any(f"« {trace['epele']} »" in ligne for ligne in a_confirmer)
+        a_confirmer
+        and not retour
+        and not (parole and est_un_oui(parole))
+        and _a_confirmer_depuis_peu(reglages, fiche)
     ):
-        lignes.append(CONSIGNE_EPELLATION_DOUTEUSE.format(epele=trace["epele"]))
-    if a_confirmer and not retour:
         lignes.append(CONSIGNE_A_CONFIRMER)
     return lignes
 
@@ -3631,7 +3688,10 @@ def souffle_de_l_etape(
     ][:SOUFFLE_MAX]
     if not manquants:
         # Revue du 13/10 : jamais « prends ta porte » dans une étape qui n'en a pas.
-        return SOUFFLE_ETAPE_COMPLETE if a_des_portes else None
+        # courriel-confirmation : ni quand l'agent a quelque chose à faire confirmer.
+        if not a_des_portes or confirmation_en_attente(reglages, fiche):
+            return None
+        return SOUFFLE_ETAPE_COMPLETE
     noms = [nom.replace("_", " ") for nom in manquants]
     suite = noms[0] if len(noms) == 1 else f"{noms[0]}, puis {noms[1]}"
     return (
@@ -3653,10 +3713,6 @@ def etat_avec_les_indices(
     Lot E d'agent-leger-greffier : plus, case allumée, le souffle de l'étape."""
     from api.services.workflow.indices_des_modules import indices_des_modules
 
-    texte = etat_de_la_fiche(reglages, fiche, notices)
-    souffle = souffle_de_l_etape(reglages, fiche, champs_etape, a_des_portes)
-    if souffle:
-        texte = f"{texte or entete_etat(reglages)}\n{souffle}"
     parole = next(
         (
             m.get("content")
@@ -3665,6 +3721,10 @@ def etat_avec_les_indices(
         ),
         None,
     )
+    texte = etat_de_la_fiche(reglages, fiche, notices, parole)
+    souffle = souffle_de_l_etape(reglages, fiche, champs_etape, a_des_portes)
+    if souffle:
+        texte = f"{texte or entete_etat(reglages)}\n{souffle}"
     indices = indices_des_modules(reglages, parole, fiche, fiche.get(CLE_TOUR))
     if not indices:
         return texte

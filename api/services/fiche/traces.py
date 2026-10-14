@@ -93,7 +93,13 @@ def valeurs_des_traces(reglages: Any, fiche: dict) -> dict[str, str]:
         epellation = (
             _dernier(
                 fiche.get("epellations_lues"),
-                lambda e: e.get("epele") and tour is not None and e.get("tour") == tour,
+                # courriel-confirmation (relecture) : ni une adresse mail, ni une
+                # épellation douteuse (à confirmer, donc pas sûre) ne sont un nom lu.
+                lambda e: e.get("epele")
+                and tour is not None
+                and e.get("tour") == tour
+                and not e.get("courriel")
+                and not e.get("doutes"),
             )
             if len(champs_de_nom) == 1
             else None
