@@ -196,6 +196,10 @@ export const ThemeAgent = ({
     const schemaEnregistre = resolue.generer_schema_parcours ?? false;
     const [schema, setSchema] = useState(schemaEnregistre);
     const schemaModifie = schema !== schemaEnregistre;
+    // Chantier repliques-coupees, lot 6 bis (D16): the model request trace, every mode.
+    const traceEnregistree = resolue.trace_requetes_modele ?? false;
+    const [trace, setTrace] = useState(traceEnregistree);
+    const traceModifiee = trace !== traceEnregistree;
 
     // Dograh's rule: a pair typed but not added yet is part of what is saved.
     const variablesAEnregistrer = useMemo(
@@ -204,7 +208,7 @@ export const ThemeAgent = ({
     );
     const nomModifie = nom !== workflowName;
     const variablesModifiees = differe(variablesAEnregistrer, variablesEnregistrees);
-    const modifie = nomModifie || variablesModifiees || schemaModifie;
+    const modifie = nomModifie || variablesModifiees || schemaModifie || traceModifiee;
     useEtatTheme(ID_THEME_AGENT, modifie, false);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -218,6 +222,12 @@ export const ThemeAgent = ({
                 nom: { en: "Flow map", fr: "Schéma du parcours" },
                 modifie: schemaModifie,
                 config: () => ({ generer_schema_parcours: schema }),
+            },
+            {
+                // Its own part, sent only when changed (E6).
+                nom: { en: "Model request trace", fr: "Trace des requêtes au modèle" },
+                modifie: traceModifiee,
+                config: () => ({ trace_requetes_modele: trace }),
             },
             {
                 nom: { en: "Template variables", fr: "Variables du modèle" },
@@ -316,6 +326,27 @@ export const ThemeAgent = ({
                     disposition="ligne"
                 >
                     <Switch id="generer_schema_parcours" checked={schema} onCheckedChange={setSchema} />
+                </ChampReglage>
+            </Intertitre>
+
+            <Intertitre id="agent-diagnostic" titre={{ en: "Diagnostic", fr: "Diagnostic" }}>
+                <ChampReglage
+                    cle="trace_requetes_modele"
+                    idControle="trace_requetes_modele"
+                    libelle={{ en: "Trace model requests", fr: "Tracer les requêtes au modèle" }}
+                    aides={[
+                        {
+                            en: "Each answer the conversation model is asked for is recorded in the run: the exact request (never a key), every piece of the reply with its arrival time and finish reason, the token count, and what was spoken.",
+                            fr: "Chaque réponse demandée au modèle de conversation est enregistrée dans le run : la requête exacte (jamais une clé), chaque morceau de la réponse avec son heure d'arrivée et sa raison de fin, le nombre de jetons, et ce qui a été dit.",
+                        },
+                        {
+                            en: "Off by default. About 20 KB per answer: for test agents, not for a client's agent.",
+                            fr: "Éteint par défaut. Environ 20 Ko par réponse : pour les agents d'essai, pas pour l'agent d'un client.",
+                        },
+                    ]}
+                    disposition="ligne"
+                >
+                    <Switch id="trace_requetes_modele" checked={trace} onCheckedChange={setTrace} />
                 </ChampReglage>
             </Intertitre>
 

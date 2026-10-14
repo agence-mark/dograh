@@ -156,6 +156,9 @@ describe("[.mark] the agent page in themes", () => {
         "indices_des_modules",
         // Chantier postscriptum-et-communes, B5: Postscript, « note, reply » order only.
         "phrase_sans_redemande",
+        // Chantier repliques-coupees, lot 6 bis: Clerk mode with transitions only (tested below).
+        "parcours_lisible",
+        "reflexion_de_relance",
     ];
     // Chantier l-agent-collegue, L7: the names of « Field recognition » are read only when « Check
     // the data » is on, and drawn only then (E8, the same rule as the code).
@@ -586,5 +589,77 @@ describe("[.mark] the no-repeated-question switch", () => {
         await waitFor(() => expect(interrupteur()).not.toBeNull());
         fireEvent.click(interrupteur() as HTMLElement);
         await waitFor(async () => expect((await bouton()).disabled).toBe(false));
+    });
+});
+
+// [.mark] Chantier repliques-coupees, lot 6 bis (D16): the three switches that had no screen.
+describe("[.mark] the readable flow, the retry reasoning and the model request trace", () => {
+    const FICHE = {
+        fiche_au_fil_de_leau: true,
+        fiche_champs: [{ nom: "nom", type: "string", origine: "dicte", description: "Nom", lecteur: null, valeurs: null }],
+    };
+    const GREFFIER = { ...FICHE, fiche_mode_de_note: "greffier", portes_dans_la_reponse: true };
+    const lisible = () => document.getElementById("parcours_lisible");
+    const relance = () => document.getElementById("reflexion_de_relance") as HTMLSelectElement | null;
+    const enregistrer = async (theme: string) => {
+        m.save.mockClear();
+        fireEvent.click(await screen.findByRole("button", { name: `Save ${theme}` }));
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        const appels = m.save.mock.calls as unknown as Array<[Record<string, unknown>]>;
+        return appels[appels.length - 1][0];
+    };
+
+    it("draws both in Clerk mode with transitions in the reply, and only there, like the code", async () => {
+        await ouvrir(GREFFIER, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(lisible()).not.toBeNull());
+        expect(relance()).not.toBeNull();
+        expect(lisible()?.getAttribute("aria-checked")).toBe("false");
+        expect(relance()?.value).toBe("reglage_de_l_agent");
+        // Transitions off: the reader does not exist, neither do the switches.
+        fireEvent.click(document.getElementById("portes_dans_la_reponse") as HTMLElement);
+        await waitFor(() => expect(lisible()).toBeNull());
+        expect(relance()).toBeNull();
+        // Postscript: the reader is never built there.
+        fireEvent.click(document.getElementById("portes_dans_la_reponse") as HTMLElement);
+        fireEvent.change(document.getElementById("fiche_mode_de_note") as HTMLElement, { target: { value: "post_scriptum" } });
+        await waitFor(() => expect(lisible()).toBeNull());
+        expect(relance()).toBeNull();
+    });
+
+    it("reads back what the server stored", async () => {
+        await ouvrir({ ...GREFFIER, parcours_lisible: true, reflexion_de_relance: "low" }, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(lisible()?.getAttribute("aria-checked")).toBe("true"));
+        expect(relance()?.value).toBe("low");
+    });
+
+    it("sends the readable flow off when leaving Clerk mode", async () => {
+        await ouvrir({ ...GREFFIER, parcours_lisible: true }, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(lisible()).not.toBeNull());
+        fireEvent.change(document.getElementById("fiche_mode_de_note") as HTMLElement, { target: { value: "post_scriptum" } });
+        const charge = await enregistrer("Call data");
+        expect(charge.parcours_lisible).toBe(false);
+    });
+
+    it("sends an empty retry setting back as null", async () => {
+        await ouvrir({ ...GREFFIER, reflexion_de_relance: "low" }, NOVA);
+        ouvrirLeTheme("donnees");
+        await waitFor(() => expect(relance()).not.toBeNull());
+        fireEvent.change(relance() as HTMLElement, { target: { value: "reglage_de_l_agent" } });
+        const charge = await enregistrer("Call data");
+        expect(charge.reflexion_de_relance).toBeNull();
+    });
+
+    it("draws the trace in the Agent theme, off, and sends it when switched on", async () => {
+        await ouvrir(FICHE, NOVA);
+        ouvrirLeTheme("agent");
+        const trace = () => document.getElementById("trace_requetes_modele");
+        await waitFor(() => expect(trace()).not.toBeNull());
+        expect(trace()?.getAttribute("aria-checked")).toBe("false");
+        fireEvent.click(trace() as HTMLElement);
+        const charge = await enregistrer("Agent");
+        expect(charge.trace_requetes_modele).toBe(true);
     });
 });
