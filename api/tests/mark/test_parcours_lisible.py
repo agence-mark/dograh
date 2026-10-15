@@ -1,7 +1,8 @@
 """[.mark] Le parcours lisible (chantier repliques-coupees, lot 4 ter, D11 à D15 du 14/10).
 
-Plan `Labo-agent-vocal/plans/repliques-coupees/`, liste `verification-allegement.md`. Case
-``parcours_lisible`` (greffier, portes dans la réponse), éteinte par défaut :
+Plan `Labo-agent-vocal/plans/repliques-coupees/`, liste `verification-allegement.md`. Depuis le
+chantier schema-parcours-unique (C1), plus de case à part : c'est la case du schéma du parcours
+(``generer_schema_parcours``) qui le pilote, en greffier avec les portes dans la réponse :
 
 - la carte du global ne garde que les étapes et leur rôle (la ligne sous « # Ta mission ici »),
   sans portes ni « → » ; plus de « Tu es ici » à part ;
@@ -12,7 +13,8 @@ Plan `Labo-agent-vocal/plans/repliques-coupees/`, liste `verification-allegement
 | Test | Ce qu'il prouve |
 |---|---|
 | réglage | allumée seulement en greffier avec les portes dans la réponse |
-| éteinte | carte, position, portes, prise de notes : identiques à l'octet à une configuration sans la clé |
+| décochée | aucune carte, aucune position ; portes et prise de notes identiques à l'octet à une configuration sans la clé |
+| ancienne case | ``parcours_lisible`` encore enregistrée, case du schéma décochée : sans effet |
 | carte | une ligne par étape dans l'ordre de l'appel, le rôle lu sous « # Ta mission ici », ni porte ni flèche |
 | bloc de fin d'étape (vrai ``_prepare_node``) | où l'on est, la règle, chaque sortie et sa phrase d'arrivée ; nom = étape sans redite ; plus de prise de notes |
 | clavier (R1) | par les vraies routes, case allumée : la ligne « → » écrite par le modèle fait changer d'étape |
@@ -28,8 +30,8 @@ from api.services.workflow import schema_du_parcours as schema
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_MODE,
-    CLE_PARCOURS_LISIBLE,
     CLE_PORTES_DANS_LA_REPONSE,
+    CLE_SCHEMA_DU_PARCOURS,
     DEBUT_PRISE_DE_NOTES,
     MODE_GREFFIER,
     MODE_POST_SCRIPTUM,
@@ -49,7 +51,7 @@ from api.tests.mark.test_porte_parlee_premiere_replique import (
 from api.tests.mark.test_portes_souples import _messages
 
 GREFFIER = {**CONFIG_ALLUMEE, CLE_MODE: MODE_GREFFIER, CLE_PORTES_DANS_LA_REPONSE: True}
-LISIBLE = {**GREFFIER, CLE_PARCOURS_LISIBLE: True}
+LISIBLE = {**GREFFIER, CLE_SCHEMA_DU_PARCOURS: True}
 
 
 def _definition() -> dict:
@@ -83,7 +85,9 @@ def _definition() -> dict:
 async def _systeme(config: dict, etape: str = "etape") -> str:
     """Ce que le vrai ``_prepare_node`` donne au modèle comme prompt système."""
     definition = schema.appliquer(
-        _definition(), True, config.get(CLE_PARCOURS_LISIBLE) is True
+        _definition(),
+        config.get(CLE_SCHEMA_DU_PARCOURS) is True,
+        schema._position(config),
     )
     graphe = WorkflowGraph(ReactFlowDTO.model_validate(definition))
     engine = PipecatEngine(
@@ -118,19 +122,25 @@ def test_la_case_ne_s_allume_qu_en_greffier_avec_les_portes():
 # --------------------------------------------------------------------------- #
 
 
-def test_eteinte_la_carte_et_la_position_sont_celles_d_avant():
-    assert schema.appliquer(_definition(), True, False) == schema.appliquer(
-        _definition(), True
-    )
+def test_decochee_aucun_bloc_n_est_ecrit():
+    assert schema.appliquer(_definition(), False) == _definition()
 
 
 @pytest.mark.asyncio
-async def test_eteinte_le_prompt_de_l_etape_est_celui_d_avant():
+async def test_decochee_le_prompt_de_l_etape_est_celui_d_avant():
     sans_cle = await _systeme(GREFFIER)
-    eteinte = await _systeme({**GREFFIER, CLE_PARCOURS_LISIBLE: False})
+    eteinte = await _systeme({**GREFFIER, CLE_SCHEMA_DU_PARCOURS: False})
     assert eteinte == sans_cle
     assert DEBUT_PRISE_DE_NOTES in sans_cle
     assert "# Les portes de cette étape" in sans_cle
+    assert schema.DEBUT_PARCOURS not in sans_cle
+
+
+@pytest.mark.asyncio
+async def test_l_ancienne_case_encore_enregistree_est_sans_effet():
+    """R4 : ``parcours_lisible`` a disparu du code ; une valeur restée en base ne change rien."""
+    assert ReglagesFiche.depuis({**GREFFIER, "parcours_lisible": True}).parcours_lisible is False
+    assert await _systeme({**GREFFIER, "parcours_lisible": True}) == await _systeme(GREFFIER)
 
 
 # --------------------------------------------------------------------------- #
@@ -139,7 +149,7 @@ async def test_eteinte_le_prompt_de_l_etape_est_celui_d_avant():
 
 
 def test_la_carte_liste_les_etapes_et_leur_role_sans_portes():
-    definition = schema.appliquer(_definition(), True, True)
+    definition = schema.appliquer(_definition(), True, False)
     globale = next(n for n in definition["nodes"] if n["type"] == "globalNode")
     carte = globale["data"]["prompt"].split(schema.DEBUT_PARCOURS, 1)[1]
     carte = carte.split(schema.FIN_PARCOURS, 1)[0].strip()
@@ -159,11 +169,11 @@ def test_la_carte_liste_les_etapes_et_leur_role_sans_portes():
 
 
 def test_la_carte_se_regenere_sans_s_empiler():
-    une = schema.appliquer(_definition(), True, True)
-    deux = schema.appliquer(une, True, True)
+    une = schema.appliquer(_definition(), True, False)
+    deux = schema.appliquer(une, True, False)
     assert deux == une
-    # Et revenir en arrière rend la carte d'avant.
-    assert schema.appliquer(une, True, False) == schema.appliquer(_definition(), True)
+    # Décocher la case retire tout.
+    assert schema.appliquer(une, False) == _definition()
 
 
 # --------------------------------------------------------------------------- #
@@ -220,7 +230,7 @@ async def test_au_clavier_case_allumee_la_ligne_de_porte_change_d_etape(
         **FICHE,
         CLE_MODE: MODE_GREFFIER,
         CLE_PORTES_DANS_LA_REPONSE: True,
-        CLE_PARCOURS_LISIBLE: True,
+        CLE_SCHEMA_DU_PARCOURS: True,
     }
     user, workflow = await _monter(
         db_session, async_session, config, definition_ecran()
@@ -243,7 +253,7 @@ async def test_au_clavier_case_allumee_la_ligne_de_porte_change_d_etape(
 async def test_une_porte_sans_condition_n_ecrit_pas_quand():
     from api.services.workflow.porte_parlee import _sorties_lisibles
 
-    definition = schema.appliquer(_definition(), True, True)
+    definition = schema.appliquer(_definition(), True, False)
     for arete in definition["edges"]:
         if arete["id"] == "etape-end":
             # Le schéma refuse le vide ; un point seul passe et se nettoie en rien.
@@ -280,4 +290,18 @@ async def test_agent_introuvable_le_graphe_fourni_est_traite():
         resultat = await schema.a_l_enregistrement(
             1, 1, _definition(), {schema.CLE_REGLAGE: True}
         )
+    # Sans mode ni portes connus, « Tu es ici » est écrit (C4 : seul le greffier avec portes s'en passe).
+    assert resultat == schema.appliquer(_definition(), True, True)
+
+
+@pytest.mark.asyncio
+async def test_greffier_avec_portes_fournis_aucune_lecture_et_pas_de_tu_es_ici():
+    from unittest.mock import AsyncMock
+
+    from api.db import db_client
+
+    lecture = AsyncMock()
+    with patch.object(db_client, "get_workflow", lecture):
+        resultat = await schema.a_l_enregistrement(1, 1, _definition(), LISIBLE)
+    lecture.assert_not_awaited()
     assert resultat == schema.appliquer(_definition(), True, False)

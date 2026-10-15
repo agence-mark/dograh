@@ -183,9 +183,10 @@ CLE_ETIQUETTES = "etiquettes_des_etapes"
 CLE_PHRASE_SANS_REDEMANDE = "phrase_sans_redemande"
 # Chantier greffier-conversation, lot E (C4, D6) : le code lance le transfert à l'arrivée.
 CLE_TRANSFERT_GARANTI = "transfert_garanti"
-# Chantier repliques-coupees, lot 4 ter (D11 à D15) : le parcours lisible (carte des rôles,
-# bloc de fin d'étape unique, plus de bloc de prise de notes). Greffier, portes dans la réponse.
-CLE_PARCOURS_LISIBLE = "parcours_lisible"
+# Chantier schema-parcours-unique (C1) : la case « Generate the flow map » pilote aussi le
+# bloc de fin d'étape unique et le retrait du bloc de prise de notes (greffier, portes dans
+# la réponse). Elle remplace la case ``parcours_lisible`` du lot 4 ter de repliques-coupees.
+CLE_SCHEMA_DU_PARCOURS = "generer_schema_parcours"
 SOUFFLE_MAX = 2
 
 
@@ -229,7 +230,7 @@ class ReglagesFiche:
     # Lot E de greffier-conversation (C4, D6) : à l'arrivée dans une étape qui porte un
     # outil de transfert, entreprise ouverte (OUVERT), le code lance le transfert. Tous modes.
     transfert_garanti: bool = False
-    # Lot 4 ter de repliques-coupees : le parcours lisible (greffier, portes dans la réponse).
+    # Le parcours lisible (greffier, portes dans la réponse), piloté par la case du schéma.
     parcours_lisible: bool = False
 
     @property
@@ -291,7 +292,7 @@ class ReglagesFiche:
             etiquettes=bool(run_configs.get(CLE_ETIQUETTES)),
             transfert_garanti=run_configs.get(CLE_TRANSFERT_GARANTI) is True,
             parcours_lisible=(
-                run_configs.get(CLE_PARCOURS_LISIBLE) is True
+                run_configs.get(CLE_SCHEMA_DU_PARCOURS) is True
                 and mode == MODE_GREFFIER
                 and _portes_dans_la_reponse(run_configs, mode)
             ),
