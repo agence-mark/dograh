@@ -164,7 +164,9 @@ async def a_l_enregistrement(
     """
     from api.db import db_client
 
-    if configurations is None and definition is None:
+    # Des réglages enregistrés sans graphe ni case du schéma : rien à écrire, et surtout aucune
+    # lecture de la base (comme avant le chantier ; les 15 tests de route l'ont rappelé le 15/10).
+    if definition is None and reglage_allume(configurations) is None:
         return None
     if configurations is not None and definition is not None:
         return appliquer(definition, bool(reglage_allume(configurations)), _position(configurations))
