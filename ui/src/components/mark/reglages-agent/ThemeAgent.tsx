@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { SETTINGS_DOCUMENTATION_URLS } from "@/constants/documentation";
@@ -35,9 +36,38 @@ import logger from "@/lib/logger";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
-import { useLangue } from "../langue/langue";
+import { type Texte, useLangue } from "../langue/langue";
 import { useEnregistrementTheme } from "./enregistrement";
 import { differe, type ProprietesThemeAgent, useEtatTheme } from "./theme-commun";
+
+// Chantier schema-parcours-unique (C1): one box writes the map and drives the end of each step.
+export const AIDES_SCHEMA_DU_PARCOURS: Texte[] = [
+    {
+        en: "At every save, writes at the end of the global prompt each step with its role (the line under « # Ta mission ici » of its prompt). Clerk mode with transitions in the reply: during the call, each step ends with one block (where the agent is, how to move on, each way out with its condition and arrival sentence) and the note-taking block is dropped. Other modes: « Tu es ici » with the step's name at the end of each step's prompt.",
+        fr: "À chaque enregistrement, écrit à la fin du prompt global chaque étape avec son rôle (la ligne sous « # Ta mission ici » de son prompt). En greffier avec les portes dans la réponse : pendant l'appel, chaque étape finit par un seul bloc (où en est l'agent, comment passer à la suite, chaque sortie avec sa condition et sa phrase d'arrivée) et le bloc de prise de notes disparaît. Dans les autres modes : « Tu es ici » avec le nom de l'étape à la fin du prompt de chaque étape.",
+    },
+    {
+        en: "Off by default. The blocks are replaced at each save, never stacked, and never touch the text you wrote. Turned off, the blocks written earlier are removed at the next save.",
+        fr: "Éteint par défaut. Les blocs sont remplacés à chaque enregistrement, jamais empilés, et ne touchent jamais le texte que vous avez écrit. Éteint, les blocs écrits auparavant sont retirés au prochain enregistrement.",
+    },
+];
+
+// Chantier repliques-coupees, D10; Agent theme since schema-parcours-unique (C2, C6).
+type ReflexionDeRelance = "none" | "minimal" | "low" | "medium" | "high";
+const NIVEAUX_DE_RELANCE: ReflexionDeRelance[] = ["none", "minimal", "low", "medium", "high"];
+// A Select item cannot carry an empty value: this one stands for « no retry setting ».
+const RELANCE_DE_L_AGENT = "reglage_de_l_agent";
+
+export const AIDES_REFLEXION_DE_RELANCE: Texte[] = [
+    {
+        en: "When a reply stops in the middle of a sentence, it is never spoken and the model answers once more. That single retry is sent with this reasoning effort (e.g. « low » when the agent runs with « none »).",
+        fr: "Quand une réplique s'arrête au milieu d'une phrase, elle n'est jamais dite et le modèle répond une fois de plus. Cette seule relance part avec ce niveau de réflexion (par exemple « low » quand l'agent tourne en « none »).",
+    },
+    {
+        en: "Acts only in Clerk mode with transitions in the reply (Call data theme), and never with Mistral: OpenAI-compatible providers only (Scaleway…).",
+        fr: "N'agit qu'en greffier avec les portes dans la réponse (thème Données de l'appel), et jamais avec Mistral : fournisseurs compatibles OpenAI seulement (Scaleway…).",
+    },
+];
 
 export const ID_THEME_AGENT = "agent";
 export const TITRE_AGENT = { en: "Agent", fr: "Agent" };
@@ -196,6 +226,10 @@ export const ThemeAgent = ({
     const schemaEnregistre = resolue.generer_schema_parcours ?? false;
     const [schema, setSchema] = useState(schemaEnregistre);
     const schemaModifie = schema !== schemaEnregistre;
+    // Chantier schema-parcours-unique (C2, C6): the retry reasoning, always shown, next to the map.
+    const relanceEnregistree = resolue.reflexion_de_relance ?? null;
+    const [relance, setRelance] = useState<ReflexionDeRelance | null>(relanceEnregistree);
+    const relanceModifiee = relance !== relanceEnregistree;
     // Chantier repliques-coupees, lot 6 bis (D16): the model request trace, every mode.
     const traceEnregistree = resolue.trace_requetes_modele ?? false;
     const [trace, setTrace] = useState(traceEnregistree);
@@ -208,7 +242,7 @@ export const ThemeAgent = ({
     );
     const nomModifie = nom !== workflowName;
     const variablesModifiees = differe(variablesAEnregistrer, variablesEnregistrees);
-    const modifie = nomModifie || variablesModifiees || schemaModifie || traceModifiee;
+    const modifie = nomModifie || variablesModifiees || schemaModifie || relanceModifiee || traceModifiee;
     useEtatTheme(ID_THEME_AGENT, modifie, false);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -222,6 +256,12 @@ export const ThemeAgent = ({
                 nom: { en: "Flow map", fr: "Schéma du parcours" },
                 modifie: schemaModifie,
                 config: () => ({ generer_schema_parcours: schema }),
+            },
+            {
+                // Its own part, sent only when changed (E6).
+                nom: { en: "Retry reasoning", fr: "Réflexion de relance" },
+                modifie: relanceModifiee,
+                config: () => ({ reflexion_de_relance: relance }),
             },
             {
                 // Its own part, sent only when changed (E6).
@@ -313,19 +353,36 @@ export const ThemeAgent = ({
                     cle="generer_schema_parcours"
                     idControle="generer_schema_parcours"
                     libelle={{ en: "Generate the flow map", fr: "Générer le schéma du parcours" }}
-                    aides={[
-                        {
-                            en: "At every save, writes at the end of the global prompt each step with its exits (exit name → arrival step), and « Tu es ici » with the step's name at the end of each step's prompt. Only step and exit names; the blocks are replaced at each save, never stacked, and never touch the text you wrote.",
-                            fr: "À chaque enregistrement, écrit à la fin du prompt global chaque étape avec ses sorties (nom de la sortie → étape d'arrivée), et « Tu es ici » avec le nom de l'étape à la fin du prompt de chaque étape. Seuls les noms d'étapes et de sorties ; les blocs sont remplacés à chaque enregistrement, jamais empilés, et ne touchent jamais le texte que vous avez écrit.",
-                        },
-                        {
-                            en: "Off by default. Turned off, the blocks written earlier are removed at the next save.",
-                            fr: "Éteint par défaut. Éteint, les blocs écrits auparavant sont retirés au prochain enregistrement.",
-                        },
-                    ]}
+                    aides={AIDES_SCHEMA_DU_PARCOURS}
                     disposition="ligne"
                 >
                     <Switch id="generer_schema_parcours" checked={schema} onCheckedChange={setSchema} />
+                </ChampReglage>
+                <ChampReglage
+                    cle="reflexion_de_relance"
+                    idControle="reflexion_de_relance"
+                    libelle={{ en: "Retry reasoning", fr: "Réflexion de relance" }}
+                    aides={AIDES_REFLEXION_DE_RELANCE}
+                    bornes={{ en: "Default: the agent's setting", fr: "Par défaut : le réglage de l'agent" }}
+                >
+                    <Select
+                        value={relance ?? RELANCE_DE_L_AGENT}
+                        onValueChange={(v: string) => setRelance(v === RELANCE_DE_L_AGENT ? null : (v as ReflexionDeRelance))}
+                    >
+                        <SelectTrigger id="reflexion_de_relance">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={RELANCE_DE_L_AGENT}>
+                                {t({ en: "The agent's setting", fr: "Le réglage de l'agent" })}
+                            </SelectItem>
+                            {NIVEAUX_DE_RELANCE.map((niveau) => (
+                                <SelectItem key={niveau} value={niveau}>
+                                    {niveau}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </ChampReglage>
             </Intertitre>
 

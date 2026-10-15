@@ -101,34 +101,6 @@ export const AIDES_VERIFICATION_APPELANT: Texte[] = [
     },
 ];
 
-// Chantier repliques-coupees, lot 6 bis (D16): the two settings of the transition reader.
-type ReflexionDeRelance = "none" | "minimal" | "low" | "medium" | "high";
-const NIVEAUX_DE_RELANCE: ReflexionDeRelance[] = ["none", "minimal", "low", "medium", "high"];
-// A Select item cannot carry an empty value: this one stands for « no retry setting ».
-const RELANCE_DE_L_AGENT = "reglage_de_l_agent";
-
-export const AIDES_PARCOURS_LISIBLE: Texte[] = [
-    {
-        en: "The flow map lists each step with its role (the line under « # Ta mission ici » of its prompt), and each step ends with one block: where the agent is, how to move on, and each way out with its condition and arrival sentence. The note-taking block is dropped.",
-        fr: "Le schéma du parcours liste chaque étape avec son rôle (la ligne sous « # Ta mission ici » de son prompt), et chaque étape finit par un seul bloc : où en est l'agent, comment passer à la suite, et chaque sortie avec sa condition et sa phrase d'arrivée. Le bloc de prise de notes disparaît.",
-    },
-    {
-        en: "The map is only written when « Generate the flow map » is on (Agent theme). Off by default: everything is written as before.",
-        fr: "Le schéma n'est écrit que si « Générer le schéma du parcours » est allumé (thème Agent). Éteint par défaut : tout s'écrit comme avant.",
-    },
-];
-
-export const AIDES_REFLEXION_DE_RELANCE: Texte[] = [
-    {
-        en: "When a reply stops in the middle of a sentence, it is never spoken and the model answers once more. That single retry is sent with this reasoning effort (e.g. « low » when the agent runs with « none »).",
-        fr: "Quand une réplique s'arrête au milieu d'une phrase, elle n'est jamais dite et le modèle répond une fois de plus. Cette seule relance part avec ce niveau de réflexion (par exemple « low » quand l'agent tourne en « none »).",
-    },
-    {
-        en: "OpenAI-compatible providers only (Scaleway…): no effect with Mistral.",
-        fr: "Fournisseurs compatibles OpenAI seulement (Scaleway…) : sans effet avec Mistral.",
-    },
-];
-
 // Plan porte-parlee (D14, D16): the box under the note-taking mode, Postscript only.
 export const AIDES_PORTES_DANS_LA_REPONSE: Texte[] = [
     {
@@ -240,18 +212,6 @@ export const ThemeDonnees = ({
     useEffect(() => setRedemande(redemandeEnregistree), [redemandeEnregistree]);
     const redemandeEnvoyee = modeDeNote === "post_scriptum" && ordre === "porte_note_phrase" && redemande;
     const redemandeModifiee = redemandeEnvoyee !== redemandeEnregistree;
-    // Chantier repliques-coupees, lot 6 bis (D16): both live in the transition reader, which
-    // the code builds only in Clerk mode with transitions in the reply (lecteur_de_portes).
-    const modeAuLecteur = modeDeNote === "greffier" && portesEnvoyees;
-    const lisibleEnregistre = resolue.parcours_lisible ?? false;
-    const [lisible, setLisible] = useState(lisibleEnregistre);
-    useEffect(() => setLisible(lisibleEnregistre), [lisibleEnregistre]);
-    const lisibleEnvoye = modeAuLecteur && lisible;
-    const lisibleModifie = lisibleEnvoye !== lisibleEnregistre;
-    const relanceEnregistree = resolue.reflexion_de_relance ?? null;
-    const [relance, setRelance] = useState<ReflexionDeRelance | null>(relanceEnregistree);
-    useEffect(() => setRelance(relanceEnregistree), [relanceEnregistree]);
-    const relanceModifiee = relance !== relanceEnregistree;
     // As the call record card did (24/09): follow the record the server stored,
     // keyed on its CONTENT so another theme's save does not wipe an edit here.
     const ficheEnregistree = JSON.stringify([ficheActiveEnregistree, modeEnregistre, champsEnregistres]);
@@ -397,9 +357,7 @@ export const ThemeDonnees = ({
         || verificationModifiee
         || etiquettesModifiees
         || transfertModifie
-        || redemandeModifiee
-        || lisibleModifie
-        || relanceModifiee;
+        || redemandeModifiee;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -452,17 +410,6 @@ export const ThemeDonnees = ({
                 nom: { en: "No repeated question", fr: "Pas de question redemandée" },
                 modifie: redemandeModifiee,
                 config: () => ({ phrase_sans_redemande: redemandeEnvoyee }),
-            },
-            {
-                // Chantier repliques-coupees, lot 6 bis: its own part, sent only when changed (E6).
-                nom: { en: "Readable flow", fr: "Parcours lisible" },
-                modifie: lisibleModifie,
-                config: () => ({ parcours_lisible: lisibleEnvoye }),
-            },
-            {
-                nom: { en: "Retry reasoning", fr: "Réflexion de relance" },
-                modifie: relanceModifiee,
-                config: () => ({ reflexion_de_relance: relance }),
             },
             {
                 // l-agent-collegue, L1: its own part, sent only when changed (E6).
@@ -597,50 +544,6 @@ export const ThemeDonnees = ({
                         disposition="ligne"
                     >
                         <Switch id="portes_dans_la_reponse" checked={portes} onCheckedChange={setPortes} />
-                    </ChampReglage>
-                )}
-                {/* Chantier repliques-coupees, lot 6 bis: Clerk mode with transitions in the reply,
-                    the same condition as the code (lecteur_de_portes_du_moteur). */}
-                {ficheActive && modeDeNote === "greffier" && portes && (
-                    <ChampReglage
-                        cle="parcours_lisible"
-                        idControle="parcours_lisible"
-                        libelle={{ en: "Readable flow", fr: "Parcours lisible" }}
-                        aides={AIDES_PARCOURS_LISIBLE}
-                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
-                        disposition="ligne"
-                    >
-                        <Switch id="parcours_lisible" checked={lisible} onCheckedChange={setLisible} />
-                    </ChampReglage>
-                )}
-                {ficheActive && modeDeNote === "greffier" && portes && (
-                    <ChampReglage
-                        cle="reflexion_de_relance"
-                        idControle="reflexion_de_relance"
-                        libelle={{ en: "Retry reasoning", fr: "Réflexion de relance" }}
-                        aides={AIDES_REFLEXION_DE_RELANCE}
-                        bornes={{ en: "Default: the agent's setting", fr: "Par défaut : le réglage de l'agent" }}
-                    >
-                        <Select
-                            value={relance ?? RELANCE_DE_L_AGENT}
-                            onValueChange={(v: string) =>
-                                setRelance(v === RELANCE_DE_L_AGENT ? null : (v as ReflexionDeRelance))
-                            }
-                        >
-                            <SelectTrigger id="reflexion_de_relance">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={RELANCE_DE_L_AGENT}>
-                                    {t({ en: "The agent's setting", fr: "Le réglage de l'agent" })}
-                                </SelectItem>
-                                {NIVEAUX_DE_RELANCE.map((niveau) => (
-                                    <SelectItem key={niveau} value={niveau}>
-                                        {niveau}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
                     </ChampReglage>
                 )}
                 {/* Plan postscriptum-note-d-abord (Q2): a menu with the two orders that keep the

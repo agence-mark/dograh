@@ -94,6 +94,8 @@ export const CAS_AGENT: CasAgent[] = [
     c("schema-parcours", "ajout-mark", "agent", ["generer_schema_parcours"], [inter("generer_schema_parcours")]),
     // Chantier repliques-coupees, lot 6 bis (D16): the model request trace, frozen once.
     c("trace-requetes-modele", "ajout-mark", "agent", ["trace_requetes_modele"], [inter("trace_requetes_modele")]),
+    // Chantier schema-parcours-unique (C2, C6): the retry reasoning, Agent theme, always shown.
+    c("reflexion-de-relance", "ajout-mark", "agent", ["reflexion_de_relance"], [choisir("reflexion_de_relance", "low")]),
     c("ambiance", "general", "voix", ["ambient_noise_configuration.enabled"], [inter("ambient-noise-enabled")]),
     c("ambiance-volume", "general", "voix", ["ambient_noise_configuration.volume"], [saisir("ambient-volume", "0.7")]),
     c("fin-de-tour", "general", "tour", ["turn_stop_strategy"], [choisir("turn_stop_strategy", "transcription")]),
@@ -194,17 +196,6 @@ export const CAS_AGENT: CasAgent[] = [
         choisir("fiche_mode_de_note", "post_scriptum"),
         choisir("ordre_de_la_reponse", "porte_note_phrase"),
         inter("phrase_sans_redemande"),
-    ]),
-    // Chantier repliques-coupees, lot 6 bis (D16): Clerk mode with transitions, frozen once.
-    c("parcours-lisible", "ajout-mark", "donnees", ["fiche_mode_de_note", "portes_dans_la_reponse", "parcours_lisible"], [
-        choisir("fiche_mode_de_note", "greffier"),
-        inter("portes_dans_la_reponse"),
-        inter("parcours_lisible"),
-    ]),
-    c("reflexion-de-relance", "ajout-mark", "donnees", ["fiche_mode_de_note", "portes_dans_la_reponse", "reflexion_de_relance"], [
-        choisir("fiche_mode_de_note", "greffier"),
-        inter("portes_dans_la_reponse"),
-        choisir("reflexion_de_relance", "low"),
     ]),
     // Chantier l-agent-travaille, L4 (A6): the after-call of the agent, frozen once.
     c("apres-appel", "ajout-mark", "donnees", ["apres_appel"], [inter("apres_appel_actif")]),
