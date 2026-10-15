@@ -279,12 +279,14 @@ async def test_traversant_C4_greffier_avec_portes_carte_sans_tu_es_ici(
     db_session, async_session, test_client_factory
 ):
     """C4 par la vraie route : greffier avec portes, la carte des rôles est écrite et aucun
-    « Tu es ici » (le bloc de fin d'étape le dit pendant l'appel). La case seule, enregistrée
-    ensuite, lit le mode et les portes déjà enregistrés ; passer en mode outil remet la position."""
+    « Tu es ici » (le bloc de fin d'étape le dit pendant l'appel). Le graphe seul, enregistré
+    ensuite, suit la configuration enregistrée ; passer en mode outil remet la position."""
     user, workflow = await _agent_en_base(db_session, async_session)
     async with test_client_factory(user) as client:
-        await _enregistrer(client, workflow.id, {"workflow_configurations": GREFFIER_AVEC_PORTES})
-        await _enregistrer(client, workflow.id, {"workflow_configurations": {"generer_schema_parcours": True}})
+        await _enregistrer(
+            client, workflow.id, {"workflow_configurations": {**GREFFIER_AVEC_PORTES, "generer_schema_parcours": True}}
+        )
+        await _enregistrer(client, workflow.id, {"workflow_definition": _definition()})
         greffier = (await db_session.get_draft_version(workflow.id)).workflow_json
         assert "# Les étapes de l'appel" in _prompt(greffier, "global")
         assert "<position_generee>" not in _prompt(greffier, "start")
@@ -296,6 +298,22 @@ async def test_traversant_C4_greffier_avec_portes_carte_sans_tu_es_ici(
     outil = (await db_session.get_draft_version(workflow.id)).workflow_json
     assert _prompt(outil, "start").endswith("<position_generee>Tu es ici : Accueil</position_generee>")
     assert _prompt(outil, "global").count("<parcours_genere>") == 1
+
+
+@pytest.mark.asyncio
+async def test_traversant_une_configuration_envoyee_fait_foi(db_session, async_session, test_client_factory):
+    """Revue du 15/10 : une configuration envoyée REMPLACE l'enregistrée. Envoyer la case du
+    schéma seule éteint donc la fiche pendant l'appel : « Tu es ici » doit être écrit, jamais
+    retiré sur la foi d'un mode qui n'existe plus."""
+    user, workflow = await _agent_en_base(db_session, async_session)
+    async with test_client_factory(user) as client:
+        await _enregistrer(
+            client, workflow.id, {"workflow_configurations": {**GREFFIER_AVEC_PORTES, "generer_schema_parcours": True}}
+        )
+        await _enregistrer(client, workflow.id, {"workflow_configurations": {"generer_schema_parcours": True}})
+    brouillon = await db_session.get_draft_version(workflow.id)
+    assert "fiche_mode_de_note" not in (brouillon.workflow_configurations or {})
+    assert _prompt(brouillon.workflow_json, "start").endswith("<position_generee>Tu es ici : Accueil</position_generee>")
 
 
 @pytest.mark.asyncio

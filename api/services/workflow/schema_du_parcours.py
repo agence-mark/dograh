@@ -32,6 +32,7 @@ import copy
 import re
 
 from api.services.workflow.fiche_au_fil_de_leau import (
+    CLE_CHAMPS,
     CLE_INTERRUPTEUR,
     CLE_MODE,
     CLE_PORTES_DANS_LA_REPONSE,
@@ -154,62 +155,40 @@ async def a_l_enregistrement(
 ) -> dict | None:
     """La définition à enregistrer, ou ``None`` s'il n'y a rien à écrire.
 
-    - Le graphe est enregistré : ses blocs suivent la case (celle de cet
-      enregistrement, sinon celle déjà enregistrée).
-    - La case seule est enregistrée : le graphe enregistré est mis à jour, et
-      renvoyé seulement s'il change.
+    - Des configurations sont enregistrées : elles REMPLACENT celles en base
+      (``configuration_policy``) ; ce sont donc elles seules qui comptent, une clé
+      absente vaut sa valeur par défaut (revue du 15/10, schema-parcours-unique).
+    - Aucune configuration (graphe seul, outil MCP) : celles déjà enregistrées.
+    - La case seule change : le graphe enregistré est mis à jour, et renvoyé
+      seulement s'il change.
     """
     from api.db import db_client
 
-    allume = reglage_allume(configurations)
-    fin_d_etape = _reglages_de_fin_d_etape(configurations)
-    if allume is None and definition is None:
+    if configurations is None and definition is None:
         return None
-    existante = None
-    # Revue du 14/10 (retouche 2, Evan) : la base n'est lue que si une valeur manque
-    # vraiment ; les réglages de fin d'étape ne comptent que schéma allumé (éteint, tout est retiré).
-    if (
-        allume is None
-        or definition is None
-        or (allume and len(fin_d_etape) < len(_CLES_DE_FIN_D_ETAPE))
-    ):
-        workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
-        brouillon = await db_client.get_draft_version(workflow_id) if workflow else None
-        active = (brouillon or workflow.released_definition) if workflow else None
-        if active is None:
-            # Comme avant le chantier : un graphe fourni avec la case du schéma est traité.
-            if definition is not None and allume is not None:
-                return appliquer(definition, allume, _position(fin_d_etape))
-            return definition
-        if allume is None:
-            allume = bool(reglage_allume(active.workflow_configurations))
-        fin_d_etape = {
-            **_reglages_de_fin_d_etape(active.workflow_configurations),
-            **fin_d_etape,
-        }
-        existante = active.workflow_json
+    if configurations is not None and definition is not None:
+        return appliquer(definition, bool(reglage_allume(configurations)), _position(configurations))
+    workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
+    brouillon = await db_client.get_draft_version(workflow_id) if workflow else None
+    active = (brouillon or workflow.released_definition) if workflow else None
+    if active is None:
+        return definition
+    reglages = configurations if configurations is not None else (active.workflow_configurations or {})
+    allume = bool(reglage_allume(reglages))
     if definition is not None:
-        return appliquer(definition, allume, _position(fin_d_etape))
-    nouvelle = appliquer(existante, allume, _position(fin_d_etape))
-    return nouvelle if nouvelle != existante else None
+        return appliquer(definition, allume, _position(reglages))
+    nouvelle = appliquer(active.workflow_json, allume, _position(reglages))
+    return nouvelle if nouvelle != active.workflow_json else None
 
 
-# C4 : ce qui décide du bloc de fin d'étape pendant l'appel (fiche allumée, greffier, portes
-# dans la réponse). Une clé absente de cet enregistrement se lit dans l'enregistré.
-_CLES_DE_FIN_D_ETAPE = (CLE_INTERRUPTEUR, CLE_MODE, CLE_PORTES_DANS_LA_REPONSE)
-
-
-def _reglages_de_fin_d_etape(configurations: dict | None) -> dict:
-    """Les réglages de ``_CLES_DE_FIN_D_ETAPE`` présents dans ces configurations."""
-    configurations = configurations or {}
-    return {cle: configurations[cle] for cle in _CLES_DE_FIN_D_ETAPE if cle in configurations}
-
-
-def _position(reglages: dict) -> bool:
-    """C4 : « Tu es ici » partout, sauf quand le bloc de fin d'étape le dit pendant l'appel :
-    fiche allumée, greffier, portes dans la réponse."""
+def _position(configurations: dict) -> bool:
+    """C4 : « Tu es ici » partout, sauf quand le bloc de fin d'étape le dit pendant l'appel,
+    dans les conditions où ``ReglagesFiche.depuis`` bâtit la fiche : fiche allumée avec au
+    moins un champ, greffier, portes dans la réponse. Un modèle temps réel n'a pas de fiche :
+    cas non lu ici (aucun agent du labo), documenté dans le plan."""
     return not (
-        reglages.get(CLE_INTERRUPTEUR) is True
-        and reglages.get(CLE_MODE) == MODE_GREFFIER
-        and reglages.get(CLE_PORTES_DANS_LA_REPONSE) is True
+        configurations.get(CLE_INTERRUPTEUR) is True
+        and bool(configurations.get(CLE_CHAMPS))
+        and configurations.get(CLE_MODE) == MODE_GREFFIER
+        and configurations.get(CLE_PORTES_DANS_LA_REPONSE) is True
     )

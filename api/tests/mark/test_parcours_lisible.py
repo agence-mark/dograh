@@ -305,3 +305,12 @@ async def test_greffier_avec_portes_fournis_aucune_lecture_et_pas_de_tu_es_ici()
         resultat = await schema.a_l_enregistrement(1, 1, _definition(), LISIBLE)
     lecture.assert_not_awaited()
     assert resultat == schema.appliquer(_definition(), True, False)
+
+
+def test_fiche_sans_champ_garde_tu_es_ici():
+    """Revue du 15/10 : sans champ, ``ReglagesFiche.depuis`` ne bâtit pas de fiche, donc pas de
+    bloc de fin d'étape pendant l'appel ; « Tu es ici » reste écrit."""
+    sans_champ = {**LISIBLE, "fiche_champs": []}
+    assert ReglagesFiche.depuis(sans_champ) is None
+    assert schema._position(sans_champ) is True
+    assert schema._position(LISIBLE) is False
