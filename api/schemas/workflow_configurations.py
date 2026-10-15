@@ -821,15 +821,19 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Before the voice, a phone number the agent reads back is compared with the last number the caller dictated, as read by our number reader; if a digit differs, the caller's digits are spoken instead. Only phone numbers, sentence by sentence. Off (default): the agent's read-back as written."
         ),
     )
-    # [.mark] Chantier correctifs-modules, lot 4 bis : le schéma du parcours.
+    # [.mark] Chantier correctifs-modules, lot 4 bis : le schéma du parcours. Chantier
+    # schema-parcours-unique (C1) : une seule case, la carte des rôles et la fin d'étape.
     generer_schema_parcours: bool = Field(
         default=False,
         description=(
-            "At every save, write the flow map at the end of the global prompt "
-            "(each step and its exits: exit name to arrival step) and 'Tu es ici' "
-            "with the step's name at the end of each step's prompt. Only step and "
-            "exit names; the blocks are replaced at each save, never stacked. "
-            "Off: blocks left by an earlier save are removed, nothing else changes."
+            "At every save, write the flow map at the end of the global prompt: each step "
+            "with its role (the line under « # Ta mission ici » of its prompt). Clerk mode "
+            "with transitions in the reply: during the call, each step ends with one block "
+            "(where the agent is, how to move on, each way out with its condition and "
+            "arrival sentence) and the note-taking block is dropped. Other modes: 'Tu es ici' "
+            "with the step's name at the end of each step's prompt. The blocks are replaced "
+            "at each save, never stacked. Off: blocks left by an earlier save are removed, "
+            "nothing else changes."
         ),
     )
     # [.mark] La fiche au fil de l'eau (plan 2026-09-23, lots 1 et suivants).
@@ -928,22 +932,11 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Off (default): nothing is recorded and nothing changes."
         ),
     )
-    # [.mark] Chantier repliques-coupees, lot 4 ter : le parcours lisible.
-    parcours_lisible: bool = Field(
-        default=False,
-        description=(
-            "Clerk mode with transitions in the reply (Call data theme). The flow map lists each "
-            "step with its role (the line under « # Ta mission ici » of its prompt), and "
-            "each step ends with one block: where the agent is, how to move on, and each "
-            "way out with its condition and arrival sentence. The note-taking block is "
-            "dropped. Off (default): the map and the transitions are written as before."
-        ),
-    )
     # [.mark] Chantier repliques-coupees, D10 : la réflexion de la relance d'une réplique inachevée.
     reflexion_de_relance: Literal["none", "minimal", "low", "medium", "high"] | None = Field(
         default=None,
         description=(
-            "OpenAI-compatible provider, Clerk mode with transitions in the reply (Call data theme). When an answer ends in the middle of a "
+            "OpenAI-compatible provider, Clerk mode with transitions in the reply (Agent theme). When an answer ends in the middle of a "
             "sentence, it is never spoken and the model answers once more; that single retry "
             "is sent with this reasoning effort (e.g. 'low' when the agent runs with 'none'). "
             "Empty (default): the retry uses the agent's usual setting."

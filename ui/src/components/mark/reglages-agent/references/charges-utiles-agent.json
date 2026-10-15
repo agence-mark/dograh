@@ -1637,32 +1637,14 @@
         }
       ]
     },
-    "parcours-lisible": {
-      "carte": "ajout-mark",
-      "theme": "donnees",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "fiche_mode_de_note": "greffier",
-            "portes_dans_la_reponse": true,
-            "parcours_lisible": true
-          },
-          "retirees": []
-        }
-      ]
-    },
     "reflexion-de-relance": {
       "carte": "ajout-mark",
-      "theme": "donnees",
+      "theme": "agent",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
           "nom": "Accueil de référence",
           "modifiees": {
-            "fiche_mode_de_note": "greffier",
-            "portes_dans_la_reponse": true,
             "reflexion_de_relance": "low"
           },
           "retirees": []

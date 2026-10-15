@@ -11214,7 +11214,7 @@ export type WorkflowConfigurationDefaults = {
     /**
      * Generer Schema Parcours
      *
-     * At every save, write the flow map at the end of the global prompt (each step and its exits: exit name to arrival step) and 'Tu es ici' with the step's name at the end of each step's prompt. Only step and exit names; the blocks are replaced at each save, never stacked. Off: blocks left by an earlier save are removed, nothing else changes.
+     * At every save, write the flow map at the end of the global prompt: each step with its role (the line under « # Ta mission ici » of its prompt). Clerk mode with transitions in the reply: during the call, each step ends with one block (where the agent is, how to move on, each way out with its condition and arrival sentence) and the note-taking block is dropped. Other modes: 'Tu es ici' with the step's name at the end of each step's prompt. The blocks are replaced at each save, never stacked. Off: blocks left by an earlier save are removed, nothing else changes.
      */
     generer_schema_parcours?: boolean;
     /**
@@ -11266,15 +11266,9 @@ export type WorkflowConfigurationDefaults = {
      */
     trace_requetes_modele?: boolean;
     /**
-     * Parcours Lisible
-     *
-     * Clerk mode with transitions in the reply (Call data theme). The flow map lists each step with its role (the line under « # Ta mission ici » of its prompt), and each step ends with one block: where the agent is, how to move on, and each way out with its condition and arrival sentence. The note-taking block is dropped. Off (default): the map and the transitions are written as before.
-     */
-    parcours_lisible?: boolean;
-    /**
      * Reflexion De Relance
      *
-     * OpenAI-compatible provider, Clerk mode with transitions in the reply (Call data theme). When an answer ends in the middle of a sentence, it is never spoken and the model answers once more; that single retry is sent with this reasoning effort (e.g. 'low' when the agent runs with 'none'). Empty (default): the retry uses the agent's usual setting.
+     * OpenAI-compatible provider, Clerk mode with transitions in the reply (Agent theme). When an answer ends in the middle of a sentence, it is never spoken and the model answers once more; that single retry is sent with this reasoning effort (e.g. 'low' when the agent runs with 'none'). Empty (default): the retry uses the agent's usual setting.
      */
     reflexion_de_relance?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | null;
     /**

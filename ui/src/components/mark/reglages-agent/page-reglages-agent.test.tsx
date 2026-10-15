@@ -156,9 +156,6 @@ describe("[.mark] the agent page in themes", () => {
         "indices_des_modules",
         // Chantier postscriptum-et-communes, B5: Postscript, « note, reply » order only.
         "phrase_sans_redemande",
-        // Chantier repliques-coupees, lot 6 bis: Clerk mode with transitions only (tested below).
-        "parcours_lisible",
-        "reflexion_de_relance",
     ];
     // Chantier l-agent-collegue, L7: the names of « Field recognition » are read only when « Check
     // the data » is on, and drawn only then (E8, the same rule as the code).
@@ -592,14 +589,14 @@ describe("[.mark] the no-repeated-question switch", () => {
     });
 });
 
-// [.mark] Chantier repliques-coupees, lot 6 bis (D16): the three switches that had no screen.
-describe("[.mark] the readable flow, the retry reasoning and the model request trace", () => {
+// [.mark] Chantier repliques-coupees, lot 6 bis (D16), then schema-parcours-unique (C1, C2, C6):
+// one flow map box, the retry reasoning and the model request trace, all in the Agent theme.
+describe("[.mark] the flow map, the retry reasoning and the model request trace", () => {
     const FICHE = {
         fiche_au_fil_de_leau: true,
         fiche_champs: [{ nom: "nom", type: "string", origine: "dicte", description: "Nom", lecteur: null, valeurs: null }],
     };
     const GREFFIER = { ...FICHE, fiche_mode_de_note: "greffier", portes_dans_la_reponse: true };
-    const lisible = () => document.getElementById("parcours_lisible");
     const relance = () => document.getElementById("reflexion_de_relance") as HTMLSelectElement | null;
     const enregistrer = async (theme: string) => {
         m.save.mockClear();
@@ -609,47 +606,42 @@ describe("[.mark] the readable flow, the retry reasoning and the model request t
         return appels[appels.length - 1][0];
     };
 
-    it("draws both in Clerk mode with transitions in the reply, and only there, like the code", async () => {
-        await ouvrir(GREFFIER, NOVA);
-        ouvrirLeTheme("donnees");
-        await waitFor(() => expect(lisible()).not.toBeNull());
-        expect(relance()).not.toBeNull();
-        expect(lisible()?.getAttribute("aria-checked")).toBe("false");
-        expect(relance()?.value).toBe("reglage_de_l_agent");
-        // Transitions off: the reader does not exist, neither do the switches.
-        fireEvent.click(document.getElementById("portes_dans_la_reponse") as HTMLElement);
-        await waitFor(() => expect(lisible()).toBeNull());
-        expect(relance()).toBeNull();
-        // Postscript: the reader is never built there.
-        fireEvent.click(document.getElementById("portes_dans_la_reponse") as HTMLElement);
-        fireEvent.change(document.getElementById("fiche_mode_de_note") as HTMLElement, { target: { value: "post_scriptum" } });
-        await waitFor(() => expect(lisible()).toBeNull());
-        expect(relance()).toBeNull();
+    it("draws the map and the retry reasoning in the Agent theme, in every mode (C6)", async () => {
+        for (const config of [FICHE, GREFFIER, { ...FICHE, fiche_mode_de_note: "post_scriptum" }]) {
+            await ouvrir(config, NOVA);
+            const theme = ouvrirLeTheme("agent");
+            await waitFor(() => expect(theme.querySelector('[data-reglage="reflexion_de_relance"]')).not.toBeNull());
+            expect(theme.querySelector('[data-reglage="generer_schema_parcours"]')).not.toBeNull();
+            expect(relance()?.value).toBe("reglage_de_l_agent");
+            cleanup();
+        }
+    });
+
+    it("no longer draws « Readable flow » nor the retry reasoning in Call data", async () => {
+        await ouvrir({ ...GREFFIER, parcours_lisible: true, reflexion_de_relance: "low" }, NOVA);
+        const theme = ouvrirLeTheme("donnees");
+        await waitFor(() => expect(theme.querySelector('[data-reglage="portes_dans_la_reponse"]')).not.toBeNull());
+        expect(theme.querySelector('[data-reglage="parcours_lisible"]')).toBeNull();
+        expect(theme.querySelector('[data-reglage="reflexion_de_relance"]')).toBeNull();
+        expect(document.getElementById("parcours_lisible")).toBeNull();
     });
 
     it("reads back what the server stored", async () => {
-        await ouvrir({ ...GREFFIER, parcours_lisible: true, reflexion_de_relance: "low" }, NOVA);
-        ouvrirLeTheme("donnees");
-        await waitFor(() => expect(lisible()?.getAttribute("aria-checked")).toBe("true"));
-        expect(relance()?.value).toBe("low");
+        await ouvrir({ ...GREFFIER, generer_schema_parcours: true, reflexion_de_relance: "low" }, NOVA);
+        ouvrirLeTheme("agent");
+        await waitFor(() => expect(relance()?.value).toBe("low"));
+        expect(document.getElementById("generer_schema_parcours")?.getAttribute("aria-checked")).toBe("true");
     });
 
-    it("sends the readable flow off when leaving Clerk mode", async () => {
-        await ouvrir({ ...GREFFIER, parcours_lisible: true }, NOVA);
-        ouvrirLeTheme("donnees");
-        await waitFor(() => expect(lisible()).not.toBeNull());
-        fireEvent.change(document.getElementById("fiche_mode_de_note") as HTMLElement, { target: { value: "post_scriptum" } });
-        const charge = await enregistrer("Call data");
-        expect(charge.parcours_lisible).toBe(false);
-    });
-
-    it("sends an empty retry setting back as null", async () => {
+    it("sends the retry reasoning alone, and an empty one back as null", async () => {
         await ouvrir({ ...GREFFIER, reflexion_de_relance: "low" }, NOVA);
-        ouvrirLeTheme("donnees");
+        ouvrirLeTheme("agent");
         await waitFor(() => expect(relance()).not.toBeNull());
         fireEvent.change(relance() as HTMLElement, { target: { value: "reglage_de_l_agent" } });
-        const charge = await enregistrer("Call data");
+        const charge = await enregistrer("Agent");
         expect(charge.reflexion_de_relance).toBeNull();
+        expect("generer_schema_parcours" in charge).toBe(false);
+        expect("trace_requetes_modele" in charge).toBe(false);
     });
 
     it("draws the trace in the Agent theme, off, and sends it when switched on", async () => {

@@ -3,9 +3,10 @@
 Plan : ``Labo-agent-vocal/plans/correctifs-modules/2026-09-28-plan-correctifs-modules.md``.
 Réglage d'agent « Generate the flow map » (``generer_schema_parcours``), éteint par
 défaut. Allumé : à chaque enregistrement, le code lit le graphe et écrit un bloc
-``<parcours_genere>`` à la fin du prompt global et « Tu es ici : <étape> » dans le prompt de
-chaque étape. Blocs délimités, remplacés à chaque enregistrement, jamais empilés ;
-seuls les noms d'étapes et de portes y entrent.
+``<parcours_genere>`` à la fin du prompt global (« # Les étapes de l'appel », une ligne par
+étape et son rôle) et « Tu es ici : <étape> » dans le prompt de chaque étape, sauf en greffier
+avec les portes dans la réponse (chantier schema-parcours-unique, C1 et C4). Blocs délimités,
+remplacés à chaque enregistrement, jamais empilés ; seuls les noms d'étapes et leur rôle y entrent.
 
 | Test | Ce qu'il prouve |
 |---|---|
@@ -14,7 +15,8 @@ seuls les noms d'étapes et de portes y entrent.
 | étape renommée, porte ajoutée | le bloc suit le graphe |
 | case éteinte | l'enregistrement est identique à aujourd'hui ; des blocs laissés sont retirés |
 | texte écrit à la main | jamais touché |
-| R1 | le nom d'une porte est celui que le modèle appelle (symbole amont lu) |
+| ancienne carte | disparue : ni porte ni « → » dans la carte, quel que soit le mode |
+| C4, traversant | greffier avec portes : carte des rôles, pas de « Tu es ici » ; la case seule enregistrée lit le mode enregistré |
 """
 
 import copy
@@ -29,8 +31,14 @@ from api.schemas.ai_model_configuration import EffectiveAIModelConfiguration
 from api.services.configuration.ai_model_configuration import (
     convert_legacy_ai_model_configuration_to_v2,
 )
+from api.services.workflow.fiche_au_fil_de_leau import (
+    CLE_MODE,
+    CLE_PORTES_DANS_LA_REPONSE,
+    MODE_GREFFIER,
+)
 from api.services.workflow.schema_du_parcours import appliquer
 from api.tests.integrations._run_pipeline_helpers import USER_CONFIGURATION
+from api.tests.mark.test_outil_noter import CONFIG_ALLUMEE
 from api.tests.mark.test_traversants_appel import ACCUEIL, _appeler, _borne, _texte
 
 GLOBAL = "Tu es l'agent d'accueil. Sois bref."
@@ -102,12 +110,17 @@ def _prompt(definition: dict, identifiant: str) -> str:
 # --- Le module seul -------------------------------------------------------------
 
 
+def _carte(definition: dict) -> list[str]:
+    bloc = _prompt(definition, "global").split("<parcours_genere>", 1)[1]
+    return bloc.split("</parcours_genere>", 1)[0].strip().splitlines()
+
+
 def test_allume_le_parcours_et_la_position_sont_ecrits():
     d = appliquer(_definition(), True)
     parcours = _prompt(d, "global")
     assert parcours.startswith(GLOBAL + "\n\n<parcours_genere>") and parcours.endswith("</parcours_genere>")
-    assert "Accueil\n  aller_a_la_demande → Demande" in parcours
-    assert "Demande\n  end_call → Fin" in parcours
+    assert _carte(d) == ["# Les étapes de l'appel", "Accueil", "Demande", "Fin"]
+    assert "→" not in parcours
     assert _prompt(d, "demande") == "Note la demande.\n\n<position_generee>Tu es ici : Demande</position_generee>"
     assert _prompt(d, "start").endswith("<position_generee>Tu es ici : Accueil</position_generee>")
 
@@ -125,8 +138,8 @@ def test_une_etape_renommee_ou_une_porte_ajoutee_met_le_bloc_a_jour():
     )
     d = appliquer(d, True)
     parcours = _prompt(d, "global")
-    assert "Demande" not in parcours and "aller_a_la_demande → Dossier" in parcours
-    assert "raccrocher → Fin" in parcours
+    assert "Demande" not in parcours and "Dossier" in _carte(d)
+    assert "→" not in parcours
     assert _prompt(d, "demande").count("<position_generee>") == 1 and "Tu es ici : Dossier" in _prompt(d, "demande")
 
 
@@ -156,15 +169,22 @@ def test_un_parcours_ecrit_a_la_main_survit_case_eteinte_comme_allumee():
     assert appliquer(allume, False) == d
 
 
-def test_R1_le_nom_d_une_porte_est_celui_que_le_modele_appelle():
-    """Le bloc écrit le nom de la fonction de transition : si Dograh change sa
-    façon de nommer les portes, ce test rougit au lieu de laisser un schéma faux."""
-    from api.services.workflow.dto import EdgeDataDTO
-    from api.services.workflow.workflow_graph import Edge
+def test_l_ancienne_carte_a_disparu_quel_que_soit_le_mode():
+    """Chantier schema-parcours-unique (C1) : une seule carte, celle des rôles. Ni le nom
+    d'une porte ni « → » n'y entrent, avec ou sans « Tu es ici »."""
+    for position in (True, False):
+        global_ = _prompt(appliquer(_definition(), True, position), "global")
+        assert "→" not in global_ and "aller_a_la_demande" not in global_
+        assert "# Les étapes de l'appel" in global_
 
-    porte = Edge("e", "a", "b", EdgeDataDTO(label="Aller a la demande", condition="c")).get_function_name()
-    assert porte == "aller_a_la_demande"
-    assert f"{porte} → Demande" in _prompt(appliquer(_definition(), True), "global")
+
+def test_C4_greffier_avec_portes_pas_de_tu_es_ici():
+    d = appliquer(_definition(), True, False)
+    assert _carte(d)[0] == "# Les étapes de l'appel"
+    assert all("<position_generee>" not in (n["data"].get("prompt") or "") for n in d["nodes"])
+    # Revenir à un autre mode remet « Tu es ici », sans doublon de carte.
+    autre = appliquer(d, True, True)
+    assert autre == appliquer(_definition(), True)
 
 
 # --- Traversant : la route d'enregistrement, puis l'appel ---------------------------
@@ -232,7 +252,8 @@ async def test_traversant_la_route_ecrit_le_parcours_et_le_modele_le_recoit(
     # Le prompt de l'étape arrive au modèle comme consigne système (``system_prompt``).
     recu = llm.captured_contexts[0]
     systeme = str(recu["system_prompt"]) + str(recu["messages"])
-    assert "<parcours_genere>" in systeme and "aller_a_la_demande → Demande" in systeme
+    assert "<parcours_genere>" in systeme and "# Les étapes de l'appel" in systeme
+    assert "→" not in systeme.split("<parcours_genere>", 1)[1].split("</parcours_genere>", 1)[0]
     assert "Tu es ici : Accueil" in systeme
 
 
@@ -248,6 +269,51 @@ async def test_traversant_la_case_seule_enregistree_met_le_graphe_a_jour_et_etei
         await _enregistrer(client, workflow.id, {"workflow_configurations": {"generer_schema_parcours": False}})
     eteint = (await db_session.get_draft_version(workflow.id)).workflow_json
     assert _prompt(eteint, "global") == GLOBAL and _prompt(eteint, "demande") == "Note la demande."
+
+
+GREFFIER_AVEC_PORTES = {**CONFIG_ALLUMEE, CLE_MODE: MODE_GREFFIER, CLE_PORTES_DANS_LA_REPONSE: True}
+
+
+@pytest.mark.asyncio
+async def test_traversant_C4_greffier_avec_portes_carte_sans_tu_es_ici(
+    db_session, async_session, test_client_factory
+):
+    """C4 par la vraie route : greffier avec portes, la carte des rôles est écrite et aucun
+    « Tu es ici » (le bloc de fin d'étape le dit pendant l'appel). Le graphe seul, enregistré
+    ensuite, suit la configuration enregistrée ; passer en mode outil remet la position."""
+    user, workflow = await _agent_en_base(db_session, async_session)
+    async with test_client_factory(user) as client:
+        await _enregistrer(
+            client, workflow.id, {"workflow_configurations": {**GREFFIER_AVEC_PORTES, "generer_schema_parcours": True}}
+        )
+        await _enregistrer(client, workflow.id, {"workflow_definition": _definition()})
+        greffier = (await db_session.get_draft_version(workflow.id)).workflow_json
+        assert "# Les étapes de l'appel" in _prompt(greffier, "global")
+        assert "<position_generee>" not in _prompt(greffier, "start")
+        await _enregistrer(
+            client,
+            workflow.id,
+            {"workflow_configurations": {**GREFFIER_AVEC_PORTES, CLE_MODE: "outil", CLE_PORTES_DANS_LA_REPONSE: False, "generer_schema_parcours": True}},
+        )
+    outil = (await db_session.get_draft_version(workflow.id)).workflow_json
+    assert _prompt(outil, "start").endswith("<position_generee>Tu es ici : Accueil</position_generee>")
+    assert _prompt(outil, "global").count("<parcours_genere>") == 1
+
+
+@pytest.mark.asyncio
+async def test_traversant_une_configuration_envoyee_fait_foi(db_session, async_session, test_client_factory):
+    """Revue du 15/10 : une configuration envoyée REMPLACE l'enregistrée. Envoyer la case du
+    schéma seule éteint donc la fiche pendant l'appel : « Tu es ici » doit être écrit, jamais
+    retiré sur la foi d'un mode qui n'existe plus."""
+    user, workflow = await _agent_en_base(db_session, async_session)
+    async with test_client_factory(user) as client:
+        await _enregistrer(
+            client, workflow.id, {"workflow_configurations": {**GREFFIER_AVEC_PORTES, "generer_schema_parcours": True}}
+        )
+        await _enregistrer(client, workflow.id, {"workflow_configurations": {"generer_schema_parcours": True}})
+    brouillon = await db_session.get_draft_version(workflow.id)
+    assert "fiche_mode_de_note" not in (brouillon.workflow_configurations or {})
+    assert _prompt(brouillon.workflow_json, "start").endswith("<position_generee>Tu es ici : Accueil</position_generee>")
 
 
 @pytest.mark.asyncio
