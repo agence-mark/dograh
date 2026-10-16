@@ -69,6 +69,14 @@ export const NOMS_RESERVES = [
     "extracted_variables",
     "nodes_visited",
     "agent_visits",
+    // [.mark] agents-specialises (lots 2, 5, 7): the group's traces (the mirror had not followed).
+    "parcours",
+    "parcours_etapes",
+    "porte_reecrite",
+    "passations",
+    "transferts_humains",
+    // [.mark] agents-specialises, lot 17: the closed requests of a call with several requests.
+    "demandes",
     "communes_verifiees",
     // Lot 1 of postscriptum-et-communes: the towns set aside because they were the name.
     "communes_ecartees",
@@ -111,6 +119,55 @@ export const lecteurParDefaut = (nom: string): "commune" | "rue" | "date" | "lex
             : nom.includes("date") || nom.startsWith("dernier_") || nom.startsWith("annee")
               ? "date"
               : "aucun";
+
+/**
+ * [.mark] Lot 17 (fiche à plusieurs demandes): a field's scope in a call with several requests.
+ * « appel »: shared by the whole call (what concerns the caller); « demande »: belongs to one
+ * request and is closed with it. Empty (null): computed from the agent's settings, never saved.
+ */
+export type PorteeChamp = "appel" | "demande";
+
+/** The names recognised by the agent's settings (« Field recognition » and the towns). */
+export interface Reconnaissance {
+    commune?: string | null;
+    telephone?: string | null;
+    code_postal?: string | null;
+    courriel?: string | null;
+}
+
+/** Mirrors `DEFAULT_VARIABLES_*` (`api/schemas/workflow_configurations.py`); a test compares them. */
+export const NOMS_RECONNUS_PAR_DEFAUT: Required<Record<keyof Reconnaissance, string>> = {
+    commune: "commune, commune_*, adresse*",
+    telephone: "telephone*, tel_*, portable*, numero_telephone*, rappel_numero*",
+    code_postal: "code_postal*, cp_*",
+    courriel: "email*, courriel*, mail*",
+};
+
+/** Mirrors `correspond` (`api/services/fiche/controle.py`): a final `*` means « starts with ». */
+const correspondA = (nom: string, reglage: string | null | undefined, defaut: string): boolean =>
+    (reglage?.trim() ? reglage : defaut)
+        .split(",")
+        .map((m) => m.trim().toLowerCase())
+        .filter(Boolean)
+        .some((m) => (m.endsWith("*") ? nom.toLowerCase().startsWith(m.slice(0, -1)) : nom.toLowerCase() === m));
+
+/** Mirrors `est_un_champ_de_nom` (`api/schemas/fiche_agent.py`). */
+const estUnChampDeNom = (champ: Pick<ChampFiche, "nom" | "lecteur">): boolean =>
+    (champ.lecteur ?? lecteurParDefaut(champ.nom)) === "aucun" &&
+    (champ.nom === "nom" || champ.nom.startsWith("nom_") || champ.nom.startsWith("prenom"));
+
+/** Mirrors `portee_par_defaut` (`api/services/fiche/demandes.py`). */
+export const porteeParDefaut = (
+    champ: Pick<ChampFiche, "nom" | "lecteur">,
+    reconnaissance: Reconnaissance = {},
+): PorteeChamp => {
+    const lecteur = champ.lecteur ?? lecteurParDefaut(champ.nom);
+    if (lecteur === "commune" || lecteur === "rue" || estUnChampDeNom(champ)) return "appel";
+    const types = Object.keys(NOMS_RECONNUS_PAR_DEFAUT) as (keyof Reconnaissance)[];
+    return types.some((type) => correspondA(champ.nom, reconnaissance[type], NOMS_RECONNUS_PAR_DEFAUT[type]))
+        ? "appel"
+        : "demande";
+};
 
 /** `MAX_VALEURS` and `MAX_LONGUEUR_VALEUR` on the server; a test compares them. */
 export const NOMBRE_MAX_VALEURS = 20;
@@ -202,6 +259,8 @@ export const pourComparerLaFiche = (champs: ChampFiche[]) =>
         copie_de_la_parole: c.copie_de_la_parole ?? false,
         chiffres: c.chiffres ?? null,
         rempli_en_fin_d_appel: c.rempli_en_fin_d_appel ?? true,
+        // Lot 17: empty (absent or null) is « from the settings », never written.
+        portee: c.portee ?? null,
     }));
 
 const nouveauChamp = (): ChampFiche => ({
@@ -299,12 +358,15 @@ export const EditeurChampsFiche = ({
     champs,
     onChange,
     postScriptum = false,
+    reconnaissance = {},
 }: {
     actif: boolean;
     champs: ChampFiche[];
     onChange: Dispatch<SetStateAction<ChampFiche[]>>;
     /** Postscript mode: shows the options that only exist there. */
     postScriptum?: boolean;
+    /** Lot 17: the names the agent recognises, to show each field's default scope. */
+    reconnaissance?: Reconnaissance;
 }) => {
     const { t } = useLangue();
     const [ouvert, setOuvert] = useState(false);
@@ -481,7 +543,38 @@ export const EditeurChampsFiche = ({
                                         })}
                                     </p>
                                 </div>
-                                {/* Plan postscriptum-note-d-abord: the code copies the caller's words (Postscript only). */}
+                                {/* [.mark] Lot 17 (fiche à plusieurs demandes): the scope of the field. */}
+                <div className="space-y-1">
+                    <Label htmlFor={`fiche_portee_${i}`} className="text-xs">
+                        {t({ en: "Scope", fr: "Portée" })}
+                    </Label>
+                    <Select
+                        value={champ.portee ?? "auto"}
+                        onValueChange={(v) => modifier(i, { portee: v === "auto" ? null : (v as PorteeChamp) })}
+                    >
+                        <SelectTrigger id={`fiche_portee_${i}`} className="w-80">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="auto">
+                                {t({ en: "From the agent's settings", fr: "D'après les réglages de l'agent" })} (
+                                {porteeParDefaut(champ, reconnaissance) === "appel"
+                                    ? t({ en: "whole call", fr: "tout l'appel" })
+                                    : t({ en: "this request", fr: "cette demande" })}
+                                )
+                            </SelectItem>
+                            <SelectItem value="appel">{t({ en: "Whole call", fr: "Tout l'appel" })}</SelectItem>
+                            <SelectItem value="demande">{t({ en: "This request", fr: "Cette demande" })}</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                        {t({
+                            en: "Only matters when the call has several requests. Whole call: shared by every request (the caller's name, phone, address). This request: belongs to one request; when the call goes to another specialist it is closed with its request and the next one starts empty. Empty: computed from the agent's settings (town and street readers, field recognition).",
+                            fr: "Ne joue que si l'appel porte plusieurs demandes. Tout l'appel : partagé par toutes les demandes (nom, téléphone, adresse de l'appelant). Cette demande : propre à une demande ; quand l'appel passe à un autre spécialiste, il est clos avec elle et la suivante repart vide. Vide : calculé d'après les réglages de l'agent (lecteurs de commune et de rue, reconnaissance des champs).",
+                        })}
+                    </p>
+                </div>
+                {/* Plan postscriptum-note-d-abord: the code copies the caller's words (Postscript only). */}
                                 {postScriptum && (
                                 <div className="flex items-start gap-2">
                                     <Switch
@@ -654,6 +747,12 @@ export const SectionFiche = ({
                     champs={champs}
                     onChange={setChamps}
                     postScriptum={workflowConfigurations.fiche_mode_de_note === "post_scriptum"}
+                    reconnaissance={{
+                        commune: workflowConfigurations.variables_commune,
+                        telephone: workflowConfigurations.variables_telephone,
+                        code_postal: workflowConfigurations.variables_code_postal,
+                        courriel: workflowConfigurations.variables_courriel,
+                    }}
                 />
                 {erreur && (
                     <p role="alert" className="text-xs text-destructive">
