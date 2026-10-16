@@ -796,7 +796,14 @@ async def liens_des_groupes(organization_id: int) -> list[dict]:
     sortie: list[dict] = []
     for agent_id, reglages in agents.items():
         principal_id = _entier(reglages.get(CLE_AGENT_PRINCIPAL))
-        if principal_id is not None and principal_id in agents and principal_id != agent_id:
+        # Revue du 16/10 : réciproque, comme pour le principal (un spécialisé archivé puis
+        # restauré garde son lien, mais son principal ne le liste plus).
+        if (
+            principal_id is not None
+            and principal_id in agents
+            and principal_id != agent_id
+            and agent_id in specialises_de(agents[principal_id])
+        ):
             sortie.append(
                 {
                     "id": agent_id,

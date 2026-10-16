@@ -1573,7 +1573,21 @@ async def duplicate_workflow_endpoint(
                 workflow.id, organization_id=user.selected_organization_id
             )
         except Exception as e:  # noqa: BLE001
+            # [.mark] Revue du 16/10 : une copie à moitié recâblée passerait la main aux
+            # spécialisés de l'autre groupe ; elle est archivée et l'écran le dit.
             logger.error(f"Error duplicating the group of workflow {workflow_id}: {e}")
+            try:
+                await db_client.update_workflow_status(
+                    workflow_id=workflow.id,
+                    status=WorkflowStatus.ARCHIVED.value,
+                    organization_id=user.selected_organization_id,
+                )
+            except Exception as erreur:  # noqa: BLE001
+                logger.error(f"Half-duplicated group copy {workflow.id} not archived: {erreur}")
+            raise HTTPException(
+                status_code=500,
+                detail="The group could not be duplicated; the incomplete copy was archived.",
+            )
 
         capture_event(
             distinct_id=str(user.provider_id),

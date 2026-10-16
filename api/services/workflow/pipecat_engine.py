@@ -3129,6 +3129,10 @@ class PipecatEngine:
         # Cancel any pending timeout tasks
         if self._response_timeout_task and not self._response_timeout_task.done():
             self._response_timeout_task.cancel()
+        # [.mark] Revue du 16/10 : un préchauffage encore en cours ne survit pas à l'appel.
+        prechauffage = self.__dict__.get("_tache_prechauffage")
+        if prechauffage is not None and not prechauffage.done():
+            prechauffage.cancel()
 
         # Cancel any in-flight background summarization.
         if self._context_summarization_manager:

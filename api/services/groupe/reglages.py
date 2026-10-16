@@ -240,8 +240,14 @@ def recopier(
             cerveau = _chemin(specialise, chemin)
             if cerveau is None:
                 continue
-            if not _poser(resultat, chemin, cerveau):
-                # Le principal n'a pas cette branche de modèles (autre mode) : le cerveau propre
+            if _poser(resultat, chemin, cerveau):
+                continue
+            if chemin[0] not in resultat and chemin[0] in specialise:
+                # Revue du 16/10 : le principal n'a aucune configuration de modèles (il hérite de
+                # l'organisation) ; le spécialisé garde la sienne telle quelle, jamais effacée.
+                resultat[chemin[0]] = copy.deepcopy(specialise[chemin[0]])
+            else:
+                # Le principal a une autre branche de modèles (autre mode) : le cerveau propre
                 # du spécialisé ne peut pas être regreffé, il prend celui du principal.
                 logger.warning(
                     "groupe : cerveau propre non regreffé (branche absente chez le principal) : "

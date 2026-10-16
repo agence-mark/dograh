@@ -406,6 +406,26 @@ async def test_les_liens_des_groupes_pour_la_liste_d_agents(
     assert set(liens) == {principal_id, *ids}, "seulement mon organisation"
 
 
+async def test_un_specialise_que_son_principal_ne_liste_plus_n_est_plus_specialise():
+    """Revue du 16/10 : archivé puis restauré, il garde son lien écrit, mais son principal ne le
+    liste plus ; la liste d'agents ne le montre plus comme spécialisé."""
+    from unittest.mock import AsyncMock, patch
+
+    from api.services.groupe import groupe as module_groupe
+
+    reglages = [
+        (1, {CLE_AGENTS_SPECIALISES: [2]}),
+        (2, {CLE_AGENT_PRINCIPAL: 1}),
+        (3, {CLE_AGENT_PRINCIPAL: 1}),
+    ]
+    with patch.object(
+        module_groupe.db_client, "list_agent_configurations", AsyncMock(return_value=reglages)
+    ):
+        liens = {a["id"]: a for a in await module_groupe.liens_des_groupes(7)}
+    assert liens[2]["role"] == "specialise"
+    assert 3 not in liens
+
+
 # ---------------------------------------------------------------------------
 # 3. Recopie et cerveau détachable
 # ---------------------------------------------------------------------------
@@ -533,6 +553,22 @@ def test_le_cerveau_detache_ne_cree_pas_de_branche_que_le_principal_n_a_pas():
     neuf = recopier(principal, specialise)
     # Le principal est en mode géré : pas de branche de modèle de langage à regreffer.
     assert neuf["model_configuration_v2_override"] == principal["model_configuration_v2_override"]
+
+
+def test_le_cerveau_detache_survit_a_un_principal_sans_configuration_de_modeles():
+    """Revue du 16/10 : le principal hérite des modèles de l'organisation (aucune surcharge) ;
+    le cerveau propre du spécialisé n'est jamais effacé à l'enregistrement du principal."""
+    principal = {"user_speech_timeout": 1.1}
+    specialise = {
+        CLE_AGENT_PRINCIPAL: 3,
+        CLE_CERVEAU_PROPRE: True,
+        "model_overrides": {"llm": {"model": "propre-au-specialise"}},
+    }
+    neuf = recopier(principal, specialise)
+    assert neuf["model_overrides"]["llm"] == {"model": "propre-au-specialise"}
+    assert recopier(principal, neuf) == neuf, "idempotente"
+    # Case décochée : il reprend l'héritage du principal.
+    assert "model_overrides" not in recopier(principal, {**neuf, CLE_CERVEAU_PROPRE: False})
 
 
 async def test_le_cerveau_detache_survit_a_l_enregistrement_du_principal(
