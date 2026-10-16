@@ -21,6 +21,8 @@ from api.services.workflow.agent_handoff_context import (
 )
 from api.services.workflow.agent_runtime import new_visit_id
 from api.services.groupe.passations import (
+    NOTE_DE_PASSATION,
+    finit_par_l_assistant,
     l_appelant_a_parle_en_dernier,
     tracer_passation,
 )
@@ -257,6 +259,9 @@ class AgentTransferCoordinator:
             parler = request.ouverture != "si_l_appelant_attend" or (
                 l_appelant_a_parle_en_dernier(engine.context.get_messages())
             )
+            if parler and finit_par_l_assistant(engine.context.get_messages()):
+                # [.mark] D1 : l'ouverture ne part jamais sur un message de l'assistant.
+                engine.context.add_message({"role": "user", "content": NOTE_DE_PASSATION})
             ouverture = {
                 "node_id": start_node_id,
                 "previous_node_id": None if request.play_greeting else start_node_id,

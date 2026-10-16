@@ -249,6 +249,23 @@ def choisir_la_fin(
         return None
 
 
+# D1 (rejeu du 16/10, S6 run 1394) : l'agent qui passe la main a parlé dans le même tour ; la
+# conversation finit par un message de l'assistant, que certains fournisseurs refusent en dernier
+# (Mistral : 400). L'agent appelé qui doit parler reçoit cette note, jamais dite à voix haute.
+NOTE_DE_PASSATION = "[Passation : l'appelant vient de t'être transmis ; tu prends la parole.]"
+
+
+def finit_par_l_assistant(messages: Iterable[Any]) -> bool:
+    """Le tout dernier message (hors consignes système) est-il de l'assistant ?"""
+    try:
+        for message in reversed(list(messages)):
+            if isinstance(message, dict) and message.get("role") != "system":
+                return message.get("role") == "assistant"
+        return False
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def l_appelant_a_parle_en_dernier(messages: Iterable[Any]) -> bool:
     """Le dernier message de conversation (hors outils et consignes) est-il de l'appelant ?
 

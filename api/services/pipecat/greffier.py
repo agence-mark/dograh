@@ -52,6 +52,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     NOTE_DESCRIPTIONS,
     Notices,
     ReglagesFiche,
+    _est_un_refus,
     _est_vide,
     _propriete,
     derniere_question,
@@ -345,6 +346,14 @@ def champs_a_noter(
         ):
             continue
         a_noter[nom] = valeur
+    # D2 (rejeu du 16/10, S6 run 1394) : une personne refuse UNE information à la fois. Un refus
+    # sur plusieurs champs dans la même passe (« refusé » partout, 20 champs) n'est jamais un
+    # refus dit : tous ces refus sont écartés, le reste de la passe est gardé.
+    refus = [nom for nom, valeur in a_noter.items() if _est_un_refus(valeur, par_nom[nom])]
+    if len(refus) > 1:
+        logger.warning(f"[greffier] refus sur {len(refus)} champs dans une passe : écartés")
+        for nom in refus:
+            a_noter.pop(nom, None)
     return a_noter
 
 

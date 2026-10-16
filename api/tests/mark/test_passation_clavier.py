@@ -268,6 +268,41 @@ async def test_passation_au_clavier_bascule_et_l_agent_appele_ouvre(
 
 
 @pytest.mark.asyncio
+async def test_l_agent_qui_parle_puis_passe_la_main_laisse_une_note_au_specialise(
+    db_session, async_session, test_client_factory
+):
+    """D1 (rejeu du 16/10) : le principal parle puis passe la main dans le même tour ; le
+    spécialisé n'ouvre jamais sur un message de l'assistant (Mistral le refuse)."""
+    from api.services.groupe.passations import NOTE_DE_PASSATION
+
+    user, principal, specialise = await _groupe(db_session, async_session)
+    reponses = await _session(
+        test_client_factory,
+        user,
+        principal,
+        [
+            _vide(),
+            _dit([*_texte("Je vous passe le service."), *_appel("passer_a_s", "p1")]),
+            _vide(),
+            _dit(_texte("Ici le spécialisé, que se passe-t-il ?")),
+        ],
+        ["j'ai une panne"],
+    )
+    point = _checkpoint(reponses[0])
+    assert point["agent_actif"]["workflow_id"] == specialise.id, point
+    assert NOTE_DE_PASSATION in str(point), point
+    assert "Ici le spécialisé" in str(reponses[0])
+
+
+def test_finit_par_l_assistant():
+    from api.services.groupe.passations import finit_par_l_assistant
+
+    assert finit_par_l_assistant([{"role": "user", "content": "a"}, {"role": "assistant", "content": "b"}])
+    assert not finit_par_l_assistant([{"role": "assistant", "content": "b"}, {"role": "tool", "content": "{}"}])
+    assert not finit_par_l_assistant([{"role": "user", "content": "a"}, {"role": "system", "content": "s"}])
+
+
+@pytest.mark.asyncio
 async def test_une_cible_d_une_autre_organisation_est_refusee_et_a_continue(
     db_session, async_session, test_client_factory
 ):

@@ -199,6 +199,27 @@ def test_seuls_les_champs_nouveaux_ou_changes_sont_notes():
     ) == {"motif": "entretien"}
 
 
+def test_un_refus_sur_plusieurs_champs_dans_une_passe_est_ecarte():
+    """D2 (rejeu du 16/10) : « refusé » partout d'un coup n'est jamais un refus dit ; le reste
+    de la passe est gardé. Un refus seul reste noté (K4)."""
+    reglages = ReglagesFiche.depuis(
+        {
+            **FICHE_GREFFIER,
+            "fiche_champs": [
+                *FICHE_SIMPLE["fiche_champs"],
+                {"nom": "ville", "origine": "dicte", "description": "Ville"},
+            ],
+        }
+    )
+    assert champs_a_noter(
+        reglages, {}, {"nom": "refusé", "motif": "Refusé", "ville": "Senlis"}
+    ) == {"ville": "Senlis"}
+    assert champs_a_noter(reglages, {}, {"nom": "refusé", "ville": "Senlis"}) == {
+        "nom": "refusé",
+        "ville": "Senlis",
+    }
+
+
 @pytest.mark.asyncio
 async def test_une_passe_ecrit_par_noter_avec_la_source_greffier():
     montage = _Montage(_Modele({"nom": "Dupont", "motif": "un entretien"}))
