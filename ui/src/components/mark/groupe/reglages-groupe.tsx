@@ -157,8 +157,8 @@ const TEXTES = {
     },
     phrasePont: { en: "Bridge phrase", fr: "Phrase pont" },
     phrasePontAide: {
-        en: "Optional. A short sentence recorded ahead through the voice cache and said at a hand-over: a safety net, not the solution. Empty: none.",
-        fr: "Facultative. Une phrase courte préenregistrée par le cache de la voix et dite à la passation : un filet, pas la solution. Vide : aucune.",
+        en: "No effect yet: kept for later, the call does not play it. Optional. A short sentence said at a hand-over: a safety net, not the solution. Empty: none.",
+        fr: "Sans effet pour l'instant : gardée pour plus tard, l'appel ne la joue pas. Facultative. Une phrase courte dite à la passation : un filet, pas la solution. Vide : aucune.",
     },
 } satisfies Record<string, Texte>;
 
