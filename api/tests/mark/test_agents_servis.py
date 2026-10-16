@@ -709,10 +709,12 @@ async def test_toutes_les_bases_montent_un_echec_n_arrete_pas_les_autres_jamais_
         assert (
             par_org[1].reussie
             and par_org[1].avant == 14
-            and par_org[1].apres == 15
-            and par_org[1].appliquees == [15]
+            and par_org[1].apres == schema.version_attendue()
+            and par_org[1].appliquees == list(range(15, schema.version_attendue() + 1))
         )
-        assert par_org[3].reussie and par_org[3].appliquees == [15]
+        assert par_org[3].reussie and par_org[3].appliquees == list(
+            range(15, schema.version_attendue() + 1)
+        )
         assert not par_org[2].reussie and "does not exist" in par_org[2].erreur
         assert not par_org[4].reussie and "aussi rattachée" in par_org[4].erreur
         assert _serveur().split("@")[-1] not in " ".join(
@@ -722,7 +724,10 @@ async def test_toutes_les_bases_montent_un_echec_n_arrete_pas_les_autres_jamais_
         rejeu = await mettre_a_niveau_toutes_les_bases(
             [(1, anciennes[0]), (3, anciennes[1])]
         )
-        assert [(r.appliquees, r.apres) for r in rejeu] == [([], 15), ([], 15)]
+        assert [(r.appliquees, r.apres) for r in rejeu] == [
+            ([], schema.version_attendue()),
+            ([], schema.version_attendue()),
+        ]
         # Le compte courant a ses droits sur ce que la 015 a créé.
         connexion = await schema.connecter(anciennes[0])
         try:

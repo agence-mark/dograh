@@ -315,14 +315,22 @@ async def test_une_base_en_version_14_monte_en_15_et_la_015_se_rejoue(base_essai
         await connexion.close()
     proprietaire = await schema.connecter_proprietaire(base_essai)
     try:
-        assert await schema.appliquer_migrations(proprietaire) == [15]
-        assert await schema.version_de(proprietaire) == 15
+        # La 015, puis les suivantes (la 016 : la fiche à plusieurs demandes).
+        assert await schema.appliquer_migrations(proprietaire) == list(
+            range(15, schema.version_attendue() + 1)
+        )
+        assert await schema.version_de(proprietaire) == schema.version_attendue()
         assert await schema.appliquer_migrations(proprietaire) == []
         # Rejouée (sans sa ligne de version), la 015 ne casse rien et ne duplique rien.
         migration = next(m for m in schema.migrations() if m.version == 15)
         corps = migration.sql[: migration.sql.index("INSERT INTO schema_version")]
         async with proprietaire.transaction():
             await proprietaire.execute(corps)
+        # La 016 aussi se rejoue : elle ne casse rien et ne duplique rien.
+        suivante = next(m for m in schema.migrations() if m.version == 16)
+        corps_016 = suivante.sql[: suivante.sql.index("INSERT INTO schema_version")]
+        async with proprietaire.transaction():
+            await proprietaire.execute(corps_016)
         assert await proprietaire.fetchval("SELECT count(*) FROM mark.appel_motif") == 1
         assert await proprietaire.fetchval("SELECT count(*) FROM mark.appel_agent") == 1
         assert (
