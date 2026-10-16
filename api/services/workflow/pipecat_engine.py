@@ -2801,6 +2801,10 @@ class PipecatEngine:
                 self._retired_agents.append(previous)
         self._active_agent = runtime
         self._pending_agent = None
+        # [.mark] D1 : l'agent qui prend (ou reprend, principal chaud) la main reparle.
+        from api.services.pipecat.main_passee import rendre_la_parole
+
+        rendre_la_parole(getattr(runtime, "llm", None))
 
     def discard_pending_agent(self, runtime: AgentRuntime) -> None:
         """Forget a destination that was prepared but never took the call.

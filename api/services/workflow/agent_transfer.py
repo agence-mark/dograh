@@ -15,6 +15,7 @@ from pipecat.frames.frames import LLMMessagesAppendFrame
 
 from api.services.pipecat.agent_runtime_factory import AgentBuildError
 from api.services.pipecat.audio_playback import play_hold_audio_loop
+from api.services.pipecat.main_passee import rendre_la_parole
 from api.services.workflow.agent_handoff_context import (
     build_handoff_snapshot,
     conversation_messages,
@@ -411,6 +412,9 @@ class AgentTransferCoordinator:
                 logger.warning("Hold audio producer timed out while stopping")
 
     def _finish(self, request, outcome, source, destination):
+        if destination is None:
+            # [.mark] D1 : rien n'a été basculé, l'agent d'origine garde l'appel et reparle.
+            rendre_la_parole(getattr(source, "llm", None))
         self._phase = TransferPhase.IDLE
         self._request = None
         self._engine.call_monitor.resume()

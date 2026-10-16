@@ -18,6 +18,7 @@ from pipecat.frames.frames import FunctionCallResultProperties
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.utils.enums import EndTaskReason
 
+from api.services.pipecat.main_passee import muter
 from api.db import db_client
 from api.enums import ToolCategory, WorkflowRunMode
 from api.services.annonce.constantes import OUVERT, SUR_RENDEZ_VOUS
@@ -715,6 +716,9 @@ class CustomToolManager:
 
             context_ready = asyncio.Event()
             engine.transfer_coordinator.start(request, context_ready=context_ready)
+            # [.mark] D1 (run 1404) : l'agent qui passe la main ne parle plus, quel que soit
+            # le chemin (porte écrite dans la même réponse, relance) ; rendu s'il garde l'appel.
+            muter(getattr(self._agent, "llm", None))
 
             async def on_context_updated() -> None:
                 # Runs once the tool result is committed to the conversation,
