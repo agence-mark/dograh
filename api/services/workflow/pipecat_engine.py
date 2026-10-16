@@ -709,6 +709,22 @@ class PipecatEngine:
             return vers_l_etape[0]
         return porte_reecrite_vers_le_retour(self.active_agent.workflow, node, nom)
 
+    def porte_vers_une_fin_figee(self, nom: str) -> bool:
+        """C4 (banc du 16/10) : la porte écrite ``nom`` mène-t-elle à un nœud de fin aux phrases
+        figées (A17) ? Le lecteur de portes tait alors la suite de la réponse. ⛔ Ne lève jamais."""
+        try:
+            arete = self._porte_de_l_etape(nom)
+            if arete is None:
+                return False
+            cible = self.active_agent.workflow.nodes.get(arete.target)
+            return bool(
+                cible is not None
+                and cible.is_end
+                and self._phrase_de_fin_figee(self.active_agent, arete.target) is not None
+            )
+        except Exception:  # noqa: BLE001
+            return False
+
     def est_une_porte_de_l_etape(self, nom: str) -> bool:
         """[.mark] Revue du 11/10 (Q4) : ``nom`` désigne-t-il une porte de l'étape en cours ?
         ⛔ Ne lève jamais."""
