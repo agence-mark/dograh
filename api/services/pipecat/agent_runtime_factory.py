@@ -37,6 +37,11 @@ from api.services.pipecat.service_factory import (
     stamp_sampling_settings,
     stamp_voice_settings,
 )
+from api.services.groupe.prechauffage import (
+    ChargeAgent,
+    Precharge,
+    uuids_des_outils,
+)
 from api.services.workflow.agent_runtime import AgentRuntime, new_visit_id
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.workflow.run_creation import definition_to_run
@@ -104,7 +109,12 @@ class AgentRuntimeFactory:
         # [.mark] Chantier agents-specialises (lot 3) : le processeur de prise de notes
         # de la fiche de l'APPEL, pour le sous-circuit d'un agent appelé. None = avant.
         traitement_de_la_fiche: Callable[[AgentRuntime], Any] | None = None,
+        # [.mark] Chantier agents-specialises (lot 6) : le cache de préchauffage de l'appel
+        # (définitions, graphes, configurations de modèles, outils). None = aucun cache,
+        # chaque agent appelé se construit comme avant.
+        precharge: Precharge | None = None,
     ):
+        self.precharge = precharge
         self._traitement_de_la_fiche = traitement_de_la_fiche
         self._lexique_metier = lexique_metier
         self._variables_appel = variables_appel or (lambda: {})
@@ -155,6 +165,38 @@ class AgentRuntimeFactory:
             )
         return workflow, definition
 
+    async def prechauffer(self, workflow_id: int, *, lire_outils=None) -> None:
+        """[.mark] Lot 6 : charge à l'avance ce que ``build`` lira en base pour ``workflow_id``,
+        SANS construire de runtime : aucun service de modèle ni de voix, aucun worker, aucune
+        connexion. Rien n'entre dans le cache en cas d'erreur (la passation construira alors
+        comme avant) ; l'erreur remonte à l'appelant, qui la trace.
+
+        Raises:
+            AgentBuildError: cible absente de l'organisation ou sans version publiée.
+        """
+        precharge = self.precharge
+        if precharge is None or workflow_id in precharge.agents:
+            return
+        workflow, definition = await self.resolve_destination(workflow_id)
+        run_configs = definition.workflow_configurations or {}
+
+        from api.services.configuration.ai_model_configuration import (
+            get_effective_ai_model_configuration_for_workflow,
+        )
+
+        user_config = await get_effective_ai_model_configuration_for_workflow(
+            organization_id=self._organization_id,
+            workflow_configurations=run_configs,
+        )
+        dto = ReactFlowDTO.model_validate(definition.workflow_json)
+        if lire_outils is not None:
+            await precharge.outils(
+                uuids_des_outils(dto), self._organization_id, lire_outils
+            )
+        precharge.agents[workflow_id] = ChargeAgent(
+            workflow=workflow, definition=definition, user_config=user_config, dto=dto
+        )
+
     async def build(
         self,
         *,
@@ -171,17 +213,27 @@ class AgentRuntimeFactory:
             AgentBuildError: The destination cannot host an in-call visit.
         """
         visit_id = visit_id or new_visit_id()
-        workflow, definition = await self.resolve_destination(workflow_id)
-        run_configs = definition.workflow_configurations or {}
+        # [.mark] Lot 6 : ce qu'un préchauffage a déjà lu pour cette cible (jamais un service).
+        charge = self.precharge.agents.get(workflow_id) if self.precharge else None
+        if charge is not None:
+            workflow, definition, user_config = (
+                charge.workflow,
+                charge.definition,
+                charge.user_config,
+            )
+            run_configs = definition.workflow_configurations or {}
+        else:
+            workflow, definition = await self.resolve_destination(workflow_id)
+            run_configs = definition.workflow_configurations or {}
 
-        from api.services.configuration.ai_model_configuration import (
-            get_effective_ai_model_configuration_for_workflow,
-        )
+            from api.services.configuration.ai_model_configuration import (
+                get_effective_ai_model_configuration_for_workflow,
+            )
 
-        user_config = await get_effective_ai_model_configuration_for_workflow(
-            organization_id=self._organization_id,
-            workflow_configurations=run_configs,
-        )
+            user_config = await get_effective_ai_model_configuration_for_workflow(
+                organization_id=self._organization_id,
+                workflow_configurations=run_configs,
+            )
 
         if user_config.is_realtime and user_config.realtime is not None:
             # A realtime destination is a different pipeline shape, not a
@@ -194,7 +246,9 @@ class AgentRuntimeFactory:
             )
 
         workflow_graph = WorkflowGraph(
-            ReactFlowDTO.model_validate(definition.workflow_json),
+            charge.dto
+            if charge is not None
+            else ReactFlowDTO.model_validate(definition.workflow_json),
             skip_instance_constraints_for={"trigger"},
         )
 

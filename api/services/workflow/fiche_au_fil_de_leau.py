@@ -1755,6 +1755,55 @@ def cumuler(ancienne: Any, nouvelle: Any) -> Any:
     return f"{ancienne} ; {nouvelle}"
 
 
+# --- [.mark] Lot 7 (A8, K9) : un champ cumulatif à liste fermée est une LISTE de valeurs --------
+
+SEPARATEUR_DE_LISTE = " ; "
+# K4 (n° 353, 355) : ce que le greffier écrit quand la personne refuse de donner une information.
+VALEUR_DE_REFUS = "refusé"
+
+
+def est_une_liste_cumulative(definition: "ChampFiche | None") -> bool:
+    """Un champ cumulatif dont les valeurs viennent d'une liste fermée (le motif d'un appel
+    qui peut en avoir plusieurs). Les autres champs cumulatifs gardent le texte concaténé d'avant."""
+    return bool(definition is not None and definition.cumulatif and definition.valeurs)
+
+
+def valeurs_d_une_liste(valeur: Any) -> list[str]:
+    """Les valeurs d'un champ-liste, d'où qu'elles viennent : une liste, ou un texte dont les
+    valeurs sont séparées par « ; »."""
+    if isinstance(valeur, (list, tuple)):
+        morceaux = [str(v) for v in valeur]
+    else:
+        morceaux = str(valeur if valeur is not None else "").split(";")
+    return [m.strip() for m in morceaux if m and m.strip()]
+
+
+def cumuler_la_liste(ancienne: Any, nouvelle: Any, valeurs: Iterable[str]) -> str:
+    """Ce que tient un champ-liste après une note : les valeurs déjà notées, puis les nouvelles,
+    chacune contrôlée contre la liste (écrite sous sa forme déclarée), un doublon ignoré,
+    séparées par « ; ». Une valeur hors liste est écartée ; rien de valable : chaîne vide."""
+    valeurs = tuple(valeurs)
+    gardees: list[str] = []
+    for brute in [*valeurs_d_une_liste(ancienne), *valeurs_d_une_liste(nouvelle)]:
+        valeur = valeur_de_la_liste(brute, valeurs)
+        if valeur is not None and valeur not in gardees:
+            gardees.append(valeur)
+    return SEPARATEUR_DE_LISTE.join(gardees)
+
+
+def _est_un_refus(valeur: Any, definition: "ChampFiche") -> bool:
+    """K4 : « refusé » écrit par le greffier pour un refus de la personne, sur un champ texte
+    libre (ni liste fermée, ni nombre de chiffres, ni cumulatif). Jamais une valeur inventée."""
+    return (
+        definition.type == "string"
+        and not definition.valeurs
+        and not definition.chiffres
+        and not definition.cumulatif
+        and isinstance(valeur, str)
+        and valeur.strip().casefold() == VALEUR_DE_REFUS
+    )
+
+
 # --- Le point d'écriture unique (D35) ----------------------------------------
 
 
@@ -1874,17 +1923,32 @@ def ecrire_dans_la_fiche(
     )
     if courriel is not None:
         valeur = courriel.valeur
+    # [.mark] Lot 7 (A8, K9) : un champ cumulatif à liste fermée reçoit une ou plusieurs valeurs de
+    # la liste (« a ; b ») ; chacune est contrôlée contre la liste, un doublon est ignoré.
+    liste_lue = False
+    if est_une_liste_cumulative(definition) and not _est_vide(valeur):
+        retenues = cumuler_la_liste(None, valeur, definition.valeurs)
+        if retenues:
+            valeur, liste_lue = retenues, True
 
     if definition is None:
         verdict = Verdict(champ, "refuse", "champ_inconnu")
     elif _est_vide(valeur):
         verdict = Verdict(champ, "ignore", "valeur_vide")
-    elif definition.valeurs and valeur_de_la_liste(valeur, definition.valeurs) is None:
+    elif (
+        definition.valeurs
+        and not liste_lue
+        and valeur_de_la_liste(valeur, definition.valeurs) is None
+    ):
         # PB3 : hors de la liste fermée, d'où que vienne la valeur.
         verdict = Verdict(champ, "refuse", "hors_liste", valeur)
     elif definition.chiffres and _nombre_de_chiffres(valeur) != definition.chiffres:
         # C1 : d'où que vienne la valeur (outil, passe de fin d'appel).
         verdict = Verdict(champ, "refuse", "nombre_de_chiffres", valeur)
+    elif _est_un_refus(valeur, definition):
+        # K4 : un refus de la personne s'écrit « refusé », tel quel (jamais une valeur).
+        valeur = VALEUR_DE_REFUS
+        verdict = _ecrire(fiche, champ, valeur, True, source, seulement_si_vide, None)
     elif (deja := _deja_confirmee(fiche, definition, valeur)) is not None:
         # D8 : une valeur confirmée, renvoyée, n'est jamais redemandée.
         valeur = deja
@@ -1902,7 +1966,7 @@ def ecrire_dans_la_fiche(
             raison="confirmee_par_la_personne",
         )
     else:
-        if definition.valeurs:
+        if definition.valeurs and not liste_lue:
             valeur = valeur_de_la_liste(valeur, definition.valeurs)
         epele = (
             lire_epellation(valeur, fiche)
@@ -2008,7 +2072,10 @@ def ecrire_dans_la_fiche(
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:
-            if definition.cumulatif:
+            if liste_lue:
+                # Lot 7 : une liste de valeurs, jamais le texte concaténé d'avant.
+                valeur = cumuler_la_liste(fiche.get(champ), valeur, definition.valeurs)
+            elif definition.cumulatif:
                 valeur = cumuler(fiche.get(champ), valeur)
             verdict = _ecrire(
                 fiche, champ, valeur, sure, source, seulement_si_vide, lecture
@@ -2924,6 +2991,12 @@ def _propriete(champ: ChampFiche) -> dict:
         description = f"{description} Exactement {champ.chiffres} chiffres."
     if not champ.valeurs:
         return {"type": champ.type, "description": description}
+    if champ.cumulatif:
+        # Lot 7 (A8) : plusieurs valeurs de la liste possibles, elles s'ajoutent.
+        description = (
+            f"{description} Plusieurs valeurs possibles : elles s'ajoutent les unes aux "
+            "autres (une valeur de la liste par ajout)."
+        )
     if champ.type != "string":
         # Revue du 28/09 : ``enum`` porte des chaînes ; sur un nombre ou un oui/non,
         # le schéma deviendrait incohérent. La description garde les valeurs.
@@ -3540,7 +3613,11 @@ def etat_de_la_fiche(
         valeur = fiche.get(champ.nom)
         if _est_vide(valeur):
             continue
-        ligne = f"{champ.nom} = {_abregee(valeur)}"
+        if est_une_liste_cumulative(champ):
+            # Lot 7 (K9) : « rend ce champ comme une liste à qui la lit ».
+            ligne = f"{champ.nom} = [{', '.join(valeurs_d_une_liste(valeur))}]"
+        else:
+            ligne = f"{champ.nom} = {_abregee(valeur)}"
         # Une valeur sans état n'a pas été écrite par la fiche : on ne la dit
         # pas sûre. Lot D de greffier-conversation (C3) : une valeur non sûre qui
         # n'est pas critique est montrée notée (telle qu'entendue), sans question.

@@ -677,6 +677,15 @@ def injecter_etat_ouverture(
         for cle, valeur in calcule.items():
             if _est_vide(enrichi.get(cle)):
                 enrichi[cle] = valeur
+        # [.mark] Lot 7 (n° 361) : un état OUVERT ou SUR_RENDEZ_VOUS posé par le contexte d'essai
+        # (D7) sans réouverture à lui n'hérite pas de la réouverture que les horaires réels
+        # donnaient : comme en production, un magasin ouvert n'annonce aucune réouverture.
+        if (
+            not _est_vide(contexte.get(CLE_ETAT))
+            and _est_vide(contexte.get(CLE_REOUVERTURE))
+            and enrichi.get(CLE_ETAT) in (OUVERT, SUR_RENDEZ_VOUS)
+        ):
+            enrichi[CLE_REOUVERTURE] = ""
         # Computed from the state FINALLY kept, never from the computed one: a
         # keyboard replay that forces FERME on a Tuesday at 11 must announce a
         # closed shop (D7 applies to the state, the sentence follows it).
