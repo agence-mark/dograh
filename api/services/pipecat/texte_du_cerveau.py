@@ -3,10 +3,11 @@
 Rejeu du 16/10 après D1 (run 1410, Mistral Small chez Scaleway), deux répliques dites à voix
 haute :
 
-- « [TOOL_CALLS]fin Je vous souhaite une bonne soirée. » : le modèle a écrit dans son format
-  natif d'appel d'outil ce qui était une porte de l'étape (« → fin ») ; le fournisseur l'a
-  laissé en texte (même famille que la réponse avalée, ``reponse_avalee.py``) ;
-- « [Le magasin ne répond pas] Nos équipes sont occupées… » : une indication entre crochets.
+- « [TOOL_CALLS]fin » suivi de la phrase d'au revoir : le modèle a écrit dans son format natif
+  d'appel d'outil ce qui était une porte de l'étape (« → fin ») ; le fournisseur l'a laissé en
+  texte (même famille que la réponse avalée, ``reponse_avalee.py``) ;
+- une indication de scène entre crochets avant la phrase (le modèle imite les notes entre
+  crochets que le code lui montre, comme l'état de la fiche).
 
 Ce module transforme le flux du cerveau, avant la trace, le lecteur de portes, la voix et
 l'historique (téléphone et clavier) :
@@ -20,6 +21,9 @@ l'historique (téléphone et clavier) :
 - sinon le jeton et le nom sont retirés ;
 - un texte entre crochets n'est jamais dit ni gardé (journalisé) ; un crochet jamais fermé
   dans les 160 caractères qui suivent est rendu tel quel.
+
+⚠️ Latence, cas rares seulement : un « [ » ouvert retient la voix jusqu'à sa fermeture (au plus
+160 caractères) ; après un jeton d'appel, le reste de la réponse part à la fin du flux.
 
 ⛔ Ne lève jamais à la place du service : une erreur rend le flux d'origine. Un flux sans
 crochet ni jeton passe tel quel, morceau par morceau, sans retard.
@@ -59,7 +63,7 @@ def _avec_texte(morceau: Any, texte: str) -> Any:
     return morceau.model_copy(update={"choices": [choix.model_copy(update={"delta": delta})]})
 
 
-def _morceau_d_appel(modele: Any, nom: str, arguments: str) -> Any:
+def _morceau_d_appel(modele: Any, nom: str, arguments: str, index: int = 0) -> Any:
     from openai.types.chat.chat_completion_chunk import (
         ChatCompletionChunk,
         Choice,
@@ -79,8 +83,8 @@ def _morceau_d_appel(modele: Any, nom: str, arguments: str) -> Any:
                 delta=ChoiceDelta(
                     tool_calls=[
                         ChoiceDeltaToolCall(
-                            index=0,
-                            id=f"ecrit-{int(time.time() * 1000)}",
+                            index=index,
+                            id=f"ecrit-{int(time.time() * 1000)}-{index}",
                             type="function",
                             function=ChoiceDeltaToolCallFunction(name=nom, arguments=arguments),
                         )
@@ -157,6 +161,32 @@ def lire_l_appel(apres_le_jeton: str, jeton: str) -> tuple[str | None, str, str]
     return nom, arguments, reste
 
 
+def _debut_de_jeton(texte: str) -> bool:
+    """Le texte finit-il par le début d'un jeton d'appel (« <tool », « [TOOL_C »…) ?"""
+    return any(
+        texte.endswith(jeton[:k]) for jeton in JETONS_D_APPEL for k in range(1, len(jeton))
+    )
+
+
+def _appels_en_liste(apres_le_jeton: str) -> list[tuple[str, str]] | None:
+    """La forme liste de Mistral, ``[{"name": …, "arguments": …}, …]`` : tous ses appels."""
+    texte = apres_le_jeton.lstrip()
+    if not texte.startswith("["):
+        return None
+    try:
+        valeur, _ = json.JSONDecoder().raw_decode(texte)
+    except ValueError:
+        return None
+    appels = []
+    for element in valeur if isinstance(valeur, list) else []:
+        if isinstance(element, dict) and isinstance(element.get("name"), str):
+            args = element.get("arguments") or {}
+            appels.append(
+                (element["name"], args if isinstance(args, str) else json.dumps(args, ensure_ascii=False))
+            )
+    return appels or None
+
+
 def sans_crochets(texte: str) -> str:
     """``texte`` sans ses passages entre crochets fermés (et l'espace qui les suit)."""
     return re.sub(r"\[[^\[\]\n]{0,%d}\]\s*" % _LONGUEUR_MAX_CROCHETS, "", texte)
@@ -190,6 +220,8 @@ class FluxNettoye:
                 yield morceau
                 continue
             if appel is not None:
+                if appel == "[TOOL_CALLS]" and not fin_du_nom and "".join(noms_coupes) in self._outils:
+                    fin_du_nom = True  # un nom d'outil déclaré, complet : rien ne s'y colle
                 if appel == "[TOOL_CALLS]" and not fin_du_nom:
                     if _NOM.fullmatch(texte) and not (noms_coupes and texte[:1].isupper()):
                         noms_coupes.append(texte)
@@ -207,7 +239,7 @@ class FluxNettoye:
                 if apres and _NOM.fullmatch(apres):
                     noms_coupes.append(apres)
                 continue
-            if tenus or "[" in texte:
+            if tenus or "[" in texte or _debut_de_jeton(texte):
                 texte_tenu += texte
                 tenus.append(morceau)
                 nettoye = sans_crochets(texte_tenu)
@@ -217,6 +249,8 @@ class FluxNettoye:
                 ouvert = texte_tenu.rfind("[")
                 if ouvert >= 0 and len(texte_tenu) - ouvert <= _LONGUEUR_MAX_CROCHETS:
                     continue  # un crochet encore ouvert : on attend sa fermeture
+                if _debut_de_jeton(texte_tenu):
+                    continue  # peut-être un jeton d'appel coupé en deux morceaux
                 for sortie in self._rendre_texte(tenus, texte_tenu):
                     yield sortie
                 tenus, texte_tenu = [], ""
@@ -248,6 +282,20 @@ class FluxNettoye:
         self, tenus: list[Any], texte: str, jeton: str, noms_coupes: list[str]
     ) -> list[Any]:
         avant, _, apres = texte.partition(jeton)
+        appels = _appels_en_liste(apres) if jeton == "[TOOL_CALLS]" else None
+        declares = [(n, a) for n, a in appels or [] if n in self._outils]
+        if declares:
+            if len(declares) < len(appels):
+                logger.warning(
+                    f"[cerveau] appels écrits en texte : {len(appels) - len(declares)} hors des outils, ignorés"
+                )
+            logger.warning(f"[cerveau] appels écrits en texte rendus : {[n for n, _ in declares]}")
+            avant = sans_crochets(avant)
+            sorties = [_avec_texte(tenus[0], avant)] if avant.strip() else []
+            sorties += [
+                _morceau_d_appel(tenus[0], n, a, index=i) for i, (n, a) in enumerate(declares)
+            ]
+            return sorties + self._fin_d_appel([m for m in tenus if _texte(m) is None])
         coupe = "".join(noms_coupes)
         if jeton == "[TOOL_CALLS]" and coupe and apres.startswith(coupe):
             # Le nom tel que le fournisseur l'a découpé : « fin », puis un morceau vide, puis

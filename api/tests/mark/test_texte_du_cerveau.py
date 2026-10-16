@@ -66,27 +66,27 @@ async def test_une_porte_ecrite_au_format_mistral_devient_la_ligne_de_porte():
 
 async def test_un_outil_declare_ecrit_au_format_mistral_devient_un_appel():
     for ecrit in (
-        ["[TOOL_CALLS]", "passer_a_l_agent_projet", "[ARGS]", '{"motif": "achat"}'],
-        ['[TOOL_CALLS][{"name": "passer_a_l_agent_projet", "arguments": {"motif": "achat"}}]'],
+        ["[TOOL_CALLS]", "outil_a", "[ARGS]", '{"cle": "valeur"}'],
+        ['[TOOL_CALLS][{"name": "outil_a", "arguments": {"cle": "valeur"}}]'],
     ):
         sorties = await _lire(
-            [_m("Je vous passe le service. "), *[_m(t) for t in ecrit], _m(fin="stop")],
-            outils=["passer_a_l_agent_projet"],
+            [_m("Un instant. "), *[_m(t) for t in ecrit], _m(fin="stop")],
+            outils=["outil_a"],
             portes=True,
         )
         [appel] = _appels(sorties)
-        assert appel.function.name == "passer_a_l_agent_projet"
-        assert json.loads(appel.function.arguments) == {"motif": "achat"}
-        assert _dit(sorties) == "Je vous passe le service. "
+        assert appel.function.name == "outil_a"
+        assert json.loads(appel.function.arguments) == {"cle": "valeur"}
+        assert _dit(sorties) == "Un instant. "
         assert [m.choices[0].finish_reason for m in sorties if m.choices][-1] == "tool_calls"
 
 
 async def test_un_outil_declare_ecrit_au_format_qwen_devient_un_appel():
     sorties = await _lire(
-        [_m("<tool_call>"), _m('\n{"name": "transfert", "arguments": {}}\n'), _m("</tool_call>"), _m(fin="stop")],
-        outils=["transfert"],
+        [_m("<tool_call>"), _m('\n{"name": "outil_b", "arguments": {}}\n'), _m("</tool_call>"), _m(fin="stop")],
+        outils=["outil_b"],
     )
-    assert [a.function.name for a in _appels(sorties)] == ["transfert"]
+    assert [a.function.name for a in _appels(sorties)] == ["outil_b"]
     assert _dit(sorties) == ""
 
 
@@ -97,15 +97,15 @@ async def test_un_nom_inconnu_sans_portes_dans_la_reponse_est_retire():
 
 async def test_le_texte_entre_crochets_n_est_jamais_dit():
     sorties = await _lire(
-        [_m("["), _m("Le"), _m(" magasin"), _m(" ne répond"), _m(" pas"), _m("]\n\n"), _m("Nos équipes"), _m(" sont occupées."), _m(fin="stop")]
+        [_m("["), _m("Une"), _m(" indication"), _m(" de"), _m(" scène"), _m("]\n\n"), _m("Bonjour,"), _m(" je vous écoute."), _m(fin="stop")]
     )
-    assert _dit(sorties) == "Nos équipes sont occupées."
+    assert _dit(sorties) == "Bonjour, je vous écoute."
     assert [m.choices[0].finish_reason for m in sorties if m.choices][-1] == "stop"
 
 
 async def test_un_crochet_jamais_ferme_est_rendu_tel_quel():
-    sorties = await _lire([_m("Le prix [environ"), _m(" 240 euros."), _m(fin="stop")])
-    assert _dit(sorties) == "Le prix [environ 240 euros."
+    sorties = await _lire([_m("Le total [environ"), _m(" douze."), _m(fin="stop")])
+    assert _dit(sorties) == "Le total [environ douze."
 
 
 async def test_un_flux_ordinaire_passe_tel_quel():
@@ -118,14 +118,14 @@ async def test_le_mixin_lit_les_outils_et_la_fleche_de_la_requete():
         _settings = SimpleNamespace(system_instruction="Écris → nom_de_la_porte puis la phrase.")
 
         async def get_chat_completions(self, context):
-            return _Flux([_m("[TOOL_CALLS]"), _m("coordonnees"), _m(), _m("Votre nom ?"), _m(fin="stop")])
+            return _Flux([_m("[TOOL_CALLS]"), _m("porte_b"), _m(), _m("Une question ?"), _m(fin="stop")])
 
     class _Service(TexteDuCerveauMixin, _Base):
         pass
 
     contexte = SimpleNamespace(tools=None, messages=[])
     sorties = [m async for m in await _Service().get_chat_completions(contexte)]
-    assert _dit(sorties) == "→ coordonnees\nVotre nom ?"
+    assert _dit(sorties) == "→ porte_b\nUne question ?"
 
 
 def test_le_cerveau_compatible_openai_porte_le_nettoyage():
@@ -141,3 +141,28 @@ def test_le_cerveau_compatible_openai_porte_le_nettoyage():
         < ordre.index(TexteDuCerveauMixin)
         < ordre.index(RepriseSansFluxMixin)
     )
+
+
+async def test_un_jeton_qwen_coupe_en_deux_n_est_jamais_dit():
+    sorties = await _lire(
+        [_m("Un instant. <tool"), _m("_call>"), _m('{"name": "outil_b", "arguments": {}}</tool_call>'), _m(fin="stop")],
+        outils=["outil_b"],
+    )
+    assert [a.function.name for a in _appels(sorties)] == ["outil_b"]
+    assert _dit(sorties) == "Un instant. "
+
+
+async def test_un_nom_d_outil_complet_ne_se_colle_pas_a_la_suite():
+    sorties = await _lire([_m("[TOOL_CALLS]"), _m("outil_a"), _m("bonne"), _m(fin="stop")], outils=["outil_a"])
+    assert [a.function.name for a in _appels(sorties)] == ["outil_a"]
+
+
+async def test_plusieurs_appels_en_liste_sont_tous_rendus():
+    ecrit = (
+        '[TOOL_CALLS][{"name": "outil_a", "arguments": {}}, '
+        '{"name": "outil_b", "arguments": {"x": 1}}, {"name": "inconnu", "arguments": {}}]'
+    )
+    sorties = await _lire([_m(ecrit), _m(fin="stop")], outils=["outil_a", "outil_b"])
+    appels = _appels(sorties)
+    assert [(a.index, a.function.name) for a in appels] == [(0, "outil_a"), (1, "outil_b")]
+    assert json.loads(appels[1].function.arguments) == {"x": 1}
