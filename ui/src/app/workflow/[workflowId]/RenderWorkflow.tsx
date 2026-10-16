@@ -769,6 +769,7 @@ function RenderWorkflow({
                                 <WorkflowTesterPanel
                                     workflowId={workflowId}
                                     initialContextVariables={templateContextVariables}
+                                    ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
                                     disabled={testerDisabledReason !== null}
                                     disabledReason={testerDisabledReason}
                                     showWebCallOnboarding={shouldShowWebCallOnboarding}
@@ -785,6 +786,7 @@ function RenderWorkflow({
                             <WorkflowTesterPanel
                                 workflowId={workflowId}
                                 initialContextVariables={templateContextVariables}
+                                ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
                                 disabled={testerDisabledReason !== null}
                                 disabledReason={testerDisabledReason}
                                 showWebCallOnboarding={shouldShowWebCallOnboarding}

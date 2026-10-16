@@ -102,6 +102,9 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../../sdk-f
     listRecordingsApiV1WorkflowRecordingsGet: () => Promise.resolve({ data: { recordings: [] }, error: null }),
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: () =>
         Promise.resolve({ data: [{ code_insee: "60057", nom: "Beauvais" }], error: null }),
+    // Lot 11: the fiches the menu of the theme « Business » offers (the case « fiche-de-lagent » picks one).
+    getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
+        Promise.resolve({ data: { etablissements: [{ id: "creil", nom: "Magasin de Creil", numeros: [] }] }, error: null }),
 }));
 
 // The four reused Dograh components: each stub calls the callback the page

@@ -1368,6 +1368,20 @@
         }
       ]
     },
+    "fiche-de-lagent": {
+      "carte": "ajout-mark",
+      "theme": "etablissement",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "etablissement_id": "creil"
+          },
+          "retirees": []
+        }
+      ]
+    },
     "configuration-organisation": {
       "carte": "models",
       "theme": "briques",

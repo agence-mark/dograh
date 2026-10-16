@@ -315,6 +315,12 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Business address for this agent. Empty (null): the organization's
     // address is used.
     adresse_etablissement?: AdresseEtablissement | null;
+    // [.mark] Chantier agents-specialises, lot 11 (F1): the fiche this agent serves, chosen in its theme « Business ».
+    // Absent or null: an agent without a fiche, which behaves as before.
+    etablissement_id?: string | null;
+    // [.mark] Chantier agents-specialises, lots 2 and 10 (A10): set on a specialised agent by the group routes,
+    // read by the screen only (a specialised agent serves the establishment of the call).
+    agent_principal_id?: number | null;
     // [.mark] The call record filled by the noter_information tool (fiche au
     // fil de l'eau). Off by default: the tool is not offered at all.
     fiche_au_fil_de_leau?: boolean;

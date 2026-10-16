@@ -127,6 +127,12 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     // Établissement
     horaires_ouverture: { theme: "etablissement", cas: ["horaires"] },
     adresse_etablissement: { theme: "etablissement", cas: ["adresse-voie", "adresse-organisation"] },
+    // Chantier agents-specialises, lot 11: the fiche the agent serves (menu of the theme).
+    etablissement_id: { theme: "etablissement", cas: ["fiche-de-lagent"] },
+    agent_principal_id: {
+        horsEcran:
+            "Written by the group routes (lots 2 and 10), never by a gesture of this page; the theme only READS it to say « Establishment: the call's » on a specialised agent (no menu).",
+    },
     voicemail_detection: {
         theme: "etablissement",
         cas: [

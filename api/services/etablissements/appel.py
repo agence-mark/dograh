@@ -383,13 +383,16 @@ def etablissements_de_lagent(
     if isinstance(fiche, str) and fiche.strip():
         trouvee = next((e for e in catalogue.etablissements if e.id == fiche.strip()), None)
         if trouvee is None:
-            return EtablissementsDeLagent(fiche_de_lagent=fiche.strip(), fiche_introuvable=True)
+            return EtablissementsDeLagent(
+                fiche_de_lagent=fiche.strip(), fiche_introuvable=True, numeros_de_lagent=list(numeros_de_lagent)
+            )
 
         def de_la_fiche(valeur) -> ValeurHeritee:
             return ValeurHeritee(valeur=valeur, origine="fiche") if not _vide(valeur) else ValeurHeritee()
 
         return EtablissementsDeLagent(
             fiche_de_lagent=trouvee.id,
+            numeros_de_lagent=list(numeros_de_lagent),
             etablissements=[
                 EtablissementServi(
                     id=trouvee.id,
@@ -433,4 +436,6 @@ def etablissements_de_lagent(
                 numero_transfert=_valeur(None, etablissement.numero_transfert, None),
             )
         )
-    return EtablissementsDeLagent(etablissements=servis, numeros_sans_etablissement=sans)
+    return EtablissementsDeLagent(
+        etablissements=servis, numeros_sans_etablissement=sans, numeros_de_lagent=list(numeros_de_lagent)
+    )

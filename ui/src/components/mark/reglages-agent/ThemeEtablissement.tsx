@@ -12,10 +12,16 @@
  *
  * « Use the organization's address » keeps its own button: it saves at once,
  * as it did on its card.
+ *
+ * Lot 11 (agents-specialises, lot 4 of the fiche plan, F1/C3/C4/C8): the agent CHOOSES its fiche
+ * here (`etablissement_id`). With a fiche, the hours and the address of the agent play no role (the
+ * call reads the fiche alone), so they are not drawn -- the same rule as the code (E8); without one,
+ * the theme is what it was. A specialised agent (`agent_principal_id`) has no menu: it serves the
+ * establishment of the call.
  */
 import { Building2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -23,7 +29,8 @@ import {
     isVoicemailMessageMissing,
     readAnswerSupervisorSettings,
 } from "@/app/workflow/[workflowId]/components/AnswerSupervisorFields";
-import type { AdresseEtablissement } from "@/client/types.gen";
+import { getEtablissementsApiV1OrganizationsEtablissementsGet } from "@/client/sdk.gen";
+import type { AdresseEtablissement, Etablissement } from "@/client/types.gen";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -31,6 +38,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgConfig } from "@/context/OrgConfigContext";
 import { detailFromError } from "@/lib/apiError";
+import { useAuth } from "@/lib/auth";
 import {
     DEFAULT_VOICEMAIL_DETECTION_CONFIGURATION,
     type VoicemailDetectionConfiguration,
@@ -44,7 +52,7 @@ import { type Texte, useLangue } from "../langue/langue";
 import { memeAdresse, texteAdresse } from "../SectionAdresseEtablissement";
 import { EXEMPLE_HORAIRES } from "../SectionHorairesOuverture";
 import { RAPPEL_PUBLICATION_TEXTE, useEnregistrementTheme } from "./enregistrement";
-import { EtablissementsServis } from "./EtablissementsServis";
+import { EtablissementsServis, NumerosDeLagent, useEtablissementsDeLagent } from "./EtablissementsServis";
 import { erreursPanne, lirePanne, SectionPanneAgent } from "./SectionPanneAgent";
 import { nommerErreurs, type ProprietesThemeAgent, useEtatTheme, useRevelation } from "./theme-commun";
 
@@ -70,12 +78,37 @@ export const ThemeEtablissement = ({
     const { organizationPreferences } = useOrgConfig();
     const { afficher } = useRevelation(ouvrir);
 
+    // ---- The fiche of the agent (lot 11, F1) ---------------------------------------
+    const { user, loading: authLoading } = useAuth();
+    const ficheEnregistree = resolue.etablissement_id || null;
+    const [fiche, setFiche] = useState<string>(ficheEnregistree ?? "");
+    useEffect(() => setFiche(ficheEnregistree ?? ""), [ficheEnregistree]);
+    const ficheModifiee = (fiche || null) !== ficheEnregistree;
+    const [fiches, setFiches] = useState<Etablissement[] | null>(null);
+    const [fichesIllisibles, setFichesIllisibles] = useState(false);
+    const dejaLu = useRef(false);
+    useEffect(() => {
+        if (authLoading || !user || dejaLu.current) return;
+        dejaLu.current = true;
+        void (async () => {
+            const reponse = await getEtablissementsApiV1OrganizationsEtablissementsGet();
+            setFichesIllisibles(Boolean(reponse.error));
+            setFiches(reponse.data?.etablissements ?? []);
+        })();
+    }, [authLoading, user]);
+    // A specialised agent has no fiche of its own: it serves the establishment of the call. If one
+    // is nevertheless stored on it, the code reads it first (lot 1), so the menu stays to remove it.
+    const specialise = typeof resolue.agent_principal_id === "number";
+    const menuAffiche = !specialise || ficheEnregistree !== null;
+    // With a fiche, the agent's own hours and address are not read by the call (E8: same rule).
+    const afficheLieu = fiche === "";
+
     // ---- Opening hours -------------------------------------------------------
     const horairesEnregistres = resolue.horaires_ouverture ?? null;
     const [horaires, setHoraires] = useState<string>(horairesEnregistres ?? "");
     const [erreurHoraires, setErreurHoraires] = useState<string | null>(null);
     const horairesAEnregistrer = horaires.trim() || null;
-    const horairesModifies = horairesAEnregistrer !== horairesEnregistres;
+    const horairesModifies = afficheLieu && horairesAEnregistrer !== horairesEnregistres;
 
     // ---- Business address ----------------------------------------------------
     const adresseEnregistree = (resolue.adresse_etablissement ?? null) as AdresseEtablissement | null;
@@ -90,7 +123,7 @@ export const ThemeEtablissement = ({
         // After a save the draft follows the saved address, as the card did.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cleAdresse]);
-    const adresseModifiee = !memeAdresse(adresse, adresseEnregistree);
+    const adresseModifiee = afficheLieu && !memeAdresse(adresse, adresseEnregistree);
     const adresseOrganisation = organizationPreferences?.adresse_etablissement ?? null;
 
     // ---- Voicemail & Screening (Dograh, rebuilt) ------------------------------
@@ -147,7 +180,7 @@ export const ThemeEtablissement = ({
 
     // ---- The theme -------------------------------------------------------------
     const erreurs: Array<{ cle: string; libelle: Texte; message: Texte }> = [];
-    if (adresseIncomplete) {
+    if (adresseIncomplete && afficheLieu) {
         erreurs.push({
             cle: "adresse_etablissement",
             libelle: { en: "Business address", fr: "Adresse de l'établissement" },
@@ -167,7 +200,9 @@ export const ThemeEtablissement = ({
         erreurs.push({ cle: "panne", libelle: { en: "Outage fallback", fr: "Repli en cas de panne" }, message: erreurPanne });
     }
 
-    const modifie = horairesModifies || adresseModifiee || adresseIncomplete || messagerieModifiee || panneModifiee;
+    const modifie =
+        ficheModifiee || horairesModifies || adresseModifiee || (adresseIncomplete && afficheLieu) || messagerieModifiee || panneModifiee;
+    const vueServie = useEtablissementsDeLagent(workflowId, horairesAEnregistrer, adresse, fiche || null);
     useEtatTheme(ID_THEME_ETABLISSEMENT, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -176,6 +211,11 @@ export const ThemeEtablissement = ({
         workflowName,
         onSave,
         parties: [
+            {
+                nom: { en: "Establishment sheet", fr: "Fiche de l'établissement" },
+                modifie: ficheModifiee,
+                config: () => ({ etablissement_id: fiche || null }),
+            },
             {
                 nom: { en: "Opening hours", fr: "Horaires d'ouverture" },
                 modifie: horairesModifies,
@@ -228,8 +268,13 @@ export const ThemeEtablissement = ({
             titre={TITRE_ETABLISSEMENT}
             description={{ en: "Hours, address and voicemail of this agent.", fr: "Horaires, adresse et messagerie vocale de cet agent." }}
             resume={[
-                horairesAEnregistrer ? t({ en: "Hours set", fr: "Horaires renseignés" }) : t({ en: "No hours", fr: "Aucun horaire" }),
-                adresse ? t({ en: "Own address", fr: "Adresse propre" }) : t({ en: "Organization's address", fr: "Adresse de l'organisation" }),
+                fiche
+                    ? `${t({ en: "Fiche:", fr: "Fiche :" })} ${(fiches ?? []).find((e) => e.id === fiche)?.nom ?? fiche}`
+                    : specialise
+                      ? t({ en: "Establishment of the call", fr: "Établissement de l'appel" })
+                      : null,
+                afficheLieu && (horairesAEnregistrer ? t({ en: "Hours set", fr: "Horaires renseignés" }) : t({ en: "No hours", fr: "Aucun horaire" })),
+                afficheLieu && (adresse ? t({ en: "Own address", fr: "Adresse propre" }) : t({ en: "Organization's address", fr: "Adresse de l'organisation" })),
                 enabled && t({ en: "Voicemail handled", fr: "Messagerie gérée" }),
                 panne.actif && t({ en: "Outage fallback on", fr: "Repli de panne actif" }),
             ]}
@@ -239,18 +284,116 @@ export const ThemeEtablissement = ({
             erreurs={nommerErreurs(erreurs, t, afficher)}
             enregistrement={{ onEnregistrer: enregistrer, enCours }}
         >
+            <Intertitre
+                id="etablissement-fiche"
+                titre={{ en: "Establishment sheet", fr: "Fiche de l'établissement" }}
+                description={{
+                    en: "The place this agent serves: hours, address, announcements, closing and transfer number come from its fiche alone, nothing is inherited.",
+                    fr: "Le lieu que sert cet agent : horaires, adresse, annonces, fermeture et numéro de transfert viennent de sa fiche seule, rien n'est hérité.",
+                }}
+            >
+                {specialise && !menuAffiche && (
+                    <ChampReglage
+                        cle="etablissement_id"
+                        libelle={{ en: "Establishment", fr: "Établissement" }}
+                        aides={[
+                            {
+                                en: "A specialised agent has no fiche of its own: it serves the one its call carries, chosen by its main agent.",
+                                fr: "Un agent spécialisé n'a pas de fiche à lui : il sert celle que porte son appel, choisie par son agent principal.",
+                            },
+                        ]}
+                    >
+                        <p className="text-sm font-medium" data-testid="etablissement-de-lappel">
+                            {t({ en: "Establishment: the call's", fr: "Établissement : celui de l'appel" })}
+                        </p>
+                    </ChampReglage>
+                )}
+                {menuAffiche && (
+                    <ChampReglage
+                        cle="etablissement_id"
+                        idControle="etablissement_id"
+                        libelle={{ en: "Fiche of this agent", fr: "Fiche de cet agent" }}
+                        aides={[
+                            {
+                                en: "Created and edited in the platform settings (Establishments). None: an agent without a fiche, which reads its own hours and address below, then the organization's, as before.",
+                                fr: "Créée et modifiée dans les paramètres de la plateforme (Établissements). Aucune : un agent sans fiche, qui lit ses propres horaires et adresse plus bas, puis ceux de l'organisation, comme avant.",
+                            },
+                            ...(specialise
+                                ? [
+                                      {
+                                          en: "This specialised agent carries a fiche of its own, which wins over the call's. Choose « None » to follow the call's.",
+                                          fr: "Cet agent spécialisé porte une fiche à lui, qui l'emporte sur celle de l'appel. Choisissez « Aucune » pour suivre celle de l'appel.",
+                                      },
+                                  ]
+                                : []),
+                        ]}
+                        bornes={{ en: "Default: none · one fiche at most", fr: "Défaut : aucune · une fiche au plus" }}
+                    >
+                        {fiches === null ? (
+                            <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>
+                        ) : (
+                            <select
+                                id="etablissement_id"
+                                className="rounded border border-border bg-background px-2 py-1 text-sm"
+                                value={fiche}
+                                onChange={(e) => setFiche(e.target.value)}
+                            >
+                                <option value="">{t({ en: "None: specialised agent or no place", fr: "Aucune : agent spécialisé ou sans lieu" })}</option>
+                                {fiche !== "" && !fiches.some((e) => e.id === fiche) && (
+                                    <option value={fiche}>{`${fiche} (${t({ en: "not found", fr: "introuvable" })})`}</option>
+                                )}
+                                {fiches.map((e) => (
+                                    <option key={e.id} value={e.id}>
+                                        {e.nom}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                        {fichesIllisibles && (
+                            <p className="text-xs text-destructive">
+                                {t({ en: "The establishments cannot be read: only the saved choice is shown.", fr: "Les établissements ne peuvent pas être lus : seul le choix enregistré est affiché." })}
+                            </p>
+                        )}
+                    </ChampReglage>
+                )}
+                {workflowId !== undefined && <NumerosDeLagent vue={vueServie.vue} />}
+            </Intertitre>
             {workflowId !== undefined && (
                 <Intertitre
                     id="etablissement-servi"
                     titre={{ en: "Establishments served", fr: "Établissements servis" }}
-                    description={{
-                        en: "Through this agent's numbers. Hours and address below, when set, win over the establishment's.",
-                        fr: "Par les numéros de cet agent. Les horaires et l'adresse ci-dessous, quand ils sont renseignés, l'emportent sur ceux de l'établissement.",
-                    }}
+                    description={
+                        fiche
+                            ? {
+                                  en: "The fiche chosen above, read alone: each value says it comes from the fiche.",
+                                  fr: "La fiche choisie ci-dessus, lue seule : chaque valeur dit qu'elle vient de la fiche.",
+                              }
+                            : {
+                                  en: "Through this agent's numbers. Hours and address below, when set, win over the establishment's.",
+                                  fr: "Par les numéros de cet agent. Les horaires et l'adresse ci-dessous, quand ils sont renseignés, l'emportent sur ceux de l'établissement.",
+                              }
+                    }
                 >
-                    <EtablissementsServis workflowId={workflowId} horaires={horairesAEnregistrer} adresse={adresse} />
+                    <EtablissementsServis vue={vueServie.vue} erreur={vueServie.erreur} />
                 </Intertitre>
             )}
+            {!afficheLieu && (
+                <p className="text-xs text-muted-foreground" data-testid="lieu-de-la-fiche">
+                    {t({
+                        en: "Hours and address are read from the fiche: change them in",
+                        fr: "Les horaires et l'adresse sont lus dans la fiche : modifiez-les dans",
+                    })}{" "}
+                    <Link href="/settings" className="underline">
+                        {t({ en: "Platform Settings → Establishments", fr: "Paramètres de la plateforme → Établissements" })}
+                    </Link>
+                    .{" "}
+                    {t({
+                        en: "Those of the agent are kept, and read again if you choose « None ».",
+                        fr: "Ceux de l'agent sont conservés, et relus si vous choisissez « Aucune ».",
+                    })}
+                </p>
+            )}
+            {afficheLieu && (
             <Intertitre id="etablissement-horaires" titre={{ en: "Opening Hours", fr: "Horaires d'ouverture" }}>
                 <p className="text-xs text-muted-foreground">
                     {t({
@@ -300,7 +443,9 @@ export const ThemeEtablissement = ({
                 </ChampReglage>
                 <pre className="overflow-x-auto rounded bg-muted p-3 text-xs">{EXEMPLE_HORAIRES}</pre>
             </Intertitre>
+            )}
 
+            {afficheLieu && (
             <Intertitre id="etablissement-adresse" titre={{ en: "Business address for this agent", fr: "Adresse de cet agent" }}>
                 <ChampReglage
                     cle="adresse_etablissement"
@@ -343,6 +488,7 @@ export const ThemeEtablissement = ({
                     )}
                 </ChampReglage>
             </Intertitre>
+            )}
 
             <Intertitre
                 id="etablissement-messagerie"

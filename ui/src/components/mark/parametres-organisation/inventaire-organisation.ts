@@ -21,6 +21,12 @@ export const INVENTAIRE_PREFERENCES: Record<string, EntreeInventaireOrganisation
     external_pbx_integrations_enabled: { theme: "integrations", cas: ["standard-externe"] },
     disposition_mapping_enabled: { theme: "integrations", cas: ["correspondance"] },
     disposition_mapping: { theme: "integrations", cas: ["correspondance-liste"] },
+    // Chantier agents-specialises, lot 5 (3 bis) added the key on the server; no screen yet. Said here, never
+    // lost in silence (convention § 6): to be decided with Evan (A-VALIDER), it is not part of the lot 11 table.
+    numero_des_transferts: {
+        horsEcran:
+            "Caller ID shown to the person a transfer rings (lot 5, 3 bis): set through the API for now, its field in the theme Organization is not built yet (outside the lot 11 table, to decide)",
+    },
     call_events: {
         horsEcran:
             "BigQuery call-event export, neutralised by decision of Evan (25/09/2026, E3) and refused by the server; its card was removed at the rise to 4e6cb22b",

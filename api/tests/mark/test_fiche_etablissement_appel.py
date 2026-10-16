@@ -169,3 +169,16 @@ def test_l_ecran_de_l_agent_rend_sa_fiche_et_l_origine_fiche():
     assert vu.etablissements[0].horaires_ouverture.valeur == HORAIRES_CREIL
     disparue = etablissements_de_lagent(CATALOGUE, [], {"etablissement_id": "nulle-part"}, None, None)
     assert disparue.fiche_introuvable and disparue.etablissements == []
+
+
+def test_l_ecran_rend_les_numeros_de_l_agent_avec_ou_sans_fiche():
+    """Lot 11 (C4) : les numéros sont à l'agent. L'écran les lit sous le choix de la fiche, quel
+    que soit le mode (fiche choisie, fiche disparue, agent sans fiche)."""
+    numeros = ["+33344000002", "+33100000000"]
+    avec = etablissements_de_lagent(CATALOGUE, numeros, {"etablissement_id": "creil"}, None, None)
+    assert avec.numeros_de_lagent == numeros
+    disparue = etablissements_de_lagent(CATALOGUE, numeros, {"etablissement_id": "nulle-part"}, None, None)
+    assert disparue.fiche_introuvable and disparue.numeros_de_lagent == numeros
+    sans = etablissements_de_lagent(CATALOGUE, numeros, {}, None, None)
+    assert sans.numeros_de_lagent == numeros
+    assert etablissements_de_lagent(CATALOGUE, [], {"etablissement_id": "creil"}, None, None).numeros_de_lagent == []

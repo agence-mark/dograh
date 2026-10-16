@@ -2,26 +2,28 @@
  * [.mark] The establishments on screen (chantier l-agent-travaille, L1), rendered.
  *
  *   - the Establishments theme shows the saved ones and opens the modal (E4);
- *   - in the modal: add one, choose its numbers (a number taken elsewhere is disabled),
- *     an inherited value is greyed with « Customize », clearing goes back to inherited (E2);
+ *   - in the modal: add one, an inherited value is greyed with « Customize », clearing goes back to
+ *     inherited (E2); no numbers on the fiche any more (lot 11, C4), the ones stored are kept;
  *   - « Save » sends exactly the catalogue, empty fields as null (inherited);
  *   - a refusal of the server (422) is shown and the modal stays open;
  *   - an unreadable catalogue leaves nothing to save;
  *   - the agent's theme shows the establishments it serves and where each value comes from.
+ *
+ * Lot 11 (the fiche's immediate closing, its appointments and zone, « Create by copy », the takeover, the
+ * places of a person, the test window) is in `fiche-complete-ecran.test.tsx`.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FournisseurLangue } from "../langue/langue";
-import { EtablissementsServis } from "../reglages-agent/EtablissementsServis";
+import { EtablissementsServis, useEtablissementsDeLagent } from "../reglages-agent/EtablissementsServis";
 import { ChoixEtablissementEssai } from "../etablissements/ChoixEtablissementEssai";
 import { charge_utile_etablissements, identifiantPour, ModaleEtablissements } from "./ModaleEtablissements";
 import { ModalePhrases } from "./ModalePhrases";
 
 const m = vi.hoisted(() => ({
     get: vi.fn(),
-    numeros: vi.fn(),
     save: vi.fn(),
     agent: vi.fn(),
     phrases: vi.fn(),
@@ -30,7 +32,6 @@ const m = vi.hoisted(() => ({
 
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getEtablissementsApiV1OrganizationsEtablissementsGet: m.get,
-    getNumerosApiV1OrganizationsEtablissementsNumerosGet: m.numeros,
     saveEtablissementsApiV1OrganizationsEtablissementsPut: m.save,
     postEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPost: m.agent,
     getPhrasesApiV1OrganizationsPhrasesGet: m.phrases,
@@ -65,12 +66,6 @@ const ANNONCE = { annonce_fermeture: "Nous sommes fermés.", annonce_pause: "En 
 
 const reinitialiser = () => {
     m.get.mockReset().mockResolvedValue({ data: { format: "etablissements-mark", version: 1, etablissements: [CREIL] } });
-    m.numeros.mockReset().mockResolvedValue({
-        data: [
-            { numero: "+33344000001", libelle: "Creil", agent: "Accueil" },
-            { numero: "+33344000002", libelle: null, agent: null },
-        ],
-    });
     m.save.mockReset().mockImplementation(async ({ body }) => ({ data: body }));
     m.agent.mockReset();
     m.phrases.mockReset().mockResolvedValue({
@@ -126,14 +121,24 @@ describe("[.mark] the establishments modal", () => {
         await waitFor(() => expect(onFermer).toHaveBeenCalledWith(true));
     });
 
-    it("adds an establishment, takes a free number, refuses a taken one, customizes then inherits", async () => {
+    it("draws no number on the fiche, and keeps the ones already stored when it saves", async () => {
+        await ouvrir();
+        // C4: a number belongs to the agent, the fiche to the place.
+        expect(screen.queryByText("Numbers that lead here")).toBeNull();
+        expect(screen.queryByText("+33344000001")).toBeNull();
+        expect(screen.queryByText(/to attach/)).toBeNull();
+        // The second number and the transfer number are the fiche's own: they stay.
+        expect(document.getElementById("etablissement-second-numero")).not.toBeNull();
+        expect(document.getElementById("etablissement-numero-transfert")).not.toBeNull();
+        fireEvent.click(screen.getByTestId("enregistrer-etablissements"));
+        await waitFor(() => expect(m.save).toHaveBeenCalledTimes(1));
+        expect(m.save.mock.calls[0][0].body.etablissements[0].numeros).toEqual(["+33344000001"]);
+    });
+
+    it("adds an establishment, customizes then inherits", async () => {
         await ouvrir();
         fireEvent.click(screen.getByTestId("ajouter-etablissement"));
         fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Magasin de Senlis" } });
-        const pris = screen.getByText("+33344000001").closest("label")!.querySelector("input")!;
-        const libre = screen.getByText("+33344000002").closest("label")!.querySelector("input")!;
-        expect(pris.disabled).toBe(true);
-        fireEvent.click(libre);
         // Inherited, greyed, with the organization's sentence
         expect(screen.getByTestId("herite-annonce_fermeture").textContent).toContain("Nous sommes fermés.");
         fireEvent.click(screen.getByTestId("personnaliser-annonce_fermeture"));
@@ -147,7 +152,7 @@ describe("[.mark] the establishments modal", () => {
         expect(nouveau).toEqual({
             id: "magasin-de-senlis",
             nom: "Magasin de Senlis",
-            numeros: ["+33344000002"],
+            numeros: [],
             second_numero: null,
             numero_transfert: null,
             adresse: null,
@@ -195,6 +200,12 @@ describe("[.mark] the establishments modal", () => {
     });
 });
 
+/** What the theme does: one read, shared by the numbers under the menu and by the list. */
+const Servis = ({ workflowId, horaires, adresse }: { workflowId: number; horaires: string | null; adresse: null }) => {
+    const { vue, erreur } = useEtablissementsDeLagent(workflowId, horaires, adresse);
+    return <EtablissementsServis vue={vue} erreur={erreur} />;
+};
+
 describe("[.mark] the establishments an agent serves", () => {
     it("shows each value and where it comes from, with the agent's draft sent to the server", async () => {
         m.agent.mockResolvedValue({
@@ -217,7 +228,7 @@ describe("[.mark] the establishments an agent serves", () => {
         window.localStorage.setItem("mark.langue", "en");
         render(
             <FournisseurLangue>
-                <EtablissementsServis workflowId={34} horaires={null} adresse={null} />
+                <Servis workflowId={34} horaires={null} adresse={null} />
             </FournisseurLangue>,
         );
         await waitFor(() => expect(screen.getByTestId("etablissements-servis")).toBeTruthy());
@@ -232,7 +243,7 @@ describe("[.mark] the establishments an agent serves", () => {
         m.agent.mockResolvedValue({ data: { etablissements: [], numeros_sans_etablissement: [] } });
         render(
             <FournisseurLangue>
-                <EtablissementsServis workflowId={34} horaires={null} adresse={null} />
+                <Servis workflowId={34} horaires={null} adresse={null} />
             </FournisseurLangue>,
         );
         await waitFor(() => expect(screen.getByTestId("aucun-etablissement-servi")).toBeTruthy());

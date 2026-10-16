@@ -7,6 +7,9 @@
  * chosen here, else the first this agent serves through its numbers, else the organization's
  * first (resolved by the server). Shown only when the organization has establishments: an
  * organization without any sees exactly the test window of before.
+ *
+ * Lot 11 (agents-specialises, C8): an agent that chose its fiche brings it to the test, so the choice is
+ * shown only for an agent WITHOUT a fiche (a specialised agent tried on its own, for instance).
  */
 import { useEffect, useRef, useState } from "react";
 
@@ -22,10 +25,13 @@ export function ChoixEtablissementEssai({
     valeur,
     onChange,
     desactive,
+    ficheDeLagent = null,
 }: {
     valeur: string;
     onChange: (id: string) => void;
     desactive?: boolean;
+    /** The fiche the agent chose (its `etablissement_id`): when set, there is nothing to choose here. */
+    ficheDeLagent?: string | null;
 }) {
     const { t } = useLangue();
     const { user, loading: authLoading } = useAuth();
@@ -41,7 +47,7 @@ export function ChoixEtablissementEssai({
         })();
     }, [authLoading, user]);
 
-    if (liste.length === 0) return null;
+    if (ficheDeLagent || liste.length === 0) return null;
     return (
         <label className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="choix-etablissement-essai">
             {t({ en: "Establishment played", fr: "Établissement joué" })}

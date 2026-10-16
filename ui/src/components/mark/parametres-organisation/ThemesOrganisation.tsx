@@ -60,6 +60,7 @@ import { BlocSecoursPanne } from "./BlocSecoursPanne";
 import { ModaleEtablissements, useResumeEtablissements } from "./ModaleEtablissements";
 import { ModaleFenetreDuRun } from "./ModaleFenetreDuRun";
 import { ModalePhrases } from "./ModalePhrases";
+import { ModaleReprise } from "./ModaleReprise";
 import type { EtatPreferences } from "./preferences";
 import type { ThemeOrganisation } from "./references/cas-organisation";
 
@@ -359,6 +360,8 @@ export const ThemeEtablissementOrganisation = ({
     const etablissements = useResumeEtablissements();
     const [modaleEtablissements, setModaleEtablissements] = useState(false);
     const [modalePhrases, setModalePhrases] = useState(false);
+    // Lot 11: the takeover of the fiches and agents (trial run first), a window of its own.
+    const [modaleReprise, setModaleReprise] = useState(false);
     const nombre = etablissements.liste?.length ?? 0;
 
     return (
@@ -367,8 +370,8 @@ export const ThemeEtablissementOrganisation = ({
             icone={Building2}
             titre={titre("etablissement").titre}
             description={{
-                en: "The establishments and their numbers, then what every establishment inherits: the company address and the announcement when it is closed.",
-                fr: "Les établissements et leurs numéros, puis ce dont chaque établissement hérite : l'adresse de l'entreprise et l'annonce quand elle est fermée.",
+                en: "One fiche per place, then what applies to the whole company: its address, the announcement when it is closed, and « Close everything ».",
+                fr: "Une fiche par lieu, puis ce qui vaut pour toute l'entreprise : son adresse, l'annonce quand elle est fermée, et « Tout fermer ».",
             }}
             resume={[
                 nombre === 0
@@ -376,8 +379,8 @@ export const ThemeEtablissementOrganisation = ({
                     : `${nombre} ${t(nombre === 1 ? { en: "establishment", fr: "établissement" } : { en: "establishments", fr: "établissements" })}`,
                 adresseEnregistree ? texteAdresse(adresseEnregistree) : t({ en: "No address", fr: "Aucune adresse" }),
                 force === null
-                    ? t({ en: "State computed from hours", fr: "État calculé depuis les horaires" })
-                    : t({ en: "State forced", fr: "État forcé" }),
+                    ? t({ en: "Close everything: off", fr: "Tout fermer : inactif" })
+                    : t({ en: "Close everything: on", fr: "Tout fermer : actif" }),
             ]}
             ouvert={ouvert}
             onBasculer={onBasculer}
@@ -393,8 +396,8 @@ export const ThemeEtablissementOrganisation = ({
                 id="etablissement-liste"
                 titre={{ en: "Establishments", fr: "Établissements" }}
                 description={{
-                    en: "A call to one of an establishment's numbers reads its hours, address and sentences. Without establishments, every call behaves as before.",
-                    fr: "Un appel vers l'un des numéros d'un établissement lit ses horaires, son adresse et ses phrases. Sans établissement, chaque appel se comporte comme avant.",
+                    en: "An agent that chooses a fiche (theme « Business » of the agent) reads its hours, address, announcements, closing and transfer number alone. An agent without a fiche behaves as before.",
+                    fr: "Un agent qui choisit une fiche (thème « Établissement » de l'agent) en lit seuls les horaires, l'adresse, les annonces, la fermeture et le numéro de transfert. Un agent sans fiche se comporte comme avant.",
                 }}
             >
                 <ChampReglage
@@ -402,8 +405,8 @@ export const ThemeEtablissementOrganisation = ({
                     libelle={{ en: "Establishments of the organization", fr: "Établissements de l'organisation" }}
                     aides={[
                         {
-                            en: "Name, numbers, second number, transfer number; address, hours and sentences, inherited unless customized.",
-                            fr: "Nom, numéros, second numéro, numéro de transfert ; adresse, horaires et phrases, hérités sauf personnalisation.",
+                            en: "Name, second number, transfer number, address, hours, announcements, immediate closing, appointments and zone; create one by copy.",
+                            fr: "Nom, second numéro, numéro de transfert, adresse, horaires, annonces, fermeture immédiate, rendez-vous et zone ; création possible par copie.",
                         },
                     ]}
                     disposition="colonne"
@@ -418,7 +421,11 @@ export const ThemeEtablissementOrganisation = ({
                                 <li key={e.id}>
                                     <span className="font-medium">{e.nom}</span>{" "}
                                     <span className="text-muted-foreground">
-                                        {(e.numeros ?? []).length > 0 ? (e.numeros ?? []).join(", ") : t({ en: "to attach", fr: "à rattacher" })}
+                                        {e.etat_force
+                                            ? t({ en: "closing forced", fr: "fermeture forcée" })
+                                            : (e.horaires_ouverture ?? "").trim()
+                                              ? t({ en: "hours set", fr: "horaires renseignés" })
+                                              : t({ en: "no hours", fr: "aucun horaire" })}
                                     </span>
                                 </li>
                             ))}
@@ -428,6 +435,28 @@ export const ThemeEtablissementOrganisation = ({
                         {t({ en: "Edit establishments…", fr: "Modifier les établissements…" })}
                     </Button>
                 </ChampReglage>
+                <ChampReglage
+                    cle="reprise_des_fiches"
+                    libelle={{ en: "Takeover of the fiches and agents", fr: "Reprise des fiches et des agents" }}
+                    aides={[
+                        {
+                            en: "Writes into each fiche what it used to inherit and attaches each agent to its fiche. A trial run is shown first; nothing is written until you confirm.",
+                            fr: "Écrit dans chaque fiche ce qu'elle héritait et rattache chaque agent à sa fiche. Un essai est montré d'abord ; rien n'est écrit tant que vous ne confirmez pas.",
+                        },
+                    ]}
+                    disposition="colonne"
+                >
+                    <Button variant="outline" size="sm" onClick={() => setModaleReprise(true)} data-testid="ouvrir-reprise">
+                        {t({ en: "Take over the fiches…", fr: "Reprendre les fiches…" })}
+                    </Button>
+                </ChampReglage>
+                <ModaleReprise
+                    ouverte={modaleReprise}
+                    onFermer={(ecrit) => {
+                        setModaleReprise(false);
+                        if (ecrit) void etablissements.relire();
+                    }}
+                />
                 <ChampReglage
                     cle="phrases"
                     libelle={{ en: "Sentences", fr: "Phrases" }}
@@ -494,8 +523,8 @@ export const ThemeEtablissementOrganisation = ({
                 id="etablissement-annonce"
                 titre={{ en: "Closed-business announcement", fr: "Annonce de fermeture" }}
                 description={{
-                    en: "What every agent of this organization says when it picks up while the business is closed or on a break, and the state you can force by hand until a date.",
-                    fr: "Ce que disent tous les agents de l'organisation au décroché quand l'entreprise est fermée ou en pause, et l'état que vous pouvez forcer à la main jusqu'à une date.",
+                    en: "What the agents without a fiche say when they pick up while the business is closed or on a break, and « Close everything »: the state you can force by hand, until a date, for the whole organization.",
+                    fr: "Ce que disent les agents sans fiche au décroché quand l'entreprise est fermée ou en pause, et « Tout fermer » : l'état que vous pouvez forcer à la main, jusqu'à une date, pour toute l'organisation.",
                 }}
             >
                 {annonce.chargement ? (

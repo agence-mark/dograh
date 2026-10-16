@@ -235,6 +235,8 @@ export const CAS_AGENT: CasAgent[] = [
     c("adresse-organisation", "business-address", "etablissement", ["adresse_etablissement"], [
         { type: "cliquer", nom: "Use the organization's address" },
     ], true),
+    // Chantier agents-specialises, lot 11 (F1): the fiche the agent chose, frozen once.
+    c("fiche-de-lagent", "ajout-mark", "etablissement", ["etablissement_id"], [choisir("etablissement_id", "creil")]),
 
     // ---- Model Overrides (Dograh + .mark) ---------------------------------
     c("configuration-organisation", "models", "briques", ["model_overrides", "model_configuration_v2_override"], [

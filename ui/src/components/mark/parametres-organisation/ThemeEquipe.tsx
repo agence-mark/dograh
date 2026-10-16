@@ -46,6 +46,13 @@ const VIDE: Equipe = { personnes: [], sujets: [] };
 /** C1: the same bound as the server (``Personne.description``, 300). */
 export const DESCRIPTION_MAX = 300;
 
+/**
+ * The places of a person, as a list (lot 11, M5): zero, one or several, a LABEL and never a filter. Read from
+ * `etablissements`, else from the legacy single place of an older answer.
+ */
+export const lieuxDe = (p: Pick<Personne, "etablissement" | "etablissements">): string[] =>
+    p.etablissements ?? (p.etablissement ? [p.etablissement] : []);
+
 export const charge_utile_equipe = (equipe: Equipe): Equipe => ({
     personnes: (equipe.personnes ?? []).map((p) => ({
         ...p,
@@ -54,7 +61,10 @@ export const charge_utile_equipe = (equipe: Equipe): Equipe => ({
         role: p.role?.trim() || null,
         mail: p.mail?.trim() || null,
         telephone: p.telephone?.trim() || null,
-        etablissement: p.etablissement || null,
+        // Lot 11 (M5): the list is what the screen sends; BOTH fields are emptied to put a person back on
+        // « the whole company », and the legacy single place mirrors the first of the list.
+        etablissements: lieuxDe(p),
+        etablissement: lieuxDe(p)[0] || null,
         // l-agent-collegue, L1 (C1): what the agent knows of the person.
         description: p.description?.trim() || null,
         divulguer_telephone: p.divulguer_telephone ?? false,
@@ -169,19 +179,32 @@ function ModaleEquipe({ ouverte, onFermer }: { ouverte: boolean; onFermer: (enre
                                     <Input aria-label={t({ en: "Role", fr: "Rôle" })} placeholder={t({ en: "Role", fr: "Rôle" })} value={p.role ?? ""} onChange={(e) => modifierPersonne(i, { role: e.target.value })} />
                                     <Input aria-label={t({ en: "E-mail", fr: "E-mail" })} placeholder={t({ en: "E-mail", fr: "E-mail" })} value={p.mail ?? ""} onChange={(e) => modifierPersonne(i, { mail: e.target.value })} />
                                     <Input aria-label={t({ en: "Phone", fr: "Téléphone" })} value={p.telephone ?? ""} placeholder="+33612345678" onChange={(e) => modifierPersonne(i, { telephone: e.target.value })} />
-                                    <select
-                                        aria-label={t({ en: "Establishment", fr: "Établissement" })}
-                                        className="rounded border border-border bg-background px-2 py-1 text-sm"
-                                        value={p.etablissement ?? ""}
-                                        onChange={(e) => modifierPersonne(i, { etablissement: e.target.value || null })}
-                                    >
-                                        <option value="">{t({ en: "Whole company", fr: "Toute l'entreprise" })}</option>
+                                    {/* Lot 11 (M5): the places of a person, as boxes; none ticked = the whole company. */}
+                                    <fieldset className="space-y-1" data-testid={`lieux-${p.cle}`}>
+                                        <legend className="text-xs text-muted-foreground">{t({ en: "Establishments", fr: "Établissements" })}</legend>
                                         {etablissements.map((e) => (
-                                            <option key={e.id} value={e.id}>
+                                            <label key={e.id} className="flex items-center gap-2 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={lieuxDe(p).includes(e.id)}
+                                                    onChange={(ev) => {
+                                                        const avant = lieuxDe(p);
+                                                        const apres = ev.target.checked ? [...avant, e.id] : avant.filter((x) => x !== e.id);
+                                                        modifierPersonne(i, { etablissements: apres, etablissement: apres[0] ?? null });
+                                                    }}
+                                                />
                                                 {e.nom}
-                                            </option>
+                                            </label>
                                         ))}
-                                    </select>
+                                        <p className="text-xs text-muted-foreground">
+                                            {lieuxDe(p).length === 0
+                                                ? t({ en: "None ticked: the whole company.", fr: "Aucun coché : toute l'entreprise." })
+                                                : t({
+                                                      en: "A label: the agent knows the whole team, and says where each person works.",
+                                                      fr: "Une étiquette : l'agent connaît toute l'équipe, et dit où travaille chaque personne.",
+                                                  })}
+                                        </p>
+                                    </fieldset>
                                     <label className="flex items-center gap-2 text-sm">
                                         <input type="checkbox" checked={p.destinataire_defaut ?? false} onChange={(e) => modifierPersonne(i, { destinataire_defaut: e.target.checked })} />
                                         {t({ en: "Default recipient", fr: "Destinataire par défaut" })}

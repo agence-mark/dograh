@@ -281,6 +281,12 @@ class EtablissementsDeLagent(BaseModel):
         default=False,
         description="The chosen fiche no longer exists: the agent's calls read no establishment.",
     )
+    # [.mark] Chantier agents-specialises, lot 11 (C4) : les numéros appartiennent à l'agent, la
+    # fiche au lieu. L'écran les montre en lecture sous le choix de la fiche.
+    numeros_de_lagent: list[str] = Field(
+        default_factory=list,
+        description="Every number of the organization's Telephony that leads to this agent (read only).",
+    )
 
 
 class NumeroDeLorganisation(BaseModel):
