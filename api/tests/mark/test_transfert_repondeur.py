@@ -9,6 +9,7 @@ le transfert vers un humain, le répondeur, l'issue écrite dans la fiche de l'a
 | issue dans la fiche | ``transferts_humains`` : décroché, sans réponse, occupé, répondeur, échec, vers une personne ET vers un numéro ; jamais un numéro en clair |
 | options Twilio | seul Twilio reçoit détection, numéro et phrase ; un autre fournisseur, rien de plus qu'avant |
 | numéro des transferts | un numéro d'une autre organisation est refusé |
+| signature Twilio | sans signature valide, les deux adresses refusent (401) et rien n'est publié ; la signature se vérifie avec le compte Twilio du run du transfert |
 """
 
 from __future__ import annotations
@@ -163,13 +164,42 @@ def _contexte():
     )
 
 
-def _poster(chemin, donnees, contexte="oui", requete="", deja_regle=False):
+def _poster(chemin, donnees, contexte="oui", requete="", deja_regle=False, signe=True):
     gestionnaire = _Gestionnaire(_contexte() if contexte == "oui" else None, deja_regle=deja_regle)
     app = FastAPI()
     app.include_router(route_telephony.router)
-    with patch.object(route_telephony, "get_call_transfer_manager", AsyncMock(return_value=gestionnaire)):
+    with patch.object(route_telephony, "get_call_transfer_manager", AsyncMock(return_value=gestionnaire)), patch.object(
+        route_telephony, "_signe_par_twilio", AsyncMock(return_value=signe)
+    ):
         reponse = TestClient(app).post(f"/telephony{chemin}{requete}", data=donnees)
     return reponse, gestionnaire
+
+
+@pytest.mark.parametrize("chemin", ["/transfer-twiml/tid-1", "/transfer-result/tid-1"])
+def test_sans_signature_twilio_les_adresses_de_transfert_refusent(chemin):
+    """Revue du 16/10 : un inconnu ne peut ni ouvrir le pont ni déclarer un transfert échoué."""
+    reponse, gestionnaire = _poster(
+        chemin, {"AnsweredBy": "human", "CallSid": "CAsortant", "CallStatus": "in-progress"}, signe=False
+    )
+    assert reponse.status_code == 401 and "Conference" not in reponse.text
+    assert gestionnaire.evenements == []
+
+
+async def test_la_signature_se_verifie_avec_le_compte_twilio_du_run():
+    contexte = _contexte()
+    contexte.workflow_run_id = 42
+    fournisseur = SimpleNamespace(verify_inbound_signature=AsyncMock(return_value=True))
+    requete = SimpleNamespace(url="https://api.exemple.test/api/v1/telephony/transfer-result/tid-1?amd=1",
+                              headers={"x-twilio-signature": "sig"})
+    with patch.object(route_telephony.db_client, "get_workflow_run_by_id", AsyncMock(return_value=SimpleNamespace(workflow_id=7))),             patch.object(route_telephony.db_client, "get_workflow_by_id", AsyncMock(return_value=SimpleNamespace(organization_id=3))),             patch.object(route_telephony, "get_telephony_provider_for_run", AsyncMock(return_value=fournisseur)) as trouver:
+        assert await route_telephony._signe_par_twilio(requete, {"CallSid": "CA"}, contexte) is True
+    assert trouver.await_args.args[1] == 3
+    fournisseur.verify_inbound_signature.assert_awaited_once_with(
+        "https://api.exemple.test/api/v1/telephony/transfer-result/tid-1?amd=1", {"CallSid": "CA"}, {"x-twilio-signature": "sig"}
+    )
+    # Sans transfert connu (ou sans run), rien ne permet de vérifier : refusé.
+    assert await route_telephony._signe_par_twilio(requete, {}, None) is False
+    assert await route_telephony._signe_par_twilio(requete, {}, _contexte()) is False
 
 
 @pytest.mark.parametrize("repondu_par", ["machine_start", "machine_end_beep", "machine_end_silence", "machine_end_other", "fax"])

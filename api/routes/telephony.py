@@ -1205,6 +1205,22 @@ def _resultat_repondeur(call_sid: str) -> dict:
     }
 
 
+async def _signe_par_twilio(request: Request, data: dict, contexte) -> bool:
+    """[.mark] Revue du 16/10 : les deux adresses de retour d'un transfert ne croient que Twilio. La
+    signature se vérifie avec le compte Twilio de l'appel (retrouvé par le run du transfert) ; sans
+    transfert connu, rien ne permet de la vérifier, la requête est refusée."""
+    if contexte is None or not contexte.workflow_run_id:
+        return False
+    run = await db_client.get_workflow_run_by_id(contexte.workflow_run_id)
+    workflow = await db_client.get_workflow_by_id(run.workflow_id) if run else None
+    if workflow is None:
+        return False
+    fournisseur = await get_telephony_provider_for_run(run, workflow.organization_id)
+    return await fournisseur.verify_inbound_signature(
+        str(request.url), data, dict(request.headers)
+    )
+
+
 @router.post("/transfer-twiml/{transfer_id}")
 async def transfer_twiml(transfer_id: str, request: Request):
     """[.mark] Lot 5 (3 bis): what Twilio runs when the person we dialled picks up, once it knows who
@@ -1220,6 +1236,9 @@ async def transfer_twiml(transfer_id: str, request: Request):
     if contexte is None:
         logger.warning(f"Transfer TwiML asked for an unknown transfer {transfer_id}")
         return Response(TWIML_RACCROCHER, media_type="application/xml")
+    if not await _signe_par_twilio(request, data, contexte):
+        logger.warning(f"Invalid Twilio signature on the transfer TwiML {transfer_id}")
+        return Response(TWIML_RACCROCHER, media_type="application/xml", status_code=401)
     # [.mark] Revue du 16/10 : une seule issue par transfert. Si l'agent a déjà abandonné (attente
     # écoulée), la ligne raccroche : jamais un salarié seul dans une conférence vide.
     if not await manager.claim_transfer_step(transfer_id, ETAPE_ISSUE):
@@ -1288,6 +1307,11 @@ async def complete_transfer_function_call(transfer_id: str, request: Request):
     # Get transfer context from Redis for additional information
     call_transfer_manager = await get_call_transfer_manager()
     transfer_context = await call_transfer_manager.get_transfer_context(transfer_id)
+
+    # [.mark] Revue du 16/10 : seul Twilio peut dire qu'un transfert a abouti ou échoué.
+    if not await _signe_par_twilio(request, data, transfer_context):
+        logger.warning(f"Invalid Twilio signature on the transfer result {transfer_id}")
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
     original_call_sid = transfer_context.original_call_sid if transfer_context else None
     conference_name = transfer_context.conference_name if transfer_context else None
