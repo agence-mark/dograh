@@ -213,6 +213,9 @@ def register_event_handlers(
             # Set the start node now (after pre-call fetch data is merged)
             # so that render_template() has the complete _call_context_vars.
             await engine.set_node(engine.active_agent.workflow.start_node_id)
+            # [.mark] Lot 6 (A5) : le préchauffage des agents cibles (sans voix), en tâche de
+            # fond ; rien si le réglage est éteint ou si l'appel n'est pas un groupe.
+            engine.lancer_prechauffage()
             if answer_supervisor is not None:
                 await engine.handle_answer_supervision()
                 return

@@ -95,6 +95,8 @@ from api.services.pipecat.realtime_feedback_observer import (
 )
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
 from api.services.groupe.fiche import traitement_pour_agent_appele
+from api.services.groupe.prechauffage import Precharge
+from api.services.groupe.reglages_passation import prechauffage_actif
 from api.services.pipecat.greffier import (
     greffier_du_moteur,
     preparer_le_greffier,
@@ -1816,6 +1818,13 @@ async def _run_pipeline_impl(
             contexte_appel=contexte_appel,
             # [.mark] Chantier agents-specialises (lot 3) : la fiche suit l'agent appelé.
             traitement_de_la_fiche=lambda _agent: traitement_pour_agent_appele(engine),
+            # [.mark] Lot 6 (A5) : le cache de préchauffage de l'appel (sans voix), seulement
+            # quand le réglage est allumé (vrai par défaut dans un groupe).
+            precharge=(
+                Precharge(organization_id=workflow.organization_id)
+                if prechauffage_actif(run_configs)
+                else None
+            ),
         )
         engine.set_agent_factory(agent_factory)
         # The agent this call starts on. Its services were resolved above from

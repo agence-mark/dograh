@@ -15,11 +15,20 @@ from pipecat.frames.frames import LLMMessagesAppendFrame
 
 from api.services.pipecat.agent_runtime_factory import AgentBuildError
 from api.services.pipecat.audio_playback import play_hold_audio_loop
-from api.services.workflow.agent_handoff_context import build_handoff_snapshot
+from api.services.workflow.agent_handoff_context import (
+    build_handoff_snapshot,
+    conversation_messages,
+)
 from api.services.workflow.agent_runtime import new_visit_id
 from api.services.groupe.passations import (
     l_appelant_a_parle_en_dernier,
     tracer_passation,
+)
+from api.services.groupe.reglages_passation import (
+    Attente,
+    attente_de,
+    chemin_du_son,
+    passation_courte,
 )
 
 TRANSFER_PREPARE_TIMEOUT_SECONDS = 20.0
@@ -143,10 +152,28 @@ class AgentTransferCoordinator:
             await self._announce(request, source)
             self._check_current(request)
             # [.mark] Au clavier (aucune sortie audio) ou pour un retour au principal :
-            # l'agent est mis en attente, sans musique ni durée minimale.
-            attente = not (request.silencieuse or self._sans_sortie_audio())
+            # l'agent est mis en attente, sans musique ni durée minimale. Lot 6 (A6) : vers
+            # un agent DÉJÀ CONSTRUIT (le principal resté chaud), aucune musique et aucune
+            # durée minimale, quel que soit le réglage (il ne vaut que pour un agent à
+            # construire) ; sinon le réglage ``attente`` du principal (son, durée, où).
+            reglage = attente_de(getattr(engine, "reglages_appel", None))
+            deja_construit = (
+                engine.principal_chaud_pour(request.destination_workflow_id) is not None
+            )
+            attente = not (
+                request.silencieuse
+                or self._sans_sortie_audio()
+                or deja_construit
+                or not reglage.passation
+                or reglage.sans_son
+            )
+            duree_min = (
+                TRANSFER_MIN_HOLD_SECONDS
+                if reglage.duree_min_s is None
+                else reglage.duree_min_s
+            )
             if attente:
-                await self._begin_hold(request, source)
+                await self._begin_hold(request, source, reglage)
             else:
                 await engine.deactivate_agent(source)
             hold_started = time.monotonic()
@@ -175,6 +202,20 @@ class AgentTransferCoordinator:
             async with asyncio.timeout(TRANSFER_PREPARE_TIMEOUT_SECONDS):
                 self._phase = TransferPhase.PREPARING
                 await engine.pause_background_context_writers()
+                # [.mark] Lot 6 (P5) : une conversation courte passe sans appel au modèle de
+                # résumé (réglage ``passation_sans_resume_jusqua``, 40 par défaut dans un groupe).
+                resumer = not request.sans_resume
+                try:
+                    if resumer and engine.context is not None:
+                        nombre = len(conversation_messages(engine.context.get_messages()))
+                        if passation_courte(nombre, getattr(engine, "reglages_appel", None)):
+                            resumer = False
+                            logger.info(
+                                f"[transfer] {request.request_id}: {nombre} messages, "
+                                "historique rendu sans résumé"
+                            )
+                except Exception as e:  # noqa: BLE001 -- jamais une raison de rater la passation
+                    logger.warning(f"[transfer] décompte des messages illisible : {e!r}")
                 async with asyncio.TaskGroup() as group:
                     group.create_task(prepare())
                     compact = group.create_task(
@@ -185,14 +226,14 @@ class AgentTransferCoordinator:
                             # Resolved here, in the parent task: the compaction
                             # task has no ambient span of its own to inherit.
                             parent_context=engine._get_otel_context(),
-                            resumer=not request.sans_resume,
+                            resumer=resumer,
                         )
                     )
                 snapshot = compact.result()
 
             if attente:
                 await asyncio.sleep(
-                    max(0, TRANSFER_MIN_HOLD_SECONDS - (time.monotonic() - hold_started))
+                    max(0, duree_min - (time.monotonic() - hold_started))
                 )
             await self._stop_hold_audio()
             if not self._sans_sortie_audio():
@@ -254,12 +295,26 @@ class AgentTransferCoordinator:
             try:
                 await self._stop_hold_audio()
                 if committed:
-                    await source.retire("transferred")
+                    # [.mark] Lot 6 (A5) : le principal d'un groupe reste chaud (désactivé,
+                    # jamais libéré) ; un agent seul est libéré exactement comme avant.
+                    if not engine.garder_chaud(source):
+                        await source.retire("transferred")
                 elif destination is not None:
-                    try:
-                        await destination.abort("transfer abandoned")
-                    finally:
-                        engine.discard_pending_agent(destination)
+                    if destination is engine.__dict__.get("_principal_chaud"):
+                        # Un principal chaud n'est JAMAIS avorté : il reste ouvert pour le
+                        # retour suivant ; on le remet hors de la conversation s'il y était entré.
+                        try:
+                            if destination.worker is not None and destination.worker.active:
+                                await engine.deactivate_agent(destination)
+                        except Exception as e:  # noqa: BLE001
+                            logger.warning(f"[transfer] principal chaud non remis en attente : {e!r}")
+                        finally:
+                            engine.discard_pending_agent(destination)
+                    else:
+                        try:
+                            await destination.abort("transfer abandoned")
+                        finally:
+                            engine.discard_pending_agent(destination)
                 # The source and its shared conversation were never replaced.
                 if not committed and not engine.is_call_disposed():
                     if await engine.activate_agent(
@@ -311,17 +366,28 @@ class AgentTransferCoordinator:
         if not self._sans_sortie_audio():
             await engine.drain_call_pipeline()
 
-    async def _begin_hold(self, request, source):
+    async def _begin_hold(self, request, source, reglage: Attente | None = None):
         await self._engine.deactivate_agent(source)
         self._hold_stop = asyncio.Event()
-        self._hold_task = asyncio.create_task(
-            play_hold_audio_loop(
-                stop_event=self._hold_stop,
+        stop = self._hold_stop
+        reglage = reglage or Attente()
+
+        async def jouer():
+            # [.mark] Lot 6 (A6) : le son déposé du réglage ``attente`` (mis en cache local,
+            # comme le bruit d'ambiance) ; sans lui, ou s'il ne se charge pas, la sonnerie d'avant.
+            options = {}
+            if reglage.fichier is not None:
+                chemin = await chemin_du_son(reglage, self._engine.hold_audio_sample_rate)
+                if chemin:
+                    options["audio_file"] = chemin
+            await play_hold_audio_loop(
+                stop_event=stop,
                 sample_rate=self._engine.hold_audio_sample_rate,
                 queue_frame=self._engine.transport_output_queue_frame,
-            ),
-            name=f"hold:{request.request_id}",
-        )
+                **options,
+            )
+
+        self._hold_task = asyncio.create_task(jouer(), name=f"hold:{request.request_id}")
 
     async def _stop_hold_audio(self):
         if self._hold_stop is not None:

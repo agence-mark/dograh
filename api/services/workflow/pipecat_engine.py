@@ -38,8 +38,16 @@ from api.services.groupe.passations import (
     agent_principal_de,
     choisir_la_fin,
     est_une_etape_de_retour,
+    est_un_groupe,
     fins_du_noeud,
     plafond_atteint,
+)
+from api.services.groupe.prechauffage import precharge_de, prechauffer_les_cibles
+from api.services.equipe.transferts_humains import un_renvoi_a_echoue
+from api.services.groupe.reglages_passation import (
+    LIGNE_RENVOI_DEJA_ECHOUE,
+    prechauffage_actif,
+    renvoi_unique_actif,
 )
 from api.enums import ToolCategory
 from api.errors.failure import (
@@ -302,6 +310,10 @@ class PipecatEngine:
         # d'un agent appelé au clavier, jouée au passage suivant ; les tâches du groupe
         # (fin figée, retour au principal) que le clavier attend avant de finir le tour.
         self.reglages_appel: dict = {}
+        # [.mark] Lot 6 (A5) : le principal du groupe, resté chaud (désactivé, jamais libéré)
+        # pendant qu'un spécialisé a la main ; la tâche du préchauffage (sans voix).
+        self._principal_chaud: Optional[AgentRuntime] = None
+        self._tache_prechauffage: Optional[asyncio.Task] = None
         self.sans_sortie_audio = False
         self.ouverture_differee: Optional[dict] = None
         self._taches_du_groupe: set[asyncio.Task] = set()
@@ -878,9 +890,24 @@ class PipecatEngine:
             noeud = agent.workflow.nodes.get(cible)
             if noeud is None or noeud.is_end or not noeud.tool_uuids:
                 return False
+            # [.mark] Lot 6 (A7) : un seul renvoi vers un humain par appel : un renvoi déjà
+            # échoué, et le transfert garanti ne repart pas (tout agent de l'appel).
+            if self._un_renvoi_a_deja_echoue():
+                return False
             return (self._call_context_vars or {}).get(CLE_ETAT_OUVERTURE) == OUVERT
         except Exception as e:  # noqa: BLE001
             logger.error(f"[transfert] garantie illisible : {e!r}")
+            return False
+
+    def _un_renvoi_a_deja_echoue(self) -> bool:
+        """[.mark] Lot 6 (A7) : réglage « un seul renvoi par appel » allumé (vrai par défaut
+        dans un groupe) et un transfert vers un humain a déjà échoué dans cet appel
+        (``transferts_humains``, écrit à chaque issue). ⛔ Ne lève jamais."""
+        try:
+            return renvoi_unique_actif(self.reglages_appel) and un_renvoi_a_echoue(
+                self._gathered_context
+            )
+        except Exception:  # noqa: BLE001
             return False
 
     def _attendre_la_reponse(self, agent: AgentRuntime):
@@ -900,7 +927,7 @@ class PipecatEngine:
         organisation = await self._get_organization_id()
         if not organisation:
             return None
-        outils = await db_client.get_tools_by_uuids(list(noeud.tool_uuids), organisation)
+        outils = await self.lire_outils(list(noeud.tool_uuids), organisation)
         for outil in outils:
             if outil.category != ToolCategory.TRANSFER_CALL.value:
                 continue
@@ -1674,6 +1701,10 @@ class PipecatEngine:
             self.__dict__.get("_gathered_context"), self.__dict__.get("reglages_appel")
         ):
             texte = f"{texte}\n\n{LIGNE_PLAFOND}"
+        # [.mark] Lot 6 (A7) : un transfert a déjà échoué dans cet appel : la ligne générique,
+        # pour l'agent qui arrive comme pour celui qui reste.
+        if not node.is_end and self._un_renvoi_a_deja_echoue():
+            texte = f"{texte}\n\n{LIGNE_RENVOI_DEJA_ECHOUE}"
         agent.tools = ToolsSchema(standard_tools=functions)
         agent.system_prompt = texte
         if agent.recording_router is not None:
@@ -2561,6 +2592,13 @@ class PipecatEngine:
                 "transfer_unavailable",
                 "This call was not set up to transfer between agents",
             )
+        # [.mark] Lot 6 (A5) : la cible est le principal resté chaud : on le rend tel quel
+        # (même pipeline, mêmes services, même visite), il reprend avec l'historique et la fiche.
+        chaud = self.principal_chaud_pour(workflow_id)
+        if chaud is not None:
+            self._pending_agent = chaud
+            logger.info(f"[groupe] principal {workflow_id} resté chaud : rendu sans construction")
+            return chaud
         runtime = await self._agent_factory.build(
             workflow_id=workflow_id, visit_id=visit_id
         )
@@ -2574,7 +2612,9 @@ class PipecatEngine:
         return runtime
 
     async def prepare_agent(self, runtime: AgentRuntime) -> None:
-        await self._open_mcp_sessions(runtime)
+        # [.mark] Lot 6 : un principal resté chaud garde ses sessions déjà ouvertes.
+        if not runtime.mcp_sessions:
+            await self._open_mcp_sessions(runtime)
         node = runtime.workflow.nodes[runtime.workflow.start_node_id]
         await self._prepare_node(runtime, node)
         runtime.current_node = node
@@ -2644,11 +2684,21 @@ class PipecatEngine:
         the history entry is taken, so the record is not a snapshot of a visit
         that had not ended yet.
         """
+        # [.mark] Lot 6 (A5) : un principal resté chaud qui reprend la main sort des agents
+        # écartés (il n'y figure jamais deux fois) et sa visite repart de zéro, pour que le
+        # relevé compte UNE visite par entrée : même ``visit_id`` (son pipeline et ses rappels
+        # y sont liés), ``entered_at`` posé au commit, ``exited_at``/``exit_reason`` vidés.
+        if any(a is runtime for a in self._retired_agents):
+            self._retired_agents = [a for a in self._retired_agents if a is not runtime]
+            runtime.exited_at = None
+            runtime.exit_reason = None
+            runtime.nb_entrees += 1
         if previous is not None and previous is not runtime:
             previous.exited_at = previous.exited_at or time.time()
             previous.exit_reason = previous.exit_reason or previous_exit_reason
             self._agent_visits.append(previous.describe())
-            self._retired_agents.append(previous)
+            if not any(a is previous for a in self._retired_agents):
+                self._retired_agents.append(previous)
         self._active_agent = runtime
         self._pending_agent = None
 
@@ -2771,15 +2821,87 @@ class PipecatEngine:
             self.pending_agent,
             *self.__dict__.get("_retired_agents", []),
         ]
+        vus: list[AgentRuntime] = []  # [.mark] lot 6 : jamais deux fois le même agent
         for agent in agents:
             if agent is None or not agent.is_child:
                 continue
+            if any(agent is v for v in vus):
+                continue
+            vus.append(agent)
             agent.exited_at = agent.exited_at or time.time()
             agent.exit_reason = agent.exit_reason or reason
             if drain:
                 await agent.retire(reason)
             else:
                 await agent.abort(reason)
+
+    # --- [.mark] Chantier agents-specialises (lot 6) : principal chaud, préchauffage ---
+
+    def est_le_principal(self, agent: AgentRuntime) -> bool:
+        """``agent`` est-il le principal d'un groupe ? L'appel est porté par un groupe et
+        l'agent n'a pas de principal au-dessus de lui. ⛔ Ne lève jamais."""
+        try:
+            return bool(
+                agent is not None
+                and agent.is_child
+                and est_un_groupe(self.reglages_appel)
+                and agent_principal_de(agent.reglages) is None
+                and self.agent_transfer_enabled
+            )
+        except Exception:  # noqa: BLE001
+            return False
+
+    def garder_chaud(self, source: AgentRuntime) -> bool:
+        """Le principal qui passe la main est désactivé, PAS libéré (A5) : rend ``True`` quand
+        ``source`` est le principal et reste donc ouvert. Un agent seul : ``False`` (libéré
+        comme avant). ⛔ Ne lève jamais."""
+        if not self.est_le_principal(source):
+            return False
+        self._principal_chaud = source
+        return True
+
+    def principal_chaud_pour(self, workflow_id: int) -> Optional[AgentRuntime]:
+        """Le principal resté chaud, s'il est la cible demandée et encore utilisable (sans
+        erreur, non libéré, pipeline vivant) ; ``None`` sinon (construction normale)."""
+        chaud = self.__dict__.get("_principal_chaud")
+        if (
+            chaud is None
+            or chaud.workflow_id != workflow_id
+            or chaud is self._active_agent
+            or chaud.error
+            or not chaud.is_running
+        ):
+            return None
+        return chaud
+
+    def lancer_prechauffage(self) -> None:
+        """Au décroché, après le premier agent : charge à l'avance (sans voix) ce que la
+        construction des agents cibles lira en base. En tâche de fond, jamais bloquant,
+        réglage ``prechauffage_agents`` (vrai par défaut dans un groupe). ⛔ Ne lève jamais."""
+        try:
+            if not self.agent_transfer_enabled or not prechauffage_actif(self.reglages_appel):
+                return
+            agent = self.active_agent
+
+            async def preparer() -> None:
+                await prechauffer_les_cibles(
+                    self._agent_factory,
+                    agent.workflow,
+                    ids_a_exclure={agent.workflow_id},
+                    lire_outils=db_client.get_tools_by_uuids,
+                )
+
+            self._tache_prechauffage = asyncio.get_running_loop().create_task(preparer())
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[prechauffage] non lancé : {e!r}")
+
+    async def lire_outils(self, uuids, organization_id: int) -> list:
+        """Les outils d'un ensemble d'étapes : lus dans le cache de l'appel quand le
+        préchauffage les a déjà chargés, sinon en base comme avant."""
+        precharge = precharge_de(self)
+        if precharge is None:
+            return await db_client.get_tools_by_uuids(list(uuids), organization_id)
+        return await precharge.outils(uuids, organization_id, db_client.get_tools_by_uuids)
 
     def set_audio_config(self, audio_config) -> None:
         """Set the audio configuration for the pipeline."""
@@ -2904,9 +3026,7 @@ class PipecatEngine:
                 logger.warning("Cannot open MCP sessions: organization_id missing")
                 return
 
-            tools = await db_client.get_tools_by_uuids(
-                list(tool_uuids), organization_id
-            )
+            tools = await self.lire_outils(sorted(tool_uuids), organization_id)
             for tool in tools:
                 if tool.category != ToolCategory.MCP.value:
                     continue

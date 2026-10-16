@@ -103,6 +103,19 @@ def noter(fiche, cible: str, issue: str) -> None:
         logger.warning(f"[.mark] Transfer outcome not written to the call's record: {erreur!r}")
 
 
+def un_renvoi_a_echoue(fiche: dict | None) -> bool:
+    """[.mark] Lot 6 (A7) : un transfert vers un humain a-t-il déjà échoué dans cet appel ?
+    Vrai dès qu'une entrée de ``transferts_humains`` a une issue autre que ``decroche``
+    (répondeur, sans réponse, occupé, échec). ⛔ Ne lève jamais."""
+    try:
+        entrees = (fiche or {}).get(CLE) or []
+        return any(
+            isinstance(e, dict) and e.get("issue") != "decroche" for e in entrees
+        )
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def phrase_du_salarie(contexte: dict | None) -> str:
     """La phrase du catalogue quand l'organisation en a écrit une, sinon le texte par défaut."""
     brut = (contexte or {}).get(VARIABLE_PHRASE_SALARIE)
