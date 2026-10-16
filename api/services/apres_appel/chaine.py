@@ -431,6 +431,9 @@ def texte_du_mail(ctx: ContexteModule, bloc: dict) -> tuple[str, str]:
     envoi = ctx.envoi
     motif = envoi.get("motif") or "—"
     sujet = f"Nouvelle demande : {motif}"[:150]
+    if envoi.get("demandes"):
+        # [.mark] Lot 17 : un appel à plusieurs demandes les dit toutes dans le sujet.
+        sujet = f"Nouvelles demandes : {' ; '.join(envoi.get('motifs') or [motif])}"[:150]
     if (envoi.get("demande") or {}).get("nee_d_une_panne"):
         # Decision of Evan, 07/10 (form, point 7). The mails are written in French.
         sujet = SUJET_PANNE
@@ -459,8 +462,27 @@ def texte_du_mail(ctx: ContexteModule, bloc: dict) -> tuple[str, str]:
     lignes.append(bloc.get("synthese") or "(résumé indisponible)")
     lignes.append("")
     lignes.append("Fiche :")
-    for champ in envoi.get("champs") or []:
-        lignes.append(f"- {champ['nom']} : {champ['valeur']}")
+    demandes = envoi.get("demandes") or []
+    if demandes:
+        # [.mark] Lot 17 : un appel à plusieurs demandes : les champs de l'appel une fois, puis
+        # un bloc par demande (son agent, son motif, ses champs propres).
+        for champ in demandes[0].get("champs") or []:
+            if champ.get("portee") == "appel":
+                lignes.append(f"- {champ['nom']} : {champ['valeur']}")
+        for bloc in demandes:
+            titre = f"Demande {bloc.get('ordre')}"
+            if bloc.get("agent"):
+                titre += f" ({bloc['agent']})"
+            if bloc.get("motif"):
+                titre += f" : {bloc['motif']}"
+            lignes.append("")
+            lignes.append(titre)
+            for champ in bloc.get("champs") or []:
+                if champ.get("portee") != "appel":
+                    lignes.append(f"- {champ['nom']} : {champ['valeur']}")
+    else:
+        for champ in envoi.get("champs") or []:
+            lignes.append(f"- {champ['nom']} : {champ['valeur']}")
     if bloc.get("demande_id"):
         lignes.append("")
         lignes.append(

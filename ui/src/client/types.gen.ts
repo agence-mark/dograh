@@ -1920,6 +1920,12 @@ export type ChampFiche = {
      * Filled at the end of the call: if the agent did not note the field during the call, the end-of-call pass may fill it from the conversation. Off: only the agent writes it, while the caller is speaking.
      */
     rempli_en_fin_d_appel?: boolean;
+    /**
+     * Portee
+     *
+     * Scope in a call with several requests: whole call (what concerns the caller: shared by every request) or this request (closed with it when another specialist takes over). Empty: computed from the agent's settings (town and street readers, field recognition).
+     */
+    portee?: 'appel' | 'demande' | null;
 };
 
 /**

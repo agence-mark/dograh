@@ -84,6 +84,9 @@ def charge_utile(contexte: ContexteModule) -> dict:
         }
         if envoi.get("demande")
         else None,
+        # [.mark] Lot 17 : seulement pour un appel à plusieurs demandes ; absent sinon (la charge
+        # utile d'un appel à une demande est celle d'avant, octet pour octet).
+        **({"demandes": envoi["demandes"]} if envoi.get("demandes") else {}),
         "appel_id": contexte.ecriture.get("appel_id"),
         "synthese": contexte.synthese,
     }

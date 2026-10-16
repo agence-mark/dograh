@@ -247,6 +247,9 @@ export interface ChampFiche {
     chiffres?: number | null;
     // [.mark] D3 (correctifs-second-banc-34): the end-of-call pass may fill it. Absent: true.
     rempli_en_fin_d_appel?: boolean;
+    // [.mark] Lot 17 (fiche à plusieurs demandes): whole call, or this request. Empty (null or
+    // absent): computed from the agent's settings, never written.
+    portee?: "appel" | "demande" | null;
 }
 
 /**

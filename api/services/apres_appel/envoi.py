@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from api.schemas.apres_appel import ApresAppelAgent
+from api.services.fiche.demandes import APPEL, DEMANDE, demandes_closes, dernier_specialise
 from api.services.apres_appel.rappels import (
     ORIGINE_EQUIPE,
     ORIGINE_PLANIFICATEUR,
@@ -60,6 +61,69 @@ def _motifs(brut: Any) -> list[str]:
         if morceau and morceau not in propres:
             propres.append(morceau)
     return propres
+
+
+def _blocs_des_demandes(
+    closes: list[dict],
+    contexte: dict,
+    champs_a_plat: list[dict],
+    entrees,
+    agent: ApresAppelAgent,
+    sujets: list[dict],
+) -> list[dict]:
+    """[.mark] Lot 17 : les demandes de l'appel, une par bloc : les demandes closes, puis la demande
+    en cours si elle a un champ « demande » rempli. Chaque bloc porte les champs « appel » (à leur
+    valeur de la fin de l'appel) et ses propres champs « demande », chacun marqué de sa portée.
+    ``demande`` : le type, le sujet (choisi sur le motif du bloc), la priorité, le degré d'urgence."""
+    appel_noms = {nom for bloc in closes for nom in (bloc.get("appel") or [])}
+    de_l_appel = [dict(c, portee=APPEL) for c in champs_a_plat if c["nom"] in appel_noms]
+    en_cours = [dict(c, portee=DEMANDE) for c in champs_a_plat if c["nom"] not in appel_noms]
+
+    def _demande(champs_du_bloc: dict, motifs: list[str]) -> dict:
+        def valeur(role: str) -> str | None:
+            return _texte(champs_du_bloc.get(agent.champ(role)))
+
+        sujet = choisir_sujet(sujets, " ; ".join(motifs) or None, valeur("type_demande"))
+        return {
+            "type": valeur("type_demande"),
+            "sujet": (sujet or {}).get("code"),
+            "priorite": 1 if (sujet or {}).get("urgent") else 2,
+            "degre_urgence": valeur("degre_urgence"),
+        }
+
+    blocs: list[dict] = []
+    for bloc in closes:
+        propres = bloc.get("champs") or {}
+        motifs = _motifs(propres.get(agent.champ("motif")))
+        blocs.append(
+            {
+                "ordre": len(blocs) + 1,
+                "agent_id": bloc.get("agent_id"),
+                "agent": bloc.get("agent"),
+                "motif": motifs[0] if motifs else None,
+                "motifs": motifs,
+                "champs": de_l_appel + [dict(c, portee=DEMANDE) for c in entrees(propres, bloc.get("etat") or {})],
+                "demande": _demande(propres, motifs),
+            }
+        )
+    if en_cours:
+        valeurs = {c["nom"]: c["valeur"] for c in en_cours}
+        motifs = _motifs(valeurs.get(agent.champ("motif")))
+        blocs.append(
+            {
+                "ordre": len(blocs) + 1,
+                # Le dernier spécialisé passé par l'appel : celui qui a traité la demande en cours.
+                "agent_id": dernier_specialise(contexte, None),
+                "agent": None,
+                "motif": motifs[0] if motifs else None,
+                "motifs": motifs,
+                "champs": de_l_appel + en_cours,
+                # La demande de l'appel : ses champs sont ceux de la vue à plat (champ_appel).
+                "courante": True,
+                "demande": _demande(valeurs, motifs),
+            }
+        )
+    return blocs
 
 
 # Ce que l'analyse du run appelle un incident et qui en est un pour le portail (lot 9) : une panne
@@ -237,8 +301,19 @@ def construire_envoi(
     def valeur(role: str) -> str | None:
         return _texte(fiche.get(agent.champ(role)))
 
+    # [.mark] Lot 17 : les demandes closes d'un appel à plusieurs demandes (liste vide : le
+    # chemin d'avant, inchangé). Leurs champs « demande » ne sont plus dans la vue à plat.
+    closes = demandes_closes(contexte)
     # [.mark] Lot 8 (A8) : un appel peut porter plusieurs motifs ; le premier reste « le motif ».
-    motifs = _motifs(fiche.get(agent.champ("motif")))
+    # Lot 17 : ceux des demandes closes d'abord, dans l'ordre des demandes.
+    motifs = _motifs(
+        [
+            m
+            for bloc in closes
+            for m in _motifs((bloc.get("champs") or {}).get(agent.champ("motif")))
+        ]
+        + _motifs(fiche.get(agent.champ("motif")))
+    )
     motif = motifs[0] if motifs else None
     type_demande = valeur("type_demande")
     sujet = choisir_sujet(sujets or [], " ; ".join(motifs) or None, type_demande)
@@ -254,21 +329,43 @@ def construire_envoi(
     cout = resume.get("cost") or {}
     entree, cache, sortie = _jetons(getattr(run, "usage_info", None) or {})
 
-    champs = [
-        {
-            "nom": nom,
-            "valeur": _texte(v),
-            "origine": origines.get(nom),
-            "sure": (etat.get(nom) or {}).get("sure")
-            if isinstance(etat.get(nom), dict)
-            else None,
-            "source": (etat.get(nom) or {}).get("source")
-            if isinstance(etat.get(nom), dict)
-            else None,
-        }
-        for nom, v in fiche.items()
-        if _texte(v) is not None
-    ]
+    def _entrees(valeurs: dict, etats: dict) -> list[dict]:
+        return [
+            {
+                "nom": nom,
+                "valeur": _texte(v),
+                "origine": origines.get(nom),
+                "sure": (etats.get(nom) or {}).get("sure")
+                if isinstance(etats.get(nom), dict)
+                else None,
+                "source": (etats.get(nom) or {}).get("source")
+                if isinstance(etats.get(nom), dict)
+                else None,
+            }
+            for nom, v in valeurs.items()
+            if _texte(v) is not None
+        ]
+
+    champs = _entrees(fiche, etat)
+    # [.mark] Lot 17 : une demande par bloc, quand l'appel en porte au moins deux (sinon la demande
+    # close est reversée à plat et l'envoi est celui d'avant).
+    demandes_de_l_appel = (
+        _blocs_des_demandes(
+            closes, contexte, champs, _entrees, agent, sujets or []
+        )
+        if closes
+        else []
+    )
+    if closes and len(demandes_de_l_appel) < 2:
+        # Un seul bloc : la demande unique de l'appel, comme avant (ses champs reviennent à plat).
+        for bloc in closes:
+            reverses = {
+                nom: v
+                for nom, v in (bloc.get("champs") or {}).items()
+                if nom not in fiche
+            }
+            champs = _entrees(reverses, bloc.get("etat") or {}) + champs
+        demandes_de_l_appel = []
     tours = [
         {
             "numero": t.get("turn"),
@@ -427,6 +524,7 @@ def construire_envoi(
         },
         "demande": demande,
         "champs": champs,
+        **({"demandes": demandes_de_l_appel} if demandes_de_l_appel else {}),
         "tours": tours,
         "verbatim": verbatim,
         "nb_tours": stats.get("total_turns"),

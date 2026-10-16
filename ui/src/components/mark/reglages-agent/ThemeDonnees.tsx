@@ -703,6 +703,12 @@ export const ThemeDonnees = ({
                         champs={champs}
                         onChange={setChamps}
                         postScriptum={modeDeNote === "post_scriptum"}
+                        reconnaissance={{
+                            commune: resolue.variables_commune,
+                            telephone: resolue.variables_telephone,
+                            code_postal: resolue.variables_code_postal,
+                            courriel: resolue.variables_courriel,
+                        }}
                     />
                 </div>
             </Intertitre>
