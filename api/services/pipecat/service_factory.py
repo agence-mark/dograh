@@ -44,6 +44,7 @@ from api.services.lexique.ecoute import regles_de_prononciation
 from api.services.panne.delai_modele import DelaiModeleMixin
 from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
 from api.services.pipecat.main_passee import MainPasseeMixin
+from api.services.pipecat.texte_du_cerveau import TexteDuCerveauMixin
 from api.services.pipecat.reponse_avalee import RepriseSansFluxMixin
 from api.services.pipecat.trace_modele import TraceModeleMixin
 from api.services.pipecat.minimax_tts import (
@@ -472,6 +473,7 @@ class DograhMistralLLMService(TraceModeleMixin, DelaiModeleMixin, MistralLLMServ
 class DograhOpenAILLMService(
     TraceModeleMixin,
     MainPasseeMixin,
+    TexteDuCerveauMixin,
     RepriseSansFluxMixin,
     ReflexionDeRelanceMixin,
     DelaiModeleMixin,
