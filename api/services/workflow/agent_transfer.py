@@ -110,14 +110,16 @@ class AgentTransferCoordinator:
         self._engine.call_monitor.suspend()
         return True
 
-    def start(self, request, *, context_ready=None):
+    def start(self, request, *, context_ready=None) -> bool:
+        """[.mark] Rend ``True`` si la passation est partie (D1 : l'agent d'origine se tait)."""
         if self._request is not request or request.cancelled:
-            return
+            return False
         self._task = asyncio.create_task(
             self._run(request, context_ready=context_ready),
             name=f"transfer:{request.request_id}",
         )
         self._task.add_done_callback(self._report_error)
+        return True
 
     @staticmethod
     def _report_error(task):

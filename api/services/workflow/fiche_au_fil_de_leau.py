@@ -46,6 +46,7 @@ from pipecat.frames.frames import FunctionCallResultProperties
 from pipecat.services.llm_service import FunctionCallParams
 from rapidfuzz import fuzz
 
+from api.services.groupe.passations import est_la_note_de_passation
 from api.schemas.fiche_agent import (
     ChampFiche,
     OrigineChamp,
@@ -646,6 +647,8 @@ def paroles_de_l_appelant(messages: Iterable[dict]) -> list[str]:
     for message in messages:
         if not isinstance(message, dict) or message.get("role") != "user":
             continue
+        if est_la_note_de_passation(message):
+            continue  # D1 : la note du code, jamais une parole de l'appelant
         contenu = message.get("content")
         if isinstance(contenu, str):
             paroles.append(contenu)
@@ -3821,7 +3824,9 @@ def etat_avec_les_indices(
         (
             m.get("content")
             for m in reversed(list(messages))
-            if m.get("role") == "user" and isinstance(m.get("content"), str)
+            if m.get("role") == "user"
+            and isinstance(m.get("content"), str)
+            and not est_la_note_de_passation(m)
         ),
         None,
     )
@@ -3839,7 +3844,7 @@ def inserer_l_etat(messages: list, texte: str) -> list:
     """D43 : juste avant la dernière parole de l'appelant, dans une COPIE de la
     liste. Sans parole de l'appelant (l'accueil), rien n'est ajouté."""
     for i in range(len(messages) - 1, -1, -1):
-        if messages[i].get("role") == "user":
+        if messages[i].get("role") == "user" and not est_la_note_de_passation(messages[i]):
             return [*messages[:i], {"role": "user", "content": texte}, *messages[i:]]
     return messages
 

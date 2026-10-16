@@ -78,3 +78,17 @@ def test_le_cerveau_compatible_openai_porte_le_garde_fou():
 
     ordre = DograhOpenAILLMService.__mro__
     assert ordre.index(TraceModeleMixin) < ordre.index(MainPasseeMixin) < ordre.index(RepriseSansFluxMixin)
+
+
+def test_la_note_n_est_jamais_la_parole_lue_par_la_fiche():
+    """Relecture : l'état de la fiche se pose avant la vraie parole, et les modules lisent
+    celle-ci, jamais la note."""
+    from api.services.workflow.fiche_au_fil_de_leau import inserer_l_etat, paroles_de_l_appelant
+
+    messages = [
+        {"role": "user", "content": "Je voudrais changer mon poêle."},
+        {"role": "assistant", "content": "Très bien."},
+        {"role": "user", "content": NOTE_DE_PASSATION},
+    ]
+    assert inserer_l_etat(messages, "ÉTAT")[0] == {"role": "user", "content": "ÉTAT"}
+    assert paroles_de_l_appelant(messages) == ["Je voudrais changer mon poêle."]
