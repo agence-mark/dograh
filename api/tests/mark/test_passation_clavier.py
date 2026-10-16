@@ -11,7 +11,7 @@ test ; seuls les modèles (réponses écrites d'avance) sont remplacés.
 | autre organisation | une cible d'une autre organisation est refusée, A continue |
 | cible absente | une cible inexistante est refusée, A continue |
 | sans passation | rien ne change : ni `agent_actif`, ni `passations` (checkpoint d'avant) |
-| retour | l'étape marquée rend la main au principal sans tour de modèle intermédiaire ; le principal répond à l'appelant |
+| retour | l'étape marquée rend la main au principal sans tour de modèle intermédiaire ; le principal répond à l'appelant ; il ne reçoit que la dernière étape du spécialisé |
 | fin figée | le nœud de fin avec `fins` dit la phrase choisie sur la fiche, sans modèle, et clôt |
 | plafond | au-delà du plafond du groupe, la passation est refusée et tracée |
 | soi-même | une passation vers soi-même est refusée |
@@ -412,6 +412,46 @@ async def test_le_retour_apres_autre_chose_attend_la_reponse_de_l_appelant(
     )
     assert "agent_actif" not in _checkpoint(reponses[1])
     assert "Je vous écoute pour la facture." in str(reponses[2]), reponses[2]
+
+
+@pytest.mark.asyncio
+async def test_au_retour_le_principal_ne_recoit_que_la_derniere_etape_du_specialise(
+    db_session, async_session, test_client_factory
+):
+    """Après le banc du 16/10 (décision d'Evan) : au retour, le principal ne relit plus toute
+    la conversation (il y recopiait des questions périmées), seulement les échanges de la
+    dernière étape du spécialisé, en entier ; la fiche porte le reste."""
+    user, principal, _ = await _groupe(db_session, async_session)
+    reponses = await _session(
+        test_client_factory,
+        user,
+        principal,
+        [
+            _vide(),
+            _dit([*_appel("passer_a_s", "p1")]),
+            _vide(),
+            _dit(_texte("C'est noté.")),
+            _vide(),
+            _dit(
+                [
+                    *_texte("Est-ce que je peux faire autre chose pour vous ?"),
+                    *_appel("retour", "r1"),
+                ]
+            ),
+            _vide(),
+            _dit(_texte("Je vous écoute pour la facture.")),
+        ],
+        ["j'ai une panne", "c'est tout pour la panne", "une facture aussi"],
+    )
+    textes = [
+        str(m.get("content"))
+        for m in _checkpoint(reponses[2])["messages"]
+        if isinstance(m, dict) and m.get("role") in ("user", "assistant")
+    ]
+    assert not any("j'ai une panne" in t for t in textes), textes
+    assert any("autre chose pour vous" in t for t in textes), textes
+    assert any("c'est tout pour la panne" in t for t in textes), textes
+    assert any("une facture aussi" in t for t in textes), textes
 
 
 @pytest.mark.asyncio

@@ -63,6 +63,9 @@ class TransferRequest:
     ouverture: str = "toujours"
     # La raison tracée dans ``passations`` (le nom de l'outil, ou « retour »).
     raison: str | None = None
+    # Après le banc du 16/10 : l'agent appelé ne reçoit que la conversation à partir de cet
+    # indice (le retour au principal : la dernière étape du spécialisé). ``None`` : toute.
+    depuis: int | None = None
 
     @property
     def cancelled(self) -> bool:
@@ -227,6 +230,7 @@ class AgentTransferCoordinator:
                             # task has no ambient span of its own to inherit.
                             parent_context=engine._get_otel_context(),
                             resumer=resumer,
+                            depuis=request.depuis,
                         )
                     )
                 snapshot = compact.result()

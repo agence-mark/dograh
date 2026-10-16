@@ -1107,6 +1107,30 @@ class PipecatEngine:
         taches.add(tache)
         tache.add_done_callback(taches.discard)
 
+    def _debut_de_la_derniere_etape(self, agent: AgentRuntime) -> Optional[int]:
+        """Après le banc du 16/10 (décision d'Evan) : au retour, le principal ne reçoit que les
+        échanges de la DERNIÈRE étape du spécialisé (celle de « autre chose ? », entière, au cas
+        où une réplique est coupée en deux) et la fiche, jamais toute la conversation. Rend
+        l'indice où cette étape commence dans la conversation, lu dans ``parcours_etapes`` (le
+        clavier le garde d'un tour à l'autre) ; ``None`` (toute la conversation, comme avant)
+        si l'étape n'est pas retrouvée. ⛔ Ne lève jamais."""
+        try:
+            for entree in reversed(self._gathered_context.get("parcours_etapes") or []):
+                if entree.get("agent_id") != agent.workflow_id:
+                    break
+                noeud = next(
+                    (n for n in agent.workflow.nodes.values() if n.name == entree.get("etape")),
+                    None,
+                )
+                if noeud is not None and est_une_etape_de_retour(noeud):
+                    continue
+                debut = entree.get("debut")
+                return debut if isinstance(debut, int) and debut >= 0 else None
+            return None
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[groupe] début de la dernière étape illisible : {e!r}")
+            return None
+
     def _rendre_au_principal(
         self, agent: AgentRuntime, principal: int, *, context_ready=None
     ) -> bool:
@@ -1126,6 +1150,7 @@ class PipecatEngine:
                 sans_resume=True,
                 ouverture="si_l_appelant_attend",
                 raison=RAISON_RETOUR,
+                depuis=self._debut_de_la_derniere_etape(agent),
             )
             if not self.transfer_coordinator.accept(request):
                 logger.warning("[groupe] retour au principal refusé : une passation est en cours")
@@ -2868,6 +2893,9 @@ class PipecatEngine:
                 "agent": agent.workflow_name or None,
                 "agent_id": agent.workflow_id or None,
                 "etape": node.name,
+                # Après le banc du 16/10 : où commence l'étape dans la conversation (le retour
+                # au principal ne lui rend que les échanges de la dernière étape du spécialisé).
+                "debut": len(self.context.messages) if self.context is not None else None,
             }
             dernier = liste[-1] if liste else None
             if dernier is not None and (

@@ -172,6 +172,7 @@ async def build_handoff_snapshot(
     timeout: float = DEFAULT_HANDOFF_SUMMARY_TIMEOUT_SECONDS,
     parent_context: Any = None,
     resumer: bool = True,
+    depuis: int | None = None,
 ) -> HandoffSnapshot:
     """Compact ``context`` for a destination agent without mutating it.
 
@@ -192,6 +193,14 @@ async def build_handoff_snapshot(
     """
     source_messages = deepcopy(context.messages)
     boundary = len(source_messages)
+    # [.mark] Après le banc du 16/10 (décision d'Evan) : seulement la conversation à partir de
+    # ``depuis`` (le retour au principal : la dernière étape du spécialisé), sans résumé. Rien
+    # dans cette tranche (indice faux) : les quatre derniers messages de la conversation.
+    if depuis is not None:
+        tranche = conversation_messages(source_messages[min(max(depuis, 0), boundary):])
+        if not tranche:
+            tranche = conversation_messages(source_messages)[-4:]
+        return HandoffSnapshot(messages=tranche, boundary=boundary, summarized=False)
     conversation = conversation_messages(source_messages)
 
     if not conversation:
