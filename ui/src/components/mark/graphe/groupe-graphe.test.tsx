@@ -11,6 +11,7 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ReactFlowProvider } from "@xyflow/react";
+import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { NodeSpec, ToolResponse } from "@/client/types.gen";
@@ -108,7 +109,14 @@ const monter = async (type: "agentNode" | "endCall", data: Record<string, unknow
                     ajouterOutil: m.ajouterOutil,
                 }}
             >
-                <GenericNode id="n1" type={type} data={useWorkflowStore.getState().nodes[0].data as never} selected={false} {...({} as object)} />
+                <GenericNode
+                    {...({
+                        id: "n1",
+                        type,
+                        data: useWorkflowStore.getState().nodes[0].data,
+                        selected: false,
+                    } as unknown as ComponentProps<typeof GenericNode>)}
+                />
             </WorkflowProvider>
         </ReactFlowProvider>,
     );
