@@ -625,7 +625,8 @@ async def test_l_auteur_reel_du_portail_est_au_journal_pour_une_cle_jamais_pour_
             )
             assert r.status_code == 200, r.text
     ecrits = await auteurs()
-    assert ecrits[0] == "portail : Camille Dupont"
+    # Revue du 16/10 : le nom donné par le portail, suivi du compte de la clé qui a écrit.
+    assert ecrits[0].startswith("portail : Camille Dupont (dograh:") and ecrits[0].endswith(")")
     assert (
         ecrits[1].startswith("dograh:") and "portail" not in ecrits[1]
     )  # la clé sans en-tête : le compte de la clé

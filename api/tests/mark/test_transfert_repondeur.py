@@ -120,11 +120,15 @@ def test_la_phrase_du_salarie_est_en_francais_et_reglable():
 
 
 def test_l_interrupteur_de_secours(monkeypatch):
+    # Revue du 16/10 : éteinte par défaut jusqu'au banc téléphonique.
     monkeypatch.delenv("DETECTION_REPONDEUR_TRANSFERT", raising=False)
-    assert th.detection_allumee() is True
-    for valeur in ("0", "false", "non", "OFF"):
+    assert th.detection_allumee() is False
+    for valeur in ("0", "false", "non", "OFF", ""):
         monkeypatch.setenv("DETECTION_REPONDEUR_TRANSFERT", valeur)
         assert th.detection_allumee() is False
+    for valeur in ("1", "true", "oui", "ON"):
+        monkeypatch.setenv("DETECTION_REPONDEUR_TRANSFERT", valeur)
+        assert th.detection_allumee() is True
 
 
 # --------------------------------------------------------------------------- #
@@ -133,9 +137,16 @@ def test_l_interrupteur_de_secours(monkeypatch):
 
 
 class _Gestionnaire:
-    def __init__(self, contexte):
+    def __init__(self, contexte, deja_regle=False):
         self.contexte = contexte
         self.evenements = []
+        self.etapes = {th.ETAPE_ISSUE} if deja_regle else set()
+
+    async def claim_transfer_step(self, _id, etape, ttl=300):
+        if etape in self.etapes:
+            return False
+        self.etapes.add(etape)
+        return True
 
     async def get_transfer_context(self, _id):
         return self.contexte
@@ -152,8 +163,8 @@ def _contexte():
     )
 
 
-def _poster(chemin, donnees, contexte="oui", requete=""):
-    gestionnaire = _Gestionnaire(_contexte() if contexte == "oui" else None)
+def _poster(chemin, donnees, contexte="oui", requete="", deja_regle=False):
+    gestionnaire = _Gestionnaire(_contexte() if contexte == "oui" else None, deja_regle=deja_regle)
     app = FastAPI()
     app.include_router(route_telephony.router)
     with patch.object(route_telephony, "get_call_transfer_manager", AsyncMock(return_value=gestionnaire)):
@@ -295,12 +306,14 @@ async def test_un_resultat_de_repondeur_est_note_comme_tel(monkeypatch):
 
 async def test_seul_twilio_recoit_detection_numero_et_phrase(monkeypatch):
     engine, mgr, _ = _moteur(monkeypatch)
+    monkeypatch.setenv("DETECTION_REPONDEUR_TRANSFERT", "1")
     contexte = _contexte()
     preferences = OrganizationPreferences(numero_des_transferts="+15551230002")
+    twilio = SimpleNamespace(PROVIDER_NAME="twilio", from_numbers=["+15551230001", "+15551230002"])
     with patch(
         "api.services.organization_preferences.get_organization_preferences", AsyncMock(return_value=preferences)
     ):
-        options = await mgr._options_de_transfert(SimpleNamespace(PROVIDER_NAME="twilio"), 1, contexte)
+        options = await mgr._options_de_transfert(twilio, 1, contexte)
         assert options == {
             "detection_repondeur": True,
             "phrase_salarie": "Appel transmis par votre assistant.",
@@ -312,8 +325,39 @@ async def test_seul_twilio_recoit_detection_numero_et_phrase(monkeypatch):
         "api.services.organization_preferences.get_organization_preferences",
         AsyncMock(return_value=OrganizationPreferences()),
     ):
-        options = await mgr._options_de_transfert(SimpleNamespace(PROVIDER_NAME="twilio"), 1, contexte)
+        options = await mgr._options_de_transfert(twilio, 1, contexte)
         assert "from_number" not in options
+
+
+async def test_un_numero_des_transferts_absent_du_compte_n_est_pas_envoye(monkeypatch):
+    """Revue du 16/10 : un numéro retiré de la téléphonie (ou d'un autre compte) serait refusé par
+    Twilio et le transfert perdu ; il est vérifié au moment de l'appel, sinon le numéro par défaut."""
+    engine, mgr, _ = _moteur(monkeypatch)
+    preferences = OrganizationPreferences(numero_des_transferts="+15551239999")
+    with patch(
+        "api.services.organization_preferences.get_organization_preferences", AsyncMock(return_value=preferences)
+    ):
+        options = await mgr._options_de_transfert(
+            SimpleNamespace(PROVIDER_NAME="twilio", from_numbers=["+15551230001"]), 1, _contexte()
+        )
+    assert "from_number" not in options
+
+
+def test_l_attente_de_l_agent_couvre_le_temps_de_trancher():
+    """Revue du 16/10 : un décroché à la fin de la sonnerie est tranché jusqu'à DELAI_DETECTION_S
+    plus tard ; l'agent attend donc plus longtemps quand la détection est allumée, pas sinon."""
+    assert th.delai_d_attente(30, False) == 30
+    assert th.delai_d_attente(30, True) > 30 + th.DELAI_DETECTION_S
+
+
+def test_apres_l_abandon_de_l_agent_la_ligne_raccroche_sans_conference():
+    """Revue du 16/10 : l'agent a déjà abandonné (issue réservée) ; le salarié qui décroche ne
+    reste jamais seul dans une conférence vide, et rien n'est publié."""
+    reponse, gestionnaire = _poster(
+        "/transfer-twiml/tid-1", {"AnsweredBy": "human", "CallSid": "CAsortant"}, deja_regle=True
+    )
+    assert reponse.status_code == 200 and "<Hangup/>" in reponse.text and "Conference" not in reponse.text
+    assert gestionnaire.evenements == []
 
 
 def test_le_numero_des_transferts_doit_etre_un_numero_de_l_organisation():

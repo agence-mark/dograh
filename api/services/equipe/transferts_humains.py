@@ -13,9 +13,10 @@ Trois choses, aucune ne connaît un métier :
 2. **Le répondeur** : Twilio dit qui a décroché (``AnsweredBy``). Une machine ou un fax = le
    transfert a échoué (« répondeur »), l'appelant n'a jamais quitté l'agent. ``human`` et
    ``unknown`` comptent comme un humain : jamais d'appelant renvoyé à tort vers l'agent.
-   Allumé sur TOUS les transferts ; un seul interrupteur de secours, la variable d'environnement
-   ``DETECTION_REPONDEUR_TRANSFERT`` (« 0 », « false », « non » ou « off » l'éteint : le transfert
-   redevient celui d'avant).
+   Vaut pour TOUS les transferts une fois allumée, par la variable d'environnement
+   ``DETECTION_REPONDEUR_TRANSFERT`` (« 1 », « true », « oui » ou « on »). **Éteinte par défaut**
+   (revue du 16/10) tant que le banc téléphonique n'a pas mesuré le délai ajouté et la réception
+   réelle d'``AnsweredBy`` : éteinte, le transfert est exactement celui d'avant.
 3. **La phrase du salarié** : ce que celui qui décroche entend avant d'être mis en relation,
    en français et réglable (variable de phrase ``phrase_salarie_transfert``).
 
@@ -44,12 +45,26 @@ REPONDEURS = ("machine_start", "machine_end_beep", "machine_end_silence", "machi
 # donc un humain. Il borne l'attente ajoutée au décroché ; à mesurer au banc réel.
 DELAI_DETECTION_S = 8
 
-_ETEINT = {"0", "false", "non", "off", "no"}
+_ALLUME = {"1", "true", "oui", "on", "yes"}
+
+# L'étape unique que se disputent notre adresse TwiML et la fin de l'attente de l'agent : la
+# première qui la prend décide (pont ou abandon), l'autre s'efface.
+ETAPE_ISSUE = "issue_du_transfert"
+
+# Ce que l'attente de l'agent ajoute au délai de sonnerie quand la détection est allumée : le temps
+# de trancher, plus une marge pour l'aller-retour vers notre adresse.
+MARGE_ATTENTE_S = 4
 
 
 def detection_allumee() -> bool:
-    """L'interrupteur de secours. Allumé par défaut."""
-    return os.getenv("DETECTION_REPONDEUR_TRANSFERT", "true").strip().lower() not in _ETEINT
+    """Éteinte par défaut ; allumée par la variable d'environnement."""
+    return os.getenv("DETECTION_REPONDEUR_TRANSFERT", "").strip().lower() in _ALLUME
+
+
+def delai_d_attente(sonnerie_s: float, detection: bool) -> float:
+    """Combien l'agent attend l'issue : la sonnerie, plus le temps de trancher quand la
+    détection est allumée (sinon un décroché tardif arriverait après l'abandon)."""
+    return float(sonnerie_s) + (DELAI_DETECTION_S + MARGE_ATTENTE_S if detection else 0)
 
 
 def est_un_repondeur(repondu_par) -> bool:

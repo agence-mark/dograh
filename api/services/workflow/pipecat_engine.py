@@ -155,6 +155,29 @@ ENGINE_OWNED_CONTEXT_KEYS = frozenset(
 # p50 1.4s / p90 4.0s / max 21.3s, so this cuts off the tail and nothing else.
 FINAL_EXTRACTION_TIMEOUT_SECONDS = 10.0
 
+# [.mark] agents-specialises (revue du 16/10) : le marqueur « ce modèle porte la fiche de
+# l'appel » et son suivi des tours, posés sur le modèle lui-même.
+_MARQUE_FICHE = "_mark_porte_la_fiche"
+_SUIVI_FICHE = "_mark_suivi_de_la_fiche"
+
+
+def _marque(objet, nom):
+    """[.mark] Lu dans les attributs propres de l'objet (un simulacre de test n'invente rien)."""
+    return getattr(objet, "__dict__", {}).get(nom)
+
+
+def _accepte_agent(rappel) -> bool:
+    """[.mark] Le rappel de transition accepte-t-il ``agent=`` ? Lu sur la signature."""
+    import inspect
+
+    try:
+        parametres = inspect.signature(rappel).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(
+        p.name == "agent" or p.kind is inspect.Parameter.VAR_KEYWORD for p in parametres
+    )
+
 
 @dataclass(frozen=True)
 class NodeOpeningResult:
@@ -233,9 +256,8 @@ class PipecatEngine:
         self.greffier = None
         # [.mark] Chantier agents-specialises (lot 3, 2A) : la fiche appartient à
         # l'APPEL. Les modèles qui la portent (le premier agent, puis chaque agent
-        # appelé par passation) sont tenus ici ; chacun voit l'état de la fiche.
-        self._llms_de_la_fiche: set[int] = set()
-        self._suivis_par_llm: dict[int, object] = {}
+        # appelé par passation) portent un marqueur (_MARQUE_FICHE) ; chacun voit l'état
+        # de la fiche.
         if fiche is not None and llm is not None:
             self._porter_la_fiche(llm, suivi=self._tours_fiche)
         self._is_realtime = is_realtime
@@ -1081,6 +1103,9 @@ class PipecatEngine:
             if avant is not None:
                 await avant.wait()
             if not self.agent_can_act(agent):
+                # Revue du 16/10 : l'appelant de la fin figée a coupé le pipeline ; un autre
+                # agent a la main, l'appel ne doit pas rester muet.
+                self._mute_pipeline = False
                 return
             self._mute_pipeline = True
             speech = await self.queue_speech(phrase, append_to_context=True, mute_user=True)
@@ -1403,14 +1428,13 @@ class PipecatEngine:
         try:
             if self._fiche is None or llm is None:
                 return
-            portes = self.__dict__.setdefault("_llms_de_la_fiche", set())
-            if id(llm) in portes:
+            # Revue du 16/10 : un marqueur posé sur le modèle lui-même, jamais son id(),
+            # qu'un modèle créé après la libération d'un autre peut reprendre.
+            if _marque(llm, _MARQUE_FICHE) is True:
                 return
-            portes.add(id(llm))
+            setattr(llm, _MARQUE_FICHE, True)
             if self._fiche.mode == MODE_OUTIL:
-                self.__dict__.setdefault("_suivis_par_llm", {})[id(llm)] = (
-                    suivi if suivi is not None else suivre_les_tours(llm)
-                )
+                setattr(llm, _SUIVI_FICHE, suivi if suivi is not None else suivre_les_tours(llm))
             # D14 : l'état de la fiche, montré à chaque requête de conversation.
             montrer_la_fiche(
                 llm,
@@ -1437,15 +1461,12 @@ class PipecatEngine:
         """[.mark] Lot 3 (2A) : le modèle de ``agent`` porte-t-il la fiche de l'appel ?"""
         if self._fiche is None or agent is None:
             return False
-        return agent.llm is self._llm_de_la_fiche or id(agent.llm) in self.__dict__.get(
-            "_llms_de_la_fiche", ()
-        )
+        return agent.llm is self._llm_de_la_fiche or _marque(agent.llm, _MARQUE_FICHE) is True
 
     def _suivi_de(self, agent: AgentRuntime):
         """[.mark] Lot 3 : le suivi des tours du modèle de ``agent`` (mode outil)."""
-        return self.__dict__.get("_suivis_par_llm", {}).get(
-            id(getattr(agent, "llm", None)), self._tours_fiche
-        )
+        suivi = _marque(getattr(agent, "llm", None), _SUIVI_FICHE)
+        return suivi if suivi is not None else self._tours_fiche
 
     def _fusionner_la_fiche(self, runtime: AgentRuntime) -> None:
         """[.mark] Lot 3 (P4) : les champs de l'agent appelé entrent dans la fiche de
@@ -2583,8 +2604,9 @@ class PipecatEngine:
         node = runtime.current_node
         if self._node_transition_callback:
             try:
-                try:
-                    # [.mark] agents-specialises : l'événement porte le nom de l'agent.
+                # [.mark] agents-specialises : l'événement porte le nom de l'agent, quand le
+                # rappel l'accepte (revue du 16/10 : signature lue, pas de second appel).
+                if _accepte_agent(self._node_transition_callback):
                     await self._node_transition_callback(
                         node.id,
                         node.name,
@@ -2593,7 +2615,7 @@ class PipecatEngine:
                         node.allow_interrupt,
                         agent=runtime.workflow_name or None,
                     )
-                except TypeError:
+                else:
                     await self._node_transition_callback(
                         node.id, node.name, None, None, node.allow_interrupt
                     )

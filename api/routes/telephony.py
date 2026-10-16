@@ -49,6 +49,7 @@ from api.services.telephony.transfer_event_protocol import (
     TransferEventType,
 )
 from api.services.equipe.transferts_humains import (
+    ETAPE_ISSUE,
     TWIML_RACCROCHER,
     est_un_repondeur,
     twiml_conference,
@@ -1218,6 +1219,11 @@ async def transfer_twiml(transfer_id: str, request: Request):
     contexte = await manager.get_transfer_context(transfer_id)
     if contexte is None:
         logger.warning(f"Transfer TwiML asked for an unknown transfer {transfer_id}")
+        return Response(TWIML_RACCROCHER, media_type="application/xml")
+    # [.mark] Revue du 16/10 : une seule issue par transfert. Si l'agent a déjà abandonné (attente
+    # écoulée), la ligne raccroche : jamais un salarié seul dans une conférence vide.
+    if not await manager.claim_transfer_step(transfer_id, ETAPE_ISSUE):
+        logger.info(f"Transfer {transfer_id} already settled, the answered leg hangs up")
         return Response(TWIML_RACCROCHER, media_type="application/xml")
     machine = est_un_repondeur(data.get("AnsweredBy"))
     if machine:

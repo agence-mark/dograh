@@ -32,11 +32,13 @@ CLE = OrganizationConfigurationKey.BASE_CLIENT.value
 def auteur_de(user) -> str:
     """Who wrote, as ``journal_modif`` records it: never a name or an address, the account's id.
     The one exception (C7): a write made by the portal with the organization's API key carries the
-    real author in ``X-Mark-Auteur`` (« portail : first name name »), read by the authentication."""
+    real author in ``X-Mark-Auteur`` (« portail : first name name »), read by the authentication,
+    followed by the key's account (review of 16/10: the journal still says which key wrote)."""
+    compte = f"dograh:{getattr(user, 'provider_id', None) or getattr(user, 'id', '?')}"
     reel = getattr(user, "mark_auteur", None)
     if isinstance(reel, str) and reel:
-        return reel
-    return f"dograh:{getattr(user, 'provider_id', None) or getattr(user, 'id', '?')}"
+        return f"{reel} ({compte})"
+    return compte
 
 
 async def lire_rattachement(organization_id: int | None) -> RattachementBaseClient:

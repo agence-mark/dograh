@@ -28,6 +28,8 @@ from api.services.pipecat.audio_playback import play_audio_loop
 from api.services.pipecat.speech_playback import PlaybackOutcome, SpeechPlayback
 from api.services.telephony.call_transfer_manager import get_call_transfer_manager
 from api.services.equipe.transferts_humains import (
+    ETAPE_ISSUE,
+    delai_d_attente,
     detection_allumee,
     issue_du_resultat,
     masquer as masquer_cible,
@@ -994,12 +996,15 @@ class CustomToolManager:
                         f"resolution_id={resolved_transfer.resolution_id or ''} "
                         f"destination={masked_destination} timeout={timeout_seconds}"
                     )
+                    options_de_transfert = await self._options_de_transfert(
+                        provider, organization_id, transfer_context
+                    )
                     transfer_result = await provider.transfer_call(
                         destination=destination,
                         transfer_id=transfer_id,
                         conference_name=conference_name,
                         timeout=timeout_seconds,
-                        **await self._options_de_transfert(provider, organization_id, transfer_context),
+                        **options_de_transfert,
                     )
                 except Exception as e:
                     logger.error(f"Transfer provider failed: {e}")
@@ -1057,11 +1062,26 @@ class CustomToolManager:
 
                     # Wait for transfer completion using Redis pub/sub
                     logger.info("Waiting for transfer completion via Redis pub/sub...")
+                    # [.mark] Revue du 16/10 : avec la détection de répondeur, l'issue arrive
+                    # jusqu'à DELAI_DETECTION_S après le décroché ; l'attente en tient compte.
+                    detection = bool(options_de_transfert.get("detection_repondeur"))
                     transfer_event = (
                         await call_transfer_manager.wait_for_transfer_completion(
-                            transfer_id, timeout_seconds
+                            transfer_id, delai_d_attente(timeout_seconds, detection)
                         )
                     )
+                    if transfer_event is None and detection:
+                        # [.mark] L'agent abandonne : il réserve l'issue pour que notre adresse
+                        # TwiML raccroche au lieu d'ouvrir une conférence vide. Si elle l'a déjà
+                        # prise, son verdict est en route : on l'attend encore un instant.
+                        if not await call_transfer_manager.claim_transfer_step(
+                            transfer_id, ETAPE_ISSUE
+                        ):
+                            transfer_event = (
+                                await call_transfer_manager.wait_for_transfer_completion(
+                                    transfer_id, 3
+                                )
+                            )
 
                 except Exception as e:
                     logger.error(f"Error during transfer wait: {e}")
@@ -1133,8 +1153,15 @@ class CustomToolManager:
             from api.services.organization_preferences import get_organization_preferences
 
             numero = (await get_organization_preferences(organization_id)).numero_des_transferts
-            if numero:
+            # [.mark] Revue du 16/10 : contrôlé aussi au moment de l'appel, contre les numéros du
+            # compte qui passe l'appel (un numéro retiré ou d'un autre compte serait refusé par
+            # Twilio et le transfert perdu) ; sinon le numéro par défaut, comme avant.
+            if numero and numero in (getattr(provider, "from_numbers", None) or []):
                 options["from_number"] = numero
+            elif numero:
+                logger.warning(
+                    "[.mark] Transfer number not on this Twilio account, the default caller ID is used"
+                )
         except Exception as erreur:  # noqa: BLE001 -- a transfer is never lost for a caller ID
             logger.warning(f"[.mark] Transfer number not read, the default caller ID is used: {erreur!r}")
         return options
