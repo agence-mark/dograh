@@ -391,6 +391,24 @@ export type AdressesNotification = {
 };
 
 /**
+ * AgentPublie
+ */
+export type AgentPublie = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Version Number
+     */
+    version_number?: number | null;
+};
+
+/**
  * AgentServi
  */
 export type AgentServi = {
@@ -700,6 +718,16 @@ export type ApresAppelDuRun = {
     qualite_fiche?: {
         [key: string]: unknown;
     } | null;
+};
+
+/**
+ * ArchiverPrincipalRequest
+ */
+export type ArchiverPrincipalRequest = {
+    /**
+     * Specialises
+     */
+    specialises?: string;
 };
 
 /**
@@ -2405,6 +2433,10 @@ export type CreateFolderRequest = {
      * Name
      */
     name: string;
+    /**
+     * Parent Id
+     */
+    parent_id?: number | null;
 };
 
 /**
@@ -2661,6 +2693,44 @@ export type CredentialResponse = {
      * Updated At
      */
     updated_at: string | null;
+};
+
+/**
+ * CreerPrincipalRequest
+ */
+export type CreerPrincipalRequest = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Folder Id
+     */
+    folder_id?: number | null;
+};
+
+/**
+ * CreerPrincipalResponse
+ */
+export type CreerPrincipalResponse = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Folder Id
+     */
+    folder_id: number;
+};
+
+/**
+ * CreerSpecialiseResponse
+ */
+export type CreerSpecialiseResponse = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
 };
 
 /**
@@ -4328,6 +4398,10 @@ export type FolderResponse = {
      * Created At
      */
     created_at: string;
+    /**
+     * Parent Id
+     */
+    parent_id?: number | null;
 };
 
 /**
@@ -4668,6 +4742,21 @@ export type GroqLlmService = {
      * Groq-hosted model identifier.
      */
     model?: string;
+};
+
+/**
+ * GroupeResponse
+ */
+export type GroupeResponse = {
+    principal?: PrincipalDuGroupe | null;
+    /**
+     * Agent Principal Id
+     */
+    agent_principal_id?: number | null;
+    /**
+     * Specialises
+     */
+    specialises?: Array<MembreDuGroupe>;
 };
 
 /**
@@ -5395,6 +5484,32 @@ export type Lien = {
 };
 
 /**
+ * LienDeGroupe
+ */
+export type LienDeGroupe = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Role
+     */
+    role: string;
+    /**
+     * Agent Principal Id
+     */
+    agent_principal_id?: number | null;
+    /**
+     * Agents Specialises
+     */
+    agents_specialises?: Array<number>;
+    /**
+     * Cerveau Propre
+     */
+    cerveau_propre?: boolean;
+};
+
+/**
  * LienDePassation
  *
  * Qui appelle qui, dans un groupe.
@@ -5414,6 +5529,16 @@ export type LienDePassation = {
      * outil : une passation écrite dans les outils de l'agent ; retour : l'appel est rendu au principal par le code.
      */
     par: 'outil' | 'retour';
+};
+
+/**
+ * LiensDesGroupesResponse
+ */
+export type LiensDesGroupesResponse = {
+    /**
+     * Agents
+     */
+    agents?: Array<LienDeGroupe>;
 };
 
 /**
@@ -5784,6 +5909,32 @@ export type McpToolDefinition = {
 };
 
 /**
+ * MembreDuGroupe
+ */
+export type MembreDuGroupe = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cerveau Propre
+     */
+    cerveau_propre?: boolean;
+    /**
+     * Folder Id
+     */
+    folder_id?: number | null;
+    /**
+     * Status
+     */
+    status?: string | null;
+};
+
+/**
  * MentionDuRun
  *
  * l-agent-collegue, L8: a person of the team concerned by this call (``mark.mention``).
@@ -6046,6 +6197,18 @@ export type ModeleImporte = {
 };
 
 /**
+ * MoveFolderRequest
+ *
+ * [.mark] Lot 10 : déplacer un dossier sous un autre (``None`` = premier niveau).
+ */
+export type MoveFolderRequest = {
+    /**
+     * Parent Id
+     */
+    parent_id?: number | null;
+};
+
+/**
  * MoveWorkflowToFolderRequest
  *
  * Move a workflow into a folder, or to "Uncategorized" when null.
@@ -6168,6 +6331,16 @@ export type NodeTypesResponse = {
      * Node Types
      */
     node_types: Array<NodeSpec>;
+};
+
+/**
+ * NomRequest
+ */
+export type NomRequest = {
+    /**
+     * Name
+     */
+    name: string;
 };
 
 /**
@@ -7204,6 +7377,24 @@ export type PresignedUploadUrlResponse = {
 };
 
 /**
+ * PrincipalDuGroupe
+ */
+export type PrincipalDuGroupe = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Folder Id
+     */
+    folder_id?: number | null;
+};
+
+/**
  * ProcessDocumentRequestSchema
  *
  * Request schema for triggering document processing.
@@ -7493,6 +7684,21 @@ export type PublicEmbedChatTurn = {
 };
 
 /**
+ * PublierGroupeResponse
+ */
+export type PublierGroupeResponse = {
+    /**
+     * Publies
+     */
+    publies?: Array<AgentPublie>;
+    /**
+     * Deja A Jour
+     */
+    deja_a_jour?: Array<number>;
+    refus?: Refus | null;
+};
+
+/**
  * RapportSerie
  */
 export type RapportSerie = {
@@ -7700,6 +7906,24 @@ export type RedialCampaignRequest = {
      */
     retry_on_busy?: boolean;
     retry_config?: RetryConfigRequest | null;
+};
+
+/**
+ * Refus
+ */
+export type Refus = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Detail
+     */
+    detail: string;
 };
 
 /**
@@ -14250,6 +14474,340 @@ export type GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostRespon
 };
 
 export type GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostResponse = GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostResponses[keyof GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostResponses];
+
+export type LireLesGroupesApiV1WorkflowGroupesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/workflow/groupes';
+};
+
+export type LireLesGroupesApiV1WorkflowGroupesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesGroupesApiV1WorkflowGroupesGetError = LireLesGroupesApiV1WorkflowGroupesGetErrors[keyof LireLesGroupesApiV1WorkflowGroupesGetErrors];
+
+export type LireLesGroupesApiV1WorkflowGroupesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: LiensDesGroupesResponse;
+};
+
+export type LireLesGroupesApiV1WorkflowGroupesGetResponse = LireLesGroupesApiV1WorkflowGroupesGetResponses[keyof LireLesGroupesApiV1WorkflowGroupesGetResponses];
+
+export type CreerUnGroupeApiV1WorkflowGroupePostData = {
+    body: CreerPrincipalRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/workflow/groupe';
+};
+
+export type CreerUnGroupeApiV1WorkflowGroupePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnGroupeApiV1WorkflowGroupePostError = CreerUnGroupeApiV1WorkflowGroupePostErrors[keyof CreerUnGroupeApiV1WorkflowGroupePostErrors];
+
+export type CreerUnGroupeApiV1WorkflowGroupePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: CreerPrincipalResponse;
+};
+
+export type CreerUnGroupeApiV1WorkflowGroupePostResponse = CreerUnGroupeApiV1WorkflowGroupePostResponses[keyof CreerUnGroupeApiV1WorkflowGroupePostResponses];
+
+export type CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostData = {
+    body: NomRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/groupe/specialise';
+};
+
+export type CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostError = CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostErrors[keyof CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostErrors];
+
+export type CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: CreerSpecialiseResponse;
+};
+
+export type CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostResponse = CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostResponses[keyof CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostResponses];
+
+export type LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/groupe';
+};
+
+export type LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetError = LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetErrors[keyof LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetErrors];
+
+export type LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: GroupeResponse;
+};
+
+export type LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetResponse = LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetResponses[keyof LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetResponses];
+
+export type RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/groupe/retirer';
+};
+
+export type RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostError = RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostErrors[keyof RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostErrors];
+
+export type RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostResponses = {
+    /**
+     * Response Retirer Un Specialise Api V1 Workflow  Workflow Id  Groupe Retirer Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostResponse = RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostResponses[keyof RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostResponses];
+
+export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostData = {
+    body: ArchiverPrincipalRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/groupe/archiver';
+};
+
+export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostError = ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostErrors[keyof ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostErrors];
+
+export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponses = {
+    /**
+     * Response Archiver Un Principal Api V1 Workflow  Workflow Id  Groupe Archiver Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: Array<number>;
+    };
+};
+
+export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponse = ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponses[keyof ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponses];
+
+export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/groupe/publier';
+};
+
+export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostError = PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostErrors[keyof PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostErrors];
+
+export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PublierGroupeResponse;
+};
+
+export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponse = PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses[keyof PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses];
 
 export type CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostData = {
     body: CreateTextChatSessionRequest;
@@ -23795,6 +24353,54 @@ export type RenameFolderApiV1FolderFolderIdPutResponses = {
 };
 
 export type RenameFolderApiV1FolderFolderIdPutResponse = RenameFolderApiV1FolderFolderIdPutResponses[keyof RenameFolderApiV1FolderFolderIdPutResponses];
+
+export type MoveFolderApiV1FolderFolderIdParentPutData = {
+    body: MoveFolderRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Folder Id
+         */
+        folder_id: number;
+    };
+    query?: never;
+    url: '/api/v1/folder/{folder_id}/parent';
+};
+
+export type MoveFolderApiV1FolderFolderIdParentPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MoveFolderApiV1FolderFolderIdParentPutError = MoveFolderApiV1FolderFolderIdParentPutErrors[keyof MoveFolderApiV1FolderFolderIdParentPutErrors];
+
+export type MoveFolderApiV1FolderFolderIdParentPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: FolderResponse;
+};
+
+export type MoveFolderApiV1FolderFolderIdParentPutResponse = MoveFolderApiV1FolderFolderIdParentPutResponses[keyof MoveFolderApiV1FolderFolderIdParentPutResponses];
 
 export type SignupApiV1AuthSignupPostData = {
     body: SignupRequest;
