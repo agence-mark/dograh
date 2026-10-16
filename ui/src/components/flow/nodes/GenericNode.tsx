@@ -9,11 +9,11 @@ import { useWorkflow } from "@/app/workflow/[workflowId]/contexts/WorkflowContex
 import type { NodeSpec } from "@/client/types.gen";
 import { DocumentBadges } from "@/components/flow/DocumentBadges";
 import { NodeEditForm, useNodeSpecs } from "@/components/flow/renderer";
-import { BriqueAgent } from "@/components/mark/graphe/BriqueAgent";
-import { PhrasesDeFin, type FinFigee } from "@/components/mark/graphe/PhrasesDeFin";
-import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
 import { ToolBadges } from "@/components/flow/ToolBadges";
 import { FlowNodeData } from "@/components/flow/types";
+import { BriqueAgent } from "@/components/mark/graphe/BriqueAgent";
+import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFin";
+import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NODE_DOCUMENTATION_URLS } from "@/constants/documentation";

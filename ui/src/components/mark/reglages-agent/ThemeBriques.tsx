@@ -28,8 +28,8 @@ import { Switch } from "@/components/ui/switch";
 import { SETTINGS_DOCUMENTATION_URLS } from "@/constants/documentation";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
-import { Intertitre } from "../ecran/Intertitre";
 import { ChampReglage } from "../ecran/ChampReglage";
+import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { BandeauReglePrincipal, ZoneCommune } from "../groupe/contexte-groupe";
 import { estSpecialise } from "../groupe/reglages-groupe";
