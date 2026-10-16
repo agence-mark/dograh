@@ -101,6 +101,11 @@ def conversation_messages(messages: list[Any]) -> list[Any]:
             continue
         if not message.get("content"):
             continue
+        # [.mark] D1 : la note de passation reste à l'agent qui l'a reçue.
+        from api.services.groupe.passations import est_la_note_de_passation
+
+        if est_la_note_de_passation(message):
+            continue
         kept.append(message)
     return kept
 

@@ -302,6 +302,21 @@ def test_finit_par_l_assistant():
     assert not finit_par_l_assistant([{"role": "user", "content": "a"}, {"role": "system", "content": "s"}])
 
 
+def test_la_note_de_passation_n_est_jamais_une_parole_de_l_appelant():
+    """Relecture de D1 : au retour, le principal n'y voit pas l'appelant qui attend, et
+    l'agent suivant ne la reçoit pas."""
+    from api.services.groupe.passations import NOTE_DE_PASSATION, l_appelant_a_parle_en_dernier
+    from api.services.workflow.agent_handoff_context import conversation_messages
+
+    messages = [
+        {"role": "user", "content": "j'ai une panne"},
+        {"role": "assistant", "content": "Je vous passe le service."},
+        {"role": "user", "content": NOTE_DE_PASSATION},
+    ]
+    assert not l_appelant_a_parle_en_dernier(messages)
+    assert conversation_messages(messages) == messages[:2]
+
+
 @pytest.mark.asyncio
 async def test_une_cible_d_une_autre_organisation_est_refusee_et_a_continue(
     db_session, async_session, test_client_factory

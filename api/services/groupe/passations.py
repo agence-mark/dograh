@@ -255,6 +255,11 @@ def choisir_la_fin(
 NOTE_DE_PASSATION = "[Passation : l'appelant vient de t'être transmis ; tu prends la parole.]"
 
 
+def est_la_note_de_passation(message: Any) -> bool:
+    """La note du code, jamais une parole de l'appelant (retour, résumé, agent suivant)."""
+    return isinstance(message, dict) and message.get("content") == NOTE_DE_PASSATION
+
+
 def finit_par_l_assistant(messages: Iterable[Any]) -> bool:
     """Le tout dernier message (hors consignes système) est-il de l'assistant ?"""
     try:
@@ -281,7 +286,7 @@ def l_appelant_a_parle_en_dernier(messages: Iterable[Any]) -> bool:
                 continue
             if message.get("tool_calls") or message.get("function_call"):
                 continue
-            if not message.get("content"):
+            if not message.get("content") or est_la_note_de_passation(message):
                 continue
             return role == "user"
         return False
