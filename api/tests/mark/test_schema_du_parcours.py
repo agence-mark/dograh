@@ -294,7 +294,7 @@ PHRASES_FIXES = (
     "Tu es l'accueil. Pour passer la main à un collègue, tu appelles son outil, sans rien dire. "
     "Quand un collègue te rend la main, tu lis la réponse à sa dernière question.",
     "Tes collègues :",
-    "Tu es ",
+    "Ton rôle : ",
     "Tu reçois un appel déjà commencé : tout ce qui a été dit compte.",
     "Pour rendre la main à l'accueil, tu écris",
     "dès que la demande n'est pas la tienne ou que ton travail est fini.",
