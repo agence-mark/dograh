@@ -1524,6 +1524,41 @@ class PipecatEngine:
         except Exception as e:  # noqa: BLE001
             logger.error(f"[fiche] fusion des champs en échec : {e!r}")
 
+    def _ouvrir_une_demande(self, runtime: AgentRuntime) -> None:
+        """[.mark] Lot 17 (fiche à plusieurs demandes) : à la passation vers un spécialisé qui
+        n'est pas le premier à travailler dans l'appel, la demande en cours est close (ses champs
+        « demande » quittent la vue à plat de la fiche) ; le spécialisé part d'une demande vide.
+        Rien au retour au principal, rien pour un agent seul. Appelée d'un seul endroit
+        (``commit_agent``). ⛔ Ne lève jamais."""
+        try:
+            principal_id = agent_principal_de(getattr(runtime, "reglages", None))
+            if self._fiche is None or principal_id is None:
+                return
+            from api.schemas.apres_appel import ApresAppelAgent
+            from api.services.fiche.demandes import ouvrir_une_demande
+
+            try:
+                champ_motif = ApresAppelAgent.model_validate(
+                    (self.reglages_appel or {}).get("apres_appel") or {}
+                ).champ("motif")
+            except Exception:  # noqa: BLE001 -- sans réglage lisible : le champ de même nom
+                champ_motif = "motif"
+            noms = {
+                a.workflow_id: a.workflow_name
+                for a in [*self._retired_agents, self.active_agent]
+                if a is not None and getattr(a, "workflow_id", None)
+            }
+            ouvrir_une_demande(
+                self._gathered_context,
+                self._fiche,
+                vers_un_specialise=True,
+                principal_id=principal_id,
+                noms_des_agents=noms,
+                champ_motif=champ_motif,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[demandes] ouverture d'une demande en échec : {e!r}")
+
     def garantir_a_l_ouverture(self, agent: AgentRuntime, cible: str, phrase) -> None:
         """[.mark] Lot 3 (A7) : un agent appelé dont la première étape porte un outil de
         transfert commence par le transfert, entreprise ouverte, une fois sa première
@@ -2643,6 +2678,7 @@ class PipecatEngine:
         self.context.set_tools(runtime.tools)
         self.context.set_otel_span_name(f"llm-{runtime.current_node.name}")
         runtime.entered_at = time.time()
+        self._ouvrir_une_demande(runtime)  # [.mark] lot 17
         self.install_agent(runtime, previous=self.active_agent)
         self._custom_tool_manager = CustomToolManager(self, runtime)
         self._agent_on_hold = False

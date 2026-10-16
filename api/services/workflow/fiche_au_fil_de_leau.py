@@ -2762,6 +2762,12 @@ async def balayer_la_fiche(
 
     Lot D d'agent-leger-greffier : les traces des modules d'abord (sans modèle), puis
     la passe sur ce qui reste vide."""
+    # [.mark] Lot 17 (fiche à plusieurs demandes) : avec des demandes closes, la relecture de toute
+    # la conversation ne remplit que les champs « appel » (elle retrouverait, dans les premiers
+    # tours, les valeurs des demandes closes). Sans demande close : les mêmes réglages.
+    from api.services.fiche.demandes import champs_hors_demandes_closes
+
+    reglages = champs_hors_demandes_closes(reglages, fiche)
     _marquer_les_numeros_en_conflit(reglages, fiche)
     messages = list(messages)
     depuis_les_traces = ecrire_depuis_les_traces(
@@ -3636,13 +3642,18 @@ def etat_de_la_fiche(
         if reglages.note_d_abord
         else ENTETE_NOTICES,
     )
-    if not (notes or a_confirmer or retour):
+    # [.mark] Lot 17 : les demandes déjà closes de l'appel, en lecture (rien sans passation).
+    from api.services.fiche.demandes import lignes_pour_le_modele
+
+    closes = lignes_pour_le_modele(fiche)
+    if not (notes or a_confirmer or retour or closes):
         return None
     lignes = [entete_etat(reglages)]
     if notes:
         lignes.append("Noté : " + " ; ".join(notes))
     if a_confirmer:
         lignes.append("À confirmer : " + " ; ".join(a_confirmer))
+    lignes.extend(closes)
     for champ, dernier in numeros_en_conflit(reglages, fiche):
         lignes.append(
             f"Attention : le dernier numéro dicté par la personne est "
