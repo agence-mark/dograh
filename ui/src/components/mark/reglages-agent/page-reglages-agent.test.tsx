@@ -709,6 +709,25 @@ describe("[.mark] the flow map, the retry reasoning and the model request trace"
         expect(document.getElementById("cerveau_propre")).toBeNull();
     });
 
+    it("greys out « Generate the flow map » in a group (the code always generates it), never for a lone agent", async () => {
+        const interrupteur = () => document.getElementById("generer_schema_parcours") as HTMLElement;
+        const aide = () => document.querySelector('[data-reglage="generer_schema_parcours"]')?.textContent ?? "";
+        for (const [config, force] of [
+            [PRINCIPAL, true],
+            [SPECIALISE, true],
+            [{ ...PRINCIPAL, agents_specialises: [] }, false], // a main agent with no specialised agent yet: the server sees a lone agent
+            [CONFIG_DE_REFERENCE as Record<string, unknown>, false],
+        ] as const) {
+            await ouvrir(config, NOVA);
+            ouvrirLeTheme("agent");
+            await waitFor(() => expect(interrupteur()).not.toBeNull());
+            expect(interrupteur().hasAttribute("disabled"), JSON.stringify(Object.keys(config))).toBe(force);
+            expect(aide().includes("Toujours actif dans un groupe") || aide().includes("Always on in a group")).toBe(force);
+            if (force) expect(interrupteur().getAttribute("aria-checked")).toBe("true");
+            cleanup();
+        }
+    });
+
     it("shows the common themes of a specialised agent read only, with the banner and no save button", async () => {
         await ouvrir(SPECIALISE, NOVA);
         for (const id of ["ecoute", "tour", "voix", "rythme", "donnees", "etablissement"]) {

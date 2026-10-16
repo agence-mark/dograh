@@ -287,21 +287,64 @@ def test_dans_un_groupe_la_case_est_ignoree_forcee_allumee():
     assert reglage_allume({"fiche_mode_de_note": "outil"}) is None
 
 
+# Les phrases fixes du code (le texte du plan) : tout le reste d'un bloc généré vient des données.
+PHRASES_FIXES = (
+    "# Ton équipe",
+    "# Tes étapes",
+    "Tu es l'accueil. Pour passer la main à un collègue, tu appelles son outil, sans rien dire. "
+    "Quand un collègue te rend la main, tu lis la réponse à sa dernière question.",
+    "Tes collègues :",
+    "Tu es ",
+    "Tu reçois un appel déjà commencé : tout ce qui a été dit compte.",
+    "Pour rendre la main à l'accueil, tu écris",
+    "dès que la demande n'est pas la tienne ou que ton travail est fini.",
+)
+DONNEES_DU_TEST = (
+    "un spécialiste de la mission a", "outil_a", "outil_b", "Passe l'appel à l'agent a.",
+    "la sortie", " ou ", "Accueil", "Demande", "Fin",
+)
+
+
 def test_aucun_mot_de_metier_dans_le_bloc_genere():
-    """Tout ce qui entre dans le bloc vient du graphe, des descriptions d'outils ou des phrases
-    fixes du code : les mots de l'exemple en sont la seule matière, rien d'autre ne s'y glisse."""
+    """Un bloc généré n'est fait que de deux choses : les phrases fixes du code (le texte du plan,
+    copié ci-dessus) et ce qui vient des données (noms d'étapes, rôles, outils, descriptions). Une fois
+    les deux retirées, il ne reste que de la ponctuation : aucun mot ne s'est glissé dans le code."""
     d = _definition_specialiste()
     for texte in (
         _bloc(appliquer(d, True, True, TYPE_SPECIALISTE)),
         _bloc(appliquer(_definition(), True, True, TYPE_ACCUEIL, COLLEGUES)),
     ):
         reste = texte
-        for connu in (
-            "spécialiste de la mission a", "outil_a", "outil_b", "Passe l'appel à l'agent a",
-            "Accueil", "Demande", "Fin",
-        ):
-            reste = reste.replace(connu, "")
-        assert not re.search(r"poêle|magasin|panne|entretien|rendez|véranda", reste, re.IGNORECASE)
+        for morceau in sorted((*PHRASES_FIXES, *DONNEES_DU_TEST), key=len, reverse=True):
+            reste = reste.replace(morceau, "")
+        assert not re.search(r"\w", reste), f"du texte qui ne vient ni du code figé ni des données : {reste!r}"
+
+
+def test_plusieurs_etapes_de_retour_sont_toutes_citees():
+    d = _definition_specialiste()
+    d["nodes"][3]["data"]["retour_au_principal"] = True  # l'étape « Fin » aussi
+    bloc = _bloc(appliquer(d, True, True, TYPE_SPECIALISTE))
+    assert "tu écris la sortie Demande ou la sortie Fin, dès que" in bloc
+
+
+@pytest.mark.asyncio
+async def test_une_base_qui_ne_repond_pas_garde_le_bloc_d_equipe_deja_ecrit():
+    """Une erreur de base passagère ne doit pas réécrire un bloc d'accueil sans collègues : le bloc
+    déjà écrit reste tel quel (et l'erreur est journalisée)."""
+    from unittest.mock import AsyncMock, patch
+
+    from api.db import db_client
+    from api.services.workflow.schema_du_parcours import a_l_enregistrement, collegues_de
+
+    ancien = appliquer(_definition(), True, True, TYPE_ACCUEIL, COLLEGUES)
+    ancien["nodes"][1]["data"]["tool_uuids"] = ["u1"]
+    reglages = {"agents_specialises": [2]}
+    with patch.object(db_client, "get_tools_by_uuids", AsyncMock(side_effect=RuntimeError("base"))):
+        assert await collegues_de(ancien, 1) is None
+        rendu = await a_l_enregistrement(1, 1, ancien, reglages)
+    assert rendu == ancien and "outil_a" in _prompt(rendu, "global")
+    # Sans aucun outil de passation, ``[]`` : un accueil sans collègue, ce n'est pas une erreur.
+    assert await collegues_de(_definition(), 1) == []
 
 
 # --- Traversant : la route d'enregistrement, puis l'appel ---------------------------

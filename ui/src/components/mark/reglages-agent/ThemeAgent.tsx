@@ -38,8 +38,10 @@ import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { useGroupe, ZoneCommune } from "../groupe/contexte-groupe";
 import {
+    AIDE_SCHEMA_TOUJOURS_ACTIF,
     estPrincipal,
     estSpecialise,
+    groupeForceLeSchema,
     extraireGroupe,
     IntertitreAgentsSpecialises,
     TITRE_AGENTS_SPECIALISES,
@@ -234,6 +236,8 @@ export const ThemeAgent = ({
     const schemaEnregistre = resolue.generer_schema_parcours ?? false;
     const [schema, setSchema] = useState(schemaEnregistre);
     const schemaModifie = schema !== schemaEnregistre;
+    // Dans un groupe (accueil ou spécialisé), le code génère toujours le schéma : la case est grisée.
+    const schemaForce = groupeForceLeSchema(resolue);
     // Chantier schema-parcours-unique (C2, C6): the retry reasoning, always shown, next to the map.
     const relanceEnregistree = resolue.reflexion_de_relance ?? null;
     const [relance, setRelance] = useState<ReflexionDeRelance | null>(relanceEnregistree);
@@ -378,10 +382,15 @@ export const ThemeAgent = ({
                     cle="generer_schema_parcours"
                     idControle="generer_schema_parcours"
                     libelle={{ en: "Generate the flow map", fr: "Générer le schéma du parcours" }}
-                    aides={AIDES_SCHEMA_DU_PARCOURS}
+                    aides={schemaForce ? [...AIDES_SCHEMA_DU_PARCOURS, AIDE_SCHEMA_TOUJOURS_ACTIF] : AIDES_SCHEMA_DU_PARCOURS}
                     disposition="ligne"
                 >
-                    <Switch id="generer_schema_parcours" checked={schema} onCheckedChange={setSchema} />
+                    <Switch
+                        id="generer_schema_parcours"
+                        checked={schemaForce || schema}
+                        disabled={schemaForce}
+                        onCheckedChange={setSchema}
+                    />
                 </ChampReglage>
                 <ZoneCommune lecture={suitLeCerveau} bandeau={false}>
                 <ChampReglage

@@ -149,14 +149,16 @@ def _equipe_accueil(collegues: list[tuple[str, str]]) -> list[str]:
 def _equipe_specialiste(etapes: list[dict]) -> list[str]:
     depart = next((n for n in etapes if n.get("type") == "startCall"), None)
     mission = _role(depart) if depart else ""
-    retour = next(
-        (n for n in etapes if (n.get("data") or {}).get(MARQUEUR_RETOUR) is True), None
-    )
+    retours = [
+        _nom(n) for n in etapes if (n.get("data") or {}).get(MARQUEUR_RETOUR) is True
+    ]
     phrases = [f"Tu es {mission}."] if mission else []
     phrases.append("Tu reçois un appel déjà commencé : tout ce qui a été dit compte.")
-    if retour is not None:
+    if retours:
+        # Plusieurs étapes marquées : toutes sont citées, chacune est une sortie valable.
+        sorties = " ou ".join(f"la sortie {nom}" for nom in retours)
         phrases.append(
-            f"Pour rendre la main à l'accueil, tu écris la sortie {_nom(retour)}, "
+            f"Pour rendre la main à l'accueil, tu écris {sorties}, "
             "dès que la demande n'est pas la tienne ou que ton travail est fini."
         )
     return ["# Ton équipe", " ".join(phrases)]
@@ -230,10 +232,14 @@ def reglage_allume(configurations: dict | None) -> bool | None:
     return bool(configurations[CLE_REGLAGE])
 
 
-async def collegues_de(definition: dict | None, organization_id: int) -> list[tuple[str, str]]:
+async def collegues_de(
+    definition: dict | None, organization_id: int
+) -> list[tuple[str, str]] | None:
     """Les collègues d'un accueil : ``(nom de l'outil, description)`` de chaque outil de
     passation (``transfer_agent``) posé sur une étape du graphe, dans l'ordre du graphe, sans
-    doublon. Lu en base par la couche ``db_client``. ⛔ Ne lève jamais (illisible = aucun)."""
+    doublon. Lu en base par la couche ``db_client``. ⛔ Ne lève jamais ; ``None`` si la base ne
+    répond pas (jamais ``[]``, qui voudrait dire « aucun collègue » et ferait réécrire un bloc
+    sans eux : l'appelant garde alors le bloc déjà écrit)."""
     from api.db import db_client
     from api.enums import ToolCategory
     from api.services.workflow.tools.custom_tool import custom_tool_function_name
@@ -262,19 +268,28 @@ async def collegues_de(definition: dict | None, organization_id: int) -> list[tu
                 sortie.append((nom, _une_ligne(outil.description)))
         return sortie
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"[schema du parcours] outils de passation illisibles : {e!r}")
-        return []
+        logger.warning(
+            f"[schema du parcours] outils de passation illisibles, bloc d'équipe gardé tel quel : {e!r}"
+        )
+        return None
 
 
-async def _equipe(
-    configurations: dict, definition: dict | None, organization_id: int
-) -> tuple[str, list[tuple[str, str]]]:
-    """``(type, collègues)`` pour ``appliquer`` ; la base ne se lit que pour un accueil."""
+async def _ecrire(
+    definition: dict | None,
+    allume: bool,
+    configurations: dict,
+    organization_id: int,
+) -> dict | None:
+    """``appliquer`` avec le type et les collègues lus dans ``configurations`` ; la base ne se lit
+    que pour un accueil. Si elle ne répond pas, la définition est rendue telle quelle (le bloc
+    déjà écrit reste, ce qui vaut mieux qu'un accueil sans collègues)."""
     type_workflow = type_de_workflow(configurations)
-    collegues = (
-        await collegues_de(definition, organization_id) if type_workflow == TYPE_ACCUEIL else []
-    )
-    return type_workflow, collegues
+    collegues: list[tuple[str, str]] | None = []
+    if allume and type_workflow == TYPE_ACCUEIL:
+        collegues = await collegues_de(definition, organization_id)
+        if collegues is None:
+            return definition
+    return appliquer(definition, allume, _position(configurations), type_workflow, collegues)
 
 
 async def a_l_enregistrement(
@@ -299,11 +314,8 @@ async def a_l_enregistrement(
     if definition is None and reglage_allume(configurations) is None:
         return None
     if configurations is not None and definition is not None:
-        return appliquer(
-            definition,
-            bool(reglage_allume(configurations)),
-            _position(configurations),
-            *await _equipe(configurations, definition, organization_id),
+        return await _ecrire(
+            definition, bool(reglage_allume(configurations)), configurations, organization_id
         )
     workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
     brouillon = await db_client.get_draft_version(workflow_id) if workflow else None
@@ -313,15 +325,8 @@ async def a_l_enregistrement(
     reglages = configurations if configurations is not None else (active.workflow_configurations or {})
     allume = bool(reglage_allume(reglages))
     if definition is not None:
-        return appliquer(
-            definition, allume, _position(reglages), *await _equipe(reglages, definition, organization_id)
-        )
-    nouvelle = appliquer(
-        active.workflow_json,
-        allume,
-        _position(reglages),
-        *await _equipe(reglages, active.workflow_json, organization_id),
-    )
+        return await _ecrire(definition, allume, reglages, organization_id)
+    nouvelle = await _ecrire(active.workflow_json, allume, reglages, organization_id)
     return nouvelle if nouvelle != active.workflow_json else None
 
 

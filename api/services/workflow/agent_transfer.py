@@ -15,7 +15,7 @@ from pipecat.frames.frames import LLMMessagesAppendFrame
 
 from api.services.pipecat.agent_runtime_factory import AgentBuildError
 from api.services.pipecat.audio_playback import play_hold_audio_loop
-from api.services.pipecat.main_passee import rendre_la_parole
+from api.services.pipecat.main_passee import muter, rendre_la_parole
 from api.services.workflow.agent_handoff_context import (
     build_handoff_snapshot,
     conversation_messages,
@@ -37,6 +37,8 @@ from api.services.groupe.reglages_passation import (
 TRANSFER_PREPARE_TIMEOUT_SECONDS = 20.0
 TRANSFER_ACTIVATION_TIMEOUT_SECONDS = 5.0
 TRANSFER_MIN_HOLD_SECONDS = 1.2
+# [.mark] Au plus ce que la passation attend la fin d'une phrase pont déjà commencée.
+ATTENTE_FIN_PHRASE_PONT_S = 2.0
 
 
 class TransferPhase(str, Enum):
@@ -448,18 +450,26 @@ class AgentTransferCoordinator:
         (le geste de l'annulation d'une passation) et l'attente levée ; son modèle, lui, reste
         muet (``transfer_in_progress`` bloque son contexte)."""
         engine = self._engine
+        son_coupe = False
         try:
             await asyncio.sleep(reglage.delai_phrase_pont_s)
             if not self._passation_en_cours(request):
                 return
             self._phrase_en_cours = True
+            reactivee = False
             try:
                 if avec_son:
+                    son_coupe = True
                     await self._stop_hold_audio()
+                # Le cerveau de la source reste muet pendant la phrase, posé ici pour ne pas
+                # dépendre de l'outil qui a lancé la passation ; et ``allow_inference`` (le pont
+                # de l'appel) ne lui livre aucun contexte tant que la passation dure.
+                muter(getattr(source, "llm", None))
                 if not await engine.activate_agent(
                     source, timeout=TRANSFER_ACTIVATION_TIMEOUT_SECONDS
                 ):
                     return
+                reactivee = True
                 engine._agent_on_hold = False
                 # Pas dans le contexte : le résumé de passation se bâtit en même temps, rien ne
                 # doit bouger derrière lui ; la phrase reste dans le journal de l'appel.
@@ -474,15 +484,18 @@ class AgentTransferCoordinator:
                 # de fin de parole remontent à l'agent) avant que l'attente se referme.
                 await engine.drain_call_pipeline()
             finally:
-                if self._passation_en_cours(request):
+                if reactivee and self._passation_en_cours(request):
                     await engine.deactivate_agent(source)
                 self._phrase_en_cours = False
-            if avec_son and self._passation_en_cours(request) and self._hold_stop is None:
-                self._start_hold_audio(request, reglage)
         except asyncio.CancelledError:
             raise
         except Exception as e:  # noqa: BLE001 -- un filet ne fait jamais rater la passation
             logger.warning(f"[transfer] {request.request_id}: phrase pont non dite : {e!r}")
+        finally:
+            # Quoi qu'il arrive (échec, annulation, voix absente), le son d'attente reprend si la
+            # passation dure encore : l'appelant n'attend jamais en silence à cause d'un filet.
+            if son_coupe and self._passation_en_cours(request) and self._hold_stop is None:
+                self._start_hold_audio(request, reglage)
 
     def _passation_en_cours(self, request) -> bool:
         """La passation n'est ni annulée, ni commise, ni finie (le délai de la phrase pont court)."""
@@ -495,14 +508,15 @@ class AgentTransferCoordinator:
 
     async def _annuler_phrase_pont(self, *, attendre_la_fin: bool = True):
         """Annule la phrase pont pas encore dite. Une phrase déjà en cours de lecture se termine
-        (``attendre_la_fin``, au plus 8 s) : la couper laisserait un mot en plein milieu."""
+        (``attendre_la_fin``, au plus ``ATTENTE_FIN_PHRASE_PONT_S``) : la couper laisserait un mot en
+        plein milieu, mais l'appelant attend et le commit ne doit pas attendre une phrase longue."""
         task = self._phrase_task
         self._phrase_task = None
         if task is None or task is asyncio.current_task():
             return
         if attendre_la_fin and self._phrase_en_cours and not task.done():
             with suppress(TimeoutError):
-                await asyncio.wait_for(asyncio.shield(task), timeout=8)
+                await asyncio.wait_for(asyncio.shield(task), timeout=ATTENTE_FIN_PHRASE_PONT_S)
         if not task.done():
             task.cancel()
         with suppress(asyncio.CancelledError):

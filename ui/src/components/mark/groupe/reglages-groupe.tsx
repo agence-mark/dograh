@@ -49,6 +49,18 @@ const TAILLE_MAX_SON = 10 * 1024 * 1024; // 10 Mo, comme le bruit d'ambiance
 export const estPrincipal = (c: Partial<WorkflowConfigurations>) => Array.isArray(c.agents_specialises);
 export const estSpecialise = (c: Partial<WorkflowConfigurations>) => typeof c.agent_principal_id === "number";
 
+/**
+ * Le schéma du parcours est-il généré d'office ? Oui pour un accueil (``agents_specialises`` NON vide) ou un
+ * spécialisé : la case est alors ignorée par le code (``reglage_allume`` du serveur, même règle).
+ */
+export const groupeForceLeSchema = (c: Partial<WorkflowConfigurations>) =>
+    (Array.isArray(c.agents_specialises) && c.agents_specialises.length > 0) || estSpecialise(c);
+
+export const AIDE_SCHEMA_TOUJOURS_ACTIF: Texte = {
+    en: "Always on in a group: the flow map is generated whatever this switch says.",
+    fr: "Toujours actif dans un groupe : le schéma est généré quoi que dise cette case.",
+};
+
 export const CLES_GROUPE = [
     "prechauffage_agents",
     "passation_sans_resume_jusqua",
