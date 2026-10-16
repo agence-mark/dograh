@@ -65,7 +65,7 @@ export function ConversationItemView({ item, actions }: ConversationItemViewProp
     }
 
     if (item.kind === "node-transition") {
-        return <NodeTransitionMarker nodeName={item.nodeName} />;
+        return <NodeTransitionMarker nodeName={item.nodeName} agentName={item.agentName} />;
     }
 
     return (

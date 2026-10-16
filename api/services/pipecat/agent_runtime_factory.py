@@ -274,6 +274,8 @@ class AgentRuntimeFactory:
             filtre_nom_civilite=creer_filtre_nom_civilite(
                 run_configs, self._variables_appel, self._contexte_appel
             ),
+            # [.mark] Chantier agents-specialises : ses réglages (groupe, plafond).
+            reglages=dict(run_configs),
         )
         try:
             await self.attach(runtime)

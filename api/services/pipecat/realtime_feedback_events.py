@@ -13,6 +13,7 @@ def build_node_transition_event(
     previous_node_name: str | None,
     allow_interrupt: bool = False,
     porte: str | None = None,
+    agent: str | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "node_id": node_id,
@@ -25,6 +26,9 @@ def build_node_transition_event(
     # (Postscript), affichée dans la conversation du run comme une porte appelée.
     if porte:
         payload["porte_ecrite"] = porte
+    # [.mark] Chantier agents-specialises (lot 2) : l'agent qui prend la main.
+    if agent:
+        payload["agent"] = agent
     return {"type": RealtimeFeedbackType.NODE_TRANSITION.value, "payload": payload}
 
 

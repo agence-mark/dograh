@@ -107,6 +107,10 @@ class AgentRuntime:
     # [.mark] Plan mode-prise-de-notes : the postscript processor (None outside
     # that mode, the default), placed just before the name filter.
     post_scriptum: Any = None
+    # [.mark] Chantier agents-specialises (lot 2) : les réglages de CET agent
+    # (``workflow_configurations`` de sa définition épinglée), lus pour le groupe
+    # (``agent_principal_id``). None = inconnus, comportement d'avant.
+    reglages: dict[str, Any] | None = None
 
     def bind_tool(self, engine, handler):
         """Bind a tool's lifetime to this visit, including work across awaits."""

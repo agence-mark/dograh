@@ -171,6 +171,7 @@ async def build_handoff_snapshot(
     retained_messages: int = DEFAULT_RETAINED_MESSAGES,
     timeout: float = DEFAULT_HANDOFF_SUMMARY_TIMEOUT_SECONDS,
     parent_context: Any = None,
+    resumer: bool = True,
 ) -> HandoffSnapshot:
     """Compact ``context`` for a destination agent without mutating it.
 
@@ -203,7 +204,9 @@ async def build_handoff_snapshot(
     )
 
     generate_summary = getattr(llm, "_generate_summary", None)
-    if generate_summary is None or len(conversation) <= retained_messages:
+    # [.mark] Chantier agents-specialises (A5) : ``resumer=False`` rend l'historique
+    # filtré, sans appel au modèle (retour au principal, passation rapide).
+    if not resumer or generate_summary is None or len(conversation) <= retained_messages:
         return fallback
 
     config = LLMContextSummaryConfig(

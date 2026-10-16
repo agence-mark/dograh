@@ -71,6 +71,8 @@ function conversationItemsFromTextChatEvents(
                 previousNodeId: asString(payload.previous_node_id),
                 previousNodeName: asString(payload.previous_node_name),
                 allowInterrupt: typeof payload.allow_interrupt === "boolean" ? payload.allow_interrupt : undefined,
+                // [.mark] Chantier agents-specialises (lot 2): a handoff names the agent.
+                agentName: asString(payload.agent),
             });
             return;
         }

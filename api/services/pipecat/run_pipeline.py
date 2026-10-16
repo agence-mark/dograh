@@ -1325,6 +1325,7 @@ async def _run_pipeline_impl(
         previous_node_name: Optional[str],
         allow_interrupt: bool = False,
         porte: Optional[str] = None,  # [.mark] C12 : la porte écrite (Postscript)
+        agent: Optional[str] = None,  # [.mark] agents-specialises : l'agent qui prend la main
     ) -> None:
         """Send node transition event to logs buffer and optionally via WebSocket."""
         # Update current node on the buffer so subsequent events are tagged
@@ -1337,6 +1338,7 @@ async def _run_pipeline_impl(
             previous_node_name=previous_node_name,
             allow_interrupt=allow_interrupt,
             porte=porte,
+            agent=agent,
         )
         # Send via WebSocket if available
         if ws_sender:
@@ -1828,6 +1830,10 @@ async def _run_pipeline_impl(
         agent.post_scriptum = post_scriptum_du_moteur(engine) or greffier_du_moteur(
             engine, service_greffier, run_configs.get("greffier_consigne")
         )
+        # [.mark] Chantier agents-specialises (lot 2) : les réglages du premier agent
+        # (groupe, plafond de passations), et ceux qui règlent l'appel.
+        agent.reglages = dict(run_configs)
+        engine.reglages_appel = dict(run_configs)
 
     # Initialize the engine to set the initial context with
     # System Prompt and Tools

@@ -17,6 +17,10 @@ from api.services.pipecat.agent_runtime_factory import AgentBuildError
 from api.services.pipecat.audio_playback import play_hold_audio_loop
 from api.services.workflow.agent_handoff_context import build_handoff_snapshot
 from api.services.workflow.agent_runtime import new_visit_id
+from api.services.groupe.passations import (
+    l_appelant_a_parle_en_dernier,
+    tracer_passation,
+)
 
 TRANSFER_PREPARE_TIMEOUT_SECONDS = 20.0
 TRANSFER_ACTIVATION_TIMEOUT_SECONDS = 5.0
@@ -40,6 +44,16 @@ class TransferRequest:
     play_greeting: bool = True
     request_id: str = field(default_factory=lambda: f"xfer-{uuid.uuid4().hex[:10]}")
     cancelled_reason: str | None = None
+    # [.mark] Chantier agents-specialises (lot 2). Tous les défauts = comportement d'avant.
+    # ``silencieuse`` : ni annonce, ni musique, ni durée minimale (retour au principal).
+    silencieuse: bool = False
+    # ``sans_resume`` : l'agent appelé reçoit l'historique filtré, sans appel au modèle.
+    sans_resume: bool = False
+    # ``ouverture`` : « toujours » (l'agent appelé ouvre, comme avant) ou
+    # « si_l_appelant_attend » (il ne parle que si le dernier mot est à l'appelant).
+    ouverture: str = "toujours"
+    # La raison tracée dans ``passations`` (le nom de l'outil, ou « retour »).
+    raison: str | None = None
 
     @property
     def cancelled(self) -> bool:
@@ -128,7 +142,13 @@ class AgentTransferCoordinator:
                 await asyncio.wait_for(context_ready.wait(), timeout=5)
             await self._announce(request, source)
             self._check_current(request)
-            await self._begin_hold(request, source)
+            # [.mark] Au clavier (aucune sortie audio) ou pour un retour au principal :
+            # l'agent est mis en attente, sans musique ni durée minimale.
+            attente = not (request.silencieuse or self._sans_sortie_audio())
+            if attente:
+                await self._begin_hold(request, source)
+            else:
+                await engine.deactivate_agent(source)
             hold_started = time.monotonic()
 
             async def prepare():
@@ -165,15 +185,18 @@ class AgentTransferCoordinator:
                             # Resolved here, in the parent task: the compaction
                             # task has no ambient span of its own to inherit.
                             parent_context=engine._get_otel_context(),
+                            resumer=not request.sans_resume,
                         )
                     )
                 snapshot = compact.result()
 
-            await asyncio.sleep(
-                max(0, TRANSFER_MIN_HOLD_SECONDS - (time.monotonic() - hold_started))
-            )
+            if attente:
+                await asyncio.sleep(
+                    max(0, TRANSFER_MIN_HOLD_SECONDS - (time.monotonic() - hold_started))
+                )
             await self._stop_hold_audio()
-            await engine.drain_call_pipeline()
+            if not self._sans_sortie_audio():
+                await engine.drain_call_pipeline()
             self._check_current(request)
             if destination.error:
                 raise AgentBuildError("destination_unusable", destination.error)
@@ -184,12 +207,24 @@ class AgentTransferCoordinator:
             engine.call_monitor.resume()
             await engine.notify_agent_entered(destination)
             start_node_id = destination.workflow.start_node_id
-            await engine.queue_node_opening(
-                node_id=start_node_id,
-                previous_node_id=None if request.play_greeting else start_node_id,
-                generate_if_no_greeting=True,
-                origin_visit_id=destination.visit_id,
+            # [.mark] « si_l_appelant_attend » : l'agent appelé ne parle que si le
+            # dernier mot de la conversation est à l'appelant (sinon il attend sa réponse).
+            parler = request.ouverture != "si_l_appelant_attend" or (
+                l_appelant_a_parle_en_dernier(engine.context.get_messages())
             )
+            ouverture = {
+                "node_id": start_node_id,
+                "previous_node_id": None if request.play_greeting else start_node_id,
+                "generate_if_no_greeting": parler,
+            }
+            if self._sans_sortie_audio():
+                # [.mark] Au clavier, le modèle de l'agent appelé n'est pas dans le
+                # circuit du tour : son ouverture est jouée au passage suivant.
+                engine.ouverture_differee = ouverture
+            else:
+                await engine.queue_node_opening(
+                    **ouverture, origin_visit_id=destination.visit_id
+                )
         except asyncio.CancelledError:
             outcome = request.cancelled_reason or "cancelled"
             raise
@@ -249,9 +284,15 @@ class AgentTransferCoordinator:
                 )
             )
 
+    def _sans_sortie_audio(self) -> bool:
+        """[.mark] Le clavier n'a ni voix ni musique (``PipecatEngine.sans_sortie_audio``)."""
+        return bool(getattr(self._engine, "sans_sortie_audio", False))
+
     async def _announce(self, request, source):
         engine = self._engine
-        if request.announcement:
+        if request.announcement and not (
+            request.silencieuse or self._sans_sortie_audio()
+        ):
             # The assistant turn logs context speech; logging it here duplicates it.
             speech = await engine.queue_speech(
                 request.announcement,
@@ -262,7 +303,8 @@ class AgentTransferCoordinator:
             await speech.wait()
         # Also drain when the tool has no announcement.
         await source.cancel_tools()
-        await engine.drain_call_pipeline()
+        if not self._sans_sortie_audio():
+            await engine.drain_call_pipeline()
 
     async def _begin_hold(self, request, source):
         await self._engine.deactivate_agent(source)
@@ -301,5 +343,14 @@ class AgentTransferCoordinator:
                 "from_visit_id": source.visit_id,
                 "to_visit_id": destination.visit_id if destination else None,
             }
+        )
+        # [.mark] Chantier agents-specialises (A18) : la trace ``passations`` de la fiche.
+        tracer_passation(
+            self._engine._gathered_context,
+            de=getattr(source, "workflow_id", None) or None,
+            vers=request.destination_workflow_id,
+            raison=request.raison or request.destination_label,
+            refusee=False,
+            issue=outcome,
         )
         logger.info(f"[transfer] {request.request_id} {outcome}")

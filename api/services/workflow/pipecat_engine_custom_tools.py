@@ -19,6 +19,11 @@ from pipecat.utils.enums import EndTaskReason
 
 from api.db import db_client
 from api.enums import ToolCategory, WorkflowRunMode
+from api.services.groupe.passations import (
+    MESSAGE_REFUS,
+    refus_de_passation,
+    tracer_passation,
+)
 from api.services.pipecat.audio_playback import play_audio_loop
 from api.services.pipecat.speech_playback import PlaybackOutcome, SpeechPlayback
 from api.services.telephony.call_transfer_manager import get_call_transfer_manager
@@ -622,6 +627,33 @@ class CustomToolManager:
                 )
                 return
 
+            # [.mark] Chantier agents-specialises (A18) : jamais vers soi-même, jamais
+            # au-delà du plafond du groupe, jamais de renvoi immédiat vers le spécialisé
+            # qui vient de rendre la main pour la même raison. Tracé dans ``passations``.
+            refus = refus_de_passation(
+                engine._gathered_context,
+                engine.__dict__.get("reglages_appel"),
+                de=self._agent.workflow_id or None,
+                vers=workflow_id,
+                raison=tool.name,
+            )
+            if refus is not None:
+                tracer_passation(
+                    engine._gathered_context,
+                    de=self._agent.workflow_id or None,
+                    vers=workflow_id,
+                    raison=tool.name,
+                    refusee=True,
+                    motif=refus,
+                )
+                if refus == "plafond" and engine.agent_can_act(self._agent):
+                    # La ligne générique entre dans le prompt de l'étape en cours.
+                    node = self._agent.current_node
+                    if node is not None and self._agent is engine.active_agent:
+                        await engine._setup_llm_context(node)
+                await refuse(f"passation_{refus}", MESSAGE_REFUS[refus])
+                return
+
             announcement = config.get("message")
             announcement = (
                 engine._format_prompt(str(announcement)) if announcement else None
@@ -635,6 +667,7 @@ class CustomToolManager:
                 origin_visit_id=self._agent.visit_id,
                 announcement=announcement,
                 play_greeting=config.get("play_greeting", True),
+                raison=tool.name,
             )
 
             if not engine.transfer_coordinator.accept(request):

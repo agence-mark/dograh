@@ -31,6 +31,15 @@ from pipecat.utils.enums import EndTaskReason
 
 from api.db import db_client
 from api.services.annonce.constantes import OUVERT
+from api.services.groupe.passations import (
+    LIGNE_PLAFOND,
+    RAISON_RETOUR,
+    agent_principal_de,
+    choisir_la_fin,
+    est_une_etape_de_retour,
+    fins_du_noeud,
+    plafond_atteint,
+)
 from api.enums import ToolCategory
 from api.errors.failure import (
     classify_exception,
@@ -277,6 +286,15 @@ class PipecatEngine:
         # and so can never transfer.
         self._agent_factory = None
         self._transfer_coordinator = None
+        # [.mark] Chantier agents-specialises (lot 2). Les réglages qui règlent l'appel
+        # (ceux du premier agent : plafond de passations…), posés par le circuit ;
+        # ``sans_sortie_audio`` : le clavier (ni annonce, ni musique) ; l'ouverture
+        # d'un agent appelé au clavier, jouée au passage suivant ; les tâches du groupe
+        # (fin figée, retour au principal) que le clavier attend avant de finir le tour.
+        self.reglages_appel: dict = {}
+        self.sans_sortie_audio = False
+        self.ouverture_differee: Optional[dict] = None
+        self._taches_du_groupe: set[asyncio.Task] = set()
         self.context = context
         self._call_context_vars = call_context_vars
         self._workflow_run_id = workflow_run_id
@@ -545,8 +563,30 @@ class PipecatEngine:
                 # is done, we have updated context and functions
                 await self.set_node(transition_to_node, origin_visit_id=agent.visit_id)
 
+                # [.mark] Chantier agents-specialises (lot 2) : étape de retour au
+                # principal (A1) ou nœud de fin aux phrases figées (A17) : c'est le
+                # code qui agit, le modèle ne reparle pas (``run_llm=False``).
+                principal = self._principal_du_retour(agent, transition_to_node)
+                phrase_figee = (
+                    None
+                    if principal is not None
+                    else self._phrase_de_fin_figee(agent, transition_to_node)
+                )
+                contexte_pret = asyncio.Event() if principal is not None else None
+                geste = False
+                if principal is not None:
+                    geste = self._rendre_au_principal(
+                        agent, principal, context_ready=contexte_pret
+                    )
+                elif phrase_figee is not None:
+                    geste = True
+                    self._mute_pipeline = True
+                    self._tache_du_groupe(self._dire_la_fin_figee(agent, phrase_figee))
+
                 is_end_node = agent.workflow.nodes[transition_to_node].is_end
-                if is_end_node:
+                if geste:
+                    pass
+                elif is_end_node:
                     # Register before the tool result can trigger generation.
                     closing_speech = self.speech_playback.expect_response(
                         source=agent.llm
@@ -562,7 +602,9 @@ class PipecatEngine:
 
                 async def on_context_updated() -> None:
                     """Finish an end node after its response reaches the caller."""
-                    if is_end_node:
+                    if contexte_pret is not None:
+                        contexte_pret.set()
+                    if is_end_node and not geste:
                         # This callback runs in its own task, leaving input audio,
                         # model generation, and transport playback free to continue.
                         # EndFrame closes realtime sessions; transport draining
@@ -575,15 +617,17 @@ class PipecatEngine:
 
                 result = {"status": "done"}
 
+                relance = (
+                    self._tours_fiche.relance(function_call_params.tool_call_id)
+                    if self._tours_fiche is not None
+                    else None
+                )
                 properties = FunctionCallResultProperties(
                     on_context_updated=on_context_updated,
                     # [.mark] Fiche : dans un tour avec une note, seul le dernier
                     # résultat relance ; None = regroupement de Pipecat, inchangé.
-                    run_llm=self._tours_fiche.relance(
-                        function_call_params.tool_call_id
-                    )
-                    if self._tours_fiche is not None
-                    else None,
+                    # [.mark] agents-specialises : après un geste du code, jamais.
+                    run_llm=False if geste else relance,
                 )
 
                 # Call results callback from the pipecat framework
@@ -727,11 +771,14 @@ class PipecatEngine:
                 if garanti and reponse and not relancer
                 else None
             )
+            # [.mark] Chantier agents-specialises (A17) : un nœud de fin aux phrases
+            # figées ne demande aucune réponse au modèle.
+            phrase_figee = self._phrase_de_fin_figee(agent, arete.target) if fin else None
             # Comme `_create_transition_func` : l'attente de la réponse de fin est
             # posée avant de changer d'étape, jamais après (revue du 05/10).
             closing = (
                 self.speech_playback.expect_response(source=agent.llm)
-                if fin and relancer
+                if fin and relancer and phrase_figee is None
                 else None
             )
             # C12 : le nom de la porte part avec l'événement du changement d'étape.
@@ -740,6 +787,17 @@ class PipecatEngine:
                 await self.set_node(arete.target, origin_visit_id=agent.visit_id)
             finally:
                 self._porte_ecrite_annoncee = None
+            # [.mark] Chantier agents-specialises (lot 2) : retour au principal (A1),
+            # ou fin figée (A17) dite après la réplique en cours, sans relance du modèle.
+            principal = self._principal_du_retour(agent, arete.target)
+            if principal is not None and self._rendre_au_principal(agent, principal):
+                return "prise"
+            if phrase_figee is not None:
+                self._mute_pipeline = True
+                self._tache_du_groupe(
+                    self._dire_la_fin_figee(agent, phrase_figee, avant=phrase_de_fin)
+                )
+                return "prise"
             if fin and not relancer:
                 self._mute_pipeline = True
 
@@ -952,6 +1010,97 @@ class PipecatEngine:
         tache = asyncio.get_running_loop().create_task(transferer())
         self._taches_de_porte.add(tache)
         tache.add_done_callback(self._taches_de_porte.discard)
+
+    # --- [.mark] Chantier agents-specialises (lot 2) : retour au principal, fins figées ---
+
+    def _principal_du_retour(self, agent: AgentRuntime, cible: str) -> Optional[int]:
+        """L'agent principal vers qui rendre l'appel, si ``cible`` est une étape marquée
+        « retour au principal » chez un agent qui a un principal (A1) ; ``None`` sinon
+        (comportement d'avant). ⛔ Ne lève jamais."""
+        try:
+            noeud = agent.workflow.nodes.get(cible)
+            if noeud is None or noeud.is_end or not est_une_etape_de_retour(noeud):
+                return None
+            principal = agent_principal_de(agent.reglages)
+            if principal is None or principal == agent.workflow_id:
+                return None
+            if not self.agent_transfer_enabled:
+                logger.warning("[groupe] étape de retour, mais aucune passation possible ici")
+                return None
+            return principal
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[groupe] retour au principal illisible : {e!r}")
+            return None
+
+    def _phrase_de_fin_figee(self, agent: AgentRuntime, cible: str) -> Optional[str]:
+        """La phrase de fin choisie par le code (A17) si ``cible`` est un nœud de fin qui
+        porte une liste ``fins`` ; ``None`` sinon (comportement d'avant). ⛔ Ne lève jamais."""
+        try:
+            noeud = agent.workflow.nodes.get(cible)
+            if noeud is None or not noeud.is_end:
+                return None
+            fins = fins_du_noeud(noeud)
+            if not fins:
+                return None
+            phrase = choisir_la_fin(fins, self._gathered_context)
+            return self._format_prompt(phrase) if phrase else None
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[groupe] phrases de fin illisibles : {e!r}")
+            return None
+
+    def _tache_du_groupe(self, coroutine) -> None:
+        taches = self.__dict__.setdefault("_taches_du_groupe", set())
+        tache = asyncio.get_running_loop().create_task(coroutine)
+        taches.add(tache)
+        tache.add_done_callback(taches.discard)
+
+    def _rendre_au_principal(
+        self, agent: AgentRuntime, principal: int, *, context_ready=None
+    ) -> bool:
+        """Le code passe la main au principal : ni annonce, ni musique, historique sans
+        résumé ; le principal ne parle que si le dernier mot est à l'appelant (A1, A21).
+        Rend ``False`` si la passation n'a pas pu partir. ⛔ Ne lève jamais."""
+        try:
+            from api.services.workflow.agent_transfer import TransferRequest
+
+            request = TransferRequest(
+                destination_workflow_id=principal,
+                destination_label=RAISON_RETOUR,
+                origin_visit_id=agent.visit_id,
+                announcement=None,
+                play_greeting=False,
+                silencieuse=True,
+                sans_resume=True,
+                ouverture="si_l_appelant_attend",
+                raison=RAISON_RETOUR,
+            )
+            if not self.transfer_coordinator.accept(request):
+                logger.warning("[groupe] retour au principal refusé : une passation est en cours")
+                return False
+            logger.info(f"[groupe] retour au principal {principal} lancé par le code")
+            self.transfer_coordinator.start(request, context_ready=context_ready)
+            return True
+        except Exception as e:  # noqa: BLE001 -- un retour ne coûte jamais l'appel
+            logger.error(f"[groupe] retour au principal en échec : {e!r}")
+            return False
+
+    async def _dire_la_fin_figee(self, agent: AgentRuntime, phrase: str, avant=None) -> None:
+        """Après la réplique en cours (``avant``), le code dit la phrase de fin telle
+        quelle, puis raccroche (A17). ⛔ Ne lève jamais."""
+        try:
+            if avant is not None:
+                await avant.wait()
+            if not self.agent_can_act(agent):
+                return
+            self._mute_pipeline = True
+            speech = await self.queue_speech(phrase, append_to_context=True, mute_user=True)
+            await speech.wait()
+            if self.agent_can_act(agent):
+                await self.end_call_with_reason(EndTaskReason.END_CALL.value)
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[groupe] fin figée en échec : {e!r}")
+            if self.agent_can_act(agent):
+                await self.end_call_with_reason(EndTaskReason.END_CALL.value)
 
     async def relancer_une_reponse_muette(self) -> bool:
         """[.mark] C3 (banc du 07/10, blancs de 8 à 13 s) : la réponse du modèle n'a
@@ -1432,6 +1581,12 @@ class PipecatEngine:
             )
             if bloc:
                 texte = f"{texte}\n\n{bloc}"
+        # [.mark] Chantier agents-specialises (A18) : plafond de passations atteint dans
+        # cet appel : la ligne générique, à la fin du prompt de l'étape.
+        if not node.is_end and plafond_atteint(
+            self.__dict__.get("_gathered_context"), self.__dict__.get("reglages_appel")
+        ):
+            texte = f"{texte}\n\n{LIGNE_PLAFOND}"
         agent.tools = ToolsSchema(standard_tools=functions)
         agent.system_prompt = texte
         if agent.recording_router is not None:
@@ -2356,9 +2511,20 @@ class PipecatEngine:
         node = runtime.current_node
         if self._node_transition_callback:
             try:
-                await self._node_transition_callback(
-                    node.id, node.name, None, None, node.allow_interrupt
-                )
+                try:
+                    # [.mark] agents-specialises : l'événement porte le nom de l'agent.
+                    await self._node_transition_callback(
+                        node.id,
+                        node.name,
+                        None,
+                        None,
+                        node.allow_interrupt,
+                        agent=runtime.workflow_name or None,
+                    )
+                except TypeError:
+                    await self._node_transition_callback(
+                        node.id, node.name, None, None, node.allow_interrupt
+                    )
             except Exception as error:
                 logger.debug(f"Failed to send agent transition event: {error}")
 

@@ -99,6 +99,8 @@ export interface ConversationNodeTransitionItem extends ConversationItemBase {
     previousNodeId?: string;
     previousNodeName?: string;
     allowInterrupt?: boolean;
+    // [.mark] Chantier agents-specialises (lot 2): the agent that takes the call over.
+    agentName?: string;
 }
 
 export interface ConversationNoticeItem extends ConversationItemBase {

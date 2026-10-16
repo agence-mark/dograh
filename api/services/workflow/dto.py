@@ -150,6 +150,44 @@ class _PremiereRepliqueNodeDataMixin(BaseModel):
     )
 
 
+class _RetourAuPrincipalNodeDataMixin(BaseModel):
+    # [.mark] Chantier agents-specialises (lot 2, A1) : l'étape de retour d'un agent
+    # spécialisé. À l'arrivée, le code rend l'appel à l'agent principal du groupe
+    # (``agent_principal_id`` dans les réglages de l'agent). Hors du formulaire
+    # généré : la case de l'écran vient au lot 12. Faux = comportement d'avant.
+    retour_au_principal: bool = spec_field(
+        default=False,
+        spec_exclude=True,
+        description=(
+            "When true, arriving at this step hands the call back to the group's "
+            "main agent, by code, before any model turn."
+        ),
+    )
+
+
+class FinFigeeDTO(BaseModel):
+    """[.mark] Une ligne des phrases de fin figées (A17) : si le champ de la fiche est
+    rempli (ou vaut ``vaut``), cette phrase ; sans champ, la phrase par défaut."""
+
+    champ: Optional[str] = None
+    vaut: Optional[str] = None
+    phrase: str = Field(min_length=1, max_length=1000)
+
+
+class _FinsFigeesNodeDataMixin(BaseModel):
+    # [.mark] Chantier agents-specialises (lot 2, A17) : la liste ordonnée des phrases
+    # de fin du nœud de fin. Le code dit la première dont la condition sur la fiche
+    # est vraie, sans tour de modèle. Vide = comportement d'avant (la zone de texte).
+    fins: Optional[List[FinFigeeDTO]] = spec_field(
+        default=None,
+        spec_exclude=True,
+        description=(
+            "Ordered closing sentences: the first whose condition on the call record "
+            "holds is spoken as is; a line without a field is the default."
+        ),
+    )
+
+
 class _ChampsEtapeNodeDataMixin(BaseModel):
     # [.mark] Lot E d'agent-leger-greffier (P1) : les champs de la fiche que l'étape
     # recueille, dans l'ordre de priorité, séparés par des virgules. Une chaîne et non
@@ -514,6 +552,7 @@ class AgentNodeData(
     _ChampsEtapeNodeDataMixin,
     _ExtractionNodeDataMixin,
     _ToolDocumentRefsMixin,
+    _RetourAuPrincipalNodeDataMixin,
 ):
     pass
 
@@ -597,6 +636,7 @@ class EndCallNodeData(
     _PromptedNodeDataMixin,
     _PremiereRepliqueNodeDataMixin,
     _ExtractionNodeDataMixin,
+    _FinsFigeesNodeDataMixin,
 ):
     is_end: bool = spec_field(default=True, spec_exclude=True)
 

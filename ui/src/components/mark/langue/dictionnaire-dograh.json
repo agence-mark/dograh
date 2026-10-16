@@ -14,6 +14,7 @@
   ". Usage for that service key is visible in app.dograh.com.": ". La consommation de cette clé de service est visible sur app.dograh.com.",
   ". Use an explicit prefix to read only one context.": ". Utilisez un préfixe explicite pour ne lire qu'un seul contexte.",
   ". Values resolve from tool call arguments or workflow context at runtime.": ". Les valeurs sont résolues à l'exécution depuis les arguments de l'outil ou le contexte du workflow.",
+  "Handed over to": "Passé à l'agent",
   "”": "”",
   "\" to any website with a simple script tag.": "» sur n'importe quel site avec une simple balise script.",
   "(disabled)": "(désactivé)",
