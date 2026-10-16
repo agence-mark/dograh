@@ -21,6 +21,15 @@ from openai.types.completion_usage import CompletionUsage
 
 from api.services.pipecat.reponse_avalee import RepriseSansFluxMixin
 
+class _Contexte(list):
+    """Un contexte comme celui de Pipecat : ses messages, dans ``messages``."""
+
+    @property
+    def messages(self):
+        return list(self)
+
+
+
 COMMUN = {"id": "c", "created": 0, "model": "m", "object": "chat.completion.chunk"}
 
 
@@ -101,7 +110,7 @@ async def test_un_flux_avale_est_relance_sans_flux_et_l_appel_d_outil_est_rendu(
     assert [a.function.name for a in appels] == ["passer_a_l_agent_informations"]
     assert appels[0].function.arguments == "{}" and appels[0].id == "t1"
     assert [m.choices[0].finish_reason for m in morceaux if m.choices][-1] == "tool_calls"
-    assert morceaux[-1].usage.completion_tokens == 10
+    assert morceaux[-1].usage.completion_tokens == 20, "le flux vide (10) et la relance (10)"
     [requete] = service.requetes
     assert requete["stream"] is False and "stream_options" not in requete
     assert requete["messages"] == ["bonjour"] and requete["model"] == "m"
@@ -114,20 +123,62 @@ async def test_un_flux_normal_passe_tel_quel_sans_relance():
     assert service.requetes == []
 
 
-async def test_un_flux_vide_sans_jeton_est_relance_aussi():
+async def test_un_flux_vide_sans_jeton_est_relance_quand_l_appelant_attend():
     flux = [_morceau(), _morceau(fin="stop"), _morceau(jetons=0)]
     service = _Service(flux, reprise=_reponse(texte="Oui"))
-    morceaux = await _lire(service)
+    contexte = _Contexte([{"role": "user", "content": "Allô ?"}])
+    morceaux = [m async for m in await service.get_chat_completions(contexte)]
     assert "".join(m.choices[0].delta.content or "" for m in morceaux if m.choices) == "Oui"
     assert len(service.requetes) == 1
 
 
-class _Contexte(list):
-    """Un contexte comme celui de Pipecat : ses messages, dans ``messages``."""
+async def test_un_silence_apres_un_resultat_d_outil_sans_jeton_reste_un_silence():
+    """Revue du 16/10 : sans jeton compté et sans appelant qui attend, rien n'est relancé."""
+    flux = [_morceau(), _morceau(fin="stop"), _morceau(jetons=0)]
+    service = _Service(flux, reprise=_reponse(texte="jamais"))
+    contexte = _Contexte([{"role": "user", "content": "x"}, {"role": "tool", "content": "{}"}])
+    assert [m async for m in await service.get_chat_completions(contexte)] == flux
+    assert service.requetes == []
 
-    @property
-    def messages(self):
-        return list(self)
+
+async def test_texte_et_appel_d_outil_de_la_relance_partent_en_morceaux_separes():
+    """Revue du 16/10 : Pipecat lit « outil, sinon texte » et le premier appel d'un morceau."""
+    reprise = ChatCompletion.model_validate(
+        {
+            "id": "r", "created": 0, "model": "m", "object": "chat.completion",
+            "choices": [{"index": 0, "finish_reason": "tool_calls", "message": {
+                "role": "assistant", "content": "Je vous transfère.",
+                "tool_calls": [
+                    {"id": "a", "type": "function", "function": {"name": "un", "arguments": "{}"}},
+                    {"id": "b", "type": "function", "function": {"name": "deux", "arguments": "{}"}},
+                ]}}],
+            "usage": {"completion_tokens": 7, "prompt_tokens": 100, "total_tokens": 107},
+        }
+    )
+    morceaux = await _lire(_Service(FLUX_AVALE, reprise=reprise))
+    deltas = [m.choices[0].delta for m in morceaux if m.choices]
+    assert deltas[0].content == "Je vous transfère." and not deltas[0].tool_calls
+    assert [d.tool_calls[0].function.name for d in deltas if d.tool_calls] == ["un", "deux"]
+    assert all(len(d.tool_calls) == 1 for d in deltas if d.tool_calls)
+    # Les jetons du flux vide comptent aussi (10 + 7 générés).
+    assert morceaux[-1].usage.completion_tokens == 17
+
+
+async def test_une_relance_qui_ne_repond_pas_tombe_sur_la_phrase_de_repli_au_delai():
+    import asyncio
+
+    from api.services.pipecat.reponse_avalee import PHRASE_DE_REPLI
+
+    service = _Service(FLUX_AVALE)
+
+    async def lent(**requete):
+        await asyncio.sleep(5)
+
+    service._client.chat.completions.create = lent
+    service.mark_delai_modele_s = 0.05
+    contexte = _Contexte([{"role": "user", "content": "Allô ?"}])
+    morceaux = [m async for m in await service.get_chat_completions(contexte)]
+    assert "".join(m.choices[0].delta.content or "" for m in morceaux if m.choices) == PHRASE_DE_REPLI
 
 
 async def test_deux_fois_rien_et_l_appelant_attend_le_code_dit_la_phrase_de_repli():

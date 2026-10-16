@@ -25,6 +25,7 @@ d'avant. Un flux qui a déjà porté du texte n'est jamais relancé (rien n'est 
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 
@@ -56,7 +57,25 @@ def jetons_generes(morceau: Any) -> int:
         return 0
 
 
-def en_morceaux(reponse: Any) -> list[Any]:
+def additionner(usage_a: Any, usage_b: Any) -> Any:
+    """Les deux comptes de jetons additionnés (le flux vide a coûté aussi)."""
+    if usage_a is None:
+        return usage_b
+    if usage_b is None:
+        return usage_a
+    from openai.types.completion_usage import CompletionUsage
+
+    def n(u, cle):
+        return int(getattr(u, cle, 0) or 0)
+
+    return CompletionUsage(
+        prompt_tokens=n(usage_a, "prompt_tokens") + n(usage_b, "prompt_tokens"),
+        completion_tokens=n(usage_a, "completion_tokens") + n(usage_b, "completion_tokens"),
+        total_tokens=n(usage_a, "total_tokens") + n(usage_b, "total_tokens"),
+    )
+
+
+def en_morceaux(reponse: Any, usage_d_avant: Any = None) -> list[Any]:
     """Une réponse sans flux, rendue comme les morceaux d'un flux (texte, appels d'outil,
     fin, compte de jetons)."""
     from openai.types.chat.chat_completion_chunk import (
@@ -88,19 +107,32 @@ def en_morceaux(reponse: Any) -> list[Any]:
         "model": getattr(reponse, "model", None) or "",
         "object": "chat.completion.chunk",
     }
-    morceaux = [
-        ChatCompletionChunk(
-            **commun,
-            choices=[
-                Choice(
-                    index=0,
-                    delta=ChoiceDelta(
-                        role="assistant", content=contenu, tool_calls=appels or None
-                    ),
-                    finish_reason=None,
-                )
-            ],
-        ),
+    # Revue du 16/10 : Pipecat lit dans un morceau « appel d'outil, sinon texte », et seulement
+    # le premier appel : un morceau pour le texte, puis un morceau par appel d'outil.
+    morceaux = []
+    if contenu:
+        morceaux.append(
+            ChatCompletionChunk(
+                **commun,
+                choices=[
+                    Choice(
+                        index=0,
+                        delta=ChoiceDelta(role="assistant", content=contenu),
+                        finish_reason=None,
+                    )
+                ],
+            )
+        )
+    for appel in appels:
+        morceaux.append(
+            ChatCompletionChunk(
+                **commun,
+                choices=[
+                    Choice(index=0, delta=ChoiceDelta(tool_calls=[appel]), finish_reason=None)
+                ],
+            )
+        )
+    morceaux.append(
         ChatCompletionChunk(
             **commun,
             choices=[
@@ -110,9 +142,9 @@ def en_morceaux(reponse: Any) -> list[Any]:
                     finish_reason=getattr(choix, "finish_reason", None) or "stop",
                 )
             ],
-        ),
-    ]
-    usage = getattr(reponse, "usage", None)
+        )
+    )
+    usage = additionner(usage_d_avant, getattr(reponse, "usage", None))
     if usage is not None:
         morceaux.append(ChatCompletionChunk(**commun, choices=[], usage=usage))
     return morceaux
@@ -150,11 +182,14 @@ class FluxRepris:
         tenus: list[Any] = []
         quelque_chose = False
         jetons = 0
+        usage_d_avant = None
         async for morceau in self._flux:
             if quelque_chose:
                 yield morceau
                 continue
             jetons = max(jetons, jetons_generes(morceau))
+            if getattr(morceau, "usage", None) is not None:
+                usage_d_avant = morceau.usage
             if porte_quelque_chose(morceau):
                 quelque_chose = True
                 for tenu in tenus:
@@ -165,13 +200,17 @@ class FluxRepris:
                 tenus.append(morceau)
         if quelque_chose:
             return
+        if jetons <= 0 and not self._attend():
+            for tenu in tenus:
+                yield tenu
+            return
         reprise = None
         try:
             reprise = await self._relancer()
         except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
             logger.warning(f"[cerveau] relance sans flux en échec : {erreur!r}")
         if reprise is not None:
-            morceaux = en_morceaux(reprise)
+            morceaux = en_morceaux(reprise, usage_d_avant)
             if any(porte_quelque_chose(m) for m in morceaux):
                 logger.warning(
                     f"[cerveau] flux vide ({jetons} jetons comptés) : réponse rendue par la "
@@ -208,9 +247,23 @@ class RepriseSansFluxMixin:
     trace voit le flux tel que l'agent le reçoit, relance comprise."""
 
     async def get_chat_completions(self, context):  # type: ignore[override]
+        # Revue du 16/10 : la relance part avec la réflexion de secours si cette réponse-ci
+        # l'avait (l'armement est consommé par la requête d'origine), et se dit dans la trace.
+        secours = bool(getattr(self, "_mark_relance_armee", False))
+        entree = getattr(self, "_mark_entree_en_cours", None)
         flux = await super().get_chat_completions(context)  # type: ignore[misc]
 
         async def relancer():
+            if isinstance(entree, dict):
+                entree["relance_sans_flux"] = True
+            delai = getattr(self, "mark_delai_modele_s", None)
+            if delai:
+                # Revue du 16/10 : la relance a le même délai de garde que la requête d'origine ;
+                # dépassé, l'erreur est rattrapée et la phrase de repli est dite.
+                return await asyncio.wait_for(requeter(), delai)
+            return await requeter()
+
+        async def requeter():
             from pipecat.utils.types import assert_given
 
             adapter = self.get_llm_adapter()  # type: ignore[attr-defined]
@@ -221,7 +274,12 @@ class RepriseSansFluxMixin:
             )
             # Par l'attribut de l'instance : les enveloppes posées par le moteur (l'état de
             # la fiche) s'appliquent à la relance comme à la requête d'origine.
-            requete = dict(self.build_chat_completion_params(params))  # type: ignore[attr-defined]
+            avant = getattr(self, "_mark_secours_en_cours", False)
+            self._mark_secours_en_cours = secours
+            try:
+                requete = dict(self.build_chat_completion_params(params))  # type: ignore[attr-defined]
+            finally:
+                self._mark_secours_en_cours = avant
             requete["stream"] = False
             requete.pop("stream_options", None)
             return await self._client.chat.completions.create(**requete)  # type: ignore[attr-defined]

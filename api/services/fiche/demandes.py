@@ -33,6 +33,9 @@ from loguru import logger
 from api.schemas.fiche_agent import ChampFiche, cle_dit, cle_insee, est_un_champ_de_nom
 
 CLE_DEMANDES = "demandes"
+# Revue du 16/10 : la demande du spécialisé, photographiée au retour au principal ; la clôture
+# suivante se fait sur cette photo (ce que le principal note ensuite va à la nouvelle demande).
+CLE_PHOTO = "demande_au_retour"
 CLE_ETAT = "fiche_etat"
 CLE_EXTRAITES = "extracted_variables"
 APPEL = "appel"
@@ -155,6 +158,26 @@ def champs_de_la_demande_en_cours(reglages: Any, gathered: Mapping[str, Any]) ->
     ]
 
 
+def photographier_la_demande(gathered: dict, reglages: Any) -> None:
+    """Au retour au principal : la photo des champs « demande » remplis (valeurs à cet instant).
+    Rien à photographier : la photo d'avant est retirée. ⛔ Ne lève jamais."""
+    try:
+        if reglages is None:
+            return
+        photo = {
+            cle: gathered[cle]
+            for champ in champs_de_la_demande_en_cours(reglages, gathered)
+            for cle in cles_du_champ(champ)
+            if cle in gathered and not _vide(gathered.get(cle))
+        }
+        if photo:
+            gathered[CLE_PHOTO] = photo
+        else:
+            gathered.pop(CLE_PHOTO, None)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[demandes] photo de la demande au retour non prise : {erreur!r}")
+
+
 def ouvrir_une_demande(
     gathered: dict,
     reglages: Any,
@@ -177,8 +200,18 @@ def ouvrir_une_demande(
         proprietaire = dernier_specialise(gathered, principal_id)
         if proprietaire is None:
             return None
+        photo = gathered.get(CLE_PHOTO) if isinstance(gathered.get(CLE_PHOTO), dict) else None
         remplis = champs_de_la_demande_en_cours(reglages, gathered)
+        if photo:
+            # Revue du 16/10 : les champs de la photo, même réécrits depuis par le principal.
+            remplis = [
+                c
+                for c in _champs(reglages)
+                if portees_de(reglages).get(c.nom) == DEMANDE
+                and any(cle in photo for cle in cles_du_champ(c))
+            ]
         if not remplis:
+            gathered.pop(CLE_PHOTO, None)
             return None
         portees = portees_de(reglages)
         etat = gathered.get(CLE_ETAT) if isinstance(gathered.get(CLE_ETAT), dict) else {}
@@ -189,7 +222,9 @@ def ouvrir_une_demande(
         provenance: dict[str, Any] = {}
         for champ in remplis:
             for cle in cles_du_champ(champ):
-                if cle in gathered and not _vide(gathered.get(cle)):
+                if photo is not None and cle in photo:
+                    champs[cle] = photo[cle]
+                elif photo is None and cle in gathered and not _vide(gathered.get(cle)):
                     champs[cle] = gathered[cle]
                 if isinstance(etat.get(cle), dict):
                     provenance[cle] = dict(etat[cle])
@@ -221,11 +256,15 @@ def ouvrir_une_demande(
         bloc = {k: v for k, v in bloc.items() if v is not None}
         for champ in remplis:
             for cle in cles_du_champ(champ):
+                if photo is not None and cle in photo and gathered.get(cle) != photo[cle]:
+                    # Réécrit par le principal depuis le retour : la valeur va à la nouvelle demande.
+                    continue
                 gathered.pop(cle, None)
                 if isinstance(extraites, dict):
                     extraites.pop(cle, None)
                 if isinstance(etat, dict):
                     etat.pop(cle, None)
+        gathered.pop(CLE_PHOTO, None)
         gathered.setdefault(CLE_DEMANDES, []).append(bloc)
         logger.info(
             f"[demandes] demande {bloc['ordre']} close ({', '.join(champs)}) : "

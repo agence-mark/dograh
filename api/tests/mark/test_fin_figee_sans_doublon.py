@@ -45,3 +45,12 @@ async def test_une_porte_apres_la_phrase_ne_tait_rien_de_deja_dit():
     ordre = await montage.reponse("Très bien, bonne soirée.\n", "→ vers_fin\n")
     assert "bonne soirée" in ordre.dit
     assert [p["nom"] for p in montage.moteur.prises] == ["vers_fin"]
+
+
+@pytest.mark.asyncio
+async def test_la_note_du_dernier_tour_est_lue_meme_quand_la_voix_se_tait():
+    """Revue du 16/10 : seule la voix se tait ; ce que la réponse note après la porte est écrit."""
+    montage = _montage()
+    ordre = await montage.reponse("→ vers_fin\nBonne soirée.\n|||\n", '{"motif": "entretien"}')
+    assert ordre.dit.strip() == ""
+    assert montage.fiche.get("motif") == "entretien"

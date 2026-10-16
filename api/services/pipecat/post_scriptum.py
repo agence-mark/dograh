@@ -231,6 +231,10 @@ class PostScriptumProcessor(FrameProcessor):
         fin: bool = False,
     ) -> None:
         """Pousse ``texte`` à la voix, en réutilisant la frame reçue (ses drapeaux)."""
+        if self._taire_vers_la_fin:
+            # C4 (banc du 16/10) : une porte en tête vers une fin figée ; le code dit la phrase
+            # de fin, la réponse du modèle ne part pas à la voix (ni dans l'historique).
+            return
         if self._en_tete and texte.strip():
             ouvrant = _GUILLEMET_OUVRANT.match(texte)
             if ouvrant:
@@ -380,9 +384,11 @@ class PostScriptumProcessor(FrameProcessor):
             # soit (en tête, après la phrase, après le séparateur), jamais dite.
             frame.text = self._filtrer_les_portes(frame.text)
             await self._annoncer_la_transition(direction)
-            if not frame.text or self._se_taire_vers_la_fin():
+            if not frame.text:
                 self._vu_du_texte = True
                 return
+            # C4 : seule la voix se tait (revue du 16/10) ; la note du tour se lit comme avant.
+            self._se_taire_vers_la_fin()
         self._vu_du_texte = True
         if self._dans_la_note:
             # Plan postscriptum-note-d-abord (S1) : la note d'abord, jamais dite.
@@ -871,7 +877,9 @@ class PostScriptumProcessor(FrameProcessor):
 
         async def prendre() -> None:
             detail = await self._prendre_la_porte(*portes, relancer=relancer)
-            if relancer and detail.get("porte_etat") in ("inconnue", "sans_nom"):
+            # Revue du 16/10 (C4) : « echec » aussi, une réponse tue vers une fin figée dont le
+            # changement d'étape a échoué ne laisse jamais l'appelant dans le silence.
+            if relancer and detail.get("porte_etat") in ("inconnue", "sans_nom", "echec"):
                 # Q3 (lot 3 du chantier postscriptum-et-communes, run 1089) : une porte qui
                 # n'existe pas et aucune phrase : un silence, que C3 ne relançait pas
                 # (une porte était écrite). Le modèle reparle, une fois (garde de C3).

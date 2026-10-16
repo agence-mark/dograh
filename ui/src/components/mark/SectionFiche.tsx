@@ -77,6 +77,7 @@ export const NOMS_RESERVES = [
     "transferts_humains",
     // [.mark] agents-specialises, lot 17: the closed requests of a call with several requests.
     "demandes",
+    "demande_au_retour",
     "communes_verifiees",
     // Lot 1 of postscriptum-et-communes: the towns set aside because they were the name.
     "communes_ecartees",

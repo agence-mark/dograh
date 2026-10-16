@@ -234,6 +234,7 @@ NOMS_RESERVES = frozenset(
         "transferts_humains",
         # [.mark] agents-specialises (lot 17) : les demandes closes d'un appel à plusieurs demandes
         "demandes",
+        "demande_au_retour",
         # traces des modules
         "communes_verifiees",
         # chantier postscriptum-et-communes, lot 1 : les communes lues sur le nom de la personne

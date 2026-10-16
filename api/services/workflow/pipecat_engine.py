@@ -1573,6 +1573,12 @@ class PipecatEngine:
         (``commit_agent``). ⛔ Ne lève jamais."""
         try:
             principal_id = agent_principal_de(getattr(runtime, "reglages", None))
+            if self._fiche is not None and principal_id is None and self.est_le_principal(runtime):
+                # Revue du 16/10 : retour au principal, la demande du spécialisé est photographiée.
+                from api.services.fiche.demandes import photographier_la_demande
+
+                photographier_la_demande(self._gathered_context, self._fiche)
+                return
             if self._fiche is None or principal_id is None:
                 return
             from api.schemas.apres_appel import ApresAppelAgent
@@ -1582,8 +1588,9 @@ class PipecatEngine:
                 champ_motif = ApresAppelAgent.model_validate(
                     (self.reglages_appel or {}).get("apres_appel") or {}
                 ).champ("motif")
-            except Exception:  # noqa: BLE001 -- sans réglage lisible : le champ de même nom
-                champ_motif = "motif"
+            except Exception:  # noqa: BLE001 -- sans réglage lisible : pas de motif de bloc
+                # Revue du 16/10 : jamais un nom de champ en dur (zéro vocabulaire dans le code).
+                champ_motif = None
             noms = {
                 a.workflow_id: a.workflow_name
                 for a in [*self._retired_agents, self.active_agent]

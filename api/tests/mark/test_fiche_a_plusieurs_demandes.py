@@ -245,6 +245,22 @@ def test_une_passation_vers_un_second_specialise_clot_la_demande_et_garde_l_appe
     assert bloc["etat"]["objet"]["source"] == "outil"
 
 
+def test_ce_que_le_principal_note_apres_le_retour_va_a_la_nouvelle_demande():
+    """Revue du 16/10 : la demande du spécialisé est photographiée au retour ; le principal qui
+    qualifie la demande suivante (il réécrit ``objet``) n'écrase jamais la demande close."""
+    from api.services.fiche.demandes import CLE_PHOTO, photographier_la_demande
+
+    fiche, reglages = _fiche_avec_un_specialiste()
+    photographier_la_demande(fiche, reglages)
+    assert fiche[CLE_PHOTO] == {"objet": "premier", "detail": "a)"}
+    fiche["objet"] = "second"  # le principal qualifie la demande suivante
+    bloc = ouvrir_une_demande(fiche, reglages, vers_un_specialise=True, principal_id=PRINCIPAL)
+    assert bloc["champs"] == {"objet": "premier", "detail": "a)"}
+    assert fiche["objet"] == "second", "la valeur réécrite reste à la nouvelle demande"
+    assert "detail" not in fiche and CLE_PHOTO not in fiche
+    assert fiche["nom"] == "Lemaire"
+
+
 def test_au_retour_au_principal_et_chez_le_premier_specialise_rien_n_est_clos():
     fiche, reglages = _fiche_avec_un_specialiste()
     avant = copy.deepcopy(fiche)
