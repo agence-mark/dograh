@@ -23,8 +23,12 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.schemas.etablissements import (
     CatalogueEtablissements,
+    DemandeCopieEtablissement,
+    DemandeReprise,
     EtablissementsDeLagent,
     NumeroDeLorganisation,
+    ResultatCopieEtablissement,
+    ResultatReprise,
 )
 from api.schemas.phrases import CataloguePhrases
 from api.services.auth.depends import get_user_with_selected_organization
@@ -86,17 +90,17 @@ async def get_numeros(user: UserModel = Depends(get_user_with_selected_organizat
     return await _numeros_de_lorganisation(user.selected_organization_id)
 
 
-@router.put("", response_model=CatalogueEtablissements)
-async def save_etablissements(
-    request: CatalogueEtablissements,
-    user: UserModel = Depends(get_user_with_selected_organization),
-):
+async def _controler_etablissements(organization_id: int, etablissements: list) -> list:
+    """Every bound of a save, fiche by fiche, BEFORE anything is written (422 otherwise).
+    Returns the fiches with their address checked and named officially.
+
+    [.mark] Lot 4: taken out of ``save_etablissements`` unchanged, so the copy of a fiche
+    (``/copier``) passes through the very same controls."""
     from api.services.pipecat.etat_ouverture import (
         HorairesInvalides,
         vers_expression_osm,
     )
 
-    organization_id = user.selected_organization_id
     siens = {n.numero for n in await _numeros_de_lorganisation(organization_id)}
     try:
         phrases = await lire_phrases_strict(organization_id)
@@ -104,7 +108,7 @@ async def save_etablissements(
         phrases = CataloguePhrases()
     au_niveau_etablissement = {p.variable for p in phrases.phrases if p.niveau == "etablissement"}
     verifies = []
-    for rang, etablissement in enumerate(request.etablissements):
+    for rang, etablissement in enumerate(etablissements):
         loc = ["body", "etablissements", rang]
         for variable in etablissement.phrases:
             if variable not in au_niveau_etablissement:
@@ -131,12 +135,186 @@ async def save_etablissements(
             except AdresseInvalide as erreur:
                 raise _refus(f"{etablissement.nom}: {erreur}", loc + ["adresse"]) from None
         verifies.append(etablissement.model_copy(update={"adresse": adresse}))
+    return verifies
+
+
+@router.put("", response_model=CatalogueEtablissements)
+async def save_etablissements(
+    request: CatalogueEtablissements,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    organization_id = user.selected_organization_id
+    verifies = await _controler_etablissements(organization_id, request.etablissements)
     try:
         return await enregistrer_etablissements(
             organization_id, request.model_copy(update={"etablissements": verifies}), auteur_de(user)
         )
     except BaseClientIndisponible as erreur:
         raise _base_injoignable(erreur) from None
+
+
+# --------------------------------------------------------------------------- #
+# [.mark] Chantier agents-specialises, lot 4 (F2, reprise)
+# --------------------------------------------------------------------------- #
+
+
+async def _catalogue_pour_ecrire(organization_id: int) -> CatalogueEtablissements:
+    """Strict, like the screen: a catalogue read empty because unreadable would be replaced."""
+    try:
+        return await lire_etablissements_strict(organization_id)
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Establishments unreadable for a copy or a takeover: {erreur!r}")
+        raise HTTPException(
+            status_code=500,
+            detail="The establishments saved for this organization cannot be read. Nothing was changed.",
+        ) from None
+
+
+@router.post("/copier", response_model=ResultatCopieEtablissement)
+async def copier_etablissement(
+    request: DemandeCopieEtablissement,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """F2: a new fiche from an existing one. Everything that describes the place is copied
+    (and, with a client database, the appointment settings and types); never the numbers
+    nor the immediate closure. The new fiche goes through the same controls as a save."""
+    from api.services.etablissements.duplication import (
+        NON_COPIE,
+        IdentifiantPris,
+        SourceInconnue,
+        dupliquer,
+        reglages_dupliques,
+    )
+
+    organization_id = user.selected_organization_id
+    catalogue = await _catalogue_pour_ecrire(organization_id)
+    try:
+        nouvelle = dupliquer(catalogue, request.source, request.id, request.nom)
+    except SourceInconnue as erreur:
+        raise HTTPException(status_code=404, detail=str(erreur)) from None
+    except IdentifiantPris as erreur:
+        raise _refus(str(erreur), ["body", "id"]) from None
+    except ValidationError as erreur:
+        raise HTTPException(status_code=422, detail=erreur.errors(include_url=False, include_context=False)) from None
+    (verifiee,) = await _controler_etablissements(organization_id, [nouvelle])
+    try:
+        complet = CatalogueEtablissements(etablissements=[*catalogue.etablissements, verifiee])
+    except ValidationError as erreur:
+        raise HTTPException(status_code=422, detail=erreur.errors(include_url=False, include_context=False)) from None
+    try:
+        await enregistrer_etablissements(organization_id, complet, auteur_de(user))
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None
+    resultat = ResultatCopieEtablissement(etablissement=verifiee, non_copie=list(NON_COPIE))
+    # The appointment settings live in the client's database: copied once the fiche exists there.
+    try:
+        from api.db.bases_clients.connexion import connecter
+        from api.db.bases_clients.planificateur import ecrire_planificateur, lire_planificateur
+        from api.services.etablissements.stockage import nom_de_la_base_strict
+
+        nom = await nom_de_la_base_strict(organization_id)
+        if nom:
+            connexion = await connecter(nom)
+            try:
+                planificateur = await lire_planificateur(connexion)
+                copie, nb_types, reglages = reglages_dupliques(planificateur, request.source, verifiee.id)
+                if copie is not planificateur:
+                    await ecrire_planificateur(connexion, copie, auteur_de(user))
+                resultat.reglages_rendez_vous_copies = reglages
+                resultat.types_rendez_vous_copies = nb_types
+            finally:
+                await connexion.close()
+    except Exception as erreur:  # noqa: BLE001 -- the fiche exists; what was not copied is said
+        logger.warning(f"[.mark] Appointment settings of fiche {request.source} not copied: {erreur!r}")
+        resultat.non_copie.append("reglages_rendez_vous")
+    return resultat
+
+
+@router.post("/reprise", response_model=ResultatReprise)
+async def reprise_des_fiches(
+    request: DemandeReprise,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """The takeover (C3, R7): writes into each fiche what it used to inherit, and attaches to
+    each agent the one fiche its numbers lead to. TRIAL RUN BY DEFAULT: lists what it would
+    do and writes nothing; ``ecrire: true`` writes. Replayable: a second run finds nothing to do.
+    Values already on a fiche are never replaced; what it cannot decide alone is in ``a_decider``."""
+    from api.services.annonce.stockage import lire_annonce_ouverture
+    from api.services.etablissements.reprise import (
+        ecrire_rattachements,
+        lire_agents,
+        preparer_reprise,
+    )
+    from api.services.etablissements.stockage import nom_de_la_base_strict
+    from api.services.organization_preferences import get_organization_preferences
+
+    organization_id = user.selected_organization_id
+    catalogue = await _catalogue_pour_ecrire(organization_id)
+    preferences = await get_organization_preferences(organization_id)
+    nom = await nom_de_la_base_strict(organization_id)
+    planificateur = None
+    if nom:
+        from api.db.bases_clients.connexion import connecter
+        from api.db.bases_clients.planificateur import lire_planificateur
+
+        try:
+            connexion = await connecter(nom)
+            try:
+                planificateur = await lire_planificateur(connexion)
+            finally:
+                await connexion.close()
+        except Exception as erreur:  # noqa: BLE001
+            # Without the planner the takeover would leave the appointment settings behind: nothing is done.
+            logger.warning(f"[.mark] Planner unreadable for the takeover: {erreur!r}")
+            raise HTTPException(
+                status_code=503,
+                detail="The appointment settings in the client database cannot be read. Nothing was changed.",
+            ) from None
+    plan = preparer_reprise(
+        catalogue,
+        await lire_agents(organization_id),
+        getattr(preferences, "adresse_etablissement", None),
+        await lire_annonce_ouverture(organization_id),
+        planificateur,
+    )
+    if not request.ecrire:
+        return ResultatReprise(ecrit=False, actions=plan.actions, a_decider=plan.a_decider, deja_a_jour=plan.deja_a_jour)
+
+    auteur = auteur_de(user)
+    try:
+        if plan.fiches:
+            modifiees = [
+                fiche.model_copy(update=plan.fiches[fiche.id]) if fiche.id in plan.fiches else fiche
+                for fiche in catalogue.etablissements
+            ]
+            controlees = {
+                f.id: f
+                for f in await _controler_etablissements(organization_id, [f for f in modifiees if f.id in plan.fiches])
+            }
+            await enregistrer_etablissements(
+                organization_id,
+                CatalogueEtablissements(etablissements=[controlees.get(f.id, f) for f in modifiees]),
+                auteur,
+            )
+        if plan.reglages and planificateur is not None:
+            from api.db.bases_clients.connexion import connecter
+            from api.db.bases_clients.planificateur import ecrire_planificateur
+
+            connexion = await connecter(nom)
+            try:
+                complet = planificateur.model_copy(
+                    update={"par_etablissement": {**planificateur.par_etablissement, **plan.reglages}}
+                )
+                await ecrire_planificateur(connexion, complet, auteur)
+            finally:
+                await connexion.close()
+        if plan.agents:
+            await ecrire_rattachements(organization_id, plan.agents)
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None
+    return ResultatReprise(ecrit=True, actions=plan.actions, a_decider=plan.a_decider, deja_a_jour=plan.deja_a_jour)
 
 
 class DemandeEtablissementsDeLagent(BaseModel):

@@ -6,6 +6,9 @@ Read with the establishments, from the same in-memory copy (B3), at pick-up.
   call context; a sentence placed at the establishment's level takes the
   establishment's content when it has one, the organization's otherwise. A value
   already in the context is kept (a replay, a pre-call fetch). Empty content: nothing.
+  [.mark] Lot 4 (F6, M6): the content is filled ONCE with the call's variables, so
+  ``{{etablissement}}`` written in a sentence says the fiche's name; a variable the
+  call does not know stays as written, and a sentence never fills another (no chain).
 - ``lexique_avec_etablissement``: the terms an establishment adds to the
   organization's vocabulary (E6: « adding a brand to the lexicon »), appended when
   none of their spellings is already there; the organization's terms never change.
@@ -16,9 +19,16 @@ Nothing here raises.
 
 from __future__ import annotations
 
+import re
+
 from loguru import logger
 
 from api.schemas.phrases import CataloguePhrases
+from api.utils.template_renderer import (
+    TEMPLATE_VAR_PATTERN,
+    _resolve_template_value,
+    is_builtin_variable,
+)
 
 
 def _vide(valeur) -> bool:
@@ -37,6 +47,38 @@ def valeurs_des_phrases(catalogue: CataloguePhrases, etablissement) -> dict[str,
     return valeurs
 
 
+def remplir_une_fois(contenu: str, contexte: dict) -> str:
+    """[.mark] Lot 4 (F6): the call's variables in a sentence, in ONE pass over ``contexte``.
+
+    What the context does not hold is left as written (the engine renders the prompt
+    later, with the same rule as before): unknown variables, and the clock's variables,
+    which must stay fresh at render time. Never raises: on any problem, the sentence as is.
+    """
+    if "{{" not in contenu:
+        return contenu
+
+    def _remplacer(trouve: re.Match) -> str:
+        try:
+            chemin = trouve.group(1).strip()
+            if is_builtin_variable(chemin):
+                return trouve.group(0)
+            filtre = trouve.group(2).strip() if trouve.group(2) else None
+            valeur = _resolve_template_value(
+                chemin, filtre, trouve.group(3).strip() if trouve.group(3) else None, contexte, None
+            )
+            if valeur is None or isinstance(valeur, (dict, list)) or str(valeur) == "":
+                return trouve.group(0)
+            return str(valeur)
+        except Exception:  # noqa: BLE001 -- a sentence is never worth a call
+            return trouve.group(0)
+
+    try:
+        return re.sub(TEMPLATE_VAR_PATTERN, _remplacer, contenu)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Sentence variables not filled, the sentence goes as written: {erreur!r}")
+        return contenu
+
+
 def injecter_phrases(contexte: dict, catalogue: CataloguePhrases | None, etablissement) -> dict:
     if catalogue is None or not catalogue.phrases:
         return contexte
@@ -44,7 +86,8 @@ def injecter_phrases(contexte: dict, catalogue: CataloguePhrases | None, etablis
         enrichi = dict(contexte)
         for variable, contenu in valeurs_des_phrases(catalogue, etablissement).items():
             if _vide(enrichi.get(variable)):
-                enrichi[variable] = contenu
+                # Lot 4 (F6): filled from the context as it was BEFORE any sentence went in.
+                enrichi[variable] = remplir_une_fois(contenu, contexte)
         return enrichi
     except Exception as erreur:  # noqa: BLE001 -- the call must go on
         logger.error(f"[.mark] Sentences not injected, the call goes on without them: {erreur!r}")

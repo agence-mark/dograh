@@ -289,3 +289,61 @@ class NumeroDeLorganisation(BaseModel):
     numero: str
     libelle: str | None = None
     agent: str | None = None
+
+
+# --------------------------------------------------------------------------- #
+# [.mark] Chantier agents-specialises, lot 4 (= lot 2 du plan fiche-etablissement)
+# --------------------------------------------------------------------------- #
+
+
+class DemandeCopieEtablissement(BaseModel):
+    """F2: a new fiche made from an existing one."""
+
+    source: str = Field(min_length=1, max_length=40, description="Identifier of the fiche to copy.")
+    id: str = Field(min_length=1, max_length=40, description="Identifier of the new fiche.")
+    nom: str = Field(min_length=1, max_length=100, description="Name of the new fiche.")
+
+
+class ResultatCopieEtablissement(BaseModel):
+    """What the copy made, and what it left for the person to fill."""
+
+    etablissement: Etablissement
+    reglages_rendez_vous_copies: bool = Field(
+        default=False,
+        description="The source's appointment settings and types were copied (needs a client database).",
+    )
+    types_rendez_vous_copies: int = 0
+    non_copie: list[str] = Field(
+        default_factory=list,
+        description="What a copy never takes: numbers and the immediate closure (to fill on the new fiche).",
+    )
+
+
+class DemandeReprise(BaseModel):
+    """The takeover of an organization's fiches and agents. Trial run unless ``ecrire``."""
+
+    ecrire: bool = Field(
+        default=False,
+        description="False (default): lists what would be written, writes nothing. True: writes it.",
+    )
+
+
+class ActionReprise(BaseModel):
+    """One value the takeover writes (or would write)."""
+
+    sujet: Literal["fiche", "rendez_vous", "agent"]
+    cible: str = Field(description="The fiche id or the agent's name and id.")
+    champ: str
+    avant: str | None = None
+    apres: str | None = None
+
+
+class ResultatReprise(BaseModel):
+    ecrit: bool = Field(description="True when the changes were written; False for a trial run.")
+    actions: list[ActionReprise] = Field(default_factory=list)
+    a_decider: list[str] = Field(
+        default_factory=list,
+        description="What the takeover will not decide alone: an agent whose numbers lead to several "
+        "fiches (or to none besides one), hours or address that disagree. Nothing was written for these.",
+    )
+    deja_a_jour: int = Field(default=0, description="Values already as the takeover would write them.")
