@@ -3,8 +3,8 @@
 At pick-up, when the agent's switch ``equipe_connue`` is on (off by default, C5), the call
 receives:
 
-- ``equipe``: one line per ACTIVE person of the establishment served and of the whole
-  company (no establishment): first name, last name, role, what the person takes care of.
+- ``equipe``: one line per ACTIVE person of the team (one team for every agent, M5): first
+  name, last name, role, the places she belongs to, what the person takes care of.
   ⛔ Never a phone number nor an e-mail address, except the one the client allowed for
   that person (``divulguer_telephone``, ``divulguer_mail``): only then is it on its line.
   The line ends with the person's key, the name the tool « direct to a person » takes.
@@ -31,27 +31,33 @@ def interrupteur_allume(run_configs: dict | None) -> bool:
     return bool((run_configs or {}).get(INTERRUPTEUR))
 
 
-def personnes_de_lappel(equipe: Equipe | None, etablissement_id: str | None) -> list[Personne]:
-    """The active people of the establishment served and of the whole company, in the
-    order of the team. No establishment served: the whole-company people only."""
+def personnes_de_lappel(equipe: Equipe | None, etablissement_id: str | None = None) -> list[Personne]:
+    """The active people of the team, in the order of the team.
+
+    [.mark] Chantier agents-specialises, lot 5 (decision M5 of Evan): the team is ONE, every
+    agent knows everyone; the establishment of a person is a label (``ligne`` says it),
+    never a filter. ``etablissement_id`` is kept so the callers do not change; it filters nothing."""
     if equipe is None:
         return []
-    return [
-        p
-        for p in equipe.personnes
-        if p.actif and (p.etablissement is None or p.etablissement == etablissement_id)
-    ]
+    return [p for p in equipe.personnes if p.actif]
 
 
 def nom_complet(personne: Personne) -> str:
     return " ".join(x for x in (personne.prenom, personne.nom) if x and x.strip())
 
 
-def ligne(personne: Personne) -> str:
-    """The line the agent reads. Coordinates only when allowed (C4)."""
+def ligne(personne: Personne, noms_des_lieux: dict[str, str] | None = None) -> str:
+    """The line the agent reads. Coordinates only when allowed (C4).
+
+    [.mark] Lot 5 (M5): the places of the person, by their NAME, after her role -- « Paul Martin,
+    commercial (Chambourcy) ». No label (or a place that no longer exists): nothing added."""
     texte = nom_complet(personne)
     if personne.role:
         texte += f", {personne.role}"
+    lieux = [(noms_des_lieux or {}).get(lieu) for lieu in personne.etablissements]
+    lieux = [lieu for lieu in lieux if lieu]
+    if lieux:
+        texte += f" ({', '.join(lieux)})"
     if personne.description:
         texte += f" : {personne.description}"
     coordonnees = []
@@ -70,6 +76,7 @@ def injecter_equipe(
     equipe: Equipe | None,
     etablissement_id: str | None,
     lu_depuis: str | None = None,
+    noms_des_lieux: dict[str, str] | None = None,
 ) -> tuple[dict, dict | None]:
     """The context with ``equipe`` and ``equipe_cles``, and the stamp (None: switch off).
     The text ``equipe`` already in the context is kept (a replay, a pre-call fetch); the closed
@@ -81,7 +88,7 @@ def injecter_equipe(
         personnes = personnes_de_lappel(equipe, etablissement_id)
         enrichi = dict(contexte)
         if not enrichi.get(CLE_EQUIPE):
-            enrichi[CLE_EQUIPE] = "\n".join(ligne(p) for p in personnes)
+            enrichi[CLE_EQUIPE] = "\n".join(ligne(p, noms_des_lieux) for p in personnes)
         enrichi[CLE_CLES] = [p.cle for p in personnes]
         estampille = {
             "personnes": len(personnes),
@@ -92,7 +99,7 @@ def injecter_equipe(
         if not personnes:
             logger.warning(
                 "[.mark] « Team known to the agent » is on but no one is in the team of this call "
-                "(no client database, or no active person here)"
+                "(no client database, or no active person)"
             )
         return enrichi, estampille
     except Exception as erreur:  # noqa: BLE001 -- the call must go on

@@ -206,7 +206,10 @@ async def test_une_liste_ecrite_ailleurs_que_par_le_code_ne_donne_acces_a_person
     assert (await _appeler(enregistres2["diriger"][0], {"personne": "camille"}))["reason"] == "unknown_person"
 
 
-async def test_une_personne_d_un_autre_etablissement_est_refusee_meme_dans_la_liste(monkeypatch):
+async def test_une_personne_d_un_autre_lieu_est_joignable_le_lieu_n_est_qu_une_etiquette(monkeypatch):
+    """[.mark] Lot 5 de agents-specialises (decision M5 d'Evan) : l'ancien test refusait une personne
+    d'un autre établissement ; l'équipe est unique, le lieu est une étiquette, jamais un filtre.
+    La liste fermée posée au décroché reste la seule barrière : hors liste, toujours refusée."""
     noa = Personne(cle="noa", prenom="Noa", telephone="+33633333333", etablissement="senlis", joignable_par_transfert=True)
     equipe = Equipe(personnes=[JOIGNABLE, noa])
     engine, mgr, enregistres = _moteur(monkeypatch, {
@@ -218,11 +221,10 @@ async def test_une_personne_d_un_autre_etablissement_est_refusee_meme_dans_la_li
     composes = _essai(monkeypatch, "accepte")
     await mgr.register_handlers(["uuid-Diriger"])
     r = await _appeler(enregistres["diriger"][0], {"personne": "noa"})
-    assert r["status"] == "refused" and r["reason"] == "person_unavailable" and composes == []
-    # The same person, the call served at HER establishment: reached.
-    engine._call_context_vars["runtime_configuration"]["equipe"]["etablissement"] = "senlis"
-    r = await _appeler(enregistres["diriger"][0], {"personne": "noa"})
     assert r["status"] == "transfer_success" and composes == ["+33633333333"]
+    # Une clé hors de la liste du décroché reste refusée, quel que soit son lieu.
+    r = await _appeler(enregistres["diriger"][0], {"personne": "intrus"})
+    assert r["status"] == "refused" and r["reason"] == "unknown_person"
 
 
 # --------------------------------------------------------------------------- #

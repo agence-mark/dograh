@@ -27,6 +27,13 @@ from api.services.groupe.passations import (
 from api.services.pipecat.audio_playback import play_audio_loop
 from api.services.pipecat.speech_playback import PlaybackOutcome, SpeechPlayback
 from api.services.telephony.call_transfer_manager import get_call_transfer_manager
+from api.services.equipe.transferts_humains import (
+    detection_allumee,
+    issue_du_resultat,
+    masquer as masquer_cible,
+    noter as noter_issue,
+    phrase_du_salarie,
+)
 from api.services.telephony.external_pbx import resolve_external_pbx_field_mappings
 from api.services.telephony.factory import get_telephony_provider_for_run
 from api.services.telephony.transfer_event_protocol import TransferContext
@@ -724,6 +731,12 @@ class CustomToolManager:
                 # Get the transfer call configuration
                 config = tool.definition.get("config", {})
                 destination = config.get("destination", "")
+                # [.mark] Lot 5 (3 bis): who this attempt is aimed at, for the call's record
+                # (a person's key when the tool says it, else the number masked).
+                cible_dite = getattr(tool, "cible_transfert_humain", None)
+                self._cible_transfert_humain = (
+                    cible_dite if isinstance(cible_dite, str) and cible_dite else masquer_cible(destination)
+                )
                 timeout_seconds = config.get("timeout", 30)
                 raw_call_disposition = config.get("call_disposition")
                 configured_call_disposition = (
@@ -963,6 +976,7 @@ class CustomToolManager:
                     conference_name=conference_name,
                     initiated_at=time.time(),
                     workflow_run_id=self._engine._workflow_run_id,
+                    phrase_salarie=phrase_du_salarie(self._engine._call_context_vars),
                 )
                 await call_transfer_manager.store_transfer_context(transfer_context)
 
@@ -985,6 +999,7 @@ class CustomToolManager:
                         transfer_id=transfer_id,
                         conference_name=conference_name,
                         timeout=timeout_seconds,
+                        **await self._options_de_transfert(provider, organization_id, transfer_context),
                     )
                 except Exception as e:
                     logger.error(f"Transfer provider failed: {e}")
@@ -1106,6 +1121,24 @@ class CustomToolManager:
 
         return transfer_call_handler
 
+    async def _options_de_transfert(self, provider, organization_id: int, contexte) -> dict:
+        """[.mark] Lot 5 (3 bis): what only Twilio's transfer takes -- answering-machine detection (on
+        every transfer, one emergency switch), the same caller ID for the person who picks up (the
+        organization's « transfer number », when it chose one), and the French sentence. Another
+        provider gets nothing more than before. Never raises."""
+        if getattr(provider, "PROVIDER_NAME", None) != "twilio":
+            return {}
+        options: dict = {"detection_repondeur": detection_allumee(), "phrase_salarie": contexte.phrase_salarie}
+        try:
+            from api.services.organization_preferences import get_organization_preferences
+
+            numero = (await get_organization_preferences(organization_id)).numero_des_transferts
+            if numero:
+                options["from_number"] = numero
+        except Exception as erreur:  # noqa: BLE001 -- a transfer is never lost for a caller ID
+            logger.warning(f"[.mark] Transfer number not read, the default caller ID is used: {erreur!r}")
+        return options
+
     async def _simuler_le_renvoi(
         self,
         mode: str,
@@ -1189,6 +1222,15 @@ class CustomToolManager:
         status = result.get("status", "")
 
         logger.info(f"Handling transfer result: action={action}, status={status}")
+
+        # [.mark] Lot 5 (3 bis): the outcome of EVERY transfer to a human, in the call's record
+        # (read by the one-forward-per-call rule). Never raises.
+        if action in ("destination_answered", "transfer_failed"):
+            noter_issue(
+                getattr(self._engine, "_gathered_context", None),
+                getattr(self, "_cible_transfert_humain", None) or "numero:***",
+                issue_du_resultat(result),
+            )
 
         if action == "destination_answered":
             # Transfer destination answered - proceeding with bridge swap/conference join

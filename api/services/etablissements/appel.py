@@ -293,6 +293,8 @@ class LectureDeLappel:
     # l-agent-collegue, C3: the team read with them (empty without a client database).
     equipe: Equipe = field(default_factory=Equipe)
     lu_depuis: str = "aucune"
+    # [.mark] Lot 5 (M5): the name of each fiche, for the places on the team's lines.
+    noms_des_lieux: dict[str, str] = field(default_factory=dict)
 
     @property
     def etablissement_id(self) -> str | None:
@@ -317,6 +319,7 @@ async def lire_lappel(
             phrases=copie.phrases, equipe=copie.equipe, lu_depuis=copie.lu_depuis
         )
         catalogue = copie.etablissements
+        lecture.noms_des_lieux = {e.id: e.nom for e in catalogue.etablissements}
         if not catalogue.etablissements:
             return lecture
         numeros = []

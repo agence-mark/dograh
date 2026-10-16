@@ -1006,6 +1006,7 @@ async def _run_pipeline_impl(
         lecture_de_lappel.equipe,
         lecture_de_lappel.etablissement_id,
         lecture_de_lappel.lu_depuis,
+        lecture_de_lappel.noms_des_lieux,
     )
     # [.mark] Opening state, computed once at call set-up, Paris time (D8).
     # BEFORE the persistence below and BEFORE the pre-call fetch, which is

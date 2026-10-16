@@ -1,3 +1,5 @@
+import re
+
 from pydantic import BaseModel, Field, field_validator
 
 from api.schemas.call_events import CallEventsSettings
@@ -66,6 +68,13 @@ class OrganizationPreferences(BaseModel):
             "One or more mail addresses; the .mark addresses of the installation receive them too."
         ),
     )
+    # [.mark] Chantier agents-specialises, lot 5 (3 bis): the number shown to the person a call is
+    # transferred to, always the same (to save as « voice agent »). One of the organization's own
+    # Telephony numbers (checked on save); None: the provider's default caller ID, as before.
+    numero_des_transferts: str | None = Field(
+        default=None,
+        description="Caller ID shown to the person a transfer rings, E.164. None: as before.",
+    )
     external_pbx_integrations_enabled: bool = False
     disposition_mapping_enabled: bool = False
     disposition_mapping: dict[str, str] = Field(
@@ -78,6 +87,16 @@ class OrganizationPreferences(BaseModel):
             "the mapping pass through unchanged."
         ),
     )
+
+    @field_validator("numero_des_transferts", mode="before")
+    @classmethod
+    def _numero_des_transferts(cls, value):
+        if value is None or not str(value).strip():
+            return None
+        texte = re.sub(r"[\s.\-()]", "", str(value))
+        if not re.fullmatch(r"\+[1-9]\d{7,14}", texte):
+            raise ValueError(f"« {value} » is not a phone number in international format (+33…).")
+        return texte
 
     @field_validator("adresses_notification")
     @classmethod

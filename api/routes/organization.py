@@ -722,6 +722,15 @@ async def save_preferences(
         except AdresseInvalide as erreur:
             raise HTTPException(status_code=422, detail=str(erreur)) from None
         request = request.model_copy(update={"adresse_etablissement": adresse})
+    # [.mark] Lot 5 (3 bis): the number shown to the person a call is transferred to must be one of
+    # THIS organization's Telephony numbers (tenant isolation), checked when it is sent.
+    if request.numero_des_transferts:
+        lignes = await db_client.lister_numeros_de_lorganisation(user.selected_organization_id)
+        if request.numero_des_transferts not in {adresse for adresse, *_ in lignes}:
+            raise HTTPException(
+                status_code=422,
+                detail="numero_des_transferts: not a Telephony number of this organization.",
+            )
     try:
         return await update_organization_preferences(
             user.selected_organization_id, request

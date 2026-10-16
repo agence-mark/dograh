@@ -757,6 +757,7 @@ async def execute_text_chat_pending_turn(
         lecture_de_lappel.equipe,
         lecture_de_lappel.etablissement_id,
         lecture_de_lappel.lu_depuis,
+        lecture_de_lappel.noms_des_lieux,
     )
     if estampille_equipe is not None:
         initial_context["runtime_configuration"]["equipe"] = estampille_equipe

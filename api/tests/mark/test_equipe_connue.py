@@ -107,11 +107,14 @@ def test_une_coordonnee_n_apparait_que_si_sa_divulgation_est_autorisee(tel, mail
     assert texte.endswith("[clé : camille]")
 
 
-def test_seules_les_personnes_actives_de_letablissement_et_de_lentreprise():
-    assert [p.cle for p in personnes_de_lappel(EQUIPE, "creil")] == ["camille", "sacha"]
-    assert [p.cle for p in personnes_de_lappel(EQUIPE, "senlis")] == ["sacha", "noa"]
-    # No establishment served: the whole-company people only.
-    assert [p.cle for p in personnes_de_lappel(EQUIPE, None)] == ["sacha"]
+def test_toutes_les_personnes_actives_quel_que_soit_le_lieu():
+    """[.mark] Lot 5 de agents-specialises (decision M5 d'Evan) : l'ancien test vérifiait le filtre par
+    établissement (Creil ne connaissait que ses personnes et celles de l'entreprise). L'équipe est
+    unique, le lieu est une étiquette : tous les agents connaissent toutes les personnes actives."""
+    attendu = ["camille", "sacha", "noa"]
+    assert [p.cle for p in personnes_de_lappel(EQUIPE, "creil")] == attendu
+    assert [p.cle for p in personnes_de_lappel(EQUIPE, "senlis")] == attendu
+    assert [p.cle for p in personnes_de_lappel(EQUIPE, None)] == attendu
 
 
 def test_interrupteur_eteint_le_contexte_revient_identique_sans_estampille():
@@ -129,7 +132,7 @@ def test_une_valeur_deja_la_est_gardee():
         {"equipe": "donnée par l'appel"}, {"equipe_connue": True}, EQUIPE, "creil"
     )
     assert enrichi["equipe"] == "donnée par l'appel"
-    assert enrichi["equipe_cles"] == ["camille", "sacha"]
+    assert enrichi["equipe_cles"] == ["camille", "sacha", "noa"]
 
 
 def test_la_liste_fermee_n_est_jamais_celle_qu_un_autre_a_ecrite():
@@ -140,11 +143,11 @@ def test_la_liste_fermee_n_est_jamais_celle_qu_un_autre_a_ecrite():
     enrichi, estampille = injecter_equipe(
         {"equipe_cles": ["noa", "inconnu"]}, {"equipe_connue": True}, EQUIPE, "creil"
     )
-    assert enrichi["equipe_cles"] == ["camille", "sacha"]
+    assert enrichi["equipe_cles"] == ["camille", "sacha", "noa"]
     contexte = {**enrichi, "runtime_configuration": {"equipe": estampille}}
     # The pre-call fetch is merged over the context after the injection.
     empoisonne = {**contexte, "equipe_cles": ["noa"]}
-    assert reaffirmer_equipe(empoisonne)["equipe_cles"] == ["camille", "sacha"]
+    assert reaffirmer_equipe(empoisonne)["equipe_cles"] == ["camille", "sacha", "noa"]
     # Nothing stamped (switch off): a list that came from elsewhere is removed.
     assert "equipe_cles" not in reaffirmer_equipe({"equipe_cles": ["noa"], "runtime_configuration": {}})
     assert reaffirmer_equipe({"direction": "inbound"}) == {"direction": "inbound"}
@@ -193,16 +196,18 @@ async def _clavier(configurations, equipe=EQUIPE, contexte=None):
 async def test_clavier_interrupteur_allume_lagent_recoit_lequipe():
     persiste = await _clavier({"equipe_connue": True})
     lignes = persiste["equipe"].split("\n")
-    assert lignes == [ligne(ACCUEIL), ligne(COMPTA)]
-    assert persiste["equipe_cles"] == ["camille", "sacha"]
+    noms = {e.id: e.nom for e in CATALOGUE.etablissements}
+    assert lignes == [ligne(ACCUEIL, noms), ligne(COMPTA, noms), ligne(AILLEURS, noms)]
+    assert "(Magasin de Senlis)" in lignes[2]  # lot 5 : la personne d'un autre lieu, avec son étiquette
+    assert persiste["equipe_cles"] == ["camille", "sacha", "noa"]
     # C4: the allowed coordinate only (Camille's phone, Sacha's mail), never the others.
     assert "+33611111111" in persiste["equipe"] and "camille@example.org" not in persiste["equipe"]
     assert "sacha@example.org" in persiste["equipe"] and "+33622222222" not in persiste["equipe"]
-    assert "Noa" not in persiste["equipe"] and "Eden" not in persiste["equipe"]
+    assert "Eden" not in persiste["equipe"]  # inactive : jamais connue
     estampille = persiste["runtime_configuration"]["equipe"]
     assert estampille == {
-        "personnes": 2,
-        "cles": ["camille", "sacha"],
+        "personnes": 3,
+        "cles": ["camille", "sacha", "noa"],
         "etablissement": "creil",
         "lu_depuis": "copie",
     }
