@@ -93,7 +93,6 @@ export const extraireAttente = (c: Partial<WorkflowConfigurations>) => {
 };
 export type ReglagesAttente = ReturnType<typeof extraireAttente>;
 
-/** Ce que la partie « Attente » écrit : seulement ce qui s'écarte de « rien » (le réglage reste creux). */
 /**
  * Ce que la partie « Attente » écrit sous ``transfert_humain`` : la phrase seulement si elle est posée ;
  * vidée après avoir été posée, l'objet vide la remplace (rien d'autre ne l'efface).
@@ -104,6 +103,7 @@ export const chargeTransfertHumain = (a: ReglagesAttente, enregistree: ReglagesA
     return enregistree.phrase_mise_en_relation.trim() !== "" ? {} : undefined;
 };
 
+/** Ce que la partie « Attente » écrit : seulement ce qui s'écarte de « rien » (le réglage reste creux). */
 export const chargeAttente = (a: ReglagesAttente): AttenteDuGroupe => ({
     ...(a.son !== null ? { son: a.son } : {}),
     ...(a.duree_min_s !== null ? { duree_min_s: a.duree_min_s } : {}),
@@ -456,7 +456,6 @@ export const IntertitreAttente = ({
             >
                 <Input
                     id="attente_phrase_mise_en_relation"
-                    maxLength={300}
                     value={valeurs.phrase_mise_en_relation}
                     onChange={(e) => onChange("phrase_mise_en_relation", e.target.value)}
                 />

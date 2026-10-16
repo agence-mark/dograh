@@ -259,6 +259,19 @@ class AgentTransferCoordinator:
                     )
                 snapshot = compact.result()
 
+            # [.mark] Arrivée sur un transfert d'appel, entreprise ouverte : le code dit lui-même
+            # la mise en relation (réglage ``transfert_humain.phrase_mise_en_relation``). Décidé
+            # ICI, avant de couper le son d'attente (trois lectures en base : l'appelant ne doit pas
+            # les attendre en silence) et avant le commit ; appliqué après l'ouverture. Jamais au
+            # clavier, jamais pour un retour silencieux au principal.
+            fige = None
+            figer = getattr(engine, "transfert_fige_a_l_ouverture", None)
+            if (
+                figer is not None
+                and not self._sans_sortie_audio()
+                and not request.silencieuse
+            ):
+                fige = await figer(destination, destination.workflow.start_node_id)
             # La passation est prête : une phrase pont pas encore dite ne le sera plus ; une
             # phrase en cours se termine (jamais coupée en plein mot).
             await self._annuler_phrase_pont()
@@ -272,13 +285,6 @@ class AgentTransferCoordinator:
             self._check_current(request)
             if destination.error:
                 raise AgentBuildError("destination_unusable", destination.error)
-            # [.mark] Arrivée sur un transfert d'appel, entreprise ouverte : le code dit lui-même
-            # la mise en relation (réglage ``transfert_humain.phrase_mise_en_relation``). Décidé
-            # AVANT le commit (lecture en base), appliqué après l'ouverture. Jamais au clavier.
-            fige = None
-            figer = getattr(engine, "transfert_fige_a_l_ouverture", None)
-            if figer is not None and not self._sans_sortie_audio():
-                fige = await figer(destination, destination.workflow.start_node_id)
             self._phase = TransferPhase.COMMITTING
             engine.commit_agent(destination, snapshot)
             committed = True
@@ -311,9 +317,15 @@ class AgentTransferCoordinator:
                 )
                 # [.mark] Lot 3 (A7) : un agent appelé dont la première étape porte un
                 # outil de transfert commence par le transfert (entreprise ouverte).
-                if fige is not None:
-                    await engine.dire_puis_transferer_a_l_ouverture(destination, start_node_id, fige)
+                if fige is not None and getattr(resultat, "action", None) != "greeting":
+                    # ``""`` : l'outil dit son message en partant ; le transfert attend alors
+                    # ce que l'ouverture joue déjà (``resultat.playback``).
+                    await engine.dire_puis_transferer_a_l_ouverture(
+                        destination, start_node_id, fige, apres=getattr(resultat, "playback", None)
+                    )
                 else:
+                    # Aucune phrase figée, ou l'étape d'arrivée a son message d'accueil : il est dit
+                    # et le transfert part ensuite (le comportement d'avant), jamais les deux phrases.
                     garantir = getattr(engine, "garantir_a_l_ouverture", None)
                     if garantir is not None:
                         garantir(destination, start_node_id, getattr(resultat, "playback", None))

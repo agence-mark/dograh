@@ -500,6 +500,32 @@ async def test_fige_ferme_ou_reglage_vide_comportement_d_avant(reglages, etat):
 
 
 @pytest.mark.asyncio
+async def test_fige_sans_etat_d_ouverture_comme_la_regle_k3_l_outil_est_expose():
+    """Même règle que K3 : sans état d'ouverture (agent sans horaires) l'outil est exposé comme
+    avant, donc la phrase s'applique ; fermé ou en pause, jamais."""
+    engine = await _moteur_fige(etat=None)
+    assert (
+        await engine.transfert_fige_a_l_ouverture(engine.active_agent, "etape")
+        == PHRASE_FIGEE
+    )
+
+
+@pytest.mark.asyncio
+async def test_fige_un_outil_qui_dit_son_message_attend_ce_que_l_ouverture_joue_deja():
+    engine = await _moteur_fige(son_message=True)
+    engine.queue_speech = AsyncMock()
+    accueil = engine.speech_playback.create()
+    await engine.dire_puis_transferer_a_l_ouverture(
+        engine.active_agent, "etape", "", apres=accueil
+    )
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [], "le transfert part pendant l'accueil"
+    accueil.finish(PlaybackOutcome.PLAYED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [OUTIL] and _etats(engine) == ["lance"]
+
+
+@pytest.mark.asyncio
 async def test_fige_autres_garde_fous():
     agent_engine = await _moteur_fige()
     agent = agent_engine.active_agent

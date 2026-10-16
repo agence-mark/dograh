@@ -1041,7 +1041,7 @@ class PipecatEngine:
                 nom = await self._outil_de_transfert(noeud)
                 async def reprendre_la_parole() -> None:
                     if self.agent_can_act(agent):
-                        logger.info("[transfert] à l'ouverture, rien à lancer : le modèle parle")
+                        logger.info("[transfert] étape d'arrivée sans transfert lancé : le modèle reparle")
                         await agent.queue_frame(LLMRunFrame())
 
                 if nom is None:
@@ -1049,9 +1049,7 @@ class PipecatEngine:
                     if repli or a_l_ouverture:
                         if phrase is not None:
                             await phrase.wait()
-                        if self.agent_can_act(agent):
-                            logger.info("[porte] étape d'arrivée avec un outil : le modèle reparle")
-                            await agent.queue_frame(LLMRunFrame())
+                        await reprendre_la_parole()
                     return
                 if phrase is None and not a_l_ouverture:
                     self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="sans_attente")
@@ -1665,7 +1663,7 @@ class PipecatEngine:
 
         Oui seulement si : le réglage ``transfert_humain.phrase_mise_en_relation`` n'est pas vide ;
         l'étape (hors fin) porte un transfert d'appel que le code peut lancer seul ; l'entreprise
-        est ouverte ou sur rendez-vous (la règle qui montre l'outil au modèle, K3) et aucun renvoi
+        est ouverte, sur rendez-vous ou sans horaires (la règle qui montre l'outil au modèle, K3) et aucun renvoi
         n'a déjà échoué ; il y a une voix (jamais au clavier). ⛔ Ne lève jamais."""
         try:
             if getattr(self, "sans_sortie_audio", False):
@@ -1678,8 +1676,10 @@ class PipecatEngine:
                 return None
             if self._un_renvoi_a_deja_echoue():
                 return None
+            # Même règle que K3 (``_transfert_expose``) : sans état d'ouverture (agent sans
+            # horaires), l'outil est exposé comme avant ; fermé ou en pause, il ne l'est pas.
             etat = (self._call_context_vars or {}).get(CLE_ETAT_OUVERTURE)
-            if etat not in (OUVERT, SUR_RENDEZ_VOUS):
+            if etat and etat not in (OUVERT, SUR_RENDEZ_VOUS):
                 return None
             if await self._outil_de_transfert(noeud) is None:
                 return None
@@ -1689,14 +1689,15 @@ class PipecatEngine:
             return None
 
     async def dire_puis_transferer_a_l_ouverture(
-        self, agent: AgentRuntime, cible: str, texte: str
+        self, agent: AgentRuntime, cible: str, texte: str, *, apres=None
     ) -> None:
         """[.mark] La suite de ``transfert_fige_a_l_ouverture`` : la phrase est dite par la voix de
         l'agent appelé, puis le code lance le transfert une fois la phrase jouée (si elle n'est
         pas jouée, ou si le transfert ne peut pas partir, le modèle reprend la parole). Le modèle
-        n'est pas sollicité pour cette ouverture. ⛔ Ne lève jamais."""
+        n'est pas sollicité pour cette ouverture. ``apres`` : sans phrase du code (l'outil dit son
+        message), ce que l'ouverture joue déjà, que le transfert attend. ⛔ Ne lève jamais."""
         try:
-            phrase = None
+            phrase = apres
             if texte:
                 phrase = await self.queue_speech(
                     texte, append_to_context=True, persist_to_logs=False, mute_user=True
