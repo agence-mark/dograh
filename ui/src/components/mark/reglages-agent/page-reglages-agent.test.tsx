@@ -130,7 +130,7 @@ describe("[.mark] the agent page in themes", () => {
     it("draws every setting the inventory puts on screen, in its theme", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
         for (const [cle, entree] of Object.entries(INVENTAIRE_AGENT)) {
-            if ("horsEcran" in entree || "via" in entree || SEULEMENT_DANS_UN_MODE.includes(cle) || SEULEMENT_AVEC_CONTROLE.includes(cle)) continue;
+            if ("horsEcran" in entree || "via" in entree || SEULEMENT_DANS_UN_MODE.includes(cle) || SEULEMENT_AVEC_CONTROLE.includes(cle) || SEULEMENT_DANS_UN_GROUPE.includes(cle)) continue;
             const theme = ouvrirLeTheme(entree.theme);
             await waitFor(() => {
                 const trouve =
@@ -160,6 +160,16 @@ describe("[.mark] the agent page in themes", () => {
     // Chantier l-agent-collegue, L7: the names of « Field recognition » are read only when « Check
     // the data » is on, and drawn only then (E8, the same rule as the code).
     const SEULEMENT_AVEC_CONTROLE = ["variables_telephone", "variables_code_postal", "variables_courriel", "variables_date"];
+    // Chantier agents-specialises, lot 12: the group's settings are drawn only for a main agent (or, for the
+    // brain, a specialised one): a lone agent's page is what it was (tested below).
+    const SEULEMENT_DANS_UN_GROUPE = [
+        "prechauffage_agents",
+        "passation_sans_resume_jusqua",
+        "un_seul_renvoi_par_appel",
+        "passations_max_par_appel",
+        "attente",
+        "cerveau_propre",
+    ];
     it("draws the fields recognised by their name only with « Check the data » on", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
         let theme = ouvrirLeTheme("ecoute");
@@ -653,5 +663,114 @@ describe("[.mark] the flow map, the retry reasoning and the model request trace"
         fireEvent.click(trace() as HTMLElement);
         const charge = await enregistrer("Agent");
         expect(charge.trace_requetes_modele).toBe(true);
+    });
+    // ---- Chantier agents-specialises, lot 12: the group's screens ---------------------------------------
+    const PRINCIPAL = { ...(CONFIG_DE_REFERENCE as Record<string, unknown>), agents_specialises: [7, 8] };
+    const SPECIALISE = { ...(CONFIG_DE_REFERENCE as Record<string, unknown>), agent_principal_id: 5 };
+    const REGLAGES_DU_GROUPE = [
+        "prechauffage_agents",
+        "passation_sans_resume_jusqua",
+        "un_seul_renvoi_par_appel",
+        "passations_max_par_appel",
+    ];
+
+    it("draws « Specialised agents » and « Waiting » for a main agent, with the defaults of a group", async () => {
+        await ouvrir(PRINCIPAL, NOVA);
+        const agent = ouvrirLeTheme("agent");
+        await waitFor(() => expect(agent.querySelector('[data-groupe="agent-agents-specialises"]')).not.toBeNull());
+        for (const cle of REGLAGES_DU_GROUPE) expect(agent.querySelector('[data-reglage="' + cle + '"]'), cle).not.toBeNull();
+        // Defaults of a group: pre-warming on, 40 messages, one transfer, ceiling 6.
+        expect(document.getElementById("prechauffage_agents")?.getAttribute("aria-checked")).toBe("true");
+        expect((document.getElementById("passation_sans_resume_jusqua") as HTMLInputElement).value).toBe("40");
+        expect(document.getElementById("un_seul_renvoi_par_appel")?.getAttribute("aria-checked")).toBe("true");
+        expect((document.getElementById("passations_max_par_appel") as HTMLInputElement).value).toBe("6");
+        const voix = ouvrirLeTheme("voix");
+        await waitFor(() => expect(voix.querySelector('[data-groupe="voix-attente"]')).not.toBeNull());
+        for (const cle of ["attente.son", "attente.duree_min_s", "attente.passation", "attente.transfert_humain", "attente.phrase_pont"]) {
+            expect(voix.querySelector('[data-reglage="' + cle + '"]'), cle).not.toBeNull();
+        }
+        // The text that says no waiting is played towards an agent already built.
+        expect(voix.querySelector('[data-note="attente-agent-construit"]')).not.toBeNull();
+    });
+
+    it("draws none of the group's settings for a lone agent, and no banner", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const agent = ouvrirLeTheme("agent");
+        await waitFor(() => expect(agent.querySelector('[data-reglage="trace_requetes_modele"]')).not.toBeNull());
+        expect(agent.querySelector('[data-groupe="agent-agents-specialises"]')).toBeNull();
+        const voix = ouvrirLeTheme("voix");
+        await waitFor(() => expect(voix.querySelector('[data-reglage="tts_cache_enabled"]')).not.toBeNull());
+        expect(voix.querySelector('[data-groupe="voix-attente"]')).toBeNull();
+        expect(document.querySelector('[data-bandeau="regle-sur-le-principal"]')).toBeNull();
+        expect(document.querySelector('[data-lecture="commune"]')).toBeNull();
+        ouvrirLeTheme("briques");
+        await waitFor(() => expect(document.querySelector('[data-theme="briques"] [data-reglage="model_configuration_v2_override"]')).not.toBeNull());
+        expect(document.getElementById("cerveau_propre")).toBeNull();
+    });
+
+    it("shows the common themes of a specialised agent read only, with the banner and no save button", async () => {
+        await ouvrir(SPECIALISE, NOVA);
+        for (const id of ["ecoute", "tour", "voix", "rythme", "donnees", "etablissement"]) {
+            const theme = ouvrirLeTheme(id);
+            await waitFor(() => expect(theme.querySelector('[data-bandeau="regle-sur-le-principal"]'), id).not.toBeNull());
+            const lecture = theme.querySelector('[data-lecture="commune"]') as HTMLFieldSetElement;
+            expect(lecture, id).not.toBeNull();
+            expect(lecture.disabled, id).toBe(true);
+            // The main agent's saves are the only way to change them: no « Save » of this theme.
+            expect(theme.querySelector('button[aria-label^="Save "]'), id).toBeNull();
+            // The link to the main agent.
+            expect(theme.querySelector('a[href="/workflow/5/settings"]'), id).not.toBeNull();
+        }
+        // Its own themes stay editable: the name is not in a read only zone.
+        const agent = ouvrirLeTheme("agent");
+        await waitFor(() => expect(document.getElementById("workflow_name")).not.toBeNull());
+        expect(document.getElementById("workflow_name")?.closest("fieldset[disabled]")).toBeNull();
+        // The common part of the theme Agent (« Specialised agents ») is read only, the brain-bound ones too.
+        expect(agent.querySelector('[data-groupe="agent-agents-specialises"]')?.closest("fieldset[disabled]")).not.toBeNull();
+        expect(document.getElementById("trace_requetes_modele")?.closest("fieldset[disabled]")).not.toBeNull();
+    });
+
+    it("lets a specialised agent detach its brain, and shows the same menu read only until then", async () => {
+        await ouvrir(SPECIALISE, NOVA);
+        const briques = ouvrirLeTheme("briques");
+        await waitFor(() => expect(document.getElementById("cerveau_propre")).not.toBeNull());
+        const interrupteur = document.getElementById("cerveau_propre") as HTMLElement;
+        expect(interrupteur.getAttribute("aria-checked")).toBe("false");
+        expect(interrupteur.closest("fieldset[disabled]")).toBeNull();
+        // Unticked: the menu below is the main agent's, read only.
+        await waitFor(() => expect(briques.querySelector('[data-reglage="model_configuration_v2_override"]')).not.toBeNull());
+        expect(briques.querySelector('[data-reglage="model_configuration_v2_override"]')?.closest("fieldset[disabled]")).not.toBeNull();
+        expect(briques.querySelector('[data-bandeau="regle-sur-le-principal"]')).not.toBeNull();
+        // Ticking saves at once, the key alone changed.
+        m.save.mockClear();
+        fireEvent.click(interrupteur);
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        const charge = (m.save.mock.calls as unknown as Array<[Record<string, unknown>, string]>)[0][0];
+        expect(charge.cerveau_propre).toBe(true);
+        expect(charge.agent_principal_id).toBe(5);
+    });
+
+    it("draws the menu editable and the banner « detached » when the brain is its own", async () => {
+        await ouvrir({ ...SPECIALISE, cerveau_propre: true }, NOVA);
+        const briques = ouvrirLeTheme("briques");
+        await waitFor(() => expect(briques.querySelector('[data-bandeau="cerveau-detache"]')).not.toBeNull());
+        expect(document.getElementById("cerveau_propre")?.getAttribute("aria-checked")).toBe("true");
+        expect(briques.querySelector('[data-reglage="model_configuration_v2_override"]')?.closest("fieldset[disabled]")).toBeNull();
+        expect(briques.querySelector('[data-bandeau="regle-sur-le-principal"]')).toBeNull();
+        // The retry reasoning follows the detached brain: editable again.
+        ouvrirLeTheme("agent");
+        await waitFor(() => expect(document.getElementById("trace_requetes_modele")).not.toBeNull());
+        expect(document.getElementById("trace_requetes_modele")?.closest("fieldset[disabled]")).toBeNull();
+    });
+
+    it("sends the group's four settings together, with their values, when one is changed", async () => {
+        await ouvrir(PRINCIPAL, NOVA);
+        ouvrirLeTheme("agent");
+        await waitFor(() => expect(document.getElementById("passations_max_par_appel")).not.toBeNull());
+        fireEvent.change(document.getElementById("passations_max_par_appel") as HTMLElement, { target: { value: "4" } });
+        const charge = await enregistrer("Agent");
+        expect(charge.passations_max_par_appel).toBe(4);
+        expect(charge.prechauffage_agents).toBe(true);
+        expect(charge.agents_specialises).toEqual([7, 8]);
     });
 });

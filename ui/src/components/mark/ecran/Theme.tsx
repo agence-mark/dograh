@@ -22,6 +22,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+import { THEMES_COMMUNS_EN_LECTURE, useGroupe, ZoneCommune } from "../groupe/contexte-groupe";
 import { type Texte, useLangue } from "../langue/langue";
 
 export interface ErreurNommee {
@@ -110,6 +111,10 @@ export const Theme = ({
     children,
 }: ProprietesTheme) => {
     const { t } = useLangue();
+    // [.mark] Lot 12 (A10) : chez un spécialisé, les thèmes communs viennent du principal : en
+    // lecture, avec un bandeau, et sans bouton d'enregistrement (rien à enregistrer ici).
+    const { specialiseDe } = useGroupe();
+    const enLecture = specialiseDe !== null && THEMES_COMMUNS_EN_LECTURE.includes(id);
     const idContenu = `${id}-contenu`;
     const puces = resume.filter((valeur): valeur is string => Boolean(valeur));
     const bloque =
@@ -151,9 +156,9 @@ export const Theme = ({
 
             {ouvert && (
                 <div id={idContenu} className="space-y-6 border-t px-5 py-5">
-                    {children}
+                    {enLecture ? <ZoneCommune>{children}</ZoneCommune> : children}
 
-                    {enregistrement && (
+                    {enregistrement && !enLecture && (
                         <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
                             {erreurs.length > 0 && (
                                 <div role="alert" className="mr-auto space-y-1 text-xs text-destructive">

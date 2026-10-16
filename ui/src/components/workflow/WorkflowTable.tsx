@@ -19,6 +19,8 @@ import {
 } from '@/client/sdk.gen';
 import type { FolderResponse } from '@/client/types.gen';
 import { BoutonDupliquerAgent } from '@/components/mark/BoutonDupliquerAgent';
+import { BadgeGroupe, type RoleAffiche } from '@/components/mark/groupe/BadgeGroupe';
+import { ChoixSpecialisesArchivage } from '@/components/mark/groupe/ChoixSpecialisesArchivage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -59,6 +61,11 @@ interface WorkflowTableProps {
     folders?: FolderResponse[];
     /** The folder this table is rendered under; null means "Uncategorized". */
     currentFolderId?: number | null;
+    /**
+     * [.mark] Lots 10 and 12: the place of the agents in their group (badge « Specialised agent of … »).
+     * Archiving a main agent asks what to do with its specialised agents first.
+     */
+    roles?: Map<number, RoleAffiche>;
 }
 
 export function WorkflowTable({
@@ -66,18 +73,27 @@ export function WorkflowTable({
     showArchived,
     folders,
     currentFolderId = null,
+    roles,
 }: WorkflowTableProps) {
     const router = useRouter();
     const organizationTimezone = useOrganizationTimezone();
     const [isPending, startTransition] = useTransition();
     const [loadingWorkflowId, setLoadingWorkflowId] = useState<number | null>(null);
     const [movingWorkflowId, setMovingWorkflowId] = useState<number | null>(null);
+    // [.mark] A main agent being archived: the screen asks what to do with its specialised agents.
+    const [principalAArchiver, setPrincipalAArchiver] = useState<{ id: number; name: string } | null>(null);
 
     const handleEdit = (id: number) => {
         router.push(`/workflow/${id}`);
     };
 
     const handleArchiveToggle = async (id: number, currentStatus: string) => {
+        const role = roles?.get(id);
+        if (currentStatus === 'active' && role?.role === 'principal' && role.specialises.length > 0) {
+            const cible = workflows.find((w) => w.id === id);
+            setPrincipalAArchiver({ id, name: cible?.name ?? '' });
+            return;
+        }
         const newStatus = currentStatus === 'active' ? 'archived' : 'active';
         const action = currentStatus === 'active' ? 'Archive' : 'Restore';
 
@@ -166,6 +182,7 @@ export function WorkflowTable({
                                 </TableCell>
                                 <TableCell className="font-medium">
                                     {workflow.name}
+                                    <BadgeGroupe role={roles?.get(workflow.id)} />
                                 </TableCell>
                                 <TableCell>
                                     {formatDate(workflow.created_at, organizationTimezone)}
@@ -280,6 +297,12 @@ export function WorkflowTable({
                     </TableBody>
                 </Table>
             </CardContent>
+            <ChoixSpecialisesArchivage
+                principal={principalAArchiver}
+                nombre={principalAArchiver ? (roles?.get(principalAArchiver.id)?.specialises.length ?? 0) : 0}
+                onFerme={() => setPrincipalAArchiver(null)}
+                onFait={() => startTransition(() => router.refresh())}
+            />
         </Card>
     );
 }

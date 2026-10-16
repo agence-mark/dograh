@@ -484,9 +484,14 @@ class WorkflowDefinitionModel(Base):
 class FolderModel(Base):
     """A folder for grouping workflows (agents) within an organization.
 
-    Folders are flat (no nesting) and org-scoped. A workflow belongs to at
-    most one folder via ``WorkflowModel.folder_id``; a NULL folder_id means
-    the workflow is "Uncategorized".
+    Folders are org-scoped. A workflow belongs to at most one folder via
+    ``WorkflowModel.folder_id``; a NULL folder_id means the workflow is
+    "Uncategorized".
+
+    [.mark] Chantier agents-specialises, lot 10 (A9) : un dossier peut avoir un
+    parent (``parent_id``, migration additive ``mark_folders_parent_id``). NULL =
+    dossier de premier niveau, comme avant. Un seul niveau de sous-dossier est
+    posé par l'écran (un groupe d'agents), la base n'impose pas de profondeur.
     """
 
     __tablename__ = "folders"
@@ -498,6 +503,13 @@ class FolderModel(Base):
     organization = relationship("OrganizationModel")
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    # [.mark] Sous-dossier : le dossier parent. ON DELETE SET NULL, filet seulement.
+    parent_id = Column(
+        Integer,
+        ForeignKey("folders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     workflows = relationship("WorkflowModel", back_populates="folder")
 

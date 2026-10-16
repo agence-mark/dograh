@@ -222,6 +222,14 @@ const attendreLaCible = async (geste: Geste) => {
 
 /** Plays one case on the themes, and presses the save of its theme. */
 const jouer = async (cas: CasAgent) => {
+    // [.mark] Lot 12: a case of the group starts from the reference plus its own keys; the others keep
+    // the lone agent's reference untouched.
+    const configDuCas = cas.config
+        ? resolveWorkflowConfigurations({ ...CONFIG_DE_REFERENCE, ...cas.config } as never)
+        : m.config;
+    const dEntree = m.config;
+    m.config = configDuCas;
+    const baseDuCas = commeEnvoye(configDuCas) as Record<string, unknown>;
     await ouvrirLaPage();
     ouvrirLeTheme(cas.theme);
     const autour = AUTOUR_DU_CAS[cas.id] ?? { avant: [], apres: [] };
@@ -242,7 +250,9 @@ const jouer = async (cas: CasAgent) => {
             + m.saveDictionary.mock.calls.length,
         ).toBeGreaterThan(0),
     );
-    return relever(m, BASE);
+    const releves = relever(m, baseDuCas);
+    m.config = dEntree;
+    return releves;
 };
 
 const references: {

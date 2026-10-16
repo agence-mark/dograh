@@ -291,6 +291,18 @@ export type ApresAppelAgent = {
     sms?: SmsAgent;
 };
 
+/**
+ * [.mark] Lot 12 (A6): the waiting sound of the main agent and where it applies.
+ * ``son``: absent = the default ringer, ``"aucun"`` = no sound, an object = a file dropped on the agent.
+ */
+export interface AttenteDuGroupe {
+    son?: "aucun" | { storage_key: string; storage_backend: string; original_filename?: string } | null;
+    duree_min_s?: number | null;
+    passation?: boolean;
+    transfert_humain?: boolean;
+    phrase_pont?: string | null;
+}
+
 export type WorkflowConfigurations = WorkflowConfigurationBase & {
     ambient_noise_configuration: AmbientNoiseConfiguration;
     max_call_duration: number;  // Maximum call duration in seconds
@@ -321,6 +333,17 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Chantier agents-specialises, lots 2 and 10 (A10): set on a specialised agent by the group routes,
     // read by the screen only (a specialised agent serves the establishment of the call).
     agent_principal_id?: number | null;
+    // [.mark] Chantier agents-specialises, lots 10 and 12 (A5, A6, A7, A10, A18): the settings of a GROUP,
+    // carried by its main agent (copied into its specialised agents at each save of the main agent).
+    // Absent means the default of a group (see the screen) or, for a lone agent, the behaviour of before.
+    agents_specialises?: number[];
+    passations_max_par_appel?: number | null;
+    passation_sans_resume_jusqua?: number | null;
+    prechauffage_agents?: boolean | null;
+    un_seul_renvoi_par_appel?: boolean | null;
+    attente?: AttenteDuGroupe | null;
+    // [.mark] Lot 12 (A10): a specialised agent that keeps its OWN brain instead of the main agent's.
+    cerveau_propre?: boolean;
     // [.mark] The call record filled by the noter_information tool (fiche au
     // fil de l'eau). Off by default: the tool is not offered at all.
     fiche_au_fil_de_leau?: boolean;

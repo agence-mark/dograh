@@ -19,6 +19,14 @@ import type { AmbientNoiseConfiguration } from "@/types/workflow-configurations"
 import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
+import {
+    chargeAttente,
+    estPrincipal,
+    estSpecialise,
+    extraireAttente,
+    IntertitreAttente,
+    TITRE_ATTENTE,
+} from "../groupe/reglages-groupe";
 import { useLangue } from "../langue/langue";
 import { type CleCatalogue, erreursDuCatalogue, extraire, Reglage } from "./catalogue";
 import { useEnregistrementTheme } from "./enregistrement";
@@ -68,7 +76,15 @@ export const ThemeVoix = ({
     const ambientFileInputRef = useRef<HTMLInputElement>(null);
     const { playingId, toggle: togglePlayback } = useAudioPlayback();
 
-    const modifie = differe(brouillon, enregistre);
+    // [.mark] Lot 12 (A6): the waiting sound of a group, carried by its main agent. Its own part, sent only
+    // when changed, and only for a main agent: a lone agent's voice save is exactly what it was.
+    const principal = estPrincipal(resolue);
+    const attenteVisible = principal || estSpecialise(resolue);
+    const attenteEnregistree = extraireAttente(resolue);
+    const [attente, setAttente] = useState(attenteEnregistree);
+    const attenteModifiee = principal && differe(attente, attenteEnregistree);
+
+    const modifie = differe(brouillon, enregistre) || attenteModifiee;
     const erreurs = erreursDuCatalogue(CLES_VOIX_MARK, brouillon);
     useEtatTheme(ID_THEME_VOIX, modifie, erreurs.length > 0);
 
@@ -77,7 +93,19 @@ export const ThemeVoix = ({
         resolue,
         workflowName,
         onSave,
-        parties: [{ nom: { en: "Voice settings", fr: "Réglages de la voix" }, modifie, config: () => brouillon, apres: resynchroniser }],
+        parties: [
+            {
+                nom: { en: "Voice settings", fr: "Réglages de la voix" },
+                modifie: differe(brouillon, enregistre),
+                config: () => brouillon,
+                apres: resynchroniser,
+            },
+            {
+                nom: TITRE_ATTENTE,
+                modifie: attenteModifiee,
+                config: () => ({ attente: chargeAttente(attente) }),
+            },
+        ],
     });
 
     // Dograh's upload, as « General » did it: a presigned URL, the file, then
@@ -340,6 +368,14 @@ export const ThemeVoix = ({
                     />
                 </ChampReglage>
             </Intertitre>
+
+            {attenteVisible && (
+                <IntertitreAttente
+                    valeurs={principal ? attente : attenteEnregistree}
+                    onChange={(cle, valeur) => setAttente((avant) => ({ ...avant, [cle]: valeur }))}
+                    workflowId={workflowId}
+                />
+            )}
         </Theme>
     );
 };

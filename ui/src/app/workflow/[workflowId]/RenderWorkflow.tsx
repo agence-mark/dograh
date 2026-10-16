@@ -16,6 +16,7 @@ import type { DocumentResponseSchema, RecordingResponseSchema, ToolResponse, Wor
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, NodeType } from "@/components/flow/types";
 import { HireExpertNudge } from "@/components/lead-forms/HireExpertNudge";
+import { ProposerLaPublicationDuGroupe } from '@/components/mark/groupe/PublierLeGroupe';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -359,11 +360,19 @@ function RenderWorkflow({
         }
     }, [versions, handleSelectVersion, workflowId, setNodes, setEdges, setIsDirty, fetchVersions, initialSelectedVersion, navigateToVersion]);
 
+    // [.mark] Lot 12 (agents-specialises): the place of this agent in its group, for the node windows and
+    // for the publication: publishing a main agent offers to publish the whole group (lot 10).
+    const agentPrincipalId =
+        typeof workflowConfigurations?.agent_principal_id === 'number' ? workflowConfigurations.agent_principal_id : null;
+    const estPrincipal = Array.isArray(workflowConfigurations?.agents_specialises);
+    const [propositionGroupe, setPropositionGroupe] = useState(false);
+
     // After a successful publish, refresh the version list and update status
     const handlePublished = useCallback(() => {
         setCurrentVersionStatus("published");
         fetchVersions(true);
-    }, [fetchVersions]);
+        if (estPrincipal) setPropositionGroupe(true);
+    }, [fetchVersions, estPrincipal]);
 
     // Compute version label for the header.
     // Uses currentVersionNumber/Status which update immediately from save responses,
@@ -567,6 +576,9 @@ function RenderWorkflow({
                 .filter((n): n is string => typeof n === "string" && n !== ""),
         [workflowConfigurations?.fiche_champs],
     );
+    const ajouterOutil = useCallback((tool: ToolResponse) => {
+        setTools((prev) => (prev?.some((t) => t.tool_uuid === tool.tool_uuid) ? prev : [...(prev ?? []), tool]));
+    }, []);
     const workflowContextValue = useMemo(() => ({
         saveWorkflow: guardedSaveWorkflow,
         documents,
@@ -575,6 +587,10 @@ function RenderWorkflow({
         recordings,
         readOnly: isViewingHistoricalVersion,
         champsFiche,
+        workflowId,
+        agentPrincipalId,
+        estPrincipal,
+        ajouterOutil,
     }), [
         guardedSaveWorkflow,
         documents,
@@ -583,10 +599,19 @@ function RenderWorkflow({
         recordings,
         champsFiche,
         isViewingHistoricalVersion,
+        workflowId,
+        agentPrincipalId,
+        estPrincipal,
+        ajouterOutil,
     ]);
 
     return (
         <WorkflowProvider value={workflowContextValue}>
+            <ProposerLaPublicationDuGroupe
+                principalId={workflowId}
+                ouvert={propositionGroupe}
+                onOuvertChange={setPropositionGroupe}
+            />
             <div className="flex flex-col h-screen min-w-fit">
                 <HireExpertNudge workflowId={workflowId} />
                 {/* New Workflow Editor Header */}

@@ -514,7 +514,7 @@ function BlocParcours({ parcours }: { parcours: Parcours }) {
                 {(parcours.steps ?? []).map((etape, i) => (
                     <span key={i}>
                         {i > 0 ? " → " : ""}
-                        <code>{etape}</code>
+                        <code>{typeof etape === "string" ? etape : [etape.agent, etape.etape].filter((p) => p != null && p !== "").join(" › ")}</code>
                     </span>
                 ))}
             </p>

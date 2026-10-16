@@ -36,6 +36,14 @@ import logger from "@/lib/logger";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
+import { useGroupe, ZoneCommune } from "../groupe/contexte-groupe";
+import {
+    estPrincipal,
+    estSpecialise,
+    extraireGroupe,
+    IntertitreAgentsSpecialises,
+    TITRE_AGENTS_SPECIALISES,
+} from "../groupe/reglages-groupe";
 import { type Texte, useLangue } from "../langue/langue";
 import { useEnregistrementTheme } from "./enregistrement";
 import { differe, type ProprietesThemeAgent, useEtatTheme } from "./theme-commun";
@@ -234,6 +242,17 @@ export const ThemeAgent = ({
     const traceEnregistree = resolue.trace_requetes_modele ?? false;
     const [trace, setTrace] = useState(traceEnregistree);
     const traceModifiee = trace !== traceEnregistree;
+    // [.mark] Lot 12 (A5, A7, A18): the settings of the group, carried by its main agent. Shown only for
+    // a main agent (editable) or a specialised one (read only: set on the main agent).
+    const principal = estPrincipal(resolue);
+    const specialise = estSpecialise(resolue);
+    const groupeEnregistre = extraireGroupe(resolue);
+    const [groupe, setGroupe] = useState(groupeEnregistre);
+    const groupeModifie = principal && differe(groupe, groupeEnregistre);
+    const contexteGroupe = useGroupe();
+    // The retry reasoning and the trace follow the brain: read only on a specialised agent that has not
+    // detached its own.
+    const suitLeCerveau = specialise && !contexteGroupe.cerveauPropre;
 
     // Dograh's rule: a pair typed but not added yet is part of what is saved.
     const variablesAEnregistrer = useMemo(
@@ -242,7 +261,7 @@ export const ThemeAgent = ({
     );
     const nomModifie = nom !== workflowName;
     const variablesModifiees = differe(variablesAEnregistrer, variablesEnregistrees);
-    const modifie = nomModifie || variablesModifiees || schemaModifie || relanceModifiee || traceModifiee;
+    const modifie = nomModifie || variablesModifiees || schemaModifie || relanceModifiee || traceModifiee || groupeModifie;
     useEtatTheme(ID_THEME_AGENT, modifie, false);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -268,6 +287,12 @@ export const ThemeAgent = ({
                 nom: { en: "Model request trace", fr: "Trace des requêtes au modèle" },
                 modifie: traceModifiee,
                 config: () => ({ trace_requetes_modele: trace }),
+            },
+            {
+                // Its own part, sent only when changed (E6): the settings of the group.
+                nom: TITRE_AGENTS_SPECIALISES,
+                modifie: groupeModifie,
+                config: () => groupe,
             },
             {
                 nom: { en: "Template variables", fr: "Variables du modèle" },
@@ -358,6 +383,7 @@ export const ThemeAgent = ({
                 >
                     <Switch id="generer_schema_parcours" checked={schema} onCheckedChange={setSchema} />
                 </ChampReglage>
+                <ZoneCommune lecture={suitLeCerveau} bandeau={false}>
                 <ChampReglage
                     cle="reflexion_de_relance"
                     idControle="reflexion_de_relance"
@@ -384,8 +410,10 @@ export const ThemeAgent = ({
                         </SelectContent>
                     </Select>
                 </ChampReglage>
+                </ZoneCommune>
             </Intertitre>
 
+            <ZoneCommune lecture={suitLeCerveau} bandeau={false}>
             <Intertitre id="agent-diagnostic" titre={{ en: "Diagnostic", fr: "Diagnostic" }}>
                 <ChampReglage
                     cle="trace_requetes_modele"
@@ -406,6 +434,16 @@ export const ThemeAgent = ({
                     <Switch id="trace_requetes_modele" checked={trace} onCheckedChange={setTrace} />
                 </ChampReglage>
             </Intertitre>
+            </ZoneCommune>
+
+            {principal && (
+                <IntertitreAgentsSpecialises valeurs={groupe} onChange={(cle, valeur) => setGroupe((avant) => ({ ...avant, [cle]: valeur }))} />
+            )}
+            {specialise && (
+                <ZoneCommune lecture>
+                    <IntertitreAgentsSpecialises valeurs={groupeEnregistre} onChange={() => undefined} />
+                </ZoneCommune>
+            )}
 
             <Intertitre id="agent-variables" titre={{ en: "Template Variables", fr: "Variables du modèle" }}>
                 <ChampReglage

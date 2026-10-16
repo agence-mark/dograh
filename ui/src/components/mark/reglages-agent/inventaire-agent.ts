@@ -133,6 +133,17 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
         horsEcran:
             "Written by the group routes (lots 2 and 10), never by a gesture of this page; the theme only READS it to say « Establishment: the call's » on a specialised agent (no menu).",
     },
+    // Chantier agents-specialises, lot 12 (A5, A6, A7, A10, A18): the group's settings, carried by the main agent.
+    agents_specialises: {
+        horsEcran:
+            "Written by the group routes (lot 10), never by a gesture of this page; the theme Agent only LISTS the specialised agents (a link to each) under « Specialised agents ».",
+    },
+    prechauffage_agents: { theme: "agent", cas: ["agents-prechauffage"] },
+    passation_sans_resume_jusqua: { theme: "agent", cas: ["agents-sans-resume"] },
+    un_seul_renvoi_par_appel: { theme: "agent", cas: ["agents-renvoi-unique"] },
+    passations_max_par_appel: { theme: "agent", cas: ["agents-plafond"] },
+    attente: { theme: "voix", cas: ["attente"] },
+    cerveau_propre: { theme: "briques", cas: ["cerveau-propre"] },
     voicemail_detection: {
         theme: "etablissement",
         cas: [

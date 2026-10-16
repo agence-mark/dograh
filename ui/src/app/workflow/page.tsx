@@ -1,7 +1,12 @@
 import { Suspense } from 'react';
 
-import { getWorkflowsApiV1WorkflowFetchGet, listFoldersApiV1FolderGet } from '@/client/sdk.gen';
-import type { FolderResponse, WorkflowListResponse } from '@/client/types.gen';
+import {
+    getAgentsServisApiV1OrganizationsAgentsServisGet,
+    getWorkflowsApiV1WorkflowFetchGet,
+    lireLesGroupesApiV1WorkflowGroupesGet,
+    listFoldersApiV1FolderGet,
+} from '@/client/sdk.gen';
+import type { FolderResponse, LienDeGroupe, WorkflowListResponse } from '@/client/types.gen';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreateWorkflowButton } from "@/components/workflow/CreateWorkflowButton";
 import { AgentFolderView } from '@/components/workflow/folders/AgentFolderView';
@@ -16,7 +21,7 @@ import WorkflowLayout from "./WorkflowLayout";
 export const dynamic = 'force-dynamic';
 
 // Server component for workflow list
-async function WorkflowList() {
+async function WorkflowList({ dossierOuvertId }: { dossierOuvertId: number | null }) {
     const authProvider = await getServerAuthProvider();
     const accessToken = await getServerAccessToken();
 
@@ -71,13 +76,39 @@ async function WorkflowList() {
             logger.error(`Error fetching folders: ${folderErr}`);
         }
 
+        // [.mark] Lots 10 and 12 (agents-specialises): the groups of agents and what each serves, to draw
+        // the group cards. Best effort like the folders: a failure leaves the list as it was.
+        let liens: LienDeGroupe[] = [];
+        let servis: Array<{ id: number; numeros: string[]; etablissementId: string | null }> = [];
+        try {
+            const headers = { 'Authorization': `Bearer ${accessToken}` };
+            const [liensResponse, servisResponse] = await Promise.all([
+                lireLesGroupesApiV1WorkflowGroupesGet({ headers }),
+                getAgentsServisApiV1OrganizationsAgentsServisGet({ headers }),
+            ]);
+            liens = liensResponse.data?.agents ?? [];
+            servis = (servisResponse.data?.agents ?? []).map((a) => ({
+                id: a.id,
+                numeros: a.numeros ?? [],
+                etablissementId: a.etablissement_id ?? null,
+            }));
+        } catch (groupErr) {
+            logger.error(`Error fetching agent groups: ${groupErr}`);
+        }
+
         return (
             <>
                 {/* Active Workflows Section */}
                 <div className="mb-8">
                     <h2 className="text-xl font-semibold mb-4">Active Agents</h2>
                     {activeWorkflows.length > 0 || folders.length > 0 ? (
-                        <AgentFolderView workflows={activeWorkflows} folders={folders} />
+                        <AgentFolderView
+                            workflows={activeWorkflows}
+                            folders={folders}
+                            liens={liens}
+                            servis={servis}
+                            dossierOuvertId={dossierOuvertId}
+                        />
                     ) : (
                         <Card>
                             <CardContent className="p-8 text-center text-muted-foreground">
@@ -105,9 +136,9 @@ async function WorkflowList() {
     }
 }
 
-async function PageContent() {
+async function PageContent({ dossierOuvertId }: { dossierOuvertId: number | null }) {
 
-    const workflowList = await WorkflowList();
+    const workflowList = await WorkflowList({ dossierOuvertId });
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -160,11 +191,18 @@ function WorkflowsLoading() {
     );
 }
 
-export default function WorkflowPage() {
+export default async function WorkflowPage({
+    searchParams,
+}: {
+    searchParams?: Promise<{ dossier?: string }>;
+}) {
+    // [.mark] Lot 12: arriving from « Graph with specialised agents », the group's sub-folder is open.
+    const brut = Number((await searchParams)?.dossier);
+    const dossierOuvertId = Number.isInteger(brut) && brut > 0 ? brut : null;
     return (
         <WorkflowLayout showFeaturesNav={true}>
             <Suspense fallback={<WorkflowsLoading />}>
-                <PageContent />
+                <PageContent dossierOuvertId={dossierOuvertId} />
             </Suspense>
         </WorkflowLayout>
 

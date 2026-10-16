@@ -12,6 +12,8 @@ export interface NodeEditFormProps {
     values: Record<string, unknown>;
     onChange: (next: Record<string, unknown>) => void;
     context: RendererContext;
+    /** [.mark] Lot 12: properties not drawn (the closing sentences REPLACE the end step's text box). */
+    masquer?: string[];
 }
 
 const COLUMN_SPAN_CLASS: Record<number, string> = {
@@ -38,7 +40,7 @@ const COLUMN_SPAN_CLASS: Record<number, string> = {
  * format), so `display_options` references work directly. Sub-objects from
  * grouped fields (e.g. `pre_call_fetch`) live as separate flat fields here.
  */
-export function NodeEditForm({ spec, values, onChange, context }: NodeEditFormProps) {
+export function NodeEditForm({ spec, values, onChange, context, masquer = [] }: NodeEditFormProps) {
     const setProp = useCallback(
         (propName: string, propValue: unknown) => {
             onChange({ ...values, [propName]: propValue });
@@ -49,6 +51,7 @@ export function NodeEditForm({ spec, values, onChange, context }: NodeEditFormPr
     return (
         <div className="grid grid-cols-12 gap-3">
             {spec.properties
+                .filter((p) => !masquer.includes(p.name))
                 .filter((p) => evaluateDisplayOptions(p.display_options, values))
                 .map((p) => {
                     const columnSpan = getPropertyColumnSpan(p.renderer_options);
