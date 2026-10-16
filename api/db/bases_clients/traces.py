@@ -53,7 +53,9 @@ async def noter_incident(
             correctif,
         )
     except Exception as erreur:  # noqa: BLE001 -- an incident is never worth an error
-        logger.warning(f"[.mark] Incident not written ({type(erreur).__name__}): {erreur}")
+        logger.warning(
+            f"[.mark] Incident not written ({type(erreur).__name__}): {erreur}"
+        )
         return None
 
 
@@ -99,7 +101,7 @@ async def ecrire_issues_de_transfert(
         quand = _moment(t.get("le")) or repli
         issue = str(t["issue"])[:40]
         abouti = issue == ISSUE_ABOUTIE
-        cible = (str(t["cible"])[:200] if t.get("cible") else None)
+        cible = str(t["cible"])[:200] if t.get("cible") else None
         try:
             statut = await connexion.execute(
                 """
@@ -122,15 +124,15 @@ async def ecrire_issues_de_transfert(
                 None if abouti else issue,
             )
         except Exception as erreur:  # noqa: BLE001 -- the outcome of a transfer is never worth an error
-            logger.warning(f"[.mark] Transfer outcome not written ({type(erreur).__name__}): {erreur}")
+            logger.warning(
+                f"[.mark] Transfer outcome not written ({type(erreur).__name__}): {erreur}"
+            )
             continue
         ecrites += int(statut.split()[-1]) if statut else 0
     return ecrites
 
 
-async def noms_des_agents_manquants(
-    agents: list[dict], nom_de
-) -> list[dict]:
+async def noms_des_agents_manquants(agents: list[dict], nom_de) -> list[dict]:
     """The agents of a call with the names Dograh knows (``nom_de(workflow_id)``, scoped to the
     organization by the caller). A name that cannot be read stays empty: the database keeps the
     one it already has, or « Agent »."""
@@ -169,15 +171,21 @@ async def ecrire_agent_site(
             nom,
         )
         site_id = (
-            await connexion.fetchval("SELECT id FROM mark.site WHERE cle = $1", site_cle)
+            await connexion.fetchval(
+                "SELECT id FROM mark.site WHERE cle = $1", site_cle
+            )
             if site_cle
             else None
         )
         if site_id is None:
-            await connexion.execute("DELETE FROM mark.agent_site WHERE agent_id = $1", agent_id)
+            await connexion.execute(
+                "DELETE FROM mark.agent_site WHERE agent_id = $1", agent_id
+            )
             return site_cle is None
         await connexion.execute(
-            "DELETE FROM mark.agent_site WHERE agent_id = $1 AND site_id <> $2", agent_id, site_id
+            "DELETE FROM mark.agent_site WHERE agent_id = $1 AND site_id <> $2",
+            agent_id,
+            site_id,
         )
         await connexion.execute(
             "INSERT INTO mark.agent_site (agent_id, site_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
@@ -207,12 +215,14 @@ async def regler_rattachement(
             )
             if rattache and ligne["rattache_le"] is None:
                 await connexion.execute(
-                    "UPDATE mark.agent SET rattache_le = now() WHERE id = $1", ligne["id"]
+                    "UPDATE mark.agent SET rattache_le = now() WHERE id = $1",
+                    ligne["id"],
                 )
                 changes.append(workflow_id)
             elif not rattache and ligne["rattache_le"] is not None:
                 await connexion.execute(
-                    "UPDATE mark.agent SET rattache_le = NULL WHERE id = $1", ligne["id"]
+                    "UPDATE mark.agent SET rattache_le = NULL WHERE id = $1",
+                    ligne["id"],
                 )
                 changes.append(workflow_id)
     return changes

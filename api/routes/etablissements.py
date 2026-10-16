@@ -30,6 +30,7 @@ from api.schemas.etablissements import (
     ResultatCopieEtablissement,
     ResultatReprise,
 )
+from api.schemas.agents_servis import DemandeControleHoraires, ResultatControleHoraires
 from api.schemas.phrases import CataloguePhrases
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client.rattachement import auteur_de
@@ -151,6 +152,23 @@ async def save_etablissements(
         )
     except BaseClientIndisponible as erreur:
         raise _base_injoignable(erreur) from None
+
+
+@router.post("/controle-horaires", response_model=ResultatControleHoraires)
+async def controle_des_horaires(
+    request: DemandeControleHoraires,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] Lot 9 (C5): the portal sends opening hours as text; Dograh answers « valid » or the
+    reason for the refusal, with the SAME function as the screen (``vers_expression_osm``). Writes
+    nothing; authenticated like every route here (a key of the organization works)."""
+    from api.services.pipecat.etat_ouverture import HorairesInvalides, vers_expression_osm
+
+    try:
+        vers_expression_osm(request.texte)
+    except HorairesInvalides as erreur:
+        return ResultatControleHoraires(valide=False, raison=str(erreur))
+    return ResultatControleHoraires(valide=True)
 
 
 # --------------------------------------------------------------------------- #

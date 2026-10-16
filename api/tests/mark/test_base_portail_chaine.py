@@ -52,13 +52,18 @@ async def _run_perso(db_session, org, *, gathered, initial=None, evenements_en_p
         definition_id=org.definition.id,
         initial_context={
             "caller_number": "+33612345678",
-            "runtime_configuration": {"llm_provider": "mistral", "etablissement": {"id": "site-a"}},
+            "runtime_configuration": {
+                "llm_provider": "mistral",
+                "etablissement": {"id": "site-a"},
+            },
             **(initial or {}),
         },
         gathered_context=gathered,
         logs={"realtime_feedback_events": [*t._evenements(), *evenements_en_plus]},
     )
-    await db_session.update_workflow_run(run.id, usage_info={"call_duration_seconds": 61.0})
+    await db_session.update_workflow_run(
+        run.id, usage_info={"call_duration_seconds": 61.0}
+    )
     return run
 
 
@@ -85,14 +90,32 @@ async def test_un_appel_complet_range_motifs_agents_horaires_incidents_et_transf
             "extracted_variables": {"nom": "Dupont", "motif": ["entretien", "devis"]},
             "call_disposition": "rappel_demande",
             "agent_transfers": [
-                {"destination_workflow_id": second.id, "to_visit_id": "v2", "outcome": "completed"},
-                {"destination_workflow_id": org.agent.id, "to_visit_id": "v3", "outcome": "completed"},
+                {
+                    "destination_workflow_id": second.id,
+                    "to_visit_id": "v2",
+                    "outcome": "completed",
+                },
+                {
+                    "destination_workflow_id": org.agent.id,
+                    "to_visit_id": "v3",
+                    "outcome": "completed",
+                },
             ],
             "transferts_humains": [
                 {"le": instant, "cible": "duo", "issue": "repondeur"},
-                {"le": "2026-10-07T09:00:30+00:00", "cible": "numero:***6789", "issue": "decroche"},
+                {
+                    "le": "2026-10-07T09:00:30+00:00",
+                    "cible": "numero:***6789",
+                    "issue": "decroche",
+                },
             ],
-            "transferts": [{"le": "2026-10-07T09:00:40+00:00", "cible": "numero:***0000", "issue": "sans_reponse"}],
+            "transferts": [
+                {
+                    "le": "2026-10-07T09:00:40+00:00",
+                    "cible": "numero:***0000",
+                    "issue": "sans_reponse",
+                }
+            ],
         },
         initial={"etat_ouverture": "FERME"},
         evenements_en_plus=[
@@ -112,13 +135,15 @@ async def test_un_appel_complet_range_motifs_agents_horaires_incidents_et_transf
     connexion = await schema.connecter(base_v4)
     try:
         appel = await connexion.fetchrow(
-            "SELECT id, motif, hors_horaires, demande_id FROM mark.appel WHERE dograh_run_id = $1", run.id
+            "SELECT id, motif, hors_horaires, demande_id FROM mark.appel WHERE dograh_run_id = $1",
+            run.id,
         )
         assert appel["motif"] == "entretien" and appel["hors_horaires"] is True
         assert [
             r["motif"]
             for r in await connexion.fetch(
-                "SELECT motif FROM mark.appel_motif WHERE appel_id = $1 ORDER BY ordre", appel["id"]
+                "SELECT motif FROM mark.appel_motif WHERE appel_id = $1 ORDER BY ordre",
+                appel["id"],
             )
         ] == ["entretien", "devis"]
         agents = await connexion.fetch(
@@ -126,7 +151,11 @@ async def test_un_appel_complet_range_motifs_agents_horaires_incidents_et_transf
             "JOIN mark.agent a ON a.id = aa.agent_id WHERE aa.appel_id = $1 ORDER BY aa.ordre",
             appel["id"],
         )
-        assert [(r["ordre"], r["wid"]) for r in agents] == [(1, org.agent.id), (2, second.id), (3, org.agent.id)]
+        assert [(r["ordre"], r["wid"]) for r in agents] == [
+            (1, org.agent.id),
+            (2, second.id),
+            (3, org.agent.id),
+        ]
         assert agents[1]["nom"] == "Agent spécialisé"
         # D82 : un transfert vers un humain, un numéro, un renvoi : une ligne d'action chacun.
         actions = await connexion.fetch(
@@ -145,7 +174,9 @@ async def test_un_appel_complet_range_motifs_agents_horaires_incidents_et_transf
             "WHERE ia.appel_id = $1",
             appel["id"],
         )
-        assert [tuple(r) for r in incidents] == [("voix", "outage_fallback : delai → repli")]
+        assert [tuple(r) for r in incidents] == [
+            ("voix", "outage_fallback : delai → repli")
+        ]
         # Rejoué (le filet, une tâche reprise) : rien d'écrit deux fois.
         assert (
             await traces.ecrire_issues_de_transfert(
@@ -167,7 +198,9 @@ async def test_une_ecriture_reprise_apres_un_echec_est_un_incident(
     connexion = await schema.connecter(base_v4)
     try:
         await sql.recevoir_appel(connexion, _envoi(41))
-        appel = await connexion.fetchval("SELECT id FROM mark.appel WHERE dograh_run_id = 41")
+        appel = await connexion.fetchval(
+            "SELECT id FROM mark.appel WHERE dograh_run_id = 41"
+        )
         ctx = SimpleNamespace(envoi={})
         panne = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
         await chaine._traces_de_l_appel(
@@ -181,10 +214,15 @@ async def test_une_ecriture_reprise_apres_un_echec_est_un_incident(
             "WHERE ia.appel_id = $1",
             appel,
         )
-        assert [tuple(r) for r in lignes] == [("base_client", "ecriture_de_l_appel_en_echec_puis_reprise")]
+        assert [tuple(r) for r in lignes] == [
+            ("base_client", "ecriture_de_l_appel_en_echec_puis_reprise")
+        ]
         # Sans échec avant : aucun incident de plus.
         await chaine._traces_de_l_appel(
-            ctx, connexion, {"appel_id": appel}, {"etapes": {"ecriture": {"statut": "en_cours"}}}
+            ctx,
+            connexion,
+            {"appel_id": appel},
+            {"etapes": {"ecriture": {"statut": "en_cours"}}},
         )
         assert await connexion.fetchval("SELECT count(*) FROM mark.incident") == 1
     finally:
@@ -195,7 +233,9 @@ async def test_une_etape_d_apres_appel_en_echec_definitif_est_un_incident(
     base_v4, smtp, modele, db_session, async_session
 ):
     org = await _organisation(async_session, db_session, modules=["webhook"])
-    await _regler(db_session, org, base_v4, smtp, webhook_url="https://webhook.example.org/fin")
+    await _regler(
+        db_session, org, base_v4, smtp, webhook_url="https://webhook.example.org/fin"
+    )
     await _equipe_a_deux_lieux(base_v4)
     run = await _run_perso(
         db_session,
@@ -209,7 +249,8 @@ async def test_une_etape_d_apres_appel_en_echec_definitif_est_un_incident(
     with patch(
         "api.services.apres_appel.modules.nouveau_client",
         lambda **options: httpx.AsyncClient(
-            transport=httpx.MockTransport(lambda requete: httpx.Response(500)), **options
+            transport=httpx.MockTransport(lambda requete: httpx.Response(500)),
+            **options,
         ),
     ):
         await chaine.demarrer(run.id, enqueue=enqueue)
@@ -243,7 +284,9 @@ async def test_agent_site_suit_la_fiche_choisie_a_la_reprise_et_a_la_synchronisa
     await _equipe_a_deux_lieux(base_v4)
     # Sans base rattachée : rien n'est écrit, rien ne lève.
     assert await synchroniser_agent_site(o, org.agent.id, "Agent", "site-a") is False
-    await db_session.upsert_configuration(o, OrganizationConfigurationKey.BASE_CLIENT.value, {"nom_base": base_v4})
+    await db_session.upsert_configuration(
+        o, OrganizationConfigurationKey.BASE_CLIENT.value, {"nom_base": base_v4}
+    )
 
     async def lieux():
         c = await schema.connecter(base_v4)
@@ -259,13 +302,21 @@ async def test_agent_site_suit_la_fiche_choisie_a_la_reprise_et_a_la_synchronisa
         finally:
             await c.close()
 
-    assert await synchroniser_agent_site(o, org.agent.id, "Agent d'essai", "site-a") is True
+    assert (
+        await synchroniser_agent_site(o, org.agent.id, "Agent d'essai", "site-a")
+        is True
+    )
     assert await lieux() == ["site-a"]
     # Un seul établissement par agent : le choix change, la ligne suit.
-    assert await synchroniser_agent_site(o, org.agent.id, "Agent d'essai", "site-b") is True
+    assert (
+        await synchroniser_agent_site(o, org.agent.id, "Agent d'essai", "site-b")
+        is True
+    )
     assert await lieux() == ["site-b"]
     # Une fiche que la base ne connaît pas : rien de lié, dit (False) ; l'ancien lien est retiré.
-    assert await synchroniser_agent_site(o, org.agent.id, None, "fiche-inconnue") is False
+    assert (
+        await synchroniser_agent_site(o, org.agent.id, None, "fiche-inconnue") is False
+    )
     assert await lieux() == []
     # La reprise des fiches écrit le choix de l'agent ET le range dans la base du client.
     await ecrire_rattachements(o, {org.agent.id: "site-a"})

@@ -42,7 +42,11 @@ async def synchroniser_agent_site(
         finally:
             await connexion.close()
     except BaseClientIndisponible as erreur:
-        logger.warning(f"[.mark] agent_site of agent {workflow_id} not written: {erreur}")
+        logger.warning(
+            f"[.mark] agent_site of agent {workflow_id} not written: {erreur}"
+        )
     except Exception as erreur:  # noqa: BLE001 -- jamais une raison de rater une publication
-        logger.warning(f"[.mark] agent_site of agent {workflow_id} not written ({type(erreur).__name__}): {erreur}")
+        logger.warning(
+            f"[.mark] agent_site of agent {workflow_id} not written ({type(erreur).__name__}): {erreur}"
+        )
     return False

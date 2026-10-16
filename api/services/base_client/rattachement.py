@@ -30,7 +30,12 @@ CLE = OrganizationConfigurationKey.BASE_CLIENT.value
 
 
 def auteur_de(user) -> str:
-    """Who wrote, as ``journal_modif`` records it: never a name or an address, the account's id."""
+    """Who wrote, as ``journal_modif`` records it: never a name or an address, the account's id.
+    The one exception (C7): a write made by the portal with the organization's API key carries the
+    real author in ``X-Mark-Auteur`` (« portail : first name name »), read by the authentication."""
+    reel = getattr(user, "mark_auteur", None)
+    if isinstance(reel, str) and reel:
+        return reel
     return f"dograh:{getattr(user, 'provider_id', None) or getattr(user, 'id', '?')}"
 
 
