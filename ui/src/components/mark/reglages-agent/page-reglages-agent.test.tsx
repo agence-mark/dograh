@@ -686,7 +686,7 @@ describe("[.mark] the flow map, the retry reasoning and the model request trace"
         expect((document.getElementById("passations_max_par_appel") as HTMLInputElement).value).toBe("6");
         const voix = ouvrirLeTheme("voix");
         await waitFor(() => expect(voix.querySelector('[data-groupe="voix-attente"]')).not.toBeNull());
-        for (const cle of ["attente.son", "attente.duree_min_s", "attente.passation", "attente.transfert_humain", "attente.phrase_pont"]) {
+        for (const cle of ["attente.son", "attente.duree_min_s", "attente.passation", "attente.transfert_humain", "attente.phrase_pont", "attente.delai_phrase_pont_s"]) {
             expect(voix.querySelector('[data-reglage="' + cle + '"]'), cle).not.toBeNull();
         }
         // The text that says no waiting is played towards an agent already built.

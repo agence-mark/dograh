@@ -7,7 +7,8 @@ Quatre réglages, lus sur les réglages de l'APPEL (ceux du principal, ``engine.
 - ``passation_sans_resume_jusqua`` : sous ce nombre de messages de conversation, l'agent appelé
   reçoit l'historique tel quel, sans appel au modèle de résumé ;
 - ``un_seul_renvoi_par_appel`` : après un renvoi vers un humain échoué, aucun autre renvoi ;
-- ``attente`` : le son d'attente et où il s'applique.
+- ``attente`` : le son d'attente, où il s'applique, et la phrase pont (un filet dit par l'agent qui
+  passe la main quand la passation dure plus de ``delai_phrase_pont_s``).
 
 ⛔ Zéro perte : les défauts du plan (40 messages, préchauffage vrai, renvoi unique vrai) ne valent
 que DANS UN GROUPE (``est_un_groupe``) ; un agent seul sans réglage posé garde le comportement
@@ -18,6 +19,7 @@ Toutes les fonctions sont pures et ne lèvent jamais : un réglage illisible vau
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any, Mapping
 
@@ -32,6 +34,7 @@ CLE_ATTENTE = "attente"
 
 SANS_RESUME_DEFAUT = 40
 DUREE_MIN_DEFAUT_S = 1.2
+DELAI_PHRASE_PONT_DEFAUT_S = 2.0
 SON_AUCUN = "aucun"
 
 # Ce que l'agent dit quand un transfert vers un humain a déjà échoué dans l'appel (A7). Constante
@@ -96,6 +99,10 @@ class Attente:
     duree_min_s: float | None = None
     passation: bool = True
     transfert_humain: bool = True
+    # La phrase pont (vide = désactivée) et le délai après lequel elle est dite si la passation
+    # n'est pas commise.
+    phrase_pont: str = ""
+    delai_phrase_pont_s: float = DELAI_PHRASE_PONT_DEFAUT_S
 
     @property
     def sans_son(self) -> bool:
@@ -125,11 +132,22 @@ def attente_de(reglages: Mapping[str, Any] | None) -> Attente:
         )
         passation = _booleen(brut.get("passation"))
         humain = _booleen(brut.get("transfert_humain"))
+        phrase = brut.get("phrase_pont")
+        delai = brut.get("delai_phrase_pont_s")
+        delai = (
+            max(0.0, float(delai))
+            if isinstance(delai, (int, float))
+            and not isinstance(delai, bool)
+            and math.isfinite(delai)
+            else DELAI_PHRASE_PONT_DEFAUT_S
+        )
         return Attente(
             son=brut.get("son"),
             duree_min_s=duree,
             passation=True if passation is None else passation,
             transfert_humain=True if humain is None else humain,
+            phrase_pont=phrase.strip() if isinstance(phrase, str) else "",
+            delai_phrase_pont_s=delai,
         )
     except Exception as e:  # noqa: BLE001
         logger.warning(f"[attente] réglage illisible, défaut gardé : {e!r}")

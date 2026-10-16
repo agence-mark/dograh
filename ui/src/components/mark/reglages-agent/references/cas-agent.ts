@@ -259,6 +259,7 @@ export const CAS_AGENT: CasAgent[] = [
         saisir("attente_duree_min_s", "2.5"),
         inter("attente_transfert_humain"),
         saisir("attente_phrase_pont", "Un instant."),
+        saisir("attente_delai_phrase_pont_s", "3"),
     ], false, PRINCIPAL),
     c("cerveau-propre", "ajout-mark", "briques", ["cerveau_propre"], [inter("cerveau_propre")], true, SPECIALISE),
 

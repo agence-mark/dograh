@@ -42,6 +42,7 @@ export const DEFAUTS_GROUPE = {
 } as const;
 
 export const DUREE_MIN_ATTENTE_DEFAUT_S = 1.2;
+export const DELAI_PHRASE_PONT_DEFAUT_S = 2;
 const TAILLE_MAX_SON = 10 * 1024 * 1024; // 10 Mo, comme le bruit d'ambiance
 
 /** L'agent est-il le principal d'un groupe ? (la liste ``agents_specialises`` existe, même vide) */
@@ -73,6 +74,7 @@ export const extraireAttente = (c: Partial<WorkflowConfigurations>) => {
         passation: a.passation ?? true,
         transfert_humain: a.transfert_humain ?? true,
         phrase_pont: a.phrase_pont ?? "",
+        delai_phrase_pont_s: a.delai_phrase_pont_s ?? null,
     };
 };
 export type ReglagesAttente = ReturnType<typeof extraireAttente>;
@@ -84,6 +86,7 @@ export const chargeAttente = (a: ReglagesAttente): AttenteDuGroupe => ({
     passation: a.passation,
     transfert_humain: a.transfert_humain,
     ...(a.phrase_pont.trim() !== "" ? { phrase_pont: a.phrase_pont.trim() } : {}),
+    ...(a.delai_phrase_pont_s !== null ? { delai_phrase_pont_s: a.delai_phrase_pont_s } : {}),
 });
 
 const TEXTES = {
@@ -157,8 +160,13 @@ const TEXTES = {
     },
     phrasePont: { en: "Bridge phrase", fr: "Phrase pont" },
     phrasePontAide: {
-        en: "No effect yet: kept for later, the call does not play it. Optional. A short sentence said at a hand-over: a safety net, not the solution. Empty: none.",
-        fr: "Sans effet pour l'instant : gardée pour plus tard, l'appel ne la joue pas. Facultative. Une phrase courte dite à la passation : un filet, pas la solution. Vide : aucune.",
+        en: "Optional. A short sentence said by the agent handing over, only if the hand-over lasts longer than the delay below: a safety net, not the solution. Never said by a keyboard test, nor towards an agent already built. Empty: none.",
+        fr: "Facultative. Une phrase courte dite par l'agent qui passe la main, seulement si la passation dure plus que le délai ci-dessous : un filet, pas la solution. Jamais dite au clavier, ni vers un agent déjà construit. Vide : aucune.",
+    },
+    delaiPhrasePont: { en: "Bridge phrase delay (seconds)", fr: "Délai de la phrase pont (secondes)" },
+    delaiPhrasePontAide: {
+        en: "The phrase is said once, if the hand-over is not done after this delay. Empty: 2 s.",
+        fr: "La phrase est dite une fois, si la passation n'est pas faite après ce délai. Vide : 2 s.",
     },
 } satisfies Record<string, Texte>;
 
@@ -417,6 +425,30 @@ export const IntertitreAttente = ({
                     maxLength={300}
                     value={valeurs.phrase_pont}
                     onChange={(e) => onChange("phrase_pont", e.target.value)}
+                />
+            </ChampReglage>
+            <ChampReglage
+                cle="attente.delai_phrase_pont_s"
+                idControle="attente_delai_phrase_pont_s"
+                libelle={TEXTES.delaiPhrasePont}
+                aides={[TEXTES.delaiPhrasePontAide]}
+                bornes={bornesDe(0)}
+            >
+                <Input
+                    id="attente_delai_phrase_pont_s"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder={String(DELAI_PHRASE_PONT_DEFAUT_S)}
+                    value={valeurs.delai_phrase_pont_s ?? ""}
+                    onChange={(e) => {
+                        if (e.target.value === "") {
+                            onChange("delai_phrase_pont_s", null);
+                            return;
+                        }
+                        const n = Number(e.target.value);
+                        if (Number.isFinite(n) && n >= 0) onChange("delai_phrase_pont_s", n);
+                    }}
                 />
             </ChampReglage>
         </Intertitre>

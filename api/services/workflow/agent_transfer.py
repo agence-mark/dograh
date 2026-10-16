@@ -85,6 +85,9 @@ class AgentTransferCoordinator:
         self._task: asyncio.Task | None = None
         self._hold_stop: asyncio.Event | None = None
         self._hold_task: asyncio.Task | None = None
+        # [.mark] La phrase pont : tâche différée, annulée si la passation finit avant le délai.
+        self._phrase_task: asyncio.Task | None = None
+        self._phrase_en_cours = False
 
     @property
     def phase(self):
@@ -136,6 +139,7 @@ class AgentTransferCoordinator:
             task.cancel()
             with suppress(asyncio.CancelledError):
                 await task
+        await self._annuler_phrase_pont(attendre_la_fin=False)
         await self._stop_hold_audio()
         self._request = None
         self._phase = TransferPhase.IDLE
@@ -185,6 +189,19 @@ class AgentTransferCoordinator:
             else:
                 await engine.deactivate_agent(source)
             hold_started = time.monotonic()
+            # [.mark] La phrase pont : un filet si la passation dure. Jamais pour un retour
+            # silencieux, jamais au clavier (pas de voix), jamais vers un agent déjà construit
+            # (le principal chaud revient à l'instant) ; vide = désactivée.
+            if (
+                reglage.phrase_pont
+                and not (
+                    request.silencieuse or self._sans_sortie_audio() or deja_construit
+                )
+            ):
+                self._phrase_task = asyncio.create_task(
+                    self._phrase_pont(request, source, reglage, avec_son=attente),
+                    name=f"phrase-pont:{request.request_id}",
+                )
 
             async def prepare():
                 nonlocal destination
@@ -240,6 +257,9 @@ class AgentTransferCoordinator:
                     )
                 snapshot = compact.result()
 
+            # La passation est prête : une phrase pont pas encore dite ne le sera plus ; une
+            # phrase en cours se termine (jamais coupée en plein mot).
+            await self._annuler_phrase_pont()
             if attente:
                 await asyncio.sleep(
                     max(0, duree_min - (time.monotonic() - hold_started))
@@ -305,6 +325,7 @@ class AgentTransferCoordinator:
             )
         finally:
             try:
+                await self._annuler_phrase_pont(attendre_la_fin=False)
                 await self._stop_hold_audio()
                 if committed:
                     # [.mark] Lot 6 (A5) : le principal d'un groupe reste chaud (désactivé,
@@ -380,6 +401,9 @@ class AgentTransferCoordinator:
 
     async def _begin_hold(self, request, source, reglage: Attente | None = None):
         await self._engine.deactivate_agent(source)
+        self._start_hold_audio(request, reglage)
+
+    def _start_hold_audio(self, request, reglage: Attente | None = None):
         self._hold_stop = asyncio.Event()
         stop = self._hold_stop
         reglage = reglage or Attente()
@@ -400,6 +424,77 @@ class AgentTransferCoordinator:
             )
 
         self._hold_task = asyncio.create_task(jouer(), name=f"hold:{request.request_id}")
+
+    async def _phrase_pont(self, request, source, reglage: Attente, *, avec_son: bool):
+        """[.mark] La phrase pont, dite par la voix de l'agent qui passe la main (le chemin de
+        ``_announce``) si la passation n'est pas commise après ``delai_phrase_pont_s``. Une seule
+        fois. Le son d'attente se tait le temps de la phrase, puis reprend. ⛔ Ne lève jamais.
+
+        Pendant la passation l'agent d'origine est « en attente » : désactivé, il ne reçoit rien
+        de l'appel (sans quoi sa voix ne se referme jamais) et aucune de ses sorties n'arrive à
+        l'appelant (``selected_visit_id`` est ``None``). Le temps de la phrase il est réactivé
+        (le geste de l'annulation d'une passation) et l'attente levée ; son modèle, lui, reste
+        muet (``transfer_in_progress`` bloque son contexte)."""
+        engine = self._engine
+        try:
+            await asyncio.sleep(reglage.delai_phrase_pont_s)
+            if not self._passation_en_cours(request):
+                return
+            self._phrase_en_cours = True
+            try:
+                if avec_son:
+                    await self._stop_hold_audio()
+                if not await engine.activate_agent(
+                    source, timeout=TRANSFER_ACTIVATION_TIMEOUT_SECONDS
+                ):
+                    return
+                engine._agent_on_hold = False
+                # Pas dans le contexte : le résumé de passation se bâtit en même temps, rien ne
+                # doit bouger derrière lui ; la phrase reste dans le journal de l'appel.
+                speech = await engine.queue_speech(
+                    reglage.phrase_pont,
+                    append_to_context=False,
+                    persist_to_logs=True,
+                    mute_user=True,
+                )
+                await speech.wait()
+                # Comme ``_announce`` : tout ce qui est en vol arrive à l'appelant (et les signaux
+                # de fin de parole remontent à l'agent) avant que l'attente se referme.
+                await engine.drain_call_pipeline()
+            finally:
+                if self._passation_en_cours(request):
+                    await engine.deactivate_agent(source)
+                self._phrase_en_cours = False
+            if avec_son and self._passation_en_cours(request) and self._hold_stop is None:
+                self._start_hold_audio(request, reglage)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001 -- un filet ne fait jamais rater la passation
+            logger.warning(f"[transfer] {request.request_id}: phrase pont non dite : {e!r}")
+
+    def _passation_en_cours(self, request) -> bool:
+        """La passation n'est ni annulée, ni commise, ni finie (le délai de la phrase pont court)."""
+        return (
+            self._request is request
+            and not request.cancelled
+            and self._phase in (TransferPhase.ANNOUNCING, TransferPhase.PREPARING)
+            and not self._engine.is_call_disposed()
+        )
+
+    async def _annuler_phrase_pont(self, *, attendre_la_fin: bool = True):
+        """Annule la phrase pont pas encore dite. Une phrase déjà en cours de lecture se termine
+        (``attendre_la_fin``, au plus 8 s) : la couper laisserait un mot en plein milieu."""
+        task = self._phrase_task
+        self._phrase_task = None
+        if task is None or task is asyncio.current_task():
+            return
+        if attendre_la_fin and self._phrase_en_cours and not task.done():
+            with suppress(TimeoutError):
+                await asyncio.wait_for(asyncio.shield(task), timeout=8)
+        if not task.done():
+            task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
 
     async def _stop_hold_audio(self):
         if self._hold_stop is not None:

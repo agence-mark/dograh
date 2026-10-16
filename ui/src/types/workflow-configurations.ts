@@ -304,6 +304,7 @@ export interface AttenteDuGroupe {
     passation?: boolean;
     transfert_humain?: boolean;
     phrase_pont?: string | null;
+    delai_phrase_pont_s?: number | null;
 }
 
 export type WorkflowConfigurations = WorkflowConfigurationBase & {

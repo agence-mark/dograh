@@ -1745,7 +1745,8 @@
               "duree_min_s": 2.5,
               "passation": true,
               "transfert_humain": false,
-              "phrase_pont": "Un instant."
+              "phrase_pont": "Un instant.",
+              "delai_phrase_pont_s": 3
             }
           },
           "retirees": []
