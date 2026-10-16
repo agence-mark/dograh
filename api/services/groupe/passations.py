@@ -46,6 +46,10 @@ MESSAGE_REFUS = {
         "tu prends la suite toi-même."
     ),
     "plafond": LIGNE_PLAFOND,
+    "hors_groupe": (
+        "Cet agent ne fait pas partie de ton groupe : la passation est impossible. "
+        "Continue toi-même."
+    ),
 }
 
 
@@ -113,6 +117,21 @@ def plafond_atteint(
     return faites > 0 and faites >= plafond_de(reglages_appel)
 
 
+def hors_du_groupe(reglages_source: Mapping[str, Any] | None, vers: int | None) -> bool:
+    """Garde-fou du 16/10 (repère du banc branché sur les spécialisés d'un autre accueil) : un
+    principal ne passe la main qu'aux spécialisés de SA liste ``agents_specialises``. Un agent
+    sans liste (agent seul, spécialisé) n'est pas concerné. ⛔ Ne lève jamais (doute = permis)."""
+    try:
+        r = reglages_source or {}
+        if CLE_AGENTS_SPECIALISES not in r or vers is None:
+            return False
+        liste = r.get(CLE_AGENTS_SPECIALISES) or []
+        ids = {_entier(i) for i in (liste if isinstance(liste, (list, tuple)) else [])}
+        return vers not in ids
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def refus_de_passation(
     gathered: Mapping[str, Any] | None,
     reglages_appel: Mapping[str, Any] | None,
@@ -120,6 +139,7 @@ def refus_de_passation(
     de: int | None,
     vers: int | None,
     raison: str | None,
+    reglages_source: Mapping[str, Any] | None = None,
 ) -> str | None:
     """Pourquoi une passation demandée est refusée (``None`` : elle peut partir).
 
@@ -129,6 +149,8 @@ def refus_de_passation(
     try:
         if de is not None and vers is not None and de == vers:
             return "soi_meme"
+        if hors_du_groupe(reglages_source, vers):
+            return "hors_groupe"
         if est_un_groupe(reglages_appel) and passations_reussies(
             gathered
         ) >= plafond_de(reglages_appel):

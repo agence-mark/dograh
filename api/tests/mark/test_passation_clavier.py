@@ -15,6 +15,7 @@ test ; seuls les modèles (réponses écrites d'avance) sont remplacés.
 | fin figée | le nœud de fin avec `fins` dit la phrase choisie sur la fiche, sans modèle, et clôt |
 | plafond | au-delà du plafond du groupe, la passation est refusée et tracée |
 | soi-même | une passation vers soi-même est refusée |
+| hors du groupe | une passation vers un spécialisé hors de la liste du principal est refusée |
 """
 
 import copy
@@ -524,3 +525,35 @@ async def test_une_passation_vers_soi_meme_est_refusee(
     )
     refus = _checkpoint(reponses[0])["gathered_context"].get("passations") or []
     assert refus and refus[-1].get("motif") == "soi_meme", refus
+
+
+@pytest.mark.asyncio
+async def test_une_passation_vers_un_specialise_hors_de_la_liste_est_refusee(
+    db_session, async_session, test_client_factory
+):
+    """Garde-fou du 16/10 : un principal dont l'outil vise un spécialisé qui n'est pas dans SA
+    liste ``agents_specialises`` (le repère du banc branché sur le groupe d'un autre accueil)
+    est refusé ; l'incohérence se voit, au lieu d'un retour vers un autre accueil."""
+    user, principal, _ = await _groupe(
+        db_session, async_session, reglages_principal={"agents_specialises": [999999]}
+    )
+    reponses = await _session(
+        test_client_factory,
+        user,
+        principal,
+        [_vide(), _dit([*_appel("passer_a_s", "p1")], _texte("Je continue."))],
+        ["j'ai une panne"],
+    )
+    point = _checkpoint(reponses[0])
+    assert "agent_actif" not in point, point
+    refus = point["gathered_context"].get("passations") or []
+    assert refus and refus[-1].get("motif") == "hors_groupe", refus
+
+
+def test_hors_du_groupe_ne_concerne_qu_un_principal():
+    from api.services.groupe.passations import hors_du_groupe
+
+    assert hors_du_groupe({"agents_specialises": [1, 2]}, 3) is True
+    assert hors_du_groupe({"agents_specialises": [1, "2"]}, 2) is False
+    assert hors_du_groupe({"agent_principal_id": 5}, 3) is False, "un spécialisé n'a pas de liste"
+    assert hors_du_groupe({}, 3) is False, "un agent seul garde le comportement d'avant"

@@ -671,6 +671,7 @@ class CustomToolManager:
                 de=self._agent.workflow_id or None,
                 vers=workflow_id,
                 raison=tool.name,
+                reglages_source=getattr(self._agent, "reglages", None),
             )
             if refus is not None:
                 tracer_passation(
