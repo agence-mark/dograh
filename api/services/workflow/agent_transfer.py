@@ -222,9 +222,14 @@ class AgentTransferCoordinator:
                 # circuit du tour : son ouverture est jouée au passage suivant.
                 engine.ouverture_differee = ouverture
             else:
-                await engine.queue_node_opening(
+                resultat = await engine.queue_node_opening(
                     **ouverture, origin_visit_id=destination.visit_id
                 )
+                # [.mark] Lot 3 (A7) : un agent appelé dont la première étape porte un
+                # outil de transfert commence par le transfert (entreprise ouverte).
+                garantir = getattr(engine, "garantir_a_l_ouverture", None)
+                if garantir is not None:
+                    garantir(destination, start_node_id, getattr(resultat, "playback", None))
         except asyncio.CancelledError:
             outcome = request.cancelled_reason or "cancelled"
             raise

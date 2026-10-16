@@ -101,7 +101,11 @@ class AgentRuntimeFactory:
         lexique_metier: Any = None,
         variables_appel: Callable[[], dict] | None = None,
         contexte_appel: Callable[[], dict] | None = None,
+        # [.mark] Chantier agents-specialises (lot 3) : le processeur de prise de notes
+        # de la fiche de l'APPEL, pour le sous-circuit d'un agent appelé. None = avant.
+        traitement_de_la_fiche: Callable[[AgentRuntime], Any] | None = None,
     ):
+        self._traitement_de_la_fiche = traitement_de_la_fiche
         self._lexique_metier = lexique_metier
         self._variables_appel = variables_appel or (lambda: {})
         self._contexte_appel = contexte_appel or (lambda: {})
@@ -277,6 +281,9 @@ class AgentRuntimeFactory:
             # [.mark] Chantier agents-specialises : ses réglages (groupe, plafond).
             reglages=dict(run_configs),
         )
+        if self._traitement_de_la_fiche is not None:
+            # [.mark] Lot 3 : la fiche suit l'agent appelé, jusque dans son sous-circuit.
+            runtime.post_scriptum = self._traitement_de_la_fiche(runtime)
         try:
             await self.attach(runtime)
         except BaseException:

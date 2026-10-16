@@ -31,6 +31,7 @@ from pipecat.utils.enums import EndTaskReason
 
 from api.db import db_client
 from api.services.annonce.constantes import OUVERT
+from api.services.groupe.fiche import champs_fusionnes
 from api.services.groupe.passations import (
     LIGNE_PLAFOND,
     RAISON_RETOUR,
@@ -230,26 +231,13 @@ class PipecatEngine:
         # Plan mode-prise-de-notes, partie 2 : le greffier de l'appel (None hors
         # de ce mode), clos à la passe de fin.
         self.greffier = None
+        # [.mark] Chantier agents-specialises (lot 3, 2A) : la fiche appartient à
+        # l'APPEL. Les modèles qui la portent (le premier agent, puis chaque agent
+        # appelé par passation) sont tenus ici ; chacun voit l'état de la fiche.
+        self._llms_de_la_fiche: set[int] = set()
+        self._suivis_par_llm: dict[int, object] = {}
         if fiche is not None and llm is not None:
-            # D14 : l'état de la fiche, montré à chaque requête de conversation.
-            montrer_la_fiche(
-                llm,
-                fiche,
-                lambda: self._gathered_context,
-                self._notices_fiche,
-                # Lot E d'agent-leger-greffier (P1) : les étiquettes de l'étape en cours.
-                lambda: getattr(
-                    getattr(self.active_agent, "current_node", None),
-                    "champs_etape",
-                    (),
-                ),
-                # Revue du 13/10 (lot C de greffier-conversation) : l'étape a-t-elle des portes ?
-                lambda: bool(
-                    getattr(
-                        getattr(self.active_agent, "current_node", None), "out_edges", None
-                    )
-                ),
-            )
+            self._porter_la_fiche(llm, suivi=self._tours_fiche)
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
         # summarization). Falls back to the pipeline LLM when not provided.
@@ -617,9 +605,10 @@ class PipecatEngine:
 
                 result = {"status": "done"}
 
+                suivi = self._suivi_de(agent)
                 relance = (
-                    self._tours_fiche.relance(function_call_params.tool_call_id)
-                    if self._tours_fiche is not None
+                    suivi.relance(function_call_params.tool_call_id)
+                    if suivi is not None
                     else None
                 )
                 properties = FunctionCallResultProperties(
@@ -641,9 +630,10 @@ class PipecatEngine:
                 logger.error(f"Error in transition function {name}: {str(e)}")
                 error_result = {"status": "error", "error": str(e)}
                 # [.mark] Fiche : une porte en erreur ferme aussi son tour.
+                suivi = self._suivi_de(agent)
                 relance = (
-                    self._tours_fiche.relance(function_call_params.tool_call_id)
-                    if self._tours_fiche is not None
+                    suivi.relance(function_call_params.tool_call_id)
+                    if suivi is not None
                     else None
                 )
                 await function_call_params.result_callback(
@@ -861,7 +851,7 @@ class PipecatEngine:
         try:
             if self._fiche is None or not self._fiche.transfert_garanti:
                 return False
-            if agent.llm is not self._llm_de_la_fiche:
+            if not self._porte_la_fiche(agent):
                 return False
             noeud = agent.workflow.nodes.get(cible)
             if noeud is None or noeud.is_end or not noeud.tool_uuids:
@@ -1403,8 +1393,84 @@ class PipecatEngine:
         """
         return (
             self._fiche is not None
-            and self.active_agent.llm is self._llm_de_la_fiche
+            and self._porte_la_fiche(self.active_agent)
         )
+
+    def _porter_la_fiche(self, llm, *, suivi=None) -> None:
+        """[.mark] Chantier agents-specialises (lot 3, 2A, 2B) : ``llm`` porte la fiche de
+        l'appel : l'état de la fiche à chaque requête (D14), le suivi des tours (mode
+        outil). Une fois par modèle. ⛔ Ne lève jamais."""
+        try:
+            if self._fiche is None or llm is None:
+                return
+            portes = self.__dict__.setdefault("_llms_de_la_fiche", set())
+            if id(llm) in portes:
+                return
+            portes.add(id(llm))
+            if self._fiche.mode == MODE_OUTIL:
+                self.__dict__.setdefault("_suivis_par_llm", {})[id(llm)] = (
+                    suivi if suivi is not None else suivre_les_tours(llm)
+                )
+            # D14 : l'état de la fiche, montré à chaque requête de conversation.
+            montrer_la_fiche(
+                llm,
+                self._fiche,
+                lambda: self._gathered_context,
+                self._notices_fiche,
+                # Lot E d'agent-leger-greffier (P1) : les étiquettes de l'étape en cours.
+                lambda: getattr(
+                    getattr(self.active_agent, "current_node", None),
+                    "champs_etape",
+                    (),
+                ),
+                # Revue du 13/10 (lot C de greffier-conversation) : l'étape a-t-elle des portes ?
+                lambda: bool(
+                    getattr(
+                        getattr(self.active_agent, "current_node", None), "out_edges", None
+                    )
+                ),
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[fiche] fiche non branchée sur l'agent : {e!r}")
+
+    def _porte_la_fiche(self, agent: AgentRuntime) -> bool:
+        """[.mark] Lot 3 (2A) : le modèle de ``agent`` porte-t-il la fiche de l'appel ?"""
+        if self._fiche is None or agent is None:
+            return False
+        return agent.llm is self._llm_de_la_fiche or id(agent.llm) in self.__dict__.get(
+            "_llms_de_la_fiche", ()
+        )
+
+    def _suivi_de(self, agent: AgentRuntime):
+        """[.mark] Lot 3 : le suivi des tours du modèle de ``agent`` (mode outil)."""
+        return self.__dict__.get("_suivis_par_llm", {}).get(
+            id(getattr(agent, "llm", None)), self._tours_fiche
+        )
+
+    def _fusionner_la_fiche(self, runtime: AgentRuntime) -> None:
+        """[.mark] Lot 3 (P4) : les champs de l'agent appelé entrent dans la fiche de
+        l'appel ; même nom = un seul champ, la définition de l'agent qui a décroché.
+        La fiche est modifiée EN PLACE : les modules qui la tiennent la voient.
+        ⛔ Ne lève jamais."""
+        try:
+            champs = champs_fusionnes(self._fiche, runtime.reglages)
+            if champs is not None:
+                object.__setattr__(self._fiche, "champs", champs)
+                logger.info(
+                    f"[fiche] champs de l'agent {runtime.workflow_id} ajoutés à la fiche"
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[fiche] fusion des champs en échec : {e!r}")
+
+    def garantir_a_l_ouverture(self, agent: AgentRuntime, cible: str, phrase) -> None:
+        """[.mark] Lot 3 (A7) : un agent appelé dont la première étape porte un outil de
+        transfert commence par le transfert, entreprise ouverte, une fois sa première
+        réplique jouée (même mécanisme que l'arrivée dans une étape). ⛔ Ne lève jamais."""
+        try:
+            if self._transfert_garanti_s_applique(agent, cible):
+                self._lancer_le_transfert_garanti(agent, cible, phrase)
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[transfert] garantie à l'ouverture en échec : {e!r}")
 
     @property
     def fiche(self) -> Optional[ReglagesFiche]:
@@ -1528,7 +1594,7 @@ class PipecatEngine:
             self._fiche is not None
             and self._fiche.portes_dans_la_reponse
             and not node.is_end
-            and agent.llm is self._llm_de_la_fiche
+            and self._porte_la_fiche(agent)
         )
         functions = await compose_functions_for_node(
             node=node,
@@ -1543,7 +1609,7 @@ class PipecatEngine:
             self._fiche is not None
             and self._fiche.mode == MODE_OUTIL
             and not node.is_end
-            and agent.llm is self._llm_de_la_fiche
+            and self._porte_la_fiche(agent)
         ):
             functions.append(
                 brancher_noter_information(
@@ -1551,7 +1617,7 @@ class PipecatEngine:
                     agent.llm,
                     lambda: self._gathered_context,
                     lambda: self.context.get_messages() if self.context else [],
-                    self._tours_fiche,
+                    self._suivi_de(agent),
                 )
             )
         texte = prompt.text
@@ -1561,7 +1627,7 @@ class PipecatEngine:
         if (
             self._fiche is not None
             and not node.is_end
-            and agent.llm is self._llm_de_la_fiche
+            and self._porte_la_fiche(agent)
         ):
             bloc = consigne_du_mode(self._fiche)
             if bloc:
@@ -2478,6 +2544,12 @@ class PipecatEngine:
             workflow_id=workflow_id, visit_id=visit_id
         )
         self._pending_agent = runtime
+        # [.mark] Chantier agents-specialises (lot 3) : la fiche de l'appel suit l'agent
+        # appelé (ses champs s'ajoutent, son modèle la porte) avant la préparation de son
+        # étape, pour qu'il ait l'outil de note, la consigne et l'état de la fiche.
+        if self._fiche is not None:
+            self._fusionner_la_fiche(runtime)
+            self._porter_la_fiche(runtime.llm)
         return runtime
 
     async def prepare_agent(self, runtime: AgentRuntime) -> None:

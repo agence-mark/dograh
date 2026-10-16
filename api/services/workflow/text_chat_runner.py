@@ -105,6 +105,7 @@ from api.services.pipecat.worker_runner import (
     wait_for_pipeline_worker_started,
 )
 from api.services.workflow.dto import ReactFlowDTO
+from api.services.groupe.fiche import fiche_fusionnee
 from api.services.workflow.text_agent_factory import TextAgentFactory
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import (
@@ -934,7 +935,7 @@ async def execute_text_chat_pending_turn(
     async def jouer_un_passage(
         agent: "_AgentDuTour",
         checkpoint_du_passage: dict[str, Any],
-        message: str | None,
+        pending_user_message: str | None,
         ouverture: dict[str, Any] | None,
     ) -> "_Passage":
         context = LLMContext()
@@ -993,7 +994,9 @@ async def execute_text_chat_pending_turn(
             # voice path (`run_pipeline.py`): the record, its `noter_information`
             # tool and the end-of-call pass. Without it the keyboard measured an
             # agent that is not the one callers reach (run 896).
-            fiche=reglages_fiche,
+            # [.mark] agents-specialises (lot 3) : la fiche de l'APPEL ; un agent appelé
+            # par passation y ajoute ses champs (même nom = la définition du premier).
+            fiche=reglages_fiche if agent is premier_agent else fiche_fusionnee(reglages_fiche, agent.reglages),
         )
         engine._gathered_context = dict(checkpoint_du_passage["gathered_context"])
         # [.mark] Chantier agents-specialises (lot 2) : la passation au clavier. Le
@@ -1105,7 +1108,7 @@ async def execute_text_chat_pending_turn(
                     emit_transition_event=current_node_id is None,
                 )
                 previous_for_opening = current_node_id
-                generate_opening = message is None
+                generate_opening = pending_user_message is None
             else:
                 # [.mark] L'ouverture d'un agent appelé, mise de côté par la passation du
                 # passage précédent (l'événement « passé à l'agent » est déjà parti).
@@ -1131,6 +1134,12 @@ async def execute_text_chat_pending_turn(
                 response_window.pending_context_requests = max(
                     0, response_window.pending_context_requests - 1
                 )
+            if ouverture is not None:
+                # [.mark] agents-specialises (lot 3, A7) : un agent appelé dont la
+                # première étape porte un outil de transfert commence par le transfert.
+                engine.garantir_a_l_ouverture(
+                    engine.active_agent, target_node_id, getattr(opening, "playback", None)
+                )
             if opening.action != "none":
                 await _wait_for_quiescence(
                     capture_processor=capture_processor,
@@ -1139,14 +1148,14 @@ async def execute_text_chat_pending_turn(
                     activity_marker=opening_marker,
                 )
 
-            if message is not None:
+            if pending_user_message is not None:
                 # [.mark] Caller reading on the keyboard too (nombres-dictes R5,
                 # verification-communes D7), BEFORE the message enters the context:
                 # the model reads it directly, there is no aggregator step here.
                 # [.mark] The trade names first (T8), like in a call: the numbers
                 # and the towns then read a message where "Supra" is written properly.
                 message_pour_le_modele = await annoter_message_tape(
-                    message,
+                    pending_user_message,
                     run_configs,
                     lexique_metier,
                     engine.active_agent.current_node,

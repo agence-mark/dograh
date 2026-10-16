@@ -93,6 +93,7 @@ from api.services.pipecat.realtime_feedback_observer import (
     register_turn_log_handlers,
 )
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
+from api.services.groupe.fiche import traitement_pour_agent_appele
 from api.services.pipecat.greffier import (
     greffier_du_moteur,
     preparer_le_greffier,
@@ -1801,6 +1802,8 @@ async def _run_pipeline_impl(
             lexique_metier=lexique_metier,
             variables_appel=variables_appel,
             contexte_appel=contexte_appel,
+            # [.mark] Chantier agents-specialises (lot 3) : la fiche suit l'agent appelé.
+            traitement_de_la_fiche=lambda _agent: traitement_pour_agent_appele(engine),
         )
         engine.set_agent_factory(agent_factory)
         # The agent this call starts on. Its services were resolved above from
