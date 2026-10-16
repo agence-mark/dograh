@@ -126,7 +126,11 @@ export type Fiche = Bloc & {
 };
 
 export type Parcours = Bloc & {
-    steps?: string[];
+    /**
+     * The steps the call went through. Two forms (lot 13, agents-specialises): the names of today, and, once
+     * the engine of lot 7 is in place, entries `{ agent, etape }` in the order of the path.
+     */
+    steps?: Array<string | { agent?: string | number | null; etape?: string | null }>;
     transitions?: { turn: number | null; from: string | null; to: string | null }[];
     tools?: {
         turn: number | null;

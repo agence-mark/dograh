@@ -27,6 +27,7 @@ import {
 } from '@/client/sdk.gen';
 import { BilanGreffier } from '@/components/mark/BilanGreffier';
 import { FenetreDuRun } from '@/components/mark/fenetre-du-run/FenetreDuRun';
+import { TraceDesAgents } from '@/components/mark/groupe/TraceDesAgents';
 import { MediaPreviewButton, MediaPreviewDialog } from '@/components/MediaPreviewDialog';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { Button } from '@/components/ui/button';
@@ -852,6 +853,9 @@ export default function WorkflowRunPage() {
 
                         {/* [.mark] The clerk's passes, failures and tokens (mode-prise-de-notes). */}
                         <BilanGreffier fiche={workflowRun?.gathered_context ?? null} />
+
+                        {/* [.mark] Lot 13 (agents-specialises): the agents of the call, its path and its hand-overs. */}
+                        <TraceDesAgents contexte={workflowRun?.gathered_context ?? null} />
 
                         {/* [.mark] The run window: latency turn by turn, providers, modules, record, path, incidents. */}
                         <FenetreDuRun
