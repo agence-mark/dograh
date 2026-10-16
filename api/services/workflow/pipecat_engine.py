@@ -41,7 +41,9 @@ from api.services.groupe.passations import (
     est_un_groupe,
     fins_du_noeud,
     plafond_atteint,
+    porte_reecrite_vers_le_retour,
 )
+from api.services.groupe.parcours import rendre_le_parcours
 from api.services.groupe.prechauffage import precharge_de, prechauffer_les_cibles
 from api.services.equipe.transferts_humains import un_renvoi_a_echoue
 from api.services.groupe.reglages_passation import (
@@ -696,7 +698,7 @@ class PipecatEngine:
         # rien (le code ne choisit jamais entre deux portes). Formulaire du lot 4
         # (Evan, 08/10) : en « porte, note, phrase » seulement.
         if not getattr(self.fiche, "note_d_abord", False):
-            return None
+            return porte_reecrite_vers_le_retour(self.active_agent.workflow, node, nom)
         vers_l_etape = [
             e
             for e in node.out_edges
@@ -705,7 +707,7 @@ class PipecatEngine:
         if len(vers_l_etape) == 1:
             logger.info(f"[porte] « {nom} » est le nom d'une étape : sa seule porte est prise")
             return vers_l_etape[0]
-        return None
+        return porte_reecrite_vers_le_retour(self.active_agent.workflow, node, nom)
 
     def est_une_porte_de_l_etape(self, nom: str) -> bool:
         """[.mark] Revue du 11/10 (Q4) : ``nom`` désigne-t-il une porte de l'étape en cours ?
@@ -751,6 +753,18 @@ class PipecatEngine:
             return "inconnue"
         try:
             logger.info(f"[porte] porte écrite prise : {nom} -> {arete.target}")
+            # [.mark] Lot 7 (K1) : une porte réécrite vers l'étape de retour laisse sa trace.
+            cible_dite = agent.workflow.nodes[arete.target]
+            if arete.get_function_name() != nom and est_une_etape_de_retour(cible_dite):
+                if transition_tool_name(cible_dite.name) != nom:
+                    self._gathered_context.setdefault("porte_reecrite", []).append(
+                        {
+                            "ecrite": nom,
+                            "etape": getattr(agent.current_node, "name", None),
+                            "vers": cible_dite.name,
+                            "tour": self._gathered_context.get(CLE_TOUR),
+                        }
+                    )
             await self._perform_variable_extraction_if_needed(
                 agent.current_node,
                 run_in_background=self._run_transition_variable_extraction_in_background,
@@ -1772,6 +1786,7 @@ class PipecatEngine:
         nodes_visited = self._gathered_context.setdefault("nodes_visited", [])
         if node.name not in nodes_visited:
             nodes_visited.append(node.name)
+        self._noter_le_parcours(agent, node)
 
         # Send node transition event if callback is provided
         if emit_transition_event and self._node_transition_callback:
@@ -2634,6 +2649,7 @@ class PipecatEngine:
         nodes = self._gathered_context.setdefault("nodes_visited", [])
         if runtime.current_node.name not in nodes:
             nodes.append(runtime.current_node.name)
+        self._noter_le_parcours(runtime, runtime.current_node)
         logger.info(
             f"[transfer] installed {runtime.visit_id}: "
             f"{len(snapshot.messages)} handoff messages (summarized={snapshot.summarized}) "
@@ -2834,6 +2850,35 @@ class PipecatEngine:
                 await agent.retire(reason)
             else:
                 await agent.abort(reason)
+
+    # --- [.mark] Chantier agents-specialises (lot 7, D91) : le parcours (agent, étape) ---
+
+    def _noter_le_parcours(self, agent: AgentRuntime, node: Node) -> None:
+        """Une entrée par (agent, étape), dans l'ordre : ``nodes_visited`` dédoublonne par nom
+        d'étape (l'ordre entre deux agents qui ont une étape du même nom se perd). Une entrée par
+        ENTRÉE dans une étape : deux entrées de suite dans la même étape du même agent n'en font
+        qu'une, mais un retour chez le principal après un spécialisé en ajoute une. Écrit
+        ``parcours_etapes`` (la liste) et ``parcours`` (« Agent › étape › étape »), seulement dans un
+        groupe : un agent seul garde ses clés d'avant. ⛔ Ne lève jamais."""
+        try:
+            if not est_un_groupe(self.reglages_appel):
+                return
+            liste = self._gathered_context.setdefault("parcours_etapes", [])
+            entree = {
+                "agent": agent.workflow_name or None,
+                "agent_id": agent.workflow_id or None,
+                "etape": node.name,
+            }
+            dernier = liste[-1] if liste else None
+            if dernier is not None and (
+                dernier.get("agent_id"),
+                dernier.get("etape"),
+            ) == (entree["agent_id"], entree["etape"]):
+                return
+            liste.append({k: v for k, v in entree.items() if v is not None})
+            self._gathered_context["parcours"] = rendre_le_parcours(liste)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[parcours] non noté : {e!r}")
 
     # --- [.mark] Chantier agents-specialises (lot 6) : principal chaud, préchauffage ---
 

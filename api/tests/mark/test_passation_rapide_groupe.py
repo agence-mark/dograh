@@ -44,12 +44,10 @@ from api.services.groupe.reglages_passation import (
 from api.services.pipecat import agent_runtime_factory as fabrique_agents
 from api.services.pipecat.agent_runtime_factory import (
     AgentBuildError,
-    AgentRuntimeFactory,
 )
 from api.services.workflow import agent_transfer
 from api.services.workflow.agent_transfer import TransferRequest
 from api.services.workflow.pipecat_engine import CLE_ETAT_OUVERTURE
-from api.services.workflow.pipecat_engine_custom_tools import CustomToolManager
 from api.services.workflow.tools.transfer_resolver import ResolvedTransferConfig
 from api.tests.mark.test_agent_transfere_reglages_mark import (
     WORKFLOW_ID,

@@ -209,6 +209,12 @@ NOMS_RESERVES = frozenset(
         "extracted_variables",
         "nodes_visited",
         "agent_visits",
+        # [.mark] agents-specialises (lots 2, 5, 7) : les traces du groupe
+        "parcours",
+        "parcours_etapes",
+        "porte_reecrite",
+        "passations",
+        "transferts_humains",
         # traces des modules
         "communes_verifiees",
         # chantier postscriptum-et-communes, lot 1 : les communes lues sur le nom de la personne

@@ -248,3 +248,30 @@ def l_appelant_a_parle_en_dernier(messages: Iterable[Any]) -> bool:
         return False
     except Exception:  # noqa: BLE001
         return False
+
+
+def porte_reecrite_vers_le_retour(graphe: Any, node: Any, nom: str) -> Any:
+    """[.mark] Lot 7 (K1, n° 352) : une porte écrite qui n'est pas une sortie de l'étape en cours
+    (``node``) et qui porte le nom d'une AUTRE étape du graphe est réécrite vers l'étape « retour
+    au principal », si l'étape en cours a une sortie vers elle : rend cette arête. ``None`` sinon
+    (ignorée comme avant ; chez le principal, aucune étape de retour). ⛔ Ne lève jamais."""
+    try:
+        from api.services.workflow.workflow_graph import transition_tool_name
+
+        if not any(
+            n.id != node.id and transition_tool_name(n.name) == nom
+            for n in graphe.nodes.values()
+        ):
+            return None
+        return next(
+            (
+                e
+                for e in node.out_edges
+                if est_une_etape_de_retour(graphe.nodes[e.target])
+                and not graphe.nodes[e.target].is_end
+            ),
+            None,
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"[porte] réécriture vers le retour illisible : {e!r}")
+        return None
