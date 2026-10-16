@@ -775,9 +775,7 @@ async def _signaler(
 
         connexion = await _base(organization_id)
         try:
-            appel_id = await connexion.fetchval(
-                "SELECT id FROM mark.appel WHERE dograh_run_id = $1", run.id
-            )
+            appel_id = await traces.appel_du_run(connexion, run.id)
             await traces.noter_incident(
                 connexion,
                 appel_id=appel_id,

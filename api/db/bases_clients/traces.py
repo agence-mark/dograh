@@ -30,6 +30,13 @@ def _moment(valeur) -> datetime | None:
     return None
 
 
+async def appel_du_run(connexion: asyncpg.Connection, run_id: int) -> int | None:
+    """The client's call row for a Dograh run, ``None`` when it was never written."""
+    return await connexion.fetchval(
+        "SELECT id FROM mark.appel WHERE dograh_run_id = $1", run_id
+    )
+
+
 async def noter_incident(
     connexion: asyncpg.Connection,
     *,
