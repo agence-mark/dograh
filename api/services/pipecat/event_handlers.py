@@ -215,7 +215,13 @@ def register_event_handlers(
             await engine.set_node(engine.active_agent.workflow.start_node_id)
             # [.mark] Lot 6 (A5) : le préchauffage des agents cibles (sans voix), en tâche de
             # fond ; rien si le réglage est éteint ou si l'appel n'est pas un groupe.
-            engine.lancer_prechauffage()
+            # ⛔ Jamais une raison de ne pas ouvrir l'appel.
+            try:
+                lancer = getattr(engine, "lancer_prechauffage", None)
+                if lancer is not None:
+                    lancer()
+            except Exception as erreur:  # noqa: BLE001
+                logger.warning(f"[groupe] préchauffage non lancé : {erreur!r}")
             if answer_supervisor is not None:
                 await engine.handle_answer_supervision()
                 return
