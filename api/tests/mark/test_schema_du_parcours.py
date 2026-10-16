@@ -17,9 +17,11 @@ remplacés à chaque enregistrement, jamais empilés ; seuls les noms d'étapes 
 | texte écrit à la main | jamais touché |
 | ancienne carte | disparue : ni porte ni « → » dans la carte, quel que soit le mode |
 | C4, traversant | greffier avec portes : carte des rôles, pas de « Tu es ici » ; la case seule enregistrée lit le mode enregistré |
+| types (agents-specialises) | accueil : « # Ton équipe » + une ligne par outil de passation (nom et description lus en base) puis « # Tes étapes » ; spécialiste : mission de l'étape de départ et sortie marquée retour ; agent seul inchangé ; dans un groupe la case est ignorée (forcé allumé) ; bloc remplacé, jamais empilé ; aucun mot de métier (noms neutres) |
 """
 
 import copy
+import re
 import uuid
 
 import pytest
@@ -36,7 +38,14 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_PORTES_DANS_LA_REPONSE,
     MODE_GREFFIER,
 )
-from api.services.workflow.schema_du_parcours import appliquer
+from api.services.workflow.schema_du_parcours import (
+    TYPE_ACCUEIL,
+    TYPE_SEUL,
+    TYPE_SPECIALISTE,
+    appliquer,
+    reglage_allume,
+    type_de_workflow,
+)
 from api.tests.integrations._run_pipeline_helpers import USER_CONFIGURATION
 from api.tests.mark.test_outil_noter import CONFIG_ALLUMEE
 from api.tests.mark.test_traversants_appel import ACCUEIL, _appeler, _borne, _texte
@@ -185,6 +194,114 @@ def test_C4_greffier_avec_portes_pas_de_tu_es_ici():
     # Revenir à un autre mode remet « Tu es ici », sans doublon de carte.
     autre = appliquer(d, True, True)
     assert autre == appliquer(_definition(), True)
+
+
+
+# --- Les trois types de workflow (chantier agents-specialises) ---------------------
+
+COLLEGUES = [("outil_a", "Passe l'appel à l'agent a."), ("outil_b", "")]
+EQUIPE_ACCUEIL = (
+    "# Ton équipe\n"
+    "Tu es l'accueil. Pour passer la main à un collègue, tu appelles son outil, sans rien dire. "
+    "Quand un collègue te rend la main, tu lis la réponse à sa dernière question.\n"
+    "Tes collègues :\n"
+    "- outil_a : Passe l'appel à l'agent a.\n"
+    "- outil_b"
+)
+
+
+def _bloc(definition: dict) -> str:
+    bloc = _prompt(definition, "global").split("<parcours_genere>", 1)[1]
+    return bloc.split("</parcours_genere>", 1)[0].strip()
+
+
+def _definition_specialiste(avec_retour: bool = True) -> dict:
+    d = _definition()
+    d["nodes"][1]["data"]["prompt"] = "# Ta mission ici\nun spécialiste de la mission a.\n\nFais ceci."
+    if avec_retour:
+        d["nodes"][2]["data"]["retour_au_principal"] = True
+    return d
+
+
+def test_le_type_se_lit_dans_les_reglages():
+    assert type_de_workflow(None) == TYPE_SEUL and type_de_workflow({}) == TYPE_SEUL
+    assert type_de_workflow({"agents_specialises": []}) == TYPE_SEUL
+    assert type_de_workflow({"agents_specialises": [7, 8]}) == TYPE_ACCUEIL
+    assert type_de_workflow({"agent_principal_id": 3}) == TYPE_SPECIALISTE
+    assert type_de_workflow({"agent_principal_id": None}) == TYPE_SEUL
+
+
+def test_accueil_le_bloc_equipe_precede_les_etapes_avec_les_collegues():
+    d = appliquer(_definition(), True, True, TYPE_ACCUEIL, COLLEGUES)
+    assert _bloc(d) == EQUIPE_ACCUEIL + "\n\n# Tes étapes\nAccueil\nDemande\nFin"
+    assert "# Les étapes de l'appel" not in _prompt(d, "global")
+    # « Tu es ici » en fin d'étape, inchangé.
+    assert _prompt(d, "demande").endswith("<position_generee>Tu es ici : Demande</position_generee>")
+
+
+def test_accueil_sans_outil_de_passation_pas_de_liste():
+    bloc = _bloc(appliquer(_definition(), True, True, TYPE_ACCUEIL, []))
+    assert "Tes collègues" not in bloc and bloc.startswith("# Ton équipe\nTu es l'accueil.")
+
+
+def test_specialiste_mission_de_depart_et_sortie_de_retour():
+    d = appliquer(_definition_specialiste(), True, True, TYPE_SPECIALISTE)
+    assert _bloc(d) == (
+        "# Ton équipe\n"
+        "Tu es un spécialiste de la mission a. "
+        "Tu reçois un appel déjà commencé : tout ce qui a été dit compte. "
+        "Pour rendre la main à l'accueil, tu écris la sortie Demande, "
+        "dès que la demande n'est pas la tienne ou que ton travail est fini.\n\n"
+        "# Tes étapes\nAccueil : un spécialiste de la mission a\nDemande\nFin"
+    )
+
+
+def test_specialiste_sans_etape_de_retour_pas_de_phrase_pour_rendre_la_main():
+    bloc = _bloc(appliquer(_definition_specialiste(avec_retour=False), True, True, TYPE_SPECIALISTE))
+    assert "rendre la main" not in bloc and "écris la sortie" not in bloc
+    assert "Tu reçois un appel déjà commencé" in bloc
+
+
+def test_agent_seul_reste_inchange_quel_que_soit_le_type_passe_par_defaut():
+    assert appliquer(_definition(), True) == appliquer(_definition(), True, True, TYPE_SEUL, COLLEGUES)
+    assert _bloc(appliquer(_definition(), True)).startswith("# Les étapes de l'appel")
+
+
+def test_le_bloc_est_remplace_jamais_empile_meme_en_changeant_de_type():
+    accueil = appliquer(_definition(), True, True, TYPE_ACCUEIL, COLLEGUES)
+    deux_fois = appliquer(copy.deepcopy(accueil), True, True, TYPE_ACCUEIL, COLLEGUES)
+    assert deux_fois == accueil and _prompt(accueil, "global").count("<parcours_genere>") == 1
+    # D'accueil à spécialiste, puis à agent seul : un seul bloc à chaque fois.
+    specialiste = appliquer(copy.deepcopy(accueil), True, True, TYPE_SPECIALISTE)
+    assert _prompt(specialiste, "global").count("<parcours_genere>") == 1
+    assert "Tes collègues" not in _prompt(specialiste, "global")
+    assert appliquer(specialiste, True) == appliquer(_definition(), True)
+    assert appliquer(accueil, False) == _definition()
+
+
+def test_dans_un_groupe_la_case_est_ignoree_forcee_allumee():
+    assert reglage_allume({"agents_specialises": [2], "generer_schema_parcours": False}) is True
+    assert reglage_allume({"agent_principal_id": 2}) is True
+    assert reglage_allume({"generer_schema_parcours": False}) is False
+    assert reglage_allume({"generer_schema_parcours": True}) is True
+    assert reglage_allume({"fiche_mode_de_note": "outil"}) is None
+
+
+def test_aucun_mot_de_metier_dans_le_bloc_genere():
+    """Tout ce qui entre dans le bloc vient du graphe, des descriptions d'outils ou des phrases
+    fixes du code : les mots de l'exemple en sont la seule matière, rien d'autre ne s'y glisse."""
+    d = _definition_specialiste()
+    for texte in (
+        _bloc(appliquer(d, True, True, TYPE_SPECIALISTE)),
+        _bloc(appliquer(_definition(), True, True, TYPE_ACCUEIL, COLLEGUES)),
+    ):
+        reste = texte
+        for connu in (
+            "spécialiste de la mission a", "outil_a", "outil_b", "Passe l'appel à l'agent a",
+            "Accueil", "Demande", "Fin",
+        ):
+            reste = reste.replace(connu, "")
+        assert not re.search(r"poêle|magasin|panne|entretien|rendez|véranda", reste, re.IGNORECASE)
 
 
 # --- Traversant : la route d'enregistrement, puis l'appel ---------------------------
@@ -364,3 +481,68 @@ async def test_traversant_l_outil_mcp_ecrit_aussi_le_parcours(db_session, async_
     enregistre = (await db_session.get_draft_version(workflow.id)).workflow_json
     accueil = next(n for n in enregistre["nodes"] if n["type"] == "startCall")
     assert accueil["data"]["prompt"].endswith("<position_generee>Tu es ici : Accueil</position_generee>")
+
+
+# --- Traversant : l'accueil lit en base les outils de passation de son graphe -----
+
+
+@pytest.mark.asyncio
+async def test_traversant_l_accueil_ecrit_ses_collegues_depuis_les_outils_en_base(
+    db_session, async_session, test_client_factory
+):
+    """La vraie route : un accueil (``agents_specialises``) dont l'étape porte un outil de
+    passation ``transfer_agent`` (nom et description lus en base) et un outil d'une autre
+    catégorie (ignoré) ; la case est éteinte et le bloc est écrit quand même (forcé allumé)."""
+    from api.enums import ToolCategory
+
+    user, workflow = await _agent_en_base(db_session, async_session)
+    org = user.selected_organization_id
+    passation = await db_session.create_tool(
+        organization_id=org,
+        user_id=user.id,
+        name="Outil A",
+        description="Passe l'appel\nà l'agent a.",
+        category=ToolCategory.TRANSFER_AGENT.value,
+        definition={
+            "schema_version": 1,
+            "type": "transfer_agent",
+            "config": {"workflow_id": workflow.id + 1000, "message": "", "play_greeting": False},
+        },
+    )
+    autre = await db_session.create_tool(
+        organization_id=org,
+        user_id=user.id,
+        name="Outil C",
+        description="Ne doit pas apparaître.",
+        category=ToolCategory.HTTP_API.value,
+        definition={"schema_version": 1, "type": "http_api", "config": {"method": "GET", "url": "https://example.com"}},
+    )
+    definition = _definition()
+    definition["nodes"][1]["data"]["tool_uuids"] = [passation.tool_uuid, autre.tool_uuid]
+    reglages = {"agents_specialises": [workflow.id + 1000], "generer_schema_parcours": False}
+    async with test_client_factory(user) as client:
+        await _enregistrer(client, workflow.id, {"workflow_definition": definition, "workflow_configurations": reglages})
+        # Le graphe seul, ensuite : les réglages enregistrés disent encore « accueil ».
+        await _enregistrer(client, workflow.id, {"workflow_definition": definition})
+    global_ = _prompt((await db_session.get_draft_version(workflow.id)).workflow_json, "global")
+    assert global_.count("<parcours_genere>") == 1
+    assert "# Ton équipe\nTu es l'accueil." in global_
+    assert "Tes collègues :\n- outil_a : Passe l'appel à l'agent a.\n\n# Tes étapes" in global_
+    assert "outil_c" not in global_ and "Ne doit pas apparaître" not in global_
+
+
+@pytest.mark.asyncio
+async def test_traversant_le_specialiste_recoit_son_bloc_equipe_case_eteinte(
+    db_session, async_session, test_client_factory
+):
+    user, workflow = await _agent_en_base(db_session, async_session)
+    definition = _definition_specialiste()
+    async with test_client_factory(user) as client:
+        await _enregistrer(
+            client,
+            workflow.id,
+            {"workflow_definition": definition, "workflow_configurations": {"agent_principal_id": workflow.id + 1000}},
+        )
+    global_ = _prompt((await db_session.get_draft_version(workflow.id)).workflow_json, "global")
+    assert "Tu es un spécialiste de la mission a." in global_
+    assert "tu écris la sortie Demande" in global_ and "# Tes étapes" in global_
