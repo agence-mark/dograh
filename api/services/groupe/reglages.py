@@ -34,12 +34,14 @@ CLE_SANS_RESUME = "passation_sans_resume_jusqua"
 CLE_PRECHAUFFAGE = "prechauffage_agents"
 CLE_ATTENTE = "attente"
 CLE_UN_SEUL_RENVOI = "un_seul_renvoi_par_appel"
+CLE_TRANSFERT_HUMAIN = "transfert_humain"
 CLES_DU_GROUPE = (
     CLE_PLAFOND_PASSATIONS,
     CLE_SANS_RESUME,
     CLE_PRECHAUFFAGE,
     CLE_ATTENTE,
     CLE_UN_SEUL_RENVOI,
+    CLE_TRANSFERT_HUMAIN,
 )
 
 # Le lien entre un principal et ses spécialisés : jamais recopié (il est posé par les routes

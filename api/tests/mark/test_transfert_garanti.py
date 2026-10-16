@@ -452,3 +452,156 @@ async def test_une_reponse_suivie_apres_sa_sortie_compte_comme_jouee():
     suivi.after_output(None, SpeechBoundaryFrame("r2", beginning=False))
     assert await muette.wait() is False
     assert muette.outcome is PlaybackOutcome.FAILED
+
+
+# --------------------------------------------------------------------------- #
+# [.mark] agents-specialises : à l'arrivée d'un agent appelé, la phrase de mise en relation est
+# figée (réglage ``transfert_humain.phrase_mise_en_relation``), dite par le code, puis le
+# transfert part sans aucun tour de modèle.
+# --------------------------------------------------------------------------- #
+
+PHRASE_FIGEE = "Phrase figée de mise en relation."
+REGLAGE_PHRASE = {"transfert_humain": {"phrase_mise_en_relation": PHRASE_FIGEE}}
+
+
+async def _moteur_fige(reglages=REGLAGE_PHRASE, etat="OUVERT", son_message=False):
+    engine = await _moteur(config=CONFIG_ALLUMEE, etat=etat, etape="etape")
+    engine.reglages_appel = dict(reglages)
+    engine._outil_de_transfert_a_son_message = AsyncMock(return_value=son_message)
+    return engine
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("etat", ["OUVERT", "SUR_RENDEZ_VOUS"])
+async def test_fige_ouvert_la_phrase_du_reglage_est_rendue(etat):
+    engine = await _moteur_fige(etat=etat)
+    assert (
+        await engine.transfert_fige_a_l_ouverture(engine.active_agent, "etape")
+        == PHRASE_FIGEE
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "reglages,etat",
+    [
+        (REGLAGE_PHRASE, "FERME"),
+        (REGLAGE_PHRASE, "PAUSE"),
+        ({}, "OUVERT"),
+        ({"transfert_humain": {"phrase_mise_en_relation": ""}}, "OUVERT"),
+        ({"transfert_humain": {"phrase_mise_en_relation": "   "}}, "OUVERT"),
+        ({"transfert_humain": "texte"}, "OUVERT"),
+    ],
+    ids=["ferme", "pause", "reglage absent", "reglage vide", "reglage blanc", "reglage illisible"],
+)
+async def test_fige_ferme_ou_reglage_vide_comportement_d_avant(reglages, etat):
+    engine = await _moteur_fige(reglages=reglages, etat=etat)
+    assert await engine.transfert_fige_a_l_ouverture(engine.active_agent, "etape") is None
+
+
+@pytest.mark.asyncio
+async def test_fige_autres_garde_fous():
+    agent_engine = await _moteur_fige()
+    agent = agent_engine.active_agent
+    # Au clavier : pas de voix.
+    agent_engine.sans_sortie_audio = True
+    assert await agent_engine.transfert_fige_a_l_ouverture(agent, "etape") is None
+    agent_engine.sans_sortie_audio = False
+    # Outil non exposé (ou lancé seulement avec des paramètres) : le modèle parle.
+    agent_engine._outil_de_transfert = AsyncMock(return_value=None)
+    assert await agent_engine.transfert_fige_a_l_ouverture(agent, "etape") is None
+    agent_engine._outil_de_transfert = AsyncMock(return_value=OUTIL)
+    # Une fin, une étape sans outil.
+    assert await agent_engine.transfert_fige_a_l_ouverture(agent, "end") is None
+    assert await agent_engine.transfert_fige_a_l_ouverture(agent, "start") is None
+    # Un renvoi a déjà échoué dans l'appel (un seul renvoi par appel).
+    agent_engine._un_renvoi_a_deja_echoue = lambda: True
+    assert await agent_engine.transfert_fige_a_l_ouverture(agent, "etape") is None
+
+
+@pytest.mark.asyncio
+async def test_fige_un_outil_qui_porte_son_message_le_dit_lui_meme():
+    engine = await _moteur_fige(son_message=True)
+    assert await engine.transfert_fige_a_l_ouverture(engine.active_agent, "etape") == ""
+
+
+@pytest.mark.asyncio
+async def test_fige_le_message_de_l_outil_est_lu_dans_sa_configuration():
+    from types import SimpleNamespace
+
+    engine = await _moteur()
+    engine._get_organization_id = AsyncMock(return_value=1)
+    noeud = engine.active_agent.workflow.nodes["etape"]
+
+    def outil(config):
+        return SimpleNamespace(
+            category="transfer_call", definition={"config": config}, name="x", tool_uuid="u"
+        )
+
+    cas = {
+        "texte": ({"messageType": "custom", "customMessage": "Un instant."}, True),
+        "texte vide": ({"messageType": "custom", "customMessage": " "}, False),
+        "enregistrement": ({"messageType": "audio", "audioRecordingId": 7}, True),
+        "aucun": ({"messageType": "none", "customMessage": "ignoré"}, False),
+        "absent": ({}, False),
+    }
+    for nom, (config, attendu) in cas.items():
+        engine.lire_outils = AsyncMock(return_value=[outil(config)])
+        assert await engine._outil_de_transfert_a_son_message(noeud) is attendu, nom
+    engine.lire_outils = AsyncMock(side_effect=RuntimeError("base"))
+    assert await engine._outil_de_transfert_a_son_message(noeud) is False
+
+
+@pytest.mark.asyncio
+async def test_fige_la_phrase_est_dite_puis_le_transfert_part_sans_tour_de_modele():
+    engine = await _moteur_fige()
+    agent = engine.active_agent
+    dite = engine.speech_playback.create()
+    engine.queue_speech = AsyncMock(return_value=dite)
+    await engine.dire_puis_transferer_a_l_ouverture(agent, "etape", PHRASE_FIGEE)
+    (appel,) = engine.queue_speech.await_args_list
+    assert appel.args == (PHRASE_FIGEE,) and appel.kwargs["mute_user"] is True
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [], "le transfert part avant la fin de la phrase"
+    dite.finish(PlaybackOutcome.PLAYED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [OUTIL] and _etats(engine) == ["lance"]
+    agent.queue_frame.assert_not_awaited()  # aucun tour de modèle demandé
+
+
+@pytest.mark.asyncio
+async def test_fige_une_phrase_non_jouee_le_modele_reprend_la_parole():
+    from pipecat.frames.frames import LLMRunFrame
+
+    engine = await _moteur_fige()
+    dite = engine.speech_playback.create()
+    engine.queue_speech = AsyncMock(return_value=dite)
+    await engine.dire_puis_transferer_a_l_ouverture(engine.active_agent, "etape", PHRASE_FIGEE)
+    dite.finish(PlaybackOutcome.FAILED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [] and _etats(engine) == ["replique_non_jouee"]
+    (frame,) = engine.active_agent.queue_frame.await_args_list
+    assert isinstance(frame.args[0], LLMRunFrame)
+
+
+@pytest.mark.asyncio
+async def test_fige_un_outil_qui_dit_son_message_part_tout_de_suite_sans_phrase_du_code():
+    engine = await _moteur_fige(son_message=True)
+    engine.queue_speech = AsyncMock()
+    await engine.dire_puis_transferer_a_l_ouverture(engine.active_agent, "etape", "")
+    await asyncio.sleep(0.05)
+    engine.queue_speech.assert_not_awaited()
+    assert _appels(engine) == [OUTIL] and _etats(engine) == ["lance"]
+    engine.active_agent.queue_frame.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_fige_rien_si_la_personne_parle_avant_la_fin_de_la_phrase():
+    engine = await _moteur_fige()
+    dite = engine.speech_playback.create()
+    engine.queue_speech = AsyncMock(return_value=dite)
+    await engine.dire_puis_transferer_a_l_ouverture(engine.active_agent, "etape", PHRASE_FIGEE)
+    engine.context.add_message({"role": "user", "content": "attendez, une question"})
+    dite.finish(PlaybackOutcome.PLAYED)
+    await asyncio.sleep(0.05)
+    assert _appels(engine) == [] and _etats(engine) == ["personne_a_parle"]

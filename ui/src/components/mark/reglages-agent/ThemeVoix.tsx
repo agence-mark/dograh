@@ -21,6 +21,7 @@ import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import {
     chargeAttente,
+    chargeTransfertHumain,
     estPrincipal,
     estSpecialise,
     extraireAttente,
@@ -103,7 +104,13 @@ export const ThemeVoix = ({
             {
                 nom: TITRE_ATTENTE,
                 modifie: attenteModifiee,
-                config: () => ({ attente: chargeAttente(attente) }),
+                config: () => {
+                    const transfertHumain = chargeTransfertHumain(attente, attenteEnregistree);
+                    return {
+                        attente: chargeAttente(attente),
+                        ...(transfertHumain !== undefined ? { transfert_humain: transfertHumain } : {}),
+                    };
+                },
             },
         ],
     });

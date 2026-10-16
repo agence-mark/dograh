@@ -30,7 +30,7 @@ from pipecat.services.settings import LLMSettings
 from pipecat.utils.enums import EndTaskReason
 
 from api.db import db_client
-from api.services.annonce.constantes import OUVERT
+from api.services.annonce.constantes import OUVERT, SUR_RENDEZ_VOUS
 from api.services.groupe.fiche import champs_fusionnes
 from api.services.groupe.passations import (
     LIGNE_PLAFOND,
@@ -48,6 +48,7 @@ from api.services.groupe.prechauffage import precharge_de, prechauffer_les_cible
 from api.services.equipe.transferts_humains import un_renvoi_a_echoue
 from api.services.groupe.reglages_passation import (
     LIGNE_RENVOI_DEJA_ECHOUE,
+    phrase_de_mise_en_relation,
     prechauffage_actif,
     renvoi_unique_actif,
 )
@@ -1010,7 +1011,13 @@ class PipecatEngine:
             logger.warning(f"[transfert] trace non écrite : {e!r}")
 
     def _lancer_le_transfert_garanti(
-        self, agent: AgentRuntime, cible: str, phrase, *, repli: bool = False
+        self,
+        agent: AgentRuntime,
+        cible: str,
+        phrase,
+        *,
+        repli: bool = False,
+        a_l_ouverture: bool = False,
     ) -> None:
         """Une fois la première réplique de l'étape ``cible`` JOUÉE jusqu'au bout
         (``phrase``), le code appelle l'outil de transfert comme le modèle l'aurait appelé.
@@ -1018,7 +1025,12 @@ class PipecatEngine:
         du 13/10 : la personne parle peut-être, le modèle lui répondra), si l'agent ne peut
         plus agir, si l'étape a changé, si le modèle l'a appelé lui-même ou si la personne a
         parlé. Sans outil de transfert dans l'étape et ``repli`` : la relance d'avant
-        (« outil à l'arrivée »). ⛔ Ne lève jamais."""
+        (« outil à l'arrivée »).
+
+        ``a_l_ouverture`` (arrivée d'un agent appelé, phrase figée dite par le code, aucun tour
+        du modèle demandé) : sans ``phrase``, le transfert part tout de suite (l'outil dit lui-même
+        son message) ; et quand le transfert ne peut pas partir, le modèle reprend la parole au
+        lieu d'un silence. ⛔ Ne lève jamais."""
         debut = len(self.context.get_messages()) if self.context else 0
         self._suivre_les_appels(agent.llm)
         depuis_appels = len(self._fonctions_appelees)
@@ -1027,19 +1039,24 @@ class PipecatEngine:
             try:
                 noeud = agent.workflow.nodes[cible]
                 nom = await self._outil_de_transfert(noeud)
+                async def reprendre_la_parole() -> None:
+                    if self.agent_can_act(agent):
+                        logger.info("[transfert] à l'ouverture, rien à lancer : le modèle parle")
+                        await agent.queue_frame(LLMRunFrame())
+
                 if nom is None:
                     self._tracer_le_transfert(etape=noeud.name, etat="sans_outil")
-                    if repli:
+                    if repli or a_l_ouverture:
                         if phrase is not None:
                             await phrase.wait()
                         if self.agent_can_act(agent):
                             logger.info("[porte] étape d'arrivée avec un outil : le modèle reparle")
                             await agent.queue_frame(LLMRunFrame())
                     return
-                if phrase is None:
+                if phrase is None and not a_l_ouverture:
                     self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="sans_attente")
                     return
-                if not await phrase.wait():
+                if phrase is not None and not await phrase.wait():
                     issue = phrase.outcome
                     self._tracer_le_transfert(
                         etape=noeud.name,
@@ -1047,6 +1064,8 @@ class PipecatEngine:
                         etat="replique_non_jouee",
                         issue=getattr(issue, "value", str(issue)),
                     )
+                    if a_l_ouverture:
+                        await reprendre_la_parole()
                     return
                 if not self.agent_can_act(agent):
                     return
@@ -1616,6 +1635,80 @@ class PipecatEngine:
                 self._lancer_le_transfert_garanti(agent, cible, phrase)
         except Exception as e:  # noqa: BLE001
             logger.error(f"[transfert] garantie à l'ouverture en échec : {e!r}")
+
+    async def _outil_de_transfert_a_son_message(self, noeud) -> bool:
+        """Le premier outil de transfert d'appel de l'étape porte-t-il son propre message
+        (texte ou enregistrement) ? Il le dit alors lui-même quand il est lancé : la phrase
+        figée du réglage ne s'y ajoute pas. ⛔ Ne lève jamais (doute : non)."""
+        try:
+            organisation = await self._get_organization_id()
+            if not organisation:
+                return False
+            for outil in await self.lire_outils(list(noeud.tool_uuids), organisation):
+                if outil.category != ToolCategory.TRANSFER_CALL.value:
+                    continue
+                config = (outil.definition or {}).get("config") or {}
+                genre = config.get("messageType", "none")
+                return bool(
+                    (genre == "custom" and str(config.get("customMessage") or "").strip())
+                    or (genre == "audio" and config.get("audioRecordingId"))
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[transfert] message de l'outil illisible : {e!r}")
+        return False
+
+    async def transfert_fige_a_l_ouverture(self, agent: AgentRuntime, cible: str) -> Optional[str]:
+        """[.mark] Un agent appelé arrive sur l'étape ``cible`` : le code dit-il lui-même la mise
+        en relation, sans tour de modèle ? ``None`` : non, comportement d'avant (le modèle parle,
+        ``garantir_a_l_ouverture``). Sinon la phrase à dire (``""`` : l'outil de transfert porte
+        déjà son message, il le dit en partant).
+
+        Oui seulement si : le réglage ``transfert_humain.phrase_mise_en_relation`` n'est pas vide ;
+        l'étape (hors fin) porte un transfert d'appel que le code peut lancer seul ; l'entreprise
+        est ouverte ou sur rendez-vous (la règle qui montre l'outil au modèle, K3) et aucun renvoi
+        n'a déjà échoué ; il y a une voix (jamais au clavier). ⛔ Ne lève jamais."""
+        try:
+            if getattr(self, "sans_sortie_audio", False):
+                return None
+            texte = phrase_de_mise_en_relation(self.reglages_appel)
+            if not texte:
+                return None
+            noeud = agent.workflow.nodes.get(cible)
+            if noeud is None or noeud.is_end or not noeud.tool_uuids:
+                return None
+            if self._un_renvoi_a_deja_echoue():
+                return None
+            etat = (self._call_context_vars or {}).get(CLE_ETAT_OUVERTURE)
+            if etat not in (OUVERT, SUR_RENDEZ_VOUS):
+                return None
+            if await self._outil_de_transfert(noeud) is None:
+                return None
+            return "" if await self._outil_de_transfert_a_son_message(noeud) else texte
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[transfert] phrase figée à l'ouverture illisible : {e!r}")
+            return None
+
+    async def dire_puis_transferer_a_l_ouverture(
+        self, agent: AgentRuntime, cible: str, texte: str
+    ) -> None:
+        """[.mark] La suite de ``transfert_fige_a_l_ouverture`` : la phrase est dite par la voix de
+        l'agent appelé, puis le code lance le transfert une fois la phrase jouée (si elle n'est
+        pas jouée, ou si le transfert ne peut pas partir, le modèle reprend la parole). Le modèle
+        n'est pas sollicité pour cette ouverture. ⛔ Ne lève jamais."""
+        try:
+            phrase = None
+            if texte:
+                phrase = await self.queue_speech(
+                    texte, append_to_context=True, persist_to_logs=False, mute_user=True
+                )
+            self._lancer_le_transfert_garanti(agent, cible, phrase, a_l_ouverture=True)
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[transfert] phrase figée à l'ouverture en échec : {e!r}")
+            try:
+                if self.agent_can_act(agent):
+                    await agent.queue_frame(LLMRunFrame())
+            except Exception:  # noqa: BLE001
+                pass
 
     @property
     def fiche(self) -> Optional[ReglagesFiche]:

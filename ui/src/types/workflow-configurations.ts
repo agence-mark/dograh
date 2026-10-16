@@ -346,6 +346,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     prechauffage_agents?: boolean | null;
     un_seul_renvoi_par_appel?: boolean | null;
     attente?: AttenteDuGroupe | null;
+    // [.mark] The sentence the code itself says when a called agent arrives on a step that transfers the call
+    // to a person (business open), before the transfer starts. Empty or absent: the model speaks, as before.
+    transfert_humain?: { phrase_mise_en_relation?: string | null } | null;
     // [.mark] Lot 12 (A10): a specialised agent that keeps its OWN brain instead of the main agent's.
     cerveau_propre?: boolean;
     // [.mark] The call record filled by the noter_information tool (fiche au

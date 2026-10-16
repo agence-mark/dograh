@@ -270,6 +270,13 @@ class AgentTransferCoordinator:
             self._check_current(request)
             if destination.error:
                 raise AgentBuildError("destination_unusable", destination.error)
+            # [.mark] Arrivée sur un transfert d'appel, entreprise ouverte : le code dit lui-même
+            # la mise en relation (réglage ``transfert_humain.phrase_mise_en_relation``). Décidé
+            # AVANT le commit (lecture en base), appliqué après l'ouverture. Jamais au clavier.
+            fige = None
+            figer = getattr(engine, "transfert_fige_a_l_ouverture", None)
+            if figer is not None and not self._sans_sortie_audio():
+                fige = await figer(destination, destination.workflow.start_node_id)
             self._phase = TransferPhase.COMMITTING
             engine.commit_agent(destination, snapshot)
             committed = True
@@ -282,13 +289,15 @@ class AgentTransferCoordinator:
             parler = request.ouverture != "si_l_appelant_attend" or (
                 l_appelant_a_parle_en_dernier(engine.context.get_messages())
             )
+            fige = fige if parler else None
             if parler and finit_par_l_assistant(engine.context.get_messages()):
                 # [.mark] D1 : l'ouverture ne part jamais sur un message de l'assistant.
                 engine.context.add_message({"role": "user", "content": NOTE_DE_PASSATION})
             ouverture = {
                 "node_id": start_node_id,
                 "previous_node_id": None if request.play_greeting else start_node_id,
-                "generate_if_no_greeting": parler,
+                # La phrase figée remplace le tour du modèle (il ne parle que si le transfert échoue).
+                "generate_if_no_greeting": parler and fige is None,
             }
             if self._sans_sortie_audio():
                 # [.mark] Au clavier, le modèle de l'agent appelé n'est pas dans le
@@ -300,9 +309,12 @@ class AgentTransferCoordinator:
                 )
                 # [.mark] Lot 3 (A7) : un agent appelé dont la première étape porte un
                 # outil de transfert commence par le transfert (entreprise ouverte).
-                garantir = getattr(engine, "garantir_a_l_ouverture", None)
-                if garantir is not None:
-                    garantir(destination, start_node_id, getattr(resultat, "playback", None))
+                if fige is not None:
+                    await engine.dire_puis_transferer_a_l_ouverture(destination, start_node_id, fige)
+                else:
+                    garantir = getattr(engine, "garantir_a_l_ouverture", None)
+                    if garantir is not None:
+                        garantir(destination, start_node_id, getattr(resultat, "playback", None))
         except asyncio.CancelledError:
             outcome = request.cancelled_reason or "cancelled"
             raise

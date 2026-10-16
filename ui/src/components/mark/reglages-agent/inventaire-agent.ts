@@ -143,6 +143,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     un_seul_renvoi_par_appel: { theme: "agent", cas: ["agents-renvoi-unique"] },
     passations_max_par_appel: { theme: "agent", cas: ["agents-plafond"] },
     attente: { theme: "voix", cas: ["attente"] },
+    transfert_humain: { theme: "voix", cas: ["transfert-humain"] },
     cerveau_propre: { theme: "briques", cas: ["cerveau-propre"] },
     voicemail_detection: {
         theme: "etablissement",

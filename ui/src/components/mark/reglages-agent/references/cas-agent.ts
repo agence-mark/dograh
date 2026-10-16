@@ -261,6 +261,9 @@ export const CAS_AGENT: CasAgent[] = [
         saisir("attente_phrase_pont", "Un instant."),
         saisir("attente_delai_phrase_pont_s", "3"),
     ], false, PRINCIPAL),
+    c("transfert-humain", "ajout-mark", "voix", ["transfert_humain"], [
+        saisir("attente_phrase_mise_en_relation", "Un instant, je vous mets en relation."),
+    ], false, PRINCIPAL),
     c("cerveau-propre", "ajout-mark", "briques", ["cerveau_propre"], [inter("cerveau_propre")], true, SPECIALISE),
 
     // ---- Model Overrides (Dograh + .mark) ---------------------------------

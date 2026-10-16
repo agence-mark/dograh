@@ -75,11 +75,23 @@ export const extraireAttente = (c: Partial<WorkflowConfigurations>) => {
         transfert_humain: a.transfert_humain ?? true,
         phrase_pont: a.phrase_pont ?? "",
         delai_phrase_pont_s: a.delai_phrase_pont_s ?? null,
+        // Carried by its own key, ``transfert_humain`` (see ``chargeTransfertHumain``).
+        phrase_mise_en_relation: c.transfert_humain?.phrase_mise_en_relation ?? "",
     };
 };
 export type ReglagesAttente = ReturnType<typeof extraireAttente>;
 
 /** Ce que la partie « Attente » écrit : seulement ce qui s'écarte de « rien » (le réglage reste creux). */
+/**
+ * Ce que la partie « Attente » écrit sous ``transfert_humain`` : la phrase seulement si elle est posée ;
+ * vidée après avoir été posée, l'objet vide la remplace (rien d'autre ne l'efface).
+ */
+export const chargeTransfertHumain = (a: ReglagesAttente, enregistree: ReglagesAttente) => {
+    const phrase = a.phrase_mise_en_relation.trim();
+    if (phrase !== "") return { phrase_mise_en_relation: phrase };
+    return enregistree.phrase_mise_en_relation.trim() !== "" ? {} : undefined;
+};
+
 export const chargeAttente = (a: ReglagesAttente): AttenteDuGroupe => ({
     ...(a.son !== null ? { son: a.son } : {}),
     ...(a.duree_min_s !== null ? { duree_min_s: a.duree_min_s } : {}),
@@ -162,6 +174,11 @@ const TEXTES = {
     phrasePontAide: {
         en: "Optional. A short sentence said by the agent handing over, only if the hand-over lasts longer than the delay below: a safety net, not the solution. Never said by a keyboard test, nor towards an agent already built. Empty: none.",
         fr: "Facultative. Une phrase courte dite par l'agent qui passe la main, seulement si la passation dure plus que le délai ci-dessous : un filet, pas la solution. Jamais dite au clavier, ni vers un agent déjà construit. Vide : aucune.",
+    },
+    phraseMiseEnRelation: { en: "Hand-over sentence to a person", fr: "Phrase de mise en relation" },
+    phraseMiseEnRelationAide: {
+        en: "Optional. When a called agent arrives on a step that transfers the call to a person and the business is open, the code says this sentence itself, in that agent's voice, then starts the transfer: the model is not asked for a reply. Empty: the model speaks, as before. If the transfer tool has its own message, that message is said instead. Never said by a keyboard test.",
+        fr: "Facultative. Quand un agent appelé arrive sur une étape qui transfère l'appel vers une personne, entreprise ouverte, le code dit lui-même cette phrase, avec la voix de cet agent, puis lance le transfert : le modèle n'est pas sollicité. Vide : le modèle parle, comme avant. Si l'outil de transfert porte son propre message, c'est lui qui est dit. Jamais dite au clavier.",
     },
     delaiPhrasePont: { en: "Bridge phrase delay (seconds)", fr: "Délai de la phrase pont (secondes)" },
     delaiPhrasePontAide: {
@@ -418,6 +435,19 @@ export const IntertitreAttente = ({
             </ChampReglage>
             <ChampReglage cle="attente.transfert_humain" idControle="attente_transfert_humain" libelle={TEXTES.attenteHumain} aides={[TEXTES.attenteHumainAide]} disposition="ligne">
                 <Switch id="attente_transfert_humain" checked={valeurs.transfert_humain} onCheckedChange={(coche) => onChange("transfert_humain", coche)} />
+            </ChampReglage>
+            <ChampReglage
+                cle="transfert_humain.phrase_mise_en_relation"
+                idControle="attente_phrase_mise_en_relation"
+                libelle={TEXTES.phraseMiseEnRelation}
+                aides={[TEXTES.phraseMiseEnRelationAide]}
+            >
+                <Input
+                    id="attente_phrase_mise_en_relation"
+                    maxLength={300}
+                    value={valeurs.phrase_mise_en_relation}
+                    onChange={(e) => onChange("phrase_mise_en_relation", e.target.value)}
+                />
             </ChampReglage>
             <ChampReglage cle="attente.phrase_pont" idControle="attente_phrase_pont" libelle={TEXTES.phrasePont} aides={[TEXTES.phrasePontAide]}>
                 <Input

@@ -1753,6 +1753,26 @@
         }
       ]
     },
+    "transfert-humain": {
+      "carte": "ajout-mark",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "attente": {
+              "passation": true,
+              "transfert_humain": true
+            },
+            "transfert_humain": {
+              "phrase_mise_en_relation": "Un instant, je vous mets en relation."
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
     "cerveau-propre": {
       "carte": "ajout-mark",
       "theme": "briques",

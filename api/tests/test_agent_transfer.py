@@ -1575,3 +1575,121 @@ async def test_call_shutdown_survives_cancellation_of_the_requesting_task():
     finally:
         release.set()
         await harness.stop()
+
+
+# --------------------------------------------------------------------------
+# [.mark] agents-specialises : à l'arrivée de l'agent appelé sur une étape qui porte un transfert
+# d'appel, entreprise ouverte, le code dit la phrase de mise en relation (réglage
+# ``transfert_humain.phrase_mise_en_relation``) et lance le transfert, sans tour de modèle.
+# --------------------------------------------------------------------------
+
+PHRASE_MISE_EN_RELATION = "Phrase figée de mise en relation."
+OUTIL_DE_TRANSFERT = "transfer_team"
+
+
+async def _arrivee_sur_un_transfert(reglages, *, etat="OUVERT", clavier=False):
+    """Une passation vers un agent dont l'étape de départ porte un transfert d'appel. Rend le banc,
+    les arguments des ouvertures demandées et les fonctions que le code a lancées chez l'agent appelé."""
+    from api.services.workflow.agent_transfer import TransferRequest
+    from api.services.workflow.pipecat_engine import CLE_ETAT_OUVERTURE
+
+    harness = TransferHarness()
+    await harness.build(
+        source_llm=MockLLMService(mock_steps=[]),
+        destination_llm=MockLLMService(mock_steps=[]),
+        source_workflow=build_agent_workflow(name="Source", greeting=None),
+        destination_workflow=build_agent_workflow(
+            name="Destination", greeting=None, tool_uuids=[TRANSFER_TOOL_UUID]
+        ),
+    )
+    engine = harness.engine
+    engine.reglages_appel = dict(reglages)
+    engine._call_context_vars = {**(engine._call_context_vars or {}), CLE_ETAT_OUVERTURE: etat}
+    engine._outil_de_transfert = AsyncMock(return_value=OUTIL_DE_TRANSFERT)
+    engine._outil_de_transfert_a_son_message = AsyncMock(return_value=False)
+    engine.sans_sortie_audio = clavier
+    ouvertures: list[dict] = []
+    fonctions: list = []
+    ouvrir = engine.queue_node_opening
+
+    async def ouverture_espionnee(**kwargs):
+        ouvertures.append(kwargs)
+        return await ouvrir(**kwargs)
+
+    engine.queue_node_opening = ouverture_espionnee
+    construire = engine.build_agent
+
+    async def construire_espionne(**kwargs):
+        runtime = await construire(**kwargs)
+        runtime.llm.run_function_calls = AsyncMock(
+            side_effect=lambda appels: fonctions.extend(a.function_name for a in appels)
+        )
+        return runtime
+
+    engine.build_agent = construire_espionne
+    await harness.start()
+    with patch(
+        "api.services.workflow.pipecat_engine_custom_tools.db_client.get_tools_by_uuids",
+        new_callable=AsyncMock,
+        return_value=[TransferAgentTool()],
+    ):
+        engine._get_organization_id = AsyncMock(return_value=1)
+        coordinateur = engine.transfer_coordinator
+        demande = TransferRequest(
+            destination_workflow_id=DESTINATION_WORKFLOW_ID,
+            destination_label="Destination",
+            origin_visit_id=engine.active_agent.visit_id,
+            play_greeting=False,
+        )
+        assert coordinateur.accept(demande)
+        coordinateur.start(demande)
+        await asyncio.wait_for(coordinateur._task, 20)
+        await asyncio.sleep(0.5)
+    assert coordinateur.completed[-1]["outcome"] == "completed"
+    return harness, ouvertures, fonctions
+
+
+@pytest.mark.asyncio
+async def test_arrivee_sur_un_transfert_ouvert_la_phrase_est_dite_puis_le_transfert_part():
+    harness, ouvertures, fonctions = await _arrivee_sur_un_transfert(
+        {"transfert_humain": {"phrase_mise_en_relation": PHRASE_MISE_EN_RELATION}}
+    )
+    try:
+        # Dite par la voix de l'agent appelé, et aucun tour de modèle demandé pour cette ouverture.
+        assert ("destination", PHRASE_MISE_EN_RELATION) in harness.speech.lines
+        assert [o["generate_if_no_greeting"] for o in ouvertures] == [False]
+        # Le code a lancé le transfert, une seule fois, une fois la phrase jouée.
+        assert fonctions == [OUTIL_DE_TRANSFERT]
+    finally:
+        await harness.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "reglages,etat,clavier",
+    [
+        ({"transfert_humain": {"phrase_mise_en_relation": PHRASE_MISE_EN_RELATION}}, "FERME", False),
+        ({}, "OUVERT", False),
+        ({"transfert_humain": {"phrase_mise_en_relation": ""}}, "OUVERT", False),
+        ({"transfert_humain": {"phrase_mise_en_relation": PHRASE_MISE_EN_RELATION}}, "OUVERT", True),
+    ],
+    ids=["ferme", "reglage absent", "reglage vide", "clavier"],
+)
+async def test_arrivee_sur_un_transfert_ferme_ou_sans_reglage_ou_au_clavier_le_modele_parle(
+    reglages, etat, clavier
+):
+    harness, ouvertures, fonctions = await _arrivee_sur_un_transfert(
+        reglages, etat=etat, clavier=clavier
+    )
+    try:
+        assert ("destination", PHRASE_MISE_EN_RELATION) not in harness.speech.lines
+        # Comportement d'avant : le modèle de l'agent appelé ouvre (ou, au clavier, son ouverture
+        # est jouée au passage suivant), et le code ne lance aucun transfert.
+        engine = harness.engine
+        if clavier:
+            assert engine.ouverture_differee["generate_if_no_greeting"] is True
+        else:
+            assert [o["generate_if_no_greeting"] for o in ouvertures] == [True]
+        assert fonctions == []
+    finally:
+        await harness.stop()

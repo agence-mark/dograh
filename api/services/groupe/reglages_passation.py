@@ -7,6 +7,8 @@ Quatre réglages, lus sur les réglages de l'APPEL (ceux du principal, ``engine.
 - ``passation_sans_resume_jusqua`` : sous ce nombre de messages de conversation, l'agent appelé
   reçoit l'historique tel quel, sans appel au modèle de résumé ;
 - ``un_seul_renvoi_par_appel`` : après un renvoi vers un humain échoué, aucun autre renvoi ;
+- ``transfert_humain.phrase_mise_en_relation`` : la phrase dite par le code à l'arrivée d'un agent
+  appelé sur un transfert d'appel (``phrase_de_mise_en_relation``) ;
 - ``attente`` : le son d'attente, où il s'applique, et la phrase pont (un filet dit par l'agent qui
   passe la main quand la passation dure plus de ``delai_phrase_pont_s``).
 
@@ -31,6 +33,8 @@ CLE_PRECHAUFFAGE = "prechauffage_agents"
 CLE_SANS_RESUME = "passation_sans_resume_jusqua"
 CLE_RENVOI_UNIQUE = "un_seul_renvoi_par_appel"
 CLE_ATTENTE = "attente"
+CLE_TRANSFERT_HUMAIN = "transfert_humain"
+CLE_PHRASE_MISE_EN_RELATION = "phrase_mise_en_relation"
 
 SANS_RESUME_DEFAUT = 40
 DUREE_MIN_DEFAUT_S = 1.2
@@ -43,6 +47,19 @@ LIGNE_RENVOI_DEJA_ECHOUE = (
     "Un transfert a déjà échoué dans cet appel : tu ne proposes pas de mise en relation, "
     "tu prends la demande toi-même."
 )
+
+
+def phrase_de_mise_en_relation(reglages: Mapping[str, Any] | None) -> str:
+    """``transfert_humain.phrase_mise_en_relation`` : la phrase que le code dit lui-même quand un
+    agent appelé arrive sur une étape qui porte un transfert d'appel, entreprise ouverte, avant
+    de lancer le transfert. Vide ou illisible : « » (le modèle parle, comme avant). ⛔ Ne lève
+    jamais ; jamais une constante : la phrase est toujours un réglage écrit par nous."""
+    try:
+        brut = (reglages or {}).get(CLE_TRANSFERT_HUMAIN)
+        phrase = brut.get(CLE_PHRASE_MISE_EN_RELATION) if isinstance(brut, Mapping) else None
+        return phrase.strip() if isinstance(phrase, str) else ""
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _booleen(valeur: Any) -> bool | None:
