@@ -248,7 +248,7 @@ def test_specialiste_mission_de_depart_et_sortie_de_retour():
     d = appliquer(_definition_specialiste(), True, True, TYPE_SPECIALISTE)
     assert _bloc(d) == (
         "# Ton équipe\n"
-        "Tu es un spécialiste de la mission a. "
+        "Ton rôle : un spécialiste de la mission a. "
         "Tu reçois un appel déjà commencé : tout ce qui a été dit compte. "
         "Pour rendre la main à l'accueil, tu écris la sortie Demande, "
         "dès que la demande n'est pas la tienne ou que ton travail est fini.\n\n"
@@ -587,5 +587,5 @@ async def test_traversant_le_specialiste_recoit_son_bloc_equipe_case_eteinte(
             {"workflow_definition": definition, "workflow_configurations": {"agent_principal_id": workflow.id + 1000}},
         )
     global_ = _prompt((await db_session.get_draft_version(workflow.id)).workflow_json, "global")
-    assert "Tu es un spécialiste de la mission a." in global_
+    assert "Ton rôle : un spécialiste de la mission a." in global_
     assert "tu écris la sortie Demande" in global_ and "# Tes étapes" in global_

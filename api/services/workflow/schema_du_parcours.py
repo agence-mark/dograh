@@ -152,7 +152,7 @@ def _equipe_specialiste(etapes: list[dict]) -> list[str]:
     retours = [
         _nom(n) for n in etapes if (n.get("data") or {}).get(MARQUEUR_RETOUR) is True
     ]
-    phrases = [f"Tu es {mission}."] if mission else []
+    phrases = [f"Ton rôle : {mission}."] if mission else []
     phrases.append("Tu reçois un appel déjà commencé : tout ce qui a été dit compte.")
     if retours:
         # Plusieurs étapes marquées : toutes sont citées, chacune est une sortie valable.
