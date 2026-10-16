@@ -169,18 +169,38 @@ class FinFigeeDTO(BaseModel):
     """[.mark] Une ligne des phrases de fin figées (A17) : si le champ de la fiche est
     rempli (ou vaut ``vaut``), cette phrase ; sans champ, la phrase par défaut."""
 
-    champ: Optional[str] = None
-    vaut: Optional[str] = None
-    phrase: str = Field(min_length=1, max_length=1000)
+    champ: Optional[str] = spec_field(
+        default=None,
+        ui_type=PropertyType.string,
+        display_name="Record field",
+        description="Name of a field of the call record. Empty: the default sentence.",
+    )
+    vaut: Optional[str] = spec_field(
+        default=None,
+        ui_type=PropertyType.string,
+        display_name="Equals",
+        description="The value the field must hold. Empty: the field only has to be filled.",
+    )
+    phrase: str = spec_field(
+        ...,
+        min_length=1,
+        max_length=1000,
+        ui_type=PropertyType.string,
+        display_name="Sentence",
+        description="Spoken as is, then the call ends.",
+        required=True,
+    )
 
 
 class _FinsFigeesNodeDataMixin(BaseModel):
     # [.mark] Chantier agents-specialises (lot 2, A17) : la liste ordonnée des phrases
     # de fin du nœud de fin. Le code dit la première dont la condition sur la fiche
     # est vraie, sans tour de modèle. Vide = comportement d'avant (la zone de texte).
+    # Après le banc du 16/10 (C6, Evan) : réglable dans la fenêtre du nœud de fin, pour qu'un
+    # spécialisé puisse porter la fin d'appel par la seule configuration à l'écran.
     fins: Optional[List[FinFigeeDTO]] = spec_field(
         default=None,
-        spec_exclude=True,
+        display_name="Fixed closing sentences",
         description=(
             "Ordered closing sentences: the first whose condition on the call record "
             "holds is spoken as is; a line without a field is the default."
