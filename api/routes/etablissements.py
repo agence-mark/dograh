@@ -143,6 +143,8 @@ class DemandeEtablissementsDeLagent(BaseModel):
     workflow_id: int
     horaires_ouverture: str | None = Field(default=None, description="The agent's own hours, as on its screen.")
     adresse_etablissement: dict | None = Field(default=None, description="The agent's own address, as on its screen.")
+    # [.mark] Chantier agents-specialises, lot 1 (F1).
+    etablissement_id: str | None = Field(default=None, description="The fiche the agent chose, as on its screen.")
 
 
 @router.post("/agent", response_model=EtablissementsDeLagent)
@@ -177,6 +179,7 @@ async def post_etablissements_de_lagent(
         {
             "horaires_ouverture": request.horaires_ouverture,
             "adresse_etablissement": request.adresse_etablissement,
+            "etablissement_id": request.etablissement_id,
         },
         texte_adresse(adresse_org) if adresse_org else None,
         await lire_annonce_ouverture(organization_id),

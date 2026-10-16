@@ -26,7 +26,9 @@ a call.
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -103,6 +105,20 @@ class Etablissement(BaseModel):
         max_length=MAX_LONGUEUR_ANNONCE,
         description="None: the organization's break announcement.",
     )
+    # [.mark] Chantier agents-specialises, lot 1 (F4, C5) : la fermeture immédiate de la
+    # fiche, même forme que celle de l'organisation. Elle l'emporte pour les agents de
+    # la fiche ; sinon celle de l'organisation (« tout fermer ») s'applique.
+    etat_force: Literal["OUVERT", "PAUSE", "FERME", "SUR_RENDEZ_VOUS"] | None = Field(
+        default=None,
+        description=(
+            "The state every agent of this fiche is in, whatever the hours say "
+            "(OUVERT, PAUSE, FERME, SUR_RENDEZ_VOUS). None: the organization's, else the hours."
+        ),
+    )
+    etat_force_jusqu_a: datetime | None = Field(
+        default=None,
+        description="When this fiche's forced state lifts itself, Paris time. None: until changed.",
+    )
 
     phrases: dict[str, str] = Field(
         default_factory=dict,
@@ -130,6 +146,23 @@ class Etablissement(BaseModel):
                     raise ValueError(f"The sentence « {cle} » is longer than {MAX_LONGUEUR_PHRASE} characters.")
                 propres[cle] = contenu.strip()
         return propres
+
+    @field_validator("etat_force_jusqu_a")
+    @classmethod
+    def _fin_en_heure_de_paris(cls, value: datetime | None) -> datetime | None:
+        """[.mark] Lot 1 : comme la fermeture de l'organisation, une heure de Paris sans décalage."""
+        if value is None or value.tzinfo is None:
+            return value
+        return value.astimezone(ZoneInfo("Europe/Paris")).replace(tzinfo=None)
+
+    @model_validator(mode="after")
+    def _une_fin_suppose_une_fermeture(self):
+        """[.mark] Lot 1 : une date de fin sans état forcé ne veut rien dire (refusée)."""
+        if self.etat_force_jusqu_a is not None and self.etat_force is None:
+            raise ValueError(
+                "An end date means nothing without a forced state: choose a state, or clear the date."
+            )
+        return self
 
     @field_validator("id")
     @classmethod
@@ -205,7 +238,7 @@ class CatalogueEtablissements(BaseModel):
         return self
 
 
-OrigineValeur = Literal["agent", "etablissement", "organisation", "aucune"]
+OrigineValeur = Literal["agent", "etablissement", "organisation", "aucune", "fiche"]
 
 
 class ValeurHeritee(BaseModel):
@@ -235,6 +268,18 @@ class EtablissementsDeLagent(BaseModel):
     numeros_sans_etablissement: list[str] = Field(
         default_factory=list,
         description="Numbers of this agent attached to no establishment: their calls behave as before.",
+    )
+    # [.mark] Chantier agents-specialises, lot 1 (F1) : la fiche choisie par l'agent.
+    fiche_de_lagent: str | None = Field(
+        default=None,
+        description=(
+            "The fiche this agent chose (its establishment_id). Set: its calls read this "
+            "fiche alone (no inheritance); the list then holds that fiche only."
+        ),
+    )
+    fiche_introuvable: bool = Field(
+        default=False,
+        description="The chosen fiche no longer exists: the agent's calls read no establishment.",
     )
 
 

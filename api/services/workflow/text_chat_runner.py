@@ -51,6 +51,7 @@ from api.services.annonce.stockage import lire_annonce_ouverture
 from api.services.equipe.appel import injecter_equipe
 from api.services.etablissements.appel import (
     annonce_heritee,
+    CLE_FICHE_DE_LAGENT,
     configuration_heritee,
     injecter_etablissement,
     lire_lappel,
@@ -719,14 +720,24 @@ async def execute_text_chat_pending_turn(
     # the agent's first, else the organization's first. Same inheritance as a
     # call; no establishment, the same configuration comes back.
     lecture_de_lappel = await lire_lappel(
-        workflow.organization_id, workflow_id, initial_context
+        workflow.organization_id,
+        workflow_id,
+        initial_context,
+        # [.mark] Lot 1 d'agents-specialises (F1) : la fiche choisie par l'agent.
+        fiche_choisie=run_configs.get(CLE_FICHE_DE_LAGENT),
     )
     etablissement_servi = lecture_de_lappel.servi
+    # [.mark] Lot 1 d'agents-specialises (F3, C3) : une fiche n'hérite de rien.
+    sans_heritage = bool(etablissement_servi and etablissement_servi.sans_heritage)
     configs_heritees, origines_heritees = configuration_heritee(
-        run_configs, etablissement_servi.etablissement if etablissement_servi else None
+        run_configs,
+        etablissement_servi.etablissement if etablissement_servi else None,
+        sans_heritage=sans_heritage,
     )
     reglages_annonce = annonce_heritee(
-        reglages_annonce, etablissement_servi.etablissement if etablissement_servi else None
+        reglages_annonce,
+        etablissement_servi.etablissement if etablissement_servi else None,
+        sans_heritage=sans_heritage,
     )
     if etablissement_servi is not None:
         etablissement_servi.origines.update(origines_heritees)
