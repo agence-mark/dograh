@@ -9,6 +9,9 @@ import { useWorkflow } from "@/app/workflow/[workflowId]/contexts/WorkflowContex
 import type { NodeSpec } from "@/client/types.gen";
 import { DocumentBadges } from "@/components/flow/DocumentBadges";
 import { NodeEditForm, useNodeSpecs } from "@/components/flow/renderer";
+import { BriqueAgent } from "@/components/mark/graphe/BriqueAgent";
+import { PhrasesDeFin, type FinFigee } from "@/components/mark/graphe/PhrasesDeFin";
+import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
 import { ToolBadges } from "@/components/flow/ToolBadges";
 import { FlowNodeData } from "@/components/flow/types";
 import { Button } from "@/components/ui/button";
@@ -491,7 +494,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         id,
         additionalData,
     });
-    const { saveWorkflow, tools, documents, recordings, champsFiche } = useWorkflow();
+    const { saveWorkflow, tools, documents, recordings, champsFiche, agentPrincipalId, estPrincipal } = useWorkflow();
     const { bySpecName } = useNodeSpecs();
     const { config: appConfig } = useAppConfig();
     const spec = bySpecName.get(type);
@@ -503,7 +506,14 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
     const seed = useCallback(
         () =>
             spec
-                ? { ...seedValues(data, spec), mcp_tool_filters: data.mcp_tool_filters }
+                ? {
+                      ...seedValues(data, spec),
+                      mcp_tool_filters: data.mcp_tool_filters,
+                      // [.mark] Lot 12: two node data the generated form does not draw (their widgets
+                      // are ours): the return to the main agent, and the closing sentences.
+                      retour_au_principal: data.retour_au_principal,
+                      fins: data.fins,
+                  }
                 : {},
         [data, spec],
     );
@@ -579,6 +589,8 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         if (!spec) return false;
         const baseline = seedValues(data, spec);
         if (propertyNames.some((n) => values[n] !== baseline[n])) return true;
+        if ((values.retour_au_principal ?? false) !== (data.retour_au_principal ?? false)) return true;
+        if (JSON.stringify(values.fins ?? null) !== JSON.stringify(data.fins ?? null)) return true;
         return (
             JSON.stringify(values.mcp_tool_filters ?? {}) !==
             JSON.stringify(data.mcp_tool_filters ?? {})
@@ -689,6 +701,11 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                             spec={spec}
                             values={values}
                             onChange={setValues}
+                            masquer={
+                                type === "endCall" && estPrincipal && Array.isArray(values.fins) && values.fins.length > 0
+                                    ? ["prompt"]
+                                    : []
+                            }
                             context={{
                                 tools: tools ?? [],
                                 documents: documents ?? [],
@@ -708,6 +725,30 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                                     })),
                             }}
                         />
+                        {(type === "agentNode" || type === "startCall") && (
+                            <BriqueAgent
+                                outilsUuids={(values.tool_uuids as string[] | undefined) ?? []}
+                                onChange={(uuids) =>
+                                    setValues((prev) => ({ ...prev, tool_uuids: uuids.length > 0 ? uuids : undefined }))
+                                }
+                            />
+                        )}
+                        {type === "agentNode" && typeof agentPrincipalId === "number" && (
+                            <RetourAuPrincipal
+                                agentPrincipalId={agentPrincipalId}
+                                coche={values.retour_au_principal === true}
+                                onChange={(coche) =>
+                                    setValues((prev) => ({ ...prev, retour_au_principal: coche ? true : undefined }))
+                                }
+                            />
+                        )}
+                        {type === "endCall" && estPrincipal && (
+                            <PhrasesDeFin
+                                fins={values.fins as FinFigee[] | undefined}
+                                champsFiche={champsFiche ?? []}
+                                onChange={(fins) => setValues((prev) => ({ ...prev, fins }))}
+                            />
+                        )}
                         {type === "trigger" && (
                             <TriggerWebhookUrls
                                 endpoints={buildTriggerEndpoints(data.trigger_path, webhookBaseUrl)}

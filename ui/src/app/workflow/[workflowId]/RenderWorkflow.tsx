@@ -567,6 +567,13 @@ function RenderWorkflow({
                 .filter((n): n is string => typeof n === "string" && n !== ""),
         [workflowConfigurations?.fiche_champs],
     );
+    // [.mark] Lot 12 (agents-specialises): the place of this agent in its group, for the node windows.
+    const agentPrincipalId =
+        typeof workflowConfigurations?.agent_principal_id === 'number' ? workflowConfigurations.agent_principal_id : null;
+    const estPrincipal = Array.isArray(workflowConfigurations?.agents_specialises);
+    const ajouterOutil = useCallback((tool: ToolResponse) => {
+        setTools((prev) => (prev?.some((t) => t.tool_uuid === tool.tool_uuid) ? prev : [...(prev ?? []), tool]));
+    }, []);
     const workflowContextValue = useMemo(() => ({
         saveWorkflow: guardedSaveWorkflow,
         documents,
@@ -575,6 +582,10 @@ function RenderWorkflow({
         recordings,
         readOnly: isViewingHistoricalVersion,
         champsFiche,
+        workflowId,
+        agentPrincipalId,
+        estPrincipal,
+        ajouterOutil,
     }), [
         guardedSaveWorkflow,
         documents,
@@ -583,6 +594,10 @@ function RenderWorkflow({
         recordings,
         champsFiche,
         isViewingHistoricalVersion,
+        workflowId,
+        agentPrincipalId,
+        estPrincipal,
+        ajouterOutil,
     ]);
 
     return (
