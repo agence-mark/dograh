@@ -24,8 +24,10 @@ import { useWorkflowState } from "@/app/workflow/[workflowId]/hooks/useWorkflowS
 import {
     getModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Get,
     getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet,
+    lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet,
 } from "@/client/sdk.gen";
 import type {
+    GroupeResponse,
     ModelConfigurationPricingResponse,
     OrganizationAiModelConfigurationResponse,
     WorkflowResponse,
@@ -41,6 +43,7 @@ import { resolveWorkflowConfigurations, type WorkflowConfigurations } from "@/ty
 import { NavigationThemes } from "../ecran/NavigationThemes";
 import { useThemesOuverts } from "../ecran/useThemesOuverts";
 import { etapesSansPremiereReplique } from "../graphe/premiere-replique";
+import { ContexteGroupe, type ValeurGroupe } from "../groupe/contexte-groupe";
 import { useLangue } from "../langue/langue";
 import { ContexteErreursThemes } from "./theme-commun";
 import { ID_THEME_AGENT, ThemeAgent, TITRE_AGENT } from "./ThemeAgent";
@@ -142,6 +145,37 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
     const resolue = workflowConfigurations ? resolveWorkflowConfigurations(workflowConfigurations) : null;
     const nom = workflowName || workflow.name;
 
+    // [.mark] Lots 10 and 12 (A10): the group of this agent, read once, for the lists and the links of the
+    // group's settings. A lone agent never asks. A failure leaves the page as for a lone agent's lists.
+    const dansUnGroupe = resolue
+        ? Array.isArray(resolue.agents_specialises) || typeof resolue.agent_principal_id === "number"
+        : false;
+    const [groupeLu, setGroupeLu] = useState<GroupeResponse | null>(null);
+    useEffect(() => {
+        if (!dansUnGroupe) return;
+        let annule = false;
+        (async () => {
+            try {
+                const reponse = await lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet({ path: { workflow_id: workflowId } });
+                if (!annule && reponse.data) setGroupeLu(reponse.data);
+            } catch {
+                // The lists stay empty: the settings themselves do not depend on it.
+            }
+        })();
+        return () => {
+            annule = true;
+        };
+    }, [dansUnGroupe, workflowId]);
+    const valeurGroupe = useMemo<ValeurGroupe>(
+        () => ({
+            specialiseDe: typeof resolue?.agent_principal_id === "number" ? resolue.agent_principal_id : null,
+            principalNom: groupeLu?.principal?.name ?? null,
+            cerveauPropre: resolue?.cerveau_propre === true,
+            membres: (groupeLu?.specialises ?? []).map((m) => ({ id: m.id, name: m.name, cerveau_propre: m.cerveau_propre })),
+        }),
+        [resolue?.agent_principal_id, resolue?.cerveau_propre, groupeLu],
+    );
+
     useEffect(() => {
         if (hasFetchedModelConfiguration.current) return;
         hasFetchedModelConfiguration.current = true;
@@ -200,6 +234,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                 </div>
             </header>
 
+            <ContexteGroupe.Provider value={valeurGroupe}>
             <ContexteErreursThemes.Provider value={signalerErreur}>
                 <div className="mx-auto flex max-w-5xl gap-8 px-6 py-8">
                     <div className="min-w-0 flex-1 space-y-4">
@@ -254,6 +289,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                     />
                 </div>
             </ContexteErreursThemes.Provider>
+            </ContexteGroupe.Provider>
 
             {resolue && (
                 <EmbedDialog

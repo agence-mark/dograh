@@ -1664,6 +1664,107 @@
           "retirees": []
         }
       ]
+    },
+    "agents-prechauffage": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "prechauffage_agents": false,
+            "passation_sans_resume_jusqua": 40,
+            "un_seul_renvoi_par_appel": true,
+            "passations_max_par_appel": 6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "agents-sans-resume": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "prechauffage_agents": true,
+            "passation_sans_resume_jusqua": 60,
+            "un_seul_renvoi_par_appel": true,
+            "passations_max_par_appel": 6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "agents-renvoi-unique": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "prechauffage_agents": true,
+            "passation_sans_resume_jusqua": 40,
+            "un_seul_renvoi_par_appel": false,
+            "passations_max_par_appel": 6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "agents-plafond": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "prechauffage_agents": true,
+            "passation_sans_resume_jusqua": 40,
+            "un_seul_renvoi_par_appel": true,
+            "passations_max_par_appel": 8
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "attente": {
+      "carte": "ajout-mark",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "attente": {
+              "duree_min_s": 2.5,
+              "passation": true,
+              "transfert_humain": false,
+              "phrase_pont": "Un instant."
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "cerveau-propre": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "cerveau_propre": true
+          },
+          "retirees": []
+        }
+      ]
     }
   }
 }
