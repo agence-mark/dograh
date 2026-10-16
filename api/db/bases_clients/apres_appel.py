@@ -50,14 +50,17 @@ async def destinataires_de(
         )
         if lignes:
             return [dict(r) for r in lignes]
+    # [.mark] Lot 8 (M5) : une personne sur plusieurs lieux reçoit le courriel de chacun de ses lieux.
+    from api.db.bases_clients.equipe import au_lieu_de
+
+    au_lieu, toute_l_entreprise = await au_lieu_de(connexion, "p", "$1")
     lignes = await connexion.fetch(
-        """
+        f"""
         SELECT p.cle, p.prenom, p.nom, p.mail
         FROM mark.personne p
-        LEFT JOIN mark.site s ON s.id = p.site_id
         WHERE p.actif AND p.destinataire_defaut AND coalesce(p.mail, '') <> ''
-          AND (p.site_id IS NULL OR s.cle = $1)
-        ORDER BY (p.site_id IS NULL), p.id
+          AND {au_lieu}
+        ORDER BY ({toute_l_entreprise}), p.id
         """,
         etablissement,
     )

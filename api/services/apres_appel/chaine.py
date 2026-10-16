@@ -191,10 +191,60 @@ async def _base(organization_id: int):
         raise EtapeEnEchec(str(erreur)) from None
 
 
+async def _nom_de_l_agent(organization_id: int, workflow_id: int) -> str | None:
+    """Le nom d'un agent de CETTE organisation (jamais un agent d'une autre)."""
+    workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
+    return getattr(workflow, "name", None) if workflow else None
+
+
+async def _traces_de_l_appel(ctx: ContexteModule, connexion, resultat: dict, bloc: dict) -> None:
+    """[.mark] Chantier agents-specialises, lots 8 et 9 : ce que le portail lit à côté de l'appel,
+    écrit après lui, rejouable : les incidents de l'appel, l'issue de chaque transfert (D82), et
+    l'écriture elle-même quand elle a échoué avant d'aboutir (la base du client était injoignable).
+    Jamais une raison de rater l'écriture de l'appel."""
+    appel_id = resultat.get("appel_id")
+    if not appel_id:
+        return
+    try:
+        from api.db.bases_clients import traces
+
+        envoi = ctx.envoi
+        await traces.ecrire_incidents(connexion, appel_id, envoi.get("incidents") or [])
+        await traces.ecrire_issues_de_transfert(
+            connexion,
+            appel_id,
+            resultat.get("demande_id"),
+            envoi.get("transferts") or [],
+            envoi.get("debut"),
+        )
+        avant = (bloc.get("etapes") or {}).get("ecriture") or {}
+        if avant.get("statut") == "echec":
+            await traces.noter_incident(
+                connexion,
+                appel_id=appel_id,
+                brique="base_client",
+                cause="ecriture_de_l_appel_en_echec_puis_reprise",
+                debut=avant.get("le"),
+                fin=_maintenant(),
+                correctif="écriture reprise par l'après-appel",
+            )
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Traces of call {appel_id} not written: {erreur!r}")
+
+
 async def _ecriture(ctx: ContexteModule, bloc: dict) -> dict:
     connexion = await _base(ctx.organization_id)
     try:
+        # [.mark] Lot 8 (D83) : les agents appelés arrivent avec le nom que Dograh leur connaît.
+        if len(ctx.envoi.get("agents") or []) > 1:
+            from api.db.bases_clients.traces import noms_des_agents_manquants
+
+            ctx.envoi["agents"] = await noms_des_agents_manquants(
+                ctx.envoi["agents"],
+                lambda workflow_id: _nom_de_l_agent(ctx.organization_id, workflow_id),
+            )
         resultat = await sql.recevoir_appel(connexion, ctx.envoi)
+        await _traces_de_l_appel(ctx, connexion, resultat, bloc)
         # l-agent-collegue, L2 (C8, C10): the assignee and the transfers, idempotent.
         if ctx.envoi.get("equipe"):
             from api.db.bases_clients.gestes import ecrire_gestes
@@ -718,6 +768,27 @@ async def _signaler(
     envoyes = await notifier(
         organization_id, f"Après-appel en échec : {etape}, appel {run.id}", texte
     )
+    # [.mark] Lot 9 : une action d'après-appel en échec définitif est un incident pour le portail
+    # (si la base du client répond ; sinon, il n'y a nulle part où l'écrire).
+    try:
+        from api.db.bases_clients import traces
+
+        connexion = await _base(organization_id)
+        try:
+            appel_id = await connexion.fetchval(
+                "SELECT id FROM mark.appel WHERE dograh_run_id = $1", run.id
+            )
+            await traces.noter_incident(
+                connexion,
+                appel_id=appel_id,
+                brique=f"apres_appel:{etape}",
+                cause=message,
+                correctif="relance manuelle possible (« Retry » dans la fenêtre du run)",
+            )
+        finally:
+            await connexion.close()
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Incident of step {etape} (run {run.id}) not written: {erreur!r}")
     await db_client.fusionner_apres_appel(
         run.id, etape=etape, valeur={"notifie_a": envoyes, "notifie_le": _maintenant()}
     )

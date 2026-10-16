@@ -159,7 +159,9 @@ async def base_essai(monkeypatch):
                 "SELECT rolname FROM pg_roles WHERE rolname LIKE $1", rf"{nom}\_p\_%"
             ):
                 await connexion.execute(f'DROP ROLE IF EXISTS "{role["rolname"]}"')
-            for suffixe in ("salarie", "direction", "interface", "ecriture"):
+            # agents-specialises, lot 8 (015): the portal's connection, then its group.
+            await connexion.execute(f'DROP ROLE IF EXISTS "{nom}_portail_c"')
+            for suffixe in ("portail", "salarie", "direction", "interface", "ecriture"):
                 await connexion.execute(f'DROP ROLE IF EXISTS "{nom}_{suffixe}"')
         finally:
             await connexion.close()
@@ -279,6 +281,8 @@ async def test_creer_puis_mettre_a_niveau_napplique_rien_deux_fois(base_essai):
             f"{base_essai}_direction",
             # 009 (l-agent-collegue): the group of the employees' logins.
             f"{base_essai}_salarie",
+            # 015 (agents-specialises, lot 8): the group of the portal's connection.
+            f"{base_essai}_portail",
         }
     finally:
         await connexion.close()

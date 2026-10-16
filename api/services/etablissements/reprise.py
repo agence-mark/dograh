@@ -293,3 +293,8 @@ async def ecrire_rattachements(organization_id: int, agents: dict[int, str]) -> 
         workflow_updates=workflow_updates,
         definition_updates=definition_updates,
     )
+    # [.mark] Lot 8 : la base du client apprend la fiche de chaque agent repris (agent_site).
+    from api.services.base_client.agents import synchroniser_agent_site
+
+    for workflow_id, fiche in agents.items():
+        await synchroniser_agent_site(organization_id, workflow_id, None, fiche)

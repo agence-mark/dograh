@@ -42,6 +42,119 @@ def _texte(valeur: Any) -> str | None:
     return str(valeur)
 
 
+def _motifs(brut: Any) -> list[str]:
+    """[.mark] Chantier agents-specialises, lot 8 (A8) : les motifs d'un appel. Une liste, ou une
+    chaîne dont les valeurs sont séparées par « ; » (le greffier du lot 7 écrit une liste de la
+    liste fermée) ; une chaîne sans « ; » est un seul motif, comme avant. Le premier est le
+    motif de l'appel ; vides et doublons tombent."""
+    if isinstance(brut, (list, tuple)):
+        morceaux = [str(v) for v in brut if v not in (None, "")]
+    elif isinstance(brut, str):
+        morceaux = brut.split(";")
+    else:
+        texte = _texte(brut)
+        morceaux = [texte] if texte else []
+    propres: list[str] = []
+    for morceau in morceaux:
+        morceau = morceau.strip()
+        if morceau and morceau not in propres:
+            propres.append(morceau)
+    return propres
+
+
+# Ce que l'analyse du run appelle un incident et qui en est un pour le portail (lot 9) : une panne
+# ou un repli, pas un silence un peu long ni un tour lent.
+INCIDENTS_RETENUS = frozenset(
+    {
+        "pipeline_error",
+        "model_rate_limited",
+        "provider_disconnected",
+        "provider_error",
+        "outage_fallback",
+        "model_timeout",
+        "tool_never_finished",
+    }
+)
+# Les détails qui portent des chiffres (durées, tentatives) ne servent pas à reconnaître un incident.
+_KINDS_SANS_DETAIL = frozenset({"model_timeout"})
+
+
+def incidents_de(analyse: dict, debut: datetime) -> list[dict]:
+    """[.mark] Lot 9 : les incidents de l'appel, tels que ``mark.noter_incident`` les range (une
+    brique et une cause ; la même brique et la même cause dans les 30 minutes = le même
+    incident, plusieurs appels). Jamais une valeur dite par l'appelant : la brique et le type."""
+    elements = ((analyse or {}).get("incidents") or {}).get("items") or []
+    sortie: list[dict] = []
+    vus: set[tuple] = set()
+    for e in elements:
+        if not isinstance(e, dict):
+            continue
+        kind = str(e.get("kind") or "")
+        if kind not in INCIDENTS_RETENUS and not e.get("fatal"):
+            continue
+        brique = str(e.get("processor") or kind)[:100]
+        detail = e.get("detail")
+        cause = kind
+        if kind not in _KINDS_SANS_DETAIL and isinstance(detail, str) and detail.strip():
+            cause = f"{kind} : {detail.strip()}"[:200]
+        cle = (brique, cause)
+        if cle in vus:
+            continue
+        vus.add(cle)
+        sortie.append({"brique": brique, "cause": cause, "debut": debut.isoformat()})
+    return sortie
+
+
+def agents_de_l_appel(run, contexte: dict) -> list[dict]:
+    """[.mark] Lot 8 (D83) : les agents de l'appel dans l'ordre -- celui qui a décroché, puis
+    chaque agent atteint par une passation (une passation partie : l'agent cible existe). Le nom
+    des agents appelés est rempli par l'étape d'écriture (rien dans la trace)."""
+    premier = {
+        "dograh_workflow_id": run.workflow_id,
+        "nom": getattr(getattr(run, "workflow", None), "name", None),
+    }
+    agents = [premier]
+    for passation in (contexte or {}).get("agent_transfers") or []:
+        if not isinstance(passation, dict) or passation.get("to_visit_id") is None:
+            continue
+        vers = passation.get("destination_workflow_id")
+        if isinstance(vers, int) and not isinstance(vers, bool):
+            agents.append({"dograh_workflow_id": vers, "nom": None})
+    return agents
+
+
+def transferts_de(contexte: dict) -> list[dict]:
+    """[.mark] Lot 9 (D82) : les issues des transferts vers un humain et des renvois, telles que la
+    fiche les porte (``transferts_humains`` du lot 5, ``transferts`` des renvois). Une entrée :
+    ``{le, cible, issue}``."""
+    sortie: list[dict] = []
+    for cle in ("transferts_humains", "transferts"):
+        for e in (contexte or {}).get(cle) or []:
+            if isinstance(e, dict) and e.get("issue"):
+                sortie.append(
+                    {
+                        "le": e.get("le"),
+                        "cible": e.get("cible"),
+                        "issue": str(e.get("issue"))[:40],
+                    }
+                )
+    return sortie
+
+
+def hors_horaires_de(initial: dict) -> bool | None:
+    """[.mark] Lot 9 : l'appel a-t-il été pris hors des horaires ? L'état d'ouverture est calculé une
+    fois au décroché (``etat_ouverture`` du contexte initial). Fermé ou en pause = hors horaires ;
+    ouvert ou sur rendez-vous = non ; inconnu (aucun horaire réglé) = ``None``, jamais « non »."""
+    from api.services.annonce.constantes import FERME, OUVERT, PAUSE, SUR_RENDEZ_VOUS
+
+    etat = (initial or {}).get("etat_ouverture")
+    if etat in (FERME, PAUSE):
+        return True
+    if etat in (OUVERT, SUR_RENDEZ_VOUS):
+        return False
+    return None
+
+
 def _sans_accents(texte: str) -> str:
     return "".join(
         c
@@ -124,9 +237,11 @@ def construire_envoi(
     def valeur(role: str) -> str | None:
         return _texte(fiche.get(agent.champ(role)))
 
-    motif = valeur("motif")
+    # [.mark] Lot 8 (A8) : un appel peut porter plusieurs motifs ; le premier reste « le motif ».
+    motifs = _motifs(fiche.get(agent.champ("motif")))
+    motif = motifs[0] if motifs else None
     type_demande = valeur("type_demande")
-    sujet = choisir_sujet(sujets or [], motif, type_demande)
+    sujet = choisir_sujet(sujets or [], " ; ".join(motifs) or None, type_demande)
 
     entrant = (getattr(run, "call_type", None) or "inbound") != "outbound"
     appelant = initial.get("caller_number") if entrant else initial.get("called_number")
@@ -299,6 +414,11 @@ def construire_envoi(
         or contexte.get("call_disposition")
         or None,
         "motif": motif,
+        "motifs": motifs,
+        "hors_horaires": hors_horaires_de(initial),
+        "agents": agents_de_l_appel(run, contexte),
+        "transferts": transferts_de(contexte),
+        "incidents": incidents_de(analyse, debut),
         "degre_urgence": valeur("degre_urgence"),
         "contact": {
             "nom": valeur("nom"),

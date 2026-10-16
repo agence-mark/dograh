@@ -93,6 +93,7 @@ async def _premiere_alerte(organization_id: int, appel: dict) -> bool:
 async def rattraper(organization_id: int, maintenant: datetime | None = None) -> dict:
     """``{appels_lus, demandes_creees, deja_connus, erreurs}``. Never raises."""
     from api.db.bases_clients import apres_appel as sql
+    from api.db.bases_clients import traces
     from api.db.bases_clients.connexion import BaseClientIndisponible, connecter
     from api.services.apres_appel.notification import notifier
     from api.services.base_client.rattachement import nom_de_la_base
@@ -156,6 +157,16 @@ async def rattraper(organization_id: int, maintenant: datetime | None = None) ->
                 else:
                     bilan["demandes_creees"] += 1
                     nouveaux.append(appel)
+                    # [.mark] Lot 9 : un appel perdu rattrapé est un incident (une panne, plusieurs appels
+                    # = le même incident). Jamais une raison de rater le rattrapage.
+                    await traces.noter_incident(
+                        connexion,
+                        appel_id=None,
+                        brique="agent_vocal",
+                        cause="appel_perdu_pendant_une_panne",
+                        debut=_date(appel.get("start_time")) or maintenant,
+                        correctif="demande à rappeler écrite par le rattrapage",
+                    )
         finally:
             await connexion.close()
     nouveaux = [a for a in nouveaux if await _premiere_alerte(organization_id, a)]

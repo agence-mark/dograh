@@ -992,6 +992,17 @@ async def publish_workflow(
         },
     )
 
+    # [.mark] Chantier agents-specialises, lot 8 : la base du client apprend quelle fiche l'agent
+    # publié sert (agent_site). Jamais une raison de rater la publication.
+    from api.services.base_client.agents import synchroniser_agent_site
+
+    await synchroniser_agent_site(
+        user.selected_organization_id,
+        workflow_id,
+        workflow.name,
+        (published.workflow_configurations or {}).get("etablissement_id"),
+    )
+
     return {
         "id": published.id,
         "version_number": published.version_number,

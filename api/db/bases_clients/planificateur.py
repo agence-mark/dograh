@@ -155,8 +155,12 @@ async def personnes_du_type(
     priority; no subject: everyone), of the establishment served or of the whole company,
     WITH an agenda in this software. ``{cle, prenom, nom, etablissement, agenda,
     joignable_par_transfert, telephone}``."""
+    # [.mark] Lot 8 (M5) : une personne sur plusieurs lieux est vue de chacun d'eux.
+    from api.db.bases_clients.equipe import au_lieu_de
+
+    au_lieu, _toute = await au_lieu_de(connexion, "p", "$2")
     lignes = await connexion.fetch(
-        """
+        f"""
         SELECT p.cle, p.prenom, p.nom, s.cle AS etablissement, l.id_externe AS agenda,
                p.joignable_par_transfert, p.telephone,
                coalesce(ps.priorite, 1) AS priorite, p.id
@@ -167,7 +171,7 @@ async def personnes_du_type(
         LEFT JOIN mark.personne_sujet ps ON ps.personne_id = p.id AND ps.sujet_id = su.id
         WHERE p.actif AND p.cle IS NOT NULL
           AND ($1::text IS NULL OR ps.personne_id IS NOT NULL)
-          AND (p.site_id IS NULL OR s.cle = $2)
+          AND {au_lieu}
         ORDER BY priorite, p.id
         """,
         sujet,

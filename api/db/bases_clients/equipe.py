@@ -25,6 +25,35 @@ async def _table_des_lieux_existe(connexion: asyncpg.Connection) -> bool:
     return bool(await connexion.fetchval("SELECT to_regclass('mark.personne_site') IS NOT NULL"))
 
 
+async def au_lieu_de(
+    connexion: asyncpg.Connection, alias: str, parametre: str
+) -> tuple[str, str]:
+    """[.mark] Chantier agents-specialises, lot 8 (M5) : deux morceaux de SQL pour dire « cette
+    personne (``alias``) est vue du lieu dont la clé est ``parametre`` » -- ``(condition,
+    toute_l_entreprise)``.
+
+    Une personne sur plusieurs lieux (``personne_site``) est vue de CHACUN de ses lieux ; une
+    personne sans lieu est vue de tous (toute l'entreprise). Avant la 015 (base en version 14) : la
+    colonne ``site_id`` seule, comme avant. Le routage des courriels après appel et le planificateur
+    l'emploient : le premier lieu d'une personne n'est plus le seul qui compte.
+    """
+    cible = (
+        f"EXISTS (SELECT 1 FROM mark.site sl WHERE sl.id = {alias}.site_id AND sl.cle = {parametre})"
+    )
+    if await _table_des_lieux_existe(connexion):
+        toute = (
+            f"({alias}.site_id IS NULL AND NOT EXISTS "
+            f"(SELECT 1 FROM mark.personne_site pl WHERE pl.personne_id = {alias}.id))"
+        )
+        autres = (
+            "EXISTS (SELECT 1 FROM mark.personne_site pl JOIN mark.site sl ON sl.id = pl.site_id "
+            f"WHERE pl.personne_id = {alias}.id AND sl.cle = {parametre})"
+        )
+        return f"({toute} OR {cible} OR {autres})", toute
+    toute = f"{alias}.site_id IS NULL"
+    return f"({toute} OR {cible})", toute
+
+
 async def lire_equipe(connexion: asyncpg.Connection) -> Equipe:
     sites = {
         r["id"]: r["cle"]
