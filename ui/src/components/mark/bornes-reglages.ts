@@ -74,6 +74,8 @@ export const BORNES: Record<string, Borne> = {
     // Greeting and silence (E1, E2)
     accueil_mots_minimum: { min: 1, minStrict: false, max: 10 },
     raccrochage_silence_agent_s: { min: 10, minStrict: false, max: 120 },
+    // Lot 4 d'orchestrateur-trois-cerveaux (D13): the background brain's longest work.
+    travail_delai_max_s: { min: 5, minStrict: false, max: 300 },
 };
 
 /**

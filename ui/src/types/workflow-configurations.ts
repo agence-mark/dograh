@@ -407,6 +407,14 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // the generic ones written in the code).
     greffier_llm?: GreffierLlm | null;
     greffier_consigne?: string | null;
+    // [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D13): the background brain of this agent. Five keys,
+    // all off or empty by default (the agent plays the call of before). Its model is shaped like the
+    // clerk's (key masked, restored on save).
+    travail_actif?: boolean;
+    travail_llm?: GreffierLlm | null;
+    travail_consigne?: string | null;
+    travail_outils?: string[];
+    travail_delai_max_s?: number;
     fiche_champs?: ChampFiche[];
     // [.mark] Chantier correctifs-modules, lot 4 bis: write the flow map into the
     // prompts at every save. Off by default: the save is unchanged.

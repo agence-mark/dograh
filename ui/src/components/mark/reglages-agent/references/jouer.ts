@@ -46,6 +46,9 @@ export const jouerGeste = (geste: Geste) => {
         case "radio":
             fireEvent.click(screen.getByRole("radio", { name: geste.nom }));
             return;
+        case "case":
+            fireEvent.click(screen.getByRole("checkbox", { name: new RegExp(geste.nom) }));
+            return;
     }
 };
 

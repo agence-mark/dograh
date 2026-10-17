@@ -43,7 +43,9 @@ export type Geste =
     | { type: "choisir"; id: string; valeur: string }
     | { type: "etiquette"; id: string; valeur: string }
     | { type: "cliquer"; nom: string }
-    | { type: "radio"; nom: string };
+    | { type: "radio"; nom: string }
+    // Lot 4 d'orchestrateur-trois-cerveaux: a checkbox found by (part of) its name, the tool list's.
+    | { type: "case"; nom: string };
 
 export interface CasAgent {
     id: string;
@@ -210,6 +212,24 @@ export const CAS_AGENT: CasAgent[] = [
         choisir("ordre_de_la_reponse", "porte_note_phrase"),
         inter("phrase_sans_redemande"),
     ]),
+    // Lot 4 d'orchestrateur-trois-cerveaux (D13): « Background work », theme Services (« Briques »), whose
+    // parts save at once. Each case starts from an agent whose switch is on, except the switch's own.
+    c("travail-actif", "ajout-mark", "briques", ["travail_actif"], [inter("travail_actif")], true),
+    c("travail-modele", "ajout-mark", "briques", ["travail_llm", "travail_consigne"], [
+        { type: "cliquer", nom: "Configure the background brain" },
+        saisir("travail_provider", "mistral"),
+        saisir("travail_model", "mistral-small-2603"),
+        saisir("travail_api_key", "cle-de-reference"),
+        saisir("travail_consigne", "Fais la demande."),
+        { type: "cliquer", nom: "Save the background brain" },
+    ], true, { travail_actif: true }),
+    c("travail-outils", "ajout-mark", "briques", ["travail_outils"], [
+        { type: "case", nom: "Chercher un créneau" },
+    ], true, { travail_actif: true }),
+    c("travail-delai", "ajout-mark", "briques", ["travail_delai_max_s"], [
+        saisir("travail_delai_max_s", "90"),
+        { type: "cliquer", nom: "Save the duration" },
+    ], true, { travail_actif: true }),
     // Chantier l-agent-travaille, L4 (A6): the after-call of the agent, frozen once.
     c("apres-appel", "ajout-mark", "donnees", ["apres_appel"], [inter("apres_appel_actif")]),
     // Chantier l-agent-collegue, L1 (C5): the team known to the agent, frozen once.

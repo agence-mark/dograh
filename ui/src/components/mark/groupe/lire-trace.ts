@@ -42,6 +42,20 @@ export interface SegmentDeParcours {
     etapes: string[];
 }
 
+/** Lot 4 d'orchestrateur-trois-cerveaux : un travail confié au cerveau de fond (``travaux`` de la fiche). */
+export interface TravailDeFond {
+    agent: string | null;
+    demande: string | null;
+    /** ``fait``, ``vide``, ``echec``, ``delai``, ``annule`` ou ``en_cours``. */
+    statut: string | null;
+    dureeMs: number | null;
+    jetonsEntree: number | null;
+    jetonsSortie: number | null;
+    resultat: string | null;
+    /** Le résultat a-t-il été remis dans l'appel ? */
+    remis: boolean;
+}
+
 export interface TraceDesAgents {
     /** Les agents de l'appel, dans l'ordre où la trace les voit. */
     agents: string[];
@@ -51,6 +65,7 @@ export interface TraceDesAgents {
     parcoursEcrit: string[];
     passations: Passation[];
     transferts: TransfertHumain[];
+    travaux: TravailDeFond[];
 }
 
 const enregistrement = (valeur: unknown): Record<string, unknown> | null =>
@@ -95,6 +110,21 @@ export const lireLaTrace = (contexte: Contexte, noms: ReadonlyMap<number, string
         .filter((t): t is Record<string, unknown> => t !== null)
         .map((t) => ({ le: texte(t.le), cible: texte(t.cible), issue: texte(t.issue) }));
 
+    const nombre = (valeur: unknown): number | null => (typeof valeur === "number" && Number.isFinite(valeur) ? valeur : null);
+    const travaux: TravailDeFond[] = liste(c.travaux)
+        .map(enregistrement)
+        .filter((w): w is Record<string, unknown> => w !== null)
+        .map((w) => ({
+            agent: nomDAgent(w.agent, noms),
+            demande: texte(w.demande),
+            statut: texte(w.statut),
+            dureeMs: nombre(w.duree_ms),
+            jetonsEntree: nombre(w.jetons_entree),
+            jetonsSortie: nombre(w.jetons_sortie),
+            resultat: texte(w.resultat),
+            remis: w.remis === true,
+        }));
+
     // nodes_visited : des noms (aujourd'hui) ou des entrées { agent, etape } (lot 7).
     const parcours: SegmentDeParcours[] = [];
     let formeParEntrees = false;
@@ -121,7 +151,7 @@ export const lireLaTrace = (contexte: Contexte, noms: ReadonlyMap<number, string
     const parcoursEcrit = (Array.isArray(ecrit) ? ecrit : [ecrit]).map(texte).filter((l): l is string => l !== null);
 
     // Un appel qui n'a traversé qu'un agent, sans transfert vers un humain, ne dit rien de plus que sa page.
-    if (passations.length === 0 && transferts.length === 0 && !formeParEntrees && parcoursEcrit.length === 0) return null;
+    if (passations.length === 0 && transferts.length === 0 && travaux.length === 0 && !formeParEntrees && parcoursEcrit.length === 0) return null;
 
     const agents: string[] = [];
     const voir = (nom: string | null) => {
@@ -133,5 +163,5 @@ export const lireLaTrace = (contexte: Contexte, noms: ReadonlyMap<number, string
     }
     for (const segment of parcours) voir(segment.agent);
 
-    return { agents, parcours: formeParEntrees ? parcours : [], parcoursEcrit, passations, transferts };
+    return { agents, parcours: formeParEntrees ? parcours : [], parcoursEcrit, passations, transferts, travaux };
 };

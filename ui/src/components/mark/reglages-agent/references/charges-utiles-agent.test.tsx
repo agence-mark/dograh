@@ -102,6 +102,17 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../../sdk-f
     listRecordingsApiV1WorkflowRecordingsGet: () => Promise.resolve({ data: { recordings: [] }, error: null }),
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: () =>
         Promise.resolve({ data: [{ code_insee: "60057", nom: "Beauvais" }], error: null }),
+    // Lot 4 d'orchestrateur-trois-cerveaux: the tools the background brain may be given (the transfer
+    // and the end of the call are never offered, even when they are in the catalogue).
+    listToolsApiV1ToolsGet: () =>
+        Promise.resolve({
+            data: [
+                { tool_uuid: "outil-creneau", name: "Chercher un créneau", description: "Cherche un créneau libre.", category: "http_api", status: "active", icon_color: null },
+                { tool_uuid: "outil-transfert", name: "Passer à un humain", description: "Transfert d'appel.", category: "transfer_call", status: "active", icon_color: null },
+                { tool_uuid: "outil-fin", name: "Raccrocher", description: "Fin d'appel.", category: "end_call", status: "active", icon_color: null },
+            ],
+            error: null,
+        }),
     // Lot 11: the fiches the menu of the theme « Business » offers (the case « fiche-de-lagent » picks one).
     getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
         Promise.resolve({ data: { etablissements: [{ id: "creil", nom: "Magasin de Creil", numeros: [] }] }, error: null }),
@@ -216,6 +227,8 @@ const attendreLaCible = async (geste: Geste) => {
             expect(document.getElementById(geste.id)).toBeTruthy();
         } else if (geste.type === "cliquer") {
             expect(screen.getByRole("button", { name: geste.nom })).toBeTruthy();
+        } else if (geste.type === "case") {
+            expect(screen.getByRole("checkbox", { name: new RegExp(geste.nom) })).toBeTruthy();
         }
     });
 };

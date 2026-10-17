@@ -36,6 +36,7 @@ import { estSpecialise } from "../groupe/reglages-groupe";
 import { useLangue } from "../langue/langue";
 import { RAPPEL_PUBLICATION_TEXTE } from "./enregistrement";
 import { type ProprietesThemeAgent, useEtatTheme } from "./theme-commun";
+import { TravailEnArrierePlan } from "./TravailEnArrierePlan";
 
 export const ID_THEME_BRIQUES = "briques";
 export const TITRE_BRIQUES = { en: "Services", fr: "Briques" };
@@ -145,6 +146,7 @@ export const ThemeBriques = ({
                     ? t({ en: "Own complete configuration", fr: "Configuration complète propre à l'agent" })
                     : t({ en: "Organization configuration", fr: "Configuration de l'organisation" }),
                 !savedV2Override && Boolean(resolue.model_overrides) && t({ en: "services overridden", fr: "services remplacés" }),
+                resolue.travail_actif === true && t({ en: "background work", fr: "travail en arrière-plan" }),
             ]}
             ouvert={ouvert}
             onBasculer={onBasculer}
@@ -189,6 +191,10 @@ export const ThemeBriques = ({
                     )}
                 </>
             )}
+            {/* [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D13): the background brain, next to « Own brain ». */}
+            <ZoneCommune lecture={specialise && !cerveauPropre} bandeau={false}>
+                <TravailEnArrierePlan resolue={resolue} workflowName={workflowName} onSave={onSave} />
+            </ZoneCommune>
             <ZoneCommune lecture={specialise && !cerveauPropre} bandeau={false}>
             {modeles.chargement && (
                 <div className="flex items-center gap-2 rounded-md border p-4 text-sm text-muted-foreground">

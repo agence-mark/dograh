@@ -32,12 +32,25 @@ const TEXTES = {
     inconnu: { en: "unknown", fr: "inconnu" },
     faite: { en: "done", fr: "faite" },
     refusee: { en: "refused", fr: "refusée" },
+    travaux: { en: "Background work", fr: "Travail en arrière-plan" },
+    demande: { en: "Request", fr: "Demande" },
+    duree: { en: "Duration", fr: "Durée" },
+    jetons: { en: "Tokens (in / out)", fr: "Jetons (entrée / sortie)" },
 } satisfies Record<string, Texte>;
 
 const MOTIFS_DE_REFUS: Record<string, Texte> = {
     soi_meme: { en: "the target is the agent itself", fr: "la cible est l'agent lui-même" },
     plafond: { en: "ceiling of hand-overs reached", fr: "plafond de passations atteint" },
     meme_agent: { en: "the agent that just handed back, for the same reason", fr: "l'agent qui vient de rendre la main, pour la même raison" },
+};
+
+const STATUTS_DE_TRAVAIL: Record<string, Texte> = {
+    fait: { en: "done", fr: "fait" },
+    vide: { en: "empty answer", fr: "réponse vide" },
+    echec: { en: "failed", fr: "échec" },
+    delai: { en: "timed out", fr: "délai dépassé" },
+    annule: { en: "cancelled", fr: "annulé" },
+    en_cours: { en: "running", fr: "en cours" },
 };
 
 const ISSUES_DE_TRANSFERT: Record<string, Texte> = {
@@ -160,6 +173,35 @@ export const TraceDesAgents = ({ contexte }: { contexte: Contexte }) => {
                                         <td className="py-1 pr-3">{tr.cible ?? "–"}</td>
                                         <td className="py-1">
                                             {tr.issue ? (ISSUES_DE_TRANSFERT[tr.issue] ? t(ISSUES_DE_TRANSFERT[tr.issue]) : tr.issue) : "–"}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {trace.travaux.length > 0 && (
+                    <div className="space-y-1" data-bloc="travaux-de-fond">
+                        <p className="text-xs font-medium text-muted-foreground">{t(TEXTES.travaux)}</p>
+                        <table className="w-full">
+                            <thead className="text-left text-muted-foreground">
+                                <tr>
+                                    <th className="py-1 pr-3">{t(TEXTES.demande)}</th>
+                                    <th className="py-1 pr-3">{t(TEXTES.duree)}</th>
+                                    <th className="py-1 pr-3">{t(TEXTES.jetons)}</th>
+                                    <th className="py-1">{t(TEXTES.resultat)}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {trace.travaux.map((w, i) => (
+                                    <tr key={i} className="border-t border-border" data-travail-de-fond={w.statut ?? ""}>
+                                        <td className="py-1 pr-3">{w.demande ?? "–"}</td>
+                                        <td className="py-1 pr-3">{w.dureeMs === null ? "–" : `${(w.dureeMs / 1000).toFixed(1)} s`}</td>
+                                        <td className="py-1 pr-3">{w.jetonsEntree ?? "–"} / {w.jetonsSortie ?? "–"}</td>
+                                        <td className="py-1">
+                                            {w.statut ? (STATUTS_DE_TRAVAIL[w.statut] ? t(STATUTS_DE_TRAVAIL[w.statut]) : w.statut) : "–"}
+                                            {w.resultat ? ` : ${w.resultat}` : ""}
                                         </td>
                                     </tr>
                                 ))}

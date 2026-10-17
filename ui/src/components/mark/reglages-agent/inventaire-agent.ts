@@ -35,6 +35,12 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     model_overrides: { theme: "briques", cas: ["par-service", "par-service-retire", "configuration-organisation"] },
     model_configuration_v2_override: { theme: "briques", cas: ["configuration-complete"] },
     mark_per_service_override: { theme: "briques", cas: ["par-service"] },
+    // Lot 4 d'orchestrateur-trois-cerveaux (D13): « Background work », next to « Own brain ».
+    travail_actif: { theme: "briques", cas: ["travail-actif"] },
+    travail_llm: { theme: "briques", cas: ["travail-modele"] },
+    travail_consigne: { theme: "briques", cas: ["travail-modele"] },
+    travail_outils: { theme: "briques", cas: ["travail-outils"] },
+    travail_delai_max_s: { theme: "briques", cas: ["travail-delai"] },
     // Écoute
     conversion_nombres_transcription: { theme: "ecoute", cas: ["nombres"] },
     variables_reference: { theme: "ecoute", cas: ["variables-reference"] },

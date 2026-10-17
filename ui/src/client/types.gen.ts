@@ -11934,6 +11934,38 @@ export type WorkflowConfigurationDefaults = {
      */
     greffier_consigne?: string | null;
     /**
+     * Travail Actif
+     *
+     * Background work. On: the agent can hand a request to a second brain that works with tools while the conversation goes on, then gets its result back. Off (default): nothing changes.
+     */
+    travail_actif?: boolean;
+    /**
+     * Travail Llm
+     *
+     * The background brain's model: provider, model, settings and its own API key. Empty fields come from the conversation model; an empty key uses the conversation's key.
+     */
+    travail_llm?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Travail Consigne
+     *
+     * The background brain's instructions. Empty (default): none are added by the code, to be written with the team.
+     */
+    travail_consigne?: string | null;
+    /**
+     * Travail Outils
+     *
+     * The tools the background brain may use (tool UUIDs of the organization). Call transfers and the end of the call are never given to it.
+     */
+    travail_outils?: Array<string>;
+    /**
+     * Travail Delai Max S
+     *
+     * How long the background brain may work on one request, in seconds.
+     */
+    travail_delai_max_s?: number;
+    /**
      * Fiche Champs
      *
      * The fields of the call record the tool can write: name, type, dictated or deduced, and a hint for the model. A dictated value is written only if the caller said it.
