@@ -53,6 +53,12 @@ export interface CasAgent {
     cles: string[];
     gestes: Geste[];
     /**
+     * [.mark] Chantier agents-specialises, lot 12: keys added to the reference configuration FOR THIS CASE
+     * ONLY (a main agent has `agents_specialises`, a specialised one `agent_principal_id`). The payload is
+     * then compared with THAT configuration, so every other case keeps the lone agent's reference.
+     */
+    config?: Record<string, unknown>;
+    /**
      * True when the gestures themselves save (a button of the reused component,
      * not the card's or the theme's). Otherwise the card's / theme's button is
      * pressed after the gestures.
@@ -86,7 +92,12 @@ const c = (
     cles: string[],
     gestes: Geste[],
     enregistreSeul = false,
-): CasAgent => ({ id, carte, theme, cles, gestes, enregistreSeul });
+    config?: Record<string, unknown>,
+): CasAgent => ({ id, carte, theme, cles, gestes, enregistreSeul, ...(config ? { config } : {}) });
+
+// [.mark] Lot 12: the configurations a group's cases start from.
+const PRINCIPAL = { agents_specialises: [] };
+const SPECIALISE = { agent_principal_id: 5 };
 
 export const CAS_AGENT: CasAgent[] = [
     // ---- General (Dograh) -------------------------------------------------
@@ -235,6 +246,25 @@ export const CAS_AGENT: CasAgent[] = [
     c("adresse-organisation", "business-address", "etablissement", ["adresse_etablissement"], [
         { type: "cliquer", nom: "Use the organization's address" },
     ], true),
+    // Chantier agents-specialises, lot 11 (F1): the fiche the agent chose, frozen once.
+    c("fiche-de-lagent", "ajout-mark", "etablissement", ["etablissement_id"], [choisir("etablissement_id", "creil")]),
+
+    // Chantier agents-specialises, lot 12 (A5, A6, A7, A10, A18): the group's settings, frozen once. A main
+    // agent's theme Agent (« Specialised agents »), its theme Voice (« Waiting »), a specialised agent's brain.
+    c("agents-prechauffage", "ajout-mark", "agent", ["prechauffage_agents"], [inter("prechauffage_agents")], false, PRINCIPAL),
+    c("agents-sans-resume", "ajout-mark", "agent", ["passation_sans_resume_jusqua"], [saisir("passation_sans_resume_jusqua", "60")], false, PRINCIPAL),
+    c("agents-renvoi-unique", "ajout-mark", "agent", ["un_seul_renvoi_par_appel"], [inter("un_seul_renvoi_par_appel")], false, PRINCIPAL),
+    c("agents-plafond", "ajout-mark", "agent", ["passations_max_par_appel"], [saisir("passations_max_par_appel", "8")], false, PRINCIPAL),
+    c("attente", "ajout-mark", "voix", ["attente"], [
+        saisir("attente_duree_min_s", "2.5"),
+        inter("attente_transfert_humain"),
+        saisir("attente_phrase_pont", "Un instant."),
+        saisir("attente_delai_phrase_pont_s", "3"),
+    ], false, PRINCIPAL),
+    c("transfert-humain", "ajout-mark", "voix", ["transfert_humain"], [
+        saisir("attente_phrase_mise_en_relation", "Un instant, je vous mets en relation."),
+    ], false, PRINCIPAL),
+    c("cerveau-propre", "ajout-mark", "briques", ["cerveau_propre"], [inter("cerveau_propre")], true, SPECIALISE),
 
     // ---- Model Overrides (Dograh + .mark) ---------------------------------
     c("configuration-organisation", "models", "briques", ["model_overrides", "model_configuration_v2_override"], [

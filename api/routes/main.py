@@ -19,11 +19,13 @@ from api.routes.base_client import router as base_client_router
 from api.routes.base_client import routeur_equipe as equipe_router
 from api.routes.base_client import routeur_planificateur as planificateur_router
 from api.routes.verification import router as verification_router
+from api.routes.agents_servis import router as agents_servis_router
 from api.routes.etablissements import router as etablissements_router
 from api.routes.etablissements import routeur_phrases as phrases_router
 from api.routes.credentials import router as credentials_router
 from api.routes.fenetre_du_run import router as fenetre_du_run_router
 from api.routes.folder import router as folder_router
+from api.routes.groupe import router as groupe_router
 from api.routes.knowledge_base import router as knowledge_base_router
 from api.routes.node_types import router as node_types_router
 from api.routes.organization import router as organization_router
@@ -57,6 +59,7 @@ router = APIRouter(
 router.include_router(telephony_router)
 router.include_router(superuser_router)
 router.include_router(workflow_router)
+router.include_router(groupe_router)
 router.include_router(workflow_text_chat_router)
 # [.mark] Lot D : la décision du testeur sur un renvoi d'appel (clavier, casque).
 router.include_router(renvoi_en_test_router)
@@ -72,6 +75,8 @@ router.include_router(cles_router)
 # mounted BEFORE the organization router so its paths are never read as parameters.
 router.include_router(etablissements_router)
 router.include_router(phrases_router)
+# [.mark] Chantier agents-specialises, lot 9: the agents the organization serves, for the portal.
+router.include_router(agents_servis_router)
 # [.mark] The client's own database and its team (chantier l-agent-travaille, L3).
 router.include_router(base_client_router)
 # [.mark] l-agent-travaille, L4: the after-call settings and the run's section.

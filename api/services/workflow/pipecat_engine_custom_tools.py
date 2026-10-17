@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from loguru import logger
@@ -17,11 +18,36 @@ from pipecat.frames.frames import FunctionCallResultProperties
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.utils.enums import EndTaskReason
 
+from api.services.pipecat.main_passee import muter
 from api.db import db_client
 from api.enums import ToolCategory, WorkflowRunMode
+from api.services.annonce.constantes import OUVERT, SUR_RENDEZ_VOUS
+from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_TRANSFERT
+from api.services.groupe.prechauffage import precharge_de
+from api.services.groupe.reglages_passation import (
+    LIGNE_RENVOI_DEJA_ECHOUE,
+    attente_de,
+    chemin_du_son,
+    renvoi_unique_actif,
+)
+from api.services.groupe.passations import (
+    MESSAGE_REFUS,
+    refus_de_passation,
+    tracer_passation,
+)
 from api.services.pipecat.audio_playback import play_audio_loop
 from api.services.pipecat.speech_playback import PlaybackOutcome, SpeechPlayback
 from api.services.telephony.call_transfer_manager import get_call_transfer_manager
+from api.services.equipe.transferts_humains import (
+    ETAPE_ISSUE,
+    delai_d_attente,
+    detection_allumee,
+    issue_du_resultat,
+    masquer as masquer_cible,
+    noter as noter_issue,
+    phrase_du_salarie,
+    un_renvoi_a_echoue,
+)
 from api.services.telephony.external_pbx import resolve_external_pbx_field_mappings
 from api.services.telephony.factory import get_telephony_provider_for_run
 from api.services.telephony.transfer_event_protocol import TransferContext
@@ -125,6 +151,16 @@ class CustomToolManager:
             )
         return None
 
+    async def _lire_outils(self, tool_uuids: list[str], organization_id: int) -> list:
+        """[.mark] Lot 6 : les outils d'une étape, lus dans le cache de préchauffage de l'appel
+        quand il les a déjà chargés (aucune requête), sinon en base comme avant."""
+        precharge = precharge_de(self._engine)
+        if precharge is None:
+            return await db_client.get_tools_by_uuids(tool_uuids, organization_id)
+        return await precharge.outils(
+            tool_uuids, organization_id, db_client.get_tools_by_uuids
+        )
+
     async def get_organization_id(self) -> Optional[int]:
         """Get the organization ID from the engine (shared cache)."""
         return await self._engine._get_organization_id()
@@ -151,7 +187,7 @@ class CustomToolManager:
             return []
 
         try:
-            tools = await db_client.get_tools_by_uuids(tool_uuids, organization_id)
+            tools = await self._lire_outils(tool_uuids, organization_id)
 
             schemas: list[FunctionSchema] = []
             for tool in tools:
@@ -167,6 +203,11 @@ class CustomToolManager:
                                 required=func["parameters"]["required"],
                             )
                         )
+                    continue
+
+                # [.mark] Lot 6 (K3) : pas de transfert d'appel montré au modèle quand
+                # l'entreprise est fermée (ou qu'un renvoi a déjà échoué).
+                if tool.category == ToolCategory.TRANSFER_CALL.value and not self._transfert_expose():
                     continue
 
                 if tool.category == ToolCategory.MCP.value:
@@ -243,7 +284,7 @@ class CustomToolManager:
             return
 
         try:
-            tools = await db_client.get_tools_by_uuids(tool_uuids, organization_id)
+            tools = await self._lire_outils(tool_uuids, organization_id)
 
             for tool in tools:
                 if tool.category == ToolCategory.CALCULATOR.value:
@@ -622,6 +663,34 @@ class CustomToolManager:
                 )
                 return
 
+            # [.mark] Chantier agents-specialises (A18) : jamais vers soi-même, jamais
+            # au-delà du plafond du groupe, jamais de renvoi immédiat vers le spécialisé
+            # qui vient de rendre la main pour la même raison. Tracé dans ``passations``.
+            refus = refus_de_passation(
+                engine._gathered_context,
+                engine.__dict__.get("reglages_appel"),
+                de=self._agent.workflow_id or None,
+                vers=workflow_id,
+                raison=tool.name,
+                reglages_source=getattr(self._agent, "reglages", None),
+            )
+            if refus is not None:
+                tracer_passation(
+                    engine._gathered_context,
+                    de=self._agent.workflow_id or None,
+                    vers=workflow_id,
+                    raison=tool.name,
+                    refusee=True,
+                    motif=refus,
+                )
+                if refus == "plafond" and engine.agent_can_act(self._agent):
+                    # La ligne générique entre dans le prompt de l'étape en cours.
+                    node = self._agent.current_node
+                    if node is not None and self._agent is engine.active_agent:
+                        await engine._setup_llm_context(node)
+                await refuse(f"passation_{refus}", MESSAGE_REFUS[refus])
+                return
+
             announcement = config.get("message")
             announcement = (
                 engine._format_prompt(str(announcement)) if announcement else None
@@ -635,6 +704,7 @@ class CustomToolManager:
                 origin_visit_id=self._agent.visit_id,
                 announcement=announcement,
                 play_greeting=config.get("play_greeting", True),
+                raison=tool.name,
             )
 
             if not engine.transfer_coordinator.accept(request):
@@ -645,7 +715,11 @@ class CustomToolManager:
                 return
 
             context_ready = asyncio.Event()
-            engine.transfer_coordinator.start(request, context_ready=context_ready)
+            if engine.transfer_coordinator.start(request, context_ready=context_ready):
+                # [.mark] D1 (run 1404) : l'agent qui passe la main ne parle plus, quel que
+                # soit le chemin (porte écrite dans la même réponse, relance) ; rendu s'il
+                # garde l'appel ou reprend la main. Seulement si la passation est partie.
+                muter(getattr(self._agent, "llm", None))
 
             async def on_context_updated() -> None:
                 # Runs once the tool result is committed to the conversation,
@@ -682,6 +756,18 @@ class CustomToolManager:
             function_call_params: FunctionCallParams,
         ) -> None:
             logger.info(f"Transfer Call Tool EXECUTED: {function_name}")
+            # [.mark] Lot 6 (A7) : un seul renvoi vers un humain par appel. Un renvoi a déjà
+            # échoué : refusé tel quel (aucun appel sortant, rien noté de plus).
+            if self._renvoi_deja_echoue():
+                logger.info(f"Transfer via '{function_name}' refused: renvoi_deja_echoue")
+                await function_call_params.result_callback(
+                    {
+                        "status": "transfer_failed",
+                        "reason": "renvoi_deja_echoue",
+                        "message": LIGNE_RENVOI_DEJA_ECHOUE,
+                    }
+                )
+                return
             logger.info(
                 "Transfer call arguments received "
                 f"argument_keys={list((function_call_params.arguments or {}).keys())}"
@@ -691,6 +777,12 @@ class CustomToolManager:
                 # Get the transfer call configuration
                 config = tool.definition.get("config", {})
                 destination = config.get("destination", "")
+                # [.mark] Lot 5 (3 bis): who this attempt is aimed at, for the call's record
+                # (a person's key when the tool says it, else the number masked).
+                cible_dite = getattr(tool, "cible_transfert_humain", None)
+                self._cible_transfert_humain = (
+                    cible_dite if isinstance(cible_dite, str) and cible_dite else masquer_cible(destination)
+                )
                 timeout_seconds = config.get("timeout", 30)
                 raw_call_disposition = config.get("call_disposition")
                 configured_call_disposition = (
@@ -930,6 +1022,7 @@ class CustomToolManager:
                     conference_name=conference_name,
                     initiated_at=time.time(),
                     workflow_run_id=self._engine._workflow_run_id,
+                    phrase_salarie=phrase_du_salarie(self._engine._call_context_vars),
                 )
                 await call_transfer_manager.store_transfer_context(transfer_context)
 
@@ -947,11 +1040,15 @@ class CustomToolManager:
                         f"resolution_id={resolved_transfer.resolution_id or ''} "
                         f"destination={masked_destination} timeout={timeout_seconds}"
                     )
+                    options_de_transfert = await self._options_de_transfert(
+                        provider, organization_id, transfer_context
+                    )
                     transfer_result = await provider.transfer_call(
                         destination=destination,
                         transfer_id=transfer_id,
                         conference_name=conference_name,
                         timeout=timeout_seconds,
+                        **options_de_transfert,
                     )
                 except Exception as e:
                     logger.error(f"Transfer provider failed: {e}")
@@ -994,26 +1091,53 @@ class CustomToolManager:
                         else 8000
                     )
 
-                    logger.info(
-                        f"Starting hold music at {sample_rate}Hz while waiting for transfer"
+                    # [.mark] Lot 6 (A6) : réglage « attente » du principal : le son déposé, ou
+                    # aucun, et si l'attente vaut pour le transfert vers un humain. Absent : la
+                    # sonnerie d'avant.
+                    reglage_attente = attente_de(
+                        getattr(self._engine, "reglages_appel", None)
                     )
-
-                    # Start hold music as background task
-                    hold_music_task = asyncio.create_task(
-                        play_audio_loop(
-                            stop_event=hold_music_stop_event,
-                            sample_rate=sample_rate,
-                            queue_frame=self._engine._transport_output.queue_frame,
+                    if reglage_attente.transfert_humain and not reglage_attente.sans_son:
+                        logger.info(
+                            f"Starting hold music at {sample_rate}Hz while waiting for transfer"
                         )
-                    )
+                        options_son = {}
+                        chemin_son = await chemin_du_son(reglage_attente, sample_rate)
+                        if chemin_son:
+                            options_son["audio_file"] = chemin_son
+
+                        # Start hold music as background task
+                        hold_music_task = asyncio.create_task(
+                            play_audio_loop(
+                                stop_event=hold_music_stop_event,
+                                sample_rate=sample_rate,
+                                queue_frame=self._engine._transport_output.queue_frame,
+                                **options_son,
+                            )
+                        )
 
                     # Wait for transfer completion using Redis pub/sub
                     logger.info("Waiting for transfer completion via Redis pub/sub...")
+                    # [.mark] Revue du 16/10 : avec la détection de répondeur, l'issue arrive
+                    # jusqu'à DELAI_DETECTION_S après le décroché ; l'attente en tient compte.
+                    detection = bool(options_de_transfert.get("detection_repondeur"))
                     transfer_event = (
                         await call_transfer_manager.wait_for_transfer_completion(
-                            transfer_id, timeout_seconds
+                            transfer_id, delai_d_attente(timeout_seconds, detection)
                         )
                     )
+                    if transfer_event is None and detection:
+                        # [.mark] L'agent abandonne : il réserve l'issue pour que notre adresse
+                        # TwiML raccroche au lieu d'ouvrir une conférence vide. Si elle l'a déjà
+                        # prise, son verdict est en route : on l'attend encore un instant.
+                        if not await call_transfer_manager.claim_transfer_step(
+                            transfer_id, ETAPE_ISSUE
+                        ):
+                            transfer_event = (
+                                await call_transfer_manager.wait_for_transfer_completion(
+                                    transfer_id, 3
+                                )
+                            )
 
                 except Exception as e:
                     logger.error(f"Error during transfer wait: {e}")
@@ -1072,6 +1196,31 @@ class CustomToolManager:
                 )
 
         return transfer_call_handler
+
+    async def _options_de_transfert(self, provider, organization_id: int, contexte) -> dict:
+        """[.mark] Lot 5 (3 bis): what only Twilio's transfer takes -- answering-machine detection (on
+        every transfer, one emergency switch), the same caller ID for the person who picks up (the
+        organization's « transfer number », when it chose one), and the French sentence. Another
+        provider gets nothing more than before. Never raises."""
+        if getattr(provider, "PROVIDER_NAME", None) != "twilio":
+            return {}
+        options: dict = {"detection_repondeur": detection_allumee(), "phrase_salarie": contexte.phrase_salarie}
+        try:
+            from api.services.organization_preferences import get_organization_preferences
+
+            numero = (await get_organization_preferences(organization_id)).numero_des_transferts
+            # [.mark] Revue du 16/10 : contrôlé aussi au moment de l'appel, contre les numéros du
+            # compte qui passe l'appel (un numéro retiré ou d'un autre compte serait refusé par
+            # Twilio et le transfert perdu) ; sinon le numéro par défaut, comme avant.
+            if numero and numero in (getattr(provider, "from_numbers", None) or []):
+                options["from_number"] = numero
+            elif numero:
+                logger.warning(
+                    "[.mark] Transfer number not on this Twilio account, the default caller ID is used"
+                )
+        except Exception as erreur:  # noqa: BLE001 -- a transfer is never lost for a caller ID
+            logger.warning(f"[.mark] Transfer number not read, the default caller ID is used: {erreur!r}")
+        return options
 
     async def _simuler_le_renvoi(
         self,
@@ -1135,6 +1284,58 @@ class CustomToolManager:
             properties,
         )
 
+    def _demander_le_rappel_apres_echec(self, result: dict) -> None:
+        """[.mark] Lot 6 (K8, n° 359) : un renvoi vers le numéro de l'établissement qui n'a pas
+        abouti laisse une demande À RAPPELER (même forme que ``diriger.py`` : une entrée de
+        ``CLE_RAPPEL``), au lieu d'une « nouvelle demande » sans suite. Rien pour un transfert vers
+        une personne de l'équipe (sa cible commence par ``personne:``, ``diriger.py`` crée la sienne)
+        ni pour un essai simulé (texte, web : aucun appel n'est parti). ⛔ Ne lève jamais."""
+        try:
+            if result.get("action") != "transfer_failed":
+                return
+            if result.get("reason") in ("textchat_not_supported", "webrtc_not_supported"):
+                return
+            cible = getattr(self, "_cible_transfert_humain", None) or "numero:***"
+            if str(cible).startswith("personne:"):
+                return
+            fiche = getattr(self._engine, "_gathered_context", None)
+            if not isinstance(fiche, dict):
+                return
+            variables = getattr(self._engine, "_call_context_vars", None) or {}
+            fiche.setdefault(CLE_RAPPEL, []).append(
+                {
+                    "origine": ORIGINE_TRANSFERT,
+                    "mode": "rappel",
+                    "numero": variables.get("caller_number") or None,
+                    "raison": result.get("reason"),
+                    "le": datetime.now(UTC).isoformat(),
+                }
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[transfert] demande de rappel non écrite : {e!r}")
+
+    def _renvoi_deja_echoue(self) -> bool:
+        """[.mark] Lot 6 (A7) : réglage « un seul renvoi par appel » allumé (vrai par défaut dans un
+        groupe) et un renvoi vers un humain a déjà échoué dans cet appel."""
+        reglages = getattr(self._engine, "reglages_appel", None)
+        return renvoi_unique_actif(reglages) and un_renvoi_a_echoue(
+            getattr(self._engine, "_gathered_context", None)
+        )
+
+    def _transfert_expose(self) -> bool:
+        """[.mark] Lot 6 (K3, A7) : l'outil de transfert d'appel n'est montré au modèle que si
+        l'entreprise est ouverte (ou sur rendez-vous) à cet appel et qu'aucun renvoi n'a déjà échoué
+        (réglage « un seul renvoi »). Sans état d'ouverture dans l'appel (agent sans horaires) :
+        exposé comme avant. ⛔ Ne lève jamais."""
+        try:
+            if self._renvoi_deja_echoue():
+                return False
+            variables = getattr(self._engine, "_call_context_vars", None) or {}
+            etat = variables.get("etat_ouverture")
+            return not etat or etat in (OUVERT, SUR_RENDEZ_VOUS)
+        except Exception:  # noqa: BLE001
+            return True
+
     async def _handle_transfer_result(
         self,
         result: dict,
@@ -1156,6 +1357,16 @@ class CustomToolManager:
         status = result.get("status", "")
 
         logger.info(f"Handling transfer result: action={action}, status={status}")
+
+        # [.mark] Lot 5 (3 bis): the outcome of EVERY transfer to a human, in the call's record
+        # (read by the one-forward-per-call rule). Never raises.
+        if action in ("destination_answered", "transfer_failed"):
+            noter_issue(
+                getattr(self._engine, "_gathered_context", None),
+                getattr(self, "_cible_transfert_humain", None) or "numero:***",
+                issue_du_resultat(result),
+            )
+            self._demander_le_rappel_apres_echec(result)
 
         if action == "destination_answered":
             # Transfer destination answered - proceeding with bridge swap/conference join

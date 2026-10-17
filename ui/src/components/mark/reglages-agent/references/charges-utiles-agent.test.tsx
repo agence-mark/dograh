@@ -102,6 +102,9 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../../sdk-f
     listRecordingsApiV1WorkflowRecordingsGet: () => Promise.resolve({ data: { recordings: [] }, error: null }),
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: () =>
         Promise.resolve({ data: [{ code_insee: "60057", nom: "Beauvais" }], error: null }),
+    // Lot 11: the fiches the menu of the theme « Business » offers (the case « fiche-de-lagent » picks one).
+    getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
+        Promise.resolve({ data: { etablissements: [{ id: "creil", nom: "Magasin de Creil", numeros: [] }] }, error: null }),
 }));
 
 // The four reused Dograh components: each stub calls the callback the page
@@ -219,6 +222,14 @@ const attendreLaCible = async (geste: Geste) => {
 
 /** Plays one case on the themes, and presses the save of its theme. */
 const jouer = async (cas: CasAgent) => {
+    // [.mark] Lot 12: a case of the group starts from the reference plus its own keys; the others keep
+    // the lone agent's reference untouched.
+    const configDuCas = cas.config
+        ? resolveWorkflowConfigurations({ ...CONFIG_DE_REFERENCE, ...cas.config } as never)
+        : m.config;
+    const dEntree = m.config;
+    m.config = configDuCas;
+    const baseDuCas = commeEnvoye(configDuCas) as Record<string, unknown>;
     await ouvrirLaPage();
     ouvrirLeTheme(cas.theme);
     const autour = AUTOUR_DU_CAS[cas.id] ?? { avant: [], apres: [] };
@@ -239,7 +250,9 @@ const jouer = async (cas: CasAgent) => {
             + m.saveDictionary.mock.calls.length,
         ).toBeGreaterThan(0),
     );
-    return relever(m, BASE);
+    const releves = relever(m, baseDuCas);
+    m.config = dEntree;
+    return releves;
 };
 
 const references: {

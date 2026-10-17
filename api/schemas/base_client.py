@@ -70,7 +70,18 @@ class Personne(BaseModel):
     telephone: str | None = Field(default=None, max_length=20)
     etablissement: str | None = Field(
         default=None,
-        description="Identifier of its establishment; None: the whole company.",
+        description=(
+            "Identifier of its establishment; None: the whole company. "
+            "[.mark] Since the team is one (M5), this is a LABEL, read as the first of ``etablissements``."
+        ),
+    )
+    # [.mark] Chantier agents-specialises, lot 5 (M5): the places of a person, a label and never a
+    # filter. Sent (even empty), it is the list and ``etablissement`` is derived from it; left out,
+    # the legacy ``etablissement`` is the only label (an older screen keeps working).
+    etablissements: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Identifiers of its establishments (zero, one or several); empty: the whole company.",
     )
     destinataire_defaut: bool = False
     actif: bool = True
@@ -99,6 +110,18 @@ class Personne(BaseModel):
         default=None,
         description="Her agenda in each calendar software: translator -> agenda identifier.",
     )
+
+    @model_validator(mode="after")
+    def _lieux_en_etiquettes(self):
+        """[.mark] Lot 5 (M5): one list of labels, the first one mirrored in ``etablissement``."""
+        brut = self.etablissements if "etablissements" in self.model_fields_set else [self.etablissement]
+        lieux: list[str] = []
+        for lieu in brut:
+            if isinstance(lieu, str) and lieu.strip() and lieu.strip() not in lieux:
+                lieux.append(lieu.strip())
+        self.etablissements = lieux
+        self.etablissement = lieux[0] if lieux else None
+        return self
 
     @field_validator("agendas")
     @classmethod

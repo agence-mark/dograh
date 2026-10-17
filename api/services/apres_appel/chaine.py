@@ -191,10 +191,60 @@ async def _base(organization_id: int):
         raise EtapeEnEchec(str(erreur)) from None
 
 
+async def _nom_de_l_agent(organization_id: int, workflow_id: int) -> str | None:
+    """Le nom d'un agent de CETTE organisation (jamais un agent d'une autre)."""
+    workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
+    return getattr(workflow, "name", None) if workflow else None
+
+
+async def _traces_de_l_appel(ctx: ContexteModule, connexion, resultat: dict, bloc: dict) -> None:
+    """[.mark] Chantier agents-specialises, lots 8 et 9 : ce que le portail lit à côté de l'appel,
+    écrit après lui, rejouable : les incidents de l'appel, l'issue de chaque transfert (D82), et
+    l'écriture elle-même quand elle a échoué avant d'aboutir (la base du client était injoignable).
+    Jamais une raison de rater l'écriture de l'appel."""
+    appel_id = resultat.get("appel_id")
+    if not appel_id:
+        return
+    try:
+        from api.db.bases_clients import traces
+
+        envoi = ctx.envoi
+        await traces.ecrire_incidents(connexion, appel_id, envoi.get("incidents") or [])
+        await traces.ecrire_issues_de_transfert(
+            connexion,
+            appel_id,
+            resultat.get("demande_id"),
+            envoi.get("transferts") or [],
+            envoi.get("debut"),
+        )
+        avant = (bloc.get("etapes") or {}).get("ecriture") or {}
+        if avant.get("statut") == "echec":
+            await traces.noter_incident(
+                connexion,
+                appel_id=appel_id,
+                brique="base_client",
+                cause="ecriture_de_l_appel_en_echec_puis_reprise",
+                debut=avant.get("le"),
+                fin=_maintenant(),
+                correctif="écriture reprise par l'après-appel",
+            )
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Traces of call {appel_id} not written: {erreur!r}")
+
+
 async def _ecriture(ctx: ContexteModule, bloc: dict) -> dict:
     connexion = await _base(ctx.organization_id)
     try:
+        # [.mark] Lot 8 (D83) : les agents appelés arrivent avec le nom que Dograh leur connaît.
+        if len(ctx.envoi.get("agents") or []) > 1:
+            from api.db.bases_clients.traces import noms_des_agents_manquants
+
+            ctx.envoi["agents"] = await noms_des_agents_manquants(
+                ctx.envoi["agents"],
+                lambda workflow_id: _nom_de_l_agent(ctx.organization_id, workflow_id),
+            )
         resultat = await sql.recevoir_appel(connexion, ctx.envoi)
+        await _traces_de_l_appel(ctx, connexion, resultat, bloc)
         # l-agent-collegue, L2 (C8, C10): the assignee and the transfers, idempotent.
         if ctx.envoi.get("equipe"):
             from api.db.bases_clients.gestes import ecrire_gestes
@@ -381,6 +431,9 @@ def texte_du_mail(ctx: ContexteModule, bloc: dict) -> tuple[str, str]:
     envoi = ctx.envoi
     motif = envoi.get("motif") or "—"
     sujet = f"Nouvelle demande : {motif}"[:150]
+    if envoi.get("demandes"):
+        # [.mark] Lot 17 : un appel à plusieurs demandes les dit toutes dans le sujet.
+        sujet = f"Nouvelles demandes : {' ; '.join(envoi.get('motifs') or [motif])}"[:150]
     if (envoi.get("demande") or {}).get("nee_d_une_panne"):
         # Decision of Evan, 07/10 (form, point 7). The mails are written in French.
         sujet = SUJET_PANNE
@@ -409,8 +462,27 @@ def texte_du_mail(ctx: ContexteModule, bloc: dict) -> tuple[str, str]:
     lignes.append(bloc.get("synthese") or "(résumé indisponible)")
     lignes.append("")
     lignes.append("Fiche :")
-    for champ in envoi.get("champs") or []:
-        lignes.append(f"- {champ['nom']} : {champ['valeur']}")
+    demandes = envoi.get("demandes") or []
+    if demandes:
+        # [.mark] Lot 17 : un appel à plusieurs demandes : les champs de l'appel une fois, puis
+        # un bloc par demande (son agent, son motif, ses champs propres).
+        for champ in demandes[0].get("champs") or []:
+            if champ.get("portee") == "appel":
+                lignes.append(f"- {champ['nom']} : {champ['valeur']}")
+        for bloc in demandes:
+            titre = f"Demande {bloc.get('ordre')}"
+            if bloc.get("agent"):
+                titre += f" ({bloc['agent']})"
+            if bloc.get("motif"):
+                titre += f" : {bloc['motif']}"
+            lignes.append("")
+            lignes.append(titre)
+            for champ in bloc.get("champs") or []:
+                if champ.get("portee") != "appel":
+                    lignes.append(f"- {champ['nom']} : {champ['valeur']}")
+    else:
+        for champ in envoi.get("champs") or []:
+            lignes.append(f"- {champ['nom']} : {champ['valeur']}")
     if bloc.get("demande_id"):
         lignes.append("")
         lignes.append(
@@ -718,6 +790,25 @@ async def _signaler(
     envoyes = await notifier(
         organization_id, f"Après-appel en échec : {etape}, appel {run.id}", texte
     )
+    # [.mark] Lot 9 : une action d'après-appel en échec définitif est un incident pour le portail
+    # (si la base du client répond ; sinon, il n'y a nulle part où l'écrire).
+    try:
+        from api.db.bases_clients import traces
+
+        connexion = await _base(organization_id)
+        try:
+            appel_id = await traces.appel_du_run(connexion, run.id)
+            await traces.noter_incident(
+                connexion,
+                appel_id=appel_id,
+                brique=f"apres_appel:{etape}",
+                cause=message,
+                correctif="relance manuelle possible (« Retry » dans la fenêtre du run)",
+            )
+        finally:
+            await connexion.close()
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Incident of step {etape} (run {run.id}) not written: {erreur!r}")
     await db_client.fusionner_apres_appel(
         run.id, etape=etape, valeur={"notifie_a": envoyes, "notifie_le": _maintenant()}
     )

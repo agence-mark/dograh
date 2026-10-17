@@ -6,7 +6,8 @@ The handler of the internal action ``equipe.diriger_vers_personne``:
    (``equipe_cles``, built at pick-up), a phone number or an e-mail is REFUSED: the model is
    told to choose from the list, nothing is dialled, nothing is assigned (C7).
 2. The person is read from the in-memory copy (never from what the model says): active,
-   her phone number, whether she may be reached by transfer (C8).
+   her phone number, whether she may be reached by transfer (C8). The team is one (M5): no
+   filter by establishment.
 3. Transfer when it is asked (the default) AND possible (``joignable_par_transfert`` and a
    number): Dograh's own transfer handler is played with that number -- the same phone
    path, the same simulated transfer in a test window. The model is never given the number.
@@ -61,22 +62,18 @@ def phrase(contexte: dict | None, variable: str, defaut: str, personne: Personne
 
 
 async def personne_de_la_copie(
-    organization_id: int, cle: str, etablissement_id: str | None
+    organization_id: int, cle: str, etablissement_id: str | None = None
 ) -> Personne | None:
-    """The active person of this organization AND reachable from the establishment served
-    (hers, or one of the whole company): a key that slipped into the list from elsewhere
-    reaches no one of another establishment."""
+    """The active person of this organization, read from the copy.
+
+    [.mark] Chantier agents-specialises, lot 5 (decision M5): the team is one, a place is a
+    label and never a filter, so a person is reachable from any agent. ``etablissement_id`` is
+    kept for the callers and filters nothing. What protects the caller is the CLOSED LIST of
+    keys the code stamped at pick-up (checked before), and the organization of the copy."""
     from api.services.etablissements.copie import lire_copie_complete
 
     equipe = (await lire_copie_complete(organization_id)).equipe
-    return next(
-        (
-            p
-            for p in equipe.personnes
-            if p.cle == cle and p.actif and (p.etablissement is None or p.etablissement == etablissement_id)
-        ),
-        None,
-    )
+    return next((p for p in equipe.personnes if p.cle == cle and p.actif), None)
 
 
 def _noter(fiche: dict | None, geste: dict) -> None:
@@ -199,6 +196,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
             tool_uuid=getattr(tool, "tool_uuid", None),
             name=getattr(tool, "name", nom_de_fonction),
             category="transfer_call",
+            cible_transfert_humain=f"personne:{personne.cle}",  # lot 5 : the call's record names her
             definition={
                 "type": "transfer_call",
                 "config": {

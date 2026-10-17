@@ -19,6 +19,7 @@ from api.services.telephony.base import (
     ProviderSyncResult,
     TelephonyProvider,
 )
+from api.services.equipe.transferts_humains import DELAI_DETECTION_S, twiml_conference
 from api.utils.common import get_backend_endpoints
 from api.utils.telephony_address import normalize_telephony_address
 
@@ -612,10 +613,18 @@ class TwilioProvider(TelephonyProvider):
         transfer_id: str,
         conference_name: str,
         timeout: int = 30,
+        detection_repondeur: bool = False,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Initiate a call transfer via Twilio.
+
+        [.mark] Chantier agents-specialises, lot 5 (3 bis): ``detection_repondeur`` asks Twilio
+        to tell who picked up (``MachineDetection=Enable``). The answer is then handled by OUR
+        TwiML address (``/telephony/transfer-twiml/{id}``), which receives ``AnsweredBy`` and
+        either puts the person in the conference or hangs up on a machine; the caller never
+        left the agent. Off (default): the inline TwiML of before. The caller ID is the
+        explicit ``from_number`` kwarg when given (the organization's transfer number).
 
         Uses inline TwiML to put the destination into a conference when they answer,
         and a status callback to track the transfer outcome.
@@ -637,7 +646,8 @@ class TwilioProvider(TelephonyProvider):
         if not self.validate_config():
             raise ValueError("Twilio provider not properly configured")
 
-        from_number = self.select_from_number()
+        from_number = self.select_from_number(kwargs.pop("from_number", None))
+        phrase_salarie = kwargs.pop("phrase_salarie", None)
         logger.info(f"Selected phone number {from_number} for transfer call")
 
         backend_endpoint, _ = await get_backend_endpoints()
@@ -645,15 +655,12 @@ class TwilioProvider(TelephonyProvider):
         status_callback_url = (
             f"{backend_endpoint}/api/v1/telephony/transfer-result/{transfer_id}"
         )
+        if detection_repondeur:
+            # The answer to « who picked up » decides the bridge: see the TwiML route.
+            status_callback_url += "?amd=1"
 
         # Inline TwiML: when the destination answers, put them into the conference
-        twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say>You have answered a transfer call. Connecting you now.</Say>
-    <Dial>
-        <Conference endConferenceOnExit="true">{conference_name}</Conference>
-    </Dial>
-</Response>"""
+        twiml = twiml_conference(conference_name, phrase_salarie)
 
         # Prepare Twilio API call data
         endpoint = f"{self.base_url}/Calls.json"
@@ -661,7 +668,6 @@ class TwilioProvider(TelephonyProvider):
             "To": destination,
             "From": from_number,
             "Timeout": timeout,
-            "Twiml": twiml,
             "StatusCallback": status_callback_url,
             "StatusCallbackEvent": [
                 "answered",
@@ -672,6 +678,14 @@ class TwilioProvider(TelephonyProvider):
             ],
             "StatusCallbackMethod": "POST",
         }
+
+        if detection_repondeur:
+            data["Url"] = f"{backend_endpoint}/api/v1/telephony/transfer-twiml/{transfer_id}"
+            data["Method"] = "POST"
+            data["MachineDetection"] = "Enable"
+            data["MachineDetectionTimeout"] = DELAI_DETECTION_S
+        else:
+            data["Twiml"] = twiml
 
         # Add any additional kwargs
         data.update(kwargs)

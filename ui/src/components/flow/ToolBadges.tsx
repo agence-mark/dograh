@@ -68,6 +68,29 @@ export function ToolBadges({ toolUuids, onStaleUuidsDetected, mcpToolFilters }: 
                     ));
                 }
 
+                // [.mark] Lot 12 (brique « Agent »): a hand-over tool is a link to the agent it leads to,
+                // opened in a new tab. Display only: nothing about the graph changes.
+                if (tool.category === "transfer_agent") {
+                    const cible = (tool.definition as { config?: { workflow_id?: number } } | undefined)?.config?.workflow_id;
+                    if (typeof cible === "number") {
+                        return (
+                            <a
+                                key={tool.tool_uuid}
+                                href={`/workflow/${cible}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                data-brique-agent={cible}
+                                onClick={(e) => e.stopPropagation()}
+                                onDoubleClick={(e) => e.stopPropagation()}
+                            >
+                                <Badge variant="outline" className="text-xs underline">
+                                    {tool.name}
+                                </Badge>
+                            </a>
+                        );
+                    }
+                }
+
                 return (
                     <Badge key={tool.tool_uuid} variant="outline" className="text-xs">
                         {tool.name}

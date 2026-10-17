@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
+import { type ChampFiche, resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
 import {
     erreursDesChamps,
@@ -24,7 +24,9 @@ import {
     NOMBRE_MAX_CHAMPS,
     NOMBRE_MAX_CHIFFRES,
     NOMBRE_MAX_VALEURS,
+    NOMS_RECONNUS_PAR_DEFAUT,
     NOMS_RESERVES,
+    porteeParDefaut,
     SectionFiche,
 } from "./SectionFiche";
 
@@ -435,5 +437,92 @@ describe("[.mark] Call Record: Postscript-only field option (plan postscriptum-n
         await screen.findByRole("dialog");
         expect(document.getElementById("fiche_copie_de_la_parole_0")).not.toBeNull();
         expect(document.getElementById("fiche_copie_de_la_parole_1")).not.toBeNull();
+    });
+});
+
+describe("[.mark] Call Record: scope of a field (lot 17, fiche à plusieurs demandes)", () => {
+    const champ = (nom: string, plus: Record<string, unknown> = {}) => ({
+        nom,
+        type: "string",
+        origine: "dicte",
+        description: "",
+        lecteur: null,
+        ...plus,
+    });
+    const CHAMPS_PORTEE = [champ("nom"), champ("telephone"), champ("objet"), champ("detail", { portee: "appel" })];
+
+    it("shows the scope of each field in the dialog, the default computed from the agent's settings", async () => {
+        ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: CHAMPS_PORTEE });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        const portee = (i: number) => document.getElementById(`fiche_portee_${i}`)?.textContent ?? "";
+        expect(portee(0)).toContain("From the agent's settings (whole call)");
+        expect(portee(1)).toContain("From the agent's settings (whole call)");
+        expect(portee(2)).toContain("From the agent's settings (this request)");
+        // Chosen on screen: shown as chosen, not as the default.
+        expect(portee(3)).toContain("Whole call");
+        expect(portee(3)).not.toContain("From the agent's settings");
+        // The help sits under the field (convention § 5).
+        expect(within(dialogue).getAllByText(/only matters when the call has several requests/i).length).toBe(4);
+    });
+
+    it("follows the names the agent recognises (field recognition), not a list of names", async () => {
+        ouvrir({
+            fiche_au_fil_de_leau: true,
+            fiche_champs: [champ("joignable"), champ("objet")],
+            variables_telephone: "joignable",
+        });
+        ouvrirLesChamps();
+        await screen.findByRole("dialog");
+        expect(document.getElementById("fiche_portee_0")?.textContent).toContain("(whole call)");
+        expect(document.getElementById("fiche_portee_1")?.textContent).toContain("(this request)");
+    });
+
+    it("carries a chosen scope out on save, and an empty scope stays empty", async () => {
+        const onSave = ouvrir({
+            fiche_au_fil_de_leau: true,
+            fiche_champs: [...CHAMPS_PORTEE.slice(0, 3), champ("detail", { portee: "demande" })],
+        });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        // Another edit, so the record is dirty: the scopes must leave as they were read.
+        fireEvent.click(document.getElementById("fiche_cumulatif_0") as HTMLElement);
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        fireEvent.click(boutonEnregistrer());
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        const [nom, telephone, objet, detail] = onSave.mock.calls[0][0].fiche_champs;
+        expect(detail.portee).toBe("demande");
+        // Empty stays empty: never replaced by its computed value (same rule as the reader).
+        expect(nom.portee ?? null).toBeNull();
+        expect(telephone.portee ?? null).toBeNull();
+        expect(objet.portee ?? null).toBeNull();
+    });
+
+    it("saving without touching a scope sends the record as it was read (never dirty)", () => {
+        ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: CHAMPS_PORTEE });
+        expect(boutonEnregistrer().disabled).toBe(true);
+    });
+
+    it("the server knows the scope the screen offers", () => {
+        const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
+        expect(schema).toMatch(/portee: Literal\["appel", "demande"\] \| None/);
+    });
+
+    it("mirrors the server's default scope: the recognised names and the rule", () => {
+        const reglages = readFileSync(join(__dirname, "../../../../api/schemas/workflow_configurations.py"), "utf8");
+        const duServeur = (nom: string) => new RegExp(`^${nom} = "([^"]+)"`, "m").exec(reglages)?.[1];
+        expect(NOMS_RECONNUS_PAR_DEFAUT.commune).toBe(duServeur("DEFAULT_VARIABLES_COMMUNE"));
+        expect(NOMS_RECONNUS_PAR_DEFAUT.telephone).toBe(duServeur("DEFAULT_VARIABLES_TELEPHONE"));
+        expect(NOMS_RECONNUS_PAR_DEFAUT.code_postal).toBe(duServeur("DEFAULT_VARIABLES_CODE_POSTAL"));
+        expect(NOMS_RECONNUS_PAR_DEFAUT.courriel).toBe(duServeur("DEFAULT_VARIABLES_COURRIEL"));
+        const c = (nom: string, lecteur: ChampFiche["lecteur"] = null) => ({ nom, lecteur });
+        expect(porteeParDefaut(c("objet"))).toBe("demande");
+        expect(porteeParDefaut(c("objet", "commune"))).toBe("appel");
+        expect(porteeParDefaut(c("voie", "rue"))).toBe("appel");
+        expect(porteeParDefaut(c("nom"))).toBe("appel");
+        expect(porteeParDefaut(c("prenom_contact"))).toBe("appel");
+        expect(porteeParDefaut(c("nombre"))).toBe("demande");
+        expect(porteeParDefaut(c("courriel_contact"))).toBe("appel");
+        expect(porteeParDefaut(c("zone"), { code_postal: "zone" })).toBe("appel");
     });
 });

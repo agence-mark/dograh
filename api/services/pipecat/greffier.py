@@ -52,6 +52,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     NOTE_DESCRIPTIONS,
     Notices,
     ReglagesFiche,
+    _est_un_refus,
     _est_vide,
     _propriete,
     derniere_question,
@@ -127,6 +128,20 @@ FORMAT_DE_LA_REPONSE = (
 )
 
 
+# [.mark] Lot 7 (K4, n° 353, 355) : ce que le CODE ajoute toujours, réglée ou non (comme les champs
+# et le format) : un refus, une adresse, le non-dit, les dates relatives. Aucun mot de métier.
+REGLES_D_ECRITURE = (
+    "# Règles d'écriture\n"
+    "- Quand la personne refuse de donner une information, tu écris « refusé » dans le champ, "
+    "jamais une valeur.\n"
+    "- Une adresse e-mail s'écrit entière, comme elle a été dite ou épelée : jamais coupée, "
+    "jamais complétée.\n"
+    "- Rien de non dit ne s'écrit : sans parole de la personne, le champ reste absent.\n"
+    "- Une date relative (« l'an dernier », « le mois dernier ») s'écrit telle que dite : le "
+    "code la calcule avec la date de l'appel donnée en tête de ta lecture."
+)
+
+
 def consigne_du_greffier(reglages: ReglagesFiche, consigne: str | None) -> str:
     """Le prompt système du greffier : la consigne de l'agent (ou la générique),
     puis les champs et le format, ajoutés par le code."""
@@ -138,6 +153,7 @@ def consigne_du_greffier(reglages: ReglagesFiche, consigne: str | None) -> str:
     return "\n\n".join(
         [
             base.rstrip(),
+            REGLES_D_ECRITURE,
             FORMAT_DE_LA_REPONSE.format(
                 champs=champs, note_descriptions=NOTE_DESCRIPTIONS
             ),
@@ -330,6 +346,14 @@ def champs_a_noter(
         ):
             continue
         a_noter[nom] = valeur
+    # D2 (rejeu du 16/10, S6 run 1394) : une personne refuse UNE information à la fois. Un refus
+    # sur plusieurs champs dans la même passe (« refusé » partout, 20 champs) n'est jamais un
+    # refus dit : tous ces refus sont écartés, le reste de la passe est gardé.
+    refus = [nom for nom, valeur in a_noter.items() if _est_un_refus(valeur, par_nom[nom])]
+    if len(refus) > 1:
+        logger.warning(f"[greffier] refus sur {len(refus)} champs dans une passe : écartés")
+        for nom in refus:
+            a_noter.pop(nom, None)
     return a_noter
 
 

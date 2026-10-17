@@ -26,7 +26,9 @@ a call.
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -103,6 +105,20 @@ class Etablissement(BaseModel):
         max_length=MAX_LONGUEUR_ANNONCE,
         description="None: the organization's break announcement.",
     )
+    # [.mark] Chantier agents-specialises, lot 1 (F4, C5) : la fermeture immédiate de la
+    # fiche, même forme que celle de l'organisation. Elle l'emporte pour les agents de
+    # la fiche ; sinon celle de l'organisation (« tout fermer ») s'applique.
+    etat_force: Literal["OUVERT", "PAUSE", "FERME", "SUR_RENDEZ_VOUS"] | None = Field(
+        default=None,
+        description=(
+            "The state every agent of this fiche is in, whatever the hours say "
+            "(OUVERT, PAUSE, FERME, SUR_RENDEZ_VOUS). None: the organization's, else the hours."
+        ),
+    )
+    etat_force_jusqu_a: datetime | None = Field(
+        default=None,
+        description="When this fiche's forced state lifts itself, Paris time. None: until changed.",
+    )
 
     phrases: dict[str, str] = Field(
         default_factory=dict,
@@ -130,6 +146,23 @@ class Etablissement(BaseModel):
                     raise ValueError(f"The sentence « {cle} » is longer than {MAX_LONGUEUR_PHRASE} characters.")
                 propres[cle] = contenu.strip()
         return propres
+
+    @field_validator("etat_force_jusqu_a")
+    @classmethod
+    def _fin_en_heure_de_paris(cls, value: datetime | None) -> datetime | None:
+        """[.mark] Lot 1 : comme la fermeture de l'organisation, une heure de Paris sans décalage."""
+        if value is None or value.tzinfo is None:
+            return value
+        return value.astimezone(ZoneInfo("Europe/Paris")).replace(tzinfo=None)
+
+    @model_validator(mode="after")
+    def _une_fin_suppose_une_fermeture(self):
+        """[.mark] Lot 1 : une date de fin sans état forcé ne veut rien dire (refusée)."""
+        if self.etat_force_jusqu_a is not None and self.etat_force is None:
+            raise ValueError(
+                "An end date means nothing without a forced state: choose a state, or clear the date."
+            )
+        return self
 
     @field_validator("id")
     @classmethod
@@ -205,7 +238,7 @@ class CatalogueEtablissements(BaseModel):
         return self
 
 
-OrigineValeur = Literal["agent", "etablissement", "organisation", "aucune"]
+OrigineValeur = Literal["agent", "etablissement", "organisation", "aucune", "fiche"]
 
 
 class ValeurHeritee(BaseModel):
@@ -236,6 +269,24 @@ class EtablissementsDeLagent(BaseModel):
         default_factory=list,
         description="Numbers of this agent attached to no establishment: their calls behave as before.",
     )
+    # [.mark] Chantier agents-specialises, lot 1 (F1) : la fiche choisie par l'agent.
+    fiche_de_lagent: str | None = Field(
+        default=None,
+        description=(
+            "The fiche this agent chose (its establishment_id). Set: its calls read this "
+            "fiche alone (no inheritance); the list then holds that fiche only."
+        ),
+    )
+    fiche_introuvable: bool = Field(
+        default=False,
+        description="The chosen fiche no longer exists: the agent's calls read no establishment.",
+    )
+    # [.mark] Chantier agents-specialises, lot 11 (C4) : les numéros appartiennent à l'agent, la
+    # fiche au lieu. L'écran les montre en lecture sous le choix de la fiche.
+    numeros_de_lagent: list[str] = Field(
+        default_factory=list,
+        description="Every number of the organization's Telephony that leads to this agent (read only).",
+    )
 
 
 class NumeroDeLorganisation(BaseModel):
@@ -244,3 +295,61 @@ class NumeroDeLorganisation(BaseModel):
     numero: str
     libelle: str | None = None
     agent: str | None = None
+
+
+# --------------------------------------------------------------------------- #
+# [.mark] Chantier agents-specialises, lot 4 (= lot 2 du plan fiche-etablissement)
+# --------------------------------------------------------------------------- #
+
+
+class DemandeCopieEtablissement(BaseModel):
+    """F2: a new fiche made from an existing one."""
+
+    source: str = Field(min_length=1, max_length=40, description="Identifier of the fiche to copy.")
+    id: str = Field(min_length=1, max_length=40, description="Identifier of the new fiche.")
+    nom: str = Field(min_length=1, max_length=100, description="Name of the new fiche.")
+
+
+class ResultatCopieEtablissement(BaseModel):
+    """What the copy made, and what it left for the person to fill."""
+
+    etablissement: Etablissement
+    reglages_rendez_vous_copies: bool = Field(
+        default=False,
+        description="The source's appointment settings and types were copied (needs a client database).",
+    )
+    types_rendez_vous_copies: int = 0
+    non_copie: list[str] = Field(
+        default_factory=list,
+        description="What a copy never takes: numbers and the immediate closure (to fill on the new fiche).",
+    )
+
+
+class DemandeReprise(BaseModel):
+    """The takeover of an organization's fiches and agents. Trial run unless ``ecrire``."""
+
+    ecrire: bool = Field(
+        default=False,
+        description="False (default): lists what would be written, writes nothing. True: writes it.",
+    )
+
+
+class ActionReprise(BaseModel):
+    """One value the takeover writes (or would write)."""
+
+    sujet: Literal["fiche", "rendez_vous", "agent"]
+    cible: str = Field(description="The fiche id or the agent's name and id.")
+    champ: str
+    avant: str | None = None
+    apres: str | None = None
+
+
+class ResultatReprise(BaseModel):
+    ecrit: bool = Field(description="True when the changes were written; False for a trial run.")
+    actions: list[ActionReprise] = Field(default_factory=list)
+    a_decider: list[str] = Field(
+        default_factory=list,
+        description="What the takeover will not decide alone: an agent whose numbers lead to several "
+        "fiches (or to none besides one), hours or address that disagree. Nothing was written for these.",
+    )
+    deja_a_jour: int = Field(default=0, description="Values already as the takeover would write them.")

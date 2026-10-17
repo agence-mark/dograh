@@ -15,6 +15,14 @@ interface WorkflowContextType {
     readOnly?: boolean;
     /** [.mark] Lot E d'agent-leger-greffier: the agent's record fields (step labels). */
     champsFiche?: string[];
+    /** [.mark] Lot 12 (agents-specialises): the id of this agent. */
+    workflowId?: number;
+    /** [.mark] Lot 12: the main agent of this agent when it is a specialised one (« Back to the main agent »). */
+    agentPrincipalId?: number | null;
+    /** [.mark] Lot 12: this agent is the main agent of a group (its end step gets the list of closing sentences). */
+    estPrincipal?: boolean;
+    /** [.mark] Lot 12: a tool just created from the node window (the « Agent » brick) joins the list. */
+    ajouterOutil?: (tool: ToolResponse) => void;
 }
 
 const WorkflowContext = createContext<WorkflowContextType | undefined>(undefined);

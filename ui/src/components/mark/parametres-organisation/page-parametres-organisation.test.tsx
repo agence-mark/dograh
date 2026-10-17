@@ -44,6 +44,7 @@ const m = vi.hoisted(() => ({
     saveReglagesFenetreDuRun: vi.fn(),
     saveChoixTraducteurs: vi.fn(),
     lien: vi.fn(),
+    reprise: vi.fn(),
 }));
 
 // l-agent-collegue, L4: the calendar software of the hub (theme « Integrations »).
@@ -69,6 +70,7 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-fact
     getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
         Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [] } }),
     getNumerosApiV1OrganizationsEtablissementsNumerosGet: () => Promise.resolve({ data: [] }),
+    repriseDesFichesApiV1OrganizationsEtablissementsReprisePost: m.reprise,
     saveEtablissementsApiV1OrganizationsEtablissementsPut: vi.fn(),
     getPhrasesApiV1OrganizationsPhrasesGet: () => Promise.resolve({ data: { format: "phrases-mark", version: 1, phrases: [] } }),
     savePhrasesApiV1OrganizationsPhrasesPut: vi.fn(),
@@ -182,6 +184,21 @@ describe("[.mark] the Platform Settings page in themes", () => {
         expect(theme.textContent).toContain("Establishments of the organization");
         fireEvent.click(screen.getByTestId("ouvrir-etablissements"));
         await waitFor(() => expect(screen.getByTestId("ajouter-etablissement")).toBeTruthy());
+    });
+
+    it("[agents-specialises, lot 11] « Close everything » is the old forced state, and the takeover opens its trial run", async () => {
+        m.reprise.mockResolvedValue({ data: { ecrit: false, actions: [], a_decider: [], deja_a_jour: 0 } });
+        await ouvrirLaPage();
+        const theme = await ouvrirLeTheme("etablissement");
+        // The same control and the same keys (etat_force, etat_force_jusqu_a), relabelled.
+        expect(theme.querySelector('label[for="etat_force"]')?.textContent).toBe("Close everything");
+        expect(theme.querySelector('[data-reglage="etat_force"]')).not.toBeNull();
+        // The takeover is offered next to the establishments, and shows a trial run before writing anything.
+        expect(theme.querySelector('[data-reglage="reprise_des_fiches"]')).not.toBeNull();
+        fireEvent.click(screen.getByTestId("ouvrir-reprise"));
+        await waitFor(() => expect(screen.getByTestId("etat-reprise").textContent).toContain("Trial run, nothing written"));
+        await waitFor(() => expect(m.reprise).toHaveBeenCalledWith({ body: { ecrire: false } }));
+        expect(m.reprise).toHaveBeenCalledTimes(1);
     });
 
     it("⛔ keeps the save asleep while the preferences are read (review of 26/09, M1)", async () => {

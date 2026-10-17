@@ -48,6 +48,12 @@ from api.services.telephony.transfer_event_protocol import (
     TransferEvent,
     TransferEventType,
 )
+from api.services.equipe.transferts_humains import (
+    ETAPE_ISSUE,
+    TWIML_RACCROCHER,
+    est_un_repondeur,
+    twiml_conference,
+)
 from api.services.workflow.run_creation import prepare_workflow_run_inputs
 from api.services.workflow_run_failure import mark_workflow_run_failed
 from api.utils.common import get_backend_endpoints
@@ -1188,6 +1194,92 @@ async def handle_inbound_telephony(
         return generic_hangup_response()
 
 
+def _resultat_repondeur(call_sid: str) -> dict:
+    return {
+        "status": "transfer_failed",
+        "reason": "voicemail",
+        "message": "The transfer reached an answering machine. The person is not available right now.",
+        "action": "transfer_failed",
+        "call_sid": call_sid,
+        "end_call": True,
+    }
+
+
+async def _signe_par_twilio(request: Request, data: dict, contexte) -> bool:
+    """[.mark] Revue du 16/10 : les deux adresses de retour d'un transfert ne croient que Twilio. La
+    signature se vérifie avec le compte Twilio de l'appel (retrouvé par le run du transfert) ; sans
+    transfert connu, rien ne permet de la vérifier, la requête est refusée."""
+    if contexte is None or not contexte.workflow_run_id:
+        return False
+    run = await db_client.get_workflow_run_by_id(contexte.workflow_run_id)
+    workflow = await db_client.get_workflow_by_id(run.workflow_id) if run else None
+    if workflow is None:
+        return False
+    fournisseur = await get_telephony_provider_for_run(run, workflow.organization_id)
+    return await fournisseur.verify_inbound_signature(
+        str(request.url), data, dict(request.headers)
+    )
+
+
+@router.post("/transfer-twiml/{transfer_id}")
+async def transfer_twiml(transfer_id: str, request: Request):
+    """[.mark] Lot 5 (3 bis): what Twilio runs when the person we dialled picks up, once it knows who
+    picked up (``AnsweredBy``). A machine (or a fax): the transfer FAILED, the agent takes the caller
+    back, the leg hangs up. A human, or ``unknown`` (never a caller sent back wrongly): the person is
+    put in the conference and the caller is bridged."""
+    from fastapi.responses import Response
+
+    data = dict(await request.form())
+    call_sid = data.get("CallSid", "")
+    manager = await get_call_transfer_manager()
+    contexte = await manager.get_transfer_context(transfer_id)
+    if contexte is None:
+        logger.warning(f"Transfer TwiML asked for an unknown transfer {transfer_id}")
+        return Response(TWIML_RACCROCHER, media_type="application/xml")
+    if not await _signe_par_twilio(request, data, contexte):
+        logger.warning(f"Invalid Twilio signature on the transfer TwiML {transfer_id}")
+        return Response(TWIML_RACCROCHER, media_type="application/xml", status_code=401)
+    # [.mark] Revue du 16/10 : une seule issue par transfert. Si l'agent a déjà abandonné (attente
+    # écoulée), la ligne raccroche : jamais un salarié seul dans une conférence vide.
+    if not await manager.claim_transfer_step(transfer_id, ETAPE_ISSUE):
+        logger.info(f"Transfer {transfer_id} already settled, the answered leg hangs up")
+        return Response(TWIML_RACCROCHER, media_type="application/xml")
+    machine = est_un_repondeur(data.get("AnsweredBy"))
+    if machine:
+        result = _resultat_repondeur(call_sid)
+    else:
+        result = {
+            "status": "success",
+            "message": "Great! The destination number answered. Let me transfer you now.",
+            "action": "destination_answered",
+            "conference_id": contexte.conference_name,
+            "transfer_call_sid": call_sid,
+            "original_call_sid": contexte.original_call_sid,
+            "end_call": False,
+        }
+    try:
+        await manager.publish_transfer_event(
+            TransferEvent(
+                type=TransferEventType.TRANSFER_FAILED if machine else TransferEventType.DESTINATION_ANSWERED,
+                transfer_id=transfer_id,
+                original_call_sid=contexte.original_call_sid or "",
+                transfer_call_sid=call_sid,
+                conference_name=contexte.conference_name,
+                message=result["message"],
+                status=result["status"],
+                action=result["action"],
+                reason=result.get("reason"),
+            )
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Error publishing the transfer outcome {transfer_id}: {e}")
+    if machine:
+        return Response(TWIML_RACCROCHER, media_type="application/xml")
+    return Response(
+        twiml_conference(contexte.conference_name, contexte.phrase_salarie), media_type="application/xml"
+    )
+
+
 @router.post("/transfer-result/{transfer_id}")
 async def complete_transfer_function_call(transfer_id: str, request: Request):
     """Webhook endpoint to complete the function call with transfer result.
@@ -1199,6 +1291,14 @@ async def complete_transfer_function_call(transfer_id: str, request: Request):
 
     call_status = data.get("CallStatus", "")
     call_sid = data.get("CallSid", "")
+    # [.mark] Lot 5 (3 bis): with answering-machine detection (``?amd=1``), the TwiML address decides
+    # the bridge; a machine reported here is a failed transfer, never a bridge.
+    detection = request.query_params.get("amd") == "1"
+    repondeur = est_un_repondeur(data.get("AnsweredBy")) and call_status in (
+        "in-progress",
+        "answered",
+        "completed",
+    )
 
     logger.info(
         f"Transfer result(call status) webhook: {transfer_id} status={call_status}"
@@ -1208,11 +1308,20 @@ async def complete_transfer_function_call(transfer_id: str, request: Request):
     call_transfer_manager = await get_call_transfer_manager()
     transfer_context = await call_transfer_manager.get_transfer_context(transfer_id)
 
+    # [.mark] Revue du 16/10 : seul Twilio peut dire qu'un transfert a abouti ou échoué.
+    if not await _signe_par_twilio(request, data, transfer_context):
+        logger.warning(f"Invalid Twilio signature on the transfer result {transfer_id}")
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
     original_call_sid = transfer_context.original_call_sid if transfer_context else None
     conference_name = transfer_context.conference_name if transfer_context else None
 
     # Determine the result based on call status with user-friendly messaging
-    if call_status in ("in-progress", "answered"):
+    if repondeur:
+        result = _resultat_repondeur(call_sid)
+    elif call_status in ("in-progress", "answered") and detection:
+        return {"status": "pending"}
+    elif call_status in ("in-progress", "answered"):
         result = {
             "status": "success",
             "message": "Great! The destination number answered. Let me transfer you now.",

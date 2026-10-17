@@ -39,7 +39,7 @@ import { type Texte, useLangue } from "./langue/langue";
 export const ETAT_CALCULE = "";
 
 /** The states that can be forced, in the order they are offered. */
-const ETATS: Array<{ valeur: string; libelle: Texte }> = [
+export const ETATS: Array<{ valeur: string; libelle: Texte }> = [
   { valeur: "FERME", libelle: { en: "Closed", fr: "fermé" } },
   { valeur: "PAUSE", libelle: { en: "On a break", fr: "en pause" } },
   { valeur: "OUVERT", libelle: { en: "Open", fr: "ouvert" } },
@@ -264,11 +264,11 @@ export function ChampsAnnonceOuverture({ annonce }: { annonce: EtatAnnonceOuvert
 
       <div className="space-y-2 border-t pt-4" id="reglage-etat_force" data-reglage="etat_force">
         <Label htmlFor="etat_force" className="text-xs">
-          {t({ en: "State of the business", fr: "État de l'entreprise" })}
+          {t({ en: "Close everything", fr: "Tout fermer" })}
         </Label>
         <select
           id="etat_force"
-          aria-label={t({ en: "State of the business", fr: "État de l'entreprise" })}
+          aria-label={t({ en: "Close everything", fr: "Tout fermer" })}
           className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
           value={force ?? ETAT_CALCULE}
           onChange={(e) =>
@@ -333,8 +333,8 @@ export function ChampsAnnonceOuverture({ annonce }: { annonce: EtatAnnonceOuvert
             )}
             <p className="text-xs text-destructive">
               {t({
-                en: "A forced state applies to EVERY agent of this organization. To close one site only, add a dated exception in that agent's opening hours (",
-                fr: "Un état forcé s'applique à TOUS les agents de l'organisation. Pour fermer un seul site, ajoutez une exception datée dans les horaires de cet agent (",
+                en: "« Close everything » applies to EVERY agent of this organization, except those whose fiche has an immediate closing of its own. To close one establishment only, use the immediate closing of its fiche (Establishments), or add a dated exception in the hours of an agent without a fiche (",
+                fr: "« Tout fermer » s'applique à TOUS les agents de l'organisation, sauf ceux dont la fiche a sa propre fermeture immédiate. Pour fermer un seul établissement, utilisez la fermeture immédiate de sa fiche (Établissements), ou ajoutez une exception datée dans les horaires d'un agent sans fiche (",
               })}
               <code>24/12/2026 : fermé</code>).
             </p>

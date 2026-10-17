@@ -198,6 +198,9 @@ class PostScriptumProcessor(FrameProcessor):
         self._ligne_au_debut = True  # le flux est en début de ligne
         self._blancs = ""  # les blancs d'un début de ligne, en attente
         self._dans_la_porte = False  # une ligne « → » est en cours de lecture
+        # Après le banc du 16/10 (C4) : une porte écrite en tête vers une fin aux phrases figées ;
+        # la suite de la réponse se tait (le code dit la phrase de fin, jamais deux au revoir).
+        self._taire_vers_la_fin = False
         # Q4 : la ligne en cours a commencé par une flèche AU MILIEU de la phrase ; elle n'est
         # une porte que si elle se réduit à un nom de porte, sinon elle part à la voix.
         self._porte_en_fin_de_phrase = False
@@ -228,6 +231,10 @@ class PostScriptumProcessor(FrameProcessor):
         fin: bool = False,
     ) -> None:
         """Pousse ``texte`` à la voix, en réutilisant la frame reçue (ses drapeaux)."""
+        if self._taire_vers_la_fin:
+            # C4 (banc du 16/10) : une porte en tête vers une fin figée ; le code dit la phrase
+            # de fin, la réponse du modèle ne part pas à la voix (ni dans l'historique).
+            return
         if self._en_tete and texte.strip():
             ouvrant = _GUILLEMET_OUVRANT.match(texte)
             if ouvrant:
@@ -380,6 +387,8 @@ class PostScriptumProcessor(FrameProcessor):
             if not frame.text:
                 self._vu_du_texte = True
                 return
+            # C4 : seule la voix se tait (revue du 16/10) ; la note du tour se lit comme avant.
+            self._se_taire_vers_la_fin()
         self._vu_du_texte = True
         if self._dans_la_note:
             # Plan postscriptum-note-d-abord (S1) : la note d'abord, jamais dite.
@@ -701,6 +710,24 @@ class PostScriptumProcessor(FrameProcessor):
                 return trouve.start(), trouve.end()
         return None
 
+    def _se_taire_vers_la_fin(self) -> bool:
+        """C4 (banc du 16/10, scénario 2) : la porte lue en tête mène à un nœud de fin aux phrases
+        figées et rien n'est encore dit : la suite de la réponse se tait, le code dira la phrase
+        de fin. Une porte écrite après la phrase (déjà dite) ne change rien. ⛔ Ne lève jamais."""
+        try:
+            if self._taire_vers_la_fin:
+                return True
+            if self._a_dit or self._attente.strip() or not self._portes_lues:
+                return False
+            nom = self._portes_lues[0]
+            verifier = getattr(self._portes, "porte_vers_une_fin_figee", None)
+            if nom and verifier is not None and verifier(nom):
+                self._taire_vers_la_fin = True
+                logger.info(f"[porte] « {nom} » mène à une fin figée : la suite de la réponse se tait")
+            return self._taire_vers_la_fin
+        except Exception:  # noqa: BLE001
+            return False
+
     def _filtrer_les_portes(self, texte: str) -> str:
         """Retire du flux les lignes qui commencent par « → » (blancs en tête
         permis) et les garde à part ; le reste passe tel quel. Morceau par
@@ -850,7 +877,9 @@ class PostScriptumProcessor(FrameProcessor):
 
         async def prendre() -> None:
             detail = await self._prendre_la_porte(*portes, relancer=relancer)
-            if relancer and detail.get("porte_etat") in ("inconnue", "sans_nom"):
+            # Revue du 16/10 (C4) : « echec » aussi, une réponse tue vers une fin figée dont le
+            # changement d'étape a échoué ne laisse jamais l'appelant dans le silence.
+            if relancer and detail.get("porte_etat") in ("inconnue", "sans_nom", "echec"):
                 # Q3 (lot 3 du chantier postscriptum-et-communes, run 1089) : une porte qui
                 # n'existe pas et aucune phrase : un silence, que C3 ne relançait pas
                 # (une porte était écrite). Le modèle reparle, une fois (garde de C3).

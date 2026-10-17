@@ -24,6 +24,7 @@ is ``test_analyse_lexique.py``), nor that the screen shows the switch (``ui/``).
 
 import asyncio
 import inspect
+import re
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -568,4 +569,6 @@ async def test_le_clavier_corrige_avant_de_lire_les_nombres_et_les_communes():
     from api.services.workflow import text_chat_runner
 
     source = inspect.getsource(text_chat_runner)
-    assert source.index("annoter_message_tape(") < source.index("lire_message_tape(\n                message_pour_le_modele")
+    # Lot 2 of agents-specialises: the turn moved into a nested function (one level deeper).
+    lecture = re.search(r"lire_message_tape\(\n\s+message_pour_le_modele", source)
+    assert lecture and source.index("annoter_message_tape(") < lecture.start()

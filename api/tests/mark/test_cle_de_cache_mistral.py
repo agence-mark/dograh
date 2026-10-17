@@ -208,7 +208,11 @@ def _appels(source: str, fonction: str) -> list[tuple[str, str]]:
         (run_pipeline, {"inference_llm =", "", "classifier_llm ="}),
         # keyboard: variable extraction, and (upstream 4e6cb22b) the extraction
         # model of a finished session, which upstream also names `llm`
-        (text_chat_runner, {"", "llm ="}),
+        # [.mark] agents-specialises (lot 2) : le clavier crée aussi le modèle de
+        # l'agent appelé par passation (`agent_llm`, SA clé, voir plus bas) et son
+        # client d'extraction (`""`), et passe la fabrique à `TextAgentFactory`
+        # (`creer_llm=lambda`, qui ne pose aucune clé elle-même).
+        (text_chat_runner, {"", "llm =", "creer_llm=lambda *a, **k:"}),
     ],
 )
 def test_seul_lappel_de_conversation_recoit_la_cle(module, autres_attendus):
@@ -220,6 +224,13 @@ def test_seul_lappel_de_conversation_recoit_la_cle(module, autres_attendus):
     def de_conversation(cible, texte):
         return cible == "llm =" and "usage_context=" not in texte
 
+    # [.mark] agents-specialises (lot 2) : l'agent appelé au clavier est une
+    # conversation aussi ; il reçoit la clé de SON agent, jamais celle du premier.
+    appeles = [texte for cible, texte in appels if cible == "agent_llm ="]
+    appels = [(cible, texte) for cible, texte in appels if cible != "agent_llm ="]
+    for texte in appeles:
+        assert "prompt_cache_key=cle_de_cache(identifiant)" in texte, texte
+
     conversation = [texte for cible, texte in appels if de_conversation(cible, texte)]
     autres = [(cible, texte) for cible, texte in appels if not de_conversation(cible, texte)]
 
@@ -228,7 +239,9 @@ def test_seul_lappel_de_conversation_recoit_la_cle(module, autres_attendus):
     assert {cible for cible, _ in autres} == autres_attendus
     for cible, texte in autres:
         assert "prompt_cache_key" not in texte, f"{module.__name__}: key handed to '{cible}'"
-    assert len(appels) == 1 + len(autres_attendus)
+    # Le clavier : un client d'extraction de plus (celui de l'agent appelé).
+    extra = 1 if module is text_chat_runner else 0
+    assert len(appels) == 1 + len(autres_attendus) + extra
 
 
 def test_le_chemin_telephonique_estampille_la_cle_hors_temps_reel():

@@ -51,6 +51,7 @@ from api.services.annonce.stockage import lire_annonce_ouverture
 from api.services.equipe.appel import injecter_equipe
 from api.services.etablissements.appel import (
     annonce_heritee,
+    CLE_FICHE_DE_LAGENT,
     configuration_heritee,
     injecter_etablissement,
     lire_lappel,
@@ -105,6 +106,8 @@ from api.services.pipecat.worker_runner import (
     wait_for_pipeline_worker_started,
 )
 from api.services.workflow.dto import ReactFlowDTO
+from api.services.groupe.fiche import fiche_fusionnee
+from api.services.workflow.text_agent_factory import TextAgentFactory
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import (
     ENGINE_OWNED_CONTEXT_KEYS,
@@ -117,6 +120,67 @@ TEXT_CHAT_CHECKPOINT_VERSION = 1
 TEXT_CHAT_TURN_TIMEOUT_SECONDS = 60.0
 TEXT_CHAT_IDLE_SETTLE_SECONDS = 0.2
 TEXT_CHAT_INTERNAL_CANCEL_REASON = "text_chat_turn_complete"
+# [.mark] Chantier agents-specialises (lot 2) : au plus trois passages par tour (le
+# tour, puis l'ouverture d'un agent appelé, puis une seconde passation tout de suite).
+TEXT_CHAT_MAX_PASSAGES = 3
+
+
+@dataclass
+class _AgentDuTour:
+    """[.mark] L'agent qui parle pendant un passage du clavier : son graphe, son modèle."""
+
+    workflow_id: int
+    definition_id: int | None
+    nom: str
+    graphe: Any
+    llm: Any
+    inference_llm: Any
+    variable_extraction_llm: Any
+    reglages: dict[str, Any]
+    visit_id: str | None = None
+
+
+@dataclass
+class _Passage:
+    """[.mark] Ce qu'un passage du clavier laisse : son moteur, sa conversation, sa capture."""
+
+    engine: Any
+    context: Any
+    capture: Any
+    sorties: list[str]
+    usage: dict[str, Any]
+
+
+async def _attendre_le_groupe(engine, *, capture_processor, response_window, runner_task) -> None:
+    """[.mark] Une passation lancée pendant le tour (outil, retour au principal) et les
+    gestes du code (fin figée) finissent avant le démontage du tour. Rien à attendre :
+    retour immédiat (tour d'avant). ⛔ Ne lève jamais."""
+    try:
+        marqueur = capture_processor.activity_count
+        coordinateur = engine.__dict__.get("_transfer_coordinator")
+        attendues = [
+            t
+            for t in (getattr(coordinateur, "_task", None),)
+            if t is not None and not t.done()
+        ]
+        attendues += [
+            t for t in engine.__dict__.get("_taches_du_groupe", set()) if not t.done()
+        ]
+        if not attendues:
+            return
+        await asyncio.wait(attendues, timeout=TEXT_CHAT_TURN_TIMEOUT_SECONDS)
+        reste = [t for t in engine.__dict__.get("_taches_du_groupe", set()) if not t.done()]
+        if reste:
+            await asyncio.wait(reste, timeout=TEXT_CHAT_TURN_TIMEOUT_SECONDS)
+        if capture_processor.activity_count > marqueur and not runner_task.done():
+            await _wait_for_quiescence(
+                capture_processor=capture_processor,
+                response_window=response_window,
+                runner_task=runner_task,
+                activity_marker=marqueur,
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[passation] clavier : attente de fin de tour en échec : {e!r}")
 
 
 def _pipecat_type_tag(type_: type) -> str:
@@ -656,14 +720,24 @@ async def execute_text_chat_pending_turn(
     # the agent's first, else the organization's first. Same inheritance as a
     # call; no establishment, the same configuration comes back.
     lecture_de_lappel = await lire_lappel(
-        workflow.organization_id, workflow_id, initial_context
+        workflow.organization_id,
+        workflow_id,
+        initial_context,
+        # [.mark] Lot 1 d'agents-specialises (F1) : la fiche choisie par l'agent.
+        fiche_choisie=run_configs.get(CLE_FICHE_DE_LAGENT),
     )
     etablissement_servi = lecture_de_lappel.servi
+    # [.mark] Lot 1 d'agents-specialises (F3, C3) : une fiche n'hérite de rien.
+    sans_heritage = bool(etablissement_servi and etablissement_servi.sans_heritage)
     configs_heritees, origines_heritees = configuration_heritee(
-        run_configs, etablissement_servi.etablissement if etablissement_servi else None
+        run_configs,
+        etablissement_servi.etablissement if etablissement_servi else None,
+        sans_heritage=sans_heritage,
     )
     reglages_annonce = annonce_heritee(
-        reglages_annonce, etablissement_servi.etablissement if etablissement_servi else None
+        reglages_annonce,
+        etablissement_servi.etablissement if etablissement_servi else None,
+        sans_heritage=sans_heritage,
     )
     if etablissement_servi is not None:
         etablissement_servi.origines.update(origines_heritees)
@@ -683,6 +757,7 @@ async def execute_text_chat_pending_turn(
         lecture_de_lappel.equipe,
         lecture_de_lappel.etablissement_id,
         lecture_de_lappel.lu_depuis,
+        lecture_de_lappel.noms_des_lieux,
     )
     if estampille_equipe is not None:
         initial_context["runtime_configuration"]["equipe"] = estampille_equipe
@@ -764,35 +839,6 @@ async def execute_text_chat_pending_turn(
         initial_context=initial_context,
     )
 
-    context = LLMContext()
-    context.set_messages(
-        _deserialize_text_chat_checkpoint_messages(base_checkpoint["messages"])
-    )
-    response_window = _ResponseWindowState()
-
-    async def send_node_transition(
-        node_id: str,
-        node_name: str,
-        previous_node_id: str | None,
-        previous_node_name: str | None,
-        allow_interrupt: bool = False,
-        porte: str | None = None,  # [.mark] C12 : la porte écrite (Postscript)
-    ) -> None:
-        node_transition_events.append(
-            {
-                "type": "node_transition",
-                "created_at": datetime.now(UTC).isoformat(),
-                "payload": {
-                    "node_id": node_id,
-                    "node_name": node_name,
-                    "previous_node_id": previous_node_id,
-                    "previous_node_name": previous_node_name,
-                    "allow_interrupt": allow_interrupt,
-                    **({"porte_ecrite": porte} if porte else {}),
-                },
-            }
-        )
-
     embeddings_api_key = None
     embeddings_model = None
     embeddings_base_url = None
@@ -818,203 +864,424 @@ async def execute_text_chat_pending_turn(
     context_compaction_enabled = (workflow.workflow_configurations or {}).get(
         "context_compaction_enabled", False
     )
-    engine = PipecatEngine(
-        llm=llm,
-        inference_llm=inference_llm,
-        variable_extraction_llm=variable_extraction_llm,
-        context=context,
-        workflow=workflow_graph,
-        call_context_vars=initial_context,
-        workflow_run_id=workflow_run_id,
-        node_transition_callback=send_node_transition,
-        embeddings_api_key=embeddings_api_key,
-        embeddings_model=embeddings_model,
-        embeddings_base_url=embeddings_base_url,
-        embeddings_provider=embeddings_provider,
-        embeddings_endpoint=embeddings_endpoint,
-        embeddings_api_version=embeddings_api_version,
-        has_recordings=has_recordings,
-        context_compaction_enabled=context_compaction_enabled,
-        call_dispositions=call_dispositions,
-        # Each text turn owns a short-lived pipeline. Complete extraction before
-        # leaving a node so teardown cannot discard the result before checkpointing.
-        run_transition_variable_extraction_in_background=False,
-        # [.mark] C8 (correctifs-banc-34): the keyboard builds the call like the
-        # voice path (`run_pipeline.py`): the record, its `noter_information`
-        # tool and the end-of-call pass. Without it the keyboard measured an
-        # agent that is not the one callers reach (run 896).
-        fiche=reglages_fiche,
-    )
-    engine._gathered_context = dict(base_checkpoint["gathered_context"])
-    # [.mark] D1 et D10 de repliques-coupees : la trace du cerveau et la réflexion
-    # de secours, comme au téléphone.
-    brancher_la_trace(engine, llm, run_configs)
-    brancher_la_relance(engine, llm, run_configs)
-    capture_processor = _TextChatCaptureProcessor(response_window, context, engine)
-    node_transition_events = capture_processor.events
-
-    assistant_params = LLMAssistantAggregatorParams()
-    context_aggregator = LLMContextAggregatorPair(
-        context, assistant_params=assistant_params
-    )
-    assistant_context_aggregator = context_aggregator.assistant()
-
-    @assistant_context_aggregator.event_handler("on_assistant_turn_started")
-    async def on_assistant_turn_started(_aggregator):
-        response_window.note_assistant_turn_started()
-
-    @assistant_context_aggregator.event_handler("on_assistant_turn_stopped")
-    async def on_assistant_turn_stopped(_aggregator, message):
-        response_window.note_assistant_turn_stopped(message.content or "")
-
-    # Text chat has no wire transport; reuse the neutral 16 kHz config shape
-    # from the browser pipeline so TTS/recording helpers still have sane defaults.
-    audio_config = create_audio_config(WorkflowRunMode.SMALLWEBRTC.value)
-    pipeline_metrics_aggregator = PipelineMetricsAggregator()
-
     # Stitch every per-turn pipeline of this session into one Langfuse trace by
     # handing each task the same remote parent context (derived from the run id).
     trace_id = text_chat_trace_id(workflow_run_id)
-    conversation_parent_context = build_remote_parent_context(trace_id)
-    # The stitched trace has no real root span (each per-turn conversation span
-    # hangs off a synthetic remote parent), so Langfuse can't infer a name and
-    # shows "Unnamed trace". Name it explicitly via the conversation span.
-    trace_span_attributes = {
-        "langfuse.trace.name": workflow_run.name or f"text-chat-{workflow_run_id}"
-    }
-    # [.mark] Plan mode-prise-de-notes (lot 5): the keyboard plays the postscript
-    # like the phone (C8), right after the model, so what is captured, shown and
-    # kept in memory is what the voice would have said. None outside that mode.
-    post_scriptum = post_scriptum_du_moteur(engine) or greffier_du_moteur(
-        engine, service_greffier, run_configs.get("greffier_consigne")
-    )
-    pipeline = Pipeline(
-        [
-            p
-            for p in (
-                llm,
-                post_scriptum,
-                capture_processor,
-                assistant_context_aggregator,
-                pipeline_metrics_aggregator,
-            )
-            if p is not None
-        ]
-    )
-    task = create_pipeline_task(
-        pipeline,
-        workflow_run_id,
-        audio_config,
-        conversation_parent_context=conversation_parent_context,
-        conversation_type="text",
-        additional_span_attributes=trace_span_attributes,
-    )
-    runner_task = asyncio.create_task(run_pipeline_worker(task))
 
-    engine.call_worker = task
-    engine.set_audio_config(audio_config)
-    engine.set_transport_output(_TaskQueueProxy(task.queue_frame))
-    engine.set_fetch_recording_audio(
-        create_recording_audio_fetcher(
-            organization_id=workflow.organization_id,
-            pipeline_sample_rate=audio_config.pipeline_sample_rate,
-        )
+    # [.mark] Chantier agents-specialises (lot 2) : l'agent actif de l'appel. Le
+    # premier agent (celui du run) tant que le checkpoint ne dit rien d'autre.
+    premier_agent = _AgentDuTour(
+        workflow_id=workflow_id,
+        definition_id=getattr(run_definition, "id", None),
+        nom=getattr(workflow, "name", "") or "",
+        graphe=workflow_graph,
+        llm=llm,
+        inference_llm=inference_llm,
+        variable_extraction_llm=variable_extraction_llm,
+        reglages=dict(run_configs),
     )
 
-    try:
-        await wait_for_pipeline_worker_started(task, timeout=5.0, run_task=runner_task)
-
-        await engine.initialize()
-
-        current_node_id = base_checkpoint.get("current_node_id")
-        target_node_id = current_node_id or workflow_graph.start_node_id
-        await engine.set_node(
-            target_node_id,
-            emit_transition_event=current_node_id is None,
-        )
-        engine.call_monitor.activate()
-
-        opening_marker = capture_processor.activity_count
-        opening_expects_llm = pending_user_message is None and (
-            current_node_id == target_node_id
-            or engine.get_node_greeting(target_node_id) is None
-        )
-        if opening_expects_llm:
-            response_window.note_direct_context_request()
-        opening = await engine.queue_node_opening(
-            node_id=target_node_id,
-            previous_node_id=current_node_id,
-            generate_if_no_greeting=pending_user_message is None,
-        )
-        if opening.action != "llm" and opening_expects_llm:
-            response_window.pending_context_requests = max(
-                0, response_window.pending_context_requests - 1
-            )
-        if opening.action != "none":
-            await _wait_for_quiescence(
-                capture_processor=capture_processor,
-                response_window=response_window,
-                runner_task=runner_task,
-                activity_marker=opening_marker,
-            )
-
-        if pending_user_message is not None:
-            # [.mark] Caller reading on the keyboard too (nombres-dictes R5,
-            # verification-communes D7), BEFORE the message enters the context:
-            # the model reads it directly, there is no aggregator step here.
-            # [.mark] The trade names first (T8), like in a call: the numbers
-            # and the towns then read a message where "Supra" is written properly.
-            message_pour_le_modele = await annoter_message_tape(
-                pending_user_message,
-                run_configs,
-                lexique_metier,
-                engine.active_agent.current_node,
-                consigner_dans(lambda: engine._gathered_context),
-            )
-            message_pour_le_modele = await lire_message_tape(
-                message_pour_le_modele,
-                run_configs,
-                getattr(user_config, "stt", None),
-                adresse_etablissement,
-                engine.active_agent.current_node,
-                consigner_dans(lambda: engine._gathered_context),
-                lexique=lexique_metier,
-                # [.mark] Lot 1 (11/10) : la dernière réplique de l'agent, comme au téléphone.
-                question_avant=_derniere_replique_agent(context),
-            )
-            context.add_message({"role": "user", "content": message_pour_le_modele})
-            generation_marker = capture_processor.activity_count
-            response_window.note_direct_context_request()
-            engine.expect_response()
-            await llm.queue_frame(LLMContextFrame(context))
-            await _wait_for_quiescence(
-                capture_processor=capture_processor,
-                response_window=response_window,
-                runner_task=runner_task,
-                activity_marker=generation_marker,
-            )
-    finally:
+    async def charger_agent(actif: dict[str, Any]) -> "_AgentDuTour | None":
+        """L'agent ``actif`` (après une passation), à sa définition épinglée, dans
+        l'organisation de l'appel. ``None`` s'il n'est plus lisible."""
         try:
-            if not task.has_finished():
-                await task.cancel(reason=TEXT_CHAT_INTERNAL_CANCEL_REASON)
-            await runner_task
-        finally:
-            await engine.close_mcp_sessions()
-            await engine.cleanup()
+            identifiant = int(actif["workflow_id"])
+            if identifiant == workflow_id and actif.get("definition_id") in (
+                None,
+                premier_agent.definition_id,
+            ):
+                return premier_agent
+            agent_workflow = await db_client.get_workflow(
+                identifiant, organization_id=workflow.organization_id
+            )
+            definition = (
+                await db_client.get_workflow_definition(
+                    identifiant, int(actif["definition_id"]), workflow.organization_id
+                )
+                if actif.get("definition_id") is not None
+                else None
+            )
+            if agent_workflow is None or definition is None or not definition.workflow_json:
+                return None
+            reglages = definition.workflow_configurations or {}
+            config = await get_effective_ai_model_configuration_for_workflow(
+                organization_id=workflow.organization_id,
+                workflow_configurations=reglages,
+            )
+            if config.llm is None:
+                return None
+            graphe = WorkflowGraph(
+                ReactFlowDTO.model_validate(definition.workflow_json),
+                skip_instance_constraints_for={"trigger"},
+            )
+            agent_llm = create_llm_service(
+                config,
+                correlation_id=mps_correlation_id,
+                prompt_cache_key=cle_de_cache(identifiant),
+            )
+            agent_extraction = (
+                create_llm_service(
+                    config,
+                    correlation_id=mps_correlation_id,
+                    usage_context="variable_extraction",
+                )
+                if (graphe.uses_variable_extraction() or bool(call_dispositions))
+                and config.llm.provider == ServiceProviders.DOGRAH.value
+                else agent_llm
+            )
+            return _AgentDuTour(
+                workflow_id=identifiant,
+                definition_id=definition.id,
+                nom=agent_workflow.name,
+                graphe=graphe,
+                llm=agent_llm,
+                inference_llm=agent_llm,
+                variable_extraction_llm=agent_extraction,
+                reglages=dict(reglages),
+                visit_id=actif.get("visit_id"),
+            )
+        except Exception as e:  # noqa: BLE001 -- le clavier reprend le premier agent
+            logger.error(f"[passation] clavier : agent actif illisible ({actif}) : {e!r}")
+            return None
 
-    # [.mark] A postscript note or a clerk pass still being written belongs to
-    # this turn's record (the clerk waits for a second model: a longer bound).
-    await attendre_les_notes(engine.notes_en_cours, delai_des_notes(engine.fiche))
+    async def jouer_un_passage(
+        agent: "_AgentDuTour",
+        checkpoint_du_passage: dict[str, Any],
+        pending_user_message: str | None,
+        ouverture: dict[str, Any] | None,
+    ) -> "_Passage":
+        context = LLMContext()
+        context.set_messages(
+            _deserialize_text_chat_checkpoint_messages(checkpoint_du_passage["messages"])
+        )
+        response_window = _ResponseWindowState()
+
+        async def send_node_transition(
+            node_id: str,
+            node_name: str,
+            previous_node_id: str | None,
+            previous_node_name: str | None,
+            allow_interrupt: bool = False,
+            porte: str | None = None,  # [.mark] C12 : la porte écrite (Postscript)
+            agent: str | None = None,  # [.mark] agents-specialises : l'agent qui prend la main
+        ) -> None:
+            capture_processor.events.append(
+                {
+                    "type": "node_transition",
+                    "created_at": datetime.now(UTC).isoformat(),
+                    "payload": {
+                        "node_id": node_id,
+                        "node_name": node_name,
+                        "previous_node_id": previous_node_id,
+                        "previous_node_name": previous_node_name,
+                        "allow_interrupt": allow_interrupt,
+                        **({"porte_ecrite": porte} if porte else {}),
+                        **({"agent": agent} if agent else {}),
+                    },
+                }
+            )
+
+        engine = PipecatEngine(
+            llm=agent.llm,
+            inference_llm=agent.inference_llm,
+            variable_extraction_llm=agent.variable_extraction_llm,
+            context=context,
+            workflow=agent.graphe,
+            call_context_vars=initial_context,
+            workflow_run_id=workflow_run_id,
+            node_transition_callback=send_node_transition,
+            embeddings_api_key=embeddings_api_key,
+            embeddings_model=embeddings_model,
+            embeddings_base_url=embeddings_base_url,
+            embeddings_provider=embeddings_provider,
+            embeddings_endpoint=embeddings_endpoint,
+            embeddings_api_version=embeddings_api_version,
+            has_recordings=has_recordings,
+            context_compaction_enabled=context_compaction_enabled,
+            call_dispositions=call_dispositions,
+            # Each text turn owns a short-lived pipeline. Complete extraction before
+            # leaving a node so teardown cannot discard the result before checkpointing.
+            run_transition_variable_extraction_in_background=False,
+            # [.mark] C8 (correctifs-banc-34): the keyboard builds the call like the
+            # voice path (`run_pipeline.py`): the record, its `noter_information`
+            # tool and the end-of-call pass. Without it the keyboard measured an
+            # agent that is not the one callers reach (run 896).
+            # [.mark] agents-specialises (lot 3) : la fiche de l'APPEL ; un agent appelé
+            # par passation y ajoute ses champs (même nom = la définition du premier).
+            fiche=reglages_fiche if agent is premier_agent else fiche_fusionnee(reglages_fiche, agent.reglages),
+        )
+        engine._gathered_context = dict(checkpoint_du_passage["gathered_context"])
+        # [.mark] Chantier agents-specialises (lot 2) : la passation au clavier. Le
+        # moteur connaît l'agent qui parle, l'appel connaît ses réglages, et la
+        # fabrique construit un agent appelé sans voix ni sous-circuit.
+        engine.sans_sortie_audio = True
+        engine.reglages_appel = dict(run_configs)
+        actif = engine.active_agent
+        actif.workflow_id = agent.workflow_id
+        actif.definition_id = agent.definition_id
+        actif.workflow_name = agent.nom
+        actif.reglages = dict(agent.reglages)
+        if agent.visit_id:
+            actif.visit_id = agent.visit_id
+        engine._transfer_outcomes = list(
+            engine._gathered_context.get("agent_transfers") or []
+        )
+        engine.set_agent_factory(
+            TextAgentFactory(
+                organization_id=workflow.organization_id,
+                workflow_run_id=workflow_run_id,
+                use_draft=bool((getattr(workflow_run, "extra", None) or {}).get("use_draft")),
+                mps_correlation_id=mps_correlation_id,
+                creer_llm=lambda *a, **k: create_llm_service(*a, **k),
+            )
+        )
+        # [.mark] D1 et D10 de repliques-coupees : la trace du cerveau et la réflexion
+        # de secours, comme au téléphone (réglages de l'agent qui parle : ils suivent
+        # son cerveau).
+        brancher_la_trace(engine, agent.llm, agent.reglages)
+        brancher_la_relance(engine, agent.llm, agent.reglages)
+        capture_processor = _TextChatCaptureProcessor(response_window, context, engine)
+
+        assistant_params = LLMAssistantAggregatorParams()
+        context_aggregator = LLMContextAggregatorPair(
+            context, assistant_params=assistant_params
+        )
+        assistant_context_aggregator = context_aggregator.assistant()
+
+        @assistant_context_aggregator.event_handler("on_assistant_turn_started")
+        async def on_assistant_turn_started(_aggregator):
+            response_window.note_assistant_turn_started()
+
+        @assistant_context_aggregator.event_handler("on_assistant_turn_stopped")
+        async def on_assistant_turn_stopped(_aggregator, message):
+            response_window.note_assistant_turn_stopped(message.content or "")
+
+        # Text chat has no wire transport; reuse the neutral 16 kHz config shape
+        # from the browser pipeline so TTS/recording helpers still have sane defaults.
+        audio_config = create_audio_config(WorkflowRunMode.SMALLWEBRTC.value)
+        pipeline_metrics_aggregator = PipelineMetricsAggregator()
+
+        conversation_parent_context = build_remote_parent_context(trace_id)
+        # The stitched trace has no real root span (each per-turn conversation span
+        # hangs off a synthetic remote parent), so Langfuse can't infer a name and
+        # shows "Unnamed trace". Name it explicitly via the conversation span.
+        trace_span_attributes = {
+            "langfuse.trace.name": workflow_run.name or f"text-chat-{workflow_run_id}"
+        }
+        # [.mark] Plan mode-prise-de-notes (lot 5): the keyboard plays the postscript
+        # like the phone (C8), right after the model, so what is captured, shown and
+        # kept in memory is what the voice would have said. None outside that mode.
+        post_scriptum = post_scriptum_du_moteur(engine) or greffier_du_moteur(
+            engine, service_greffier, run_configs.get("greffier_consigne")
+        )
+        pipeline = Pipeline(
+            [
+                p
+                for p in (
+                    agent.llm,
+                    post_scriptum,
+                    capture_processor,
+                    assistant_context_aggregator,
+                    pipeline_metrics_aggregator,
+                )
+                if p is not None
+            ]
+        )
+        task = create_pipeline_task(
+            pipeline,
+            workflow_run_id,
+            audio_config,
+            conversation_parent_context=conversation_parent_context,
+            conversation_type="text",
+            additional_span_attributes=trace_span_attributes,
+        )
+        runner_task = asyncio.create_task(run_pipeline_worker(task))
+
+        engine.call_worker = task
+        engine.set_audio_config(audio_config)
+        engine.set_transport_output(_TaskQueueProxy(task.queue_frame))
+        engine.set_fetch_recording_audio(
+            create_recording_audio_fetcher(
+                organization_id=workflow.organization_id,
+                pipeline_sample_rate=audio_config.pipeline_sample_rate,
+            )
+        )
+
+        try:
+            await wait_for_pipeline_worker_started(task, timeout=5.0, run_task=runner_task)
+
+            await engine.initialize()
+
+            if ouverture is None:
+                current_node_id = checkpoint_du_passage.get("current_node_id")
+                target_node_id = current_node_id or agent.graphe.start_node_id
+                await engine.set_node(
+                    target_node_id,
+                    emit_transition_event=current_node_id is None,
+                )
+                previous_for_opening = current_node_id
+                generate_opening = pending_user_message is None
+            else:
+                # [.mark] L'ouverture d'un agent appelé, mise de côté par la passation du
+                # passage précédent (l'événement « passé à l'agent » est déjà parti).
+                target_node_id = ouverture["node_id"]
+                await engine.set_node(target_node_id, emit_transition_event=False)
+                previous_for_opening = ouverture.get("previous_node_id")
+                generate_opening = bool(ouverture.get("generate_if_no_greeting"))
+            engine.call_monitor.activate()
+
+            opening_marker = capture_processor.activity_count
+            opening_expects_llm = generate_opening and (
+                previous_for_opening == target_node_id
+                or engine.get_node_greeting(target_node_id) is None
+            )
+            if opening_expects_llm:
+                response_window.note_direct_context_request()
+            opening = await engine.queue_node_opening(
+                node_id=target_node_id,
+                previous_node_id=previous_for_opening,
+                generate_if_no_greeting=generate_opening,
+            )
+            if opening.action != "llm" and opening_expects_llm:
+                response_window.pending_context_requests = max(
+                    0, response_window.pending_context_requests - 1
+                )
+            if ouverture is not None:
+                # [.mark] agents-specialises (lot 3, A7) : un agent appelé dont la
+                # première étape porte un outil de transfert commence par le transfert.
+                engine.garantir_a_l_ouverture(
+                    engine.active_agent, target_node_id, getattr(opening, "playback", None)
+                )
+            if opening.action != "none":
+                await _wait_for_quiescence(
+                    capture_processor=capture_processor,
+                    response_window=response_window,
+                    runner_task=runner_task,
+                    activity_marker=opening_marker,
+                )
+
+            if pending_user_message is not None:
+                # [.mark] Caller reading on the keyboard too (nombres-dictes R5,
+                # verification-communes D7), BEFORE the message enters the context:
+                # the model reads it directly, there is no aggregator step here.
+                # [.mark] The trade names first (T8), like in a call: the numbers
+                # and the towns then read a message where "Supra" is written properly.
+                message_pour_le_modele = await annoter_message_tape(
+                    pending_user_message,
+                    run_configs,
+                    lexique_metier,
+                    engine.active_agent.current_node,
+                    consigner_dans(lambda: engine._gathered_context),
+                )
+                message_pour_le_modele = await lire_message_tape(
+                    message_pour_le_modele,
+                    run_configs,
+                    getattr(user_config, "stt", None),
+                    adresse_etablissement,
+                    engine.active_agent.current_node,
+                    consigner_dans(lambda: engine._gathered_context),
+                    lexique=lexique_metier,
+                    # [.mark] Lot 1 (11/10) : la dernière réplique de l'agent, comme au téléphone.
+                    question_avant=_derniere_replique_agent(context),
+                )
+                context.add_message({"role": "user", "content": message_pour_le_modele})
+                generation_marker = capture_processor.activity_count
+                response_window.note_direct_context_request()
+                engine.expect_response()
+                await agent.llm.queue_frame(LLMContextFrame(context))
+                await _wait_for_quiescence(
+                    capture_processor=capture_processor,
+                    response_window=response_window,
+                    runner_task=runner_task,
+                    activity_marker=generation_marker,
+                )
+            # [.mark] Chantier agents-specialises : une passation ou un geste du code
+            # (retour au principal, fin figée) se termine avant le démontage du tour.
+            await _attendre_le_groupe(
+                engine,
+                capture_processor=capture_processor,
+                response_window=response_window,
+                runner_task=runner_task,
+            )
+        finally:
+            try:
+                if not task.has_finished():
+                    await task.cancel(reason=TEXT_CHAT_INTERNAL_CANCEL_REASON)
+                await runner_task
+            finally:
+                await engine.close_mcp_sessions()
+                await engine.cleanup()
+
+        # [.mark] A postscript note or a clerk pass still being written belongs to
+        # this turn's record (the clerk waits for a second model: a longer bound).
+        await attendre_les_notes(engine.notes_en_cours, delai_des_notes(engine.fiche))
+        return _Passage(
+            engine=engine,
+            context=context,
+            capture=capture_processor,
+            sorties=list(response_window.outputs),
+            usage=pipeline_metrics_aggregator.get_all_usage_metrics_serialized(),
+        )
+
+    # [.mark] Un tour = un passage, plus un par passation faite pendant le tour
+    # (l'agent appelé ouvre sur son graphe). Sans passation : exactement le tour d'avant.
+    agent_du_tour = premier_agent
+    if base_checkpoint.get("agent_actif"):
+        agent_du_tour = await charger_agent(base_checkpoint["agent_actif"]) or premier_agent
+    passages: list[_Passage] = []
+    checkpoint_du_passage = base_checkpoint
+    message_du_passage = pending_user_message
+    ouverture_du_passage: dict[str, Any] | None = None
+    for _ in range(TEXT_CHAT_MAX_PASSAGES):
+        passage = await jouer_un_passage(
+            agent_du_tour, checkpoint_du_passage, message_du_passage, ouverture_du_passage
+        )
+        passages.append(passage)
+        suite = passage.engine.ouverture_differee
+        if suite is None or passage.engine.is_call_disposed():
+            break
+        nouvel = passage.engine.active_agent
+        actif_suivant = {
+            "workflow_id": nouvel.workflow_id,
+            "definition_id": nouvel.definition_id,
+            "visit_id": nouvel.visit_id,
+            "nom": nouvel.workflow_name,
+        }
+        greeting = nouvel.workflow.nodes.get(suite["node_id"])
+        ouvre = bool(suite.get("generate_if_no_greeting")) or (
+            suite.get("previous_node_id") != suite["node_id"]
+            and greeting is not None
+            and bool(greeting.greeting)
+        )
+        if not ouvre:
+            # Le nouvel agent attend la réplique de l'appelant : rien à jouer ce tour-ci.
+            break
+        suivant = await charger_agent(actif_suivant)
+        if suivant is None:
+            break
+        checkpoint_du_passage = {
+            **checkpoint_du_passage,
+            "current_node_id": suite["node_id"],
+            "messages": _serialize_text_chat_checkpoint_messages(
+                passage.context.get_messages()
+            ),
+            "gathered_context": jsonable_encoder(await passage.engine.get_gathered_context()),
+        }
+        agent_du_tour = suivant
+        message_du_passage = None
+        ouverture_du_passage = suite
+
+    dernier = passages[-1]
+    engine = dernier.engine
     gathered_context = await engine.get_gathered_context()
-    assistant_text = (
-        "\n\n".join(part for part in response_window.outputs if part).strip()
-        if response_window.outputs
-        else None
-    )
+    sorties = [s for p in passages for s in p.sorties if s]
+    assistant_text = "\n\n".join(sorties).strip() if sorties else None
     assistant_created_at = datetime.now(UTC).isoformat()
-    usage = pipeline_metrics_aggregator.get_all_usage_metrics_serialized()
+    usage: dict[str, Any] = {}
+    for p in passages:
+        usage = _merge_usage_info(usage, p.usage) if len(passages) > 1 else p.usage
     current_node = engine.active_agent.current_node
-    context_messages = context.get_messages()
+    context_messages = dernier.context.get_messages()
     encoded_messages = _serialize_text_chat_checkpoint_messages(context_messages)
     encoded_gathered_context = jsonable_encoder(gathered_context)
     encoded_tool_state = jsonable_encoder(base_checkpoint.get("tool_state") or {})
@@ -1027,12 +1294,22 @@ async def execute_text_chat_pending_turn(
         "gathered_context": encoded_gathered_context,
         "tool_state": encoded_tool_state,
     }
+    # [.mark] L'agent qui parle, s'il n'est pas le premier : le tour suivant se
+    # reconstruit sur son graphe. Absent = le premier agent (checkpoint d'avant).
+    actif_final = engine.active_agent
+    if actif_final.workflow_id and actif_final.workflow_id != workflow_id:
+        updated_checkpoint["agent_actif"] = {
+            "workflow_id": actif_final.workflow_id,
+            "definition_id": actif_final.definition_id,
+            "visit_id": actif_final.visit_id,
+            "nom": actif_final.workflow_name,
+        }
 
     trace_url = get_trace_url(trace_id, org_id=workflow.organization_id)
     if trace_url:
         encoded_gathered_context = {**encoded_gathered_context, "trace_url": trace_url}
 
-    encoded_events = jsonable_encoder(capture_processor.events)
+    encoded_events = jsonable_encoder([e for p in passages for e in p.capture.events])
     encoded_usage = jsonable_encoder(usage)
     encoded_initial_context = jsonable_encoder(initial_context)
 

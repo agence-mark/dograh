@@ -38,6 +38,8 @@ interface WorkflowTesterPanelProps {
     className?: string;
     onClose?: () => void;
     onRuntimeNodeTransition?: (transition: WorkflowRuntimeNodeTransition) => void;
+    // [.mark] Lot 11 (C8): the fiche the agent chose; with one, the test window offers no establishment.
+    ficheDeLagent?: string | null;
 }
 
 export function WorkflowTesterPanel({
@@ -50,6 +52,7 @@ export function WorkflowTesterPanel({
     className,
     onClose,
     onRuntimeNodeTransition,
+    ficheDeLagent = null,
 }: WorkflowTesterPanelProps) {
     const auth = useAuth();
     const { markActionCompleted } = useOnboarding();
@@ -65,7 +68,9 @@ export function WorkflowTesterPanel({
     const [tokenReady, setTokenReady] = useState(false);
     const runTestButtonRef = useRef<HTMLButtonElement>(null);
     // [.mark] The establishment the test plays (l-agent-travaille, E3). Empty: the agent's first.
-    const [etablissementEssai, setEtablissementEssai] = useState("");
+    const [etablissementChoisi, setEtablissementEssai] = useState("");
+    // With a fiche of its own the agent plays that one (the choice is not offered, so none is sent).
+    const etablissementEssai = ficheDeLagent ? "" : etablissementChoisi;
     const contexteEssai = etablissementEssai
         ? { ...(initialContextVariables ?? {}), etablissement_id: etablissementEssai }
         : initialContextVariables;
@@ -205,6 +210,7 @@ export function WorkflowTesterPanel({
                     </div>
                     <ChoixEtablissementEssai
                         valeur={etablissementEssai}
+                        ficheDeLagent={ficheDeLagent}
                         onChange={setEtablissementEssai}
                         desactive={voiceRunId !== null || chatActive}
                     />

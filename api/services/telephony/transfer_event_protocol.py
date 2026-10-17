@@ -72,6 +72,8 @@ class TransferContext:
     # conference_id: set by providers that seed the conference on answer (Telnyx).
     workflow_run_id: Optional[int] = None
     conference_id: Optional[str] = None
+    # [.mark] Lot 5 (3 bis): what the person who picks up hears first (French, settable).
+    phrase_salarie: Optional[str] = None
 
     def to_json(self) -> str:
         """Convert context to JSON string."""

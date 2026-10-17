@@ -11,23 +11,32 @@
  *
  * What the call reads is resolved by the server, never here: this screen only shows where a
  * value comes from.
+ *
+ * Lot 11 (agents-specialises, lot 4 of the fiche plan): the fiche is COMPLETE and inherits nothing
+ * (M2, C3). No more numbers here (C4: a number belongs to the agent, the fiche to the place; the
+ * numbers already stored are kept as they are). Added: the immediate closing of the fiche (C5), its
+ * appointments and its zone (written with it, in the client's database), and « Create by copy »
+ * (F2). The copy is written at once by the server, so it is offered only when nothing is waiting
+ * to be saved here.
  */
-import { Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Copy, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
     getEtablissementsApiV1OrganizationsEtablissementsGet,
-    getNumerosApiV1OrganizationsEtablissementsNumerosGet,
     getPhrasesApiV1OrganizationsPhrasesGet,
+    getPlanificateurApiV1OrganizationsPlanificateurGet,
+    putPlanificateurApiV1OrganizationsPlanificateurPut,
     saveEtablissementsApiV1OrganizationsEtablissementsPut,
 } from "@/client/sdk.gen";
 import type {
     AdresseEtablissement,
     Etablissement,
-    NumeroDeLorganisation,
     Phrase,
+    Planificateur,
     ReglagesAnnonceOuverture,
+    ResultatCopieEtablissement,
 } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,9 +53,15 @@ import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { ChampAdresseEtablissement } from "../ChampAdresseEtablissement";
+import { ChampReglage } from "../ecran/ChampReglage";
+import { Intertitre } from "../ecran/Intertitre";
 import { type Texte, useLangue } from "../langue/langue";
 import { texteAdresse } from "../SectionAdresseEtablissement";
+import { ETATS } from "../SectionAnnonceOuverture";
 import { EXEMPLE_HORAIRES } from "../SectionHorairesOuverture";
+import { FicheRendezVous } from "./FicheRendezVous";
+import { ModaleCopieFiche } from "./ModaleCopieFiche";
+import { charge_utile_planificateur } from "./ThemeRendezVous";
 
 export const ETABLISSEMENTS_ENREGISTRES: Texte = { en: "Establishments saved", fr: "Établissements enregistrés" };
 
@@ -89,6 +104,11 @@ const nettoyer = (e: Etablissement): Etablissement => {
                 .map(([k, v]) => [k, v.trim()]),
         ),
         termes_lexique: e.termes_lexique ?? [],
+        // Lot 11 (C5): the immediate closing of the fiche. Sent only when the server (or the screen) set it,
+        // so a fiche read without it is saved without it; a date means nothing without a state.
+        ...(e.etat_force !== undefined || e.etat_force_jusqu_a !== undefined
+            ? { etat_force: e.etat_force ?? null, etat_force_jusqu_a: e.etat_force ? (e.etat_force_jusqu_a ?? null) : null }
+            : {}),
     };
 };
 
@@ -193,7 +213,6 @@ const ChampHerite = ({
 export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, annonceOrganisation }: ProprietesModale) {
     const { t } = useLangue();
     const [liste, setListe] = useState<Etablissement[] | null>(null);
-    const [numeros, setNumeros] = useState<NumeroDeLorganisation[]>([]);
     const [phrasesEtablissement, setPhrasesEtablissement] = useState<Phrase[]>([]);
     // The terms as typed: a line being written is kept until it is left.
     const [termesSaisis, setTermesSaisis] = useState<Record<string, string>>({});
@@ -206,6 +225,46 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
     // The identifiers already saved never change (a call, a stamp, a future base row refer to
     // them); a NEW establishment's identifier follows its name until it is saved.
     const [idsEnregistres, setIdsEnregistres] = useState<string[]>([]);
+    // What was read, to know whether something waits to be saved (the copy is offered only when nothing does).
+    const [lue, setLue] = useState<string>("");
+    // The planner, written in the client's database: the fiche's appointments and zone live in it (lot 11).
+    const [planificateur, setPlanificateur] = useState<Planificateur | null>(null);
+    const [planificateurLu, setPlanificateurLu] = useState<Planificateur | null>(null);
+    const [planificateurIndisponible, setPlanificateurIndisponible] = useState<string | null>(null);
+    const [fenetreCopie, setFenetreCopie] = useState(false);
+    const [resultatCopie, setResultatCopie] = useState<{ nom: string; resultat: ResultatCopieEtablissement } | null>(null);
+    // A copy was made while the window was open: the caller must read the list again, saved or not.
+    const aCopie = useRef(false);
+
+    const charger = useCallback(async (choix?: string) => {
+        const [catalogue, phrases, lecturePlanif] = await Promise.all([
+            getEtablissementsApiV1OrganizationsEtablissementsGet(),
+            getPhrasesApiV1OrganizationsPhrasesGet(),
+            getPlanificateurApiV1OrganizationsPlanificateurGet(),
+        ]);
+        setPhrasesEtablissement((phrases.data?.phrases ?? []).filter((p) => p.niveau === "etablissement"));
+        if (lecturePlanif.error || !lecturePlanif.data) {
+            // No client database (or unreachable): the fiche is edited and saved all the same, its
+            // appointments and zone are said to live elsewhere. Never a reason to lose the fiche.
+            setPlanificateur(null);
+            setPlanificateurLu(null);
+            setPlanificateurIndisponible(detailFromError(lecturePlanif.error, "Planner unreadable"));
+        } else {
+            setPlanificateur(lecturePlanif.data);
+            setPlanificateurLu(lecturePlanif.data);
+            setPlanificateurIndisponible(null);
+        }
+        if (catalogue.error || !catalogue.data) {
+            // ⛔ Unreadable: nothing to edit, or the save would replace what is there.
+            setErreur(detailFromError(catalogue.error, "Establishments unreadable"));
+            return;
+        }
+        const lus = catalogue.data.etablissements ?? [];
+        setListe(lus);
+        setLue(JSON.stringify(charge_utile_etablissements(lus)));
+        setIdsEnregistres(lus.map((e) => e.id));
+        if (choix !== undefined) setChoisi(Math.max(0, lus.findIndex((e) => e.id === choix)));
+    }, []);
 
     useEffect(() => {
         if (!ouverte) return;
@@ -213,35 +272,14 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
         setErreur(null);
         setChoisi(0);
         setOuverts({});
-        void (async () => {
-            const [catalogue, telephonie, phrases] = await Promise.all([
-                getEtablissementsApiV1OrganizationsEtablissementsGet(),
-                getNumerosApiV1OrganizationsEtablissementsNumerosGet(),
-                getPhrasesApiV1OrganizationsPhrasesGet(),
-            ]);
-            setPhrasesEtablissement((phrases.data?.phrases ?? []).filter((p) => p.niveau === "etablissement"));
-            if (catalogue.error || !catalogue.data) {
-                // ⛔ Unreadable: nothing to edit, or the save would replace what is there.
-                setErreur(detailFromError(catalogue.error, "Establishments unreadable"));
-                return;
-            }
-            setListe(catalogue.data.etablissements ?? []);
-            setIdsEnregistres((catalogue.data.etablissements ?? []).map((e) => e.id));
-            setNumeros(telephonie.data ?? []);
-        })();
-    }, [ouverte]);
+        setResultatCopie(null);
+        aCopie.current = false;
+        void charger();
+    }, [ouverte, charger]);
 
     const courant = liste && liste.length > 0 ? liste[Math.min(choisi, liste.length - 1)] : null;
     const modifier = (champ: Partial<Etablissement>) =>
         setListe((avant) => (avant ? avant.map((e, i) => (i === Math.min(choisi, avant.length - 1) ? { ...e, ...champ } : e)) : avant));
-
-    const numerosPris = useMemo(() => {
-        const pris = new Map<string, string>();
-        (liste ?? []).forEach((e, i) => {
-            if (i !== choisi) (e.numeros ?? []).forEach((n) => pris.set(n, e.nom));
-        });
-        return pris;
-    }, [liste, choisi]);
 
     const ajouter = () => {
         setListe((avant) => {
@@ -255,6 +293,21 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
         setListe((avant) => (avant ? avant.filter((_e, i) => i !== rang) : avant));
         setChoisi(0);
     };
+    /** The fiche's planner level follows its identifier while a NEW fiche is still named (the id follows the name). */
+    const suivreIdentifiant = (ancien: string, nouveau: string) => {
+        if (ancien === nouveau) return;
+        setPlanificateur((p) => {
+            const propre = p?.par_etablissement?.[ancien];
+            if (!p || propre === undefined) return p;
+            const reste = { ...(p.par_etablissement ?? {}) };
+            delete reste[ancien];
+            return { ...p, par_etablissement: { ...reste, [nouveau]: propre } };
+        });
+    };
+    const poserRendezVous = (id: string, cle: string, valeur: unknown) =>
+        setPlanificateur((p) =>
+            p ? { ...p, par_etablissement: { ...(p.par_etablissement ?? {}), [id]: { ...(p.par_etablissement?.[id] ?? {}), [cle]: valeur } } } : p,
+        );
 
     const ouvert = (cle: keyof Etablissement) => Boolean(courant && (courant[cle] || ouverts[`${courant.id}:${String(cle)}`]));
     const personnaliser = (cle: keyof Etablissement) => courant && setOuverts((a) => ({ ...a, [`${courant.id}:${String(cle)}`]: true }));
@@ -272,29 +325,72 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
     if (adresseIncomplete)
         fautes.push(t({ en: "Choose the town for this postal code before saving.", fr: "Choisissez la commune de ce code postal avant d'enregistrer." }));
 
+    /** The planner as it will be written: only the levels of fiches that exist once the list is saved. */
+    const planificateurAEcrire = (): Planificateur | null => {
+        if (!planificateur || !liste) return null;
+        const ids = new Set(liste.map((e) => e.id));
+        return {
+            ...planificateur,
+            par_etablissement: Object.fromEntries(Object.entries(planificateur.par_etablissement ?? {}).filter(([id]) => ids.has(id))),
+        };
+    };
+    const planificateurModifie = (() => {
+        const a = planificateurAEcrire();
+        return a !== null && planificateurLu !== null && JSON.stringify(charge_utile_planificateur(a)) !== JSON.stringify(charge_utile_planificateur(planificateurLu));
+    })();
+    const listeModifiee = liste !== null && JSON.stringify(charge_utile_etablissements(liste)) !== lue;
+    const rienNAttend = !listeModifiee && !planificateurModifie;
+
     const enregistrer = async () => {
         if (!liste) return;
         setEnCours(true);
         setErreur(null);
         const reponse = await saveEtablissementsApiV1OrganizationsEtablissementsPut({ body: charge_utile_etablissements(liste) });
-        setEnCours(false);
         if (reponse.error) {
+            setEnCours(false);
             setErreur(detailFromError(reponse.error, "Establishments not saved"));
             return;
         }
+        // The fiches exist now (the client's database knows them): the planner's levels can be written.
+        const ecrire = planificateurAEcrire();
+        if (ecrire && planificateurModifie) {
+            const suite = await putPlanificateurApiV1OrganizationsPlanificateurPut({ body: charge_utile_planificateur(ecrire) });
+            if (suite.error || !suite.data) {
+                setEnCours(false);
+                // The fiches ARE saved: the window stays open on what is left, and the caller reads again on close.
+                aCopie.current = true;
+                setLue(JSON.stringify(charge_utile_etablissements(liste)));
+                setIdsEnregistres(liste.map((e) => e.id));
+                setErreur(
+                    `${t({ en: "Establishments saved, but the appointments and zone were not:", fr: "Établissements enregistrés, mais pas les rendez-vous et la zone :" })} ${detailFromError(suite.error, "Planner not saved")}`,
+                );
+                return;
+            }
+        }
+        setEnCours(false);
         toast.success(t(ETABLISSEMENTS_ENREGISTRES));
         onFermer(true);
     };
 
+    /** « Create by copy » answered: read everything again (the server wrote the new fiche) and open it. */
+    const copieFaite = async (resultat: ResultatCopieEtablissement | null) => {
+        setFenetreCopie(false);
+        if (!resultat) return;
+        aCopie.current = true;
+        setResultatCopie({ nom: resultat.etablissement.nom, resultat });
+        setOuverts({});
+        await charger(resultat.etablissement.id);
+    };
+
     return (
-        <Dialog open={ouverte} onOpenChange={(o) => (o ? null : onFermer(false))}>
+        <Dialog open={ouverte} onOpenChange={(o) => (o ? null : onFermer(aCopie.current))}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl" data-testid="modale-etablissements">
                 <DialogHeader>
                     <DialogTitle>{t({ en: "Establishments", fr: "Établissements" })}</DialogTitle>
                     <DialogDescription>
                         {t({
-                            en: "Each establishment is reached through its own numbers: a call to one of them reads that establishment's hours, address and sentences. An empty field is inherited: the agent's own value first, then the organization's.",
-                            fr: "Chaque établissement est joint par ses propres numéros : un appel vers l'un d'eux lit les horaires, l'adresse et les phrases de cet établissement. Un champ vide est hérité : la valeur de l'agent d'abord, puis celle de l'organisation.",
+                            en: "One fiche per place: the agent that chooses it (theme « Business » of the agent) reads its hours, address, announcements, closing and transfer number alone, nothing is inherited. An empty announcement or sentence says nothing.",
+                            fr: "Une fiche par lieu : l'agent qui la choisit (thème « Établissement » de l'agent) en lit seuls les horaires, l'adresse, les annonces, la fermeture et le numéro de transfert, rien n'est hérité. Une annonce ou une phrase vide ne dit rien.",
                         })}
                     </DialogDescription>
                 </DialogHeader>
@@ -317,9 +413,6 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                             className={`min-w-0 flex-1 truncate rounded px-2 py-1 text-left text-sm ${i === choisi ? "bg-accent font-medium" : "hover:bg-accent/50"}`}
                                         >
                                             {e.nom || t({ en: "(no name)", fr: "(sans nom)" })}
-                                            {(e.numeros ?? []).length === 0 && (
-                                                <span className="ml-1 text-xs text-muted-foreground">{t({ en: "· to attach", fr: "· à rattacher" })}</span>
-                                            )}
                                         </button>
                                         <Button
                                             variant="ghost"
@@ -344,10 +437,46 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                 <Plus className="mr-1 h-4 w-4" />
                                 {t({ en: "Add an establishment", fr: "Ajouter un établissement" })}
                             </Button>
+                            {/* Lot 11 (F2): the copy is written at once by the server: offered when nothing waits to be saved. */}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setFenetreCopie(true)}
+                                disabled={liste.length === 0 || !rienNAttend}
+                                data-testid="creer-par-copie"
+                            >
+                                <Copy className="mr-1 h-4 w-4" />
+                                {t({ en: "Create by copy", fr: "Créer par copie" })}
+                            </Button>
+                            {!rienNAttend && liste.length > 0 && (
+                                <p className="text-xs text-muted-foreground" data-testid="copie-apres-enregistrement">
+                                    {t({
+                                        en: "Save the changes first: the copy is written at once.",
+                                        fr: "Enregistrez d'abord les changements : la copie est écrite tout de suite.",
+                                    })}
+                                </p>
+                            )}
                         </div>
 
                         {courant && (
                             <div className="min-w-0 space-y-4" data-testid="fiche-etablissement">
+                                {resultatCopie && (
+                                    <p className="rounded border border-border bg-muted/40 p-2 text-sm" role="status" data-testid="resultat-copie">
+                                        {t({ en: "Created from a copy:", fr: "Créée par copie :" })} <span className="font-medium">{resultatCopie.nom}</span>.{" "}
+                                        {t({
+                                            en: "Not copied, to fill on this fiche: the second number, the transfer number and the immediate closing.",
+                                            fr: "Non copiés, à renseigner sur cette fiche : le second numéro, le numéro de transfert et la fermeture immédiate.",
+                                        })}{" "}
+                                        {resultatCopie.resultat.reglages_rendez_vous_copies || (resultatCopie.resultat.types_rendez_vous_copies ?? 0) > 0
+                                            ? t({
+                                                  en: `Appointment settings copied (${resultatCopie.resultat.types_rendez_vous_copies ?? 0} type(s)).`,
+                                                  fr: `Réglages de rendez-vous copiés (${resultatCopie.resultat.types_rendez_vous_copies ?? 0} type(s)).`,
+                                              })
+                                            : (resultatCopie.resultat.non_copie ?? []).includes("reglages_rendez_vous")
+                                              ? t({ en: "The appointment settings could not be copied.", fr: "Les réglages de rendez-vous n'ont pas pu être copiés." })
+                                              : t({ en: "No appointment settings to copy.", fr: "Aucun réglage de rendez-vous à copier." })}
+                                    </p>
+                                )}
                                 <div className="space-y-1">
                                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                                         <label htmlFor="etablissement-nom" className="text-sm font-medium">
@@ -366,60 +495,15 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                                 return;
                                             }
                                             const autres = (liste ?? []).filter((x) => x !== courant).map((x) => x.id);
-                                            modifier({ nom, id: identifiantPour(nom, autres) });
+                                            const id = identifiantPour(nom, autres);
+                                            suivreIdentifiant(courant.id, id);
+                                            modifier({ nom, id });
                                         }}
                                     />
                                     <p className="text-xs text-muted-foreground">
                                         {t({ en: "Given to the agents as {{etablissement}}.", fr: "Donné aux agents comme {{etablissement}}." })}
                                     </p>
                                 </div>
-
-                                <fieldset className="space-y-1">
-                                    <legend className="text-sm font-medium">{t({ en: "Numbers that lead here", fr: "Numéros qui mènent ici" })}</legend>
-                                    {numeros.length === 0 ? (
-                                        <p className="text-sm text-muted-foreground">
-                                            {t({
-                                                en: "No number in Telephony yet: the establishment stays « to attach ».",
-                                                fr: "Aucun numéro dans Telephony pour l'instant : l'établissement reste « à rattacher ».",
-                                            })}
-                                        </p>
-                                    ) : (
-                                        numeros.map((n) => {
-                                            const ailleurs = numerosPris.get(n.numero);
-                                            const coche = (courant.numeros ?? []).includes(n.numero);
-                                            return (
-                                                <label key={n.numero} className="flex flex-wrap items-center gap-2 text-sm">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={coche}
-                                                        disabled={Boolean(ailleurs)}
-                                                        onChange={() =>
-                                                            modifier({
-                                                                numeros: coche
-                                                                    ? (courant.numeros ?? []).filter((x) => x !== n.numero)
-                                                                    : [...(courant.numeros ?? []), n.numero],
-                                                            })
-                                                        }
-                                                    />
-                                                    <span className="font-mono">{n.numero}</span>
-                                                    {n.libelle && <span className="text-muted-foreground">{n.libelle}</span>}
-                                                    {n.agent && <span className="text-xs text-muted-foreground">→ {n.agent}</span>}
-                                                    {ailleurs && (
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {t({ en: "already used by", fr: "déjà pris par" })} {ailleurs}
-                                                        </span>
-                                                    )}
-                                                </label>
-                                            );
-                                        })
-                                    )}
-                                    <p className="text-xs text-muted-foreground">
-                                        {t({
-                                            en: "A called number leads to one establishment only. A number of no establishment: its calls behave as before.",
-                                            fr: "Un numéro appelé mène à un seul établissement. Un numéro d'aucun établissement : ses appels se comportent comme avant.",
-                                        })}
-                                    </p>
-                                </fieldset>
 
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     <div className="space-y-1">
@@ -590,6 +674,82 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                         />
                                     </ChampHerite>
                                 ))}
+
+                                <Intertitre
+                                    id="fiche-fermeture"
+                                    titre={{ en: "Immediate closing", fr: "Fermeture immédiate" }}
+                                    description={{
+                                        en: "Closes THIS fiche's agents now, whatever the hours say, and lifts itself at the date. The organization's « Close everything » closes the fiches that have no closing of their own.",
+                                        fr: "Ferme maintenant les agents de CETTE fiche, quoi que disent les horaires, et se lève à la date. Le « Tout fermer » de l'organisation ferme les fiches qui n'ont pas la leur.",
+                                    }}
+                                >
+                                    <ChampReglage
+                                        cle="fiche.etat_force"
+                                        idControle="fiche-etat-force"
+                                        libelle={{ en: "State of this establishment", fr: "État de cet établissement" }}
+                                        bornes={{ en: "Default: computed from the hours", fr: "Défaut : calculé depuis les horaires" }}
+                                    >
+                                        <select
+                                            id="fiche-etat-force"
+                                            className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                                            value={courant.etat_force ?? ""}
+                                            onChange={(e) =>
+                                                modifier(
+                                                    e.target.value === ""
+                                                        ? { etat_force: null, etat_force_jusqu_a: null }
+                                                        : { etat_force: e.target.value as Etablissement["etat_force"] },
+                                                )
+                                            }
+                                        >
+                                            <option value="">{t({ en: "Computed from the opening hours", fr: "Calculé depuis les horaires" })}</option>
+                                            {ETATS.map((etat) => (
+                                                <option key={etat.valeur} value={etat.valeur}>
+                                                    {t({ en: "Forced:", fr: "Forcé :" })} {t(etat.libelle)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </ChampReglage>
+                                    {courant.etat_force && (
+                                        <ChampReglage
+                                            cle="fiche.etat_force_jusqu_a"
+                                            idControle="fiche-etat-force-jusqua"
+                                            libelle={{ en: "Until (Paris time)", fr: "Jusqu'au (heure de Paris)" }}
+                                            aides={[
+                                                {
+                                                    en: "This moment lifts the forced state by itself. Left empty, it holds until someone comes back here, and no reopening is announced.",
+                                                    fr: "Ce moment lève l'état forcé tout seul. Vide, il tient jusqu'à ce que quelqu'un revienne ici, et aucune réouverture n'est annoncée.",
+                                                },
+                                            ]}
+                                            bornes={{ en: "Default: no end date", fr: "Défaut : pas de date de fin" }}
+                                        >
+                                            <Input
+                                                id="fiche-etat-force-jusqua"
+                                                type="datetime-local"
+                                                value={courant.etat_force_jusqu_a ? courant.etat_force_jusqu_a.slice(0, 16) : ""}
+                                                onChange={(e) => modifier({ etat_force_jusqu_a: e.target.value || null })}
+                                            />
+                                        </ChampReglage>
+                                    )}
+                                </Intertitre>
+
+                                {planificateur ? (
+                                    <FicheRendezVous
+                                        id={courant.id}
+                                        reglages={planificateur.par_etablissement?.[courant.id] ?? {}}
+                                        defauts={planificateur.defauts ?? {}}
+                                        onPoser={(cle, valeur) => poserRendezVous(courant.id, cle, valeur)}
+                                    />
+                                ) : (
+                                    <Intertitre id="fiche-rendez-vous" titre={{ en: "Appointments and zone", fr: "Rendez-vous et zone" }}>
+                                        <p className="text-sm text-muted-foreground" data-testid="fiche-rdv-sans-base">
+                                            {t({
+                                                en: "The appointment rules and the zone live in the client's database: attach one in « Client data » first.",
+                                                fr: "Les règles de rendez-vous et la zone vivent dans la base du client : rattachez-en une dans « Données du client » d'abord.",
+                                            })}
+                                            {planificateurIndisponible ? ` (${planificateurIndisponible})` : ""}
+                                        </p>
+                                    </Intertitre>
+                                )}
                             </div>
                         )}
                         {fautes.length > 0 && (
@@ -601,8 +761,14 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                         )}
                     </div>
                 )}
+                <ModaleCopieFiche
+                    ouverte={fenetreCopie}
+                    fiches={liste ?? []}
+                    sourceInitiale={courant?.id ?? ""}
+                    onFermer={(resultat) => void copieFaite(resultat)}
+                />
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onFermer(false)}>
+                    <Button variant="outline" onClick={() => onFermer(aCopie.current)}>
                         {t({ en: "Cancel", fr: "Annuler" })}
                     </Button>
                     <Button onClick={() => void enregistrer()} disabled={enCours || liste === null || fautes.length > 0} data-testid="enregistrer-etablissements">

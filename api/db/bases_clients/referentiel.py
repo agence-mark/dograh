@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 import asyncpg
 
+from api.db.bases_clients.connexion import BaseClientIndisponible
 from api.schemas.etablissements import CatalogueEtablissements
 from api.schemas.phrases import CataloguePhrases
 
@@ -35,6 +36,18 @@ class LignesDuReferentiel:
 
 async def _auteur(connexion: asyncpg.Connection, auteur: str) -> None:
     await connexion.execute("SELECT set_config('mark.auteur', $1, true)", auteur[:200])
+
+
+async def _a_la_fermeture_par_fiche(connexion: asyncpg.Connection) -> bool:
+    """[.mark] Chantier agents-specialises, lot 8 (C5) : la 015 donne à ``site`` les colonnes de la
+    fermeture par fiche. Une base restée en version 14 ne les a pas : elle n'écrit rien de plus
+    qu'avant, sauf si une fiche est fermée -- ce qui ne se perd jamais en silence."""
+    return bool(
+        await connexion.fetchval(
+            "SELECT count(*) = 2 FROM information_schema.columns WHERE table_schema = 'mark' "
+            "AND table_name = 'site' AND column_name IN ('etat_force', 'etat_force_jusqu_a')"
+        )
+    )
 
 
 async def _entreprise(connexion: asyncpg.Connection) -> int:
@@ -61,21 +74,37 @@ async def ecrire_etablissements(
         await _auteur(connexion, auteur)
         entreprise = await _entreprise(connexion)
         gardes: list[str] = []
+        avec_fermeture = await _a_la_fermeture_par_fiche(connexion)
         for ordre, e in enumerate(catalogue.etablissements):
+            if not avec_fermeture and e.etat_force is not None:
+                raise BaseClientIndisponible(
+                    "The client database is behind this installation: a fiche cannot be closed in it yet. "
+                    "Click « Upgrade » in the theme « Client data », then save again."
+                )
             a = e.adresse
             site_id = await connexion.fetchval(
                 """
                 INSERT INTO mark.site (entreprise_id, cle, nom, actif, ordre, second_numero, numero_transfert,
                                        adresse_cp, adresse_insee, adresse_commune, adresse_voie,
-                                       horaires_texte, annonce_fermeture, annonce_pause, termes_lexique)
-                VALUES ($1, $2, $3, true, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb)
+                                       horaires_texte, annonce_fermeture, annonce_pause, termes_lexique"""
+                + (", etat_force, etat_force_jusqu_a" if avec_fermeture else "")
+                + """)
+                VALUES ($1, $2, $3, true, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb"""
+                + (", $15, $16" if avec_fermeture else "")
+                + """)
                 ON CONFLICT (cle) DO UPDATE SET
                     nom = EXCLUDED.nom, actif = true, ordre = EXCLUDED.ordre,
                     second_numero = EXCLUDED.second_numero, numero_transfert = EXCLUDED.numero_transfert,
                     adresse_cp = EXCLUDED.adresse_cp, adresse_insee = EXCLUDED.adresse_insee,
                     adresse_commune = EXCLUDED.adresse_commune, adresse_voie = EXCLUDED.adresse_voie,
                     horaires_texte = EXCLUDED.horaires_texte, annonce_fermeture = EXCLUDED.annonce_fermeture,
-                    annonce_pause = EXCLUDED.annonce_pause, termes_lexique = EXCLUDED.termes_lexique
+                    annonce_pause = EXCLUDED.annonce_pause, termes_lexique = EXCLUDED.termes_lexique"""
+                + (
+                    ", etat_force = EXCLUDED.etat_force, etat_force_jusqu_a = EXCLUDED.etat_force_jusqu_a"
+                    if avec_fermeture
+                    else ""
+                )
+                + """
                 RETURNING id
                 """,
                 entreprise,
@@ -92,6 +121,7 @@ async def ecrire_etablissements(
                 e.annonce_fermeture,
                 e.annonce_pause,
                 json.dumps([t.model_dump(mode="json") for t in e.termes_lexique]),
+                *((e.etat_force, e.etat_force_jusqu_a) if avec_fermeture else ()),
             )
             gardes.append(e.id)
             # Only what changed is written: the journal says what really moved.

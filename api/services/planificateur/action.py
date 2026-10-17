@@ -121,6 +121,13 @@ class Lecture:
 
 
 async def _etablissement(ctx) -> Any:
+    servi = await _etablissement_servi(ctx)
+    return servi.etablissement if servi else None
+
+
+async def _etablissement_servi(ctx) -> Any:
+    """[.mark] Lot 1 d'agents-specialises : l'établissement de l'appel ET sa source (une
+    fiche n'hérite pas des réglages de rendez-vous de l'organisation, C3)."""
     from api.services.etablissements.appel import etablissement_de_lappel
 
     workflow_id = None
@@ -132,8 +139,7 @@ async def _etablissement(ctx) -> Any:
             workflow_id = getattr(run, "workflow_id", None)
         except Exception:  # noqa: BLE001 -- never raises during a call: stamped and logged
             workflow_id = None
-    servi = await etablissement_de_lappel(ctx.organization_id, workflow_id, ctx.appel or {})
-    return servi.etablissement if servi else None
+    return await etablissement_de_lappel(ctx.organization_id, workflow_id, ctx.appel or {})
 
 
 def types_de(types: list[TypeRendezVous], etablissement: str | None) -> list[TypeRendezVous]:
@@ -160,12 +166,18 @@ async def lire(ctx, type_code: str | None) -> tuple[Lecture, TypeRendezVous | No
     nom = await nom_de_la_base(ctx.organization_id)
     if not nom:
         raise Indisponible("no client database attached")
-    etablissement = await _etablissement(ctx)
+    servi = await _etablissement_servi(ctx)
+    etablissement = servi.etablissement if servi else None
     site = etablissement.id if etablissement else None
     connexion = await connecter(nom)
     try:
         planificateur = await lire_planificateur(connexion)
-        reglages = effectifs(planificateur.reglages, planificateur.par_etablissement.get(site) if site else None)
+        propres = planificateur.par_etablissement.get(site) if site else None
+        # [.mark] Lot 1 : pour une fiche, ses réglages seuls (défauts du code, puis la fiche).
+        if servi is not None and servi.sans_heritage:
+            reglages = effectifs(propres)
+        else:
+            reglages = effectifs(planificateur.reglages, propres)
         types = types_de(planificateur.types, site)
         choisi = next((t for t in types if t.code == type_code), None)
         if choisi is None and not type_code and len(types) == 1:

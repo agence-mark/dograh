@@ -101,6 +101,11 @@ def conversation_messages(messages: list[Any]) -> list[Any]:
             continue
         if not message.get("content"):
             continue
+        # [.mark] D1 : la note de passation reste à l'agent qui l'a reçue.
+        from api.services.groupe.passations import est_la_note_de_passation
+
+        if est_la_note_de_passation(message):
+            continue
         kept.append(message)
     return kept
 
@@ -171,6 +176,8 @@ async def build_handoff_snapshot(
     retained_messages: int = DEFAULT_RETAINED_MESSAGES,
     timeout: float = DEFAULT_HANDOFF_SUMMARY_TIMEOUT_SECONDS,
     parent_context: Any = None,
+    resumer: bool = True,
+    depuis: int | None = None,
 ) -> HandoffSnapshot:
     """Compact ``context`` for a destination agent without mutating it.
 
@@ -191,6 +198,14 @@ async def build_handoff_snapshot(
     """
     source_messages = deepcopy(context.messages)
     boundary = len(source_messages)
+    # [.mark] Après le banc du 16/10 (décision d'Evan) : seulement la conversation à partir de
+    # ``depuis`` (le retour au principal : la dernière étape du spécialisé), sans résumé. Rien
+    # dans cette tranche (indice faux) : les quatre derniers messages de la conversation.
+    if depuis is not None:
+        tranche = conversation_messages(source_messages[min(max(depuis, 0), boundary):])
+        if not tranche:
+            tranche = conversation_messages(source_messages)[-4:]
+        return HandoffSnapshot(messages=tranche, boundary=boundary, summarized=False)
     conversation = conversation_messages(source_messages)
 
     if not conversation:
@@ -203,7 +218,9 @@ async def build_handoff_snapshot(
     )
 
     generate_summary = getattr(llm, "_generate_summary", None)
-    if generate_summary is None or len(conversation) <= retained_messages:
+    # [.mark] Chantier agents-specialises (A5) : ``resumer=False`` rend l'historique
+    # filtré, sans appel au modèle (retour au principal, passation rapide).
+    if not resumer or generate_summary is None or len(conversation) <= retained_messages:
         return fallback
 
     config = LLMContextSummaryConfig(

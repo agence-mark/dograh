@@ -58,6 +58,7 @@ from api.services.annonce.stockage import lire_annonce_ouverture
 from api.services.equipe.appel import injecter_equipe
 from api.services.etablissements.appel import (
     annonce_heritee,
+    CLE_FICHE_DE_LAGENT,
     configuration_heritee,
     injecter_etablissement,
     lire_lappel,
@@ -93,6 +94,9 @@ from api.services.pipecat.realtime_feedback_observer import (
     register_turn_log_handlers,
 )
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
+from api.services.groupe.fiche import traitement_pour_agent_appele
+from api.services.groupe.prechauffage import Precharge
+from api.services.groupe.reglages_passation import prechauffage_actif
 from api.services.pipecat.greffier import (
     greffier_du_moteur,
     preparer_le_greffier,
@@ -966,14 +970,24 @@ async def _run_pipeline_impl(
     # below, the agent's own values first. No establishment: the SAME
     # configuration and announcement come back, the call is the call of before.
     lecture_de_lappel = await lire_lappel(
-        workflow.organization_id, workflow_id, merged_call_context_vars
+        workflow.organization_id,
+        workflow_id,
+        merged_call_context_vars,
+        # [.mark] Lot 1 d'agents-specialises (F1) : la fiche choisie par l'agent.
+        fiche_choisie=run_configs.get(CLE_FICHE_DE_LAGENT),
     )
     etablissement_servi = lecture_de_lappel.servi
+    # [.mark] Lot 1 d'agents-specialises (F3, C3) : une fiche n'hérite de rien.
+    sans_heritage = bool(etablissement_servi and etablissement_servi.sans_heritage)
     configs_heritees, origines_heritees = configuration_heritee(
-        run_configs, etablissement_servi.etablissement if etablissement_servi else None
+        run_configs,
+        etablissement_servi.etablissement if etablissement_servi else None,
+        sans_heritage=sans_heritage,
     )
     reglages_annonce = annonce_heritee(
-        reglages_annonce, etablissement_servi.etablissement if etablissement_servi else None
+        reglages_annonce,
+        etablissement_servi.etablissement if etablissement_servi else None,
+        sans_heritage=sans_heritage,
     )
     if etablissement_servi is not None:
         etablissement_servi.origines.update(origines_heritees)
@@ -994,6 +1008,7 @@ async def _run_pipeline_impl(
         lecture_de_lappel.equipe,
         lecture_de_lappel.etablissement_id,
         lecture_de_lappel.lu_depuis,
+        lecture_de_lappel.noms_des_lieux,
     )
     # [.mark] Opening state, computed once at call set-up, Paris time (D8).
     # BEFORE the persistence below and BEFORE the pre-call fetch, which is
@@ -1325,6 +1340,7 @@ async def _run_pipeline_impl(
         previous_node_name: Optional[str],
         allow_interrupt: bool = False,
         porte: Optional[str] = None,  # [.mark] C12 : la porte écrite (Postscript)
+        agent: Optional[str] = None,  # [.mark] agents-specialises : l'agent qui prend la main
     ) -> None:
         """Send node transition event to logs buffer and optionally via WebSocket."""
         # Update current node on the buffer so subsequent events are tagged
@@ -1337,6 +1353,7 @@ async def _run_pipeline_impl(
             previous_node_name=previous_node_name,
             allow_interrupt=allow_interrupt,
             porte=porte,
+            agent=agent,
         )
         # Send via WebSocket if available
         if ws_sender:
@@ -1799,6 +1816,15 @@ async def _run_pipeline_impl(
             lexique_metier=lexique_metier,
             variables_appel=variables_appel,
             contexte_appel=contexte_appel,
+            # [.mark] Chantier agents-specialises (lot 3) : la fiche suit l'agent appelé.
+            traitement_de_la_fiche=lambda _agent: traitement_pour_agent_appele(engine),
+            # [.mark] Lot 6 (A5) : le cache de préchauffage de l'appel (sans voix), seulement
+            # quand le réglage est allumé (vrai par défaut dans un groupe).
+            precharge=(
+                Precharge(organization_id=workflow.organization_id)
+                if prechauffage_actif(run_configs)
+                else None
+            ),
         )
         engine.set_agent_factory(agent_factory)
         # The agent this call starts on. Its services were resolved above from
@@ -1828,6 +1854,10 @@ async def _run_pipeline_impl(
         agent.post_scriptum = post_scriptum_du_moteur(engine) or greffier_du_moteur(
             engine, service_greffier, run_configs.get("greffier_consigne")
         )
+        # [.mark] Chantier agents-specialises (lot 2) : les réglages du premier agent
+        # (groupe, plafond de passations), et ceux qui règlent l'appel.
+        agent.reglages = dict(run_configs)
+        engine.reglages_appel = dict(run_configs)
 
     # Initialize the engine to set the initial context with
     # System Prompt and Tools

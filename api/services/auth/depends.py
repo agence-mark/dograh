@@ -30,15 +30,29 @@ async def require_local_auth() -> None:
         raise HTTPException(status_code=404, detail="Not found")
 
 
+def auteur_du_portail(brut: str | None) -> str | None:
+    """[.mark] Chantier agents-specialises, lot 9 (C7) : l'auteur réel d'une écriture faite par le portail
+    avec la clé d'API de l'organisation (en-tête ``X-Mark-Auteur``). Toujours « portail : … », sans
+    caractère de contrôle, borné ; vide : pas d'auteur (le journal dit alors le compte de la clé)."""
+    texte = " ".join("".join(c for c in " ".join((brut or "").split()) if c.isprintable()).split())
+    if texte.casefold().startswith("portail :"):
+        texte = texte[len("portail :") :].strip()
+    return f"portail : {texte[:120]}" if texte else None
+
+
 async def get_user(
     authorization: Annotated[str | None, Header()] = None,
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    x_mark_auteur: Annotated[str | None, Header(alias="X-Mark-Auteur")] = None,
 ) -> UserModel:
     # ------------------------------------------------------------------
     # Check if API key is provided (takes precedence)
     # ------------------------------------------------------------------
     if x_api_key:
-        return await _handle_api_key_auth(x_api_key)
+        user = await _handle_api_key_auth(x_api_key)
+        # [.mark] The author named by the portal counts for a KEY only (C7): never for a session.
+        user.mark_auteur = auteur_du_portail(x_mark_auteur)
+        return user
 
     # ------------------------------------------------------------------
     # Check if we're using local (email/password) auth

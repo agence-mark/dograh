@@ -75,11 +75,16 @@ def _adresse_de(valeur, source: str) -> AdresseEtablissement | None:
 def resoudre_adresse(
     run_configs: dict | None, preferences: OrganizationPreferences | None
 ) -> AdresseEtablissement | None:
-    """Agent's address if set, else the organization's, else ``None``. Never raises."""
+    """Agent's address if set, else the organization's, else ``None``. Never raises.
+
+    [.mark] Lot 1 d'agents-specialises (C3) : une fiche n'hérite de rien ; sa
+    configuration résolue porte ``_mark_fiche_sans_heritage`` : son adresse, ou aucune."""
     try:
         agent = _adresse_de((run_configs or {}).get(CLE_ADRESSE), "Agent")
         if agent is not None:
             return agent
+        if (run_configs or {}).get("_mark_fiche_sans_heritage"):
+            return None
         return _adresse_de(getattr(preferences, CLE_ADRESSE, None), "Organization")
     except Exception as erreur:  # noqa: BLE001 -- the call must go on
         logger.warning(f"[.mark] Business address not resolved, the call goes on without it: {erreur!r}")

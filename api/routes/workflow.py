@@ -65,6 +65,11 @@ from api.services.workflow.configuration_policy import (
     apply_external_pbx_mapping_policy,
 )
 from api.services.workflow.dto import ReactFlowDTO, sanitize_workflow_definition
+from api.services.groupe.groupe import (
+    dupliquer_les_specialises,
+    preparer_l_archivage,
+    recopier_dans_les_specialises,
+)
 from api.services.workflow.duplicate import duplicate_workflow
 from api.services.workflow.errors import ItemKind, WorkflowError
 from api.services.workflow.run_creation import prepare_workflow_run_inputs
@@ -946,16 +951,15 @@ async def get_workflow_versions(
     ]
 
 
-@router.post("/{workflow_id}/publish")
-async def publish_workflow(
-    workflow_id: int,
-    user: UserModel = Depends(get_user),
-):
-    """Publish the current draft version of a workflow.
+async def publier_un_agent(workflow_id: int, user: UserModel):
+    """Publish the current draft of a workflow (shared by the route and the group route).
 
     Drafts are allowed to be incomplete (so the editor can save mid-edit),
     but a published version is what runtime executes — so this is the gate
     where the full DTO + graph + trigger-conflict checks must pass.
+
+    [.mark] Lot 10 : extrait de la route pour que « publier le groupe » joue exactement le même
+    geste, agent par agent.
     """
     workflow = await db_client.get_workflow(
         workflow_id, organization_id=user.selected_organization_id
@@ -992,12 +996,32 @@ async def publish_workflow(
         },
     )
 
+    # [.mark] Chantier agents-specialises, lot 8 : la base du client apprend quelle fiche l'agent
+    # publié sert (agent_site). Jamais une raison de rater la publication.
+    from api.services.base_client.agents import synchroniser_agent_site
+
+    await synchroniser_agent_site(
+        user.selected_organization_id,
+        workflow_id,
+        workflow.name,
+        (published.workflow_configurations or {}).get("etablissement_id"),
+    )
+
     return {
         "id": published.id,
         "version_number": published.version_number,
         "status": published.status,
         "published_at": published.published_at,
     }
+
+
+@router.post("/{workflow_id}/publish")
+async def publish_workflow(
+    workflow_id: int,
+    user: UserModel = Depends(get_user),
+):
+    """Publish the current draft version of a workflow."""
+    return await publier_un_agent(workflow_id, user)
 
 
 @router.post("/{workflow_id}/create-draft")
@@ -1078,6 +1102,11 @@ async def update_workflow_status(
         The updated workflow
     """
     try:
+        # [.mark] Lot 10 : archiver un spécialisé retire d'abord l'outil de passation qui le vise
+        # chez le principal ; archiver un principal garde ses spécialisés comme agents seuls
+        # (l'écran passe par la route du groupe pour choisir de les archiver aussi).
+        if request.status == WorkflowStatus.ARCHIVED.value:
+            await preparer_l_archivage(workflow_id, user.selected_organization_id)
         workflow = await db_client.update_workflow_status(
             workflow_id=workflow_id,
             status=request.status,
@@ -1476,6 +1505,14 @@ async def update_workflow(
                 trigger_paths=trigger_paths,
             )
 
+        # [.mark] Chantier agents-specialises, lot 10 (A10) : l'enregistrement d'un principal
+        # recopie ses réglages communs dans ses spécialisés (un seul geste, idempotent ; ne
+        # lève jamais). Un agent seul ou un spécialisé : rien à faire.
+        if workflow_configurations is not None:
+            await recopier_dans_les_specialises(
+                workflow_id, user.selected_organization_id
+            )
+
         # Return draft content if one exists (save creates a draft)
         draft = await db_client.get_draft_version(workflow_id)
         if draft:
@@ -1523,6 +1560,34 @@ async def duplicate_workflow_endpoint(
             organization_id=user.selected_organization_id,
             user_id=user.id,
         )
+
+        # [.mark] Lot 10 : la duplication d'un principal duplique son groupe.
+        try:
+            await dupliquer_les_specialises(
+                source_principal_id=workflow_id,
+                copie_principal_id=workflow.id,
+                organization_id=user.selected_organization_id,
+                user_id=user.id,
+            )
+            workflow = await db_client.get_workflow(
+                workflow.id, organization_id=user.selected_organization_id
+            )
+        except Exception as e:  # noqa: BLE001
+            # [.mark] Revue du 16/10 : une copie à moitié recâblée passerait la main aux
+            # spécialisés de l'autre groupe ; elle est archivée et l'écran le dit.
+            logger.error(f"Error duplicating the group of workflow {workflow_id}: {e}")
+            try:
+                await db_client.update_workflow_status(
+                    workflow_id=workflow.id,
+                    status=WorkflowStatus.ARCHIVED.value,
+                    organization_id=user.selected_organization_id,
+                )
+            except Exception as erreur:  # noqa: BLE001
+                logger.error(f"Half-duplicated group copy {workflow.id} not archived: {erreur}")
+            raise HTTPException(
+                status_code=500,
+                detail="The group could not be duplicated; the incomplete copy was archived.",
+            )
 
         capture_event(
             distinct_id=str(user.provider_id),

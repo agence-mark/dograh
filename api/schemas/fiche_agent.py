@@ -125,6 +125,23 @@ class ChampFiche(BaseModel):
         ),
     )
 
+    # [.mark] Chantier agents-specialises, lot 17 : la portée du champ dans un appel à
+    # plusieurs demandes. « appel » : commun à tout l'appel (ce qui concerne l'appelant) ;
+    # « demande » : propre à une demande (il se clôt avec elle). ⛔ Gardé VIDE en base, jamais
+    # remplacé par sa valeur calculée (même règle que ``lecteur`` : l'écran compare ce qu'il
+    # envoie à ce qu'il relit). Vide = ``portee_par_defaut`` (services/fiche/demandes.py),
+    # calculée par les réglages génériques de l'agent. Sans passation vers un spécialisé
+    # (agent seul, appel à une demande) la portée n'agit sur rien.
+    portee: Literal["appel", "demande"] | None = Field(
+        default=None,
+        description=(
+            "Scope in a call with several requests: whole call (what concerns the "
+            "caller: shared by every request) or this request (closed with it when "
+            "another specialist takes over). Empty: computed from the agent's "
+            "settings (town and street readers, field recognition)."
+        ),
+    )
+
     @field_validator("valeurs")
     @classmethod
     def _valeurs_lisibles(cls, valeurs: list[str] | None) -> list[str] | None:
@@ -209,6 +226,15 @@ NOMS_RESERVES = frozenset(
         "extracted_variables",
         "nodes_visited",
         "agent_visits",
+        # [.mark] agents-specialises (lots 2, 5, 7) : les traces du groupe
+        "parcours",
+        "parcours_etapes",
+        "porte_reecrite",
+        "passations",
+        "transferts_humains",
+        # [.mark] agents-specialises (lot 17) : les demandes closes d'un appel à plusieurs demandes
+        "demandes",
+        "demande_au_retour",
         # traces des modules
         "communes_verifiees",
         # chantier postscriptum-et-communes, lot 1 : les communes lues sur le nom de la personne

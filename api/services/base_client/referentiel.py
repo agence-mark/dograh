@@ -112,6 +112,9 @@ async def lire_referentiel(
             "horaires_ouverture": horaires,
             "annonce_fermeture": site["annonce_fermeture"],
             "annonce_pause": site["annonce_pause"],
+            # [.mark] Lot 8 (C5) : la fermeture de la fiche (absente d'une base en version 14).
+            "etat_force": site.get("etat_force"),
+            "etat_force_jusqu_a": site.get("etat_force_jusqu_a"),
             "phrases": {
                 s["variable"]: s["contenu"]
                 for s in surcharges

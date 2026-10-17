@@ -30,7 +30,28 @@ from pipecat.services.settings import LLMSettings
 from pipecat.utils.enums import EndTaskReason
 
 from api.db import db_client
-from api.services.annonce.constantes import OUVERT
+from api.services.annonce.constantes import OUVERT, SUR_RENDEZ_VOUS
+from api.services.groupe.fiche import champs_fusionnes
+from api.services.groupe.passations import (
+    LIGNE_PLAFOND,
+    RAISON_RETOUR,
+    agent_principal_de,
+    choisir_la_fin,
+    est_une_etape_de_retour,
+    est_un_groupe,
+    fins_du_noeud,
+    plafond_atteint,
+    porte_reecrite_vers_le_retour,
+)
+from api.services.groupe.parcours import rendre_le_parcours
+from api.services.groupe.prechauffage import precharge_de, prechauffer_les_cibles
+from api.services.equipe.transferts_humains import un_renvoi_a_echoue
+from api.services.groupe.reglages_passation import (
+    LIGNE_RENVOI_DEJA_ECHOUE,
+    phrase_de_mise_en_relation,
+    prechauffage_actif,
+    renvoi_unique_actif,
+)
 from api.enums import ToolCategory
 from api.errors.failure import (
     classify_exception,
@@ -145,6 +166,29 @@ ENGINE_OWNED_CONTEXT_KEYS = frozenset(
 # p50 1.4s / p90 4.0s / max 21.3s, so this cuts off the tail and nothing else.
 FINAL_EXTRACTION_TIMEOUT_SECONDS = 10.0
 
+# [.mark] agents-specialises (revue du 16/10) : le marqueur « ce modèle porte la fiche de
+# l'appel » et son suivi des tours, posés sur le modèle lui-même.
+_MARQUE_FICHE = "_mark_porte_la_fiche"
+_SUIVI_FICHE = "_mark_suivi_de_la_fiche"
+
+
+def _marque(objet, nom):
+    """[.mark] Lu dans les attributs propres de l'objet (un simulacre de test n'invente rien)."""
+    return getattr(objet, "__dict__", {}).get(nom)
+
+
+def _accepte_agent(rappel) -> bool:
+    """[.mark] Le rappel de transition accepte-t-il ``agent=`` ? Lu sur la signature."""
+    import inspect
+
+    try:
+        parametres = inspect.signature(rappel).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(
+        p.name == "agent" or p.kind is inspect.Parameter.VAR_KEYWORD for p in parametres
+    )
+
 
 @dataclass(frozen=True)
 class NodeOpeningResult:
@@ -221,26 +265,12 @@ class PipecatEngine:
         # Plan mode-prise-de-notes, partie 2 : le greffier de l'appel (None hors
         # de ce mode), clos à la passe de fin.
         self.greffier = None
+        # [.mark] Chantier agents-specialises (lot 3, 2A) : la fiche appartient à
+        # l'APPEL. Les modèles qui la portent (le premier agent, puis chaque agent
+        # appelé par passation) portent un marqueur (_MARQUE_FICHE) ; chacun voit l'état
+        # de la fiche.
         if fiche is not None and llm is not None:
-            # D14 : l'état de la fiche, montré à chaque requête de conversation.
-            montrer_la_fiche(
-                llm,
-                fiche,
-                lambda: self._gathered_context,
-                self._notices_fiche,
-                # Lot E d'agent-leger-greffier (P1) : les étiquettes de l'étape en cours.
-                lambda: getattr(
-                    getattr(self.active_agent, "current_node", None),
-                    "champs_etape",
-                    (),
-                ),
-                # Revue du 13/10 (lot C de greffier-conversation) : l'étape a-t-elle des portes ?
-                lambda: bool(
-                    getattr(
-                        getattr(self.active_agent, "current_node", None), "out_edges", None
-                    )
-                ),
-            )
+            self._porter_la_fiche(llm, suivi=self._tours_fiche)
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
         # summarization). Falls back to the pipeline LLM when not provided.
@@ -277,6 +307,19 @@ class PipecatEngine:
         # and so can never transfer.
         self._agent_factory = None
         self._transfer_coordinator = None
+        # [.mark] Chantier agents-specialises (lot 2). Les réglages qui règlent l'appel
+        # (ceux du premier agent : plafond de passations…), posés par le circuit ;
+        # ``sans_sortie_audio`` : le clavier (ni annonce, ni musique) ; l'ouverture
+        # d'un agent appelé au clavier, jouée au passage suivant ; les tâches du groupe
+        # (fin figée, retour au principal) que le clavier attend avant de finir le tour.
+        self.reglages_appel: dict = {}
+        # [.mark] Lot 6 (A5) : le principal du groupe, resté chaud (désactivé, jamais libéré)
+        # pendant qu'un spécialisé a la main ; la tâche du préchauffage (sans voix).
+        self._principal_chaud: Optional[AgentRuntime] = None
+        self._tache_prechauffage: Optional[asyncio.Task] = None
+        self.sans_sortie_audio = False
+        self.ouverture_differee: Optional[dict] = None
+        self._taches_du_groupe: set[asyncio.Task] = set()
         self.context = context
         self._call_context_vars = call_context_vars
         self._workflow_run_id = workflow_run_id
@@ -545,8 +588,30 @@ class PipecatEngine:
                 # is done, we have updated context and functions
                 await self.set_node(transition_to_node, origin_visit_id=agent.visit_id)
 
+                # [.mark] Chantier agents-specialises (lot 2) : étape de retour au
+                # principal (A1) ou nœud de fin aux phrases figées (A17) : c'est le
+                # code qui agit, le modèle ne reparle pas (``run_llm=False``).
+                principal = self._principal_du_retour(agent, transition_to_node)
+                phrase_figee = (
+                    None
+                    if principal is not None
+                    else self._phrase_de_fin_figee(agent, transition_to_node)
+                )
+                contexte_pret = asyncio.Event() if principal is not None else None
+                geste = False
+                if principal is not None:
+                    geste = self._rendre_au_principal(
+                        agent, principal, context_ready=contexte_pret
+                    )
+                elif phrase_figee is not None:
+                    geste = True
+                    self._mute_pipeline = True
+                    self._tache_du_groupe(self._dire_la_fin_figee(agent, phrase_figee))
+
                 is_end_node = agent.workflow.nodes[transition_to_node].is_end
-                if is_end_node:
+                if geste:
+                    pass
+                elif is_end_node:
                     # Register before the tool result can trigger generation.
                     closing_speech = self.speech_playback.expect_response(
                         source=agent.llm
@@ -562,7 +627,9 @@ class PipecatEngine:
 
                 async def on_context_updated() -> None:
                     """Finish an end node after its response reaches the caller."""
-                    if is_end_node:
+                    if contexte_pret is not None:
+                        contexte_pret.set()
+                    if is_end_node and not geste:
                         # This callback runs in its own task, leaving input audio,
                         # model generation, and transport playback free to continue.
                         # EndFrame closes realtime sessions; transport draining
@@ -575,15 +642,18 @@ class PipecatEngine:
 
                 result = {"status": "done"}
 
+                suivi = self._suivi_de(agent)
+                relance = (
+                    suivi.relance(function_call_params.tool_call_id)
+                    if suivi is not None
+                    else None
+                )
                 properties = FunctionCallResultProperties(
                     on_context_updated=on_context_updated,
                     # [.mark] Fiche : dans un tour avec une note, seul le dernier
                     # résultat relance ; None = regroupement de Pipecat, inchangé.
-                    run_llm=self._tours_fiche.relance(
-                        function_call_params.tool_call_id
-                    )
-                    if self._tours_fiche is not None
-                    else None,
+                    # [.mark] agents-specialises : après un geste du code, jamais.
+                    run_llm=False if geste else relance,
                 )
 
                 # Call results callback from the pipecat framework
@@ -597,9 +667,10 @@ class PipecatEngine:
                 logger.error(f"Error in transition function {name}: {str(e)}")
                 error_result = {"status": "error", "error": str(e)}
                 # [.mark] Fiche : une porte en erreur ferme aussi son tour.
+                suivi = self._suivi_de(agent)
                 relance = (
-                    self._tours_fiche.relance(function_call_params.tool_call_id)
-                    if self._tours_fiche is not None
+                    suivi.relance(function_call_params.tool_call_id)
+                    if suivi is not None
                     else None
                 )
                 await function_call_params.result_callback(
@@ -628,7 +699,7 @@ class PipecatEngine:
         # rien (le code ne choisit jamais entre deux portes). Formulaire du lot 4
         # (Evan, 08/10) : en « porte, note, phrase » seulement.
         if not getattr(self.fiche, "note_d_abord", False):
-            return None
+            return porte_reecrite_vers_le_retour(self.active_agent.workflow, node, nom)
         vers_l_etape = [
             e
             for e in node.out_edges
@@ -637,7 +708,23 @@ class PipecatEngine:
         if len(vers_l_etape) == 1:
             logger.info(f"[porte] « {nom} » est le nom d'une étape : sa seule porte est prise")
             return vers_l_etape[0]
-        return None
+        return porte_reecrite_vers_le_retour(self.active_agent.workflow, node, nom)
+
+    def porte_vers_une_fin_figee(self, nom: str) -> bool:
+        """C4 (banc du 16/10) : la porte écrite ``nom`` mène-t-elle à un nœud de fin aux phrases
+        figées (A17) ? Le lecteur de portes tait alors la suite de la réponse. ⛔ Ne lève jamais."""
+        try:
+            arete = self._porte_de_l_etape(nom)
+            if arete is None:
+                return False
+            cible = self.active_agent.workflow.nodes.get(arete.target)
+            return bool(
+                cible is not None
+                and cible.is_end
+                and self._phrase_de_fin_figee(self.active_agent, arete.target) is not None
+            )
+        except Exception:  # noqa: BLE001
+            return False
 
     def est_une_porte_de_l_etape(self, nom: str) -> bool:
         """[.mark] Revue du 11/10 (Q4) : ``nom`` désigne-t-il une porte de l'étape en cours ?
@@ -683,6 +770,18 @@ class PipecatEngine:
             return "inconnue"
         try:
             logger.info(f"[porte] porte écrite prise : {nom} -> {arete.target}")
+            # [.mark] Lot 7 (K1) : une porte réécrite vers l'étape de retour laisse sa trace.
+            cible_dite = agent.workflow.nodes[arete.target]
+            if arete.get_function_name() != nom and est_une_etape_de_retour(cible_dite):
+                if transition_tool_name(cible_dite.name) != nom:
+                    self._gathered_context.setdefault("porte_reecrite", []).append(
+                        {
+                            "ecrite": nom,
+                            "etape": getattr(agent.current_node, "name", None),
+                            "vers": cible_dite.name,
+                            "tour": self._gathered_context.get(CLE_TOUR),
+                        }
+                    )
             await self._perform_variable_extraction_if_needed(
                 agent.current_node,
                 run_in_background=self._run_transition_variable_extraction_in_background,
@@ -727,11 +826,14 @@ class PipecatEngine:
                 if garanti and reponse and not relancer
                 else None
             )
+            # [.mark] Chantier agents-specialises (A17) : un nœud de fin aux phrases
+            # figées ne demande aucune réponse au modèle.
+            phrase_figee = self._phrase_de_fin_figee(agent, arete.target) if fin else None
             # Comme `_create_transition_func` : l'attente de la réponse de fin est
             # posée avant de changer d'étape, jamais après (revue du 05/10).
             closing = (
                 self.speech_playback.expect_response(source=agent.llm)
-                if fin and relancer
+                if fin and relancer and phrase_figee is None
                 else None
             )
             # C12 : le nom de la porte part avec l'événement du changement d'étape.
@@ -740,6 +842,17 @@ class PipecatEngine:
                 await self.set_node(arete.target, origin_visit_id=agent.visit_id)
             finally:
                 self._porte_ecrite_annoncee = None
+            # [.mark] Chantier agents-specialises (lot 2) : retour au principal (A1),
+            # ou fin figée (A17) dite après la réplique en cours, sans relance du modèle.
+            principal = self._principal_du_retour(agent, arete.target)
+            if principal is not None and self._rendre_au_principal(agent, principal):
+                return "prise"
+            if phrase_figee is not None:
+                self._mute_pipeline = True
+                self._tache_du_groupe(
+                    self._dire_la_fin_figee(agent, phrase_figee, avant=phrase_de_fin)
+                )
+                return "prise"
             if fin and not relancer:
                 self._mute_pipeline = True
 
@@ -803,14 +916,29 @@ class PipecatEngine:
         try:
             if self._fiche is None or not self._fiche.transfert_garanti:
                 return False
-            if agent.llm is not self._llm_de_la_fiche:
+            if not self._porte_la_fiche(agent):
                 return False
             noeud = agent.workflow.nodes.get(cible)
             if noeud is None or noeud.is_end or not noeud.tool_uuids:
                 return False
+            # [.mark] Lot 6 (A7) : un seul renvoi vers un humain par appel : un renvoi déjà
+            # échoué, et le transfert garanti ne repart pas (tout agent de l'appel).
+            if self._un_renvoi_a_deja_echoue():
+                return False
             return (self._call_context_vars or {}).get(CLE_ETAT_OUVERTURE) == OUVERT
         except Exception as e:  # noqa: BLE001
             logger.error(f"[transfert] garantie illisible : {e!r}")
+            return False
+
+    def _un_renvoi_a_deja_echoue(self) -> bool:
+        """[.mark] Lot 6 (A7) : réglage « un seul renvoi par appel » allumé (vrai par défaut
+        dans un groupe) et un transfert vers un humain a déjà échoué dans cet appel
+        (``transferts_humains``, écrit à chaque issue). ⛔ Ne lève jamais."""
+        try:
+            return renvoi_unique_actif(self.reglages_appel) and un_renvoi_a_echoue(
+                self._gathered_context
+            )
+        except Exception:  # noqa: BLE001
             return False
 
     def _attendre_la_reponse(self, agent: AgentRuntime):
@@ -830,7 +958,7 @@ class PipecatEngine:
         organisation = await self._get_organization_id()
         if not organisation:
             return None
-        outils = await db_client.get_tools_by_uuids(list(noeud.tool_uuids), organisation)
+        outils = await self.lire_outils(list(noeud.tool_uuids), organisation)
         for outil in outils:
             if outil.category != ToolCategory.TRANSFER_CALL.value:
                 continue
@@ -883,7 +1011,13 @@ class PipecatEngine:
             logger.warning(f"[transfert] trace non écrite : {e!r}")
 
     def _lancer_le_transfert_garanti(
-        self, agent: AgentRuntime, cible: str, phrase, *, repli: bool = False
+        self,
+        agent: AgentRuntime,
+        cible: str,
+        phrase,
+        *,
+        repli: bool = False,
+        a_l_ouverture: bool = False,
     ) -> None:
         """Une fois la première réplique de l'étape ``cible`` JOUÉE jusqu'au bout
         (``phrase``), le code appelle l'outil de transfert comme le modèle l'aurait appelé.
@@ -891,7 +1025,12 @@ class PipecatEngine:
         du 13/10 : la personne parle peut-être, le modèle lui répondra), si l'agent ne peut
         plus agir, si l'étape a changé, si le modèle l'a appelé lui-même ou si la personne a
         parlé. Sans outil de transfert dans l'étape et ``repli`` : la relance d'avant
-        (« outil à l'arrivée »). ⛔ Ne lève jamais."""
+        (« outil à l'arrivée »).
+
+        ``a_l_ouverture`` (arrivée d'un agent appelé, phrase figée dite par le code, aucun tour
+        du modèle demandé) : sans ``phrase``, le transfert part tout de suite (l'outil dit lui-même
+        son message) ; et quand le transfert ne peut pas partir, le modèle reprend la parole au
+        lieu d'un silence. ⛔ Ne lève jamais."""
         debut = len(self.context.get_messages()) if self.context else 0
         self._suivre_les_appels(agent.llm)
         depuis_appels = len(self._fonctions_appelees)
@@ -900,19 +1039,22 @@ class PipecatEngine:
             try:
                 noeud = agent.workflow.nodes[cible]
                 nom = await self._outil_de_transfert(noeud)
+                async def reprendre_la_parole() -> None:
+                    if self.agent_can_act(agent):
+                        logger.info("[transfert] étape d'arrivée sans transfert lancé : le modèle reparle")
+                        await agent.queue_frame(LLMRunFrame())
+
                 if nom is None:
                     self._tracer_le_transfert(etape=noeud.name, etat="sans_outil")
-                    if repli:
+                    if repli or a_l_ouverture:
                         if phrase is not None:
                             await phrase.wait()
-                        if self.agent_can_act(agent):
-                            logger.info("[porte] étape d'arrivée avec un outil : le modèle reparle")
-                            await agent.queue_frame(LLMRunFrame())
+                        await reprendre_la_parole()
                     return
-                if phrase is None:
+                if phrase is None and not a_l_ouverture:
                     self._tracer_le_transfert(etape=noeud.name, outil=nom, etat="sans_attente")
                     return
-                if not await phrase.wait():
+                if phrase is not None and not await phrase.wait():
                     issue = phrase.outcome
                     self._tracer_le_transfert(
                         etape=noeud.name,
@@ -920,6 +1062,8 @@ class PipecatEngine:
                         etat="replique_non_jouee",
                         issue=getattr(issue, "value", str(issue)),
                     )
+                    if a_l_ouverture:
+                        await reprendre_la_parole()
                     return
                 if not self.agent_can_act(agent):
                     return
@@ -952,6 +1096,125 @@ class PipecatEngine:
         tache = asyncio.get_running_loop().create_task(transferer())
         self._taches_de_porte.add(tache)
         tache.add_done_callback(self._taches_de_porte.discard)
+
+    # --- [.mark] Chantier agents-specialises (lot 2) : retour au principal, fins figées ---
+
+    def _principal_du_retour(self, agent: AgentRuntime, cible: str) -> Optional[int]:
+        """L'agent principal vers qui rendre l'appel, si ``cible`` est une étape marquée
+        « retour au principal » chez un agent qui a un principal (A1) ; ``None`` sinon
+        (comportement d'avant). ⛔ Ne lève jamais."""
+        try:
+            noeud = agent.workflow.nodes.get(cible)
+            if noeud is None or noeud.is_end or not est_une_etape_de_retour(noeud):
+                return None
+            principal = agent_principal_de(agent.reglages)
+            if principal is None or principal == agent.workflow_id:
+                return None
+            if not self.agent_transfer_enabled:
+                logger.warning("[groupe] étape de retour, mais aucune passation possible ici")
+                return None
+            return principal
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[groupe] retour au principal illisible : {e!r}")
+            return None
+
+    def _phrase_de_fin_figee(self, agent: AgentRuntime, cible: str) -> Optional[str]:
+        """La phrase de fin choisie par le code (A17) si ``cible`` est un nœud de fin qui
+        porte une liste ``fins`` ; ``None`` sinon (comportement d'avant). ⛔ Ne lève jamais."""
+        try:
+            noeud = agent.workflow.nodes.get(cible)
+            if noeud is None or not noeud.is_end:
+                return None
+            fins = fins_du_noeud(noeud)
+            if not fins:
+                return None
+            phrase = choisir_la_fin(fins, self._gathered_context)
+            return self._format_prompt(phrase) if phrase else None
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[groupe] phrases de fin illisibles : {e!r}")
+            return None
+
+    def _tache_du_groupe(self, coroutine) -> None:
+        taches = self.__dict__.setdefault("_taches_du_groupe", set())
+        tache = asyncio.get_running_loop().create_task(coroutine)
+        taches.add(tache)
+        tache.add_done_callback(taches.discard)
+
+    def _debut_de_la_derniere_etape(self, agent: AgentRuntime) -> Optional[int]:
+        """Après le banc du 16/10 (décision d'Evan) : au retour, le principal ne reçoit que les
+        échanges de la DERNIÈRE étape du spécialisé (celle de « autre chose ? », entière, au cas
+        où une réplique est coupée en deux) et la fiche, jamais toute la conversation. Rend
+        l'indice où cette étape commence dans la conversation, lu dans ``parcours_etapes`` (le
+        clavier le garde d'un tour à l'autre) ; ``None`` (toute la conversation, comme avant)
+        si l'étape n'est pas retrouvée. ⛔ Ne lève jamais."""
+        try:
+            for entree in reversed(self._gathered_context.get("parcours_etapes") or []):
+                if entree.get("agent_id") != agent.workflow_id:
+                    break
+                noeud = next(
+                    (n for n in agent.workflow.nodes.values() if n.name == entree.get("etape")),
+                    None,
+                )
+                if noeud is not None and est_une_etape_de_retour(noeud):
+                    continue
+                debut = entree.get("debut")
+                return debut if isinstance(debut, int) and debut >= 0 else None
+            return None
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[groupe] début de la dernière étape illisible : {e!r}")
+            return None
+
+    def _rendre_au_principal(
+        self, agent: AgentRuntime, principal: int, *, context_ready=None
+    ) -> bool:
+        """Le code passe la main au principal : ni annonce, ni musique, historique sans
+        résumé ; le principal ne parle que si le dernier mot est à l'appelant (A1, A21).
+        Rend ``False`` si la passation n'a pas pu partir. ⛔ Ne lève jamais."""
+        try:
+            from api.services.workflow.agent_transfer import TransferRequest
+
+            request = TransferRequest(
+                destination_workflow_id=principal,
+                destination_label=RAISON_RETOUR,
+                origin_visit_id=agent.visit_id,
+                announcement=None,
+                play_greeting=False,
+                silencieuse=True,
+                sans_resume=True,
+                ouverture="si_l_appelant_attend",
+                raison=RAISON_RETOUR,
+                depuis=self._debut_de_la_derniere_etape(agent),
+            )
+            if not self.transfer_coordinator.accept(request):
+                logger.warning("[groupe] retour au principal refusé : une passation est en cours")
+                return False
+            logger.info(f"[groupe] retour au principal {principal} lancé par le code")
+            self.transfer_coordinator.start(request, context_ready=context_ready)
+            return True
+        except Exception as e:  # noqa: BLE001 -- un retour ne coûte jamais l'appel
+            logger.error(f"[groupe] retour au principal en échec : {e!r}")
+            return False
+
+    async def _dire_la_fin_figee(self, agent: AgentRuntime, phrase: str, avant=None) -> None:
+        """Après la réplique en cours (``avant``), le code dit la phrase de fin telle
+        quelle, puis raccroche (A17). ⛔ Ne lève jamais."""
+        try:
+            if avant is not None:
+                await avant.wait()
+            if not self.agent_can_act(agent):
+                # Revue du 16/10 : l'appelant de la fin figée a coupé le pipeline ; un autre
+                # agent a la main, l'appel ne doit pas rester muet.
+                self._mute_pipeline = False
+                return
+            self._mute_pipeline = True
+            speech = await self.queue_speech(phrase, append_to_context=True, mute_user=True)
+            await speech.wait()
+            if self.agent_can_act(agent):
+                await self.end_call_with_reason(EndTaskReason.END_CALL.value)
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[groupe] fin figée en échec : {e!r}")
+            if self.agent_can_act(agent):
+                await self.end_call_with_reason(EndTaskReason.END_CALL.value)
 
     async def relancer_une_reponse_muette(self) -> bool:
         """[.mark] C3 (banc du 07/10, blancs de 8 à 13 s) : la réponse du modèle n'a
@@ -1254,8 +1517,199 @@ class PipecatEngine:
         """
         return (
             self._fiche is not None
-            and self.active_agent.llm is self._llm_de_la_fiche
+            and self._porte_la_fiche(self.active_agent)
         )
+
+    def _porter_la_fiche(self, llm, *, suivi=None) -> None:
+        """[.mark] Chantier agents-specialises (lot 3, 2A, 2B) : ``llm`` porte la fiche de
+        l'appel : l'état de la fiche à chaque requête (D14), le suivi des tours (mode
+        outil). Une fois par modèle. ⛔ Ne lève jamais."""
+        try:
+            if self._fiche is None or llm is None:
+                return
+            # Revue du 16/10 : un marqueur posé sur le modèle lui-même, jamais son id(),
+            # qu'un modèle créé après la libération d'un autre peut reprendre.
+            if _marque(llm, _MARQUE_FICHE) is True:
+                return
+            setattr(llm, _MARQUE_FICHE, True)
+            if self._fiche.mode == MODE_OUTIL:
+                setattr(llm, _SUIVI_FICHE, suivi if suivi is not None else suivre_les_tours(llm))
+            # D14 : l'état de la fiche, montré à chaque requête de conversation.
+            montrer_la_fiche(
+                llm,
+                self._fiche,
+                lambda: self._gathered_context,
+                self._notices_fiche,
+                # Lot E d'agent-leger-greffier (P1) : les étiquettes de l'étape en cours.
+                lambda: getattr(
+                    getattr(self.active_agent, "current_node", None),
+                    "champs_etape",
+                    (),
+                ),
+                # Revue du 13/10 (lot C de greffier-conversation) : l'étape a-t-elle des portes ?
+                lambda: bool(
+                    getattr(
+                        getattr(self.active_agent, "current_node", None), "out_edges", None
+                    )
+                ),
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[fiche] fiche non branchée sur l'agent : {e!r}")
+
+    def _porte_la_fiche(self, agent: AgentRuntime) -> bool:
+        """[.mark] Lot 3 (2A) : le modèle de ``agent`` porte-t-il la fiche de l'appel ?"""
+        if self._fiche is None or agent is None:
+            return False
+        return agent.llm is self._llm_de_la_fiche or _marque(agent.llm, _MARQUE_FICHE) is True
+
+    def _suivi_de(self, agent: AgentRuntime):
+        """[.mark] Lot 3 : le suivi des tours du modèle de ``agent`` (mode outil)."""
+        suivi = _marque(getattr(agent, "llm", None), _SUIVI_FICHE)
+        return suivi if suivi is not None else self._tours_fiche
+
+    def _fusionner_la_fiche(self, runtime: AgentRuntime) -> None:
+        """[.mark] Lot 3 (P4) : les champs de l'agent appelé entrent dans la fiche de
+        l'appel ; même nom = un seul champ, la définition de l'agent qui a décroché.
+        La fiche est modifiée EN PLACE : les modules qui la tiennent la voient.
+        ⛔ Ne lève jamais."""
+        try:
+            champs = champs_fusionnes(self._fiche, runtime.reglages)
+            if champs is not None:
+                object.__setattr__(self._fiche, "champs", champs)
+                logger.info(
+                    f"[fiche] champs de l'agent {runtime.workflow_id} ajoutés à la fiche"
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[fiche] fusion des champs en échec : {e!r}")
+
+    def _ouvrir_une_demande(self, runtime: AgentRuntime) -> None:
+        """[.mark] Lot 17 (fiche à plusieurs demandes) : à la passation vers un spécialisé qui
+        n'est pas le premier à travailler dans l'appel, la demande en cours est close (ses champs
+        « demande » quittent la vue à plat de la fiche) ; le spécialisé part d'une demande vide.
+        Rien au retour au principal, rien pour un agent seul. Appelée d'un seul endroit
+        (``commit_agent``). ⛔ Ne lève jamais."""
+        try:
+            principal_id = agent_principal_de(getattr(runtime, "reglages", None))
+            if self._fiche is not None and principal_id is None and self.est_le_principal(runtime):
+                # Revue du 16/10 : retour au principal, la demande du spécialisé est photographiée.
+                from api.services.fiche.demandes import photographier_la_demande
+
+                photographier_la_demande(self._gathered_context, self._fiche)
+                return
+            if self._fiche is None or principal_id is None:
+                return
+            from api.schemas.apres_appel import ApresAppelAgent
+            from api.services.fiche.demandes import ouvrir_une_demande
+
+            try:
+                champ_motif = ApresAppelAgent.model_validate(
+                    (self.reglages_appel or {}).get("apres_appel") or {}
+                ).champ("motif")
+            except Exception:  # noqa: BLE001 -- sans réglage lisible : pas de motif de bloc
+                # Revue du 16/10 : jamais un nom de champ en dur (zéro vocabulaire dans le code).
+                champ_motif = None
+            noms = {
+                a.workflow_id: a.workflow_name
+                for a in [*self._retired_agents, self.active_agent]
+                if a is not None and getattr(a, "workflow_id", None)
+            }
+            ouvrir_une_demande(
+                self._gathered_context,
+                self._fiche,
+                vers_un_specialise=True,
+                principal_id=principal_id,
+                noms_des_agents=noms,
+                champ_motif=champ_motif,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[demandes] ouverture d'une demande en échec : {e!r}")
+
+    def garantir_a_l_ouverture(self, agent: AgentRuntime, cible: str, phrase) -> None:
+        """[.mark] Lot 3 (A7) : un agent appelé dont la première étape porte un outil de
+        transfert commence par le transfert, entreprise ouverte, une fois sa première
+        réplique jouée (même mécanisme que l'arrivée dans une étape). ⛔ Ne lève jamais."""
+        try:
+            if self._transfert_garanti_s_applique(agent, cible):
+                self._lancer_le_transfert_garanti(agent, cible, phrase)
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[transfert] garantie à l'ouverture en échec : {e!r}")
+
+    async def _outil_de_transfert_a_son_message(self, noeud) -> bool:
+        """Le premier outil de transfert d'appel de l'étape porte-t-il son propre message
+        (texte ou enregistrement) ? Il le dit alors lui-même quand il est lancé : la phrase
+        figée du réglage ne s'y ajoute pas. ⛔ Ne lève jamais (doute : non)."""
+        try:
+            organisation = await self._get_organization_id()
+            if not organisation:
+                return False
+            for outil in await self.lire_outils(list(noeud.tool_uuids), organisation):
+                if outil.category != ToolCategory.TRANSFER_CALL.value:
+                    continue
+                config = (outil.definition or {}).get("config") or {}
+                genre = config.get("messageType", "none")
+                return bool(
+                    (genre == "custom" and str(config.get("customMessage") or "").strip())
+                    or (genre == "audio" and config.get("audioRecordingId"))
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[transfert] message de l'outil illisible : {e!r}")
+        return False
+
+    async def transfert_fige_a_l_ouverture(self, agent: AgentRuntime, cible: str) -> Optional[str]:
+        """[.mark] Un agent appelé arrive sur l'étape ``cible`` : le code dit-il lui-même la mise
+        en relation, sans tour de modèle ? ``None`` : non, comportement d'avant (le modèle parle,
+        ``garantir_a_l_ouverture``). Sinon la phrase à dire (``""`` : l'outil de transfert porte
+        déjà son message, il le dit en partant).
+
+        Oui seulement si : le réglage ``transfert_humain.phrase_mise_en_relation`` n'est pas vide ;
+        l'étape (hors fin) porte un transfert d'appel que le code peut lancer seul ; l'entreprise
+        est ouverte, sur rendez-vous ou sans horaires (la règle qui montre l'outil au modèle, K3) et aucun renvoi
+        n'a déjà échoué ; il y a une voix (jamais au clavier). ⛔ Ne lève jamais."""
+        try:
+            if getattr(self, "sans_sortie_audio", False):
+                return None
+            texte = phrase_de_mise_en_relation(self.reglages_appel)
+            if not texte:
+                return None
+            noeud = agent.workflow.nodes.get(cible)
+            if noeud is None or noeud.is_end or not noeud.tool_uuids:
+                return None
+            if self._un_renvoi_a_deja_echoue():
+                return None
+            # Même règle que K3 (``_transfert_expose``) : sans état d'ouverture (agent sans
+            # horaires), l'outil est exposé comme avant ; fermé ou en pause, il ne l'est pas.
+            etat = (self._call_context_vars or {}).get(CLE_ETAT_OUVERTURE)
+            if etat and etat not in (OUVERT, SUR_RENDEZ_VOUS):
+                return None
+            if await self._outil_de_transfert(noeud) is None:
+                return None
+            return "" if await self._outil_de_transfert_a_son_message(noeud) else texte
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[transfert] phrase figée à l'ouverture illisible : {e!r}")
+            return None
+
+    async def dire_puis_transferer_a_l_ouverture(
+        self, agent: AgentRuntime, cible: str, texte: str, *, apres=None
+    ) -> None:
+        """[.mark] La suite de ``transfert_fige_a_l_ouverture`` : la phrase est dite par la voix de
+        l'agent appelé, puis le code lance le transfert une fois la phrase jouée (si elle n'est
+        pas jouée, ou si le transfert ne peut pas partir, le modèle reprend la parole). Le modèle
+        n'est pas sollicité pour cette ouverture. ``apres`` : sans phrase du code (l'outil dit son
+        message), ce que l'ouverture joue déjà, que le transfert attend. ⛔ Ne lève jamais."""
+        try:
+            phrase = apres
+            if texte:
+                phrase = await self.queue_speech(
+                    texte, append_to_context=True, persist_to_logs=False, mute_user=True
+                )
+            self._lancer_le_transfert_garanti(agent, cible, phrase, a_l_ouverture=True)
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[transfert] phrase figée à l'ouverture en échec : {e!r}")
+            try:
+                if self.agent_can_act(agent):
+                    await agent.queue_frame(LLMRunFrame())
+            except Exception:  # noqa: BLE001
+                pass
 
     @property
     def fiche(self) -> Optional[ReglagesFiche]:
@@ -1379,7 +1833,7 @@ class PipecatEngine:
             self._fiche is not None
             and self._fiche.portes_dans_la_reponse
             and not node.is_end
-            and agent.llm is self._llm_de_la_fiche
+            and self._porte_la_fiche(agent)
         )
         functions = await compose_functions_for_node(
             node=node,
@@ -1394,7 +1848,7 @@ class PipecatEngine:
             self._fiche is not None
             and self._fiche.mode == MODE_OUTIL
             and not node.is_end
-            and agent.llm is self._llm_de_la_fiche
+            and self._porte_la_fiche(agent)
         ):
             functions.append(
                 brancher_noter_information(
@@ -1402,7 +1856,7 @@ class PipecatEngine:
                     agent.llm,
                     lambda: self._gathered_context,
                     lambda: self.context.get_messages() if self.context else [],
-                    self._tours_fiche,
+                    self._suivi_de(agent),
                 )
             )
         texte = prompt.text
@@ -1412,7 +1866,7 @@ class PipecatEngine:
         if (
             self._fiche is not None
             and not node.is_end
-            and agent.llm is self._llm_de_la_fiche
+            and self._porte_la_fiche(agent)
         ):
             bloc = consigne_du_mode(self._fiche)
             if bloc:
@@ -1432,6 +1886,16 @@ class PipecatEngine:
             )
             if bloc:
                 texte = f"{texte}\n\n{bloc}"
+        # [.mark] Chantier agents-specialises (A18) : plafond de passations atteint dans
+        # cet appel : la ligne générique, à la fin du prompt de l'étape.
+        if not node.is_end and plafond_atteint(
+            self.__dict__.get("_gathered_context"), self.__dict__.get("reglages_appel")
+        ):
+            texte = f"{texte}\n\n{LIGNE_PLAFOND}"
+        # [.mark] Lot 6 (A7) : un transfert a déjà échoué dans cet appel : la ligne générique,
+        # pour l'agent qui arrive comme pour celui qui reste.
+        if not node.is_end and self._un_renvoi_a_deja_echoue():
+            texte = f"{texte}\n\n{LIGNE_RENVOI_DEJA_ECHOUE}"
         agent.tools = ToolsSchema(standard_tools=functions)
         agent.system_prompt = texte
         if agent.recording_router is not None:
@@ -1499,6 +1963,7 @@ class PipecatEngine:
         nodes_visited = self._gathered_context.setdefault("nodes_visited", [])
         if node.name not in nodes_visited:
             nodes_visited.append(node.name)
+        self._noter_le_parcours(agent, node)
 
         # Send node transition event if callback is provided
         if emit_transition_event and self._node_transition_callback:
@@ -2319,14 +2784,29 @@ class PipecatEngine:
                 "transfer_unavailable",
                 "This call was not set up to transfer between agents",
             )
+        # [.mark] Lot 6 (A5) : la cible est le principal resté chaud : on le rend tel quel
+        # (même pipeline, mêmes services, même visite), il reprend avec l'historique et la fiche.
+        chaud = self.principal_chaud_pour(workflow_id)
+        if chaud is not None:
+            self._pending_agent = chaud
+            logger.info(f"[groupe] principal {workflow_id} resté chaud : rendu sans construction")
+            return chaud
         runtime = await self._agent_factory.build(
             workflow_id=workflow_id, visit_id=visit_id
         )
         self._pending_agent = runtime
+        # [.mark] Chantier agents-specialises (lot 3) : la fiche de l'appel suit l'agent
+        # appelé (ses champs s'ajoutent, son modèle la porte) avant la préparation de son
+        # étape, pour qu'il ait l'outil de note, la consigne et l'état de la fiche.
+        if self._fiche is not None:
+            self._fusionner_la_fiche(runtime)
+            self._porter_la_fiche(runtime.llm)
         return runtime
 
     async def prepare_agent(self, runtime: AgentRuntime) -> None:
-        await self._open_mcp_sessions(runtime)
+        # [.mark] Lot 6 : un principal resté chaud garde ses sessions déjà ouvertes.
+        if not runtime.mcp_sessions:
+            await self._open_mcp_sessions(runtime)
         node = runtime.workflow.nodes[runtime.workflow.start_node_id]
         await self._prepare_node(runtime, node)
         runtime.current_node = node
@@ -2340,12 +2820,14 @@ class PipecatEngine:
         self.context.set_tools(runtime.tools)
         self.context.set_otel_span_name(f"llm-{runtime.current_node.name}")
         runtime.entered_at = time.time()
+        self._ouvrir_une_demande(runtime)  # [.mark] lot 17
         self.install_agent(runtime, previous=self.active_agent)
         self._custom_tool_manager = CustomToolManager(self, runtime)
         self._agent_on_hold = False
         nodes = self._gathered_context.setdefault("nodes_visited", [])
         if runtime.current_node.name not in nodes:
             nodes.append(runtime.current_node.name)
+        self._noter_le_parcours(runtime, runtime.current_node)
         logger.info(
             f"[transfer] installed {runtime.visit_id}: "
             f"{len(snapshot.messages)} handoff messages (summarized={snapshot.summarized}) "
@@ -2356,9 +2838,21 @@ class PipecatEngine:
         node = runtime.current_node
         if self._node_transition_callback:
             try:
-                await self._node_transition_callback(
-                    node.id, node.name, None, None, node.allow_interrupt
-                )
+                # [.mark] agents-specialises : l'événement porte le nom de l'agent, quand le
+                # rappel l'accepte (revue du 16/10 : signature lue, pas de second appel).
+                if _accepte_agent(self._node_transition_callback):
+                    await self._node_transition_callback(
+                        node.id,
+                        node.name,
+                        None,
+                        None,
+                        node.allow_interrupt,
+                        agent=runtime.workflow_name or None,
+                    )
+                else:
+                    await self._node_transition_callback(
+                        node.id, node.name, None, None, node.allow_interrupt
+                    )
             except Exception as error:
                 logger.debug(f"Failed to send agent transition event: {error}")
 
@@ -2384,13 +2878,27 @@ class PipecatEngine:
         the history entry is taken, so the record is not a snapshot of a visit
         that had not ended yet.
         """
+        # [.mark] Lot 6 (A5) : un principal resté chaud qui reprend la main sort des agents
+        # écartés (il n'y figure jamais deux fois) et sa visite repart de zéro, pour que le
+        # relevé compte UNE visite par entrée : même ``visit_id`` (son pipeline et ses rappels
+        # y sont liés), ``entered_at`` posé au commit, ``exited_at``/``exit_reason`` vidés.
+        if any(a is runtime for a in self._retired_agents):
+            self._retired_agents = [a for a in self._retired_agents if a is not runtime]
+            runtime.exited_at = None
+            runtime.exit_reason = None
+            runtime.nb_entrees += 1
         if previous is not None and previous is not runtime:
             previous.exited_at = previous.exited_at or time.time()
             previous.exit_reason = previous.exit_reason or previous_exit_reason
             self._agent_visits.append(previous.describe())
-            self._retired_agents.append(previous)
+            if not any(a is previous for a in self._retired_agents):
+                self._retired_agents.append(previous)
         self._active_agent = runtime
         self._pending_agent = None
+        # [.mark] D1 : l'agent qui prend (ou reprend, principal chaud) la main reparle.
+        from api.services.pipecat.main_passee import rendre_la_parole
+
+        rendre_la_parole(getattr(runtime, "llm", None))
 
     def discard_pending_agent(self, runtime: AgentRuntime) -> None:
         """Forget a destination that was prepared but never took the call.
@@ -2511,15 +3019,119 @@ class PipecatEngine:
             self.pending_agent,
             *self.__dict__.get("_retired_agents", []),
         ]
+        vus: list[AgentRuntime] = []  # [.mark] lot 6 : jamais deux fois le même agent
         for agent in agents:
             if agent is None or not agent.is_child:
                 continue
+            if any(agent is v for v in vus):
+                continue
+            vus.append(agent)
             agent.exited_at = agent.exited_at or time.time()
             agent.exit_reason = agent.exit_reason or reason
             if drain:
                 await agent.retire(reason)
             else:
                 await agent.abort(reason)
+
+    # --- [.mark] Chantier agents-specialises (lot 7, D91) : le parcours (agent, étape) ---
+
+    def _noter_le_parcours(self, agent: AgentRuntime, node: Node) -> None:
+        """Une entrée par (agent, étape), dans l'ordre : ``nodes_visited`` dédoublonne par nom
+        d'étape (l'ordre entre deux agents qui ont une étape du même nom se perd). Une entrée par
+        ENTRÉE dans une étape : deux entrées de suite dans la même étape du même agent n'en font
+        qu'une, mais un retour chez le principal après un spécialisé en ajoute une. Écrit
+        ``parcours_etapes`` (la liste) et ``parcours`` (« Agent › étape › étape »), seulement dans un
+        groupe : un agent seul garde ses clés d'avant. ⛔ Ne lève jamais."""
+        try:
+            if not est_un_groupe(self.reglages_appel):
+                return
+            liste = self._gathered_context.setdefault("parcours_etapes", [])
+            entree = {
+                "agent": agent.workflow_name or None,
+                "agent_id": agent.workflow_id or None,
+                "etape": node.name,
+                # Après le banc du 16/10 : où commence l'étape dans la conversation (le retour
+                # au principal ne lui rend que les échanges de la dernière étape du spécialisé).
+                "debut": len(self.context.messages) if self.context is not None else None,
+            }
+            dernier = liste[-1] if liste else None
+            if dernier is not None and (
+                dernier.get("agent_id"),
+                dernier.get("etape"),
+            ) == (entree["agent_id"], entree["etape"]):
+                return
+            liste.append({k: v for k, v in entree.items() if v is not None})
+            self._gathered_context["parcours"] = rendre_le_parcours(liste)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[parcours] non noté : {e!r}")
+
+    # --- [.mark] Chantier agents-specialises (lot 6) : principal chaud, préchauffage ---
+
+    def est_le_principal(self, agent: AgentRuntime) -> bool:
+        """``agent`` est-il le principal d'un groupe ? L'appel est porté par un groupe et
+        l'agent n'a pas de principal au-dessus de lui. ⛔ Ne lève jamais."""
+        try:
+            return bool(
+                agent is not None
+                and agent.is_child
+                and est_un_groupe(self.reglages_appel)
+                and agent_principal_de(agent.reglages) is None
+                and self.agent_transfer_enabled
+            )
+        except Exception:  # noqa: BLE001
+            return False
+
+    def garder_chaud(self, source: AgentRuntime) -> bool:
+        """Le principal qui passe la main est désactivé, PAS libéré (A5) : rend ``True`` quand
+        ``source`` est le principal et reste donc ouvert. Un agent seul : ``False`` (libéré
+        comme avant). ⛔ Ne lève jamais."""
+        if not self.est_le_principal(source):
+            return False
+        self._principal_chaud = source
+        return True
+
+    def principal_chaud_pour(self, workflow_id: int) -> Optional[AgentRuntime]:
+        """Le principal resté chaud, s'il est la cible demandée et encore utilisable (sans
+        erreur, non libéré, pipeline vivant) ; ``None`` sinon (construction normale)."""
+        chaud = self.__dict__.get("_principal_chaud")
+        if (
+            chaud is None
+            or chaud.workflow_id != workflow_id
+            or chaud is self._active_agent
+            or chaud.error
+            or not chaud.is_running
+        ):
+            return None
+        return chaud
+
+    def lancer_prechauffage(self) -> None:
+        """Au décroché, après le premier agent : charge à l'avance (sans voix) ce que la
+        construction des agents cibles lira en base. En tâche de fond, jamais bloquant,
+        réglage ``prechauffage_agents`` (vrai par défaut dans un groupe). ⛔ Ne lève jamais."""
+        try:
+            if not self.agent_transfer_enabled or not prechauffage_actif(self.reglages_appel):
+                return
+            agent = self.active_agent
+
+            async def preparer() -> None:
+                await prechauffer_les_cibles(
+                    self._agent_factory,
+                    agent.workflow,
+                    ids_a_exclure={agent.workflow_id},
+                    lire_outils=db_client.get_tools_by_uuids,
+                )
+
+            self._tache_prechauffage = asyncio.get_running_loop().create_task(preparer())
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[prechauffage] non lancé : {e!r}")
+
+    async def lire_outils(self, uuids, organization_id: int) -> list:
+        """Les outils d'un ensemble d'étapes : lus dans le cache de l'appel quand le
+        préchauffage les a déjà chargés, sinon en base comme avant."""
+        precharge = precharge_de(self)
+        if precharge is None:
+            return await db_client.get_tools_by_uuids(list(uuids), organization_id)
+        return await precharge.outils(uuids, organization_id, db_client.get_tools_by_uuids)
 
     def set_audio_config(self, audio_config) -> None:
         """Set the audio configuration for the pipeline."""
@@ -2644,9 +3256,7 @@ class PipecatEngine:
                 logger.warning("Cannot open MCP sessions: organization_id missing")
                 return
 
-            tools = await db_client.get_tools_by_uuids(
-                list(tool_uuids), organization_id
-            )
+            tools = await self.lire_outils(sorted(tool_uuids), organization_id)
             for tool in tools:
                 if tool.category != ToolCategory.MCP.value:
                     continue
@@ -2704,6 +3314,10 @@ class PipecatEngine:
         # Cancel any pending timeout tasks
         if self._response_timeout_task and not self._response_timeout_task.done():
             self._response_timeout_task.cancel()
+        # [.mark] Revue du 16/10 : un préchauffage encore en cours ne survit pas à l'appel.
+        prechauffage = self.__dict__.get("_tache_prechauffage")
+        if prechauffage is not None and not prechauffage.done():
+            prechauffage.cancel()
 
         # Cancel any in-flight background summarization.
         if self._context_summarization_manager:

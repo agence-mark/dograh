@@ -18,11 +18,56 @@ async def _auteur(connexion: asyncpg.Connection, auteur: str) -> None:
     await connexion.execute("SELECT set_config('mark.auteur', $1, true)", auteur[:200])
 
 
+async def _table_des_lieux_existe(connexion: asyncpg.Connection) -> bool:
+    """[.mark] Lot 5: a client database still at version 14 has no ``personne_site`` (015): the
+    places are then the legacy column only, and a call never fails in the gap between the
+    deployment and « Upgrade »."""
+    return bool(await connexion.fetchval("SELECT to_regclass('mark.personne_site') IS NOT NULL"))
+
+
+async def au_lieu_de(
+    connexion: asyncpg.Connection, alias: str, parametre: str
+) -> tuple[str, str]:
+    """[.mark] Chantier agents-specialises, lot 8 (M5) : deux morceaux de SQL pour dire « cette
+    personne (``alias``) est vue du lieu dont la clé est ``parametre`` » -- ``(condition,
+    toute_l_entreprise)``.
+
+    Une personne sur plusieurs lieux (``personne_site``) est vue de CHACUN de ses lieux ; une
+    personne sans lieu est vue de tous (toute l'entreprise). Avant la 015 (base en version 14) : la
+    colonne ``site_id`` seule, comme avant. Le routage des courriels après appel et le planificateur
+    l'emploient : le premier lieu d'une personne n'est plus le seul qui compte.
+    """
+    cible = (
+        f"EXISTS (SELECT 1 FROM mark.site sl WHERE sl.id = {alias}.site_id AND sl.cle = {parametre})"
+    )
+    if await _table_des_lieux_existe(connexion):
+        toute = (
+            f"({alias}.site_id IS NULL AND NOT EXISTS "
+            f"(SELECT 1 FROM mark.personne_site pl WHERE pl.personne_id = {alias}.id))"
+        )
+        autres = (
+            "EXISTS (SELECT 1 FROM mark.personne_site pl JOIN mark.site sl ON sl.id = pl.site_id "
+            f"WHERE pl.personne_id = {alias}.id AND sl.cle = {parametre})"
+        )
+        return f"({toute} OR {cible} OR {autres})", toute
+    toute = f"{alias}.site_id IS NULL"
+    return f"({toute} OR {cible})", toute
+
+
 async def lire_equipe(connexion: asyncpg.Connection) -> Equipe:
     sites = {
         r["id"]: r["cle"]
         for r in await connexion.fetch("SELECT id, cle FROM mark.site")
     }
+    # [.mark] Lot 5 (M5): the places of each person -- the union of the legacy column (first) and of
+    # ``personne_site`` (015, when the database has it).
+    autres_lieux: dict[int, list[str]] = {}
+    if await _table_des_lieux_existe(connexion):
+        for lien in await connexion.fetch(
+            "SELECT personne_id, site_id FROM mark.personne_site ORDER BY personne_id, site_id"
+        ):
+            if sites.get(lien["site_id"]):
+                autres_lieux.setdefault(lien["personne_id"], []).append(sites[lien["site_id"]])
     personnes = await connexion.fetch(
         "SELECT * FROM mark.personne WHERE cle IS NOT NULL ORDER BY id"
     )
@@ -45,7 +90,7 @@ async def lire_equipe(connexion: asyncpg.Connection) -> Equipe:
                 role=p["role"],
                 mail=p["mail"],
                 telephone=p["telephone"],
-                etablissement=sites.get(p["site_id"]),
+                etablissements=_lieux_de(sites.get(p["site_id"]), autres_lieux.get(p["id"], [])),
                 destinataire_defaut=p["destinataire_defaut"],
                 actif=p["actif"],
                 description=p.get("description"),
@@ -74,6 +119,12 @@ async def lire_equipe(connexion: asyncpg.Connection) -> Equipe:
     )
 
 
+def _lieux_de(premier: str | None, autres: list[str]) -> list[str]:
+    """The legacy place first, then the others of ``personne_site``, without a duplicate."""
+    lieux = [premier] if premier else []
+    return lieux + [lieu for lieu in autres if lieu not in lieux]
+
+
 class EtablissementInconnu(ValueError):
     pass
 
@@ -90,11 +141,11 @@ async def ecrire_equipe(
             )
         }
         ids: dict[str, int] = {}
+        table_des_lieux = await _table_des_lieux_existe(connexion)
         for p in equipe.personnes:
-            if p.etablissement is not None and p.etablissement not in sites:
-                raise EtablissementInconnu(
-                    f"{p.prenom}: unknown establishment « {p.etablissement} »."
-                )
+            for lieu in p.etablissements:
+                if lieu not in sites:
+                    raise EtablissementInconnu(f"{p.prenom}: unknown establishment « {lieu} ».")
             ids[p.cle] = await connexion.fetchval(
                 """
                 INSERT INTO mark.personne (cle, site_id, prenom, nom, role, mail, telephone, destinataire_defaut, actif,
@@ -109,7 +160,7 @@ async def ecrire_equipe(
                 RETURNING id
                 """,
                 p.cle,
-                sites.get(p.etablissement) if p.etablissement else None,
+                sites.get(p.etablissements[0]) if p.etablissements else None,  # the first place (legacy column)
                 p.prenom,
                 p.nom,
                 p.role,
@@ -122,6 +173,22 @@ async def ecrire_equipe(
                 p.divulguer_mail,
                 p.joignable_par_transfert,
             )
+            # [.mark] Lot 5 (M5): every place of the person, in ``personne_site``. Several places on a
+            # database that does not have the table yet fail here (the route answers « Upgrade »);
+            # one place or none loses nothing, the legacy column above holds it.
+            if table_des_lieux or len(p.etablissements) > 1:
+                voulus = [sites[lieu] for lieu in p.etablissements]
+                await connexion.execute(
+                    "DELETE FROM mark.personne_site WHERE personne_id = $1 AND NOT (site_id = ANY($2::bigint[]))",
+                    ids[p.cle],
+                    voulus,
+                )
+                for site_id in voulus:
+                    await connexion.execute(
+                        "INSERT INTO mark.personne_site (personne_id, site_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+                        ids[p.cle],
+                        site_id,
+                    )
         await connexion.execute(
             "UPDATE mark.personne SET actif = false WHERE actif AND cle IS NOT NULL AND NOT (cle = ANY($1::text[]))",
             list(ids),

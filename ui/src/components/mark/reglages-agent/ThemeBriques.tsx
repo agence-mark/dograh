@@ -28,8 +28,11 @@ import { Switch } from "@/components/ui/switch";
 import { SETTINGS_DOCUMENTATION_URLS } from "@/constants/documentation";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
+import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
+import { BandeauReglePrincipal, ZoneCommune } from "../groupe/contexte-groupe";
+import { estSpecialise } from "../groupe/reglages-groupe";
 import { useLangue } from "../langue/langue";
 import { RAPPEL_PUBLICATION_TEXTE } from "./enregistrement";
 import { type ProprietesThemeAgent, useEtatTheme } from "./theme-commun";
@@ -66,6 +69,27 @@ export const ThemeBriques = ({
     const hasSavedModelOverride = Boolean(savedV2Override || resolue.model_overrides);
     const [overrideEnabled, setOverrideEnabled] = useState(Boolean(savedV2Override));
     const [isRemovingOverride, setIsRemovingOverride] = useState(false);
+    // [.mark] Lot 12 (A10): a specialised agent follows the brain of the main agent, unless « Own brain »
+    // detaches it: then it sets its own with this same menu; unticked, the menu is read only again and the
+    // agent takes the main agent's brain back at the main agent's next save.
+    const specialise = estSpecialise(resolue);
+    const cerveauPropre = resolue.cerveau_propre === true;
+    const [changementDeCerveau, setChangementDeCerveau] = useState(false);
+    const basculerCerveau = async (coche: boolean) => {
+        setChangementDeCerveau(true);
+        try {
+            await onSave({ ...resolue, cerveau_propre: coche }, workflowName);
+            toast.success(
+                `${
+                    coche
+                        ? t({ en: "Own brain: this agent sets its own.", fr: "Cerveau propre : cet agent règle le sien." })
+                        : t({ en: "Brain set on the main agent again.", fr: "Cerveau réglé sur l'agent principal de nouveau." })
+                } ${rappel}`,
+            );
+        } finally {
+            setChangementDeCerveau(false);
+        }
+    };
 
     useEffect(() => {
         setOverrideEnabled(Boolean(resolue.model_configuration_v2_override));
@@ -121,6 +145,35 @@ export const ThemeBriques = ({
                 </a>
             </p>
 
+            {specialise && (
+                <>
+                    <ChampReglage
+                        cle="cerveau_propre"
+                        idControle="cerveau_propre"
+                        libelle={{ en: "Own brain", fr: "Cerveau propre" }}
+                        aides={[
+                            {
+                                en: "Ticked: this agent keeps its own brain (the same menu as the main agent's, below). Unticked: it takes the main agent's brain at the main agent's next save. The voice stays the group's.",
+                                fr: "Cochée : cet agent garde son propre cerveau (le même menu que celui de l'agent principal, ci-dessous). Décochée : il reprend le cerveau du principal au prochain enregistrement du principal. La voix reste celle du groupe.",
+                            },
+                        ]}
+                        disposition="ligne"
+                    >
+                        <Switch id="cerveau_propre" checked={cerveauPropre} disabled={changementDeCerveau} onCheckedChange={basculerCerveau} />
+                    </ChampReglage>
+                    {cerveauPropre ? (
+                        <div role="note" data-bandeau="cerveau-detache" className="rounded-md border bg-muted/40 px-4 py-3 text-sm font-medium">
+                            {t({
+                                en: "This brain is detached from the main agent: the main agent's saves no longer overwrite it.",
+                                fr: "Ce cerveau est détaché de l'agent principal : les enregistrements du principal ne l'écrasent plus.",
+                            })}
+                        </div>
+                    ) : (
+                        <BandeauReglePrincipal />
+                    )}
+                </>
+            )}
+            <ZoneCommune lecture={specialise && !cerveauPropre} bandeau={false}>
             {modeles.chargement && (
                 <div className="flex items-center gap-2 rounded-md border p-4 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -209,6 +262,7 @@ export const ThemeBriques = ({
                     )}
                 </>
             )}
+            </ZoneCommune>
         </Theme>
     );
 };

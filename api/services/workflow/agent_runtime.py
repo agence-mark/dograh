@@ -107,6 +107,14 @@ class AgentRuntime:
     # [.mark] Plan mode-prise-de-notes : the postscript processor (None outside
     # that mode, the default), placed just before the name filter.
     post_scriptum: Any = None
+    # [.mark] Chantier agents-specialises (lot 2) : les réglages de CET agent
+    # (``workflow_configurations`` de sa définition épinglée), lus pour le groupe
+    # (``agent_principal_id``). None = inconnus, comportement d'avant.
+    reglages: dict[str, Any] | None = None
+    # [.mark] Lot 6 (A5) : combien de fois ce runtime a pris la main. 1 sauf le principal d'un
+    # groupe, resté chaud et rendu à chaque retour (même ``visit_id`` : une entrée par visite
+    # dans le relevé, distinguées par ``entered_at``).
+    nb_entrees: int = 1
 
     def bind_tool(self, engine, handler):
         """Bind a tool's lifetime to this visit, including work across awaits."""
@@ -253,6 +261,7 @@ class AgentRuntime:
     def describe(self) -> dict[str, Any]:
         """Summarize this visit for the call's visit history."""
         return {
+            **({"entree": self.nb_entrees} if self.nb_entrees > 1 else {}),
             "visit_id": self.visit_id,
             "workflow_id": self.workflow_id,
             "workflow_name": self.workflow_name,

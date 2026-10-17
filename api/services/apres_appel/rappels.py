@@ -23,6 +23,9 @@ CLE_RAPPEL = "planificateur_rappel"
 ORIGINE_PLANIFICATEUR = "planificateur"
 ORIGINE_EQUIPE = "equipe"
 ORIGINE_VERIFICATION = "verification"
+# [.mark] Lot 6 (K8) : le transfert vers l'établissement (pas vers une personne de l'équipe,
+# qui a sa propre origine) n'a pas abouti : l'appelant est à rappeler.
+ORIGINE_TRANSFERT = "transfert"
 
 
 def origine(entree: dict) -> str:
@@ -47,6 +50,11 @@ def resume_du_rappel(entree: dict) -> str:
             morceaux.append(f"objet : {entree['objet']}")
         if souhait:
             morceaux.append(f"créneau souhaité : « {souhait} »")
+        return " ; ".join(morceaux) + "."
+    if origine(entree) == ORIGINE_TRANSFERT:
+        morceaux = ["Rappel à faire : la mise en relation avec l'établissement n'a pas abouti"]
+        if entree.get("numero"):
+            morceaux.append(f"numéro de l'appelant : {entree['numero']}")
         return " ; ".join(morceaux) + "."
     if origine(entree) == ORIGINE_VERIFICATION:
         return (

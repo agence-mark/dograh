@@ -253,6 +253,36 @@ export type ActionEquipe = {
 };
 
 /**
+ * ActionReprise
+ *
+ * One value the takeover writes (or would write).
+ */
+export type ActionReprise = {
+    /**
+     * Sujet
+     */
+    sujet: 'fiche' | 'rendez_vous' | 'agent';
+    /**
+     * Cible
+     *
+     * The fiche id or the agent's name and id.
+     */
+    cible: string;
+    /**
+     * Champ
+     */
+    champ: string;
+    /**
+     * Avant
+     */
+    avant?: string | null;
+    /**
+     * Apres
+     */
+    apres?: string | null;
+};
+
+/**
  * ActionVue
  */
 export type ActionVue = {
@@ -358,6 +388,101 @@ export type AdressesNotification = {
      * Installation
      */
     installation?: Array<string>;
+};
+
+/**
+ * AgentPublie
+ */
+export type AgentPublie = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Version Number
+     */
+    version_number?: number | null;
+};
+
+/**
+ * AgentServi
+ */
+export type AgentServi = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Version Publiee
+     *
+     * Numéro de la version publiée ; vide : jamais publié.
+     */
+    version_publiee?: number | null;
+    /**
+     * Numeros
+     *
+     * Les numéros actifs qui mènent à cet agent.
+     */
+    numeros?: Array<string>;
+    /**
+     * Etablissement Id
+     *
+     * La fiche choisie par l'agent.
+     */
+    etablissement_id?: string | null;
+    /**
+     * Role
+     */
+    role?: 'seul' | 'principal' | 'specialise';
+    /**
+     * Agent Principal Id
+     */
+    agent_principal_id?: number | null;
+    /**
+     * Agents Specialises
+     */
+    agents_specialises?: Array<number>;
+    /**
+     * Appelle
+     *
+     * Les agents qu'il peut appeler (ses outils de passation).
+     */
+    appelle?: Array<number>;
+    /**
+     * Appele Par
+     *
+     * Les agents qui peuvent l'appeler.
+     */
+    appele_par?: Array<number>;
+    capacites?: CapacitesAgent;
+    /**
+     * Rattache
+     *
+     * Rattaché au portail par .mark (D90).
+     */
+    rattache?: boolean;
+};
+
+/**
+ * AgentsServis
+ */
+export type AgentsServis = {
+    /**
+     * Agents
+     */
+    agents?: Array<AgentServi>;
+    /**
+     * Groupes
+     */
+    groupes?: Array<GroupeServi>;
 };
 
 /**
@@ -593,6 +718,16 @@ export type ApresAppelDuRun = {
     qualite_fiche?: {
         [key: string]: unknown;
     } | null;
+};
+
+/**
+ * ArchiverPrincipalRequest
+ */
+export type ArchiverPrincipalRequest = {
+    /**
+     * Specialises
+     */
+    specialises?: string;
 };
 
 /**
@@ -1574,6 +1709,50 @@ export type CampaignsResponse = {
 };
 
 /**
+ * CapacitesAgent
+ *
+ * Ce que sait faire un agent (D89) : déduit de sa définition publiée.
+ */
+export type CapacitesAgent = {
+    /**
+     * Transfert
+     *
+     * Outil de transfert d'appel, ou de direction vers une personne.
+     */
+    transfert?: boolean;
+    /**
+     * Demande Transmise
+     *
+     * Outil de direction vers une personne de l'équipe.
+     */
+    demande_transmise?: boolean;
+    /**
+     * Rendez Vous
+     *
+     * Outils du planificateur (créneaux, pose d'un rendez-vous).
+     */
+    rendez_vous?: boolean;
+    /**
+     * Mail
+     *
+     * Après-appel allumé avec le courriel.
+     */
+    mail?: boolean;
+    /**
+     * Sms
+     *
+     * Après-appel allumé avec un SMS à l'appelant ou à l'équipe.
+     */
+    sms?: boolean;
+    /**
+     * Verification
+     *
+     * Vérification de l'appelant allumée.
+     */
+    verification?: boolean;
+};
+
+/**
  * Cartesia
  */
 export type CartesiaSttConfiguration = {
@@ -1741,6 +1920,12 @@ export type ChampFiche = {
      * Filled at the end of the call: if the agent did not note the field during the call, the end-of-call pass may fill it from the conversation. Off: only the agent writes it, while the caller is speaking.
      */
     rempli_en_fin_d_appel?: boolean;
+    /**
+     * Portee
+     *
+     * Scope in a call with several requests: whole call (what concerns the caller: shared by every request) or this request (closed with it when another specialist takes over). Empty: computed from the agent's settings (town and street readers, field recognition).
+     */
+    portee?: 'appel' | 'demande' | null;
 };
 
 /**
@@ -2254,6 +2439,10 @@ export type CreateFolderRequest = {
      * Name
      */
     name: string;
+    /**
+     * Parent Id
+     */
+    parent_id?: number | null;
 };
 
 /**
@@ -2510,6 +2699,44 @@ export type CredentialResponse = {
      * Updated At
      */
     updated_at: string | null;
+};
+
+/**
+ * CreerPrincipalRequest
+ */
+export type CreerPrincipalRequest = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Folder Id
+     */
+    folder_id?: number | null;
+};
+
+/**
+ * CreerPrincipalResponse
+ */
+export type CreerPrincipalResponse = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Folder Id
+     */
+    folder_id: number;
+};
+
+/**
+ * CreerSpecialiseResponse
+ */
+export type CreerSpecialiseResponse = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
 };
 
 /**
@@ -2906,6 +3133,44 @@ export type DemandeApercuSms = {
 };
 
 /**
+ * DemandeControleHoraires
+ */
+export type DemandeControleHoraires = {
+    /**
+     * Texte
+     *
+     * Les horaires, au format lisible que lit l'agent.
+     */
+    texte: string;
+};
+
+/**
+ * DemandeCopieEtablissement
+ *
+ * F2: a new fiche made from an existing one.
+ */
+export type DemandeCopieEtablissement = {
+    /**
+     * Source
+     *
+     * Identifier of the fiche to copy.
+     */
+    source: string;
+    /**
+     * Id
+     *
+     * Identifier of the new fiche.
+     */
+    id: string;
+    /**
+     * Nom
+     *
+     * Name of the new fiche.
+     */
+    nom: string;
+};
+
+/**
  * DemandeEtablissementsDeLagent
  */
 export type DemandeEtablissementsDeLagent = {
@@ -2927,6 +3192,12 @@ export type DemandeEtablissementsDeLagent = {
     adresse_etablissement?: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Etablissement Id
+     *
+     * The fiche the agent chose, as on its screen.
+     */
+    etablissement_id?: string | null;
 };
 
 /**
@@ -2940,13 +3211,17 @@ export type DemandeLien = {
 };
 
 /**
- * DemandeRattachement
+ * DemandeReprise
+ *
+ * The takeover of an organization's fiches and agents. Trial run unless ``ecrire``.
  */
-export type DemandeRattachement = {
+export type DemandeReprise = {
     /**
-     * Nom Base
+     * Ecrire
+     *
+     * False (default): lists what would be written, writes nothing. True: writes it.
      */
-    nom_base?: string | null;
+    ecrire?: boolean;
 };
 
 /**
@@ -3815,6 +4090,18 @@ export type Etablissement = {
      */
     annonce_pause?: string | null;
     /**
+     * Etat Force
+     *
+     * The state every agent of this fiche is in, whatever the hours say (OUVERT, PAUSE, FERME, SUR_RENDEZ_VOUS). None: the organization's, else the hours.
+     */
+    etat_force?: 'OUVERT' | 'PAUSE' | 'FERME' | 'SUR_RENDEZ_VOUS' | null;
+    /**
+     * Etat Force Jusqu A
+     *
+     * When this fiche's forced state lifts itself, Paris time. None: until changed.
+     */
+    etat_force_jusqu_a?: string | null;
+    /**
      * Phrases
      *
      * This establishment's content for the sentences placed at the establishment's level (variable -> content). Absent: the organization's content.
@@ -3871,6 +4158,24 @@ export type EtablissementsDeLagent = {
      * Numbers of this agent attached to no establishment: their calls behave as before.
      */
     numeros_sans_etablissement?: Array<string>;
+    /**
+     * Fiche De Lagent
+     *
+     * The fiche this agent chose (its establishment_id). Set: its calls read this fiche alone (no inheritance); the list then holds that fiche only.
+     */
+    fiche_de_lagent?: string | null;
+    /**
+     * Fiche Introuvable
+     *
+     * The chosen fiche no longer exists: the agent's calls read no establishment.
+     */
+    fiche_introuvable?: boolean;
+    /**
+     * Numeros De Lagent
+     *
+     * Every number of the organization's Telephony that leads to this agent (read only).
+     */
+    numeros_de_lagent?: Array<string>;
 };
 
 /**
@@ -4099,6 +4404,10 @@ export type FolderResponse = {
      * Created At
      */
     created_at: string;
+    /**
+     * Parent Id
+     */
+    parent_id?: number | null;
 };
 
 /**
@@ -4439,6 +4748,49 @@ export type GroqLlmService = {
      * Groq-hosted model identifier.
      */
     model?: string;
+};
+
+/**
+ * GroupeResponse
+ */
+export type GroupeResponse = {
+    principal?: PrincipalDuGroupe | null;
+    /**
+     * Agent Principal Id
+     */
+    agent_principal_id?: number | null;
+    /**
+     * Specialises
+     */
+    specialises?: Array<MembreDuGroupe>;
+};
+
+/**
+ * GroupeServi
+ */
+export type GroupeServi = {
+    /**
+     * Principal Id
+     */
+    principal_id: number;
+    /**
+     * Specialises
+     */
+    specialises?: Array<number>;
+    /**
+     * Les capacités de l'ensemble : le principal et ses spécialisés.
+     */
+    capacites?: CapacitesAgent;
+    /**
+     * Passations
+     */
+    passations?: Array<LienDePassation>;
+    /**
+     * Rattache
+     *
+     * Le principal est rattaché ; ses spécialisés le sont avec lui (A13).
+     */
+    rattache?: boolean;
 };
 
 /**
@@ -5138,6 +5490,64 @@ export type Lien = {
 };
 
 /**
+ * LienDeGroupe
+ */
+export type LienDeGroupe = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Role
+     */
+    role: string;
+    /**
+     * Agent Principal Id
+     */
+    agent_principal_id?: number | null;
+    /**
+     * Agents Specialises
+     */
+    agents_specialises?: Array<number>;
+    /**
+     * Cerveau Propre
+     */
+    cerveau_propre?: boolean;
+};
+
+/**
+ * LienDePassation
+ *
+ * Qui appelle qui, dans un groupe.
+ */
+export type LienDePassation = {
+    /**
+     * De
+     */
+    de: number;
+    /**
+     * Vers
+     */
+    vers: number;
+    /**
+     * Par
+     *
+     * outil : une passation écrite dans les outils de l'agent ; retour : l'appel est rendu au principal par le code.
+     */
+    par: 'outil' | 'retour';
+};
+
+/**
+ * LiensDesGroupesResponse
+ */
+export type LiensDesGroupesResponse = {
+    /**
+     * Agents
+     */
+    agents?: Array<LienDeGroupe>;
+};
+
+/**
  * LignePrix
  */
 export type LignePrix = {
@@ -5505,6 +5915,32 @@ export type McpToolDefinition = {
 };
 
 /**
+ * MembreDuGroupe
+ */
+export type MembreDuGroupe = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cerveau Propre
+     */
+    cerveau_propre?: boolean;
+    /**
+     * Folder Id
+     */
+    folder_id?: number | null;
+    /**
+     * Status
+     */
+    status?: string | null;
+};
+
+/**
  * MentionDuRun
  *
  * l-agent-collegue, L8: a person of the team concerned by this call (``mark.mention``).
@@ -5767,6 +6203,18 @@ export type ModeleImporte = {
 };
 
 /**
+ * MoveFolderRequest
+ *
+ * [.mark] Lot 10 : déplacer un dossier sous un autre (``None`` = premier niveau).
+ */
+export type MoveFolderRequest = {
+    /**
+     * Parent Id
+     */
+    parent_id?: number | null;
+};
+
+/**
  * MoveWorkflowToFolderRequest
  *
  * Move a workflow into a folder, or to "Uncategorized" when null.
@@ -5889,6 +6337,16 @@ export type NodeTypesResponse = {
      * Node Types
      */
     node_types: Array<NodeSpec>;
+};
+
+/**
+ * NomRequest
+ */
+export type NomRequest = {
+    /**
+     * Name
+     */
+    name: string;
 };
 
 /**
@@ -6388,6 +6846,12 @@ export type OrganizationPreferences = {
      */
     adresses_notification?: Array<string> | null;
     /**
+     * Numero Des Transferts
+     *
+     * Caller ID shown to the person a transfer rings, E.164. None: as before.
+     */
+    numero_des_transferts?: string | null;
+    /**
      * External Pbx Integrations Enabled
      */
     external_pbx_integrations_enabled?: boolean;
@@ -6428,6 +6892,12 @@ export type OrganizationPreferencesResponse = {
      * [.mark] Where this organization's alerts go (chantier l-agent-travaille, A5, PN6): a failed after-call step, a failed purge, a call to call back after a failure. One or more mail addresses; the .mark addresses of the installation receive them too.
      */
     adresses_notification?: Array<string> | null;
+    /**
+     * Numero Des Transferts
+     *
+     * Caller ID shown to the person a transfer rings, E.164. None: as before.
+     */
+    numero_des_transferts?: string | null;
     /**
      * External Pbx Integrations Enabled
      */
@@ -6534,9 +7004,15 @@ export type Personne = {
     /**
      * Etablissement
      *
-     * Identifier of its establishment; None: the whole company.
+     * Identifier of its establishment; None: the whole company. [.mark] Since the team is one (M5), this is a LABEL, read as the first of ``etablissements``.
      */
     etablissement?: string | null;
+    /**
+     * Etablissements
+     *
+     * Identifiers of its establishments (zero, one or several); empty: the whole company.
+     */
+    etablissements?: Array<string>;
     /**
      * Destinataire Defaut
      */
@@ -6907,6 +7383,24 @@ export type PresignedUploadUrlResponse = {
 };
 
 /**
+ * PrincipalDuGroupe
+ */
+export type PrincipalDuGroupe = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Folder Id
+     */
+    folder_id?: number | null;
+};
+
+/**
  * ProcessDocumentRequestSchema
  *
  * Request schema for triggering document processing.
@@ -7196,6 +7690,21 @@ export type PublicEmbedChatTurn = {
 };
 
 /**
+ * PublierGroupeResponse
+ */
+export type PublierGroupeResponse = {
+    /**
+     * Publies
+     */
+    publies?: Array<AgentPublie>;
+    /**
+     * Deja A Jour
+     */
+    deja_a_jour?: Array<number>;
+    refus?: Refus | null;
+};
+
+/**
  * RapportSerie
  */
 export type RapportSerie = {
@@ -7403,6 +7912,24 @@ export type RedialCampaignRequest = {
      */
     retry_on_busy?: boolean;
     retry_config?: RetryConfigRequest | null;
+};
+
+/**
+ * Refus
+ */
+export type Refus = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Detail
+     */
+    detail: string;
 };
 
 /**
@@ -7797,6 +8324,47 @@ export type ResultatAction = {
 };
 
 /**
+ * ResultatControleHoraires
+ */
+export type ResultatControleHoraires = {
+    /**
+     * Valide
+     */
+    valide: boolean;
+    /**
+     * Raison
+     *
+     * Pourquoi le texte est refusé (ligne et cause), sinon vide.
+     */
+    raison?: string | null;
+};
+
+/**
+ * ResultatCopieEtablissement
+ *
+ * What the copy made, and what it left for the person to fill.
+ */
+export type ResultatCopieEtablissement = {
+    etablissement: Etablissement;
+    /**
+     * Reglages Rendez Vous Copies
+     *
+     * The source's appointment settings and types were copied (needs a client database).
+     */
+    reglages_rendez_vous_copies?: boolean;
+    /**
+     * Types Rendez Vous Copies
+     */
+    types_rendez_vous_copies?: number;
+    /**
+     * Non Copie
+     *
+     * What a copy never takes: numbers and the immediate closure (to fill on the new fiche).
+     */
+    non_copie?: Array<string>;
+};
+
+/**
  * ResultatImport
  */
 export type ResultatImport = {
@@ -7812,6 +8380,28 @@ export type ResultatImport = {
      * Terms left untouched: one of their spellings was already there.
      */
     deja_presents: number;
+};
+
+/**
+ * ResultatRattachement
+ */
+export type ResultatRattachement = {
+    /**
+     * Rattaches
+     *
+     * Les agents rattachés par ce geste (déjà rattachés : absents).
+     */
+    rattaches?: Array<number>;
+    /**
+     * Detaches
+     */
+    detaches?: Array<number>;
+    /**
+     * Agents
+     *
+     * Tous les agents concernés, les spécialisés d'un principal compris.
+     */
+    agents?: Array<number>;
 };
 
 /**
@@ -7834,6 +8424,34 @@ export type ResultatRattrapage = {
      * Erreurs
      */
     erreurs: Array<string>;
+};
+
+/**
+ * ResultatReprise
+ */
+export type ResultatReprise = {
+    /**
+     * Ecrit
+     *
+     * True when the changes were written; False for a trial run.
+     */
+    ecrit: boolean;
+    /**
+     * Actions
+     */
+    actions?: Array<ActionReprise>;
+    /**
+     * A Decider
+     *
+     * What the takeover will not decide alone: an agent whose numbers lead to several fiches (or to none besides one), hours or address that disagree. Nothing was written for these.
+     */
+    a_decider?: Array<string>;
+    /**
+     * Deja A Jour
+     *
+     * Values already as the takeover would write them.
+     */
+    deja_a_jour?: number;
 };
 
 /**
@@ -10489,7 +11107,7 @@ export type ValeurHeritee = {
     /**
      * Origine
      */
-    origine?: 'agent' | 'etablissement' | 'organisation' | 'aucune';
+    origine?: 'agent' | 'etablissement' | 'organisation' | 'aucune' | 'fiche';
 };
 
 /**
@@ -12021,6 +12639,32 @@ export type XaittsConfiguration = {
     language?: string;
 };
 
+/**
+ * DemandeRattachement
+ */
+export type ApiSchemasAgentsServisDemandeRattachement = {
+    /**
+     * Workflow Ids
+     */
+    workflow_ids: Array<number>;
+    /**
+     * Rattache
+     *
+     * Vrai : rattacher ; faux : détacher.
+     */
+    rattache?: boolean;
+};
+
+/**
+ * DemandeRattachement
+ */
+export type ApiSchemasBaseClientDemandeRattachement = {
+    /**
+     * Nom Base
+     */
+    nom_base?: string | null;
+};
+
 export type InitiateCallApiV1TelephonyInitiateCallPostData = {
     body: InitiateCallRequest;
     headers?: {
@@ -12032,6 +12676,10 @@ export type InitiateCallApiV1TelephonyInitiateCallPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -12147,6 +12795,38 @@ export type HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostErrors = {
 export type HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostError = HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostErrors[keyof HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostErrors];
 
 export type HandleInboundTelephonyApiV1TelephonyInboundWorkflowIdPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type TransferTwimlApiV1TelephonyTransferTwimlTransferIdPostData = {
+    body?: never;
+    path: {
+        /**
+         * Transfer Id
+         */
+        transfer_id: string;
+    };
+    query?: never;
+    url: '/api/v1/telephony/transfer-twiml/{transfer_id}';
+};
+
+export type TransferTwimlApiV1TelephonyTransferTwimlTransferIdPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TransferTwimlApiV1TelephonyTransferTwimlTransferIdPostError = TransferTwimlApiV1TelephonyTransferTwimlTransferIdPostErrors[keyof TransferTwimlApiV1TelephonyTransferTwimlTransferIdPostErrors];
+
+export type TransferTwimlApiV1TelephonyTransferTwimlTransferIdPostResponses = {
     /**
      * Successful Response
      */
@@ -12731,6 +13411,10 @@ export type ValidateWorkflowApiV1WorkflowWorkflowIdValidatePostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -12775,6 +13459,10 @@ export type CreateWorkflowApiV1WorkflowCreateDefinitionPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -12814,6 +13502,10 @@ export type CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -12853,6 +13545,10 @@ export type GetWorkflowCountApiV1WorkflowCountGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -12892,6 +13588,10 @@ export type GetWorkflowsApiV1WorkflowFetchGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -12940,6 +13640,10 @@ export type GetWorkflowApiV1WorkflowFetchWorkflowIdGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -12984,6 +13688,10 @@ export type GetWorkflowVersionSummariesApiV1WorkflowWorkflowIdVersionSummariesGe
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13030,6 +13738,10 @@ export type GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13093,6 +13805,10 @@ export type PublishWorkflowApiV1WorkflowWorkflowIdPublishPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13135,6 +13851,10 @@ export type CreateWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13179,6 +13899,10 @@ export type GetWorkflowsSummaryApiV1WorkflowSummaryGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -13227,6 +13951,10 @@ export type UpdateWorkflowStatusApiV1WorkflowWorkflowIdStatusPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13271,6 +13999,10 @@ export type MoveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13315,6 +14047,10 @@ export type UpdateWorkflowApiV1WorkflowWorkflowIdPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13359,6 +14095,10 @@ export type DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostData = 
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13403,6 +14143,10 @@ export type GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13478,6 +14222,10 @@ export type CreateWorkflowRunApiV1WorkflowWorkflowIdRunsPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13522,6 +14270,10 @@ export type GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13570,6 +14322,10 @@ export type DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13650,6 +14406,10 @@ export type DuplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -13689,6 +14449,10 @@ export type GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostData =
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -13717,6 +14481,340 @@ export type GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostRespon
 
 export type GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostResponse = GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostResponses[keyof GetAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPostResponses];
 
+export type LireLesGroupesApiV1WorkflowGroupesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/workflow/groupes';
+};
+
+export type LireLesGroupesApiV1WorkflowGroupesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesGroupesApiV1WorkflowGroupesGetError = LireLesGroupesApiV1WorkflowGroupesGetErrors[keyof LireLesGroupesApiV1WorkflowGroupesGetErrors];
+
+export type LireLesGroupesApiV1WorkflowGroupesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: LiensDesGroupesResponse;
+};
+
+export type LireLesGroupesApiV1WorkflowGroupesGetResponse = LireLesGroupesApiV1WorkflowGroupesGetResponses[keyof LireLesGroupesApiV1WorkflowGroupesGetResponses];
+
+export type CreerUnGroupeApiV1WorkflowGroupePostData = {
+    body: CreerPrincipalRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/workflow/groupe';
+};
+
+export type CreerUnGroupeApiV1WorkflowGroupePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnGroupeApiV1WorkflowGroupePostError = CreerUnGroupeApiV1WorkflowGroupePostErrors[keyof CreerUnGroupeApiV1WorkflowGroupePostErrors];
+
+export type CreerUnGroupeApiV1WorkflowGroupePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: CreerPrincipalResponse;
+};
+
+export type CreerUnGroupeApiV1WorkflowGroupePostResponse = CreerUnGroupeApiV1WorkflowGroupePostResponses[keyof CreerUnGroupeApiV1WorkflowGroupePostResponses];
+
+export type CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostData = {
+    body: NomRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/groupe/specialise';
+};
+
+export type CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostError = CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostErrors[keyof CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostErrors];
+
+export type CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: CreerSpecialiseResponse;
+};
+
+export type CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostResponse = CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostResponses[keyof CreerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePostResponses];
+
+export type LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/groupe';
+};
+
+export type LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetError = LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetErrors[keyof LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetErrors];
+
+export type LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: GroupeResponse;
+};
+
+export type LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetResponse = LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetResponses[keyof LireUnGroupeApiV1WorkflowWorkflowIdGroupeGetResponses];
+
+export type RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/groupe/retirer';
+};
+
+export type RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostError = RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostErrors[keyof RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostErrors];
+
+export type RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostResponses = {
+    /**
+     * Response Retirer Un Specialise Api V1 Workflow  Workflow Id  Groupe Retirer Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostResponse = RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostResponses[keyof RetirerUnSpecialiseApiV1WorkflowWorkflowIdGroupeRetirerPostResponses];
+
+export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostData = {
+    body: ArchiverPrincipalRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/groupe/archiver';
+};
+
+export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostError = ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostErrors[keyof ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostErrors];
+
+export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponses = {
+    /**
+     * Response Archiver Un Principal Api V1 Workflow  Workflow Id  Groupe Archiver Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: Array<number>;
+    };
+};
+
+export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponse = ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponses[keyof ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponses];
+
+export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/groupe/publier';
+};
+
+export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostError = PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostErrors[keyof PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostErrors];
+
+export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PublierGroupeResponse;
+};
+
+export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponse = PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses[keyof PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses];
+
 export type CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostData = {
     body: CreateTextChatSessionRequest;
     headers?: {
@@ -13728,6 +14826,10 @@ export type CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostData
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13772,6 +14874,10 @@ export type GetTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdGetDat
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13820,6 +14926,10 @@ export type AppendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMes
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13868,6 +14978,10 @@ export type EndTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdEndPos
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13916,6 +15030,10 @@ export type RewindTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsRunIdRew
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -13964,6 +15082,10 @@ export type EtatDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14012,6 +15134,10 @@ export type DeciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPostData 
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14060,6 +15186,10 @@ export type GetWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGetData 
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14112,6 +15242,10 @@ export type GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -14151,6 +15285,10 @@ export type SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -14190,6 +15328,10 @@ export type GetReglagesAppelantSimuleApiV1AppelSimuleReglagesGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -14229,6 +15371,10 @@ export type SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -14268,6 +15414,10 @@ export type GetScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGetData 
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14317,6 +15467,10 @@ export type SaveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPutData
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14363,6 +15517,10 @@ export type LancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14407,6 +15565,10 @@ export type GetSeriesSimuleesApiV1AppelSimuleSeriesGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -14453,6 +15615,10 @@ export type GetRapportSerieApiV1AppelSimuleSeriesSerieIdGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14497,6 +15663,10 @@ export type ArreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14545,6 +15715,10 @@ export type DirectAppelSimuleApiV1AppelSimuleRunsWorkflowRunIdDirectGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14594,6 +15768,10 @@ export type ListerLesClesApiV1ClesGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -14640,6 +15818,10 @@ export type AjouterUneCleApiV1ClesPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -14679,6 +15861,10 @@ export type FournisseursDesClesApiV1ClesFournisseursGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -14720,6 +15906,10 @@ export type IdentifiantDesigneApiV1ClesDesigneeUuidGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14764,6 +15954,10 @@ export type UsagesDUneCleApiV1ClesUuidUsagesGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14810,6 +16004,10 @@ export type SupprimerUneCleApiV1ClesUuidDeleteData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -14854,6 +16052,10 @@ export type GetEtablissementsApiV1OrganizationsEtablissementsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -14893,6 +16095,10 @@ export type SaveEtablissementsApiV1OrganizationsEtablissementsPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -14932,6 +16138,10 @@ export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -14962,6 +16172,135 @@ export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponses = {
 
 export type GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponse = GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponses[keyof GetNumerosApiV1OrganizationsEtablissementsNumerosGetResponses];
 
+export type ControleDesHorairesApiV1OrganizationsEtablissementsControleHorairesPostData = {
+    body: DemandeControleHoraires;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/etablissements/controle-horaires';
+};
+
+export type ControleDesHorairesApiV1OrganizationsEtablissementsControleHorairesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ControleDesHorairesApiV1OrganizationsEtablissementsControleHorairesPostError = ControleDesHorairesApiV1OrganizationsEtablissementsControleHorairesPostErrors[keyof ControleDesHorairesApiV1OrganizationsEtablissementsControleHorairesPostErrors];
+
+export type ControleDesHorairesApiV1OrganizationsEtablissementsControleHorairesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatControleHoraires;
+};
+
+export type ControleDesHorairesApiV1OrganizationsEtablissementsControleHorairesPostResponse = ControleDesHorairesApiV1OrganizationsEtablissementsControleHorairesPostResponses[keyof ControleDesHorairesApiV1OrganizationsEtablissementsControleHorairesPostResponses];
+
+export type CopierEtablissementApiV1OrganizationsEtablissementsCopierPostData = {
+    body: DemandeCopieEtablissement;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/etablissements/copier';
+};
+
+export type CopierEtablissementApiV1OrganizationsEtablissementsCopierPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CopierEtablissementApiV1OrganizationsEtablissementsCopierPostError = CopierEtablissementApiV1OrganizationsEtablissementsCopierPostErrors[keyof CopierEtablissementApiV1OrganizationsEtablissementsCopierPostErrors];
+
+export type CopierEtablissementApiV1OrganizationsEtablissementsCopierPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatCopieEtablissement;
+};
+
+export type CopierEtablissementApiV1OrganizationsEtablissementsCopierPostResponse = CopierEtablissementApiV1OrganizationsEtablissementsCopierPostResponses[keyof CopierEtablissementApiV1OrganizationsEtablissementsCopierPostResponses];
+
+export type RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostData = {
+    body: DemandeReprise;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/etablissements/reprise';
+};
+
+export type RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostError = RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostErrors[keyof RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostErrors];
+
+export type RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatReprise;
+};
+
+export type RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponse = RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponses[keyof RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponses];
+
 export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostData = {
     body: DemandeEtablissementsDeLagent;
     headers?: {
@@ -14973,6 +16312,10 @@ export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostD
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15012,6 +16355,10 @@ export type GetPhrasesApiV1OrganizationsPhrasesGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15051,6 +16398,10 @@ export type SavePhrasesApiV1OrganizationsPhrasesPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15079,6 +16430,92 @@ export type SavePhrasesApiV1OrganizationsPhrasesPutResponses = {
 
 export type SavePhrasesApiV1OrganizationsPhrasesPutResponse = SavePhrasesApiV1OrganizationsPhrasesPutResponses[keyof SavePhrasesApiV1OrganizationsPhrasesPutResponses];
 
+export type GetAgentsServisApiV1OrganizationsAgentsServisGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/agents-servis';
+};
+
+export type GetAgentsServisApiV1OrganizationsAgentsServisGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAgentsServisApiV1OrganizationsAgentsServisGetError = GetAgentsServisApiV1OrganizationsAgentsServisGetErrors[keyof GetAgentsServisApiV1OrganizationsAgentsServisGetErrors];
+
+export type GetAgentsServisApiV1OrganizationsAgentsServisGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: AgentsServis;
+};
+
+export type GetAgentsServisApiV1OrganizationsAgentsServisGetResponse = GetAgentsServisApiV1OrganizationsAgentsServisGetResponses[keyof GetAgentsServisApiV1OrganizationsAgentsServisGetResponses];
+
+export type PutRattachementApiV1OrganizationsAgentsServisRattachementPutData = {
+    body: ApiSchemasAgentsServisDemandeRattachement;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/agents-servis/rattachement';
+};
+
+export type PutRattachementApiV1OrganizationsAgentsServisRattachementPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutRattachementApiV1OrganizationsAgentsServisRattachementPutError = PutRattachementApiV1OrganizationsAgentsServisRattachementPutErrors[keyof PutRattachementApiV1OrganizationsAgentsServisRattachementPutErrors];
+
+export type PutRattachementApiV1OrganizationsAgentsServisRattachementPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatRattachement;
+};
+
+export type PutRattachementApiV1OrganizationsAgentsServisRattachementPutResponse = PutRattachementApiV1OrganizationsAgentsServisRattachementPutResponses[keyof PutRattachementApiV1OrganizationsAgentsServisRattachementPutResponses];
+
 export type GetBaseClientApiV1OrganizationsBaseClientGetData = {
     body?: never;
     headers?: {
@@ -15090,6 +16527,10 @@ export type GetBaseClientApiV1OrganizationsBaseClientGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15119,7 +16560,7 @@ export type GetBaseClientApiV1OrganizationsBaseClientGetResponses = {
 export type GetBaseClientApiV1OrganizationsBaseClientGetResponse = GetBaseClientApiV1OrganizationsBaseClientGetResponses[keyof GetBaseClientApiV1OrganizationsBaseClientGetResponses];
 
 export type PutBaseClientApiV1OrganizationsBaseClientPutData = {
-    body: DemandeRattachement;
+    body: ApiSchemasBaseClientDemandeRattachement;
     headers?: {
         /**
          * Authorization
@@ -15129,6 +16570,10 @@ export type PutBaseClientApiV1OrganizationsBaseClientPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15158,7 +16603,7 @@ export type PutBaseClientApiV1OrganizationsBaseClientPutResponses = {
 export type PutBaseClientApiV1OrganizationsBaseClientPutResponse = PutBaseClientApiV1OrganizationsBaseClientPutResponses[keyof PutBaseClientApiV1OrganizationsBaseClientPutResponses];
 
 export type PostCreerApiV1OrganizationsBaseClientCreerPostData = {
-    body: DemandeRattachement;
+    body: ApiSchemasBaseClientDemandeRattachement;
     headers?: {
         /**
          * Authorization
@@ -15168,6 +16613,10 @@ export type PostCreerApiV1OrganizationsBaseClientCreerPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15207,6 +16656,10 @@ export type PostMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPostData =
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15246,6 +16699,10 @@ export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostData
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15288,6 +16745,10 @@ export type PutConservationApiV1OrganizationsBaseClientConservationPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15327,6 +16788,10 @@ export type GetApresAppelApiV1OrganizationsApresAppelGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15366,6 +16831,10 @@ export type PutApresAppelApiV1OrganizationsApresAppelPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15405,6 +16874,10 @@ export type GetInstallationApiV1OrganizationsApresAppelInstallationGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15444,6 +16917,10 @@ export type PutInstallationApiV1OrganizationsApresAppelInstallationPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15483,6 +16960,10 @@ export type PostEssaiMailApiV1OrganizationsApresAppelEssaiMailPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15522,6 +17003,10 @@ export type PostNuitApiV1OrganizationsApresAppelNuitPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15561,6 +17046,10 @@ export type PostRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPostData =
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15600,6 +17089,10 @@ export type GetApresAppelDuRunApiV1WorkflowWorkflowIdRunsRunIdApresAppelGetData 
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -15648,6 +17141,10 @@ export type PostRelancerEtapeApiV1WorkflowWorkflowIdRunsRunIdApresAppelEtapeRela
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -15700,6 +17197,10 @@ export type GetCompteurSmsApiV1WorkflowWorkflowIdSmsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -15744,6 +17245,10 @@ export type PostApercuSmsApiV1WorkflowWorkflowIdSmsApercuPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -15788,6 +17293,10 @@ export type GetPanneApiV1OrganizationsPanneGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15827,6 +17336,10 @@ export type PutPanneApiV1OrganizationsPannePutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15866,6 +17379,10 @@ export type PostRattrapageApiV1OrganizationsPanneRattrapagePostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15905,6 +17422,10 @@ export type PostAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPostData 
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15944,6 +17465,10 @@ export type GetEquipeApiV1OrganizationsEquipeGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15983,6 +17508,10 @@ export type PutEquipeApiV1OrganizationsEquipePutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16022,6 +17551,10 @@ export type GetPlanificateurApiV1OrganizationsPlanificateurGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16061,6 +17594,10 @@ export type PutPlanificateurApiV1OrganizationsPlanificateurPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16100,6 +17637,10 @@ export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetData
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16139,6 +17680,10 @@ export type PutVerificationAppelantApiV1OrganizationsVerificationAppelantPutData
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16178,6 +17723,10 @@ export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGe
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16242,6 +17791,10 @@ export type GetAuthUserApiV1UserAuthUserGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16281,6 +17834,10 @@ export type GetUserConfigurationsApiV1UserConfigurationsUserGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16320,6 +17877,10 @@ export type UpdateUserConfigurationsApiV1UserConfigurationsUserPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16359,6 +17920,10 @@ export type GetUserOnboardingStateApiV1UserOnboardingStateGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16398,6 +17963,10 @@ export type UpdateUserOnboardingStateApiV1UserOnboardingStatePutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16437,6 +18006,10 @@ export type ValidateUserConfigurationsApiV1UserConfigurationsUserValidateGetData
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -16481,6 +18054,10 @@ export type GetApiKeysApiV1UserApiKeysGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -16527,6 +18104,10 @@ export type CreateApiKeyApiV1UserApiKeysPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16566,6 +18147,10 @@ export type ArchiveApiKeyApiV1UserApiKeysApiKeyIdDeleteData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -16614,6 +18199,10 @@ export type ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -16662,6 +18251,10 @@ export type GetVoicesApiV1UserConfigurationsVoicesProviderGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -16727,6 +18320,10 @@ export type GetCampaignTrafficStatsApiV1CampaignCampaignIdTrafficStatsGetData = 
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -16771,6 +18368,10 @@ export type CreateCampaignApiV1CampaignCreatePostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16810,6 +18411,10 @@ export type GetCampaignsApiV1CampaignGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16849,6 +18454,10 @@ export type GetCampaignApiV1CampaignCampaignIdGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -16893,6 +18502,10 @@ export type UpdateCampaignApiV1CampaignCampaignIdPatchData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -16937,6 +18550,10 @@ export type StartCampaignApiV1CampaignCampaignIdStartPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -16981,6 +18598,10 @@ export type PauseCampaignApiV1CampaignCampaignIdPausePostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17025,6 +18646,10 @@ export type GetCampaignRunsApiV1CampaignCampaignIdRunsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17100,6 +18725,10 @@ export type RedialCampaignApiV1CampaignCampaignIdRedialPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17144,6 +18773,10 @@ export type ResumeCampaignApiV1CampaignCampaignIdResumePostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17188,6 +18821,10 @@ export type GetCampaignProgressApiV1CampaignCampaignIdProgressGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17232,6 +18869,10 @@ export type GetCampaignSourceDownloadUrlApiV1CampaignCampaignIdSourceDownloadUrl
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17276,6 +18917,10 @@ export type DownloadCampaignReportApiV1CampaignCampaignIdReportGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17331,6 +18976,10 @@ export type ListCredentialsApiV1CredentialsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -17372,6 +19021,10 @@ export type CreateCredentialApiV1CredentialsPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -17411,6 +19064,10 @@ export type DeleteCredentialApiV1CredentialsCredentialUuidDeleteData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17459,6 +19116,10 @@ export type GetCredentialApiV1CredentialsCredentialUuidGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17503,6 +19164,10 @@ export type UpdateCredentialApiV1CredentialsCredentialUuidPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17547,6 +19212,10 @@ export type ListToolsApiV1ToolsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -17597,6 +19266,10 @@ export type CreateToolApiV1ToolsPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -17636,6 +19309,10 @@ export type DeleteToolApiV1ToolsToolUuidDeleteData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17684,6 +19361,10 @@ export type GetToolApiV1ToolsToolUuidGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17728,6 +19409,10 @@ export type UpdateToolApiV1ToolsToolUuidPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17772,6 +19457,10 @@ export type RefreshMcpToolsApiV1ToolsToolUuidMcpRefreshPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17816,6 +19505,10 @@ export type TestToolApiV1ToolsToolUuidTestPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17860,6 +19553,10 @@ export type UnarchiveToolApiV1ToolsToolUuidUnarchivePostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -17904,6 +19601,10 @@ export type GetCurrentOrganizationContextApiV1OrganizationsContextGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -17943,6 +19644,10 @@ export type ListOrganizationsApiV1OrganizationsGetData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -17982,6 +19687,10 @@ export type CreateOrganizationApiV1OrganizationsPostData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18021,6 +19730,10 @@ export type SelectOrganizationApiV1OrganizationsSelectedPutData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18060,6 +19773,10 @@ export type GetTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMet
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18099,6 +19816,10 @@ export type GetTelephonyConfigWarningsApiV1OrganizationsTelephonyConfigWarningsG
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18138,6 +19859,10 @@ export type GetModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurations
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18175,6 +19900,10 @@ export type GetModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2GetDat
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18214,6 +19943,10 @@ export type SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutDa
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18253,6 +19986,10 @@ export type GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2P
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18292,6 +20029,10 @@ export type PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigura
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18329,6 +20070,10 @@ export type MigrateModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Mi
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -18373,6 +20118,10 @@ export type GetDispositionCodesApiV1OrganizationsDispositionCodesGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18412,6 +20161,10 @@ export type GetPreferencesApiV1OrganizationsPreferencesGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18451,6 +20204,10 @@ export type SavePreferencesApiV1OrganizationsPreferencesPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18490,6 +20247,10 @@ export type TestCallEventsConnectionApiV1OrganizationsCallEventsTestPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18529,6 +20290,10 @@ export type GetCommunesDuCodePostalApiV1OrganizationsCommunesGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query: {
@@ -18575,6 +20340,10 @@ export type GetLexiqueApiV1OrganizationsLexiqueGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18614,6 +20383,10 @@ export type SaveLexiqueApiV1OrganizationsLexiquePutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18653,6 +20426,10 @@ export type BudgetLexiqueApiV1OrganizationsLexiqueBudgetPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18692,6 +20469,10 @@ export type ImportLexiqueApiV1OrganizationsLexiqueImportPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18731,6 +20512,10 @@ export type GetAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18770,6 +20555,10 @@ export type SaveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18809,6 +20598,10 @@ export type ListTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGetData
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18848,6 +20641,10 @@ export type CreateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPostDa
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -18887,6 +20684,10 @@ export type DeleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfig
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -18929,6 +20730,10 @@ export type GetTelephonyConfigurationByIdApiV1OrganizationsTelephonyConfigsConfi
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -18973,6 +20778,10 @@ export type UpdateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfig
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19017,6 +20826,10 @@ export type SetDefaultOutboundApiV1OrganizationsTelephonyConfigsConfigIdSetDefau
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19061,6 +20874,10 @@ export type ReactivateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsCo
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19105,6 +20922,10 @@ export type ListTelephonyTrunksApiV1OrganizationsTelephonyConfigsConfigIdTrunksG
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19149,6 +20970,10 @@ export type CreateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunks
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19193,6 +21018,10 @@ export type DeleteTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunks
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19239,6 +21068,10 @@ export type UpdateTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunks
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19287,6 +21120,10 @@ export type ListPhoneNumbersApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbe
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19331,6 +21168,10 @@ export type CreatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumb
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19375,6 +21216,10 @@ export type DeletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumb
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19421,6 +21266,10 @@ export type GetPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbers
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19469,6 +21318,10 @@ export type UpdatePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumb
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19517,6 +21370,10 @@ export type SetDefaultCallerIdApiV1OrganizationsTelephonyConfigsConfigIdPhoneNum
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19565,6 +21422,10 @@ export type DeleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDelete
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -19602,6 +21463,10 @@ export type GetLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsGetData =
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -19641,6 +21506,10 @@ export type SaveLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsPostData
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -19678,6 +21547,10 @@ export type GetCampaignDefaultsApiV1OrganizationsCampaignDefaultsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -19717,6 +21590,10 @@ export type GetSignedUrlApiV1S3SignedUrlGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query: {
@@ -19777,6 +21654,10 @@ export type GetFileMetadataApiV1S3FileMetadataGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query: {
@@ -19823,6 +21704,10 @@ export type GetPresignedUploadUrlApiV1S3PresignedUploadUrlPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -19862,6 +21747,10 @@ export type GetServiceKeysApiV1UserServiceKeysGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -19908,6 +21797,10 @@ export type CreateServiceKeyApiV1UserServiceKeysPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -19947,6 +21840,10 @@ export type ArchiveServiceKeyApiV1UserServiceKeysServiceKeyIdDeleteData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -19989,6 +21886,10 @@ export type ReactivateServiceKeyApiV1UserServiceKeysServiceKeyIdReactivatePutDat
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -20031,6 +21932,10 @@ export type GetOrganizationConcurrentCallsApiV1OrganizationsConcurrentCallsGetDa
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -20078,6 +21983,10 @@ export type GetCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -20117,6 +22026,10 @@ export type GetBillingCreditsApiV1OrganizationsBillingCreditsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -20165,6 +22078,10 @@ export type CreateMpsCreditPurchaseUrlApiV1OrganizationsUsageMpsCreditsPurchaseU
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -20204,6 +22121,10 @@ export type GetUsageHistoryApiV1OrganizationsUsageRunsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -20305,6 +22226,10 @@ export type DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -20384,6 +22309,10 @@ export type GetDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGetData =
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -20430,6 +22359,10 @@ export type GetDailyReportApiV1OrganizationsReportsDailyGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query: {
@@ -20488,6 +22421,10 @@ export type GetWorkflowOptionsApiV1OrganizationsReportsWorkflowsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -20529,6 +22466,10 @@ export type GetDailyRunsDetailApiV1OrganizationsReportsDailyRunsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query: {
@@ -20589,6 +22530,10 @@ export type GetTurnCredentialsApiV1TurnCredentialsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -21211,6 +23156,10 @@ export type DeactivateEmbedTokenApiV1WorkflowWorkflowIdEmbedTokenDeleteData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -21259,6 +23208,10 @@ export type GetEmbedTokenApiV1WorkflowWorkflowIdEmbedTokenGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -21305,6 +23258,10 @@ export type CreateOrUpdateEmbedTokenApiV1WorkflowWorkflowIdEmbedTokenPostData = 
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -21349,6 +23306,10 @@ export type GetUploadUrlApiV1KnowledgeBaseUploadUrlPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -21388,6 +23349,10 @@ export type ProcessDocumentApiV1KnowledgeBaseProcessDocumentPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -21427,6 +23392,10 @@ export type ListDocumentsApiV1KnowledgeBaseDocumentsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -21481,6 +23450,10 @@ export type DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -21523,6 +23496,10 @@ export type GetDocumentApiV1KnowledgeBaseDocumentsDocumentUuidGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -21567,6 +23544,10 @@ export type GetDocumentContentApiV1KnowledgeBaseDocumentsDocumentUuidContentGetD
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -21611,6 +23592,10 @@ export type SaveDocumentContentApiV1KnowledgeBaseDocumentsDocumentUuidContentPut
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -21655,6 +23640,10 @@ export type SearchChunksApiV1KnowledgeBaseSearchPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -21694,6 +23683,10 @@ export type GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -21733,6 +23726,10 @@ export type ListRecordingsApiV1WorkflowRecordingsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -21797,6 +23794,10 @@ export type CreateRecordingsApiV1WorkflowRecordingsPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -21836,6 +23837,10 @@ export type DeleteRecordingApiV1WorkflowRecordingsRecordingIdDeleteData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -21878,6 +23883,10 @@ export type UpdateRecordingApiV1WorkflowRecordingsIdPatchData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -21922,6 +23931,10 @@ export type TranscribeAudioApiV1WorkflowRecordingsTranscribePostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -21959,6 +23972,10 @@ export type ClearTtsCacheApiV1TtsCacheDeleteData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -21998,6 +24015,10 @@ export type ListTtsCacheApiV1TtsCacheGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: {
@@ -22066,6 +24087,10 @@ export type PreviewTtsCacheApiV1TtsCacheEntryIdAudioGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -22110,6 +24135,10 @@ export type InvalidateTtsCacheEntryApiV1TtsCacheEntryIdDeleteData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -22154,6 +24183,10 @@ export type ListFoldersApiV1FolderGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -22195,6 +24228,10 @@ export type CreateFolderApiV1FolderPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -22234,6 +24271,10 @@ export type DeleteFolderApiV1FolderFolderIdDeleteData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -22282,6 +24323,10 @@ export type RenameFolderApiV1FolderFolderIdPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -22314,6 +24359,54 @@ export type RenameFolderApiV1FolderFolderIdPutResponses = {
 };
 
 export type RenameFolderApiV1FolderFolderIdPutResponse = RenameFolderApiV1FolderFolderIdPutResponses[keyof RenameFolderApiV1FolderFolderIdPutResponses];
+
+export type MoveFolderApiV1FolderFolderIdParentPutData = {
+    body: MoveFolderRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Folder Id
+         */
+        folder_id: number;
+    };
+    query?: never;
+    url: '/api/v1/folder/{folder_id}/parent';
+};
+
+export type MoveFolderApiV1FolderFolderIdParentPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MoveFolderApiV1FolderFolderIdParentPutError = MoveFolderApiV1FolderFolderIdParentPutErrors[keyof MoveFolderApiV1FolderFolderIdParentPutErrors];
+
+export type MoveFolderApiV1FolderFolderIdParentPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: FolderResponse;
+};
+
+export type MoveFolderApiV1FolderFolderIdParentPutResponse = MoveFolderApiV1FolderFolderIdParentPutResponses[keyof MoveFolderApiV1FolderFolderIdParentPutResponses];
 
 export type SignupApiV1AuthSignupPostData = {
     body: SignupRequest;
@@ -22384,6 +24477,10 @@ export type GetCurrentUserApiV1AuthMeGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -22423,6 +24520,10 @@ export type ListNodeTypesApiV1NodeTypesGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -22462,6 +24563,10 @@ export type GetNodeTypeApiV1NodeTypesNameGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path: {
         /**
@@ -22506,6 +24611,10 @@ export type GetCatalogueApiV1ConnecteursCatalogueGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -22547,6 +24656,10 @@ export type GetConnexionsApiV1ConnecteursConnexionsGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -22586,6 +24699,10 @@ export type PostLienApiV1ConnecteursLienPostData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -22625,6 +24742,10 @@ export type GetTraducteursApiV1ConnecteursTraducteursGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -22666,6 +24787,10 @@ export type GetChoixTraducteursApiV1ConnecteursTraducteursChoixGetData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
@@ -22705,6 +24830,10 @@ export type PutChoixTraducteursApiV1ConnecteursTraducteursChoixPutData = {
          * X-Api-Key
          */
         'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
     };
     path?: never;
     query?: never;
