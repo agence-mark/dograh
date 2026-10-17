@@ -266,7 +266,13 @@ class WorkflowGraph:
             self.edges.append(edge)
 
             # Add to the source node's outgoing edges
-            source_node.out_edges.append(edge)
+            # [.mark] Relecture du lot 6 d'orchestrateur-trois-cerveaux : une sortie encore « à
+            # rédiger » (gabarit d'un collègue, complétion d'un groupe) n'est offerte à aucune porte ;
+            # elle reste dans ``edges`` et ``out`` (validation et carte du graphe inchangées).
+            from api.services.groupe.passations import sortie_en_attente
+
+            if not sortie_en_attente(edge.condition, target_node):
+                source_node.out_edges.append(edge)
 
             # Set up the node references for backward compatibility
             source_node.out[target_node.id] = target_node

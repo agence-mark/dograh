@@ -219,6 +219,24 @@ def est_a_rediger(texte: Any) -> bool:
     return not propre or propre == A_REDIGER
 
 
+def _texte_en_attente(texte: Any) -> bool:
+    """Le texte est exactement celui que le code a posé (``A_REDIGER``), blocs du code retirés. ⛔ Un
+    texte vide n'en est pas un ici : une sortie sans condition d'un agent existant reste offerte."""
+    if not isinstance(texte, str):
+        return False
+    from api.services.workflow.schema_du_parcours import retirer
+
+    return (retirer(texte) or "").strip() == A_REDIGER
+
+
+def sortie_en_attente(condition: Any, cible: Any) -> bool:
+    """Relecture du lot 6 d'orchestrateur-trois-cerveaux : une sortie posée par le code (gabarit d'un
+    collègue, complétion d'un groupe) dont la condition, ou l'étape d'arrivée, porte encore le texte
+    « à rédiger » n'est pas offerte au modèle (ni porte en fonction, ni porte écrite, ni filet de fin),
+    comme l'étape de retour encore vide. Elle le devient dès que le texte est rédigé."""
+    return _texte_en_attente(condition) or _texte_en_attente(getattr(cible, "prompt", None))
+
+
 def etape_de_retour_du_graphe(graphe: Any) -> Any:
     """L'étape de retour de l'accueil dans ce graphe, ``None`` s'il n'en a pas ou si son prompt est
     encore « à rédiger » (zéro perte : le retour retombe alors sur l'étape de départ, comme avant).

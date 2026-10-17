@@ -36,8 +36,11 @@ TEXTE_DELAI = "le travail n'a pas abouti dans le temps imparti"
 
 
 def message_du_resultat(texte: str) -> str:
-    """Le message du résultat, tel qu'il entre dans la conversation."""
+    """Le message du résultat, tel qu'il entre dans la conversation. Relecture du lot 6 : les
+    crochets du résultat (texte d'un outil externe) deviennent des parenthèses, pour qu'il ne ferme
+    jamais le message plus tôt ni n'imite un message du code (``[Fiche…``, ``[Résultat…``)."""
     contenu = " ".join(str(texte or "").split()) or TEXTE_VIDE
+    contenu = contenu.replace("[", "(").replace("]", ")")
     return f"{PREFIXE_RESULTAT_DU_TRAVAIL} {contenu}]"
 
 

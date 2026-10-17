@@ -9,7 +9,7 @@ la vraie passe du greffier (``Greffier.une_passe``) : il accepte, refuse en 422,
 | schéma | généré depuis les champs de la fiche (noms neutres), tous requis, ``additionalProperties`` faux, ``null`` = rien, liste fermée en ``enum`` (pas pour un cumulatif) |
 | case décochée | une seule requête, en mode JSON d'avant, aucun schéma ; la trace dit ``json`` (D2) |
 | accepte | la requête porte le schéma strict (``response_format`` / ``text.format``), la fiche est écrite, ``garanti`` |
-| refuse en 422 | repli immédiat en mode JSON, ``repli``, couple retenu ; la 2e passe du même couple ne retente pas |
+| refuse en 422 | repli immédiat en mode JSON, ``repli``, couple retenu ; la 2e passe du même couple ne retente pas ; un 400 qui ne cite pas le format replie sans retenir le couple |
 | hors schéma | clé inconnue ou type inattendu : repli, couple retenu ; jetons des deux requêtes comptés |
 | 429, autre erreur | jamais prises pour un refus du format : la passe est sautée / en échec comme avant |
 | trace des écartés | inconnus, vides non nuls, refus groupés tracés dans ``ecartes`` ; ``null`` n'est pas un écart ; dans les deux modes |
@@ -28,6 +28,7 @@ from api.services.pipecat.greffier import (
     FORMAT_REPLI,
     NE_GARANTISSENT_PAS,
     Greffier,
+    champs_a_noter,
     champs_a_noter_et_ecartes,
     configuration_du_greffier,
     consigne_du_greffier,
@@ -75,8 +76,8 @@ def _memoire_vide():
 
 
 class ErreurHttp(Exception):
-    def __init__(self, statut: int):
-        super().__init__(f"http {statut}")
+    def __init__(self, statut: int, message: str = "response_format json_schema is not supported"):
+        super().__init__(f"http {statut}: {message}")
         self.status_code = statut
 
 
@@ -269,6 +270,26 @@ async def test_un_refus_422_replie_en_mode_json_et_le_couple_est_retenu(api):
 
 @API
 @pytest.mark.asyncio
+async def test_un_400_sans_rapport_avec_le_format_replie_sans_retenir_le_couple(api):
+    """Relecture du lot 6 : un 400 qui ne cite pas le format (contexte trop long) replie la passe,
+    mais le couple n'est pas retenu : la passe suivante retente le schéma."""
+    service, faux = _service(
+        api,
+        ErreurHttp(400, "maximum context length exceeded"),
+        json.dumps({"champ_a": "Dupont"}),
+        json.dumps({"champ_a": "Dupont"}),
+    )
+    montage = _Montage(service, format_garanti=True)
+    await montage.passe()
+    assert montage.traces[-1]["format"] == FORMAT_REPLI
+    assert len(NE_GARANTISSENT_PAS) == 0
+    montage.messages = [*montage.messages, {"role": "user", "content": "et voilà"}]
+    await montage.passe()
+    assert [f["type"] for f in faux.formats] == ["json_schema", "json_object", "json_schema"]
+
+
+@API
+@pytest.mark.asyncio
 async def test_une_reponse_hors_schema_replie_et_compte_les_jetons_des_deux_requetes(api):
     service, faux = _service(
         api, json.dumps({"champ_inconnu": "x", "champ_a": "Dupont"}), json.dumps({"champ_a": "Dupont"})
@@ -359,8 +380,33 @@ def test_les_champs_ecartes_sont_traces_et_null_n_est_pas_un_ecart():
         {},
         {"champ_a": "Dupont", "inconnu": "x", "champ_b": "", "champ_c": "trois", "champ_d": None},
     )
-    assert a_noter == {"champ_a": "Dupont"}
-    assert ecartes == ["champ_b", "champ_c", "inconnu"]
+    # Zéro perte (relecture du lot 6) : le type inattendu de ``champ_c`` est transmis comme avant
+    # (``champs_a_noter`` décide), seuls l'inconnu et le vide sont écartés d'office.
+    rendue_lisible = {"champ_a": "Dupont", "champ_c": "trois"}
+    assert a_noter == champs_a_noter(reglages, {}, rendue_lisible)
+    assert "champ_a" in a_noter
+    assert {"champ_b", "inconnu"} <= set(ecartes)
+
+
+def test_un_type_inattendu_n_est_jamais_perdu_case_decochee():
+    """Relecture du lot 6, défaut bloquant : avant le lot 5 bis, une valeur de liste à la mauvaise
+    casse et un nombre rendu pour un champ texte passaient à l'écriture ; ils y passent toujours."""
+    reglages = ReglagesFiche.depuis(
+        {
+            "fiche_au_fil_de_leau": True,
+            CLE_MODE: MODE_GREFFIER,
+            "fiche_champs": [
+                {"nom": "champ_l", "origine": "deduit", "description": "l", "valeurs": ["Aa", "Bb"]},
+                {"nom": "champ_n", "origine": "dicte", "description": "n", "chiffres": 5},
+            ],
+        }
+    )
+    rendue = {"champ_l": "aa", "champ_n": 60000}
+    a_noter, ecartes = champs_a_noter_et_ecartes(reglages, {}, rendue)
+    assert a_noter == champs_a_noter(reglages, {}, rendue)
+    assert set(a_noter) == {"champ_l", "champ_n"}
+    assert ecartes == []
+    assert not module.hors_schema({"champ_l": "aa"}, reglages)
 
 
 def test_un_champ_identique_a_la_fiche_n_est_pas_un_ecart():

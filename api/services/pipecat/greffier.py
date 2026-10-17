@@ -75,6 +75,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     est_un_oui,
     noter,
     paroles_de_l_appelant,
+    valeur_de_la_liste,
 )
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.frames.frames import Frame, LLMFullResponseEndFrame
@@ -412,6 +413,18 @@ def _refus_du_format(erreur: BaseException) -> bool:
     return statut in (400, 404, 415, 422)
 
 
+_MOTS_DU_FORMAT = ("schema", "response_format", "text.format", "json", "strict", "format")
+
+
+def _refus_qui_vise_le_format(erreur: BaseException) -> bool:
+    """Relecture du lot 6 : un refus dont le message cite le format (schéma, ``response_format``,
+    ``text.format``…) dit que le couple ne le prend pas en charge. Un autre 400 (contexte trop long,
+    paramètre voisin) n'est pas retenu : la passe se replie seule, la suivante retente. Le message
+    n'est lu que pour ces mots, jamais écrit au journal (il peut citer une clé)."""
+    message = str(getattr(erreur, "message", "") or erreur).lower()
+    return any(mot in message for mot in _MOTS_DU_FORMAT)
+
+
 def _somme_des_jetons(*lots: dict) -> dict:
     total: dict = {}
     for lot in lots:
@@ -449,7 +462,8 @@ async def interroger_au_format(
     except Exception as erreur:  # noqa: BLE001 -- seul un refus du format se rattrape
         if not _refus_du_format(erreur):
             raise
-        NE_GARANTISSENT_PAS.add(cle)
+        if _refus_qui_vise_le_format(erreur):
+            NE_GARANTISSENT_PAS.add(cle)
         # Le nom de l'erreur seulement : le texte d'une erreur de fournisseur peut citer la clé.
         logger.warning(
             f"[fiche] format garanti refusé par le fournisseur ({type(erreur).__name__}) : "
@@ -550,7 +564,9 @@ def _du_bon_type(champ: Any, valeur: Any) -> bool:
     if not isinstance(valeur, str):
         return False
     if champ.valeurs and not champ.cumulatif:
-        return valeur in champ.valeurs
+        # Même lecture que l'écriture dans la fiche (casse, accents, ponctuation) : une valeur que
+        # ``ecrire_dans_la_fiche`` ramène à la liste n'est pas hors schéma (relecture du lot 6).
+        return valeur_de_la_liste(valeur, champ.valeurs) is not None
     return True
 
 
@@ -573,9 +589,11 @@ def champs_a_noter_et_ecartes(
     question: str | None = None,
 ) -> tuple[dict, list[str]]:
     """Lot 5 bis (D9) : ``champs_a_noter`` et, à côté, les noms des champs rendus puis **écartés** :
-    inconnus de la fiche, vides non nuls (``null`` est « rien », pas un écart), d'un type inattendu,
-    refusés ensemble (D2 du 16/10) ou d'une copie de la parole déjà écrite. Un champ identique à la
-    fiche n'est pas un écart."""
+    inconnus de la fiche, vides non nuls (``null`` est « rien », pas un écart), refusés ensemble (D2
+    du 16/10) ou d'une copie de la parole déjà écrite. Un champ identique à la fiche n'est pas un
+    écart. ⛔ Zéro perte (relecture du lot 6) : une valeur d'un type inattendu est **transmise comme
+    avant** (``ecrire_dans_la_fiche`` la ramène à la bonne forme quand il le peut) ; le plan du 16/10
+    (D9) demande de tracer les écartés, jamais d'en écarter davantage."""
     par_nom = reglages.par_nom
     ecartes: list[str] = []
     gardes: dict = {}
@@ -584,7 +602,7 @@ def champs_a_noter_et_ecartes(
             ecartes.append(nom)
         elif valeur is None:
             continue
-        elif _est_vide(valeur) or not _du_bon_type(par_nom[nom], valeur):
+        elif _est_vide(valeur):
             ecartes.append(nom)
         else:
             gardes[nom] = valeur

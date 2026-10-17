@@ -152,10 +152,16 @@ def _equipe_specialiste(etapes: list[dict]) -> list[str]:
     retours = [
         _nom(n) for n in etapes if (n.get("data") or {}).get(MARQUEUR_RETOUR) is True
     ]
+    # Relecture du lot 6 : une fin encore « à rédiger » n'est pas une sortie citée (elle n'est offerte
+    # à aucune porte tant que son texte n'est pas écrit, voir ``sortie_en_attente``).
+    from api.services.groupe.passations import _texte_en_attente
+
     fins = [
         _nom(n)
         for n in etapes
-        if n.get("type") == "endCall" and (n.get("data") or {}).get(MARQUEUR_RETOUR) is not True
+        if n.get("type") == "endCall"
+        and (n.get("data") or {}).get(MARQUEUR_RETOUR) is not True
+        and not _texte_en_attente((n.get("data") or {}).get("prompt"))
     ]
     phrases = [f"Ton rôle : {mission}."] if mission else []
     phrases.append("Tu reçois un appel déjà commencé : tout ce qui a été dit compte.")
