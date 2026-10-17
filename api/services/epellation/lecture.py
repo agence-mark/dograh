@@ -388,8 +388,35 @@ def _en_chiffres(nombre: list[str]) -> str | None:
     return "".join(chiffres) if all(chiffres) else None
 
 
+def _point_colle(mots: list[tuple[str, int, int]], rang: int) -> bool:
+    """B1 (tri du 17/10) : un point **collé** des deux côtés, écrit tel quel par la
+    transcription (« paul.garnier60 »), fait partie de l'adresse. Un point suivi d'une
+    espace (la fin d'une phrase) n'en fait jamais partie."""
+    return (
+        0 < rang < len(mots) - 1
+        and mots[rang][0] == "."
+        and mots[rang - 1][2] == mots[rang][1]
+        and mots[rang][2] == mots[rang + 1][1]
+        and mots[rang - 1][0].replace("'", "").isalnum()
+        and mots[rang + 1][0].replace("'", "").isalnum()
+    )
+
+
+def _lien_colle(mots: list[tuple[str, int, int]], rang: int, texte: str | None) -> str:
+    """B1 : le tiret ou le tiret bas écrit **entre deux mots collés** (« paul-garnier »,
+    « paul_garnier »), que le découpage en mots ne garde pas ; ``""`` s'il n'y en a pas."""
+    if texte is None or not 0 <= rang < len(mots) - 1:
+        return ""
+    entre = texte[mots[rang][2]:mots[rang + 1][1]]
+    return entre if entre in ("-", "_") else ""
+
+
 def _lire_courriel(
-    mots: list[tuple[str, int, int]], place: int, largeur: int, faible: bool
+    mots: list[tuple[str, int, int]],
+    place: int,
+    largeur: int,
+    faible: bool,
+    texte: str | None = None,
 ) -> tuple[int, int, str, tuple[str, ...]] | None:
     """The address around the "@" said at ``place`` (``largeur`` words), or None.
 
@@ -419,6 +446,9 @@ def _lire_courriel(
         mot = mots[rang][0].lower()
         if mot.isdigit():
             return _chiffres_isoles(mots, rang)
+        if mot == "." and _point_colle(mots, rang):
+            # B1 : « paul.garnier60 arobase… » -- le point collé fait partie de l'adresse.
+            return True
         if mot in ".,;:!?" or "'" in mot or not mot.replace("-", "").isalpha():
             return False
         if mot == "bas":
@@ -578,6 +608,9 @@ def _lire_courriel(
         if len(ecrit) > 1 and local and len(local[-1]) > 1 and espace:
             colles.append(f"{local[-1]} {ecrit}")
         local.append(ecrit)
+        # B1 : « paul-garnier » / « paul_garnier » : le lien collé est gardé.
+        if rang + 1 < place and (lien := _lien_colle(mots, rang, texte)):
+            local.append(lien)
         precedent = rang
         rang += 1
 
@@ -627,7 +660,7 @@ def lire(texte: str) -> list[Epellation]:
         forme = _arobase(mots, place)
         if forme is None:
             continue
-        adresse = _lire_courriel(mots, place, *forme)
+        adresse = _lire_courriel(mots, place, *forme, texte=texte)
         if adresse is None:
             continue
         debut, fin, ecrit, doutes_adresse = adresse

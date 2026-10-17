@@ -135,8 +135,13 @@ REGLES_D_ECRITURE = (
     "# Règles d'écriture\n"
     "- Quand la personne refuse de donner une information, tu écris « refusé » dans le champ, "
     "jamais une valeur.\n"
-    "- Une adresse e-mail s'écrit entière, comme elle a été dite ou épelée : jamais coupée, "
+    "- Une adresse e-mail s'écrit entière, recopiée comme elle a été dite ou épelée : tout ce qui "
+    "précède l'arobase compte, points, tirets et chiffres compris ; jamais raccourcie à sa fin, "
     "jamais complétée.\n"
+    "- Un champ dicté n'est jamais déduit d'une autre information : un nom ou un prénom ne se "
+    "tire pas d'une adresse e-mail, il s'écrit seulement quand la personne l'a dit.\n"
+    "- Un champ qui recopie les mots de la personne s'écrit une fois, à sa première formulation : "
+    "une réplique de confirmation ou de précision ne le remplace pas.\n"
     "- Rien de non dit ne s'écrit : sans parole de la personne, le champ reste absent.\n"
     "- Une date relative (« l'an dernier », « le mois dernier ») s'écrit telle que dite : le "
     "code la calcule avec la date de l'appel donnée en tête de ta lecture."
@@ -356,6 +361,10 @@ def champs_a_noter(
     a_noter = {}
     for nom, valeur in rendue.items():
         if nom not in par_nom or _est_vide(valeur):
+            continue
+        if par_nom[nom].copie_de_la_parole and not _est_vide(fiche.get(nom)):
+            # B3 : un champ qui recopie les mots de la personne s'écrit une fois (la première
+            # formulation) ; une réplique de confirmation ne le remplace pas.
             continue
         if fiche.get(nom) == valeur and not (
             oui

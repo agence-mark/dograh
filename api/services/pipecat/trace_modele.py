@@ -11,6 +11,11 @@ réponse coupée, ce qui est parti et ce qui est revenu :
   paramètres, et les en-têtes ne sont jamais recopiés ;
 - ``morceaux`` : chaque morceau du flux, avec son texte, son ``finish_reason`` et son arrivée en
   millisecondes depuis la requête ;
+- ``envoye_a``, ``premier_morceau_ms``, ``premier_texte_ms``, ``fini_ms`` (B5 du tri du 17/10) :
+  l'horodatage **côté serveur** de l'envoi de la requête (UTC) et, en millisecondes depuis cet
+  envoi, l'arrivée du premier morceau, du premier morceau de texte et de la fin du flux. Au
+  clavier, la session texte rejoue les morceaux à intervalles réguliers : ``ms`` n'y mesure rien,
+  ces trois durées, si ;
 - ``usage`` : le compte de jetons du fournisseur ;
 - ``fin`` : ``complet`` (le flux s'est fini de lui-même), ``ferme_avant_la_fin`` (notre chaîne
   a cessé de le lire) ou ``erreur: <type>`` ;
@@ -28,6 +33,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from datetime import datetime, timezone
 from typing import Any
 
 from loguru import logger
@@ -103,6 +109,7 @@ class TraceDuModele:
             entree = {
                 "tour": fiche.get(CLE_TOUR),
                 "parametres": None,
+                "envoye_a": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
                 "morceaux": [],
                 "usage": None,
                 "fin": None,
@@ -123,20 +130,31 @@ class TraceDuModele:
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[trace] paramètres du modèle non tracés : {erreur!r}")
 
-    def finir(self, entree: dict | None, fin: str) -> None:
+    def finir(self, entree: dict | None, fin: str, envoi: float | None = None) -> None:
         if entree is not None and entree.get("fin") is None:
             entree["fin"] = fin
+            if envoi is not None and "fini_ms" not in entree:
+                entree["fini_ms"] = round((time.monotonic() - envoi) * 1000)
 
-    def flux(self, flux: Any, entree: dict | None) -> Any:
+    def flux(self, flux: Any, entree: dict | None, envoi: float | None = None) -> Any:
         if entree is None:
             return flux
-        return FluxTrace(flux, self, entree)
+        return FluxTrace(flux, self, entree, envoi)
 
-    def morceau(self, entree: dict, morceau: Any, depart: float) -> None:
+    def morceau(
+        self, entree: dict, morceau: Any, depart: float, envoi: float | None = None
+    ) -> None:
         try:
             note: dict = {"ms": round((time.monotonic() - depart) * 1000)}
+            if envoi is not None:
+                # B5 : le vrai délai, compté depuis l'envoi de la requête.
+                depuis = round((time.monotonic() - envoi) * 1000)
+                entree.setdefault("premier_morceau_ms", depuis)
+                note["depuis_l_envoi_ms"] = depuis
             if _est_un_evenement_responses(morceau):
                 self._evenement_responses(entree, note, morceau)
+                if envoi is not None and (note.get("texte") or note.get("outils")):
+                    entree.setdefault("premier_texte_ms", note["depuis_l_envoi_ms"])
                 entree["morceaux"].append(note)
                 return
             choix = getattr(morceau, "choices", None) or []
@@ -158,6 +176,8 @@ class TraceDuModele:
             if usage:
                 entree["usage"] = _en_clair(usage)
                 note["usage"] = True
+            if envoi is not None and (note.get("texte") or note.get("outils")):
+                entree.setdefault("premier_texte_ms", note["depuis_l_envoi_ms"])
             entree["morceaux"].append(note)
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[trace] morceau du modèle non tracé : {erreur!r}")
@@ -202,11 +222,15 @@ class TraceDuModele:
 class FluxTrace:
     """Le flux du cerveau, chaque morceau noté au passage, sans rien changer à ce qui passe."""
 
-    def __init__(self, flux: Any, trace: TraceDuModele, entree: dict):
+    def __init__(
+        self, flux: Any, trace: TraceDuModele, entree: dict, envoi: float | None = None
+    ):
         self._flux = flux
         self._trace = trace
         self._entree = entree
         self._depart = time.monotonic()
+        # B5 : l'instant d'envoi de la requête (horloge monotone du serveur).
+        self._envoi = envoi
 
     def __aiter__(self):
         return self._parcourir()
@@ -224,10 +248,10 @@ class FluxTrace:
                 except Exception as erreur:
                     fin = f"erreur: {type(erreur).__name__}"
                     raise
-                self._trace.morceau(self._entree, morceau, self._depart)
+                self._trace.morceau(self._entree, morceau, self._depart, self._envoi)
                 yield morceau
         finally:
-            self._trace.finir(self._entree, fin)
+            self._trace.finir(self._entree, fin, self._envoi)
             fermer = getattr(iterateur, "aclose", None)
             if fermer is not None:
                 await fermer()
@@ -254,6 +278,7 @@ class TraceModeleMixin:
             return await super().get_chat_completions(context)  # type: ignore[misc]
         entree = trace.ouvrir()
         self._mark_entree_en_cours = entree
+        envoi = time.monotonic()
         try:
             flux = await super().get_chat_completions(context)  # type: ignore[misc]
         except BaseException as erreur:
@@ -261,7 +286,7 @@ class TraceModeleMixin:
             raise
         finally:
             self._mark_entree_en_cours = None
-        return trace.flux(flux, entree)
+        return trace.flux(flux, entree, envoi)
 
     def _mark_tracer_parametres(self, params: dict) -> dict:
         """Appelé par l'enveloppe que pose ``brancher_la_trace``, par-dessus toutes les

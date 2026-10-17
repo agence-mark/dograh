@@ -500,6 +500,45 @@ def est_dit_tel_quel(valeur: Any, paroles: Iterable[str]) -> bool:
     )
 
 
+# B3 (tri du 17/10, run 1442 et huit autres) : une adresse e-mail écrite ou dite en mots.
+_COURRIEL_ECRIT = re.compile(r"\S+@\S+")
+
+
+def paroles_sans_courriel(paroles: Iterable[str]) -> list[str]:
+    """B3 : les paroles de l'appelant privées de ses adresses e-mail, écrites (« a@b.fr »)
+    ou dites en mots (« paul point garnier arobase… »), lues par le module des adresses."""
+    from api.services.epellation.lecture import lire as lire_les_lettres
+
+    sans: list[str] = []
+    for parole in paroles:
+        texte = str(parole)
+        try:
+            for trouvee in sorted(
+                (e for e in lire_les_lettres(texte) if e.courriel),
+                key=lambda e: e.debut,
+                reverse=True,
+            ):
+                texte = texte[: trouvee.debut] + " " + texte[trouvee.fin :]
+        except Exception:  # noqa: BLE001 -- au doute, la parole reste telle quelle
+            texte = str(parole)
+        sans.append(_COURRIEL_ECRIT.sub(" ", texte))
+    return sans
+
+
+def est_deduit_d_un_courriel(valeur: Any, paroles: Iterable[str]) -> bool:
+    """B3 : une valeur qui n'est « dite » que parce qu'un morceau d'une adresse e-mail
+    la contient (le prénom ``paul`` tiré de « paul.garnier60 arobase… »). Un champ dicté ne
+    se déduit jamais d'une autre information. Une valeur qui est elle-même une adresse n'est
+    pas concernée."""
+    if "@" in str(valeur):
+        return False
+    paroles = list(paroles)
+    sans = paroles_sans_courriel(paroles)
+    if sans == paroles:
+        return False
+    return est_dit_tel_quel(valeur, paroles) and not est_dit_tel_quel(valeur, sans)
+
+
 # C13 (PB2) : les mots qui ne portent rien. Un déduit ancré sur « pour » ou
 # « avec » ne serait ancré sur rien.
 MOTS_VIDES = frozenset(
@@ -2078,6 +2117,19 @@ def ecrire_dans_la_fiche(
             and not est_dit_tel_quel(valeur, paroles_sans_notes(paroles, fiche))
             # Lot C : la correction d'une ou plusieurs paires d'un numéro déjà noté.
             and not corrige_par_paires(definition, fiche.get(champ), valeur, paroles_sans_notes(paroles[-1:], fiche))
+        ):
+            verdict = Verdict(champ, "refuse", "non_dit", valeur)
+        elif (
+            source == MODE_GREFFIER
+            and lecture is None
+            and not epele
+            and dit is None
+            and definition.origine == OrigineChamp.dicte
+            and not definition.cumulatif
+            and definition.type == "string"
+            # B3 : un champ dicté n'est jamais déduit d'une adresse e-mail (le prénom
+            # ``paul`` tiré de « paul.garnier60 arobase… »).
+            and est_deduit_d_un_courriel(valeur, paroles_sans_notes(paroles, fiche))
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:
