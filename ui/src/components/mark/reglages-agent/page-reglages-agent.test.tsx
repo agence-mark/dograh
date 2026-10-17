@@ -81,8 +81,13 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-fact
     listRecordingsApiV1WorkflowRecordingsGet: () => Promise.resolve({ data: { recordings: [] }, error: null }),
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: () => Promise.resolve({ data: [{ code_insee: "60057", nom: "Beauvais" }], error: null }),
 }));
-vi.mock("@/components/AIModelConfigurationV2Editor", () => ({ AIModelConfigurationV2Editor: () => <div data-testid="editeur-v2" /> }));
-vi.mock("@/components/ServiceConfigurationForm", () => ({ ServiceConfigurationForm: () => <div data-testid="formulaire-service" /> }));
+// Lot 3 d'orchestrateur-trois-cerveaux (D7): the stand-ins draw the note they are given for a locked voice.
+vi.mock("@/components/AIModelConfigurationV2Editor", () => ({
+    AIModelConfigurationV2Editor: ({ voixVerrouillee }: { voixVerrouillee?: ReactNode }) => <div data-testid="editeur-v2">{voixVerrouillee}</div>,
+}));
+vi.mock("@/components/ServiceConfigurationForm", () => ({
+    ServiceConfigurationForm: ({ voixVerrouillee }: { voixVerrouillee?: ReactNode }) => <div data-testid="formulaire-service">{voixVerrouillee}</div>,
+}));
 vi.mock("@/components/LLMConfigSelector", () => ({ LLMConfigSelector: () => null }));
 vi.mock("@/app/workflow/[workflowId]/components/EmbedDialog", () => ({ EmbedDialog: () => null }));
 vi.mock("@/app/workflow/[workflowId]/hooks/useWorkflowState", () => ({
@@ -783,6 +788,35 @@ describe("[.mark] the flow map, the retry reasoning and the model request trace"
         ouvrirLeTheme("agent");
         await waitFor(() => expect(document.getElementById("trace_requetes_modele")).not.toBeNull());
         expect(document.getElementById("trace_requetes_modele")?.closest("fieldset[disabled]")).toBeNull();
+    });
+
+    // Lot 3 d'orchestrateur-trois-cerveaux (D7): the call has one voice, the main agent's. Even with « Own brain »,
+    // an agent of a group cannot change its voice; a lone agent and a main agent keep theirs.
+    it("locks the voice of a specialised agent with its own brain, in both editors, and only there", async () => {
+        const note = () => document.querySelectorAll('[data-bandeau="voix-de-l-appel"]').length;
+        // Complete configuration of its own (the all-in-one editor).
+        await ouvrir({ ...SPECIALISE, cerveau_propre: true, model_configuration_v2_override: { version: 2, mode: "dograh" } }, NOVA);
+        ouvrirLeTheme("briques");
+        await waitFor(() => expect(document.querySelector('[data-testid="editeur-v2"]')).not.toBeNull());
+        expect(document.querySelector('[data-testid="editeur-v2"] [data-bandeau="voix-de-l-appel"]')).not.toBeNull();
+        cleanup();
+        // Service-by-service override (the form).
+        await ouvrir({ ...SPECIALISE, cerveau_propre: true, model_overrides: { tts: { provider: "mistral" } } }, NOVA);
+        ouvrirLeTheme("briques");
+        await waitFor(() => expect(document.querySelector('[data-testid="formulaire-service"]')).not.toBeNull());
+        expect(document.querySelector('[data-testid="formulaire-service"] [data-bandeau="voix-de-l-appel"]')).not.toBeNull();
+        cleanup();
+        // A main agent and a lone agent: the voice is theirs, no note anywhere.
+        for (const config of [
+            { ...PRINCIPAL, model_configuration_v2_override: { version: 2, mode: "dograh" } },
+            { ...(CONFIG_DE_REFERENCE as Record<string, unknown>), model_overrides: { tts: { provider: "mistral" } } },
+        ]) {
+            await ouvrir(config, NOVA);
+            ouvrirLeTheme("briques");
+            await waitFor(() => expect(document.querySelector('[data-testid="editeur-v2"], [data-testid="formulaire-service"]')).not.toBeNull());
+            expect(note()).toBe(0);
+            cleanup();
+        }
     });
 
     it("sends the group's four settings together, with their values, when one is changed", async () => {

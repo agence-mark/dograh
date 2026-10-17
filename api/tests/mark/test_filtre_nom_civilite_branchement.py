@@ -185,17 +185,20 @@ async def test_ce_qui_est_retire_ne_revient_PAS_dans_la_memoire_du_modele():
 
 def _composants():
     """The arguments of ``build_agent_generation_pipeline``: since the upstream
-    split per agent (fc76383c), the voice runs in the agent's own worker, and
-    so does the filter placed just before it."""
+    split per agent (fc76383c) the generation stage runs in the agent's own worker,
+    and so does the filter that closes it. [.mark] Lot 3 (D7): the voice is no
+    longer one of the arguments, it belongs to the call."""
     return {
         "llm": FrameProcessor(),
-        "tts": FrameProcessor(),
         "generation_callback_processor": FrameProcessor(),
         "recording_router": FrameProcessor(),
     }
 
 
-def test_le_filtre_se_place_JUSTE_avant_la_voix():
+def test_le_filtre_ferme_le_circuit_de_l_agent_et_la_voix_de_l_appel_vient_juste_apres_le_pont():
+    """Lot 3 (D7) : la voix n'est plus dans le circuit de l'agent. Le filtre en est le DERNIER
+    processeur : il garde l'ordre « filtre, puis voix » (rien ne s'insère entre eux qui pourrait
+    redire le nom), la voix de l'appel étant le premier processeur après le pont."""
     composants = _composants()
     etape = _filtre()
 
@@ -203,9 +206,9 @@ def test_le_filtre_se_place_JUSTE_avant_la_voix():
         **composants, filtre_nom_civilite=etape
     ).processors
 
-    assert processeurs[processeurs.index(etape) + 1] is composants["tts"], (
-        "le filtre n'est plus immédiatement avant la voix : un processeur "
-        "inséré entre les deux pourrait redire le nom."
+    assert list(processeurs)[-2] is etape, (
+        "le filtre n'est plus le dernier processeur du circuit de l'agent : un processeur "
+        "inséré entre lui et la voix de l'appel pourrait redire le nom."
     )
 
 

@@ -15,7 +15,7 @@ from pipecat.frames.frames import LLMMessagesAppendFrame
 
 from api.services.pipecat.agent_runtime_factory import AgentBuildError
 from api.services.pipecat.audio_playback import play_hold_audio_loop
-from api.services.pipecat.main_passee import muter, rendre_la_parole
+from api.services.pipecat.main_passee import rendre_la_parole
 from api.services.workflow.agent_handoff_context import (
     build_handoff_snapshot,
     conversation_messages,
@@ -125,6 +125,10 @@ class AgentTransferCoordinator:
         self._request = request
         self._phase = TransferPhase.ANNOUNCING
         self._engine.call_monitor.suspend()
+        # [.mark] Lot 3 (D7, D18) : passation demandee, debut de la mesure du premier octet de voix.
+        mesure = getattr(self._engine, "mesure_passation", None)
+        if mesure is not None:
+            mesure.demandee(request.request_id)
         return True
 
     def start(self, request, *, context_ready=None) -> bool:
@@ -469,15 +473,17 @@ class AgentTransferCoordinator:
         self._hold_task = asyncio.create_task(jouer(), name=f"hold:{request.request_id}")
 
     async def _phrase_pont(self, request, source, reglage: Attente, *, avec_son: bool):
-        """[.mark] La phrase pont, dite par la voix de l'agent qui passe la main (le chemin de
-        ``_announce``) si la passation n'est pas commise après ``delai_phrase_pont_s``. Une seule
-        fois. Le son d'attente se tait le temps de la phrase, puis reprend. ⛔ Ne lève jamais.
+        """[.mark] La phrase pont, dite par la voix de l'APPEL si la passation n'est pas commise
+        après ``delai_phrase_pont_s``. Une seule fois. Le son d'attente se tait le temps de la
+        phrase, puis reprend. ⛔ Ne lève jamais.
 
-        Pendant la passation l'agent d'origine est « en attente » : désactivé, il ne reçoit rien
-        de l'appel (sans quoi sa voix ne se referme jamais) et aucune de ses sorties n'arrive à
-        l'appelant (``selected_visit_id`` est ``None``). Le temps de la phrase il est réactivé
-        (le geste de l'annulation d'une passation) et l'attente levée ; son modèle, lui, reste
-        muet (``transfer_in_progress`` bloque son contexte)."""
+        Lot 3 d'orchestrateur-trois-cerveaux (D7) : la voix est celle de l'appel, plus celle de
+        l'agent qui passe la main. Pendant la passation cet agent est « en attente » (désactivé,
+        ``selected_visit_id`` vaut ``None``) : la phrase prend donc la route locale du pont
+        (``PipecatEngine.queue_speech``), directement à la voix. L'agent source n'est plus
+        réactivé, son modèle n'est plus rendu muet pour l'occasion : il ne reçoit rien et ne dit
+        rien, de bout en bout. (La danse « réactiver, taire, parler, désactiver » d'avant n'existe
+        que parce que la voix était à lui.)"""
         engine = self._engine
         son_coupe = False
         try:
@@ -485,21 +491,10 @@ class AgentTransferCoordinator:
             if not self._passation_en_cours(request):
                 return
             self._phrase_en_cours = True
-            reactivee = False
             try:
                 if avec_son:
                     son_coupe = True
                     await self._stop_hold_audio()
-                # Le cerveau de la source reste muet pendant la phrase, posé ici pour ne pas
-                # dépendre de l'outil qui a lancé la passation ; et ``allow_inference`` (le pont
-                # de l'appel) ne lui livre aucun contexte tant que la passation dure.
-                muter(getattr(source, "llm", None))
-                if not await engine.activate_agent(
-                    source, timeout=TRANSFER_ACTIVATION_TIMEOUT_SECONDS
-                ):
-                    return
-                reactivee = True
-                engine._agent_on_hold = False
                 # Pas dans le contexte : le résumé de passation se bâtit en même temps, rien ne
                 # doit bouger derrière lui ; la phrase reste dans le journal de l'appel.
                 speech = await engine.queue_speech(
@@ -509,12 +504,10 @@ class AgentTransferCoordinator:
                     mute_user=True,
                 )
                 await speech.wait()
-                # Comme ``_announce`` : tout ce qui est en vol arrive à l'appelant (et les signaux
-                # de fin de parole remontent à l'agent) avant que l'attente se referme.
+                # Comme ``_announce`` : tout ce qui est en vol arrive à l'appelant avant que
+                # l'attente se referme.
                 await engine.drain_call_pipeline()
             finally:
-                if reactivee and self._passation_en_cours(request):
-                    await engine.deactivate_agent(source)
                 self._phrase_en_cours = False
         except asyncio.CancelledError:
             raise

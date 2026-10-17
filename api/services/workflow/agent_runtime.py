@@ -75,6 +75,9 @@ class AgentRuntime:
     # None only while the call worker is still being built; run setup binds it
     # through `PipecatEngine.call_worker`.
     worker: PipelineWorker | None = None
+    # [.mark] Lot 3 d'orchestrateur-trois-cerveaux (D7) : toujours None. La voix est celle de
+    # l'APPEL (``build_pipeline(voice=...)``), partagee par tous les agents ; un agent ne porte
+    # que son cerveau. Le champ reste pour les constructeurs de l'amont qui le passent.
     tts: Any = None
     recording_router: Any = None
     user_config: Any = None
@@ -164,7 +167,8 @@ class AgentRuntime:
         append_to_context: bool = False,
         persist_to_logs: bool = True,
     ) -> None:
-        """Speak configured text through this agent's TTS voice."""
+        """Speak configured text: it enters this agent's pipeline, in order with the model's own
+        text, and is voiced by the call's one voice ([.mark] lot 3, D7)."""
         await self.queue_frame(
             TTSSpeakFrame(
                 text,

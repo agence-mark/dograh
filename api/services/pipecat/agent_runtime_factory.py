@@ -5,9 +5,13 @@ Transfers build later runtimes under the hold ringer, using the destination's
 pinned definition and model configuration. Both use the same generation stage.
 
 Everything call-scoped -- transport, recording, recognition, the shared
-context, the call timer -- stays on the call pipeline and is never rebuilt.
-What this creates is one agent's own LLM and TTS clients and the child worker
-that runs them.
+context, the call timer, and (since lot 3 of orchestrateur-trois-cerveaux, D7)
+THE VOICE -- stays on the call pipeline and is never rebuilt.
+What this creates is one agent's own LLM client and the child worker that runs
+its generation stage. A later agent speaks with the call's voice: no TTS client
+is opened at a handoff, so the connection time of a voice is no longer part of
+the time a handoff takes. [.mark] Divergence assumed with upstream
+(fc76383c, "in its own voice"), declared in ``tests/mark/divergences_amont.py``.
 """
 
 from __future__ import annotations
@@ -32,7 +36,6 @@ from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
 from api.services.pipecat.service_factory import (
     cle_de_cache,
     create_llm_service,
-    create_tts_service,
     stamp_prompt_cache_key,
     stamp_sampling_settings,
     stamp_voice_settings,
@@ -71,11 +74,21 @@ class AgentGenerationCallbacks:
     llm_text_frame: Callable[[str], Any]
 
 
-def _estampiller_agent(runtime_configuration: dict, user_config, workflow_id: int):
+def _estampiller_agent(
+    runtime_configuration: dict, user_config, workflow_id: int, voix_de_l_appel=None
+):
     """[.mark] The same stamps as the call's first agent (run_pipeline): what
-    this agent's voice, sampling and cache key were, readable after the call."""
+    this agent's sampling and cache key were, readable after the call.
+
+    Lot 3 (D7): the VOICE stamp describes the voice of the CALL, not the one this
+    agent's screen would have chosen -- it is not played any more. ``voix_de_l_appel``
+    is the call's voice configuration (the first agent's ``user_config.tts``); None
+    (a factory built without one) keeps the agent's own, as before."""
+    voix = voix_de_l_appel if voix_de_l_appel is not None else user_config.tts
+    runtime_configuration["tts_provider"] = voix.provider
+    runtime_configuration["tts_model"] = voix.model
     stamp_sampling_settings(runtime_configuration, user_config.llm)
-    stamp_voice_settings(runtime_configuration, user_config.tts)
+    stamp_voice_settings(runtime_configuration, voix)
     stamp_prompt_cache_key(
         runtime_configuration, user_config.llm, cle_de_cache(workflow_id)
     )
@@ -113,7 +126,11 @@ class AgentRuntimeFactory:
         # (définitions, graphes, configurations de modèles, outils). None = aucun cache,
         # chaque agent appelé se construit comme avant.
         precharge: Precharge | None = None,
+        # [.mark] Lot 3 (D7) : la configuration de la voix de l'APPEL (celle du premier
+        # agent), pour l'estampille d'un agent appelé. None = la sienne, comme avant.
+        voix_de_l_appel: Any = None,
     ):
+        self._voix_de_l_appel = voix_de_l_appel
         self.precharge = precharge
         self._traitement_de_la_fiche = traitement_de_la_fiche
         self._lexique_metier = lexique_metier
@@ -252,23 +269,15 @@ class AgentRuntimeFactory:
             skip_instance_constraints_for={"trigger"},
         )
 
-        # [.mark] The same three .mark arguments as the call's first agent
-        # (run_pipeline): its own cache key, its own voice settings and the
-        # organization's pronunciations. Without them a transferred agent would
-        # speak with none of the voice settings shown on its screen.
+        # [.mark] The call's first agent builds its model with its own cache key
+        # (run_pipeline); so does this one. NO voice is created here (lot 3, D7):
+        # the TTS (its voice settings and the organization's pronunciations) belongs
+        # to the call pipeline and speaks for every agent. ``lexique_metier`` stays
+        # accepted by the constructor for the callers that pass it.
         llm = create_llm_service(
             user_config,
             correlation_id=self._mps_correlation_id,
             prompt_cache_key=cle_de_cache(workflow_id),
-        )
-        tts = create_tts_service(
-            user_config,
-            self._audio_config,
-            correlation_id=self._mps_correlation_id,
-            organization_id=self._organization_id,
-            tts_cache_enabled=run_configs.get("tts_cache_enabled") is True,
-            run_configs=run_configs,
-            lexique=self._lexique_metier,
         )
         # Same client policy as the run setup: the conversation LLM also
         # serves out-of-band inference, and extraction gets a separately
@@ -311,7 +320,7 @@ class AgentRuntimeFactory:
             llm=llm,
             inference_llm=inference_llm,
             variable_extraction_llm=variable_extraction_llm,
-            tts=tts,
+            tts=None,  # [.mark] lot 3 : la voix est celle de l'appel
             recording_router=recording_router,
             user_config=user_config,
             runtime_configuration=_estampiller_agent(
@@ -325,6 +334,7 @@ class AgentRuntimeFactory:
                 },
                 user_config,
                 workflow_id,
+                self._voix_de_l_appel,
             ),
             is_child=True,
             entered_at=None,
@@ -348,7 +358,7 @@ class AgentRuntimeFactory:
             f"({workflow.name}) definition={definition.id} "
             f"v{definition.version_number}/{definition.status} "
             f"llm={user_config.llm.provider}/{user_config.llm.model} "
-            f"tts={user_config.tts.provider}/{user_config.tts.model}"
+            "(voice: the call's)"
         )
         return runtime
 
@@ -370,7 +380,6 @@ class AgentRuntimeFactory:
         )
         pipeline = build_agent_generation_pipeline(
             runtime.llm,
-            runtime.tts,
             generation_callbacks,
             recording_router=runtime.recording_router,
             filtre_nom_civilite=runtime.filtre_nom_civilite,  # [.mark]

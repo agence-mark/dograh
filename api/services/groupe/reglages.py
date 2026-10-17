@@ -12,7 +12,7 @@ la recopie (ce module) et par l'écran du groupe (lot 13 : un test vérifie que 
 Le cerveau est **détachable** (Evan, 16/10) : ``cerveau_propre: true`` sur un spécialisé garde
 son propre cerveau, c'est-à-dire le modèle de langage de sa configuration de modèles
 (``CHEMINS_CERVEAU``) et les réglages qui suivent le cerveau (``CLES_SUIVENT_LE_CERVEAU``).
-La voix, elle, reste commune : une seule voix pour tout le groupe.
+La voix, elle, reste commune : une seule voix pour tout le groupe (lot 3 d'orchestrateur-trois-cerveaux, D7 : même hors groupe, une seule voix par appel ; `cerveau_propre` ne la change jamais).
 
 Tout est pur (aucune base, aucune levée) ; aucun mot de métier : des noms de clés de réglages.
 """

@@ -49,14 +49,18 @@ def build_pipeline(
     *,
     lecture_appelant=None,
     reconnaissance_lexique=None,
+    voice=None,
 ):
     """Build the call pipeline: everything that lives for the whole call.
 
     The generation stage is a slot rather than a fixed set of processors. A
     cascade call fills it with ``[AgentBridgeProcessor(...)]`` and runs the
-    real generation stage in a worker per agent visit, so the LLM, TTS and
-    recording router never appear here. See
-    :func:`build_agent_generation_pipeline` for what goes in that worker.
+    real generation stage in a worker per agent visit, so the LLM and recording
+    router never appear here. See :func:`build_agent_generation_pipeline` for
+    what goes in that worker. [.mark] The VOICE is the exception (plan
+    orchestrateur-trois-cerveaux, D7): one TTS for the whole call, placed right
+    after the generation stage, so an agent that takes over speaks with the
+    voice already open instead of opening a connection of its own.
 
     Args:
         audio_buffer: AudioBufferProcessor that handles both input and output audio recording.
@@ -77,6 +81,12 @@ def build_pipeline(
             just before the LLM, AFTER the user aggregator and its gate: the
             model reads the digits and the notes, the recorded transcript keeps
             the caller's words. None leaves the list unchanged.
+        voice: [.mark] The call's one TTS service (lot 3, D7), inserted between
+            the generation stage and the output transport: the agents' text
+            comes back over the bus and is spoken here, the dictated speech
+            (greeting, fixed endings, outage) goes through the same voice. None
+            (a realtime call, a pipeline built by upstream tests) leaves the
+            list unchanged.
     """
     # Build processors with optional answer handling.
     #
@@ -115,6 +125,7 @@ def build_pipeline(
         [
             call_monitor_processor,
             *generation_stage,
+            voice,  # [.mark] the call's one voice (None leaves a hole, filtered below)
             transport.output(),  # Transport bot output
             audio_buffer,  # AudioBufferProcessor - records both input and output audio
             assistant_context_aggregator,  # Assistant spoken responses
@@ -129,7 +140,6 @@ def build_pipeline(
 
 def build_agent_generation_pipeline(
     llm,
-    tts,
     generation_callback_processor,
     recording_router=None,
     # [.mark] Keyword-only, after the upstream parameters (same rule as
@@ -143,6 +153,12 @@ def build_agent_generation_pipeline(
     Slots into the gap :func:`build_pipeline` leaves between the user
     aggregator and the output transport, so the frames arriving at the call
     pipeline's transport are the same as if this ran inline.
+
+    [.mark] Lot 3 d'orchestrateur-trois-cerveaux (D7) : cette étape ne porte
+    plus de voix. Elle s'arrête au filtre du nom ; le texte qu'elle produit
+    revient à l'appel par le bus et c'est la voix de l'APPEL qui le dit
+    (``build_pipeline(voice=...)``). Le ``tts`` de l'amont (second paramètre
+    positionnel) est donc retiré de la signature, divergence assumée.
 
     Args:
         filtre_nom_civilite: [.mark] Optional FiltreNomCiviliteProcessor. When
@@ -160,12 +176,11 @@ def build_agent_generation_pipeline(
     processors = [llm, generation_callback_processor]
     if recording_router:
         processors.append(recording_router)
-    # [.mark] post-scriptum, filtre du nom, puis TTS
+    # [.mark] post-scriptum, puis filtre du nom (la voix est celle de l'appel)
     if post_scriptum:
         processors.append(post_scriptum)
     if filtre_nom_civilite:
         processors.append(filtre_nom_civilite)
-    processors.append(tts)
     return Pipeline(processors)
 
 

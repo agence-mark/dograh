@@ -461,7 +461,6 @@ def test_hors_mode_post_scriptum_pas_de_processeur():
 def test_le_processeur_se_place_juste_avant_le_filtre_du_nom():
     composants = {
         "llm": FrameProcessor(),
-        "tts": FrameProcessor(),
         "generation_callback_processor": FrameProcessor(),
         "recording_router": FrameProcessor(),
     }
@@ -471,11 +470,11 @@ def test_le_processeur_se_place_juste_avant_le_filtre_du_nom():
         **composants, filtre_nom_civilite=filtre, post_scriptum=post_scriptum
     )
     ordre = list(pipeline.processors)[1:-1]
-    assert ordre[-4:] == [
+    # Lot 3 (D7) : la voix n'est plus dans le circuit de l'agent, le filtre le ferme.
+    assert ordre[-3:] == [
         composants["recording_router"],
         post_scriptum,
         filtre,
-        composants["tts"],
     ]
     sans = build_agent_generation_pipeline(**composants)
     assert post_scriptum not in list(sans.processors)

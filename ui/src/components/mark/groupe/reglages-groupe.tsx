@@ -128,8 +128,8 @@ const TEXTES = {
     cerveauPropre: { en: "own brain", fr: "cerveau propre" },
     prechauffage: { en: "Pre-warm the specialised agents at pick-up", fr: "Préchauffer les agents spécialisés au décroché" },
     prechauffageAide: {
-        en: "Loads each agent's definition and tools ahead of time, so a hand-over costs little. The voice opens at the hand-over. On by default in a group.",
-        fr: "Charge à l'avance la définition et les outils de chaque agent : une passation coûte peu. La voix s'ouvre à la passation. Allumé par défaut dans un groupe.",
+        en: "Loads each agent's definition and tools ahead of time, so a hand-over costs little. The call has one voice, open from the start: no voice opens at a hand-over. On by default in a group.",
+        fr: "Charge à l'avance la définition et les outils de chaque agent : une passation coûte peu. L'appel n'a qu'une voix, ouverte dès le début : aucune voix ne s'ouvre à la passation. Allumé par défaut dans un groupe.",
     },
     sansResume: { en: "Hand over the history without a summary up to (messages)", fr: "Passer l'historique sans résumé jusqu'à (messages)" },
     sansResumeAide: {
@@ -189,13 +189,13 @@ const TEXTES = {
     },
     phrasePont: { en: "Bridge phrase", fr: "Phrase pont" },
     phrasePontAide: {
-        en: "Optional. A short sentence said by the agent handing over, only if the hand-over lasts longer than the delay below: a safety net, not the solution. Never said by a keyboard test, nor towards an agent already built. Empty: none.",
-        fr: "Facultative. Une phrase courte dite par l'agent qui passe la main, seulement si la passation dure plus que le délai ci-dessous : un filet, pas la solution. Jamais dite au clavier, ni vers un agent déjà construit. Vide : aucune.",
+        en: "Optional. A short sentence said by the call's voice, only if the hand-over lasts longer than the delay below: a safety net, not the solution. The agent handing over is not woken up to say it. Never said by a keyboard test, nor towards an agent already built. Empty: none.",
+        fr: "Facultative. Une phrase courte dite par la voix de l'appel, seulement si la passation dure plus que le délai ci-dessous : un filet, pas la solution. L'agent qui passe la main n'est pas réveillé pour la dire. Jamais dite au clavier, ni vers un agent déjà construit. Vide : aucune.",
     },
     phraseMiseEnRelation: { en: "Hand-over sentence to a person", fr: "Phrase de mise en relation" },
     phraseMiseEnRelationAide: {
-        en: "Optional. When a called agent arrives on a step that transfers the call to a person and the business is open, the code says this sentence itself, in that agent's voice, then starts the transfer: the model is not asked for a reply. Empty: the model speaks, as before. If the transfer tool has its own message, that message is said instead. Never said by a keyboard test.",
-        fr: "Facultative. Quand un agent appelé arrive sur une étape qui transfère l'appel vers une personne, entreprise ouverte, le code dit lui-même cette phrase, avec la voix de cet agent, puis lance le transfert : le modèle n'est pas sollicité. Vide : le modèle parle, comme avant. Si l'outil de transfert porte son propre message, c'est lui qui est dit. Jamais dite au clavier.",
+        en: "Optional. When a called agent arrives on a step that transfers the call to a person and the business is open, the code says this sentence itself, with the call's voice, then starts the transfer: the model is not asked for a reply. Empty: the model speaks, as before. If the transfer tool has its own message, that message is said instead. Never said by a keyboard test.",
+        fr: "Facultative. Quand un agent appelé arrive sur une étape qui transfère l'appel vers une personne, entreprise ouverte, le code dit lui-même cette phrase, avec la voix de l'appel, puis lance le transfert : le modèle n'est pas sollicité. Vide : le modèle parle, comme avant. Si l'outil de transfert porte son propre message, c'est lui qui est dit. Jamais dite au clavier.",
     },
     delaiPhrasePont: { en: "Bridge phrase delay (seconds)", fr: "Délai de la phrase pont (secondes)" },
     delaiPhrasePontAide: {

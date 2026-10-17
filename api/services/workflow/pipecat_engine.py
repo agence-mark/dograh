@@ -413,6 +413,14 @@ class PipecatEngine:
         # Transport output processor for injecting audio directly into the
         # output, bypassing STT (set via set_transport_output from _run_pipeline)
         self._transport_output = None
+        # [.mark] Lot 3 (D7) : la route locale de la parole dictée (le pont de l'appel), posée
+        # par ``run_pipeline``. None (clavier, tests de l'amont) : tout passe par l'agent actif.
+        self._parole_locale = None
+        # [.mark] Lot 3 (D7, D18) : l'horodatage passation demandee, premier octet de voix,
+        # lu au banc d'apres le chantier (jamais joue pendant).
+        from api.services.groupe.mesure_passation import MesureDePassation
+
+        self.mesure_passation = MesureDePassation()
 
         # Recording audio fetcher (set via set_fetch_recording_audio from _run_pipeline)
         self._fetch_recording_audio = None
@@ -2658,7 +2666,14 @@ class PipecatEngine:
             if text is not None:
                 if self.active_agent.worker is None:
                     return completed(PlaybackOutcome.FAILED)
+                # [.mark] Lot 3 d'orchestrateur-trois-cerveaux (D7) : UN SEUL chemin de parole
+                # à la fois. Un agent a la main : la parole passe par lui (dans l'ordre de son
+                # texte). Personne n'a la main (attente d'une passation, ``selected_visit_id``
+                # vaut None) : route locale du pont, vers la voix de l'appel, sans réveiller
+                # l'agent source. Jamais les deux.
                 queue_frame = self.active_agent.queue_frame
+                if self._parole_locale is not None and self.selected_visit_id is None:
+                    queue_frame = self._parole_locale
                 frames.append(
                     TTSSpeakFrame(
                         text,
@@ -2960,6 +2975,7 @@ class PipecatEngine:
         """The only handoff commit point. No awaits and no provider work."""
         from api.services.workflow.agent_handoff_context import messages_after_boundary
 
+        self.mesure_passation.commise()  # [.mark] lot 3 : le commit de la passation
         tail = messages_after_boundary(self.context, snapshot.boundary)
         self.context.set_messages([*snapshot.messages, *tail])
         self.context.set_tools(runtime.tools)
@@ -3112,6 +3128,8 @@ class PipecatEngine:
 
     def record_transfer_outcome(self, record: dict) -> None:
         """Record how one handoff attempt ended, for the call's run record."""
+        # [.mark] Lot 3 : la mesure du premier octet, si la voix a deja parle.
+        self.mesure_passation.completer(record)
         self._transfer_outcomes.append(record)
         self._gathered_context["agent_transfers"] = list(self._transfer_outcomes)
 
@@ -3281,6 +3299,11 @@ class PipecatEngine:
     def set_audio_config(self, audio_config) -> None:
         """Set the audio configuration for the pipeline."""
         self._audio_config = audio_config
+
+    def set_parole_locale(self, queue_frame) -> None:
+        """[.mark] Lot 3 (D7) : la route locale de la parole dictée pendant l'attente d'une
+        passation (``AgentBridgeProcessor.dire_en_local``)."""
+        self._parole_locale = queue_frame
 
     def set_transport_output(self, transport_output) -> None:
         """Set the transport output processor for direct audio playback.

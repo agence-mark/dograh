@@ -76,9 +76,32 @@ class AgentBridgeProcessor(BusBridgeProcessor):
         super().__init__(**kwargs)
         self._selected_visit = selected_visit
         self._allow_inference = allow_inference
+        # [.mark] Lot 3 (D7) : identifiants des trames de parole que le CODE a posées ici,
+        # à dire par la voix de l'appel sans passer par un agent (voir ``dire_en_local``).
+        self._paroles_locales: set[int] = set()
+
+    async def dire_en_local(self, frame: Frame) -> None:
+        """[.mark] Lot 3 (D7) : fait dire ``frame`` (une phrase dictée par le code, ou la
+        frontière qui l'encadre) par la voix de l'APPEL, sans passer par aucun agent.
+
+        Sert pendant l'attente d'une passation (``selected_visit`` vaut None : le pont jette
+        tout ce qui vient d'un agent). Jamais utilisé quand un agent a la main : sa parole suit
+        alors son circuit, dans l'ordre du texte du modèle (un seul chemin à la fois). La trame
+        est posée dans la file d'entrée du pont, donc une interruption l'efface comme toute
+        parole en attente (rien n'est dit après)."""
+        self._paroles_locales.add(frame.id)
+        await self.queue_frame(frame, FrameDirection.DOWNSTREAM)
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await FrameProcessor.process_frame(self, frame, direction)
+        if isinstance(frame, InterruptionFrame):
+            # Les paroles locales encore en file sont effacées par l'interruption : leurs
+            # identifiants ne doivent pas rester (elles ne reviendront jamais).
+            self._paroles_locales.clear()
+        if frame.id in self._paroles_locales:
+            self._paroles_locales.discard(frame.id)
+            await self.push_frame(frame, direction)
+            return
         if isinstance(frame, CALL_FRAMES + TEED_FRAMES):
             await self.push_frame(frame, direction)
             if not isinstance(frame, TEED_FRAMES):

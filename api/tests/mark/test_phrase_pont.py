@@ -2,15 +2,15 @@
 
 Plan `Labo-agent-vocal/plans/agents-specialises/2026-10-16-plan-lot-schema-et-phrase-pont.md`.
 Réglage ``attente.phrase_pont`` (texte, vide = désactivée) et ``attente.delai_phrase_pont_s`` (défaut 2) :
-si la passation n'est pas commise après le délai, l'agent qui passe la main dit la phrase, une seule
-fois. Ces tests passent par le VRAI moteur et le VRAI coordinateur (le banc de passation fendu) ;
+si la passation n'est pas commise après le délai, la voix de l'APPEL dit la phrase, une seule
+fois (lot 3 d'orchestrateur-trois-cerveaux, D7 : l'agent qui passe la main n'est plus réactivé). Ces tests passent par le VRAI moteur et le VRAI coordinateur (le banc de passation fendu) ;
 seuls les modèles, la voix et la base sont remplacés. La préparation de l'agent appelé est ralentie
 pour que le délai puisse tomber pendant la passation.
 
 | Test | Ce qu'il prouve |
 |---|---|
 | réglages | défaut 2 s ; texte vide ou absent = désactivée ; valeur illisible = défaut |
-| dite après le délai | la phrase part de l'agent SOURCE, une seule fois ; le son d'attente se tait le temps de la phrase puis reprend |
+| dite après le délai | la phrase part de la voix de l'APPEL, une seule fois, sans réveiller l'agent source ; le son d'attente se tait le temps de la phrase puis reprend |
 | passation rapide | passation commise avant le délai : rien n'est dit, la tâche différée est annulée |
 | vide | aucune phrase, même si la passation dure |
 | principal chaud | retour vers le principal resté chaud (instantané) : rien n'est dit |
@@ -68,7 +68,11 @@ def _phrase_sans_fin(engine):
 
 
 def _phrases(harness) -> list[tuple[str, str]]:
-    return [(qui, texte) for qui, texte in harness.speech.lines if texte == PHRASE]
+    """Ce que la voix de l'APPEL a dit de la phrase pont (lot 3, D7 : plus la voix d'un agent).
+
+    Un agent qui la dirait (route d'avant la voix unique) apparaîtrait dans ``harness.speech.lines`` :
+    ``test_la_phrase_ne_passe_par_aucun_agent`` le garde."""
+    return [("appel", texte) for texte in harness.banc_voix.voix.received_texts if texte == PHRASE]
 
 
 async def _passation(reglages, *, lenteur: float, vers: int = 99, avant=None, **options):
@@ -110,7 +114,7 @@ def test_les_reglages_de_la_phrase_pont():
 
 
 @pytest.mark.asyncio
-async def test_la_phrase_est_dite_par_la_source_apres_le_delai_une_seule_fois(monkeypatch):
+async def test_la_phrase_est_dite_par_la_voix_de_l_appel_apres_le_delai_une_seule_fois(monkeypatch):
     sonneries = _sonnerie(monkeypatch)
     entendu: list[float] = []
 
@@ -131,9 +135,9 @@ async def test_la_phrase_est_dite_par_la_source_apres_le_delai_une_seule_fois(mo
     fin = asyncio.get_running_loop().time()
     try:
         assert resultat["outcome"] == "completed" and harness.engine.active_agent.workflow_id == 99
-        assert _phrases(harness) == [("source", PHRASE)]
-        # La phrase ARRIVE à l'appelant pendant la passation (l'agent d'origine est en attente et
-        # sa voix y est coupée : sans levée de l'attente, aucun son ne sortirait).
+        assert _phrases(harness) == [("appel", PHRASE)]
+        # La phrase ARRIVE à l'appelant pendant la passation (route locale du pont vers la voix de
+        # l'appel : l'agent d'origine est en attente et ne dit rien).
         assert entendu and entendu[0] < fin - 0.4, "la phrase n'a pas été entendue pendant l'attente"
         # Le son d'attente s'est tu pour la phrase, puis a repris jusqu'à la fin de la passation.
         assert len(sonneries) == 2
@@ -182,12 +186,12 @@ async def test_jamais_vers_le_principal_chaud(monkeypatch):
     )
     try:
         assert premier["outcome"] == "completed"
-        assert _phrases(harness) == [("source", PHRASE)]
+        assert _phrases(harness) == [("appel", PHRASE)]
         # Retour vers le principal resté chaud : la préparation reste lente, le délai tombe, rien n'est dit.
         with patch(PATCH_OUTILS, AsyncMock(return_value=[TransferAgentTool()])):
             assert (await _passer(harness, 1))["outcome"] == "completed"
         assert harness.engine.active_agent.workflow_id == 1
-        assert _phrases(harness) == [("source", PHRASE)], "phrase dite vers un agent déjà construit"
+        assert _phrases(harness) == [("appel", PHRASE)], "phrase dite vers un agent déjà construit"
     finally:
         await harness.stop()
 
@@ -232,7 +236,7 @@ async def test_sans_son_d_attente_la_phrase_est_dite_quand_meme(monkeypatch):
     )
     try:
         assert resultat["outcome"] == "completed"
-        assert _phrases(harness) == [("source", PHRASE)]
+        assert _phrases(harness) == [("appel", PHRASE)]
         assert sonneries == []
     finally:
         await harness.stop()
@@ -271,13 +275,12 @@ async def test_une_passation_invalidee_annule_la_phrase(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_la_source_reactivee_ne_lance_aucune_inference_pendant_la_phrase(monkeypatch):
-    """L'appelant parle pendant la phrase : le contexte que l'appel enverrait au modèle de la source
-    n'arrive jamais jusqu'à lui (``allow_inference``), et son cerveau est muet (``muter``). Contrôle :
-    avant la passation, le même contexte l'atteint (sinon le test ne prouverait rien)."""
+async def test_la_phrase_ne_passe_par_aucun_agent_et_la_source_reste_en_attente(monkeypatch):
+    """Lot 3 (D7) : la source n'est ni réactivée, ni rendue muette, ni sollicitée pour la phrase.
+    Pendant qu'elle se dit, l'appelant parle : le contexte que l'appel enverrait au modèle de la
+    source n'arrive jamais jusqu'à lui. Contrôle : avant la passation, le même contexte l'atteint
+    (sinon le test ne prouverait rien)."""
     from pipecat.frames.frames import LLMContextFrame
-
-    from api.services.pipecat.main_passee import ATTRIBUT
 
     _sonnerie(monkeypatch)
     harness = await _monter_groupe(
@@ -301,14 +304,22 @@ async def test_la_source_reactivee_ne_lance_aucune_inference_pendant_la_phrase(m
         assert recus, "l'espion ne voit pas le contexte : le test ne prouverait rien"
         recus.clear()
 
+        activations: list[str] = []
+        activer = engine.activate_agent
+
+        async def activation_espionnee(runtime, **kwargs):
+            activations.append(runtime.visit_id)
+            return await activer(runtime, **kwargs)
+
+        engine.activate_agent = activation_espionnee
         _ralentir_la_preparation(harness, 1.2)
         pendant_la_phrase: dict = {}
         queue_speech = engine.queue_speech
 
         async def phrase_espionnee(*args, **kwargs):
             if args and args[0] == PHRASE:  # pas l'ouverture de l'agent appelé, plus tard
-                pendant_la_phrase["muet"] = getattr(source.llm, ATTRIBUT, False)
                 pendant_la_phrase["actif"] = source.worker.active
+                pendant_la_phrase["selection"] = engine.selected_visit_id
                 # L'appelant a parlé : le contexte part vers le modèle de la source.
                 await harness.call_worker.queue_frame(LLMContextFrame(engine.context))
             return await queue_speech(*args, **kwargs)
@@ -316,9 +327,13 @@ async def test_la_source_reactivee_ne_lance_aucune_inference_pendant_la_phrase(m
         engine.queue_speech = phrase_espionnee
         with patch(PATCH_OUTILS, AsyncMock(return_value=[TransferAgentTool()])):
             assert (await _passer(harness, 99))["outcome"] == "completed"
-        assert pendant_la_phrase == {"muet": True, "actif": True}
+        assert pendant_la_phrase == {"actif": False, "selection": None}
         assert recus == [], "le modèle de la source a reçu un contexte pendant la passation"
-        assert _phrases(harness) == [("source", PHRASE)]
+        assert _phrases(harness) == [("appel", PHRASE)]
+        # Aucun agent n'a dit la phrase : ni la source, ni la destination (queue_frame d'un agent).
+        assert [texte for _, texte in harness.speech.lines if texte == PHRASE] == []
+        # La source n'a jamais été réactivée pour elle (seule la destination s'active).
+        assert source.visit_id not in activations
     finally:
         await harness.stop()
 
@@ -343,7 +358,7 @@ async def test_une_passation_qui_echoue_pendant_la_phrase_rend_l_appel_a_la_sour
         with patch(PATCH_OUTILS, AsyncMock(return_value=[TransferAgentTool()])):
             resultat = await _passer(harness, 99)
         assert resultat["outcome"] == "test_echec"
-        assert _phrases(harness) == [("source", PHRASE)]
+        assert _phrases(harness) == [("appel", PHRASE)]
         # La source garde l'appel, active, hors attente ; plus de tâche ni de son d'attente.
         assert engine.active_agent is source and source.worker.active
         assert engine.selected_visit_id == source.visit_id
