@@ -21,7 +21,7 @@ sys.path.insert(0, str(RACINE))
 from api.services.configuration.registry import REGISTRY, ServiceType  # noqa: E402
 
 FOURNISSEURS = {
-    "llm": (ServiceType.LLM, ["mistral"]),
+    "llm": (ServiceType.LLM, ["mistral", "openai"]),
     "tts": (ServiceType.TTS, ["elevenlabs"]),
     "stt": (ServiceType.STT, ["deepgram", "soniox"]),
 }

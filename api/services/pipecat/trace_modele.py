@@ -81,6 +81,12 @@ def _en_clair(valeur: Any) -> Any:
     return repr(valeur)
 
 
+def _est_un_evenement_responses(morceau: Any) -> bool:
+    """Un événement de l'API Responses (``response.…``), pas un morceau de chat completions."""
+    type_ = getattr(morceau, "type", None)
+    return isinstance(type_, str) and type_.startswith("response.")
+
+
 class TraceDuModele:
     """La trace d'UN appel : une entrée par réponse demandée au cerveau."""
 
@@ -129,6 +135,10 @@ class TraceDuModele:
     def morceau(self, entree: dict, morceau: Any, depart: float) -> None:
         try:
             note: dict = {"ms": round((time.monotonic() - depart) * 1000)}
+            if _est_un_evenement_responses(morceau):
+                self._evenement_responses(entree, note, morceau)
+                entree["morceaux"].append(note)
+                return
             choix = getattr(morceau, "choices", None) or []
             if choix:
                 delta = getattr(choix[0], "delta", None)
@@ -151,6 +161,31 @@ class TraceDuModele:
             entree["morceaux"].append(note)
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[trace] morceau du modèle non tracé : {erreur!r}")
+
+    @staticmethod
+    def _evenement_responses(entree: dict, note: dict, evenement: Any) -> None:
+        """Lot 1 d'orchestrateur-trois-cerveaux : un événement de l'API Responses, noté avec les
+        mêmes clés que le morceau de chat completions (texte, raisonnement, outils, fin, jetons)."""
+        type_ = getattr(evenement, "type", "")
+        if type_ == "response.output_text.delta" and getattr(evenement, "delta", None):
+            note["texte"] = evenement.delta
+        elif type_ == "response.reasoning_text.delta" and getattr(evenement, "delta", None):
+            note["raisonnement"] = evenement.delta
+        elif type_ == "response.output_item.added":
+            item = getattr(evenement, "item", None)
+            if getattr(item, "type", None) == "function_call":
+                note["outils"] = [{"name": getattr(item, "name", None)}]
+        elif type_ == "response.function_call_arguments.done":
+            note["outils"] = [
+                {"name": getattr(evenement, "name", None), "arguments": getattr(evenement, "arguments", None)}
+            ]
+        elif type_ == "response.completed":
+            reponse = getattr(evenement, "response", None)
+            note["finish_reason"] = getattr(reponse, "status", None) or "completed"
+            usage = getattr(reponse, "usage", None)
+            if usage:
+                entree["usage"] = _en_clair(usage)
+                note["usage"] = True
 
     # --- Côté lecteur de portes ----------------------------------------------
 

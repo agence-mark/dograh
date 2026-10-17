@@ -3893,16 +3893,19 @@ def montrer_la_fiche(
         params = construire(params_from_context)
         if en_conversation.get():
             try:
+                # Lot 1 d'orchestrateur-trois-cerveaux : l'API Responses range la conversation
+                # dans ``input`` (mêmes éléments rôle + contenu) ; chat completions, dans ``messages``.
+                cle = "messages" if "messages" in params else "input"
                 texte = etat_avec_les_indices(
                     reglages,
                     fiche(),
                     notices,
-                    params["messages"],
+                    params[cle],
                     champs_etape() if champs_etape else (),
                     a_des_portes() if a_des_portes else True,
                 )
                 if texte:
-                    params["messages"] = inserer_l_etat(list(params["messages"]), texte)
+                    params[cle] = inserer_l_etat(list(params[cle]), texte)
             except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais l'appel
                 logger.error(f"[fiche] état non montré : {erreur}")
         return params

@@ -390,6 +390,8 @@ ECRAN_OPENAI_LLM: EcranMark = {
     "base_url": ("technique", "Base URL", "Adresse du service"),
     "seed": ("technique", "Seed", "Graine"),
     "prompt_cache": ("technique", "Prompt cache key", "Clé de cache du prompt"),
+    # [.mark] Chantier orchestrateur-trois-cerveaux, lot 1 : chat completions or Responses.
+    "api": ("technique", "API", "Type d'API"),
 }
 ECRAN_ELEVENLABS_TTS: EcranMark = {
     "voice": ("voix", "Voice", "Voix"),
@@ -557,11 +559,30 @@ class OpenAILLMService(BaseLLMConfiguration):
     model: str = Field(
         default="gpt-4.1",
         description="OpenAI chat model to use.",
-        json_schema_extra={"examples": OPENAI_MODELS, "allow_custom_input": True},
+        # [.mark] Lot 1 d'orchestrateur-trois-cerveaux: gpt-oss-120b at Scaleway, whose tools
+        # only travel through the Responses API (``api`` below).
+        json_schema_extra={
+            "examples": OPENAI_MODELS + ["openai/gpt-oss-120b:fp4"],
+            "allow_custom_input": True,
+        },
     )
     base_url: str = Field(
         default="https://api.openai.com/v1",
         description="Override only if using an OpenAI-compatible API (e.g. local LLM, proxy).",
+    )
+    # [.mark] Chantier orchestrateur-trois-cerveaux, lot 1 (D11, D19): which API of the provider
+    # the model is reached through. ``chat_completions`` is what this provider has always used
+    # and stays the default, byte for byte. ``responses`` is the newer API (``POST <base_url>/responses``):
+    # at Scaleway it is the only one that carries tools for gpt-oss-120b. It acts on every
+    # brain built from this configuration (conversation, scribe, background work).
+    api: Literal["chat_completions", "responses"] = Field(
+        default="chat_completions",
+        description=(
+            "Which API of the provider the model is called through. 'chat_completions' "
+            "is the usual one and the default. 'responses' is the provider's newer API: "
+            "choose it for a model whose tools only work there (gpt-oss-120b at Scaleway). "
+            "Everything else stays the same."
+        ),
     )
     # [.mark] Chantier agent-leger-greffier, lot C (B7, B9) : the settings an
     # OpenAI-compatible model (Scaleway first) actually receives. Each one is a

@@ -276,9 +276,12 @@ RAISONS_DU_REFUS = {
 def _jetons(usage: Any) -> dict:
     if usage is None:
         return {}
+    # Chat completions compte « prompt » et « completion » ; l'API Responses, « input » et « output ».
+    entree = getattr(usage, "prompt_tokens", None)
+    sortie = getattr(usage, "completion_tokens", None)
     return {
-        "jetons_entree": getattr(usage, "prompt_tokens", None),
-        "jetons_sortie": getattr(usage, "completion_tokens", None),
+        "jetons_entree": entree if entree is not None else getattr(usage, "input_tokens", None),
+        "jetons_sortie": sortie if sortie is not None else getattr(usage, "output_tokens", None),
     }
 
 
@@ -289,6 +292,17 @@ async def interroger(
     du fournisseur et les paramètres du service (``run_inference`` de Pipecat ne
     rend ni le format JSON ni les jetons) ; sans ce client : ``run_inference``."""
     contexte = LLMContext(messages=[{"role": "user", "content": message}])
+    if getattr(service, "mark_api", None) == "responses":
+        # Lot 1 d'orchestrateur-trois-cerveaux : le greffier réglé sur l'API Responses. Même
+        # requête, sans flux, en JSON ; le format garanti du lot 5 bis viendra par ``text.format``.
+        invocation = service.get_llm_adapter().get_llm_invocation_params(
+            contexte, system_instruction=systeme
+        )
+        params = service.build_chat_completion_params(invocation)
+        params["stream"] = False
+        params["text"] = {"format": {"type": "json_object"}}
+        reponse = await service._client.responses.create(**params)
+        return reponse.output_text, _jetons(getattr(reponse, "usage", None))
     if hasattr(service, "build_chat_completion_params") and hasattr(service, "_client"):
         adaptateur = service.get_llm_adapter()
         invocation = adaptateur.get_llm_invocation_params(

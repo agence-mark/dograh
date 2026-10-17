@@ -1,0 +1,314 @@
+{
+ "date": "2026-10-17 11:57",
+ "url": "https://api.scaleway.ai/v1/responses",
+ "modele": "openai/gpt-oss-120b:fp4",
+ "cle": "<masquée>",
+ "sans_outil": {
+  "statut": 200,
+  "duree_s": 0.48,
+  "reponse": {
+   "background": false,
+   "created_at": 1792231075,
+   "frequency_penalty": 0.0,
+   "id": "decc8a80-7fbd-48d7-8308-5c6a873d6873",
+   "incomplete_details": null,
+   "input_messages": null,
+   "instructions": null,
+   "max_output_tokens": 32768,
+   "max_tool_calls": null,
+   "metadata": null,
+   "model": "gpt-oss-120b",
+   "object": "response",
+   "output": [
+    {
+     "id": "rs_b61e519a691ff195",
+     "summary": [],
+     "type": "reasoning",
+     "content": [
+      {
+       "text": "Need one sentence answer in French.",
+       "type": "reasoning_text"
+      }
+     ],
+     "encrypted_content": null,
+     "status": null
+    },
+    {
+     "id": "msg_b72e3651d0ec5ae2",
+     "content": [
+      {
+       "annotations": [],
+       "text": "Paris est la capitale de la France.",
+       "type": "output_text",
+       "logprobs": null
+      }
+     ],
+     "role": "assistant",
+     "status": "completed",
+     "type": "message",
+     "phase": null
+    }
+   ],
+   "output_messages": null,
+   "parallel_tool_calls": true,
+   "presence_penalty": 0.0,
+   "previous_response_id": null,
+   "prompt": null,
+   "reasoning": {
+    "context": null,
+    "effort": "low",
+    "generate_summary": null,
+    "mode": null,
+    "summary": null
+   },
+   "service_tier": "auto",
+   "status": "completed",
+   "temperature": 1.0,
+   "text": null,
+   "tool_choice": "none",
+   "tools": [],
+   "top_logprobs": null,
+   "top_p": 1.0,
+   "truncation": "disabled",
+   "usage": {
+    "input_tokens": 82,
+    "input_tokens_details": {
+     "cached_tokens": 0,
+     "input_tokens_per_turn": [
+      82
+     ],
+     "cached_tokens_per_turn": [
+      0
+     ]
+    },
+    "output_tokens": 25,
+    "output_tokens_details": {
+     "reasoning_tokens": 8,
+     "tool_output_tokens": 0,
+     "output_tokens_per_turn": [
+      25
+     ],
+     "tool_output_tokens_per_turn": [
+      0
+     ]
+    },
+    "total_tokens": 107
+   },
+   "user": null
+  }
+ },
+ "avec_outil": {
+  "statut": 200,
+  "duree_s": 0.5,
+  "reponse": {
+   "background": false,
+   "created_at": 1792231076,
+   "frequency_penalty": 0.0,
+   "id": "acad9fbe-ef0e-46a1-9f35-a702f4d2e9f0",
+   "incomplete_details": null,
+   "input_messages": null,
+   "instructions": null,
+   "max_output_tokens": 32768,
+   "max_tool_calls": null,
+   "metadata": null,
+   "model": "gpt-oss-120b",
+   "object": "response",
+   "output": [
+    {
+     "id": "rs_bde9f96b3eac69a6",
+     "summary": [],
+     "type": "reasoning",
+     "content": [
+      {
+       "text": "We need to call function.",
+       "type": "reasoning_text"
+      }
+     ],
+     "encrypted_content": null,
+     "status": null
+    },
+    {
+     "arguments": "{\n  \"ville\": \"Beauvais\"\n}",
+     "call_id": "call_bb1882dc62456522",
+     "name": "meteo_du_jour",
+     "type": "function_call",
+     "id": "fc_bb1882dc62456522",
+     "caller": null,
+     "namespace": null,
+     "status": "completed"
+    }
+   ],
+   "output_messages": null,
+   "parallel_tool_calls": true,
+   "presence_penalty": 0.0,
+   "previous_response_id": null,
+   "prompt": null,
+   "reasoning": {
+    "context": null,
+    "effort": "low",
+    "generate_summary": null,
+    "mode": null,
+    "summary": null
+   },
+   "service_tier": "auto",
+   "status": "completed",
+   "temperature": 1.0,
+   "text": null,
+   "tool_choice": "auto",
+   "tools": [
+    {
+     "name": "meteo_du_jour",
+     "parameters": {
+      "additionalProperties": false,
+      "properties": {
+       "ville": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "ville"
+      ],
+      "type": "object"
+     },
+     "strict": null,
+     "type": "function",
+     "allowed_callers": null,
+     "defer_loading": null,
+     "description": "Donne la météo d'une ville.",
+     "output_schema": null
+    }
+   ],
+   "top_logprobs": null,
+   "top_p": 1.0,
+   "truncation": "disabled",
+   "usage": {
+    "input_tokens": 138,
+    "input_tokens_details": {
+     "cached_tokens": 0,
+     "input_tokens_per_turn": [
+      138
+     ],
+     "cached_tokens_per_turn": [
+      0
+     ]
+    },
+    "output_tokens": 40,
+    "output_tokens_details": {
+     "reasoning_tokens": 19,
+     "tool_output_tokens": 0,
+     "output_tokens_per_turn": [
+      40
+     ],
+     "tool_output_tokens_per_turn": [
+      0
+     ]
+    },
+    "total_tokens": 178
+   },
+   "user": null
+  }
+ },
+ "resultat_relance": {
+  "statut": 200,
+  "duree_s": 0.37,
+  "reponse": {
+   "background": false,
+   "created_at": 1792231076,
+   "frequency_penalty": 0.0,
+   "id": "adaf59e6-9dec-4731-ba34-ec8ec1fca4e9",
+   "incomplete_details": null,
+   "input_messages": null,
+   "instructions": null,
+   "max_output_tokens": 32768,
+   "max_tool_calls": null,
+   "metadata": null,
+   "model": "gpt-oss-120b",
+   "object": "response",
+   "output": [
+    {
+     "id": "msg_bb90ef3332722c74",
+     "content": [
+      {
+       "annotations": [],
+       "text": "À Beauvais, le ciel est nuageux et la température est d’environ 12 °C.",
+       "type": "output_text",
+       "logprobs": null
+      }
+     ],
+     "role": "assistant",
+     "status": "completed",
+     "type": "message",
+     "phase": null
+    }
+   ],
+   "output_messages": null,
+   "parallel_tool_calls": true,
+   "presence_penalty": 0.0,
+   "previous_response_id": null,
+   "prompt": null,
+   "reasoning": {
+    "context": null,
+    "effort": "low",
+    "generate_summary": null,
+    "mode": null,
+    "summary": null
+   },
+   "service_tier": "auto",
+   "status": "completed",
+   "temperature": 1.0,
+   "text": null,
+   "tool_choice": "auto",
+   "tools": [
+    {
+     "name": "meteo_du_jour",
+     "parameters": {
+      "additionalProperties": false,
+      "properties": {
+       "ville": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "ville"
+      ],
+      "type": "object"
+     },
+     "strict": null,
+     "type": "function",
+     "allowed_callers": null,
+     "defer_loading": null,
+     "description": "Donne la météo d'une ville.",
+     "output_schema": null
+    }
+   ],
+   "top_logprobs": null,
+   "top_p": 1.0,
+   "truncation": "disabled",
+   "usage": {
+    "input_tokens": 209,
+    "input_tokens_details": {
+     "cached_tokens": 0,
+     "input_tokens_per_turn": [
+      209
+     ],
+     "cached_tokens_per_turn": [
+      0
+     ]
+    },
+    "output_tokens": 26,
+    "output_tokens_details": {
+     "reasoning_tokens": 0,
+     "tool_output_tokens": 0,
+     "output_tokens_per_turn": [
+      26
+     ],
+     "tool_output_tokens_per_turn": [
+      0
+     ]
+    },
+    "total_tokens": 235
+   },
+   "user": null
+  }
+ }
+}
