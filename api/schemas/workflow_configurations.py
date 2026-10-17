@@ -60,11 +60,14 @@ def _valider_reglages_du_fournisseur(
             ) from None
 
 
-def _bloc_de_modele_valide(value: dict | None, bloc_nom: str) -> dict | None:  # noqa: C901
+def _bloc_de_modele_valide(
+    value: dict | None, bloc_nom: str, booleens_en_plus: tuple[str, ...] = ()
+) -> dict | None:  # noqa: C901
     """[.mark] Un bloc de modèle au format d'une surcharge (``greffier_llm``, et depuis le lot 4
     d'orchestrateur-trois-cerveaux ``travail_llm``) : les champs de texte restent du texte, donc un
     mauvais enregistrement est refusé (422) plutôt que lu comme un cerveau inutilisable pendant
-    l'appel."""
+    l'appel. ``booleens_en_plus`` : des cases du bloc qui ne sont pas des réglages du fournisseur
+    (lot 5 bis : ``format_garanti`` du greffier), vraies ou fausses, jamais autre chose."""
     if value is None:
         return None
     # Revue du 04/10 : seulement ce que la modale montre (un réglage se voit
@@ -75,15 +78,22 @@ def _bloc_de_modele_valide(value: dict | None, bloc_nom: str) -> dict | None:  #
     # Sans fournisseur nommé, seuls les quatre de toujours.
     base = {"provider", "model", "temperature", "api_key"}
     classe = _classe_llm(value.get("provider"))
-    permis = base | (set(classe.model_fields) if classe is not None else set())
+    permis = base | set(booleens_en_plus) | (
+        set(classe.model_fields) if classe is not None else set()
+    )
     inconnues = sorted(set(value) - permis)
     if inconnues:
         raise ValueError(
             f"{bloc_nom} accepts provider, model, temperature, api_key and the "
             f"settings of the provider it names, not {', '.join(inconnues)}"
         )
+    for cle in booleens_en_plus:
+        if cle in value and value[cle] is not None and not isinstance(value[cle], bool):
+            raise ValueError(f"{bloc_nom}.{cle} must be true or false")
     if classe is not None:
-        _valider_reglages_du_fournisseur(classe, value, base, bloc_nom)
+        _valider_reglages_du_fournisseur(
+            classe, value, base | set(booleens_en_plus), bloc_nom
+        )
     for cle in ("provider", "model", "api_key"):
         if cle in value and value[cle] is not None and not isinstance(value[cle], str):
             raise ValueError(f"{bloc_nom}.{cle} must be text")
@@ -1231,7 +1241,7 @@ class WorkflowConfigurationDefaults(BaseModel):
         """[.mark] The clerk's model block, the shape of a model override: text
         fields stay text, so a bad save is refused (422) rather than read as
         an unusable clerk at call time."""
-        return _bloc_de_modele_valide(value, "greffier_llm")
+        return _bloc_de_modele_valide(value, "greffier_llm", ("format_garanti",))
 
     @field_validator("travail_llm")
     @classmethod

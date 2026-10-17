@@ -69,6 +69,7 @@ from api.services.pipecat.etat_ouverture import (
 from api.services.pipecat.lecture_appelant import _question_avant, lire_message_tape
 from api.services.pipecat.pipeline_builder import create_pipeline_task
 from api.services.pipecat.greffier import (
+    format_garanti_du_bloc as format_garanti_du_greffier,
     greffier_du_moteur,
     preparer_le_greffier,
     resoudre_le_bloc_du_greffier,
@@ -1089,7 +1090,10 @@ async def execute_text_chat_pending_turn(
         # like the phone (C8), right after the model, so what is captured, shown and
         # kept in memory is what the voice would have said. None outside that mode.
         post_scriptum = post_scriptum_du_moteur(engine) or greffier_du_moteur(
-            engine, service_greffier, run_configs.get("greffier_consigne")
+            engine,
+            service_greffier,
+            run_configs.get("greffier_consigne"),
+            format_garanti_du_greffier(run_configs),
         )
         pipeline = Pipeline(
             [

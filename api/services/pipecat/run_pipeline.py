@@ -100,6 +100,7 @@ from api.services.groupe.mesure_passation import ObservateurPremierOctet
 from api.services.groupe.prechauffage import Precharge
 from api.services.groupe.reglages_passation import prechauffage_actif
 from api.services.pipecat.greffier import (
+    format_garanti_du_bloc as format_garanti_du_greffier,
     greffier_du_moteur,
     preparer_le_greffier,
     resoudre_le_bloc_du_greffier,
@@ -1872,7 +1873,10 @@ async def _run_pipeline_impl(
         # du greffier, sur l'agent qui porte la fiche (le premier), seulement
         # dans leur mode (le slot reçoit le processeur de prise de notes).
         agent.post_scriptum = post_scriptum_du_moteur(engine) or greffier_du_moteur(
-            engine, service_greffier, run_configs.get("greffier_consigne")
+            engine,
+            service_greffier,
+            run_configs.get("greffier_consigne"),
+            format_garanti_du_greffier(run_configs),
         )
         # [.mark] Chantier agents-specialises (lot 2) : les réglages du premier agent
         # (groupe, plafond de passations), et ceux qui règlent l'appel.
