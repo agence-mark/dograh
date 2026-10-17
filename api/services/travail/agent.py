@@ -77,6 +77,8 @@ DESCRIPTION_DEMANDE = (
 
 Executeur = Callable[["TravailDeLAgent", str], Awaitable[str]]
 Remise = Callable[[Any, str], Awaitable[bool]]
+# Refait le service du fond pour un worker neuf : un service ne sert qu'à un seul worker.
+Fabrique = Callable[[], Awaitable[Any]]
 
 
 def schema_de_l_outil() -> FunctionSchema:
@@ -118,6 +120,7 @@ class TravailDeLAgent:
         service: Any,
         executeur: Executeur = executer_par_l_appel,
         remise: Remise = remettre_le_resultat,
+        refaire_le_service: Fabrique | None = None,
     ):
         self.moteur = moteur
         self.agent = agent
@@ -125,6 +128,7 @@ class TravailDeLAgent:
         self.service = service
         self._executeur = executeur
         self._remise = remise
+        self._refaire_le_service = refaire_le_service
         self._tache: asyncio.Task | None = None
         self._entree_courante: dict | None = None
         self._debut_courant = 0.0
@@ -137,10 +141,20 @@ class TravailDeLAgent:
         self._jetons = [0, 0]
         self._outils_appeles: list[str] = []
         self._verser = versement_du_cout(moteur, NOM_DU_COUT, service)
-        self.worker = WorkerDeFond(
-            llm=service,
-            nom=nom_du_worker(getattr(agent, "visit_id", "") or "agent"),
-            consigne=reglages.consigne,
+        # Un travail non abouti (délai, échec, annulation) peut laisser le worker au milieu d'une
+        # requête ou d'un outil : sa fin tardive irait au travail suivant. Le worker est alors
+        # remplacé par un neuf (contexte vierge, nouveau nom) au travail suivant.
+        self._generation = 0
+        self._a_remplacer = False
+        self._fermeture_differee: asyncio.Task | None = None
+        self.worker = self._nouveau_worker()
+
+    def _nouveau_worker(self) -> WorkerDeFond:
+        nom = nom_du_worker(getattr(self.agent, "visit_id", "") or "agent")
+        return WorkerDeFond(
+            llm=self.service,
+            nom=f"{nom}-{self._generation}" if self._generation else nom,
+            consigne=self.reglages.consigne,
             jetons=self._compter,
             outil=self._noter_l_outil,
         )
@@ -163,6 +177,8 @@ class TravailDeLAgent:
                 return dict(RETOUR_INDISPONIBLE)
             if self.occupe:
                 return dict(RETOUR_DEJA_EN_COURS)
+            if self._a_remplacer and not await self._remplacer_le_worker():
+                return dict(RETOUR_INDISPONIBLE)
             if self._enfant_de_l_appel and not self._attache:
                 logger.warning("[travail] worker de fond pas attaché à l'appel")
                 return dict(RETOUR_INDISPONIBLE)
@@ -199,6 +215,57 @@ class TravailDeLAgent:
             logger.error(f"[travail] worker de fond non attaché : {type(erreur).__name__}")
             return False
 
+    async def _remplacer_le_worker(self) -> bool:
+        """Arrête le worker d'un travail non abouti et en monte un neuf (attaché à l'appel au
+        téléphone). ``False`` si le neuf n'a pas pu être attaché. Ne lève jamais."""
+        ancien = self.worker
+        self._a_remplacer = False
+        if self._refaire_le_service is not None:
+            try:
+                service = await self._refaire_le_service()
+            except Exception as erreur:  # noqa: BLE001
+                logger.error(f"[travail] service du fond non refait : {type(erreur).__name__}")
+                service = None
+            if service is None:
+                self._a_remplacer = True
+                return False
+            self.service = service
+            self._verser = versement_du_cout(self.moteur, NOM_DU_COUT, service)
+        self._generation += 1
+        self._outils_prets = False
+        self._attache = False
+        self.worker = self._nouveau_worker()
+        try:
+            if not ancien.has_finished():
+                await ancien.cancel(reason="replaced after an unfinished job")
+        except Exception as erreur:  # noqa: BLE001 -- l'ancien ne retient jamais le neuf
+            logger.warning(f"[travail] ancien worker de fond non arrêté : {type(erreur).__name__}")
+        logger.info(f"[travail] worker de fond remplacé : {self.worker.name}")
+        if self._enfant_de_l_appel:
+            return await self.attacher()
+        return True
+
+    def apres_le_travail(self, fermeture: Callable[[], Awaitable[None]]) -> bool:
+        """L'agent se retire pendant un travail : ``fermeture`` (ses sessions d'outils, MCP
+        compris) attend la fin de ce travail, qui s'en sert encore, puis le fond s'arrête.
+        ``False`` s'il n'y a aucun travail en cours (l'appelant ferme tout de suite)."""
+        tache = self._tache
+        if tache is None or tache.done():
+            return False
+
+        async def fermer_apres() -> None:
+            await asyncio.gather(tache, return_exceptions=True)
+            try:
+                await fermeture()
+            except Exception as erreur:  # noqa: BLE001
+                logger.warning(f"[travail] fermeture différée : {type(erreur).__name__}")
+            await self.fermer()
+
+        self._fermeture_differee = asyncio.get_running_loop().create_task(
+            fermer_apres(), name=f"fermeture:{self.worker.name}"
+        )
+        return True
+
     async def attendre(self, delai_s: float | None = None) -> None:
         """Attend la fin du travail en cours (le clavier, qui finit son tour). Ne lève jamais."""
         tache = self._tache
@@ -231,6 +298,9 @@ class TravailDeLAgent:
                     self._fermer_la_trace(entree, STATUT_ANNULE, self._debut_courant)
             if not self.worker.has_finished():
                 await self.worker.cancel(reason="agent retired")
+            differee = self._fermeture_differee
+            if forcer and differee is not None and differee is not asyncio.current_task():
+                await asyncio.gather(differee, return_exceptions=True)
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[travail] fermeture du fond : {type(erreur).__name__}")
 
@@ -306,6 +376,7 @@ class TravailDeLAgent:
             if not texte:
                 statut = STATUT_VIDE
         except asyncio.CancelledError:
+            self._a_remplacer = True
             self._fermer_la_trace(entree, STATUT_ANNULE, debut)
             raise
         except Exception as erreur:  # noqa: BLE001 -- le résultat dit l'échec
@@ -314,6 +385,7 @@ class TravailDeLAgent:
                 isinstance(erreur, TimeoutError) or "timed out" in enclair or "timeout" in enclair
             )
             statut = STATUT_DELAI if delai else STATUT_ECHEC
+            self._a_remplacer = True
             logger.warning(f"[travail] travail non abouti ({statut}) : {type(erreur).__name__}")
         message = message_du_resultat(
             texte
@@ -369,13 +441,20 @@ async def preparer_le_travail(
             return None
         organisation = await moteur._get_organization_id()
         fabrique = getattr(moteur, "_agent_factory", None)
-        reglages, service = await preparer_le_service_du_travail(
-            reglages_agent,
-            configuration,
-            organisation,
-            getattr(agent, "runtime_configuration", None),
-            correlation_id=getattr(fabrique, "_mps_correlation_id", None),
-        )
+
+        async def preparer():
+            return await preparer_le_service_du_travail(
+                reglages_agent,
+                configuration,
+                organisation,
+                getattr(agent, "runtime_configuration", None),
+                correlation_id=getattr(fabrique, "_mps_correlation_id", None),
+            )
+
+        async def refaire_le_service():
+            return (await preparer())[1]
+
+        reglages, service = await preparer()
         if reglages is None or service is None:
             return None
         if executeur is None and getattr(moteur, "sans_sortie_audio", False):
@@ -392,6 +471,7 @@ async def preparer_le_travail(
             service=service,
             executeur=executeur or executer_par_l_appel,
             remise=remise or remettre_le_resultat,
+            refaire_le_service=refaire_le_service,
         )
         agent.travail = travail
         moteur.travaux.append(travail)

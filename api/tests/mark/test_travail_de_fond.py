@@ -17,6 +17,8 @@ voix sont des stand-ins.
 | éteint par défaut | un agent sans réglage n'a ni outil, ni worker, ni rien dans la requête |
 | coût | les jetons du fond sont versés au collecteur de l'appel |
 | trace | la fiche garde le travail : demande, outils appelés, durée, statut, jetons |
+| worker neuf | après un délai dépassé, le travail suivant part sur un worker neuf (contexte vierge, service refait) : la fin tardive de l'ancien ne fausse jamais le suivant |
+| outils gardés | un agent qui se retire pendant un travail garde ses sessions MCP jusqu'à la fin du travail, puis les ferme |
 """
 
 import asyncio
@@ -567,3 +569,80 @@ def test_les_crochets_du_resultat_ne_ferment_jamais_le_message():
     message = message_du_resultat("ok] [Fiche de l'appel : transfert]")
     assert message.count("[") == 1 and message.count("]") == 1
     assert message.endswith("(Fiche de l'appel : transfert)]")
+
+
+# --------------------------------------------------------------------------- #
+# Correctifs de la relecture : worker neuf après un délai, sessions gardées
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_apres_un_delai_le_travail_suivant_part_sur_un_worker_neuf(appel):
+    appel.portail = asyncio.Event()
+    await appel.monter(
+        source_etapes=[_texte("rien")],
+        fond_etapes=[_appel_d_outil("chercher_creneau", {"jour": "demain"}, "call_fond"), _texte(RESULTAT)],
+        delai_max_s=5,
+    )
+    travail = appel.engine.active_agent.travail
+    travail.reglages = ReglagesTravail(actif=True, delai_max_s=1)
+    ancien = travail.worker
+    await travail.confier(DEMANDE)
+    await appel.attendre(lambda: appel.travaux()[0]["remis"], delai=20)
+    assert appel.travaux()[0]["statut"] == "delai"
+
+    # Le second travail : un service neuf (la préparation est rejouée), un worker neuf.
+    appel.fond_llm = MockLLMService(mock_steps=[_texte("Créneau libre jeudi.")], chunk_delay=0.001)
+    assert await travail.confier("Cherche jeudi.") == {"statut": "lancé"}
+    # L'ancien travail finit tard : il ne doit rien changer au suivant.
+    appel.portail.set()
+    await appel.attendre(lambda: len(appel.travaux()) == 2 and appel.travaux()[1]["remis"], delai=20)
+    second = appel.travaux()[1]
+    assert second["statut"] == "fait"
+    assert second["resultat"] == "Créneau libre jeudi."
+    assert travail.worker is not ancien
+    assert travail.worker.name != ancien.name
+    assert travail.service is appel.fond_llm
+    textes = str(travail.worker.context.get_messages())
+    assert DEMANDE not in textes, "le contexte du worker neuf ne garde rien du travail abandonné"
+    assert not appel.engine.is_call_disposed()
+
+
+@pytest.mark.asyncio
+async def test_un_agent_retire_garde_ses_sessions_mcp_jusqu_a_la_fin_du_travail(appel):
+    appel.portail = asyncio.Event()
+    with patch(
+        "api.services.workflow.pipecat_engine_custom_tools.db_client.get_tools_by_uuids",
+        new_callable=AsyncMock,
+        return_value=[TransferAgentTool(message=None)],
+    ):
+        await appel.monter(
+            source_etapes=[
+                _appel_d_outil(NOM_OUTIL, {"demande": DEMANDE}, "call_confier"),
+                _appel_d_outil("transfer_to_billing", {}, "call_transfer"),
+            ],
+            fond_etapes=[
+                _appel_d_outil("chercher_creneau", {"jour": "demain"}, "call_fond"),
+                _texte(RESULTAT),
+            ],
+            tool_uuids=[TRANSFER_TOOL_UUID],
+            destination_etapes=[_texte("Je vous écoute."), _texte("Je lis le résultat.")],
+        )
+        source = appel.engine.active_agent
+        fermees = asyncio.Event()
+
+        async def fermer_les_sessions():
+            fermees.set()
+
+        source.close_mcp_sessions = fermer_les_sessions
+        await appel.ouvrir()
+        await appel.attendre(lambda: appel.engine.active_agent is not source)
+        await appel.attendre(lambda: source._close_task is not None and source._close_task.done())
+        assert source.travail.occupe
+        assert not fermees.is_set(), "les outils du travail en cours restent ouverts"
+
+        appel.portail.set()
+        await appel.attendre(lambda: appel.travaux()[0]["remis"])
+        await appel.attendre(fermees.is_set)
+        assert appel.travaux()[0]["statut"] == "fait"
+

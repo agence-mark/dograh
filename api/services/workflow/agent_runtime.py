@@ -263,11 +263,17 @@ class AgentRuntime:
                     logger.warning(f"Agent {self.visit_id} did not finish; cancelling")
                     await self.worker.cancel(reason=reason)
         finally:
-            await self.close_mcp_sessions()
             # [.mark] Lot 4 : son cerveau de fond s'arrête avec lui, sauf un travail en cours que
-            # l'agent suivant lira (une fin forcée, ``abort``, l'arrête toujours).
-            if self.travail is not None:
-                await self.travail.fermer(forcer=not drain)
+            # l'agent suivant lira (une fin forcée, ``abort``, l'arrête toujours) ; ce travail garde
+            # alors les sessions MCP de l'agent, fermées à sa fin.
+            if not (
+                drain
+                and self.travail is not None
+                and self.travail.apres_le_travail(self.close_mcp_sessions)
+            ):
+                await self.close_mcp_sessions()
+                if self.travail is not None:
+                    await self.travail.fermer(forcer=not drain)
 
     def describe(self) -> dict[str, Any]:
         """Summarize this visit for the call's visit history."""
