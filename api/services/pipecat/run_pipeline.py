@@ -1597,6 +1597,9 @@ async def _run_pipeline_impl(
     )
 
     pipeline_metrics_aggregator = PipelineMetricsAggregator()
+    # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D12) : le greffier et le cerveau de fond
+    # versent leurs jetons à ce collecteur, le même que celui de la conversation.
+    engine.collecteur_de_cout = pipeline_metrics_aggregator
 
     # Terminations raised from inside the pipeline are handed to the engine
     # instead of cancelling the worker directly. Its handler is registered by
@@ -1875,6 +1878,10 @@ async def _run_pipeline_impl(
         # (groupe, plafond de passations), et ceux qui règlent l'appel.
         agent.reglages = dict(run_configs)
         engine.reglages_appel = dict(run_configs)
+        # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8, D13) : le cerveau de fond du premier
+        # agent, SI son travail en arrière-plan est allumé (éteint par défaut : rien ne change).
+        # Il rejoint l'appel avec l'agent (``start_initial_agent``).
+        await engine.preparer_le_travail(agent, user_config=user_config, attacher=False)
 
     # Initialize the engine to set the initial context with
     # System Prompt and Tools

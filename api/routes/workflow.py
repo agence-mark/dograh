@@ -47,6 +47,7 @@ from api.services.configuration.masking import (
 )
 from api.services.configuration.merge import (
     merge_greffier_secret,
+    merge_travail_secret,
     merge_workflow_configuration_secrets,
 )
 from api.services.configuration.resolve import (
@@ -1283,8 +1284,23 @@ async def update_workflow(
         # enregistrement, surcharge de modèle ou pas. Un masque qui ne retrouve
         # pas sa clé (autre fournisseur, rien en base) est refusé : jamais
         # enregistré à la place de la clé.
-        if workflow_configurations and isinstance(
-            workflow_configurations.get("greffier_llm"), dict
+        # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D10) : la clé du cerveau de fond
+        # (``travail_llm``) suit la même règle que celle du greffier.
+        blocs_propres = (
+            (
+                "greffier_llm",
+                merge_greffier_secret,
+                "the clerk's API key is masked: type the key again",
+            ),
+            (
+                "travail_llm",
+                merge_travail_secret,
+                "the background brain's API key is masked: type the key again",
+            ),
+        )
+        if workflow_configurations and any(
+            isinstance(workflow_configurations.get(cle), dict)
+            for cle, _, _ in blocs_propres
         ):
             existing_workflow = await db_client.get_workflow(
                 workflow_id, organization_id=user.selected_organization_id
@@ -1303,19 +1319,19 @@ async def update_workflow(
                     else None
                 )
             )
-            workflow_configurations = merge_greffier_secret(
-                workflow_configurations, existing_configs
-            )
-            greffier = workflow_configurations["greffier_llm"]
-            if any(
-                isinstance(greffier.get(champ), (str, list))
-                and contains_masked_key(greffier.get(champ))
-                for champ in SERVICE_SECRET_FIELDS
-            ):
-                raise HTTPException(
-                    status_code=422,
-                    detail="the clerk's API key is masked: type the key again",
+            for cle_du_bloc, fusionner, refus in blocs_propres:
+                if not isinstance(workflow_configurations.get(cle_du_bloc), dict):
+                    continue
+                workflow_configurations = fusionner(
+                    workflow_configurations, existing_configs
                 )
+                bloc_propre = workflow_configurations[cle_du_bloc]
+                if any(
+                    isinstance(bloc_propre.get(champ), (str, list))
+                    and contains_masked_key(bloc_propre.get(champ))
+                    for champ in SERVICE_SECRET_FIELDS
+                ):
+                    raise HTTPException(status_code=422, detail=refus)
         if workflow_configurations and workflow_configurations.get(
             WORKFLOW_MODEL_CONFIGURATION_V2_OVERRIDE_KEY
         ):

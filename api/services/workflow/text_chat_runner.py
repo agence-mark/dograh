@@ -76,6 +76,7 @@ from api.services.pipecat.greffier import (
 from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.replique_inachevee import brancher_la_relance
 from api.services.pipecat.trace_modele import brancher_la_trace
+from api.services.travail.clavier import remettre_les_travaux_termines
 from api.services.pipecat.pipeline_metrics_aggregator import (
     PipelineMetricsAggregator,
 )
@@ -139,6 +140,9 @@ class _AgentDuTour:
     variable_extraction_llm: Any
     reglages: dict[str, Any]
     visit_id: str | None = None
+    # [.mark] Lot 4 d'orchestrateur-trois-cerveaux : la configuration de modèles de cet agent (celle
+    # de l'appel pour le premier), d'où le cerveau de fond tire son modèle par défaut.
+    config: Any = None
 
 
 @dataclass
@@ -940,6 +944,7 @@ async def execute_text_chat_pending_turn(
                 variable_extraction_llm=agent_extraction,
                 reglages=dict(reglages),
                 visit_id=actif.get("visit_id"),
+                config=config,
             )
         except Exception as e:  # noqa: BLE001 -- le clavier reprend le premier agent
             logger.error(f"[passation] clavier : agent actif illisible ({actif}) : {e!r}")
@@ -1036,6 +1041,12 @@ async def execute_text_chat_pending_turn(
                 creer_llm=lambda *a, **k: create_llm_service(*a, **k),
             )
         )
+        # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8) : le cerveau de fond de l'agent qui
+        # parle, si son travail en arrière-plan est allumé. Au clavier il travaille dans le tour
+        # et son résultat est remis au tour suivant (``travail/clavier.py``).
+        await engine.preparer_le_travail(
+            actif, user_config=agent.config or user_config, attacher=False
+        )
         # [.mark] D1 et D10 de repliques-coupees : la trace du cerveau et la réflexion
         # de secours, comme au téléphone (réglages de l'agent qui parle : ils suivent
         # son cerveau).
@@ -1064,6 +1075,8 @@ async def execute_text_chat_pending_turn(
         # from the browser pipeline so TTS/recording helpers still have sane defaults.
         audio_config = create_audio_config(WorkflowRunMode.SMALLWEBRTC.value)
         pipeline_metrics_aggregator = PipelineMetricsAggregator()
+        # [.mark] Lot 4 (D12) : le greffier et le cerveau de fond versent leurs jetons ici.
+        engine.collecteur_de_cout = pipeline_metrics_aggregator
 
         conversation_parent_context = build_remote_parent_context(trace_id)
         # The stitched trace has no real root span (each per-turn conversation span
@@ -1188,6 +1201,10 @@ async def execute_text_chat_pending_turn(
                     # [.mark] Lot 1 (11/10) : la dernière réplique de l'agent, comme au téléphone.
                     question_avant=_derniere_replique_agent(context),
                 )
+                # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8) : le résultat d'un travail de
+                # fond terminé au tour d'avant entre ici, avant la réplique tapée, sous la forme
+                # du téléphone (``[Résultat du travail : …]``).
+                remettre_les_travaux_termines(engine._gathered_context, context)
                 context.add_message({"role": "user", "content": message_pour_le_modele})
                 generation_marker = capture_processor.activity_count
                 response_window.note_direct_context_request()
@@ -1207,6 +1224,11 @@ async def execute_text_chat_pending_turn(
                 response_window=response_window,
                 runner_task=runner_task,
             )
+            # [.mark] Lot 4 d'orchestrateur-trois-cerveaux : un travail de fond lancé pendant ce
+            # tour finit avant le démontage (ses outils et ses sessions vivent encore) ; son
+            # résultat est dans la trace et sera remis au tour suivant.
+            for travail in list(engine.travaux):
+                await travail.attendre()
         finally:
             try:
                 if not task.has_finished():

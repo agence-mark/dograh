@@ -62,6 +62,14 @@ CLES_SUIVENT_LE_CERVEAU = (
     "reflexion_de_relance",
     "trace_requetes_modele",
     "relance_apres_outil",
+    # Lot 4 d'orchestrateur-trois-cerveaux (D13) : le cerveau de fond d'un agent est une brique
+    # de SON cerveau (modèle, consigne, outils, délai). Un spécialisé au cerveau rattaché prend
+    # ceux du principal ; avec « Cerveau propre », il garde les siens.
+    "travail_actif",
+    "travail_llm",
+    "travail_consigne",
+    "travail_outils",
+    "travail_delai_max_s",
 )
 
 # Thème 1 (Agent), partie commune : les réglages du groupe et ceux qui suivent le cerveau.
@@ -77,6 +85,11 @@ CLES_COMMUNES: tuple[str, ...] = (
     "model_overrides",
     "model_configuration_v2_override",
     "mark_per_service_override",
+    "travail_actif",
+    "travail_llm",
+    "travail_consigne",
+    "travail_outils",
+    "travail_delai_max_s",
     # 3 Écoute
     "conversion_nombres_transcription",
     "variables_reference",

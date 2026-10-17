@@ -421,6 +421,11 @@ class PipecatEngine:
         from api.services.groupe.mesure_passation import MesureDePassation
 
         self.mesure_passation = MesureDePassation()
+        # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8, D12) : le collecteur de coût de
+        # l'appel (posé par le circuit : le greffier et le cerveau de fond y versent leurs
+        # jetons) et les cerveaux de fond des agents de l'appel (arrêtés au nettoyage).
+        self.collecteur_de_cout = None
+        self.travaux: list = []
 
         # Recording audio fetcher (set via set_fetch_recording_audio from _run_pipeline)
         self._fetch_recording_audio = None
@@ -1932,6 +1937,14 @@ class PipecatEngine:
                     self._suivi_de(agent),
                 )
             )
+        # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8) : l'outil « confier », seulement pour
+        # un agent dont le travail en arrière-plan est allumé ET dont le cerveau de fond s'est
+        # construit (``agent.travail``). Rien pour les autres : la requête reste identique.
+        travail = getattr(agent, "travail", None)
+        if travail is not None and not node.is_end:
+            from api.services.travail.agent import brancher_confier_le_travail
+
+            functions.append(brancher_confier_le_travail(self, travail, agent))
         texte = prompt.text
         # [.mark] Plan mode-prise-de-notes (D3) : la consigne du mode, écrite par
         # le code à la fin du prompt, là où l'outil serait proposé (mêmes
@@ -2916,6 +2929,10 @@ class PipecatEngine:
             return False
 
         await self._agent_factory.attach(agent)
+        # [.mark] Lot 4 d'orchestrateur-trois-cerveaux : le cerveau de fond du premier agent
+        # rejoint l'appel avec lui, maintenant que le circuit d'appel tourne.
+        if getattr(agent, "travail", None) is not None:
+            await agent.travail.attacher()
         if not await agent.wait_until_started(timeout=timeout):
             return False
         return await self.activate_agent(agent, timeout=timeout)
@@ -2940,6 +2957,9 @@ class PipecatEngine:
             workflow_id=workflow_id, visit_id=visit_id
         )
         self._pending_agent = runtime
+        # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8) : le cerveau de fond de l'agent
+        # appelé, avant la préparation de son étape (l'outil « confier » en dépend).
+        await self.preparer_le_travail(runtime)
         # [.mark] Chantier agents-specialises (lot 3) : la fiche de l'appel suit l'agent
         # appelé (ses champs s'ajoutent, son modèle la porte) avant la préparation de son
         # étape, pour qu'il ait l'outil de note, la consigne et l'état de la fiche.
@@ -2947,6 +2967,23 @@ class PipecatEngine:
             self._fusionner_la_fiche(runtime)
             self._porter_la_fiche(runtime.llm)
         return runtime
+
+    async def preparer_le_travail(
+        self, runtime: AgentRuntime, *, user_config=None, attacher: bool = True
+    ) -> None:
+        """[.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8, D13) : construit le cerveau de fond de
+        ``runtime`` si son travail en arrière-plan est allumé (``runtime.travail``), et l'attache à
+        l'appel (``attacher``). Le premier agent s'attache plus tard, quand le circuit d'appel
+        tourne (``start_initial_agent``). Rien si le travail est éteint.
+        ⛔ Ne lève jamais : un échec joue l'agent sans cerveau de fond."""
+        try:
+            from api.services.travail.agent import preparer_le_travail
+
+            travail = await preparer_le_travail(self, runtime, user_config=user_config)
+            if travail is not None and attacher:
+                await travail.attacher()
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[travail] cerveau de fond non préparé : {type(e).__name__}")
 
     async def prepare_agent(self, runtime: AgentRuntime) -> None:
         # [.mark] Lot 6 : un principal resté chaud garde ses sessions déjà ouvertes.
@@ -3486,6 +3523,10 @@ class PipecatEngine:
         prechauffage = self.__dict__.get("_tache_prechauffage")
         if prechauffage is not None and not prechauffage.done():
             prechauffage.cancel()
+
+        # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8) : fin d'appel = travaux de fond annulés.
+        for travail in list(self.__dict__.get("travaux", [])):
+            await travail.fermer(forcer=True)
 
         # Cancel any in-flight background summarization.
         if self._context_summarization_manager:

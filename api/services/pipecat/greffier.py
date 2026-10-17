@@ -41,6 +41,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.groupe.passations import est_un_resultat_de_travail
 from api.services.pipecat.post_scriptum import lire_la_note
 from api.services.workflow.dates_relatives import FUSEAU
 from api.services.workflow.porte_parlee import FLECHE
@@ -231,6 +232,10 @@ def message_du_greffier(
         role = message.get("role")
         if role not in ("user", "assistant"):
             continue
+        # Lot 4 d'orchestrateur-trois-cerveaux : le résultat du travail de fond n'a été dit par
+        # personne ; le greffier n'écrit que ce que la personne a dit ou confirmé.
+        if est_un_resultat_de_travail(message):
+            continue
         texte = _texte(message.get("content")).strip()
         if role == "assistant":
             # Lot A de greffier-conversation : une ligne de porte (« → ») n'est jamais
@@ -385,7 +390,11 @@ class Greffier:
         notes_en_cours: set[asyncio.Task],
         consigne: str | None = None,
         delai: float = DELAI_D_UNE_PASSE,
+        verser_le_cout: Callable[[int | None, int | None], None] | None = None,
     ):
+        # Lot 4 d'orchestrateur-trois-cerveaux (D12) : les jetons de chaque passe payée sont
+        # versés au collecteur de coût de l'appel (None : comme avant, rien n'est versé).
+        self._verser_le_cout = verser_le_cout
         self._service = service
         self._reglages = reglages
         self._fiche = fiche
@@ -509,6 +518,7 @@ class Greffier:
                 )
                 self._tracer(ECHEC, [], debut, erreur=type(erreur).__name__)
             return
+        self._verser(jetons)
         if self._clos:
             logger.info("[fiche] passe du greffier finie après l'appel : rien écrit")
             self._tracer(TARDIVE, [], debut, **jetons)
@@ -555,6 +565,17 @@ class Greffier:
         self._replique_lue = _derniere_replique(lus)
         self._tracer(ECRIT if a_noter else RIEN, sorted(a_noter), debut, **jetons)
 
+    def _verser(self, jetons: dict) -> None:
+        """Les jetons d'une passe payée vont au coût de l'appel. ⛔ Ne lève jamais."""
+        if self._verser_le_cout is None or not jetons:
+            return
+        try:
+            self._verser_le_cout(
+                jetons.get("jetons_entree"), jetons.get("jetons_sortie")
+            )
+        except Exception as erreur:  # noqa: BLE001 -- le coût ne coûte jamais l'appel
+            logger.warning(f"[fiche] jetons du greffier non versés : {erreur!r}")
+
     def _tracer(self, etat: str, champs: list[str], debut: float, **detail) -> None:
         try:
             fiche = self._fiche()
@@ -576,7 +597,7 @@ def _derniere_replique(messages: Iterable[dict]) -> tuple | None:
     ou ``None`` s'il n'y en a pas. Le rang distingue deux « oui » de suite."""
     rang, texte = 0, None
     for message in messages:
-        if message.get("role") == "user":
+        if message.get("role") == "user" and not est_un_resultat_de_travail(message):
             rang += 1
             texte = _texte(message.get("content"))
     return None if texte is None else (rang, texte)
@@ -600,7 +621,12 @@ def declencher_a_la_conversation(context: Any, greffier: Greffier) -> bool:
 
     def apres(messages: Iterable[dict]) -> None:
         try:
-            if any(isinstance(m, dict) and m.get("role") == "user" for m in messages):
+            if any(
+                isinstance(m, dict)
+                and m.get("role") == "user"
+                and not est_un_resultat_de_travail(m)
+                for m in messages
+            ):
                 greffier.nouvelle_replique(context.get_messages())
         except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
             logger.error(f"[fiche] greffier non déclenché : {erreur!r}")
@@ -654,9 +680,37 @@ REGLAGES_NON_HERITES = (
 
 def configuration_du_greffier(user_config: Any, bloc: dict | None) -> Any:
     """La configuration de modèle du greffier : celle de la conversation, à
-    laquelle son bloc s'applique comme une surcharge de modèle. Sans modèle dans
-    le bloc et chez Mistral : ``mistral-large-2512`` (D8). Clé vide : celle de
-    la conversation (même fournisseur)."""
+    laquelle son bloc s'applique comme une surcharge de modèle. Clé vide : celle de
+    la conversation (même fournisseur).
+
+    Lot 4 d'orchestrateur-trois-cerveaux (D10) : un greffier SANS bloc réglé prend le cerveau de
+    conversation de l'agent, tel quel (plus de Mistral Large en dur). Un bloc réglé (même sans
+    modèle) qui nomme Mistral sans modèle garde ``mistral-large-2512`` (D8), comme avant : les
+    agents dont le greffier est réglé explicitement ne changent pas."""
+    return configuration_d_un_cerveau_annexe(
+        user_config,
+        bloc,
+        objet="clerk",
+        modele_par_defaut_mistral=MODELE_PAR_DEFAUT_MISTRAL,
+        nom_du_reglage="Set up the clerk",
+    )
+
+
+def configuration_d_un_cerveau_annexe(
+    user_config: Any,
+    bloc: dict | None,
+    *,
+    objet: str,
+    modele_par_defaut_mistral: str | None = None,
+    nom_du_reglage: str = "",
+) -> Any:
+    """[.mark] La configuration de modèle d'un cerveau annexe (le greffier, le cerveau de
+    fond) : celle de la conversation, à laquelle son bloc s'applique comme une surcharge de
+    modèle. Un bloc vide ou sans valeur = le cerveau de conversation, exactement.
+
+    ``modele_par_defaut_mistral`` : le modèle posé quand le bloc EST réglé, nomme (ou hérite de)
+    Mistral et ne dit pas de modèle ; jamais appliqué à un bloc vide.
+    """
     from api.services.cles_reference import est_reference
     from api.services.configuration.resolve import resolve_effective_config
 
@@ -672,17 +726,19 @@ def configuration_du_greffier(user_config: Any, bloc: dict | None) -> Any:
     # déjà prévu), jamais une référence envoyée au fournisseur comme si c'était une clé.
     if est_reference(surcharge.get("api_key")):
         raise ValueError(
-            "The clerk's key chosen in the key library was deleted or belongs to "
-            "another provider: pick another in « Set up the clerk »."
+            f"The {objet}'s key chosen in the key library was deleted or belongs to "
+            f"another provider: pick another in « {nom_du_reglage} »."
         )
     fournisseur = surcharge.get("provider") or getattr(
         getattr(user_config, "llm", None), "provider", None
     )
     if (
-        "model" not in surcharge
+        surcharge
+        and modele_par_defaut_mistral
+        and "model" not in surcharge
         and str(getattr(fournisseur, "value", fournisseur)).lower() == "mistral"
     ):
-        surcharge["model"] = MODELE_PAR_DEFAUT_MISTRAL
+        surcharge["model"] = modele_par_defaut_mistral
     configuration = resolve_effective_config(
         user_config, {"llm": surcharge} if surcharge else None
     )
@@ -690,6 +746,8 @@ def configuration_du_greffier(user_config: Any, bloc: dict | None) -> Any:
     # jetons, pénalités, graine) tronqueraient ou pénaliseraient la fiche JSON du
     # greffier, et ne se voient pas dans sa modale : remis à leur défaut, sauf
     # s'ils sont posés dans son bloc. La température, elle, est à l'écran.
+    # Même chose pour le cerveau de fond : un plafond de 120 jetons réglé pour la voix
+    # tronquerait son résultat.
     llm = configuration.llm
     champs = getattr(type(llm), "model_fields", {})
     remis = {
@@ -713,21 +771,32 @@ async def resoudre_le_bloc_du_greffier(
     pas). Sans référence, rendu tel quel, sans lecture de la base. Ne lève jamais :
     une référence introuvable reste, et ``configuration_du_greffier`` refuse alors
     (appel joué en mode outil)."""
+    return await resoudre_le_bloc_annexe(
+        run_configs, organization_id, "greffier_llm", "clerk"
+    )
+
+
+async def resoudre_le_bloc_annexe(
+    run_configs: dict | None, organization_id: int | None, cle_du_bloc: str, usage: str
+) -> dict | None:
+    """[.mark] Le bloc de modèle d'un cerveau annexe (``greffier_llm``, ``travail_llm``) dont la
+    clé est une référence de la bibliothèque, avec la vraie clé. Voir
+    ``resoudre_le_bloc_du_greffier`` : même règle, ``usage`` nomme le cerveau dans les journaux."""
     from api.services.cles_reference import cle_d_une_reference, est_reference
 
-    bloc = (run_configs or {}).get("greffier_llm")
+    bloc = (run_configs or {}).get(cle_du_bloc)
     if not isinstance(bloc, dict) or not est_reference(bloc.get("api_key")):
         return run_configs
     try:
         cle = await cle_d_une_reference(
-            bloc["api_key"], bloc.get("provider"), organization_id, "clerk"
+            bloc["api_key"], bloc.get("provider"), organization_id, usage
         )
     except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
-        logger.error(f"[fiche] clé du greffier non résolue : {type(erreur).__name__}")
+        logger.error(f"[fiche] clé ({usage}) non résolue : {type(erreur).__name__}")
         return run_configs
     if cle is None:
         return run_configs
-    return {**run_configs, "greffier_llm": {**bloc, "api_key": cle}}
+    return {**run_configs, cle_du_bloc: {**bloc, "api_key": cle}}
 
 
 def service_du_greffier(
@@ -759,6 +828,23 @@ def service_du_greffier(
     }
 
 
+def versement_du_cout(engine: Any, nom: str, service: Any):
+    """[.mark] Lot 4 d'orchestrateur-trois-cerveaux (D12) : de quoi verser les jetons d'un cerveau
+    annexe (le greffier, le cerveau de fond) au collecteur de coût de l'appel, sous le nom ``nom``
+    et le modèle de son service. Le collecteur est lu à chaque versement (il est posé par le
+    circuit d'appel après le moteur) ; absent, rien n'est versé."""
+    modele = getattr(getattr(service, "_settings", None), "model", None)
+
+    def verser(entree: int | None, sortie: int | None) -> None:
+        collecteur = getattr(engine, "collecteur_de_cout", None)
+        if collecteur is not None:
+            collecteur.verser_llm(
+                nom, modele if isinstance(modele, str) else "", entree, sortie
+            )
+
+    return verser
+
+
 def greffier_du_moteur(
     engine: Any, service: Any, consigne: str | None
 ) -> FrameProcessor | None:
@@ -779,6 +865,7 @@ def greffier_du_moteur(
         notices=engine.notices_fiche,
         notes_en_cours=engine.notes_en_cours,
         consigne=consigne,
+        verser_le_cout=versement_du_cout(engine, USAGE_GREFFIER, service),
     )
     # Le moteur le clôt à la passe de fin (revue du 04/10).
     engine.greffier = greffier

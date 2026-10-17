@@ -300,9 +300,28 @@ def choisir_la_fin(
 NOTE_DE_PASSATION = "[Passation : l'appelant vient de t'être transmis ; tu prends la parole.]"
 
 
+# Lot 4 d'orchestrateur-trois-cerveaux (D8) : le résultat du travail de fond, souffle au cerveau de
+# conversation. Un message de l'appelant en apparence, écrit par le CODE : il porte ce préfixe, et
+# il est exclu partout où la note de passation l'est (historiques de passation, paroles de
+# l'appelant, indices, greffier). Jamais dit à voix haute tel quel.
+PREFIXE_RESULTAT_DU_TRAVAIL = "[Résultat du travail :"
+
+
+def est_un_resultat_de_travail(message: Any) -> bool:
+    """Le résultat du travail de fond écrit par le code, jamais une parole de l'appelant."""
+    if not isinstance(message, dict):
+        return False
+    contenu = message.get("content")
+    return isinstance(contenu, str) and contenu.startswith(PREFIXE_RESULTAT_DU_TRAVAIL)
+
+
 def est_la_note_de_passation(message: Any) -> bool:
-    """La note du code, jamais une parole de l'appelant (retour, résumé, agent suivant)."""
-    return isinstance(message, dict) and message.get("content") == NOTE_DE_PASSATION
+    """La note du code, jamais une parole de l'appelant (retour, résumé, agent suivant).
+    Lot 4 d'orchestrateur-trois-cerveaux : le résultat du travail de fond est une note du code
+    de même nature, exclue de la même façon."""
+    return (
+        isinstance(message, dict) and message.get("content") == NOTE_DE_PASSATION
+    ) or est_un_resultat_de_travail(message)
 
 
 def finit_par_l_assistant(messages: Iterable[Any]) -> bool:

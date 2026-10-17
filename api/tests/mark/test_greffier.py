@@ -446,8 +446,21 @@ def _conversation(provider="mistral", model="mistral-small-2603"):
     )
 
 
-def test_sans_modele_le_greffier_prend_large_chez_mistral_et_la_cle_de_la_conversation():
-    configuration = configuration_du_greffier(_conversation(), None)
+def test_sans_bloc_le_greffier_prend_le_cerveau_de_conversation_de_l_agent():
+    """Lot 4 d'orchestrateur-trois-cerveaux (D10) : plus de Mistral Large en dur. Un agent qui n'a
+    rien réglé pour son greffier le construit sur SON modèle (et sa clé), tel quel."""
+    for vide in (None, {}, {"model": "", "api_key": None}):
+        configuration = configuration_du_greffier(_conversation(), vide)
+        assert configuration.llm.model == "mistral-small-2603"
+        assert configuration.llm.api_key == "cle-de-la-conversation-de-test"
+    # Quel que soit le fournisseur de la conversation, le greffier le suit.
+    autre = configuration_du_greffier(_conversation("openai", "gpt-4.1-mini"), None)
+    assert (autre.llm.provider, autre.llm.model) == ("openai", "gpt-4.1-mini")
+
+
+def test_un_greffier_regle_sans_modele_garde_large_chez_mistral_et_la_cle_de_la_conversation():
+    """Les agents dont le greffier est réglé explicitement ne changent pas (D8 d'avant, D10)."""
+    configuration = configuration_du_greffier(_conversation(), {"temperature": 0.1})
     assert configuration.llm.model == MODELE_PAR_DEFAUT_MISTRAL
     assert configuration.llm.api_key == "cle-de-la-conversation-de-test"
 
@@ -554,6 +567,41 @@ async def test_la_fabrique_du_moteur_joue_ses_lectures(three_node_workflow):
     )
     assert greffier_du_moteur(outil, modele, None) is None
     assert greffier_du_moteur(engine, None, None) is None
+
+
+@pytest.mark.asyncio
+async def test_les_jetons_du_greffier_arrivent_au_collecteur_de_l_appel_par_le_moteur(
+    three_node_workflow,
+):
+    """Lot 4 d'orchestrateur-trois-cerveaux (D12) : la fabrique branche le coût. Une passe payée
+    verse ses jetons au collecteur du moteur, sous le nom ``greffier`` et le modèle du service."""
+    from api.services.pipecat.pipeline_metrics_aggregator import PipelineMetricsAggregator
+    from api.services.workflow.pipecat_engine import PipecatEngine
+    from api.tests.mark.test_fiche_montree import _contexte, _mistral
+
+    engine = PipecatEngine(
+        llm=_mistral(),
+        context=_contexte(),
+        workflow=three_node_workflow,
+        call_context_vars={},
+        workflow_run_id=1,
+        fiche=ReglagesFiche.depuis(FICHE_GREFFIER),
+    )
+    engine.collecteur_de_cout = PipelineMetricsAggregator()
+    modele = _Modele({"nom": "Dupont"})
+    modele._settings = SimpleNamespace(model="mistral-small-2603")
+    with patch.object(
+        module,
+        "interroger",
+        AsyncMock(return_value=('{"nom": "Dupont"}', {"jetons_entree": 900, "jetons_sortie": 30})),
+    ):
+        greffier_du_moteur(engine, modele, None)
+        engine.context.add_message({"role": "user", "content": PAROLE})
+        await attendre_les_notes(engine.notes_en_cours, delai=5)
+    usage = engine.collecteur_de_cout.get_llm_usage_metrics()
+    assert list(usage) == ["greffier|||mistral-small-2603"]
+    assert usage["greffier|||mistral-small-2603"].prompt_tokens == 900
+    assert usage["greffier|||mistral-small-2603"].completion_tokens == 30
 
 
 # --------------------------------------------------------------------------- #

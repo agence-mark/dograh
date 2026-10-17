@@ -234,6 +234,12 @@ class ReconnaissanceLexiqueProcessor(FrameProcessor):
         contenu = message.get("content")
         if not isinstance(contenu, str):
             return
+        # Lot 4 d'orchestrateur-trois-cerveaux : le résultat du travail de fond, écrit par le
+        # code, n'est pas une parole de l'appelant : ni nombres ni communes à y lire.
+        from api.services.groupe.passations import est_un_resultat_de_travail
+
+        if est_un_resultat_de_travail(message):
+            return
         cle = (id(message), contenu)
         if cle in self._examines:
             return

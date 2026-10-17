@@ -74,10 +74,38 @@ class PipelineMetricsAggregator(FrameProcessor):
         if self._start_time is not None and self._stop_time is None:
             self._stop_time = time.time()
 
-    async def _handle_llm_usage_metrics(self, data: LLMUsageMetricsData):
-        key = f"{data.processor}|||{data.model}"
-        new_usage = data.value
+    def verser_llm(
+        self,
+        processor: str,
+        model: str | None,
+        prompt_tokens: int | None,
+        completion_tokens: int | None,
+    ) -> None:
+        """[.mark] Lot 4 d'orchestrateur-trois-cerveaux (D12) : des jetons qui n'ont pas traversé
+        le circuit de l'appel (le greffier, qui interroge son modèle en direct) sont versés au
+        même collecteur que la conversation, sous leur propre nom (``processor|||model``) : le
+        coût de l'appel les compte et la fenêtre du run les distingue. Ne lève jamais, ne
+        verse rien sans jeton."""
+        try:
+            entree = int(prompt_tokens or 0)
+            sortie = int(completion_tokens or 0)
+            if entree <= 0 and sortie <= 0:
+                return
+            self._ajouter_llm(
+                f"{processor}|||{model}",
+                LLMTokenUsage(
+                    prompt_tokens=entree,
+                    completion_tokens=sortie,
+                    total_tokens=entree + sortie,
+                ),
+            )
+        except Exception as erreur:  # noqa: BLE001 -- un compte ne coûte jamais l'appel
+            logger.warning(f"[cout] jetons non versés ({processor}) : {erreur!r}")
 
+    async def _handle_llm_usage_metrics(self, data: LLMUsageMetricsData):
+        self._ajouter_llm(f"{data.processor}|||{data.model}", data.value)
+
+    def _ajouter_llm(self, key: str, new_usage: LLMTokenUsage) -> None:
         if key in self._llm_usage_metrics:
             aggregated = self._llm_usage_metrics[key].model_dump()
             # Sum reported counts, leaving wholly unreported fields as None.
