@@ -165,11 +165,64 @@ describe("[.mark] case « Retour au principal » d'une étape", () => {
     });
 });
 
-describe("[.mark] phrases de fin du nœud de fin du principal", () => {
-    it("un nœud de fin d'un agent seul garde sa zone de texte et n'a pas de liste", async () => {
+describe("[.mark] case « Étape de retour » d'une étape de l'accueil", () => {
+    it("n'existe que chez le principal d'un groupe : ni chez un agent seul, ni chez un spécialisé", async () => {
+        let dialogue = await monter("agentNode", {});
+        expect(dialogue.querySelector('[data-reglage="etape_de_retour"]')).toBeNull();
+        cleanup();
+        dialogue = await monter("agentNode", {}, { agentPrincipalId: 5 });
+        expect(dialogue.querySelector('[data-reglage="etape_de_retour"]')).toBeNull();
+        // Le spécialisé garde sa propre case, celle du retour au principal.
+        expect(dialogue.querySelector('[data-reglage="retour_au_principal"]')).not.toBeNull();
+    });
+
+    it("existe chez le principal, dit ce qu'elle fait, et écrit le marqueur dans l'étape", async () => {
+        const dialogue = await monter("agentNode", {}, { estPrincipal: true });
+        const champ = dialogue.querySelector('[data-reglage="etape_de_retour"]');
+        expect(champ).not.toBeNull();
+        expect(champ?.textContent).toContain("Return step");
+        expect(champ?.textContent).toContain("the call comes here instead of the start step");
+        expect(donneesDeLEtape().etape_de_retour).toBeUndefined();
+        fireEvent.click(document.getElementById("etape_de_retour") as HTMLElement);
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().etape_de_retour).toBe(true);
+        // Le principal ne voit pas la case du spécialisé.
+        expect(dialogue.querySelector('[data-reglage="retour_au_principal"]')).toBeNull();
+    });
+
+    it("se lit cochée quand le marqueur est posé, et se décoche", async () => {
+        const dialogue = await monter("agentNode", { etape_de_retour: true }, { estPrincipal: true });
+        const interrupteur = document.getElementById("etape_de_retour") as HTMLElement;
+        expect(interrupteur.getAttribute("aria-checked")).toBe("true");
+        fireEvent.click(interrupteur);
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().etape_de_retour).toBeUndefined();
+    });
+
+    it("cocher ou décocher rend l'étape modifiée (le garde-fou de fermeture la voit)", async () => {
+        await monter("agentNode", {}, { estPrincipal: true });
+        const bouton = screen.getByRole("button", { name: /^save$/i }) as HTMLButtonElement;
+        fireEvent.click(document.getElementById("etape_de_retour") as HTMLElement);
+        expect(bouton.disabled).toBe(false);
+    });
+});
+
+describe("[.mark] phrases de fin du nœud de fin", () => {
+    it("un nœud de fin d'un agent seul porte la liste (plus de doublon avec le formulaire) et garde sa zone de texte", async () => {
         const dialogue = await monter("endCall", { name: "Étape" });
-        expect(dialogue.querySelector('[data-reglage="fins"]')).toBeNull();
+        // Lot 2 d'orchestrateur-trois-cerveaux (D5) : la liste est celle de ``PhrasesDeFin`` pour tout agent,
+        // le formulaire généré ne la dessine plus.
+        expect(dialogue.querySelectorAll('[data-reglage="fins"]').length).toBe(1);
+        expect(within(dialogue).queryAllByText("Fixed closing sentences").length).toBe(0);
         expect(within(dialogue).getAllByRole("textbox").some((z) => (z as HTMLTextAreaElement).value === "Consigne.")).toBe(true);
+    });
+
+    it("chez un spécialisé aussi : une seule liste, qui s'écrit dans l'étape", async () => {
+        const dialogue = await monter("endCall", {}, { agentPrincipalId: 5 });
+        expect(dialogue.querySelectorAll('[data-reglage="fins"]').length).toBe(1);
+        fireEvent.change(document.getElementById("fin-phrase-defaut") as HTMLElement, { target: { value: "Au revoir." } });
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().fins).toEqual([{ phrase: "Au revoir." }]);
     });
 
     it("chez le principal : la liste s'ajoute, et remplace la zone de texte dès qu'elle a une ligne", async () => {

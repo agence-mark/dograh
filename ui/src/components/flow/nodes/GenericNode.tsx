@@ -13,6 +13,7 @@ import { ToolBadges } from "@/components/flow/ToolBadges";
 import { FlowNodeData } from "@/components/flow/types";
 import { BriqueAgent } from "@/components/mark/graphe/BriqueAgent";
 import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFin";
+import { EtapeDeRetour } from "@/components/mark/graphe/EtapeDeRetour";
 import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -511,7 +512,9 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                       mcp_tool_filters: data.mcp_tool_filters,
                       // [.mark] Lot 12: two node data the generated form does not draw (their widgets
                       // are ours): the return to the main agent, and the closing sentences.
+                      // Lot 2 d'orchestrateur-trois-cerveaux: and the return step of the main agent.
                       retour_au_principal: data.retour_au_principal,
+                      etape_de_retour: data.etape_de_retour,
                       fins: data.fins,
                   }
                 : {},
@@ -590,6 +593,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         const baseline = seedValues(data, spec);
         if (propertyNames.some((n) => values[n] !== baseline[n])) return true;
         if ((values.retour_au_principal ?? false) !== (data.retour_au_principal ?? false)) return true;
+        if ((values.etape_de_retour ?? false) !== (data.etape_de_retour ?? false)) return true;
         if (JSON.stringify(values.fins ?? null) !== JSON.stringify(data.fins ?? null)) return true;
         return (
             JSON.stringify(values.mcp_tool_filters ?? {}) !==
@@ -742,7 +746,15 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                                 }
                             />
                         )}
-                        {type === "endCall" && estPrincipal && (
+                        {type === "agentNode" && estPrincipal && (
+                            <EtapeDeRetour
+                                coche={values.etape_de_retour === true}
+                                onChange={(coche) =>
+                                    setValues((prev) => ({ ...prev, etape_de_retour: coche ? true : undefined }))
+                                }
+                            />
+                        )}
+                        {type === "endCall" && (
                             <PhrasesDeFin
                                 fins={values.fins as FinFigee[] | undefined}
                                 champsFiche={champsFiche ?? []}

@@ -89,6 +89,20 @@ def test_les_formules_sont_celles_de_l_organisation_sinon_celles_par_defaut():
     assert formules_de({"formules_de_fin": 12}) == list(FORMULES_PAR_DEFAUT)
 
 
+def test_la_phrase_du_catalogue_arrive_dans_le_contexte_de_l_appel_par_la_vraie_injection():
+    """La route des formules : la fiche ``formules_de_fin`` du catalogue de l'organisation devient une
+    variable du contexte de l'appel (``injecter_phrases``, au décroché), lue par le filet."""
+    from api.schemas.phrases import CataloguePhrases, Phrase
+    from api.services.etablissements.phrases import injecter_phrases
+
+    catalogue = CataloguePhrases(
+        phrases=[Phrase(variable="formules_de_fin", contenu="à bientôt\nciao", niveau="organisation")]
+    )
+    assert formules_de(injecter_phrases({}, catalogue, None)) == ["à bientôt", "ciao"]
+    # Sans cette fiche dans le catalogue : la liste par défaut.
+    assert formules_de(injecter_phrases({}, CataloguePhrases(), None)) == list(FORMULES_PAR_DEFAUT)
+
+
 def test_la_case_n_existe_que_pour_un_collegue_et_est_eteinte_par_defaut():
     assert not filet_allume({}) and not filet_allume(None)
     assert not filet_allume({"filet_de_fin": True})  # l'accueil ou un agent seul : aucun filet
