@@ -205,6 +205,31 @@ def transferts_de(contexte: dict) -> list[dict]:
     return sortie
 
 
+def travaux_de(contexte: dict) -> list[dict]:
+    """[.mark] Lot 4 d'orchestrateur-trois-cerveaux (D12) : ce que le cerveau de fond a fait pendant
+    l'appel, tel que la fiche le porte (``travaux``) : une entrée par demande confiée,
+    ``{agent, demande, statut, outils, duree_ms, jetons_entree, jetons_sortie, resultat}``. Le
+    portail l'affiche en « ce qui a été fait ». Liste vide : aucun travail (tout agent de
+    jusqu'ici), et la clé n'entre alors pas dans l'envoi."""
+    sortie: list[dict] = []
+    for e in (contexte or {}).get("travaux") or []:
+        if not isinstance(e, dict) or not e.get("demande"):
+            continue
+        sortie.append(
+            {
+                "agent": e.get("agent"),
+                "demande": str(e.get("demande"))[:2000],
+                "statut": str(e.get("statut") or "")[:20] or None,
+                "outils": [str(o)[:80] for o in (e.get("outils") or []) if o][:40],
+                "duree_ms": e.get("duree_ms"),
+                "jetons_entree": e.get("jetons_entree"),
+                "jetons_sortie": e.get("jetons_sortie"),
+                "resultat": (str(e["resultat"])[:4000] if e.get("resultat") else None),
+            }
+        )
+    return sortie
+
+
 def hors_horaires_de(initial: dict) -> bool | None:
     """[.mark] Lot 9 : l'appel a-t-il été pris hors des horaires ? L'état d'ouverture est calculé une
     fois au décroché (``etat_ouverture`` du contexte initial). Fermé ou en pause = hors horaires ;
@@ -486,9 +511,14 @@ def construire_envoi(
     )
     if verifications:
         envoi_hub = {**envoi_hub, "verifications": verifications}
+    # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D12) : le travail de fond, additif. Absent de
+    # la fiche (tout appel d'avant) : l'envoi est exactement celui d'avant, sans la clé.
+    travaux = travaux_de(contexte)
+    envoi_travaux = {"travaux": travaux} if travaux else {}
     return {
         **envoi_equipe,
         **envoi_hub,
+        **envoi_travaux,
         "dograh_run_id": run.id,
         "dograh_workflow_id": run.workflow_id,
         "agent_nom": getattr(getattr(run, "workflow", None), "name", None),

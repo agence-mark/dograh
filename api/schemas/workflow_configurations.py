@@ -32,7 +32,9 @@ def _classe_llm(fournisseur: object):
     return None
 
 
-def _valider_reglages_du_fournisseur(classe, bloc: dict, deja_verifies: set) -> None:
+def _valider_reglages_du_fournisseur(
+    classe, bloc: dict, deja_verifies: set, bloc_nom: str = "greffier_llm"
+) -> None:
     """[.mark] Chaque réglage du bloc du greffier, validé par le champ que le
     fournisseur déclare (type, bornes, liste fermée) : un mauvais enregistrement est
     refusé (422), jamais lu comme un greffier inutilisable au moment de l'appel.
@@ -54,8 +56,63 @@ def _valider_reglages_du_fournisseur(classe, bloc: dict, deja_verifies: set) -> 
             )
         except ValidationError as erreur:
             raise ValueError(
-                f"greffier_llm.{nom}: {erreur.errors()[0].get('msg', 'invalid')}"
+                f"{bloc_nom}.{nom}: {erreur.errors()[0].get('msg', 'invalid')}"
             ) from None
+
+
+def _bloc_de_modele_valide(
+    value: dict | None, bloc_nom: str, booleens_en_plus: tuple[str, ...] = ()
+) -> dict | None:  # noqa: C901
+    """[.mark] Un bloc de modèle au format d'une surcharge (``greffier_llm``, et depuis le lot 4
+    d'orchestrateur-trois-cerveaux ``travail_llm``) : les champs de texte restent du texte, donc un
+    mauvais enregistrement est refusé (422) plutôt que lu comme un cerveau inutilisable pendant
+    l'appel. ``booleens_en_plus`` : des cases du bloc qui ne sont pas des réglages du fournisseur
+    (lot 5 bis : ``format_garanti`` du greffier), vraies ou fausses, jamais autre chose."""
+    if value is None:
+        return None
+    # Revue du 04/10 : seulement ce que la modale montre (un réglage se voit
+    # à l'écran), et la clé en texte (un objet ferait lever le masquage).
+    # [.mark] Lot C d'agent-leger-greffier (D9) : la modale montre désormais le
+    # formulaire généré du fournisseur NOMMÉ dans le bloc ; ses champs (adresse,
+    # réglages) sont donc acceptés, chacun validé par la déclaration du fournisseur.
+    # Sans fournisseur nommé, seuls les quatre de toujours.
+    base = {"provider", "model", "temperature", "api_key"}
+    classe = _classe_llm(value.get("provider"))
+    permis = base | set(booleens_en_plus) | (
+        set(classe.model_fields) if classe is not None else set()
+    )
+    inconnues = sorted(set(value) - permis)
+    if inconnues:
+        raise ValueError(
+            f"{bloc_nom} accepts provider, model, temperature, api_key and the "
+            f"settings of the provider it names, not {', '.join(inconnues)}"
+        )
+    for cle in booleens_en_plus:
+        if cle in value and value[cle] is not None and not isinstance(value[cle], bool):
+            raise ValueError(f"{bloc_nom}.{cle} must be true or false")
+    if classe is not None:
+        _valider_reglages_du_fournisseur(
+            classe, value, base | set(booleens_en_plus), bloc_nom
+        )
+    for cle in ("provider", "model", "api_key"):
+        if cle in value and value[cle] is not None and not isinstance(value[cle], str):
+            raise ValueError(f"{bloc_nom}.{cle} must be text")
+    temperature = value.get("temperature")
+    if temperature is not None and (
+        isinstance(temperature, bool) or not isinstance(temperature, (int, float))
+    ):
+        raise ValueError(f"{bloc_nom}.temperature must be a number")
+    fournisseur = value.get("provider")
+    if fournisseur:
+        from api.services.configuration.registry import ServiceProviders
+
+        connus = {p.value for p in ServiceProviders}
+        if fournisseur not in connus:
+            raise ValueError(
+                f"{bloc_nom}.provider '{fournisseur}' is unknown: "
+                f"use one of {', '.join(sorted(connus))}"
+            )
+    return value
 
 
 DEFAULT_MAX_CALL_DURATION_SECONDS = 300
@@ -911,6 +968,26 @@ class WorkflowConfigurationDefaults(BaseModel):
             "the steps' field lists are kept but nothing is shown to the model."
         ),
     )
+    # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2, D5) : le filet de fin d'appel d'un collègue.
+    filet_de_fin: bool = Field(
+        default=False,
+        description=(
+            "Safety net for a specialised agent: when its reply holds a closing phrase "
+            "(\"goodbye\", \"have a nice day\"...) and it took no exit, the code takes the "
+            "exit that hands the call back to the main agent, which closes the call. The "
+            "phrases are the organization's \"formules_de_fin\" sentence. Off (default): "
+            "nothing is done, as before."
+        ),
+    )
+    # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (D4) : la ligne « Déjà connu ».
+    fiche_deja_connu: bool = Field(
+        default=False,
+        description=(
+            "Next to the question, a short line names the record fields already known "
+            "(names only, never the values): \"Known: name, first name, town\". "
+            "Every note-taking mode. Off (default): nothing is shown."
+        ),
+    )
     # [.mark] Chantier greffier-conversation, lot E (C4, D6 du 13/10) : le transfert garanti.
     transfert_garanti: bool = Field(
         default=False,
@@ -981,6 +1058,47 @@ class WorkflowConfigurationDefaults(BaseModel):
             "the code. The record's fields and the expected answer format are "
             "always added by the code."
         ),
+    )
+    # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8, D10, D13) : le cerveau de fond. Cinq
+    # réglages PAR AGENT, tous éteints ou vides par défaut (un agent sans réglage joue
+    # exactement l'appel d'avant : aucun outil « confier », aucun worker).
+    travail_actif: bool = Field(
+        default=False,
+        description=(
+            "Background work. On: the agent can hand a request to a second brain that "
+            "works with tools while the conversation goes on, then gets its result back. "
+            "Off (default): nothing changes."
+        ),
+    )
+    travail_llm: dict | None = Field(
+        default=None,
+        description=(
+            "The background brain's model: provider, model, settings and its own API "
+            "key. Empty fields come from the conversation model; an empty key uses the "
+            "conversation's key."
+        ),
+    )
+    travail_consigne: str | None = Field(
+        default=None,
+        max_length=20000,
+        description=(
+            "The background brain's instructions. Empty (default): none are added by "
+            "the code, to be written with the team."
+        ),
+    )
+    travail_outils: list[str] = Field(
+        default_factory=list,
+        max_length=60,
+        description=(
+            "The tools the background brain may use (tool UUIDs of the organization). "
+            "Call transfers and the end of the call are never given to it."
+        ),
+    )
+    travail_delai_max_s: int = Field(
+        default=60,
+        ge=5,
+        le=300,
+        description="How long the background brain may work on one request, in seconds.",
     )
     fiche_champs: list[ChampFiche] = Field(
         default_factory=list,
@@ -1119,48 +1237,30 @@ class WorkflowConfigurationDefaults(BaseModel):
 
     @field_validator("greffier_llm")
     @classmethod
-    def greffier_llm_valide(cls, value: dict | None) -> dict | None:  # noqa: C901
+    def greffier_llm_valide(cls, value: dict | None) -> dict | None:
         """[.mark] The clerk's model block, the shape of a model override: text
         fields stay text, so a bad save is refused (422) rather than read as
         an unusable clerk at call time."""
-        if value is None:
-            return None
-        # Revue du 04/10 : seulement ce que la modale montre (un réglage se voit
-        # à l'écran), et la clé en texte (un objet ferait lever le masquage).
-        # [.mark] Lot C d'agent-leger-greffier (D9) : la modale montre désormais le
-        # formulaire généré du fournisseur NOMMÉ dans le bloc ; ses champs (adresse,
-        # réglages) sont donc acceptés, chacun validé par la déclaration du fournisseur.
-        # Sans fournisseur nommé, seuls les quatre de toujours.
-        base = {"provider", "model", "temperature", "api_key"}
-        classe = _classe_llm(value.get("provider"))
-        permis = base | (set(classe.model_fields) if classe is not None else set())
-        inconnues = sorted(set(value) - permis)
-        if inconnues:
-            raise ValueError(
-                f"greffier_llm accepts provider, model, temperature, api_key and the "
-                f"settings of the provider it names, not {', '.join(inconnues)}"
-            )
-        if classe is not None:
-            _valider_reglages_du_fournisseur(classe, value, base)
-        for cle in ("provider", "model", "api_key"):
-            if cle in value and value[cle] is not None and not isinstance(value[cle], str):
-                raise ValueError(f"greffier_llm.{cle} must be text")
-        temperature = value.get("temperature")
-        if temperature is not None and (
-            isinstance(temperature, bool) or not isinstance(temperature, (int, float))
-        ):
-            raise ValueError("greffier_llm.temperature must be a number")
-        fournisseur = value.get("provider")
-        if fournisseur:
-            from api.services.configuration.registry import ServiceProviders
+        return _bloc_de_modele_valide(value, "greffier_llm", ("format_garanti",))
 
-            connus = {p.value for p in ServiceProviders}
-            if fournisseur not in connus:
-                raise ValueError(
-                    f"greffier_llm.provider '{fournisseur}' is unknown: "
-                    f"use one of {', '.join(sorted(connus))}"
-                )
-        return value
+    @field_validator("travail_llm")
+    @classmethod
+    def travail_llm_valide(cls, value: dict | None) -> dict | None:
+        """[.mark] Lot 4 d'orchestrateur-trois-cerveaux (D10) : le modèle du cerveau de fond,
+        même bloc et mêmes contrôles que celui du greffier."""
+        return _bloc_de_modele_valide(value, "travail_llm")
+
+    @field_validator("travail_outils")
+    @classmethod
+    def travail_outils_valides(cls, value: list[str]) -> list[str]:
+        """[.mark] Lot 4 : des identifiants d'outils en texte, sans doublon (ordre gardé)."""
+        propres: list[str] = []
+        for uuid in value:
+            if not isinstance(uuid, str) or not uuid.strip():
+                raise ValueError("travail_outils must be a list of tool identifiers")
+            if uuid.strip() not in propres:
+                propres.append(uuid.strip())
+        return propres
 
     @field_validator("variables_commune", mode="before")
     @classmethod

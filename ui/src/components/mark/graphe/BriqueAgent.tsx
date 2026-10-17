@@ -56,8 +56,8 @@ const TEXTES = {
     aucunAgent: { en: "No other agent in the organization.", fr: "Aucun autre agent dans l'organisation." },
     annonce: { en: "Announcement sentence", fr: "Phrase d'annonce" },
     annonceAide: {
-        en: "Said by this agent, in its own voice, before the call is handed over. Empty: no announcement.",
-        fr: "Dite par cet agent, avec sa voix, avant de passer l'appel. Vide : aucune annonce.",
+        en: "Said by this agent, with the call's voice, before the call is handed over. Empty: no announcement.",
+        fr: "Dite par cet agent, avec la voix de l'appel, avant de passer l'appel. Vide : aucune annonce.",
     },
     accueil: { en: "The chosen agent says its greeting", fr: "L'agent choisi dit son accueil" },
     accueilOui: { en: "yes", fr: "oui" },

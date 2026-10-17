@@ -33,6 +33,7 @@ from api.enums import ToolCategory
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.groupe import groupe as service
 from api.services.groupe.passations import (
+    A_REDIGER,
     CLE_AGENT_PRINCIPAL,
     CLE_AGENTS_SPECIALISES,
     MARQUEUR_RETOUR,
@@ -290,15 +291,20 @@ async def test_creer_un_groupe_puis_un_specialise(
     assert specialise.reglages[CLE_AGENT_PRINCIPAL] == principal_id
     assert principal.folder_id == specialise.folder_id == dossier_id
 
-    # Le graphe minimal : trois étapes, la dernière marquée, rien d'autre.
+    # Le graphe minimal : trois étapes dont la dernière est marquée, plus (lot 2 d'orchestrateur-
+    # trois-cerveaux, D5) le nœud de fin : les deux sorties d'un collègue, clore ou rendre la main.
     noeuds = specialise.definition["nodes"]
     assert [n["data"]["name"] for n in noeuds] == [
         "Qualification",
         "Coordonnées",
         "Retour au principal",
+        "Fin",
     ]
-    assert noeuds[-1]["data"][MARQUEUR_RETOUR] is True
-    assert not any(n["type"] == "endCall" for n in noeuds), "sans nœud de fin"
+    assert noeuds[2]["data"][MARQUEUR_RETOUR] is True
+    assert noeuds[3]["type"] == "endCall" and noeuds[3]["data"]["prompt"] == A_REDIGER
+    assert not noeuds[3]["data"].get("fins"), "aucune phrase figée posée à la place d'Evan"
+    sorties = {a["target"] for a in specialise.definition["edges"] if a["source"] == "2"}
+    assert sorties == {"3", "4"}, "la deuxième étape a deux portes : rendre la main, clore"
     assert not any(n["type"] == "globalNode" for n in noeuds), "sans prompt global"
     assert not any((n.get("data") or {}).get("tool_uuids") for n in noeuds), "sans outil"
     # Le graphe de départ est un graphe valide (celui que la publication exige).

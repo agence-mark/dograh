@@ -253,6 +253,10 @@ export const ThemeAgent = ({
     const groupeEnregistre = extraireGroupe(resolue);
     const [groupe, setGroupe] = useState(groupeEnregistre);
     const groupeModifie = principal && differe(groupe, groupeEnregistre);
+    // Lot 2 d'orchestrateur-trois-cerveaux (B2): the end-of-call safety net, its own part (E6).
+    const filetEnregistre = resolue.filet_de_fin ?? false;
+    const [filet, setFilet] = useState(filetEnregistre);
+    const filetModifie = principal && filet !== filetEnregistre;
     const contexteGroupe = useGroupe();
     // The retry reasoning and the trace follow the brain: read only on a specialised agent that has not
     // detached its own.
@@ -265,7 +269,7 @@ export const ThemeAgent = ({
     );
     const nomModifie = nom !== workflowName;
     const variablesModifiees = differe(variablesAEnregistrer, variablesEnregistrees);
-    const modifie = nomModifie || variablesModifiees || schemaModifie || relanceModifiee || traceModifiee || groupeModifie;
+    const modifie = nomModifie || variablesModifiees || schemaModifie || relanceModifiee || traceModifiee || groupeModifie || filetModifie;
     useEtatTheme(ID_THEME_AGENT, modifie, false);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -297,6 +301,12 @@ export const ThemeAgent = ({
                 nom: TITRE_AGENTS_SPECIALISES,
                 modifie: groupeModifie,
                 config: () => groupe,
+            },
+            {
+                // Its own part, sent only when changed (E6): the settings of the group stay what they were.
+                nom: { en: "End-of-call safety net", fr: "Filet de fin d'appel" },
+                modifie: filetModifie,
+                config: () => ({ filet_de_fin: filet }),
             },
             {
                 nom: { en: "Template variables", fr: "Variables du modèle" },
@@ -446,11 +456,16 @@ export const ThemeAgent = ({
             </ZoneCommune>
 
             {principal && (
-                <IntertitreAgentsSpecialises valeurs={groupe} onChange={(cle, valeur) => setGroupe((avant) => ({ ...avant, [cle]: valeur }))} />
+                <IntertitreAgentsSpecialises
+                    valeurs={groupe}
+                    onChange={(cle, valeur) => setGroupe((avant) => ({ ...avant, [cle]: valeur }))}
+                    filet={filet}
+                    onFiletChange={setFilet}
+                />
             )}
             {specialise && (
                 <ZoneCommune lecture>
-                    <IntertitreAgentsSpecialises valeurs={groupeEnregistre} onChange={() => undefined} />
+                    <IntertitreAgentsSpecialises valeurs={groupeEnregistre} onChange={() => undefined} filet={filetEnregistre} />
                 </ZoneCommune>
             )}
 

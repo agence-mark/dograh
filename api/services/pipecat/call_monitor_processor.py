@@ -190,6 +190,19 @@ class CallMonitorProcessor(FrameProcessor):
         self._waiting_for_user = True
         self._arm_idle()
 
+    @property
+    def appel_au_calme(self) -> bool:
+        """[.mark] Lot 4 d'orchestrateur-trois-cerveaux : ni le robot ni l'appelant ne parlent, et
+        aucune réponse n'est en cours ni aucune parole dictée en attente. Lecture seule : le moment
+        où le code peut glisser un message dans la conversation sans parler par-dessus quelqu'un."""
+        tour_ouvert = self._user_turn_active or (
+            self.user_aggregator is not None
+            and self.user_aggregator.user_turn_controller.has_active_user_turn
+        )
+        return not (
+            tour_ouvert or self._bot_speaking or self._response_watch or self._playbacks
+        )
+
     def _idle_eligible(self) -> bool:
         user_active = self._user_turn_active or (
             self.user_aggregator is not None

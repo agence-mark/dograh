@@ -46,6 +46,7 @@ from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
 from api.services.pipecat.main_passee import MainPasseeMixin
 from api.services.pipecat.texte_du_cerveau import TexteDuCerveauMixin
 from api.services.pipecat.reponse_avalee import RepriseSansFluxMixin
+from api.services.pipecat.responses_llm import MarkOpenAIResponsesLLMService
 from api.services.pipecat.trace_modele import TraceModeleMixin
 from api.services.pipecat.minimax_tts import (
     MiniMaxCachingTTSService,
@@ -117,6 +118,10 @@ from pipecat.services.mistral.tts import MistralTTSSettings
 from pipecat.services.openai._constants import OPENAI_SAMPLE_RATE
 from pipecat.services.openai.base_llm import OpenAILLMSettings
 from pipecat.services.openai.llm import OpenAILLMService
+from pipecat.services.openai.responses.llm import (
+    OpenAIResponsesLLMSettings,
+    OpenAIResponsesReasoningConfig,
+)
 from pipecat.services.openai.stt import (
     OpenAISTTService,
     OpenAISTTSettings,
@@ -1697,6 +1702,11 @@ def stamp_sampling_settings(runtime_configuration: dict, llm_config) -> dict:
     effort = getattr(llm_config, "reasoning_effort", None)
     if effort:
         sampling["reasoning_effort"] = effort
+    # [.mark] Orchestrateur-trois-cerveaux, lot 1: a run must say which API it was played
+    # through. Stamped only when it is not the usual one (a stamp for the default would
+    # change every existing record).
+    if getattr(llm_config, "api", "chat_completions") == "responses":
+        sampling["api"] = "responses"
     if sampling:
         runtime_configuration["llm_sampling"] = sampling
     return runtime_configuration
@@ -1957,6 +1967,43 @@ def stamp_pipeline_settings(
     return runtime_configuration
 
 
+# [.mark] Orchestrateur-trois-cerveaux, lot 1: the sampling settings the Responses API has
+# no field for. They ride in ``extra_body`` only when the screen sets them; the provider takes
+# or ignores them, and a request with none set carries nothing.
+_REGLAGES_HORS_RESPONSES = ("seed", "frequency_penalty", "presence_penalty")
+
+
+def _creer_le_service_responses(
+    *,
+    api_key: str,
+    model: str,
+    base_url: str | None,
+    sampling: dict | None,
+    reasoning_effort: str | None,
+    prompt_cache_key: str | None,
+) -> MarkOpenAIResponsesLLMService:
+    """[.mark] The OpenAI-compatible conversation model reached through the Responses API."""
+    reglages = {"temperature": 0.1, **(sampling or {})}
+    parametres: dict = {"model": model, "temperature": reglages["temperature"]}
+    if "top_p" in reglages:
+        parametres["top_p"] = reglages["top_p"]
+    if "max_tokens" in reglages:
+        parametres["max_completion_tokens"] = reglages["max_tokens"]
+    if reasoning_effort:
+        parametres["reasoning"] = OpenAIResponsesReasoningConfig(effort=reasoning_effort)
+    hors_responses = {
+        cle: reglages[cle] for cle in _REGLAGES_HORS_RESPONSES if cle in reglages
+    }
+    kwargs = {"base_url": base_url} if base_url else {}
+    return MarkOpenAIResponsesLLMService(
+        api_key=api_key,
+        settings=OpenAIResponsesLLMSettings(**parametres),
+        prompt_cache_key=prompt_cache_key,
+        extra_body=hors_responses,
+        **kwargs,
+    )
+
+
 @_report_service_factory_failures(ErrorSource.LLM, provider_argument=0)
 def create_llm_service_from_provider(
     provider: str,
@@ -1979,6 +2026,7 @@ def create_llm_service_from_provider(
     prompt_cache_key: str | None = None,
     reasoning_effort: str | None = None,
     openai_prompt_cache_key: str | None = None,
+    api: str | None = None,
 ):
     """Create an LLM service from explicit provider/model/api_key.
 
@@ -1997,6 +2045,9 @@ def create_llm_service_from_provider(
         openai_prompt_cache_key: [.mark] The same key for the OpenAI-compatible
             provider, apart so that D5 stays true: only ``create_llm_service``
             hands it on, and only when the provider's screen asks for it (lot C).
+        api: [.mark] OpenAI-compatible provider only (orchestrateur-trois-cerveaux, lot 1):
+            ``"responses"`` builds the Responses API service; anything else (absent
+            included) builds the chat completions one, exactly as before.
     """
     # Vertex builds its endpoint from the location, so it is part of what this
     # service is, not a separate event. Resolved here to keep it on one line.
@@ -2019,6 +2070,18 @@ def create_llm_service_from_provider(
         if base_url:
             _validate_runtime_service_url(base_url, "base_url")
             kwargs["base_url"] = base_url
+        # [.mark] Lot 1 d'orchestrateur-trois-cerveaux (D11, D19): the screen asks for the
+        # Responses API. Every brain built here (conversation, scribe, background work)
+        # follows, since they all come through this factory.
+        if api == "responses" and provider == ServiceProviders.OPENAI.value:
+            return _creer_le_service_responses(
+                api_key=api_key,
+                model=model,
+                base_url=kwargs.get("base_url"),
+                sampling=sampling,
+                reasoning_effort=reasoning_effort,
+                prompt_cache_key=openai_prompt_cache_key,
+            )
         # [.mark] Lot C d'agent-leger-greffier (B7): the reasoning effort set on
         # screen wins; empty, "gpt-5" keeps its "minimal" and the others send none.
         if "gpt-5" in model:
@@ -2442,6 +2505,9 @@ def create_llm_service(
         kwargs["reasoning_effort"] = getattr(user_config.llm, "reasoning_effort", None)
         if _envoie_la_cle_de_cache(user_config.llm):
             kwargs["openai_prompt_cache_key"] = prompt_cache_key
+        # [.mark] Lot 1 d'orchestrateur-trois-cerveaux: the API of the provider (Atlas Cloud
+        # declares none, so it stays on chat completions).
+        kwargs["api"] = getattr(user_config.llm, "api", None)
     elif provider == ServiceProviders.MISTRAL.value:
         kwargs["base_url"] = user_config.llm.base_url
         kwargs["sampling"] = collect_sampling_settings(

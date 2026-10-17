@@ -32,6 +32,9 @@ export type GreffierLlm = {
     model?: string;
     temperature?: number;
     api_key?: string;
+    // Lot 5 bis d'orchestrateur-trois-cerveaux (D11): the clerk asks the provider for a JSON
+    // that follows the record's schema; unticked (absent) by default.
+    format_garanti?: boolean;
     [cle: string]: unknown;
 };
 export const DEFAULT_TURN_START_MIN_WORDS = 3;
@@ -368,6 +371,10 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     indices_des_modules?: boolean | null;
     // [.mark] Lot E d'agent-leger-greffier (P1): the steps' field labels, every mode.
     etiquettes_des_etapes?: boolean;
+    // [.mark] Lot 2 d'orchestrateur-trois-cerveaux (D4): « Known: name, town » next to the question.
+    fiche_deja_connu?: boolean;
+    // [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2): the end-of-call safety net of a specialised agent.
+    filet_de_fin?: boolean;
     // [.mark] greffier-conversation, lot E (C4): the code launches the transfer on arrival.
     transfert_garanti?: boolean;
     // [.mark] Chantier repliques-coupees, D1: the model trace (Agent theme, Diagnostic; test agents).
@@ -403,6 +410,14 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // the generic ones written in the code).
     greffier_llm?: GreffierLlm | null;
     greffier_consigne?: string | null;
+    // [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D13): the background brain of this agent. Five keys,
+    // all off or empty by default (the agent plays the call of before). Its model is shaped like the
+    // clerk's (key masked, restored on save).
+    travail_actif?: boolean;
+    travail_llm?: GreffierLlm | null;
+    travail_consigne?: string | null;
+    travail_outils?: string[];
+    travail_delai_max_s?: number;
     fiche_champs?: ChampFiche[];
     // [.mark] Chantier correctifs-modules, lot 4 bis: write the flow map into the
     // prompts at every save. Off by default: the save is unchanged.

@@ -178,6 +178,7 @@ async def build_handoff_snapshot(
     parent_context: Any = None,
     resumer: bool = True,
     depuis: int | None = None,
+    dernieres: int | None = None,
 ) -> HandoffSnapshot:
     """Compact ``context`` for a destination agent without mutating it.
 
@@ -207,6 +208,11 @@ async def build_handoff_snapshot(
             tranche = conversation_messages(source_messages)[-4:]
         return HandoffSnapshot(messages=tranche, boundary=boundary, summarized=False)
     conversation = conversation_messages(source_messages)
+    # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (D3) : un groupe n'a plus de résumé écrit par un
+    # modèle : seulement les ``dernieres`` messages de la conversation (la note du code dit le reste).
+    if dernieres is not None and dernieres > 0:
+        resumer = False
+        conversation = conversation[-dernieres:]
 
     if not conversation:
         return HandoffSnapshot(messages=[], boundary=boundary, summarized=False)

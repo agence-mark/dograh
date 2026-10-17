@@ -200,6 +200,11 @@ export const ThemeDonnees = ({
     const [etiquettes, setEtiquettes] = useState(etiquettesEnregistrees);
     useEffect(() => setEtiquettes(etiquettesEnregistrees), [etiquettesEnregistrees]);
     const etiquettesModifiees = etiquettes !== etiquettesEnregistrees;
+    // Lot 2 d'orchestrateur-trois-cerveaux (D4): the line « Known: … » next to the question, every mode.
+    const dejaConnuEnregistre = resolue.fiche_deja_connu ?? false;
+    const [dejaConnu, setDejaConnu] = useState(dejaConnuEnregistre);
+    useEffect(() => setDejaConnu(dejaConnuEnregistre), [dejaConnuEnregistre]);
+    const dejaConnuModifie = dejaConnu !== dejaConnuEnregistre;
     // greffier-conversation, lot E (C4, D6): the code launches the transfer, every mode.
     const transfertEnregistre = resolue.transfert_garanti ?? false;
     const [transfert, setTransfert] = useState(transfertEnregistre);
@@ -233,13 +238,22 @@ export const ThemeDonnees = ({
     const [blocEdite, setBlocEdite] = useState<BlocModele>({});
     const [consigne, setConsigne] = useState(consigneEnregistree ?? CONSIGNE_GENERIQUE_GREFFIER);
     const greffierRelu = JSON.stringify([greffierEnregistre, consigneEnregistree]);
+    // Lot 5 bis d'orchestrateur-trois-cerveaux (D1, D2, D11): « Guaranteed format » lives in the
+    // same block (`greffier_llm.format_garanti`) but is kept apart here, because the provider's
+    // generated form rebuilds the block when the provider changes and would drop it. Unticked
+    // = key absent.
+    const [formatGaranti, setFormatGaranti] = useState(false);
     useEffect(() => {
         const [bloc, texte] = JSON.parse(greffierRelu) as [GreffierLlm | null, string | null];
-        setBlocEdite((bloc ?? {}) as BlocModele);
+        const { format_garanti: garanti, ...reste } = (bloc ?? {}) as GreffierLlm;
+        setBlocEdite(reste as BlocModele);
+        setFormatGaranti(garanti === true);
         setConsigne(texte ?? CONSIGNE_GENERIQUE_GREFFIER);
     }, [greffierRelu]);
-    const blocGreffier = (): GreffierLlm | null =>
-        Object.keys(blocEdite).length > 0 ? (blocEdite as GreffierLlm) : null;
+    const blocGreffier = (): GreffierLlm | null => {
+        const bloc = { ...blocEdite, ...(formatGaranti ? { format_garanti: true } : {}) };
+        return Object.keys(bloc).length > 0 ? (bloc as GreffierLlm) : null;
+    };
     const greffierModifie = pourComparerLeGreffier(blocGreffier()) !== pourComparerLeGreffier(greffierEnregistre);
     // Saved equal to the template (or emptied), the instructions are sent empty:
     // the agent then follows the template when the template improves.
@@ -356,6 +370,7 @@ export const ThemeDonnees = ({
         || equipeConnueModifiee
         || verificationModifiee
         || etiquettesModifiees
+        || dejaConnuModifie
         || transfertModifie
         || redemandeModifiee;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
@@ -399,6 +414,12 @@ export const ThemeDonnees = ({
                 nom: { en: "Step field labels", fr: "Étiquettes des étapes" },
                 modifie: etiquettesModifiees,
                 config: () => ({ etiquettes_des_etapes: etiquettes }),
+            },
+            {
+                // Lot 2 d'orchestrateur-trois-cerveaux (D4): its own part, sent only when changed (E6).
+                nom: { en: "Known fields near the question", fr: "Champs connus près de la question" },
+                modifie: dejaConnuModifie,
+                config: () => ({ fiche_deja_connu: dejaConnu }),
             },
             {
                 nom: { en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" },
@@ -602,6 +623,24 @@ export const ThemeDonnees = ({
                         disposition="ligne"
                     >
                         <Switch id="etiquettes_des_etapes" checked={etiquettes} onCheckedChange={setEtiquettes} />
+                    </ChampReglage>
+                )}
+                {/* Lot 2 d'orchestrateur-trois-cerveaux (D4): every note-taking mode, next to the step labels. */}
+                {ficheActive && (
+                    <ChampReglage
+                        cle="fiche_deja_connu"
+                        idControle="fiche_deja_connu"
+                        libelle={{ en: "Known fields near the question", fr: "Champs connus près de la question" }}
+                        aides={[
+                            {
+                                en: "Right before the caller's last words, one short line names the record fields already known (\"Known: name, first name, town\"): names only, never the values. The agent no longer asks again for what it already has. Independent of the step labels. Off, nothing is shown.",
+                                fr: "Juste avant la dernière parole de l'appelant, une ligne courte nomme les champs de la fiche déjà connus (« Déjà connu : nom, prénom, commune ») : les noms seulement, jamais les valeurs. L'agent ne redemande plus ce qu'il a déjà. Indépendant des étiquettes des étapes. Éteint, rien n'est montré.",
+                            },
+                        ]}
+                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                        disposition="ligne"
+                    >
+                        <Switch id="fiche_deja_connu" checked={dejaConnu} onCheckedChange={setDejaConnu} />
                     </ChampReglage>
                 )}
                 {/* greffier-conversation, lot E (C4, D6): every note-taking mode. */}
@@ -842,6 +881,24 @@ export const ThemeDonnees = ({
                     </DialogHeader>
                     <div className="space-y-4">
                         <ChampsFournisseurLlm bloc={blocEdite} onChange={setBlocEdite} />
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                                <label htmlFor="greffier_format_garanti" className="text-sm font-medium">
+                                    {t({ en: "Guaranteed format", fr: "Format garanti" })}
+                                </label>
+                                <Switch
+                                    id="greffier_format_garanti"
+                                    checked={formatGaranti}
+                                    onCheckedChange={setFormatGaranti}
+                                />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {t({
+                                    en: "The clerk asks the provider for an answer that follows the record's fields exactly. If the provider refuses or answers off the schema, the usual JSON mode takes over by itself, nothing to set. Off by default.",
+                                    fr: "Le greffier demande au fournisseur une réponse qui respecte exactement les champs de la fiche. Si le fournisseur refuse ou répond hors du schéma, le mode JSON habituel prend le relais tout seul, rien à régler. Éteint par défaut.",
+                                })}
+                            </p>
+                        </div>
                         <div className="space-y-1">
                             <div className="flex items-center justify-between gap-2">
                                 <label htmlFor="greffier_consigne" className="text-sm font-medium">

@@ -31,6 +31,14 @@ const m = vi.hoisted(() => ({
     save: vi.fn(() => Promise.resolve(undefined)),
     // Plan porte-parlee: the graph the page is opened with.
     definition: { nodes: [], edges: [] } as unknown,
+    // Lot 4 d'orchestrateur-trois-cerveaux: the tools of the organization (a transfer, the end of the call and
+    // an MCP server are never offered to the background brain).
+    outils: [
+        { tool_uuid: "outil-creneau", name: "Chercher un creneau", description: "Cherche un creneau libre.", category: "http_api", status: "active", icon_color: null },
+        { tool_uuid: "outil-transfert", name: "Passer a un humain", description: "Transfert d'appel.", category: "transfer_call", status: "active", icon_color: null },
+        { tool_uuid: "outil-fin", name: "Raccrocher", description: "Fin d'appel.", category: "end_call", status: "active", icon_color: null },
+        { tool_uuid: "outil-mcp", name: "Serveur MCP", description: "Un serveur MCP.", category: "mcp", status: "active", icon_color: null },
+    ] as unknown[],
     // Lot C d'agent-leger-greffier (D9): the schemas the clerk's generated form reads.
     schemasLlm: {
         mistral: {
@@ -80,9 +88,16 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-fact
     getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet: () => Promise.resolve({ data: { llm: m.schemasLlm }, error: null }),
     listRecordingsApiV1WorkflowRecordingsGet: () => Promise.resolve({ data: { recordings: [] }, error: null }),
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: () => Promise.resolve({ data: [{ code_insee: "60057", nom: "Beauvais" }], error: null }),
+    // Lot 4 d'orchestrateur-trois-cerveaux: the catalogue the background brain's tool list reads.
+    listToolsApiV1ToolsGet: () => Promise.resolve({ data: m.outils, error: null }),
 }));
-vi.mock("@/components/AIModelConfigurationV2Editor", () => ({ AIModelConfigurationV2Editor: () => <div data-testid="editeur-v2" /> }));
-vi.mock("@/components/ServiceConfigurationForm", () => ({ ServiceConfigurationForm: () => <div data-testid="formulaire-service" /> }));
+// Lot 3 d'orchestrateur-trois-cerveaux (D7): the stand-ins draw the note they are given for a locked voice.
+vi.mock("@/components/AIModelConfigurationV2Editor", () => ({
+    AIModelConfigurationV2Editor: ({ voixVerrouillee }: { voixVerrouillee?: ReactNode }) => <div data-testid="editeur-v2">{voixVerrouillee}</div>,
+}));
+vi.mock("@/components/ServiceConfigurationForm", () => ({
+    ServiceConfigurationForm: ({ voixVerrouillee }: { voixVerrouillee?: ReactNode }) => <div data-testid="formulaire-service">{voixVerrouillee}</div>,
+}));
 vi.mock("@/components/LLMConfigSelector", () => ({ LLMConfigSelector: () => null }));
 vi.mock("@/app/workflow/[workflowId]/components/EmbedDialog", () => ({ EmbedDialog: () => null }));
 vi.mock("@/app/workflow/[workflowId]/hooks/useWorkflowState", () => ({
@@ -130,7 +145,7 @@ describe("[.mark] the agent page in themes", () => {
     it("draws every setting the inventory puts on screen, in its theme", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
         for (const [cle, entree] of Object.entries(INVENTAIRE_AGENT)) {
-            if ("horsEcran" in entree || "via" in entree || SEULEMENT_DANS_UN_MODE.includes(cle) || SEULEMENT_AVEC_CONTROLE.includes(cle) || SEULEMENT_DANS_UN_GROUPE.includes(cle)) continue;
+            if ("horsEcran" in entree || "via" in entree || SEULEMENT_DANS_UN_MODE.includes(cle) || SEULEMENT_AVEC_CONTROLE.includes(cle) || SEULEMENT_DANS_UN_GROUPE.includes(cle) || SEULEMENT_AVEC_LE_TRAVAIL.includes(cle)) continue;
             const theme = ouvrirLeTheme(entree.theme);
             await waitFor(() => {
                 const trouve =
@@ -159,6 +174,8 @@ describe("[.mark] the agent page in themes", () => {
     ];
     // Chantier l-agent-collegue, L7: the names of « Field recognition » are read only when « Check
     // the data » is on, and drawn only then (E8, the same rule as the code).
+    // Lot 4 d'orchestrateur-trois-cerveaux: drawn only with « Background work » on (tested below).
+    const SEULEMENT_AVEC_LE_TRAVAIL = ["travail_llm", "travail_consigne", "travail_outils", "travail_delai_max_s"];
     const SEULEMENT_AVEC_CONTROLE = ["variables_telephone", "variables_code_postal", "variables_courriel", "variables_date"];
     // Chantier agents-specialises, lot 12: the group's settings are drawn only for a main agent (or, for the
     // brain, a specialised one): a lone agent's page is what it was (tested below).
@@ -167,6 +184,8 @@ describe("[.mark] the agent page in themes", () => {
         "passation_sans_resume_jusqua",
         "un_seul_renvoi_par_appel",
         "passations_max_par_appel",
+        // Lot 2 d'orchestrateur-trois-cerveaux (B2): under « Specialised agents », a main agent only.
+        "filet_de_fin",
         "attente",
         "transfert_humain",
         "cerveau_propre",
@@ -388,6 +407,37 @@ describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2; D9 of ag
             temperature: 0.2,
             base_url: "https://api.scaleway.ai/v1",
         });
+    });
+
+    it("« Guaranteed format » is unticked by default and absent from the block", async () => {
+        await regler();
+        expect(document.getElementById("greffier_format_garanti")?.getAttribute("aria-checked")).toBe("false");
+        saisir("greffier_model", "mistral-large-2512");
+        const charge = await termine();
+        expect(charge.greffier_llm).toEqual({ provider: "mistral", model: "mistral-large-2512", api_key: MASQUE });
+    });
+
+    it("« Guaranteed format » is read from the block, saved in it, and survives a provider change", async () => {
+        await regler({ ...GREFFIER, greffier_llm: { ...GREFFIER.greffier_llm, format_garanti: true } });
+        expect(document.getElementById("greffier_format_garanti")?.getAttribute("aria-checked")).toBe("true");
+        saisir("greffier_provider", "openai");
+        saisir("greffier_model", "x");
+        const charge = await termine();
+        expect(charge.greffier_llm).toEqual({ provider: "openai", model: "x", format_garanti: true });
+    });
+
+    it("ticking « Guaranteed format » alone saves it in the block", async () => {
+        await regler();
+        fireEvent.click(document.getElementById("greffier_format_garanti") as HTMLElement);
+        const charge = await termine();
+        expect(charge.greffier_llm).toEqual({ ...GREFFIER.greffier_llm, format_garanti: true });
+    });
+
+    it("unticking « Guaranteed format » removes the key from the block", async () => {
+        await regler({ ...GREFFIER, greffier_llm: { ...GREFFIER.greffier_llm, format_garanti: true } });
+        fireEvent.click(document.getElementById("greffier_format_garanti") as HTMLElement);
+        const charge = await termine();
+        expect(charge.greffier_llm).toEqual(GREFFIER.greffier_llm);
     });
 
     it("a key of the library is kept as its reference, named and never shown", async () => {
@@ -783,6 +833,35 @@ describe("[.mark] the flow map, the retry reasoning and the model request trace"
         expect(document.getElementById("trace_requetes_modele")?.closest("fieldset[disabled]")).toBeNull();
     });
 
+    // Lot 3 d'orchestrateur-trois-cerveaux (D7): the call has one voice, the main agent's. Even with « Own brain »,
+    // an agent of a group cannot change its voice; a lone agent and a main agent keep theirs.
+    it("locks the voice of a specialised agent with its own brain, in both editors, and only there", async () => {
+        const note = () => document.querySelectorAll('[data-bandeau="voix-de-l-appel"]').length;
+        // Complete configuration of its own (the all-in-one editor).
+        await ouvrir({ ...SPECIALISE, cerveau_propre: true, model_configuration_v2_override: { version: 2, mode: "dograh" } }, NOVA);
+        ouvrirLeTheme("briques");
+        await waitFor(() => expect(document.querySelector('[data-testid="editeur-v2"]')).not.toBeNull());
+        expect(document.querySelector('[data-testid="editeur-v2"] [data-bandeau="voix-de-l-appel"]')).not.toBeNull();
+        cleanup();
+        // Service-by-service override (the form).
+        await ouvrir({ ...SPECIALISE, cerveau_propre: true, model_overrides: { tts: { provider: "mistral" } } }, NOVA);
+        ouvrirLeTheme("briques");
+        await waitFor(() => expect(document.querySelector('[data-testid="formulaire-service"]')).not.toBeNull());
+        expect(document.querySelector('[data-testid="formulaire-service"] [data-bandeau="voix-de-l-appel"]')).not.toBeNull();
+        cleanup();
+        // A main agent and a lone agent: the voice is theirs, no note anywhere.
+        for (const config of [
+            { ...PRINCIPAL, model_configuration_v2_override: { version: 2, mode: "dograh" } },
+            { ...(CONFIG_DE_REFERENCE as Record<string, unknown>), model_overrides: { tts: { provider: "mistral" } } },
+        ]) {
+            await ouvrir(config, NOVA);
+            ouvrirLeTheme("briques");
+            await waitFor(() => expect(document.querySelector('[data-testid="editeur-v2"], [data-testid="formulaire-service"]')).not.toBeNull());
+            expect(note()).toBe(0);
+            cleanup();
+        }
+    });
+
     it("sends the group's four settings together, with their values, when one is changed", async () => {
         await ouvrir(PRINCIPAL, NOVA);
         ouvrirLeTheme("agent");
@@ -792,5 +871,138 @@ describe("[.mark] the flow map, the retry reasoning and the model request trace"
         expect(charge.passations_max_par_appel).toBe(4);
         expect(charge.prechauffage_agents).toBe(true);
         expect(charge.agents_specialises).toEqual([7, 8]);
+    });
+});
+
+// Lot 4 d'orchestrateur-trois-cerveaux (D8, D10, D13): « Background work », in the Services theme (« Briques »).
+describe("[.mark] the background work settings (lot 4)", () => {
+    const REFERENCE = CONFIG_DE_REFERENCE as Record<string, unknown>;
+    const SPECIALISE_LOT4 = { ...REFERENCE, agent_principal_id: 5 };
+    const MASQUE_LOT4 = "sk-***abcd";
+    const AUTRES = ["travail_llm", "travail_consigne", "travail_outils", "travail_delai_max_s"];
+    const dernierEnvoi = () => {
+        const appels = m.save.mock.calls as unknown as Array<[Record<string, unknown>, string]>;
+        return appels[appels.length - 1];
+    };
+    const ouvrirBriques = async (config: Record<string, unknown>, enveloppe?: (n: ReactNode) => ReactNode) => {
+        await ouvrir(config, NOVA, enveloppe);
+        const theme = ouvrirLeTheme("briques");
+        await waitFor(() => expect(document.getElementById("travail_actif")).not.toBeNull());
+        return theme;
+    };
+    const saisirTravail = (id: string, valeur: string) =>
+        fireEvent.change(document.getElementById(id) as HTMLElement, { target: { value: valeur } });
+
+    it("draws only the switch while it is off", async () => {
+        const briques = await ouvrirBriques(REFERENCE);
+        expect(document.getElementById("travail_actif")?.getAttribute("aria-checked")).toBe("false");
+        for (const cle of AUTRES) expect(briques.querySelector(`[data-reglage="${cle}"]`), cle).toBeNull();
+    });
+
+    it("turning it on saves at once with the switch alone, and draws the four other settings", async () => {
+        await ouvrirBriques(REFERENCE);
+        m.save.mockClear();
+        fireEvent.click(document.getElementById("travail_actif") as HTMLElement);
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        const [charge, nom] = dernierEnvoi();
+        expect(charge.travail_actif).toBe(true);
+        expect(nom).toBe("Agent");
+        for (const cle of AUTRES) expect(charge[cle] ?? null, cle).toBeNull();
+        cleanup();
+        const allume = await ouvrirBriques({ ...REFERENCE, travail_actif: true });
+        for (const cle of AUTRES) {
+            await waitFor(() => expect(allume.querySelector(`[data-reglage="${cle}"]`), cle).not.toBeNull());
+        }
+    });
+
+    it("offers the catalogue's tools minus a transfer, the end of the call and MCP, and saves the choice at once", async () => {
+        await ouvrirBriques({ ...REFERENCE, travail_actif: true });
+        const outil = await screen.findByRole("checkbox", { name: /Chercher un creneau/ });
+        expect(screen.queryByRole("checkbox", { name: /Passer a un humain/ })).toBeNull();
+        expect(screen.queryByRole("checkbox", { name: /Raccrocher/ })).toBeNull();
+        expect(screen.queryByText("Serveur MCP")).toBeNull();
+        m.save.mockClear();
+        fireEvent.click(outil);
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        expect(dernierEnvoi()[0].travail_outils).toEqual(["outil-creneau"]);
+    });
+
+    it("refuses a duration out of bounds and saves a valid one", async () => {
+        await ouvrirBriques({ ...REFERENCE, travail_actif: true });
+        const bouton = () => screen.getByRole("button", { name: "Save the duration" }) as HTMLButtonElement;
+        expect(bouton().disabled).toBe(true);
+        for (const mauvaise of ["3", "301", "12.5"]) {
+            saisirTravail("travail_delai_max_s", mauvaise);
+            expect(bouton().disabled, mauvaise).toBe(true);
+        }
+        m.save.mockClear();
+        saisirTravail("travail_delai_max_s", "120");
+        expect(bouton().disabled).toBe(false);
+        fireEvent.click(bouton());
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        expect(dernierEnvoi()[0].travail_delai_max_s).toBe(120);
+    });
+
+    it("sends the model and the instructions from one dialog; the saved key goes back as its mask", async () => {
+        await ouvrirBriques({
+            ...REFERENCE,
+            travail_actif: true,
+            travail_llm: { provider: "mistral", model: "mistral-small-2603", api_key: MASQUE_LOT4 },
+            travail_consigne: "Fais la demande.",
+        });
+        fireEvent.click(await screen.findByRole("button", { name: "Configure the background brain" }));
+        await waitFor(() => expect(document.getElementById("travail_model")).not.toBeNull());
+        expect((document.getElementById("travail_consigne") as HTMLTextAreaElement).value).toBe("Fais la demande.");
+        saisirTravail("travail_model", "mistral-large-2512");
+        m.save.mockClear();
+        fireEvent.click(screen.getByRole("button", { name: "Save the background brain" }));
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        const charge = dernierEnvoi()[0];
+        expect(charge.travail_llm).toEqual({ provider: "mistral", model: "mistral-large-2512", api_key: MASQUE_LOT4 });
+        expect(charge.travail_consigne).toBe("Fais la demande.");
+    });
+
+    it("« Back to the default » empties the instructions, which are then sent as null", async () => {
+        await ouvrirBriques({ ...REFERENCE, travail_actif: true, travail_consigne: "Une consigne." });
+        fireEvent.click(await screen.findByRole("button", { name: "Configure the background brain" }));
+        await waitFor(() => expect(document.getElementById("travail_consigne")).not.toBeNull());
+        const retour = screen.getByRole("button", { name: "Back to the default" }) as HTMLButtonElement;
+        expect(retour.disabled).toBe(false);
+        fireEvent.click(retour);
+        expect((document.getElementById("travail_consigne") as HTMLTextAreaElement).value).toBe("");
+        m.save.mockClear();
+        fireEvent.click(screen.getByRole("button", { name: "Save the background brain" }));
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        expect(dernierEnvoi()[0].travail_consigne ?? null).toBeNull();
+    });
+
+    it("writes the labels in English by default and in French once the page speaks French", async () => {
+        const briques = await ouvrirBriques({ ...REFERENCE, travail_actif: true });
+        const en = briques.querySelector('[data-groupe="briques-travail"]')?.textContent ?? "";
+        expect(en).toContain("Background work");
+        expect(en).toContain("Allowed tools");
+        expect(en).toContain("Max duration (s)");
+        cleanup();
+        window.localStorage.setItem("mark.langue", "fr");
+        const brFr = await ouvrirBriques({ ...REFERENCE, travail_actif: true }, (page) => <FournisseurLangue>{page}</FournisseurLangue>);
+        const fr = brFr.querySelector('[data-groupe="briques-travail"]')?.textContent ?? "";
+        expect(fr).toContain("Travail en arrière-plan");
+        expect(fr).toContain("Outils autorisés");
+        expect(fr).toContain("Durée maximale (s)");
+    });
+
+    it("is read only on a specialised agent that follows the main agent's brain, editable with its own brain", async () => {
+        await ouvrirBriques(SPECIALISE_LOT4);
+        expect(document.getElementById("travail_actif")?.closest("fieldset[disabled]")).not.toBeNull();
+        cleanup();
+        await ouvrirBriques({ ...SPECIALISE_LOT4, cerveau_propre: true });
+        expect(document.getElementById("travail_actif")?.closest("fieldset[disabled]")).toBeNull();
+        m.save.mockClear();
+        fireEvent.click(document.getElementById("travail_actif") as HTMLElement);
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        const charge = dernierEnvoi()[0];
+        expect(charge.travail_actif).toBe(true);
+        expect(charge.cerveau_propre).toBe(true);
+        expect(charge.agent_principal_id).toBe(5);
     });
 });

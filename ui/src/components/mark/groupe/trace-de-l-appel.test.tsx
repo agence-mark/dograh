@@ -167,6 +167,16 @@ describe("[.mark] lire la trace (pur)", () => {
         )!;
         expect(trace.transferts).toEqual([{ le: "2026-10-16T08:00:00Z", cible: "numero:***1234", issue: "repondeur" }]);
     });
+
+    it("lit les travaux de fond (lot 4 d'orchestrateur-trois-cerveaux), seuls ils suffisent à montrer la carte", () => {
+        const trace = lireLaTrace(
+            { travaux: [{ agent: 7, demande: "Cherche un creneau", statut: "fait", duree_ms: 2400, jetons_entree: 120, jetons_sortie: 30, resultat: "Jeudi 10 h", remis: true }, "bruit"] },
+            NOMS,
+        )!;
+        expect(trace.travaux).toHaveLength(1);
+        expect(trace.travaux[0]).toMatchObject({ demande: "Cherche un creneau", statut: "fait", dureeMs: 2400, jetonsEntree: 120, jetonsSortie: 30, resultat: "Jeudi 10 h", remis: true });
+        expect(lireLaTrace({ travaux: [] })).toBeNull();
+    });
 });
 
 describe("[.mark] la carte « Agents de l'appel » sur la page d'un appel", () => {

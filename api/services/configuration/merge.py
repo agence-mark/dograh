@@ -159,19 +159,17 @@ def merge_workflow_configuration_secrets(
     return merged
 
 
-def merge_greffier_secret(
+def _merge_bloc_secret(
     incoming_config: dict | None,
     existing_config: dict | None,
+    cle: str,
 ) -> dict | None:
-    """[.mark] Plan mode-prise-de-notes, partie 2 : la clé du greffier revient
-    masquée de l'écran ; elle reprend sa vraie valeur, comme une surcharge de
-    modèle (décision d'Evan, 04/10). Appelée à chaque enregistrement, avec ou
-    sans surcharge de modèle. Une clé absente reste absente (= clé de la
-    conversation)."""
+    """[.mark] La clé d'un bloc de modèle propre (``greffier_llm``, ``travail_llm``) revient
+    masquée de l'écran ; elle reprend sa vraie valeur, comme une surcharge de modèle."""
     if not incoming_config:
         return incoming_config
-    incoming_greffier = incoming_config.get("greffier_llm")
-    existing_greffier = (existing_config or {}).get("greffier_llm")
+    incoming_greffier = incoming_config.get(cle)
+    existing_greffier = (existing_config or {}).get(cle)
     if not isinstance(incoming_greffier, dict) or not isinstance(
         existing_greffier, dict
     ):
@@ -183,10 +181,31 @@ def merge_greffier_secret(
     if incoming_greffier.get("provider") != existing_greffier.get("provider"):
         return incoming_config
     merged = copy.deepcopy(incoming_config)
-    merged["greffier_llm"] = _merge_service_secret_fields(
-        merged["greffier_llm"],
+    merged[cle] = _merge_service_secret_fields(
+        merged[cle],
         existing_greffier,
         preserve_missing=False,
         masked_value_preserves_full_secret=True,
     )
     return merged
+
+
+def merge_greffier_secret(
+    incoming_config: dict | None,
+    existing_config: dict | None,
+) -> dict | None:
+    """[.mark] Plan mode-prise-de-notes, partie 2 : la clé du greffier revient
+    masquée de l'écran ; elle reprend sa vraie valeur, comme une surcharge de
+    modèle (décision d'Evan, 04/10). Appelée à chaque enregistrement, avec ou
+    sans surcharge de modèle. Une clé absente reste absente (= clé de la
+    conversation)."""
+    return _merge_bloc_secret(incoming_config, existing_config, "greffier_llm")
+
+
+def merge_travail_secret(
+    incoming_config: dict | None,
+    existing_config: dict | None,
+) -> dict | None:
+    """[.mark] Lot 4 d'orchestrateur-trois-cerveaux (D10) : la clé du cerveau de fond,
+    rendue à l'enregistrement comme celle du greffier."""
+    return _merge_bloc_secret(incoming_config, existing_config, "travail_llm")

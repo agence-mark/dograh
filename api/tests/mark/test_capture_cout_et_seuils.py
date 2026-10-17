@@ -340,3 +340,71 @@ def test_les_seuils_sont_bornes():
     assert ReglagesFenetreDuRun().seuils == Seuils(
         silence_apres_outil_s=5.0, tour_lent_s=3.0
     )
+
+
+# --------------------------------------------------------------------------- #
+# Lot 4 d'orchestrateur-trois-cerveaux (D12) : le greffier et le cerveau de fond sont comptés
+# --------------------------------------------------------------------------- #
+
+
+def test_les_jetons_verses_au_collecteur_sont_comptes_sous_leur_nom_et_au_prix_du_modele():
+    """Le collecteur de l'appel reçoit les jetons du greffier et du fond sous leur propre nom
+    (``greffier|||modèle``, ``travail|||modèle``) ; ``cout_du_run`` les lit comme tout modèle de
+    langage et les chiffre au tarif daté."""
+    from api.services.pipecat.pipeline_metrics_aggregator import PipelineMetricsAggregator
+
+    collecteur = PipelineMetricsAggregator()
+    collecteur.verser_llm("greffier", "mistral-large-2512", 1000, 100)
+    collecteur.verser_llm("greffier", "mistral-large-2512", 500, 50)
+    collecteur.verser_llm("travail", "mistral-large-2512", 2000, 300)
+    collecteur.verser_llm("travail", "mistral-large-2512", None, None)  # rien à verser
+    usage = collecteur.get_all_usage_metrics_serialized()
+    assert usage["llm"]["greffier|||mistral-large-2512"]["prompt_tokens"] == 1500
+    assert usage["llm"]["greffier|||mistral-large-2512"]["completion_tokens"] == 150
+    assert usage["llm"]["travail|||mistral-large-2512"]["total_tokens"] == 2300
+
+    bilan = cout_du_run({"usage_info": usage}, _table(LARGE))
+    attendu = (1500 * 2.0 + 150 * 6.0) / 1e6 + (2000 * 2.0 + 300 * 6.0) / 1e6
+    assert bilan["status"] == "ok"
+    assert bilan["total"] == round(attendu, 4)
+    assert len(bilan["lines"]) == 2  # une ligne par cerveau, même modèle
+
+
+@pytest.mark.asyncio
+async def test_une_passe_du_greffier_verse_ses_jetons_au_cout_de_l_appel():
+    """La vraie route : une passe du greffier (le modèle rend ses jetons) arrive au collecteur de
+    l'appel par le moteur, sous le nom ``greffier``. Sans collecteur, rien n'est versé et rien ne
+    lève."""
+    from unittest.mock import AsyncMock
+
+    from api.services.pipecat import greffier as module
+    from api.services.pipecat.pipeline_metrics_aggregator import PipelineMetricsAggregator
+    from api.tests.mark.test_greffier import FICHE_GREFFIER, _Modele, _Montage
+
+    modele = _Modele()
+    modele._settings = SimpleNamespace(model="mistral-large-2512")
+    montage = _Montage(modele)
+    collecteur = PipelineMetricsAggregator()
+    moteur = SimpleNamespace(collecteur_de_cout=collecteur)
+    montage.greffier._verser_le_cout = module.versement_du_cout(moteur, "greffier", modele)
+
+    with patch.object(
+        module,
+        "interroger",
+        AsyncMock(return_value=("{}", {"jetons_entree": 800, "jetons_sortie": 40})),
+    ):
+        await montage.passe()
+    usage = collecteur.get_llm_usage_metrics()
+    assert usage["greffier|||mistral-large-2512"].prompt_tokens == 800
+    assert usage["greffier|||mistral-large-2512"].completion_tokens == 40
+
+    # Sans collecteur dans le moteur : la passe se déroule, rien n'est versé.
+    sans = _Montage(modele)
+    sans.greffier._verser_le_cout = module.versement_du_cout(
+        SimpleNamespace(collecteur_de_cout=None), "greffier", modele
+    )
+    with patch.object(
+        module, "interroger", AsyncMock(return_value=("{}", {"jetons_entree": 1, "jetons_sortie": 1}))
+    ):
+        await sans.passe()
+    assert len(collecteur.get_llm_usage_metrics()) == 1

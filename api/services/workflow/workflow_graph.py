@@ -266,7 +266,13 @@ class WorkflowGraph:
             self.edges.append(edge)
 
             # Add to the source node's outgoing edges
-            source_node.out_edges.append(edge)
+            # [.mark] Relecture du lot 6 d'orchestrateur-trois-cerveaux : une sortie encore « à
+            # rédiger » (gabarit d'un collègue, complétion d'un groupe) n'est offerte à aucune porte ;
+            # elle reste dans ``edges`` et ``out`` (validation et carte du graphe inchangées).
+            from api.services.groupe.passations import sortie_en_attente
+
+            if not sortie_en_attente(edge.condition, target_node):
+                source_node.out_edges.append(edge)
 
             # Set up the node references for backward compatibility
             source_node.out[target_node.id] = target_node
@@ -413,7 +419,14 @@ class WorkflowGraph:
                 errors.append(
                     WorkflowError(kind=ItemKind.node, id=n.id, field=None, message=msg)
                 )
-            if gc.min_incoming is not None and in_d < gc.min_incoming:
+            # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (D1) : l'étape de retour de l'accueil est
+            # choisie par le code, jamais par une porte : elle n'a pas d'arête entrante.
+            sans_porte_entrante = bool(getattr(n.data, "etape_de_retour", False))
+            if (
+                gc.min_incoming is not None
+                and in_d < gc.min_incoming
+                and not sans_porte_entrante
+            ):
                 errors.append(
                     WorkflowError(
                         kind=ItemKind.node,

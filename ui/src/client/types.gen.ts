@@ -6554,6 +6554,12 @@ export type OpenAillmService = {
      * Sends the agent's cache key (mark-wf-<agent>) so the provider can reuse the start of the prompt from one turn to the next. It names the agent only, never the caller. Off: no key is sent.
      */
     prompt_cache?: boolean;
+    /**
+     * Api
+     *
+     * Which API of the provider the model is called through. 'chat_completions' is the usual one and the default. 'responses' is the provider's newer API: choose it for a model whose tools only work there (gpt-oss-120b at Scaleway). Everything else stays the same.
+     */
+    api?: 'chat_completions' | 'responses';
 };
 
 /**
@@ -11872,6 +11878,18 @@ export type WorkflowConfigurationDefaults = {
      */
     etiquettes_des_etapes?: boolean;
     /**
+     * Fiche Deja Connu
+     *
+     * Next to the question, a short line names the record fields already known (names only, never the values): "Known: name, first name, town". Every note-taking mode. Off (default): nothing is shown.
+     */
+    fiche_deja_connu?: boolean;
+    /**
+     * Filet De Fin
+     *
+     * Safety net for a specialised agent: when its reply holds a closing phrase ("goodbye", "have a nice day"...) and it took no exit, the code takes the exit that hands the call back to the main agent, which closes the call. The phrases are the organization's "formules_de_fin" sentence. Off (default): nothing is done, as before.
+     */
+    filet_de_fin?: boolean;
+    /**
      * Transfert Garanti
      *
      * When the agent arrives in a step that carries a call transfer tool and the business is OPEN, the code launches the transfer itself once the step's first reply has been said, instead of waiting for the model to call it. Every note-taking mode. Off (default): the model decides, as before.
@@ -11915,6 +11933,38 @@ export type WorkflowConfigurationDefaults = {
      * The clerk's instructions. Empty: the generic instructions written in the code. The record's fields and the expected answer format are always added by the code.
      */
     greffier_consigne?: string | null;
+    /**
+     * Travail Actif
+     *
+     * Background work. On: the agent can hand a request to a second brain that works with tools while the conversation goes on, then gets its result back. Off (default): nothing changes.
+     */
+    travail_actif?: boolean;
+    /**
+     * Travail Llm
+     *
+     * The background brain's model: provider, model, settings and its own API key. Empty fields come from the conversation model; an empty key uses the conversation's key.
+     */
+    travail_llm?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Travail Consigne
+     *
+     * The background brain's instructions. Empty (default): none are added by the code, to be written with the team.
+     */
+    travail_consigne?: string | null;
+    /**
+     * Travail Outils
+     *
+     * The tools the background brain may use (tool UUIDs of the organization). Call transfers and the end of the call are never given to it.
+     */
+    travail_outils?: Array<string>;
+    /**
+     * Travail Delai Max S
+     *
+     * How long the background brain may work on one request, in seconds.
+     */
+    travail_delai_max_s?: number;
     /**
      * Fiche Champs
      *

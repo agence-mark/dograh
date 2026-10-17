@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, Plus, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet } from '@/client/sdk.gen';
@@ -147,6 +147,12 @@ export interface ServiceConfigurationFormProps {
      * Leave undefined to keep the user-controllable toggle (legacy + overrides).
      */
     forceRealtime?: boolean;
+    /**
+     * [.mark] Lot 3 d'orchestrateur-trois-cerveaux (D7). Quand il est fourni, l'onglet « Voice »
+     * est en lecture seule et montre ce texte : l'appel n'a qu'une voix, celle de l'agent principal.
+     * Les valeurs de la voix restent celles de la configuration (rien n'est effacé à l'enregistrement).
+     */
+    voixVerrouillee?: ReactNode;
 }
 
 function getProviderDisplayName(
@@ -292,6 +298,7 @@ export function ServiceConfigurationForm({
     configurationDefaults,
     initialConfig,
     forceRealtime,
+    voixVerrouillee,
 }: ServiceConfigurationFormProps) {
     const [apiError, setApiError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -1380,8 +1387,20 @@ export function ServiceConfigurationForm({
 
                         {visibleTabs.map(({ key, label }) => (
                             <TabsContent key={key} value={key} className="mt-0">
-                                {mode === 'override' && renderOverrideToggle(key, label)}
-                                {(mode === 'global' || enabledOverrides[key]) && renderServiceFields(key)}
+                                {key === "tts" && voixVerrouillee ? (
+                                    <>
+                                        {voixVerrouillee}
+                                        <fieldset disabled data-lecture="voix" className="m-0 min-w-0 space-y-6 border-0 p-0 opacity-70">
+                                            {mode === 'override' && renderOverrideToggle(key, label)}
+                                            {(mode === 'global' || enabledOverrides[key]) && renderServiceFields(key)}
+                                        </fieldset>
+                                    </>
+                                ) : (
+                                    <>
+                                        {mode === 'override' && renderOverrideToggle(key, label)}
+                                        {(mode === 'global' || enabledOverrides[key]) && renderServiceFields(key)}
+                                    </>
+                                )}
                             </TabsContent>
                         ))}
                     </Tabs>

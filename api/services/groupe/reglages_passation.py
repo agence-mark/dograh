@@ -99,6 +99,24 @@ def limite_sans_resume(reglages: Mapping[str, Any] | None) -> int | None:
         return None
 
 
+def dernieres_a_garder(reglages: Mapping[str, Any] | None) -> int | None:
+    """Lot 2 d'orchestrateur-trois-cerveaux (D3) : dans un groupe, la passation ne fait plus écrire de
+    résumé par un modèle : l'agent appelé reçoit la note du code (``groupe/notes.py``) et les
+    ``N`` derniers messages de la conversation filtrée, ``N`` étant le seuil du réglage
+    ``passation_sans_resume_jusqua`` (40 par défaut). Rend ``N``, ou ``None`` : un agent seul, ou un
+    groupe qui a posé ``0`` (« toujours un résumé », choix explicite d'Evan) garde le résumé d'avant.
+    ⛔ Ne lève jamais."""
+    try:
+        if not est_un_groupe(reglages):
+            return None
+        limite = limite_sans_resume(reglages)
+        if limite == 0:
+            return None
+        return limite or SANS_RESUME_DEFAUT
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def passation_courte(nb_messages: int, reglages: Mapping[str, Any] | None) -> bool:
     """La conversation compte-t-elle assez peu de messages pour être rendue sans résumé ?"""
     limite = limite_sans_resume(reglages)

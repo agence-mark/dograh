@@ -118,6 +118,20 @@ export const PHRASES_DES_ACTIONS: Array<{ variable: string; description: Texte; 
     },
 ];
 
+/** [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2): « Recognised closing phrases », one per line. A
+ * fiche of the catalogue like the others (not said word for word: the code READS it) with the default
+ * list the server uses when it is absent or empty (``api/services/groupe/filet_de_fin.py``, kept word
+ * for word; a test compares them). It feeds the agents' « End-of-call safety net ». */
+export const PHRASE_FORMULES_DE_FIN: { variable: string; description: Texte; contenu: string; niveau: Phrase["niveau"] } = {
+    variable: "formules_de_fin",
+    description: {
+        en: "Recognised closing phrases, one per line. When a specialised agent says one without taking an exit and its « End-of-call safety net » is on, the code hands the call back to the main agent.",
+        fr: "Formules de fin reconnues, une par ligne. Quand un agent spécialisé en dit une sans prendre de sortie et que son « Filet de fin d'appel » est allumé, le code rend l'appel à l'agent principal.",
+    },
+    contenu: "au revoir\nbonne journée\nbonne soirée",
+    niveau: "organisation",
+};
+
 export function ModalePhrases({
     ouverte,
     onFermer,
@@ -305,6 +319,31 @@ export function ModalePhrases({
                             >
                                 <Plus className="mr-1 h-4 w-4" />
                                 {t({ en: "Add the sentences of the team and the actions", fr: "Ajouter les phrases de l'équipe et des actions" })}
+                            </Button>
+                        )}
+                        {!liste.some((p) => p.variable === PHRASE_FORMULES_DE_FIN.variable) && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                data-testid="ajouter-formules-de-fin"
+                                onClick={() =>
+                                    setListe((avant) =>
+                                        (avant ?? []).some((p) => p.variable === PHRASE_FORMULES_DE_FIN.variable)
+                                            ? avant
+                                            : [
+                                                  ...(avant ?? []),
+                                                  {
+                                                      variable: PHRASE_FORMULES_DE_FIN.variable,
+                                                      description: t(PHRASE_FORMULES_DE_FIN.description),
+                                                      contenu: PHRASE_FORMULES_DE_FIN.contenu,
+                                                      niveau: PHRASE_FORMULES_DE_FIN.niveau,
+                                                  },
+                                              ],
+                                    )
+                                }
+                            >
+                                <Plus className="mr-1 h-4 w-4" />
+                                {t({ en: "Add the recognised closing phrases", fr: "Ajouter les formules de fin reconnues" })}
                             </Button>
                         )}
                         {fautes.length > 0 && (

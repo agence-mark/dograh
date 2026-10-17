@@ -211,6 +211,21 @@ async def archiver_un_principal(
     return {"specialises": touches}
 
 
+@router.post("/{workflow_id}/groupe/completer")
+async def completer_le_groupe(
+    workflow_id: int, user: UserModel = Depends(get_user)
+) -> dict[str, list[str]]:
+    """Complète le groupe de ce principal (D6, orchestrateur-trois-cerveaux) : un nœud de fin pour
+    chaque collègue, une étape de retour pour l'accueil, prompts « à rédiger avec Evan ». Rien n'est
+    retiré ni réécrit ; le résultat reste en brouillon (la publication est un geste à part). Rend,
+    par identifiant d'agent, ce qui a été ajouté (vide : rien à faire)."""
+    try:
+        rendu = await service.completer_le_groupe(workflow_id, user.selected_organization_id)
+    except service.GroupeError as e:
+        raise _vers_http(e)
+    return {str(agent_id): ajouts for agent_id, ajouts in rendu.items()}
+
+
 @router.post("/{workflow_id}/groupe/publier")
 async def publier_le_groupe(
     workflow_id: int, user: UserModel = Depends(get_user)

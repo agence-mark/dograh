@@ -179,6 +179,8 @@ ORDRES_JOUABLES = (ORDRE_PHRASE_PUIS_NOTE, ORDRE_NOTE_PUIS_PHRASE)
 CLE_INDICES_DES_MODULES = "indices_des_modules"
 # Lot E d'agent-leger-greffier (P1).
 CLE_ETIQUETTES = "etiquettes_des_etapes"
+# Lot 2 d'orchestrateur-trois-cerveaux (D4) : la ligne « Déjà connu : … » collée à la question.
+CLE_DEJA_CONNU = "fiche_deja_connu"
 # Chantier postscriptum-et-communes, B5 : la phrase qui redemande ce que la note du même tour
 # vient d'écrire n'est pas dite (« porte, note, phrase » seulement). Option par agent, éteinte.
 CLE_PHRASE_SANS_REDEMANDE = "phrase_sans_redemande"
@@ -225,6 +227,9 @@ class ReglagesFiche:
     motifs_des_types: dict = field(default_factory=dict)
     # Lot E d'agent-leger-greffier (P1) : les étiquettes des étapes, tous modes.
     etiquettes: bool = False
+    # D4 (orchestrateur-trois-cerveaux) : « Déjà connu : nom, prénom. » avant la dernière parole de
+    # l'appelant, tous modes. Éteint par défaut : aucun changement pour un agent qui ne le règle pas.
+    deja_connu: bool = False
     # B5 : en « porte, note, phrase », la phrase qui redemande un champ que la note du tour
     # vient d'écrire est retenue, et le modèle reparle (une fois). Éteint : rien ne change.
     phrase_sans_redemande: bool = False
@@ -291,6 +296,7 @@ class ReglagesFiche:
             mode=mode,
             motifs_des_types=_motifs_des_types(run_configs),
             etiquettes=bool(run_configs.get(CLE_ETIQUETTES)),
+            deja_connu=run_configs.get(CLE_DEJA_CONNU) is True,
             transfert_garanti=run_configs.get(CLE_TRANSFERT_GARANTI) is True,
             parcours_lisible=(
                 run_configs.get(CLE_SCHEMA_DU_PARCOURS) is True
@@ -492,6 +498,45 @@ def est_dit_tel_quel(valeur: Any, paroles: Iterable[str]) -> bool:
     return est_cite(valeur, paroles) and any(
         est_cite(" ".join(mots), [parole]) for parole in paroles
     )
+
+
+# B3 (tri du 17/10, run 1442 et huit autres) : une adresse e-mail écrite ou dite en mots.
+_COURRIEL_ECRIT = re.compile(r"\S+@\S+")
+
+
+def paroles_sans_courriel(paroles: Iterable[str]) -> list[str]:
+    """B3 : les paroles de l'appelant privées de ses adresses e-mail, écrites (« a@b.fr »)
+    ou dites en mots (« paul point garnier arobase… »), lues par le module des adresses."""
+    from api.services.epellation.lecture import lire as lire_les_lettres
+
+    sans: list[str] = []
+    for parole in paroles:
+        texte = str(parole)
+        try:
+            for trouvee in sorted(
+                (e for e in lire_les_lettres(texte) if e.courriel),
+                key=lambda e: e.debut,
+                reverse=True,
+            ):
+                texte = texte[: trouvee.debut] + " " + texte[trouvee.fin :]
+        except Exception:  # noqa: BLE001 -- au doute, la parole reste telle quelle
+            texte = str(parole)
+        sans.append(_COURRIEL_ECRIT.sub(" ", texte))
+    return sans
+
+
+def est_deduit_d_un_courriel(valeur: Any, paroles: Iterable[str]) -> bool:
+    """B3 : une valeur qui n'est « dite » que parce qu'un morceau d'une adresse e-mail
+    la contient (le prénom ``paul`` tiré de « paul.garnier60 arobase… »). Un champ dicté ne
+    se déduit jamais d'une autre information. Une valeur qui est elle-même une adresse n'est
+    pas concernée."""
+    if "@" in str(valeur):
+        return False
+    paroles = list(paroles)
+    sans = paroles_sans_courriel(paroles)
+    if sans == paroles:
+        return False
+    return est_dit_tel_quel(valeur, paroles) and not est_dit_tel_quel(valeur, sans)
 
 
 # C13 (PB2) : les mots qui ne portent rien. Un déduit ancré sur « pour » ou
@@ -2072,6 +2117,19 @@ def ecrire_dans_la_fiche(
             and not est_dit_tel_quel(valeur, paroles_sans_notes(paroles, fiche))
             # Lot C : la correction d'une ou plusieurs paires d'un numéro déjà noté.
             and not corrige_par_paires(definition, fiche.get(champ), valeur, paroles_sans_notes(paroles[-1:], fiche))
+        ):
+            verdict = Verdict(champ, "refuse", "non_dit", valeur)
+        elif (
+            source == MODE_GREFFIER
+            and lecture is None
+            and not epele
+            and dit is None
+            and definition.origine == OrigineChamp.dicte
+            and not definition.cumulatif
+            and definition.type == "string"
+            # B3 : un champ dicté n'est jamais déduit d'une adresse e-mail (le prénom
+            # ``paul`` tiré de « paul.garnier60 arobase… »).
+            and est_deduit_d_un_courriel(valeur, paroles_sans_notes(paroles, fiche))
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:
@@ -3834,6 +3892,17 @@ def etat_avec_les_indices(
     souffle = souffle_de_l_etape(reglages, fiche, champs_etape, a_des_portes)
     if souffle:
         texte = f"{texte or entete_etat(reglages)}\n{souffle}"
+    # D4 (orchestrateur-trois-cerveaux) : la ligne « Déjà connu », juste après le souffle (son
+    # complément), pour tout agent qui allume la case. Jamais la valeur, seulement les noms.
+    if reglages.deja_connu:
+        from api.services.fiche.traces import valeurs_des_traces
+        from api.services.groupe.notes import ligne_deja_connu
+
+        connu = ligne_deja_connu(
+            reglages, fiche, champs_etape, valeurs_des_traces(reglages, fiche)
+        )
+        if connu:
+            texte = f"{texte or entete_etat(reglages)}\n{connu}"
     indices = indices_des_modules(reglages, parole, fiche, fiche.get(CLE_TOUR))
     if not indices:
         return texte
@@ -3893,16 +3962,19 @@ def montrer_la_fiche(
         params = construire(params_from_context)
         if en_conversation.get():
             try:
+                # Lot 1 d'orchestrateur-trois-cerveaux : l'API Responses range la conversation
+                # dans ``input`` (mêmes éléments rôle + contenu) ; chat completions, dans ``messages``.
+                cle = "messages" if "messages" in params else "input"
                 texte = etat_avec_les_indices(
                     reglages,
                     fiche(),
                     notices,
-                    params["messages"],
+                    params[cle],
                     champs_etape() if champs_etape else (),
                     a_des_portes() if a_des_portes else True,
                 )
                 if texte:
-                    params["messages"] = inserer_l_etat(list(params["messages"]), texte)
+                    params[cle] = inserer_l_etat(list(params[cle]), texte)
             except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais l'appel
                 logger.error(f"[fiche] état non montré : {erreur}")
         return params

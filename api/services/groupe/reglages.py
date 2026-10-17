@@ -12,7 +12,7 @@ la recopie (ce module) et par l'écran du groupe (lot 13 : un test vérifie que 
 Le cerveau est **détachable** (Evan, 16/10) : ``cerveau_propre: true`` sur un spécialisé garde
 son propre cerveau, c'est-à-dire le modèle de langage de sa configuration de modèles
 (``CHEMINS_CERVEAU``) et les réglages qui suivent le cerveau (``CLES_SUIVENT_LE_CERVEAU``).
-La voix, elle, reste commune : une seule voix pour tout le groupe.
+La voix, elle, reste commune : une seule voix pour tout le groupe (lot 3 d'orchestrateur-trois-cerveaux, D7 : même hors groupe, une seule voix par appel ; `cerveau_propre` ne la change jamais).
 
 Tout est pur (aucune base, aucune levée) ; aucun mot de métier : des noms de clés de réglages.
 """
@@ -62,6 +62,14 @@ CLES_SUIVENT_LE_CERVEAU = (
     "reflexion_de_relance",
     "trace_requetes_modele",
     "relance_apres_outil",
+    # Lot 4 d'orchestrateur-trois-cerveaux (D13) : le cerveau de fond d'un agent est une brique
+    # de SON cerveau (modèle, consigne, outils, délai). Un spécialisé au cerveau rattaché prend
+    # ceux du principal ; avec « Cerveau propre », il garde les siens.
+    "travail_actif",
+    "travail_llm",
+    "travail_consigne",
+    "travail_outils",
+    "travail_delai_max_s",
 )
 
 # Thème 1 (Agent), partie commune : les réglages du groupe et ceux qui suivent le cerveau.
@@ -70,12 +78,18 @@ CLES_SUIVENT_LE_CERVEAU = (
 CLES_COMMUNES: tuple[str, ...] = (
     # 1 Agent (commun)
     *CLES_DU_GROUPE,
+    "filet_de_fin",
     "reflexion_de_relance",
     "trace_requetes_modele",
     # 2 Briques
     "model_overrides",
     "model_configuration_v2_override",
     "mark_per_service_override",
+    "travail_actif",
+    "travail_llm",
+    "travail_consigne",
+    "travail_outils",
+    "travail_delai_max_s",
     # 3 Écoute
     "conversion_nombres_transcription",
     "variables_reference",
@@ -146,6 +160,7 @@ CLES_COMMUNES: tuple[str, ...] = (
     "ordre_de_la_reponse",
     "indices_des_modules",
     "etiquettes_des_etapes",
+    "fiche_deja_connu",
     "transfert_garanti",
     "phrase_sans_redemande",
     "greffier_llm",

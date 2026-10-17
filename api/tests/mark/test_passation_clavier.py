@@ -53,24 +53,36 @@ def _arete(source, cible, label):
     }
 
 
-def _principal(outils=(), fins=None):
-    """Le principal : accueil (outils de passation) et un nœud de fin."""
+def _principal(outils=(), fins=None, avec_retour=False):
+    """Le principal : accueil (outils de passation) et un nœud de fin. ``avec_retour`` (lot 2 d'orchestrateur-
+    trois-cerveaux, D1) : et son étape de retour, sans arête entrante, qui porte les mêmes outils."""
     fin = {"fins": fins} if fins else {}
-    return {
-        "nodes": [
+    noeuds = [
+        _noeud(
+            "p_start",
+            "startCall",
+            "accueil",
+            "Tu routes.",
+            greeting_type="text",
+            greeting="Bonjour.",
+            tool_uuids=list(outils),
+        ),
+        _noeud("p_fin", "endCall", "fin", "Conclure.", **fin),
+    ]
+    aretes = [_arete("p_start", "p_fin", "fin")]
+    if avec_retour:
+        noeuds.append(
             _noeud(
-                "p_start",
-                "startCall",
-                "accueil",
-                "Tu routes.",
-                greeting_type="text",
-                greeting="Bonjour.",
+                "p_retour",
+                "agentNode",
+                "reprise",
+                "Tu reprends la conversation.",
+                etape_de_retour=True,
                 tool_uuids=list(outils),
-            ),
-            _noeud("p_fin", "endCall", "fin", "Conclure.", **fin),
-        ],
-        "edges": [_arete("p_start", "p_fin", "fin")],
-    }
+            )
+        )
+        aretes.append(_arete("p_retour", "p_fin", "fin"))
+    return {"nodes": noeuds, "edges": aretes}
 
 
 def _specialise():
@@ -131,6 +143,7 @@ async def _groupe(
     reglages_principal=None,
     fins=None,
     outil_vers_soi=False,
+    avec_retour=False,
 ):
     """Un principal (le premier agent du run) et un spécialisé, liés des deux côtés."""
     base = copy.deepcopy(FICHE)
@@ -157,7 +170,10 @@ async def _groupe(
         **(reglages_principal or {}),
     }
     await _republier(
-        db_session, principal, _principal([outil.tool_uuid], fins), reglages
+        db_session,
+        principal,
+        _principal([outil.tool_uuid], fins, avec_retour),
+        reglages,
     )
     return user, principal, specialise
 
@@ -428,6 +444,43 @@ async def test_l_etape_de_retour_rend_la_main_au_principal_sans_tour_intermediai
         ("retour", principal.id),
     ], passations
     assert "Très bien, je vous passe la suite." in str(second), second
+
+
+@pytest.mark.asyncio
+async def test_le_retour_arrive_sur_l_etape_de_retour_de_l_accueil_avec_sa_note(
+    db_session, async_session, test_client_factory
+):
+    """Lot 2 d'orchestrateur-trois-cerveaux (D1, D2) : le graphe de l'accueil a une étape de retour ;
+    le retour du spécialisé y arrive (et non sur ``p_start``), le tour d'après se joue dessus, et son
+    prompt porte la note de retour écrite par le code depuis la fiche."""
+    user, principal, specialise = await _groupe(db_session, async_session, avec_retour=True)
+    accueil_du_tour_3 = _dit(_texte("Je vous écoute pour la facture."))
+    reponses = await _session(
+        test_client_factory,
+        user,
+        principal,
+        [
+            _vide(),
+            _dit([*_appel("passer_a_s", "p1")]),
+            _vide(),
+            _dit(_texte("C'est noté.")),
+            _vide(),
+            _dit([*_texte("Est-ce que je peux faire autre chose pour vous ?"), *_appel("retour", "r1")]),
+            _vide(),  # la fabrique construit le principal ; il ne parle pas
+            accueil_du_tour_3,  # tour 3 : le premier agent, reconstruit sur son étape de retour
+        ],
+        ["j'ai une panne", "c'est tout pour la panne", "une facture aussi"],
+    )
+    point = _checkpoint(reponses[1])
+    assert "agent_actif" not in point, point
+    assert point["current_node_id"] == "p_retour", point
+    parcours = point["gathered_context"].get("parcours_etapes") or []
+    assert parcours[-1].get("etape") == "reprise", parcours
+    assert "Je vous écoute pour la facture." in str(reponses[2]), reponses[2]
+    instruction = str(getattr(accueil_du_tour_3._settings, "system_instruction", "") or "")
+    assert "# Retour du collègue « Spécialisé »" in instruction, instruction
+    assert "Tu reprends la conversation." in instruction
+    assert "L'appelant a une autre demande" in instruction
 
 
 @pytest.mark.asyncio

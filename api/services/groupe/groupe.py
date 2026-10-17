@@ -28,10 +28,13 @@ from loguru import logger
 from api.db import db_client
 from api.db.folder_client import FolderNameConflictError
 from api.enums import ToolCategory
+from api.services.groupe.completion import completer_un_accueil, completer_un_collegue
 from api.services.groupe.passations import (
+    A_REDIGER,
     CLE_AGENT_PRINCIPAL,
     CLE_AGENTS_SPECIALISES,
     CLE_PLAFOND,
+    MARQUEUR_ETAPE_DE_RETOUR,
     MARQUEUR_RETOUR,
     PLAFOND_DEFAUT,
 )
@@ -113,8 +116,9 @@ def specialises_de(reglages: Mapping[str, Any] | None) -> list[int]:
 
 
 def graphe_minimal_du_specialise() -> dict:
-    """Qualification › coordonnées › retour au principal (A1) : trois étapes, la dernière
-    marquée ``retour_au_principal``, sans prompt global, sans outil, **sans nœud de fin**."""
+    """Qualification › coordonnées › deux sorties (D5, orchestrateur-trois-cerveaux) : « retour au
+    principal » (A1, étape marquée ``retour_au_principal``) et « Fin » (clore l'appel), sans prompt
+    global, sans outil. Le prompt et la porte de la fin sont « à rédiger avec Evan »."""
     return {
         "nodes": [
             {
@@ -152,6 +156,18 @@ def graphe_minimal_du_specialise() -> dict:
                     MARQUEUR_RETOUR: True,
                 },
             },
+            {
+                "id": "4",
+                "type": "endCall",
+                "position": {"x": 475, "y": 460},
+                "data": {
+                    "name": "Fin",
+                    "prompt": A_REDIGER,
+                    "is_end": True,
+                    "allow_interrupt": False,
+                    "add_global_prompt": False,
+                },
+            },
         ],
         "edges": [
             {
@@ -171,6 +187,12 @@ def graphe_minimal_du_specialise() -> dict:
                     "label": "Retour au principal",
                     "condition": "Quand les coordonnées sont recueillies et que la dernière question a été posée, rendre la main.",
                 },
+            },
+            {
+                "id": "2-4",
+                "source": "2",
+                "target": "4",
+                "data": {"label": "Fin", "condition": A_REDIGER},
             },
         ],
         "viewport": {"x": 0, "y": 0, "zoom": 0.75},
@@ -478,6 +500,12 @@ async def creer_specialise(
             deja_pris=await _noms_de_fonctions_du_noeud(donnees, organization_id),
         )
         donnees["tool_uuids"] = [*(donnees.get("tool_uuids") or []), outil.tool_uuid]
+        # Lot 2 d'orchestrateur-trois-cerveaux : l'étape de retour de l'accueil porte les mêmes
+        # outils de passation (elle doit pouvoir repasser la main à un autre collègue).
+        for autre in definition.get("nodes") or []:
+            autres = (autre or {}).get("data") or {}
+            if autres is not donnees and autres.get(MARQUEUR_ETAPE_DE_RETOUR) is True:
+                autres["tool_uuids"] = [*(autres.get("tool_uuids") or []), outil.tool_uuid]
         definition_modifiee = definition
     else:
         logger.warning(
@@ -488,6 +516,59 @@ async def creer_specialise(
         principal, organization_id, definition=definition_modifiee, reglages=reglages_principal
     )
     return nouveau.id
+
+
+# ---------------------------------------------------------------------------
+# Compléter (D6, orchestrateur-trois-cerveaux)
+# ---------------------------------------------------------------------------
+
+
+async def _outils_de_passation_de_l_accueil(definition: Mapping, organization_id: int) -> list[str]:
+    """Les uuid des outils de passation (``transfer_agent``) posés sur l'étape de qualification."""
+    etape = await etape_de_qualification(definition, organization_id)
+    uuids = [u for u in ((etape or {}).get("data") or {}).get("tool_uuids") or [] if isinstance(u, str)]
+    if not uuids:
+        return []
+    outils = await db_client.get_tools_by_uuids(uuids, organization_id)
+    passations = {o.tool_uuid for o in outils if o.category == ToolCategory.TRANSFER_AGENT.value}
+    return [u for u in uuids if u in passations]
+
+
+async def completer_l_agent(workflow_id: int, organization_id: int) -> list[str]:
+    """Complète le graphe d'un agent d'un groupe (collègue : nœud de fin ; accueil : étape de retour)
+    et range le résultat en **brouillon** (jamais publié : la publication est un geste à part). Rien
+    n'est retiré ni réécrit ; rejoué, il ne rajoute rien. Rend ce qui a été ajouté (liste vide : rien
+    à faire, rien écrit). Un agent seul : rien."""
+    agent = await lire_agent(workflow_id, organization_id)
+    if agent is None:
+        raise GroupeError(f"Workflow with id {workflow_id} not found", status_code=404)
+    if _entier(agent.reglages.get(CLE_AGENT_PRINCIPAL)) is not None:
+        definition, ajouts = completer_un_collegue(agent.definition)
+    elif specialises_de(agent.reglages):
+        outils = await _outils_de_passation_de_l_accueil(agent.definition, organization_id)
+        definition, ajouts = completer_un_accueil(agent.definition, outils)
+    else:
+        return []
+    if ajouts:
+        await _enregistrer(agent, organization_id, definition=definition)
+        logger.info("groupe : agent {} complété (brouillon) : {}", workflow_id, "; ".join(ajouts))
+    return ajouts
+
+
+async def completer_le_groupe(principal_id: int, organization_id: int) -> dict[int, list[str]]:
+    """Complète l'accueil puis chaque collègue de ce groupe. Rend, par agent, ce qui a été ajouté."""
+    principal = await lire_agent(principal_id, organization_id)
+    if principal is None:
+        raise GroupeError(f"Workflow with id {principal_id} not found", status_code=404)
+    if _entier(principal.reglages.get(CLE_AGENT_PRINCIPAL)) is not None:
+        raise GroupeError("Cet agent est un spécialisé : donne son principal.", status_code=409)
+    rendu = {principal_id: await completer_l_agent(principal_id, organization_id)}
+    for sid in specialises_de(principal.reglages):
+        specialise = await lire_agent(sid, organization_id)
+        if specialise is None or _entier(specialise.reglages.get(CLE_AGENT_PRINCIPAL)) != principal_id:
+            continue
+        rendu[sid] = await completer_l_agent(sid, organization_id)
+    return rendu
 
 
 # ---------------------------------------------------------------------------

@@ -27,7 +27,7 @@
  * a save that destroys the other format says so before it happens.
  */
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
 import { ServiceConfigurationForm } from "@/components/ServiceConfigurationForm";
@@ -43,6 +43,8 @@ export interface PerServiceModelOverrideProps {
     onSave: (configurations: WorkflowConfigurations, workflowName: string) => Promise<void>;
     /** Appended to the success toast, so the reminder reads like the rest of the page. */
     publishReminder: string;
+    /** Lot 3 (D7): the voice is read only (an agent of a group never plays its own), with this note. */
+    voixVerrouillee?: ReactNode;
 }
 
 /**
@@ -78,6 +80,7 @@ export function PerServiceModelOverride({
     workflowName,
     onSave,
     publishReminder,
+    voixVerrouillee,
 }: PerServiceModelOverrideProps) {
     const { t } = useLangue();
     const savedOverrides = workflowConfigurations.model_overrides;
@@ -161,6 +164,7 @@ export function PerServiceModelOverride({
                     currentOverrides={savedOverrides}
                     submitLabel={t({ en: "Save Per-Service Override", fr: "Enregistrer le remplacement par service" })}
                     onSave={saveOverrides}
+                    voixVerrouillee={voixVerrouillee}
                 />
             )}
 

@@ -49,6 +49,7 @@ from api.services.workflow import agent_transfer
 from api.services.workflow.agent_transfer import TransferRequest
 from api.services.workflow.pipecat_engine import CLE_ETAT_OUVERTURE
 from api.services.workflow.tools.transfer_resolver import ResolvedTransferConfig
+from api.tests.mark.banc_voix import brancher_la_parole_locale, voix_de_l_appel
 from api.tests.mark.test_agent_transfere_reglages_mark import (
     WORKFLOW_ID,
     _configuration,
@@ -126,16 +127,20 @@ async def _monter_groupe(reglages=None, *, messages=None):
     """Le banc de passation fendu, le premier agent = le principal du groupe ; le spécialisé
     construit porte ``agent_principal_id``. ``reglages=None`` : un agent SEUL (aucun réglage)."""
     harness = TransferHarness()
-    await harness.build(
-        source_llm=MockLLMService(mock_steps=[], chunk_delay=0.001),
-        destination_llm=MockLLMService(mock_steps=[], chunk_delay=0.001),
-        source_workflow=build_agent_workflow(
-            name="Accueil",
-            greeting="Bonjour, je vous écoute.",
-            tool_uuids=["tool-transfer-agent"],
-        ),
-        destination_workflow=build_agent_workflow(name="Specialise", greeting="Je note."),
-    )
+    # [.mark] Lot 3 (D7) : l'appel monte SA voix, comme run_pipeline (le banc de l'amont n'en a pas).
+    with voix_de_l_appel() as banc:
+        await harness.build(
+            source_llm=MockLLMService(mock_steps=[], chunk_delay=0.001),
+            destination_llm=MockLLMService(mock_steps=[], chunk_delay=0.001),
+            source_workflow=build_agent_workflow(
+                name="Accueil",
+                greeting="Bonjour, je vous écoute.",
+                tool_uuids=["tool-transfer-agent"],
+            ),
+            destination_workflow=build_agent_workflow(name="Specialise", greeting="Je note."),
+        )
+    brancher_la_parole_locale(harness, banc)
+    harness.banc_voix = banc
     engine = harness.engine
     engine.reglages_appel = dict(reglages or {})
     engine.active_agent.reglages = dict(reglages or {})
@@ -547,7 +552,7 @@ def _sans_service():
     """Tout service de voix ou de modèle créé au préchauffage fait échouer le test."""
     interdit = MagicMock(side_effect=AssertionError("un service a été construit au préchauffage"))
     return (
-        patch.object(fabrique_agents, "create_tts_service", interdit),
+        patch("api.services.pipecat.service_factory.create_tts_service", interdit),
         patch.object(fabrique_agents, "create_llm_service", interdit),
         interdit,
     )
@@ -676,7 +681,7 @@ async def test_la_construction_lit_le_cache_et_sans_cache_elle_lit_la_base():
             "get_effective_ai_model_configuration_for_workflow",
             config_interdite,
         ),
-        patch.object(fabrique_agents, "create_tts_service", MagicMock(return_value=SimpleNamespace())),
+        patch("api.services.pipecat.service_factory.create_tts_service", MagicMock(return_value=SimpleNamespace())),
         patch.object(fabrique_agents, "create_llm_service", MagicMock(return_value=SimpleNamespace())),
         patch.object(fabrique, "attach", AsyncMock()),
     ):
@@ -694,7 +699,7 @@ async def test_la_construction_lit_le_cache_et_sans_cache_elle_lit_la_base():
             "get_effective_ai_model_configuration_for_workflow",
             AsyncMock(return_value=_configuration()),
         ),
-        patch.object(fabrique_agents, "create_tts_service", MagicMock(return_value=SimpleNamespace())),
+        patch("api.services.pipecat.service_factory.create_tts_service", MagicMock(return_value=SimpleNamespace())),
         patch.object(fabrique_agents, "create_llm_service", MagicMock(return_value=SimpleNamespace())),
         patch.object(autre, "attach", AsyncMock()),
     ):

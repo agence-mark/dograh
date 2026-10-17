@@ -60,7 +60,24 @@ _PREMIERE_REPLIQUE = (
     "champ, ces deux cas passent."
 )
 
+# [.mark] Plan orchestrateur-trois-cerveaux, lot 3 (D7, 17/10/2026) : la voix unique.
+_VOIX_UNIQUE = (
+    "[.mark] Decision d'Evan du 17/10/2026 (plan orchestrateur-trois-cerveaux, D7) : UNE SEULE "
+    "voix dans le pipeline d'appel, partout (groupe ou non). Les agents ne portent que leur "
+    "cerveau ; aucune voix n'est ouverte a une passation. L'amont (fc76383c, « in its own "
+    "voice ») donne une voix a chaque agent : son banc de passation monte l'appel SANS voix et "
+    "met celle de chaque agent dans son sous-circuit. Ce test attend donc une voix qui ne "
+    "vit plus la ou il la cherche. Prouve le 17/10 : avec la voix de l'appel montee dans le "
+    "banc, le meme scenario passe (api/tests/mark/test_voix_unique.py le rejoue)."
+)
+
 DIVERGENCES_ASSUMEES = {
+    "tests/test_agent_transfer.py": {
+        "test_transfer_hands_the_call_over_without_dropping_it": _VOIX_UNIQUE,
+        "test_idle_monitor_resumes_after_transfer_opening_or_recovery": {"True": _VOIX_UNIQUE},
+        "test_agent_generations_are_traced_into_the_calls_turns": _VOIX_UNIQUE,
+        "test_arrivee_sur_un_transfert_ouvert_la_phrase_est_dite_puis_le_transfert_part": _VOIX_UNIQUE,
+    },
     "tests/test_node_specs.py": {
         "test_node_spec_property_order_stable": {
             "agentNode-expected_order1": _PREMIERE_REPLIQUE,

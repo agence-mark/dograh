@@ -165,6 +165,225 @@
       ],
       "title": "Mistral",
       "type": "object"
+    },
+    "openai": {
+      "properties": {
+        "provider": {
+          "const": "openai",
+          "default": "openai",
+          "title": "Provider",
+          "type": "string"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Api Key"
+        },
+        "model": {
+          "allow_custom_input": true,
+          "default": "gpt-4.1",
+          "description": "OpenAI chat model to use.",
+          "examples": [
+            "gpt-4.1",
+            "gpt-4.1-mini",
+            "gpt-4.1-nano",
+            "gpt-5",
+            "gpt-5-mini",
+            "gpt-5-nano",
+            "gpt-3.5-turbo",
+            "openai/gpt-oss-120b:fp4"
+          ],
+          "title": "Model",
+          "type": "string"
+        },
+        "base_url": {
+          "default": "https://api.openai.com/v1",
+          "description": "Override only if using an OpenAI-compatible API (e.g. local LLM, proxy).",
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "Base URL",
+            "fr": "Adresse du service"
+          },
+          "title": "Base Url",
+          "type": "string"
+        },
+        "api": {
+          "default": "chat_completions",
+          "description": "Which API of the provider the model is called through. 'chat_completions' is the usual one and the default. 'responses' is the provider's newer API: choose it for a model whose tools only work there (gpt-oss-120b at Scaleway). Everything else stays the same.",
+          "enum": [
+            "chat_completions",
+            "responses"
+          ],
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "API",
+            "fr": "Type d'API"
+          },
+          "title": "Api",
+          "type": "string"
+        },
+        "temperature": {
+          "default": 0.1,
+          "description": "How much randomness goes into each word. Low keeps answers predictable and on-script. Defaults to 0.1, the value that was hardcoded before this field existed.",
+          "mark_groupe": "generation",
+          "mark_libelle": {
+            "en": "Temperature",
+            "fr": "Température"
+          },
+          "maximum": 2.0,
+          "minimum": 0.0,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "top_p": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "maximum": 1.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Restricts the draw to the most likely words. Acts on the same phenomenon as temperature: change one or the other, not both.",
+          "mark_groupe": "generation",
+          "mark_libelle": {
+            "en": "Top p",
+            "fr": "Échantillonnage (top p)"
+          },
+          "title": "Top P"
+        },
+        "max_tokens": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Longest answer the model may produce, in tokens. A guard against a reasoning model that runs away. Left empty, the model stops when it has finished.",
+          "mark_groupe": "generation",
+          "mark_libelle": {
+            "en": "Max tokens",
+            "fr": "Longueur maximale d'une réponse"
+          },
+          "title": "Max Tokens"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fixes the draw where the provider honours it: a laboratory tool for comparing two settings. Left empty, each call is drawn afresh.",
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "Seed",
+            "fr": "Graine"
+          },
+          "title": "Seed"
+        },
+        "frequency_penalty": {
+          "anyOf": [
+            {
+              "maximum": 2.0,
+              "minimum": -2.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Discourages repeating a word already used often. From -2 to 2.",
+          "mark_groupe": "repetition",
+          "mark_libelle": {
+            "en": "Frequency penalty",
+            "fr": "Pénalité de fréquence"
+          },
+          "title": "Frequency Penalty"
+        },
+        "presence_penalty": {
+          "anyOf": [
+            {
+              "maximum": 2.0,
+              "minimum": -2.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pushes the model towards subjects not brought up yet. From -2 to 2.",
+          "mark_groupe": "repetition",
+          "mark_libelle": {
+            "en": "Presence penalty",
+            "fr": "Pénalité de présence"
+          },
+          "title": "Presence Penalty"
+        },
+        "reasoning_effort": {
+          "anyOf": [
+            {
+              "enum": [
+                "none",
+                "minimal",
+                "low",
+                "medium",
+                "high"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How long a reasoning model thinks before answering (gpt-oss, GLM, DeepSeek, recent Qwen). Each step up costs seconds before the voice on the phone: 'low' is the setting for a conversation. Left empty, the model's own default (medium for gpt-oss); 'gpt-5' models keep 'minimal'. A model that does not reason may refuse the key.",
+          "mark_groupe": "generation",
+          "mark_libelle": {
+            "en": "Reasoning effort",
+            "fr": "Niveau de raisonnement"
+          },
+          "title": "Reasoning Effort"
+        },
+        "prompt_cache": {
+          "default": false,
+          "description": "Sends the agent's cache key (mark-wf-<agent>) so the provider can reuse the start of the prompt from one turn to the next. It names the agent only, never the caller. Off: no key is sent.",
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "Prompt cache key",
+            "fr": "Clé de cache du prompt"
+          },
+          "title": "Prompt Cache",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "api_key"
+      ],
+      "title": "OpenAI",
+      "type": "object"
     }
   },
   "tts": {

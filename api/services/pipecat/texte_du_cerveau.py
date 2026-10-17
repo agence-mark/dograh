@@ -20,7 +20,15 @@ l'historique (téléphone et clavier) :
   portes la lit comme toute porte écrite (porte inconnue comprise : relancée une fois) ;
 - sinon le jeton et le nom sont retirés ;
 - un texte entre crochets n'est jamais dit ni gardé (journalisé) ; un crochet jamais fermé
-  dans les 160 caractères qui suivent est rendu tel quel.
+  dans les 160 caractères qui suivent est rendu tel quel ;
+- C2 (tri du 17/10, Large 3) : une didascalie en italique entre parenthèses, ``*(…)*``, suit la
+  même règle que les crochets (« *(Je le relis une fois noté.)* » était dite à voix haute). Sauf
+  si elle porte une flèche ``→`` : c'est alors une porte habillée (« *(→ retour)* »), laissée au
+  lecteur de portes (C1) ;
+- C6 (tri du 17/10, Small 3.2) : l'en-tête de la fiche, ``[Fiche de l'appel : pour toi seulement…]``,
+  est lu à voix haute quand le modèle le recopie, parce qu'il dépasse les 160 caractères des
+  crochets ordinaires. Il est retiré **quelle que soit sa longueur** ; resté ouvert jusqu'à la fin
+  du flux, tout ce qui suit son ouverture est retiré (c'est la fiche, jamais une parole).
 
 ⚠️ Latence, cas rares seulement : un « [ » ouvert retient la voix jusqu'à sa fermeture (au plus
 160 caractères) ; après un jeton d'appel, le reste de la réponse part à la fin du flux.
@@ -43,6 +51,17 @@ from api.services.workflow.porte_parlee import FLECHE
 JETONS_D_APPEL = ("[TOOL_CALLS]", "<tool_call>")
 _LONGUEUR_MAX_CROCHETS = 160
 _NOM = re.compile(r"[A-Za-z_][A-Za-z0-9_\-]*")
+# C6 : le début de l'en-tête de la fiche que le code montre au modèle (``fiche_au_fil_de_leau.ENTETE_ETAT*``,
+# gardé identique par un test).
+DEBUT_ENTETE_FICHE = "[Fiche de l'appel"
+_ENTETE_FICHE = re.compile(re.escape(DEBUT_ENTETE_FICHE) + r"[^\]]*\]\s*")
+# C2 : une didascalie « *(…)* » (jamais une porte : pas de flèche dedans).
+_DIDASCALIE = re.compile(
+    r"\*\((?:(?!%s)[^()\n]){1,%d}\)\*\s*" % (re.escape(FLECHE), _LONGUEUR_MAX_CROCHETS)
+)
+_DIDASCALIE_OUVERTE = re.compile(
+    r"\*\((?:(?!%s)[^()\n]){0,%d}\)?$" % (re.escape(FLECHE), _LONGUEUR_MAX_CROCHETS)
+)
 
 
 def _delta(morceau: Any) -> Any:
@@ -187,9 +206,37 @@ def _appels_en_liste(apres_le_jeton: str) -> list[tuple[str, str]] | None:
     return appels or None
 
 
+def sans_didascalies(texte: str) -> str:
+    """C2 : ``texte`` sans ses didascalies ``*(…)*`` fermées (et l'espace qui les suit)."""
+    return _DIDASCALIE.sub("", texte)
+
+
 def sans_crochets(texte: str) -> str:
-    """``texte`` sans ses passages entre crochets fermés (et l'espace qui les suit)."""
-    return re.sub(r"\[[^\[\]\n]{0,%d}\]\s*" % _LONGUEUR_MAX_CROCHETS, "", texte)
+    """``texte`` sans ses passages entre crochets fermés (et l'espace qui les suit), puis
+    sans ses didascalies en italique (C2)."""
+    return sans_didascalies(
+        re.sub(
+            r"\[[^\[\]\n]{0,%d}\]\s*" % _LONGUEUR_MAX_CROCHETS,
+            "",
+            _ENTETE_FICHE.sub("", texte),
+        )
+    )
+
+
+def sans_entete_ouvert(texte: str) -> str:
+    """C6 : l'en-tête de la fiche resté ouvert à la fin du flux : tout ce qui suit son
+    ouverture est retiré."""
+    debut = texte.find(DEBUT_ENTETE_FICHE)
+    if debut < 0:
+        return texte
+    logger.warning(f"[cerveau] en-tête de la fiche jamais fermé, retiré : {texte[debut:debut + 80]!r}")
+    return texte[:debut]
+
+
+def _didascalie_en_attente(texte: str) -> bool:
+    """C2 : le texte finit-il sur une didascalie encore ouverte (« *( … » sans « )* »), ou sur
+    une étoile seule, début possible de « *( » dans le morceau suivant ?"""
+    return texte.endswith("*") or _DIDASCALIE_OUVERTE.search(texte) is not None
 
 
 class FluxNettoye:
@@ -239,7 +286,7 @@ class FluxNettoye:
                 if apres and _NOM.fullmatch(apres):
                     noms_coupes.append(apres)
                 continue
-            if tenus or "[" in texte or _debut_de_jeton(texte):
+            if tenus or "[" in texte or "*" in texte or _debut_de_jeton(texte):
                 texte_tenu += texte
                 tenus.append(morceau)
                 nettoye = sans_crochets(texte_tenu)
@@ -249,6 +296,10 @@ class FluxNettoye:
                 ouvert = texte_tenu.rfind("[")
                 if ouvert >= 0 and len(texte_tenu) - ouvert <= _LONGUEUR_MAX_CROCHETS:
                     continue  # un crochet encore ouvert : on attend sa fermeture
+                if DEBUT_ENTETE_FICHE in texte_tenu:
+                    continue  # C6 : l'en-tête de la fiche, retenu quelle que soit sa longueur
+                if _didascalie_en_attente(texte_tenu):
+                    continue  # C2 : une didascalie encore ouverte : on attend sa fermeture
                 if _debut_de_jeton(texte_tenu):
                     continue  # peut-être un jeton d'appel coupé en deux morceaux
                 for sortie in self._rendre_texte(tenus, texte_tenu):
@@ -257,10 +308,14 @@ class FluxNettoye:
                 continue
             yield morceau
         if appel is not None:
-            for sortie in self._rendre_l_appel(tenus, texte_tenu, appel, noms_coupes):
+            for sortie in self._rendre_l_appel(
+                tenus, sans_entete_ouvert(texte_tenu), appel, noms_coupes
+            ):
                 yield sortie
         elif tenus:
-            for sortie in self._rendre_texte(tenus, sans_crochets(texte_tenu)):
+            for sortie in self._rendre_texte(
+                tenus, sans_entete_ouvert(sans_crochets(texte_tenu))
+            ):
                 yield sortie
 
     @staticmethod

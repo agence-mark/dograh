@@ -89,7 +89,15 @@ DELAI_NOTE_POUR_LA_REDEMANDE = 2.0
 # Plan porte-parlee (D9) : case allumée, « || » vaut séparateur à la lecture.
 _SEPARATEUR_TOLERE = re.compile(r"\|{2,}")
 # Ce qui entoure parfois le nom écrit après « → » (guillemets, mise en forme).
-_AUTOUR_DU_NOM = " \t\r«»\"'`*:.,;"
+# C1 (tri du 17/10, Large 3) : la porte « habillée » (« *(→ retour)* », « **•**retour** ») garde
+# aussi ses parenthèses, crochets et puces autour du nom.
+_AUTOUR_DU_NOM = " \t\r«»\"'`*:.,;()[]•·"
+# C1 : ce que le modèle écrit devant une porte pour l'habiller (italique, gras, parenthèse) ;
+# retiré de la phrase quand la porte est prise, jamais dit.
+_BALISAGE_AVANT = "*(["
+# C1 : la puce « • » tient parfois la place de la flèche au milieu de la phrase (« **•**retour** ») ;
+# elle n'est une porte que dans les mêmes conditions que la flèche (un nom de porte seul, Q4).
+_MARQUES_DE_PORTE = (FLECHE, "•")
 # Q4 : ce qu'une flèche au milieu de la phrase doit précéder pour être une porte : un nom seul.
 _NOM_SEUL = re.compile(r"[A-Za-z0-9_]+")
 
@@ -205,6 +213,10 @@ class PostScriptumProcessor(FrameProcessor):
         # une porte que si elle se réduit à un nom de porte, sinon elle part à la voix.
         self._porte_en_fin_de_phrase = False
         self._porte_brute = ""
+        # C1 : le balisage retiré devant la porte et la marque écrite (« → » ou « • »), rendus
+        # à la voix si la ligne n'était pas une porte.
+        self._balisage_retire = ""
+        self._marque_de_porte = FLECHE
         self._portes_lues: list[str] = []  # les lignes « → » complètes
         self._transition_dite = False
         # Plan postscriptum-note-d-abord (S1, case « Reply order » sur note d'abord).
@@ -275,6 +287,12 @@ class PostScriptumProcessor(FrameProcessor):
             fermant = _GUILLEMET_FERMANT.search(texte)
             if fermant:
                 debuts.append(fermant.start())
+        if self._portes is not None:
+            # C1 : un balisage au bout du morceau (« … vous ? ** ») précède peut-être une porte
+            # habillée ; il attend le morceau suivant (le reste part à la fin de la réponse).
+            nu = texte.rstrip(_BALISAGE_AVANT)
+            if len(nu) < len(texte):
+                debuts.append(len(nu))
         return len(texte) - min(debuts)
 
     # --- Les frames ------------------------------------------------------------
@@ -754,13 +772,14 @@ class PostScriptumProcessor(FrameProcessor):
                     self._blancs += caractere
                 elif caractere == FLECHE:
                     self._dans_la_porte, self._porte_brute, self._blancs = True, "", ""
+                    self._balisage_retire, self._marque_de_porte = "", FLECHE
                     self._ligne_au_debut = False
                 else:
                     sortie.append(self._blancs + caractere)
                     self._blancs = ""
                     self._ligne_au_debut = caractere == "\n"
             elif (
-                caractere == FLECHE
+                caractere in _MARQUES_DE_PORTE
                 and not self._dans_la_note
                 and not self._apres
                 # Revue du 11/10 (point 5) : le séparateur ou la note arrivés plus tôt dans ce
@@ -774,10 +793,30 @@ class PostScriptumProcessor(FrameProcessor):
                 # un nom de porte (« Du salon → à la cuisine ? » reste dit, revue du 05/10).
                 self._dans_la_porte, self._porte_brute, self._blancs = True, "", ""
                 self._porte_en_fin_de_phrase = True
+                self._marque_de_porte = caractere
+                # C1 : « *(→ retour)* » : le balisage devant la marque ne part pas à la voix.
+                self._balisage_retire = self._retirer_le_balisage(sortie)
             else:
                 sortie.append(caractere)
                 self._ligne_au_debut = caractere == "\n"
         return "".join(sortie)
+
+    def _retirer_le_balisage(self, sortie: list[str]) -> str:
+        """C1 : retire le balisage (``*``, ``(``, ``[``) qui précède la porte, dans ce morceau
+        puis, s'il le couvre tout entier, dans ce qui attend déjà (``_attente``). Rend ce qui a
+        été retiré. ⛔ Ne lève jamais."""
+        try:
+            ici = "".join(sortie)
+            nu = ici.rstrip(_BALISAGE_AVANT)
+            retire = ici[len(nu):]
+            sortie[:] = [nu] if nu else []
+            if not nu:
+                attente = self._attente.rstrip(_BALISAGE_AVANT)
+                retire = self._attente[len(attente):] + retire
+                self._attente = attente
+            return retire
+        except Exception:  # noqa: BLE001 -- au doute, rien n'est retiré
+            return ""
 
     def _porte_de_fin_de_phrase(self, brut: str) -> bool:
         """Q4, revue du 11/10 : la suite d'une flèche au milieu de la phrase est une porte
@@ -805,7 +844,8 @@ class PostScriptumProcessor(FrameProcessor):
         self._dans_la_porte = False
         en_fin_de_phrase, self._porte_en_fin_de_phrase = self._porte_en_fin_de_phrase, False
         if en_fin_de_phrase and not self._porte_de_fin_de_phrase(self._porte_brute):
-            rendu, self._porte_brute = FLECHE + self._porte_brute, ""
+            rendu = self._balisage_retire + self._marque_de_porte + self._porte_brute
+            self._porte_brute, self._balisage_retire = "", ""
             if complete:
                 return rendu + "\n"
             self._attente += rendu
@@ -815,7 +855,7 @@ class PostScriptumProcessor(FrameProcessor):
         else:
             logger.warning("[porte] ligne « → » coupée en route : jamais prise")
             self._portes_lues.append(None)
-        self._porte_brute = ""
+        self._porte_brute, self._balisage_retire = "", ""
         return ""
 
     async def _annoncer_la_transition(self, direction: FrameDirection) -> None:

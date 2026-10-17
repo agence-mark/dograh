@@ -75,6 +75,9 @@ class AgentRuntime:
     # None only while the call worker is still being built; run setup binds it
     # through `PipecatEngine.call_worker`.
     worker: PipelineWorker | None = None
+    # [.mark] Lot 3 d'orchestrateur-trois-cerveaux (D7) : toujours None. La voix est celle de
+    # l'APPEL (``build_pipeline(voice=...)``), partagee par tous les agents ; un agent ne porte
+    # que son cerveau. Le champ reste pour les constructeurs de l'amont qui le passent.
     tts: Any = None
     recording_router: Any = None
     user_config: Any = None
@@ -115,6 +118,9 @@ class AgentRuntime:
     # groupe, resté chaud et rendu à chaque retour (même ``visit_id`` : une entrée par visite
     # dans le relevé, distinguées par ``entered_at``).
     nb_entrees: int = 1
+    # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8) : le cerveau de fond de cet agent
+    # (``TravailDeLAgent``), None quand son travail en arrière-plan est éteint (le défaut).
+    travail: Any = None
 
     def bind_tool(self, engine, handler):
         """Bind a tool's lifetime to this visit, including work across awaits."""
@@ -164,7 +170,8 @@ class AgentRuntime:
         append_to_context: bool = False,
         persist_to_logs: bool = True,
     ) -> None:
-        """Speak configured text through this agent's TTS voice."""
+        """Speak configured text: it enters this agent's pipeline, in order with the model's own
+        text, and is voiced by the call's one voice ([.mark] lot 3, D7)."""
         await self.queue_frame(
             TTSSpeakFrame(
                 text,
@@ -257,6 +264,10 @@ class AgentRuntime:
                     await self.worker.cancel(reason=reason)
         finally:
             await self.close_mcp_sessions()
+            # [.mark] Lot 4 : son cerveau de fond s'arrête avec lui, sauf un travail en cours que
+            # l'agent suivant lira (une fin forcée, ``abort``, l'arrête toujours).
+            if self.travail is not None:
+                await self.travail.fermer(forcer=not drain)
 
     def describe(self) -> dict[str, Any]:
         """Summarize this visit for the call's visit history."""

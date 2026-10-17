@@ -36,6 +36,7 @@ import { estSpecialise } from "../groupe/reglages-groupe";
 import { useLangue } from "../langue/langue";
 import { RAPPEL_PUBLICATION_TEXTE } from "./enregistrement";
 import { type ProprietesThemeAgent, useEtatTheme } from "./theme-commun";
+import { TravailEnArrierePlan } from "./TravailEnArrierePlan";
 
 export const ID_THEME_BRIQUES = "briques";
 export const TITRE_BRIQUES = { en: "Services", fr: "Briques" };
@@ -46,6 +47,22 @@ function withoutModelConfigurationOverrides(configurations: WorkflowConfiguratio
     delete next.model_configuration_v2_override;
     return next;
 }
+
+/**
+ * [.mark] Lot 3 d'orchestrateur-trois-cerveaux (D7): the call has ONE voice, the main agent's. An agent of a
+ * group never plays its own, even with « Own brain »: its voice settings are shown read only, with this note.
+ */
+export const NoteVoixDeLAppel = () => {
+    const { t } = useLangue();
+    return (
+        <div role="note" data-bandeau="voix-de-l-appel" className="rounded-md border bg-muted/40 px-4 py-3 text-sm">
+            {t({
+                en: "The call has one voice: the main agent's. The voice of this agent is not played and cannot be changed here.",
+                fr: "L'appel n'a qu'une voix : celle de l'agent principal. La voix de cet agent n'est pas jouée et ne se change pas ici.",
+            })}
+        </div>
+    );
+};
 
 export interface ConfigurationDesModeles {
     defaults: ModelConfigurationDefaultsV2 | null;
@@ -129,6 +146,7 @@ export const ThemeBriques = ({
                     ? t({ en: "Own complete configuration", fr: "Configuration complète propre à l'agent" })
                     : t({ en: "Organization configuration", fr: "Configuration de l'organisation" }),
                 !savedV2Override && Boolean(resolue.model_overrides) && t({ en: "services overridden", fr: "services remplacés" }),
+                resolue.travail_actif === true && t({ en: "background work", fr: "travail en arrière-plan" }),
             ]}
             ouvert={ouvert}
             onBasculer={onBasculer}
@@ -153,8 +171,8 @@ export const ThemeBriques = ({
                         libelle={{ en: "Own brain", fr: "Cerveau propre" }}
                         aides={[
                             {
-                                en: "Ticked: this agent keeps its own brain (the same menu as the main agent's, below). Unticked: it takes the main agent's brain at the main agent's next save. The voice stays the group's.",
-                                fr: "Cochée : cet agent garde son propre cerveau (le même menu que celui de l'agent principal, ci-dessous). Décochée : il reprend le cerveau du principal au prochain enregistrement du principal. La voix reste celle du groupe.",
+                                en: "Ticked: this agent keeps its own brain (the same menu as the main agent's, below). Unticked: it takes the main agent's brain at the main agent's next save. The voice is the call's, the main agent's: it stays locked.",
+                                fr: "Cochée : cet agent garde son propre cerveau (le même menu que celui de l'agent principal, ci-dessous). Décochée : il reprend le cerveau du principal au prochain enregistrement du principal. La voix est celle de l'appel, celle du principal : elle reste verrouillée.",
                             },
                         ]}
                         disposition="ligne"
@@ -173,6 +191,10 @@ export const ThemeBriques = ({
                     )}
                 </>
             )}
+            {/* [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D13): the background brain, next to « Own brain ». */}
+            <ZoneCommune lecture={specialise && !cerveauPropre} bandeau={false}>
+                <TravailEnArrierePlan resolue={resolue} workflowName={workflowName} onSave={onSave} />
+            </ZoneCommune>
             <ZoneCommune lecture={specialise && !cerveauPropre} bandeau={false}>
             {modeles.chargement && (
                 <div className="flex items-center gap-2 rounded-md border p-4 text-sm text-muted-foreground">
@@ -236,6 +258,7 @@ export const ThemeBriques = ({
                                 pricing={modeles.tarifs}
                                 submitLabel={t({ en: "Save Model Override", fr: "Enregistrer la configuration de l'agent" })}
                                 onSave={saveV2Override}
+                                voixVerrouillee={specialise ? <NoteVoixDeLAppel /> : undefined}
                             />
                         )}
                     </Intertitre>
@@ -250,6 +273,7 @@ export const ThemeBriques = ({
                                 workflowName={workflowName}
                                 onSave={onSave}
                                 publishReminder={rappel}
+                                voixVerrouillee={specialise ? <NoteVoixDeLAppel /> : undefined}
                             />
                             {hasSavedModelOverride && (
                                 <Button type="button" onClick={removeV2Override} disabled={isRemovingOverride}>

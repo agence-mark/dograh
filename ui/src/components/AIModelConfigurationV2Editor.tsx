@@ -1,7 +1,7 @@
 "use client";
 
 import { Info, KeyRound, Save } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import type {
     ModelConfigurationMetricPrice,
@@ -75,6 +75,8 @@ interface AIModelConfigurationV2EditorProps {
     pricing?: ModelConfigurationPricingResponse | null;
     onSave: (configuration: OrganizationAiModelConfigurationV2) => Promise<void>;
     submitLabel?: string;
+    /** [.mark] Lot 3 (D7): the voice is read only, with this note (see ServiceConfigurationForm). */
+    voixVerrouillee?: ReactNode;
 }
 
 function firstApiKey(value: unknown): string {
@@ -349,6 +351,20 @@ function PricingSummary({
     );
 }
 
+/**
+ * [.mark] Lot 3 (D7): a voice field, a plain ``div`` as before, or a disabled ``fieldset`` when the
+ * agent's voice is locked (the call has one voice, the main agent's).
+ */
+function ChampVoix({ verrouille, className, children }: { verrouille: boolean; className: string; children: ReactNode }) {
+    return verrouille ? (
+        <fieldset disabled data-lecture="voix" className={`m-0 min-w-0 border-0 p-0 ${className}`}>
+            {children}
+        </fieldset>
+    ) : (
+        <div className={className}>{children}</div>
+    );
+}
+
 export function AIModelConfigurationV2Editor({
     defaults,
     configuration,
@@ -356,6 +372,7 @@ export function AIModelConfigurationV2Editor({
     pricing,
     onSave,
     submitLabel = "Save Configuration",
+    voixVerrouillee,
 }: AIModelConfigurationV2EditorProps) {
     const defaultsForByok = useMemo(() => byokDefaults(defaults), [defaults]);
     const [mode, setMode] = useState<ModelMode>("dograh");
@@ -477,6 +494,7 @@ export function AIModelConfigurationV2Editor({
                         initialConfig={realtimeInitialConfig}
                         submitLabel={submitLabel}
                         onSave={saveByokConfiguration}
+                        voixVerrouillee={voixVerrouillee}
                     />
                     <ThirdPartyProviderNotice />
                 </TabsContent>
@@ -499,7 +517,8 @@ export function AIModelConfigurationV2Editor({
                     <Card>
                         <CardContent className="pt-6">
                             <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="space-y-2 sm:col-span-2">
+                                {voixVerrouillee && <div className="sm:col-span-2">{voixVerrouillee}</div>}
+                                <ChampVoix verrouille={Boolean(voixVerrouillee)} className="space-y-2 sm:col-span-2">
                                     <Label>Voice</Label>
                                     <VoiceSelectorModal
                                         provider="dograh"
@@ -507,7 +526,7 @@ export function AIModelConfigurationV2Editor({
                                         onChange={(voice) => setDograh({ ...dograh, voice })}
                                         allowManualInput={allowCustomVoice}
                                     />
-                                </div>
+                                </ChampVoix>
 
                                 <div className="space-y-2 sm:col-span-2">
                                     <Label>Language</Label>
@@ -530,7 +549,7 @@ export function AIModelConfigurationV2Editor({
                                     )}
                                 </div>
 
-                                <div className="space-y-2">
+                                <ChampVoix verrouille={Boolean(voixVerrouillee)} className="space-y-2">
                                     <Label htmlFor="dograh-speed">Speed</Label>
                                     <Input
                                         id="dograh-speed"
@@ -547,7 +566,7 @@ export function AIModelConfigurationV2Editor({
                                             });
                                         }}
                                     />
-                                </div>
+                                </ChampVoix>
 
                                 <div className="space-y-2">
                                     <Label htmlFor="dograh-api-key">API Key</Label>
@@ -585,6 +604,7 @@ export function AIModelConfigurationV2Editor({
                         initialConfig={pipelineInitialConfig}
                         submitLabel={submitLabel}
                         onSave={saveByokConfiguration}
+                        voixVerrouillee={voixVerrouillee}
                     />
                     <ThirdPartyProviderNotice />
                 </TabsContent>

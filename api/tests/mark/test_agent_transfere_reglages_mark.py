@@ -16,9 +16,14 @@ La prochaine fusion de l'amont qui réécrit ``build`` fera rougir ce fichier.
 
 | Test | La garantie |
 |---|---|
-| arguments | ``run_configs`` et le lexique arrivent à la voix, la clé de cache au modèle |
-| filtre | l'agent porte SON filtre du nom, et ``attach`` le pose avant sa voix |
-| estampille | l'appel dit avec quelle voix et quelle clé l'agent transféré a parlé |
+| arguments | la clé de cache arrive au modèle ; AUCUNE voix n'est ouverte (lot 3, D7) |
+| filtre | l'agent porte SON filtre du nom, et ``attach`` le pose en fin de son sous-circuit |
+| estampille | l'appel dit avec quelle voix (celle de l'APPEL) et quelle clé l'agent transféré a parlé |
+
+⚠️ Lot 3 d'orchestrateur-trois-cerveaux (D7, voix unique) : la voix, ses réglages (nombres en
+mots, appels de fonction retirés) et le lexique de prononciations sont ceux de l'APPEL, montés
+une fois par ``run_pipeline`` (``build_pipeline(voice=...)``). L'agent appelé n'a plus de voix
+à lui : ce qui était gardé ici pour la voix l'est maintenant par ``test_voix_unique.py``.
 """
 
 import copy
@@ -44,7 +49,7 @@ REGLAGES = {
 }
 
 
-def _fabrique(variables=None):
+def _fabrique(variables=None, voix=None):
     return AgentRuntimeFactory(
         organization_id=1,
         workflow_run_id=1,
@@ -55,6 +60,7 @@ def _fabrique(variables=None):
         ),
         lexique_metier=LEXIQUE,
         variables_appel=variables or (lambda: {"nom": "Dupont"}),
+        voix_de_l_appel=voix,
     )
 
 
@@ -76,8 +82,9 @@ async def _construire(fabrique, capture, configuration=None):
     )
 
     def voix(*args, **kwargs):
+        # Lot 3 (D7) : un agent appelé n'ouvre AUCUNE voix.
         capture["voix"] = kwargs
-        return SimpleNamespace(nom="voix")
+        raise AssertionError("une voix a été créée pour l'agent appelé")
 
     def modele(*args, **kwargs):
         capture.setdefault("modeles", []).append(kwargs)
@@ -92,7 +99,7 @@ async def _construire(fabrique, capture, configuration=None):
             "get_effective_ai_model_configuration_for_workflow",
             AsyncMock(return_value=configuration),
         ),
-        patch.object(fabrique_agents, "create_tts_service", voix),
+        patch("api.services.pipecat.service_factory.create_tts_service", voix),
         patch.object(fabrique_agents, "create_llm_service", modele),
         patch.object(fabrique, "attach", AsyncMock()),
     ):
@@ -100,19 +107,22 @@ async def _construire(fabrique, capture, configuration=None):
 
 
 @pytest.mark.asyncio
-async def test_la_voix_et_le_modele_d_un_agent_transfere_recoivent_nos_arguments():
+async def test_le_modele_d_un_agent_transfere_recoit_nos_arguments_et_aucune_voix_n_est_ouverte():
     capture: dict = {}
     agent = await _construire(_fabrique(), capture)
 
-    assert capture["voix"]["run_configs"] is REGLAGES, "réglages de voix perdus"
-    assert capture["voix"]["lexique"] is LEXIQUE, "prononciations du lexique perdues"
+    assert "voix" not in capture, "une voix a été ouverte pour l'agent appelé"
+    assert not hasattr(fabrique_agents, "create_tts_service"), (
+        "la fabrique d'agents ne doit plus importer la fabrique de voix (D7)"
+    )
+    assert agent.tts is None
     conversation = capture["modeles"][0]
     assert conversation["prompt_cache_key"] == cle_de_cache(WORKFLOW_ID)
-    assert agent.llm.nom == "modele" and agent.tts.nom == "voix"
+    assert agent.llm.nom == "modele"
 
 
 @pytest.mark.asyncio
-async def test_l_agent_transfere_porte_son_filtre_et_attach_le_pose_avant_sa_voix():
+async def test_l_agent_transfere_porte_son_filtre_et_attach_le_pose_en_fin_de_son_circuit():
     capture: dict = {}
     agent = await _construire(_fabrique(), capture)
     assert isinstance(agent.filtre_nom_civilite, FiltreNomCiviliteProcessor)
@@ -150,3 +160,19 @@ async def test_l_appel_dit_avec_quelle_voix_et_quelle_cle_l_agent_transfere_a_pa
     assert estampille["llm_prompt_cache_key"] == cle_de_cache(WORKFLOW_ID)
     # La voix : la même estampille que le premier agent (`stamp_voice_settings`).
     assert estampille.get("tts_settings"), "voix de l'agent transféré non estampillée"
+
+
+@pytest.mark.asyncio
+async def test_l_estampille_de_la_voix_d_un_agent_transfere_decrit_la_voix_de_l_APPEL():
+    """Lot 3 (D7) : la voix de l'agent appelé n'est jouée nulle part ; l'estampille dit la
+    voix qui a réellement parlé, celle du premier agent."""
+    from api.services.configuration.registry import MistralTTSConfiguration
+
+    voix_de_l_appel = MistralTTSConfiguration(api_key="k", voice="fr_marie_neutral")
+    estampille = (
+        await _construire(_fabrique(voix=voix_de_l_appel), {})
+    ).runtime_configuration
+
+    assert estampille["tts_settings"]["voice"] == "fr_marie_neutral"
+    assert estampille["tts_provider"] == voix_de_l_appel.provider
+    assert estampille["tts_model"] == voix_de_l_appel.model

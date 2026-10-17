@@ -1166,6 +1166,20 @@
         }
       ]
     },
+    "fiche-deja-connu": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_deja_connu": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "transfert-garanti": {
       "carte": "ajout-mark",
       "theme": "donnees",
@@ -1277,6 +1291,23 @@
               "provider": "mistral",
               "model": "mistral-small-2603",
               "api_key": "cle-de-reference"
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "greffier-format-garanti": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_mode_de_note": "greffier",
+            "greffier_llm": {
+              "format_garanti": true
             }
           },
           "retirees": []
@@ -1716,6 +1747,20 @@
         }
       ]
     },
+    "agents-filet-de-fin": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "filet_de_fin": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "agents-plafond": {
       "carte": "ajout-mark",
       "theme": "agent",
@@ -1782,6 +1827,69 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "cerveau_propre": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "travail-actif": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "travail_actif": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "travail-modele": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "travail_llm": {
+              "provider": "mistral",
+              "model": "mistral-small-2603",
+              "api_key": "cle-de-reference"
+            },
+            "travail_consigne": "Fais la demande."
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "travail-outils": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "travail_outils": [
+              "outil-creneau"
+            ]
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "travail-delai": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "travail_delai_max_s": 90
           },
           "retirees": []
         }

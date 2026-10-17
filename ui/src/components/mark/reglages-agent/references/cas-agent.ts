@@ -43,7 +43,9 @@ export type Geste =
     | { type: "choisir"; id: string; valeur: string }
     | { type: "etiquette"; id: string; valeur: string }
     | { type: "cliquer"; nom: string }
-    | { type: "radio"; nom: string };
+    | { type: "radio"; nom: string }
+    // Lot 4 d'orchestrateur-trois-cerveaux: a checkbox found by (part of) its name, the tool list's.
+    | { type: "case"; nom: string };
 
 export interface CasAgent {
     id: string;
@@ -200,6 +202,8 @@ export const CAS_AGENT: CasAgent[] = [
     ]),
     // Lot E d'agent-leger-greffier (P1): the steps' field labels, frozen once.
     c("etiquettes-des-etapes", "ajout-mark", "donnees", ["etiquettes_des_etapes"], [inter("etiquettes_des_etapes")]),
+    // Lot 2 d'orchestrateur-trois-cerveaux (D4): the line « Known: … », frozen once.
+    c("fiche-deja-connu", "ajout-mark", "donnees", ["fiche_deja_connu"], [inter("fiche_deja_connu")]),
     // greffier-conversation, lot E (C4, D6).
     c("transfert-garanti", "ajout-mark", "donnees", ["transfert_garanti"], [inter("transfert_garanti")]),
     // Chantier postscriptum-et-communes, B5: only shown in Postscript, « Transition, note, reply ».
@@ -208,6 +212,24 @@ export const CAS_AGENT: CasAgent[] = [
         choisir("ordre_de_la_reponse", "porte_note_phrase"),
         inter("phrase_sans_redemande"),
     ]),
+    // Lot 4 d'orchestrateur-trois-cerveaux (D13): « Background work », theme Services (« Briques »), whose
+    // parts save at once. Each case starts from an agent whose switch is on, except the switch's own.
+    c("travail-actif", "ajout-mark", "briques", ["travail_actif"], [inter("travail_actif")], true),
+    c("travail-modele", "ajout-mark", "briques", ["travail_llm", "travail_consigne"], [
+        { type: "cliquer", nom: "Configure the background brain" },
+        saisir("travail_provider", "mistral"),
+        saisir("travail_model", "mistral-small-2603"),
+        saisir("travail_api_key", "cle-de-reference"),
+        saisir("travail_consigne", "Fais la demande."),
+        { type: "cliquer", nom: "Save the background brain" },
+    ], true, { travail_actif: true }),
+    c("travail-outils", "ajout-mark", "briques", ["travail_outils"], [
+        { type: "case", nom: "Chercher un créneau" },
+    ], true, { travail_actif: true }),
+    c("travail-delai", "ajout-mark", "briques", ["travail_delai_max_s"], [
+        saisir("travail_delai_max_s", "90"),
+        { type: "cliquer", nom: "Save the duration" },
+    ], true, { travail_actif: true }),
     // Chantier l-agent-travaille, L4 (A6): the after-call of the agent, frozen once.
     c("apres-appel", "ajout-mark", "donnees", ["apres_appel"], [inter("apres_appel_actif")]),
     // Chantier l-agent-collegue, L1 (C5): the team known to the agent, frozen once.
@@ -224,6 +246,13 @@ export const CAS_AGENT: CasAgent[] = [
         saisir("greffier_provider", "mistral"),
         saisir("greffier_model", "mistral-small-2603"),
         saisir("greffier_api_key", "cle-de-reference"),
+        { type: "cliquer", nom: "Done" },
+    ]),
+    // Lot 5 bis d'orchestrateur-trois-cerveaux (D1, D2, D11): the box lives in the clerk's block.
+    c("greffier-format-garanti", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_llm"], [
+        choisir("fiche_mode_de_note", "greffier"),
+        { type: "cliquer", nom: "Configure the clerk" },
+        inter("greffier_format_garanti"),
         { type: "cliquer", nom: "Done" },
     ]),
     c("greffier-consigne", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_consigne"], [
@@ -255,6 +284,8 @@ export const CAS_AGENT: CasAgent[] = [
     c("agents-sans-resume", "ajout-mark", "agent", ["passation_sans_resume_jusqua"], [saisir("passation_sans_resume_jusqua", "60")], false, PRINCIPAL),
     c("agents-renvoi-unique", "ajout-mark", "agent", ["un_seul_renvoi_par_appel"], [inter("un_seul_renvoi_par_appel")], false, PRINCIPAL),
     c("agents-plafond", "ajout-mark", "agent", ["passations_max_par_appel"], [saisir("passations_max_par_appel", "8")], false, PRINCIPAL),
+    // Lot 2 d'orchestrateur-trois-cerveaux (B2): its own part, so the group's payload above is unchanged.
+    c("agents-filet-de-fin", "ajout-mark", "agent", ["filet_de_fin"], [inter("filet_de_fin")], false, PRINCIPAL),
     c("attente", "ajout-mark", "voix", ["attente"], [
         saisir("attente_duree_min_s", "2.5"),
         inter("attente_transfert_humain"),

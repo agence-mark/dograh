@@ -35,6 +35,12 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     model_overrides: { theme: "briques", cas: ["par-service", "par-service-retire", "configuration-organisation"] },
     model_configuration_v2_override: { theme: "briques", cas: ["configuration-complete"] },
     mark_per_service_override: { theme: "briques", cas: ["par-service"] },
+    // Lot 4 d'orchestrateur-trois-cerveaux (D13): « Background work », next to « Own brain ».
+    travail_actif: { theme: "briques", cas: ["travail-actif"] },
+    travail_llm: { theme: "briques", cas: ["travail-modele"] },
+    travail_consigne: { theme: "briques", cas: ["travail-modele"] },
+    travail_outils: { theme: "briques", cas: ["travail-outils"] },
+    travail_delai_max_s: { theme: "briques", cas: ["travail-delai"] },
     // Écoute
     conversion_nombres_transcription: { theme: "ecoute", cas: ["nombres"] },
     variables_reference: { theme: "ecoute", cas: ["variables-reference"] },
@@ -105,6 +111,8 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     ordre_de_la_reponse: { theme: "donnees", cas: ["ordre-de-la-reponse"] },
     indices_des_modules: { theme: "donnees", cas: ["indices-des-modules"] },
     etiquettes_des_etapes: { theme: "donnees", cas: ["etiquettes-des-etapes"] },
+    // Lot 2 d'orchestrateur-trois-cerveaux (D4): « Known fields near the question ».
+    fiche_deja_connu: { theme: "donnees", cas: ["fiche-deja-connu"] },
     transfert_garanti: { theme: "donnees", cas: ["transfert-garanti"] },
     phrase_sans_redemande: { theme: "donnees", cas: ["phrase-sans-redemande"] },
     // Chantier repliques-coupees, lot 6 bis (D16): on screen, no longer « hors écran ».
@@ -112,7 +120,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     // Chantier schema-parcours-unique (C1, C2): « parcours_lisible » is gone (the flow map box
     // drives it), the retry reasoning moves to the Agent theme.
     reflexion_de_relance: { theme: "agent", cas: ["reflexion-de-relance"] },
-    greffier_llm: { theme: "donnees", cas: ["greffier"] },
+    greffier_llm: { theme: "donnees", cas: ["greffier", "greffier-format-garanti"] },
     greffier_consigne: { theme: "donnees", cas: ["greffier-consigne"] },
     fiche_champs: { theme: "donnees", cas: ["fiche-champ"] },
     apres_appel: { theme: "donnees", cas: ["apres-appel"] },
@@ -142,6 +150,8 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     passation_sans_resume_jusqua: { theme: "agent", cas: ["agents-sans-resume"] },
     un_seul_renvoi_par_appel: { theme: "agent", cas: ["agents-renvoi-unique"] },
     passations_max_par_appel: { theme: "agent", cas: ["agents-plafond"] },
+    // Lot 2 d'orchestrateur-trois-cerveaux (B2): « End-of-call safety net », under « Specialised agents ».
+    filet_de_fin: { theme: "agent", cas: ["agents-filet-de-fin"] },
     attente: { theme: "voix", cas: ["attente"] },
     transfert_humain: { theme: "voix", cas: ["transfert-humain"] },
     cerveau_propre: { theme: "briques", cas: ["cerveau-propre"] },

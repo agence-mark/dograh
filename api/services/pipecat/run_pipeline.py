@@ -95,9 +95,12 @@ from api.services.pipecat.realtime_feedback_observer import (
 )
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
 from api.services.groupe.fiche import traitement_pour_agent_appele
+from api.services.groupe.filet_de_fin import brancher_le_filet_de_fin
+from api.services.groupe.mesure_passation import ObservateurPremierOctet
 from api.services.groupe.prechauffage import Precharge
 from api.services.groupe.reglages_passation import prechauffage_actif
 from api.services.pipecat.greffier import (
+    format_garanti_du_bloc as format_garanti_du_greffier,
     greffier_du_moteur,
     preparer_le_greffier,
     resoudre_le_bloc_du_greffier,
@@ -1595,6 +1598,9 @@ async def _run_pipeline_impl(
     )
 
     pipeline_metrics_aggregator = PipelineMetricsAggregator()
+    # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D12) : le greffier et le cerveau de fond
+    # versent leurs jetons à ce collecteur, le même que celui de la conversation.
+    engine.collecteur_de_cout = pipeline_metrics_aggregator
 
     # Terminations raised from inside the pipeline are handed to the engine
     # instead of cancelling the worker directly. Its handler is registered by
@@ -1672,6 +1678,17 @@ async def _run_pipeline_impl(
             termination_funnel,
         )
     else:
+        pont_des_agents = AgentBridgeProcessor(
+            bus=worker_runner.bus,
+            worker_name=call_worker_name,
+            selected_visit=lambda: engine.selected_visit_id,
+            allow_inference=lambda: not engine.transfer_in_progress,
+            name=f"{call_worker_name}::AgentBridge",
+        )
+        # [.mark] Lot 3 (D7) : pendant l'attente d'une passation aucun agent n'a la main ;
+        # la parole dictée (phrase pont, annonce) passe alors par la voix de l'appel, par
+        # le pont, au lieu de réveiller l'agent source.
+        engine.set_parole_locale(pont_des_agents.dire_en_local)
         pipeline = build_pipeline(
             transport,
             stt,
@@ -1679,18 +1696,14 @@ async def _run_pipeline_impl(
             user_context_aggregator,
             assistant_context_aggregator,
             call_monitor_processor,
-            [
-                AgentBridgeProcessor(
-                    bus=worker_runner.bus,
-                    worker_name=call_worker_name,
-                    selected_visit=lambda: engine.selected_visit_id,
-                    allow_inference=lambda: not engine.transfer_in_progress,
-                    name=f"{call_worker_name}::AgentBridge",
-                )
-            ],
+            [pont_des_agents],
             pipeline_metrics_aggregator,
             termination_funnel,
             answer_supervisor=answer_supervisor,
+            # [.mark] Lot 3 d'orchestrateur-trois-cerveaux (D7) : UNE voix pour tout l'appel,
+            # après le pont. Les agents (premier et appelés) ne portent que leur cerveau ;
+            # leur texte revient par le bus et c'est cette voix qui le dit.
+            voice=tts,
             # [.mark] Caller reading (nombres-dictes, one step for numbers and
             # towns): the agent's two switches and language, the business
             # address as location clue, the current step read live, and the
@@ -1778,6 +1791,10 @@ async def _run_pipeline_impl(
     # (langwatch-et-fenetre-du-run, lot 2). Observent, ne changent rien.
     task.add_observer(ObservateurDesInterruptions(in_memory_logs_buffer))
     brancher_les_connexions({"transcription": stt, "voice": tts}, in_memory_logs_buffer)
+    if not is_realtime:
+        # [.mark] Lot 3 (D7, D18) : passation demandee, premier octet de la voix de l'appel,
+        # ecrit dans la trace des passations ; le banc d'apres le chantier la lira.
+        task.add_observer(ObservateurPremierOctet(engine, tts))
     setattr(engine, ATTRIBUT_JOURNAL, in_memory_logs_buffer)
     # [.mark] l-agent-travaille, L7: the outage fallback of this call, for an agent that
     # switched it on (X2). Off: nothing here runs, the call is the call of before.
@@ -1810,6 +1827,9 @@ async def _run_pipeline_impl(
             on_agent_error=engine.handle_agent_error,
             use_draft=bool(workflow_run.extra.get("use_draft")),
             observers=[feedback_observer],
+            # [.mark] Lot 3 (D7) : un agent appelé n'ouvre pas de voix ; son estampille décrit
+            # la voix de l'appel (celle du premier agent).
+            voix_de_l_appel=user_config.tts,
             # [.mark] What a later agent needs to be built like the first one:
             # the organization's trade vocabulary (pronunciations of the voice)
             # and the live gathered variables (name and civility filter).
@@ -1835,15 +1855,16 @@ async def _run_pipeline_impl(
         agent.workflow_id = workflow_id
         agent.definition_id = run_definition.id
         agent.workflow_name = workflow.name
-        agent.tts = tts
+        # [.mark] Lot 3 (D7) : la voix est celle de l'appel (``build_pipeline(voice=tts)``),
+        # plus celle d'un agent : ``agent.tts`` reste vide.
         agent.recording_router = recording_router
         agent.user_config = user_config
         agent.runtime_configuration = runtime_configuration
         agent.is_child = True
         agent.worker = None
-        # [.mark] Interdire de PRONONCER le nom et la civilité, dans le
-        # sous-circuit de l'agent, juste avant sa voix (découpage par agent de
-        # l'amont, fc76383c). L'état est vivant : le nom n'est pas connu au
+        # [.mark] Interdire de PRONONCER le nom et la civilité, en fin du
+        # sous-circuit de l'agent, juste avant le bus qui porte son texte à la
+        # voix de l'appel (réglages PAR agent : le filtre reste dans son sous-circuit). L'état est vivant : le nom n'est pas connu au
         # montage, il arrive avec l'extraction, pendant l'appel.
         agent.filtre_nom_civilite = creer_filtre_nom_civilite(
             run_configs, variables_appel, contexte_appel
@@ -1852,12 +1873,19 @@ async def _run_pipeline_impl(
         # du greffier, sur l'agent qui porte la fiche (le premier), seulement
         # dans leur mode (le slot reçoit le processeur de prise de notes).
         agent.post_scriptum = post_scriptum_du_moteur(engine) or greffier_du_moteur(
-            engine, service_greffier, run_configs.get("greffier_consigne")
+            engine,
+            service_greffier,
+            run_configs.get("greffier_consigne"),
+            format_garanti_du_greffier(run_configs),
         )
         # [.mark] Chantier agents-specialises (lot 2) : les réglages du premier agent
         # (groupe, plafond de passations), et ceux qui règlent l'appel.
         agent.reglages = dict(run_configs)
         engine.reglages_appel = dict(run_configs)
+        # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8, D13) : le cerveau de fond du premier
+        # agent, SI son travail en arrière-plan est allumé (éteint par défaut : rien ne change).
+        # Il rejoint l'appel avec l'agent (``start_initial_agent``).
+        await engine.preparer_le_travail(agent, user_config=user_config, attacher=False)
 
     # Initialize the engine to set the initial context with
     # System Prompt and Tools
@@ -1937,6 +1965,8 @@ async def _run_pipeline_impl(
         user_context_aggregator,
         assistant_context_aggregator,
     )
+    # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2) : le filet de fin d'appel d'un collègue.
+    brancher_le_filet_de_fin(engine, assistant_context_aggregator)
 
     # Register event handlers — resolve provider_id for PostHog tracking
     if not user_provider_id:
