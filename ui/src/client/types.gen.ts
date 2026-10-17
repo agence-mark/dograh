@@ -6554,6 +6554,12 @@ export type OpenAillmService = {
      * Sends the agent's cache key (mark-wf-<agent>) so the provider can reuse the start of the prompt from one turn to the next. It names the agent only, never the caller. Off: no key is sent.
      */
     prompt_cache?: boolean;
+    /**
+     * Api
+     *
+     * Which API of the provider the model is called through. 'chat_completions' is the usual one and the default. 'responses' is the provider's newer API: choose it for a model whose tools only work there (gpt-oss-120b at Scaleway). Everything else stays the same.
+     */
+    api?: 'chat_completions' | 'responses';
 };
 
 /**
