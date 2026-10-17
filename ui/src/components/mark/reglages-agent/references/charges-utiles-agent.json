@@ -1297,6 +1297,23 @@
         }
       ]
     },
+    "greffier-format-garanti": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_mode_de_note": "greffier",
+            "greffier_llm": {
+              "format_garanti": true
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
     "greffier-consigne": {
       "carte": "ajout-mark",
       "theme": "donnees",

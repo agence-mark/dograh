@@ -120,7 +120,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     // Chantier schema-parcours-unique (C1, C2): « parcours_lisible » is gone (the flow map box
     // drives it), the retry reasoning moves to the Agent theme.
     reflexion_de_relance: { theme: "agent", cas: ["reflexion-de-relance"] },
-    greffier_llm: { theme: "donnees", cas: ["greffier"] },
+    greffier_llm: { theme: "donnees", cas: ["greffier", "greffier-format-garanti"] },
     greffier_consigne: { theme: "donnees", cas: ["greffier-consigne"] },
     fiche_champs: { theme: "donnees", cas: ["fiche-champ"] },
     apres_appel: { theme: "donnees", cas: ["apres-appel"] },

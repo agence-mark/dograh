@@ -248,6 +248,13 @@ export const CAS_AGENT: CasAgent[] = [
         saisir("greffier_api_key", "cle-de-reference"),
         { type: "cliquer", nom: "Done" },
     ]),
+    // Lot 5 bis d'orchestrateur-trois-cerveaux (D1, D2, D11): the box lives in the clerk's block.
+    c("greffier-format-garanti", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_llm"], [
+        choisir("fiche_mode_de_note", "greffier"),
+        { type: "cliquer", nom: "Configure the clerk" },
+        inter("greffier_format_garanti"),
+        { type: "cliquer", nom: "Done" },
+    ]),
     c("greffier-consigne", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_consigne"], [
         choisir("fiche_mode_de_note", "greffier"),
         { type: "cliquer", nom: "Configure the clerk" },

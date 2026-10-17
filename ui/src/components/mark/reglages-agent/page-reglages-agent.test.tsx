@@ -409,6 +409,37 @@ describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2; D9 of ag
         });
     });
 
+    it("« Guaranteed format » is unticked by default and absent from the block", async () => {
+        await regler();
+        expect(document.getElementById("greffier_format_garanti")?.getAttribute("aria-checked")).toBe("false");
+        saisir("greffier_model", "mistral-large-2512");
+        const charge = await termine();
+        expect(charge.greffier_llm).toEqual({ provider: "mistral", model: "mistral-large-2512", api_key: MASQUE });
+    });
+
+    it("« Guaranteed format » is read from the block, saved in it, and survives a provider change", async () => {
+        await regler({ ...GREFFIER, greffier_llm: { ...GREFFIER.greffier_llm, format_garanti: true } });
+        expect(document.getElementById("greffier_format_garanti")?.getAttribute("aria-checked")).toBe("true");
+        saisir("greffier_provider", "openai");
+        saisir("greffier_model", "x");
+        const charge = await termine();
+        expect(charge.greffier_llm).toEqual({ provider: "openai", model: "x", format_garanti: true });
+    });
+
+    it("ticking « Guaranteed format » alone saves it in the block", async () => {
+        await regler();
+        fireEvent.click(document.getElementById("greffier_format_garanti") as HTMLElement);
+        const charge = await termine();
+        expect(charge.greffier_llm).toEqual({ ...GREFFIER.greffier_llm, format_garanti: true });
+    });
+
+    it("unticking « Guaranteed format » removes the key from the block", async () => {
+        await regler({ ...GREFFIER, greffier_llm: { ...GREFFIER.greffier_llm, format_garanti: true } });
+        fireEvent.click(document.getElementById("greffier_format_garanti") as HTMLElement);
+        const charge = await termine();
+        expect(charge.greffier_llm).toEqual(GREFFIER.greffier_llm);
+    });
+
     it("a key of the library is kept as its reference, named and never shown", async () => {
         const ref = "mark-cle:343322ca-f4d1-4806-8bf6-b2c7ed904a4a";
         await regler({ ...GREFFIER, greffier_llm: { provider: "openai", model: "x", api_key: ref } });

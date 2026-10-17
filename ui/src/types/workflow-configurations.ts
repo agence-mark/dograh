@@ -32,6 +32,9 @@ export type GreffierLlm = {
     model?: string;
     temperature?: number;
     api_key?: string;
+    // Lot 5 bis d'orchestrateur-trois-cerveaux (D11): the clerk asks the provider for a JSON
+    // that follows the record's schema; unticked (absent) by default.
+    format_garanti?: boolean;
     [cle: string]: unknown;
 };
 export const DEFAULT_TURN_START_MIN_WORDS = 3;

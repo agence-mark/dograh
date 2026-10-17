@@ -238,13 +238,22 @@ export const ThemeDonnees = ({
     const [blocEdite, setBlocEdite] = useState<BlocModele>({});
     const [consigne, setConsigne] = useState(consigneEnregistree ?? CONSIGNE_GENERIQUE_GREFFIER);
     const greffierRelu = JSON.stringify([greffierEnregistre, consigneEnregistree]);
+    // Lot 5 bis d'orchestrateur-trois-cerveaux (D1, D2, D11): « Guaranteed format » lives in the
+    // same block (`greffier_llm.format_garanti`) but is kept apart here, because the provider's
+    // generated form rebuilds the block when the provider changes and would drop it. Unticked
+    // = key absent.
+    const [formatGaranti, setFormatGaranti] = useState(false);
     useEffect(() => {
         const [bloc, texte] = JSON.parse(greffierRelu) as [GreffierLlm | null, string | null];
-        setBlocEdite((bloc ?? {}) as BlocModele);
+        const { format_garanti: garanti, ...reste } = (bloc ?? {}) as GreffierLlm;
+        setBlocEdite(reste as BlocModele);
+        setFormatGaranti(garanti === true);
         setConsigne(texte ?? CONSIGNE_GENERIQUE_GREFFIER);
     }, [greffierRelu]);
-    const blocGreffier = (): GreffierLlm | null =>
-        Object.keys(blocEdite).length > 0 ? (blocEdite as GreffierLlm) : null;
+    const blocGreffier = (): GreffierLlm | null => {
+        const bloc = { ...blocEdite, ...(formatGaranti ? { format_garanti: true } : {}) };
+        return Object.keys(bloc).length > 0 ? (bloc as GreffierLlm) : null;
+    };
     const greffierModifie = pourComparerLeGreffier(blocGreffier()) !== pourComparerLeGreffier(greffierEnregistre);
     // Saved equal to the template (or emptied), the instructions are sent empty:
     // the agent then follows the template when the template improves.
@@ -872,6 +881,24 @@ export const ThemeDonnees = ({
                     </DialogHeader>
                     <div className="space-y-4">
                         <ChampsFournisseurLlm bloc={blocEdite} onChange={setBlocEdite} />
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                                <label htmlFor="greffier_format_garanti" className="text-sm font-medium">
+                                    {t({ en: "Guaranteed format", fr: "Format garanti" })}
+                                </label>
+                                <Switch
+                                    id="greffier_format_garanti"
+                                    checked={formatGaranti}
+                                    onCheckedChange={setFormatGaranti}
+                                />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {t({
+                                    en: "The clerk asks the provider for an answer that follows the record's fields exactly. If the provider refuses or answers off the schema, the usual JSON mode takes over by itself, nothing to set. Off by default.",
+                                    fr: "Le greffier demande au fournisseur une réponse qui respecte exactement les champs de la fiche. Si le fournisseur refuse ou répond hors du schéma, le mode JSON habituel prend le relais tout seul, rien à régler. Éteint par défaut.",
+                                })}
+                            </p>
+                        </div>
                         <div className="space-y-1">
                             <div className="flex items-center justify-between gap-2">
                                 <label htmlFor="greffier_consigne" className="text-sm font-medium">
