@@ -250,10 +250,20 @@ def test_specialiste_mission_de_depart_et_sortie_de_retour():
         "# Ton équipe\n"
         "Ton rôle : un spécialiste de la mission a. "
         "Tu reçois un appel déjà commencé : tout ce qui a été dit compte. "
-        "Pour rendre la main à l'accueil, tu écris la sortie Demande, "
-        "dès que la demande n'est pas la tienne ou que ton travail est fini.\n\n"
+        # Lot 2 d'orchestrateur-trois-cerveaux (D5) : un collègue qui a un nœud de fin a deux sorties.
+        "Tu as deux sorties : pour clore l'appel, tu écris la sortie Fin ; "
+        "pour rendre la main à l'accueil, tu écris la sortie Demande.\n\n"
         "# Tes étapes\nAccueil : un spécialiste de la mission a\nDemande\nFin"
     )
+
+
+def test_specialiste_sans_noeud_de_fin_le_bloc_est_celui_d_avant():
+    d = _definition_specialiste()
+    d["nodes"][3]["type"] = "agentNode"  # plus de nœud de fin : une simple étape
+    assert (
+        "Pour rendre la main à l'accueil, tu écris la sortie Demande, "
+        "dès que la demande n'est pas la tienne ou que ton travail est fini."
+    ) in _bloc(appliquer(d, True, True, TYPE_SPECIALISTE))
 
 
 def test_specialiste_sans_etape_de_retour_pas_de_phrase_pour_rendre_la_main():
@@ -298,6 +308,9 @@ PHRASES_FIXES = (
     "Tu reçois un appel déjà commencé : tout ce qui a été dit compte.",
     "Pour rendre la main à l'accueil, tu écris",
     "dès que la demande n'est pas la tienne ou que ton travail est fini.",
+    # Lot 2 d'orchestrateur-trois-cerveaux (D5) : les deux sorties d'un collègue.
+    "Tu as deux sorties : pour clore l'appel, tu écris",
+    " ; pour rendre la main à l'accueil, tu écris",
 )
 DONNEES_DU_TEST = (
     "un spécialiste de la mission a", "outil_a", "outil_b", "Passe l'appel à l'agent a.",

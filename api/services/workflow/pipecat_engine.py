@@ -38,10 +38,25 @@ from api.services.groupe.passations import (
     agent_principal_de,
     choisir_la_fin,
     est_une_etape_de_retour,
+    est_une_etape_de_retour_de_l_accueil,
+    etape_de_retour_du_graphe,
     est_un_groupe,
     fins_du_noeud,
     plafond_atteint,
     porte_reecrite_vers_le_retour,
+)
+from api.services.groupe.filet_de_fin import (
+    TRACE_FILET,
+    contient_une_formule,
+    filet_allume,
+    formules_de,
+    porte_de_retour,
+)
+from api.services.groupe.notes import (
+    note_d_aller,
+    note_de_retour,
+    noter_les_champs_de_l_agent,
+    outil_de_passation_vers,
 )
 from api.services.groupe.parcours import rendre_le_parcours
 from api.services.groupe.prechauffage import precharge_de, prechauffer_les_cibles
@@ -1184,6 +1199,7 @@ class PipecatEngine:
                 ouverture="si_l_appelant_attend",
                 raison=RAISON_RETOUR,
                 depuis=self._debut_de_la_derniere_etape(agent),
+                etape_de_retour=True,
             )
             if not self.transfer_coordinator.accept(request):
                 logger.warning("[groupe] retour au principal refusé : une passation est en cours")
@@ -1193,6 +1209,48 @@ class PipecatEngine:
             return True
         except Exception as e:  # noqa: BLE001 -- un retour ne coûte jamais l'appel
             logger.error(f"[groupe] retour au principal en échec : {e!r}")
+            return False
+
+    def etat_pour_le_filet(self) -> tuple:
+        """[.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2) : où l'on est au début d'une réplique
+        (l'agent qui a la main, son étape) ; si cela change avant la fin, une porte a été prise."""
+        agent = self.active_agent
+        return (agent.visit_id, getattr(agent.current_node, "id", None))
+
+    async def filet_de_fin(self, texte: str, depart: tuple | None) -> bool:
+        """[.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2, D5) : le filet de fin d'appel d'un
+        collègue. Sa réplique contient une formule de fin, il n'a pris aucune porte pendant elle : le
+        code prend la sortie « retour » (l'accueil conclut depuis son étape de retour). Case par agent,
+        éteinte par défaut ; rien hors d'un groupe. Rend ``True`` si la porte a été prise.
+        ⛔ Ne lève jamais."""
+        try:
+            agent = self.active_agent
+            if depart is None or not (texte or "").strip():
+                return False
+            if not self.agent_transfer_enabled or not self.agent_can_act(agent):
+                return False
+            if not filet_allume(agent.reglages) or depart != self.etat_pour_le_filet():
+                return False
+            if self.transfer_coordinator.in_progress:
+                return False
+            arete = porte_de_retour(agent.current_node, agent.workflow)
+            if arete is None:
+                return False
+            if not contient_une_formule(texte, formules_de(self._call_context_vars)):
+                return False
+            logger.info("[filet] formule de fin sans porte : le code prend la sortie retour")
+            cible = agent.workflow.nodes[arete.target]
+            self._gathered_context.setdefault("porte_reecrite", []).append(
+                {
+                    "ecrite": TRACE_FILET,
+                    "etape": getattr(agent.current_node, "name", None),
+                    "vers": cible.name,
+                    "tour": self._gathered_context.get(CLE_TOUR),
+                }
+            )
+            return await self.prendre_porte_ecrite(arete.get_function_name()) == "prise"
+        except Exception as e:  # noqa: BLE001 -- un filet ne coûte jamais l'appel
+            logger.error(f"[filet] fin d'appel en échec : {e!r}")
             return False
 
     async def _dire_la_fin_figee(self, agent: AgentRuntime, phrase: str, avant=None) -> None:
@@ -1573,6 +1631,13 @@ class PipecatEngine:
         La fiche est modifiée EN PLACE : les modules qui la tiennent la voient.
         ⛔ Ne lève jamais."""
         try:
+            # [.mark] Lot 2 d'orchestrateur-trois-cerveaux : les noms des champs du collègue, notés
+            # dans la fiche (la note de retour dit ce qui reste de SA demande).
+            noter_les_champs_de_l_agent(
+                self._gathered_context,
+                runtime.workflow_id,
+                ReglagesFiche.depuis(dict(runtime.reglages or {})) if self._fiche else None,
+            )
             champs = champs_fusionnes(self._fiche, runtime.reglages)
             if champs is not None:
                 object.__setattr__(self._fiche, "champs", champs)
@@ -1896,12 +1961,77 @@ class PipecatEngine:
         # pour l'agent qui arrive comme pour celui qui reste.
         if not node.is_end and self._un_renvoi_a_deja_echoue():
             texte = f"{texte}\n\n{LIGNE_RENVOI_DEJA_ECHOUE}"
+        # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (D2, D3) : la note de passation écrite par
+        # le code, dans le prompt de l'étape (retour de l'accueil, ou première étape du collègue).
+        note = self._note_de_passation(agent, node)
+        if note:
+            texte = f"{texte}\n\n{note}"
         agent.tools = ToolsSchema(standard_tools=functions)
         agent.system_prompt = texte
         if agent.recording_router is not None:
             agent.recording_router.set_enabled(prompt.recording_enabled)
         if apply_settings:
             await agent.llm._update_settings(LLMSettings(system_instruction=texte))
+
+    def _champ_motif(self) -> str | None:
+        """Le champ « motif » réglé pour l'organisation (jamais un nom en dur). ⛔ Ne lève jamais."""
+        try:
+            from api.schemas.apres_appel import ApresAppelAgent
+
+            return ApresAppelAgent.model_validate(
+                (self.reglages_appel or {}).get("apres_appel") or {}
+            ).champ("motif")
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _note_de_passation(self, agent: AgentRuntime, node: Node) -> str | None:
+        """[.mark] Lot 2 d'orchestrateur-trois-cerveaux (D2, D3) : la note du code pour l'étape qui
+        s'ouvre. Étape de retour de l'accueil : la note de retour. Première étape d'un collègue
+        appelé par passation : la note d'aller. Rien ailleurs, rien hors d'un groupe : un agent seul
+        garde son prompt à l'octet. Recalculée depuis la fiche à chaque construction du prompt (au
+        clavier, chaque tour refait le moteur). ⛔ Ne lève jamais."""
+        try:
+            if node.is_end or not est_un_groupe(self.__dict__.get("reglages_appel")):
+                return None
+            gathered = self.__dict__.get("_gathered_context")
+            if not isinstance(gathered, dict):
+                return None
+            if est_une_etape_de_retour_de_l_accueil(node):
+                noms = {
+                    a.workflow_id: a.workflow_name
+                    for a in [*self.__dict__.get("_retired_agents", []), self.active_agent]
+                    if a is not None and getattr(a, "workflow_id", None)
+                }
+                return note_de_retour(
+                    self._fiche,
+                    gathered,
+                    principal_id=agent.workflow_id,
+                    champ_motif=self._champ_motif(),
+                    noms=noms,
+                )
+            if (
+                agent_principal_de(agent.reglages) is not None
+                and node.id == agent.workflow.start_node_id
+            ):
+                outil = None
+                demande = getattr(self.__dict__.get("_transfer_coordinator"), "_request", None)
+                if (
+                    getattr(demande, "destination_workflow_id", None) == agent.workflow_id
+                    and getattr(demande, "etape_de_retour", False) is not True
+                    and isinstance(getattr(demande, "raison", None), str)
+                ):
+                    outil = demande.raison
+                if outil is None:
+                    outil = outil_de_passation_vers(gathered, agent.workflow_id)
+                if outil is None:
+                    return None
+                return note_d_aller(
+                    self._fiche, gathered, outil=outil, champ_motif=self._champ_motif()
+                )
+            return None
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[notes] note de passation non posée : {e!r}")
+            return None
 
     async def _setup_llm_context(self, node: Node) -> None:
         agent = self.active_agent
@@ -2808,8 +2938,23 @@ class PipecatEngine:
         if not runtime.mcp_sessions:
             await self._open_mcp_sessions(runtime)
         node = runtime.workflow.nodes[runtime.workflow.start_node_id]
+        # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (D1) : au retour d'un collègue, l'accueil
+        # reprend sur son étape de retour s'il en a une (prompt rédigé) ; sinon l'étape de départ.
+        if self._retour_demande():
+            retour = etape_de_retour_du_graphe(runtime.workflow)
+            if retour is not None:
+                node = retour
         await self._prepare_node(runtime, node)
         runtime.current_node = node
+
+    def _retour_demande(self) -> bool:
+        """La passation en cours est un retour au principal qui demande l'étape de retour de
+        l'accueil. Une maquette de coordinateur : non. ⛔ Ne lève jamais."""
+        try:
+            demande = getattr(self.transfer_coordinator, "_request", None)
+            return getattr(demande, "etape_de_retour", False) is True
+        except Exception:  # noqa: BLE001
+            return False
 
     def commit_agent(self, runtime: AgentRuntime, snapshot) -> None:
         """The only handoff commit point. No awaits and no provider work."""

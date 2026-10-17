@@ -152,9 +152,23 @@ def _equipe_specialiste(etapes: list[dict]) -> list[str]:
     retours = [
         _nom(n) for n in etapes if (n.get("data") or {}).get(MARQUEUR_RETOUR) is True
     ]
+    fins = [
+        _nom(n)
+        for n in etapes
+        if n.get("type") == "endCall" and (n.get("data") or {}).get(MARQUEUR_RETOUR) is not True
+    ]
     phrases = [f"Ton rôle : {mission}."] if mission else []
     phrases.append("Tu reçois un appel déjà commencé : tout ce qui a été dit compte.")
-    if retours:
+    if retours and fins:
+        # Lot 2 d'orchestrateur-trois-cerveaux (D5) : deux sorties pour chaque collègue. Plusieurs
+        # étapes de chaque sorte : toutes sont citées, chacune est une sortie valable.
+        clore = " ou ".join(f"la sortie {nom}" for nom in fins)
+        rendre = " ou ".join(f"la sortie {nom}" for nom in retours)
+        phrases.append(
+            f"Tu as deux sorties : pour clore l'appel, tu écris {clore} ; "
+            f"pour rendre la main à l'accueil, tu écris {rendre}."
+        )
+    elif retours:
         # Plusieurs étapes marquées : toutes sont citées, chacune est une sortie valable.
         sorties = " ou ".join(f"la sortie {nom}" for nom in retours)
         phrases.append(

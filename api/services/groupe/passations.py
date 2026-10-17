@@ -34,6 +34,13 @@ RAISON_RETOUR = "retour"
 # Le marqueur d'étape et la liste des fins (données des nœuds, lot 2 ; écran au lot 12).
 MARQUEUR_RETOUR = "retour_au_principal"
 CLE_FINS = "fins"
+# Lot 2 d'orchestrateur-trois-cerveaux (D1) : l'étape de l'ACCUEIL où le code ramène l'appel quand
+# un collègue rend la main. Un marqueur distinct de ``retour_au_principal`` : celui-ci renvoie
+# l'appel AU principal (côté collègue), celui-là reçoit l'appel (côté accueil).
+MARQUEUR_ETAPE_DE_RETOUR = "etape_de_retour"
+# Ce que porte le prompt (et la condition) d'une étape posée par le code : jamais un prompt
+# rédigé seul (Evan, 15/10). Tant qu'une étape de retour le porte encore, elle n'est pas choisie.
+A_REDIGER = "À rédiger avec Evan."
 
 # A18 : la ligne générique donnée à l'agent quand le plafond est atteint (sans mot de métier).
 LIGNE_PLAFOND = (
@@ -190,6 +197,44 @@ def est_une_etape_de_retour(noeud: Any) -> bool:
         return bool(getattr(getattr(noeud, "data", None), MARQUEUR_RETOUR, False))
     except Exception:  # noqa: BLE001
         return False
+
+
+def est_une_etape_de_retour_de_l_accueil(noeud: Any) -> bool:
+    """L'étape où l'accueil reçoit l'appel quand un collègue rend la main (D1). ⛔ Ne lève jamais."""
+    try:
+        return bool(getattr(getattr(noeud, "data", None), MARQUEUR_ETAPE_DE_RETOUR, False))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def est_a_rediger(texte: Any) -> bool:
+    """Le texte est encore celui que le code a posé en attendant celui d'Evan (vide compris). Les blocs
+    que le code ajoute lui-même à l'enregistrement (la carte du parcours, « Tu es ici ») ne comptent pas
+    comme du texte rédigé."""
+    if not isinstance(texte, str):
+        return True
+    from api.services.workflow.schema_du_parcours import retirer
+
+    propre = (retirer(texte) or "").strip()
+    return not propre or propre == A_REDIGER
+
+
+def etape_de_retour_du_graphe(graphe: Any) -> Any:
+    """L'étape de retour de l'accueil dans ce graphe, ``None`` s'il n'en a pas ou si son prompt est
+    encore « à rédiger » (zéro perte : le retour retombe alors sur l'étape de départ, comme avant).
+    ⛔ Ne lève jamais."""
+    try:
+        for noeud in graphe.nodes.values():
+            if (
+                est_une_etape_de_retour_de_l_accueil(noeud)
+                and not noeud.is_end
+                and not est_a_rediger(getattr(noeud, "prompt", None))
+            ):
+                return noeud
+        return None
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[groupe] étape de retour de l'accueil illisible : {e!r}")
+        return None
 
 
 def fins_du_noeud(noeud: Any) -> list[dict]:

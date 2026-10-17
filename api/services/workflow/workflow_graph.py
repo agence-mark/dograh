@@ -413,7 +413,14 @@ class WorkflowGraph:
                 errors.append(
                     WorkflowError(kind=ItemKind.node, id=n.id, field=None, message=msg)
                 )
-            if gc.min_incoming is not None and in_d < gc.min_incoming:
+            # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (D1) : l'étape de retour de l'accueil est
+            # choisie par le code, jamais par une porte : elle n'a pas d'arête entrante.
+            sans_porte_entrante = bool(getattr(n.data, "etape_de_retour", False))
+            if (
+                gc.min_incoming is not None
+                and in_d < gc.min_incoming
+                and not sans_porte_entrante
+            ):
                 errors.append(
                     WorkflowError(
                         kind=ItemKind.node,

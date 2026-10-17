@@ -368,6 +368,10 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     indices_des_modules?: boolean | null;
     // [.mark] Lot E d'agent-leger-greffier (P1): the steps' field labels, every mode.
     etiquettes_des_etapes?: boolean;
+    // [.mark] Lot 2 d'orchestrateur-trois-cerveaux (D4): « Known: name, town » next to the question.
+    fiche_deja_connu?: boolean;
+    // [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2): the end-of-call safety net of a specialised agent.
+    filet_de_fin?: boolean;
     // [.mark] greffier-conversation, lot E (C4): the code launches the transfer on arrival.
     transfert_garanti?: boolean;
     // [.mark] Chantier repliques-coupees, D1: the model trace (Agent theme, Diagnostic; test agents).

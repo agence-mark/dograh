@@ -31,6 +31,7 @@ from api.services.groupe.reglages_passation import (
     Attente,
     attente_de,
     chemin_du_son,
+    dernieres_a_garder,
     passation_courte,
 )
 
@@ -39,6 +40,14 @@ TRANSFER_ACTIVATION_TIMEOUT_SECONDS = 5.0
 TRANSFER_MIN_HOLD_SECONDS = 1.2
 # [.mark] Au plus ce que la passation attend la fin d'une phrase pont déjà commencée.
 ATTENTE_FIN_PHRASE_PONT_S = 2.0
+
+
+def _noeud_d_ouverture(destination) -> str:
+    """[.mark] Lot 2 d'orchestrateur-trois-cerveaux : l'étape où l'agent appelé a été préparé
+    (``prepare_agent`` : l'étape de départ, ou l'étape de retour de l'accueil). Sans étape lisible
+    (maquette, agent non préparé) : l'étape de départ, comme avant."""
+    courante = getattr(getattr(destination, "current_node", None), "id", None)
+    return courante if isinstance(courante, str) and courante else destination.workflow.start_node_id
 
 
 class TransferPhase(str, Enum):
@@ -71,6 +80,9 @@ class TransferRequest:
     # Après le banc du 16/10 : l'agent appelé ne reçoit que la conversation à partir de cet
     # indice (le retour au principal : la dernière étape du spécialisé). ``None`` : toute.
     depuis: int | None = None
+    # Lot 2 d'orchestrateur-trois-cerveaux (D1) : l'appel revient sur l'étape de retour de l'accueil
+    # (si son graphe en a une), au lieu de l'étape de départ. ``False`` : comme avant.
+    etape_de_retour: bool = False
 
     @property
     def cancelled(self) -> bool:
@@ -255,6 +267,9 @@ class AgentTransferCoordinator:
                             parent_context=engine._get_otel_context(),
                             resumer=resumer,
                             depuis=request.depuis,
+                            dernieres=dernieres_a_garder(
+                                getattr(engine, "reglages_appel", None)
+                            ),
                         )
                     )
                 snapshot = compact.result()
@@ -271,7 +286,7 @@ class AgentTransferCoordinator:
                 and not self._sans_sortie_audio()
                 and not request.silencieuse
             ):
-                fige = await figer(destination, destination.workflow.start_node_id)
+                fige = await figer(destination, _noeud_d_ouverture(destination))
             # La passation est prête : une phrase pont pas encore dite ne le sera plus ; une
             # phrase en cours se termine (jamais coupée en plein mot).
             await self._annuler_phrase_pont()
@@ -291,7 +306,9 @@ class AgentTransferCoordinator:
             self._phase = TransferPhase.OPENING
             engine.call_monitor.resume()
             await engine.notify_agent_entered(destination)
-            start_node_id = destination.workflow.start_node_id
+            # [.mark] Lot 2 d'orchestrateur-trois-cerveaux : l'étape où l'agent appelé a été préparé
+            # (l'étape de départ, ou l'étape de retour de l'accueil), jamais refaite ici.
+            start_node_id = _noeud_d_ouverture(destination)
             # [.mark] « si_l_appelant_attend » : l'agent appelé ne parle que si le
             # dernier mot de la conversation est à l'appelant (sinon il attend sa réponse).
             parler = request.ouverture != "si_l_appelant_attend" or (

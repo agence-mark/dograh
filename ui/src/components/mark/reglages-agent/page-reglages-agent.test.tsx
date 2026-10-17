@@ -167,6 +167,8 @@ describe("[.mark] the agent page in themes", () => {
         "passation_sans_resume_jusqua",
         "un_seul_renvoi_par_appel",
         "passations_max_par_appel",
+        // Lot 2 d'orchestrateur-trois-cerveaux (B2): under « Specialised agents », a main agent only.
+        "filet_de_fin",
         "attente",
         "transfert_humain",
         "cerveau_propre",

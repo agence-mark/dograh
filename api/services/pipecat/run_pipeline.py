@@ -95,6 +95,7 @@ from api.services.pipecat.realtime_feedback_observer import (
 )
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
 from api.services.groupe.fiche import traitement_pour_agent_appele
+from api.services.groupe.filet_de_fin import brancher_le_filet_de_fin
 from api.services.groupe.prechauffage import Precharge
 from api.services.groupe.reglages_passation import prechauffage_actif
 from api.services.pipecat.greffier import (
@@ -1937,6 +1938,8 @@ async def _run_pipeline_impl(
         user_context_aggregator,
         assistant_context_aggregator,
     )
+    # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2) : le filet de fin d'appel d'un collègue.
+    brancher_le_filet_de_fin(engine, assistant_context_aggregator)
 
     # Register event handlers — resolve provider_id for PostHog tracking
     if not user_provider_id:

@@ -911,6 +911,26 @@ class WorkflowConfigurationDefaults(BaseModel):
             "the steps' field lists are kept but nothing is shown to the model."
         ),
     )
+    # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2, D5) : le filet de fin d'appel d'un collègue.
+    filet_de_fin: bool = Field(
+        default=False,
+        description=(
+            "Safety net for a specialised agent: when its reply holds a closing phrase "
+            "(\"goodbye\", \"have a nice day\"...) and it took no exit, the code takes the "
+            "exit that hands the call back to the main agent, which closes the call. The "
+            "phrases are the organization's \"formules_de_fin\" sentence. Off (default): "
+            "nothing is done, as before."
+        ),
+    )
+    # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (D4) : la ligne « Déjà connu ».
+    fiche_deja_connu: bool = Field(
+        default=False,
+        description=(
+            "Next to the question, a short line names the record fields already known "
+            "(names only, never the values): \"Known: name, first name, town\". "
+            "Every note-taking mode. Off (default): nothing is shown."
+        ),
+    )
     # [.mark] Chantier greffier-conversation, lot E (C4, D6 du 13/10) : le transfert garanti.
     transfert_garanti: bool = Field(
         default=False,

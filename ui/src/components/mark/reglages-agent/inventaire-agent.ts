@@ -105,6 +105,8 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     ordre_de_la_reponse: { theme: "donnees", cas: ["ordre-de-la-reponse"] },
     indices_des_modules: { theme: "donnees", cas: ["indices-des-modules"] },
     etiquettes_des_etapes: { theme: "donnees", cas: ["etiquettes-des-etapes"] },
+    // Lot 2 d'orchestrateur-trois-cerveaux (D4): « Known fields near the question ».
+    fiche_deja_connu: { theme: "donnees", cas: ["fiche-deja-connu"] },
     transfert_garanti: { theme: "donnees", cas: ["transfert-garanti"] },
     phrase_sans_redemande: { theme: "donnees", cas: ["phrase-sans-redemande"] },
     // Chantier repliques-coupees, lot 6 bis (D16): on screen, no longer « hors écran ».
@@ -142,6 +144,8 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     passation_sans_resume_jusqua: { theme: "agent", cas: ["agents-sans-resume"] },
     un_seul_renvoi_par_appel: { theme: "agent", cas: ["agents-renvoi-unique"] },
     passations_max_par_appel: { theme: "agent", cas: ["agents-plafond"] },
+    // Lot 2 d'orchestrateur-trois-cerveaux (B2): « End-of-call safety net », under « Specialised agents ».
+    filet_de_fin: { theme: "agent", cas: ["agents-filet-de-fin"] },
     attente: { theme: "voix", cas: ["attente"] },
     transfert_humain: { theme: "voix", cas: ["transfert-humain"] },
     cerveau_propre: { theme: "briques", cas: ["cerveau-propre"] },

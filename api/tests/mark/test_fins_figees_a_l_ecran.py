@@ -4,23 +4,30 @@ fin, en lignes répétées, comme les variables d'extraction.
 
 | Test | Ce qu'il prouve |
 |---|---|
-| catalogue | le nœud de fin expose « Fixed closing sentences » en lignes (champ, valeur, phrase), la phrase requise |
+| catalogue | lot 2 d'orchestrateur-trois-cerveaux (D5) : le formulaire généré du nœud de fin n'expose plus la liste (``PhrasesDeFin`` seul l'affiche, sur tout nœud de fin) : plus de doublon |
 | lecture | une ligne écrite par l'écran est relue par le moteur (``FinFigeeDTO``) |
 """
 
 from api.services.workflow.dto import FinFigeeDTO
 from api.services.workflow.node_specs import get_spec
-from api.services.workflow.node_specs._base import PropertyType
 
 
-def test_le_noeud_de_fin_expose_les_phrases_figees_en_lignes():
+def test_le_formulaire_du_noeud_de_fin_n_expose_plus_les_phrases_figees():
+    """Plus de doublon chez le principal : la liste n'est dans le formulaire généré d'aucun nœud,
+    son composant dédié l'affiche sur tout nœud de fin. Les données, elles, restent lues."""
     spec = get_spec("endCall")
-    [fins] = [p for p in spec.properties if p.name == "fins"]
-    assert fins.type == PropertyType.fixed_collection
-    assert fins.display_name == "Fixed closing sentences"
-    sous = {p.name: p for p in fins.properties}
-    assert set(sous) == {"champ", "vaut", "phrase"}
-    assert sous["phrase"].required is True
+    assert not [p for p in spec.properties if p.name == "fins"]
+    assert "fins" not in {p.name for p in get_spec("agentNode").properties}
+
+
+def test_la_liste_reste_lue_et_ecrite_par_les_donnees_du_noeud():
+    from api.services.workflow.dto import EndCallNodeData
+
+    donnees = EndCallNodeData.model_validate(
+        {"name": "Fin", "prompt": "x", "fins": [{"champ": "objet", "phrase": "Au revoir."}]}
+    )
+    assert donnees.fins and donnees.fins[0].phrase == "Au revoir."
+    assert donnees.model_dump(mode="json")["fins"][0]["champ"] == "objet"
 
 
 def test_une_ligne_ecrite_par_l_ecran_est_relue():

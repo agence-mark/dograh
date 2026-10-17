@@ -200,6 +200,11 @@ export const ThemeDonnees = ({
     const [etiquettes, setEtiquettes] = useState(etiquettesEnregistrees);
     useEffect(() => setEtiquettes(etiquettesEnregistrees), [etiquettesEnregistrees]);
     const etiquettesModifiees = etiquettes !== etiquettesEnregistrees;
+    // Lot 2 d'orchestrateur-trois-cerveaux (D4): the line « Known: … » next to the question, every mode.
+    const dejaConnuEnregistre = resolue.fiche_deja_connu ?? false;
+    const [dejaConnu, setDejaConnu] = useState(dejaConnuEnregistre);
+    useEffect(() => setDejaConnu(dejaConnuEnregistre), [dejaConnuEnregistre]);
+    const dejaConnuModifie = dejaConnu !== dejaConnuEnregistre;
     // greffier-conversation, lot E (C4, D6): the code launches the transfer, every mode.
     const transfertEnregistre = resolue.transfert_garanti ?? false;
     const [transfert, setTransfert] = useState(transfertEnregistre);
@@ -356,6 +361,7 @@ export const ThemeDonnees = ({
         || equipeConnueModifiee
         || verificationModifiee
         || etiquettesModifiees
+        || dejaConnuModifie
         || transfertModifie
         || redemandeModifiee;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
@@ -399,6 +405,12 @@ export const ThemeDonnees = ({
                 nom: { en: "Step field labels", fr: "Étiquettes des étapes" },
                 modifie: etiquettesModifiees,
                 config: () => ({ etiquettes_des_etapes: etiquettes }),
+            },
+            {
+                // Lot 2 d'orchestrateur-trois-cerveaux (D4): its own part, sent only when changed (E6).
+                nom: { en: "Known fields near the question", fr: "Champs connus près de la question" },
+                modifie: dejaConnuModifie,
+                config: () => ({ fiche_deja_connu: dejaConnu }),
             },
             {
                 nom: { en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" },
@@ -602,6 +614,24 @@ export const ThemeDonnees = ({
                         disposition="ligne"
                     >
                         <Switch id="etiquettes_des_etapes" checked={etiquettes} onCheckedChange={setEtiquettes} />
+                    </ChampReglage>
+                )}
+                {/* Lot 2 d'orchestrateur-trois-cerveaux (D4): every note-taking mode, next to the step labels. */}
+                {ficheActive && (
+                    <ChampReglage
+                        cle="fiche_deja_connu"
+                        idControle="fiche_deja_connu"
+                        libelle={{ en: "Known fields near the question", fr: "Champs connus près de la question" }}
+                        aides={[
+                            {
+                                en: "Right before the caller's last words, one short line names the record fields already known (\"Known: name, first name, town\"): names only, never the values. The agent no longer asks again for what it already has. Independent of the step labels. Off, nothing is shown.",
+                                fr: "Juste avant la dernière parole de l'appelant, une ligne courte nomme les champs de la fiche déjà connus (« Déjà connu : nom, prénom, commune ») : les noms seulement, jamais les valeurs. L'agent ne redemande plus ce qu'il a déjà. Indépendant des étiquettes des étapes. Éteint, rien n'est montré.",
+                            },
+                        ]}
+                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                        disposition="ligne"
+                    >
+                        <Switch id="fiche_deja_connu" checked={dejaConnu} onCheckedChange={setDejaConnu} />
                     </ChampReglage>
                 )}
                 {/* greffier-conversation, lot E (C4, D6): every note-taking mode. */}

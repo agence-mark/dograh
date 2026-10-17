@@ -179,6 +179,8 @@ ORDRES_JOUABLES = (ORDRE_PHRASE_PUIS_NOTE, ORDRE_NOTE_PUIS_PHRASE)
 CLE_INDICES_DES_MODULES = "indices_des_modules"
 # Lot E d'agent-leger-greffier (P1).
 CLE_ETIQUETTES = "etiquettes_des_etapes"
+# Lot 2 d'orchestrateur-trois-cerveaux (D4) : la ligne « Déjà connu : … » collée à la question.
+CLE_DEJA_CONNU = "fiche_deja_connu"
 # Chantier postscriptum-et-communes, B5 : la phrase qui redemande ce que la note du même tour
 # vient d'écrire n'est pas dite (« porte, note, phrase » seulement). Option par agent, éteinte.
 CLE_PHRASE_SANS_REDEMANDE = "phrase_sans_redemande"
@@ -225,6 +227,9 @@ class ReglagesFiche:
     motifs_des_types: dict = field(default_factory=dict)
     # Lot E d'agent-leger-greffier (P1) : les étiquettes des étapes, tous modes.
     etiquettes: bool = False
+    # D4 (orchestrateur-trois-cerveaux) : « Déjà connu : nom, prénom. » avant la dernière parole de
+    # l'appelant, tous modes. Éteint par défaut : aucun changement pour un agent qui ne le règle pas.
+    deja_connu: bool = False
     # B5 : en « porte, note, phrase », la phrase qui redemande un champ que la note du tour
     # vient d'écrire est retenue, et le modèle reparle (une fois). Éteint : rien ne change.
     phrase_sans_redemande: bool = False
@@ -291,6 +296,7 @@ class ReglagesFiche:
             mode=mode,
             motifs_des_types=_motifs_des_types(run_configs),
             etiquettes=bool(run_configs.get(CLE_ETIQUETTES)),
+            deja_connu=run_configs.get(CLE_DEJA_CONNU) is True,
             transfert_garanti=run_configs.get(CLE_TRANSFERT_GARANTI) is True,
             parcours_lisible=(
                 run_configs.get(CLE_SCHEMA_DU_PARCOURS) is True
@@ -3834,6 +3840,17 @@ def etat_avec_les_indices(
     souffle = souffle_de_l_etape(reglages, fiche, champs_etape, a_des_portes)
     if souffle:
         texte = f"{texte or entete_etat(reglages)}\n{souffle}"
+    # D4 (orchestrateur-trois-cerveaux) : la ligne « Déjà connu », juste après le souffle (son
+    # complément), pour tout agent qui allume la case. Jamais la valeur, seulement les noms.
+    if reglages.deja_connu:
+        from api.services.fiche.traces import valeurs_des_traces
+        from api.services.groupe.notes import ligne_deja_connu
+
+        connu = ligne_deja_connu(
+            reglages, fiche, champs_etape, valeurs_des_traces(reglages, fiche)
+        )
+        if connu:
+            texte = f"{texte or entete_etat(reglages)}\n{connu}"
     indices = indices_des_modules(reglages, parole, fiche, fiche.get(CLE_TOUR))
     if not indices:
         return texte

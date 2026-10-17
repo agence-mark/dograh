@@ -133,8 +133,13 @@ const TEXTES = {
     },
     sansResume: { en: "Hand over the history without a summary up to (messages)", fr: "Passer l'historique sans résumé jusqu'à (messages)" },
     sansResumeAide: {
-        en: "Below this number of messages the next agent receives the conversation as it is, with no call to the summary model. 0: always a summary. Default 40.",
-        fr: "Sous ce nombre de messages, l'agent suivant reçoit la conversation telle quelle, sans appel au modèle de résumé. 0 : toujours un résumé. Défaut 40.",
+        en: "The next agent receives the last messages of the conversation, up to this number, and the hand-over note written by the code: no summary is ever written by a model. 0: a summary written by the model, as before. Default 40.",
+        fr: "L'agent suivant reçoit les derniers messages de la conversation, jusqu'à ce nombre, et la note de passation écrite par le code : aucun résumé n'est jamais rédigé par un modèle. 0 : un résumé rédigé par le modèle, comme avant. Défaut 40.",
+    },
+    filetDeFin: { en: "End-of-call safety net", fr: "Filet de fin d'appel" },
+    filetDeFinAide: {
+        en: "When a specialised agent says a closing phrase (\"goodbye\", \"have a nice day\") and takes no exit, the code takes the exit that hands the call back to the main agent, which closes the call. The phrases are the \"Recognised closing phrases\" of the sentence catalogue. Off, nothing is done.",
+        fr: "Quand un agent spécialisé dit une formule de fin (« au revoir », « bonne journée ») sans prendre de sortie, le code prend la sortie qui rend la main à l'agent principal, lequel clôt l'appel. Les formules sont les « Formules de fin reconnues » du catalogue de phrases. Éteint, rien n'est fait.",
     },
     unSeulRenvoi: { en: "One transfer to a person per call", fr: "Un seul renvoi vers un humain par appel" },
     unSeulRenvoiAide: {
@@ -212,9 +217,14 @@ const entier = (brut: string): number | undefined => {
 export const IntertitreAgentsSpecialises = ({
     valeurs,
     onChange,
+    filet = false,
+    onFiletChange = () => undefined,
 }: {
     valeurs: ReglagesGroupe;
     onChange: <K extends keyof ReglagesGroupe>(cle: K, valeur: ReglagesGroupe[K]) => void;
+    /** Lot 2 d'orchestrateur-trois-cerveaux (B2): « End-of-call safety net », sa propre partie à l'enregistrement. */
+    filet?: boolean;
+    onFiletChange?: (coche: boolean) => void;
 }) => {
     const { t } = useLangue();
     const { membres } = useGroupe();
@@ -298,6 +308,16 @@ export const IntertitreAgentsSpecialises = ({
                         if (n !== undefined) onChange("passations_max_par_appel", n);
                     }}
                 />
+            </ChampReglage>
+            <ChampReglage
+                cle="filet_de_fin"
+                idControle="filet_de_fin"
+                libelle={TEXTES.filetDeFin}
+                aides={[TEXTES.filetDeFinAide]}
+                bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                disposition="ligne"
+            >
+                <Switch id="filet_de_fin" checked={filet} onCheckedChange={onFiletChange} />
             </ChampReglage>
         </Intertitre>
     );

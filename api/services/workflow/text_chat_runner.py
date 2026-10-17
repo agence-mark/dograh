@@ -107,6 +107,7 @@ from api.services.pipecat.worker_runner import (
 )
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.groupe.fiche import fiche_fusionnee
+from api.services.groupe.filet_de_fin import brancher_le_filet_de_fin
 from api.services.workflow.text_agent_factory import TextAgentFactory
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import (
@@ -1047,6 +1048,9 @@ async def execute_text_chat_pending_turn(
             context, assistant_params=assistant_params
         )
         assistant_context_aggregator = context_aggregator.assistant()
+
+        # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2) : le filet de fin d'appel d'un collègue.
+        brancher_le_filet_de_fin(engine, assistant_context_aggregator)
 
         @assistant_context_aggregator.event_handler("on_assistant_turn_started")
         async def on_assistant_turn_started(_aggregator):

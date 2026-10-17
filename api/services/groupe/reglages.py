@@ -70,6 +70,7 @@ CLES_SUIVENT_LE_CERVEAU = (
 CLES_COMMUNES: tuple[str, ...] = (
     # 1 Agent (commun)
     *CLES_DU_GROUPE,
+    "filet_de_fin",
     "reflexion_de_relance",
     "trace_requetes_modele",
     # 2 Briques
@@ -146,6 +147,7 @@ CLES_COMMUNES: tuple[str, ...] = (
     "ordre_de_la_reponse",
     "indices_des_modules",
     "etiquettes_des_etapes",
+    "fiche_deja_connu",
     "transfert_garanti",
     "phrase_sans_redemande",
     "greffier_llm",

@@ -165,6 +165,21 @@ class _RetourAuPrincipalNodeDataMixin(BaseModel):
     )
 
 
+class _EtapeDeRetourNodeDataMixin(BaseModel):
+    # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (D1) : l'étape de l'agent principal où le code
+    # ramène l'appel quand un collègue rend la main. Elle n'a aucune arête entrante (elle est choisie
+    # par le code, pas par une porte) et porte, à l'arrivée, la note de retour écrite par le code.
+    # Hors du formulaire généré (la case est celle du graphe). Faux = comportement d'avant.
+    etape_de_retour: bool = spec_field(
+        default=False,
+        spec_exclude=True,
+        description=(
+            "When true, this step receives the call when a group's specialist hands it "
+            "back, chosen by code, with a note of what was done."
+        ),
+    )
+
+
 class FinFigeeDTO(BaseModel):
     """[.mark] Une ligne des phrases de fin figées (A17) : si le champ de la fiche est
     rempli (ou vaut ``vaut``), cette phrase ; sans champ, la phrase par défaut."""
@@ -198,8 +213,12 @@ class _FinsFigeesNodeDataMixin(BaseModel):
     # est vraie, sans tour de modèle. Vide = comportement d'avant (la zone de texte).
     # Après le banc du 16/10 (C6, Evan) : réglable dans la fenêtre du nœud de fin, pour qu'un
     # spécialisé puisse porter la fin d'appel par la seule configuration à l'écran.
+    # Lot 2 d'orchestrateur-trois-cerveaux (D5) : hors du formulaire généré. Le nœud de fin d'un
+    # principal montrait la liste deux fois (le formulaire, et ``PhrasesDeFin``) ; désormais seul
+    # ``PhrasesDeFin`` l'affiche, sur tout nœud de fin, et les données restent lues et écrites ici.
     fins: Optional[List[FinFigeeDTO]] = spec_field(
         default=None,
+        spec_exclude=True,
         display_name="Fixed closing sentences",
         description=(
             "Ordered closing sentences: the first whose condition on the call record "
@@ -573,6 +592,7 @@ class AgentNodeData(
     _ExtractionNodeDataMixin,
     _ToolDocumentRefsMixin,
     _RetourAuPrincipalNodeDataMixin,
+    _EtapeDeRetourNodeDataMixin,
 ):
     pass
 

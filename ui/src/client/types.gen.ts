@@ -11878,6 +11878,18 @@ export type WorkflowConfigurationDefaults = {
      */
     etiquettes_des_etapes?: boolean;
     /**
+     * Fiche Deja Connu
+     *
+     * Next to the question, a short line names the record fields already known (names only, never the values): "Known: name, first name, town". Every note-taking mode. Off (default): nothing is shown.
+     */
+    fiche_deja_connu?: boolean;
+    /**
+     * Filet De Fin
+     *
+     * Safety net for a specialised agent: when its reply holds a closing phrase ("goodbye", "have a nice day"...) and it took no exit, the code takes the exit that hands the call back to the main agent, which closes the call. The phrases are the organization's "formules_de_fin" sentence. Off (default): nothing is done, as before.
+     */
+    filet_de_fin?: boolean;
+    /**
      * Transfert Garanti
      *
      * When the agent arrives in a step that carries a call transfer tool and the business is OPEN, the code launches the transfer itself once the step's first reply has been said, instead of waiting for the model to call it. Every note-taking mode. Off (default): the model decides, as before.

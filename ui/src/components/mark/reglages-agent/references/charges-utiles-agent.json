@@ -1166,6 +1166,20 @@
         }
       ]
     },
+    "fiche-deja-connu": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_deja_connu": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "transfert-garanti": {
       "carte": "ajout-mark",
       "theme": "donnees",
@@ -1711,6 +1725,20 @@
             "passation_sans_resume_jusqua": 40,
             "un_seul_renvoi_par_appel": false,
             "passations_max_par_appel": 6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "agents-filet-de-fin": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "filet_de_fin": true
           },
           "retirees": []
         }
