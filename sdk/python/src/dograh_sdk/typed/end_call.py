@@ -32,25 +32,6 @@ class EndCall_Extraction_variablesRow:
     """
     Per-variable hint describing what to look for.
     """
-@dataclass(kw_only=True)
-class EndCall_FinsRow:
-    """
-    Ordered closing sentences: the first whose condition on the call record
-    holds is spoken as is; a line without a field is the default.
-    """
-
-    champ: Optional[str] = None
-    """
-    Name of a field of the call record. Empty: the default sentence.
-    """
-    vaut: Optional[str] = None
-    """
-    The value the field must hold. Empty: the field only has to be filled.
-    """
-    phrase: str
-    """
-    Spoken as is, then the call ends.
-    """
 
 @dataclass(kw_only=True)
 class EndCall(TypedNode):
@@ -103,11 +84,5 @@ class EndCall(TypedNode):
     """
     Each entry declares one variable to capture from the conversation, with
     its name, data type, and a per-variable extraction hint.
-    """
-
-    fins: list[EndCall_FinsRow] = field(default_factory=list)
-    """
-    Ordered closing sentences: the first whose condition on the call record
-    holds is spoken as is; a line without a field is the default.
     """
 

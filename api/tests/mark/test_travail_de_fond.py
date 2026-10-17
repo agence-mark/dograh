@@ -255,6 +255,9 @@ async def test_le_resultat_n_est_jamais_une_parole_de_l_appelant(appel):
     )
     await appel.ouvrir()
     await appel.attendre(lambda: appel.travaux() and appel.travaux()[0]["remis"])
+    # « remis » part avant que le message n'arrive au contexte : on attend le message lui-même
+    # (le test échouait sous la charge de la suite complète, relecture du lot 6).
+    await appel.attendre(lambda: any(est_un_resultat_de_travail(m) for m in appel.messages()))
     resultat = next(m for m in appel.messages() if est_un_resultat_de_travail(m))
     assert est_la_note_de_passation(resultat)
 

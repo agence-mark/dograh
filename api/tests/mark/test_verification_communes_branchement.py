@@ -490,6 +490,11 @@ async def _message_tape_jusquau_modele(texte: str, configuration: dict, noeud=NO
         def get_node_greeting(self, *_):
             return None
 
+        async def preparer_le_travail(self, *a, **k):
+            # Lot 4 d'orchestrateur-trois-cerveaux : le runner du clavier prépare le cerveau de
+            # fond de l'agent qui parle ; éteint ici, rien n'est construit.
+            return None
+
         async def close_mcp_sessions(self):
             pass
 

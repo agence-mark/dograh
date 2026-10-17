@@ -21,23 +21,6 @@ export interface EndCallExtraction_variablesRow {
      */
     prompt?: string;
 }
-/**
- * Ordered closing sentences: the first whose condition on the call record holds is spoken as is; a line without a field is the default.
- */
-export interface EndCallFinsRow {
-    /**
-     * Name of a field of the call record. Empty: the default sentence.
-     */
-    champ?: string;
-    /**
-     * The value the field must hold. Empty: the field only has to be filled.
-     */
-    vaut?: string;
-    /**
-     * Spoken as is, then the call ends.
-     */
-    phrase: string;
-}
 
 /**
  * Closes the conversation and hangs up.
@@ -74,10 +57,6 @@ export interface EndCall {
      * Each entry declares one variable to capture from the conversation, with its name, data type, and a per-variable extraction hint.
      */
     extraction_variables?: Array<EndCallExtraction_variablesRow>;
-    /**
-     * Ordered closing sentences: the first whose condition on the call record holds is spoken as is; a line without a field is the default.
-     */
-    fins?: Array<EndCallFinsRow>;
 }
 
 /** Factory — sets `type` for you so you don't repeat the discriminator. */
