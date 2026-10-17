@@ -113,7 +113,10 @@ def test_un_nouveau_collegue_a_deux_sorties():
     fin = next(n for n in graphe.nodes.values() if n.is_end)
     assert fin.name == "Fin" and fin.prompt == A_REDIGER
     deuxieme = graphe.nodes["2"]
-    assert sorted(e.target for e in deuxieme.out_edges) == ["3", "4"]
+    # Les deux sorties sont dans le graphe ; la fin, encore « à rédiger », n'est offerte à aucune
+    # porte tant que son texte n'est pas écrit (relecture du lot 6, ``test_sorties_a_rediger.py``).
+    assert sorted(e.target for e in graphe.edges if e.source == "2") == ["3", "4"]
+    assert sorted(e.target for e in deuxieme.out_edges) == ["3"]
     # Aucune phrase figée posée à la place d'Evan (elle serait DITE par le code).
     assert not getattr(fin.data, "fins", None)
     # Un collègue n'a pas besoin d'être complété.
@@ -214,6 +217,14 @@ def test_un_accueil_sans_etape_de_depart_ou_deja_complet_n_est_pas_touche():
 
 def test_le_bloc_d_equipe_d_un_collegue_cite_les_deux_sorties():
     apres, _ = completer_un_collegue(COLLEGUE_DU_16_10)
+    # Complété, la fin attend son texte : le bloc d'équipe ne la cite pas encore (relecture du lot 6).
+    bloc = schema_du_parcours.parcours(apres, schema_du_parcours.TYPE_SPECIALISTE)
+    assert "deux sorties" not in bloc
+    # Une fois le texte de la fin rédigé, les deux sorties sont citées.
+    apres = copy.deepcopy(apres)
+    for noeud in apres["nodes"]:
+        if (noeud.get("data") or {}).get("prompt") == A_REDIGER:
+            noeud["data"]["prompt"] = "Une phrase écrite."
     bloc = schema_du_parcours.parcours(apres, schema_du_parcours.TYPE_SPECIALISTE)
     assert (
         "Tu as deux sorties : pour clore l'appel, tu écris la sortie Fin ; "
