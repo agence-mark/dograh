@@ -133,8 +133,8 @@ export const AIDES_INDICES_DES_MODULES: Texte[] = [
         fr: "Nos modules de donnée (valeurs des listes de la fiche, noms du lexique, communes, numéros, épellations) disent au modèle ce qu'ils ont reconnu dans les derniers mots de l'appelant. Rien n'est écrit dans la fiche : c'est l'agent qui note. Aucun délai.",
     },
     {
-        en: "Clerk mode: the clerk writes the record; the line tells the conversation model the exact form our readers found (a phone number in pairs), to read back as it is and not to ask again.",
-        fr: "Mode greffier : le greffier écrit la fiche ; la ligne donne au modèle de conversation la forme exacte lue par nos modules (un numéro par paires), à relire telle quelle et à ne pas redemander.",
+        en: "Clerk mode: the clerk writes the record; the line tells the conversation model the exact form our readers found (a phone number in pairs), to read back as it is and not to ask again, unless two readings are offered: the caller then chooses.",
+        fr: "Mode greffier : le greffier écrit la fiche ; la ligne donne au modèle de conversation la forme exacte lue par nos modules (un numéro par paires), à relire telle quelle et à ne pas redemander, sauf si deux lectures sont proposées : l'appelant choisit alors.",
     },
 ];
 

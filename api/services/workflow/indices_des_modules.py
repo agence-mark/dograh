@@ -30,11 +30,13 @@ ENTETE_INDICES = (
     "Reconnu par nos modules dans sa dernière réplique (PAS encore dans la fiche : "
     "mets-le dans ta note si c'est bien ce qu'elle a dit) : "
 )
-# 🆕 modules-et-cerveaux (M5, texte fixé par Evan le 18/10) : en greffier, la fiche s'écrit
-# sans le cerveau de conversation ; l'indice lui dit comment relire, pas quoi noter.
+# 🆕 modules-et-cerveaux (M5, texte fixé par Evan le 18/10, nuancé au bilan du même jour pour
+# un nombre à deux lectures) : en greffier, la fiche s'écrit sans le cerveau de conversation ;
+# l'indice lui dit comment relire, pas quoi noter.
 ENTETE_INDICES_GREFFIER = (
     "Lu par nos modules dans sa dernière réplique (forme exacte, à relire telle quelle, "
-    "à ne pas redemander) : "
+    "à ne pas redemander, sauf si deux lectures sont proposées : fais alors choisir "
+    "l'appelant) : "
 )
 MODE_GREFFIER = "greffier"
 # Une valeur de liste trop courte (« oui », « non ») se lit dans toute réponse : jamais un indice.
@@ -116,7 +118,9 @@ def _traces_du_tour(fiche: dict, tour: Any, par_paires: bool = False) -> list[st
         retenue = trace.get("commune_retenue") if trace.get("tour") == tour else None
         if retenue:
             codes = "/".join(retenue.get("codes_postaux") or [])
-            indices.append(f"commune = {retenue['nom']}" + (f" ({codes})" if codes else ""))
+            indices.append(
+                f"commune = {retenue['nom']}" + (f" ({codes})" if codes else "")
+            )
     for trace in fiche.get(CLE_NOMBRES) or []:
         nom = TYPES_DE_NOMBRES.get(trace.get("type"))
         if trace.get("tour") == tour and nom and trace.get("ecrit"):
@@ -134,7 +138,11 @@ def _traces_du_tour(fiche: dict, tour: Any, par_paires: bool = False) -> list[st
             )
             if trace.get("doutes"):
                 # Lot 1 bis : une lettre que son mot ne confirme pas.
-                quoi = "à faire confirmer" if trace.get("courriel") else "lettre à faire confirmer"
+                quoi = (
+                    "à faire confirmer"
+                    if trace.get("courriel")
+                    else "lettre à faire confirmer"
+                )
                 doute += f" ({quoi} : {', '.join(trace['doutes'])})"
             indices.append(f"épelé = {trace['epele']}{doute}")
     return indices
@@ -160,7 +168,9 @@ def indices_des_modules(
         )
         if not indices:
             return None
-        return (ENTETE_INDICES_GREFFIER if greffier else ENTETE_INDICES) + " ; ".join(indices)
+        return (ENTETE_INDICES_GREFFIER if greffier else ENTETE_INDICES) + " ; ".join(
+            indices
+        )
     except Exception as erreur:  # noqa: BLE001 -- un indice ne coûte jamais l'appel
         logger.warning(f"[fiche] indices des modules non calculés : {erreur!r}")
         return None

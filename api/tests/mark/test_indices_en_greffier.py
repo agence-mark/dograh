@@ -87,6 +87,11 @@ async def test_en_greffier_case_allumee_la_requete_porte_lindice_m5_par_paires()
     requete = await _requete({**GREFFIER, CLE_INDICES_DES_MODULES: True})
     assert f"{ENTETE_INDICES_GREFFIER}téléphone = 07 50 85 78 72" in requete
     assert "PAS encore dans la fiche" not in requete
+    # Bilan du 18/10 : un nombre à deux lectures se fait choisir, jamais trancher seul.
+    assert (
+        "sauf si deux lectures sont proposées : fais alors choisir l'appelant"
+        in requete
+    )
 
 
 async def test_en_greffier_case_eteinte_aucun_indice():
