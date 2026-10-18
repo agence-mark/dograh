@@ -1033,9 +1033,10 @@ class WorkflowConfigurationDefaults(BaseModel):
     indices_des_modules: bool | None = Field(
         default=None,
         description=(
-            "Postscript only. Our data readers (list values, trade names, towns, "
+            "Postscript and clerk modes. Our data readers (list values, trade names, towns, "
             "numbers, spellings) tell the model what they recognised in the caller's "
-            "last words; nothing is written in the record. Empty: on."
+            "last words; nothing is written in the record. Empty: on in Postscript "
+            "('note, sentence' order), off otherwise."
         ),
     )
     # [.mark] Plan mode-prise-de-notes, partie 2 (D8, D10) : le greffier. Son

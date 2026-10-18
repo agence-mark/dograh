@@ -125,11 +125,16 @@ export const AIDES_ORDRE_DE_LA_REPONSE: Texte[] = [
     },
 ];
 
-// Plan postscriptum-note-d-abord (Q2 bis, Q3): our readers' hints, Postscript only.
+// Plan postscriptum-note-d-abord (Q2 bis, Q3): our readers' hints; clerk mode too since
+// modules-et-cerveaux (lot 2, M5).
 export const AIDES_INDICES_DES_MODULES: Texte[] = [
     {
         en: "Our data readers (values of the record's lists, names of the vocabulary, towns, phone numbers, spellings) tell the model what they recognised in the caller's last words. Nothing is written in the record: the agent notes it. No delay.",
         fr: "Nos modules de donnée (valeurs des listes de la fiche, noms du lexique, communes, numéros, épellations) disent au modèle ce qu'ils ont reconnu dans les derniers mots de l'appelant. Rien n'est écrit dans la fiche : c'est l'agent qui note. Aucun délai.",
+    },
+    {
+        en: "Clerk mode: the clerk writes the record; the line tells the conversation model the exact form our readers found (a phone number in pairs), to read back as it is and not to ask again.",
+        fr: "Mode greffier : le greffier écrit la fiche ; la ligne donne au modèle de conversation la forme exacte lue par nos modules (un numéro par paires), à relire telle quelle et à ne pas redemander.",
     },
 ];
 
@@ -193,7 +198,8 @@ export const ThemeDonnees = ({
     const indicesEnregistres = resolue.indices_des_modules ?? null;
     const [indicesChoisis, setIndicesChoisis] = useState<boolean | null>(indicesEnregistres);
     useEffect(() => setIndicesChoisis(indicesEnregistres), [indicesEnregistres]);
-    const indices = indicesChoisis ?? ordre === "porte_note_phrase";
+    // modules-et-cerveaux (M1, lot 2): in clerk mode too, off when absent (like the server).
+    const indices = indicesChoisis ?? (modeDeNote === "post_scriptum" && ordre === "porte_note_phrase");
     const indicesModifies = indicesChoisis !== indicesEnregistres;
     // Lot E d'agent-leger-greffier (P1, D7): the steps' field labels, every mode.
     const etiquettesEnregistrees = resolue.etiquettes_des_etapes ?? false;
@@ -592,21 +598,6 @@ export const ThemeDonnees = ({
                         </Select>
                     </ChampReglage>
                 )}
-                {ficheActive && modeDeNote === "post_scriptum" && (
-                    <ChampReglage
-                        cle="indices_des_modules"
-                        idControle="indices_des_modules"
-                        libelle={{ en: "Module hints", fr: "Indices des modules" }}
-                        aides={AIDES_INDICES_DES_MODULES}
-                        bornes={{
-                            en: "Default: on with « Transition, note, reply », off otherwise",
-                            fr: "Par défaut : allumé avec « Porte, note, phrase », éteint sinon",
-                        }}
-                        disposition="ligne"
-                    >
-                        <Switch id="indices_des_modules" checked={indices} onCheckedChange={setIndicesChoisis} />
-                    </ChampReglage>
-                )}
                 {/* Lot E d'agent-leger-greffier (P1, D7): every note-taking mode. */}
                 {ficheActive && (
                     <ChampReglage
@@ -641,6 +632,27 @@ export const ThemeDonnees = ({
                         disposition="ligne"
                     >
                         <Switch id="fiche_deja_connu" checked={dejaConnu} onCheckedChange={setDejaConnu} />
+                    </ChampReglage>
+                )}
+                {/* Plan postscriptum-note-d-abord (Q2 bis); modules-et-cerveaux (lot 2): clerk mode too,
+                    next to the known fields. */}
+                {ficheActive && (modeDeNote === "post_scriptum" || modeDeNote === "greffier") && (
+                    <ChampReglage
+                        cle="indices_des_modules"
+                        idControle="indices_des_modules"
+                        libelle={{ en: "Module hints", fr: "Indices des modules" }}
+                        aides={AIDES_INDICES_DES_MODULES}
+                        bornes={
+                            modeDeNote === "greffier"
+                                ? { en: "Default: off", fr: "Par défaut : éteint" }
+                                : {
+                                      en: "Default: on with « Transition, note, reply », off otherwise",
+                                      fr: "Par défaut : allumé avec « Porte, note, phrase », éteint sinon",
+                                  }
+                        }
+                        disposition="ligne"
+                    >
+                        <Switch id="indices_des_modules" checked={indices} onCheckedChange={setIndicesChoisis} />
                     </ChampReglage>
                 )}
                 {/* greffier-conversation, lot E (C4, D6): every note-taking mode. */}

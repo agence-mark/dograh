@@ -22,6 +22,7 @@ from typing import Any
 from loguru import logger
 
 from api.schemas.lexique_metier import normaliser_terme
+from api.services.nombres.lecture import telephone_par_paires
 
 # Lot 1 (rejeu du 08/10) : « Repéré… (indices, rien n'est noté) », montré dans le bloc de
 # la fiche, s'est lu comme déjà noté (25 champs perdus contre 17 sans indices).
@@ -29,6 +30,13 @@ ENTETE_INDICES = (
     "Reconnu par nos modules dans sa dernière réplique (PAS encore dans la fiche : "
     "mets-le dans ta note si c'est bien ce qu'elle a dit) : "
 )
+# 🆕 modules-et-cerveaux (M5, texte fixé par Evan le 18/10) : en greffier, la fiche s'écrit
+# sans le cerveau de conversation ; l'indice lui dit comment relire, pas quoi noter.
+ENTETE_INDICES_GREFFIER = (
+    "Lu par nos modules dans sa dernière réplique (forme exacte, à relire telle quelle, "
+    "à ne pas redemander) : "
+)
+MODE_GREFFIER = "greffier"
 # Une valeur de liste trop courte (« oui », « non ») se lit dans toute réponse : jamais un indice.
 LONGUEUR_MIN_VALEUR = 4
 # Les traces des modules de lecture de l'appelant (``lecture_appelant.py``).
@@ -98,8 +106,9 @@ def _termes_du_lexique(reglages: Any, texte: str) -> list[str]:
     return [f"{cle} = {' ou '.join(termes)}"]
 
 
-def _traces_du_tour(fiche: dict, tour: Any) -> list[str]:
-    """Ce que les modules de lecture ont trouvé à ce tour de l'appelant."""
+def _traces_du_tour(fiche: dict, tour: Any, par_paires: bool = False) -> list[str]:
+    """Ce que les modules de lecture ont trouvé à ce tour de l'appelant. ``par_paires``
+    (greffier, M1) : un téléphone de dix chiffres est rendu par paires."""
     if tour is None:
         return []
     indices = []
@@ -111,7 +120,10 @@ def _traces_du_tour(fiche: dict, tour: Any) -> list[str]:
     for trace in fiche.get(CLE_NOMBRES) or []:
         nom = TYPES_DE_NOMBRES.get(trace.get("type"))
         if trace.get("tour") == tour and nom and trace.get("ecrit"):
-            indices.append(f"{nom} = {trace['ecrit']}")
+            ecrit = trace["ecrit"]
+            if par_paires and trace.get("type") == "telephone":
+                ecrit = telephone_par_paires(ecrit) or ecrit
+            indices.append(f"{nom} = {ecrit}")
     for trace in fiche.get(CLE_EPELLATIONS) or []:
         if trace.get("tour") == tour and trace.get("epele"):
             # 🆕 courriel-dicte (D3) : le domaine douteux est signalé, jamais corrigé.
@@ -136,16 +148,19 @@ def indices_des_modules(
         if not getattr(reglages, "indices_des_modules", False) or not parole:
             return None
         texte = normaliser_terme(parole)
+        greffier = getattr(reglages, "mode", None) == MODE_GREFFIER
         indices = list(
             dict.fromkeys(
                 [
                     *_valeurs_des_listes(reglages, texte),
                     *_termes_du_lexique(reglages, texte),
-                    *_traces_du_tour(fiche, tour),
+                    *_traces_du_tour(fiche, tour, par_paires=greffier),
                 ]
             )
         )
-        return ENTETE_INDICES + " ; ".join(indices) if indices else None
+        if not indices:
+            return None
+        return (ENTETE_INDICES_GREFFIER if greffier else ENTETE_INDICES) + " ; ".join(indices)
     except Exception as erreur:  # noqa: BLE001 -- un indice ne coûte jamais l'appel
         logger.warning(f"[fiche] indices des modules non calculés : {erreur!r}")
         return None

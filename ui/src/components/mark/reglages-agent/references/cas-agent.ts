@@ -200,6 +200,11 @@ export const CAS_AGENT: CasAgent[] = [
         choisir("fiche_mode_de_note", "post_scriptum"),
         inter("indices_des_modules"),
     ]),
+    // modules-et-cerveaux (lot 2, M1): the hints in clerk mode, off when absent, frozen once.
+    c("indices-des-modules-greffier", "ajout-mark", "donnees", ["fiche_mode_de_note", "indices_des_modules"], [
+        choisir("fiche_mode_de_note", "greffier"),
+        inter("indices_des_modules"),
+    ]),
     // Lot E d'agent-leger-greffier (P1): the steps' field labels, frozen once.
     c("etiquettes-des-etapes", "ajout-mark", "donnees", ["etiquettes_des_etapes"], [inter("etiquettes_des_etapes")]),
     // Lot 2 d'orchestrateur-trois-cerveaux (D4): the line « Known: … », frozen once.

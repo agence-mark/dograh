@@ -216,7 +216,8 @@ class ReglagesFiche:
     # Plan porte-parlee, D1 : la porte se prend dans la réponse (Postscript ; greffier
     # depuis le lot A de greffier-conversation).
     portes_dans_la_reponse: bool = False
-    # Plan postscriptum-note-d-abord : l'ordre de la réponse et les indices (Postscript seul).
+    # Plan postscriptum-note-d-abord : l'ordre de la réponse (Postscript seul) et les indices
+    # (Postscript, et greffier depuis modules-et-cerveaux).
     ordre: str = ORDRE_PHRASE_PUIS_NOTE
     indices_des_modules: bool = False
     # S2 : les termes du lexique de type « nom » (marques…), les seuls qu'un indice
@@ -316,14 +317,18 @@ class ReglagesFiche:
                 if getattr(t, "type", "nom") == "nom"
             ),
             # Q2 bis, formulaire du lot 4 (Evan, 08/10) : sans la clé, allumés en
-            # « porte, note, phrase », éteints dans l'ordre d'avant ; Postscript seul.
+            # « porte, note, phrase », éteints dans l'ordre d'avant.
+            # 🆕 modules-et-cerveaux (M1, lot 2) : en greffier aussi, la clé absente = éteints.
             indices_des_modules=(
-                mode == MODE_POST_SCRIPTUM
-                and (
-                    indices
-                    if isinstance(indices, bool)
-                    else ordre == ORDRE_NOTE_PUIS_PHRASE
+                (
+                    mode == MODE_POST_SCRIPTUM
+                    and (
+                        indices
+                        if isinstance(indices, bool)
+                        else ordre == ORDRE_NOTE_PUIS_PHRASE
+                    )
                 )
+                or (mode == MODE_GREFFIER and indices is True)
             ),
         )
 
