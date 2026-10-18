@@ -15,6 +15,7 @@ import { BriqueAgent } from "@/components/mark/graphe/BriqueAgent";
 import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFin";
 import { EtapeDeRetour } from "@/components/mark/graphe/EtapeDeRetour";
 import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
+import { TravailDeFond } from "@/components/mark/graphe/TravailDeFond";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NODE_DOCUMENTATION_URLS } from "@/constants/documentation";
@@ -495,7 +496,8 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         id,
         additionalData,
     });
-    const { saveWorkflow, tools, documents, recordings, champsFiche, agentPrincipalId, estPrincipal } = useWorkflow();
+    const { saveWorkflow, tools, documents, recordings, champsFiche, agentPrincipalId, estPrincipal, travailActif } =
+        useWorkflow();
     const { bySpecName } = useNodeSpecs();
     const { config: appConfig } = useAppConfig();
     const spec = bySpecName.get(type);
@@ -515,6 +517,8 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                       // Lot 2 d'orchestrateur-trois-cerveaux: and the return step of the main agent.
                       retour_au_principal: data.retour_au_principal,
                       etape_de_retour: data.etape_de_retour,
+                      // modules-et-cerveaux (lot 5): the step's background work box.
+                      travail_de_fond: data.travail_de_fond,
                       fins: data.fins,
                   }
                 : {},
@@ -594,6 +598,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         if (propertyNames.some((n) => values[n] !== baseline[n])) return true;
         if ((values.retour_au_principal ?? false) !== (data.retour_au_principal ?? false)) return true;
         if ((values.etape_de_retour ?? false) !== (data.etape_de_retour ?? false)) return true;
+        if ((values.travail_de_fond ?? false) !== (data.travail_de_fond ?? false)) return true;
         if (JSON.stringify(values.fins ?? null) !== JSON.stringify(data.fins ?? null)) return true;
         return (
             JSON.stringify(values.mcp_tool_filters ?? {}) !==
@@ -751,6 +756,14 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                                 coche={values.etape_de_retour === true}
                                 onChange={(coche) =>
                                     setValues((prev) => ({ ...prev, etape_de_retour: coche ? true : undefined }))
+                                }
+                            />
+                        )}
+                        {(type === "agentNode" || type === "startCall") && travailActif && (
+                            <TravailDeFond
+                                coche={values.travail_de_fond === true}
+                                onChange={(coche) =>
+                                    setValues((prev) => ({ ...prev, travail_de_fond: coche ? true : undefined }))
                                 }
                             />
                         )}

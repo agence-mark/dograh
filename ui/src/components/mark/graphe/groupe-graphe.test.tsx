@@ -87,6 +87,7 @@ interface Contexte {
     agentPrincipalId?: number | null;
     estPrincipal?: boolean;
     tools?: ToolResponse[];
+    travailActif?: boolean;
 }
 
 const monter = async (type: "agentNode" | "endCall", data: Record<string, unknown>, contexte: Contexte = {}) => {
@@ -106,6 +107,7 @@ const monter = async (type: "agentNode" | "endCall", data: Record<string, unknow
                     workflowId: 12,
                     agentPrincipalId: contexte.agentPrincipalId ?? null,
                     estPrincipal: contexte.estPrincipal ?? false,
+                    travailActif: contexte.travailActif ?? false,
                     ajouterOutil: m.ajouterOutil,
                 }}
             >
@@ -204,6 +206,38 @@ describe("[.mark] case « Étape de retour » d'une étape de l'accueil", () => 
         const bouton = screen.getByRole("button", { name: /^save$/i }) as HTMLButtonElement;
         fireEvent.click(document.getElementById("etape_de_retour") as HTMLElement);
         expect(bouton.disabled).toBe(false);
+    });
+});
+
+describe("[.mark] case « Travail en arrière-plan » d'une étape (modules-et-cerveaux, lot 5)", () => {
+    it("n'existe que quand le travail en arrière-plan de l'agent est allumé", async () => {
+        const dialogue = await monter("agentNode", {});
+        expect(dialogue.querySelector('[data-reglage="travail_de_fond"]')).toBeNull();
+    });
+
+    it("existe quand il est allumé, dit ce qu'elle fait, et écrit le marqueur dans l'étape", async () => {
+        const dialogue = await monter("agentNode", {}, { travailActif: true });
+        const champ = dialogue.querySelector('[data-reglage="travail_de_fond"]');
+        expect(champ).not.toBeNull();
+        expect(champ?.textContent).toContain("Background work");
+        expect(donneesDeLEtape().travail_de_fond).toBeUndefined();
+        fireEvent.click(document.getElementById("travail_de_fond") as HTMLElement);
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().travail_de_fond).toBe(true);
+    });
+
+    it("se lit cochée quand le marqueur est posé, et se décoche", async () => {
+        const dialogue = await monter("agentNode", { travail_de_fond: true }, { travailActif: true });
+        const interrupteur = document.getElementById("travail_de_fond") as HTMLElement;
+        expect(interrupteur.getAttribute("aria-checked")).toBe("true");
+        fireEvent.click(interrupteur);
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().travail_de_fond).toBeUndefined();
+    });
+
+    it("n'existe pas sur un nœud de fin", async () => {
+        const dialogue = await monter("endCall", {}, { travailActif: true });
+        expect(dialogue.querySelector('[data-reglage="travail_de_fond"]')).toBeNull();
     });
 });
 

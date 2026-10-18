@@ -365,6 +365,8 @@ function RenderWorkflow({
     const agentPrincipalId =
         typeof workflowConfigurations?.agent_principal_id === 'number' ? workflowConfigurations.agent_principal_id : null;
     const estPrincipal = Array.isArray(workflowConfigurations?.agents_specialises);
+    // [.mark] modules-et-cerveaux (lot 5, M3): the steps' « Background work » box shows only when it is on.
+    const travailActif = workflowConfigurations?.travail_actif === true;
     const [propositionGroupe, setPropositionGroupe] = useState(false);
 
     // After a successful publish, refresh the version list and update status
@@ -590,6 +592,7 @@ function RenderWorkflow({
         workflowId,
         agentPrincipalId,
         estPrincipal,
+        travailActif,
         ajouterOutil,
     }), [
         guardedSaveWorkflow,
@@ -602,6 +605,7 @@ function RenderWorkflow({
         workflowId,
         agentPrincipalId,
         estPrincipal,
+        travailActif,
         ajouterOutil,
     ]);
 

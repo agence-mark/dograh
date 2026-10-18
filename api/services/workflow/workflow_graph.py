@@ -142,6 +142,8 @@ class Node:
         self.pre_call_fetch_credential_uuid = getattr(
             data, "pre_call_fetch_credential_uuid", None
         )
+        # [.mark] Chantier modules-et-cerveaux (lot 5, M3) : « confier » offert à cette étape.
+        self.travail_de_fond = getattr(data, "travail_de_fond", False) is True
         # [.mark] Plan porte-parlee, D2 : vide ou blanc = absent.
         self.premiere_replique = (
             getattr(data, "premiere_replique", None) or ""

@@ -180,6 +180,21 @@ class _EtapeDeRetourNodeDataMixin(BaseModel):
     )
 
 
+class _TravailDeFondNodeDataMixin(BaseModel):
+    # [.mark] Chantier modules-et-cerveaux (lot 5, M3) : le cerveau de fond s'allume par étape.
+    # L'outil « confier » n'est offert qu'aux étapes cochées d'un agent dont le travail en
+    # arrière-plan est allumé (Briques). Hors du formulaire généré : la case vit dans le panneau
+    # de l'étape. Faux = l'outil n'est pas offert à cette étape.
+    travail_de_fond: bool = spec_field(
+        default=False,
+        spec_exclude=True,
+        description=(
+            "When true and the agent's background work is on, this step offers the tool "
+            "that hands a task to the background model."
+        ),
+    )
+
+
 class FinFigeeDTO(BaseModel):
     """[.mark] Une ligne des phrases de fin figées (A17) : si le champ de la fiche est
     rempli (ou vaut ``vaut``), cette phrase ; sans champ, la phrase par défaut."""
@@ -454,6 +469,7 @@ class StartCallNodeData(
     _PromptedNodeDataMixin,
     _ExtractionNodeDataMixin,
     _ToolDocumentRefsMixin,
+    _TravailDeFondNodeDataMixin,
 ):
     is_start: bool = spec_field(default=True, spec_exclude=True)
     greeting: Optional[str] = spec_field(default=None, ui_type=PropertyType.string)
@@ -593,6 +609,7 @@ class AgentNodeData(
     _ToolDocumentRefsMixin,
     _RetourAuPrincipalNodeDataMixin,
     _EtapeDeRetourNodeDataMixin,
+    _TravailDeFondNodeDataMixin,
 ):
     pass
 

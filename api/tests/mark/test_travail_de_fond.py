@@ -68,6 +68,12 @@ def _texte(texte, *, jetons=None):
     return morceaux
 
 
+
+def _avec_le_fond(graphe, etape_cochee=True):
+    """modules-et-cerveaux (lot 5, M3) : l'étape de départ porte « Travail en arrière-plan »."""
+    graphe.nodes["start"].travail_de_fond = etape_cochee
+    return graphe
+
 class Appel:
     """Un appel monté sur le banc de l'amont, avec un agent qui peut confier du travail."""
 
@@ -96,6 +102,7 @@ class Appel:
         destination_etapes=None,
         tool_uuids=None,
         delai_max_s=60,
+        etape_cochee=True,
     ):
         self._source_llm = MockLLMService(mock_steps=source_etapes, chunk_delay=0.001)
         self.fond_llm = MockLLMService(mock_steps=fond_etapes, chunk_delay=0.001)
@@ -107,8 +114,9 @@ class Appel:
                 mock_steps=destination_etapes or [_texte("Ici l'autre agent.")],
                 chunk_delay=0.001,
             ),
-            source_workflow=build_agent_workflow(
-                name="Accueil", greeting=None, tool_uuids=tool_uuids or []
+            source_workflow=_avec_le_fond(
+                build_agent_workflow(name="Accueil", greeting=None, tool_uuids=tool_uuids or []),
+                etape_cochee,
             ),
             destination_workflow=build_agent_workflow(name="Autre", greeting=None),
         )
@@ -511,6 +519,63 @@ async def test_un_agent_regle_a_l_outil_confier_dans_sa_requete(appel):
     schema = next(f for f in agent.tools.standard_tools if f.name == NOM_OUTIL)
     assert list(schema.properties) == ["demande"]
     assert schema.required == ["demande"]
+
+
+@pytest.mark.asyncio
+async def test_une_etape_non_cochee_n_offre_pas_confier(appel):
+    """modules-et-cerveaux (lot 5, M3, run 1462) : le fond allumé pour l'agent ne suffit plus ;
+    l'outil n'est offert qu'aux étapes cochées."""
+    await appel.monter(
+        source_etapes=[_texte("Bonjour.")],
+        fond_etapes=[_texte(RESULTAT)],
+        outils_du_fond=False,
+        etape_cochee=False,
+    )
+    await appel.ouvrir()
+    agent = appel.engine.active_agent
+    assert agent.travail is not None
+    assert NOM_OUTIL not in [f.name for f in agent.tools.standard_tools]
+    assert NOM_OUTIL not in (agent.llm._functions or {})
+
+
+def test_la_case_de_l_etape_traverse_la_definition_de_l_agent():
+    """La clé ``travail_de_fond`` est déclarée au DTO (une clé inconnue serait perdue) et
+    arrive sur l'étape du graphe ; absente, l'étape n'offre rien."""
+    from api.services.workflow.dto import ReactFlowDTO
+    from api.services.workflow.workflow_graph import WorkflowGraph
+
+    def graphe(data_depart, data_etape):
+        return WorkflowGraph(
+            ReactFlowDTO.model_validate(
+                {
+                    "nodes": [
+                        {"id": "a", "type": "startCall", "position": {"x": 0, "y": 0},
+                         "data": {"name": "accueil", "prompt": "p", **data_depart}},
+                        {"id": "b", "type": "agentNode", "position": {"x": 0, "y": 1},
+                         "data": {"name": "rendez_vous", "prompt": "p", **data_etape}},
+                        {"id": "c", "type": "endCall", "position": {"x": 0, "y": 2},
+                         "data": {"name": "fin", "prompt": "p"}},
+                    ],
+                    "edges": [
+                        {"id": "ab", "source": "a", "target": "b",
+                         "data": {"label": "rdv", "condition": "rdv"}},
+                        {"id": "bc", "source": "b", "target": "c",
+                         "data": {"label": "fin", "condition": "fin"}},
+                    ],
+                }
+            )
+        )
+
+    coche = graphe({}, {"travail_de_fond": True})
+    assert coche.nodes["b"].travail_de_fond is True
+    assert coche.nodes["a"].travail_de_fond is False
+    depart = graphe({"travail_de_fond": True}, {})
+    assert depart.nodes["a"].travail_de_fond is True
+    dto = ReactFlowDTO.model_validate(
+        {"nodes": [{"id": "b", "type": "agentNode", "position": {"x": 0, "y": 0},
+                    "data": {"name": "e", "prompt": "p", "travail_de_fond": True}}], "edges": []}
+    )
+    assert dto.model_dump()["nodes"][0]["data"]["travail_de_fond"] is True
 
 
 @pytest.mark.asyncio

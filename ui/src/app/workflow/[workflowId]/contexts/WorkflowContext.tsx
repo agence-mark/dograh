@@ -21,6 +21,8 @@ interface WorkflowContextType {
     agentPrincipalId?: number | null;
     /** [.mark] Lot 12: this agent is the main agent of a group (its end step gets the list of closing sentences). */
     estPrincipal?: boolean;
+    /** [.mark] modules-et-cerveaux (lot 5): the agent's background work is on (the steps' « Background work » box). */
+    travailActif?: boolean;
     /** [.mark] Lot 12: a tool just created from the node window (the « Agent » brick) joins the list. */
     ajouterOutil?: (tool: ToolResponse) => void;
 }

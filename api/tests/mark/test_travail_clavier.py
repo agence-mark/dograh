@@ -55,12 +55,15 @@ def _texte(texte, jetons=None):
     return morceaux
 
 
-async def _moteur_clavier(*, reglages, fond_etapes=None, collecteur=None):
+async def _moteur_clavier(*, reglages, fond_etapes=None, collecteur=None, etape_cochee=True):
     """Un moteur comme celui d'un tour du clavier : sans sortie audio, sans circuit d'appel."""
+    graphe = build_agent_workflow(name="Accueil", greeting=None)
+    # modules-et-cerveaux (lot 5, M3) : l'étape de départ porte « Travail en arrière-plan ».
+    graphe.nodes["start"].travail_de_fond = etape_cochee
     moteur = PipecatEngine(
         llm=MockLLMService(mock_steps=[], chunk_delay=0),
         context=LLMContext(),
-        workflow=build_agent_workflow(name="Accueil", greeting=None),
+        workflow=graphe,
         call_context_vars={},
         workflow_run_id=1,
     )
@@ -168,6 +171,18 @@ async def test_un_agent_sans_reglage_n_a_ni_outil_ni_worker_au_clavier():
     try:
         assert agent.travail is None
         assert moteur.travaux == []
+        await moteur.set_node("start")
+        assert NOM_OUTIL not in [f.name for f in agent.tools.standard_tools]
+    finally:
+        await moteur.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_au_clavier_une_etape_non_cochee_n_offre_pas_confier():
+    """modules-et-cerveaux (lot 5, M3) : la même règle qu'au téléphone."""
+    moteur, agent = await _moteur_clavier(reglages={"travail_actif": True}, etape_cochee=False)
+    try:
+        assert agent.travail is not None
         await moteur.set_node("start")
         assert NOM_OUTIL not in [f.name for f in agent.tools.standard_tools]
     finally:
