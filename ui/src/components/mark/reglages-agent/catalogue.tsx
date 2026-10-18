@@ -495,8 +495,8 @@ export const CATALOGUE = {
         libelle: { en: "Correct a phone number read back", fr: "Corriger un numéro relu" },
         aides: [
             {
-                en: "Before the voice, a phone number the agent reads back is compared with the last number the caller dictated (read by our number reader). If a digit differs, the caller's digits are spoken. Only phone numbers.",
-                fr: "Avant la voix, un numéro de téléphone que l'agent relit est comparé au dernier numéro dicté par l'appelant (lu par notre lecteur de nombres). Si un chiffre diffère, ce sont les chiffres de l'appelant qui sont dits. Les numéros de téléphone seulement.",
+                en: "Before the voice, a phone number the agent reads back is compared with the last number the caller dictated (read by our number reader). If one or two digits are wrong, missing or extra, the caller's digits are spoken. Only phone numbers, never another number the caller gave.",
+                fr: "Avant la voix, un numéro de téléphone que l'agent relit est comparé au dernier numéro dicté par l'appelant (lu par notre lecteur de nombres). Si un ou deux chiffres sont faux, manquent ou sont en trop, ce sont les chiffres de l'appelant qui sont dits. Les numéros de téléphone seulement, jamais un autre numéro donné par l'appelant.",
             },
         ],
     }),
