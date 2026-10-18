@@ -49,7 +49,7 @@ MOTIF_NON_NOTE = "non noté"
 FAIT_ETAPES = "étapes traversées : "
 FAIT_CHAMPS = "champs remplis : "
 CONSIGNE_RETOUR = (
-    "L'appelant a une autre demande : traite-la, passe-la, ou conclus si c'est fini."
+    "L'appelant a une autre demande : passe-la au collègue qui la traite, ou conclus si c'est fini."
 )
 CONSIGNE_ALLER = (
     "Tu reprends la conversation là où elle en est : tout ce qui a été dit compte, "
