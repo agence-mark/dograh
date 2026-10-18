@@ -46,12 +46,15 @@ def _chiffres(texte: str) -> str:
 ECARTS_MAX = 2
 # 🆕 modules-et-cerveaux (M6, run 1462) : une relecture ABÎMÉE (« zéro sept, cinquante,
 # quatre-vingt-cinq, sept-huit, deux ») n'est plus un téléphone pour le module des nombres :
-# une suite de nombres consécutifs, au moins sept chiffres, au plus trois écarts mesurés sur
-# la plus longue suite commune avec le numéro de référence.
+# une suite de nombres consécutifs écrits de la même façon (tout en lettres ou tout en
+# chiffres), de sept à onze chiffres, à au plus deux chiffres changés, ajoutés ou retirés
+# du numéro de référence (distance d'édition). Revue du 18/10 : la plus longue suite commune
+# laissait passer un autre numéro du même secteur ; le point menait à la phrase suivante.
 CHIFFRES_MIN_ABIMEE = 7
-ECARTS_MAX_ABIMEE = 3
-# Entre deux nombres d'une même relecture : espaces, virgules, tirets, points.
-_ENTRE_DEUX = re.compile(r"[\s,.;\-]*")
+CHIFFRES_MAX_ABIMEE = 11
+ECARTS_MAX_ABIMEE = 2
+# Entre deux nombres d'une même relecture : espaces, virgules, tirets. Jamais un point.
+_ENTRE_DEUX = re.compile(r"[\s,;\-]*")
 
 
 def numeros_dictes(contexte: dict | None) -> set[str]:
@@ -100,14 +103,21 @@ def _chiffres_du_nombre(nombre) -> str:
     return "".join(m[1] for m in morceaux) if morceaux and all(morceaux) else ""
 
 
-def _plus_longue_suite_commune(a: str, b: str) -> int:
-    precedente = [0] * (len(b) + 1)
-    for x in a:
-        ligne = [0]
-        for j, y in enumerate(b):
-            ligne.append(precedente[j] + 1 if x == y else max(precedente[j + 1], ligne[j]))
+def _distance(a: str, b: str) -> int:
+    """Chiffres à changer, ajouter ou retirer pour passer de ``a`` à ``b``."""
+    precedente = list(range(len(b) + 1))
+    for i, x in enumerate(a, 1):
+        ligne = [i]
+        for j, y in enumerate(b, 1):
+            ligne.append(
+                min(precedente[j] + 1, ligne[j - 1] + 1, precedente[j - 1] + (x != y))
+            )
         precedente = ligne
     return precedente[-1]
+
+
+def _en_lettres(texte: str) -> bool:
+    return any(c.isalpha() for c in texte)
 
 
 def _relectures_abimees(texte: str, phrase, nombres, reference: str, dictes: set[str]):
@@ -121,7 +131,9 @@ def _relectures_abimees(texte: str, phrase, nombres, reference: str, dictes: set
             continue
         if suite:
             fin_avant = phrase.jetons[suite[-1].fin - 1].fin
-            if not _ENTRE_DEUX.fullmatch(texte[fin_avant : phrase.jetons[n.debut].debut]):
+            if not _ENTRE_DEUX.fullmatch(
+                texte[fin_avant : phrase.jetons[n.debut].debut]
+            ) or _en_lettres(n.entendu) != _en_lettres(suite[-1].entendu):
                 suites.append(suite)
                 suite = []
         suite.append(n)
@@ -132,19 +144,27 @@ def _relectures_abimees(texte: str, phrase, nombres, reference: str, dictes: set
         morceaux = [_chiffres_du_nombre(n) for n in suite]
         if not all(morceaux):
             continue
-        relu = "".join(morceaux)
-        if (
-            len(relu) < CHIFFRES_MIN_ABIMEE
-            or not relu.startswith("0")
-            or relu == reference
-            or relu in dictes
-        ):
+        # Le début de la suite le plus proche du numéro ; à égalité, le plus court.
+        meilleur = None
+        for k in range(1, len(suite) + 1):
+            relu = "".join(morceaux[:k])
+            if len(relu) > CHIFFRES_MAX_ABIMEE:
+                break
+            if len(relu) < CHIFFRES_MIN_ABIMEE or not relu.startswith("0"):
+                continue
+            ecarts = _distance(relu, reference)
+            if meilleur is None or ecarts < meilleur[0]:
+                meilleur = (ecarts, k, relu)
+        if meilleur is None:
             continue
-        ecarts = max(len(relu), len(reference)) - _plus_longue_suite_commune(relu, reference)
-        if ecarts > ECARTS_MAX_ABIMEE:
+        ecarts, k, relu = meilleur
+        if ecarts > ECARTS_MAX_ABIMEE or relu == reference or relu in dictes:
             continue
         trouvees.append(
-            (phrase.jetons[suite[0].debut].debut, phrase.jetons[suite[-1].fin - 1].fin)
+            (
+                phrase.jetons[suite[0].debut].debut,
+                phrase.jetons[suite[k - 1].fin - 1].fin,
+            )
         )
     return trouvees
 
@@ -172,20 +192,26 @@ def corriger_relecture(
                 continue
             if sum(a != b for a, b in zip(relu, reference)) > ECARTS_MAX:
                 continue
-            a_corriger.append((phrase.jetons[n.debut].debut, phrase.jetons[n.fin - 1].fin))
+            a_corriger.append(
+                (phrase.jetons[n.debut].debut, phrase.jetons[n.fin - 1].fin)
+            )
         # M6 : les relectures que le module ne lit plus comme un téléphone.
         hors_telephones = [n for n in tous if n.type != TELEPHONE]
-        a_corriger += _relectures_abimees(texte, phrase, hors_telephones, reference, dictes)
+        a_corriger += _relectures_abimees(
+            texte, phrase, hors_telephones, reference, dictes
+        )
         sortie, curseur = [], 0
         for debut, fin in sorted(a_corriger):
             if debut < curseur:
                 continue
             original = texte[debut:fin]
-            if any(c.isalpha() for c in original):
+            if _en_lettres(original):
                 juste = _par_paires_en_mots(reference)
             else:
                 juste = " ".join(reference[i : i + 2] for i in range(0, 10, 2))
-            logger.info("[.mark] Read-back of a phone number corrected before the voice")
+            logger.info(
+                "[.mark] Read-back of a phone number corrected before the voice"
+            )
             sortie += [texte[curseur:debut], juste]
             curseur = fin
         if not sortie:

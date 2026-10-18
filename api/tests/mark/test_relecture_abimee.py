@@ -43,7 +43,7 @@ def test_une_relecture_juste_nest_pas_touchee(phrase):
 @pytest.mark.parametrize(
     "phrase",
     [
-        # Un autre numéro : plus de trois écarts.
+        # Un autre numéro : plus de deux écarts.
         "Le magasin, c'est le zéro trois, quarante-quatre, vingt-deux, dix, soixante.",
         "Rappelez le 03 44 22 10 6.",
         # Trop court pour être une relecture.
@@ -71,3 +71,30 @@ def test_jamais_un_numero_que_lappelant_a_dicte():
 def test_sans_reference_rien_ne_change():
     phrase = "Je relis : zéro sept, cinquante, quatre-vingt-cinq, sept-huit, deux."
     assert corriger_relecture(phrase, None, CONTEXTE) == phrase
+
+
+# Revue du 18/10 : trois phrases que la première mesure abîmait.
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        # Un autre numéro du même secteur : la suite commune le rapprochait du numéro.
+        "Le magasin : zéro trois, quarante-quatre, cinquante, quatre-vingt-cinq, sept-huit.",
+        # La phrase suivante commence par un nombre : le point arrête la relecture.
+        "Je relis : zéro sept, cinquante, quatre-vingt-cinq, sept-huit, deux. 14 h 30, ça vous va ?",
+    ],
+)
+def test_ni_le_numero_du_magasin_ni_la_phrase_suivante(phrase):
+    corrige = corriger_relecture(phrase, REFERENCE, CONTEXTE)
+    assert "soixante-douze h" not in corrige
+    if phrase.startswith("Le magasin"):
+        assert corrige == phrase
+    else:
+        assert corrige.endswith(". 14 h 30, ça vous va ?")
+
+
+def test_un_nombre_en_chiffres_apres_la_relecture_en_lettres_reste_hors_du_numero():
+    phrase = "Je relis : zéro sept, cinquante, quatre-vingt-cinq, sept-huit, deux, 2 personnes ?"
+    assert corriger_relecture(phrase, REFERENCE, CONTEXTE) == (
+        "Je relis : zéro sept, cinquante, quatre-vingt-cinq, soixante-dix-huit, soixante-douze,"
+        " 2 personnes ?"
+    )
