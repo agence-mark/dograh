@@ -272,6 +272,41 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AdresseEtablissement
+         * @description [.mark] The business's address: organization-wide, overridable per agent.
+         *
+         *     Given to agents as ``{{adresse_etablissement}}``. The town recognition
+         *     (``api/services/communes/``) reads only the postal code and the commune,
+         *     never the street.
+         *
+         *     ⛔ Only the FORMAT is checked here. That the commune exists and carries
+         *     this postal code is checked by the save routes, against the national list:
+         *     this model is also read when a call is set up, and a refusal there must
+         *     never cost the call (same rule as the opening hours).
+         */
+        AdresseEtablissement: {
+            /**
+             * Code Postal
+             * @description Postal code, 5 digits.
+             */
+            code_postal: string;
+            /**
+             * Code Insee
+             * @description INSEE code of the commune chosen in the postal code's list.
+             */
+            code_insee: string;
+            /**
+             * Commune
+             * @description Official name of the commune.
+             */
+            commune: string;
+            /**
+             * Voie
+             * @description Street number and name. Optional; not used to recognise towns.
+             */
+            voie?: string | null;
+        };
         /** AmbientNoiseConfigurationDefaults */
         AmbientNoiseConfigurationDefaults: {
             /**
@@ -327,6 +362,69 @@ export interface components {
              * @description Business criteria for selecting this disposition.
              */
             description: string;
+        };
+        /** ChampFiche */
+        ChampFiche: {
+            /**
+             * Nom
+             * @description snake_case name of the field, also the tool parameter name.
+             */
+            nom: string;
+            /**
+             * Type
+             * @default string
+             * @enum {string}
+             */
+            type: "string" | "number" | "boolean";
+            /**
+             * @description Dictated: the value must have been said by the caller (name, town, street, number, brand). Deduced: the model sums it up (reason, urgency).
+             * @default dicte
+             */
+            origine: components["schemas"]["OrigineChamp"];
+            /**
+             * Description
+             * @description Hint given to the model for this parameter.
+             * @default
+             */
+            description: string;
+            /**
+             * Lecteur
+             * @description Which reader checks the value: town (official name and INSEE code), street (official street name), date (a relative date such as 'last year' computed on the day of the call, the caller's words kept), trade vocabulary (a name of the organization's vocabulary, sure only when recognised), or none. Empty: from the field name.
+             */
+            lecteur?: ("commune" | "rue" | "date" | "lexique" | "aucun") | null;
+            /**
+             * Valeurs
+             * @description Allowed values: the field only accepts one of them (case and accents ignored), written as declared. Empty: any value.
+             */
+            valeurs?: string[] | null;
+            /**
+             * Cumulatif
+             * @description Cumulative: each note is added to what the field already holds, nothing is overwritten; not checked against the caller's exact words.
+             * @default false
+             */
+            cumulatif: boolean;
+            /**
+             * Copie De La Parole
+             * @description Copied from the caller's words: when the model notes this field, the code writes the caller's exact words of that reply; the model only writes '='. Saves the model copying a whole sentence.
+             * @default false
+             */
+            copie_de_la_parole: boolean;
+            /**
+             * Chiffres
+             * @description Digits: how many digits the value must hold (spaces and signs ignored); a value with more or fewer is refused and the caller is asked for it again in full. Empty: no check.
+             */
+            chiffres?: number | null;
+            /**
+             * Rempli En Fin D Appel
+             * @description Filled at the end of the call: if the agent did not note the field during the call, the end-of-call pass may fill it from the conversation. Off: only the agent writes it, while the caller is speaking.
+             * @default true
+             */
+            rempli_en_fin_d_appel: boolean;
+            /**
+             * Portee
+             * @description Scope in a call with several requests: whole call (what concerns the caller: shared by every request) or this request (closed with it when another specialist takes over). Empty: computed from the agent's settings (town and street readers, field recognition).
+             */
+            portee?: ("appel" | "demande") | null;
         };
         /**
          * ContextDestinationMappingConfig
@@ -425,7 +523,7 @@ export interface components {
              * Definition
              * @description Typed tool definition.
              */
-            definition: components["schemas"]["HttpApiToolDefinition"] | components["schemas"]["EndCallToolDefinition"] | components["schemas"]["TransferCallToolDefinition"] | components["schemas"]["TransferAgentToolDefinition"] | components["schemas"]["CalculatorToolDefinition"] | components["schemas"]["McpToolDefinition"];
+            definition: components["schemas"]["HttpApiToolDefinition"] | components["schemas"]["EndCallToolDefinition"] | components["schemas"]["TransferCallToolDefinition"] | components["schemas"]["TransferAgentToolDefinition"] | components["schemas"]["CalculatorToolDefinition"] | components["schemas"]["McpToolDefinition"] | components["schemas"]["IntegrationToolDefinition"];
         };
         /** CreateWorkflowRequest */
         CreateWorkflowRequest: {
@@ -810,6 +908,100 @@ export interface components {
             from_phone_number_id?: number | null;
         };
         /**
+         * IntegrationToolConfig
+         * @description [.mark] A connector's action (chantier l-agent-travaille, L5; plan connecteurs-agent D5 to D9,
+         *     D17, D18). The organization is never here: the engine gives it (D6).
+         */
+        IntegrationToolConfig: {
+            /**
+             * Connecteur
+             * @description Connector of the catalogue.
+             */
+            connecteur: string;
+            /**
+             * Action
+             * @description Action of that connector.
+             */
+            action: string;
+            /**
+             * Reglages
+             * @description The client's rules for this action (durations, ranges, notice…), from the audit.
+             */
+            reglages?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Delai Ms
+             * @description Deadline of the action during the call.
+             * @default 5000
+             */
+            delai_ms: number;
+            /**
+             * Phrase Attente
+             * @description The patience phrase: said by the code, after the model's text, only when the tool has not finished after the patience threshold. Empty: nothing is ever said.
+             */
+            phrase_attente?: string | null;
+            /**
+             * Seuil Patience Ms
+             * @description Patience threshold: below it, nothing is said.
+             * @default 1200
+             */
+            seuil_patience_ms: number;
+            /**
+             * Champs Requis
+             * @description Fields of the record the action needs. Missing ones are looked for in the reading modules' traces, then the clerk is waited for; still missing, the model is told to ask for them. Empty: the tool runs as before.
+             */
+            champs_requis?: string[];
+            /**
+             * Attente Max Ms
+             * @description Longest wait for the clerk's pass.
+             * @default 2500
+             */
+            attente_max_ms: number;
+            /**
+             * Sources Champs
+             * @description Where the required fields are looked for, in this order.
+             */
+            sources_champs?: ("fiche" | "traces" | "greffier")[];
+            /**
+             * Phrase Repli
+             * @description Said when the deadline passes or the software fails.
+             */
+            phrase_repli?: string | null;
+            /**
+             * Anticipable
+             * @description Read-only actions only: launch it as soon as its trigger fields are in the record.
+             * @default false
+             */
+            anticipable: boolean;
+            /**
+             * Declencheurs
+             * @description Parameter of the action → field of the record that gives it (anticipation).
+             */
+            declencheurs?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * IntegrationToolDefinition
+         * @description [.mark] Tool definition of a connector's action (type ``integration``).
+         */
+        IntegrationToolDefinition: {
+            /**
+             * Schema Version
+             * @description Schema version.
+             * @default 1
+             */
+            schema_version: number;
+            /**
+             * @description Tool type. (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "integration";
+            /** @description Connector, action and the client's rules. */
+            config: components["schemas"]["IntegrationToolConfig"];
+        };
+        /**
          * McpToolConfig
          * @description Configuration for a customer MCP server tool definition.
          */
@@ -952,6 +1144,12 @@ export interface components {
              */
             fractional: boolean;
         };
+        /**
+         * OrigineChamp
+         * @description D4 : un champ DICTÉ subit le contrôle de citation, un champ DÉDUIT non.
+         * @enum {string}
+         */
+        OrigineChamp: "dicte" | "deduit";
         /**
          * PresetToolParameter
          * @description A parameter injected by Dograh at runtime.
@@ -1392,11 +1590,465 @@ export interface components {
              */
             context_compaction_enabled: boolean;
             /**
+             * User Speech Timeout
+             * @description Seconds the caller may pause before the agent takes the floor. The single setting that most decides whether the agent cuts people off or leaves a silence. Pipecat has never had a screen for it: 0.6 s is its own default, chosen by nobody here.
+             * @default 0.6
+             */
+            user_speech_timeout: number;
+            /**
+             * Stt Ttfs P99 Latency
+             * @description Seconds the pipeline allows the transcription to deliver its final text after the caller stops. Empty means the value Pipecat measured for the provider (0.35 s for Deepgram). ⚠️ That measurement was taken with a voice detector set to 0.2 s: change the detector below without this, and the end of turn is wrong.
+             */
+            stt_ttfs_p99_latency?: number | null;
+            /**
+             * User Turn Stop Timeout
+             * @description Hard ceiling on the wait for a transcript before the turn ends anyway. Empty means the value the pipeline picks for this agent: 5 s normally, 30 s when the transcription service drives the turns itself. ⛔ This setting has TWO defaults, not one -- writing 5 s into it silently cuts a Flux agent from 30 s to 5 s.
+             */
+            user_turn_stop_timeout?: number | null;
+            /**
+             * Turn Wait For Transcript
+             * @description Require at least one transcript before ending the caller's turn. Turn it off and the agent answers on silence alone, faster but on nothing that was understood.
+             * @default true
+             */
+            turn_wait_for_transcript: boolean;
+            /**
+             * Turn Start Use Interim
+             * @description Let partial transcripts, not just final ones, confirm that the caller has started speaking.
+             * @default true
+             */
+            turn_start_use_interim: boolean;
+            /**
+             * Vad Confidence
+             * @description How sure the voice detector must be that it is hearing speech. Higher misses quiet speech; lower takes background noise for a caller.
+             * @default 0.7
+             */
+            vad_confidence: number;
+            /**
+             * Vad Start Secs
+             * @description Seconds of sound before the detector calls it speech. Range is ours: Pipecat sets no bound.
+             * @default 0.2
+             */
+            vad_start_secs: number;
+            /**
+             * Vad Stop Secs
+             * @description Seconds of silence before the detector calls the speech over. ⚠️ Tied to the transcription latency above, which was measured at 0.2 s. Range is ours: Pipecat sets no bound.
+             * @default 0.2
+             */
+            vad_stop_secs: number;
+            /**
+             * Vad Min Volume
+             * @description Volume below which sound is not considered speech.
+             * @default 0.6
+             */
+            vad_min_volume: number;
+            /**
+             * Smart Turn Pre Speech Ms
+             * @description Milliseconds of audio kept before the caller starts speaking, for the Smart Turn model. Only used when end of turn is set to Smart Turn.
+             * @default 500
+             */
+            smart_turn_pre_speech_ms: number;
+            /**
+             * Smart Turn Max Duration Secs
+             * @description Longest audio segment the Smart Turn model examines. Only used when end of turn is set to Smart Turn.
+             * @default 8
+             */
+            smart_turn_max_duration_secs: number;
+            /**
+             * Audio Idle Timeout
+             * @description Seconds without any audio at all before the caller is considered to have stopped speaking, for instance if they mute their microphone mid-sentence. 0 disables it.
+             * @default 1
+             */
+            audio_idle_timeout: number;
+            /**
+             * Filter Incomplete User Turns
+             * @description Ask the model itself whether the caller has finished their sentence. ⚠️ Off by default: it costs one extra model call per turn, it has not been checked against Mistral, and its follow-up prompts are in English in Pipecat. ⚠️ Deprecated upstream: it will disappear on a Pipecat major upgrade.
+             * @default false
+             */
+            filter_incomplete_user_turns: boolean;
+            /**
+             * Incomplete Short Timeout
+             * @description Seconds before prompting when the model judged the caller was cut off mid-sentence. Only used when the setting above is on.
+             * @default 5
+             */
+            incomplete_short_timeout: number;
+            /**
+             * Incomplete Long Timeout
+             * @description Seconds before prompting when the model judged the caller asked for time to think. Only used when the setting above is on.
+             * @default 10
+             */
+            incomplete_long_timeout: number;
+            /**
+             * User Idle Prompt
+             * @description What the agent is told to do when the caller goes quiet. ⚠️ An instruction given to the model, not a sentence spoken word for word: the model answers in the caller's language.
+             * @default The user has been quiet. Politely and briefly ask if they're still there in the language that the user has been speaking so far.
+             */
+            user_idle_prompt: string;
+            /**
+             * User Idle Goodbye Prompt
+             * @description What the agent is told to do on the last prompt, just before the call is hung up. Same thing: an instruction, not a script.
+             * @default The user has been quiet. We will be disconnecting the call now. Wish them a good day in the language that the user has been speaking so far.
+             */
+            user_idle_goodbye_prompt: string;
+            /**
+             * User Idle Max Prompts
+             * @description How many times the agent checks whether the caller is still there before saying goodbye and hanging up. 0 hangs up on the first silence, with the goodbye.
+             * @default 1
+             */
+            user_idle_max_prompts: number;
+            /**
+             * Audio In Noise Filter
+             * @description Clean the caller's audio before it is transcribed. RNNoise is free and runs locally. ⚠️ A noise filter can just as easily get in the transcription's way: it is judged on a real phone line, not on a browser call.
+             * @default none
+             * @enum {string}
+             */
+            audio_in_noise_filter: "none" | "rnnoise";
+            /**
+             * Conversion Nombres Transcription
+             * @description Rewrites the numbers the caller dictates as digits before the model reads them, and reads postal codes said both ways ("soixante sept cent quarante", "soixante mille sept cent quarante"), amounts and invoice or quote references. The recorded transcript keeps the caller's words. French only. No effect in realtime mode.
+             * @default false
+             */
+            conversion_nombres_transcription: boolean;
+            /**
+             * Verification Communes
+             * @description Matches the town the caller names against the official list of French communes before the model reads it. Acts only at steps that collect a `commune` or `adresse…` variable. No effect in realtime mode.
+             * @default true
+             */
+            verification_communes: boolean;
+            /**
+             * Sons Communes
+             * @description Compares how the heard words sound with how each town sounds (pronunciation library), in addition to the spelling. Off: spelling only.
+             * @default true
+             */
+            sons_communes: boolean;
+            /**
+             * Verification Voies
+             * @description Matches the street the caller names against the streets of their commune in the national address base, and tells the model the name to use. Needs the town check: without a commune there is no list of streets to search. Acts at the same steps. A street that is not found is spelled out once, never asked again. No effect in realtime mode.
+             * @default true
+             */
+            verification_voies: boolean;
+            /**
+             * Lecture Epellation
+             * @description Reads the letters a caller spells out ("f l a m a n t", "F comme François", "deux T", accents, e-mail addresses) and tells the model to copy them exactly. Acts at every step: a name, a street, a brand or an address can be spelled at any moment. No effect in realtime mode.
+             * @default true
+             */
+            lecture_epellation: boolean;
+            /**
+             * Sons Lexique
+             * @description Compares how the heard words sound with how each name of the trade vocabulary sounds, in addition to the spelling. A name found by its sound alone is asked for confirmation. Off: spelling only.
+             * @default true
+             */
+            sons_lexique: boolean;
+            /**
+             * Lexique Metier
+             * @description Uses the organization's trade vocabulary: listens for the ticked terms, corrects misheard names before the model reads them, and applies their pronunciations to the voice. No effect in realtime mode.
+             * @default true
+             */
+            lexique_metier: boolean;
+            /**
+             * Variables Commune
+             * @description The extraction variables that trigger the town check, separated by commas. A final * means every name that starts with it (adresse* covers adresse_chantier). Case and spaces do not count. Empty: commune, commune_*, adresse*.
+             * @default commune, commune_*, adresse*
+             */
+            variables_commune: string;
+            /**
+             * Variables Reference
+             * @description The extraction variables that trigger the reference reader (invoice, quote or order numbers), same format as above. Empty: reference*.
+             * @default reference*
+             */
+            variables_reference: string;
+            /**
+             * Controle Donnees
+             * @description Checks the data: during the call, a phone number dictated with 9 or 11 digits is signalled to the model at a step that collects a phone; at the end of the call the record is checked (phone, postcode and town, e-mail, date, empty fields of the steps the call went through) and the verdict written with the call. Never changes a value. Off: as before.
+             * @default false
+             */
+            controle_donnees: boolean;
+            /**
+             * Variables Telephone
+             * @description Phone fields, same format as the town variables. Empty: the default.
+             * @default telephone*, tel_*, portable*, numero_telephone*, rappel_numero*
+             */
+            variables_telephone: string;
+            /**
+             * Variables Code Postal
+             * @description Postcode fields, same format. Empty: the default.
+             * @default code_postal*, cp_*
+             */
+            variables_code_postal: string;
+            /**
+             * Variables Courriel
+             * @description E-mail fields, same format. Empty: the default.
+             * @default email*, courriel*, mail*
+             */
+            variables_courriel: string;
+            /**
+             * Variables Date
+             * @description Date fields, same format. Empty: the default.
+             * @default date*
+             */
+            variables_date: string;
+            /**
+             * Horaires Ouverture
+             * @description Opening hours in the readable French format. Computes etat_ouverture, reouverture, horaires_ouverture and annonce_ouverture at call start. The last one is the sentence to say when picking up, empty when the business is reachable; use it in the start node greeting as {{initial_context.annonce_ouverture}}. Empty: nothing is computed.
+             */
+            horaires_ouverture?: string | null;
+            /** @description Business address for this agent. Leave empty to use the organization's address. Given to the agent as {{adresse_etablissement}}; the street is not used to recognise towns. */
+            adresse_etablissement?: components["schemas"]["AdresseEtablissement"] | null;
+            /**
+             * Mute Until First Bot Complete
+             * @description Keep the caller from interrupting the agent's opening sentence. On until now, and this is the one that keeps a greeting from being cut in half by a hello.
+             * @default true
+             */
+            mute_until_first_bot_complete: boolean;
+            /**
+             * Accueil Interruptible
+             * @description Let the caller cut the agent's greeting by speaking. Off: the greeting is always heard to the end, as until now. On: the protection of the opening sentence above is lifted for this agent, and the greeting stops once the caller has said the number of words below.
+             * @default false
+             */
+            accueil_interruptible: boolean;
+            /**
+             * Accueil Mots Minimum
+             * @description How many words the caller must say to cut the greeting. Only used when the switch above is on. 2 keeps a cough or a lone 'hello' from cutting it.
+             * @default 2
+             */
+            accueil_mots_minimum: number;
+            /**
+             * Raccrochage Silence Agent S
+             * @description Seconds the call waits for the agent's answer, with no sound at all, before hanging up. Protects the caller from a frozen agent. While a tool runs, the wait is 180 s whatever this says.
+             * @default 35
+             */
+            raccrochage_silence_agent_s: number;
+            /**
+             * Mute During Function Call
+             * @description Keep the caller from interrupting while the agent is running a tool, such as a transfer or a lookup.
+             * @default true
+             */
+            mute_during_function_call: boolean;
+            /**
+             * Mute Engine Callback
+             * @description Follow the workflow's own rule about which nodes may be interrupted. ⚠️ Turning it off ignores every 'do not interrupt' set on a node, and does it silently.
+             * @default true
+             */
+            mute_engine_callback: boolean;
+            /**
+             * Mute First Speech
+             * @description Keep the caller from interrupting during the agent's very first utterance. Narrower than the first setting above, and never used until now.
+             * @default false
+             */
+            mute_first_speech: boolean;
+            /**
+             * Mute Always
+             * @description The caller can never interrupt the agent at all. ⚠️ On a phone call this is usually the wrong answer: someone who has to wait out a whole answer hangs up.
+             * @default false
+             */
+            mute_always: boolean;
+            /**
+             * Tts Push Silence After Stop
+             * @description Add a moment of silence after the agent finishes speaking. Off today, which is why the duration below currently changes nothing. Useful where a phone line clips the last syllable.
+             * @default false
+             */
+            tts_push_silence_after_stop: boolean;
+            /**
+             * Tts Silence Time S
+             * @description How long that silence lasts. ⚠️ Only used when the switch above is on.
+             * @default 1
+             */
+            tts_silence_time_s: number;
+            /**
+             * Tts Text Aggregation Mode
+             * @description Send the text to the voice sentence by sentence, or word by word as the model writes it. Word by word answers sooner, but it can degrade the voice depending on the provider: judge it by ear.
+             * @default sentence
+             * @enum {string}
+             */
+            tts_text_aggregation_mode: "sentence" | "token";
+            /**
+             * Interdire Nom Appelant
+             * @description Stop the agent from SAYING the caller's family name out loud. Enforced in code rather than by the prompt, which never held: five rewrites in two days still left the name spoken in 2 voice runs out of 5. ⚠️ Only works when the text is sent to the voice sentence by sentence (see the aggregation mode above): word by word, a name is split across frames and the filter stays inert. The name is still written to the call record and the transcript -- this filters what is spoken, never what is noted. A SPELLED name is deliberately left alone, so have the agent confirm a name by spelling it, never by saying it.
+             * @default false
+             */
+            interdire_nom_appelant: boolean;
+            /**
+             * Interdire Civilite Appelant
+             * @description Stop the agent from saying Monsieur, Madame or Mademoiselle. Same mechanism and same limits as the switch above. Independent of it: either can be used alone.
+             * @default false
+             */
+            interdire_civilite_appelant: boolean;
+            /**
+             * Relecture Des Numeros
+             * @description Before the voice, a phone number the agent reads back is compared with the last number the caller dictated, as read by our number reader; if a digit differs, the caller's digits are spoken instead. Only phone numbers, sentence by sentence. Off (default): the agent's read-back as written.
+             * @default false
+             */
+            relecture_des_numeros: boolean;
+            /**
+             * Generer Schema Parcours
+             * @description At every save, write the flow map at the end of the global prompt: each step with its role (the line under « # Ta mission ici » of its prompt). Clerk mode with transitions in the reply: during the call, each step ends with one block (where the agent is, how to move on, each way out with its condition and arrival sentence) and the note-taking block is dropped. Other modes: 'Tu es ici' with the step's name at the end of each step's prompt. The blocks are replaced at each save, never stacked. Off: blocks left by an earlier save are removed, nothing else changes.
+             * @default false
+             */
+            generer_schema_parcours: boolean;
+            /**
+             * Fiche Au Fil De Leau
+             * @description Give the model a noter_information tool it can call at any step to write or correct a field of the call record below. Off: the tool is not offered at all and the agent behaves exactly as before. On: the step-by-step extraction is switched off, the record is filled by the tool. No effect in realtime mode.
+             * @default false
+             */
+            fiche_au_fil_de_leau: boolean;
+            /**
+             * Fiche Mode De Note
+             * @description How the call record is written, when it is on. Tool (default): the model calls noter_information, then speaks in a second pass. Postscript: the model speaks, then writes its note after a separator in the same answer; the note is never spoken. Clerk: a second model keeps the record alongside the agent, the agent only speaks.
+             * @default outil
+             * @enum {string}
+             */
+            fiche_mode_de_note: "outil" | "post_scriptum" | "greffier";
+            /**
+             * Relance Apres Outil
+             * @description Pipecat ticket 5960. When a tool result reaches the agent before the caller's turn has closed, the model's reply is kept and sent once the turn closes, instead of being lost (the agent then stays silent until the caller speaks again). Off (default): Pipecat's behaviour. No effect in realtime mode.
+             * @default false
+             */
+            relance_apres_outil: boolean;
+            /**
+             * Portes Dans La Reponse
+             * @description Postscript and Clerk modes. The agent takes a transition inside its reply and already speaks the next step's first reply: no silence between steps. Off (default): transitions stay function calls, as before.
+             * @default false
+             */
+            portes_dans_la_reponse: boolean;
+            /**
+             * Ordre De La Reponse
+             * @description Postscript only. 'porte_note_phrase': the agent writes its note before its sentence, so the sentence knows what was just noted (no question asked again). 'porte_phrase_note' (default): the sentence first, then the note.
+             */
+            ordre_de_la_reponse?: ("porte_phrase_note" | "porte_note_phrase") | null;
+            /**
+             * Etiquettes Des Etapes
+             * @description Each step lists the record fields it gathers, in order of priority; at each turn the code reminds the model of the next missing ones, as a suggestion it may set aside. Every note-taking mode. Off (default): the steps' field lists are kept but nothing is shown to the model.
+             * @default false
+             */
+            etiquettes_des_etapes: boolean;
+            /**
+             * Filet De Fin
+             * @description Safety net for a specialised agent: when its reply holds a closing phrase ("goodbye", "have a nice day"...) and it took no exit, the code takes the exit that hands the call back to the main agent, which closes the call. The phrases are the organization's "formules_de_fin" sentence. Off (default): nothing is done, as before.
+             * @default false
+             */
+            filet_de_fin: boolean;
+            /**
+             * Fiche Deja Connu
+             * @description Next to the question, a short line names the record fields already known (names only, never the values): "Known: name, first name, town". Every note-taking mode. Off (default): nothing is shown.
+             * @default false
+             */
+            fiche_deja_connu: boolean;
+            /**
+             * Transfert Garanti
+             * @description When the agent arrives in a step that carries a call transfer tool and the business is OPEN, the code launches the transfer itself once the step's first reply has been said, instead of waiting for the model to call it. Every note-taking mode. Off (default): the model decides, as before.
+             * @default false
+             */
+            transfert_garanti: boolean;
+            /**
+             * Trace Requetes Modele
+             * @description Test agents only (Agent theme, Diagnostic). About 20 KB per answer. Each answer the conversation model is asked for is recorded in the run (requetes_modele): the exact request (messages, tools, settings, never a key), every piece of the stream with its finish reason and arrival time, the token count, how the stream ended, and what was spoken. Off (default): nothing is recorded and nothing changes.
+             * @default false
+             */
+            trace_requetes_modele: boolean;
+            /**
+             * Reflexion De Relance
+             * @description OpenAI-compatible provider, Clerk mode with transitions in the reply (Agent theme). When an answer ends in the middle of a sentence, it is never spoken and the model answers once more; that single retry is sent with this reasoning effort (e.g. 'low' when the agent runs with 'none'). Empty (default): the retry uses the agent's usual setting.
+             */
+            reflexion_de_relance?: ("none" | "minimal" | "low" | "medium" | "high") | null;
+            /**
+             * Phrase Sans Redemande
+             * @description Postscript, 'note, sentence' order only. When the note of a turn has written a record field and the sentence asks for that same field again, the sentence is not spoken and the model answers once more. The sentence then waits for its end before it is spoken. When unsure, the sentence is spoken. Off (default): nothing changes.
+             * @default false
+             */
+            phrase_sans_redemande: boolean;
+            /**
+             * Indices Des Modules
+             * @description Postscript and clerk modes. Our data readers (list values, trade names, towns, numbers, spellings) tell the model what they recognised in the caller's last words; nothing is written in the record. Empty: on in Postscript ('note, sentence' order), off otherwise.
+             */
+            indices_des_modules?: boolean | null;
+            /**
+             * Greffier Llm
+             * @description The clerk's model, when the note-taking mode is Clerk: provider, model, settings and its own API key. Empty fields come from the conversation model; an empty key uses the conversation's key (and its rate limit).
+             */
+            greffier_llm?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Greffier Consigne
+             * @description The clerk's instructions. Empty: the generic instructions written in the code. The record's fields and the expected answer format are always added by the code.
+             */
+            greffier_consigne?: string | null;
+            /**
+             * Travail Actif
+             * @description Background work. On: the agent can hand a request to a second brain that works with tools while the conversation goes on, then gets its result back. Off (default): nothing changes.
+             * @default false
+             */
+            travail_actif: boolean;
+            /**
+             * Travail Llm
+             * @description The background brain's model: provider, model, settings and its own API key. Empty fields come from the conversation model; an empty key uses the conversation's key.
+             */
+            travail_llm?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Travail Consigne
+             * @description The background brain's instructions. Empty (default): none are added by the code, to be written with the team.
+             */
+            travail_consigne?: string | null;
+            /**
+             * Travail Outils
+             * @description The tools the background brain may use (tool UUIDs of the organization). Call transfers and the end of the call are never given to it.
+             */
+            travail_outils?: string[];
+            /**
+             * Travail Delai Max S
+             * @description How long the background brain may work on one request, in seconds.
+             * @default 60
+             */
+            travail_delai_max_s: number;
+            /**
+             * Fiche Champs
+             * @description The fields of the call record the tool can write: name, type, dictated or deduced, and a hint for the model. A dictated value is written only if the caller said it.
+             */
+            fiche_champs?: components["schemas"]["ChampFiche"][];
+            /**
+             * Tts Replacements
+             * @description Words the voice mispronounces, written as heard:spoken -- for instance SAV:S. A. V. Matched literally, not as a pattern, and applied to the text sent to the voice only: the conversation history keeps the original.
+             */
+            tts_replacements?: string[];
+            /**
+             * Tts Markdown Filter Enabled
+             * @description Strip markdown formatting before the text reaches the voice. Without it, a model that answers with **bold** has the asterisks read out loud. Does not touch parentheses: a stage direction like (one moment) is still spoken, and stays a matter for the prompt.
+             * @default false
+             */
+            tts_markdown_filter_enabled: boolean;
+            /**
              * Tts Cache Enabled
              * @description Reuse generated speech for repeated phrases. Supports MiniMax TTS.
              * @default false
              */
             tts_cache_enabled: boolean;
+            /**
+             * Apres Appel
+             * @description After the call: write each call in the client's database, summarise it, mail the request, and run the organization's modules this agent uses. Empty or off: nothing is written or sent, the agent behaves exactly as before.
+             */
+            apres_appel?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Panne
+             * @description Outage fallback: when a part of the agent fails, Twilio hands the call to the establishment's second number or promises a call-back. Empty or off: as before.
+             */
+            panne?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Equipe Connue
+             * @description Gives the agent the team of the establishment called, as {{equipe}}: first name, last name, role and what each person takes care of; a phone number or an e-mail only where the client allowed it. Also gives the summary the names to spell. Off: the agent knows no one, exactly as before.
+             * @default false
+             */
+            equipe_connue: boolean;
+            /**
+             * Verification Appelant
+             * @description Lets the actions « verify the caller » and « read the record » run for this agent, with the factors and levels of the organization (theme « Caller verification »). Off: they answer that verification is unavailable and nothing of a record is read.
+             * @default false
+             */
+            verification_appelant: boolean;
             /**
              * Call Dispositions
              * @description Allowed business outcomes for terminal call classification. Each entry defines the exact stored code and the criteria for selecting it.
@@ -1481,10 +2133,12 @@ export interface components {
     headers: never;
     pathItems: never;
 }
+export type AdresseEtablissement = components['schemas']['AdresseEtablissement'];
 export type AmbientNoiseConfigurationDefaults = components['schemas']['AmbientNoiseConfigurationDefaults'];
 export type CalculatorToolDefinition = components['schemas']['CalculatorToolDefinition'];
 export type CallDispositionCodes = components['schemas']['CallDispositionCodes'];
 export type CallDispositionOption = components['schemas']['CallDispositionOption'];
+export type ChampFiche = components['schemas']['ChampFiche'];
 export type ContextDestinationMappingConfig = components['schemas']['ContextDestinationMappingConfig'];
 export type ContextDestinationRoute = components['schemas']['ContextDestinationRoute'];
 export type ContextDestinationRule = components['schemas']['ContextDestinationRule'];
@@ -1504,6 +2158,8 @@ export type HttpApiConfig = components['schemas']['HttpApiConfig'];
 export type HttpApiToolDefinition = components['schemas']['HttpApiToolDefinition'];
 export type HttpTransferResolverConfig = components['schemas']['HttpTransferResolverConfig'];
 export type InitiateCallRequest = components['schemas']['InitiateCallRequest'];
+export type IntegrationToolConfig = components['schemas']['IntegrationToolConfig'];
+export type IntegrationToolDefinition = components['schemas']['IntegrationToolDefinition'];
 export type McpToolConfig = components['schemas']['McpToolConfig'];
 export type McpToolDefinition = components['schemas']['McpToolDefinition'];
 export type NodeCategory = components['schemas']['NodeCategory'];
@@ -1511,6 +2167,7 @@ export type NodeExample = components['schemas']['NodeExample'];
 export type NodeSpec = components['schemas']['NodeSpec'];
 export type NodeTypesResponse = components['schemas']['NodeTypesResponse'];
 export type NumberInputOptions = components['schemas']['NumberInputOptions'];
+export type OrigineChamp = components['schemas']['OrigineChamp'];
 export type PresetToolParameter = components['schemas']['PresetToolParameter'];
 export type PropertyLayoutOptions = components['schemas']['PropertyLayoutOptions'];
 export type PropertyOption = components['schemas']['PropertyOption'];
@@ -1538,6 +2195,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1581,6 +2239,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1627,6 +2286,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1666,6 +2326,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path: {
                 workflow_id: number;
@@ -1707,6 +2368,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path: {
                 workflow_id: number;
@@ -1752,6 +2414,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1794,6 +2457,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1833,6 +2497,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1881,6 +2546,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1929,6 +2595,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1968,6 +2635,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2007,6 +2675,7 @@ export interface operations {
             header?: {
                 authorization?: string | null;
                 "X-API-Key"?: string | null;
+                "X-Mark-Auteur"?: string | null;
             };
             path: {
                 name: string;

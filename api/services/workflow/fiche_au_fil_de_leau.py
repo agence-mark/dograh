@@ -216,7 +216,8 @@ class ReglagesFiche:
     # Plan porte-parlee, D1 : la porte se prend dans la réponse (Postscript ; greffier
     # depuis le lot A de greffier-conversation).
     portes_dans_la_reponse: bool = False
-    # Plan postscriptum-note-d-abord : l'ordre de la réponse et les indices (Postscript seul).
+    # Plan postscriptum-note-d-abord : l'ordre de la réponse (Postscript seul) et les indices
+    # (Postscript, et greffier depuis modules-et-cerveaux).
     ordre: str = ORDRE_PHRASE_PUIS_NOTE
     indices_des_modules: bool = False
     # S2 : les termes du lexique de type « nom » (marques…), les seuls qu'un indice
@@ -316,14 +317,18 @@ class ReglagesFiche:
                 if getattr(t, "type", "nom") == "nom"
             ),
             # Q2 bis, formulaire du lot 4 (Evan, 08/10) : sans la clé, allumés en
-            # « porte, note, phrase », éteints dans l'ordre d'avant ; Postscript seul.
+            # « porte, note, phrase », éteints dans l'ordre d'avant.
+            # 🆕 modules-et-cerveaux (M1, lot 2) : en greffier aussi, la clé absente = éteints.
             indices_des_modules=(
-                mode == MODE_POST_SCRIPTUM
-                and (
-                    indices
-                    if isinstance(indices, bool)
-                    else ordre == ORDRE_NOTE_PUIS_PHRASE
+                (
+                    mode == MODE_POST_SCRIPTUM
+                    and (
+                        indices
+                        if isinstance(indices, bool)
+                        else ordre == ORDRE_NOTE_PUIS_PHRASE
+                    )
                 )
+                or (mode == MODE_GREFFIER and indices is True)
             ),
         )
 
@@ -2729,6 +2734,22 @@ TYPES_CRITIQUES = ("telephone", "courriel", TYPE_REFERENCE)
 LECTEURS_D_ADRESSE = ("commune", "rue")
 
 
+def _forme_lisible(reglages: ReglagesFiche, champ: ChampFiche, valeur: Any) -> Any:
+    """🆕 modules-et-cerveaux (M1, lot 3) : la valeur telle que le modèle la relit. Un champ
+    de téléphone (``variables_telephone`` de l'agent) de dix chiffres est montré par paires
+    (« 07 50 85 78 72 ») ; la valeur stockée ne change pas. Le reste, tel quel."""
+    try:
+        from api.services.fiche.controle import correspond
+        from api.services.nombres.lecture import telephone_par_paires
+
+        motifs = tuple((reglages.motifs_des_types or {}).get("telephone") or ())
+        if isinstance(valeur, str) and correspond(champ.nom, motifs):
+            return telephone_par_paires(valeur) or valeur
+    except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais l'appel
+        logger.warning(f"[fiche] forme lisible non calculée : {erreur!r}")
+    return valeur
+
+
 def champ_critique(reglages: ReglagesFiche, nom: str) -> bool:
     """Le nom de la personne, un téléphone, une adresse e-mail, une référence : reconnus
     par les réglages de l'agent (champ de nom, ``variables_telephone``,
@@ -3684,7 +3705,7 @@ def etat_de_la_fiche(
             # Lot 7 (K9) : « rend ce champ comme une liste à qui la lit ».
             ligne = f"{champ.nom} = [{', '.join(valeurs_d_une_liste(valeur))}]"
         else:
-            ligne = f"{champ.nom} = {_abregee(valeur)}"
+            ligne = f"{champ.nom} = {_abregee(_forme_lisible(reglages, champ, valeur))}"
         # Une valeur sans état n'a pas été écrite par la fiche : on ne la dit
         # pas sûre. Lot D de greffier-conversation (C3) : une valeur non sûre qui
         # n'est pas critique est montrée notée (telle qu'entendue), sans question.

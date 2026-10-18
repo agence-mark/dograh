@@ -1940,8 +1940,14 @@ class PipecatEngine:
         # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8) : l'outil « confier », seulement pour
         # un agent dont le travail en arrière-plan est allumé ET dont le cerveau de fond s'est
         # construit (``agent.travail``). Rien pour les autres : la requête reste identique.
+        # Chantier modules-et-cerveaux (lot 5, M3) : et seulement à une étape cochée
+        # (``travail_de_fond``). Un travail déjà lancé revient quelle que soit l'étape.
         travail = getattr(agent, "travail", None)
-        if travail is not None and not node.is_end:
+        if (
+            travail is not None
+            and not node.is_end
+            and getattr(node, "travail_de_fond", False) is True
+        ):
             from api.services.travail.agent import brancher_confier_le_travail
 
             functions.append(brancher_confier_le_travail(self, travail, agent))

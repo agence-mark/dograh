@@ -109,7 +109,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     fiche_mode_de_note: { theme: "donnees", cas: ["mode-de-note"] },
     portes_dans_la_reponse: { theme: "donnees", cas: ["portes-dans-la-reponse"] },
     ordre_de_la_reponse: { theme: "donnees", cas: ["ordre-de-la-reponse"] },
-    indices_des_modules: { theme: "donnees", cas: ["indices-des-modules"] },
+    indices_des_modules: { theme: "donnees", cas: ["indices-des-modules", "indices-des-modules-greffier"] },
     etiquettes_des_etapes: { theme: "donnees", cas: ["etiquettes-des-etapes"] },
     // Lot 2 d'orchestrateur-trois-cerveaux (D4): « Known fields near the question ».
     fiche_deja_connu: { theme: "donnees", cas: ["fiche-deja-connu"] },

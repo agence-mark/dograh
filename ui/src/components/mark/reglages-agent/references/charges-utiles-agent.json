@@ -1152,6 +1152,21 @@
         }
       ]
     },
+    "indices-des-modules-greffier": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "fiche_mode_de_note": "greffier",
+            "indices_des_modules": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "etiquettes-des-etapes": {
       "carte": "ajout-mark",
       "theme": "donnees",
