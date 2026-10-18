@@ -646,3 +646,35 @@ async def test_un_agent_retire_garde_ses_sessions_mcp_jusqu_a_la_fin_du_travail(
         await appel.attendre(fermees.is_set)
         assert appel.travaux()[0]["statut"] == "fait"
 
+
+
+# 18/10 (runs 1460 et 1461) : le résultat ne réveille jamais le modèle par-dessus une question.
+def test_une_question_de_l_agent_sans_reponse_retient_le_resultat():
+    from api.services.travail.retour import question_en_suspens
+
+    assert question_en_suspens(
+        [{"role": "user", "content": "Jeudi."},
+         {"role": "assistant", "content": "Je regarde les disponibilités. Avez-vous une adresse mail ?"}]
+    )
+
+
+def test_une_reponse_de_l_appelant_ou_une_phrase_sans_question_laisse_partir_le_resultat():
+    from api.services.travail.retour import question_en_suspens
+
+    assert not question_en_suspens(
+        [{"role": "assistant", "content": "Avez-vous une adresse mail ?"},
+         {"role": "user", "content": "evan@gmail.com"}]
+    )
+    assert not question_en_suspens([{"role": "assistant", "content": "Je regarde les disponibilités."}])
+    assert not question_en_suspens([])
+
+
+def test_un_message_du_code_n_est_pas_une_reponse_de_l_appelant():
+    from api.services.groupe.passations import PREFIXE_RESULTAT_DU_TRAVAIL
+    from api.services.travail.retour import question_en_suspens
+
+    assert question_en_suspens(
+        [{"role": "assistant", "content": "Avez-vous une adresse mail ?"},
+         {"role": "assistant", "content": None, "tool_calls": [{"id": "1"}]},
+         {"role": "user", "content": f"{PREFIXE_RESULTAT_DU_TRAVAIL} posé]"}]
+    )

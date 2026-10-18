@@ -15,6 +15,10 @@ Trois règles :
    avait confié. Un résultat qui arrive après une passation est lu par le nouvel agent.
 3. **Perdu seulement avec l'appel** : la remise est une tâche du fond ; la fin de l'appel
    l'annule (le résultat est trop tard, personne n'écoute).
+4. **Jamais par-dessus une question** (18/10, runs 1460 et 1461) : si la dernière réplique de
+   l'agent est une question encore sans réponse, le résultat entre dans la conversation SANS
+   réveiller le modèle ; il est lu à la réponse de l'appelant. Sinon (l'agent s'est tu sans
+   question, l'appelant attend), il réveille le modèle comme avant.
 """
 
 from __future__ import annotations
@@ -25,7 +29,11 @@ from typing import Any
 from loguru import logger
 from pipecat.frames.frames import LLMMessagesAppendFrame
 
-from api.services.groupe.passations import PREFIXE_RESULTAT_DU_TRAVAIL
+from api.services.groupe.passations import (
+    PREFIXE_RESULTAT_DU_TRAVAIL,
+    est_la_note_de_passation,
+    est_un_resultat_de_travail,
+)
 
 # Le rythme auquel la remise regarde si l'appel est redevenu calme.
 PAS_D_ATTENTE_S = 0.1
@@ -65,9 +73,44 @@ async def attendre_le_calme(moteur: Any, *, pas_s: float = PAS_D_ATTENTE_S) -> b
         await asyncio.sleep(pas_s)
 
 
+def _texte(contenu: Any) -> str:
+    if isinstance(contenu, str):
+        return contenu
+    if isinstance(contenu, list):
+        return " ".join(
+            str(p.get("text") or "") for p in contenu if isinstance(p, dict)
+        )
+    return ""
+
+
+def question_en_suspens(messages: Any) -> bool:
+    """La dernière parole de la conversation est-elle une question de l'agent, encore sans
+    réponse de l'appelant ? Les messages du code (résultat d'un travail, note de passation) et les
+    messages d'outil ne comptent pas comme une réponse. ⛔ Ne lève jamais."""
+    try:
+        for message in reversed(list(messages or [])):
+            if not isinstance(message, dict):
+                continue
+            role = message.get("role")
+            if role == "user":
+                if est_un_resultat_de_travail(message) or est_la_note_de_passation(message):
+                    continue
+                return False
+            if role == "assistant":
+                texte = _texte(message.get("content")).strip()
+                if not texte:
+                    continue  # un appel d'outil, sans parole
+                return "?" in texte
+        return False
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[travail] conversation illisible : {erreur!r}")
+        return False
+
+
 async def remettre_le_resultat(moteur: Any, message: str) -> bool:
-    """Pousse ``message`` à l'agent qui a la main, quand l'appel est calme, avec ``run_llm=True``.
-    ``True`` si le message est parti. ⛔ Ne lève jamais (hors annulation)."""
+    """Pousse ``message`` à l'agent qui a la main, quand l'appel est calme. Il réveille le modèle
+    (``run_llm=True``), sauf si une question de l'agent attend sa réponse (règle 4) : il est alors lu
+    à la réponse de l'appelant. ``True`` si le message est parti. ⛔ Ne lève jamais (hors annulation)."""
     try:
         if not await attendre_le_calme(moteur):
             logger.info("[travail] appel terminé avant la remise du résultat : perdu")
@@ -75,10 +118,15 @@ async def remettre_le_resultat(moteur: Any, message: str) -> bool:
         agent = moteur.active_agent
         if not moteur.agent_can_act(agent):
             return False
-        moteur.expect_response()
+        contexte = getattr(moteur, "context", None)
+        attendre = question_en_suspens(contexte.get_messages() if contexte else [])
+        if not attendre:
+            moteur.expect_response()
         await agent.queue_frame(
-            LLMMessagesAppendFrame([{"role": "user", "content": message}], run_llm=True)
+            LLMMessagesAppendFrame([{"role": "user", "content": message}], run_llm=not attendre)
         )
+        if attendre:
+            logger.info("[travail] résultat posé sans réveiller le modèle : une question attend sa réponse")
         return True
     except asyncio.CancelledError:
         raise
