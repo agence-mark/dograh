@@ -212,19 +212,27 @@ def test_invariant_text2num_hors_codes_postaux_et_references(base):
         phrase = element["phrase"]
         nombres = _lire(phrase, base)
         lu = reecrire(phrase, nombres)
-        speciaux = [n for n in nombres if n.type in (CODE_POSTAL, REFERENCE)]
+        # modules-et-cerveaux (M1) : un téléphone de dix chiffres est écrit par paires.
+        speciaux = [
+            n for n in nombres
+            if n.type in (CODE_POSTAL, REFERENCE)
+            or (n.type == TELEPHONE and lecture.telephone_par_paires(n.ecrit))
+        ]
         figees = lecture._positions_figees([j.mot for j in lecture.jetons(phrase)])
         if not speciaux and not figees:
             assert lu == alpha2digit(phrase, "fr"), phrase
             identiques += 1
         elif lu != alpha2digit(phrase, "fr"):
             differentes.append(phrase)
-    assert identiques == 20
+    # modules-et-cerveaux (M1) : les cinq téléphones du jeu sortent du compte.
+    assert identiques == 15
     # Where the reader departs from text2num on this set, named. The postal
     # codes with two readings are not here: without a choice (lot 2), they are
     # written like text2num.
     assert differentes == [
         "six zéro sept quatre zéro",  # text2num: "6 07 4 0"
+        "zéro six un deux trois quatre cinq six sept huit",  # "06 1 2 3 4 5 6 7 8", M1
+        "zéro trois, quarante-quatre, vingt-deux, dix, soixante",  # "03, 44, 22, 10, 60", M1
         "facture deux mille vingt-six tiret huit cent quarante-sept",  # "2026 tiret 847"
         "mille mercis",  # "1000 mercis"
     ]

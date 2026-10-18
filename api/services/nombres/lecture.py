@@ -727,6 +727,15 @@ def decoller_les_chiffres(texte: str) -> str:
         return texte
 
 
+def telephone_par_paires(ecrit: str) -> str | None:
+    """« 07 50 85 78 72 » pour un numéro national de dix chiffres (« 07/50/857872 »,
+    « 0750857872 », « 07.50.85.78.72 »), sinon None (incomplet, international)."""
+    chiffres = re.sub(r"\D", "", ecrit or "")
+    if len(chiffres) != 10 or not chiffres.startswith("0") or (ecrit or "").lstrip().startswith("+"):
+        return None
+    return " ".join(chiffres[i:i + 2] for i in range(0, 10, 2))
+
+
 def reecrire(texte: str, nombres: list[NombreLu], choix_cp: dict[int, str] | None = None) -> str:
     """What the model reads: ``text2num`` on everything, as the conversion did,
     except postal codes (the code chosen, keyed by ``debut``), references
@@ -743,6 +752,11 @@ def reecrire(texte: str, nombres: list[NombreLu], choix_cp: dict[int, str] | Non
             ecrit = n.ecrit
         elif n.type == DANS_UNE_COMMUNE:
             ecrit = texte[p.jetons[n.debut].debut:p.jetons[n.fin - 1].fin]
+        elif n.type == TELEPHONE and (pairs := telephone_par_paires(n.ecrit)):
+            # 🆕 modules-et-cerveaux (M1, run 1462) : « 07/50/857872 » arrivait tel quel au
+            # modèle, qui relisait « quatre-vingt-cinq, sept-huit, deux ». Dix chiffres lus
+            # par le module = la forme par paires, quelle que soit la forme entendue.
+            ecrit = pairs
         else:
             continue
         remplaces.append((p.jetons[n.debut].debut, p.jetons[n.fin - 1].fin, ecrit))
