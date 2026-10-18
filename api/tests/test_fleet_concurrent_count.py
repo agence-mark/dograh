@@ -25,7 +25,11 @@ from api.services.call_concurrency.rate_limiter import (
     RateLimiter,
 )
 
-_NOW = time.time()
+
+# [.mark] Read at test time, never at import: the full suite runs longer than the
+# 1200 s stale timeout, and slots stamped at collection were already stale (CI, 18/10).
+def _now() -> float:
+    return time.time()
 
 
 class _FakeRedis:
@@ -48,14 +52,16 @@ def _rl_with(redis) -> RateLimiter:
 
 @pytest.mark.asyncio
 async def test_counts_fresh_slots():
-    redis = _FakeRedis([_NOW, _NOW, _NOW])
+    now = _now()
+    redis = _FakeRedis([now, now, now])
     assert await _rl_with(redis).get_fleet_concurrent_count() == 3
 
 
 @pytest.mark.asyncio
 async def test_excludes_stale_slots():
     # 2 fresh + 3 older than the 1200s stale timeout
-    redis = _FakeRedis([_NOW, _NOW, _NOW - 5000, _NOW - 5000, _NOW - 5000])
+    now = _now()
+    redis = _FakeRedis([now, now, now - 5000, now - 5000, now - 5000])
     assert await _rl_with(redis).get_fleet_concurrent_count() == 2
 
 
