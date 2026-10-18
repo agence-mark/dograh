@@ -20,7 +20,10 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     ReglagesFiche,
     montrer_la_fiche,
 )
-from api.services.workflow.indices_des_modules import ENTETE_INDICES, ENTETE_INDICES_GREFFIER
+from api.services.workflow.indices_des_modules import (
+    ENTETE_INDICES,
+    ENTETE_INDICES_GREFFIER,
+)
 from api.tests.mark.test_clavier_porte_la_fiche import FICHE
 
 GREFFIER = {**FICHE, CLE_MODE: MODE_GREFFIER}
@@ -29,7 +32,12 @@ PAROLE = "Le 07/50/857872."
 FICHE_DU_TOUR = {
     CLE_TOUR: 5,
     "nombres_lus": [
-        {"tour": 5, "type": "telephone", "ecrit": "07/50/857872", "entendu": "07/50/857872"},
+        {
+            "tour": 5,
+            "type": "telephone",
+            "ecrit": "07/50/857872",
+            "entendu": "07/50/857872",
+        },
     ],
 }
 
@@ -52,7 +60,9 @@ class _Modele:
 
 async def _requete(configuration: dict) -> str:
     modele = _Modele()
-    assert montrer_la_fiche(modele, ReglagesFiche.depuis(configuration), lambda: FICHE_DU_TOUR)
+    assert montrer_la_fiche(
+        modele, ReglagesFiche.depuis(configuration), lambda: FICHE_DU_TOUR
+    )
     await modele.get_chat_completions(None)
     return "\n".join(m["content"] for m in modele.envoye["messages"])
 
@@ -60,11 +70,15 @@ async def _requete(configuration: dict) -> str:
 def test_les_defauts_en_greffier():
     assert ReglagesFiche.depuis(GREFFIER).indices_des_modules is False
     assert (
-        ReglagesFiche.depuis({**GREFFIER, CLE_INDICES_DES_MODULES: True}).indices_des_modules
+        ReglagesFiche.depuis(
+            {**GREFFIER, CLE_INDICES_DES_MODULES: True}
+        ).indices_des_modules
         is True
     )
     assert (
-        ReglagesFiche.depuis({**GREFFIER, CLE_INDICES_DES_MODULES: False}).indices_des_modules
+        ReglagesFiche.depuis(
+            {**GREFFIER, CLE_INDICES_DES_MODULES: False}
+        ).indices_des_modules
         is False
     )
 

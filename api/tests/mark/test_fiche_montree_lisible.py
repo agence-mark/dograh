@@ -22,7 +22,12 @@ CONFIGURATION = {
     CLE_MODE: MODE_GREFFIER,
     "variables_telephone": "telephone*, tel_*, numero_dicte",
     "fiche_champs": [
-        {"nom": "numero_dicte", "origine": "dicte", "description": "Numéro de rappel", "chiffres": 10},
+        {
+            "nom": "numero_dicte",
+            "origine": "dicte",
+            "description": "Numéro de rappel",
+            "chiffres": 10,
+        },
         {"nom": "reference_facture", "origine": "dicte", "description": "Référence"},
     ],
 }

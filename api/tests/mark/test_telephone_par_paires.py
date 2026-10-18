@@ -63,7 +63,11 @@ def test_la_detection_et_lecrit_du_module_ne_changent_pas():
 def test_ni_incomplet_ni_montant_ni_code_postal_ni_reference_ne_sont_touches(texte):
     texte = decoller_les_chiffres(texte)
     nombres = lire_nombres(texte)
-    sans_paires = [n for n in nombres if n.type != TELEPHONE or telephone_par_paires(n.ecrit) is None]
+    sans_paires = [
+        n
+        for n in nombres
+        if n.type != TELEPHONE or telephone_par_paires(n.ecrit) is None
+    ]
     assert len(sans_paires) == len(nombres)
 
 
@@ -75,7 +79,7 @@ def test_telephone_par_paires_refuse_ce_qui_nest_pas_un_numero_national():
 
 
 def test_la_lecture_de_lappelant_donne_la_phrase_par_paires_au_modele():
-    lu, lecture, *_ = _lire(
+    lu, *_ = _lire(
         "Le 07/50/857872.",
         adresse=None,
         trace_communes=[],
