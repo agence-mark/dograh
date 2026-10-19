@@ -514,6 +514,14 @@ def brancher_confier_le_travail(
     proprietes = _proprietes_du_resultat(agent.llm)
 
     async def gestionnaire(params) -> None:
+        # fiabilite-orchestration, lot 2 (C3) : la liste des champs de l'étape garde « confier »
+        # comme les outils de l'étape (run 1468 : rendez-vous lancé « nom et adresse à venir »).
+        from api.services.workflow.enveloppe_des_actions import garde_de_l_etape
+
+        refus = garde_de_l_etape(moteur, agent)
+        if refus is not None:
+            await params.result_callback(refus)
+            return
         arguments = getattr(params, "arguments", None) or {}
         resultat = await travail.confier(arguments.get("demande"))
         await params.result_callback(resultat, properties=proprietes(params))

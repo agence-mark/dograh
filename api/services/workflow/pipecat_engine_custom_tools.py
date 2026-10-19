@@ -319,6 +319,7 @@ class CustomToolManager:
                                     self._engine,
                                     fs.name,
                                     self._create_mcp_handler(session, fs.name),
+                                    self._agent,
                                 ),
                             ),
                             timeout_secs=session.call_timeout_secs,
@@ -353,7 +354,11 @@ class CustomToolManager:
                         self._agent.bind_tool(
                             self._engine,
                             envelopper_l_action(
-                                self._engine, nom, integration.creer_gestionnaire(self, tool, nom)
+                                self._engine,
+                                nom,
+                                integration.creer_gestionnaire(self, tool, nom),
+                                self._agent,
+                                garde=not interne,
                             ),
                         ),
                         timeout_secs=delai + 5.0,
@@ -423,7 +428,10 @@ class CustomToolManager:
             timeout_secs = float(timeout_ms) / 1000
             # [.mark] fiabilite-orchestration : une action, son résultat est lu (fiche).
             handler = envelopper_l_action(
-                self._engine, function_name, self._create_http_tool_handler(tool, function_name)
+                self._engine,
+                function_name,
+                self._create_http_tool_handler(tool, function_name),
+                self._agent,
             )
 
         return handler, timeout_secs

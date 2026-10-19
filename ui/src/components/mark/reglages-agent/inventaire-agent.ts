@@ -110,8 +110,8 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     portes_dans_la_reponse: { theme: "donnees", cas: ["portes-dans-la-reponse"] },
     ordre_de_la_reponse: { theme: "donnees", cas: ["ordre-de-la-reponse"] },
     indices_des_modules: { theme: "donnees", cas: ["indices-des-modules", "indices-des-modules-greffier"] },
-    etiquettes_des_etapes: { theme: "donnees", cas: ["etiquettes-des-etapes"] },
-    // Lot 2 d'orchestrateur-trois-cerveaux (D4): « Known fields near the question ».
+    // fiabilite-orchestration, lot 2 (F19): one box writes both keys (« known and expected »).
+    etiquettes_des_etapes: { theme: "donnees", cas: ["fiche-deja-connu"] },
     fiche_deja_connu: { theme: "donnees", cas: ["fiche-deja-connu"] },
     transfert_garanti: { theme: "donnees", cas: ["transfert-garanti"] },
     phrase_sans_redemande: { theme: "donnees", cas: ["phrase-sans-redemande"] },
@@ -145,6 +145,12 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     agents_specialises: {
         horsEcran:
             "Written by the group routes (lot 10), never by a gesture of this page; the theme Agent only LISTS the specialised agents (a link to each) under « Specialised agents ».",
+    },
+    // fiabilite-orchestration (F15, F23): the rules of the sentences said by the code. Lot 1 reads them;
+    // the « Phrases » theme that edits them comes with lot 4 bis of the same chantier.
+    phrases_regles: {
+        horsEcran:
+            "Read by the call since lot 1 of fiabilite-orchestration (the second waiting sentence); edited in the « Phrases » theme added by lot 4 bis of the same chantier.",
     },
     prechauffage_agents: { theme: "agent", cas: ["agents-prechauffage"] },
     passation_sans_resume_jusqua: { theme: "agent", cas: ["agents-sans-resume"] },

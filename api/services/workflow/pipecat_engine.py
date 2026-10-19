@@ -1974,6 +1974,12 @@ class PipecatEngine:
             bloc = consigne_du_mode(self._fiche)
             if bloc:
                 texte = f"{texte}\n\n{bloc}"
+            # [.mark] fiabilite-orchestration, lot 2 (C4) : « ce sont des suggestions » écrit une
+            # fois ici, plus dans chaque ligne « Encore attendu » ou « Déjà connu ».
+            if self._fiche.etiquettes or self._fiche.deja_connu:
+                from api.services.workflow.fiche_au_fil_de_leau import CONSIGNE_DES_SUGGESTIONS
+
+                texte = f"{texte}\n\n{CONSIGNE_DES_SUGGESTIONS}"
         # [.mark] Plan porte-parlee (D4, D5, D11) : les portes de l'étape et les
         # premières répliques, après la consigne du post-scriptum.
         if portes_parlees:

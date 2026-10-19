@@ -193,7 +193,10 @@ CLE_TRANSFERT_GARANTI = "transfert_garanti"
 # bloc de fin d'étape unique et le retrait du bloc de prise de notes (greffier, portes dans
 # la réponse). Elle remplace la case ``parcours_lisible`` du lot 4 ter de repliques-coupees.
 CLE_SCHEMA_DU_PARCOURS = "generer_schema_parcours"
-SOUFFLE_MAX = 2
+
+
+def _connu_et_attendu(run_configs: dict) -> bool:
+    return bool(run_configs.get(CLE_ETIQUETTES)) or run_configs.get(CLE_DEJA_CONNU) is True
 
 
 def _mode(run_configs: dict) -> str:
@@ -305,8 +308,10 @@ class ReglagesFiche:
             termes_du_lexique=termes,
             mode=mode,
             motifs_des_types=_motifs_des_types(run_configs),
-            etiquettes=bool(run_configs.get(CLE_ETIQUETTES)),
-            deja_connu=run_configs.get(CLE_DEJA_CONNU) is True,
+            # fiabilite-orchestration, lot 2 (F19) : une seule case « ce qui est connu et ce qui
+            # est attendu » ; l'une ou l'autre clé allume les deux lignes.
+            etiquettes=_connu_et_attendu(run_configs),
+            deja_connu=_connu_et_attendu(run_configs),
             transfert_garanti=run_configs.get(CLE_TRANSFERT_GARANTI) is True,
             parcours_lisible=(
                 run_configs.get(CLE_SCHEMA_DU_PARCOURS) is True
@@ -3850,9 +3855,16 @@ def _confirmations_du_greffier(
 
 
 # Lot C de greffier-conversation (C2) : une suggestion comme les autres souffles.
+# fiabilite-orchestration, lot 2 (C4) : raccourci, la consigne « suggestion » est écrite une fois
+# dans le prompt de l'étape (``CONSIGNE_DES_SUGGESTIONS``).
 SOUFFLE_ETAPE_COMPLETE = (
-    "Tout ce que cette étape demande est déjà obtenu : prends ta porte. C'est une "
-    "suggestion : la conversation passe avant."
+    "Tout ce que cette étape demande est déjà obtenu : prends ta porte."
+)
+# C4 : écrite une fois par le code, à la fin du prompt de l'étape, quand les lignes « Encore attendu »
+# et « Déjà connu » sont allumées. Générique : aucun métier.
+CONSIGNE_DES_SUGGESTIONS = (
+    "Les lignes « Encore attendu » et « Déjà connu » écrites par le code sont des suggestions : "
+    "ce que la personne vient de dire compte comme obtenu, et la conversation passe avant."
 )
 
 
@@ -3862,8 +3874,8 @@ def souffle_de_l_etape(
     champs_etape: Iterable[str],
     a_des_portes: bool = True,
 ) -> str | None:
-    """Lot E d'agent-leger-greffier (P1, D7) : les prochains champs manquants de
-    l'étape, dans son ordre de priorité, deux au plus ; ``None`` sans étiquettes ou
+    """Lot E d'agent-leger-greffier (P1, D7) : les champs manquants de l'étape, dans son
+    ordre de priorité (fiabilite-orchestration, lot 2 : tous, « Encore attendu : … ») ; ``None`` sans étiquettes ou
     case éteinte. Chantier greffier-conversation, lot C (C2, D4) : quand TOUT ce que
     l'étape demande est obtenu, le souffle le dit (« prends ta porte ») au lieu de se
     taire : l'agent ne récite plus et ne pose plus dans l'étape les questions d'une autre.
@@ -3875,27 +3887,23 @@ def souffle_de_l_etape(
     if not reglages.etiquettes:
         return None
     from api.services.fiche.traces import valeurs_des_traces
+    from api.services.groupe.notes import ligne_encore_attendu
 
     lues = valeurs_des_traces(reglages, fiche)
     connus = reglages.par_nom
     de_l_etape = [nom for nom in champs_etape if nom in connus]
     if not de_l_etape:
         return None
-    manquants = [
-        nom for nom in de_l_etape if _est_vide(fiche.get(nom)) and nom not in lues
-    ][:SOUFFLE_MAX]
-    if not manquants:
-        # Revue du 13/10 : jamais « prends ta porte » dans une étape qui n'en a pas.
-        # courriel-confirmation : ni quand l'agent a quelque chose à faire confirmer.
-        if not a_des_portes or confirmation_en_attente(reglages, fiche):
-            return None
-        return SOUFFLE_ETAPE_COMPLETE
-    noms = [nom.replace("_", " ") for nom in manquants]
-    suite = noms[0] if len(noms) == 1 else f"{noms[0]}, puis {noms[1]}"
-    return (
-        f"Il manque encore dans cette étape : {suite}. C'est une suggestion : ce que "
-        "la personne vient de dire compte comme obtenu, et la conversation passe avant."
-    )
+    # fiabilite-orchestration, lot 2 (F9) : « Encore attendu : … », toute la liste manquante, au
+    # format de « Déjà connu » (la consigne « suggestion » est écrite une fois dans le prompt, C4).
+    attendu = ligne_encore_attendu(reglages, fiche, de_l_etape, lues)
+    if attendu:
+        return attendu
+    # Revue du 13/10 : jamais « prends ta porte » dans une étape qui n'en a pas.
+    # courriel-confirmation : ni quand l'agent a quelque chose à faire confirmer.
+    if not a_des_portes or confirmation_en_attente(reglages, fiche):
+        return None
+    return SOUFFLE_ETAPE_COMPLETE
 
 
 def etat_avec_les_indices(

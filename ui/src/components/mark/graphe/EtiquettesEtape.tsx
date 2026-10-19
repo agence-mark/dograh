@@ -6,9 +6,9 @@
  * The record fields this step gathers, in order of priority: added from the agent's record,
  * removed, and reordered by drag and drop (or the arrows, for the keyboard). Saved as one
  * string, names separated by commas (`champs_etape` on the node), which the SDK and the MCP
- * validator read unchanged. Read by the code only when « Step field labels » is on in the
- * agent's settings: then, at each turn, the model is reminded of the next missing ones, as a
- * suggestion. The graph editor is never translated (T3). ⛔ No trade word here: the names come from the agent's record.
+ * validator read unchanged. Read by the code only when « Show the model what is known and what
+ * is expected » is on in the agent's settings (fiabilite-orchestration, F19): then, at each turn,
+ * the model reads « Still expected: … » and the step's tools wait until the list is complete. The graph editor is never translated (T3). ⛔ No trade word here: the names come from the agent's record.
  */
 import { ArrowDown, ArrowUp, GripVertical, X } from "lucide-react";
 import { useState } from "react";

@@ -205,10 +205,9 @@ export const CAS_AGENT: CasAgent[] = [
         choisir("fiche_mode_de_note", "greffier"),
         inter("indices_des_modules"),
     ]),
-    // Lot E d'agent-leger-greffier (P1): the steps' field labels, frozen once.
-    c("etiquettes-des-etapes", "ajout-mark", "donnees", ["etiquettes_des_etapes"], [inter("etiquettes_des_etapes")]),
-    // Lot 2 d'orchestrateur-trois-cerveaux (D4): the line « Known: … », frozen once.
-    c("fiche-deja-connu", "ajout-mark", "donnees", ["fiche_deja_connu"], [inter("fiche_deja_connu")]),
+    // Lot 2 d'orchestrateur-trois-cerveaux (D4): the line « Known: … », frozen once ; fiabilite-orchestration,
+    // lot 2 (F19): the same box now writes « Still expected » too (the step labels' box is gone).
+    c("fiche-deja-connu", "ajout-mark", "donnees", ["etiquettes_des_etapes", "fiche_deja_connu"], [inter("fiche_deja_connu")]),
     // greffier-conversation, lot E (C4, D6).
     c("transfert-garanti", "ajout-mark", "donnees", ["transfert_garanti"], [inter("transfert_garanti")]),
     // Chantier postscriptum-et-communes, B5: only shown in Postscript, « Transition, note, reply ».

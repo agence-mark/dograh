@@ -402,15 +402,16 @@ def test_case_eteinte_ou_rien_de_connu_la_requete_est_celle_d_avant():
     assert etat_avec_les_indices(_reglages_garage(deja_connu=True), {}, None, [], ()) is None
 
 
-def test_la_ligne_est_independante_des_etiquettes_et_vient_apres_le_souffle():
+def test_une_seule_case_et_la_ligne_vient_apres_le_souffle():
+    """fiabilite-orchestration, lot 2 (F19) : une seule case « ce qui est connu et ce qui est
+    attendu » ; « Déjà connu » allume aussi « Encore attendu », qui vient juste avant."""
     fiche = {"immatriculation": "AB-123-CD"}
-    seule = _requete(_reglages_garage(deja_connu=True, etiquettes=False), fiche)
-    assert not any("Il manque encore" in str(m["content"]) for m in seule)
-    assert any("Déjà connu : immatriculation." in str(m["content"]) for m in seule)
-    avec = _requete(_reglages_garage(deja_connu=True, etiquettes=True), fiche)
-    bloc = next(m["content"] for m in avec if "Déjà connu" in str(m["content"]))
-    # Le souffle (ce qu'il manque) puis son complément (ce qui est connu), l'un contre l'autre.
-    assert bloc.index("Il manque encore") < bloc.index("Déjà connu")
+    for etiquettes in (False, True):
+        avec = _requete(_reglages_garage(deja_connu=True, etiquettes=etiquettes), fiche)
+        bloc = next(m["content"] for m in avec if "Déjà connu" in str(m["content"]))
+        assert "Déjà connu : immatriculation." in bloc
+        # Le souffle (ce qu'il manque) puis son complément (ce qui est connu), l'un contre l'autre.
+        assert bloc.index("Encore attendu") < bloc.index("Déjà connu")
 
 
 def test_tous_les_modes_de_prise_de_notes():

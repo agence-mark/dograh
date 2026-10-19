@@ -201,16 +201,14 @@ export const ThemeDonnees = ({
     // modules-et-cerveaux (M1, lot 2): in clerk mode too, off when absent (like the server).
     const indices = indicesChoisis ?? (modeDeNote === "post_scriptum" && ordre === "porte_note_phrase");
     const indicesModifies = indicesChoisis !== indicesEnregistres;
-    // Lot E d'agent-leger-greffier (P1, D7): the steps' field labels, every mode.
-    const etiquettesEnregistrees = resolue.etiquettes_des_etapes ?? false;
-    const [etiquettes, setEtiquettes] = useState(etiquettesEnregistrees);
-    useEffect(() => setEtiquettes(etiquettesEnregistrees), [etiquettesEnregistrees]);
-    const etiquettesModifiees = etiquettes !== etiquettesEnregistrees;
-    // Lot 2 d'orchestrateur-trois-cerveaux (D4): the line « Known: … » next to the question, every mode.
-    const dejaConnuEnregistre = resolue.fiche_deja_connu ?? false;
-    const [dejaConnu, setDejaConnu] = useState(dejaConnuEnregistre);
-    useEffect(() => setDejaConnu(dejaConnuEnregistre), [dejaConnuEnregistre]);
-    const dejaConnuModifie = dejaConnu !== dejaConnuEnregistre;
+    // fiabilite-orchestration, lot 2 (F19): ONE box for « Still expected » (the steps' field lists,
+    // agent-leger-greffier lot E) and « Known » (orchestrateur-trois-cerveaux D4). Either stored key
+    // turns both lines on (as the server reads them); saving writes both keys.
+    const connuEtAttenduEnregistre =
+        (resolue.etiquettes_des_etapes ?? false) || (resolue.fiche_deja_connu ?? false);
+    const [connuEtAttendu, setConnuEtAttendu] = useState(connuEtAttenduEnregistre);
+    useEffect(() => setConnuEtAttendu(connuEtAttenduEnregistre), [connuEtAttenduEnregistre]);
+    const connuEtAttenduModifie = connuEtAttendu !== connuEtAttenduEnregistre;
     // greffier-conversation, lot E (C4, D6): the code launches the transfer, every mode.
     const transfertEnregistre = resolue.transfert_garanti ?? false;
     const [transfert, setTransfert] = useState(transfertEnregistre);
@@ -375,8 +373,7 @@ export const ThemeDonnees = ({
         || apresAppelModifie
         || equipeConnueModifiee
         || verificationModifiee
-        || etiquettesModifiees
-        || dejaConnuModifie
+        || connuEtAttenduModifie
         || transfertModifie
         || redemandeModifiee;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
@@ -417,15 +414,13 @@ export const ThemeDonnees = ({
                 config: () => ({ indices_des_modules: indicesChoisis }),
             },
             {
-                nom: { en: "Step field labels", fr: "Étiquettes des étapes" },
-                modifie: etiquettesModifiees,
-                config: () => ({ etiquettes_des_etapes: etiquettes }),
-            },
-            {
-                // Lot 2 d'orchestrateur-trois-cerveaux (D4): its own part, sent only when changed (E6).
-                nom: { en: "Known fields near the question", fr: "Champs connus près de la question" },
-                modifie: dejaConnuModifie,
-                config: () => ({ fiche_deja_connu: dejaConnu }),
+                // fiabilite-orchestration, lot 2 (F19): one part, both keys, sent only when changed (E6).
+                nom: {
+                    en: "Show the model what is known and what is expected",
+                    fr: "Montrer au modèle ce qui est connu et ce qui est attendu",
+                },
+                modifie: connuEtAttenduModifie,
+                config: () => ({ etiquettes_des_etapes: connuEtAttendu, fiche_deja_connu: connuEtAttendu }),
             },
             {
                 nom: { en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" },
@@ -598,41 +593,29 @@ export const ThemeDonnees = ({
                         </Select>
                     </ChampReglage>
                 )}
-                {/* Lot E d'agent-leger-greffier (P1, D7): every note-taking mode. */}
+                {/* fiabilite-orchestration, lot 2 (F19): one box, where « Known » was; every note-taking mode.
+                    It writes both keys: the wrapper names the second one for the inventory. */}
                 {ficheActive && (
-                    <ChampReglage
-                        cle="etiquettes_des_etapes"
-                        idControle="etiquettes_des_etapes"
-                        libelle={{ en: "Step field labels", fr: "Étiquettes des étapes" }}
-                        aides={[
-                            {
-                                en: "Each step lists, under its prompt, the record fields it gathers, in order of priority. At each turn the code reminds the model of the next two missing ones, as a suggestion: what the caller says comes first. Off, the labels are kept and nothing is shown to the model.",
-                                fr: "Chaque étape liste, sous son prompt, les champs de la fiche qu'elle recueille, par ordre de priorité. À chaque tour, le code rappelle au modèle les deux prochains qui manquent, en suggestion : ce que dit la personne passe avant. Éteint, les étiquettes restent et rien n'est montré au modèle.",
-                            },
-                        ]}
-                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
-                        disposition="ligne"
-                    >
-                        <Switch id="etiquettes_des_etapes" checked={etiquettes} onCheckedChange={setEtiquettes} />
-                    </ChampReglage>
-                )}
-                {/* Lot 2 d'orchestrateur-trois-cerveaux (D4): every note-taking mode, next to the step labels. */}
-                {ficheActive && (
-                    <ChampReglage
+                    <div data-reglage="etiquettes_des_etapes">
+                        <ChampReglage
                         cle="fiche_deja_connu"
                         idControle="fiche_deja_connu"
-                        libelle={{ en: "Known fields near the question", fr: "Champs connus près de la question" }}
+                        libelle={{
+                            en: "Show the model what is known and what is expected",
+                            fr: "Montrer au modèle ce qui est connu et ce qui est attendu",
+                        }}
                         aides={[
                             {
-                                en: "Right before the caller's last words, one short line names the record fields already known (\"Known: name, first name, town\"): names only, never the values. The agent no longer asks again for what it already has. Independent of the step labels. Off, nothing is shown.",
-                                fr: "Juste avant la dernière parole de l'appelant, une ligne courte nomme les champs de la fiche déjà connus (« Déjà connu : nom, prénom, commune ») : les noms seulement, jamais les valeurs. L'agent ne redemande plus ce qu'il a déjà. Indépendant des étiquettes des étapes. Éteint, rien n'est montré.",
+                                en: "Right before the caller's last words, two short lines name the record fields: « Still expected: phone number, address. » (the fields of the step's list still empty, in its order) and « Known: name, first name. » (those already known). Names only, never the values. The step's tools and the background hand-off wait until its list is complete. The list of each step is set in the step's panel, in the order wanted. Off, nothing is shown and nothing waits.",
+                                fr: "Juste avant la dernière parole de l'appelant, deux lignes courtes nomment les champs de la fiche : « Encore attendu : numéro, adresse. » (les champs de la liste de l'étape encore vides, dans son ordre) et « Déjà connu : nom, prénom. » (ceux déjà connus). Les noms seulement, jamais les valeurs. Les outils de l'étape et le travail confié attendent que sa liste soit complète. La liste de chaque étape se règle dans le panneau de l'étape, dans l'ordre voulu. Éteint, rien n'est montré et rien n'attend.",
                             },
                         ]}
                         bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
                         disposition="ligne"
                     >
-                        <Switch id="fiche_deja_connu" checked={dejaConnu} onCheckedChange={setDejaConnu} />
-                    </ChampReglage>
+                        <Switch id="fiche_deja_connu" checked={connuEtAttendu} onCheckedChange={setConnuEtAttendu} />
+                        </ChampReglage>
+                    </div>
                 )}
                 {/* Plan postscriptum-note-d-abord (Q2 bis); modules-et-cerveaux (lot 2): clerk mode too,
                     next to the known fields. */}

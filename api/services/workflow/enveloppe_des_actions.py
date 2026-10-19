@@ -101,13 +101,58 @@ def remplir_par_l_action(moteur: Any, nom_outil: str, resultat: Any) -> list[str
     return ecrits
 
 
+STATUT_INCOMPLET = "incomplet"
+
+
+def garde_de_l_etape(moteur: Any, agent: Any) -> dict | None:
+    """Lot 2 (F9, C3 ; run 1468 : rendez-vous posé « nom et adresse à venir ») : l'étape de
+    ``agent`` déclare la liste de ses champs, la case « connu et attendu » est allumée, et des
+    champs manquent encore : l'outil ne s'exécute pas, il rend ``{"statut": "incomplet", "manque":
+    [...]}`` (le modèle le lit et demande). Sans liste, sans fiche, case éteinte, ou rien ne
+    manque : ``None`` (l'outil s'exécute comme avant). ⛔ Ne lève jamais."""
+    try:
+        reglages = getattr(moteur, "_fiche", None)
+        fiche = getattr(moteur, "_gathered_context", None)
+        noeud = getattr(agent, "current_node", None)
+        champs_etape = tuple(getattr(noeud, "champs_etape", None) or ())
+        if reglages is None or not isinstance(fiche, dict) or not champs_etape:
+            return None
+        if not getattr(reglages, "etiquettes", False):
+            return None
+        from api.services.fiche.traces import valeurs_des_traces
+        from api.services.groupe.notes import champs_attendus, nom_lisible
+
+        manque = champs_attendus(reglages, fiche, champs_etape, valeurs_des_traces(reglages, fiche))
+        if not manque:
+            return None
+        return {"statut": STATUT_INCOMPLET, "manque": [nom_lisible(n) for n in manque]}
+    except Exception as erreur:  # noqa: BLE001 -- dans le doute, l'outil s'exécute comme avant
+        logger.warning(f"[fiche] garde de l'étape illisible : {erreur!r}")
+        return None
+
+
 Gestionnaire = Callable[[Any], Awaitable[None]]
 
 
-def envelopper_l_action(moteur: Any, nom_outil: str, gestionnaire: Gestionnaire) -> Gestionnaire:
-    """Le gestionnaire de l'action, enveloppé : son résultat est lu avant de partir au modèle."""
+def envelopper_l_action(
+    moteur: Any,
+    nom_outil: str,
+    gestionnaire: Gestionnaire,
+    agent: Any = None,
+    *,
+    garde: bool = True,
+) -> Gestionnaire:
+    """Le gestionnaire de l'action, enveloppé : la garde de l'étape d'``agent`` (lot 2), puis son
+    résultat lu avant de partir au modèle (lot 1). ``garde=False`` : une action qui agit sur
+    l'appel (une action interne qui peut transférer), jamais gardée."""
 
     async def enveloppe(params: Any) -> None:
+        if garde and agent is not None:
+            refus = garde_de_l_etape(moteur, agent)
+            if refus is not None:
+                logger.info(f"[fiche] {nom_outil} retenu : {refus['manque']} manquent")
+                await params.result_callback(refus)
+                return
         rendre = params.result_callback
 
         async def result_callback(resultat: Any, *args: Any, **kwargs: Any) -> None:

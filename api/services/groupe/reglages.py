@@ -190,6 +190,10 @@ CLES_PROPRES: tuple[str, ...] = (
     "adresse_etablissement",
     CLE_CERVEAU_PROPRE,
     *CLES_DE_LIEN,
+    # fiabilite-orchestration (F18) : les règles des phrases du code restent à chaque agent ; un
+    # spécialisé reprend celle du principal À L'APPEL (résolution étape, agent, principal), jamais
+    # par une copie : sa propre règle doit pouvoir exister.
+    "phrases_regles",
 )
 
 

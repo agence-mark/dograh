@@ -13,6 +13,11 @@ Chantier ``agent-leger-greffier``, lot E (P1, D7 : construite quoi qu'il arrive,
 agent, tous modes). Leçon A7 (run 835) : la liste de tout ce qui manque, sous les yeux de
 l'accueil, a fait mener l'appel par l'accueil ; ici, seulement l'étape en cours, deux au plus.
 Preuve sur une fiche d'un autre métier (un garage), par simple réglage.
+
+🆕 fiabilite-orchestration, lot 2 (F9, C4) : le souffle prend la forme de « Déjà connu » :
+``Encore attendu : immatriculation, kilometrage, commune garage.``, sur TOUTE la liste manquante
+de l'étape (fin des deux au plus) ; la consigne « suggestion » quitte le souffle et s'écrit une
+fois dans le prompt de l'étape.
 """
 
 from api.services.workflow.dto import AgentNodeData, sanitize_workflow_definition
@@ -55,10 +60,10 @@ def _reglages(allume=True, mode="greffier"):
     )
 
 
-def test_les_deux_prochains_manquants_dans_l_ordre_de_l_etape():
+def test_toute_la_liste_manquante_dans_l_ordre_de_l_etape_au_format_deja_connu():
     souffle = souffle_de_l_etape(_reglages(), {"motif": "vidange"}, ETAPE)
-    assert "immatriculation, puis kilometrage" in souffle
-    assert "commune garage" not in souffle and "suggestion" in souffle
+    assert souffle == "Encore attendu : immatriculation, kilometrage, commune garage."
+    assert "suggestion" not in souffle
 
 
 def test_ce_qui_est_note_ou_lu_au_tour_meme_n_est_plus_souffle():
@@ -91,8 +96,8 @@ def test_etape_complete_le_souffle_dit_de_prendre_sa_porte():
     plein = {"immatriculation": "x", "kilometrage": "1", "commune_garage": "y"}
     souffle = souffle_de_l_etape(_reglages(), plein, ETAPE)
     assert souffle == SOUFFLE_ETAPE_COMPLETE
-    assert "prends ta porte" in souffle and "suggestion" in souffle
-    assert "Il manque" not in souffle
+    assert "prends ta porte" in souffle and "suggestion" not in souffle
+    assert "Encore attendu" not in souffle
 
 
 def test_tous_les_modes():
@@ -118,13 +123,14 @@ def test_la_requete_de_conversation_porte_le_souffle_de_l_etape_en_cours():
         llm.get_chat_completions([{"role": "user", "content": "bonjour"}])
     )
     assert any(
-        "immatriculation, puis kilometrage" in m["content"] for m in params["messages"]
+        "Encore attendu : immatriculation, kilometrage, commune garage." in m["content"]
+        for m in params["messages"]
     )
     etape["champs"] = ()
     params = executer_sans_toucher_la_boucle_courante(
         llm.get_chat_completions([{"role": "user", "content": "bonjour"}])
     )
-    assert not any("Il manque encore" in m["content"] for m in params["messages"])
+    assert not any("Encore attendu" in m["content"] for m in params["messages"])
     # Sans étiquettes ni fiche remplie, rien n'est ajouté : la requête d'avant.
     assert etat_avec_les_indices(_reglages(), {}, None, [], ()) is None
 
@@ -188,5 +194,5 @@ def test_etape_complete_sans_porte_rien_n_est_souffle():
     """Revue du 13/10 : jamais « prends ta porte » dans une étape qui n'a pas de porte."""
     plein = {"immatriculation": "x", "kilometrage": "1", "commune_garage": "y"}
     assert souffle_de_l_etape(_reglages(), plein, ETAPE, a_des_portes=False) is None
-    # Il manque encore quelque chose : le souffle d'avant, porte ou non.
-    assert "Il manque" in souffle_de_l_etape(_reglages(), {}, ETAPE, a_des_portes=False)
+    # Il manque encore quelque chose : « Encore attendu », porte ou non.
+    assert "Encore attendu" in souffle_de_l_etape(_reglages(), {}, ETAPE, a_des_portes=False)
