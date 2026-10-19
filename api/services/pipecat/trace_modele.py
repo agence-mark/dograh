@@ -100,7 +100,7 @@ class TraceDuModele:
         self._fiche = fiche
         self._derniere: dict | None = None
 
-    def ouvrir(self, agent: str | None = None) -> dict | None:
+    def ouvrir(self, agent: str | None = None, *, parle: bool = True) -> dict | None:
         """Une requête part : son entrée, rangée dans la fiche de l'appel. ``agent`` : le
         nom de l'agent qui la pose (lot 8 de fiabilite-orchestration, R12), pour lire à qui
         appartient chaque réponse quand plusieurs agents parlent dans l'appel."""
@@ -120,7 +120,11 @@ class TraceDuModele:
             if agent:
                 entree["agent"] = agent
             fiche.setdefault(TRACE_REQUETES, []).append(entree)
-            self._derniere = entree
+            # Revue du 19/10 : une requête du cerveau de fond (``parle`` faux), qui tourne en
+            # parallèle de la conversation, ne devient jamais « la dernière » où le lecteur de
+            # portes écrit le texte dit à l'appelant.
+            if parle:
+                self._derniere = entree
             return entree
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[trace] requête du modèle non tracée : {erreur!r}")
@@ -276,13 +280,15 @@ class TraceModeleMixin:
     mark_trace: TraceDuModele | None = None
     # Lot 8 de fiabilite-orchestration (R12) : le nom de l'agent que ce service porte.
     mark_agent: str | None = None
+    # Faux pour le cerveau de fond : ses réponses ne sont jamais dites à l'appelant.
+    mark_trace_parle: bool = True
     _mark_entree_en_cours: dict | None = None
 
     async def get_chat_completions(self, context):  # type: ignore[override]
         trace = self.mark_trace
         if trace is None:
             return await super().get_chat_completions(context)  # type: ignore[misc]
-        entree = trace.ouvrir(self.mark_agent)
+        entree = trace.ouvrir(self.mark_agent, parle=self.mark_trace_parle)
         self._mark_entree_en_cours = entree
         envoi = time.monotonic()
         try:
@@ -305,7 +311,12 @@ class TraceModeleMixin:
 
 
 def brancher_la_trace(
-    engine: Any, llm: Any, run_configs: dict | None, nom: str | None = None
+    engine: Any,
+    llm: Any,
+    run_configs: dict | None,
+    nom: str | None = None,
+    *,
+    parle: bool = True,
 ) -> TraceDuModele | None:
     """La trace de l'appel, case allumée et service qui la porte ; sinon ``None`` et rien
     ne change. Téléphone et clavier. Ne lève jamais.
@@ -326,6 +337,7 @@ def brancher_la_trace(
             trace = TraceDuModele(lambda: engine._gathered_context)
         llm.mark_trace = trace
         llm.mark_agent = nom or None
+        llm.mark_trace_parle = parle
         # La requête se photographie en DERNIER : le moteur a déjà enveloppé le
         # constructeur de requête pour y glisser l'état de la fiche
         # (``montrer_la_fiche``, à sa création). Prise dans la méthode du service,

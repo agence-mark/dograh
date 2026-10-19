@@ -26,7 +26,7 @@ from api.schemas.ai_model_configuration import OrganizationAIModelConfigurationV
 from api.schemas.workflow import WorkflowRunResponseSchema
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.sdk_expose import sdk_expose
-from api.services.auth.depends import get_user
+from api.services.auth.depends import get_user_with_selected_organization, get_user
 from api.services.communes.adresse import AdresseInvalide, valider_adresse_saisie
 from api.services.configuration.ai_model_configuration import (
     DELIBERATE_PER_SERVICE_OVERRIDE_KEY,
@@ -1794,7 +1794,7 @@ class WorkflowRunsResponse(BaseModel):
 @router.get("/{workflow_id}/phrases/carte")
 async def get_carte_des_phrases(
     workflow_id: int,
-    user: UserModel = Depends(get_user),
+    user: UserModel = Depends(get_user_with_selected_organization),
 ) -> dict:
     """[.mark] fiabilite-orchestration, lot 4 ter (F16): the map of the sentences said by the code for
     this agent (its whole group when it is the main agent), with their last trigger in recent calls."""

@@ -118,11 +118,14 @@ class FabriqueDesSons:
         ajouter_le_circuit: Callable[[Any], Any],
         taux_attendu: int,
         audio_config: Any = None,
+        en_vie: Callable[[], bool] = lambda: True,
     ) -> None:
         self._creer_la_voix = creer_la_voix
         self._ajouter = ajouter_le_circuit
         self._taux = taux_attendu
         self._audio_config = audio_config
+        # Revue du 19/10 : l'appel fini, la fabrique s'arrête (au plus la phrase en cours).
+        self._en_vie = en_vie
         self.sons: dict[str, Son] = {}
         self.echecs: list[str] = []
         self._tache: asyncio.Task | None = None
@@ -167,9 +170,12 @@ class FabriqueDesSons:
                     raise RuntimeError("circuit de la fabrique non démarré")
                 await asyncio.sleep(0.02)
             for texte in textes:
+                if not self._en_vie() or worker.has_finished():
+                    logger.info("[phrases] appel fini : fabrique des sons arrêtée")
+                    break
                 collecteur.repartir()
                 await worker.queue_frame(TTSSpeakFrame(texte, append_to_context=False))
-                await _attendre_la_phrase(collecteur)
+                await _attendre_la_phrase(collecteur, self._en_vie)
                 await collecteur.liberer()
                 audio = b"".join(collecteur.morceaux)
                 if audio and collecteur.taux == self._taux:
@@ -191,10 +197,10 @@ class FabriqueDesSons:
                     pass
 
 
-async def _attendre_la_phrase(collecteur: Any) -> None:
+async def _attendre_la_phrase(collecteur: Any, en_vie: Callable[[], bool] = lambda: True) -> None:
     boucle = asyncio.get_running_loop()
     limite = boucle.time() + DELAI_PAR_PHRASE_S
-    while boucle.time() < limite and not collecteur.fini.is_set():
+    while boucle.time() < limite and not collecteur.fini.is_set() and en_vie():
         if collecteur.dernier is not None and boucle.time() - collecteur.dernier >= SILENCE_DE_FIN_S:
             return
         await asyncio.sleep(0.05)

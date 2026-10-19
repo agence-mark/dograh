@@ -1835,6 +1835,7 @@ async def _run_pipeline_impl(
             ),
             ajouter_le_circuit=task.add_workers,
             taux_attendu=audio_config.pipeline_sample_rate,
+            en_vie=lambda: not engine.is_call_disposed(),
         )
     engine.greeting.log_generated_speech = feedback_observer.log_speech
 

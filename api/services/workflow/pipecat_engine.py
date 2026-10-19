@@ -3403,8 +3403,17 @@ class PipecatEngine:
         (inactif sous l'appel) avec son cerveau de fond, et le range dans la réserve de l'appel.
         Un échec n'y range rien : la passation construira comme avant. ⛔ Ne lève jamais."""
         precharge = precharge_de(self)
-        if precharge is None or workflow_id in precharge.prets or self.is_call_disposed():
+        # Revue du 19/10 : deux passations rapprochées vers le même collègue ne lancent qu'une
+        # construction (sinon la seconde écraserait la première, un worker resterait orphelin).
+        en_construction = self.__dict__.setdefault("_reserve_en_construction", set())
+        if (
+            precharge is None
+            or workflow_id in precharge.prets
+            or workflow_id in en_construction
+            or self.is_call_disposed()
+        ):
             return
+        en_construction.add(workflow_id)
         try:
             from api.services.workflow.agent_runtime import new_visit_id
 
@@ -3427,6 +3436,8 @@ class PipecatEngine:
         except Exception as e:  # noqa: BLE001 -- la passation construira normalement
             precharge.echecs[workflow_id] = repr(e)
             logger.warning(f"[prechauffage] agent {workflow_id} non construit à l'avance : {e!r}")
+        finally:
+            en_construction.discard(workflow_id)
 
     def _prendre_dans_la_reserve(self, workflow_id: int) -> Optional[AgentRuntime]:
         """[.mark] Lot 3 (F5) : le collègue construit à l'avance, s'il est encore utilisable ; il

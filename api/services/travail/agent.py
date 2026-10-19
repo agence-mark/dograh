@@ -518,7 +518,7 @@ def brancher_confier_le_travail(
 
     async def gestionnaire(params) -> None:
         # fiabilite-orchestration, lot 2 (C3) : la liste des champs de l'étape garde « confier »
-        # comme les outils de l'étape (run 1468 : rendez-vous lancé « nom et adresse à venir »).
+        # comme les outils de l'étape (run 1468 : action lancée avec des champs encore « à venir »).
         from api.services.workflow.enveloppe_des_actions import garde_de_l_etape
 
         refus = garde_de_l_etape(moteur, agent)
@@ -693,7 +693,11 @@ async def preparer_le_travail(
 
         nom_agent = getattr(agent, "workflow_name", None)
         brancher_la_trace(
-            moteur, service, reglages_agent, f"{nom_agent} (fond)" if nom_agent else "fond"
+            moteur,
+            service,
+            reglages_agent,
+            f"{nom_agent} (fond)" if nom_agent else "fond",
+            parle=False,
         )
         # fiabilite-orchestration, lot 4 (F20, C5) : la garde du modèle du fond, avec son repli.
         from api.services.panne.garde_modele import garder_le_fond

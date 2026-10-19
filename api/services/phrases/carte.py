@@ -245,9 +245,12 @@ async def carte_de_l_agent(workflow_id: int, organization_id: int, *, runs: int 
             if membre is not None:
                 agents.append(agent_de(membre, est_principal=False))
     elif reglages.get("agent_principal_id"):
-        chef = await db_client.get_workflow(
-            int(reglages["agent_principal_id"]), organization_id=organization_id
-        )
+        try:
+            chef = await db_client.get_workflow(
+                int(reglages["agent_principal_id"]), organization_id=organization_id
+            )
+        except Exception:  # noqa: BLE001 -- un identifiant illisible : la carte de l'agent seul
+            chef = None
         if chef is not None:
             principal = getattr(chef.current_definition, "workflow_configurations", None) or {}
             runs_de = chef.id

@@ -186,7 +186,9 @@ class DiseurDePhrases:
             self.texte_en_cours = dite
             try:
                 parole = await self._dire_a_la_voix(dite, historique)
-            except Exception:
+            except BaseException:
+                # Revue du 19/10 : une annulation (la seconde phrase arrêtée quand le travail rend
+                # son résultat) libère aussi le verrou, sinon plus aucune attente ne serait dite.
                 self._fini(phrase)
                 raise
             self._en_vol = asyncio.get_running_loop().create_task(

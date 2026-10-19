@@ -111,7 +111,7 @@ STATUT_INCOMPLET = "incomplet"
 
 
 def garde_de_l_etape(moteur: Any, agent: Any) -> dict | None:
-    """Lot 2 (F9, C3 ; run 1468 : rendez-vous posé « nom et adresse à venir ») : l'étape de
+    """Lot 2 (F9, C3 ; run 1468 : action lancée avec des champs encore « à venir ») : l'étape de
     ``agent`` déclare la liste de ses champs, la case « connu et attendu » est allumée, et des
     champs manquent encore : l'outil ne s'exécute pas, il rend ``{"statut": "incomplet", "manque":
     [...]}`` (le modèle le lit et demande). Sans liste, sans fiche, case éteinte, ou rien ne

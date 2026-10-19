@@ -66,6 +66,14 @@ class Repli:
     fournisseur: str
 
 
+def _meme_famille(client: Any, client_de_l_agent: Any) -> bool:
+    if client_de_l_agent is None:
+        return True
+    return type(client) is type(client_de_l_agent) and hasattr(
+        getattr(client, "chat", None), "completions"
+    )
+
+
 async def repli_de(
     run_configs: dict | None,
     user_config: Any,
@@ -73,9 +81,14 @@ async def repli_de(
     cle: str = CLE_REPLI,
     *,
     correlation_id: str | None = None,
+    service_de_l_agent: Any = None,
 ) -> Repli | None:
     """Le cerveau de repli réglé sous ``cle``, construit ; ``None`` sans réglage ou s'il ne se
-    construit pas (journalisé : l'agent garde la garde sans repli). ⛔ Ne lève jamais."""
+    construit pas (journalisé : l'agent garde la garde sans repli). ⛔ Ne lève jamais.
+
+    Revue du 19/10 : le repli emprunte la requête du service de l'agent (D-10) ; il n'est gardé que
+    si son client est de la même famille que celui de l'agent (``service_de_l_agent``) et sert les
+    complétions de chat. Sinon il est ignoré, journalisé, et la garde tient sans repli."""
     try:
         if not (run_configs or {}).get(cle) or user_config is None:
             return None
@@ -96,6 +109,12 @@ async def repli_de(
         modele = getattr(getattr(service, "_settings", None), "model", None)
         if client is None or not modele:
             logger.warning("[garde] cerveau de repli sans connexion compatible : ignoré")
+            return None
+        if not _meme_famille(client, getattr(service_de_l_agent, "_client", None)):
+            logger.warning(
+                "[garde] cerveau de repli d'un autre protocole que celui de l'agent : ignoré "
+                f"({type(client).__name__})"
+            )
             return None
         return Repli(client=client, modele=str(modele), fournisseur=str(configuration.llm.provider))
     except Exception as erreur:  # noqa: BLE001
@@ -184,7 +203,10 @@ class GardeDuModele:
                 if self.repli is not None:
                     self.llm._mark_tentative_au_repli = True
                     logger.info(f"[garde] seconde tentative chez le repli ({self.repli.fournisseur})")
-                await self.relancer()
+                # Revue du 19/10 : rien relancé (agent qui n'a plus la main, appel fini) : le drapeau
+                # retombe, la prochaine requête normale ne part jamais au repli.
+                if await self.relancer() is False:
+                    self.llm._mark_tentative_au_repli = False
                 return
             from api.services.panne.declencheurs import gardien_de
 
@@ -238,16 +260,22 @@ async def garder_l_agent(
         configuration = user_config if user_config is not None else getattr(agent, "user_config", None)
         # L'organisation n'est lue (en base) que si un repli est réglé : le cas rare (F26).
         repli = (
-            await repli_de(reglages, configuration, await moteur._get_organization_id())
+            await repli_de(
+                reglages,
+                configuration,
+                await moteur._get_organization_id(),
+                service_de_l_agent=llm,
+            )
             if reglages.get(CLE_REPLI)
             else None
         )
 
-        async def relancer() -> None:
+        async def relancer() -> bool:
             if moteur.is_call_disposed() or not moteur.agent_can_act(agent):
-                return
+                return False
             moteur.expect_response()
             await agent.run_llm(moteur.context)
+            return True
 
         garde = GardeDuModele(moteur, llm, relancer, parle=True, agent=agent, repli=repli)
         if not garde.brancher(delai_de_garde(reglages)):
@@ -274,15 +302,18 @@ async def garder_le_fond(moteur: Any, agent: Any, service: Any, contexte: Callab
                 getattr(agent, "user_config", None),
                 await moteur._get_organization_id(),
                 CLE_REPLI_DU_FOND,
+                service_de_l_agent=service,
             )
             if reglages.get(CLE_REPLI_DU_FOND)
             else None
         )
 
-        async def relancer() -> None:
+        async def relancer() -> bool:
             ctx = contexte()
-            if ctx is not None and not moteur.is_call_disposed():
-                await service.queue_frame(LLMContextFrame(ctx))
+            if ctx is None or moteur.is_call_disposed():
+                return False
+            await service.queue_frame(LLMContextFrame(ctx))
+            return True
 
         garde = GardeDuModele(moteur, service, relancer, parle=False, agent=agent, repli=repli)
         if garde.brancher(delai_de_garde(reglages)):
