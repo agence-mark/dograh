@@ -380,6 +380,10 @@ class PipecatEngine:
             conversation_enabled=self._conversation_enabled,
             max_duration_end_task_callback=self.create_max_duration_callback(),
         )
+        # [.mark] fiabilite-orchestration (lot 5, F7) : délai de la règle « l'appelant se tait » et
+        # suspension pendant un travail de fond, lus par le moniteur.
+        self.call_monitor.delai_de_relance = lambda: engine_callbacks.delai_de_la_relance(self)
+        self.call_monitor.relance_suspendue = lambda: engine_callbacks.relance_suspendue(self)
         self.speech_playback.add_observer(self.call_monitor)
         self.greeting = GreetingController(self.speech_playback, lambda: self.context)
 

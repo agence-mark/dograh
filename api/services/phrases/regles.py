@@ -45,6 +45,9 @@ class PhraseResolue:
     delai_s: float | None
     active: bool
     niveau: str
+    # Le délai vient d'une règle qui le pose (et non du défaut du catalogue) : la relance de
+    # silence garde sinon le réglage de Rythme (lot 5).
+    delai_pose: bool = False
 
     @property
     def dite(self) -> bool:
@@ -76,6 +79,7 @@ def _depuis_la_regle(regle: ReglePhrase, motif: Motif, niveau: str) -> PhraseRes
         ),
         active=regle.active,
         niveau=niveau,
+        delai_pose=bool(motif.a_un_delai and regle.delai_s is not None),
     )
 
 
