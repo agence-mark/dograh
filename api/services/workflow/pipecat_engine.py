@@ -426,6 +426,10 @@ class PipecatEngine:
         # jetons) et les cerveaux de fond des agents de l'appel (arrêtés au nettoyage).
         self.collecteur_de_cout = None
         self.travaux: list = []
+        # [.mark] fiabilite-orchestration (F15, F23) : le diseur des phrases dites par le code.
+        from api.services.phrases.diseur import DiseurDePhrases
+
+        self.phrases = DiseurDePhrases(self)
 
         # Recording audio fetcher (set via set_fetch_recording_audio from _run_pipeline)
         self._fetch_recording_audio = None
@@ -1943,14 +1947,21 @@ class PipecatEngine:
         # Chantier modules-et-cerveaux (lot 5, M3) : et seulement à une étape cochée
         # (``travail_de_fond``). Un travail déjà lancé revient quelle que soit l'étape.
         travail = getattr(agent, "travail", None)
-        if (
+        etape_du_fond = (
             travail is not None
             and not node.is_end
             and getattr(node, "travail_de_fond", False) is True
-        ):
+        )
+        if etape_du_fond:
             from api.services.travail.agent import brancher_confier_le_travail
 
             functions.append(brancher_confier_le_travail(self, travail, agent))
+        # [.mark] fiabilite-orchestration, lot 1 (F2) : « annuler » avec « confier », et à toute
+        # étape où un travail est en cours (l'appelant peut toujours annuler).
+        if etape_du_fond or (travail is not None and not node.is_end and travail.occupe):
+            from api.services.travail.agent import brancher_annuler_le_travail
+
+            functions.append(brancher_annuler_le_travail(self, travail, agent))
         texte = prompt.text
         # [.mark] Plan mode-prise-de-notes (D3) : la consigne du mode, écrite par
         # le code à la fin du prompt, là où l'outil serait proposé (mêmes

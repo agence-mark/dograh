@@ -1926,6 +1926,12 @@ export type ChampFiche = {
      * Scope in a call with several requests: whole call (what concerns the caller: shared by every request) or this request (closed with it when another specialist takes over). Empty: computed from the agent's settings (town and street readers, field recognition).
      */
     portee?: 'appel' | 'demande' | null;
+    /**
+     * Rempli Par Outil
+     *
+     * Filled by a tool: the name of the tool whose result writes this field (the value of the same key in its answer, else its status, else the first allowed value). The model, the clerk and the end-of-call pass never write it. Empty: off.
+     */
+    rempli_par_outil?: string | null;
 };
 
 /**

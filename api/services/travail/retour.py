@@ -19,15 +19,20 @@ Trois règles :
    l'agent est une question encore sans réponse, le résultat entre dans la conversation SANS
    réveiller le modèle ; il est lu à la réponse de l'appelant. Sinon (l'agent s'est tu sans
    question, l'appelant attend), il réveille le modèle comme avant.
+5. **Avec la réplique de l'appelant** (fiabilite-orchestration, lot 1, F1 ; run 1468 : le résultat
+   a déclenché une réplique pendant que l'appelant dictait son mail) : l'appelant parle et l'agent
+   est au repos, le résultat est posé sans réveiller le modèle ; la fin de son tour fait répondre
+   le modèle, qui le lit avec sa réplique.
 """
 
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 from loguru import logger
-from pipecat.frames.frames import LLMMessagesAppendFrame
+from pipecat.frames.frames import LLMMessagesAppendFrame, LLMRunFrame
 
 from api.services.groupe.passations import (
     PREFIXE_RESULTAT_DU_TRAVAIL,
@@ -107,25 +112,100 @@ def question_en_suspens(messages: Any) -> bool:
         return False
 
 
+def _l_appelant_parle_seul(moteur: Any) -> bool:
+    """Lot 1 de fiabilite-orchestration : l'appelant parle, l'agent est au repos (ni voix, ni
+    réponse en cours), aucune passation. Le résultat peut alors partir AVEC sa réplique."""
+    if moteur.is_call_disposed() or moteur.transfer_in_progress:
+        return False
+    if moteur.selected_visit_id is None:
+        return False
+    moniteur = moteur.call_monitor
+    return bool(moniteur.appelant_parle and moniteur.agent_au_repos)
+
+
+async def _attendre_le_moment(moteur: Any, *, pas_s: float = PAS_D_ATTENTE_S) -> bool:
+    """L'appel est calme, ou l'appelant parle seul. ``False`` si l'appel s'est terminé avant."""
+    while True:
+        if moteur.is_call_disposed():
+            return False
+        if appel_au_calme(moteur) or _l_appelant_parle_seul(moteur):
+            return True
+        await asyncio.sleep(pas_s)
+
+
+# Après une remise glissée dans la réplique de l'appelant : combien de temps on attend que la fin
+# de son tour fasse répondre le modèle avant de le réveiller soi-même.
+ATTENTE_DE_LA_REPONSE_S = 3.0
+ATTENTE_MAX_DE_LA_REPLIQUE_S = 30.0
+_VEILLES: set[asyncio.Task] = set()
+
+
+def _repondu_apres(messages: Any, message: str) -> bool | None:
+    """Le modèle a-t-il parlé après ``message`` ? ``None`` si ``message`` n'est pas (plus) là."""
+    liste = list(messages or [])
+    for i in range(len(liste) - 1, -1, -1):
+        m = liste[i]
+        if isinstance(m, dict) and m.get("role") == "user" and _texte(m.get("content")) == message:
+            return any(
+                isinstance(x, dict) and x.get("role") == "assistant" for x in liste[i + 1 :]
+            )
+    return None
+
+
+async def _veiller_sur_la_replique(moteur: Any, agent: Any, message: str) -> None:
+    """Le résultat est parti avec la réplique de l'appelant : à la fin de son tour, le modèle
+    répond et le lit. Si son tour se termine sans réponse (bruit écarté), le résultat ne reste pas
+    en souffrance : le modèle est réveillé une fois, au calme."""
+    limite = time.monotonic() + ATTENTE_MAX_DE_LA_REPLIQUE_S
+    while moteur.call_monitor.appelant_parle and time.monotonic() < limite:
+        if moteur.is_call_disposed():
+            return
+        await asyncio.sleep(PAS_D_ATTENTE_S)
+    await asyncio.sleep(ATTENTE_DE_LA_REPONSE_S)
+    if not await attendre_le_calme(moteur) or moteur.active_agent is not agent:
+        return
+    contexte = getattr(moteur, "context", None)
+    if _repondu_apres(contexte.get_messages() if contexte else [], message) is not False:
+        return
+    if not moteur.agent_can_act(agent):
+        return
+    logger.info("[travail] réplique de l'appelant sans réponse : le modèle lit le résultat")
+    moteur.expect_response()
+    await agent.queue_frame(LLMRunFrame())
+
+
 async def remettre_le_resultat(moteur: Any, message: str) -> bool:
-    """Pousse ``message`` à l'agent qui a la main, quand l'appel est calme. Il réveille le modèle
-    (``run_llm=True``), sauf si une question de l'agent attend sa réponse (règle 4) : il est alors lu
-    à la réponse de l'appelant. ``True`` si le message est parti. ⛔ Ne lève jamais (hors annulation)."""
+    """Pousse ``message`` à l'agent qui a la main, au bon moment (lot 1 de fiabilite-orchestration,
+    F1) : l'appel calme, il réveille le modèle (``run_llm=True``), sauf si une question de l'agent
+    attend sa réponse (règle 4) ; l'appelant en train de parler, il part **avec sa réplique**
+    (posé sans réveiller : la fin de son tour fait répondre le modèle, qui le lit). ``True`` si le
+    message est parti. ⛔ Ne lève jamais (hors annulation)."""
     try:
-        if not await attendre_le_calme(moteur):
+        if not await _attendre_le_moment(moteur):
             logger.info("[travail] appel terminé avant la remise du résultat : perdu")
             return False
         agent = moteur.active_agent
         if not moteur.agent_can_act(agent):
             return False
+        avec_la_replique = not appel_au_calme(moteur) and _l_appelant_parle_seul(moteur)
         contexte = getattr(moteur, "context", None)
-        attendre = question_en_suspens(contexte.get_messages() if contexte else [])
+        attendre = avec_la_replique or question_en_suspens(
+            contexte.get_messages() if contexte else []
+        )
         if not attendre:
             moteur.expect_response()
         await agent.queue_frame(
             LLMMessagesAppendFrame([{"role": "user", "content": message}], run_llm=not attendre)
         )
-        if attendre:
+        if avec_la_replique:
+            logger.info("[travail] résultat posé dans la réplique de l'appelant")
+            # Hors de la tâche du travail : le travail est remis, il n'est plus « en cours ».
+            veille = asyncio.get_running_loop().create_task(
+                _veiller_sur_la_replique(moteur, agent, message), name="travail:veille"
+            )
+            _VEILLES.add(veille)
+            veille.add_done_callback(_VEILLES.discard)
+        elif attendre:
             logger.info("[travail] résultat posé sans réveiller le modèle : une question attend sa réponse")
         return True
     except asyncio.CancelledError:

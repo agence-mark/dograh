@@ -253,6 +253,9 @@ export interface ChampFiche {
     // [.mark] Lot 17 (fiche à plusieurs demandes): whole call, or this request. Empty (null or
     // absent): computed from the agent's settings, never written.
     portee?: "appel" | "demande" | null;
+    // [.mark] fiabilite-orchestration, lot 1 (G2): the tool whose result writes this field; never
+    // the model, the clerk or the end-of-call pass. Empty (null or absent): off.
+    rempli_par_outil?: string | null;
 }
 
 /**

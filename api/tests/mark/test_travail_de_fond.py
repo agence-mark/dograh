@@ -12,7 +12,7 @@ voix sont des stand-ins.
 | micro jamais coupé | pendant tout le travail, l'appelant n'est jamais muet à cause du travail (l'outil rend avant que le fond ne commence) |
 | résultat gardé | un résultat qui arrive pendant que le robot parle attend la fin de la parole |
 | après une passation | un résultat qui arrive après une passation est lu par le NOUVEL agent |
-| deux « confier » | un second « confier » pendant un travail rend « déjà en cours » et ne lance rien |
+| deux « confier » | un second « confier » pendant un travail annule le premier et lance le nouveau (fiabilite-orchestration, F2) |
 | échec et délai | un fond qui échoue ou dépasse son délai rend un résultat qui le dit, jamais une exception dans l'appel |
 | éteint par défaut | un agent sans réglage n'a ni outil, ni worker, ni rien dans la requête |
 | coût | les jetons du fond sont versés au collecteur de l'appel |
@@ -311,8 +311,9 @@ async def test_l_outil_rend_lance_tout_de_suite_le_fond_n_a_pas_encore_fini(appe
 
 
 @pytest.mark.asyncio
-async def test_un_second_confier_pendant_un_travail_rend_deja_en_cours(appel):
-    """Une seule tâche à la fois par agent : le 2e « confier » ne lance rien."""
+async def test_un_second_confier_pendant_un_travail_remplace_le_premier(appel):
+    """Une seule tâche à la fois par agent ; fiabilite-orchestration (F2) : le 2e « confier »
+    annule la demande en cours et lance la nouvelle (modifier = annuler + confier)."""
     await appel.monter(
         source_etapes=[_texte("rien")],
         fond_etapes=[_texte(RESULTAT)],
@@ -320,26 +321,26 @@ async def test_un_second_confier_pendant_un_travail_rend_deja_en_cours(appel):
     )
     travail = appel.engine.active_agent.travail
     portail = asyncio.Event()
+    vues: list[str] = []
 
-    async def bloque(_travail, _demande):
+    async def bloque(_travail, demande):
+        vues.append(demande)
         await portail.wait()
         return RESULTAT
 
     travail._executeur = bloque
     premier = await travail.confier(DEMANDE)
+    await appel.attendre(lambda: vues == [DEMANDE])
     second = await travail.confier("Autre chose")
     assert premier == {"statut": "lancé"}
-    assert second == {"statut": "déjà en cours"}
-    assert len(appel.travaux()) == 1
+    assert second == {"statut": "lancé", "demande_precedente": "annulée"}
+    assert [t["statut"] for t in appel.travaux()] == ["annule", "en_cours"]
+    assert appel.travaux()[0]["remis"] is False
     portail.set()
     await travail.attendre()
     assert travail.occupe is False
-    # Une fois fini, un nouveau travail repart.
-    portail.clear()
-    portail.set()
-    assert await travail.confier("Encore") == {"statut": "lancé"}
-    await travail.attendre()
-    assert [t["demande"] for t in appel.travaux()] == [DEMANDE, "Encore"]
+    assert [t["demande"] for t in appel.travaux()] == [DEMANDE, "Autre chose"]
+    assert appel.travaux()[1]["statut"] == "fait"
 
 
 # --------------------------------------------------------------------------- #

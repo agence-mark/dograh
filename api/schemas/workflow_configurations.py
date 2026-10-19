@@ -16,6 +16,7 @@ from api.constants import (
     TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
 )
 from api.schemas.fiche_agent import ChampFiche, verifier_champs
+from api.schemas.phrases_du_code import MAX_REGLES, ReglePhrase, verifier_regles
 from api.schemas.organization_preferences import AdresseEtablissement
 
 
@@ -1101,6 +1102,16 @@ class WorkflowConfigurationDefaults(BaseModel):
         le=300,
         description="How long the background brain may work on one request, in seconds.",
     )
+    # [.mark] Chantier fiabilite-orchestration (F15, F18, F23) : les règles des phrases dites par le
+    # code (motif, endroit, variantes, délai, activée). Vide : les défauts du catalogue (zéro perte).
+    phrases_regles: list[ReglePhrase] = Field(
+        default_factory=list,
+        max_length=MAX_REGLES,
+        description=(
+            "Sentences said by the code, without the model: one rule per cause and place "
+            "(group, agent or step), one to three sentences, a delay when the cause has one."
+        ),
+    )
     fiche_champs: list[ChampFiche] = Field(
         default_factory=list,
         max_length=60,
@@ -1243,6 +1254,12 @@ class WorkflowConfigurationDefaults(BaseModel):
         fields stay text, so a bad save is refused (422) rather than read as
         an unusable clerk at call time."""
         return _bloc_de_modele_valide(value, "greffier_llm", ("format_garanti",))
+
+    @field_validator("phrases_regles")
+    @classmethod
+    def phrases_regles_valides(cls, value: list[ReglePhrase]) -> list[ReglePhrase]:
+        """[.mark] fiabilite-orchestration : deux règles du même motif au même endroit = 422."""
+        return verifier_regles(value)
 
     @field_validator("travail_llm")
     @classmethod

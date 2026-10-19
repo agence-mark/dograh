@@ -51,6 +51,7 @@ from api.services.equipe.transferts_humains import (
 from api.services.telephony.external_pbx import resolve_external_pbx_field_mappings
 from api.services.telephony.factory import get_telephony_provider_for_run
 from api.services.telephony.transfer_event_protocol import TransferContext
+from api.services.workflow.enveloppe_des_actions import envelopper_l_action
 from api.services.workflow.renvoi_en_test import (
     ACCEPTE,
     REFUSE,
@@ -313,7 +314,12 @@ class CustomToolManager:
                         self._agent.llm.register_function(
                             fs.name,
                             self._agent.bind_tool(
-                                self._engine, self._create_mcp_handler(session, fs.name)
+                                self._engine,
+                                envelopper_l_action(
+                                    self._engine,
+                                    fs.name,
+                                    self._create_mcp_handler(session, fs.name),
+                                ),
                             ),
                             timeout_secs=session.call_timeout_secs,
                         )
@@ -345,7 +351,10 @@ class CustomToolManager:
                     self._agent.llm.register_function(
                         nom,
                         self._agent.bind_tool(
-                            self._engine, integration.creer_gestionnaire(self, tool, nom)
+                            self._engine,
+                            envelopper_l_action(
+                                self._engine, nom, integration.creer_gestionnaire(self, tool, nom)
+                            ),
                         ),
                         timeout_secs=delai + 5.0,
                         is_node_transition=interne,
@@ -412,7 +421,10 @@ class CustomToolManager:
                 "timeout_ms", 5000
             )
             timeout_secs = float(timeout_ms) / 1000
-            handler = self._create_http_tool_handler(tool, function_name)
+            # [.mark] fiabilite-orchestration : une action, son résultat est lu (fiche).
+            handler = envelopper_l_action(
+                self._engine, function_name, self._create_http_tool_handler(tool, function_name)
+            )
 
         return handler, timeout_secs
 

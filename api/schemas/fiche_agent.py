@@ -5,6 +5,7 @@ dicté ou déduit, indice. Rangée dans `workflow_configurations` (colonne JSON)
 aucune migration de base (D32).
 """
 
+import re
 import unicodedata
 from enum import Enum
 from typing import Literal
@@ -142,6 +143,34 @@ class ChampFiche(BaseModel):
         ),
     )
 
+    # [.mark] Chantier fiabilite-orchestration, lot 1 (R3, G2 ; runs 1463, 1466, 1468) : le greffier
+    # écrivait ``rendez_vous = confirme`` d'après l'annonce de l'agent. Un champ qui déclare l'outil
+    # qui le remplit n'est écrit QUE par le résultat de cet outil : jamais par le modèle, le
+    # greffier ni le balayage. Vide (le défaut) : rien ne change.
+    rempli_par_outil: str | None = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "Filled by a tool: the name of the tool whose result writes this field (the "
+            "value of the same key in its answer, else its status, else the first allowed "
+            "value). The model, the clerk and the end-of-call pass never write it. Empty: off."
+        ),
+    )
+
+    @field_validator("rempli_par_outil")
+    @classmethod
+    def _outil_lisible(cls, nom: str | None) -> str | None:
+        nom = (nom or "").strip()
+        if not nom:
+            return None
+        if not re.fullmatch(r"[A-Za-z0-9_\-]{1,64}", nom):
+            raise ValueError("a tool name holds letters, digits, '_' and '-' only")
+        return nom
+
+    @property
+    def rempli_par_un_outil(self) -> bool:
+        return bool(self.rempli_par_outil)
+
     @field_validator("valeurs")
     @classmethod
     def _valeurs_lisibles(cls, valeurs: list[str] | None) -> list[str] | None:
@@ -267,6 +296,10 @@ NOMS_RESERVES = frozenset(
         "planificateur_rappel",
         "verification_appelant",
         "dossier_lu",
+        # [.mark] orchestrateur-trois-cerveaux, lot 4 : la trace du cerveau de fond (oubliée alors,
+        # ajoutée par fiabilite-orchestration) ; fiabilite-orchestration : les phrases du code.
+        "travaux",
+        "phrases_du_code",
     }
 )
 

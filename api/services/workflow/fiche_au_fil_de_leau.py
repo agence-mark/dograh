@@ -73,6 +73,9 @@ from api.services.workflow.dates_relatives import est_une_date, lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
 
 NOM_OUTIL = "noter_information"
+# fiabilite-orchestration, lot 1 : la source d'une écriture faite par le résultat d'un outil
+# (champ « rempli par l'outil »), distincte de « outil » (``noter_information``, le modèle).
+SOURCE_ACTION = "action"
 CLE_INTERRUPTEUR = "fiche_au_fil_de_leau"
 CLE_CHAMPS = "fiche_champs"
 CLE_ETAT = "fiche_etat"
@@ -247,6 +250,12 @@ class ReglagesFiche:
     @property
     def par_nom(self) -> dict[str, ChampFiche]:
         return {champ.nom: champ for champ in self.champs}
+
+    @property
+    def champs_notes(self) -> tuple[ChampFiche, ...]:
+        """Les champs que le modèle, le greffier ou le balayage peuvent écrire : tous, sauf ceux
+        que remplit un outil (fiabilite-orchestration, lot 1, G2)."""
+        return tuple(c for c in self.champs if not c.rempli_par_outil)
 
     @classmethod
     def depuis(
@@ -1986,6 +1995,9 @@ def ecrire_dans_la_fiche(
 
     if definition is None:
         verdict = Verdict(champ, "refuse", "champ_inconnu")
+    elif definition.rempli_par_outil and source != SOURCE_ACTION:
+        # fiabilite-orchestration, lot 1 (G2) : seul le résultat de l'outil déclaré l'écrit.
+        verdict = Verdict(champ, "refuse", "rempli_par_l_outil", valeur)
     elif _est_vide(valeur):
         verdict = Verdict(champ, "ignore", "valeur_vide")
     elif (
@@ -3104,7 +3116,7 @@ def schema_outil(reglages: ReglagesFiche) -> FunctionSchema:
     return FunctionSchema(
         name=NOM_OUTIL,
         description=DESCRIPTION_OUTIL,
-        properties={champ.nom: _propriete(champ) for champ in reglages.champs},
+        properties={champ.nom: _propriete(champ) for champ in reglages.champs_notes},
         required=[],
     )
 

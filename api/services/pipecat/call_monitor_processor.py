@@ -203,6 +203,28 @@ class CallMonitorProcessor(FrameProcessor):
             tour_ouvert or self._bot_speaking or self._response_watch or self._playbacks
         )
 
+    @property
+    def appelant_parle(self) -> bool:
+        """[.mark] fiabilite-orchestration (F24) : un tour de l'appelant est ouvert. Lecture seule."""
+        return bool(
+            self._user_turn_active
+            or (
+                self.user_aggregator is not None
+                and self.user_aggregator.user_turn_controller.has_active_user_turn
+            )
+        )
+
+    @property
+    def robot_parle(self) -> bool:
+        """[.mark] fiabilite-orchestration : la voix de l'agent joue. Lecture seule."""
+        return bool(self._bot_speaking)
+
+    @property
+    def agent_au_repos(self) -> bool:
+        """[.mark] fiabilite-orchestration (lot 1) : la voix de l'agent ne joue pas, aucune réponse
+        n'est en cours ni aucune parole dictée en attente. L'appelant, lui, peut parler."""
+        return not (self._bot_speaking or self._response_watch or self._playbacks)
+
     def _idle_eligible(self) -> bool:
         user_active = self._user_turn_active or (
             self.user_aggregator is not None

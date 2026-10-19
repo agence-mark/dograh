@@ -178,6 +178,24 @@ describe("[.mark] Call Record card", () => {
         expect(commune.rempli_en_fin_d_appel ?? true).toBe(true);
     });
 
+    it("names the tool that fills a field (fiabilite-orchestration, G2) and carries it out on save", async () => {
+        const onSave = ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: CHAMPS });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        const outil = document.getElementById("fiche_outil_0") as HTMLInputElement;
+        expect(outil.value).toBe("");
+        expect(within(dialogue).getAllByText(/filled by a tool/i).length).toBeGreaterThan(0);
+        fireEvent.change(outil, { target: { value: "poser_rendez_vous" } });
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        fireEvent.click(boutonEnregistrer());
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        const [nom, commune] = onSave.mock.calls[0][0].fiche_champs;
+        expect(nom.rempli_par_outil).toBe("poser_rendez_vous");
+        expect(commune.rempli_par_outil ?? null).toBeNull();
+        const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
+        expect(schema).toContain("rempli_par_outil: str | None = Field(");
+    });
+
     it("the server knows the end-of-call attribute the screen offers", () => {
         const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
         expect(schema).toContain("rempli_en_fin_d_appel: bool = Field(");

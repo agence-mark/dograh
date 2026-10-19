@@ -13,27 +13,42 @@ résultat « le travail n'a pas abouti », jamais une exception dans l'appel.
 
 ⛔ Ne lève jamais dans l'appel : tout échec retombe sur l'appel d'avant (un agent sans cerveau de
 fond), journalisé.
+
+Chantier fiabilite-orchestration, lot 1 (F1, F2, C1, C2, R15) :
+- l'attente parlée : pendant un travail, une ligne du code (``LIGNE_TRAVAIL_EN_COURS``) entre dans
+  chaque requête de conversation, juste avant la dernière parole de l'appelant (comme l'état de la
+  fiche : hors historique, le cache reste servi) ; elle dit de ne poser aucune question ;
+- l'appelant peut toujours **annuler** (``annuler_le_travail``) ou **modifier** : ``confier`` pendant
+  un travail annule la demande précédente et lance la nouvelle ;
+- la **seconde phrase d'attente** (motif ``travail_dure`` des phrases du code) est dite par la voix,
+  sans le modèle, quand le travail dure au-delà de son délai d'attente du système ;
+- ``confier`` qui rend « lancé » ne relance pas le modèle quand la même réponse a déjà parlé (R15).
 """
 
 from __future__ import annotations
 
 import asyncio
 import time
+from contextvars import ContextVar
 from typing import Any, Awaitable, Callable
 
 from loguru import logger
 from pipecat.adapters.schemas.function_schema import FunctionSchema
 from pipecat.adapters.schemas.tools_schema import ToolsSchema
+from pipecat.frames.frames import FunctionCallResultProperties
 from pipecat.pipeline.job_context import JobParams
 from pipecat.workers.llm.backend_llm_worker import BACKEND_JOB_NAME
 
+from api.services.phrases.catalogue import TRAVAIL_DURE
 from api.services.pipecat.greffier import versement_du_cout
+from api.services.pipecat.parole_avant_outil import suivre_la_parole
 from api.services.travail.fabrique import preparer_le_service_du_travail
 from api.services.travail.outils import MoteurDeFond, preparer_les_outils
 from api.services.travail.reglages import (
     CLE_TRAVAUX,
     NOM_DU_COUT,
     NOM_OUTIL,
+    NOM_OUTIL_ANNULER,
     ReglagesTravail,
 )
 from api.services.travail.retour import (
@@ -59,16 +74,29 @@ STATUT_ANNULE = "annule"
 
 # Ce que l'outil rend au cerveau de conversation.
 RETOUR_LANCE = {"statut": "lancé"}
-RETOUR_DEJA_EN_COURS = {"statut": "déjà en cours"}
+RETOUR_REMPLACE = {"statut": "lancé", "demande_precedente": "annulée"}
 RETOUR_INDISPONIBLE = {"statut": "indisponible"}
+RETOUR_ANNULE = {"statut": "annulé"}
+RETOUR_AUCUN = {"statut": "aucun travail en cours"}
+
+# C2 : la ligne écrite par le code pendant un travail en cours (F1, F2). Générique : aucun métier.
+LIGNE_TRAVAIL_EN_COURS = (
+    "Un travail est en cours : tu ne poses aucune question ; tu rassures, ou tu annules ou "
+    "modifies la demande si la personne le dit."
+)
 
 DESCRIPTION_OUTIL = (
     "Confie une demande à un second cerveau qui travaille avec ses propres outils pendant que la "
     "conversation continue. Il ne voit pas la conversation : écris une demande complète, avec tout "
     "ce qu'il faut pour la faire. L'outil rend tout de suite « lancé » : continue la conversation. "
     "Le résultat arrive plus tard, dans un message qui commence par « [Résultat du travail : », "
-    "écrit par le système, jamais par l'appelant. Un seul travail à la fois : « déjà en cours » "
-    "veut dire d'attendre le résultat."
+    "écrit par le système, jamais par l'appelant. Un seul travail à la fois : appeler cet outil "
+    "pendant un travail en cours annule la demande précédente et lance la nouvelle (pour la "
+    "modifier, écris la demande complète corrigée)."
+)
+DESCRIPTION_ANNULER = (
+    "Annule le travail en cours confié au second cerveau, quand la personne ne veut plus de sa "
+    "demande. Sans travail en cours, ne fait rien."
 )
 DESCRIPTION_DEMANDE = (
     "La demande complète et autonome : ce qui est à faire, et les informations utiles de la fiche "
@@ -79,6 +107,13 @@ Executeur = Callable[["TravailDeLAgent", str], Awaitable[str]]
 Remise = Callable[[Any, str], Awaitable[bool]]
 # Refait le service du fond pour un worker neuf : un service ne sert qu'à un seul worker.
 Fabrique = Callable[[], Awaitable[Any]]
+
+
+def schema_de_l_annulation() -> FunctionSchema:
+    """Le schéma de l'outil « annuler » : aucun paramètre."""
+    return FunctionSchema(
+        name=NOM_OUTIL_ANNULER, description=DESCRIPTION_ANNULER, properties={}, required=[]
+    )
 
 
 def schema_de_l_outil() -> FunctionSchema:
@@ -147,6 +182,8 @@ class TravailDeLAgent:
         self._generation = 0
         self._a_remplacer = False
         self._fermeture_differee: asyncio.Task | None = None
+        # C1 : la seconde phrase d'attente du travail en cours (une tâche par travail).
+        self._seconde_phrase: asyncio.Task | None = None
         self.worker = self._nouveau_worker()
 
     def _nouveau_worker(self) -> WorkerDeFond:
@@ -175,8 +212,11 @@ class TravailDeLAgent:
                 return {"statut": "demande vide"}
             if self.moteur.is_call_disposed():
                 return dict(RETOUR_INDISPONIBLE)
+            # F2 : modifier = annuler la demande en cours, puis lancer la nouvelle.
+            remplace = False
             if self.occupe:
-                return dict(RETOUR_DEJA_EN_COURS)
+                await self._annuler_le_travail_en_cours()
+                remplace = True
             if self._a_remplacer and not await self._remplacer_le_worker():
                 return dict(RETOUR_INDISPONIBLE)
             if self._enfant_de_l_appel and not self._attache:
@@ -193,10 +233,71 @@ class TravailDeLAgent:
                 name=f"travail:{self.worker.name}",
             )
             self._tache.add_done_callback(self._journaliser_la_fin)
-            return dict(RETOUR_LANCE)
+            self._lancer_la_seconde_phrase(self._tache)
+            return dict(RETOUR_REMPLACE if remplace else RETOUR_LANCE)
         except Exception as erreur:  # noqa: BLE001 -- l'outil ne casse jamais l'appel
             logger.error(f"[travail] travail non lancé : {type(erreur).__name__}")
             return dict(RETOUR_INDISPONIBLE)
+
+    async def annuler(self) -> dict:
+        """F2 : l'appelant ne veut plus de sa demande. ⛔ Ne lève jamais."""
+        try:
+            if not self.occupe:
+                return dict(RETOUR_AUCUN)
+            await self._annuler_le_travail_en_cours()
+            logger.info("[travail] travail annulé à la demande de l'appelant")
+            return dict(RETOUR_ANNULE)
+        except Exception as erreur:  # noqa: BLE001
+            logger.error(f"[travail] annulation en échec : {type(erreur).__name__}")
+            return dict(RETOUR_INDISPONIBLE)
+
+    async def _annuler_le_travail_en_cours(self) -> None:
+        """Arrête la tâche en cours (sa trace dit « annulé », son résultat n'est jamais remis) ; le
+        worker sera remplacé au travail suivant."""
+        self._arreter_la_seconde_phrase()
+        tache = self._tache
+        if tache is None or tache.done():
+            return
+        tache.cancel()
+        await asyncio.gather(tache, return_exceptions=True)
+        entree = self._entree_courante
+        if entree is not None and entree.get("statut") == STATUT_EN_COURS:
+            self._fermer_la_trace(entree, STATUT_ANNULE, self._debut_courant)
+        self._a_remplacer = True
+
+    # -- C1 : la seconde phrase d'attente -------------------------------------------
+
+    def _lancer_la_seconde_phrase(self, tache: asyncio.Task) -> None:
+        """Au téléphone seulement (au clavier, le travail se fait dans le tour)."""
+        self._arreter_la_seconde_phrase()
+        diseur = getattr(self.moteur, "phrases", None)
+        if diseur is None or not self._enfant_de_l_appel:
+            return
+        self._seconde_phrase = asyncio.get_running_loop().create_task(
+            self._dire_la_seconde_phrase(diseur, tache), name=f"attente:{self.worker.name}"
+        )
+
+    async def _dire_la_seconde_phrase(self, diseur: Any, tache: asyncio.Task) -> None:
+        try:
+            phrase = diseur.phrase(TRAVAIL_DURE, self.moteur.active_agent)
+            if phrase is None or not phrase.dite or phrase.delai_s is None:
+                return
+
+            def en_cours() -> bool:
+                return self._tache is tache and not tache.done()
+
+            if await diseur.attendre_le_systeme(phrase.delai_s, en_cours) and en_cours():
+                await diseur.dire(TRAVAIL_DURE, self.moteur.active_agent, phrase=phrase)
+        except asyncio.CancelledError:
+            raise
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[travail] seconde phrase d'attente : {erreur!r}")
+
+    def _arreter_la_seconde_phrase(self) -> None:
+        tache = self._seconde_phrase
+        self._seconde_phrase = None
+        if tache is not None and not tache.done() and tache is not asyncio.current_task():
+            tache.cancel()
 
     async def attacher(self) -> bool:
         """Ajoute le worker de fond à l'appel (enfant du worker d'appel, bus local). Une fois ;
@@ -289,6 +390,7 @@ class TravailDeLAgent:
         try:
             if self.occupe and not forcer:
                 return
+            self._arreter_la_seconde_phrase()
             if self.occupe:
                 self._tache.cancel()
                 await asyncio.gather(self._tache, return_exceptions=True)
@@ -393,6 +495,7 @@ class TravailDeLAgent:
             else {STATUT_VIDE: TEXTE_VIDE, STATUT_DELAI: TEXTE_DELAI}.get(statut, TEXTE_ECHEC)
         )
         self._fermer_la_trace(entree, statut, debut, texte)
+        self._arreter_la_seconde_phrase()
         entree["message"] = message
         entree["remis"] = bool(await self._remise(self.moteur, message))
         logger.info(
@@ -408,12 +511,105 @@ def brancher_confier_le_travail(
     gestionnaire rend tout de suite (``run_llm`` par défaut : le modèle reparle) ; la garde
     ``agent_can_act`` est celle de tous les outils de l'agent."""
 
+    proprietes = _proprietes_du_resultat(agent.llm)
+
     async def gestionnaire(params) -> None:
         arguments = getattr(params, "arguments", None) or {}
-        await params.result_callback(await travail.confier(arguments.get("demande")))
+        resultat = await travail.confier(arguments.get("demande"))
+        await params.result_callback(resultat, properties=proprietes(params))
 
     agent.llm.register_function(NOM_OUTIL, agent.bind_tool(moteur, gestionnaire))
+    montrer_le_travail_en_cours(moteur, agent.llm)
     return schema_de_l_outil()
+
+
+def brancher_annuler_le_travail(
+    moteur: Any, travail: TravailDeLAgent, agent: Any
+) -> FunctionSchema:
+    """F2 : l'outil « annuler », offert avec « confier » et à toute étape où un travail est en
+    cours. Sans travail en cours, il ne fait rien."""
+    proprietes = _proprietes_du_resultat(agent.llm)
+
+    async def annulation(params) -> None:
+        await params.result_callback(await travail.annuler(), properties=proprietes(params))
+
+    agent.llm.register_function(NOM_OUTIL_ANNULER, agent.bind_tool(moteur, annulation))
+    return schema_de_l_annulation()
+
+
+def _proprietes_du_resultat(llm: Any) -> Callable[[Any], FunctionCallResultProperties | None]:
+    """R15 : un outil qui rend tout de suite ne relance pas le modèle quand la même réponse a déjà
+    parlé ; sinon le comportement d'avant (le modèle parle : la phrase d'attente, F1)."""
+    suivi = suivre_la_parole(llm)
+
+    def proprietes(params: Any) -> FunctionCallResultProperties | None:
+        if suivi is not None and suivi.a_parle_avant(getattr(params, "tool_call_id", None)):
+            return FunctionCallResultProperties(run_llm=False)
+        return None
+
+    return proprietes
+
+
+def ligne_du_travail(moteur: Any) -> str | None:
+    """C2 : la ligne du code quand un travail est en cours dans l'appel (celui de l'agent qui a la
+    main, ou celui qu'un autre agent a confié avant une passation : son résultat ira à l'agent qui
+    a la main). ``None`` sinon. ⛔ Ne lève jamais."""
+    try:
+        for travail in getattr(moteur, "travaux", None) or []:
+            if getattr(travail, "occupe", False):
+                return LIGNE_TRAVAIL_EN_COURS
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[travail] ligne du travail illisible : {erreur!r}")
+    return None
+
+
+_MARQUE_LIGNE = "_mark_ligne_du_travail"
+
+
+def montrer_le_travail_en_cours(moteur: Any, llm: Any) -> bool:
+    """C2 : pendant un travail, chaque requête de CONVERSATION de ``llm`` reçoit la ligne du code
+    juste avant la dernière parole de l'appelant (``inserer_l_etat``, comme l'état de la fiche).
+    Rien n'entre dans l'historique ni dans le prompt système : le cache reste servi. Branché une
+    fois par service. ⛔ Ne lève jamais."""
+    try:
+        if getattr(llm, _MARQUE_LIGNE, False):
+            return True
+        if not (
+            hasattr(llm, "get_chat_completions") and hasattr(llm, "build_chat_completion_params")
+        ):
+            return False
+        from api.services.workflow.fiche_au_fil_de_leau import inserer_l_etat
+
+        en_conversation: ContextVar[bool] = ContextVar("travail_en_conversation", default=False)
+        obtenir = llm.get_chat_completions
+        construire = llm.build_chat_completion_params
+
+        async def get_chat_completions(context):
+            jeton = en_conversation.set(True)
+            try:
+                return await obtenir(context)
+            finally:
+                en_conversation.reset(jeton)
+
+        def build_chat_completion_params(params_from_context):
+            params = construire(params_from_context)
+            if en_conversation.get():
+                try:
+                    ligne = ligne_du_travail(moteur)
+                    if ligne:
+                        cle = "messages" if "messages" in params else "input"
+                        params[cle] = inserer_l_etat(list(params[cle]), ligne)
+                except Exception as erreur:  # noqa: BLE001
+                    logger.error(f"[travail] ligne du travail non montrée : {erreur!r}")
+            return params
+
+        llm.get_chat_completions = get_chat_completions
+        llm.build_chat_completion_params = build_chat_completion_params
+        setattr(llm, _MARQUE_LIGNE, True)
+        return True
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[travail] ligne du travail non branchée : {erreur!r}")
+        return False
 
 
 async def preparer_le_travail(
