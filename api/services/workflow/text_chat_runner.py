@@ -1051,7 +1051,9 @@ async def execute_text_chat_pending_turn(
         # [.mark] D1 et D10 de repliques-coupees : la trace du cerveau et la réflexion
         # de secours, comme au téléphone (réglages de l'agent qui parle : ils suivent
         # son cerveau).
-        brancher_la_trace(engine, agent.llm, agent.reglages)
+        brancher_la_trace(
+            engine, agent.llm, agent.reglages, getattr(agent, "workflow_name", None)
+        )
         brancher_la_relance(engine, agent.llm, agent.reglages)
         capture_processor = _TextChatCaptureProcessor(response_window, context, engine)
 

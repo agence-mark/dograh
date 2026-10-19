@@ -33,6 +33,7 @@ from api.services.pipecat.pipeline_builder import (
 )
 from api.services.pipecat.recording_router_processor import RecordingRouterProcessor
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
+from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.pipecat.service_factory import (
     cle_de_cache,
     create_llm_service,
@@ -130,7 +131,11 @@ class AgentRuntimeFactory:
         # [.mark] Lot 3 (D7) : la configuration de la voix de l'APPEL (celle du premier
         # agent), pour l'estampille d'un agent appelé. None = la sienne, comme avant.
         voix_de_l_appel: Any = None,
+        # [.mark] fiabilite-orchestration, lot 8 (R12) : le moteur de l'appel, pour brancher la
+        # trace du modèle sur le service de chaque agent construit (case de l'agent). None = sans.
+        moteur_de_l_appel: Callable[[], Any] | None = None,
     ):
+        self._moteur_de_l_appel = moteur_de_l_appel
         self._voix_de_l_appel = voix_de_l_appel
         self.precharge = precharge
         # [.mark] fiabilite-orchestration, lot 3 (F5) : les connexions de l'appel, partagées entre
@@ -283,6 +288,10 @@ class AgentRuntimeFactory:
             correlation_id=self._mps_correlation_id,
             prompt_cache_key=cle_de_cache(workflow_id),
         )
+        # [.mark] Lot 8 (R12) : la trace du modèle suit l'agent appelé (case de CET agent), avant la
+        # prise de notes ci-dessous qui lit la trace du moteur. Ne lève jamais.
+        if self._moteur_de_l_appel is not None:
+            brancher_la_trace(self._moteur_de_l_appel(), llm, run_configs, workflow.name)
         # Same client policy as the run setup: the conversation LLM also
         # serves out-of-band inference, and extraction gets a separately
         # tagged client only where the run would have created one, so a

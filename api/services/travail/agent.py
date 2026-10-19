@@ -687,6 +687,14 @@ async def preparer_le_travail(
         )
         agent.travail = travail
         moteur.travaux.append(travail)
+        # fiabilite-orchestration, lot 8 (R12) : la trace du modèle suit le cerveau de fond
+        # (case de l'agent), son nom en dit l'appartenance. Ne lève jamais.
+        from api.services.pipecat.trace_modele import brancher_la_trace
+
+        nom_agent = getattr(agent, "workflow_name", None)
+        brancher_la_trace(
+            moteur, service, reglages_agent, f"{nom_agent} (fond)" if nom_agent else "fond"
+        )
         # fiabilite-orchestration, lot 4 (F20, C5) : la garde du modèle du fond, avec son repli.
         from api.services.panne.garde_modele import garder_le_fond
 

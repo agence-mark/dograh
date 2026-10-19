@@ -1431,7 +1431,7 @@ async def _run_pipeline_impl(
     )
     # [.mark] D1 et D10 de repliques-coupees : la trace du cerveau (case allumée
     # seulement) et la réflexion de secours de la relance d'une réplique inachevée.
-    brancher_la_trace(engine, llm, run_configs)
+    brancher_la_trace(engine, llm, run_configs, getattr(workflow, "name", None))
     brancher_la_relance(engine, llm, run_configs)
 
     # Create pipeline components
@@ -1854,6 +1854,8 @@ async def _run_pipeline_impl(
             # [.mark] Lot 3 (D7) : un agent appelé n'ouvre pas de voix ; son estampille décrit
             # la voix de l'appel (celle du premier agent).
             voix_de_l_appel=user_config.tts,
+            # [.mark] Lot 8 de fiabilite-orchestration (R12) : la trace du modèle suit chaque agent.
+            moteur_de_l_appel=lambda: engine,
             # [.mark] What a later agent needs to be built like the first one:
             # the organization's trade vocabulary (pronunciations of the voice)
             # and the live gathered variables (name and civility filter).
