@@ -185,12 +185,7 @@ class DiseurDePhrases:
             self._tracer(phrase, dite, agent, etape)
             self.texte_en_cours = dite
             try:
-                parole = await self._moteur.queue_speech(
-                    dite,
-                    append_to_context=historique,
-                    persist_to_logs=True,
-                    mute_user=False,
-                )
+                parole = await self._dire_a_la_voix(dite, historique)
             except Exception:
                 self._fini(phrase)
                 raise
@@ -204,6 +199,31 @@ class DiseurDePhrases:
         except Exception as erreur:  # noqa: BLE001 -- une phrase ne coûte jamais l'appel
             logger.warning(f"[phrases] {motif_id} non dite : {erreur!r}")
             return None
+
+    async def _dire_a_la_voix(self, texte: str, historique: bool) -> Any:
+        """Le son fabriqué au décroché s'il existe (lot 4 ter, F22 : joué sans solliciter la voix,
+        transcription jointe) ; sinon la voix de l'appel, comme avant."""
+        from api.services.phrases.sons import fabrique_de
+
+        fabrique = fabrique_de(self._moteur)
+        son = fabrique.son(texte) if fabrique is not None else None
+        if son is not None:
+            parole = await self._moteur.queue_speech(
+                audio=son.audio,
+                transcript=texte,
+                append_to_context=historique,
+                persist_to_logs=True,
+                mute_user=False,
+            )
+            if getattr(getattr(parole, "outcome", None), "name", None) != "FAILED":
+                return parole
+            logger.warning(f"[phrases] son fabriqué non joué, dit par la voix : {texte!r}")
+        return await self._moteur.queue_speech(
+            texte,
+            append_to_context=historique,
+            persist_to_logs=True,
+            mute_user=False,
+        )
 
     def prendre(
         self,

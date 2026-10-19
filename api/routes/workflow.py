@@ -1791,6 +1791,21 @@ class WorkflowRunsResponse(BaseModel):
     applied_filters: Optional[List[dict]] = None
 
 
+@router.get("/{workflow_id}/phrases/carte")
+async def get_carte_des_phrases(
+    workflow_id: int,
+    user: UserModel = Depends(get_user),
+) -> dict:
+    """[.mark] fiabilite-orchestration, lot 4 ter (F16): the map of the sentences said by the code for
+    this agent (its whole group when it is the main agent), with their last trigger in recent calls."""
+    from api.services.phrases.carte import carte_de_l_agent
+
+    carte = await carte_de_l_agent(workflow_id, user.selected_organization_id)
+    if carte is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return carte
+
+
 @router.get("/{workflow_id}/runs")
 async def get_workflow_runs(
     workflow_id: int,

@@ -27,6 +27,7 @@ import { Theme } from "../ecran/Theme";
 import { useGroupe } from "../groupe/contexte-groupe";
 import { DELAI_PHRASE_PONT_DEFAUT_S } from "../groupe/reglages-groupe";
 import { type Texte, useLangue } from "../langue/langue";
+import { CarteDesPhrases } from "./CarteDesPhrases";
 import { useEnregistrementTheme } from "./enregistrement";
 import CATALOGUE from "./phrases/catalogue-des-phrases.json";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEtatTheme, useRevelation } from "./theme-commun";
@@ -212,7 +213,8 @@ export const ThemePhrases = ({
     onBasculer,
     ouvrir,
     etapes,
-}: ProprietesThemeAgent & { etapes: string[] }) => {
+    workflowId,
+}: ProprietesThemeAgent & { etapes: string[]; workflowId?: number }) => {
     const { t } = useLangue();
     const groupe = useGroupe();
     const { enregistre, brouillon, setBrouillon, resynchroniser } = useBrouillon(resolue, extrairePhrases);
@@ -427,6 +429,7 @@ export const ThemePhrases = ({
                 ]}
             >
                 <div className="space-y-6">
+                    {workflowId !== undefined && ouvert && <CarteDesPhrases workflowId={workflowId} />}
                     {famille("attente", TEXTES.attentes, TEXTES.attentesAide)}
                     {famille("annonce", TEXTES.annonces, TEXTES.annoncesAide)}
                 </div>

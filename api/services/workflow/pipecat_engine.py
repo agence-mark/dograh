@@ -3366,8 +3366,12 @@ class PipecatEngine:
         """Au décroché, après le premier agent : charge à l'avance (sans voix) ce que la
         construction des agents cibles lira en base. En tâche de fond, jamais bloquant,
         réglage ``prechauffage_agents`` (vrai par défaut dans un groupe). ⛔ Ne lève jamais."""
+        from api.services.phrases.sons import lancer_la_fabrique
+
         try:
             if not self.agent_transfer_enabled or not prechauffage_actif(self.reglages_appel):
+                # fiabilite-orchestration, lot 4 ter (F22) : les sons des phrases du premier agent.
+                lancer_la_fabrique(self)
                 return
             agent = self.active_agent
 
@@ -3383,6 +3387,8 @@ class PipecatEngine:
                 if precharge is not None:
                     for cible in list(precharge.agents):
                         await self._mettre_en_reserve(cible)
+                # Lot 4 ter (F22) : puis les sons des phrases de l'appel (collègues compris).
+                lancer_la_fabrique(self)
 
             self._tache_prechauffage = asyncio.get_running_loop().create_task(preparer())
         except Exception as e:  # noqa: BLE001

@@ -273,7 +273,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                                 <ThemeTourDeParole {...commun(ID_THEME_TOUR)!} />
                                 <ThemeVoix {...commun(ID_THEME_VOIX)!} workflowId={workflowId} />
                                 <ThemeRythme {...commun(ID_THEME_RYTHME)!} />
-                                <ThemePhrases {...commun(ID_THEME_PHRASES)!} etapes={nomsDesEtapes} />
+                                <ThemePhrases {...commun(ID_THEME_PHRASES)!} etapes={nomsDesEtapes} workflowId={workflowId} />
                                 <ThemeDonnees
                                     {...commun(ID_THEME_DONNEES)!}
                                     issuesParDefaut={defaultCallDispositions}

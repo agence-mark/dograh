@@ -1810,6 +1810,22 @@ async def _run_pipeline_impl(
         await garder_l_agent(
             engine, engine.active_agent, reglages=run_configs, user_config=user_config
         )
+        # [.mark] fiabilite-orchestration, lot 4 ter (F22) : la fabrique des sons des phrases du
+        # code, lancée au décroché (``lancer_prechauffage``) ; une voix neuve au réglage de l'appel.
+        from api.services.phrases.sons import FabriqueDesSons
+
+        engine.fabrique_des_sons = FabriqueDesSons(
+            creer_la_voix=lambda: create_tts_service(
+                user_config,
+                audio_config,
+                correlation_id=mps_correlation_id,
+                organization_id=workflow.organization_id,
+                run_configs=run_configs,
+                lexique=lexique_metier,
+            ),
+            ajouter_le_circuit=task.add_workers,
+            taux_attendu=audio_config.pipeline_sample_rate,
+        )
     engine.greeting.log_generated_speech = feedback_observer.log_speech
 
     if not is_realtime:
