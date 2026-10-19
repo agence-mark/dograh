@@ -103,7 +103,7 @@ const nombre = (texte: string): number | null => {
 };
 
 /** What is saved: the rules, cleaned, in the server's shape. */
-export const chargePhrases = (regles: RegleEcran[]): ReglePhrase[] =>
+export const chargePhrases = (regles: RegleEcran[]): Array<ReglePhrase & { variantes: string[] }> =>
     regles.map((r) => {
         const motif = motifDe(r.motif);
         const variantes = r.variantes.map((v) => v.trim().replace(/\s+/g, " ")).filter((v) => v !== "");

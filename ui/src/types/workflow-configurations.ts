@@ -309,7 +309,7 @@ export interface ReglePhrase {
     motif: string;
     portee?: "groupe" | "agent" | "etape";
     etape?: string | null;
-    variantes: string[];
+    variantes?: string[];
     delai_s?: number | null;
     active?: boolean;
 }
