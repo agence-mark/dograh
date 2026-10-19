@@ -31,6 +31,9 @@ import type {
     Conversation,
     Fiche,
     Fournisseurs,
+    Chronometre,
+    EtapesDuTour,
+    ReseauEtConnexions,
     Incidents,
     Latence,
     Modules,
@@ -328,6 +331,122 @@ function BlocLatence({ latence }: { latence: Latence }) {
                     </li>
                 ))}
             </ul>
+        </div>
+    );
+}
+
+const ETAPES: { cle: keyof EtapesDuTour; titre: Texte }[] = [
+    { cle: "turn_closed", titre: { en: "turn closed", fr: "fin de tour" } },
+    { cle: "request_sent", titre: { en: "request sent", fr: "requête partie" } },
+    { cle: "first_model_word", titre: { en: "first model word", fr: "premier mot du modèle" } },
+    { cle: "first_sentence", titre: { en: "first sentence", fr: "première phrase" } },
+    { cle: "sent_to_voice", titre: { en: "sent to the voice", fr: "envoi à la voix" } },
+    { cle: "first_sound", titre: { en: "first sound", fr: "premier son" } },
+];
+
+/** One row per turn: the seconds from the caller's last word to each stage, and M2 (first sound). */
+function BlocChronometre({ chrono }: { chrono: Chronometre }) {
+    const { t } = useLangue();
+    const controles = chrono.controls;
+    return (
+        <div className="space-y-3 text-sm">
+            <p data-testid="chrono-controles">
+                {t({
+                    en: `Medians: first text (M1) ${secondes(controles?.m1_median_secs)} · first sound out of the voice (M2) ${secondes(controles?.m2_median_secs)} · heard on the recording ${secondes(controles?.heard_median_secs)}. What M2 does not see yet (audio output to the caller's ear): ${secondes(controles?.heard_minus_m2_secs)}.`,
+                    fr: `Médianes : premier texte (M1) ${secondes(controles?.m1_median_secs)} · premier son sorti de la voix (M2) ${secondes(controles?.m2_median_secs)} · entendu sur l'enregistrement ${secondes(controles?.heard_median_secs)}. Ce que M2 ne voit pas encore (sortie audio jusqu'à l'oreille) : ${secondes(controles?.heard_minus_m2_secs)}.`,
+                })}
+            </p>
+            <p className="text-xs text-muted-foreground">
+                {t({
+                    en: "Seconds from the caller's last word (Soniox) to each stage of the reply.",
+                    fr: "Secondes depuis le dernier mot de l'appelant (Soniox) jusqu'à chaque étape de la réponse.",
+                })}
+            </p>
+            <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                    <thead>
+                        <tr className="border-b border-border text-left text-muted-foreground">
+                            <th className="py-1 pr-3 font-medium">{t({ en: "Turn", fr: "Tour" })}</th>
+                            {ETAPES.map((e) => (
+                                <th key={e.cle} className="py-1 pr-3 font-medium">
+                                    {t(e.titre)}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {(chrono.turns ?? []).map((tour, i) => (
+                            <tr key={i} data-testid="tour-chronometre" className="border-b border-border last:border-0">
+                                <td className="py-1 pr-3" title={tour.step}>
+                                    {tour.turn ?? "?"}
+                                </td>
+                                {tour.measured ? (
+                                    ETAPES.map((e) => (
+                                        <td key={e.cle} className={cn("py-1 pr-3", e.cle === "first_sound" && "font-medium")}>
+                                            {secondes(tour.stages[e.cle])}
+                                        </td>
+                                    ))
+                                ) : (
+                                    <td colSpan={ETAPES.length} className="py-1 text-muted-foreground">
+                                        {t({ en: "not measured", fr: "non mesuré" })} :{" "}
+                                        {t(RAISONS[tour.not_measured_reason ?? ""] ?? { en: "unknown", fr: "inconnu" })}
+                                    </td>
+                                )}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+const entier = (valeur: number | null | undefined) => (typeof valeur === "number" ? `${valeur}` : "–");
+const millisecondes = (valeur: number | null | undefined) =>
+    typeof valeur === "number" ? `${valeur.toFixed(1)} ms` : "–";
+
+/** Provider connections (model reused or opened, transcription, voice) and the audio link quality. */
+function BlocReseau({ reseau }: { reseau: ReseauEtConnexions }) {
+    const { t } = useLangue();
+    const liaison = reseau.link;
+    const bilan = liaison && liaison.status === "ok" ? liaison : null;
+    return (
+        <div className="space-y-2 text-sm">
+            <ul data-testid="reseau-connexions" className="space-y-1">
+                {Object.entries(reseau.providers ?? {}).map(([brique, c]) => (
+                    <li key={brique}>
+                        {t(BRIQUES[brique] ?? { en: brique, fr: brique })} :{" "}
+                        {t({
+                            en: `${c.connected} connection(s), first one after ${secondes(c.first_connect_secs)} · ${c.disconnected} disconnection(s) · ${c.errors} error(s)`,
+                            fr: `${c.connected} connexion(s), la première après ${secondes(c.first_connect_secs)} · ${c.disconnected} coupure(s) · ${c.errors} erreur(s)`,
+                        })}
+                    </li>
+                ))}
+                <li>
+                    {t({ en: "Model", fr: "Modèle" })} :{" "}
+                    {reseau.model
+                        ? t({
+                              en: `${reseau.model.opened} connection(s) opened, ${reseau.model.reused} reused (${reseau.model.items
+                                  .map((x) => `${x.agent ?? "?"}: ${x.event === "opened" ? "opened" : "reused"}`)
+                                  .join(", ")})`,
+                              fr: `${reseau.model.opened} connexion(s) ouverte(s), ${reseau.model.reused} reprise(s) (${reseau.model.items
+                                  .map((x) => `${x.agent ?? "?"} : ${x.event === "opened" ? "ouverte" : "reprise"}`)
+                                  .join(", ")})`,
+                          })
+                        : t({ en: "not captured", fr: "non capté" })}
+                </li>
+            </ul>
+            <p data-testid="reseau-liaison">
+                {bilan
+                    ? t({
+                          en: `Audio link (${bilan.samples ?? 0} samples): caller's voice, ${entier(bilan.last?.inbound?.packets_lost)} packets lost, jitter ${millisecondes(bilan.last?.inbound?.jitter_ms)} · agent's voice as the browser saw it, ${entier(bilan.last?.outbound?.packets_lost)} packets lost, jitter ${millisecondes(bilan.last?.outbound?.jitter_ms)} · worst round trip ${millisecondes(bilan.worst?.round_trip_ms)}`,
+                          fr: `Liaison audio (${bilan.samples ?? 0} relevés) : voix de l'appelant, ${entier(bilan.last?.inbound?.packets_lost)} paquets perdus, gigue ${millisecondes(bilan.last?.inbound?.jitter_ms)} · voix de l'agent vue par le navigateur, ${entier(bilan.last?.outbound?.packets_lost)} paquets perdus, gigue ${millisecondes(bilan.last?.outbound?.jitter_ms)} · pire aller-retour ${millisecondes(bilan.worst?.round_trip_ms)}`,
+                      })
+                    : t({
+                          en: "Audio link: not captured (phone call, or run older than this capture).",
+                          fr: "Liaison audio : non captée (appel téléphonique, ou run antérieur à cette capture).",
+                      })}
+            </p>
         </div>
     );
 }
@@ -801,6 +920,24 @@ export function FenetreDuRun({
                 }
             >
                 <BlocLatence latence={analyse.latency} />
+            </Section>
+            <Section
+                titre={{ en: "Turn stopwatch", fr: "Chronomètre par tour" }}
+                bloc={analyse.chrono ?? { status: "not_captured" }}
+                testId="bloc-chrono"
+                resume={t({
+                    en: `M2 median ${secondes(analyse.chrono?.controls?.m2_median_secs)}`,
+                    fr: `M2 médiane ${secondes(analyse.chrono?.controls?.m2_median_secs)}`,
+                })}
+            >
+                {analyse.chrono && <BlocChronometre chrono={analyse.chrono} />}
+            </Section>
+            <Section
+                titre={{ en: "Connections and network", fr: "Connexions et réseau" }}
+                bloc={analyse.network ?? { status: "not_captured" }}
+                testId="bloc-network"
+            >
+                {analyse.network && <BlocReseau reseau={analyse.network} />}
             </Section>
             <Section titre={{ en: "Providers", fr: "Fournisseurs" }} bloc={analyse.providers} testId="bloc-providers">
                 <BlocFournisseurs fournisseurs={analyse.providers} />

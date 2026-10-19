@@ -1,0 +1,746 @@
+{
+"id": 1468,
+"workflow_id": 125,
+"usage_info": {},
+"initial_context": {},
+"gathered_context": {
+"mark_silences": {
+"status": "ok",
+"method": "silero",
+"pairs": [
+{
+"caller_end_secs": 15.52,
+"agent_start_secs": 19.392,
+"silence_secs": 3.872
+},
+{
+"caller_end_secs": 25.216,
+"agent_start_secs": 28.48,
+"silence_secs": 3.264
+},
+{
+"caller_end_secs": 33.216,
+"agent_start_secs": 36.512,
+"silence_secs": 3.296
+},
+{
+"caller_end_secs": 50.432,
+"agent_start_secs": 52.992,
+"silence_secs": 2.56
+},
+{
+"caller_end_secs": 81.312,
+"agent_start_secs": 86.528,
+"silence_secs": 5.216
+},
+{
+"caller_end_secs": 94.112,
+"agent_start_secs": 94.336,
+"silence_secs": 0.224
+},
+{
+"caller_end_secs": 114.784,
+"agent_start_secs": 116.384,
+"silence_secs": 1.6
+}
+],
+"count": 7,
+"median_secs": 3.264,
+"worst_secs": 5.216
+}
+},
+"logs": {
+"realtime_feedback_events": [
+{
+"type": "rtf-node-transition",
+"payload": {
+"node_id": "2",
+"node_name": "accueil",
+"previous_node_id": null,
+"previous_node_name": null,
+"allow_interrupt": true
+},
+"timestamp": "2026-10-19T12:46:55.189+00:00",
+"turn": 1,
+"node_id": "2",
+"node_name": "accueil"
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x"
+},
+"timestamp": "2026-10-19T12:46:55.205+00:00",
+"turn": 1,
+"node_id": "2",
+"node_name": "accueil"
+},
+{
+"type": "mark-latency-breakdown",
+"payload": {
+"ttfb": [
+{
+"processor": "ElevenLabsTTSService#4",
+"model": "eleven_flash_v2_5",
+"start_time": 1792414015.2550147,
+"duration_secs": 0.1878056526184082
+}
+],
+"text_aggregation": null,
+"user_turn_secs": null,
+"function_calls": []
+},
+"node_id": "2",
+"node_name": "accueil",
+"timestamp": "2026-10-19T12:46:55.540+00:00",
+"turn": 1
+},
+{
+"type": "rtf-user-transcription",
+"payload": {
+"text": "x",
+"final": true,
+"timestamp": "2026-10-19T12:47:04.474+00:00",
+"end_timestamp": "2026-10-19T12:47:10.197+00:00"
+},
+"timestamp": "2026-10-19T12:47:10.199+00:00",
+"turn": 2,
+"node_id": "2",
+"node_name": "accueil"
+},
+{
+"type": "rtf-function-call-start",
+"payload": {
+"function_name": "passer_a_l_agent_entretien",
+"tool_call_id": "DpryLJNxi",
+"arguments": {}
+},
+"timestamp": "2026-10-19T12:47:11.396+00:00",
+"turn": 2,
+"node_id": "2",
+"node_name": "accueil"
+},
+{
+"type": "rtf-node-transition",
+"payload": {
+"node_id": "2",
+"node_name": "entretien",
+"previous_node_id": null,
+"previous_node_name": null,
+"allow_interrupt": true,
+"agent": "ndf_large3_entretien_v3fond-large3_n126"
+},
+"timestamp": "2026-10-19T12:47:11.870+00:00",
+"turn": 2,
+"node_id": "2",
+"node_name": "entretien"
+},
+{
+"type": "mark-latency-breakdown",
+"payload": {
+"ttfb": [
+{
+"processor": "SonioxSTTService#4",
+"model": "stt-rt-v5",
+"start_time": 1792414029.7731879,
+"duration_secs": 0.4193239212036133
+},
+{
+"processor": "DograhMistralLLMService#1",
+"model": "mistral-large-2512",
+"start_time": 1792414030.573152,
+"duration_secs": 0.8268461227416992
+},
+{
+"processor": "DograhMistralLLMService#2",
+"model": "mistral-large-2512",
+"start_time": 1792414031.887964,
+"duration_secs": 0.6119129657745361
+},
+{
+"processor": "ElevenLabsTTSService#4",
+"model": "eleven_flash_v2_5",
+"start_time": 1792414032.6954892,
+"duration_secs": 0.10446643829345703
+}
+],
+"text_aggregation": {
+"processor": "ElevenLabsTTSService#4",
+"start_time": 1792414032.6875713,
+"duration_secs": 8.535385131835938e-05
+},
+"user_turn_secs": 0.4246788024902344,
+"function_calls": [
+{
+"function_name": "passer_a_l_agent_entretien",
+"start_time": 1792414031.4459825,
+"duration_secs": 0.009083032608032227
+}
+]
+},
+"node_id": "2",
+"node_name": "entretien",
+"timestamp": "2026-10-19T12:47:12.825+00:00",
+"turn": 2
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x"
+},
+"timestamp": "2026-10-19T12:47:14.396+00:00",
+"turn": 2,
+"node_id": "2",
+"node_name": "entretien"
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x",
+"timestamp": "2026-10-19T12:46:55.533+00:00",
+"end_timestamp": "2026-10-19T12:47:02.628+00:00"
+},
+"timestamp": "2026-10-19T12:47:14.674+00:00",
+"turn": 1,
+"node_id": "2",
+"node_name": "entretien"
+},
+{
+"type": "rtf-user-transcription",
+"payload": {
+"text": "x",
+"final": true,
+"timestamp": "2026-10-19T12:47:16.577+00:00",
+"end_timestamp": "2026-10-19T12:47:18.745+00:00"
+},
+"timestamp": "2026-10-19T12:47:18.753+00:00",
+"turn": 3,
+"node_id": "2",
+"node_name": "entretien"
+},
+{
+"type": "mark-latency-breakdown",
+"payload": {
+"ttfb": [
+{
+"processor": "SonioxSTTService#4",
+"model": "stt-rt-v5",
+"start_time": 1792414038.207084,
+"duration_secs": 0.5273468494415283
+},
+{
+"processor": "DograhMistralLLMService#2",
+"model": "mistral-large-2512",
+"start_time": 1792414039.1107094,
+"duration_secs": 1.6381909847259521
+},
+{
+"processor": "ElevenLabsTTSService#4",
+"model": "eleven_flash_v2_5",
+"start_time": 1792414040.8690627,
+"duration_secs": 0.10802555084228516
+}
+],
+"text_aggregation": {
+"processor": "ElevenLabsTTSService#4",
+"start_time": 1792414040.8672454,
+"duration_secs": 0.00022864341735839844
+},
+"user_turn_secs": 0.5383849143981934,
+"function_calls": []
+},
+"node_id": "2",
+"node_name": "entretien",
+"timestamp": "2026-10-19T12:47:20.995+00:00",
+"turn": 3
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x",
+"timestamp": "2026-10-19T12:47:20.991+00:00",
+"end_timestamp": "2026-10-19T12:47:22.827+00:00"
+},
+"timestamp": "2026-10-19T12:47:22.655+00:00",
+"turn": 3,
+"node_id": "2",
+"node_name": "entretien"
+},
+{
+"type": "rtf-user-transcription",
+"payload": {
+"text": "x",
+"final": true,
+"timestamp": "2026-10-19T12:47:25.570+00:00",
+"end_timestamp": "2026-10-19T12:47:26.430+00:00"
+},
+"timestamp": "2026-10-19T12:47:26.511+00:00",
+"turn": 4,
+"node_id": "2",
+"node_name": "entretien"
+},
+{
+"type": "mark-latency-breakdown",
+"payload": {
+"ttfb": [
+{
+"processor": "SonioxSTTService#4",
+"model": "stt-rt-v5",
+"start_time": 1792414046.0563285,
+"duration_secs": 0.28997373580932617
+},
+{
+"processor": "DograhMistralLLMService#2",
+"model": "mistral-large-2512",
+"start_time": 1792414046.5705733,
+"duration_secs": 0.9310216903686523
+},
+{
+"processor": "ElevenLabsTTSService#4",
+"model": "eleven_flash_v2_5",
+"start_time": 1792414047.9765706,
+"duration_secs": 0.10505080223083496
+}
+],
+"text_aggregation": {
+"processor": "ElevenLabsTTSService#4",
+"start_time": 1792414047.8235734,
+"duration_secs": 0.151747465133667
+},
+"user_turn_secs": 0.37498927116394043,
+"function_calls": []
+},
+"node_id": "2",
+"node_name": "entretien",
+"timestamp": "2026-10-19T12:47:28.123+00:00",
+"turn": 4
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x",
+"timestamp": "2026-10-19T12:47:28.118+00:00",
+"end_timestamp": "2026-10-19T12:47:33.506+00:00"
+},
+"timestamp": "2026-10-19T12:47:32.875+00:00",
+"turn": 4,
+"node_id": "2",
+"node_name": "entretien"
+},
+{
+"type": "rtf-user-transcription",
+"payload": {
+"text": "x",
+"final": true,
+"timestamp": "2026-10-19T12:47:35.465+00:00",
+"end_timestamp": "2026-10-19T12:47:41.417+00:00"
+},
+"timestamp": "2026-10-19T12:47:41.422+00:00",
+"turn": 5,
+"node_id": "2",
+"node_name": "entretien"
+},
+{
+"type": "rtf-node-transition",
+"payload": {
+"node_id": "3",
+"node_name": "rendez_vous_entretien",
+"previous_node_id": "2",
+"previous_node_name": "entretien",
+"allow_interrupt": true,
+"porte_ecrite": "rendez_vous_entretien"
+},
+"timestamp": "2026-10-19T12:47:42.925+00:00",
+"turn": 5,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "mark-latency-breakdown",
+"payload": {
+"ttfb": [
+{
+"processor": "DograhMistralLLMService#2",
+"model": "mistral-large-2512",
+"start_time": 1792414061.819102,
+"duration_secs": 0.7420463562011719
+},
+{
+"processor": "SonioxSTTService#4",
+"model": "stt-rt-v5",
+"start_time": 1792414062.3359876,
+"duration_secs": 0.6075694561004639
+},
+{
+"processor": "ElevenLabsTTSService#4",
+"model": "eleven_flash_v2_5",
+"start_time": 1792414062.936657,
+"duration_secs": 0.11828303337097168
+}
+],
+"text_aggregation": {
+"processor": "ElevenLabsTTSService#4",
+"start_time": 1792414062.9335177,
+"duration_secs": 0.00033354759216308594
+},
+"user_turn_secs": null,
+"function_calls": []
+},
+"node_id": "3",
+"node_name": "rendez_vous_entretien",
+"timestamp": "2026-10-19T12:47:43.076+00:00",
+"turn": 5
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x",
+"timestamp": "2026-10-19T12:47:43.073+00:00",
+"end_timestamp": "2026-10-19T12:47:44.062+00:00"
+},
+"timestamp": "2026-10-19T12:47:44.912+00:00",
+"turn": 5,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x",
+"timestamp": "2026-10-19T12:47:55.948+00:00",
+"end_timestamp": "2026-10-19T12:47:56.610+00:00"
+},
+"timestamp": "2026-10-19T12:47:56.620+00:00",
+"turn": 6,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "rtf-user-transcription",
+"payload": {
+"text": "x",
+"final": true,
+"timestamp": "2026-10-19T12:47:56.581+00:00",
+"end_timestamp": "2026-10-19T12:47:57.130+00:00"
+},
+"timestamp": "2026-10-19T12:47:57.139+00:00",
+"turn": 7,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "mark-latency-breakdown",
+"payload": {
+"ttfb": [
+{
+"processor": "SonioxSTTService#4",
+"model": "stt-rt-v5",
+"start_time": 1792414076.636361,
+"duration_secs": 0.48598146438598633
+},
+{
+"processor": "DograhMistralLLMService#2",
+"model": "mistral-large-2512",
+"start_time": 1792414077.3516152,
+"duration_secs": 0.6811542510986328
+},
+{
+"processor": "ElevenLabsTTSService#4",
+"model": "eleven_flash_v2_5",
+"start_time": 1792414078.3825586,
+"duration_secs": 0.11234259605407715
+}
+],
+"text_aggregation": {
+"processor": "ElevenLabsTTSService#4",
+"start_time": 1792414078.167374,
+"duration_secs": 0.2133638858795166
+},
+"user_turn_secs": 0.49672555923461914,
+"function_calls": []
+},
+"node_id": "3",
+"node_name": "rendez_vous_entretien",
+"timestamp": "2026-10-19T12:47:58.516+00:00",
+"turn": 7
+},
+{
+"type": "rtf-user-transcription",
+"payload": {
+"text": "x",
+"final": true,
+"timestamp": "2026-10-19T12:47:58.572+00:00",
+"end_timestamp": "2026-10-19T12:47:58.577+00:00"
+},
+"timestamp": "2026-10-19T12:47:58.581+00:00",
+"turn": 8,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x",
+"timestamp": "2026-10-19T12:47:58.511+00:00",
+"end_timestamp": "2026-10-19T12:47:58.734+00:00"
+},
+"timestamp": "2026-10-19T12:47:58.751+00:00",
+"turn": 7,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x",
+"timestamp": "2026-10-19T12:47:59.868+00:00",
+"end_timestamp": "2026-10-19T12:48:02.587+00:00"
+},
+"timestamp": "2026-10-19T12:48:02.396+00:00",
+"turn": 8,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "rtf-user-transcription",
+"payload": {
+"text": "x",
+"final": true,
+"timestamp": "2026-10-19T12:48:04.188+00:00",
+"end_timestamp": "2026-10-19T12:48:06.135+00:00"
+},
+"timestamp": "2026-10-19T12:48:06.141+00:00",
+"turn": 9,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "rtf-function-call-start",
+"payload": {
+"function_name": "confier_le_travail",
+"tool_call_id": "Iy3oJGbyD",
+"arguments": {}
+},
+"timestamp": "2026-10-19T12:48:08.554+00:00",
+"turn": 9,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "mark-latency-breakdown",
+"payload": {
+"ttfb": [
+{
+"processor": "SonioxSTTService#4",
+"model": "stt-rt-v5",
+"start_time": 1792414085.725528,
+"duration_secs": 0.40090346336364746
+},
+{
+"processor": "DograhMistralLLMService#2",
+"model": "mistral-large-2512",
+"start_time": 1792414086.658015,
+"duration_secs": 1.9067840576171875
+},
+{
+"processor": "DograhMistralLLMService#2",
+"model": "mistral-large-2512",
+"start_time": 1792414088.7877834,
+"duration_secs": 0.7456424236297607
+},
+{
+"processor": "ElevenLabsTTSService#4",
+"model": "eleven_flash_v2_5",
+"start_time": 1792414089.9499178,
+"duration_secs": 0.10314178466796875
+}
+],
+"text_aggregation": {
+"processor": "ElevenLabsTTSService#4",
+"start_time": 1792414089.8424206,
+"duration_secs": 0.09525036811828613
+},
+"user_turn_secs": 0.415590763092041,
+"function_calls": [
+{
+"function_name": "confier_le_travail",
+"start_time": 1792414088.6134574,
+"duration_secs": 1.9788742065429688e-05
+}
+]
+},
+"node_id": "3",
+"node_name": "rendez_vous_entretien",
+"timestamp": "2026-10-19T12:48:10.079+00:00",
+"turn": 9
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x",
+"timestamp": "2026-10-19T12:48:10.074+00:00",
+"end_timestamp": "2026-10-19T12:48:14.459+00:00"
+},
+"timestamp": "2026-10-19T12:48:12.643+00:00",
+"turn": 9,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x",
+"timestamp": "2026-10-19T12:48:17.347+00:00",
+"end_timestamp": "2026-10-19T12:48:19.787+00:00"
+},
+"timestamp": "2026-10-19T12:48:19.413+00:00",
+"turn": 10,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "rtf-user-transcription",
+"payload": {
+"text": "x",
+"final": true,
+"timestamp": "2026-10-19T12:48:14.437+00:00",
+"end_timestamp": "2026-10-19T12:48:20.161+00:00"
+},
+"timestamp": "2026-10-19T12:48:20.164+00:00",
+"turn": 10,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "mark-latency-breakdown",
+"payload": {
+"ttfb": [
+{
+"processor": "SonioxSTTService#4",
+"model": "stt-rt-v5",
+"start_time": 1792414099.5101416,
+"duration_secs": 0.639493465423584
+},
+{
+"processor": "DograhMistralLLMService#2",
+"model": "mistral-large-2512",
+"start_time": 1792414100.4364898,
+"duration_secs": 0.7755699157714844
+},
+{
+"processor": "ElevenLabsTTSService#4",
+"model": "eleven_flash_v2_5",
+"start_time": 1792414103.1234274,
+"duration_secs": 0.11248254776000977
+}
+],
+"text_aggregation": {
+"processor": "ElevenLabsTTSService#4",
+"start_time": 1792414102.2789865,
+"duration_secs": 0.8390679359436035
+},
+"user_turn_secs": 0.6535766124725342,
+"function_calls": []
+},
+"node_id": "3",
+"node_name": "rendez_vous_entretien",
+"timestamp": "2026-10-19T12:48:23.287+00:00",
+"turn": 11
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x",
+"timestamp": "2026-10-19T12:48:23.282+00:00",
+"end_timestamp": "2026-10-19T12:48:35.789+00:00"
+},
+"timestamp": "2026-10-19T12:48:35.798+00:00",
+"turn": 11,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "rtf-user-transcription",
+"payload": {
+"text": "x",
+"final": true,
+"timestamp": "2026-10-19T12:48:36.982+00:00",
+"end_timestamp": "2026-10-19T12:48:37.665+00:00"
+},
+"timestamp": "2026-10-19T12:48:37.670+00:00",
+"turn": 12,
+"node_id": "3",
+"node_name": "rendez_vous_entretien"
+},
+{
+"type": "rtf-node-transition",
+"payload": {
+"node_id": "6",
+"node_name": "fin",
+"previous_node_id": "3",
+"previous_node_name": "rendez_vous_entretien",
+"allow_interrupt": false,
+"porte_ecrite": "fin"
+},
+"timestamp": "2026-10-19T12:48:38.441+00:00",
+"turn": 12,
+"node_id": "6",
+"node_name": "fin"
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x"
+},
+"timestamp": "2026-10-19T12:48:38.450+00:00",
+"turn": 12,
+"node_id": "6",
+"node_name": "fin"
+},
+{
+"type": "mark-latency-breakdown",
+"payload": {
+"ttfb": [
+{
+"processor": "SonioxSTTService#4",
+"model": "stt-rt-v5",
+"start_time": 1792414117.2489262,
+"duration_secs": 0.4126436710357666
+},
+{
+"processor": "DograhMistralLLMService#2",
+"model": "mistral-large-2512",
+"start_time": 1792414117.8080873,
+"duration_secs": 0.5414040088653564
+},
+{
+"processor": "ElevenLabsTTSService#4",
+"model": "eleven_flash_v2_5",
+"start_time": 1792414118.4841735,
+"duration_secs": 0.1091456413269043
+}
+],
+"text_aggregation": null,
+"user_turn_secs": 0.41725683212280273,
+"function_calls": []
+},
+"node_id": "6",
+"node_name": "fin",
+"timestamp": "2026-10-19T12:48:38.629+00:00",
+"turn": 12
+},
+{
+"type": "rtf-bot-text",
+"payload": {
+"text": "x",
+"timestamp": "2026-10-19T12:48:38.626+00:00",
+"end_timestamp": "2026-10-19T12:48:41.987+00:00"
+},
+"timestamp": "2026-10-19T12:48:41.383+00:00",
+"turn": 12,
+"node_id": "6",
+"node_name": "fin"
+}
+]
+}
+}

@@ -26,7 +26,10 @@ from __future__ import annotations
 
 import hashlib
 import os
+import time
+from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlparse
 
 from loguru import logger
 
@@ -49,16 +52,36 @@ def cle_du_poste(llm: Any) -> tuple[str, str, str] | None:
 class Postes:
     """Les connexions ouvertes de l'appel, une par (adresse, clé)."""
 
-    def __init__(self) -> None:
+    def __init__(self, noter: Callable[[dict], None] | None = None) -> None:
         self._clients: dict[tuple[str, str, str], Any] = {}
         self.partages = 0
+        # Lot 9 de fiabilite-orchestration (F11) : chaque connexion ouverte ou reprise est notée
+        # (``noter``), pour lire dans le run lesquelles ont servi. Jamais la clé : l'hôte seulement.
+        self._noter = noter
+        self._depart = time.monotonic()
 
-    def enregistrer(self, llm: Any) -> None:
+    def _noter_la_connexion(self, evenement: str, cle: tuple[str, str, str], agent: str | None) -> None:
+        if self._noter is None:
+            return
+        try:
+            self._noter(
+                {
+                    "event": evenement,
+                    "agent": agent,
+                    "host": urlparse(cle[1]).hostname or None,
+                    "after_secs": round(time.monotonic() - self._depart, 3),
+                }
+            )
+        except Exception:  # noqa: BLE001 -- une mesure n'emporte pas l'appel
+            pass
+
+    def enregistrer(self, llm: Any, agent: str | None = None) -> None:
         cle = cle_du_poste(llm)
         if cle is not None and cle not in self._clients:
             self._clients[cle] = llm._client
+            self._noter_la_connexion("opened", cle, agent)
 
-    def partager(self, llm: Any) -> bool:
+    def partager(self, llm: Any, agent: str | None = None) -> bool:
         """Donne à ``llm`` le client déjà ouvert pour la même adresse et la même clé, sinon
         l'enregistre. ``True`` si une connexion a été partagée. ⛔ Ne lève jamais."""
         try:
@@ -68,10 +91,12 @@ class Postes:
             client = self._clients.get(cle)
             if client is None:
                 self._clients[cle] = llm._client
+                self._noter_la_connexion("opened", cle, agent)
                 return False
             if client is not llm._client:
                 llm._client = client
                 self.partages += 1
+                self._noter_la_connexion("reused", cle, agent)
                 return True
             return False
         except Exception as erreur:  # noqa: BLE001

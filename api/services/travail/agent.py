@@ -660,7 +660,7 @@ async def preparer_le_travail(
             # fiabilite-orchestration, lot 3 (F5, F6) : même fournisseur, même connexion.
             postes = getattr(fabrique, "postes", None)
             if service_ is not None and postes is not None:
-                postes.partager(service_)
+                postes.partager(service_, f"{getattr(agent, 'workflow_name', None) or 'agent'} (fond)")
             return reglages_, service_
 
         async def refaire_le_service():

@@ -789,18 +789,28 @@ async def _run_pipeline_smallwebrtc_impl(
         is_realtime=is_realtime,
         run_configs=run_configs,
     )
-    await _run_pipeline_impl(
-        transport,
-        workflow_id,
-        workflow_run_id,
-        user_id,
-        call_context_vars=call_context_vars,
-        audio_config=audio_config,
-        user_provider_id=user_provider_id,
-        workflow_run=workflow_run,
-        resolved_user_config=user_config,
-        organization_id=organization_id,
-    )
+    # [.mark] fiabilite-orchestration, lot 9 (F11) : la qualité de la liaison audio du navigateur
+    # (paquets perdus, gigue, aller-retour) relevée pendant l'appel et rangée au run à la fin.
+    from api.services.analyse_run.reseau import lancer_la_surveillance
+
+    surveillance = lancer_la_surveillance(webrtc_connection, workflow_run_id, db_client)
+    try:
+        await _run_pipeline_impl(
+            transport,
+            workflow_id,
+            workflow_run_id,
+            user_id,
+            call_context_vars=call_context_vars,
+            audio_config=audio_config,
+            user_provider_id=user_provider_id,
+            workflow_run=workflow_run,
+            resolved_user_config=user_config,
+            organization_id=organization_id,
+        )
+    finally:
+        if surveillance is not None:
+            surveillance.cancel()
+            await asyncio.gather(surveillance, return_exceptions=True)
 
 
 async def _brancher_la_panne(

@@ -2914,7 +2914,7 @@ class PipecatEngine:
         postes = getattr(factory, "postes", None)
         agent = self.__dict__.get("_active_agent")
         if postes is not None and agent is not None:
-            postes.enregistrer(agent.llm)
+            postes.enregistrer(agent.llm, getattr(agent, "workflow_name", None))
 
     @property
     def agent_transfer_enabled(self) -> bool:

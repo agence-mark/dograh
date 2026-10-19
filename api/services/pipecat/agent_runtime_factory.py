@@ -140,7 +140,7 @@ class AgentRuntimeFactory:
         self.precharge = precharge
         # [.mark] fiabilite-orchestration, lot 3 (F5) : les connexions de l'appel, partagées entre
         # agents au même fournisseur (même adresse, même clé).
-        self.postes = Postes()
+        self.postes = Postes(noter=self._noter_connexion_modele)
         self._traitement_de_la_fiche = traitement_de_la_fiche
         self._lexique_metier = lexique_metier
         self._variables_appel = variables_appel or (lambda: {})
@@ -156,6 +156,17 @@ class AgentRuntimeFactory:
         self._has_recordings = has_recordings
         self._mps_correlation_id = mps_correlation_id
         self._observers = observers
+
+    def _noter_connexion_modele(self, evenement: dict) -> None:
+        """Lot 9 (F11) : une connexion au modèle ouverte ou reprise, rangée dans la fiche de l'appel
+        (``mark_connexions_modele``). Ne lève jamais."""
+        try:
+            moteur = self._moteur_de_l_appel() if self._moteur_de_l_appel else None
+            fiche = getattr(moteur, "_gathered_context", None)
+            if isinstance(fiche, dict):
+                fiche.setdefault("mark_connexions_modele", []).append(evenement)
+        except Exception:  # noqa: BLE001
+            pass
 
     @property
     def organization_id(self) -> int:
@@ -311,9 +322,9 @@ class AgentRuntimeFactory:
             else llm
         )
         # [.mark] fiabilite-orchestration, lot 3 (F5) : même fournisseur, même connexion.
-        self.postes.partager(llm)
+        self.postes.partager(llm, workflow.name)
         if variable_extraction_llm is not llm:
-            self.postes.partager(variable_extraction_llm)
+            self.postes.partager(variable_extraction_llm, workflow.name)
 
         recording_router = None
         if self._has_recordings and self._fetch_recording_audio is not None:

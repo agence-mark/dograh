@@ -300,6 +300,9 @@ NOMS_RESERVES = frozenset(
         # ajoutée par fiabilite-orchestration) ; fiabilite-orchestration : les phrases du code.
         "travaux",
         "phrases_du_code",
+        # fiabilite-orchestration, lot 9 : connexions au modèle et liaison audio relevées par appel.
+        "mark_connexions_modele",
+        "mark_reseau",
     }
 )
 
