@@ -1947,6 +1947,73 @@ def _nombre_de_chiffres(valeur: Any) -> int:
     return sum(1 for c in str(valeur) if c.isdigit())
 
 
+# [.mark] fiabilite-orchestration, lot 6 (R8, R9, G1 à G3 ; runs 1466 et 1468).
+# Un champ qui a un lecteur (courriel, numéro, commune, rue, lexique) ne reçoit jamais ce que son
+# lecteur ne sait pas lire : le « non » répondu à « avez-vous une adresse mail ? » était écrit
+# dans `email`, marqué sûr, et la bonne adresse arrivait ensuite refusée (D6).
+_COURRIEL_VALIDE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s.]+$")
+_REPONSES_FERMEES = frozenset({"oui", "non", "ouais", "nan", "ok", "d accord"})
+# Les sources qui écrivent après coup, sans que la personne ait dicté la valeur pour ce champ.
+SOURCES_APRES_COUP = ("balayage", MODE_GREFFIER, MODE_POST_SCRIPTUM)
+
+
+def est_un_champ_courriel(reglages: ReglagesFiche, definition: ChampFiche | None) -> bool:
+    """Le champ est-il un champ courriel (``variables_courriel`` de l'agent) ? ⛔ Ne lève jamais."""
+    try:
+        from api.services.fiche.controle import correspond
+
+        motifs = tuple((reglages.motifs_des_types or {}).get("courriel") or ())
+        return definition is not None and correspond(definition.nom, motifs)
+    except Exception:  # noqa: BLE001 -- un contrôle ne coûte jamais l'appel
+        return False
+
+
+def illisible_pour_son_champ(
+    reglages: ReglagesFiche, definition: ChampFiche, valeur: Any
+) -> str | None:
+    """Pourquoi ``valeur`` n'est pas lisible par le lecteur de ce champ, ou ``None``.
+
+    - un champ courriel ne reçoit qu'une adresse (un « oui », un « non » n'en est pas une) ;
+    - un champ lu par un module de commune, de rue ou de lexique, ou à nombre de chiffres, ne
+      reçoit jamais la réponse « oui » ou « non » à une question fermée.
+    « refusé » (le refus de la personne, K4) reste permis."""
+    if _est_vide(valeur) or not isinstance(valeur, str):
+        return None
+    if valeur.strip().casefold() == VALEUR_DE_REFUS:
+        return None
+    if est_un_champ_courriel(reglages, definition):
+        return None if _COURRIEL_VALIDE.match(valeur.strip()) else "pas_un_courriel"
+    if (
+        definition.lecteur_effectif in ("commune", "rue", "lexique")
+        or definition.chiffres
+    ) and " ".join(_mots(valeur)) in _REPONSES_FERMEES:
+        return "reponse_a_une_question_fermee"
+    return None
+
+
+def est_tire_d_un_champ_courriel(
+    reglages: ReglagesFiche,
+    fiche: dict,
+    champ: str,
+    valeur: Any,
+    paroles: Iterable[str],
+) -> bool:
+    """R9 : la valeur n'est qu'un morceau de l'adresse mail déjà écrite dans la fiche (le nom
+    ``Flamand`` tiré de ``flamand.pierre5@…``) et n'a pas été dite en dehors de l'adresse."""
+    compact = "".join(c for c in str(valeur).casefold() if c.isalnum())
+    if len(compact) < 3 or "@" in str(valeur):
+        return False
+    for autre in reglages.champs:
+        if autre.nom == champ or not est_un_champ_courriel(reglages, autre):
+            continue
+        ecrit = str(fiche.get(autre.nom) or "")
+        local = "".join(c for c in ecrit.casefold() if c.isalnum())
+        if "@" in ecrit and compact in local:
+            sans = paroles_sans_courriel(paroles_sans_notes(list(paroles), fiche))
+            return not est_dit_tel_quel(valeur, sans)
+    return False
+
+
 def ecrire_dans_la_fiche(
     fiche: dict,
     reglages: ReglagesFiche,
@@ -1976,6 +2043,14 @@ def ecrire_dans_la_fiche(
     if isinstance(valeur, str):
         valeur = valeur.strip()
     paroles = list(paroles)
+    if (
+        definition is not None
+        and not _est_vide(fiche.get(champ))
+        and illisible_pour_son_champ(reglages, definition, fiche[champ])
+    ):
+        # Lot 6 (R8) : D6 ne protège qu'une valeur lue valide. Une valeur que le lecteur du
+        # champ ne sait pas lire (écrite avant ce contrôle) ne reste pas « sûre ».
+        (fiche.get(CLE_ETAT) or {}).pop(champ, None)
     lecture: Lecture | None = None
     dit: str | None = None
     pas_une_date = False
@@ -2019,6 +2094,9 @@ def ecrire_dans_la_fiche(
         # K4 : un refus de la personne s'écrit « refusé », tel quel (jamais une valeur).
         valeur = VALEUR_DE_REFUS
         verdict = _ecrire(fiche, champ, valeur, True, source, seulement_si_vide, None)
+    elif (pas_lisible := illisible_pour_son_champ(reglages, definition, valeur)) is not None:
+        # Lot 6 (R8, G1) : jamais écrite (ni sûre), d'où qu'elle vienne.
+        verdict = Verdict(champ, "refuse", pas_lisible, valeur)
     elif (deja := _deja_confirmee(fiche, definition, valeur)) is not None:
         # D8 : une valeur confirmée, renvoyée, n'est jamais redemandée.
         valeur = deja
@@ -2142,7 +2220,8 @@ def ecrire_dans_la_fiche(
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         elif (
-            source == MODE_GREFFIER
+            # Lot 6 (R9, G3) : le balayage et le post-scriptum comme le greffier.
+            source in SOURCES_APRES_COUP
             and lecture is None
             and not epele
             and dit is None
@@ -2150,8 +2229,11 @@ def ecrire_dans_la_fiche(
             and not definition.cumulatif
             and definition.type == "string"
             # B3 : un champ dicté n'est jamais déduit d'une adresse e-mail (le prénom
-            # ``paul`` tiré de « paul.garnier60 arobase… »).
-            and est_deduit_d_un_courriel(valeur, paroles_sans_notes(paroles, fiche))
+            # ``paul`` tiré de « paul.garnier60 arobase… »), ni d'un autre champ qui la porte.
+            and (
+                est_deduit_d_un_courriel(valeur, paroles_sans_notes(paroles, fiche))
+                or est_tire_d_un_champ_courriel(reglages, fiche, champ, valeur, paroles)
+            )
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         else:
@@ -2644,6 +2726,42 @@ def _refus_d_un_deduit(
     return None
 
 
+def _reponse_a_un_autre_champ(
+    reglages: ReglagesFiche, fiche: dict, champ: ChampFiche, valeur: Any
+) -> str | None:
+    """G3 (run 1466) : le champ dicté qui est une PHRASE (``verbatim_demande`` = « jeudi prochain,
+    si c'est possible ») n'est que la réplique où la personne répondait à une autre question :
+    ses mots porteurs sont, à un près, ceux d'un autre champ déjà rempli (le jour). Rend le nom
+    de ce champ, ou ``None``. Une réplique qui expose autre chose (au moins deux mots porteurs
+    à elle) n'est jamais refusée ; le contrôle ne lit que des champs, jamais un mot de métier."""
+    if (
+        len(_mots(str(valeur))) < MOTS_D_UNE_PHRASE
+        or champ.origine != OrigineChamp.dicte
+        or champ.type != "string"
+        or champ.valeurs
+    ):
+        return None
+    porteurs = _porteurs(valeur)
+    couverts: dict[str, set[str]] = {}
+    for autre in reglages.champs:
+        if autre.nom == champ.nom or _est_vide(fiche.get(autre.nom)):
+            continue
+        # Seul un champ DONT TOUS les mots sont dans la phrase compte (la phrase est alors sa
+        # réponse, plus quelques mots) : un champ plus long qui contient la phrase (la demande
+        # dont « j'appelle pour mon père » est un morceau, run 884) ne la couvre jamais.
+        for texte in (fiche[autre.nom], fiche.get(cle_dit(autre.nom))):
+            propres = _porteurs(texte) if texte else set()
+            if propres and propres <= porteurs:
+                couverts.setdefault(autre.nom, set()).update(propres)
+    if not couverts:
+        return None
+    tous = set().union(*couverts.values())
+    reste = porteurs - tous
+    if (len(tous) >= 2 and len(reste) <= 1) or (not reste and tous):
+        return max(couverts, key=lambda nom: len(couverts[nom]))
+    return None
+
+
 def _refus_du_balayage(
     reglages: ReglagesFiche,
     fiche: dict,
@@ -2671,6 +2789,9 @@ def _refus_du_balayage(
     copie = _recopie_d_un_autre_champ(reglages, fiche, champ.nom, valeur)
     if copie:
         return f"recopie_de_{copie}"
+    # Lot 6 (G3) : la phrase prise sur la réplique qui répondait à un autre champ.
+    if (reponse := _reponse_a_un_autre_champ(reglages, fiche, champ, valeur)) is not None:
+        return f"reponse_a_{reponse}"
     lecteur = champ.lecteur_effectif
     if lecteur == "lexique":
         lecture = lire_lexique(valeur, fiche, reglages.termes_du_lexique, paroles)
