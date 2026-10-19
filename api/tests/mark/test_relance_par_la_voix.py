@@ -8,6 +8,7 @@
 | au revoir | au-delà de `user_idle_max_prompts`, l'au revoir reste une consigne au modèle et l'appel raccroche |
 | coupure | la phrase part micro ouvert (l'appelant la coupe), et le moniteur est déchargé de la réponse due |
 | refus | un verrou du diseur refuse la phrase : rien n'est dit, la relance ne compte pas, le silence est de nouveau surveillé |
+| plafond | au-delà de 3 refus d'affilée, la relance compte quand même (Evan, 19/10) ; une relance dite ou la parole de l'appelant remet le compte à zéro |
 | délai | celui de la règle s'il est posé, sinon `max_user_idle_timeout` (Rythme) |
 | travail | aucune relance (ni minuterie) pendant un travail de fond en cours |
 | route | un vrai moteur : le moniteur lit le délai et la suspension du moteur |
@@ -26,7 +27,10 @@ from api.schemas.workflow_configurations import (
 )
 from api.services.phrases.catalogue import APPELANT_SE_TAIT
 from api.services.phrases.diseur import CLE_TRACE, DiseurDePhrases
-from api.services.pipecat.call_monitor_processor import CallMonitorProcessor
+from api.services.pipecat.call_monitor_processor import (
+    REFUS_MAX_D_AFFILEE,
+    CallMonitorProcessor,
+)
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.services.workflow.pipecat_engine_callbacks import (
     delai_de_la_relance,
@@ -254,6 +258,22 @@ async def test_une_relance_refusee_ne_compte_pas_et_le_silence_est_de_nouveau_su
     assert moniteur._retry_count == 0
     assert moniteur._deadline_kind == "idle"
     moniteur._cancel_deadline()
+
+
+@pytest.mark.asyncio
+async def test_au_dela_de_trois_refus_d_affilee_la_relance_compte_quand_meme():
+    moniteur = _moniteur()
+    for _ in range(REFUS_MAX_D_AFFILEE):
+        moniteur._retry_count += 1  # le moniteur compte la relance avant de la lancer
+        moniteur.relance_par_la_voix(dite=False)
+        moniteur._cancel_deadline()
+    assert moniteur._retry_count == 0
+    moniteur._retry_count += 1
+    moniteur.relance_par_la_voix(dite=False)  # le quatrième refus d'affilée compte
+    moniteur._cancel_deadline()
+    assert moniteur._retry_count == 1
+    moniteur.relance_par_la_voix(dite=True)  # une relance dite remet le compte des refus à zéro
+    assert moniteur._refus_d_affilee == 0
 
 
 # --- La vraie route ---------------------------------------------------------------

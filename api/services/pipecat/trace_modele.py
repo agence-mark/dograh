@@ -326,7 +326,12 @@ def brancher_la_trace(
     passation et du cerveau de fond, case de CET agent allumée ; ``nom`` est écrit dans chaque
     entrée. Sans ``nom``, l'entrée est celle d'avant, à l'octet."""
     try:
-        if (run_configs or {}).get(CLE_TRACE_REQUETES) is not True:
+        # Evan, 19/10 : UNE case pour tout le groupe, celle du principal (les réglages de l'appel,
+        # ``reglages_appel``) : on l'allume et chaque agent du groupe, fond compris, est tracé ; on
+        # l'éteint et personne ne l'est. Jamais d'agent tracé à côté d'un agent qui ne l'est pas.
+        reglages_appel = (getattr(engine, "__dict__", None) or {}).get("reglages_appel")
+        decision = reglages_appel if isinstance(reglages_appel, dict) and reglages_appel else run_configs
+        if (decision or {}).get(CLE_TRACE_REQUETES) is not True:
             return None
         if llm is None or not hasattr(llm, "mark_trace"):
             return None

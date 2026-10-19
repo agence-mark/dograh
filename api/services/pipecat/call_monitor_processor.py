@@ -25,6 +25,10 @@ from pipecat.frames.frames import (
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 
+# [.mark] Lot 5 : refus d'affilée de la relance de silence avant qu'elle compte quand même (Evan, 19/10).
+REFUS_MAX_D_AFFILEE = 3
+
+
 @dataclass
 class _ResponseWatch:
     """One owed response, including intervening tool generations."""
@@ -91,6 +95,8 @@ class CallMonitorProcessor(FrameProcessor):
         self._revision = 0
         self._idle_task: asyncio.Task | None = None
         self._retry_count = 0
+        # [.mark] Lot 5 : relances de silence refusées d'affilée par un verrou du diseur.
+        self._refus_d_affilee = 0
         self._total_idle_events = 0
         self.on_idle_diagnostic: Callable[..., None] | None = None
         self._waiting_for_user = False
@@ -138,6 +144,7 @@ class CallMonitorProcessor(FrameProcessor):
         self._user_turn_active = True
         self._waiting_for_user = False
         self._retry_count = 0
+        self._refus_d_affilee = 0
         # Only an accepted interruption cancels an outstanding bot response.
         if self._deadline_kind == "idle":
             self._cancel_deadline()
@@ -273,12 +280,19 @@ class CallMonitorProcessor(FrameProcessor):
         """[.mark] Lot 5 : la relance a été confiée à la voix (phrase fixe), pas au modèle. Le
         moniteur avait armé « une réponse est due » avant de la lancer : on la décharge, sinon son
         délai finirait par raccrocher. ``dite`` faux (un verrou du diseur l'a refusée) : la relance
-        ne compte pas et le silence est de nouveau surveillé."""
+        ne compte pas et le silence est de nouveau surveillé.
+
+        Evan, 19/10 : au-delà de ``REFUS_MAX_D_AFFILEE`` refus d'affilée, la relance compte quand
+        même ; un appelant muet finit toujours par être raccroché comme prévu."""
         self.cancel()
         self._waiting_for_user = True
-        if not dite:
+        if dite:
+            self._refus_d_affilee = 0
+            return
+        self._refus_d_affilee += 1
+        if self._refus_d_affilee <= REFUS_MAX_D_AFFILEE:
             self._retry_count = max(0, self._retry_count - 1)
-            self._arm_idle()
+        self._arm_idle()
 
     def _cancel_deadline(self) -> None:
         self._revision += 1

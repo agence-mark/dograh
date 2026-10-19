@@ -60,7 +60,8 @@ CHEMINS_CERVEAU: tuple[tuple[str, ...], ...] = (
 # gardés par le spécialisé quand il a son propre cerveau.
 CLES_SUIVENT_LE_CERVEAU = (
     "reflexion_de_relance",
-    "trace_requetes_modele",
+    # (``trace_requetes_modele`` n'y est plus : une case pour tout le groupe, celle du principal,
+    # cerveau propre ou non ; Evan, 19/10.)
     "relance_apres_outil",
     # Lot 4 d'orchestrateur-trois-cerveaux (D13) : le cerveau de fond d'un agent est une brique
     # de SON cerveau (modèle, consigne, outils, délai). Un spécialisé au cerveau rattaché prend

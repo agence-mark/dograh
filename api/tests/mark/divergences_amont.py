@@ -71,7 +71,22 @@ _VOIX_UNIQUE = (
     "banc, le meme scenario passe (api/tests/mark/test_voix_unique.py le rejoue)."
 )
 
+# [.mark] fiabilite-orchestration, lot 5 (F7, 19/10/2026) : la relance de silence dite par la voix.
+_RELANCE_PAR_LA_VOIX = (
+    "[.mark] Decision d'Evan du 19/10/2026 (plan fiabilite-orchestration, F7, "
+    "reference/17-decisions.md) : la relance de silence est une phrase fixe dite "
+    "par la voix (regle « l'appelant se tait » du theme Phrases, allumee par "
+    "defaut), sans generation du modele. Ces tests de l'amont attendent la "
+    "relance PAR LE MODELE (sa consigne, son echec, sa reponse due). Prouve le "
+    "19/10 : regle eteinte, ces 6 cas passent ; le chemin du modele reste celui "
+    "d'une regle eteinte et du clavier."
+)
+
 DIVERGENCES_ASSUMEES = {
+    "tests/test_call_monitor.py": {
+        "test_failed_idle_reminder_also_has_a_deadline": _RELANCE_PAR_LA_VOIX,
+        "test_two_idle_windows_remind_then_disconnect": _RELANCE_PAR_LA_VOIX,
+    },
     "tests/test_agent_transfer.py": {
         "test_transfer_hands_the_call_over_without_dropping_it": _VOIX_UNIQUE,
         "test_idle_monitor_resumes_after_transfer_opening_or_recovery": {"True": _VOIX_UNIQUE},
@@ -101,6 +116,7 @@ DIVERGENCES_ASSUMEES = {
         ),
     },
     "tests/test_answer_supervisor_late_speech.py": {
+        "test_idle_timeout_resumes_after_consuming_greeting_speech": _RELANCE_PAR_LA_VOIX,
         "test_delayed_human_classification_answers_the_interruption_once": _ACCUEIL_NON_INTERRUPTIBLE,
         "test_discarded_final_segment_does_not_count_toward_next_partial": _ACCUEIL_NON_INTERRUPTIBLE,
         "test_disconnect_while_waiting_for_interrupting_turn": _ACCUEIL_NON_INTERRUPTIBLE,

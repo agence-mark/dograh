@@ -3,13 +3,14 @@
 Au 1464, la trace n'était branchée que sur le service du PREMIER agent : après la passation, le
 collègue parlait sans trace, et les coupures du tour n'étaient pas explicables. Désormais la
 trace est UNE par appel (celle du moteur) et se branche sur le service de chaque agent construit
-à la passation et du cerveau de fond, case de CET agent allumée ; chaque entrée porte le nom.
+à la passation et du cerveau de fond ; chaque entrée porte le nom. Evan, 19/10 : UNE case pour tout
+le groupe, celle du principal (les réglages de l'appel) : tous tracés, ou aucun.
 
 | Test | Ce qu'il prouve |
 |---|---|
 | passation (R1) | par la vraie fabrique d'agents : l'accueil puis le collègue tracent, chacun sous son nom, dans la même liste |
-| case du collègue éteinte | son service n'est pas tracé, celui de l'accueil l'est toujours |
-| case de l'accueil éteinte | le collègue allumé trace quand même (la trace naît à sa construction) |
+| principal allumé | le collègue est tracé même si sa propre case est éteinte |
+| principal éteint | personne n'est tracé, même un collègue dont la case est allumée |
 | sans nom | une entrée sans nom est celle d'avant, à l'octet |
 | cerveau de fond (R1) | par la vraie préparation du fond : son service trace sous « <agent> (fond) » |
 | fond éteint | case éteinte : le fond n'est pas tracé |
@@ -90,9 +91,9 @@ async def test_la_passation_trace_l_accueil_puis_le_collegue_chacun_sous_son_nom
 
 
 @pytest.mark.asyncio
-async def test_la_case_eteinte_du_collegue_laisse_son_service_sans_trace():
+async def test_le_principal_allume_trace_le_collegue_meme_case_eteinte():
     fiche: dict = {}
-    moteur = SimpleNamespace(_gathered_context=fiche)
+    moteur = SimpleNamespace(_gathered_context=fiche, reglages_appel={CLE_TRACE_REQUETES: True})
     accueil, _ = _service()
     collegue, _ = _service()
     brancher_la_trace(moteur, accueil, {CLE_TRACE_REQUETES: True}, "Accueil")
@@ -100,23 +101,22 @@ async def test_la_case_eteinte_du_collegue_laisse_son_service_sans_trace():
     fabrique._moteur_de_l_appel = lambda: moteur
     await _construire_collegue(fabrique, [collegue], {})
 
-    assert collegue.mark_trace is None
-    await _repondre(collegue)
     await _repondre(accueil)
-    assert [e["agent"] for e in fiche[TRACE_REQUETES]] == ["Accueil"]
+    await _repondre(collegue)
+    assert [e["agent"] for e in fiche[TRACE_REQUETES]] == ["Accueil", "Collègue"]
 
 
 @pytest.mark.asyncio
-async def test_le_collegue_allume_trace_meme_si_l_accueil_ne_l_etait_pas():
+async def test_le_principal_eteint_personne_n_est_trace():
     fiche: dict = {}
-    moteur = SimpleNamespace(_gathered_context=fiche)
+    moteur = SimpleNamespace(_gathered_context=fiche, reglages_appel={"agents_specialises": [9]})
     collegue, _ = _service()
     fabrique = _fabrique()
     fabrique._moteur_de_l_appel = lambda: moteur
     await _construire_collegue(fabrique, [collegue], {CLE_TRACE_REQUETES: True})
+    assert collegue.mark_trace is None
     await _repondre(collegue)
-    [entree] = fiche[TRACE_REQUETES]
-    assert entree["agent"] == "Collègue"
+    assert TRACE_REQUETES not in fiche
 
 
 @pytest.mark.asyncio

@@ -831,8 +831,10 @@ describe("[.mark] the flow map, the retry reasoning and the model request trace"
         expect(briques.querySelector('[data-bandeau="regle-sur-le-principal"]')).toBeNull();
         // The retry reasoning follows the detached brain: editable again.
         ouvrirLeTheme("agent");
-        await waitFor(() => expect(document.getElementById("trace_requetes_modele")).not.toBeNull());
-        expect(document.getElementById("trace_requetes_modele")?.closest("fieldset[disabled]")).toBeNull();
+        await waitFor(() => expect(document.getElementById("reflexion_de_relance")).not.toBeNull());
+        expect(document.getElementById("reflexion_de_relance")?.closest("fieldset[disabled]")).toBeNull();
+        // The trace does not: one switch for the whole group, the main agent's (Evan, 19/10).
+        expect(document.getElementById("trace_requetes_modele")?.closest("fieldset[disabled]")).not.toBeNull();
     });
 
     // Lot 3 d'orchestrateur-trois-cerveaux (D7): the call has one voice, the main agent's. Even with « Own brain »,

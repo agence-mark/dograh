@@ -432,7 +432,8 @@ export const ThemeAgent = ({
                 </ZoneCommune>
             </Intertitre>
 
-            <ZoneCommune lecture={suitLeCerveau} bandeau={false}>
+            {/* Evan, 19/10: one switch for the whole group, the main agent's, own brain or not. */}
+            <ZoneCommune lecture={specialise} bandeau={false}>
             <Intertitre id="agent-diagnostic" titre={{ en: "Diagnostic", fr: "Diagnostic" }}>
                 <ChampReglage
                     cle="trace_requetes_modele"
@@ -446,6 +447,10 @@ export const ThemeAgent = ({
                         {
                             en: "Off by default. About 20 KB per answer: for test agents, not for a client's agent.",
                             fr: "Éteint par défaut. Environ 20 Ko par réponse : pour les agents d'essai, pas pour l'agent d'un client.",
+                        },
+                        {
+                            en: "In a group, set on the main agent for every agent of the group, background brains included: all are traced, or none.",
+                            fr: "Dans un groupe, se règle sur l'agent principal pour tous les agents du groupe, cerveaux de fond compris : tous sont tracés, ou aucun.",
                         },
                     ]}
                     disposition="ligne"
