@@ -28,6 +28,7 @@ Trois règles :
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from typing import Any
 
@@ -48,11 +49,27 @@ TEXTE_ECHEC = "le travail n'a pas abouti"
 TEXTE_DELAI = "le travail n'a pas abouti dans le temps imparti"
 
 
+# fiabilite-orchestration (lot 7, R4, run 1468) : le fond répond en markdown (« **Résultat** : … »), le
+# cerveau de conversation l'imite et la voix lit les astérisques. Le résultat est remis en texte simple.
+_LIEN_MARKDOWN = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+_TITRE_OU_PUCE = re.compile(r"^[ 	]*(?:#{1,6}[ 	]*|>[ 	]*|[-+*•][ 	]+)", re.MULTILINE)
+_SOULIGNE_GRAS = re.compile(r"(?<![\w])__(.+?)__(?![\w])")
+
+
+def sans_mise_en_forme(texte: str) -> str:
+    """``texte`` sans markdown : astérisques (gras, italique), dièses de titre, puces, citations,
+    soulignés gras, accents graves, liens réduits à leur texte. Le sens et les mots restent."""
+    propre = _LIEN_MARKDOWN.sub(r"\1", str(texte or ""))
+    propre = _TITRE_OU_PUCE.sub("", propre)
+    propre = _SOULIGNE_GRAS.sub(r"\1", propre)
+    return propre.replace("*", "").replace("`", "")
+
+
 def message_du_resultat(texte: str) -> str:
     """Le message du résultat, tel qu'il entre dans la conversation. Relecture du lot 6 : les
     crochets du résultat (texte d'un outil externe) deviennent des parenthèses, pour qu'il ne ferme
     jamais le message plus tôt ni n'imite un message du code (``[Fiche…``, ``[Résultat…``)."""
-    contenu = " ".join(str(texte or "").split()) or TEXTE_VIDE
+    contenu = " ".join(sans_mise_en_forme(texte).split()) or TEXTE_VIDE
     contenu = contenu.replace("[", "(").replace("]", ")")
     return f"{PREFIXE_RESULTAT_DU_TRAVAIL} {contenu}]"
 
