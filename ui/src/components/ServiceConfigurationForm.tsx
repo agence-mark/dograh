@@ -846,10 +846,15 @@ export function ServiceConfigurationForm({
                                     fournisseur={currentProvider}
                                     placeholder="Enter API key"
                                     valeur={key}
-                                    onChange={(valeur) => {
+                                    onChange={(valeur, adresse) => {
                                         const newKeys = [...apiKeys[service]];
                                         newKeys[index] = valeur;
                                         setApiKeys(prev => ({ ...prev, [service]: newKeys }));
+                                        // [.mark] fiabilite-orchestration, lot 10: a key of the library with
+                                        // an address fills the address of the setting.
+                                        if (adresse && providerSchema.properties.base_url) {
+                                            setValue(`${service}_base_url`, adresse, { shouldDirty: true });
+                                        }
                                     }}
                                 />
                                 {apiKeys[service].length > 1 && (

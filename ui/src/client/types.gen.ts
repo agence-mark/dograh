@@ -2110,6 +2110,14 @@ export type Cle = {
      * Creee Le
      */
     creee_le?: string | null;
+    /**
+     * Nom Fournisseur
+     */
+    nom_fournisseur?: string | null;
+    /**
+     * Adresse
+     */
+    adresse?: string | null;
 };
 
 /**
@@ -6371,6 +6379,14 @@ export type NouvelleCle = {
      * Cle
      */
     cle: string;
+    /**
+     * Nom Fournisseur
+     */
+    nom_fournisseur?: string | null;
+    /**
+     * Adresse
+     */
+    adresse?: string | null;
 };
 
 /**

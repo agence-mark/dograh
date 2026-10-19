@@ -137,7 +137,7 @@ describe("[.mark] the « Keys » page of the menu (P18)", () => {
         const page = await screen.findByTestId("page-cles");
         await within(page).findByTestId("cle-c-openai");
         expect(within(page).getByTestId("cle-c-mistral")).toBeTruthy();
-        const fournisseur = within(page).getByLabelText("Provider") as HTMLSelectElement;
+        const fournisseur = within(page).getByLabelText("Protocol") as HTMLSelectElement;
         await waitFor(() => expect(fournisseur.options.length).toBe(3));
         expect(fournisseur.disabled).toBe(false);
         expect(fournisseur.value).toBe("mistral");

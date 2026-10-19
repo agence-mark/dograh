@@ -1059,8 +1059,11 @@ async def resoudre_le_bloc_annexe(
     if not isinstance(bloc, dict) or not est_reference(bloc.get("api_key")):
         return run_configs
     try:
+        # Lot 10 de fiabilite-orchestration : le bloc dit où il vise (``base_url``) ; sans, il vise
+        # l'adresse de son fournisseur, et une clé qui a une adresse ne part pas (l'adresse manque).
+        cible = {"adresse_cible": bloc["base_url"]} if "base_url" in bloc else {}
         cle = await cle_d_une_reference(
-            bloc["api_key"], bloc.get("provider"), organization_id, usage
+            bloc["api_key"], bloc.get("provider"), organization_id, usage, **cible
         )
     except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
         logger.error(f"[fiche] clé ({usage}) non résolue : {type(erreur).__name__}")

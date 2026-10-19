@@ -110,6 +110,9 @@ export const NOMS_RESERVES = [
     // fiabilite-orchestration, lot 1: the background work and the sentences said by the code.
     "travaux",
     "phrases_du_code",
+    // fiabilite-orchestration, lot 9: the model connections and the audio link, noted per call.
+    "mark_connexions_modele",
+    "mark_reseau",
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */

@@ -185,7 +185,13 @@ export function ChampsFournisseurLlm({
                         valeur={typeof bloc.api_key === "string" ? bloc.api_key : ""}
                         fournisseur={fournisseur}
                         placeholder={t({ en: "Empty: the conversation's key", fr: "Vide : la clé de la conversation" })}
-                        onChange={(v) => poser("api_key", v.trim() || undefined)}
+                        onChange={(v, adresse) =>
+                            onChange(
+                                adresse && schema?.properties?.base_url
+                                    ? poserDansLeBloc(poserDansLeBloc(bloc, "api_key", v.trim() || undefined), "base_url", adresse)
+                                    : poserDansLeBloc(bloc, "api_key", v.trim() || undefined),
+                            )
+                        }
                     />
                     <p className="text-xs text-muted-foreground">
                         {t({
