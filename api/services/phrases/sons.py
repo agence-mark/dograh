@@ -119,6 +119,7 @@ class FabriqueDesSons:
         taux_attendu: int,
         audio_config: Any = None,
         en_vie: Callable[[], bool] = lambda: True,
+        voix_de_l_appel: Any = None,
     ) -> None:
         self._creer_la_voix = creer_la_voix
         self._ajouter = ajouter_le_circuit
@@ -126,6 +127,9 @@ class FabriqueDesSons:
         self._audio_config = audio_config
         # Revue du 19/10 : l'appel fini, la fabrique s'arrête (au plus la phrase en cours).
         self._en_vie = en_vie
+        # La voix qui parle à l'appelant : la fabrique n'y touche JAMAIS (un processeur Pipecat ne
+        # tient que dans un circuit ; la brancher ici la retirerait de l'appel).
+        self._voix_de_l_appel = voix_de_l_appel
         self.sons: dict[str, Son] = {}
         self.echecs: list[str] = []
         self._tache: asyncio.Task | None = None
@@ -152,6 +156,9 @@ class FabriqueDesSons:
             from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 
             voix = self._creer_la_voix()
+            if voix is None or voix is self._voix_de_l_appel or _deja_dans_un_circuit(voix):
+                logger.warning("[phrases] pas de voix à part pour la fabrique : sons non fabriqués")
+                return
             collecteur = nouveau_collecteur()
             params = PipelineParams(enable_metrics=False, enable_heartbeats=False)
             params.audio_out_sample_rate = self._taux
@@ -195,6 +202,13 @@ class FabriqueDesSons:
                     await worker.cancel(reason="fabrique des sons terminée")
                 except Exception:  # noqa: BLE001
                     pass
+
+
+def _deja_dans_un_circuit(processeur: Any) -> bool:
+    """Le processeur est-il déjà relié à un circuit (un voisin, ou démarré) ?"""
+    return any(
+        getattr(processeur, attribut, None) is not None for attribut in ("_prev", "_next")
+    )
 
 
 async def _attendre_la_phrase(collecteur: Any, en_vie: Callable[[], bool] = lambda: True) -> None:

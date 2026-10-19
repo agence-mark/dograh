@@ -6,6 +6,7 @@
 | fabrique | un vrai circuit Pipecat isolé (fausse voix de Pipecat) rend un son par phrase, rien ne sort vers l'appel |
 | joué sans la voix | le diseur joue le son fabriqué (``audio=``, transcription jointe), sans demander la voix |
 | repli | sans son (échec, phrase avec variable), la phrase est dite par la voix comme avant |
+| voix de l'appel | la fabrique ne branche jamais la voix de l'appel ni une voix déjà reliée (CI du 19/10) |
 """
 
 import asyncio
@@ -107,3 +108,29 @@ async def test_le_diseur_joue_le_son_fabrique_sans_la_voix_sinon_la_voix():
     # Une phrase sans son fabriqué (phrase propre d'un connecteur) : la voix, comme avant.
     await diseur.dire_la_parole(CONNECTEUR_ECHOUE, texte="Autre phrase.")
     assert appels[1][0] == "Autre phrase." and "audio" not in appels[1][1]
+
+
+@pytest.mark.asyncio
+async def test_la_fabrique_ne_touche_jamais_la_voix_de_l_appel():
+    """CI du 19/10 : une fabrique de voix qui rend la voix de l'appel (ou une voix déjà reliée à un
+    circuit) ne fabrique rien ; la brancher ici la retirerait de l'appel, qui ne parlerait plus."""
+    voix_de_l_appel = MockTTSService(mock_audio_duration_ms=60, frame_delay=0)
+    ajouter = []
+
+    async def ajouter_le_circuit(worker):
+        ajouter.append(worker)
+
+    fabrique = FabriqueDesSons(
+        creer_la_voix=lambda: voix_de_l_appel,
+        ajouter_le_circuit=ajouter_le_circuit,
+        taux_attendu=16000,
+        voix_de_l_appel=voix_de_l_appel,
+    )
+    await fabrique.fabriquer(["Un instant."])
+    reliee = MockTTSService(mock_audio_duration_ms=60, frame_delay=0)
+    Pipeline([reliee, _Sortie()])
+    fabrique_reliee = FabriqueDesSons(
+        creer_la_voix=lambda: reliee, ajouter_le_circuit=ajouter_le_circuit, taux_attendu=16000
+    )
+    await fabrique_reliee.fabriquer(["Un instant."])
+    assert ajouter == [] and fabrique.sons == {} and fabrique_reliee.sons == {}
