@@ -50,9 +50,12 @@ describe("[.mark] the outage fallback on screen", () => {
     it("is off by default and shows its thresholds once on", () => {
         const recu = vi.fn();
         render(<Section recu={recu} />);
-        expect(document.getElementById("panne_delai_modele_s")).toBeNull();
+        expect(document.getElementById("panne_delai_voix_s")).toBeNull();
         fireEvent.click(screen.getByRole("switch", { name: /Passer l'appel/ }));
-        expect(document.getElementById("panne_delai_modele_s")).not.toBeNull();
+        expect(document.getElementById("panne_delai_voix_s")).not.toBeNull();
+        // fiabilite-orchestration, lot 4 (F20): the model delay moved to « Model guard », a note says where.
+        expect(document.getElementById("panne_delai_modele_s")).toBeNull();
+        expect(document.querySelector('[data-note="delai-modele-deplace"]')).not.toBeNull();
         fireEvent.change(document.getElementById("panne_sonnerie_s")!, { target: { value: "30" } });
         expect(recu.mock.calls.at(-1)?.[0]).toEqual({ actif: true, delai_modele_s: 4, delai_voix_s: 3, sonnerie_s: 30 });
         expect(erreursPanne({ ...PANNE_ETEINTE, actif: true, delai_voix_s: 0.1 })).toHaveLength(1);

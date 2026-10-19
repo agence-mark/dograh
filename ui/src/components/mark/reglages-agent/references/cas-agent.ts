@@ -34,6 +34,7 @@ export type ThemeAgent =
     | "tour"
     | "voix"
     | "rythme"
+    | "phrases"
     | "donnees"
     | "etablissement";
 
@@ -227,6 +228,23 @@ export const CAS_AGENT: CasAgent[] = [
         saisir("travail_consigne", "Fais la demande."),
         { type: "cliquer", nom: "Save the background brain" },
     ], true, { travail_actif: true }),
+    // fiabilite-orchestration, lot 4 (F20, F26): the guard delay and the fallback brains.
+    c("garde-delai", "ajout-mark", "briques", ["delai_garde_modele_s"], [
+        saisir("delai_garde_modele_s", "6"),
+        { type: "cliquer", nom: "Save the guard delay" },
+    ], true),
+    c("garde-repli", "ajout-mark", "briques", ["cerveau_de_repli"], [
+        { type: "cliquer", nom: "Configure the fallback brain" },
+        saisir("repli_provider", "mistral"),
+        saisir("repli_model", "mistral-large-2512"),
+        { type: "cliquer", nom: "Save the fallback brain" },
+    ], true),
+    c("travail-repli", "ajout-mark", "briques", ["travail_llm_repli"], [
+        { type: "cliquer", nom: "Configure the background fallback brain" },
+        saisir("travail_repli_provider", "mistral"),
+        saisir("travail_repli_model", "mistral-small-2603"),
+        { type: "cliquer", nom: "Save the fallback brain" },
+    ], true, { travail_actif: true }),
     c("travail-outils", "ajout-mark", "briques", ["travail_outils"], [
         { type: "case", nom: "Chercher un créneau" },
     ], true, { travail_actif: true }),
@@ -293,12 +311,19 @@ export const CAS_AGENT: CasAgent[] = [
     c("attente", "ajout-mark", "voix", ["attente"], [
         saisir("attente_duree_min_s", "2.5"),
         inter("attente_transfert_humain"),
-        saisir("attente_phrase_pont", "Un instant."),
-        saisir("attente_delai_phrase_pont_s", "3"),
     ], false, PRINCIPAL),
-    c("transfert-humain", "ajout-mark", "voix", ["transfert_humain"], [
-        saisir("attente_phrase_mise_en_relation", "Un instant, je vous mets en relation."),
+    // fiabilite-orchestration, lot 4 bis (F17): the bridge phrase and the sentence before a call transfer
+    // moved to the theme Phrases, as rules (`phrases_regles`).
+    c("phrases-groupe", "ajout-mark", "phrases", ["phrases_regles"], [
+        { type: "cliquer", nom: "Add a rule : The handover takes time" },
+        saisir("phrase_0_variante_0", "Un instant."),
+        saisir("phrase_0_delai", "3"),
     ], false, PRINCIPAL),
+    c("phrases-agent", "ajout-mark", "phrases", ["phrases_regles"], [
+        { type: "cliquer", nom: "Add a rule : The caller is silent" },
+        saisir("phrase_0_variante_1", ""),
+        inter("phrase_0_active"),
+    ]),
     c("cerveau-propre", "ajout-mark", "briques", ["cerveau_propre"], [inter("cerveau_propre")], true, SPECIALISE),
 
     // ---- Model Overrides (Dograh + .mark) ---------------------------------
@@ -363,6 +388,7 @@ export const TITRE_ANGLAIS_DU_THEME: Record<ThemeAgent, string> = {
     tour: "Turn taking",
     voix: "Voice",
     rythme: "Call pacing",
+    phrases: "Phrases",
     donnees: "Call data",
     etablissement: "Business",
 };

@@ -76,6 +76,8 @@ export const BORNES: Record<string, Borne> = {
     raccrochage_silence_agent_s: { min: 10, minStrict: false, max: 120 },
     // Lot 4 d'orchestrateur-trois-cerveaux (D13): the background brain's longest work.
     travail_delai_max_s: { min: 5, minStrict: false, max: 300 },
+    // fiabilite-orchestration, lot 4 (F20): the model guard delay.
+    delai_garde_modele_s: { min: 1, minStrict: false, max: 30 },
 };
 
 /**

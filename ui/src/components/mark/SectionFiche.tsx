@@ -107,6 +107,9 @@ export const NOMS_RESERVES = [
     "planificateur_rappel",
     "verification_appelant",
     "dossier_lu",
+    // fiabilite-orchestration, lot 1: the background work and the sentences said by the code.
+    "travaux",
+    "phrases_du_code",
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */

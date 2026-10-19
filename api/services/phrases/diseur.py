@@ -134,7 +134,13 @@ class DiseurDePhrases:
     def en_cours(self) -> bool:
         return self.texte_en_cours is not None
 
-    async def dire(
+    async def dire(self, motif_id: str, agent: Any | None = None, **options: Any) -> bool:
+        """Dit la phrase en vigueur de ``motif_id``. ``True`` si elle part à la voix. Une attente
+        refusée par un verrou n'est pas reportée : la première qui part gagne. Options : celles de
+        ``dire_la_parole``."""
+        return await self.dire_la_parole(motif_id, agent, **options) is not None
+
+    async def dire_la_parole(
         self,
         motif_id: str,
         agent: Any | None = None,
@@ -143,38 +149,44 @@ class DiseurDePhrases:
         historique: bool = True,
         variables: dict[str, str] | None = None,
         phrase: PhraseResolue | None = None,
-    ) -> bool:
-        """Dit la phrase en vigueur de ``motif_id``. ``True`` si elle part à la voix. Une attente
-        refusée par un verrou n'est pas reportée : la première qui part gagne."""
+        texte: str | None = None,
+    ) -> Any | None:
+        """Comme ``dire``, mais rend la lecture (``SpeechPlayback``, son ``text`` est la phrase
+        dite) pour qui doit l'attendre ; ``None`` : rien n'est dit. ``texte`` : une phrase posée
+        sur l'action elle-même (le repli propre d'un connecteur), dite à la place des variantes,
+        sous les mêmes verrous et la même trace.
+
+        ⛔ ``mute_user`` toujours faux (F25) : l'appelant peut couper toute phrase du code, qui
+        s'arrête net ; rien ne la relance."""
         try:
             agent = self._agent(agent)
             if etape is None:
                 etape = getattr(getattr(agent, "current_node", None), "name", None)
             phrase = phrase or self.phrase(motif_id, agent, etape)
-            if phrase is None or not phrase.dite:
-                return False
+            if phrase is None or not (phrase.dite or (texte and phrase.active)):
+                return None
             if self._moteur.is_call_disposed():
-                return False
+                return None
             if phrase.motif.famille == FAMILLE_ATTENTE:
+                # Une attente se dit à la voix seulement : au clavier, la réponse arrive à l'écran.
+                if getattr(self._moteur, "sans_sortie_audio", False) is True:
+                    return None
                 if _appelant_parle(self._moteur) or self._attente_en_cours:
-                    return False
+                    return None
                 if (
                     self._fin_derniere_attente is not None
                     and self._horloge() - self._fin_derniere_attente < REPOS_ATTENTE_S
                 ):
-                    return False
+                    return None
                 self._attente_en_cours = True
             elif phrase.motif.famille == FAMILLE_ANNONCE:
                 await self._attendre_la_place()
-            texte = self._choisir(phrase)
-            for nom, valeur in (variables or {}).items():
-                texte = texte.replace("{{" + nom + "}}", str(valeur))
-            self._dites.setdefault(phrase.motif.id, []).append(texte)
-            self._tracer(phrase, texte, agent, etape)
-            self.texte_en_cours = texte
+            dite = self._texte(phrase, texte, variables)
+            self._tracer(phrase, dite, agent, etape)
+            self.texte_en_cours = dite
             try:
                 parole = await self._moteur.queue_speech(
-                    texte,
+                    dite,
                     append_to_context=historique,
                     persist_to_logs=True,
                     mute_user=False,
@@ -185,13 +197,49 @@ class DiseurDePhrases:
             self._en_vol = asyncio.get_running_loop().create_task(
                 self._suivre(parole, phrase), name=f"phrase:{phrase.motif.id}"
             )
-            logger.info(f"[phrases] {phrase.motif.id} ({phrase.niveau}) : {texte!r}")
-            return True
+            logger.info(f"[phrases] {phrase.motif.id} ({phrase.niveau}) : {dite!r}")
+            return parole
         except asyncio.CancelledError:
             raise
         except Exception as erreur:  # noqa: BLE001 -- une phrase ne coûte jamais l'appel
             logger.warning(f"[phrases] {motif_id} non dite : {erreur!r}")
-            return False
+            return None
+
+    def prendre(
+        self,
+        motif_id: str,
+        agent: Any | None = None,
+        *,
+        etape: str | None = None,
+        variables: dict[str, str] | None = None,
+    ) -> str | None:
+        """Le texte en vigueur de ``motif_id``, choisi et tracé, pour une phrase qui part dans le
+        flux du modèle lui-même (la réponse perdue : le texte remplace la réponse vide, il entre
+        donc dans l'historique comme une réplique de l'agent). ``None`` : phrase éteinte.
+        ⛔ Ne lève jamais."""
+        try:
+            agent = self._agent(agent)
+            if etape is None:
+                etape = getattr(getattr(agent, "current_node", None), "name", None)
+            phrase = self.phrase(motif_id, agent, etape)
+            if phrase is None or not phrase.dite:
+                return None
+            texte = self._texte(phrase, None, variables)
+            self._tracer(phrase, texte, agent, etape)
+            logger.info(f"[phrases] {phrase.motif.id} ({phrase.niveau}) : {texte!r}")
+            return texte
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[phrases] {motif_id} non prise : {erreur!r}")
+            return None
+
+    def _texte(
+        self, phrase: PhraseResolue, texte: str | None, variables: dict[str, str] | None
+    ) -> str:
+        dite = texte.strip() if isinstance(texte, str) and texte.strip() else self._choisir(phrase)
+        for nom, valeur in (variables or {}).items():
+            dite = dite.replace("{{" + nom + "}}", str(valeur))
+        self._dites.setdefault(phrase.motif.id, []).append(dite)
+        return dite
 
     async def _attendre_la_place(self) -> None:
         """Une annonce passe après la phrase du code en cours et après la réplique de l'appelant."""

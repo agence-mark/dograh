@@ -15,6 +15,7 @@ from pipecat.frames.frames import LLMMessagesAppendFrame
 
 from api.services.pipecat.agent_runtime_factory import AgentBuildError
 from api.services.pipecat.audio_playback import play_hold_audio_loop
+from api.services.phrases.catalogue import PASSATION_TARDE
 from api.services.pipecat.main_passee import rendre_la_parole
 from api.services.workflow.agent_handoff_context import (
     build_handoff_snapshot,
@@ -210,14 +211,18 @@ class AgentTransferCoordinator:
             # [.mark] La phrase pont : un filet si la passation dure. Jamais pour un retour
             # silencieux, jamais au clavier (pas de voix), jamais vers un agent déjà construit
             # (le principal chaud revient à l'instant) ; vide = désactivée.
+            # Fiabilite-orchestration, lot 4 bis (F17) : la phrase est la règle « la passation
+            # tarde » de l'agent qui passe la main (étape, agent, principal ; l'ancien réglage
+            # ``attente.phrase_pont`` du principal est repris tel quel).
+            pont = self._phrase_pont_en_vigueur(source)
             if (
-                reglage.phrase_pont
+                pont is not None
                 and not (
                     request.silencieuse or self._sans_sortie_audio() or deja_construit
                 )
             ):
                 self._phrase_task = asyncio.create_task(
-                    self._phrase_pont(request, source, reglage, avec_son=attente),
+                    self._phrase_pont(request, source, reglage, pont, avec_son=attente),
                     name=f"phrase-pont:{request.request_id}",
                 )
 
@@ -472,23 +477,41 @@ class AgentTransferCoordinator:
 
         self._hold_task = asyncio.create_task(jouer(), name=f"hold:{request.request_id}")
 
-    async def _phrase_pont(self, request, source, reglage: Attente, *, avec_son: bool):
+    def _phrase_pont_en_vigueur(self, source):
+        """La règle « la passation tarde » en vigueur pour ``source``, si elle se dit."""
+        diseur = getattr(self._engine, "phrases", None)
+        if diseur is None:
+            return None
+        try:
+            pont = diseur.phrase(PASSATION_TARDE, source)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[transfer] phrase pont illisible : {e!r}")
+            return None
+        return pont if pont is not None and pont.dite else None
+
+    async def _phrase_pont(
+        self, request, source, reglage: Attente, pont, *, avec_son: bool
+    ):
         """[.mark] La phrase pont, dite par la voix de l'APPEL si la passation n'est pas commise
-        après ``delai_phrase_pont_s``. Une seule fois. Le son d'attente se tait le temps de la
+        après le délai de la règle. Une seule fois. Le son d'attente se tait le temps de la
         phrase, puis reprend. ⛔ Ne lève jamais.
 
         Lot 3 d'orchestrateur-trois-cerveaux (D7) : la voix est celle de l'appel, plus celle de
         l'agent qui passe la main. Pendant la passation cet agent est « en attente » (désactivé,
         ``selected_visit_id`` vaut ``None``) : la phrase prend donc la route locale du pont
-        (``PipecatEngine.queue_speech``), directement à la voix. L'agent source n'est plus
-        réactivé, son modèle n'est plus rendu muet pour l'occasion : il ne reçoit rien et ne dit
-        rien, de bout en bout. (La danse « réactiver, taire, parler, désactiver » d'avant n'existe
-        que parce que la voix était à lui.)"""
+        (``PipecatEngine.queue_speech``), directement à la voix. L'agent source ne reçoit rien et
+        ne dit rien, de bout en bout.
+
+        Fiabilite-orchestration, lot 4 bis (F24, F25) : la phrase passe par le diseur (verrous,
+        trace, variantes) ; son délai ne court que pendant l'attente du système, jamais pendant
+        que l'appelant parle, et repart à la fin de sa réplique ; l'appelant peut la couper."""
         engine = self._engine
+        diseur = engine.phrases
         son_coupe = False
         try:
-            await asyncio.sleep(reglage.delai_phrase_pont_s)
-            if not self._passation_en_cours(request):
+            if not await diseur.attendre_le_systeme(
+                pont.delai_s or 0.0, lambda: self._passation_en_cours(request)
+            ):
                 return
             self._phrase_en_cours = True
             try:
@@ -497,16 +520,14 @@ class AgentTransferCoordinator:
                     await self._stop_hold_audio()
                 # Pas dans le contexte : le résumé de passation se bâtit en même temps, rien ne
                 # doit bouger derrière lui ; la phrase reste dans le journal de l'appel.
-                speech = await engine.queue_speech(
-                    reglage.phrase_pont,
-                    append_to_context=False,
-                    persist_to_logs=True,
-                    mute_user=True,
+                parole = await diseur.dire_la_parole(
+                    PASSATION_TARDE, source, phrase=pont, historique=False
                 )
-                await speech.wait()
-                # Comme ``_announce`` : tout ce qui est en vol arrive à l'appelant avant que
-                # l'attente se referme.
-                await engine.drain_call_pipeline()
+                if parole is not None:
+                    await parole.wait()
+                    # Comme ``_announce`` : tout ce qui est en vol arrive à l'appelant avant que
+                    # l'attente se referme.
+                    await engine.drain_call_pipeline()
             finally:
                 self._phrase_en_cours = False
         except asyncio.CancelledError:

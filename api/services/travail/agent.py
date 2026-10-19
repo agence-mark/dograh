@@ -332,6 +332,9 @@ class TravailDeLAgent:
                 return False
             self.service = service
             self._verser = versement_du_cout(self.moteur, NOM_DU_COUT, service)
+            from api.services.panne.garde_modele import garder_le_fond
+
+            await garder_le_fond(self.moteur, self.agent, service, lambda: self.worker.context)
         self._generation += 1
         self._outils_prets = False
         self._attache = False
@@ -647,13 +650,18 @@ async def preparer_le_travail(
         fabrique = getattr(moteur, "_agent_factory", None)
 
         async def preparer():
-            return await preparer_le_service_du_travail(
+            reglages_, service_ = await preparer_le_service_du_travail(
                 reglages_agent,
                 configuration,
                 organisation,
                 getattr(agent, "runtime_configuration", None),
                 correlation_id=getattr(fabrique, "_mps_correlation_id", None),
             )
+            # fiabilite-orchestration, lot 3 (F5, F6) : même fournisseur, même connexion.
+            postes = getattr(fabrique, "postes", None)
+            if service_ is not None and postes is not None:
+                postes.partager(service_)
+            return reglages_, service_
 
         async def refaire_le_service():
             return (await preparer())[1]
@@ -679,6 +687,10 @@ async def preparer_le_travail(
         )
         agent.travail = travail
         moteur.travaux.append(travail)
+        # fiabilite-orchestration, lot 4 (F20, C5) : la garde du modèle du fond, avec son repli.
+        from api.services.panne.garde_modele import garder_le_fond
+
+        await garder_le_fond(moteur, agent, service, lambda: travail.worker.context)
         return travail
     except Exception as erreur:  # noqa: BLE001 -- l'agent est joué sans cerveau de fond
         logger.error(f"[travail] cerveau de fond non préparé : {type(erreur).__name__}")

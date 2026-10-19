@@ -9,12 +9,18 @@ résultat pour :
   réponse, sinon son statut, sinon la première valeur permise du champ, sinon « oui ». Un échec
   n'écrit rien. Les contrôles restent ceux du point d'écriture unique (liste fermée comprise).
 
+- **lot 4 bis (F21)** : une action du tour qui dépasse le délai de la règle « un outil tarde »
+  fait dire sa phrase, une fois par appel de l'outil ; le délai court depuis le lancement de
+  l'action (une attente du système) et jamais pendant que l'appelant parle. Une action du cerveau
+  de fond ne la déclenche jamais (le motif « le travail de fond dure » s'en charge).
+
 Les portes, passations, transferts et la fin d'appel n'y passent jamais : ce ne sont pas des actions.
 ⛔ Ne lève jamais : l'action rend toujours son résultat, l'enveloppe ne fait que regarder.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -154,11 +160,14 @@ def envelopper_l_action(
                 await params.result_callback(refus)
                 return
         rendre = params.result_callback
+        fini = asyncio.Event()
+        veille = _veiller_l_outil(moteur, agent, params, fini)
 
         async def result_callback(resultat: Any, *args: Any, **kwargs: Any) -> None:
             proprietes = kwargs.get("properties")
             # Un résultat intermédiaire (``is_final=False``) n'est pas encore la réponse de l'outil.
             if getattr(proprietes, "is_final", True) is not False:
+                fini.set()
                 remplir_par_l_action(moteur, nom_outil, resultat)
             await rendre(resultat, *args, **kwargs)
 
@@ -166,6 +175,48 @@ def envelopper_l_action(
             params.result_callback = result_callback
         except Exception as erreur:  # noqa: BLE001 -- paramètres figés : l'action passe telle quelle
             logger.debug(f"[fiche] résultat de {nom_outil} non lu : {erreur!r}")
-        await gestionnaire(params)
+        try:
+            await gestionnaire(params)
+        finally:
+            fini.set()
+            if veille is not None and not veille.done() and not _phrase_partie(veille):
+                veille.cancel()
 
     return enveloppe
+
+
+def _phrase_partie(veille: asyncio.Task) -> bool:
+    return bool(getattr(veille, "mark_phrase_partie", False))
+
+
+def _veiller_l_outil(
+    moteur: Any, agent: Any, params: Any, fini: asyncio.Event
+) -> asyncio.Task | None:
+    """F21 : la veille de « un outil tarde » pour cet appel d'outil. ``None`` : règle éteinte, pas
+    de diseur, ou action du cerveau de fond. ⛔ Ne lève jamais."""
+    try:
+        from api.services.phrases.catalogue import OUTIL_TARDE
+        from api.services.phrases.diseur import DiseurDePhrases
+
+        diseur = getattr(moteur, "phrases", None)
+        if not isinstance(diseur, DiseurDePhrases):
+            return None
+        cible = agent if agent is not None else getattr(moteur, "active_agent", None)
+        appelant = getattr(params, "llm", None)
+        if appelant is not None and appelant is not getattr(cible, "llm", None):
+            return None
+        phrase = diseur.phrase(OUTIL_TARDE, cible)
+        if phrase is None or not phrase.dite:
+            return None
+
+        async def veiller() -> None:
+            if await diseur.attendre_le_systeme(phrase.delai_s or 0.0, lambda: not fini.is_set()):
+                tache = asyncio.current_task()
+                if tache is not None:
+                    tache.mark_phrase_partie = True  # type: ignore[attr-defined]
+                await diseur.dire(OUTIL_TARDE, cible, phrase=phrase)
+
+        return asyncio.get_running_loop().create_task(veiller(), name="phrase:outil_tarde")
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[phrases] veille de l'outil illisible : {erreur!r}")
+        return None

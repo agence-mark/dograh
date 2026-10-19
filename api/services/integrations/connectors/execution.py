@@ -33,7 +33,6 @@ from api.services.integrations.connectors.modele_commun import depuis_la_fiche
 CLE_ESTAMPILLE = "connecteurs"
 CLE_DIFFERES = "connecteurs_differes"
 DELAI_DEFAUT_MS = 5000
-PHRASE_REPLI_DEFAUT = "Je transmets votre demande, on vous rappelle pour la confirmer."
 
 
 class ActionInconnue(ValueError):

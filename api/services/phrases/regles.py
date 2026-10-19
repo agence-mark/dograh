@@ -1,7 +1,9 @@
 """[.mark] Chantier fiabilite-orchestration (F18, F23) : la phrase en vigueur pour un motif.
 
 Trois niveaux (F18) : l'**étape**, sinon l'**agent**, sinon le **principal** (ses règles de portée
-« groupe »), sinon le **défaut** du catalogue. Un spécialisé reprend donc la phrase du principal
+« groupe »), sinon l'**ancien réglage** repris (F17 : la phrase pont et la mise en relation, réglées
+avant le chantier sur le principal, valent règle « groupe » tant que le thème Phrases ne les a pas
+réécrites), sinon le **défaut** du catalogue. Un spécialisé reprend donc la phrase du principal
 tant qu'il n'a pas la sienne. La résolution dit le niveau d'où vient la phrase (la carte l'affiche).
 
 ⛔ Ne lève jamais : une règle illisible est ignorée (journalisée), le niveau suivant s'applique.
@@ -21,7 +23,12 @@ from api.schemas.phrases_du_code import (
     PORTEE_GROUPE,
     ReglePhrase,
 )
-from api.services.phrases.catalogue import MOTIFS, Motif
+from api.services.phrases.catalogue import (
+    MISE_EN_RELATION,
+    MOTIFS,
+    PASSATION_TARDE,
+    Motif,
+)
 
 CLE_REGLES = "phrases_regles"
 
@@ -82,6 +89,40 @@ def defaut_du_motif(motif: Motif) -> PhraseResolue:
     )
 
 
+def ancien_reglage(motif: Motif, reglages: Mapping[str, Any] | None) -> PhraseResolue | None:
+    """F17, reprise : la phrase réglée avant le chantier, hors du thème Phrases (``attente.phrase_pont``
+    et son délai, ``transfert_humain.phrase_mise_en_relation``), lue comme une règle « groupe » du
+    principal. ``None`` : rien de posé. ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(reglages, Mapping):
+            return None
+        if motif.id == PASSATION_TARDE:
+            from api.services.groupe.reglages_passation import attente_de
+
+            attente = attente_de(reglages)
+            if not attente.phrase_pont:
+                return None
+            return PhraseResolue(
+                motif=motif,
+                variantes=(attente.phrase_pont,),
+                delai_s=attente.delai_phrase_pont_s,
+                active=True,
+                niveau=NIVEAU_PRINCIPAL,
+            )
+        if motif.id == MISE_EN_RELATION:
+            from api.services.groupe.reglages_passation import phrase_de_mise_en_relation
+
+            texte = phrase_de_mise_en_relation(reglages)
+            if not texte:
+                return None
+            return PhraseResolue(
+                motif=motif, variantes=(texte,), delai_s=None, active=True, niveau=NIVEAU_PRINCIPAL
+            )
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[phrases] ancien réglage de {motif.id} illisible : {erreur!r}")
+    return None
+
+
 def resoudre(
     motif_id: str,
     *,
@@ -112,6 +153,11 @@ def resoudre(
             for regle in regles_de(reglages_principal):
                 if regle.motif == motif_id and regle.portee == PORTEE_GROUPE:
                     return _depuis_la_regle(regle, motif, NIVEAU_PRINCIPAL)
+        ancienne = ancien_reglage(
+            motif, reglages_principal if reglages_principal is not None else reglages_agent
+        )
+        if ancienne is not None:
+            return ancienne
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[phrases] résolution de {motif_id} illisible : {erreur!r}")
     return defaut_du_motif(motif)

@@ -167,7 +167,9 @@ async def test_texte_et_appel_d_outil_de_la_relance_partent_en_morceaux_separes(
 async def test_une_relance_qui_ne_repond_pas_tombe_sur_la_phrase_de_repli_au_delai():
     import asyncio
 
-    from api.services.pipecat.reponse_avalee import PHRASE_DE_REPLI
+    from api.services.pipecat.reponse_avalee import phrase_de_repli
+
+    PHRASE_DE_REPLI = phrase_de_repli(None)
 
     service = _Service(FLUX_AVALE)
 
@@ -182,7 +184,9 @@ async def test_une_relance_qui_ne_repond_pas_tombe_sur_la_phrase_de_repli_au_del
 
 
 async def test_deux_fois_rien_et_l_appelant_attend_le_code_dit_la_phrase_de_repli():
-    from api.services.pipecat.reponse_avalee import PHRASE_DE_REPLI
+    from api.services.pipecat.reponse_avalee import phrase_de_repli
+
+    PHRASE_DE_REPLI = phrase_de_repli(None)
 
     for service in (_Service(FLUX_AVALE, reprise=_reponse()), _Service(FLUX_AVALE, erreur=RuntimeError("x"))):
         contexte = _Contexte([{"role": "assistant", "content": "Bonjour."}, {"role": "user", "content": "Allô ?"}])

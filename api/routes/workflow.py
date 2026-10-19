@@ -47,6 +47,8 @@ from api.services.configuration.masking import (
 )
 from api.services.configuration.merge import (
     merge_greffier_secret,
+    merge_repli_du_fond_secret,
+    merge_repli_secret,
     merge_travail_secret,
     merge_workflow_configuration_secrets,
 )
@@ -1296,6 +1298,17 @@ async def update_workflow(
                 "travail_llm",
                 merge_travail_secret,
                 "the background brain's API key is masked: type the key again",
+            ),
+            # [.mark] fiabilite-orchestration, lot 4 : les deux cerveaux de repli, même règle.
+            (
+                "cerveau_de_repli",
+                merge_repli_secret,
+                "the fallback brain's API key is masked: type the key again",
+            ),
+            (
+                "travail_llm_repli",
+                merge_repli_du_fond_secret,
+                "the background fallback brain's API key is masked: type the key again",
             ),
         )
         if workflow_configurations and any(

@@ -5,7 +5,7 @@ Plugged at pick-up by ``run_pipeline`` for an agent that switched the fallback o
 - an error the call cannot survive (voice, transcription, model: rejected key, quota, a voice
   that keeps answering without sound, F5, F6): ``sur_erreur_terminale``, called by the single
   disposal point of the pipeline (``event_handlers.dispose_call``), BEFORE the call ends;
-- the model too slow twice in a row (PN2): ``ReplisDelaiModele`` on the Mistral service;
+- the model too slow twice in a row (PN2): ``garde_modele.GardeDuModele`` (every agent since lot 4 of fiabilite-orchestration);
 - the voice too slow (PN3): ``ObservateurVoixLente``, past ``delai_voix_s`` between the start of
   a synthesis and its first sound.
 
@@ -28,7 +28,6 @@ from pipecat.frames.frames import (
 from pipecat.observers.base_observer import BaseObserver, FramePushed
 from pipecat.utils.enums import EndTaskReason
 
-from api.services.panne.delai_modele import ReplisDelaiModele
 from api.services.panne.gardien import ContextePanne, GardienPanne
 
 ATTRIBUT_GARDIEN = "mark_gardien_panne"
@@ -115,9 +114,8 @@ def brancher(
                 EndTaskReason.PIPELINE_ERROR.value, abort_immediately=True
             )
 
-        if llm is not None and hasattr(llm, "mark_delai_modele_s"):
-            llm.mark_delai_modele_s = contexte.reglages.delai_modele_s
-            ReplisDelaiModele(engine, task, gardien, terminer).brancher(llm)
+        # fiabilite-orchestration, lot 4 (F20) : le délai du modèle n'est plus branché ici. La garde
+        # (``garde_modele``) l'arme pour tous les agents ; elle trouve ce gardien au 2e dépassement.
 
         async def voix_lente(ecart_s: float) -> None:
             try:

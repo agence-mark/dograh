@@ -59,11 +59,12 @@ from api.services.groupe.notes import (
     outil_de_passation_vers,
 )
 from api.services.groupe.parcours import rendre_le_parcours
+from api.services.groupe.postes import memoire_du_processus_mo
 from api.services.groupe.prechauffage import precharge_de, prechauffer_les_cibles
 from api.services.equipe.transferts_humains import un_renvoi_a_echoue
+from api.services.phrases.catalogue import MISE_EN_RELATION
 from api.services.groupe.reglages_passation import (
     LIGNE_RENVOI_DEJA_ECHOUE,
-    phrase_de_mise_en_relation,
     prechauffage_actif,
     renvoi_unique_actif,
 )
@@ -1743,17 +1744,22 @@ class PipecatEngine:
         ``garantir_a_l_ouverture``). Sinon la phrase à dire (``""`` : l'outil de transfert porte
         déjà son message, il le dit en partant).
 
-        Oui seulement si : le réglage ``transfert_humain.phrase_mise_en_relation`` n'est pas vide ;
+        Oui seulement si : la règle « mise en relation » de l'agent appelé, à l'étape ``cible``, est
+        allumée (fiabilite-orchestration, lot 4 bis ; l'ancien réglage
+        ``transfert_humain.phrase_mise_en_relation`` du principal est repris tel quel) ;
         l'étape (hors fin) porte un transfert d'appel que le code peut lancer seul ; l'entreprise
         est ouverte, sur rendez-vous ou sans horaires (la règle qui montre l'outil au modèle, K3) et aucun renvoi
         n'a déjà échoué ; il y a une voix (jamais au clavier). ⛔ Ne lève jamais."""
         try:
             if getattr(self, "sans_sortie_audio", False):
                 return None
-            texte = phrase_de_mise_en_relation(self.reglages_appel)
-            if not texte:
-                return None
             noeud = agent.workflow.nodes.get(cible)
+            regle = self.phrases.phrase(
+                MISE_EN_RELATION, agent, getattr(noeud, "name", None)
+            )
+            if regle is None or not regle.dite:
+                return None
+            texte = regle.variantes[0]
             if noeud is None or noeud.is_end or not noeud.tool_uuids:
                 return None
             if self._un_renvoi_a_deja_echoue():
@@ -1781,9 +1787,14 @@ class PipecatEngine:
         try:
             phrase = apres
             if texte:
-                phrase = await self.queue_speech(
-                    texte, append_to_context=True, persist_to_logs=False, mute_user=True
+                # Lot 4 bis : par le diseur (variantes tournées, trace, coupable par l'appelant ;
+                # coupée, le transfert ne part pas et le modèle répond).
+                noeud = agent.workflow.nodes.get(cible)
+                phrase = await self.phrases.dire_la_parole(
+                    MISE_EN_RELATION, agent, etape=getattr(noeud, "name", None)
                 )
+                if phrase is None:
+                    raise RuntimeError("mise en relation non dite")
             self._lancer_le_transfert_garanti(agent, cible, phrase, a_l_ouverture=True)
         except Exception as e:  # noqa: BLE001
             logger.error(f"[transfert] phrase figée à l'ouverture en échec : {e!r}")
@@ -2894,6 +2905,12 @@ class PipecatEngine:
     def set_agent_factory(self, factory) -> None:
         """Enable in-call agent transfer by supplying a runtime factory."""
         self._agent_factory = factory
+        # [.mark] fiabilite-orchestration, lot 3 (F5) : la connexion du premier agent est le
+        # premier poste de l'appel ; un collègue au même fournisseur la reprend.
+        postes = getattr(factory, "postes", None)
+        agent = self.__dict__.get("_active_agent")
+        if postes is not None and agent is not None:
+            postes.enregistrer(agent.llm)
 
     @property
     def agent_transfer_enabled(self) -> bool:
@@ -2974,21 +2991,39 @@ class PipecatEngine:
         chaud = self.principal_chaud_pour(workflow_id)
         if chaud is not None:
             self._pending_agent = chaud
+            self.mesure_passation.installee(0.0, "principal_chaud", memoire_du_processus_mo())
             logger.info(f"[groupe] principal {workflow_id} resté chaud : rendu sans construction")
             return chaud
-        runtime = await self._agent_factory.build(
-            workflow_id=workflow_id, visit_id=visit_id
-        )
+        debut = time.monotonic()
+        # [.mark] fiabilite-orchestration, lot 3 (F5) : le collègue construit à l'avance.
+        runtime = self._prendre_dans_la_reserve(workflow_id)
+        origine = "reserve"
+        if runtime is None:
+            origine = "construit"
+            runtime = await self._agent_factory.build(
+                workflow_id=workflow_id, visit_id=visit_id
+            )
         self._pending_agent = runtime
         # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8) : le cerveau de fond de l'agent
         # appelé, avant la préparation de son étape (l'outil « confier » en dépend).
         await self.preparer_le_travail(runtime)
+        # [.mark] fiabilite-orchestration, lot 4 (F20) : la garde du modèle du collègue (déjà posée
+        # sur un collègue de la réserve).
+        from api.services.panne.garde_modele import garder_l_agent
+
+        await garder_l_agent(self, runtime)
         # [.mark] Chantier agents-specialises (lot 3) : la fiche de l'appel suit l'agent
         # appelé (ses champs s'ajoutent, son modèle la porte) avant la préparation de son
         # étape, pour qu'il ait l'outil de note, la consigne et l'état de la fiche.
         if self._fiche is not None:
             self._fusionner_la_fiche(runtime)
             self._porter_la_fiche(runtime.llm)
+        self.mesure_passation.installee(
+            time.monotonic() - debut,
+            origine,
+            memoire_du_processus_mo(),
+            getattr(runtime, "visit_id", None),
+        )
         return runtime
 
     async def preparer_le_travail(
@@ -3337,16 +3372,66 @@ class PipecatEngine:
             agent = self.active_agent
 
             async def preparer() -> None:
-                await prechauffer_les_cibles(
+                precharge = await prechauffer_les_cibles(
                     self._agent_factory,
                     agent.workflow,
                     ids_a_exclure={agent.workflow_id},
                     lire_outils=db_client.get_tools_by_uuids,
                 )
+                # [.mark] fiabilite-orchestration, lot 3 (F5, F6) : puis la réserve, chaque
+                # collègue construit à l'avance (service, worker, cerveau de fond).
+                if precharge is not None:
+                    for cible in list(precharge.agents):
+                        await self._mettre_en_reserve(cible)
 
             self._tache_prechauffage = asyncio.get_running_loop().create_task(preparer())
         except Exception as e:  # noqa: BLE001
             logger.warning(f"[prechauffage] non lancé : {e!r}")
+
+    async def _mettre_en_reserve(self, workflow_id: int) -> None:
+        """[.mark] fiabilite-orchestration, lot 3 (F5, F6) : construit ``workflow_id`` à l'avance
+        (inactif sous l'appel) avec son cerveau de fond, et le range dans la réserve de l'appel.
+        Un échec n'y range rien : la passation construira comme avant. ⛔ Ne lève jamais."""
+        precharge = precharge_de(self)
+        if precharge is None or workflow_id in precharge.prets or self.is_call_disposed():
+            return
+        try:
+            from api.services.workflow.agent_runtime import new_visit_id
+
+            debut = time.monotonic()
+            runtime = await self._agent_factory.build(
+                workflow_id=workflow_id, visit_id=new_visit_id()
+            )
+            runtime.preconstruit = True
+            await self.preparer_le_travail(runtime)
+            from api.services.panne.garde_modele import garder_l_agent
+
+            await garder_l_agent(self, runtime)
+            if self.is_call_disposed():
+                return
+            precharge.prets[workflow_id] = runtime
+            logger.info(
+                f"[prechauffage] agent {workflow_id} construit à l'avance en "
+                f"{time.monotonic() - debut:.3f}s (réserve : {len(precharge.prets)})"
+            )
+        except Exception as e:  # noqa: BLE001 -- la passation construira normalement
+            precharge.echecs[workflow_id] = repr(e)
+            logger.warning(f"[prechauffage] agent {workflow_id} non construit à l'avance : {e!r}")
+
+    def _prendre_dans_la_reserve(self, workflow_id: int) -> Optional[AgentRuntime]:
+        """[.mark] Lot 3 (F5) : le collègue construit à l'avance, s'il est encore utilisable ; il
+        quitte la réserve, et un autre se construit en fond pour la passation suivante."""
+        precharge = precharge_de(self)
+        if precharge is None:
+            return None
+        runtime = precharge.prets.pop(workflow_id, None)
+        if runtime is None:
+            return None
+        if runtime.error or not runtime.is_running:
+            logger.warning(f"[prechauffage] agent {workflow_id} de la réserve inutilisable : construit")
+            return None
+        self._tache_du_groupe(self._mettre_en_reserve(workflow_id))
+        return runtime
 
     async def lire_outils(self, uuids, organization_id: int) -> list:
         """Les outils d'un ensemble d'étapes : lus dans le cache de l'appel quand le
@@ -3446,6 +3531,9 @@ class PipecatEngine:
         """
         if not self.owns_generation(visit_id):
             return
+        # [.mark] fiabilite-orchestration, lot 3 : le premier mot de l'agent appelé (passation découpée).
+        if text:
+            self.mesure_passation.premier_mot(visit_id)
         self._current_llm_generation_reference_text += text
 
     def is_call_disposed(self):

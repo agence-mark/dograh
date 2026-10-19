@@ -78,16 +78,17 @@ MOTIFS: dict[str, Motif] = {
             libelle_fr="Le modèle tarde à répondre",
             libelle_en="The model is slow to answer",
             quand_fr=(
-                "Après la fin de la réplique de l'appelant, le modèle n'a pas commencé à "
-                "répondre dans le délai de garde."
+                "Le modèle n'a pas commencé à répondre dans son délai de garde (réglé dans "
+                "Models, sous le cerveau) : la phrase, puis une seconde tentative."
             ),
             quand_en=(
-                "After the caller's reply, the model has not started answering within the "
-                "guard delay."
+                "The model has not started answering within its guard delay (set in Models, "
+                "under the brain): the sentence, then a second try."
             ),
-            a_un_delai=True,
+            # Le délai est celui de la garde (Models, F20) : un seul réglage, jamais deux.
+            a_un_delai=False,
             variantes_defaut=(_UN_INSTANT,),
-            delai_defaut_s=4.0,
+            delai_defaut_s=None,
             actif_par_defaut=True,
             eteinte_fr="Rien n'est dit pendant la seconde tentative.",
             eteinte_en="Nothing is said during the second attempt.",

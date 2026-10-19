@@ -85,6 +85,8 @@ const bornesDuSchema = (cle: string) => {
 
 // Lot 4 d'orchestrateur-trois-cerveaux: the duration of the background work, shown under « Briques ».
 const CLES_TRAVAIL = ["travail_delai_max_s"] as const;
+// fiabilite-orchestration, lot 4 (F20): the model guard delay (theme Services).
+const CLES_GARDE = ["delai_garde_modele_s"] as const;
 
 describe("Les bornes affichees a l'ecran", () => {
     it("trouve bien le schema Python (sinon tout le reste est vide et vert pour rien)", () => {
@@ -117,7 +119,7 @@ describe("Les bornes affichees a l'ecran", () => {
         // The other direction: a numeric setting shown without a bound is an
         // unchecked field, and an unchecked field is a save that fails without
         // a word.
-        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL] as string[];
+        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL, ...CLES_GARDE] as string[];
         const bornesAuSchema = cles.filter((cle) => {
             const s = bornesDuSchema(cle);
             return s !== null && (s.le !== null || s.lt !== null);
@@ -139,7 +141,7 @@ describe("Les bornes affichees a l'ecran", () => {
         // consignes de relance sont plafonnees a 2000 caracteres cote serveur
         // et rien ne le disait a l'ecran.
         // l-agent-collegue, L7: the theme Listening carries more text settings than the old card.
-        const cles = [...new Set([...CLES_TRANSCRIPTION, ...CLES_ECOUTE, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL])] as string[];
+        const cles = [...new Set([...CLES_TRANSCRIPTION, ...CLES_ECOUTE, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL, ...CLES_GARDE])] as string[];
         const textesPlafonnes = cles.filter((cle) => {
             const s = bornesDuSchema(cle);
             return s !== null && s.maxLength !== null && !s.estUneListe;
@@ -160,7 +162,7 @@ describe("Les bornes affichees a l'ecran", () => {
         // mais sur une `list[str]` Pydantic compte des ELEMENTS. Les confondre
         // aurait pose un plafond de 200 caracteres sur une liste de 200
         // entrees -- un reglage affiche dans un etat qui n'est pas le sien.
-        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL] as string[];
+        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL, ...CLES_GARDE] as string[];
         const listesPlafonnees = cles.filter((cle) => {
             const s = bornesDuSchema(cle);
             return s !== null && s.maxLength !== null && s.estUneListe;

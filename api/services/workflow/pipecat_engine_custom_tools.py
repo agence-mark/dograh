@@ -1356,6 +1356,22 @@ class CustomToolManager:
         except Exception:  # noqa: BLE001
             return True
 
+    async def _dire_l_echec_du_transfert(self) -> str | None:
+        """[.mark] Dit la phrase « le transfert d'appel échoue » si sa règle est allumée ; rend son
+        texte. ⛔ Ne lève jamais."""
+        try:
+            from api.services.phrases.catalogue import TRANSFERT_ECHOUE
+            from api.services.phrases.diseur import DiseurDePhrases
+
+            diseur = getattr(self._engine, "phrases", None)
+            if not isinstance(diseur, DiseurDePhrases):
+                return None
+            parole = await diseur.dire_la_parole(TRANSFERT_ECHOUE)
+            return getattr(parole, "text", None) if parole is not None else None
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[transfert] phrase d'échec non dite : {e!r}")
+            return None
+
     async def _handle_transfer_result(
         self,
         result: dict,
@@ -1425,14 +1441,20 @@ class CustomToolManager:
             # Transfer failed - let LLM inform user with error details
             reason = result.get("reason", "unknown")
             logger.info(f"Transfer failed ({reason}), informing user via LLM")
-
-            await function_call_params.result_callback(
-                {
-                    "status": "transfer_failed",
-                    "reason": reason,
-                    "message": result.get("message") or "Transfer failed",
-                }
-            )
+            echec = {
+                "status": "transfer_failed",
+                "reason": reason,
+                "message": result.get("message") or "Transfer failed",
+            }
+            # [.mark] Fiabilite-orchestration, lot 4 bis : la règle « le transfert d'appel
+            # échoue » (éteinte par défaut : le modèle le dit lui-même, comme avant).
+            dit = await self._dire_l_echec_du_transfert()
+            if dit:
+                echec["said_to_caller"] = dit
+                echec["instruction"] = (
+                    "The caller was told the transfer failed; do not repeat it, go on with the call."
+                )
+            await function_call_params.result_callback(echec)
         else:
             # Unknown action, treat as generic success
             logger.warning(f"Unknown transfer action: {action}, treating as success")

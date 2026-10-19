@@ -40,6 +40,7 @@ from api.services.pipecat.service_factory import (
     stamp_sampling_settings,
     stamp_voice_settings,
 )
+from api.services.groupe.postes import Postes
 from api.services.groupe.prechauffage import (
     ChargeAgent,
     Precharge,
@@ -132,6 +133,9 @@ class AgentRuntimeFactory:
     ):
         self._voix_de_l_appel = voix_de_l_appel
         self.precharge = precharge
+        # [.mark] fiabilite-orchestration, lot 3 (F5) : les connexions de l'appel, partagées entre
+        # agents au même fournisseur (même adresse, même clé).
+        self.postes = Postes()
         self._traitement_de_la_fiche = traitement_de_la_fiche
         self._lexique_metier = lexique_metier
         self._variables_appel = variables_appel or (lambda: {})
@@ -297,6 +301,10 @@ class AgentRuntimeFactory:
             and user_config.llm.provider == ServiceProviders.DOGRAH.value
             else llm
         )
+        # [.mark] fiabilite-orchestration, lot 3 (F5) : même fournisseur, même connexion.
+        self.postes.partager(llm)
+        if variable_extraction_llm is not llm:
+            self.postes.partager(variable_extraction_llm)
 
         recording_router = None
         if self._has_recordings and self._fetch_recording_audio is not None:

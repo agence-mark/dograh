@@ -1802,6 +1802,14 @@ async def _run_pipeline_impl(
         engine, task, llm, tts, workflow_run, workflow.organization_id, workflow_id,
         run_configs, reglages_annonce, call_direction, provider_call_id, is_realtime,
     )
+    # [.mark] fiabilite-orchestration, lot 4 (F20) : la garde du modèle, pour tous les agents, mode
+    # panne allumé ou non ; avec le cerveau de repli de l'agent s'il en a un (F26).
+    if not is_realtime:
+        from api.services.panne.garde_modele import garder_l_agent
+
+        await garder_l_agent(
+            engine, engine.active_agent, reglages=run_configs, user_config=user_config
+        )
     engine.greeting.log_generated_speech = feedback_observer.log_speech
 
     if not is_realtime:

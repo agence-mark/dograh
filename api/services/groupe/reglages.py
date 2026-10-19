@@ -70,6 +70,10 @@ CLES_SUIVENT_LE_CERVEAU = (
     "travail_consigne",
     "travail_outils",
     "travail_delai_max_s",
+    # fiabilite-orchestration, lot 4 (F20, C5) : la garde et le repli suivent le cerveau.
+    "delai_garde_modele_s",
+    "cerveau_de_repli",
+    "travail_llm_repli",
 )
 
 # Thème 1 (Agent), partie commune : les réglages du groupe et ceux qui suivent le cerveau.
@@ -90,6 +94,9 @@ CLES_COMMUNES: tuple[str, ...] = (
     "travail_consigne",
     "travail_outils",
     "travail_delai_max_s",
+    "delai_garde_modele_s",
+    "cerveau_de_repli",
+    "travail_llm_repli",
     # 3 Écoute
     "conversion_nombres_transcription",
     "variables_reference",

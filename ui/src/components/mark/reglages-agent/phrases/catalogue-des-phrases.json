@@ -1,0 +1,219 @@
+{
+  "bornes": {
+    "variantes_max": 3,
+    "longueur_max": 300,
+    "regles_max": 60,
+    "delai_min_s": 0.5,
+    "delai_max_s": 120.0
+  },
+  "motifs": [
+    {
+      "id": "passation_tarde",
+      "famille": "attente",
+      "libelle": {
+        "en": "The handover takes time",
+        "fr": "La passation tarde"
+      },
+      "quand": {
+        "en": "A colleague takes over and has not spoken yet after the delay.",
+        "fr": "Un collègue prend la main et n'a pas encore parlé après le délai."
+      },
+      "a_un_delai": true,
+      "variantes_defaut": [
+        "Un instant, s'il vous plaît."
+      ],
+      "delai_defaut_s": 2.0,
+      "actif_par_defaut": false,
+      "eteinte": {
+        "en": "Nothing is said: the caller waits for the colleague's first sentence.",
+        "fr": "Rien n'est dit : l'appelant attend la première phrase du collègue."
+      },
+      "silence_de_l_appelant": false
+    },
+    {
+      "id": "modele_tarde",
+      "famille": "attente",
+      "libelle": {
+        "en": "The model is slow to answer",
+        "fr": "Le modèle tarde à répondre"
+      },
+      "quand": {
+        "en": "The model has not started answering within its guard delay (set in Models, under the brain): the sentence, then a second try.",
+        "fr": "Le modèle n'a pas commencé à répondre dans son délai de garde (réglé dans Models, sous le cerveau) : la phrase, puis une seconde tentative."
+      },
+      "a_un_delai": false,
+      "variantes_defaut": [
+        "Un instant, s'il vous plaît."
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "Nothing is said during the second attempt.",
+        "fr": "Rien n'est dit pendant la seconde tentative."
+      },
+      "silence_de_l_appelant": false
+    },
+    {
+      "id": "outil_tarde",
+      "famille": "attente",
+      "libelle": {
+        "en": "A tool takes time",
+        "fr": "Un outil tarde"
+      },
+      "quand": {
+        "en": "A tool of the turn (not a step change, handover or end) runs past the delay.",
+        "fr": "Un outil du tour (hors portes, passations et fin) tourne au-delà du délai."
+      },
+      "a_un_delai": true,
+      "variantes_defaut": [
+        "Je vérifie, un instant."
+      ],
+      "delai_defaut_s": 3.0,
+      "actif_par_defaut": false,
+      "eteinte": {
+        "en": "Nothing is said: the caller waits for the tool's result.",
+        "fr": "Rien n'est dit : l'appelant attend le résultat de l'outil."
+      },
+      "silence_de_l_appelant": false
+    },
+    {
+      "id": "travail_dure",
+      "famille": "attente",
+      "libelle": {
+        "en": "The background work takes time",
+        "fr": "Le travail de fond dure"
+      },
+      "quand": {
+        "en": "A request given to the background brain has no result yet after the delay.",
+        "fr": "Un travail confié au cerveau de fond n'a pas rendu son résultat après le délai."
+      },
+      "a_un_delai": true,
+      "variantes_defaut": [
+        "C'est presque bon, merci de patienter."
+      ],
+      "delai_defaut_s": 8.0,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "Nothing is said until the result.",
+        "fr": "Rien n'est dit jusqu'au résultat."
+      },
+      "silence_de_l_appelant": false
+    },
+    {
+      "id": "appelant_se_tait",
+      "famille": "attente",
+      "libelle": {
+        "en": "The caller is silent",
+        "fr": "L'appelant se tait"
+      },
+      "quand": {
+        "en": "The agent has finished speaking and the caller says nothing for the delay.",
+        "fr": "L'agent a fini de parler et l'appelant ne dit rien pendant le délai."
+      },
+      "a_un_delai": true,
+      "variantes_defaut": [
+        "Êtes-vous toujours là ?",
+        "Allô ?"
+      ],
+      "delai_defaut_s": 10.0,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "The model prompts the caller itself, as before.",
+        "fr": "Le modèle relance lui-même la conversation, comme avant le chantier."
+      },
+      "silence_de_l_appelant": true
+    },
+    {
+      "id": "reponse_perdue",
+      "famille": "annonce",
+      "libelle": {
+        "en": "The model's answer is lost",
+        "fr": "La réponse du modèle est perdue"
+      },
+      "quand": {
+        "en": "The model's answer produced nothing to say, even after the safety retry.",
+        "fr": "La réponse du modèle n'a rien donné de dicible, même après la relance du filet."
+      },
+      "a_un_delai": false,
+      "variantes_defaut": [
+        "Pardon, je n'ai pas bien saisi. Vous pouvez répéter ?"
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "Silence: the caller speaks again.",
+        "fr": "Silence : l'appelant reprend la parole."
+      },
+      "silence_de_l_appelant": false
+    },
+    {
+      "id": "mise_en_relation",
+      "famille": "annonce",
+      "libelle": {
+        "en": "Before an outbound call transfer",
+        "fr": "Mise en relation avant un transfert d'appel"
+      },
+      "quand": {
+        "en": "An agent reaches a step with a call transfer, business open, right before starting the transfer.",
+        "fr": "Un agent arrive sur une étape qui porte un transfert d'appel, entreprise ouverte, juste avant de lancer le transfert."
+      },
+      "a_un_delai": false,
+      "variantes_defaut": [
+        "Je vous mets en relation, un instant."
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": false,
+      "eteinte": {
+        "en": "The model announces the transfer itself.",
+        "fr": "Le modèle annonce lui-même la mise en relation."
+      },
+      "silence_de_l_appelant": false
+    },
+    {
+      "id": "transfert_echoue",
+      "famille": "annonce",
+      "libelle": {
+        "en": "The call transfer fails",
+        "fr": "Le transfert d'appel échoue"
+      },
+      "quand": {
+        "en": "A transfer to a person does not go through (no answer, voicemail).",
+        "fr": "Un transfert vers une personne n'aboutit pas (pas de réponse, répondeur)."
+      },
+      "a_un_delai": false,
+      "variantes_defaut": [
+        "Je n'ai pas pu vous mettre en relation."
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": false,
+      "eteinte": {
+        "en": "The model says itself that the transfer failed.",
+        "fr": "Le modèle dit lui-même que le transfert n'a pas abouti."
+      },
+      "silence_de_l_appelant": false
+    },
+    {
+      "id": "connecteur_echoue",
+      "famille": "annonce",
+      "libelle": {
+        "en": "A connector fails",
+        "fr": "Un connecteur échoue"
+      },
+      "quand": {
+        "en": "A connector action fails or runs past its deadline.",
+        "fr": "Une action d'un connecteur échoue ou dépasse son délai."
+      },
+      "a_un_delai": false,
+      "variantes_defaut": [
+        "Je transmets votre demande, on vous rappelle pour la confirmer."
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "The code says nothing: the model reads the failure and answers.",
+        "fr": "Rien n'est dit par le code : le modèle lit l'échec et répond."
+      },
+      "silence_de_l_appelant": false
+    }
+  ]
+}

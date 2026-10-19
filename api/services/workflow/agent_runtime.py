@@ -121,6 +121,8 @@ class AgentRuntime:
     # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8) : le cerveau de fond de cet agent
     # (``TravailDeLAgent``), None quand son travail en arrière-plan est éteint (le défaut).
     travail: Any = None
+    # [.mark] fiabilite-orchestration, lot 3 (F5) : construit à l'avance, au décroché (la réserve).
+    preconstruit: bool = False
 
     def bind_tool(self, engine, handler):
         """Bind a tool's lifetime to this visit, including work across awaits."""

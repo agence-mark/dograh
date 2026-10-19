@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import type { PanneAgent } from "@/types/workflow-configurations";
 
 import { ChampReglage } from "../ecran/ChampReglage";
-import type { Texte } from "../langue/langue";
+import { type Texte, useLangue } from "../langue/langue";
 
 export const PANNE_ETEINTE: PanneAgent = { actif: false, delai_modele_s: 4, delai_voix_s: 3, sonnerie_s: 20 };
 
@@ -38,6 +38,7 @@ export const erreursPanne = (valeur: PanneAgent): Texte[] =>
         : [];
 
 export function SectionPanneAgent({ valeur, onChange }: { valeur: PanneAgent; onChange: (valeur: PanneAgent) => void }) {
+    const { t } = useLangue();
     const nombre = (cle: keyof typeof BORNES_PANNE, libelle: Texte, aide: Texte, unite: Texte) => (
         <ChampReglage
             cle={`panne.${cle}`}
@@ -80,13 +81,18 @@ export function SectionPanneAgent({ valeur, onChange }: { valeur: PanneAgent; on
                 <Switch id="panne_actif" checked={valeur.actif} onCheckedChange={(actif) => onChange({ ...valeur, actif })} />
             </ChampReglage>
             {valeur.actif && (
-                <div className="grid gap-3 sm:grid-cols-3">
-                    {nombre(
-                        "delai_modele_s",
-                        { en: "Model answer delay", fr: "Délai de réponse du modèle" },
-                        { en: "Past it, « Un instant, s'il vous plaît » and a new try; the second time in a row, the hand-over.", fr: "Au-delà, « Un instant, s'il vous plaît » et un nouvel essai ; la seconde fois de suite, le renvoi." },
-                        { en: "s", fr: "s" },
-                    )}
+                <p className="text-xs text-muted-foreground" data-note="delai-modele-deplace">
+                    {t({
+                        en: "The model answer delay is now set in « Model guard », under the brain (theme Services): it applies to every agent; here, the second time in a row hands the call over.",
+                        fr: "Le délai de réponse du modèle se règle désormais dans « Garde du modèle », sous le cerveau (thème Services) : il vaut pour tous les agents ; ici, la deuxième fois d'affilée renvoie l'appel.",
+                    })}
+                </p>
+            )}
+            {valeur.actif && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                    {/* fiabilite-orchestration, lot 4 (F20): the model answer delay moved to « Model guard »
+                        (theme Services, under the brain), armed for every agent; its stored value is still read
+                        there until the new one is set. */}
                     {nombre(
                         "delai_voix_s",
                         { en: "Voice delay", fr: "Délai de la voix" },

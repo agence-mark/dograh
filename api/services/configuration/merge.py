@@ -209,3 +209,19 @@ def merge_travail_secret(
     """[.mark] Lot 4 d'orchestrateur-trois-cerveaux (D10) : la clé du cerveau de fond,
     rendue à l'enregistrement comme celle du greffier."""
     return _merge_bloc_secret(incoming_config, existing_config, "travail_llm")
+
+
+def merge_repli_secret(
+    incoming_config: dict | None,
+    existing_config: dict | None,
+) -> dict | None:
+    """[.mark] fiabilite-orchestration, lot 4 : la clé du cerveau de repli de l'agent."""
+    return _merge_bloc_secret(incoming_config, existing_config, "cerveau_de_repli")
+
+
+def merge_repli_du_fond_secret(
+    incoming_config: dict | None,
+    existing_config: dict | None,
+) -> dict | None:
+    """[.mark] fiabilite-orchestration, lot 4 : la clé du cerveau de repli du fond."""
+    return _merge_bloc_secret(incoming_config, existing_config, "travail_llm_repli")

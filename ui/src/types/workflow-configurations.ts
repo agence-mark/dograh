@@ -304,6 +304,16 @@ export type ApresAppelAgent = {
  * [.mark] Lot 12 (A6): the waiting sound of the main agent and where it applies.
  * ``son``: absent = the default ringer, ``"aucun"`` = no sound, an object = a file dropped on the agent.
  */
+/** [.mark] One rule of a sentence said by the code (theme Phrases), as ``api/schemas/phrases_du_code.py``. */
+export interface ReglePhrase {
+    motif: string;
+    portee?: "groupe" | "agent" | "etape";
+    etape?: string | null;
+    variantes: string[];
+    delai_s?: number | null;
+    active?: boolean;
+}
+
 export interface AttenteDuGroupe {
     son?: "aucun" | { storage_key: string; storage_backend: string; original_filename?: string } | null;
     duree_min_s?: number | null;
@@ -421,6 +431,12 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     travail_consigne?: string | null;
     travail_outils?: string[];
     travail_delai_max_s?: number;
+    // [.mark] fiabilite-orchestration, lot 4 (F20, F26, C5): the model guard and the fallback brains.
+    delai_garde_modele_s?: number | null;
+    cerveau_de_repli?: GreffierLlm | null;
+    travail_llm_repli?: GreffierLlm | null;
+    // [.mark] fiabilite-orchestration, lot 4 bis (F15, F17, F18, F23): the rules of the sentences said by the code.
+    phrases_regles?: ReglePhrase[] | null;
     fiche_champs?: ChampFiche[];
     // [.mark] Chantier correctifs-modules, lot 4 bis: write the flow map into the
     // prompts at every save. Off by default: the save is unchanged.

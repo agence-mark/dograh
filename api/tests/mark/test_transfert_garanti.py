@@ -586,7 +586,9 @@ async def test_fige_la_phrase_est_dite_puis_le_transfert_part_sans_tour_de_model
     engine.queue_speech = AsyncMock(return_value=dite)
     await engine.dire_puis_transferer_a_l_ouverture(agent, "etape", PHRASE_FIGEE)
     (appel,) = engine.queue_speech.await_args_list
-    assert appel.args == (PHRASE_FIGEE,) and appel.kwargs["mute_user"] is True
+    # Lot 4 bis (F25) : la phrase du code laisse le micro ouvert ; coupée, le transfert ne part
+    # pas (``test_fige_rien_si_la_personne_parle_avant_la_fin_de_la_phrase``).
+    assert appel.args == (PHRASE_FIGEE,) and appel.kwargs["mute_user"] is False
     await asyncio.sleep(0.05)
     assert _appels(engine) == [], "le transfert part avant la fin de la phrase"
     dite.finish(PlaybackOutcome.PLAYED)

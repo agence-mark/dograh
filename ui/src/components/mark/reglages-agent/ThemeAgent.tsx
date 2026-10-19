@@ -408,7 +408,7 @@ export const ThemeAgent = ({
                     idControle="reflexion_de_relance"
                     libelle={{ en: "Retry reasoning", fr: "Réflexion de relance" }}
                     aides={AIDES_REFLEXION_DE_RELANCE}
-                    bornes={{ en: "Default: the agent's setting", fr: "Par défaut : le réglage de l'agent" }}
+                    bornes={{ en: "Default: no retry reasoning (the agent's setting)", fr: "Par défaut : aucune réflexion de secours (le réglage de l'agent)" }}
                 >
                     <Select
                         value={relance ?? RELANCE_DE_L_AGENT}
@@ -419,7 +419,7 @@ export const ThemeAgent = ({
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value={RELANCE_DE_L_AGENT}>
-                                {t({ en: "The agent's setting", fr: "Le réglage de l'agent" })}
+                                {t({ en: "None (the agent's setting)", fr: "Aucune (le réglage de l'agent)" })}
                             </SelectItem>
                             {NIVEAUX_DE_RELANCE.map((niveau) => (
                                 <SelectItem key={niveau} value={niveau}>

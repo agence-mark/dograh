@@ -559,7 +559,10 @@ def _sans_service():
 
 
 @pytest.mark.asyncio
-async def test_le_prechauffage_charge_les_cibles_sans_rien_construire(monkeypatch):
+async def test_le_prechauffage_charge_les_cibles_puis_les_construit_a_l_avance(monkeypatch):
+    """fiabilite-orchestration, lot 3 (F5, remplace A5/A19 du 16/10) : les cibles sont chargées
+    (définitions, configurations, outils), PUIS construites à l'avance (la réserve), inactives ; la
+    passation prend l'agent de la réserve sans rien construire, et une autre se prépare en fond."""
     _sonnerie(monkeypatch)
     harness = await _monter_groupe(GROUPE)
     engine = harness.engine
@@ -591,9 +594,39 @@ async def test_le_prechauffage_charge_les_cibles_sans_rien_construire(monkeypatc
         assert charge.definition is DEFINITION_CIBLE and charge.dto.nodes
         interdit.assert_not_called()
         configuration.assert_awaited_once()
-        # Aucun runtime, aucun pipeline, aucune connexion : rien n'a été construit.
-        assert harness.built_destinations == []
+        # La réserve : l'agent est construit, inactif, rien n'a pris la main.
+        assert harness.built_destinations == [DESTINATION_WORKFLOW_ID]
+        pret = precharge.prets[DESTINATION_WORKFLOW_ID]
+        assert pret.preconstruit is True
         assert engine.pending_agent is None
+        assert engine.active_agent is not pret
+
+        # La passation prend l'agent de la réserve : aucune construction pendant l'attente. La
+        # réserve refaite en fond est enregistrée ici sans circuit : le banc réutilise le même
+        # modèle factice à chaque construction, et un processeur n'a qu'une place.
+        refaits: list[int] = []
+
+        async def refaire(*, workflow_id, visit_id):
+            refaits.append(workflow_id)
+            return SimpleNamespace(
+                preconstruit=False, error=None, is_running=True, travail=None, llm=None,
+                visit_id=visit_id, reglages={},
+            )
+
+        factory.build = refaire
+        with patch(PATCH_OUTILS, AsyncMock(return_value=[TransferAgentTool()])):
+            resultat = await _passer(harness, DESTINATION_WORKFLOW_ID)
+        assert resultat["outcome"] == "completed"
+        assert resultat["to_visit_id"] == pret.visit_id
+        assert engine.active_agent is pret
+        assert resultat["installation"] == "reserve"
+        assert resultat["installation_s"] < 0.5
+        # Puis la réserve se refait en fond pour la passation suivante.
+        async with asyncio.timeout(5):
+            while DESTINATION_WORKFLOW_ID not in precharge.prets:
+                await asyncio.sleep(0.02)
+        assert precharge.prets[DESTINATION_WORKFLOW_ID] is not pret
+        assert refaits == [DESTINATION_WORKFLOW_ID]
     finally:
         await harness.stop()
 

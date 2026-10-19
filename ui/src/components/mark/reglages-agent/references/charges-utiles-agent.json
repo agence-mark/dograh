@@ -1791,30 +1791,58 @@
             "attente": {
               "duree_min_s": 2.5,
               "passation": true,
-              "transfert_humain": false,
-              "phrase_pont": "Un instant.",
-              "delai_phrase_pont_s": 3
+              "transfert_humain": false
             }
           },
           "retirees": []
         }
       ]
     },
-    "transfert-humain": {
+    "phrases-groupe": {
       "carte": "ajout-mark",
-      "theme": "voix",
+      "theme": "phrases",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
           "nom": "Accueil de référence",
           "modifiees": {
-            "attente": {
-              "passation": true,
-              "transfert_humain": true
-            },
-            "transfert_humain": {
-              "phrase_mise_en_relation": "Un instant, je vous mets en relation."
-            }
+            "phrases_regles": [
+              {
+                "motif": "passation_tarde",
+                "portee": "groupe",
+                "etape": null,
+                "variantes": [
+                  "Un instant."
+                ],
+                "delai_s": 3,
+                "active": true
+              }
+            ]
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "phrases-agent": {
+      "carte": "ajout-mark",
+      "theme": "phrases",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "phrases_regles": [
+              {
+                "motif": "appelant_se_tait",
+                "portee": "agent",
+                "etape": null,
+                "variantes": [
+                  "Êtes-vous toujours là ?"
+                ],
+                "delai_s": 10,
+                "active": false
+              }
+            ]
           },
           "retirees": []
         }
@@ -1892,6 +1920,54 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "travail_delai_max_s": 90
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-delai": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "delai_garde_modele_s": 6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-repli": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "cerveau_de_repli": {
+              "provider": "mistral",
+              "model": "mistral-large-2512"
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "travail-repli": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "travail_llm_repli": {
+              "provider": "mistral",
+              "model": "mistral-small-2603"
+            }
           },
           "retirees": []
         }
