@@ -31,6 +31,7 @@ from api.services.configuration.registry import (
     adresse_soniox,
 )
 from api.services.configuration.plafond_lexique import plafond_du_lexique
+from api.services.pipecat.ordre_outil_puis_parole import ordre_outil_puis_parole
 from api.services.pipecat.appels_de_fonction_voix import (
     PhraseQuiNEstQuUnAppel,
     retirer_appels_de_fonction,
@@ -472,7 +473,8 @@ class DograhMistralLLMService(TraceModeleMixin, DelaiModeleMixin, MistralLLMServ
                 **(params.get("extra_body") or {}),
                 "prompt_cache_key": self._prompt_cache_key,
             }
-        return params
+        # [.mark] ordre-outil-puis-parole (20/10) : jamais l'appelant juste après un résultat d'outil.
+        return ordre_outil_puis_parole(params)
 
 
 class DograhOpenAILLMService(
@@ -511,7 +513,8 @@ class DograhOpenAILLMService(
         # [.mark] D10 de repliques-coupees : la relance d'une réplique inachevée, seule,
         # part avec la réflexion de secours de l'agent.
         params = self._mark_appliquer_le_secours(params)
-        return params
+        # [.mark] ordre-outil-puis-parole (20/10) : jamais l'appelant juste après un résultat d'outil.
+        return ordre_outil_puis_parole(params)
 
 
 def cle_de_cache(workflow_id: int) -> str:
