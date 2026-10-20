@@ -85,13 +85,19 @@ def appel_au_calme(moteur: Any) -> bool:
     return bool(moteur.call_monitor.appel_au_calme)
 
 
-async def attendre_le_calme(moteur: Any, *, pas_s: float = PAS_D_ATTENTE_S) -> bool:
-    """Attend que l'appel soit calme. ``False`` si l'appel s'est terminé avant. Annulable."""
+async def attendre_le_calme(
+    moteur: Any, *, pas_s: float = PAS_D_ATTENTE_S, limite_s: float | None = None
+) -> bool:
+    """Attend que l'appel soit calme. ``False`` si l'appel s'est terminé avant, ou si ``limite_s``
+    secondes ont passé sans calme. Annulable."""
+    limite = None if limite_s is None else time.monotonic() + limite_s
     while True:
         if moteur.is_call_disposed():
             return False
         if appel_au_calme(moteur):
             return True
+        if limite is not None and time.monotonic() >= limite:
+            return False
         await asyncio.sleep(pas_s)
 
 
@@ -154,6 +160,7 @@ async def _attendre_le_moment(moteur: Any, *, pas_s: float = PAS_D_ATTENTE_S) ->
 # de son tour fasse répondre le modèle avant de le réveiller soi-même.
 ATTENTE_DE_LA_REPONSE_S = 3.0
 ATTENTE_MAX_DE_LA_REPLIQUE_S = 30.0
+ATTENTE_MAX_DU_CALME_S = 30.0
 _VEILLES: set[asyncio.Task] = set()
 
 
@@ -179,7 +186,9 @@ async def _veiller_sur_la_replique(moteur: Any, agent: Any, message: str) -> Non
             return
         await asyncio.sleep(PAS_D_ATTENTE_S)
     await asyncio.sleep(ATTENTE_DE_LA_REPONSE_S)
-    if not await attendre_le_calme(moteur) or moteur.active_agent is not agent:
+    # Bornée elle aussi : une veille ne survit jamais à un appel qui ne retrouve pas le calme.
+    calme = await attendre_le_calme(moteur, limite_s=ATTENTE_MAX_DU_CALME_S)
+    if not calme or moteur.active_agent is not agent:
         return
     contexte = getattr(moteur, "context", None)
     if _repondu_apres(contexte.get_messages() if contexte else [], message) is not False:

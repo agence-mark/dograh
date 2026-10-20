@@ -423,6 +423,23 @@ async def test_le_robot_parle_le_resultat_attend():
     assert await asyncio.wait_for(tache, 2) is True
 
 
+@pytest.mark.asyncio
+async def test_la_veille_s_arrete_si_le_calme_ne_revient_jamais(monkeypatch):
+    """Un appel qui ne retrouve jamais le calme et n'est jamais clos : la veille s'arrête
+    d'elle-même au bout de sa limite, sans réveiller le modèle (20/10 : une veille sans fin a
+    porté la suite de tests à plus de 100 Go)."""
+    from api.services.travail import retour
+
+    monkeypatch.setattr(retour, "ATTENTE_MAX_DE_LA_REPLIQUE_S", 0.05)
+    monkeypatch.setattr(retour, "ATTENTE_DE_LA_REPONSE_S", 0.0)
+    monkeypatch.setattr(retour, "ATTENTE_MAX_DU_CALME_S", 0.2)
+    moteur, agent = _moteur_de_remise([])
+    moteur.call_monitor.appel_au_calme = False
+    moteur.call_monitor.appelant_parle = True
+    await asyncio.wait_for(retour._veiller_sur_la_replique(moteur, agent, "[Résultat]"), 2)
+    assert agent.queue_frame.await_count == 0
+
+
 # --------------------------------------------------------------------------- #
 # G2 : le champ rempli par l'outil
 # --------------------------------------------------------------------------- #
