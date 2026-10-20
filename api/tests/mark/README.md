@@ -304,3 +304,4 @@ relisent l'un avec l'autre, aucun ne fait foi seul.
 **Le rouge de référence, mesuré le matin sur les 47 :** sans les patchs de `registry.py`,
 `check_validity.py` et `service_factory.py` : **1 erreur de collecte (les 19 de Mistral),
 7 échecs (Deepgram), 21 verts.**
+| `test_fiche_lit_la_reponse_de_l_outil.py` | Le champ « rempli par l'outil » se lit dans la réponse du service, pas dans l'emballage HTTP de Dograh (run 1475) |
