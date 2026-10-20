@@ -18,6 +18,8 @@ import copy
 from itertools import pairwise
 from types import SimpleNamespace
 
+from pipecat.processors.aggregators.llm_context import LLMContext
+
 from api.services.configuration.registry import MistralLLMConfiguration
 from api.services.configuration.registry import OpenAILLMService as OpenAIConfig
 from api.services.pipecat.ordre_outil_puis_parole import (
@@ -77,9 +79,37 @@ def test_l_appelant_se_tait_le_resultat_arrive_seul():
 def test_la_parole_dans_le_meme_message_que_l_appel_sort_apres_le_resultat():
     appel_avec_parole = {**APPEL, "content": "Je regarde les disponibilités."}
     sortie = remettre_la_parole_apres_l_outil([*DEBUT, appel_avec_parole, LANCE, DACCORD])
-    assert sortie[-4]["content"] is None and sortie[-4]["tool_calls"] == APPEL["tool_calls"]
+    assert "content" not in sortie[-4] and sortie[-4]["tool_calls"] == APPEL["tool_calls"]
     assert sortie[-2] == {"role": "assistant", "content": "Je regarde les disponibilités."}
     assert _jamais_user_apres_tool(sortie)
+
+
+def test_deux_outils_lances_dans_la_meme_reponse():
+    """Relecture du 20/10 : « Je relance la recherche. » puis annuler et confier ensemble ; Pipecat range chaque
+    appel avec son résultat. La phrase passe après le dernier résultat du groupe."""
+    annuler = {"role": "assistant", "tool_calls": [{"id": "A1b2C3d4E", "type": "function",
+               "function": {"name": "annuler_le_travail", "arguments": "{}"}}]}
+    annule = {"role": "tool", "content": "{\"statut\": \"annulé\"}", "tool_call_id": "A1b2C3d4E"}
+    relance = {"role": "assistant", "content": "Je relance la recherche."}
+    sortie = remettre_la_parole_apres_l_outil([*DEBUT, relance, annuler, annule, APPEL, LANCE, DACCORD])
+    assert sortie[3:] == [annuler, annule, APPEL, LANCE, relance, DACCORD]
+    assert _jamais_user_apres_tool(sortie)
+
+
+def test_format_responses_remis_en_ordre():
+    """API ``responses`` : l'appel est un élément ``function_call``, son résultat un ``function_call_output``."""
+    entrees = [
+        {"role": "developer", "content": "# Qui tu es"},
+        {"role": "user", "content": "1 rue de l'Essai à Testville, 99999."},
+        {"role": "assistant", "content": "Je regarde les disponibilités."},
+        {"type": "function_call", "call_id": "MKRh6Vsm0", "name": "confier_le_travail", "arguments": "{}"},
+        {"type": "function_call_output", "call_id": "MKRh6Vsm0", "output": "{\"statut\": \"lancé\"}"},
+        {"role": "user", "content": "D'accord."},
+    ]
+    sortie = remettre_la_parole_apres_l_outil(entrees)
+    assert [m.get("type") or m.get("role") for m in sortie] == [
+        "developer", "user", "function_call", "function_call_output", "assistant", "user"
+    ]
 
 
 def test_sans_phrase_dite_rien_ne_change():
@@ -117,6 +147,26 @@ def test_r1_la_requete_du_service_scaleway_sort_en_ordre():
     )
     params = create_llm_service(config).build_chat_completion_params(_contexte())
     assert _jamais_user_apres_tool(params["messages"])
+
+
+def test_r1_la_requete_du_service_responses_sort_en_ordre():
+    config = SimpleNamespace(
+        llm=OpenAIConfig(
+            api_key="cle-de-test-jamais-envoyee",
+            model="mistral-small-3.2-24b-instruct-2506",
+            base_url="https://api.scaleway.ai/v1",
+            api="responses",
+        )
+    )
+    service = create_llm_service(config)
+    # Comme en production : l'adaptateur Responses de Pipecat convertit l'historique, puis le service construit.
+    invocation = service.get_llm_adapter().get_llm_invocation_params(
+        LLMContext(messages=copy.deepcopy(RUN_1469[1:])), system_instruction="# Qui tu es"
+    )
+    entrees = service.build_chat_completion_params(invocation)["input"]
+    assert any(e.get("type") == "function_call_output" for e in entrees)
+    for a, b in pairwise(entrees):
+        assert not (a.get("type") == "function_call_output" and b.get("role") == "user")
 
 
 def test_r1_la_requete_du_service_mistral_sort_en_ordre():

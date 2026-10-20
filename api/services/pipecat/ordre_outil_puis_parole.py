@@ -9,8 +9,11 @@ de dialogue de Mistral chez Scaleway (Small 3.2) refuse cet enchaînement : 400 
 partout (requête du 1469 rejouée le 20/10).
 
 Le correctif : dans la COPIE des messages qui part au modèle (jamais l'historique), la phrase déjà dite par la réponse
-qui a appelé l'outil est replacée juste après les résultats de l'outil. Le client entend la même chose ; seul l'ordre
-envoyé change. Sans phrase dite, rien ne change (journalisé). Aucun vocabulaire métier, tous fournisseurs.
+qui a appelé les outils est replacée juste après leurs résultats. Le client entend la même chose ; seul l'ordre envoyé
+change. Une même réponse peut lancer plusieurs outils (Pipecat range chaque appel avec son résultat) : tout le groupe
+est remonté. Les deux formats d'envoi sont couverts : ``messages`` (chat) et ``input`` (API ``responses``, où un appel
+est un élément ``function_call`` et son résultat un ``function_call_output``). Sans phrase dite, rien ne change. Aucun
+vocabulaire métier, tous fournisseurs.
 """
 
 from __future__ import annotations
@@ -18,6 +21,8 @@ from __future__ import annotations
 from typing import Any
 
 from loguru import logger
+
+APPEL, RESULTAT, PAROLE, APPELANT = "appel", "resultat", "parole", "appelant"
 
 
 def _texte(contenu: Any) -> str:
@@ -30,44 +35,61 @@ def _texte(contenu: Any) -> str:
     return ""
 
 
-def _role(message: Any) -> str | None:
-    return message.get("role") if isinstance(message, dict) else None
+def _nature(message: Any) -> str | None:
+    """Ce qu'est un message, dans les deux formats : un appel d'outil, un résultat d'outil, une parole de
+    l'assistant, une parole de l'appelant (``user``), ou autre chose (``None``)."""
+    if not isinstance(message, dict):
+        return None
+    if message.get("type") == "function_call":
+        return APPEL
+    if message.get("role") == "tool" or message.get("type") == "function_call_output":
+        return RESULTAT
+    role = message.get("role")
+    if role == "assistant":
+        return APPEL if message.get("tool_calls") else PAROLE
+    if role == "user":
+        return APPELANT
+    return None
 
 
 def remettre_la_parole_apres_l_outil(messages: list) -> list:
-    """Une copie de ``messages`` où aucun ``user`` ne suit directement un ``tool`` quand la réponse qui a appelé
-    l'outil avait parlé : cette parole est replacée juste après les résultats de l'outil. ``messages`` n'est jamais
-    modifié ; sans rien à corriger, la même liste est rendue. ⛔ Ne lève jamais."""
+    """Une copie de ``messages`` où aucune parole de l'appelant ne suit directement un résultat d'outil quand la
+    réponse qui a appelé les outils avait parlé : cette parole est replacée juste après le dernier résultat du groupe.
+    ``messages`` et ses messages ne sont jamais modifiés. ⛔ Ne lève jamais."""
     try:
         sortie = list(messages)
         i = 0
         while i < len(sortie):
-            if _role(sortie[i]) != "tool":
+            if _nature(sortie[i]) != RESULTAT:
                 i += 1
                 continue
+            # Le groupe : appels et résultats d'une même réponse, d'un seul tenant, jusqu'au dernier résultat.
             fin = i
-            while fin + 1 < len(sortie) and _role(sortie[fin + 1]) == "tool":
+            while fin + 1 < len(sortie) and _nature(sortie[fin + 1]) in (APPEL, RESULTAT):
                 fin += 1
-            if fin + 1 >= len(sortie) or _role(sortie[fin + 1]) != "user":
+            while _nature(sortie[fin]) != RESULTAT:
+                fin -= 1
+            if fin + 1 >= len(sortie) or _nature(sortie[fin + 1]) != APPELANT:
                 i = fin + 1
                 continue
-            appel = i - 1
-            if appel < 0 or _role(sortie[appel]) != "assistant" or not sortie[appel].get("tool_calls"):
-                i = fin + 1
-                continue
+            debut = i
+            while debut - 1 >= 0 and _nature(sortie[debut - 1]) in (APPEL, RESULTAT):
+                debut -= 1
             parole = None
-            if _texte(sortie[appel].get("content")):
-                # La parole et l'appel dans le même message : la parole sort, l'appel reste.
-                parole = {"role": "assistant", "content": sortie[appel]["content"]}
-                sortie[appel] = {**sortie[appel], "content": None}
-            elif appel - 1 >= 0 and _role(sortie[appel - 1]) == "assistant" \
-                    and not sortie[appel - 1].get("tool_calls") and _texte(sortie[appel - 1].get("content")):
-                # La parole rangée juste avant l'appel (le cas de R15) : elle passe après les résultats.
-                parole = sortie.pop(appel - 1)
-                i -= 1
+            for k in range(debut, fin + 1):
+                if _nature(sortie[k]) == APPEL and _texte(sortie[k].get("content")):
+                    # La parole et l'appel dans le même message : la parole sort, l'appel reste (sans
+                    # clé ``content``, comme Pipecat écrit un message d'appel).
+                    parole = {"role": "assistant", "content": sortie[k]["content"]}
+                    sortie[k] = {c: v for c, v in sortie[k].items() if c != "content"}
+                    break
+            if parole is None and debut - 1 >= 0 and _nature(sortie[debut - 1]) == PAROLE \
+                    and _texte(sortie[debut - 1].get("content")):
+                # La parole rangée juste avant le premier appel (le cas de R15) : elle passe après les résultats.
+                parole = sortie.pop(debut - 1)
                 fin -= 1
             if parole is None:
-                logger.info("[ordre] un résultat d'outil suivi d'une parole, sans phrase à replacer")
+                logger.debug("[ordre] un résultat d'outil suivi d'une parole, sans phrase à replacer")
                 i = fin + 1
                 continue
             sortie.insert(fin + 1, parole)
@@ -79,10 +101,12 @@ def remettre_la_parole_apres_l_outil(messages: list) -> list:
 
 
 def ordre_outil_puis_parole(params: Any) -> Any:
-    """Les paramètres d'une requête de conversation, l'ordre de ``messages`` corrigé (appelé à la fin de
-    ``build_chat_completion_params`` des services de modèle du fork, Mistral et compatibles OpenAI). Une requête sans
-    ``messages`` (API ``responses``) part telle quelle."""
-    messages = params.get("messages") if isinstance(params, dict) else None
-    if isinstance(messages, list):
-        params["messages"] = remettre_la_parole_apres_l_outil(messages)
+    """Les paramètres d'une requête de conversation, l'ordre corrigé : ``messages`` (chat) ou ``input`` (API
+    ``responses``). Appelé à la fin de ``build_chat_completion_params`` des services de modèle du fork (Mistral,
+    compatibles OpenAI, Responses)."""
+    if not isinstance(params, dict):
+        return params
+    for cle in ("messages", "input"):
+        if isinstance(params.get(cle), list):
+            params[cle] = remettre_la_parole_apres_l_outil(params[cle])
     return params

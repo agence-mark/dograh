@@ -74,6 +74,7 @@ from api.services.groupe.passations import NOTE_DE_PASSATION
 from api.services.panne.delai_modele import DelaiModeleMixin
 from api.services.pipecat.main_passee import ATTRIBUT as ATTRIBUT_MAIN_PASSEE
 from api.services.pipecat.main_passee import _FluxVide
+from api.services.pipecat.ordre_outil_puis_parole import ordre_outil_puis_parole
 from api.services.pipecat.reponse_avalee import phrase_de_repli
 from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
 from api.services.pipecat.texte_du_cerveau import FluxNettoye, _noms_des_outils
@@ -648,4 +649,6 @@ class MarkOpenAIResponsesLLMService(
         params = super().build_chat_completion_params(invocation_params)
         # D10 de repliques-coupees : la relance d'une réplique inachevée, seule, part avec la
         # réflexion de secours de l'agent.
-        return self._mark_appliquer_le_secours(params)
+        params = self._mark_appliquer_le_secours(params)
+        # [.mark] ordre-outil-puis-parole (20/10) : jamais l'appelant juste après un résultat d'outil.
+        return ordre_outil_puis_parole(params)
