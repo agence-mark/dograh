@@ -347,6 +347,10 @@ async def cle_d_identifiant(
     if identifiant is None:
         return None
     donnees = identifiant.credential_data or {}
+    if donnees.get("adresse"):
+        # fiabilite-orchestration, lot 10 (F10) : une clé qui a une adresse ne part que vers elle ;
+        # l'appelant simulé vise l'adresse de son fournisseur : la clé est inutilisable ici.
+        return None
     for champ in ("api_key", "token", "header_value", "password"):
         valeur = donnees.get(champ)
         if isinstance(valeur, str) and valeur.strip():

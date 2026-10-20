@@ -182,7 +182,7 @@ def consigne_du_greffier(
     réponse porte tous les champs, ``null`` = rien."""
     champs = "\n".join(
         f"- {champ.nom} : {_propriete(champ)['description']}"
-        for champ in reglages.champs
+        for champ in reglages.champs_notes
     )
     base = consigne.strip() if consigne and consigne.strip() else CONSIGNE_GENERIQUE
     return "\n\n".join(
@@ -541,7 +541,8 @@ def schema_de_la_fiche(reglages: ReglagesFiche) -> dict:
     chaque champ vaut son type **ou** ``null`` (= rien à noter). Une liste fermée de valeurs devient
     un ``enum`` (``null`` en plus), sauf pour un champ cumulatif, qui s'écrit « a ; b »."""
     proprietes: dict = {}
-    for champ in reglages.champs:
+    # fiabilite-orchestration, lot 1 (G2) : un champ rempli par un outil n'est jamais proposé.
+    for champ in reglages.champs_notes:
         base: dict = {"type": champ.type}
         if champ.valeurs and champ.type == "string" and not champ.cumulatif:
             base["enum"] = list(champ.valeurs)
@@ -549,7 +550,7 @@ def schema_de_la_fiche(reglages: ReglagesFiche) -> dict:
     return {
         "type": "object",
         "properties": proprietes,
-        "required": [champ.nom for champ in reglages.champs],
+        "required": [champ.nom for champ in reglages.champs_notes],
         "additionalProperties": False,
     }
 
@@ -1058,8 +1059,11 @@ async def resoudre_le_bloc_annexe(
     if not isinstance(bloc, dict) or not est_reference(bloc.get("api_key")):
         return run_configs
     try:
+        # Lot 10 de fiabilite-orchestration : le bloc dit où il vise (``base_url``) ; sans, il vise
+        # l'adresse de son fournisseur, et une clé qui a une adresse ne part pas (l'adresse manque).
+        cible = {"adresse_cible": bloc["base_url"]} if "base_url" in bloc else {}
         cle = await cle_d_une_reference(
-            bloc["api_key"], bloc.get("provider"), organization_id, usage
+            bloc["api_key"], bloc.get("provider"), organization_id, usage, **cible
         )
     except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
         logger.error(f"[fiche] clé ({usage}) non résolue : {type(erreur).__name__}")

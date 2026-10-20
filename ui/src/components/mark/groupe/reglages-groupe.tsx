@@ -85,6 +85,8 @@ export const extraireAttente = (c: Partial<WorkflowConfigurations>) => {
         duree_min_s: a.duree_min_s ?? null,
         passation: a.passation ?? true,
         transfert_humain: a.transfert_humain ?? true,
+        // fiabilite-orchestration, lot 4 bis: no longer edited here (theme Phrases); carried through
+        // unchanged so saving this part never loses a value the theme Phrases has not taken over yet.
         phrase_pont: a.phrase_pont ?? "",
         delai_phrase_pont_s: a.delai_phrase_pont_s ?? null,
         // Carried by its own key, ``transfert_humain`` (see ``chargeTransfertHumain``).
@@ -187,20 +189,9 @@ const TEXTES = {
         en: "Plays the sound while the call is passed to a person's phone.",
         fr: "Joue le son pendant que l'appel est passé sur le téléphone d'une personne.",
     },
-    phrasePont: { en: "Bridge phrase", fr: "Phrase pont" },
-    phrasePontAide: {
-        en: "Optional. A short sentence said by the call's voice, only if the hand-over lasts longer than the delay below: a safety net, not the solution. The agent handing over is not woken up to say it. Never said by a keyboard test, nor towards an agent already built. Empty: none.",
-        fr: "Facultative. Une phrase courte dite par la voix de l'appel, seulement si la passation dure plus que le délai ci-dessous : un filet, pas la solution. L'agent qui passe la main n'est pas réveillé pour la dire. Jamais dite au clavier, ni vers un agent déjà construit. Vide : aucune.",
-    },
-    phraseMiseEnRelation: { en: "Hand-over sentence to a person", fr: "Phrase de mise en relation" },
-    phraseMiseEnRelationAide: {
-        en: "Optional. When a called agent arrives on a step that transfers the call to a person and the business is open, the code says this sentence itself, with the call's voice, then starts the transfer: the model is not asked for a reply. Empty: the model speaks, as before. If the transfer tool has its own message, that message is said instead. Never said by a keyboard test.",
-        fr: "Facultative. Quand un agent appelé arrive sur une étape qui transfère l'appel vers une personne, entreprise ouverte, le code dit lui-même cette phrase, avec la voix de l'appel, puis lance le transfert : le modèle n'est pas sollicité. Vide : le modèle parle, comme avant. Si l'outil de transfert porte son propre message, c'est lui qui est dit. Jamais dite au clavier.",
-    },
-    delaiPhrasePont: { en: "Bridge phrase delay (seconds)", fr: "Délai de la phrase pont (secondes)" },
-    delaiPhrasePontAide: {
-        en: "The phrase is said once, if the hand-over is not done after this delay. Empty: 2 s.",
-        fr: "La phrase est dite une fois, si la passation n'est pas faite après ce délai. Vide : 2 s.",
+    phrasesDeplacees: {
+        en: "The bridge phrase and the sentence before a call transfer are set in the theme Phrases.",
+        fr: "La phrase pont et la phrase de mise en relation se règlent dans le thème Phrases.",
     },
 } satisfies Record<string, Texte>;
 
@@ -468,50 +459,12 @@ export const IntertitreAttente = ({
             <ChampReglage cle="attente.transfert_humain" idControle="attente_transfert_humain" libelle={TEXTES.attenteHumain} aides={[TEXTES.attenteHumainAide]} disposition="ligne">
                 <Switch id="attente_transfert_humain" checked={valeurs.transfert_humain} onCheckedChange={(coche) => onChange("transfert_humain", coche)} />
             </ChampReglage>
-            <ChampReglage
-                cle="transfert_humain.phrase_mise_en_relation"
-                idControle="attente_phrase_mise_en_relation"
-                libelle={TEXTES.phraseMiseEnRelation}
-                aides={[TEXTES.phraseMiseEnRelationAide]}
-            >
-                <Input
-                    id="attente_phrase_mise_en_relation"
-                    value={valeurs.phrase_mise_en_relation}
-                    onChange={(e) => onChange("phrase_mise_en_relation", e.target.value)}
-                />
-            </ChampReglage>
-            <ChampReglage cle="attente.phrase_pont" idControle="attente_phrase_pont" libelle={TEXTES.phrasePont} aides={[TEXTES.phrasePontAide]}>
-                <Input
-                    id="attente_phrase_pont"
-                    maxLength={300}
-                    value={valeurs.phrase_pont}
-                    onChange={(e) => onChange("phrase_pont", e.target.value)}
-                />
-            </ChampReglage>
-            <ChampReglage
-                cle="attente.delai_phrase_pont_s"
-                idControle="attente_delai_phrase_pont_s"
-                libelle={TEXTES.delaiPhrasePont}
-                aides={[TEXTES.delaiPhrasePontAide]}
-                bornes={bornesDe(0)}
-            >
-                <Input
-                    id="attente_delai_phrase_pont_s"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    placeholder={String(DELAI_PHRASE_PONT_DEFAUT_S)}
-                    value={valeurs.delai_phrase_pont_s ?? ""}
-                    onChange={(e) => {
-                        if (e.target.value === "") {
-                            onChange("delai_phrase_pont_s", null);
-                            return;
-                        }
-                        const n = Number(e.target.value);
-                        if (Number.isFinite(n) && n >= 0) onChange("delai_phrase_pont_s", n);
-                    }}
-                />
-            </ChampReglage>
+            {/* fiabilite-orchestration, lot 4 bis (F17): the bridge phrase and the sentence before a call
+                transfer moved to the theme Phrases (rules « The handover takes time » and « Before an outbound
+                call transfer »); their old values are kept untouched here until that theme saves them. */}
+            <p className="text-xs text-muted-foreground" data-note="phrases-deplacees">
+                {t(TEXTES.phrasesDeplacees)}
+            </p>
         </Intertitre>
     );
 };

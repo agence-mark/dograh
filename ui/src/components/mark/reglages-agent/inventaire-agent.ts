@@ -38,6 +38,10 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     // Lot 4 d'orchestrateur-trois-cerveaux (D13): « Background work », next to « Own brain ».
     travail_actif: { theme: "briques", cas: ["travail-actif"] },
     travail_llm: { theme: "briques", cas: ["travail-modele"] },
+    // fiabilite-orchestration, lot 4 (F20, F26): the guard and the fallback brains.
+    delai_garde_modele_s: { theme: "briques", cas: ["garde-delai"] },
+    cerveau_de_repli: { theme: "briques", cas: ["garde-repli"] },
+    travail_llm_repli: { theme: "briques", cas: ["travail-repli"] },
     travail_consigne: { theme: "briques", cas: ["travail-modele"] },
     travail_outils: { theme: "briques", cas: ["travail-outils"] },
     travail_delai_max_s: { theme: "briques", cas: ["travail-delai"] },
@@ -110,8 +114,8 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     portes_dans_la_reponse: { theme: "donnees", cas: ["portes-dans-la-reponse"] },
     ordre_de_la_reponse: { theme: "donnees", cas: ["ordre-de-la-reponse"] },
     indices_des_modules: { theme: "donnees", cas: ["indices-des-modules", "indices-des-modules-greffier"] },
-    etiquettes_des_etapes: { theme: "donnees", cas: ["etiquettes-des-etapes"] },
-    // Lot 2 d'orchestrateur-trois-cerveaux (D4): « Known fields near the question ».
+    // fiabilite-orchestration, lot 2 (F19): one box writes both keys (« known and expected »).
+    etiquettes_des_etapes: { theme: "donnees", cas: ["fiche-deja-connu"] },
     fiche_deja_connu: { theme: "donnees", cas: ["fiche-deja-connu"] },
     transfert_garanti: { theme: "donnees", cas: ["transfert-garanti"] },
     phrase_sans_redemande: { theme: "donnees", cas: ["phrase-sans-redemande"] },
@@ -146,6 +150,8 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
         horsEcran:
             "Written by the group routes (lot 10), never by a gesture of this page; the theme Agent only LISTS the specialised agents (a link to each) under « Specialised agents ».",
     },
+    // fiabilite-orchestration, lot 4 bis (F15, F17, F23): the theme Phrases.
+    phrases_regles: { theme: "phrases", cas: ["phrases-groupe", "phrases-agent"] },
     prechauffage_agents: { theme: "agent", cas: ["agents-prechauffage"] },
     passation_sans_resume_jusqua: { theme: "agent", cas: ["agents-sans-resume"] },
     un_seul_renvoi_par_appel: { theme: "agent", cas: ["agents-renvoi-unique"] },
@@ -153,7 +159,10 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     // Lot 2 d'orchestrateur-trois-cerveaux (B2): « End-of-call safety net », under « Specialised agents ».
     filet_de_fin: { theme: "agent", cas: ["agents-filet-de-fin"] },
     attente: { theme: "voix", cas: ["attente"] },
-    transfert_humain: { theme: "voix", cas: ["transfert-humain"] },
+    transfert_humain: {
+        horsEcran:
+            "Its only setting, the sentence before a call transfer, moved to the theme Phrases (fiabilite-orchestration, lot 4 bis, F17): shown there as a group rule and removed from this key at the theme's first save; still read by the call until then.",
+    },
     cerveau_propre: { theme: "briques", cas: ["cerveau-propre"] },
     voicemail_detection: {
         theme: "etablissement",

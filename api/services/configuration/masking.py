@@ -179,7 +179,8 @@ def mask_workflow_configurations(config: Optional[Dict]) -> Optional[Dict]:
     # [.mark] Plan mode-prise-de-notes, partie 2 : la clé propre au greffier est
     # masquée comme celle d'une surcharge de modèle (décision d'Evan, 04/10).
     # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D10) : la clé du cerveau de fond, de même.
-    for bloc_propre in ("greffier_llm", "travail_llm"):
+    # [.mark] fiabilite-orchestration, lot 4 : les deux cerveaux de repli, de même.
+    for bloc_propre in ("greffier_llm", "travail_llm", "cerveau_de_repli", "travail_llm_repli"):
         greffier = masked.get(bloc_propre)
         if isinstance(greffier, dict):
             for secret_field in SERVICE_SECRET_FIELDS:

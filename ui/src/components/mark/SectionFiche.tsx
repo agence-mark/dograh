@@ -107,6 +107,12 @@ export const NOMS_RESERVES = [
     "planificateur_rappel",
     "verification_appelant",
     "dossier_lu",
+    // fiabilite-orchestration, lot 1: the background work and the sentences said by the code.
+    "travaux",
+    "phrases_du_code",
+    // fiabilite-orchestration, lot 9: the model connections and the audio link, noted per call.
+    "mark_connexions_modele",
+    "mark_reseau",
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */
@@ -262,6 +268,7 @@ export const pourComparerLaFiche = (champs: ChampFiche[]) =>
         rempli_en_fin_d_appel: c.rempli_en_fin_d_appel ?? true,
         // Lot 17: empty (absent or null) is « from the settings », never written.
         portee: c.portee ?? null,
+        rempli_par_outil: c.rempli_par_outil?.trim() ? c.rempli_par_outil.trim() : null,
     }));
 
 const nouveauChamp = (): ChampFiche => ({
@@ -541,6 +548,29 @@ export const EditeurChampsFiche = ({
                                         {t({
                                             en: "How many digits the value must hold (spaces ignored). A value with more or fewer is refused and the agent asks for it again in full. Empty: no check.",
                                             fr: "Nombre de chiffres que la valeur doit compter (espaces ignorés). Une valeur qui en a plus ou moins est refusée et l'agent la fait redonner en entier. Vide : aucun contrôle.",
+                                        })}
+                                    </p>
+                                </div>
+                                {/* [.mark] fiabilite-orchestration, lot 1 (G2): the tool that fills it. */}
+                                <div className="space-y-1">
+                                    <Label htmlFor={`fiche_outil_${i}`} className="text-xs">
+                                        {t({ en: "Filled by a tool", fr: "Rempli par l'outil" })}
+                                    </Label>
+                                    <Input
+                                        id={`fiche_outil_${i}`}
+                                        className="w-64"
+                                        placeholder={t({ en: "tool name", fr: "nom de l'outil" })}
+                                        value={champ.rempli_par_outil ?? ""}
+                                        onChange={(e) =>
+                                            modifier(i, {
+                                                rempli_par_outil: e.target.value === "" ? null : e.target.value,
+                                            })
+                                        }
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        {t({
+                                            en: "Only the result of this tool writes the field (the key of the same name in its answer, else its status, else the first allowed value); a failure writes nothing. The agent, the clerk and the end-of-call pass never write it. Empty: off.",
+                                            fr: "Seul le résultat de cet outil écrit le champ (la clé du même nom dans sa réponse, sinon son statut, sinon la première valeur permise) ; un échec n'écrit rien. Ni l'agent, ni le greffier, ni la passe de fin d'appel ne l'écrivent. Vide : éteint.",
                                         })}
                                     </p>
                                 </div>

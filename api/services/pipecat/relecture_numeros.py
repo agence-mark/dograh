@@ -169,6 +169,39 @@ def _relectures_abimees(texte: str, phrase, nombres, reference: str, dictes: set
     return trouvees
 
 
+# 🆕 fiabilite-orchestration (lot 7, R16, run 1466) : un numéro relu chiffre par chiffre, séparé par des
+# virgules (« sept, sept, huit, cinq, deux, sept, trois, quatre, neuf », sans le zéro), n'est pas
+# lu comme un téléphone par le module des nombres (le premier « sept » y est une référence) :
+# une relecture abîmée de plus. Une suite de sept à onze chiffres dits un par un (en lettres ou en
+# chiffres), à au plus deux chiffres changés, ajoutés ou retirés du numéro de référence.
+_CHIFFRES_DITS = {
+    "zéro": "0", "zero": "0", "un": "1", "deux": "2", "trois": "3", "quatre": "4",
+    "cinq": "5", "six": "6", "sept": "7", "huit": "8", "neuf": "9",
+}  # fmt: skip
+_UN_CHIFFRE = r"(?<![\w])(?:\d|" + "|".join(_CHIFFRES_DITS) + r")(?![\w])"
+_SUITE_DE_CHIFFRES = re.compile(
+    rf"{_UN_CHIFFRE}(?:[\s,;\-]+{_UN_CHIFFRE})+", re.IGNORECASE
+)
+
+
+def _relectures_chiffre_par_chiffre(texte: str, reference: str, dictes: set[str]):
+    """Les relectures de ``reference`` dites un chiffre à la fois : [(début, fin) en caractères]."""
+    trouvees = []
+    for suite in _SUITE_DE_CHIFFRES.finditer(texte):
+        relu = "".join(
+            _CHIFFRES_DITS.get(jeton.lower(), jeton)
+            for jeton in re.findall(_UN_CHIFFRE, suite.group(), re.IGNORECASE)
+        )
+        if not CHIFFRES_MIN_ABIMEE <= len(relu) <= CHIFFRES_MAX_ABIMEE:
+            continue
+        if relu == reference or relu in dictes:
+            continue
+        if _distance(relu, reference) > ECARTS_MAX_ABIMEE:
+            continue
+        trouvees.append((suite.start(), suite.end()))
+    return trouvees
+
+
 def corriger_relecture(
     texte: str, reference: str | None, contexte: dict | None = None
 ) -> str:
@@ -200,6 +233,7 @@ def corriger_relecture(
         a_corriger += _relectures_abimees(
             texte, phrase, hors_telephones, reference, dictes
         )
+        a_corriger += _relectures_chiffre_par_chiffre(texte, reference, dictes)
         sortie, curseur = [], 0
         for debut, fin in sorted(a_corriger):
             if debut < curseur:

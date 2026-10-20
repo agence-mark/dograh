@@ -36,6 +36,7 @@ import { estSpecialise } from "../groupe/reglages-groupe";
 import { useLangue } from "../langue/langue";
 import { RAPPEL_PUBLICATION_TEXTE } from "./enregistrement";
 import { type ProprietesThemeAgent, useEtatTheme } from "./theme-commun";
+import { GardeDuModele } from "./GardeDuModele";
 import { TravailEnArrierePlan } from "./TravailEnArrierePlan";
 
 export const ID_THEME_BRIQUES = "briques";
@@ -191,6 +192,10 @@ export const ThemeBriques = ({
                     )}
                 </>
             )}
+            {/* [.mark] fiabilite-orchestration, lot 4 (F20, F26): the guard and the fallback brain, under the brain. */}
+            <ZoneCommune lecture={specialise && !cerveauPropre} bandeau={false}>
+                <GardeDuModele resolue={resolue} workflowName={workflowName} onSave={onSave} />
+            </ZoneCommune>
             {/* [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D13): the background brain, next to « Own brain ». */}
             <ZoneCommune lecture={specialise && !cerveauPropre} bandeau={false}>
                 <TravailEnArrierePlan resolue={resolue} workflowName={workflowName} onSave={onSave} />

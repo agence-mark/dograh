@@ -328,7 +328,7 @@ describe("[.mark] the simulated caller's settings (L18, Q1 to Q3)", () => {
         fireEvent.click(within(modele.parentElement as HTMLElement).getByRole("button", { name: "Keys…" }));
         const fenetre = await screen.findByTestId("fenetre-cles");
         expect(texte(fenetre)).toContain("Keys · Mistral");
-        expect((within(fenetre).getByLabelText("Provider") as HTMLSelectElement).value).toBe("mistral");
+        expect((within(fenetre).getByLabelText("Protocol") as HTMLSelectElement).value).toBe("mistral");
         fireEvent.change(within(fenetre).getByLabelText("Key name"), { target: { value: "Mistral labo" } });
         fireEvent.change(within(fenetre).getByLabelText("Key value"), { target: { value: "sk-tres-secrete" } });
         const valeur = within(fenetre).getByLabelText("Key value") as HTMLInputElement;

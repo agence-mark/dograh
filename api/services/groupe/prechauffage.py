@@ -51,6 +51,9 @@ class Precharge:
     # Mesures (écrites au journal et lues par les tests).
     duree_s: float | None = None
     echecs: dict[int, str] = field(default_factory=dict)
+    # fiabilite-orchestration, lot 3 (F5, F6) : la réserve, un collègue construit à l'avance par
+    # cible (service de modèle, worker inactif, cerveau de fond), pris par la passation.
+    prets: dict[int, Any] = field(default_factory=dict)
 
     async def outils(
         self,

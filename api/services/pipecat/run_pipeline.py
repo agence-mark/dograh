@@ -789,18 +789,28 @@ async def _run_pipeline_smallwebrtc_impl(
         is_realtime=is_realtime,
         run_configs=run_configs,
     )
-    await _run_pipeline_impl(
-        transport,
-        workflow_id,
-        workflow_run_id,
-        user_id,
-        call_context_vars=call_context_vars,
-        audio_config=audio_config,
-        user_provider_id=user_provider_id,
-        workflow_run=workflow_run,
-        resolved_user_config=user_config,
-        organization_id=organization_id,
-    )
+    # [.mark] fiabilite-orchestration, lot 9 (F11) : la qualité de la liaison audio du navigateur
+    # (paquets perdus, gigue, aller-retour) relevée pendant l'appel et rangée au run à la fin.
+    from api.services.analyse_run.reseau import lancer_la_surveillance
+
+    surveillance = lancer_la_surveillance(webrtc_connection, workflow_run_id, db_client)
+    try:
+        await _run_pipeline_impl(
+            transport,
+            workflow_id,
+            workflow_run_id,
+            user_id,
+            call_context_vars=call_context_vars,
+            audio_config=audio_config,
+            user_provider_id=user_provider_id,
+            workflow_run=workflow_run,
+            resolved_user_config=user_config,
+            organization_id=organization_id,
+        )
+    finally:
+        if surveillance is not None:
+            surveillance.cancel()
+            await asyncio.gather(surveillance, return_exceptions=True)
 
 
 async def _brancher_la_panne(
@@ -1431,7 +1441,7 @@ async def _run_pipeline_impl(
     )
     # [.mark] D1 et D10 de repliques-coupees : la trace du cerveau (case allumée
     # seulement) et la réflexion de secours de la relance d'une réplique inachevée.
-    brancher_la_trace(engine, llm, run_configs)
+    brancher_la_trace(engine, llm, run_configs, getattr(workflow, "name", None))
     brancher_la_relance(engine, llm, run_configs)
 
     # Create pipeline components
@@ -1802,6 +1812,32 @@ async def _run_pipeline_impl(
         engine, task, llm, tts, workflow_run, workflow.organization_id, workflow_id,
         run_configs, reglages_annonce, call_direction, provider_call_id, is_realtime,
     )
+    # [.mark] fiabilite-orchestration, lot 4 (F20) : la garde du modèle, pour tous les agents, mode
+    # panne allumé ou non ; avec le cerveau de repli de l'agent s'il en a un (F26).
+    if not is_realtime:
+        from api.services.panne.garde_modele import garder_l_agent
+
+        await garder_l_agent(
+            engine, engine.active_agent, reglages=run_configs, user_config=user_config
+        )
+        # [.mark] fiabilite-orchestration, lot 4 ter (F22) : la fabrique des sons des phrases du
+        # code, lancée au décroché (``lancer_prechauffage``) ; une voix neuve au réglage de l'appel.
+        from api.services.phrases.sons import FabriqueDesSons
+
+        engine.fabrique_des_sons = FabriqueDesSons(
+            creer_la_voix=lambda: create_tts_service(
+                user_config,
+                audio_config,
+                correlation_id=mps_correlation_id,
+                organization_id=workflow.organization_id,
+                run_configs=run_configs,
+                lexique=lexique_metier,
+            ),
+            ajouter_le_circuit=task.add_workers,
+            taux_attendu=audio_config.pipeline_sample_rate,
+            en_vie=lambda: not engine.is_call_disposed(),
+            voix_de_l_appel=tts,
+        )
     engine.greeting.log_generated_speech = feedback_observer.log_speech
 
     if not is_realtime:
@@ -1830,6 +1866,8 @@ async def _run_pipeline_impl(
             # [.mark] Lot 3 (D7) : un agent appelé n'ouvre pas de voix ; son estampille décrit
             # la voix de l'appel (celle du premier agent).
             voix_de_l_appel=user_config.tts,
+            # [.mark] Lot 8 de fiabilite-orchestration (R12) : la trace du modèle suit chaque agent.
+            moteur_de_l_appel=lambda: engine,
             # [.mark] What a later agent needs to be built like the first one:
             # the organization's trade vocabulary (pronunciations of the voice)
             # and the live gathered variables (name and civility filter).

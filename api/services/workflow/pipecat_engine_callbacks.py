@@ -34,6 +34,57 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 
+def _phrase_de_silence(engine: "PipecatEngine"):
+    """[.mark] Lot 5 (F7) : la phrase en vigueur du motif « l'appelant se tait », ou ``None``.
+    ⛔ Ne lève jamais."""
+    try:
+        from api.services.phrases.catalogue import APPELANT_SE_TAIT
+
+        phrases = getattr(engine, "phrases", None)
+        return phrases.phrase(APPELANT_SE_TAIT) if phrases is not None else None
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[phrases] phrase de silence illisible : {erreur!r}")
+        return None
+
+
+def delai_de_la_relance(engine: "PipecatEngine") -> float | None:
+    """[.mark] Lot 5 : le délai posé par la règle « l'appelant se tait » ; ``None`` : le réglage
+    de Rythme (``max_user_idle_timeout``) reste le délai."""
+    phrase = _phrase_de_silence(engine)
+    if phrase is not None and phrase.dite and phrase.delai_pose:
+        return phrase.delai_s
+    return None
+
+
+def relance_suspendue(engine: "PipecatEngine") -> bool:
+    """[.mark] Lot 5 : aucune relance pendant un travail de fond en cours. ⛔ Ne lève jamais."""
+    try:
+        from api.services.travail.agent import ligne_du_travail
+
+        return ligne_du_travail(engine) is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
+async def _relance_dite_par_la_voix(engine: "PipecatEngine") -> bool:
+    """[.mark] Lot 5 (F7) : la relance est la phrase fixe du motif « l'appelant se tait », dite
+    par la voix sans le modèle. ``True`` : le cas est réglé (dite, ou refusée par un verrou du
+    diseur et re-surveillée) ; ``False`` : la règle est éteinte, le modèle relance comme avant."""
+    from api.services.phrases.catalogue import APPELANT_SE_TAIT
+
+    phrase = _phrase_de_silence(engine)
+    if phrase is None or not phrase.dite:
+        return False
+    # Au clavier (sans sortie audio), une attente ne se dit pas : le modèle relance comme avant.
+    if getattr(engine, "sans_sortie_audio", False) is True:
+        return False
+    dite = await engine.phrases.dire(APPELANT_SE_TAIT)
+    moniteur = getattr(engine, "call_monitor", None)
+    if moniteur is not None:
+        moniteur.relance_par_la_voix(dite=dite)
+    return True
+
+
 async def handle_user_idle(engine: "PipecatEngine", aggregator, attempt: int) -> None:
     """Execute the monitor's idle decision; timing and retry state live there.
 
@@ -62,6 +113,10 @@ async def handle_user_idle(engine: "PipecatEngine", aggregator, attempt: int) ->
     # [.mark] The run keeps each reminder (langwatch-et-fenetre-du-run, lot 2).
     await noter_la_relance(engine, attempt, raccroche=attempt > max_prompts)
     if attempt <= max_prompts:
+        # [.mark] Lot 5 (F7) : phrase fixe dite par la voix, sans le modèle (règle allumée,
+        # défaut) ; éteinte : la relance par le modèle d'avant (`user_idle_prompt`).
+        if await _relance_dite_par_la_voix(engine):
+            return
         await aggregator.push_frame(
             LLMMessagesAppendFrame(
                 [{"role": "user", "content": idle_prompt}], run_llm=True

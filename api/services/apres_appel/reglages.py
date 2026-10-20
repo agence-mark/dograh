@@ -95,10 +95,18 @@ async def secret(
         raise CleManquante(
             f"The key chosen for {quoi} was deleted: pick another in « Keys »."
         )
-    valeur, son_fournisseur = trouvee
+    valeur, son_fournisseur = trouvee[0], trouvee[1]
     if son_fournisseur != fournisseur:
         raise CleManquante(
             f"The key chosen for {quoi} is a {son_fournisseur} key, not a {fournisseur} one."
+        )
+    # fiabilite-orchestration, lot 10 (F10) : une clé qui a une adresse ne part que vers elle ; l'après-appel
+    # n'envoie qu'à l'adresse de son fournisseur (ou du serveur de mail, ou du webhook réglé à part).
+    adresse = getattr(trouvee, "adresse", None)
+    if adresse:
+        raise CleManquante(
+            f"The key chosen for {quoi} belongs to the address {adresse}, and {quoi} does not "
+            "send to a chosen address: pick a key without an address in « Keys »."
         )
     return valeur
 

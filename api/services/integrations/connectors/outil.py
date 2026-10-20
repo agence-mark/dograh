@@ -26,7 +26,6 @@ from api.services.integrations.connectors import anticipation
 from api.services.integrations.connectors.champs_requis import Patience, resoudre
 from api.services.integrations.connectors.catalogue import trouver
 from api.services.integrations.connectors.execution import (
-    PHRASE_REPLI_DEFAUT,
     ActionInconnue,
     arguments_permis,
     estampiller,
@@ -35,6 +34,20 @@ from api.services.integrations.connectors.execution import (
 )
 
 TYPES = {"string": "string", "number": "number", "boolean": "boolean"}
+
+
+async def _dire_le_repli(engine: Any, propre: Any) -> str | None:
+    """Dit la phrase « un connecteur échoue » et rend son texte (``None`` : rien de dit)."""
+    from api.services.phrases.catalogue import CONNECTEUR_ECHOUE
+    from api.services.phrases.diseur import DiseurDePhrases
+
+    diseur = getattr(engine, "phrases", None)
+    if not isinstance(diseur, DiseurDePhrases):
+        return None
+    parole = await diseur.dire_la_parole(
+        CONNECTEUR_ECHOUE, texte=propre if isinstance(propre, str) else None
+    )
+    return getattr(parole, "text", None) if parole is not None else None
 # The key of an internal action's result that holds a sentence the code says itself.
 CLE_A_DIRE = "_dire"
 # ... and what it notes in the record for the after-call (record key -> one entry).
@@ -208,8 +221,10 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 {"status": "missing", "ask_for": resultat.donnees["manque"]}
             )
             return
-        phrase = config.get("phrase_repli") or PHRASE_REPLI_DEFAUT
-        await engine.queue_text_message(phrase, mute_user=True)
+        # Fiabilite-orchestration, lot 4 bis : la règle « un connecteur échoue » (thème Phrases) ;
+        # la phrase propre au connecteur, s'il en a une, est dite à la place des variantes.
+        # Règle éteinte : rien n'est dit, le modèle lit l'échec et répond.
+        phrase = await _dire_le_repli(engine, config.get("phrase_repli"))
         trouve = trouver(config.get("connecteur", ""), config.get("action", ""))
         # An internal action is never retried after the call: its own fallback (a call-back
         # request) is decided during the call (l-agent-collegue, P8).
@@ -220,6 +235,11 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 "status": "passed_on",
                 "said_to_caller": phrase,
                 "instruction": "The request was passed on; do not repeat this sentence, go on with the call.",
+            }
+            if phrase
+            else {
+                "status": "passed_on",
+                "instruction": "The request could not be done now and was passed on: tell the caller someone will call back to confirm, then go on with the call.",
             }
         )
 

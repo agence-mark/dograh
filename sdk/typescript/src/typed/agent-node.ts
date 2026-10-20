@@ -42,7 +42,7 @@ export interface AgentNode {
      */
     premiere_replique?: string;
     /**
-     * Record fields this step gathers, in order of priority, separated by commas. Used only when "Step field labels" is on in the agent's settings: the code then reminds the model of the next missing ones, as a suggestion.
+     * Record fields this step gathers, in order of priority, separated by commas. Used only when "Show the model what is known and what is expected" is on in the agent's settings: the code then names the missing ones ("Still expected: …"), and the step's tools wait until they are known.
      */
     champs_etape?: string;
     /**

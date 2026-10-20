@@ -45,9 +45,38 @@ class Usage(BaseModel):
     nom: Optional[str] = None
 
 
-def donnees_d_une_cle(fournisseur, cle: str) -> dict:
+# fiabilite-orchestration, lot 10 (F10) : « Protocole » est le menu d'avant (clé ``fournisseur`` des
+# données, inchangée) ; « Fournisseur » est un texte libre (``nom_fournisseur``) et l'adresse du
+# fournisseur (``adresse``) est rattachée à la clé. Une clé d'avant n'a ni l'un ni l'autre.
+CLE_NOM_FOURNISSEUR = "nom_fournisseur"
+CLE_ADRESSE = "adresse"
+NOM_FOURNISSEUR_MAX = 80
+
+
+def donnees_d_une_cle(
+    fournisseur,
+    cle: str,
+    nom_fournisseur: Optional[str] = None,
+    adresse: Optional[str] = None,
+) -> dict:
+    """Les données rangées d'une clé. Sans fournisseur libre ni adresse : exactement celles d'avant."""
     valeur = getattr(fournisseur, "value", fournisseur)
-    return {"token": cle, "fournisseur": valeur, MARQUE: True}
+    donnees = {"token": cle, "fournisseur": valeur, MARQUE: True}
+    if nom_fournisseur:
+        donnees[CLE_NOM_FOURNISSEUR] = nom_fournisseur
+    if adresse:
+        donnees[CLE_ADRESSE] = adresse
+    return donnees
+
+
+def nom_fournisseur_de(identifiant) -> Optional[str]:
+    valeur = (identifiant.credential_data or {}).get(CLE_NOM_FOURNISSEUR)
+    return valeur if isinstance(valeur, str) and valeur else None
+
+
+def adresse_de(identifiant) -> Optional[str]:
+    valeur = (identifiant.credential_data or {}).get(CLE_ADRESSE)
+    return valeur if isinstance(valeur, str) and valeur else None
 
 
 def fournisseur_de(identifiant) -> Optional[str]:

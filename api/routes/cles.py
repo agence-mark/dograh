@@ -25,13 +25,22 @@ from api.db.models import UserModel
 from api.enums import WebhookCredentialType
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.bibliotheque_cles import (
+    CLE_ADRESSE,
+    CLE_NOM_FOURNISSEUR,
     FOURNISSEURS,
+    NOM_FOURNISSEUR_MAX,
     Fournisseur,
     Usage,
+    adresse_de,
     donnees_d_une_cle,
     fournisseur_de,
     nom_apres_suppression,
+    nom_fournisseur_de,
     usages_de,
+)
+from api.services.bibliotheque_cles_adresse import (
+    AdresseInvalide,
+    normaliser_l_adresse,
 )
 from api.services.cles_reference import famille
 
@@ -45,8 +54,13 @@ class Cle(BaseModel):
 
     uuid: str
     nom: str
+    # Le protocole (le menu d'avant, que l'écran nomme « Protocole » depuis fiabilite-orchestration).
     fournisseur: Fournisseur
     creee_le: Optional[datetime] = None
+    # Lot 10 de fiabilite-orchestration (F10) : le fournisseur en texte libre et son adresse,
+    # vides pour une clé d'avant.
+    nom_fournisseur: Optional[str] = None
+    adresse: Optional[str] = None
 
 
 class NouvelleCle(BaseModel):
@@ -54,6 +68,15 @@ class NouvelleCle(BaseModel):
     nom: str = Field(min_length=1, max_length=80)
     # Bornes vérifiées dans la route : une erreur de validation de FastAPI renverrait la valeur.
     cle: str
+    nom_fournisseur: Optional[str] = Field(default=None, max_length=NOM_FOURNISSEUR_MAX)
+    adresse: Optional[str] = Field(default=None, max_length=500)
+
+
+class RattachementDeCle(BaseModel):
+    """Le fournisseur libre et l'adresse d'une clé déjà enregistrée (vide : on retire)."""
+
+    nom_fournisseur: Optional[str] = Field(default=None, max_length=NOM_FOURNISSEUR_MAX)
+    adresse: Optional[str] = Field(default=None, max_length=500)
 
 
 class Suppression(BaseModel):
@@ -76,6 +99,8 @@ def _vue(identifiant) -> Cle:
         nom=identifiant.name,
         fournisseur=fournisseur_de(identifiant),
         creee_le=identifiant.created_at,
+        nom_fournisseur=nom_fournisseur_de(identifiant),
+        adresse=adresse_de(identifiant),
     )
 
 
@@ -115,6 +140,11 @@ async def ajouter_une_cle(
             status_code=422,
             detail=f"A key holds {LONGUEUR_MIN} to {LONGUEUR_MAX} characters",
         )
+    try:
+        adresse = normaliser_l_adresse(request.adresse)
+    except AdresseInvalide as erreur:
+        raise HTTPException(status_code=422, detail=str(erreur)) from None
+    nom_fournisseur = (request.nom_fournisseur or "").strip() or None
     deja_pris = HTTPException(
         status_code=409, detail=f"A key named « {nom} » already exists"
     )
@@ -128,7 +158,9 @@ async def ajouter_une_cle(
             user_id=user.id,
             name=nom,
             credential_type=WebhookCredentialType.BEARER_TOKEN.value,
-            credential_data=donnees_d_une_cle(request.fournisseur, cle),
+            credential_data=donnees_d_une_cle(
+                request.fournisseur, cle, nom_fournisseur, adresse
+            ),
         )
     except Exception as erreur:  # noqa: BLE001
         # Nom d'un identifiant supprimé hors de la bibliothèque (route /credentials de Dograh) ;
@@ -137,6 +169,35 @@ async def ajouter_une_cle(
             raise deja_pris from None
         raise HTTPException(status_code=500, detail="Key not saved") from None
     return _vue(identifiant)
+
+
+@router.patch("/{uuid}", response_model=Cle)
+async def rattacher_a_une_cle(
+    uuid: str,
+    request: RattachementDeCle,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """Lot 10 (F10) : pose, change ou retire le fournisseur libre et l'adresse d'une clé déjà
+    enregistrée (une clé d'avant n'en a pas). La clé elle-même ne bouge pas, ne se relit jamais."""
+    org = user.selected_organization_id
+    identifiant = await _cle_de_la_bibliotheque(uuid, org)
+    try:
+        adresse = normaliser_l_adresse(request.adresse)
+    except AdresseInvalide as erreur:
+        raise HTTPException(status_code=422, detail=str(erreur)) from None
+    donnees = dict(identifiant.credential_data or {})
+    for cle_donnee, valeur in (
+        (CLE_NOM_FOURNISSEUR, (request.nom_fournisseur or "").strip() or None),
+        (CLE_ADRESSE, adresse),
+    ):
+        if valeur:
+            donnees[cle_donnee] = valeur
+        else:
+            donnees.pop(cle_donnee, None)
+    modifiee = await db_client.update_credential(uuid, org, credential_data=donnees)
+    if modifiee is None:
+        raise HTTPException(status_code=404, detail="Key not found")
+    return _vue(modifiee)
 
 
 @router.get("/fournisseurs", response_model=list[str])

@@ -78,8 +78,8 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
                 id="rythme-silence"
                 titre={{ en: "Caller silence", fr: "Silence de l'appelant" }}
                 description={{
-                    en: "What the agent does when the caller goes quiet, past the idle timeout. ⚠️ These are instructions given to the model, not sentences spoken word for word: the model answers in the caller's language.",
-                    fr: "Ce que fait l'agent quand l'appelant se tait, passé le délai ci-dessous. ⚠️ Les textes sont des consignes données au modèle, pas des phrases dites mot pour mot : le modèle répond dans la langue de l'appelant.",
+                    en: "What the agent does when the caller goes quiet, past the idle timeout. The reminder is a fixed sentence said by the voice, set in the Phrases theme (cause « The caller is silent »), and its delay there replaces the one below when it is set. If that sentence is switched off, the instructions below are given to the model instead (⚠️ instructions, not sentences said word for word: the model answers in the caller's language). The last one, before hanging up, is always an instruction.",
+                    fr: "Ce que fait l'agent quand l'appelant se tait, passé le délai ci-dessous. La relance est une phrase fixe dite par la voix, qui se règle dans le thème Phrases (motif « L'appelant se tait »), et son délai y remplace celui-ci quand il est réglé. Si cette phrase est éteinte, les consignes ci-dessous sont données au modèle à la place (⚠️ des consignes, pas des phrases dites mot pour mot : le modèle répond dans la langue de l'appelant). La dernière, avant de raccrocher, reste toujours une consigne.",
                 }}
             >
                 <ChampReglage

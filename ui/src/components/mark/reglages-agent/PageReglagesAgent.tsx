@@ -15,7 +15,7 @@
  * The themes, in the order of a call: Agent, Services, Listening, Turn taking,
  * Voice, Call pacing, Call data, Business.
  */
-import { ArrowLeft, Bot, Building2, ClipboardList, Clock, Cpu, Ear, Repeat, Volume2 } from "lucide-react";
+import { ArrowLeft, Bot, Building2, ClipboardList, Clock, Cpu, Ear, MessageSquareText, Repeat, Volume2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -51,6 +51,7 @@ import { ID_THEME_BRIQUES, ThemeBriques, TITRE_BRIQUES } from "./ThemeBriques";
 import { ID_THEME_DONNEES, ThemeDonnees, TITRE_DONNEES } from "./ThemeDonnees";
 import { ID_THEME_ECOUTE, ThemeEcoute, TITRE_ECOUTE } from "./ThemeEcoute";
 import { ID_THEME_ETABLISSEMENT, ThemeEtablissement, TITRE_ETABLISSEMENT } from "./ThemeEtablissement";
+import { ID_THEME_PHRASES, ThemePhrases, TITRE_PHRASES } from "./ThemePhrases";
 import { ID_THEME_RYTHME, ThemeRythme, TITRE_RYTHME } from "./ThemeRythme";
 import { ID_THEME_TOUR, ThemeTourDeParole, TITRE_TOUR } from "./ThemeTourDeParole";
 import { ID_THEME_VOIX, ThemeVoix, TITRE_VOIX } from "./ThemeVoix";
@@ -63,6 +64,7 @@ export const THEMES_AGENT = [
     { id: ID_THEME_TOUR, titre: TITRE_TOUR, icone: Repeat },
     { id: ID_THEME_VOIX, titre: TITRE_VOIX, icone: Volume2 },
     { id: ID_THEME_RYTHME, titre: TITRE_RYTHME, icone: Clock },
+    { id: ID_THEME_PHRASES, titre: TITRE_PHRASES, icone: MessageSquareText },
     { id: ID_THEME_DONNEES, titre: TITRE_DONNEES, icone: ClipboardList },
     { id: ID_THEME_ETABLISSEMENT, titre: TITRE_ETABLISSEMENT, icone: Building2 },
 ] as const;
@@ -111,6 +113,14 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
     // [.mark] Plan porte-parlee (D3): read from the graph the page was opened with.
     const etapesSansPremiere = useMemo(
         () => etapesSansPremiereReplique(workflow.workflow_definition as Parameters<typeof etapesSansPremiereReplique>[0]),
+        [workflow],
+    );
+    // [.mark] fiabilite-orchestration, lot 4 bis: the step names a sentence rule can target.
+    const nomsDesEtapes = useMemo(
+        () =>
+            (workflow.workflow_definition.nodes as Array<{ data?: { name?: unknown } }>)
+                .map((noeud) => noeud.data?.name)
+                .filter((nom): nom is string => typeof nom === "string" && nom.trim() !== ""),
         [workflow],
     );
     const initialTemplateContextVariables = useMemo(
@@ -263,6 +273,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                                 <ThemeTourDeParole {...commun(ID_THEME_TOUR)!} />
                                 <ThemeVoix {...commun(ID_THEME_VOIX)!} workflowId={workflowId} />
                                 <ThemeRythme {...commun(ID_THEME_RYTHME)!} />
+                                <ThemePhrases {...commun(ID_THEME_PHRASES)!} etapes={nomsDesEtapes} workflowId={workflowId} />
                                 <ThemeDonnees
                                     {...commun(ID_THEME_DONNEES)!}
                                     issuesParDefaut={defaultCallDispositions}

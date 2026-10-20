@@ -16,6 +16,7 @@ from api.constants import (
     TEXT_CHAT_INACTIVITY_TIMEOUT_SECONDS,
 )
 from api.schemas.fiche_agent import ChampFiche, verifier_champs
+from api.schemas.phrases_du_code import MAX_REGLES, ReglePhrase, verifier_regles
 from api.schemas.organization_preferences import AdresseEtablissement
 
 
@@ -1101,6 +1102,42 @@ class WorkflowConfigurationDefaults(BaseModel):
         le=300,
         description="How long the background brain may work on one request, in seconds.",
     )
+    # [.mark] Chantier fiabilite-orchestration, lot 4 (F20, F26, C5) : la garde du modèle, pour tous
+    # les agents (mode panne ou non), et le cerveau de repli, outil de DÉPANNAGE (aucun par défaut).
+    delai_garde_modele_s: float | None = Field(
+        default=None,
+        ge=1.0,
+        le=30.0,
+        description=(
+            "Model guard delay: past it without the model's first words, the code says its "
+            "« model is slow » sentence and tries again (at the fallback brain if one is set). "
+            "Empty: the outage setting if any, else 4 s."
+        ),
+    )
+    cerveau_de_repli: dict | None = Field(
+        default=None,
+        description=(
+            "Fallback brain, a troubleshooting tool, never part of a standard setup: when the "
+            "model is past its guard delay, the second try goes to this model (an OpenAI-"
+            "compatible provider), with the agent's tools and record. Empty (default): none."
+        ),
+    )
+    travail_llm_repli: dict | None = Field(
+        default=None,
+        description=(
+            "Fallback brain of the background brain (troubleshooting only). Empty: none."
+        ),
+    )
+    # [.mark] Chantier fiabilite-orchestration (F15, F18, F23) : les règles des phrases dites par le
+    # code (motif, endroit, variantes, délai, activée). Vide : les défauts du catalogue (zéro perte).
+    phrases_regles: list[ReglePhrase] = Field(
+        default_factory=list,
+        max_length=MAX_REGLES,
+        description=(
+            "Sentences said by the code, without the model: one rule per cause and place "
+            "(group, agent or step), one to three sentences, a delay when the cause has one."
+        ),
+    )
     fiche_champs: list[ChampFiche] = Field(
         default_factory=list,
         max_length=60,
@@ -1243,6 +1280,23 @@ class WorkflowConfigurationDefaults(BaseModel):
         fields stay text, so a bad save is refused (422) rather than read as
         an unusable clerk at call time."""
         return _bloc_de_modele_valide(value, "greffier_llm", ("format_garanti",))
+
+    @field_validator("phrases_regles")
+    @classmethod
+    def phrases_regles_valides(cls, value: list[ReglePhrase]) -> list[ReglePhrase]:
+        """[.mark] fiabilite-orchestration : deux règles du même motif au même endroit = 422."""
+        return verifier_regles(value)
+
+    @field_validator("cerveau_de_repli")
+    @classmethod
+    def cerveau_de_repli_valide(cls, value: dict | None) -> dict | None:
+        """[.mark] fiabilite-orchestration, lot 4 : même bloc que le cerveau de fond."""
+        return _bloc_de_modele_valide(value, "cerveau_de_repli")
+
+    @field_validator("travail_llm_repli")
+    @classmethod
+    def travail_llm_repli_valide(cls, value: dict | None) -> dict | None:
+        return _bloc_de_modele_valide(value, "travail_llm_repli")
 
     @field_validator("travail_llm")
     @classmethod

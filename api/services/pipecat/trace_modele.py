@@ -100,8 +100,10 @@ class TraceDuModele:
         self._fiche = fiche
         self._derniere: dict | None = None
 
-    def ouvrir(self) -> dict | None:
-        """Une requête part : son entrée, rangée dans la fiche de l'appel."""
+    def ouvrir(self, agent: str | None = None, *, parle: bool = True) -> dict | None:
+        """Une requête part : son entrée, rangée dans la fiche de l'appel. ``agent`` : le
+        nom de l'agent qui la pose (lot 8 de fiabilite-orchestration, R12), pour lire à qui
+        appartient chaque réponse quand plusieurs agents parlent dans l'appel."""
         try:
             fiche = self._fiche()
             from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
@@ -115,8 +117,14 @@ class TraceDuModele:
                 "fin": None,
                 "texte_dit": "",
             }
+            if agent:
+                entree["agent"] = agent
             fiche.setdefault(TRACE_REQUETES, []).append(entree)
-            self._derniere = entree
+            # Revue du 19/10 : une requête du cerveau de fond (``parle`` faux), qui tourne en
+            # parallèle de la conversation, ne devient jamais « la dernière » où le lecteur de
+            # portes écrit le texte dit à l'appelant.
+            if parle:
+                self._derniere = entree
             return entree
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[trace] requête du modèle non tracée : {erreur!r}")
@@ -270,13 +278,17 @@ class TraceModeleMixin:
     le service le lit. ``mark_trace`` à ``None`` (le défaut) : rien ne change."""
 
     mark_trace: TraceDuModele | None = None
+    # Lot 8 de fiabilite-orchestration (R12) : le nom de l'agent que ce service porte.
+    mark_agent: str | None = None
+    # Faux pour le cerveau de fond : ses réponses ne sont jamais dites à l'appelant.
+    mark_trace_parle: bool = True
     _mark_entree_en_cours: dict | None = None
 
     async def get_chat_completions(self, context):  # type: ignore[override]
         trace = self.mark_trace
         if trace is None:
             return await super().get_chat_completions(context)  # type: ignore[misc]
-        entree = trace.ouvrir()
+        entree = trace.ouvrir(self.mark_agent, parle=self.mark_trace_parle)
         self._mark_entree_en_cours = entree
         envoi = time.monotonic()
         try:
@@ -298,16 +310,39 @@ class TraceModeleMixin:
         return params
 
 
-def brancher_la_trace(engine: Any, llm: Any, run_configs: dict | None) -> TraceDuModele | None:
+def brancher_la_trace(
+    engine: Any,
+    llm: Any,
+    run_configs: dict | None,
+    nom: str | None = None,
+    *,
+    parle: bool = True,
+) -> TraceDuModele | None:
     """La trace de l'appel, case allumée et service qui la porte ; sinon ``None`` et rien
-    ne change. Téléphone et clavier. Ne lève jamais."""
+    ne change. Téléphone et clavier. Ne lève jamais.
+
+    Lot 8 de fiabilite-orchestration (R12) : la trace est UNE par appel (celle du moteur, si
+    un agent l'a déjà ouverte) et se branche sur le service de chaque agent construit à la
+    passation et du cerveau de fond, case de CET agent allumée ; ``nom`` est écrit dans chaque
+    entrée. Sans ``nom``, l'entrée est celle d'avant, à l'octet."""
     try:
-        if (run_configs or {}).get(CLE_TRACE_REQUETES) is not True:
+        # Evan, 19/10 : UNE case pour tout le groupe, celle du principal (les réglages de l'appel,
+        # ``reglages_appel``) : on l'allume et chaque agent du groupe, fond compris, est tracé ; on
+        # l'éteint et personne ne l'est. Jamais d'agent tracé à côté d'un agent qui ne l'est pas.
+        reglages_appel = (getattr(engine, "__dict__", None) or {}).get("reglages_appel")
+        decision = reglages_appel if isinstance(reglages_appel, dict) and reglages_appel else run_configs
+        if (decision or {}).get(CLE_TRACE_REQUETES) is not True:
             return None
         if llm is None or not hasattr(llm, "mark_trace"):
             return None
-        trace = TraceDuModele(lambda: engine._gathered_context)
+        existante = getattr(engine, ATTRIBUT_TRACE, None)
+        if isinstance(existante, TraceDuModele):
+            trace = existante
+        else:
+            trace = TraceDuModele(lambda: engine._gathered_context)
         llm.mark_trace = trace
+        llm.mark_agent = nom or None
+        llm.mark_trace_parle = parle
         # La requête se photographie en DERNIER : le moteur a déjà enveloppé le
         # constructeur de requête pour y glisser l'état de la fiche
         # (``montrer_la_fiche``, à sa création). Prise dans la méthode du service,

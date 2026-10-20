@@ -516,6 +516,7 @@ export const CATALOGUE = {
     user_idle_prompt: d({
         type: "zone",
         libelle: { en: "When the caller goes quiet", fr: "Quand l'appelant se tait" },
+        aides: [{ en: "Only used when the fixed sentence « The caller is silent » is off (Phrases theme): then the model prompts the caller itself.", fr: "Utilisée seulement quand la phrase fixe « L'appelant se tait » est éteinte (thème Phrases) : le modèle relance alors lui-même." }],
     }),
     user_idle_max_prompts: d({
         type: "nombre",

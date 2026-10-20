@@ -132,7 +132,7 @@ const ouvrir = async (config: Record<string, unknown>, userConfig: unknown, enve
     m.config = resolveWorkflowConfigurations(config as never);
     m.userConfig = userConfig;
     render(<>{enveloppe ? enveloppe(<WorkflowSettingsPage />) : <WorkflowSettingsPage />}</>);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(8));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(9));
 };
 
 const ouvrirLeTheme = (id: string) => {
@@ -175,7 +175,7 @@ describe("[.mark] the agent page in themes", () => {
     // Chantier l-agent-collegue, L7: the names of « Field recognition » are read only when « Check
     // the data » is on, and drawn only then (E8, the same rule as the code).
     // Lot 4 d'orchestrateur-trois-cerveaux: drawn only with « Background work » on (tested below).
-    const SEULEMENT_AVEC_LE_TRAVAIL = ["travail_llm", "travail_consigne", "travail_outils", "travail_delai_max_s"];
+    const SEULEMENT_AVEC_LE_TRAVAIL = ["travail_llm", "travail_consigne", "travail_outils", "travail_delai_max_s", "travail_llm_repli"];
     const SEULEMENT_AVEC_CONTROLE = ["variables_telephone", "variables_code_postal", "variables_courriel", "variables_date"];
     // Chantier agents-specialises, lot 12: the group's settings are drawn only for a main agent (or, for the
     // brain, a specialised one): a lone agent's page is what it was (tested below).
@@ -737,7 +737,9 @@ describe("[.mark] the flow map, the retry reasoning and the model request trace"
         expect((document.getElementById("passations_max_par_appel") as HTMLInputElement).value).toBe("6");
         const voix = ouvrirLeTheme("voix");
         await waitFor(() => expect(voix.querySelector('[data-groupe="voix-attente"]')).not.toBeNull());
-        for (const cle of ["attente.son", "attente.duree_min_s", "attente.passation", "attente.transfert_humain", "attente.phrase_pont", "attente.delai_phrase_pont_s", "transfert_humain.phrase_mise_en_relation"]) {
+        // fiabilite-orchestration, lot 4 bis: the bridge phrase and the hand-over sentence moved to the theme Phrases.
+        expect(voix.querySelector('[data-note="phrases-deplacees"]')).not.toBeNull();
+        for (const cle of ["attente.son", "attente.duree_min_s", "attente.passation", "attente.transfert_humain"]) {
             expect(voix.querySelector('[data-reglage="' + cle + '"]'), cle).not.toBeNull();
         }
         // The text that says no waiting is played towards an agent already built.
@@ -829,8 +831,10 @@ describe("[.mark] the flow map, the retry reasoning and the model request trace"
         expect(briques.querySelector('[data-bandeau="regle-sur-le-principal"]')).toBeNull();
         // The retry reasoning follows the detached brain: editable again.
         ouvrirLeTheme("agent");
-        await waitFor(() => expect(document.getElementById("trace_requetes_modele")).not.toBeNull());
-        expect(document.getElementById("trace_requetes_modele")?.closest("fieldset[disabled]")).toBeNull();
+        await waitFor(() => expect(document.getElementById("reflexion_de_relance")).not.toBeNull());
+        expect(document.getElementById("reflexion_de_relance")?.closest("fieldset[disabled]")).toBeNull();
+        // The trace does not: one switch for the whole group, the main agent's (Evan, 19/10).
+        expect(document.getElementById("trace_requetes_modele")?.closest("fieldset[disabled]")).not.toBeNull();
     });
 
     // Lot 3 d'orchestrateur-trois-cerveaux (D7): the call has one voice, the main agent's. Even with « Own brain »,

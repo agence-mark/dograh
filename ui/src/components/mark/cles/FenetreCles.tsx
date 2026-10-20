@@ -156,7 +156,15 @@ function LigneCle({ cle, onUtiliser, onSupprimee }: { cle: Cle; onUtiliser?: () 
         <li className="space-y-2 rounded border border-border p-2" data-testid={`cle-${cle.uuid}`}>
             <div className="flex flex-wrap items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{cle.nom}</span>
-                <span className="text-xs text-muted-foreground">{nomDu(cle.fournisseur)}</span>
+                <span className="text-xs text-muted-foreground">
+                    {cle.nom_fournisseur ? `${cle.nom_fournisseur} · ` : ""}
+                    {nomDu(cle.fournisseur)}
+                </span>
+                {cle.adresse && (
+                    <code className="w-full truncate text-xs text-muted-foreground" data-testid="adresse-de-la-cle" title={cle.adresse}>
+                        {cle.adresse}
+                    </code>
+                )}
                 {onUtiliser && (
                     <Button size="sm" variant="outline" onClick={onUtiliser}>
                         {t({ en: "Use", fr: "Utiliser" })}
@@ -221,6 +229,9 @@ export function BibliothequeCles({
     const [saisi, setSaisi] = useState<Fournisseur | null>(null);
     const [nom, setNom] = useState("");
     const [valeur, setValeur] = useState("");
+    // fiabilite-orchestration, lot 10 (F10): the provider as free text, and its address.
+    const [nomFournisseur, setNomFournisseur] = useState("");
+    const [adresse, setAdresse] = useState("");
     const [faute, setFaute] = useState<string | null>(null);
     const [enCours, setEnCours] = useState(false);
     const choisi: Fournisseur | undefined =
@@ -232,7 +243,15 @@ export function BibliothequeCles({
         if (!choisi) return;
         setEnCours(true);
         setFaute(null);
-        const reponse = await ajouterUneCleApiV1ClesPost({ body: { fournisseur: choisi, nom, cle: valeur } });
+        const reponse = await ajouterUneCleApiV1ClesPost({
+            body: {
+                fournisseur: choisi,
+                nom,
+                cle: valeur,
+                nom_fournisseur: nomFournisseur.trim() || undefined,
+                adresse: adresse.trim() || undefined,
+            },
+        });
         setEnCours(false);
         if (reponse.error) {
             setFaute(detailFromError(reponse.error, "Key not saved"));
@@ -241,6 +260,8 @@ export function BibliothequeCles({
         const ajoutee = reponse.data as Cle;
         setNom("");
         setValeur("");
+        setNomFournisseur("");
+        setAdresse("");
         await recharger();
         if (onChoisir) await onChoisir(ajoutee.uuid);
     };
@@ -272,13 +293,13 @@ export function BibliothequeCles({
             <fieldset className="grid gap-2 rounded border border-border p-3 sm:grid-cols-2">
                 <legend className="px-1 text-sm font-medium">{t({ en: "Add a key", fr: "Ajouter une clé" })}</legend>
                 <label className="space-y-1 text-xs text-muted-foreground">
-                    <span>{t({ en: "Provider", fr: "Fournisseur" })}</span>
+                    <span>{t({ en: "Protocol", fr: "Protocole" })}</span>
                     <select
                         className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
                         value={choisi ?? ""}
                         disabled={Boolean(fournisseur)}
                         onChange={(e) => setSaisi(e.target.value as Fournisseur)}
-                        aria-label={t({ en: "Provider", fr: "Fournisseur" })}
+                        aria-label={t({ en: "Protocol", fr: "Protocole" })}
                     >
                         {options.map((f) => (
                             <option key={f} value={f}>
@@ -300,6 +321,40 @@ export function BibliothequeCles({
                         aria-label={t({ en: "Key name", fr: "Nom de la clé" })}
                     />
                 </label>
+                <label className="space-y-1 text-xs text-muted-foreground">
+                    <span>{t({ en: "Provider (free text, optional)", fr: "Fournisseur (texte libre, facultatif)" })}</span>
+                    <Input
+                        name="mark-fournisseur-cle"
+                        autoComplete="off"
+                        data-1p-ignore
+                        data-lpignore="true"
+                        value={nomFournisseur}
+                        maxLength={80}
+                        placeholder={t({ en: "e.g. Scaleway", fr: "ex. Scaleway" })}
+                        onChange={(e) => setNomFournisseur(e.target.value)}
+                        aria-label={t({ en: "Provider", fr: "Fournisseur" })}
+                    />
+                </label>
+                <label className="space-y-1 text-xs text-muted-foreground">
+                    <span>{t({ en: "Provider address (optional)", fr: "Adresse du fournisseur (facultatif)" })}</span>
+                    <Input
+                        name="mark-adresse-cle"
+                        autoComplete="off"
+                        data-1p-ignore
+                        data-lpignore="true"
+                        value={adresse}
+                        maxLength={500}
+                        placeholder="https://api.exemple.com/v1"
+                        onChange={(e) => setAdresse(e.target.value)}
+                        aria-label={t({ en: "Provider address", fr: "Adresse du fournisseur" })}
+                    />
+                </label>
+                <p className="text-xs text-muted-foreground sm:col-span-2">
+                    {t({
+                        en: "A key with an address is only sent to that address; choosing it in a setting fills the setting's address. A key without an address works as before.",
+                        fr: "Une clé qui a une adresse ne part que vers cette adresse ; la choisir dans un réglage remplit l'adresse du réglage. Une clé sans adresse marche comme avant.",
+                    })}
+                </p>
                 <label className="space-y-1 text-xs text-muted-foreground sm:col-span-2">
                     <span>{t({ en: "Key", fr: "Clé" })}</span>
                     {/* « new-password »: a browser never fills a saved login password here (seen

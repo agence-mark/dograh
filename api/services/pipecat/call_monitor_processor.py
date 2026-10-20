@@ -25,6 +25,10 @@ from pipecat.frames.frames import (
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 
+# [.mark] Lot 5 : refus d'affilée de la relance de silence avant qu'elle compte quand même (Evan, 19/10).
+REFUS_MAX_D_AFFILEE = 3
+
+
 @dataclass
 class _ResponseWatch:
     """One owed response, including intervening tool generations."""
@@ -74,6 +78,12 @@ class CallMonitorProcessor(FrameProcessor):
         self.response_timeout = response_timeout
         self.tool_timeout = tool_timeout
         self.user_idle_timeout = 0.0
+        # [.mark] fiabilite-orchestration (lot 5, F7) : la relance de silence dite par la voix.
+        # ``delai_de_relance`` : le délai de la règle « l'appelant se tait » (``None`` : le réglage
+        # de Rythme) ; ``relance_suspendue`` : vrai pendant un travail de fond, où aucune relance
+        # ne part. Posés par le moteur ; sans eux, le moniteur de l'amont tel quel.
+        self.delai_de_relance: Callable[[], float | None] | None = None
+        self.relance_suspendue: Callable[[], bool] | None = None
         self._response_source = response_source
         self._on_response_timeout = on_response_timeout
         self._on_user_idle = on_user_idle
@@ -85,6 +95,8 @@ class CallMonitorProcessor(FrameProcessor):
         self._revision = 0
         self._idle_task: asyncio.Task | None = None
         self._retry_count = 0
+        # [.mark] Lot 5 : relances de silence refusées d'affilée par un verrou du diseur.
+        self._refus_d_affilee = 0
         self._total_idle_events = 0
         self.on_idle_diagnostic: Callable[..., None] | None = None
         self._waiting_for_user = False
@@ -132,6 +144,7 @@ class CallMonitorProcessor(FrameProcessor):
         self._user_turn_active = True
         self._waiting_for_user = False
         self._retry_count = 0
+        self._refus_d_affilee = 0
         # Only an accepted interruption cancels an outstanding bot response.
         if self._deadline_kind == "idle":
             self._cancel_deadline()
@@ -203,6 +216,28 @@ class CallMonitorProcessor(FrameProcessor):
             tour_ouvert or self._bot_speaking or self._response_watch or self._playbacks
         )
 
+    @property
+    def appelant_parle(self) -> bool:
+        """[.mark] fiabilite-orchestration (F24) : un tour de l'appelant est ouvert. Lecture seule."""
+        return bool(
+            self._user_turn_active
+            or (
+                self.user_aggregator is not None
+                and self.user_aggregator.user_turn_controller.has_active_user_turn
+            )
+        )
+
+    @property
+    def robot_parle(self) -> bool:
+        """[.mark] fiabilite-orchestration : la voix de l'agent joue. Lecture seule."""
+        return bool(self._bot_speaking)
+
+    @property
+    def agent_au_repos(self) -> bool:
+        """[.mark] fiabilite-orchestration (lot 1) : la voix de l'agent ne joue pas, aucune réponse
+        n'est en cours ni aucune parole dictée en attente. L'appelant, lui, peut parler."""
+        return not (self._bot_speaking or self._response_watch or self._playbacks)
+
     def _idle_eligible(self) -> bool:
         user_active = self._user_turn_active or (
             self.user_aggregator is not None
@@ -220,7 +255,44 @@ class CallMonitorProcessor(FrameProcessor):
             and not self._playbacks
             and self.user_aggregator is not None
             and self.user_idle_timeout > 0
+            and not self._relance_suspendue()
         )
+
+    def _relance_suspendue(self) -> bool:
+        if self.relance_suspendue is None:
+            return False
+        try:
+            return bool(self.relance_suspendue())
+        except Exception:  # noqa: BLE001 -- un échec de lecture ne coupe pas la relance
+            return False
+
+    def _delai_de_silence(self) -> float:
+        if self.delai_de_relance is not None:
+            try:
+                delai = self.delai_de_relance()
+                if delai is not None and delai > 0:
+                    return float(delai)
+            except Exception:  # noqa: BLE001
+                pass
+        return self.user_idle_timeout
+
+    def relance_par_la_voix(self, *, dite: bool) -> None:
+        """[.mark] Lot 5 : la relance a été confiée à la voix (phrase fixe), pas au modèle. Le
+        moniteur avait armé « une réponse est due » avant de la lancer : on la décharge, sinon son
+        délai finirait par raccrocher. ``dite`` faux (un verrou du diseur l'a refusée) : la relance
+        ne compte pas et le silence est de nouveau surveillé.
+
+        Evan, 19/10 : au-delà de ``REFUS_MAX_D_AFFILEE`` refus d'affilée, la relance compte quand
+        même ; un appelant muet finit toujours par être raccroché comme prévu."""
+        self.cancel()
+        self._waiting_for_user = True
+        if dite:
+            self._refus_d_affilee = 0
+            return
+        self._refus_d_affilee += 1
+        if self._refus_d_affilee <= REFUS_MAX_D_AFFILEE:
+            self._retry_count = max(0, self._retry_count - 1)
+        self._arm_idle()
 
     def _cancel_deadline(self) -> None:
         self._revision += 1
@@ -239,7 +311,7 @@ class CallMonitorProcessor(FrameProcessor):
         self._cancel_deadline()
         self._deadline_kind = "idle"
         self._deadline = asyncio.get_running_loop().call_later(
-            self.user_idle_timeout, self._idle_expired, self._revision
+            self._delai_de_silence(), self._idle_expired, self._revision
         )
 
     def _idle_expired(self, revision: int) -> None:

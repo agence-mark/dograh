@@ -1926,6 +1926,12 @@ export type ChampFiche = {
      * Scope in a call with several requests: whole call (what concerns the caller: shared by every request) or this request (closed with it when another specialist takes over). Empty: computed from the agent's settings (town and street readers, field recognition).
      */
     portee?: 'appel' | 'demande' | null;
+    /**
+     * Rempli Par Outil
+     *
+     * Filled by a tool: the name of the tool whose result writes this field (the value of the same key in its answer, else its status, else the first allowed value). The model, the clerk and the end-of-call pass never write it. Empty: off.
+     */
+    rempli_par_outil?: string | null;
 };
 
 /**
@@ -2104,6 +2110,14 @@ export type Cle = {
      * Creee Le
      */
     creee_le?: string | null;
+    /**
+     * Nom Fournisseur
+     */
+    nom_fournisseur?: string | null;
+    /**
+     * Adresse
+     */
+    adresse?: string | null;
 };
 
 /**
@@ -6365,6 +6379,14 @@ export type NouvelleCle = {
      * Cle
      */
     cle: string;
+    /**
+     * Nom Fournisseur
+     */
+    nom_fournisseur?: string | null;
+    /**
+     * Adresse
+     */
+    adresse?: string | null;
 };
 
 /**
@@ -6507,6 +6529,12 @@ export type OpenAillmService = {
      */
     base_url?: string;
     /**
+     * Api
+     *
+     * Which API of the provider the model is called through. 'chat_completions' is the usual one and the default. 'responses' is the provider's newer API: choose it for a model whose tools only work there (gpt-oss-120b at Scaleway). Everything else stays the same.
+     */
+    api?: 'chat_completions' | 'responses';
+    /**
      * Temperature
      *
      * How much randomness goes into each word. Low keeps answers predictable and on-script. Defaults to 0.1, the value that was hardcoded before this field existed.
@@ -6554,12 +6582,6 @@ export type OpenAillmService = {
      * Sends the agent's cache key (mark-wf-<agent>) so the provider can reuse the start of the prompt from one turn to the next. It names the agent only, never the caller. Off: no key is sent.
      */
     prompt_cache?: boolean;
-    /**
-     * Api
-     *
-     * Which API of the provider the model is called through. 'chat_completions' is the usual one and the default. 'responses' is the provider's newer API: choose it for a model whose tools only work there (gpt-oss-120b at Scaleway). Everything else stays the same.
-     */
-    api?: 'chat_completions' | 'responses';
 };
 
 /**
@@ -7722,6 +7744,22 @@ export type RapportSerie = {
 };
 
 /**
+ * RattachementDeCle
+ *
+ * Le fournisseur libre et l'adresse d'une clé déjà enregistrée (vide : on retire).
+ */
+export type RattachementDeCle = {
+    /**
+     * Nom Fournisseur
+     */
+    nom_fournisseur?: string | null;
+    /**
+     * Adresse
+     */
+    adresse?: string | null;
+};
+
+/**
  * RecordingCreateRequestSchema
  *
  * Request schema for creating a recording record after upload.
@@ -8311,6 +8349,48 @@ export type ReglagesWebhook = {
      * A reference to the « Keys » library.
      */
     secret?: string | null;
+};
+
+/**
+ * ReglePhrase
+ */
+export type ReglePhrase = {
+    /**
+     * Motif
+     *
+     * The cause or problem that makes the code speak (from the catalogue).
+     */
+    motif: string;
+    /**
+     * Portee
+     *
+     * Where the rule applies: the whole group (set on the main agent), this agent, or one step of this agent.
+     */
+    portee?: 'groupe' | 'agent' | 'etape';
+    /**
+     * Etape
+     *
+     * The step name, for a step rule only.
+     */
+    etape?: string | null;
+    /**
+     * Variantes
+     *
+     * One to three sentences said by the voice, without the model. The code rotates them and never says the same one twice in a call while another is left.
+     */
+    variantes?: Array<string>;
+    /**
+     * Delai S
+     *
+     * After how long the sentence is said, for a cause that has a delay.
+     */
+    delai_s?: number | null;
+    /**
+     * Active
+     *
+     * Off: the code says nothing for this cause.
+     */
+    active?: boolean;
 };
 
 /**
@@ -11878,17 +11958,17 @@ export type WorkflowConfigurationDefaults = {
      */
     etiquettes_des_etapes?: boolean;
     /**
-     * Fiche Deja Connu
-     *
-     * Next to the question, a short line names the record fields already known (names only, never the values): "Known: name, first name, town". Every note-taking mode. Off (default): nothing is shown.
-     */
-    fiche_deja_connu?: boolean;
-    /**
      * Filet De Fin
      *
      * Safety net for a specialised agent: when its reply holds a closing phrase ("goodbye", "have a nice day"...) and it took no exit, the code takes the exit that hands the call back to the main agent, which closes the call. The phrases are the organization's "formules_de_fin" sentence. Off (default): nothing is done, as before.
      */
     filet_de_fin?: boolean;
+    /**
+     * Fiche Deja Connu
+     *
+     * Next to the question, a short line names the record fields already known (names only, never the values): "Known: name, first name, town". Every note-taking mode. Off (default): nothing is shown.
+     */
+    fiche_deja_connu?: boolean;
     /**
      * Transfert Garanti
      *
@@ -11916,7 +11996,7 @@ export type WorkflowConfigurationDefaults = {
     /**
      * Indices Des Modules
      *
-     * Postscript only. Our data readers (list values, trade names, towns, numbers, spellings) tell the model what they recognised in the caller's last words; nothing is written in the record. Empty: on.
+     * Postscript and clerk modes. Our data readers (list values, trade names, towns, numbers, spellings) tell the model what they recognised in the caller's last words; nothing is written in the record. Empty: on in Postscript ('note, sentence' order), off otherwise.
      */
     indices_des_modules?: boolean | null;
     /**
@@ -11965,6 +12045,34 @@ export type WorkflowConfigurationDefaults = {
      * How long the background brain may work on one request, in seconds.
      */
     travail_delai_max_s?: number;
+    /**
+     * Delai Garde Modele S
+     *
+     * Model guard delay: past it without the model's first words, the code says its « model is slow » sentence and tries again (at the fallback brain if one is set). Empty: the outage setting if any, else 4 s.
+     */
+    delai_garde_modele_s?: number | null;
+    /**
+     * Cerveau De Repli
+     *
+     * Fallback brain, a troubleshooting tool, never part of a standard setup: when the model is past its guard delay, the second try goes to this model (an OpenAI-compatible provider), with the agent's tools and record. Empty (default): none.
+     */
+    cerveau_de_repli?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Travail Llm Repli
+     *
+     * Fallback brain of the background brain (troubleshooting only). Empty: none.
+     */
+    travail_llm_repli?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Phrases Regles
+     *
+     * Sentences said by the code, without the model: one rule per cause and place (group, agent or step), one to three sentences, a delay when the cause has one.
+     */
+    phrases_regles?: Array<ReglePhrase>;
     /**
      * Fiche Champs
      *
@@ -14361,6 +14469,58 @@ export type GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetResponses = {
 
 export type GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetResponse = GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetResponses[keyof GetWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGetResponses];
 
+export type GetCarteDesPhrasesApiV1WorkflowWorkflowIdPhrasesCarteGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/phrases/carte';
+};
+
+export type GetCarteDesPhrasesApiV1WorkflowWorkflowIdPhrasesCarteGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCarteDesPhrasesApiV1WorkflowWorkflowIdPhrasesCarteGetError = GetCarteDesPhrasesApiV1WorkflowWorkflowIdPhrasesCarteGetErrors[keyof GetCarteDesPhrasesApiV1WorkflowWorkflowIdPhrasesCarteGetErrors];
+
+export type GetCarteDesPhrasesApiV1WorkflowWorkflowIdPhrasesCarteGetResponses = {
+    /**
+     * Response Get Carte Des Phrases Api V1 Workflow  Workflow Id  Phrases Carte Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetCarteDesPhrasesApiV1WorkflowWorkflowIdPhrasesCarteGetResponse = GetCarteDesPhrasesApiV1WorkflowWorkflowIdPhrasesCarteGetResponses[keyof GetCarteDesPhrasesApiV1WorkflowWorkflowIdPhrasesCarteGetResponses];
+
 export type DownloadWorkflowReportApiV1WorkflowWorkflowIdReportGetData = {
     body?: never;
     headers?: {
@@ -14816,6 +14976,58 @@ export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponse
 };
 
 export type ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponse = ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponses[keyof ArchiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPostResponses];
+
+export type CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/groupe/completer';
+};
+
+export type CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostError = CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostErrors[keyof CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostErrors];
+
+export type CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostResponses = {
+    /**
+     * Response Completer Le Groupe Api V1 Workflow  Workflow Id  Groupe Completer Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: Array<string>;
+    };
+};
+
+export type CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostResponse = CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostResponses[keyof CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostResponses];
 
 export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostData = {
     body?: never;
@@ -15900,6 +16112,102 @@ export type AjouterUneCleApiV1ClesPostResponses = {
 
 export type AjouterUneCleApiV1ClesPostResponse = AjouterUneCleApiV1ClesPostResponses[keyof AjouterUneCleApiV1ClesPostResponses];
 
+export type SupprimerUneCleApiV1ClesUuidDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Uuid
+         */
+        uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/cles/{uuid}';
+};
+
+export type SupprimerUneCleApiV1ClesUuidDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUneCleApiV1ClesUuidDeleteError = SupprimerUneCleApiV1ClesUuidDeleteErrors[keyof SupprimerUneCleApiV1ClesUuidDeleteErrors];
+
+export type SupprimerUneCleApiV1ClesUuidDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: Suppression;
+};
+
+export type SupprimerUneCleApiV1ClesUuidDeleteResponse = SupprimerUneCleApiV1ClesUuidDeleteResponses[keyof SupprimerUneCleApiV1ClesUuidDeleteResponses];
+
+export type RattacherAUneCleApiV1ClesUuidPatchData = {
+    body: RattachementDeCle;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Uuid
+         */
+        uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/cles/{uuid}';
+};
+
+export type RattacherAUneCleApiV1ClesUuidPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RattacherAUneCleApiV1ClesUuidPatchError = RattacherAUneCleApiV1ClesUuidPatchErrors[keyof RattacherAUneCleApiV1ClesUuidPatchErrors];
+
+export type RattacherAUneCleApiV1ClesUuidPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: Cle;
+};
+
+export type RattacherAUneCleApiV1ClesUuidPatchResponse = RattacherAUneCleApiV1ClesUuidPatchResponses[keyof RattacherAUneCleApiV1ClesUuidPatchResponses];
+
 export type FournisseursDesClesApiV1ClesFournisseursGetData = {
     body?: never;
     headers?: {
@@ -16042,54 +16350,6 @@ export type UsagesDUneCleApiV1ClesUuidUsagesGetResponses = {
 };
 
 export type UsagesDUneCleApiV1ClesUuidUsagesGetResponse = UsagesDUneCleApiV1ClesUuidUsagesGetResponses[keyof UsagesDUneCleApiV1ClesUuidUsagesGetResponses];
-
-export type SupprimerUneCleApiV1ClesUuidDeleteData = {
-    body?: never;
-    headers?: {
-        /**
-         * Authorization
-         */
-        authorization?: string | null;
-        /**
-         * X-Api-Key
-         */
-        'X-API-Key'?: string | null;
-        /**
-         * X-Mark-Auteur
-         */
-        'X-Mark-Auteur'?: string | null;
-    };
-    path: {
-        /**
-         * Uuid
-         */
-        uuid: string;
-    };
-    query?: never;
-    url: '/api/v1/cles/{uuid}';
-};
-
-export type SupprimerUneCleApiV1ClesUuidDeleteErrors = {
-    /**
-     * Not found
-     */
-    404: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type SupprimerUneCleApiV1ClesUuidDeleteError = SupprimerUneCleApiV1ClesUuidDeleteErrors[keyof SupprimerUneCleApiV1ClesUuidDeleteErrors];
-
-export type SupprimerUneCleApiV1ClesUuidDeleteResponses = {
-    /**
-     * Successful Response
-     */
-    200: Suppression;
-};
-
-export type SupprimerUneCleApiV1ClesUuidDeleteResponse = SupprimerUneCleApiV1ClesUuidDeleteResponses[keyof SupprimerUneCleApiV1ClesUuidDeleteResponses];
 
 export type GetEtablissementsApiV1OrganizationsEtablissementsGetData = {
     body?: never;

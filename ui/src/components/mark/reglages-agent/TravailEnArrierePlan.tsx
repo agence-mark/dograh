@@ -46,6 +46,7 @@ import { Intertitre } from "../ecran/Intertitre";
 import { useLangue } from "../langue/langue";
 import { type BlocModele, ChampsFournisseurLlm } from "../modeles/ChampsFournisseurLlm";
 import { type Enregistrer, RAPPEL_PUBLICATION_TEXTE } from "./enregistrement";
+import { CerveauDeRepli } from "./GardeDuModele";
 
 export const DELAI_PAR_DEFAUT_S = 60;
 /** What the code never gives the background brain: it acts on the call itself. */
@@ -190,6 +191,17 @@ export const TravailEnArrierePlan = ({
                             </Button>
                         </div>
                     </ChampReglage>
+
+                    {/* fiabilite-orchestration, lot 4 (F20, F26): the background brain's fallback, troubleshooting only. */}
+                    <CerveauDeRepli
+                        cle="travail_llm_repli"
+                        idPrefixe="travail_repli"
+                        bouton={{ en: "Configure the background fallback brain", fr: "Régler le cerveau de repli du fond" }}
+                        libelle={{ en: "Background fallback brain (troubleshooting)", fr: "Cerveau de repli du fond (dépannage)" }}
+                        enregistre={(resolue.travail_llm_repli ?? null) as GreffierLlm | null}
+                        enregistrer={enregistrer}
+                        desactive={enregistrement}
+                    />
 
                     <ChampReglage
                         cle="travail_consigne"

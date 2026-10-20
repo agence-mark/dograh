@@ -51,6 +51,7 @@ from api.services.equipe.transferts_humains import (
 from api.services.telephony.external_pbx import resolve_external_pbx_field_mappings
 from api.services.telephony.factory import get_telephony_provider_for_run
 from api.services.telephony.transfer_event_protocol import TransferContext
+from api.services.workflow.enveloppe_des_actions import envelopper_l_action
 from api.services.workflow.renvoi_en_test import (
     ACCEPTE,
     REFUSE,
@@ -313,7 +314,13 @@ class CustomToolManager:
                         self._agent.llm.register_function(
                             fs.name,
                             self._agent.bind_tool(
-                                self._engine, self._create_mcp_handler(session, fs.name)
+                                self._engine,
+                                envelopper_l_action(
+                                    self._engine,
+                                    fs.name,
+                                    self._create_mcp_handler(session, fs.name),
+                                    self._agent,
+                                ),
                             ),
                             timeout_secs=session.call_timeout_secs,
                         )
@@ -345,7 +352,14 @@ class CustomToolManager:
                     self._agent.llm.register_function(
                         nom,
                         self._agent.bind_tool(
-                            self._engine, integration.creer_gestionnaire(self, tool, nom)
+                            self._engine,
+                            envelopper_l_action(
+                                self._engine,
+                                nom,
+                                integration.creer_gestionnaire(self, tool, nom),
+                                self._agent,
+                                garde=not interne,
+                            ),
                         ),
                         timeout_secs=delai + 5.0,
                         is_node_transition=interne,
@@ -412,7 +426,13 @@ class CustomToolManager:
                 "timeout_ms", 5000
             )
             timeout_secs = float(timeout_ms) / 1000
-            handler = self._create_http_tool_handler(tool, function_name)
+            # [.mark] fiabilite-orchestration : une action, son résultat est lu (fiche).
+            handler = envelopper_l_action(
+                self._engine,
+                function_name,
+                self._create_http_tool_handler(tool, function_name),
+                self._agent,
+            )
 
         return handler, timeout_secs
 
@@ -1336,6 +1356,22 @@ class CustomToolManager:
         except Exception:  # noqa: BLE001
             return True
 
+    async def _dire_l_echec_du_transfert(self) -> str | None:
+        """[.mark] Dit la phrase « le transfert d'appel échoue » si sa règle est allumée ; rend son
+        texte. ⛔ Ne lève jamais."""
+        try:
+            from api.services.phrases.catalogue import TRANSFERT_ECHOUE
+            from api.services.phrases.diseur import DiseurDePhrases
+
+            diseur = getattr(self._engine, "phrases", None)
+            if not isinstance(diseur, DiseurDePhrases):
+                return None
+            parole = await diseur.dire_la_parole(TRANSFERT_ECHOUE)
+            return getattr(parole, "text", None) if parole is not None else None
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[transfert] phrase d'échec non dite : {e!r}")
+            return None
+
     async def _handle_transfer_result(
         self,
         result: dict,
@@ -1405,14 +1441,20 @@ class CustomToolManager:
             # Transfer failed - let LLM inform user with error details
             reason = result.get("reason", "unknown")
             logger.info(f"Transfer failed ({reason}), informing user via LLM")
-
-            await function_call_params.result_callback(
-                {
-                    "status": "transfer_failed",
-                    "reason": reason,
-                    "message": result.get("message") or "Transfer failed",
-                }
-            )
+            echec = {
+                "status": "transfer_failed",
+                "reason": reason,
+                "message": result.get("message") or "Transfer failed",
+            }
+            # [.mark] Fiabilite-orchestration, lot 4 bis : la règle « le transfert d'appel
+            # échoue » (éteinte par défaut : le modèle le dit lui-même, comme avant).
+            dit = await self._dire_l_echec_du_transfert()
+            if dit:
+                echec["said_to_caller"] = dit
+                echec["instruction"] = (
+                    "The caller was told the transfer failed; do not repeat it, go on with the call."
+                )
+            await function_call_params.result_callback(echec)
         else:
             # Unknown action, treat as generic success
             logger.warning(f"Unknown transfer action: {action}, treating as success")

@@ -40,8 +40,8 @@ from api.services.panne.declencheurs import ObservateurVoixLente, sur_erreur_ter
 from api.services.panne.delai_modele import (
     DelaiModeleDepasse,
     FluxAvecDelai,
-    ReplisDelaiModele,
 )
+from api.services.panne.garde_modele import GardeDuModele
 from api.services.panne.gardien import ContextePanne, GardienPanne
 
 PARIS = ZoneInfo("Europe/Paris")
@@ -553,27 +553,29 @@ async def test_service_mistral_sans_delai_inchange_et_evenement_sans_erreur():
 
 
 async def test_replis_un_instant_puis_le_repli_compteur_remis_par_une_reponse():
-    from pipecat.frames.frames import LLMRunFrame, TTSSpeakFrame
+    """fiabilite-orchestration, lot 4 (F20) : la garde du modèle (``GardeDuModele``) remplace
+    ``ReplisDelaiModele`` ; mode panne allumé (un gardien posé), le comportement reste : « Un
+    instant » (phrase du code) et une nouvelle tentative, puis la panne au deuxième d'affilée."""
+    from api.services.panne.declencheurs import ATTRIBUT_GARDIEN
 
     engine = _engine()
-    task = SimpleNamespace(queue_frames=AsyncMock())
+    dites = []
+    engine.phrases = SimpleNamespace(dire=AsyncMock(side_effect=lambda m, a: dites.append(m)))
+    engine.end_call_with_reason = AsyncMock()
     gardien = SimpleNamespace(declencher=AsyncMock(return_value="renvoi"))
-    terminer = AsyncMock()
-    replis = ReplisDelaiModele(engine, task, gardien, terminer)
+    setattr(engine, ATTRIBUT_GARDIEN, gardien)
+    relancer = AsyncMock()
+    garde = GardeDuModele(engine, SimpleNamespace(), relancer, parle=True)
     depasse = DelaiModeleDepasse("premier_morceau", 4.0)
-    await replis._depasse(None, depasse)
-    trames = task.queue_frames.await_args.args[0]
-    assert (
-        isinstance(trames[0], TTSSpeakFrame)
-        and trames[0].text == "Un instant, s'il vous plaît."
-        and isinstance(trames[1], LLMRunFrame)
-    )
-    await replis._commencee(None)  # an answer started: back to zero (D6)
-    await replis._depasse(None, depasse)
+    await garde._depasse(None, depasse)
+    assert dites == ["modele_tarde"]
+    relancer.assert_awaited_once()
+    await garde._commencee(None)  # an answer started: back to zero (D6)
+    await garde._depasse(None, depasse)
     gardien.declencher.assert_not_awaited()
-    await replis._depasse(None, depasse)  # second in a row
+    await garde._depasse(None, depasse)  # second in a row
     gardien.declencher.assert_awaited_once()
-    terminer.assert_awaited_once()
+    engine.end_call_with_reason.assert_awaited_once()
     assert engine._gathered_context["depassements_modele"] == 3
     assert (
         sum(

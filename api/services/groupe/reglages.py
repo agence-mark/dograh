@@ -60,7 +60,8 @@ CHEMINS_CERVEAU: tuple[tuple[str, ...], ...] = (
 # gardés par le spécialisé quand il a son propre cerveau.
 CLES_SUIVENT_LE_CERVEAU = (
     "reflexion_de_relance",
-    "trace_requetes_modele",
+    # (``trace_requetes_modele`` n'y est plus : une case pour tout le groupe, celle du principal,
+    # cerveau propre ou non ; Evan, 19/10.)
     "relance_apres_outil",
     # Lot 4 d'orchestrateur-trois-cerveaux (D13) : le cerveau de fond d'un agent est une brique
     # de SON cerveau (modèle, consigne, outils, délai). Un spécialisé au cerveau rattaché prend
@@ -70,6 +71,10 @@ CLES_SUIVENT_LE_CERVEAU = (
     "travail_consigne",
     "travail_outils",
     "travail_delai_max_s",
+    # fiabilite-orchestration, lot 4 (F20, C5) : la garde et le repli suivent le cerveau.
+    "delai_garde_modele_s",
+    "cerveau_de_repli",
+    "travail_llm_repli",
 )
 
 # Thème 1 (Agent), partie commune : les réglages du groupe et ceux qui suivent le cerveau.
@@ -90,6 +95,9 @@ CLES_COMMUNES: tuple[str, ...] = (
     "travail_consigne",
     "travail_outils",
     "travail_delai_max_s",
+    "delai_garde_modele_s",
+    "cerveau_de_repli",
+    "travail_llm_repli",
     # 3 Écoute
     "conversion_nombres_transcription",
     "variables_reference",
@@ -190,6 +198,10 @@ CLES_PROPRES: tuple[str, ...] = (
     "adresse_etablissement",
     CLE_CERVEAU_PROPRE,
     *CLES_DE_LIEN,
+    # fiabilite-orchestration (F18) : les règles des phrases du code restent à chaque agent ; un
+    # spécialisé reprend celle du principal À L'APPEL (résolution étape, agent, principal), jamais
+    # par une copie : sa propre règle doit pouvoir exister.
+    "phrases_regles",
 )
 
 

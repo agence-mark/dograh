@@ -17,7 +17,9 @@ Ce que fait ce module, et rien d'autre :
 - C2, filet du silence (Evan, 16/10) : un flux sans texte ni appel d'outil n'est jamais une
   réponse ; il est relancé même sans jeton compté ; si la relance est vide aussi (ou en
   erreur) et que l'appelant attend une réponse (le dernier message est le sien), le code dit
-  ``PHRASE_DE_REPLI`` plutôt qu'un silence ; sinon le flux d'origine est rendu, comme avant.
+  la phrase « la réponse du modèle est perdue » (``phrase_de_repli`` : la règle du thème Phrases,
+  fiabilite-orchestration lot 4 bis) plutôt qu'un silence ; règle éteinte, ou l'appelant n'attend
+  pas : le flux d'origine est rendu, comme avant.
 
 ⛔ Ne lève jamais à la place du service : toute erreur de la relance rend le comportement
 d'avant. Un flux qui a déjà porté du texte n'est jamais relancé (rien n'est dit deux fois).
@@ -31,9 +33,24 @@ from typing import Any
 
 from loguru import logger
 
-# C2 : la phrase dite par le code quand le cerveau n'a rien rendu, deux fois. Neutre, sans mot de
-# métier : elle redonne la parole à l'appelant, qui répète, et le tour repart normalement.
-PHRASE_DE_REPLI = "Pardon, je n'ai pas bien saisi. Vous pouvez répéter ?"
+# L'attribut du service où le moteur pose la phrase de repli de son agent (``brancher_les_phrases``).
+ATTRIBUT_PHRASE_DE_REPLI = "mark_phrase_de_repli"
+
+
+def phrase_de_repli(service: Any) -> str | None:
+    """C2 : la phrase dite quand le cerveau n'a rien rendu, deux fois. Celle que le moteur a posée
+    sur ``service`` (la règle « la réponse du modèle est perdue », tracée ; ``None`` : éteinte) ;
+    sans moteur (un service seul), le défaut du catalogue. ⛔ Ne lève jamais."""
+    try:
+        prendre = getattr(service, ATTRIBUT_PHRASE_DE_REPLI, None)
+        if callable(prendre):
+            return prendre()
+        from api.services.phrases.catalogue import MOTIFS, REPONSE_PERDUE
+
+        return MOTIFS[REPONSE_PERDUE].variantes_defaut[0]
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[cerveau] phrase de repli illisible : {erreur!r}")
+        return None
 
 
 def _delta(morceau: Any) -> Any:
@@ -170,10 +187,12 @@ class FluxRepris:
     """Le flux du cerveau, relancé une fois sans flux s'il finit vide alors que des jetons
     ont été générés."""
 
-    def __init__(self, flux: Any, relancer, l_appelant_attend=None):
+    def __init__(self, flux: Any, relancer, l_appelant_attend=None, repli=None):
         self._flux = flux
         self._relancer = relancer
         self._l_appelant_attend = l_appelant_attend
+        # Le texte de la phrase de repli, pris au moment où il faut la dire (``None`` : éteinte).
+        self._repli = repli
 
     def __aiter__(self):
         return self._parcourir()
@@ -219,11 +238,12 @@ class FluxRepris:
                 for morceau in morceaux:
                     yield morceau
                 return
-        if self._attend():
+        texte = self._repli() if self._attend() and self._repli is not None else None
+        if texte:
             logger.warning(
                 f"[cerveau] flux vide ({jetons} jetons comptés), relance vide : phrase de repli"
             )
-            for morceau in morceaux_de_texte(PHRASE_DE_REPLI):
+            for morceau in morceaux_de_texte(texte):
                 yield morceau
             return
         logger.warning(f"[cerveau] flux vide ({jetons} jetons comptés), relance vide")
@@ -290,4 +310,4 @@ class RepriseSansFluxMixin:
             ]
             return bool(messages) and messages[-1].get("role") == "user"
 
-        return FluxRepris(flux, relancer, l_appelant_attend)
+        return FluxRepris(flux, relancer, l_appelant_attend, lambda: phrase_de_repli(self))

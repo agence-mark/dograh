@@ -74,7 +74,7 @@ from api.services.groupe.passations import NOTE_DE_PASSATION
 from api.services.panne.delai_modele import DelaiModeleMixin
 from api.services.pipecat.main_passee import ATTRIBUT as ATTRIBUT_MAIN_PASSEE
 from api.services.pipecat.main_passee import _FluxVide
-from api.services.pipecat.reponse_avalee import PHRASE_DE_REPLI
+from api.services.pipecat.reponse_avalee import phrase_de_repli
 from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
 from api.services.pipecat.texte_du_cerveau import FluxNettoye, _noms_des_outils
 from api.services.pipecat.trace_modele import TraceModeleMixin
@@ -349,10 +349,11 @@ class TexteDuCerveauResponsesMixin:
 class FluxReprisResponses:
     """Le flux du cerveau, relancé une fois sans flux s'il finit vide (ni texte ni appel d'outil)."""
 
-    def __init__(self, flux: Any, relancer, l_appelant_attend=None):
+    def __init__(self, flux: Any, relancer, l_appelant_attend=None, repli=None):
         self._flux = flux
         self._relancer = relancer
         self._l_appelant_attend = l_appelant_attend
+        self._repli = repli
 
     def __aiter__(self):
         return self._parcourir()
@@ -399,11 +400,12 @@ class FluxReprisResponses:
                 for evenement in evenements:
                     yield evenement
                 return
-        if self._attend():
+        texte = self._repli() if self._attend() and self._repli is not None else None
+        if texte:
             logger.warning(
                 f"[cerveau] flux vide ({jetons} jetons comptés), relance vide : phrase de repli"
             )
-            yield evenement_de_texte(PHRASE_DE_REPLI)
+            yield evenement_de_texte(texte)
             return
         logger.warning(f"[cerveau] flux vide ({jetons} jetons comptés), relance vide")
         for tenu in tenus:
@@ -459,7 +461,9 @@ class RepriseSansFluxResponsesMixin:
             ]
             return bool(messages) and messages[-1].get("role") == "user"
 
-        return FluxReprisResponses(flux, relancer, l_appelant_attend)
+        return FluxReprisResponses(
+            flux, relancer, l_appelant_attend, lambda: phrase_de_repli(self)
+        )
 
 
 # --- Le service -------------------------------------------------------------------------------

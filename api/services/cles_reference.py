@@ -19,9 +19,11 @@ Module sans dépendance vers les routes ni l'appelant simulé : ``masking.py`` e
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from loguru import logger
+
+from api.services.bibliotheque_cles_adresse import meme_serveur
 
 PREFIXE = "mark-cle:"
 MARQUE = "mark_bibliotheque"
@@ -55,12 +57,31 @@ def uuid_de(reference: str) -> str:
     return reference[len(PREFIXE) :]
 
 
+class CleResolue(NamedTuple):
+    """Une clé de la bibliothèque lue pour un appel : sa valeur, son protocole, l'adresse qui lui
+    est rattachée (lot 10 de fiabilite-orchestration ; ``None`` pour une clé d'avant)."""
+
+    valeur: str
+    fournisseur: str
+    adresse: Optional[str] = None
+
+
+def _message_d_adresse(usage: str, adresse_cle: str, adresse_service) -> str:
+    """Le serveur de la clé et celui du réglage ; jamais la clé."""
+    return (
+        f"The {usage} key chosen in the key library belongs to the address {adresse_cle}; "
+        f"this setting points at {adresse_service or 'the provider default address'}. "
+        "The key is not sent there: set the setting's base URL to the key's address, "
+        "or pick another key in « Keys »."
+    )
+
+
 class CleIntrouvable(ValueError):
     """Une référence désigne une clé supprimée ou absente de l'organisation."""
 
 
-async def _cle(uuid: str, organization_id: int) -> Optional[tuple[str, str]]:
-    """``(clé, fournisseur)`` d'une clé de la bibliothèque de l'organisation, ou ``None``."""
+async def _cle(uuid: str, organization_id: int) -> Optional[CleResolue]:
+    """La clé de la bibliothèque de l'organisation (valeur, protocole, adresse), ou ``None``."""
     from api.db import (
         db_client,
     )  # à l'usage : masking.py importe ce module sans la base
@@ -72,17 +93,28 @@ async def _cle(uuid: str, organization_id: int) -> Optional[tuple[str, str]]:
     valeur = donnees.get("token")
     if not (isinstance(valeur, str) and valeur.strip()):
         return None
-    return valeur, str(donnees.get("fournisseur") or "")
+    adresse = donnees.get("adresse")
+    return CleResolue(
+        valeur,
+        str(donnees.get("fournisseur") or ""),
+        adresse if isinstance(adresse, str) and adresse else None,
+    )
 
 
 async def cle_d_une_reference(
-    reference: str, fournisseur, organization_id: Optional[int], usage: str
+    reference: str,
+    fournisseur,
+    organization_id: Optional[int],
+    usage: str,
+    adresse_cible: Optional[str] = None,
 ) -> Optional[str]:
     """[.mark] Lot C d'agent-leger-greffier : la clé désignée par UNE référence, hors d'une
     configuration effective (le bloc du greffier). Mêmes règles que ``resoudre_les_cles`` :
     clé de l'organisation de l'appel, et du même fournisseur (famille). Sinon ``None`` et un
     journal d'erreur qui dit pourquoi ; jamais la clé, jamais une exception de règle.
-    Sans fournisseur nommé, ``None`` : la famille ne peut pas être vérifiée."""
+    Sans fournisseur nommé, ``None`` : la famille ne peut pas être vérifiée.
+    Lot 10 de fiabilite-orchestration : une clé qui a une adresse ne part que vers CETTE adresse
+    (``adresse_cible``, le ``base_url`` du bloc) ; sinon ``None`` et un journal qui le dit."""
     if not est_reference(reference) or organization_id is None or not fournisseur:
         if est_reference(reference):
             logger.error(
@@ -101,6 +133,13 @@ async def cle_d_une_reference(
         logger.error(
             f"[.mark] The {usage} key chosen in the key library is a {trouvee[1]} key, "
             f"not a {famille(fournisseur)} one (organization {organization_id})."
+        )
+        return None
+    adresse = getattr(trouvee, "adresse", None)
+    if not meme_serveur(adresse, adresse_cible):
+        logger.error(
+            f"[.mark] {_message_d_adresse(usage, adresse, adresse_cible)} "
+            f"(organization {organization_id})"
         )
         return None
     return trouvee[0]
@@ -153,6 +192,15 @@ async def resoudre_les_cles(
                 message = (
                     f"The {nom} key chosen in the key library is a {trouvee[1]} key, "
                     f"not a {famille(getattr(service, 'provider', None))} one: pick another in « Keys »."
+                )
+            elif "base_url" in type(service).model_fields and not meme_serveur(
+                getattr(trouvee, "adresse", None), getattr(service, "base_url", None)
+            ):
+                # Lot 10 de fiabilite-orchestration : une clé qui a une adresse ne part jamais vers
+                # un autre serveur sans que ce soit dit (un service sans adresse à régler vise
+                # celle de son fournisseur : rien à comparer).
+                message = _message_d_adresse(
+                    nom, trouvee.adresse, getattr(service, "base_url", None)
                 )
             else:
                 cle = trouvee[0]

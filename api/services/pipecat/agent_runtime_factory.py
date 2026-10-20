@@ -33,6 +33,7 @@ from api.services.pipecat.pipeline_builder import (
 )
 from api.services.pipecat.recording_router_processor import RecordingRouterProcessor
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
+from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.pipecat.service_factory import (
     cle_de_cache,
     create_llm_service,
@@ -40,6 +41,7 @@ from api.services.pipecat.service_factory import (
     stamp_sampling_settings,
     stamp_voice_settings,
 )
+from api.services.groupe.postes import Postes
 from api.services.groupe.prechauffage import (
     ChargeAgent,
     Precharge,
@@ -129,9 +131,16 @@ class AgentRuntimeFactory:
         # [.mark] Lot 3 (D7) : la configuration de la voix de l'APPEL (celle du premier
         # agent), pour l'estampille d'un agent appelé. None = la sienne, comme avant.
         voix_de_l_appel: Any = None,
+        # [.mark] fiabilite-orchestration, lot 8 (R12) : le moteur de l'appel, pour brancher la
+        # trace du modèle sur le service de chaque agent construit (case de l'agent). None = sans.
+        moteur_de_l_appel: Callable[[], Any] | None = None,
     ):
+        self._moteur_de_l_appel = moteur_de_l_appel
         self._voix_de_l_appel = voix_de_l_appel
         self.precharge = precharge
+        # [.mark] fiabilite-orchestration, lot 3 (F5) : les connexions de l'appel, partagées entre
+        # agents au même fournisseur (même adresse, même clé).
+        self.postes = Postes(noter=self._noter_connexion_modele)
         self._traitement_de_la_fiche = traitement_de_la_fiche
         self._lexique_metier = lexique_metier
         self._variables_appel = variables_appel or (lambda: {})
@@ -147,6 +156,17 @@ class AgentRuntimeFactory:
         self._has_recordings = has_recordings
         self._mps_correlation_id = mps_correlation_id
         self._observers = observers
+
+    def _noter_connexion_modele(self, evenement: dict) -> None:
+        """Lot 9 (F11) : une connexion au modèle ouverte ou reprise, rangée dans la fiche de l'appel
+        (``mark_connexions_modele``). Ne lève jamais."""
+        try:
+            moteur = self._moteur_de_l_appel() if self._moteur_de_l_appel else None
+            fiche = getattr(moteur, "_gathered_context", None)
+            if isinstance(fiche, dict):
+                fiche.setdefault("mark_connexions_modele", []).append(evenement)
+        except Exception:  # noqa: BLE001
+            pass
 
     @property
     def organization_id(self) -> int:
@@ -279,6 +299,10 @@ class AgentRuntimeFactory:
             correlation_id=self._mps_correlation_id,
             prompt_cache_key=cle_de_cache(workflow_id),
         )
+        # [.mark] Lot 8 (R12) : la trace du modèle suit l'agent appelé (case de CET agent), avant la
+        # prise de notes ci-dessous qui lit la trace du moteur. Ne lève jamais.
+        if self._moteur_de_l_appel is not None:
+            brancher_la_trace(self._moteur_de_l_appel(), llm, run_configs, workflow.name)
         # Same client policy as the run setup: the conversation LLM also
         # serves out-of-band inference, and extraction gets a separately
         # tagged client only where the run would have created one, so a
@@ -297,6 +321,10 @@ class AgentRuntimeFactory:
             and user_config.llm.provider == ServiceProviders.DOGRAH.value
             else llm
         )
+        # [.mark] fiabilite-orchestration, lot 3 (F5) : même fournisseur, même connexion.
+        self.postes.partager(llm, workflow.name)
+        if variable_extraction_llm is not llm:
+            self.postes.partager(variable_extraction_llm, workflow.name)
 
         recording_router = None
         if self._has_recordings and self._fetch_recording_audio is not None:

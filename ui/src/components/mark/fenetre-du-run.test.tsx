@@ -371,3 +371,118 @@ describe("Fenêtre du run : silence après un outil", () => {
         );
     });
 });
+
+describe("Fenêtre du run : chronomètre par tour, connexions et réseau", () => {
+    it("montre une ligne par tour avec les étapes, les médianes M1, M2 et l'oreille, ou dit « non capté »", async () => {
+        lireAnalyse.mockResolvedValue({
+            data: {
+                ...ANALYSE,
+                chrono: {
+                    status: "ok",
+                    m2_count: 1,
+                    controls: { m1_median_secs: 1.69, m2_median_secs: 1.65, heard_median_secs: 3.26, heard_minus_m2_secs: 1.61 },
+                    turns: [
+                        {
+                            turn: 3,
+                            step: "entretien",
+                            measured: true,
+                            not_measured_reason: null,
+                            passes: 1,
+                            stages: {
+                                turn_closed: 0.37,
+                                request_sent: 0.37,
+                                first_model_word: 2.0,
+                                first_sentence: 2.12,
+                                sent_to_voice: 2.12,
+                                first_sound: 2.23,
+                            },
+                        },
+                        {
+                            turn: 11,
+                            step: "entretien",
+                            measured: false,
+                            not_measured_reason: "no_final_transcript",
+                            passes: 1,
+                            stages: {
+                                turn_closed: null,
+                                request_sent: null,
+                                first_model_word: null,
+                                first_sentence: null,
+                                sent_to_voice: null,
+                                first_sound: null,
+                            },
+                        },
+                    ],
+                },
+            },
+        });
+        const { unmount } = enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        ouvrir("bloc-chrono");
+        const lignes = screen.getAllByTestId("tour-chronometre");
+        expect(lignes).toHaveLength(2);
+        expect(texte(lignes[0])).toContain("2.23 s");
+        expect(texte(lignes[1])).toContain("non mesuré : aucune transcription finale");
+        expect(texte(screen.getByTestId("chrono-controles"))).toContain("premier son sorti de la voix (M2) 1.65 s");
+        expect(texte(screen.getByTestId("chrono-controles"))).toContain("entendu sur l'enregistrement 3.26 s");
+        expect(texte(screen.getByTestId("bloc-chrono"))).toContain("M2 médiane 1.65 s");
+        unmount();
+        // Un serveur d'avant le lot, ou un run sans détail : « non capté », jamais une carte vide.
+        lireAnalyse.mockResolvedValue({ data: ANALYSE });
+        enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        expect(texte(ouvrir("bloc-chrono"))).toContain("Non capté pour ce run");
+    });
+
+    it("montre les connexions par brique, le modèle ouvert ou repris et la liaison audio", async () => {
+        lireAnalyse.mockResolvedValue({
+            data: {
+                ...ANALYSE,
+                network: {
+                    status: "ok",
+                    providers: {
+                        voice: { connected: 1, disconnected: 0, errors: 0, first_connect_secs: 0.42 },
+                        transcription: { connected: 2, disconnected: 1, errors: 0, first_connect_secs: 0.3 },
+                    },
+                    model: {
+                        opened: 1,
+                        reused: 1,
+                        items: [
+                            { event: "opened", agent: "Accueil", host: "api.exemple.test", after_secs: 0 },
+                            { event: "reused", agent: "Collègue", host: "api.exemple.test", after_secs: 12 },
+                        ],
+                    },
+                    link: {
+                        status: "ok",
+                        samples: 4,
+                        last: {
+                            inbound: { packets_received: 1000, packets_lost: 2, jitter_ms: 10 },
+                            outbound: { packets_lost: 5, jitter_ms: 20, round_trip_ms: 80 },
+                        },
+                        worst: { jitter_ms_in: 40, jitter_ms_out: 20, round_trip_ms: 300 },
+                    },
+                },
+            },
+        });
+        enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        ouvrir("bloc-network");
+        expect(texte(screen.getByTestId("reseau-connexions"))).toContain("Voix : 1 connexion(s), la première après 0.42 s");
+        expect(texte(screen.getByTestId("reseau-connexions"))).toContain("1 connexion(s) ouverte(s), 1 reprise(s) (Accueil : ouverte, Collègue : reprise)");
+        expect(texte(screen.getByTestId("reseau-liaison"))).toContain("2 paquets perdus, gigue 10.0 ms");
+        expect(texte(screen.getByTestId("reseau-liaison"))).toContain("pire aller-retour 300.0 ms");
+    });
+
+    it("dit que la liaison audio n'est pas captée au téléphone", async () => {
+        lireAnalyse.mockResolvedValue({
+            data: {
+                ...ANALYSE,
+                network: { status: "ok", providers: {}, model: null, link: { status: "not_captured" } },
+            },
+        });
+        enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        ouvrir("bloc-network");
+        expect(texte(screen.getByTestId("reseau-liaison"))).toContain("Liaison audio : non captée");
+    });
+});

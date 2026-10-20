@@ -11,6 +11,8 @@
  */
 import { useState } from "react";
 
+import { listerLesClesApiV1ClesGet } from "@/client";
+import type { Cle } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -45,7 +47,11 @@ export function ChampCleModele({
     /** The provider chosen in the form: the library opens on its keys. */
     fournisseur: string;
     placeholder?: string;
-    onChange: (valeur: string) => void;
+    /**
+     * The second argument is the address attached to the key picked in the library (fiabilite-orchestration,
+     * lot 10): the setting fills its address with it, in the same change.
+     */
+    onChange: (valeur: string, adresse?: string) => void;
 }) {
     const { t } = useLangue();
     const reference = estReference(valeur);
@@ -69,6 +75,7 @@ export function ChampCleModele({
                                 : cles === null
                                   ? t({ en: "Loading…", fr: "Chargement…" })
                                   : t({ en: "Key deleted: pick another", fr: "Clé supprimée : choisis-en une autre" })}
+                            {designee?.adresse ? ` · ${designee.adresse}` : ""}
                         </span>
                     </div>
                 ) : (
@@ -110,7 +117,10 @@ export function ChampCleModele({
                     onChoisir={async (uuid) => {
                         // Reloaded first, or the new key would show as « deleted » for a moment.
                         await recharger();
-                        onChange(`${PREFIXE_REFERENCE}${uuid}`);
+                        // The address of the key picked, read once: the setting takes it as its own.
+                        const liste = await listerLesClesApiV1ClesGet();
+                        const choisie = ((liste.data as Cle[] | undefined) ?? []).find((c) => c.uuid === uuid);
+                        onChange(`${PREFIXE_REFERENCE}${uuid}`, choisie?.adresse || undefined);
                     }}
                 />
             )}

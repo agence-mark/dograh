@@ -34,6 +34,7 @@ export type ThemeAgent =
     | "tour"
     | "voix"
     | "rythme"
+    | "phrases"
     | "donnees"
     | "etablissement";
 
@@ -205,10 +206,9 @@ export const CAS_AGENT: CasAgent[] = [
         choisir("fiche_mode_de_note", "greffier"),
         inter("indices_des_modules"),
     ]),
-    // Lot E d'agent-leger-greffier (P1): the steps' field labels, frozen once.
-    c("etiquettes-des-etapes", "ajout-mark", "donnees", ["etiquettes_des_etapes"], [inter("etiquettes_des_etapes")]),
-    // Lot 2 d'orchestrateur-trois-cerveaux (D4): the line « Known: … », frozen once.
-    c("fiche-deja-connu", "ajout-mark", "donnees", ["fiche_deja_connu"], [inter("fiche_deja_connu")]),
+    // Lot 2 d'orchestrateur-trois-cerveaux (D4): the line « Known: … », frozen once ; fiabilite-orchestration,
+    // lot 2 (F19): the same box now writes « Still expected » too (the step labels' box is gone).
+    c("fiche-deja-connu", "ajout-mark", "donnees", ["etiquettes_des_etapes", "fiche_deja_connu"], [inter("fiche_deja_connu")]),
     // greffier-conversation, lot E (C4, D6).
     c("transfert-garanti", "ajout-mark", "donnees", ["transfert_garanti"], [inter("transfert_garanti")]),
     // Chantier postscriptum-et-communes, B5: only shown in Postscript, « Transition, note, reply ».
@@ -227,6 +227,23 @@ export const CAS_AGENT: CasAgent[] = [
         saisir("travail_api_key", "cle-de-reference"),
         saisir("travail_consigne", "Fais la demande."),
         { type: "cliquer", nom: "Save the background brain" },
+    ], true, { travail_actif: true }),
+    // fiabilite-orchestration, lot 4 (F20, F26): the guard delay and the fallback brains.
+    c("garde-delai", "ajout-mark", "briques", ["delai_garde_modele_s"], [
+        saisir("delai_garde_modele_s", "6"),
+        { type: "cliquer", nom: "Save the guard delay" },
+    ], true),
+    c("garde-repli", "ajout-mark", "briques", ["cerveau_de_repli"], [
+        { type: "cliquer", nom: "Configure the fallback brain" },
+        saisir("repli_provider", "mistral"),
+        saisir("repli_model", "mistral-large-2512"),
+        { type: "cliquer", nom: "Save the fallback brain" },
+    ], true),
+    c("travail-repli", "ajout-mark", "briques", ["travail_llm_repli"], [
+        { type: "cliquer", nom: "Configure the background fallback brain" },
+        saisir("travail_repli_provider", "mistral"),
+        saisir("travail_repli_model", "mistral-small-2603"),
+        { type: "cliquer", nom: "Save the fallback brain" },
     ], true, { travail_actif: true }),
     c("travail-outils", "ajout-mark", "briques", ["travail_outils"], [
         { type: "case", nom: "Chercher un créneau" },
@@ -294,12 +311,19 @@ export const CAS_AGENT: CasAgent[] = [
     c("attente", "ajout-mark", "voix", ["attente"], [
         saisir("attente_duree_min_s", "2.5"),
         inter("attente_transfert_humain"),
-        saisir("attente_phrase_pont", "Un instant."),
-        saisir("attente_delai_phrase_pont_s", "3"),
     ], false, PRINCIPAL),
-    c("transfert-humain", "ajout-mark", "voix", ["transfert_humain"], [
-        saisir("attente_phrase_mise_en_relation", "Un instant, je vous mets en relation."),
+    // fiabilite-orchestration, lot 4 bis (F17): the bridge phrase and the sentence before a call transfer
+    // moved to the theme Phrases, as rules (`phrases_regles`).
+    c("phrases-groupe", "ajout-mark", "phrases", ["phrases_regles"], [
+        { type: "cliquer", nom: "Add a rule : The handover takes time" },
+        saisir("phrase_0_variante_0", "Un instant."),
+        saisir("phrase_0_delai", "3"),
     ], false, PRINCIPAL),
+    c("phrases-agent", "ajout-mark", "phrases", ["phrases_regles"], [
+        { type: "cliquer", nom: "Add a rule : The caller is silent" },
+        saisir("phrase_0_variante_1", ""),
+        inter("phrase_0_active"),
+    ]),
     c("cerveau-propre", "ajout-mark", "briques", ["cerveau_propre"], [inter("cerveau_propre")], true, SPECIALISE),
 
     // ---- Model Overrides (Dograh + .mark) ---------------------------------
@@ -364,6 +388,7 @@ export const TITRE_ANGLAIS_DU_THEME: Record<ThemeAgent, string> = {
     tour: "Turn taking",
     voix: "Voice",
     rythme: "Call pacing",
+    phrases: "Phrases",
     donnees: "Call data",
     etablissement: "Business",
 };

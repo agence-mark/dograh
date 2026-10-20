@@ -44,6 +44,8 @@ LIBELLE_MOTIF = "Motif de départ : "
 LIBELLE_FAIT = "Fait : "
 LIBELLE_ATTENTE = "En attente : "
 LIBELLE_CONNU = "Déjà connu : "
+# fiabilite-orchestration, lot 2 (F9) : le complément exact de « Déjà connu ».
+LIBELLE_ATTENDU = "Encore attendu : "
 RIEN = "rien"
 MOTIF_NON_NOTE = "non noté"
 FAIT_ETAPES = "étapes traversées : "
@@ -111,6 +113,44 @@ def ligne_deja_connu(
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[notes] ligne « déjà connu » illisible : {erreur!r}")
         return None
+
+
+def champs_attendus(
+    reglages: Any,
+    gathered: Mapping[str, Any] | None,
+    champs_etape: Iterable[str] = (),
+    deja_lus: Iterable[str] = (),
+) -> list[str]:
+    """fiabilite-orchestration, lot 2 (F9) : les champs de la liste de l'étape encore vides, dans
+    son ordre. Un champ rempli par un outil n'est jamais « attendu » de l'appelant. Ce qu'un module a
+    lu au tour même compte comme obtenu. Sans liste : rien. ⛔ Ne lève jamais."""
+    try:
+        champs = {c.nom: c for c in tuple(getattr(reglages, "champs", None) or ())}
+        lus = set(deja_lus or ())
+        return [
+            n
+            for n in champs_etape
+            if n in champs
+            and not getattr(champs[n], "rempli_par_outil", None)
+            and _vide((gathered or {}).get(n))
+            and n not in lus
+        ]
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[notes] champs attendus illisibles : {erreur!r}")
+        return []
+
+
+def ligne_encore_attendu(
+    reglages: Any,
+    gathered: Mapping[str, Any] | None,
+    champs_etape: Iterable[str] = (),
+    deja_lus: Iterable[str] = (),
+) -> str | None:
+    """``Encore attendu : numéro dicté, adresse intervention.`` (F9) : calquée sur « Déjà connu »
+    (même libellé court, même liste, même point final, jamais de valeur), sur TOUTE la liste
+    manquante de l'étape. ``None`` si rien n'est attendu."""
+    noms = champs_attendus(reglages, gathered, champs_etape, deja_lus)
+    return f"{LIBELLE_ATTENDU}{_liste(noms)}." if noms else None
 
 
 def noter_les_champs_de_l_agent(gathered: dict, agent_id: Any, reglages_agent: Any) -> None:

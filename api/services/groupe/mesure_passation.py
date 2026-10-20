@@ -13,6 +13,11 @@ Ils s'écrivent dans l'enregistrement de la passation (``agent_transfers`` de la
 du run) : ``voix_premier_octet_s`` (demande → premier octet) et ``voix_apres_commit_s`` (commit → premier octet,
 ce qui reste quand la voix est déjà ouverte). Une passation non commise n'a pas de mesure. Tout est
 défensif : une erreur ici ne coûte jamais l'appel.
+
+fiabilite-orchestration, lot 3 : la passation DÉCOUPÉE, à chaque appel : ``installation_s`` (demande
+→ agent installé : construit, pris dans la réserve ou principal resté chaud, ``installation``),
+``premier_mot_s`` (demande → premier mot du modèle de l'agent appelé), puis le premier son ; et la
+mémoire du processus (``memoire_mo``) au moment de l'installation.
 """
 
 from __future__ import annotations
@@ -26,6 +31,10 @@ from pipecat.observers.base_observer import BaseObserver, FramePushed
 
 CLE_PREMIER_OCTET = "voix_premier_octet_s"
 CLE_APRES_COMMIT = "voix_apres_commit_s"
+CLE_INSTALLATION = "installation_s"
+CLE_ORIGINE = "installation"
+CLE_MEMOIRE = "memoire_mo"
+CLE_PREMIER_MOT = "premier_mot_s"
 
 
 class MesureDePassation:
@@ -37,6 +46,8 @@ class MesureDePassation:
         self._demande: float | None = None
         self._commit: float | None = None
         self._resultat: dict[str, float] | None = None
+        self._decoupe: dict = {}
+        self._visite: str | None = None
 
     def demandee(self, request_id: str) -> None:
         """Le coordinateur accepte une passation : on repart de zéro."""
@@ -44,6 +55,34 @@ class MesureDePassation:
         self._demande = self._horloge()
         self._commit = None
         self._resultat = None
+        self._decoupe = {}
+        self._visite = None
+
+    def installee(
+        self, duree_s: float, origine: str, memoire_mo: float | None, visite: str | None = None
+    ) -> None:
+        """L'agent appelé est installé (fiabilite-orchestration, lot 3)."""
+        if self._demande is None:
+            return
+        self._decoupe.update(
+            {
+                CLE_INSTALLATION: round(float(duree_s), 3),
+                CLE_ORIGINE: origine,
+                CLE_MEMOIRE: memoire_mo,
+            }
+        )
+        self._visite = visite
+
+    def premier_mot(self, visite: str | None) -> None:
+        """Le premier texte du modèle de l'agent appelé (une fois)."""
+        if (
+            self._demande is None
+            or CLE_PREMIER_MOT in self._decoupe
+            or visite is None
+            or visite != self._visite
+        ):
+            return
+        self._decoupe[CLE_PREMIER_MOT] = round(self._horloge() - self._demande, 3)
 
     def commise(self) -> None:
         """L'agent appelé prend la main (``commit_agent``)."""
@@ -72,13 +111,17 @@ class MesureDePassation:
 
     def completer(self, enregistrement: dict) -> dict:
         """Ajoute la mesure à l'enregistrement d'une passation commise, si elle est déjà prise."""
-        if (
-            self._resultat
-            and enregistrement.get("request_id") == self._request_id
-            and enregistrement.get("to_visit_id")
+        if enregistrement.get("request_id") == self._request_id and enregistrement.get(
+            "to_visit_id"
         ):
-            enregistrement.update(self._resultat)
+            enregistrement.update(self._decoupe)
+            if self._resultat:
+                enregistrement.update(self._resultat)
         return enregistrement
+
+    @property
+    def decoupe(self) -> dict:
+        return {**self._decoupe, **(self._resultat or {})}
 
 
 class ObservateurPremierOctet(BaseObserver):
@@ -105,6 +148,8 @@ class ObservateurPremierOctet(BaseObserver):
             # La passation a pu finir (enregistrement écrit) avant le premier octet : on le complète.
             for enregistrement in getattr(self._engine, "_transfer_outcomes", []):
                 mesure.completer(enregistrement)
-            logger.info(f"[transfer] {mesure.request_id}: premier octet de voix {resultat}")
+            logger.info(
+                f"[transfer] {mesure.request_id}: passation découpée {mesure.decoupe}"
+            )
         except Exception as erreur:  # noqa: BLE001 -- une mesure ne coûte jamais l'appel
             logger.warning(f"[transfer] mesure du premier octet illisible : {erreur!r}")

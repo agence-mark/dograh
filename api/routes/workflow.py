@@ -26,7 +26,7 @@ from api.schemas.ai_model_configuration import OrganizationAIModelConfigurationV
 from api.schemas.workflow import WorkflowRunResponseSchema
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.sdk_expose import sdk_expose
-from api.services.auth.depends import get_user
+from api.services.auth.depends import get_user_with_selected_organization, get_user
 from api.services.communes.adresse import AdresseInvalide, valider_adresse_saisie
 from api.services.configuration.ai_model_configuration import (
     DELIBERATE_PER_SERVICE_OVERRIDE_KEY,
@@ -47,6 +47,8 @@ from api.services.configuration.masking import (
 )
 from api.services.configuration.merge import (
     merge_greffier_secret,
+    merge_repli_du_fond_secret,
+    merge_repli_secret,
     merge_travail_secret,
     merge_workflow_configuration_secrets,
 )
@@ -1297,6 +1299,17 @@ async def update_workflow(
                 merge_travail_secret,
                 "the background brain's API key is masked: type the key again",
             ),
+            # [.mark] fiabilite-orchestration, lot 4 : les deux cerveaux de repli, même règle.
+            (
+                "cerveau_de_repli",
+                merge_repli_secret,
+                "the fallback brain's API key is masked: type the key again",
+            ),
+            (
+                "travail_llm_repli",
+                merge_repli_du_fond_secret,
+                "the background fallback brain's API key is masked: type the key again",
+            ),
         )
         if workflow_configurations and any(
             isinstance(workflow_configurations.get(cle), dict)
@@ -1776,6 +1789,21 @@ class WorkflowRunsResponse(BaseModel):
     limit: int
     total_pages: int
     applied_filters: Optional[List[dict]] = None
+
+
+@router.get("/{workflow_id}/phrases/carte")
+async def get_carte_des_phrases(
+    workflow_id: int,
+    user: UserModel = Depends(get_user_with_selected_organization),
+) -> dict:
+    """[.mark] fiabilite-orchestration, lot 4 ter (F16): the map of the sentences said by the code for
+    this agent (its whole group when it is the main agent), with their last trigger in recent calls."""
+    from api.services.phrases.carte import carte_de_l_agent
+
+    carte = await carte_de_l_agent(workflow_id, user.selected_organization_id)
+    if carte is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return carte
 
 
 @router.get("/{workflow_id}/runs")

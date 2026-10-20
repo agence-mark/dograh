@@ -21,7 +21,13 @@ from typing import Any
 from loguru import logger
 
 from api.services.analyse_run.cout import cout_du_run
-from api.services.analyse_run.mesures import _ms, mediane_basse, mesurer_run
+from api.services.analyse_run.mesures import (
+    _ms,
+    chronometre_du_run,
+    controle_des_mesures,
+    mediane_basse,
+    mesurer_run,
+)
 
 VERSION = 1
 
@@ -788,6 +794,87 @@ def _incidents(run: dict, latence: dict, seuils: Any = None) -> dict:
     return {"status": OK, "items": elements}
 
 
+# fiabilite-orchestration, lot 9 (F8, F11) : le chronomètre par tour et la mesure M2.
+CLE_CONNEXIONS_MODELE = "mark_connexions_modele"
+CLE_RESEAU = "mark_reseau"
+
+
+def _chrono(run: dict) -> dict:
+    """Une ligne par tour (dernier mot de l'appelant selon Soniox → premier son sorti de la voix,
+    étape par étape) et M1, M2 et l'oreille côte à côte. ``not_captured`` : aucun tour avec détail
+    de latence."""
+    chrono = chronometre_du_run(run)
+    if not chrono["tours"]:
+        return {"status": NON_CAPTE}
+    percu = _contexte(run).get("mark_silences")
+    entendu = percu.get("median_secs") if isinstance(percu, dict) else None
+    return {
+        "status": OK,
+        "turns": [
+            {
+                "turn": t["tour"],
+                "step": t["noeud"],
+                "measured": t["mesure"],
+                "not_measured_reason": t["raison"],
+                "passes": t["passes"],
+                "stages": {
+                    "turn_closed": t["finDeTour"],
+                    "request_sent": t["requete"],
+                    "first_model_word": t["premierMot"],
+                    "first_sentence": t["phrase"],
+                    "sent_to_voice": t["voix"],
+                    "first_sound": t["premierSon"],
+                },
+            }
+            for t in chrono["tours"]
+        ],
+        "controls": controle_des_mesures(run, _nombre_fini(entendu)),
+        "m2_count": len(chrono["m2"]),
+    }
+
+
+def _reseau(run: dict) -> dict:
+    """Connexions aux fournisseurs (transcription, voix : connexions, coupures, délai de la première
+    connexion depuis le branchement ; modèle : connexions ouvertes ou reprises, par agent) et
+    qualité de la liaison audio WebRTC relevée pendant l'appel. ``not_captured`` : rien de relevé."""
+    briques: dict[str, dict] = {}
+    for e in _evenements(run):
+        if e.get("type") != TYPE_CONNEXION:
+            continue
+        charge = e.get("payload") or {}
+        b = briques.setdefault(
+            charge.get("component") or "?",
+            {"connected": 0, "disconnected": 0, "errors": 0, "first_connect_secs": None},
+        )
+        if charge.get("event") == "connected":
+            b["connected"] += 1
+            apres = _nombre_fini(charge.get("after_secs"))
+            if b["first_connect_secs"] is None and apres is not None:
+                b["first_connect_secs"] = apres
+        elif charge.get("event") == "disconnected":
+            b["disconnected"] += 1
+        elif charge.get("event") == "error":
+            b["errors"] += 1
+    brut = _contexte(run).get(CLE_CONNEXIONS_MODELE)
+    modele = None
+    if isinstance(brut, list) and brut:
+        modele = {
+            "opened": sum(1 for x in brut if x.get("event") == "opened"),
+            "reused": sum(1 for x in brut if x.get("event") == "reused"),
+            "items": brut,
+        }
+    liaison = _contexte(run).get(CLE_RESEAU)
+    if not briques and modele is None and not isinstance(liaison, dict):
+        return {"status": NON_CAPTE}
+    return {
+        "status": OK,
+        "providers": briques,
+        "model": modele,
+        "link": liaison if isinstance(liaison, dict) else {"status": NON_CAPTE},
+    }
+
+
+
 def _bloc(nom: str, calcul: Callable[[], dict], run_id: Any) -> dict:
     try:
         return calcul()
@@ -875,6 +962,9 @@ def analyser_run(
                 "conversation", lambda: _conversation(run), identifiant
             ),
             "incidents": incidents,
+            # fiabilite-orchestration, lot 9 : le chronomètre par tour (M2) et la santé des connexions.
+            "chrono": _bloc("chrono", lambda: _chrono(run), identifiant),
+            "network": _bloc("network", lambda: _reseau(run), identifiant),
             # La mesure du labo telle quelle (``mesures-run.mjs`` la lit ici, décision L1) : mêmes
             # clés, mêmes valeurs, nombre de post-scriptums au lieu de leur contenu.
             "lab_measures": _bloc(

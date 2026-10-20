@@ -289,6 +289,15 @@ def _moteur(monkeypatch, outils):
     }
     engine._call_context_vars = {"caller_number": "+33612345678"}
     engine.queue_text_message = AsyncMock()
+    # fiabilite-orchestration, lot 4 bis: the fallback sentence goes through the call's sentence teller.
+    from api.services.phrases.diseur import DiseurDePhrases
+
+    engine.is_call_disposed = lambda: False
+    engine.call_monitor = SimpleNamespace(appelant_parle=False, robot_parle=False)
+    engine.queue_speech = AsyncMock(
+        side_effect=lambda texte, **_: SimpleNamespace(text=texte, wait=AsyncMock())
+    )
+    engine.phrases = DiseurDePhrases(engine)
     enregistres = {}
     engine.active_agent.llm.register_function = lambda nom, fn, **kw: (
         enregistres.__setitem__(nom, (fn, kw))
@@ -358,9 +367,15 @@ async def test_delai_depasse_phrase_de_repli_dite_et_ecriture_mise_de_cote(
         {"debut": "2030-01-07T09:00:00+01:00", "organization_id": 2},
     )
     assert r["status"] == "passed_on"
-    engine.queue_text_message.assert_awaited_with(
-        "Je transmets, on vous rappelle.", mute_user=True
+    # Lot 4 bis: the connector's own sentence, through the rule « a connector fails », the
+    # caller's microphone left open (F25).
+    engine.queue_speech.assert_awaited_with(
+        "Je transmets, on vous rappelle.",
+        append_to_context=True,
+        persist_to_logs=True,
+        mute_user=False,
     )
+    assert r["said_to_caller"] == "Je transmets, on vous rappelle."
     differe = engine._gathered_context["connecteurs_differes"]
     assert differe == [
         {

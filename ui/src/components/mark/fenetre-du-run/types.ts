@@ -48,6 +48,64 @@ export type Latence = Bloc & {
     };
 };
 
+/** The stages of a turn, in seconds from the caller's last word (lot 9, fiabilite-orchestration). */
+export type EtapesDuTour = {
+    turn_closed: number | null;
+    request_sent: number | null;
+    first_model_word: number | null;
+    first_sentence: number | null;
+    sent_to_voice: number | null;
+    first_sound: number | null;
+};
+
+export type Chronometre = Bloc & {
+    turns?: {
+        turn: number | null;
+        step: string;
+        measured: boolean;
+        not_measured_reason: string | null;
+        passes: number;
+        stages: EtapesDuTour;
+    }[];
+    /** M1 (first text), M2 (first sound out of the voice) and the ear (voice detection on the recording). */
+    controls?: {
+        m1_median_secs: number | null;
+        m2_median_secs: number | null;
+        heard_median_secs: number | null;
+        heard_minus_m2_secs: number | null;
+    };
+    m2_count?: number;
+};
+
+export type ConnexionDeBrique = {
+    connected: number;
+    disconnected: number;
+    errors: number;
+    first_connect_secs: number | null;
+};
+
+export type ReleveDeLiaison = {
+    packets_received?: number | null;
+    packets_lost: number | null;
+    jitter_ms: number | null;
+    round_trip_ms?: number | null;
+};
+
+export type ReseauEtConnexions = Bloc & {
+    providers?: Record<string, ConnexionDeBrique>;
+    model?: {
+        opened: number;
+        reused: number;
+        items: { event: "opened" | "reused"; agent: string | null; host: string | null; after_secs: number }[];
+    } | null;
+    link?: {
+        status?: Statut;
+        samples?: number;
+        last?: { inbound: ReleveDeLiaison | null; outbound: ReleveDeLiaison | null };
+        worst?: { jitter_ms_in: number | null; jitter_ms_out: number | null; round_trip_ms: number | null };
+    };
+};
+
 export type Resume = Bloc & {
     agent_id?: number;
     definition_id?: number | null;
@@ -182,6 +240,9 @@ export type AnalyseDuRun = {
     path: Parcours;
     conversation: Conversation;
     incidents: Incidents;
+    /** fiabilite-orchestration, lot 9: absent from an older server (the screen then says "not captured"). */
+    chrono?: Chronometre;
+    network?: ReseauEtConnexions;
     /** Only on a call of the simulated caller (lot 3): the scenario played and the judge's verdict. */
     simulation?: Simulation;
 };

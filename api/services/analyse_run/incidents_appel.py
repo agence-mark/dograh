@@ -19,6 +19,7 @@ Trois choses que le run ne gardait pas :
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from loguru import logger
@@ -60,6 +61,9 @@ def brancher_les_connexions(services: dict[str, Any], journal: Any) -> list[str]
     """Écoute les connexions de chaque service (``{"transcription": stt, "voice": tts}``) ;
     rend les briques effectivement écoutées."""
     ecoutes = []
+    # fiabilite-orchestration, lot 9 : chaque événement dit AU BOUT DE COMBIEN de temps après le
+    # branchement il est arrivé (la première connexion d'un service = son temps de connexion).
+    depart = time.monotonic()
     for brique, service in services.items():
         if service is None:
             continue
@@ -78,6 +82,7 @@ def brancher_les_connexions(services: dict[str, Any], journal: Any) -> list[str]
                             "service": type(_service).__name__,
                             "event": _nom,
                             "error": str(args[0]) if args else None,
+                            "after_secs": round(time.monotonic() - depart, 3),
                         },
                     },
                 )
