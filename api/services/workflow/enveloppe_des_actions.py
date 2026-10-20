@@ -7,7 +7,8 @@ résultat pour :
 - **lot 1 (R3, G2)** : écrire les champs de la fiche « remplis par l'outil » (``rempli_par_outil``)
   depuis le résultat de cet outil, et seulement de lui. La valeur : la clé du même nom dans la
   réponse, sinon son statut, sinon la première valeur permise du champ, sinon « oui ». Un échec
-  n'écrit rien. Les contrôles restent ceux du point d'écriture unique (liste fermée comprise).
+  n'écrit rien. La réponse d'un outil HTTP est lue dans son emballage (``data``), jamais l'emballage
+  lui-même (chantier ``fiche-lit-la-reponse-de-l-outil``, run 1475). Les contrôles restent ceux du point d'écriture unique (liste fermée comprise).
 
 - **lot 4 bis (F21)** : une action du tour qui dépasse le délai de la règle « un outil tarde »
   fait dire sa phrase, une fois par appel de l'outil ; le délai court depuis le lancement de
@@ -27,7 +28,11 @@ from typing import Any
 
 from loguru import logger
 
-_ERREURS = frozenset({"error", "erreur", "echec", "échec", "failed", "failure", "ko"})
+# « missing » (connecteur à qui il manque un paramètre) et « incomplet » (garde de l'étape) : rien n'est fait,
+# donc rien à écrire (relecture du 20/10).
+_ERREURS = frozenset(
+    {"error", "erreur", "echec", "échec", "failed", "failure", "ko", "missing", "incomplet"}
+)
 
 
 def _normaliser(nom: Any) -> str:
@@ -45,8 +50,18 @@ def _lire(resultat: Any) -> Any:
     return resultat
 
 
-def est_un_echec(resultat: Any) -> bool:
-    lu = _lire(resultat)
+def _reponse(lu: Any) -> Any:
+    """La réponse du service derrière l'action. Un outil HTTP de Dograh l'emballe :
+    ``{"status": "success", "status_code": 200, "data": <réponse>}`` (``execute_http_tool``) ; le
+    ``status`` de l'emballage dit que l'appel HTTP est passé, pas ce que le service a répondu
+    (run 1475 : « success » écrit à la place de « confirme », refusé hors liste). Sans emballage :
+    le résultat tel quel."""
+    if isinstance(lu, dict) and "status_code" in lu and "data" in lu:
+        return _lire(lu["data"])
+    return lu
+
+
+def _dit_un_echec(lu: Any) -> bool:
     if isinstance(lu, dict):
         if lu.get("error") not in (None, "", False):
             return True
@@ -57,15 +72,29 @@ def est_un_echec(resultat: Any) -> bool:
     return False
 
 
-def valeur_pour_le_champ(champ: Any, resultat: Any) -> Any:
-    """La valeur qu'un résultat d'outil réussi écrit dans ``champ`` (voir l'en-tête)."""
+def est_un_echec(resultat: Any) -> bool:
+    """L'emballage en échec (HTTP en erreur), ou la réponse du service en échec (rendue en 200)."""
     lu = _lire(resultat)
+    return _dit_un_echec(lu) or _dit_un_echec(_reponse(lu))
+
+
+def valeur_pour_le_champ(champ: Any, resultat: Any) -> Any:
+    """La valeur qu'un résultat d'outil réussi écrit dans ``champ`` (voir l'en-tête), lue dans la
+    réponse du service, jamais dans l'emballage d'un outil HTTP. ``None`` : rien à écrire.
+
+    Une réponse HTTP n'écrit que ce qu'elle dit (la clé du champ, sinon son statut) : jamais la
+    première valeur permise par défaut. Un service qui répond « lancé » avant d'avoir agi (webhook
+    à réponse immédiate) n'écrit donc jamais « confirme » (relecture du 20/10)."""
+    brut = _lire(resultat)
+    lu = _reponse(brut)
     if isinstance(lu, dict):
         if lu.get(champ.nom) not in (None, ""):
             return lu[champ.nom]
         for cle in ("statut", "status"):
             if isinstance(lu.get(cle), str) and lu[cle].strip():
                 return lu[cle].strip()
+    if lu is not brut:
+        return None
     if champ.valeurs:
         return champ.valeurs[0]
     return "oui"
@@ -96,8 +125,12 @@ def remplir_par_l_action(moteur: Any, nom_outil: str, resultat: Any) -> list[str
         )
 
         for champ in champs:
+            valeur = valeur_pour_le_champ(champ, resultat)
+            if valeur is None:
+                logger.info(f"[fiche] {champ.nom} par {nom_outil} : rien dans la réponse, non écrit")
+                continue
             verdict = ecrire_dans_la_fiche(
-                fiche, reglages, champ.nom, valeur_pour_le_champ(champ, resultat), source=SOURCE_ACTION
+                fiche, reglages, champ.nom, valeur, source=SOURCE_ACTION
             )
             if verdict.statut == "ecrit":
                 ecrits.append(champ.nom)
