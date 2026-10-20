@@ -528,11 +528,20 @@ async def test_correctifs_modules_un_oui_leve_la_confirmation_en_base(db_session
 @pytest.mark.asyncio
 @_borne
 async def test_la_relance_d_inactivite_de_l_agent_atteint_le_modele(db_session, async_session):
+    """Règle « l'appelant se tait » ÉTEINTE (fiabilite-orchestration, lot 5, F7) : la relance par le
+    modèle d'avant, avec la consigne de l'agent. Allumée (le défaut), la relance est dite par la voix :
+    ``test_relance_par_la_voix.py``."""
     consigne = "RELANCE-MARK : demande si l'appelant est toujours en ligne."
     montage = await _monter(
         db_session,
         async_session,
-        {"max_user_idle_timeout": 1.0, "user_idle_prompt": consigne},
+        {
+            "max_user_idle_timeout": 1.0,
+            "user_idle_prompt": consigne,
+            "phrases_regles": [
+                {"motif": "appelant_se_tait", "portee": "agent", "variantes": [], "active": False}
+            ],
+        },
     )
     llm = ContextCapturingMockLLM(mock_steps=[_texte("Vous êtes toujours là ?")], chunk_delay=0.001)
 
