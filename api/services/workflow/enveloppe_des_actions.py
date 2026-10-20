@@ -28,7 +28,11 @@ from typing import Any
 
 from loguru import logger
 
-_ERREURS = frozenset({"error", "erreur", "echec", "échec", "failed", "failure", "ko"})
+# « missing » (connecteur à qui il manque un paramètre) et « incomplet » (garde de l'étape) : rien n'est fait,
+# donc rien à écrire (relecture du 20/10).
+_ERREURS = frozenset(
+    {"error", "erreur", "echec", "échec", "failed", "failure", "ko", "missing", "incomplet"}
+)
 
 
 def _normaliser(nom: Any) -> str:
@@ -76,14 +80,21 @@ def est_un_echec(resultat: Any) -> bool:
 
 def valeur_pour_le_champ(champ: Any, resultat: Any) -> Any:
     """La valeur qu'un résultat d'outil réussi écrit dans ``champ`` (voir l'en-tête), lue dans la
-    réponse du service, jamais dans l'emballage d'un outil HTTP."""
-    lu = _reponse(_lire(resultat))
+    réponse du service, jamais dans l'emballage d'un outil HTTP. ``None`` : rien à écrire.
+
+    Une réponse HTTP n'écrit que ce qu'elle dit (la clé du champ, sinon son statut) : jamais la
+    première valeur permise par défaut. Un service qui répond « lancé » avant d'avoir agi (webhook
+    à réponse immédiate) n'écrit donc jamais « confirme » (relecture du 20/10)."""
+    brut = _lire(resultat)
+    lu = _reponse(brut)
     if isinstance(lu, dict):
         if lu.get(champ.nom) not in (None, ""):
             return lu[champ.nom]
         for cle in ("statut", "status"):
             if isinstance(lu.get(cle), str) and lu[cle].strip():
                 return lu[cle].strip()
+    if lu is not brut:
+        return None
     if champ.valeurs:
         return champ.valeurs[0]
     return "oui"
@@ -114,8 +125,12 @@ def remplir_par_l_action(moteur: Any, nom_outil: str, resultat: Any) -> list[str
         )
 
         for champ in champs:
+            valeur = valeur_pour_le_champ(champ, resultat)
+            if valeur is None:
+                logger.info(f"[fiche] {champ.nom} par {nom_outil} : rien dans la réponse, non écrit")
+                continue
             verdict = ecrire_dans_la_fiche(
-                fiche, reglages, champ.nom, valeur_pour_le_champ(champ, resultat), source=SOURCE_ACTION
+                fiche, reglages, champ.nom, valeur, source=SOURCE_ACTION
             )
             if verdict.statut == "ecrit":
                 ecrits.append(champ.nom)

@@ -85,6 +85,33 @@ def test_une_reponse_texte_en_json_est_lue():
     assert remplir_par_l_action(moteur, OUTIL, _emballage('{"rendez_vous": "confirme"}')) == ["rendez_vous"]
 
 
+def test_une_reponse_http_qui_ne_dit_rien_n_ecrit_rien():
+    """Relecture du 20/10 : un webhook à réponse immédiate (« lancé ») n'écrit jamais « confirme » par défaut."""
+    moteur = _moteur()
+    for data in ({"message": "Workflow was started"}, [], None, {"raw_response": "ok"}):
+        assert remplir_par_l_action(moteur, OUTIL, _emballage(data)) == []
+    assert "rendez_vous" not in moteur._gathered_context
+
+
+def test_une_erreur_rendue_en_200_n_ecrit_rien():
+    moteur = _moteur()
+    assert remplir_par_l_action(moteur, OUTIL, _emballage({"error": "x"})) == []
+    assert "rendez_vous" not in moteur._gathered_context
+
+
+def test_missing_et_incomplet_sont_des_echecs():
+    moteur = _moteur()
+    assert est_un_echec({"status": "missing", "manque": ["date"]})
+    assert est_un_echec({"statut": "incomplet", "manque": ["prenom"]})
+    assert remplir_par_l_action(moteur, OUTIL, {"status": "missing"}) == []
+
+
+def test_un_texte_mcp_qui_porte_un_emballage_est_lu_dedans():
+    moteur = _moteur()
+    texte = '{"status_code": 200, "data": {"rendez_vous": "confirme"}}'
+    assert remplir_par_l_action(moteur, OUTIL, texte) == ["rendez_vous"]
+
+
 def test_un_resultat_sans_emballage_se_lit_comme_avant():
     moteur = _moteur()
     assert remplir_par_l_action(moteur, OUTIL, {"statut": "confirme"}) == ["rendez_vous"]
