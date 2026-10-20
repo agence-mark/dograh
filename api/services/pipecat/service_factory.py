@@ -3,6 +3,9 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
 
 import aiohttp
+from fastapi import HTTPException
+from loguru import logger
+
 from api.constants import MPS_API_URL
 from api.errors.failure import (
     ErrorSource,
@@ -21,6 +24,7 @@ from api.services.configuration.options import (
     DEEPGRAM_KEYTERM_MODELS,
     GOOGLE_VERTEX_DEFAULT_LOCATION,
 )
+from api.services.configuration.plafond_lexique import plafond_du_lexique
 from api.services.configuration.registry import (
     DEEPGRAM_FLUX_FIELDS,
     DEEPGRAM_STT_FIELDS,
@@ -30,24 +34,19 @@ from api.services.configuration.registry import (
     SonioxSTTConfiguration,
     adresse_soniox,
 )
-from api.services.configuration.plafond_lexique import plafond_du_lexique
+from api.services.lexique.ecoute import regles_de_prononciation
+from api.services.panne.delai_modele import DelaiModeleMixin
 from api.services.pipecat.appels_de_fonction_voix import (
     PhraseQuiNEstQuUnAppel,
     retirer_appels_de_fonction,
 )
 from api.services.pipecat.conversion_nombres import langue_agent_francaise
+from api.services.pipecat.courriels_pour_la_voix import courriels_en_mots
 from api.services.pipecat.deepgram_endpoints import DEEPGRAM_EU_STT_BASE_URL
 from api.services.pipecat.gemini_json_schema_adapter import (
     DograhGeminiJSONSchemaAdapter,
 )
-from api.services.lexique.ecoute import regles_de_prononciation
-from api.services.panne.delai_modele import DelaiModeleMixin
-from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
 from api.services.pipecat.main_passee import MainPasseeMixin
-from api.services.pipecat.texte_du_cerveau import TexteDuCerveauMixin
-from api.services.pipecat.reponse_avalee import RepriseSansFluxMixin
-from api.services.pipecat.responses_llm import MarkOpenAIResponsesLLMService
-from api.services.pipecat.trace_modele import TraceModeleMixin
 from api.services.pipecat.minimax_tts import (
     MiniMaxCachingTTSService,
     MiniMaxOwnedSessionTTSService,
@@ -57,13 +56,17 @@ from api.services.pipecat.mistral_tts import (
     point_entree_mistral,
     resolve_mistral_endpoint,
 )
-from api.services.pipecat.courriels_pour_la_voix import courriels_en_mots
 from api.services.pipecat.nombres_pour_la_voix import nombres_en_mots
+
+# [.mark] Chantier ordre-outil-puis-parole (20/10) : jamais l'appelant juste après un résultat d'outil.
+from api.services.pipecat.ordre_outil_puis_parole import ordre_outil_puis_parole
+from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
+from api.services.pipecat.reponse_avalee import RepriseSansFluxMixin
+from api.services.pipecat.responses_llm import MarkOpenAIResponsesLLMService
+from api.services.pipecat.texte_du_cerveau import TexteDuCerveauMixin
+from api.services.pipecat.trace_modele import TraceModeleMixin
 from api.services.pipecat.tts_cache.runtime import get_speech_cache
 from api.utils.url_security import validate_user_configured_service_url
-from fastapi import HTTPException
-from loguru import logger
-
 from pipecat.adapters.services.open_ai_adapter import OpenAILLMInvocationParams
 from pipecat.services.assemblyai.stt import AssemblyAISTTService, AssemblyAISTTSettings
 from pipecat.services.aws.llm import AWSBedrockLLMService, AWSBedrockLLMSettings
@@ -134,15 +137,15 @@ from pipecat.services.sarvam.stt import SarvamSTTService, SarvamSTTSettings
 from pipecat.services.sarvam.tts import SarvamTTSService, SarvamTTSSettings
 from pipecat.services.smallest.stt import SmallestSTTService, SmallestSTTSettings
 from pipecat.services.smallest.tts import SmallestTTSService, SmallestTTSSettings
-from pipecat.services.speaches.llm import SpeachesLLMService, SpeachesLLMSettings
-from pipecat.services.speaches.stt import SpeachesSTTService, SpeachesSTTSettings
-from pipecat.services.speaches.tts import SpeachesTTSService, SpeachesTTSSettings
 from pipecat.services.soniox.stt import (
     SonioxContextGeneralItem,
     SonioxContextObject,
     SonioxSTTService,
     SonioxSTTSettings,
 )
+from pipecat.services.speaches.llm import SpeachesLLMService, SpeachesLLMSettings
+from pipecat.services.speaches.stt import SpeachesSTTService, SpeachesSTTSettings
+from pipecat.services.speaches.tts import SpeachesTTSService, SpeachesTTSSettings
 from pipecat.services.speechmatics.stt import (
     SpeechmaticsSTTService,
     SpeechmaticsSTTSettings,
@@ -472,7 +475,7 @@ class DograhMistralLLMService(TraceModeleMixin, DelaiModeleMixin, MistralLLMServ
                 **(params.get("extra_body") or {}),
                 "prompt_cache_key": self._prompt_cache_key,
             }
-        return params
+        return ordre_outil_puis_parole(params)
 
 
 class DograhOpenAILLMService(
@@ -511,7 +514,7 @@ class DograhOpenAILLMService(
         # [.mark] D10 de repliques-coupees : la relance d'une réplique inachevée, seule,
         # part avec la réflexion de secours de l'agent.
         params = self._mark_appliquer_le_secours(params)
-        return params
+        return ordre_outil_puis_parole(params)
 
 
 def cle_de_cache(workflow_id: int) -> str:
@@ -1580,7 +1583,6 @@ def create_tts_service(
             from api.services.pipecat.speechify_tts import (
                 SpeechifyOwnedSessionTTSService,
             )
-
             from pipecat.services.speechify.tts import SpeechifyTTSSettings
         except ModuleNotFoundError as e:
             missing = e.name or ""
@@ -2266,7 +2268,6 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.openai_realtime import (
             DograhOpenAIRealtimeLLMService,
         )
-
         from pipecat.services.openai.realtime.events import (
             AudioConfiguration,
             AudioInput,
@@ -2304,7 +2305,6 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.grok_realtime import (
             DograhGrokRealtimeLLMService,
         )
-
         from pipecat.services.xai.realtime.events import (
             AudioConfiguration,
             AudioInput,
@@ -2352,7 +2352,6 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.aws_nova_sonic import (
             DograhAWSNovaSonicLLMService,
         )
-
         from pipecat.services.aws.nova_sonic.llm import AudioConfig as NovaAudioConfig
 
         return DograhAWSNovaSonicLLMService(
@@ -2414,7 +2413,6 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
         from api.services.pipecat.realtime.azure_realtime import (
             DograhAzureRealtimeLLMService,
         )
-
         from pipecat.services.openai.realtime.events import (
             AudioConfiguration,
             AudioInput,
