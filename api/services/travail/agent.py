@@ -623,9 +623,14 @@ class TravailDeLAgent:
             texte = (await self._executeur(self, demande)).strip()
             if not texte:
                 statut = STATUT_VIDE
-            elif self._outils_du_fond and not self._outils_appeles:
+            elif (
+                self._outils_du_fond
+                and not self._outils_appeles
+                and not texte.casefold().startswith(_DEBUTS_HONNETES)
+            ):
                 # 6.4 (run 1480) : le fond rend du texte (« réservation faite ») sans avoir appelé aucun
-                # de ses outils : rien n'a été fait, le résultat dit l'échec. Le texte rendu reste dans
+                # de ses outils, ni « Échec », ni « Manque » (revue M1 : « Manque : date » se garde) :
+                #                 # de ses outils : rien n'a été fait, le résultat dit l'échec. Le texte rendu reste dans
                 # la trace (``resultat``) ; le cerveau de conversation ne lit que l'échec.
                 statut = STATUT_SANS_OUTIL
             elif (

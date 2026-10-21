@@ -190,6 +190,22 @@ async def test_un_fond_qui_rend_du_texte_sans_appeler_d_outil_rend_l_echec(appel
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("texte_du_fond", ["Manque : la date du passage.", "Échec : aucun outil pour cette demande."])
+async def test_un_fond_qui_dit_manque_ou_echec_sans_outil_garde_son_texte(appel, texte_du_fond):  # noqa: F811
+    """Revue M1 : « Manque : … » rendu sans outil (lot 0 : demande sans date) se garde ; jamais « rien n'a été fait »."""
+    await appel.monter(
+        source_etapes=[CONFIER, _texte("Je regarde."), _texte("Voilà.")],
+        fond_etapes=[_texte(texte_du_fond)],
+    )
+    await appel.ouvrir()
+    await appel.attendre(lambda: appel.travaux() and appel.travaux()[0]["remis"])
+    await appel.attendre(lambda: any(est_un_resultat_de_travail(m) for m in appel.messages()))
+    assert appel.travaux()[0]["statut"] == "fait"
+    resultat = next(m for m in appel.messages() if est_un_resultat_de_travail(m))
+    assert texte_du_fond in resultat["content"]
+
+
+@pytest.mark.asyncio
 async def test_un_fond_qui_appelle_son_outil_reste_un_travail_fait(appel):  # noqa: F811
     await appel.monter(
         source_etapes=[CONFIER, _texte("Je regarde."), _texte("Voilà.")],

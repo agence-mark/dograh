@@ -390,7 +390,8 @@ def _une_commune_du_code_ressemble(base: BaseCommunes, cps: set[str], extrait: s
     )
 
 
-_FINS_DE_NOM: dict[tuple[int, str], dict[str, list[int]]] = {}
+# Revue m8 : l'index vit sur l'objet base lui-même (jamais sous ``id(base)``, réutilisable par une autre base).
+_ATTRIBUT_DES_FINS = "_fins_de_nom_par_departement"
 
 
 def _fins_de_nom(base: BaseCommunes, departements, extrait: str) -> list[int]:
@@ -400,8 +401,9 @@ def _fins_de_nom(base: BaseCommunes, departements, extrait: str) -> list[int]:
     if not departements or extrait in PREFIXES_GENERIQUES or len(extrait.replace(" ", "")) < 4:
         return []
     trouvees: list[int] = []
+    par_departement = base.__dict__.setdefault(_ATTRIBUT_DES_FINS, {})
     for dep in departements:
-        index = _FINS_DE_NOM.get((id(base), dep))
+        index = par_departement.get(dep)
         if index is None:
             index = {}
             for j, commune in enumerate(base.communes):
@@ -411,7 +413,7 @@ def _fins_de_nom(base: BaseCommunes, departements, extrait: str) -> list[int]:
                 for k in range(1, len(mots)):
                     if mots[k] not in LIAISONS:
                         index.setdefault(" ".join(mots[k:]), []).append(j)
-            _FINS_DE_NOM[(id(base), dep)] = index
+            par_departement[dep] = index
         trouvees += index.get(extrait, [])
     return trouvees
 
