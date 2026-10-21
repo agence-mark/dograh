@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+from contextvars import ContextVar
 from functools import wraps
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
@@ -160,6 +162,25 @@ if TYPE_CHECKING:
     from api.services.pipecat.audio_config import AudioConfig
 
 
+# [.mark] Lot 0 bis (D17) : la case « saisie libre » de la configuration du
+# service qu'on construit, lue par `_validate_runtime_service_url` (une
+# vingtaine d'appels, dont la plupart n'ont que l'adresse sous la main).
+# 🔑 Posee UNE fois par la porte du produit (`_report_service_factory_failures`
+# pour la transcription, la voix et le temps reel ; `create_llm_service` pour le
+# cerveau), jamais recopiee a chaque appel. Remise a sa valeur a la sortie : un
+# service construit « libre » ne laisse pas la porte ouverte au suivant.
+_ADRESSE_LIBRE: ContextVar[bool] = ContextVar("mark_adresse_libre", default=False)
+
+
+@contextmanager
+def _adresse_libre_de(config):
+    jeton = _ADRESSE_LIBRE.set(bool(getattr(config, "adresse_libre", False)))
+    try:
+        yield
+    finally:
+        _ADRESSE_LIBRE.reset(jeton)
+
+
 def _report_service_factory_failures(
     source: ErrorSource,
     *,
@@ -187,7 +208,11 @@ def _report_service_factory_failures(
                 "operator" if str(provider_value).lower() == "dograh" else "user"
             )
             try:
-                service = factory(*args, **kwargs)
+                if config_section:
+                    with _adresse_libre_de(config):
+                        service = factory(*args, **kwargs)
+                else:
+                    service = factory(*args, **kwargs)
             except Exception as exc:
                 log_failure(
                     classify_exception(
@@ -567,6 +592,7 @@ def _validate_runtime_service_url(url: str, field_name: str) -> None:
         validate_user_configured_service_url(
             url,
             field_name=field_name,
+            schema_libre=_ADRESSE_LIBRE.get(),
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -2541,14 +2567,16 @@ def create_llm_service(
     elif provider == ServiceProviders.SARVAM.value:
         kwargs["temperature"] = user_config.llm.temperature
 
-    return create_llm_service_from_provider(
-        provider,
-        model,
-        api_key,
-        correlation_id=correlation_id,
-        usage_context=usage_context,
-        **kwargs,
-    )
+    # [.mark] Lot 0 bis (D17) : la case « saisie libre » du cerveau.
+    with _adresse_libre_de(user_config.llm):
+        return create_llm_service_from_provider(
+            provider,
+            model,
+            api_key,
+            correlation_id=correlation_id,
+            usage_context=usage_context,
+            **kwargs,
+        )
 
 
 def create_llm_service_with_model_override(

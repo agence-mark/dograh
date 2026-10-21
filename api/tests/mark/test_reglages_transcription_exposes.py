@@ -723,7 +723,10 @@ def test_aucun_reglage_declare_nest_oublie_par_les_deux_collectes():
     # reglage de transcription, c'est l'adresse. ⛔ Depuis le 16/09 elle est
     # CONFIGURABLE, et le test qui garde ce fait vit dans
     # `test_deepgram_en_europe_sans_entrainement.py`.
-    PLOMBERIE = {"provider", "api_key", "model", "language", "base_url"}
+    # `adresse_libre` : la case « saisie libre » de l'adresse (lot 0 bis de
+    # voix-soniox, D17), declaree une fois pour tous les fournisseurs et lue par
+    # le controle d'adresse, pas un reglage de transcription.
+    PLOMBERIE = {"provider", "api_key", "model", "language", "base_url", "adresse_libre"}
     # ⛔ Shown, never collected, and for two DIFFERENT reasons since the 16/09:
     # the factory imposes `mip_opt_out` whatever a configuration says, while
     # `region` is DERIVED from the endpoint on save and read by nobody. They are

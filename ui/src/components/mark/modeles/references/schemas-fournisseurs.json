@@ -39,6 +39,7 @@
         "base_url": {
           "default": "https://api.eu.mistral.ai/v1",
           "description": "Mistral API endpoint. Defaults to the EU endpoint.",
+          "mark_adresse": true,
           "mark_groupe": "technique",
           "mark_libelle": {
             "en": "Base URL",
@@ -157,6 +158,18 @@
             "fr": "Pénalité de présence"
           },
           "title": "Presence Penalty"
+        },
+        "adresse_libre": {
+          "default": false,
+          "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
+          "mark_adresse_libre": true,
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "Free entry",
+            "fr": "Saisie libre"
+          },
+          "title": "Adresse Libre",
+          "type": "boolean"
         }
       },
       "provider_docs_url": "https://docs.mistral.ai/",
@@ -208,6 +221,7 @@
         "base_url": {
           "default": "https://api.openai.com/v1",
           "description": "Override only if using an OpenAI-compatible API (e.g. local LLM, proxy).",
+          "mark_adresse": true,
           "mark_groupe": "technique",
           "mark_libelle": {
             "en": "Base URL",
@@ -377,6 +391,18 @@
           },
           "title": "Prompt Cache",
           "type": "boolean"
+        },
+        "adresse_libre": {
+          "default": false,
+          "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
+          "mark_adresse_libre": true,
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "Free entry",
+            "fr": "Saisie libre"
+          },
+          "title": "Adresse Libre",
+          "type": "boolean"
         }
       },
       "required": [
@@ -446,6 +472,7 @@
         "base_url": {
           "default": "https://api.elevenlabs.io",
           "description": "ElevenLabs API base URL. Override to use a Data Residency endpoint (e.g. https://api.eu.residency.elevenlabs.io) for GDPR / HIPAA / regional compliance.",
+          "mark_adresse": true,
           "mark_groupe": "technique",
           "mark_libelle": {
             "en": "Base URL",
@@ -453,6 +480,18 @@
           },
           "title": "Base Url",
           "type": "string"
+        },
+        "adresse_libre": {
+          "default": false,
+          "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
+          "mark_adresse_libre": true,
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "Free entry",
+            "fr": "Saisie libre"
+          },
+          "title": "Adresse Libre",
+          "type": "boolean"
         }
       },
       "required": [
@@ -786,6 +825,7 @@
             "https://api.eu.deepgram.com",
             "https://api.au.deepgram.com"
           ],
+          "mark_adresse": true,
           "mark_groupe": "hebergement",
           "mark_libelle": {
             "en": "Base URL",
@@ -1274,6 +1314,18 @@
           "readonly": true,
           "title": "Mip Opt Out",
           "type": "boolean"
+        },
+        "adresse_libre": {
+          "default": false,
+          "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
+          "mark_adresse_libre": true,
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Free entry",
+            "fr": "Saisie libre"
+          },
+          "title": "Adresse Libre",
+          "type": "boolean"
         }
       },
       "required": [
@@ -1538,6 +1590,7 @@
             "wss://stt-rt.eu.soniox.com/transcribe-websocket",
             "wss://stt-rt.soniox.com/transcribe-websocket"
           ],
+          "mark_adresse": true,
           "mark_groupe": "hebergement",
           "mark_libelle": {
             "en": "Base URL",
@@ -1557,6 +1610,18 @@
           "readonly": true,
           "title": "Region",
           "type": "string"
+        },
+        "adresse_libre": {
+          "default": false,
+          "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
+          "mark_adresse_libre": true,
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Free entry",
+            "fr": "Saisie libre"
+          },
+          "title": "Adresse Libre",
+          "type": "boolean"
         }
       },
       "provider_docs_url": "https://soniox.com/docs/stt/rt/real-time-transcription",

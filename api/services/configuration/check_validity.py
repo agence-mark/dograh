@@ -17,6 +17,7 @@ from api.services.configuration.registry import (
     MISTRAL_EU_BASE_URL,
     ServiceConfig,
     ServiceProviders,
+    est_champ_adresse,
     region_soniox,
 )
 from api.services.mps_service_key_client import mps_service_key_client
@@ -136,13 +137,22 @@ class UserConfigurationValidator:
 
         provider = service_config.provider
 
-        for url_field in ("base_url", "endpoint"):
+        # [.mark] Lot 0 bis (D17) : tous les champs d'adresse du registre (plus
+        # seulement deux noms), et la case « saisie libre » leve le controle de
+        # schema (jamais celui de l'hote).
+        libre = bool(getattr(service_config, "adresse_libre", False))
+        # (`vars` : les tests de l'amont passent une simple enveloppe, pas un modele.)
+        champs = getattr(type(service_config), "model_fields", None) or vars(service_config)
+        for url_field in champs:
+            if not est_champ_adresse(url_field):
+                continue
             url = getattr(service_config, url_field, None)
             if url:
                 try:
                     validate_user_configured_service_url(
                         url,
                         field_name=url_field,
+                        schema_libre=libre,
                     )
                 except ValueError as e:
                     return [{"model": service_name, "message": str(e)}]

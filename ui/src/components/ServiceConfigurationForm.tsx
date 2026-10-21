@@ -71,6 +71,13 @@ interface SchemaProperty {
     // ⛔ The factory drops the value on the same rule (E8). Hiding is not
     // erasing: the value stays in the form and is saved, like the model rule.
     visible_when?: Record<string, unknown>;
+    // [.mark] Chantier voix-soniox, lot 0 bis (D17): la case « saisie libre » des
+    // adresses, declaree UNE fois cote serveur pour tous les fournisseurs.
+    // `mark_adresse` marque un champ d'adresse (la case est dessinee a cote) ;
+    // `mark_adresse_libre` marque la case elle-meme (jamais dessinee comme un
+    // reglage de la liste : voir `getConfigFields`).
+    mark_adresse?: boolean;
+    mark_adresse_libre?: boolean;
 }
 
 export interface ProviderSchema {
@@ -737,6 +744,17 @@ export function ServiceConfigurationForm({
             // retire un reglage que le modele refuse (`_reglages_classiques`
             // supprime `keywords` sur les modeles a keyterm), donc la requete
             // reste correcte sans que l'ecran ait a effacer la valeur.
+            // [.mark] Lot 0 bis (D17): la case « saisie libre » n'est ecrite que
+            // COCHEE, comme le serveur ne la conserve que cochee : une
+            // sauvegarde sans rien toucher envoie exactement ce qu'elle
+            // envoyait avant ce chantier. Seule exception, une surcharge
+            // d'agent qui decoche ce que le client a coche (sinon l'agent
+            // heriterait de la case sans pouvoir la retirer).
+            if (
+                schemaResolu(field)?.mark_adresse_libre
+                && value !== true
+                && !(heriteChampParChamp && valeurHeritee(field) === true)
+            ) return;
             config[field] = value as string | number | boolean | string[];
         });
         return config;
@@ -804,6 +822,9 @@ export function ServiceConfigurationForm({
             const actualSchema = schema?.$ref && providerSchema.$defs
                 ? providerSchema.$defs[schema.$ref.split('/').pop() || '']
                 : schema;
+            // [.mark] Lot 0 bis (D17): la case « saisie libre » n'est pas un reglage
+            // de la liste, elle est dessinee a cote de l'adresse (`renderField`).
+            if (actualSchema?.mark_adresse_libre) return false;
             // [.mark] A field can name the models that accept it. Absent means
             // every model, so no existing field changes behaviour.
             // ⛔ A setting shown, filled in, sent and ignored by the model is
@@ -1069,10 +1090,40 @@ export function ServiceConfigurationForm({
         );
     };
 
+    // [.mark] Lot 0 bis (D17): la case « saisie libre » d'une adresse. Decochee
+    // (defaut) : le controle du fournisseur, comme avant. Cochee : tout schema
+    // d'adresse est accepte, seule une adresse sans hote reste refusee (le
+    // serveur tranche, l'ecran ne controle rien). Libelle en deux langues et
+    // nom technique en gris (E5), comme tout reglage d'un fournisseur.
+    const renderCaseAdresseLibre = (service: ServiceSegment, providerSchema: ProviderSchema) => {
+        const fieldKey = `${service}_adresse_libre`;
+        const idCase = `adresse-libre-${service}`;
+        return (
+            <div className="flex items-center gap-2 pt-1" data-adresse-libre={service}>
+                <Checkbox
+                    id={idCase}
+                    checked={watch(fieldKey) === true}
+                    onCheckedChange={(coche) => setValue(fieldKey, coche === true, { shouldDirty: true })}
+                />
+                <LibelleChamp
+                    champ="adresse_libre"
+                    libelle={providerSchema.properties.adresse_libre?.mark_libelle}
+                    htmlFor={idCase}
+                />
+            </div>
+        );
+    };
+
     const renderField = (service: ServiceSegment, field: string, providerSchema: ProviderSchema) => {
+        const schemaDuChamp = providerSchema.properties[field];
+        const reel = schemaDuChamp?.$ref && providerSchema.$defs
+            ? providerSchema.$defs[schemaDuChamp.$ref.split('/').pop() || '']
+            : schemaDuChamp;
         return (
             <>
                 {renderFieldInput(service, field, providerSchema)}
+                {reel?.mark_adresse && providerSchema.properties.adresse_libre
+                    && renderCaseAdresseLibre(service, providerSchema)}
                 {renderFieldDescription(field, providerSchema)}
             </>
         );

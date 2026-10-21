@@ -1,4 +1,5 @@
 import random
+import re
 from collections.abc import Iterable
 from enum import Enum, auto
 from typing import Annotated, Dict, Literal, Type, TypeVar, Union
@@ -7,6 +8,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    ValidationInfo,
     computed_field,
     field_validator,
     model_validator,
@@ -70,6 +72,7 @@ from api.services.configuration.options.google import (
     GOOGLE_VERTEX_LOCATIONS,
     GOOGLE_VERTEX_MODELS,
 )
+from api.utils.url_security import hote_de_ladresse
 
 
 class ServiceType(Enum):
@@ -120,6 +123,18 @@ class ServiceProviders(str, Enum):
     SONIOX = "soniox"
 
 
+# [.mark] Lot 0 bis (D17) : ce qui est une ADRESSE de service, par son nom
+# (`base_url`, `url`, `endpoint`, `api_base`, `api_url`...). Un seul endroit : la
+# case « saisie libre », sa validation, le controle de l'enregistrement et celui
+# de la fabrique le lisent tous. Un champ d'adresse ajoute plus tard sous l'un de
+# ces noms en herite ; `test_adresses_libres.py` balaie le registre pour le prouver.
+_NOM_D_ADRESSE = re.compile(r"(.*_)?(url|uri|endpoint|api_base)")
+
+
+def est_champ_adresse(nom: str) -> bool:
+    return bool(_NOM_D_ADRESSE.fullmatch(nom))
+
+
 class BaseServiceConfiguration(BaseModel):
     provider: Literal[
         ServiceProviders.OPENAI,
@@ -157,6 +172,29 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.SONIOX,
     ]
     api_key: str | list[str]
+    # [.mark] Chantier voix-soniox, lot 0 bis (D17) : la case « saisie libre »
+    # des adresses, DECLAREE UNE FOIS ICI pour tous les fournisseurs (cerveau,
+    # transcription, voix, plongements, temps reel). Decochee (defaut) : le
+    # controle propre au fournisseur, comme avant. Cochee : tout schema
+    # (`https://`, `wss://`, `grpc://`...), seul reste le refus d'une adresse
+    # sans hote (`_une_adresse_libre_garde_un_hote`).
+    # 🔑 Sans migration : une cle de la configuration du service, ecrite SEULEMENT
+    # cochee (`exclude_if`). Une configuration enregistree avant ce chantier se
+    # relit et se reecrit a l'identique, cle absente.
+    # ⛔ Le schema n'expose la case que chez un fournisseur qui a une adresse
+    # (`__get_pydantic_json_schema__`) : l'ecran ne la dessine pas ailleurs.
+    adresse_libre: bool = Field(
+        default=False,
+        exclude_if=lambda valeur: not valeur,
+        description=(
+            "Free entry: accept any address scheme (https://, wss://, grpc://...) "
+            "instead of the provider's own check. An address with no host is still refused."
+        ),
+        json_schema_extra={
+            "mark_adresse_libre": True,
+            "mark_libelle": {"en": "Free entry", "fr": "Saisie libre"},
+        },
+    )
 
     @field_validator("api_key")
     @classmethod
@@ -166,6 +204,52 @@ class BaseServiceConfiguration(BaseModel):
         if isinstance(v, list) and len(v) == 0:
             raise ValueError("api_key list must not be empty")
         return v
+
+    @model_validator(mode="after")
+    def _une_adresse_libre_garde_un_hote(self):
+        """[.mark] Cochee, tout schema passe, une adresse SANS HOTE jamais.
+
+        Refusee a l'ecriture, jamais a la lecture (18-ajout-fournisseur, 7 (1)) :
+        un validateur qui refuse s'applique aussi a une configuration deja
+        enregistree. Une adresse VIDE reste permise : elle a son propre sens
+        (l'Europe chez Soniox et Deepgram, le defaut ailleurs).
+        """
+        if not self.adresse_libre:
+            return self
+        for champ in type(self).model_fields:
+            if not est_champ_adresse(champ):
+                continue
+            valeur = getattr(self, champ, None)
+            if isinstance(valeur, str) and valeur.strip() and not hote_de_ladresse(valeur):
+                raise ValueError(f"The address in {champ} must have a host, for example https://host")
+        return self
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema, handler):
+        """[.mark] Marque les champs d'adresse, et ne garde la case que s'il y en a un.
+
+        L'ecran lit `mark_adresse` sur le champ et dessine la case a cote ; un
+        fournisseur sans adresse n'a pas de case (rien a cote de quoi la poser).
+        Un champ d'adresse ajoute plus tard est marque ici, sans code propre.
+        """
+        schema = handler(core_schema)
+        proprietes = handler.resolve_ref_schema(schema).get("properties", {})
+        adresses = [nom for nom in proprietes if est_champ_adresse(nom)]
+        if not adresses:
+            proprietes.pop("adresse_libre", None)
+            return schema
+        for nom in adresses:
+            proprietes[nom]["mark_adresse"] = True
+        # DERNIERE des proprietes : le formulaire promeut la premiere propriete
+        # qui n'est pas un secret a cote du choix du fournisseur (le modele, la
+        # voix) ; une case declaree sur la classe de base, donc avant les champs
+        # du fournisseur, la deplacerait.
+        proprietes["adresse_libre"] = proprietes.pop("adresse_libre")
+        # Meme sous-menu que l'adresse, sur les ecrans qui rangent en groupes (E2).
+        groupe = proprietes[adresses[0]].get("mark_groupe")
+        if groupe and "adresse_libre" in proprietes:
+            proprietes["adresse_libre"]["mark_groupe"] = groupe
+        return schema
 
     def __getattribute__(self, name: str):
         if name == "api_key":
@@ -3003,13 +3087,18 @@ class SonioxSTTConfiguration(BaseSTTConfiguration):
 
     @field_validator("base_url")
     @classmethod
-    def _une_adresse_de_websocket(cls, valeur: str) -> str:
+    def _une_adresse_de_websocket(cls, valeur: str, info: ValidationInfo) -> str:
         """[.mark] Refused at the door rather than mid-call.
 
         ⛔ The factory's URL check does nothing in an ``oss`` deployment (ours),
         and the connector dials whatever it is given, so a wrong address would
         cost the call its transcription. Empty stays allowed: it means Europe.
+
+        Free entry ticked (lot 0 bis, D17): the scheme is not checked here, the
+        generic rule of the base class still refuses an address with no host.
         """
+        if info.data.get("adresse_libre"):
+            return valeur
         adresse = (valeur or "").strip()
         if not adresse:
             return valeur
