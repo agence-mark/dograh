@@ -20,7 +20,7 @@ from api.services.phrases.carte import (
     derniers_declenchements,
     lecture_du_graphe,
 )
-from api.services.phrases.catalogue import CONNECTEUR_ECHOUE, MOTIFS, OUTIL_TARDE, PASSATION_TARDE
+from api.services.phrases.catalogue import OUTIL_ECHOUE, MOTIFS, OUTIL_TARDE, PASSATION_TARDE
 
 SERVICES = Path(__file__).resolve().parents[2] / "services"
 PAROLE = re.compile(r"TTSSpeakFrame\(|queue_speech\(|\.speak\(|queue_text_message\(|_speak\(")
@@ -74,25 +74,25 @@ def test_vue_du_principal_tout_le_groupe_et_le_specialise_herite():
     principal = {
         "agents_specialises": [2],
         "phrases_regles": [
-            {"motif": CONNECTEUR_ECHOUE, "portee": "groupe", "variantes": ["Pour le groupe."]}
+            {"motif": OUTIL_ECHOUE, "portee": "groupe", "variantes": ["Pour le groupe."]}
         ],
     }
     carte = construire_la_carte(
         [_agent(1, principal, est_principal=True), _agent(2, {})], principal
     )
     assert [a["id"] for a in carte["agents"]] == [1, 2]
-    specialise = next(m for m in carte["agents"][1]["motifs"] if m["motif"] == CONNECTEUR_ECHOUE)
+    specialise = next(m for m in carte["agents"][1]["motifs"] if m["motif"] == OUTIL_ECHOUE)
     assert specialise["variantes"] == ["Pour le groupe."] and specialise["niveau"] == "principal"
 
 
 def test_le_dernier_declenchement_vient_de_la_trace_des_appels():
     traces = [
-        (12, "2026-10-19 10:00", [{"motif": CONNECTEUR_ECHOUE, "agent": 1, "etape": "A", "texte": "Récent."}]),
-        (11, "2026-10-18 10:00", [{"motif": CONNECTEUR_ECHOUE, "agent": 1, "etape": "A", "texte": "Ancien."}]),
+        (12, "2026-10-19 10:00", [{"motif": OUTIL_ECHOUE, "agent": 1, "etape": "A", "texte": "Récent."}]),
+        (11, "2026-10-18 10:00", [{"motif": OUTIL_ECHOUE, "agent": 1, "etape": "A", "texte": "Ancien."}]),
     ]
     derniers = derniers_declenchements(traces)
     carte = construire_la_carte([_agent(1, {})], {}, derniers)
-    motif = next(m for m in carte["agents"][0]["motifs"] if m["motif"] == CONNECTEUR_ECHOUE)
+    motif = next(m for m in carte["agents"][0]["motifs"] if m["motif"] == OUTIL_ECHOUE)
     assert motif["dernier"]["run"] == 12 and motif["dernier"]["texte"] == "Récent."
     jamais = next(m for m in carte["agents"][0]["motifs"] if m["motif"] == OUTIL_TARDE)
     assert jamais["dernier"] is None

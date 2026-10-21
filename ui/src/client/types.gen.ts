@@ -8394,9 +8394,21 @@ export type ReglePhrase = {
     /**
      * Etape
      *
-     * The step name, for a step rule only.
+     * The step name, shown on screen (a rule from before is found by it).
      */
     etape?: string | null;
+    /**
+     * Etape Id
+     *
+     * The step's node identifier: renaming the step keeps its rules.
+     */
+    etape_id?: string | null;
+    /**
+     * Outils
+     *
+     * The tools this rule aims at (tool causes only). Empty: all tools.
+     */
+    outils?: Array<string>;
     /**
      * Variantes
      *
@@ -8404,17 +8416,85 @@ export type ReglePhrase = {
      */
     variantes?: Array<string>;
     /**
+     * Ordre
+     *
+     * Rotated, or in order (the first time sentence 1, the second time sentence 2...).
+     */
+    ordre?: 'tournees' | 'dans_l_ordre';
+    /**
      * Delai S
      *
-     * After how long the sentence is said, for a cause that has a delay.
+     * After how long the sentence is said, for a cause that has a delay (0 = at once).
      */
     delai_s?: number | null;
+    /**
+     * Redite S
+     *
+     * Says it again every so often, counted from the end of the previous sentence. Empty: never.
+     */
+    redite_s?: number | null;
+    /**
+     * Max Par Attente
+     *
+     * At most this many times for one wait, the first included. Empty: once. For the caller's silence: the number of prompts.
+     */
+    max_par_attente?: number | null;
+    /**
+     * Max Par Appel
+     *
+     * At most this many times in the call. Empty: no limit. For a problem: the number of incidents allowed before the exit.
+     */
+    max_par_appel?: number | null;
+    /**
+     * What happens after the last time, or when it repeats.
+     */
+    ensuite?: Sortie;
+    /**
+     * Texte De L Agent
+     *
+     * Background work only: the announcement is the one the agent writes when it hands the work over, falling back on the sentences above.
+     */
+    texte_de_l_agent?: boolean;
     /**
      * Active
      *
      * Off: the code says nothing for this cause.
      */
     active?: boolean;
+};
+
+/**
+ * NoteDeSortie
+ *
+ * Noter dans la fiche : [un champ de la fiche] = [une valeur de sa liste].
+ */
+export type NoteDeSortie = {
+    champ: string;
+    valeur: string;
+};
+
+/**
+ * Sortie
+ *
+ * « Ensuite » : dire, noter dans la fiche, puis une action finale, toujours dans cet ordre. Chaque élément est facultatif ; `action` vide : l'action par défaut du motif (le comportement d'avant).
+ */
+export type Sortie = {
+    /**
+     * What the voice says on the way out (one to three variants, rotated).
+     */
+    phrases?: Array<string>;
+    /**
+     * A field of the call record and one of its values to write.
+     */
+    noter?: NoteDeSortie | null;
+    /**
+     * The final action. Empty: the default of the cause (the behavior before).
+     */
+    action?: 'continuer' | 'modele' | 'transferer' | 'raccrocher' | null;
+    /**
+     * For a transfer: the key of a member of the team (set in Team).
+     */
+    destination?: string | null;
 };
 
 /**
@@ -12097,6 +12177,12 @@ export type WorkflowConfigurationDefaults = {
      * Sentences said by the code, without the model: one rule per cause and place (group, agent or step), one to three sentences, a delay when the cause has one.
      */
     phrases_regles?: Array<ReglePhrase>;
+    /**
+     * Phrases Repos S
+     *
+     * Minimum pause between two waiting sentences said by the code, in seconds (set on the main agent). Empty: 3 s, as before.
+     */
+    phrases_repos_s?: number | null;
     /**
      * Fiche Champs
      *

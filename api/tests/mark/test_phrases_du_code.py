@@ -38,9 +38,9 @@ from api.schemas.phrases_du_code import (
 )
 from api.services.phrases.catalogue import (
     APPELANT_SE_TAIT,
-    CONNECTEUR_ECHOUE,
     MISE_EN_RELATION,
     MOTIFS,
+    OUTIL_ECHOUE,
     OUTIL_TARDE,
     PASSATION_TARDE,
     REPONSE_PERDUE,
@@ -75,30 +75,18 @@ def _regle(motif, variantes, portee="agent", etape=None, delai_s=None, active=Tr
 
 
 def test_la_copie_du_catalogue_a_l_ecran_est_celle_du_code():
+    from api.services.phrases.catalogue import catalogue_pour_l_ecran
+
     copie = json.loads(COPIE_ECRAN.read_text(encoding="utf-8"))
-    assert copie["bornes"] == {
-        "variantes_max": MAX_VARIANTES,
-        "longueur_max": MAX_LONGUEUR_PHRASE,
-        "regles_max": MAX_REGLES,
-        "delai_min_s": DELAI_MIN_S,
-        "delai_max_s": DELAI_MAX_S,
-    }
-    attendu = [
-        {
-            "id": m.id,
-            "famille": m.famille,
-            "libelle": {"en": m.libelle_en, "fr": m.libelle_fr},
-            "quand": {"en": m.quand_en, "fr": m.quand_fr},
-            "a_un_delai": m.a_un_delai,
-            "variantes_defaut": list(m.variantes_defaut),
-            "delai_defaut_s": m.delai_defaut_s,
-            "actif_par_defaut": m.actif_par_defaut,
-            "eteinte": {"en": m.eteinte_en, "fr": m.eteinte_fr},
-            "silence_de_l_appelant": m.silence_de_l_appelant,
-        }
-        for m in MOTIFS.values()
-    ]
-    assert copie["motifs"] == attendu
+    assert copie == catalogue_pour_l_ecran()
+    assert copie["bornes"]["variantes_max"] == MAX_VARIANTES
+    assert copie["bornes"]["longueur_max"] == MAX_LONGUEUR_PHRASE
+    assert copie["bornes"]["regles_max"] == MAX_REGLES
+    assert copie["bornes"]["delai_min_s"] == DELAI_MIN_S
+    assert copie["bornes"]["delai_max_s"] == DELAI_MAX_S
+    # Les dix motifs du tableau 4.4, chacun avec les cases qu'il permet.
+    assert [m["id"] for m in copie["motifs"]] == list(MOTIFS)
+    assert len(copie["motifs"]) == 10
 
 
 def test_les_niveaux_etape_agent_principal_defaut():
@@ -120,12 +108,12 @@ def test_les_niveaux_etape_agent_principal_defaut():
 
 
 def test_le_specialise_herite_puis_garde_la_sienne():
-    principal = {"phrases_regles": [_regle(CONNECTEUR_ECHOUE, ["Pour tous."], "groupe")]}
-    herite = resoudre(CONNECTEUR_ECHOUE, reglages_agent={}, reglages_principal=principal)
+    principal = {"phrases_regles": [_regle(OUTIL_ECHOUE, ["Pour tous."], "groupe")]}
+    herite = resoudre(OUTIL_ECHOUE, reglages_agent={}, reglages_principal=principal)
     assert herite.variantes == ("Pour tous.",) and herite.niveau == NIVEAU_PRINCIPAL
     sienne = resoudre(
-        CONNECTEUR_ECHOUE,
-        reglages_agent={"phrases_regles": [_regle(CONNECTEUR_ECHOUE, ["La mienne."])]},
+        OUTIL_ECHOUE,
+        reglages_agent={"phrases_regles": [_regle(OUTIL_ECHOUE, ["La mienne."])]},
         reglages_principal=principal,
     )
     assert sienne.variantes == ("La mienne.",) and sienne.niveau == NIVEAU_AGENT
@@ -157,12 +145,12 @@ def test_les_anciens_reglages_sont_repris_et_une_regle_les_remplace():
 async def test_une_regle_eteinte_n_est_jamais_dite_meme_avec_une_phrase_propre():
     moteur = _FauxMoteur(lambda: 0.0)
     moteur.active_agent.reglages = {
-        "phrases_regles": [_regle(CONNECTEUR_ECHOUE, ["X."], active=False)]
+        "phrases_regles": [_regle(OUTIL_ECHOUE, ["X."], active=False)]
     }
     diseur = DiseurDePhrases(moteur)
-    assert await diseur.dire(CONNECTEUR_ECHOUE) is False
-    assert await diseur.dire_la_parole(CONNECTEUR_ECHOUE, texte="Propre.") is None
-    assert diseur.prendre(CONNECTEUR_ECHOUE) is None
+    assert await diseur.dire(OUTIL_ECHOUE) is False
+    assert await diseur.dire_la_parole(OUTIL_ECHOUE, texte="Propre.") is None
+    assert diseur.prendre(OUTIL_ECHOUE) is None
     assert moteur.dites == [] and not moteur._gathered_context.get(CLE_TRACE)
 
 
@@ -179,7 +167,7 @@ async def test_historique_et_micro_jamais_coupe():
 
     moteur.queue_speech = queue_speech
     diseur = DiseurDePhrases(moteur)
-    parole = await diseur.dire_la_parole(CONNECTEUR_ECHOUE, texte="Je transmets.")
+    parole = await diseur.dire_la_parole(OUTIL_ECHOUE, texte="Je transmets.")
     assert parole.text == "Je transmets."
     await diseur.attendre_la_fin()
     await diseur.dire_la_parole(APPELANT_SE_TAIT, historique=False)
@@ -187,7 +175,7 @@ async def test_historique_et_micro_jamais_coupe():
     assert o1["append_to_context"] is True and o1["mute_user"] is False
     assert o2["append_to_context"] is False and o2["mute_user"] is False
     trace = moteur._gathered_context[CLE_TRACE]
-    assert [e["motif"] for e in trace] == [CONNECTEUR_ECHOUE, APPELANT_SE_TAIT]
+    assert [e["motif"] for e in trace] == [OUTIL_ECHOUE, APPELANT_SE_TAIT]
 
 
 @pytest.mark.asyncio
@@ -201,12 +189,12 @@ async def test_une_phrase_coupee_n_est_jamais_relancee():
 
     moteur.queue_speech = queue_speech
     diseur = DiseurDePhrases(moteur)
-    assert await diseur.dire(CONNECTEUR_ECHOUE) is True
+    assert await diseur.dire(OUTIL_ECHOUE) is True
     assert diseur.en_cours
     coupee.set()  # l'appelant l'a coupée : la lecture se termine là
     await diseur.attendre_la_fin()
     await asyncio.sleep(0.05)
-    assert moteur.dites == [MOTIFS[CONNECTEUR_ECHOUE].variantes_defaut[0]]
+    assert moteur.dites == [MOTIFS[OUTIL_ECHOUE].variantes_defaut[0]]
     assert not diseur.en_cours
 
 
@@ -225,7 +213,7 @@ async def test_au_clavier_aucune_attente_n_est_dite():
     moteur.sans_sortie_audio = True
     diseur = DiseurDePhrases(moteur)
     assert await diseur.dire("travail_dure") is False
-    assert await diseur.dire(CONNECTEUR_ECHOUE) is True  # une annonce s'écrit comme avant
+    assert await diseur.dire(OUTIL_ECHOUE) is True  # une annonce s'écrit comme avant
 
 
 # --------------------------------------------------------------------------- #
@@ -322,12 +310,12 @@ async def test_le_connecteur_en_echec_dit_la_regle_ou_sa_phrase_propre():
 
     moteur.queue_speech = queue_speech
     moteur.phrases = DiseurDePhrases(moteur)
-    assert await _dire_le_repli(moteur, None) == MOTIFS[CONNECTEUR_ECHOUE].variantes_defaut[0]
+    assert await _dire_le_repli(moteur, None) == MOTIFS[OUTIL_ECHOUE].variantes_defaut[0]
     await moteur.phrases.attendre_la_fin()
     assert await _dire_le_repli(moteur, "Phrase du connecteur.") == "Phrase du connecteur."
     await moteur.phrases.attendre_la_fin()
     moteur.active_agent.reglages = {
-        "phrases_regles": [_regle(CONNECTEUR_ECHOUE, [], active=False)]
+        "phrases_regles": [_regle(OUTIL_ECHOUE, [], active=False)]
     }
     assert await _dire_le_repli(moteur, "Phrase du connecteur.") is None
     # Un moteur sans diseur (simulé) ne dit rien.

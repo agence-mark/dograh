@@ -1,14 +1,21 @@
-"""[.mark] Chantier fiabilite-orchestration (F23, F24, F25) : le catalogue des motifs.
+"""[.mark] Chantier fiabilite-orchestration (F23, F24, F25) puis correctifs-apres-banc-v4 (lot 4) :
+le catalogue des motifs.
 
 Un motif est une **attente** ou un **problème** que le code sait détecter, jamais du contenu de
 conversation (l'agent reste souple). Un motif nouveau s'ajoute ici quand une cause devient
-détectable. Chaque motif porte sa famille :
+détectable. Chaque motif porte sa famille et son moment :
 
 - *attente* (la passation, le modèle, un outil, le travail de fond, le silence de l'appelant) :
   une seule à la fois, puis un repos ; son délai ne court que pendant une attente **du système**,
   sauf « l'appelant se tait », le seul motif qui répond au silence de l'appelant ;
-- *annonce* (mise en relation, transfert échoué, connecteur échoué, réponse perdue) : passe
-  toujours, à la suite de la phrase en cours.
+- *annonce* (mise en relation, transfert échoué, outil échoué, travail de fond échoué, réponse
+  perdue) : passe toujours, à la suite de la phrase en cours. Un problème est déclenché par un
+  **fait**, pas par du temps : il n'a ni délai ni redite, seulement un compteur dans l'appel.
+
+Chaque motif dit **les cases qu'il permet** (``delai_min_s``, ``peut_redire``, ``filtre_outil``,
+``sorties_permises``, ``sortie_defaut``, ``texte_de_l_agent``) et **la fin de l'attente lue ailleurs** :
+l'écran n'affiche que ces cases et recopie ce catalogue (``catalogue_pour_l_ecran``, comparé au JSON
+de l'écran par un test).
 
 Les textes par défaut sont **neutres et sans métier** : ce sont des valeurs pré-remplies, visibles à
 l'écran, jamais des constantes cachées. ``actif_par_defaut`` reprend le comportement d'avant le
@@ -18,9 +25,19 @@ chantier (zéro perte), sauf décision d'Evan (F7, F20, C1).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 FAMILLE_ATTENTE = "attente"
 FAMILLE_ANNONCE = "annonce"
+
+MOMENT_ATTENTE = "attente"
+MOMENT_PROBLEME = "probleme"
+MOMENT_ACTION = "action"
+
+SORTIE_CONTINUER = "continuer"
+SORTIE_MODELE = "modele"
+SORTIE_TRANSFERER = "transferer"
+SORTIE_RACCROCHER = "raccrocher"
 
 
 @dataclass(frozen=True)
@@ -41,6 +58,21 @@ class Motif:
     eteinte_en: str
     # Le motif répond au silence de l'appelant (F24 : le seul permis).
     silence_de_l_appelant: bool = False
+    # -- les cases permises (correctifs-apres-banc-v4, 4.4) --
+    moment: str = MOMENT_ATTENTE
+    delai_min_s: float = 0.0
+    peut_redire: bool = False
+    filtre_outil: bool = False
+    texte_de_l_agent: bool = False
+    sorties_permises: tuple[str, ...] = (SORTIE_CONTINUER,)
+    sortie_defaut: str = SORTIE_CONTINUER
+    # La fin de l'attente, lue ailleurs (texte, et le réglage où elle se pose).
+    fin_d_attente_fr: str = ""
+    fin_d_attente_en: str = ""
+    fin_d_attente_reglage: str | None = None
+    # Le fait, dit au modèle dans le compte rendu qui suit une phrase du code (4.10) : une phrase du
+    # catalogue, jamais un mot de métier.
+    fait_fr: str = ""
 
 
 PASSATION_TARDE = "passation_tarde"
@@ -51,26 +83,92 @@ APPELANT_SE_TAIT = "appelant_se_tait"
 REPONSE_PERDUE = "reponse_perdue"
 MISE_EN_RELATION = "mise_en_relation"
 TRANSFERT_ECHOUE = "transfert_echoue"
+OUTIL_ECHOUE = "outil_echoue"
+TRAVAIL_ECHOUE = "travail_echoue"
+# Ancien identifiant du motif « un outil échoue » : les règles d'avant se lisent comme les nouvelles
+# (``schemas.phrases_du_code.ALIAS_DE_MOTIFS``).
 CONNECTEUR_ECHOUE = "connecteur_echoue"
 
 _UN_INSTANT = "Un instant, s'il vous plaît."
+
+_TOUTES_LES_SORTIES = (SORTIE_CONTINUER, SORTIE_MODELE, SORTIE_TRANSFERER, SORTIE_RACCROCHER)
+_SORTIES_DES_ECHECS = _TOUTES_LES_SORTIES
 
 MOTIFS: dict[str, Motif] = {
     m.id: m
     for m in (
         Motif(
+            id=OUTIL_TARDE,
+            famille=FAMILLE_ATTENTE,
+            libelle_fr="Un outil travaille",
+            libelle_en="A tool is working",
+            quand_fr="L'agent a lancé un outil (hors portes, passations et fin) et n'a pas encore son résultat.",
+            quand_en="The agent started a tool (not a step change, handover or end) and has no result yet.",
+            a_un_delai=True,
+            variantes_defaut=("Je vérifie, un instant.",),
+            delai_defaut_s=3.0,
+            actif_par_defaut=False,
+            eteinte_fr="Rien n'est dit : l'appelant attend le résultat de l'outil.",
+            eteinte_en="Nothing is said: the caller waits for the tool's result.",
+            moment=MOMENT_ATTENTE,
+            delai_min_s=0.0,
+            peut_redire=True,
+            filtre_outil=True,
+            fin_d_attente_fr=(
+                "L'outil abandonne à son délai (réglé sur l'outil, essais compris), puis la règle "
+                "« un outil échoue »."
+            ),
+            fin_d_attente_en=(
+                "The tool gives up at its deadline (set on the tool, retries included), then the "
+                "rule \"a tool fails\"."
+            ),
+            fin_d_attente_reglage="outil",
+        ),
+        Motif(
+            id=TRAVAIL_DURE,
+            famille=FAMILLE_ATTENTE,
+            libelle_fr="Le travail de fond travaille",
+            libelle_en="The background work is working",
+            quand_fr="L'agent a confié un travail au cerveau de fond et n'a pas encore son résultat.",
+            quand_en="The agent handed a job to the background brain and has no result yet.",
+            a_un_delai=True,
+            variantes_defaut=("C'est presque bon, merci de patienter.",),
+            delai_defaut_s=8.0,
+            actif_par_defaut=True,
+            eteinte_fr="Rien n'est dit jusqu'au résultat.",
+            eteinte_en="Nothing is said until the result.",
+            moment=MOMENT_ATTENTE,
+            delai_min_s=0.0,
+            peut_redire=True,
+            texte_de_l_agent=True,
+            fin_d_attente_fr=(
+                "Le travail abandonne à son délai maximal (réglé dans Travail en arrière-plan), "
+                "puis la règle « le travail de fond échoue »."
+            ),
+            fin_d_attente_en=(
+                "The job gives up at its maximum delay (set in Background work), then the rule "
+                "\"the background work fails\"."
+            ),
+            fin_d_attente_reglage="travail",
+        ),
+        Motif(
             id=PASSATION_TARDE,
             famille=FAMILLE_ATTENTE,
-            libelle_fr="La passation tarde",
-            libelle_en="The handover takes time",
-            quand_fr="Un collègue prend la main et n'a pas encore parlé après le délai.",
-            quand_en="A colleague takes over and has not spoken yet after the delay.",
+            libelle_fr="Un collègue prend la main",
+            libelle_en="A colleague takes over",
+            quand_fr="Une passation est lancée et le collègue n'a pas encore parlé.",
+            quand_en="A handover is under way and the colleague has not spoken yet.",
             a_un_delai=True,
             variantes_defaut=(_UN_INSTANT,),
             delai_defaut_s=2.0,
             actif_par_defaut=False,
             eteinte_fr="Rien n'est dit : l'appelant attend la première phrase du collègue.",
             eteinte_en="Nothing is said: the caller waits for the colleague's first sentence.",
+            moment=MOMENT_ATTENTE,
+            delai_min_s=0.5,
+            peut_redire=True,
+            fin_d_attente_fr="Le collègue parle.",
+            fin_d_attente_en="The colleague speaks.",
         ),
         Motif(
             id=MODELE_TARDE,
@@ -92,34 +190,16 @@ MOTIFS: dict[str, Motif] = {
             actif_par_defaut=True,
             eteinte_fr="Rien n'est dit pendant la seconde tentative.",
             eteinte_en="Nothing is said during the second attempt.",
-        ),
-        Motif(
-            id=OUTIL_TARDE,
-            famille=FAMILLE_ATTENTE,
-            libelle_fr="Un outil tarde",
-            libelle_en="A tool takes time",
-            quand_fr="Un outil du tour (hors portes, passations et fin) tourne au-delà du délai.",
-            quand_en="A tool of the turn (not a step change, handover or end) runs past the delay.",
-            a_un_delai=True,
-            variantes_defaut=("Je vérifie, un instant.",),
-            delai_defaut_s=3.0,
-            actif_par_defaut=False,
-            eteinte_fr="Rien n'est dit : l'appelant attend le résultat de l'outil.",
-            eteinte_en="Nothing is said: the caller waits for the tool's result.",
-        ),
-        Motif(
-            id=TRAVAIL_DURE,
-            famille=FAMILLE_ATTENTE,
-            libelle_fr="Le travail de fond dure",
-            libelle_en="The background work takes time",
-            quand_fr="Un travail confié au cerveau de fond n'a pas rendu son résultat après le délai.",
-            quand_en="A request given to the background brain has no result yet after the delay.",
-            a_un_delai=True,
-            variantes_defaut=("C'est presque bon, merci de patienter.",),
-            delai_defaut_s=8.0,
-            actif_par_defaut=True,
-            eteinte_fr="Rien n'est dit jusqu'au résultat.",
-            eteinte_en="Nothing is said until the result.",
+            moment=MOMENT_ATTENTE,
+            fin_d_attente_fr=(
+                "Le délai est celui de la garde du modèle (Modèles, Garde) ; une seule fois, puis la "
+                "seconde tentative et le mode panne."
+            ),
+            fin_d_attente_en=(
+                "The delay is the model guard's (Models, Guard); once, then the second attempt and "
+                "the outage mode."
+            ),
+            fin_d_attente_reglage="garde",
         ),
         Motif(
             id=APPELANT_SE_TAIT,
@@ -135,6 +215,20 @@ MOTIFS: dict[str, Motif] = {
             eteinte_fr="Le modèle relance lui-même la conversation, comme avant le chantier.",
             eteinte_en="The model prompts the caller itself, as before.",
             silence_de_l_appelant=True,
+            moment=MOMENT_ATTENTE,
+            delai_min_s=2.0,
+            peut_redire=True,
+            sorties_permises=(SORTIE_CONTINUER, SORTIE_TRANSFERER, SORTIE_RACCROCHER),
+            sortie_defaut=SORTIE_RACCROCHER,
+            fin_d_attente_fr=(
+                "Le nombre de relances est celui de « au plus, par attente » quand la règle le pose, "
+                "sinon celui de Rythme ; la sortie part au silence qui suit la dernière relance."
+            ),
+            fin_d_attente_en=(
+                "The number of prompts is \"at most, per wait\" when the rule sets it, else Pace's; "
+                "the exit goes at the silence that follows the last prompt."
+            ),
+            fin_d_attente_reglage="rythme",
         ),
         Motif(
             id=REPONSE_PERDUE,
@@ -149,6 +243,71 @@ MOTIFS: dict[str, Motif] = {
             actif_par_defaut=True,
             eteinte_fr="Silence : l'appelant reprend la parole.",
             eteinte_en="Silence: the caller speaks again.",
+            fait_fr="la réponse a été perdue",
+            moment=MOMENT_PROBLEME,
+            sorties_permises=_TOUTES_LES_SORTIES,
+            sortie_defaut=SORTIE_CONTINUER,
+        ),
+        Motif(
+            id=OUTIL_ECHOUE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Un outil échoue",
+            libelle_en="A tool fails",
+            quand_fr="Un outil ou un connecteur échoue, après ses essais, ou dépasse son délai.",
+            quand_en="A tool or a connector fails, after its retries, or runs past its deadline.",
+            a_un_delai=False,
+            variantes_defaut=("Je transmets votre demande, on vous rappelle pour la confirmer.",),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Rien n'est dit par le code : le modèle lit l'échec et répond.",
+            eteinte_en="The code says nothing: the model reads the failure and answers.",
+            fait_fr="l'outil n'a pas abouti",
+            moment=MOMENT_PROBLEME,
+            filtre_outil=True,
+            sorties_permises=_SORTIES_DES_ECHECS,
+            sortie_defaut=SORTIE_MODELE,
+        ),
+        Motif(
+            id=TRAVAIL_ECHOUE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Le travail de fond échoue",
+            libelle_en="The background work fails",
+            quand_fr=(
+                "Le travail de fond rend un échec, dépasse son délai, ou rend un résultat sans avoir "
+                "appelé aucun outil."
+            ),
+            quand_en=(
+                "The background work returns a failure, runs past its deadline, or returns a result "
+                "without having called any tool."
+            ),
+            a_un_delai=False,
+            variantes_defaut=("Je n'arrive pas à finaliser pour le moment.",),
+            delai_defaut_s=None,
+            actif_par_defaut=False,
+            eteinte_fr="Le modèle lit « Échec : rien n'a été fait » et répond.",
+            eteinte_en="The model reads the failure and answers.",
+            fait_fr="le travail de fond n'a pas abouti",
+            moment=MOMENT_PROBLEME,
+            sorties_permises=_SORTIES_DES_ECHECS,
+            sortie_defaut=SORTIE_MODELE,
+        ),
+        Motif(
+            id=TRANSFERT_ECHOUE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Le transfert d'appel échoue",
+            libelle_en="The call transfer fails",
+            quand_fr="Un transfert vers une personne n'aboutit pas (pas de réponse, répondeur).",
+            quand_en="A transfer to a person does not go through (no answer, voicemail).",
+            a_un_delai=False,
+            variantes_defaut=("Je n'ai pas pu vous mettre en relation.",),
+            delai_defaut_s=None,
+            actif_par_defaut=False,
+            eteinte_fr="Le modèle dit lui-même que le transfert n'a pas abouti.",
+            eteinte_en="The model says itself that the transfer failed.",
+            fait_fr="le transfert n'a pas abouti",
+            moment=MOMENT_PROBLEME,
+            sorties_permises=_SORTIES_DES_ECHECS,
+            sortie_defaut=SORTIE_MODELE,
         ),
         Motif(
             id=MISE_EN_RELATION,
@@ -169,38 +328,70 @@ MOTIFS: dict[str, Motif] = {
             actif_par_defaut=False,
             eteinte_fr="Le modèle annonce lui-même la mise en relation.",
             eteinte_en="The model announces the transfer itself.",
-        ),
-        Motif(
-            id=TRANSFERT_ECHOUE,
-            famille=FAMILLE_ANNONCE,
-            libelle_fr="Le transfert d'appel échoue",
-            libelle_en="The call transfer fails",
-            quand_fr="Un transfert vers une personne n'aboutit pas (pas de réponse, répondeur).",
-            quand_en="A transfer to a person does not go through (no answer, voicemail).",
-            a_un_delai=False,
-            variantes_defaut=("Je n'ai pas pu vous mettre en relation.",),
-            delai_defaut_s=None,
-            actif_par_defaut=False,
-            eteinte_fr="Le modèle dit lui-même que le transfert n'a pas abouti.",
-            eteinte_en="The model says itself that the transfer failed.",
-        ),
-        Motif(
-            id=CONNECTEUR_ECHOUE,
-            famille=FAMILLE_ANNONCE,
-            libelle_fr="Un connecteur échoue",
-            libelle_en="A connector fails",
-            quand_fr="Une action d'un connecteur échoue ou dépasse son délai.",
-            quand_en="A connector action fails or runs past its deadline.",
-            a_un_delai=False,
-            variantes_defaut=("Je transmets votre demande, on vous rappelle pour la confirmer.",),
-            delai_defaut_s=None,
-            actif_par_defaut=True,
-            eteinte_fr="Rien n'est dit par le code : le modèle lit l'échec et répond.",
-            eteinte_en="The code says nothing: the model reads the failure and answers.",
+            moment=MOMENT_ACTION,
         ),
     )
 }
 
+# Les motifs d'un problème (déclenchés par un fait) : un compteur dans l'appel, jamais de délai.
+MOTIFS_DE_PROBLEME = tuple(m.id for m in MOTIFS.values() if m.moment == MOMENT_PROBLEME)
+
 
 def motif(identifiant: str) -> Motif | None:
     return MOTIFS.get(identifiant)
+
+
+def catalogue_pour_l_ecran() -> dict[str, Any]:
+    """Le catalogue tel que l'écran le lit (``catalogue-des-phrases.json``) : recopié dans l'écran,
+    comparé au code par un test. Aucun texte ne s'écrit à la main de l'autre côté."""
+    from api.schemas.phrases_du_code import (
+        DELAI_MAX_S,
+        DELAI_MIN_S,
+        MAX_LONGUEUR_PHRASE,
+        MAX_PAR_APPEL,
+        MAX_PAR_ATTENTE,
+        MAX_REGLES,
+        MAX_VARIANTES,
+        REDITE_MAX_S,
+        REDITE_MIN_S,
+    )
+    from api.services.phrases.diseur import REPOS_ATTENTE_S
+
+    return {
+        "bornes": {
+            "variantes_max": MAX_VARIANTES,
+            "longueur_max": MAX_LONGUEUR_PHRASE,
+            "regles_max": MAX_REGLES,
+            "delai_min_s": DELAI_MIN_S,
+            "delai_max_s": DELAI_MAX_S,
+            "redite_min_s": REDITE_MIN_S,
+            "redite_max_s": REDITE_MAX_S,
+            "max_par_attente": MAX_PAR_ATTENTE,
+            "max_par_appel": MAX_PAR_APPEL,
+            "repos_defaut_s": REPOS_ATTENTE_S,
+        },
+        "motifs": [
+            {
+                "id": m.id,
+                "famille": m.famille,
+                "moment": m.moment,
+                "libelle": {"en": m.libelle_en, "fr": m.libelle_fr},
+                "quand": {"en": m.quand_en, "fr": m.quand_fr},
+                "a_un_delai": m.a_un_delai,
+                "delai_min_s": m.delai_min_s,
+                "peut_redire": m.peut_redire,
+                "filtre_outil": m.filtre_outil,
+                "texte_de_l_agent": m.texte_de_l_agent,
+                "sorties_permises": list(m.sorties_permises),
+                "sortie_defaut": m.sortie_defaut,
+                "fin_d_attente": {"en": m.fin_d_attente_en, "fr": m.fin_d_attente_fr},
+                "fin_d_attente_reglage": m.fin_d_attente_reglage,
+                "variantes_defaut": list(m.variantes_defaut),
+                "delai_defaut_s": m.delai_defaut_s,
+                "actif_par_defaut": m.actif_par_defaut,
+                "eteinte": {"en": m.eteinte_en, "fr": m.eteinte_fr},
+                "silence_de_l_appelant": m.silence_de_l_appelant,
+            }
+            for m in MOTIFS.values()
+        ],
+    }

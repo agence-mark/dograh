@@ -315,7 +315,7 @@ export const CAS_AGENT: CasAgent[] = [
     // fiabilite-orchestration, lot 4 bis (F17): the bridge phrase and the sentence before a call transfer
     // moved to the theme Phrases, as rules (`phrases_regles`).
     c("phrases-groupe", "ajout-mark", "phrases", ["phrases_regles"], [
-        { type: "cliquer", nom: "Add a rule : The handover takes time" },
+        { type: "cliquer", nom: "Add a rule : A colleague takes over" },
         saisir("phrase_0_variante_0", "Un instant."),
         saisir("phrase_0_delai", "3"),
     ], false, PRINCIPAL),

@@ -202,6 +202,8 @@ CLES_PROPRES: tuple[str, ...] = (
     # spécialisé reprend celle du principal À L'APPEL (résolution étape, agent, principal), jamais
     # par une copie : sa propre règle doit pouvoir exister.
     "phrases_regles",
+    # correctifs-apres-banc-v4 (lot 4) : la pause entre deux phrases d'attente, lue chez le principal.
+    "phrases_repos_s",
 )
 
 

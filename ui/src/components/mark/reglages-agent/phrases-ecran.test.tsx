@@ -48,7 +48,7 @@ describe("[.mark] theme Phrases", () => {
 
     it("refuses two rules at one place, an active rule without sentence and a delay out of bounds", () => {
         const erreurs = erreursDesPhrases([
-            { motif: "outil_tarde", endroit: "agent", variantes: ["A."], delai: "0.1", active: true },
+            { motif: "outil_tarde", endroit: "agent", variantes: ["A."], delai: "130", active: true },
             { motif: "outil_tarde", endroit: "agent", variantes: [], delai: "", active: true },
         ]);
         const messages = erreurs.map((e) => e.message.en);

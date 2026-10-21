@@ -1138,6 +1138,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "(group, agent or step), one to three sentences, a delay when the cause has one."
         ),
     )
+    # [.mark] Chantier correctifs-apres-banc-v4 (lot 4, 4.6) : le seul réglage commun du thème Phrases.
+    phrases_repos_s: float | None = Field(
+        default=None,
+        ge=1,
+        le=10,
+        description=(
+            "Minimum pause between two waiting sentences said by the code, in seconds (set on the "
+            "main agent). Empty: 3 s, as before."
+        ),
+    )
     fiche_champs: list[ChampFiche] = Field(
         default_factory=list,
         max_length=60,
