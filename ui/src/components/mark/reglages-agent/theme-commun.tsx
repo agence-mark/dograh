@@ -24,6 +24,8 @@ export interface ProprietesThemeAgent {
     onBasculer: () => void;
     /** Opens this theme (« show »). */
     ouvrir: () => void;
+    /** [.mark] correctifs-apres-banc-v4, lot 5: opens another theme and brings it on screen (a link between themes). */
+    versTheme?: (id: string) => void;
 }
 
 /** The themes in error, for the navigation's red dot. */

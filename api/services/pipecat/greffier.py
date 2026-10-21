@@ -65,6 +65,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     MODE_GREFFIER,
     MODE_OUTIL,
     NOTE_DESCRIPTIONS,
+    VALEUR_DE_REFUS,
     Notices,
     ReglagesFiche,
     _est_un_refus,
@@ -545,7 +546,8 @@ def schema_de_la_fiche(reglages: ReglagesFiche) -> dict:
     for champ in reglages.champs_notes:
         base: dict = {"type": champ.type}
         if champ.valeurs and champ.type == "string" and not champ.cumulatif:
-            base["enum"] = list(champ.valeurs)
+            # K4 révisé (21/10) : le refus de la personne est permis sur une liste fermée aussi.
+            base["enum"] = [*champ.valeurs, VALEUR_DE_REFUS]
         proprietes[champ.nom] = {"anyOf": [base, {"type": "null"}]}
     return {
         "type": "object",

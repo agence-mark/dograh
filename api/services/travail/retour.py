@@ -47,6 +47,10 @@ PAS_D_ATTENTE_S = 0.1
 TEXTE_VIDE = "aucun résultat"
 TEXTE_ECHEC = "le travail n'a pas abouti"
 TEXTE_DELAI = "le travail n'a pas abouti dans le temps imparti"
+# correctifs-apres-banc-v4, lot 2 (6.4) : ce que lit le cerveau de conversation quand le fond, qui avait
+# des outils, a rendu un texte sans en appeler aucun. Texte mesuré au lot 0 : 0/10 annonce, 10/10 phrase
+# d'échec. Générique, aucun métier.
+TEXTE_SANS_OUTIL = "Échec : rien n'a été fait."
 
 
 # fiabilite-orchestration (lot 7, R4, run 1468) : le fond répond en markdown (« **Résultat** : … »), le

@@ -22,7 +22,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { detailFromError } from '@/lib/apiError';
-import { WorkflowConfigurations } from '@/types/workflow-configurations';
+import { ReglePhrase, WorkflowConfigurations } from '@/types/workflow-configurations';
 
 import AddNodePanel from "../../../components/flow/AddNodePanel";
 import CustomEdge from "../../../components/flow/edges/CustomEdge";
@@ -581,6 +581,29 @@ function RenderWorkflow({
     const ajouterOutil = useCallback((tool: ToolResponse) => {
         setTools((prev) => (prev?.some((t) => t.tool_uuid === tool.tool_uuid) ? prev : [...(prev ?? []), tool]));
     }, []);
+    // [.mark] correctifs-apres-banc-v4, lot 5: the steps' section « Fixed sentences at this step ».
+    const phrasesDeLEtape = useMemo(
+        () => ({
+            configuration: workflowConfigurations,
+            etapes: nodes
+                .map((n) => ({ id: n.id, nom: (n.data as { name?: unknown } | undefined)?.name }))
+                .filter((e): e is { id: string; nom: string } => typeof e.nom === 'string' && e.nom.trim() !== ''),
+            outilsUuids: [
+                ...new Set(
+                    nodes.flatMap((n) => {
+                        const uuids = (n.data as { tool_uuids?: unknown } | undefined)?.tool_uuids;
+                        return Array.isArray(uuids) ? uuids.filter((u): u is string => typeof u === 'string') : [];
+                    }),
+                ),
+            ],
+            peutGroupe: estPrincipal,
+            enregistrer: async (regles: ReglePhrase[]) => {
+                if (!workflowConfigurations) throw new Error('Workflow configurations not loaded');
+                await saveWorkflowConfigurations({ ...workflowConfigurations, phrases_regles: regles }, workflowName);
+            },
+        }),
+        [workflowConfigurations, nodes, estPrincipal, saveWorkflowConfigurations, workflowName],
+    );
     const workflowContextValue = useMemo(() => ({
         saveWorkflow: guardedSaveWorkflow,
         documents,
@@ -594,6 +617,7 @@ function RenderWorkflow({
         estPrincipal,
         travailActif,
         ajouterOutil,
+        phrasesDeLEtape,
     }), [
         guardedSaveWorkflow,
         documents,
@@ -607,6 +631,7 @@ function RenderWorkflow({
         estPrincipal,
         travailActif,
         ajouterOutil,
+        phrasesDeLEtape,
     ]);
 
     return (

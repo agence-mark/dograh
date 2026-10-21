@@ -33,6 +33,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, replace
+from functools import lru_cache
 from typing import Mapping, Sequence
 
 from api.services.communes.base import (
@@ -98,6 +99,9 @@ PHON_SURE = 85
 PHON_EXACT = 90
 # First words too common to name a town on their own.
 PREFIXES_GENERIQUES = frozenset({"saint", "sainte", "le", "la", "les", "l", "pont", "mont", "val", "villers", "ville"})
+# Chantier correctifs-apres-banc-v4 (C2, C5): a name WRITTEN as the words heard,
+# same value as ``ORTHO_NOM_A_NOMBRE`` of the number reader.
+ORTHO_NOM_ECRIT = 90
 # A town of a department the caller said ("dans l'Oise").
 BONUS_DEPARTEMENT = 15
 # V5 (plan voix-et-communes), measured by sweep on 2026-09-17: the pronounced
@@ -234,8 +238,13 @@ def _lettres_epelees(mots: list[str]) -> set[int]:
     return positions
 
 
-def _segments(texte: str, mots: list[str], spans_cp, mots_cp: set[int], avec_lecteur: bool):
-    """The readings of a sentence a town may hide in: (start, length, words, after an amorce)."""
+def _segments(texte: str, mots: list[str], spans_cp, mots_cp: set[int], avec_lecteur: bool,
+              apres_rue: bool = False):
+    """The readings of a sentence a town may hide in: (start, length, words, after an amorce).
+
+    ``apres_rue`` (C4): also the readings that end the sentence after a street,
+    each tuple then carrying a fifth element, the rank of that street's type
+    (None for an ordinary reading)."""
     joints = _joints(texte, mots)
     tirets = _joints(texte, mots, "-")
     # B3 (chantier fiabilite-fiche-et-renvoi, run 935) : les lettres d'une épellation
@@ -250,7 +259,39 @@ def _segments(texte: str, mots: list[str], spans_cp, mots_cp: set[int], avec_lec
         # A name right after a street type is a street name, not a town.
         avant = mots[max(0, i - 3):i]
         voies = [k for k, m in enumerate(avant) if m in TYPES_VOIE]
-        if voies and not any(m in AMORCES for m in avant[voies[-1]:]):
+        # Chantier correctifs-apres-banc-v4, C1 (question n° 383) : un code
+        # postal entre le type de voie et ce mot clôt le nom de la rue. « 12
+        # avenue Foch, 60000 Beauvais » ne lisait pas Beauvais (le type était à
+        # trois mots), et le code partagé restait « à confirmer » entre Beauvais
+        # et Allonne. ⛔ Le code seulement : un nombre peut être dans un nom de
+        # rue (« rue du 8 Mai 1945 »), un code postal jamais.
+        apres_le_code = voies and any(
+            d <= k < f for d, f in spans_cp for k in range(i - len(avant) + voies[-1] + 1, i)
+        )
+        bloque = bool(
+            voies and not apres_le_code and not any(m in AMORCES for m in avant[voies[-1]:])
+        )
+        # C4 (question n° 209) : la commune dite juste après la rue, sans « à »
+        # ni code (« 5 rue du vieux moulin pont saint maxence »), n'était jamais
+        # lue : trop près du type, ou sans amorce. Une lecture qui FINIT la
+        # phrase, après un type de voie et au moins un mot de nom, est proposée
+        # quand même, marquée du rang de ce type : ``analyser`` ne la garde que
+        # si les mots entre le type et elle sont une rue SÛRE de cette commune
+        # (module des rues). Sinon elle disparaît : rien ne change.
+        # Même règle pour une lecture que seul le code postal qui la SUIT
+        # ancre : « 12 Rue du Général de Gaulle, 60180 Nogent-sur-Oise »
+        # proposait « Gaulle » comme Gauville, mot de la rue collé au code.
+        # La rue est « ouverte » : un type plus haut, ni amorce ni code entre.
+        rue = None
+        for k in range(i - 1, -1, -1):
+            if mots[k] in AMORCES or any(d <= k < f for d, f in spans_cp):
+                break
+            if mots[k] in TYPES_VOIE:
+                rue = k if k <= i - 2 else None
+                break
+        if not apres_rue:
+            rue = None
+        if bloque and rue is None:
             continue
         # T8 (plan voix-et-communes): the rest of a name that opens on a generic
         # prefix is not a town of its own. "Saint-Le-Destran" read "Le-Destran"
@@ -279,7 +320,21 @@ def _segments(texte: str, mots: list[str], spans_cp, mots_cp: set[int], avec_lec
                 or (reponse_courte and debut_utile)
                 or any(f == i or d == i + n for d, f in spans_cp)
             )
-            if not ancre:
+            ancre_propre = (
+                (i > 0 and mots[i - 1] in AMORCES)
+                or (reponse_courte and debut_utile)
+                or any(f == i for d, f in spans_cp)
+            )
+            a_valider = (
+                rue is not None
+                and not ancre_propre
+                and (i + n == len(mots) or any(d == i + n for d, f in spans_cp))
+            )
+            if a_valider:
+                ancre, bloque_ici = True, False
+            else:
+                bloque_ici = bloque
+            if bloque_ici or not ancre:
                 continue
             if any(m.isdigit() for m in seg) or any(m in TYPES_VOIE for m in seg):
                 continue
@@ -300,7 +355,67 @@ def _segments(texte: str, mots: list[str], spans_cp, mots_cp: set[int], avec_lec
             extrait = " ".join(seg)
             if len(extrait.replace(" ", "")) < 3:
                 continue
-            yield i, n, extrait, i > 0 and mots[i - 1] in AMORCES
+            amorce = i > 0 and mots[i - 1] in AMORCES
+            if apres_rue:
+                yield i, n, extrait, amorce, rue if a_valider else None
+            else:
+                yield i, n, extrait, amorce
+
+
+@lru_cache(maxsize=256)
+def _rue_de_la_commune(rue: str, insee: str, nom: str) -> bool:
+    """C4 : ``rue`` (« rue du vieux moulin ») est-elle une rue SÛRE de ``commune``
+    pour le module des rues ? Lecture locale de l'annuaire, comme le module des
+    rues en appel. ⛔ Tout échec (annuaire absent, département sans fichier)
+    vaut non : la lecture est alors écartée, comme avant le chantier."""
+    try:
+        from api.services.voies import base as base_voies
+        from api.services.voies.analyse import SURE as VOIE_SURE
+        from api.services.voies.analyse import analyser as analyser_voie
+
+        return analyser_voie(rue, base_voies.voies_de(insee), nom).statut == VOIE_SURE
+    except Exception:  # noqa: BLE001 -- une lecture de plus ne coûte jamais l'appel
+        return False
+
+
+def _une_commune_du_code_ressemble(base: BaseCommunes, cps: set[str], extrait: str) -> bool:
+    """C5 : une commune d'une des lectures du code ressemble-t-elle aux mots ?"""
+    from rapidfuzz import fuzz
+
+    son = cle_sonore(extrait)
+    return any(
+        max(fuzz.partial_ratio(son, base.sons[j]), fuzz.partial_ratio(extrait, base.norms[j])) >= SEUIL_PHON
+        for cp in cps
+        for j in base.par_cp.get(cp, [])
+    )
+
+
+# Revue m8 : l'index vit sur l'objet base lui-même (jamais sous ``id(base)``, réutilisable par une autre base).
+_ATTRIBUT_DES_FINS = "_fins_de_nom_par_departement"
+
+
+def _fins_de_nom(base: BaseCommunes, departements, extrait: str) -> list[int]:
+    """C3 : les communes des départements dits dont le nom, en plusieurs mots,
+    finit par ``extrait`` (« maxence » -> Pont-Sainte-Maxence). Index construit
+    une fois par département et par base."""
+    if not departements or extrait in PREFIXES_GENERIQUES or len(extrait.replace(" ", "")) < 4:
+        return []
+    trouvees: list[int] = []
+    par_departement = base.__dict__.setdefault(_ATTRIBUT_DES_FINS, {})
+    for dep in departements:
+        index = par_departement.get(dep)
+        if index is None:
+            index = {}
+            for j, commune in enumerate(base.communes):
+                if commune.dep != dep:
+                    continue
+                mots = base.norms[j].split()
+                for k in range(1, len(mots)):
+                    if mots[k] not in LIAISONS:
+                        index.setdefault(" ".join(mots[k:]), []).append(j)
+            par_departement[dep] = index
+        trouvees += index.get(extrait, [])
+    return trouvees
 
 
 def analyser(
@@ -360,12 +475,14 @@ def analyser(
         }
 
     attente = [
-        (i, n, extrait, amorce, cle_phonetique(extrait), cle_sonore(extrait))
-        for i, n, extrait, amorce in _segments(texte, mots, spans_cp, mots_cp, codes_postaux is not None)
+        (i, n, extrait, amorce, cle_phonetique(extrait), cle_sonore(extrait), rue)
+        for i, n, extrait, amorce, rue in _segments(
+            texte, mots, spans_cp, mots_cp, codes_postaux is not None, apres_rue=True
+        )
     ]
     attente = [a for a in attente if len(a[5]) >= 2]
 
-    fenetres: list[tuple[float, int, int, list[Lecture]]] = []
+    fenetres: list[tuple[float, int, int, list[Lecture], list[Lecture]]] = []
     if attente:
         import numpy as np
         from rapidfuzz import fuzz, process
@@ -397,7 +514,7 @@ def analyser(
             m_esp = np.where(m_esp > 0, np.clip(m_esp.astype(np.int16) - DECALAGE_ESP, 0, 100), 0).astype(np.uint8)
             m_max = m_max.copy()
             m_max[a_ecouter] = np.maximum(m_max[a_ecouter], m_esp)
-        for w, (i, n, extrait, amorce, k_phon, k_son) in enumerate(attente):
+        for w, (i, n, extrait, amorce, k_phon, k_son, rue) in enumerate(attente):
             ligne = m_max[w]
             trouves = np.nonzero(ligne)[0]
             if len(trouves) > 60:
@@ -411,6 +528,22 @@ def analyser(
                     s = max(fuzz.partial_ratio(k_son, base.sons[j]), fuzz.partial_ratio(extrait, base.norms[j]))
                     if s >= SEUIL_PHON:
                         idxs[j] = max(idxs.get(j, 0), s)
+            # Chantier correctifs-apres-banc-v4, C3 (question n° 225) : un
+            # département dit, ses communes dont le nom FINIT par les mots
+            # entendus sont comparées aussi, comme celles d'un code postal.
+            # « Maxence dans l'Oise » ne trouvait que Maxent (Ille-et-Vilaine) :
+            # Pont-Sainte-Maxence n'était jamais candidate. Mots entiers
+            # seulement, jamais un préfixe générique ; jamais sûre : son nom
+            # entendu reste à 0 (``phon_nom``), comme un nom partiel soutenu par
+            # un code postal (règle du 16/09 plus bas).
+            # ⛔ Zéro perte (filet des 687 phrases) : quand une commune est ÉCRITE
+            # comme les mots entendus (« Vers, dans le Lot »), ces communes ne
+            # passent pas devant ; elles restent en réserve pour C2 ci-dessous.
+            partielles = [j for j in _fins_de_nom(base, departements, extrait) if j not in idxs]
+            ecrite = any(fuzz.ratio(extrait, base.norms[j]) >= PHON_EXACT for j in idxs)
+            for j in partielles:
+                idxs[j] = 100.0
+            reserve = {base.communes[j].insee for j in partielles} if ecrite else set()
             lectures = []
             for j, s_phon in idxs.items():
                 c = base.communes[j]
@@ -450,6 +583,10 @@ def analyser(
             for l in sorted(lectures, key=lambda l: -l.score):
                 meilleures.setdefault(l.commune.insee, l)
             lectures = list(meilleures.values())
+            reservees = [l for l in lectures if l.commune.insee in reserve]
+            lectures = [l for l in lectures if l.commune.insee not in reserve]
+            if not lectures:
+                continue
             # V5, sounds and spelling together (Evan, 2026-09-17): a town that only
             # SOUNDS like the words never beats a town WRITTEN like them. "Angecourt"
             # sounds exactly like Angicourt, nearer the shop: Angecourt goes first,
@@ -460,7 +597,17 @@ def analyser(
                 if ecrites:
                     lectures.remove(ecrites[0])
                     lectures.insert(0, ecrites[0])
-            fenetres.append((lectures[0].score, i, i + n, lectures))
+            # C4 : une lecture après la rue ne vaut que si la rue est une rue SÛRE
+            # de la commune lue en tête.
+            # ⏱️ Seulement une lecture qui passerait le seuil de détection (plus bas) :
+            # le module des rues n'est interrogé que pour elle.
+            if rue is not None and (
+                lectures[0].score < SEUIL_DETECTION + POIDS_POP * math.log10(1000)
+                or not _rue_de_la_commune(" ".join(mots[rue:i]), lectures[0].commune.insee,
+                                          lectures[0].commune.nom)
+            ):
+                continue
+            fenetres.append((lectures[0].score, i, i + n, lectures, reservees))
 
     # Readings that do not overlap, best first. An exact reading over several
     # words goes before the pieces it contains ("Clermont Ferrand" before
@@ -470,7 +617,7 @@ def analyser(
     exactes.sort(key=lambda f: (-(f[2] - f[1]), -f[0]))
     fenetres = exactes + [f for f in fenetres if f not in exactes]
     prises: list[Detection] = []
-    for score, d, f, lectures in fenetres:
+    for score, d, f, lectures, reservees in fenetres:
         # Threshold expressed for a town of 1,000 inhabitants.
         if score < SEUIL_DETECTION + POIDS_POP * math.log10(1000):
             continue
@@ -482,7 +629,45 @@ def analyser(
         # Decision of Evan, 2026-09-16: backed by a postal code, a town is sure
         # only when its name was heard almost exactly ("donc soixante mille cent
         # douze" made Maisoncelle-Saint-Pierre sure from the word "donc").
-        if sure and codes_postaux is not None and top.par_code and not top.nom_exact:
+        if sure and (codes_postaux is not None or departements) and top.par_code and not top.nom_exact:
+            sure = False
+        # Chantier correctifs-apres-banc-v4, C2 (question n° 225) : un
+        # département dit, que la commune sûre ne porte pas, alors qu'une commune
+        # de ce département porte ces mots en fin de nom : la première n'est plus
+        # sûre et la seconde est proposée juste après. « Longueau dans l'Oise »
+        # annonçait Longueau (Somme) sûre ; Saint-Martin-Longueau (Oise) vient
+        # en second, à confirmer.
+        # ⛔ Seulement avec une telle commune : sans elle, le filet des 687
+        # phrases perdait « Gisor dans l'Oise » (Gisors, Eure) et « Clairement
+        # Ferrand dans l'Oise », sûres en production.
+        # Elle passe derrière toute commune écrite comme les mots entendus (« Vers,
+        # dans le Lot » garde Vers en Haute-Savoie à son rang, filet des 687).
+        if sure and departements and top.commune.dep not in departements and reservees:
+            sure = False
+            place = 1 + max(
+                (k for k, l in enumerate(lectures[:3]) if l.ortho >= ORTHO_NOM_ECRIT), default=0
+            )
+            lectures = [*lectures[:place], *reservees, *lectures[place:]]
+        # C5 (question n° 282) : un code postal dit dans le message, dont AUCUNE
+        # lecture n'est un code de la commune, alors qu'une commune de ce code
+        # ressemble aux mots entendus (même test que les communes d'un code, plus
+        # haut) : la commune n'est pas sûre. « soixante cinq cent cinquante
+        # vernayon à la » annonçait Vernon (Eure) sûre ; le code 60550 est celui
+        # de Verneuil-en-Halatte, qui ressemble à « vernayon » (83).
+        # ⛔ Un nom ÉCRIT comme entendu n'est pas touché par cette règle (même
+        # principe que ``_ville_par_code`` du number reader : un nom épelé tel
+        # quel ne se laisse pas déplacer par un code mal entendu) ; l'orthographe,
+        # pas le son (Vernon sonne à 90 et plus).
+        # ⛔ Sans commune du code qui ressemble, rien ne change : « Vers néanalate,
+        # soixante mille cinq cent soixante » reste Verneuil-en-Halatte sûre
+        # (filet des 687 phrases).
+        if (
+            sure
+            and cps
+            and not set(top.commune.cps) & cps
+            and top.ortho < ORTHO_NOM_ECRIT
+            and _une_commune_du_code_ressemble(base, cps, " ".join(mots[d:f]))
+        ):
             sure = False
         # B1 (chantier fiabilite-fiche-et-renvoi, run 935, D1 d'Evan du 01/10) : un nom
         # exact n'est plus sûr quand une autre commune, PLUS PROCHE de l'établissement,

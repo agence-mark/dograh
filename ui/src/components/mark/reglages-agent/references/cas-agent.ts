@@ -314,16 +314,23 @@ export const CAS_AGENT: CasAgent[] = [
     ], false, PRINCIPAL),
     // fiabilite-orchestration, lot 4 bis (F17): the bridge phrase and the sentence before a call transfer
     // moved to the theme Phrases, as rules (`phrases_regles`).
+    // correctifs-apres-banc-v4, lot 5: the theme Phrases redone (a card per rule, « Add a sentence » in two steps).
     c("phrases-groupe", "ajout-mark", "phrases", ["phrases_regles"], [
-        { type: "cliquer", nom: "Add a rule : The handover takes time" },
-        saisir("phrase_0_variante_0", "Un instant."),
-        saisir("phrase_0_delai", "3"),
+        { type: "cliquer", nom: "Add a sentence" },
+        { type: "cliquer", nom: "A colleague takes over" },
+        choisir("phrase_endroit", "groupe"),
+        saisir("phrase_variante_0", "Un instant."),
+        saisir("phrase_delai", "3"),
+        { type: "cliquer", nom: "Add" },
     ], false, PRINCIPAL),
     c("phrases-agent", "ajout-mark", "phrases", ["phrases_regles"], [
-        { type: "cliquer", nom: "Add a rule : The caller is silent" },
-        saisir("phrase_0_variante_1", ""),
-        inter("phrase_0_active"),
+        { type: "cliquer", nom: "Add a sentence" },
+        { type: "cliquer", nom: "The caller is silent" },
+        saisir("phrase_variante_1", ""),
+        inter("phrase_active"),
+        { type: "cliquer", nom: "Add" },
     ]),
+    c("phrases-pause", "ajout-mark", "phrases", ["phrases_repos_s"], [saisir("phrases_repos_s", "5")]),
     c("cerveau-propre", "ajout-mark", "briques", ["cerveau_propre"], [inter("cerveau_propre")], true, SPECIALISE),
 
     // ---- Model Overrides (Dograh + .mark) ---------------------------------

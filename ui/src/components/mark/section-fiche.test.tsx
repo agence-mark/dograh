@@ -178,6 +178,37 @@ describe("[.mark] Call Record card", () => {
         expect(commune.rempli_en_fin_d_appel ?? true).toBe(true);
     });
 
+    it("declares a field required without exception (correctifs-apres-banc-v4, 6.3) and carries it out on save", async () => {
+        const onSave = ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: CHAMPS });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        const obligatoire = document.getElementById("fiche_obligatoire_0") as HTMLElement;
+        expect(obligatoire.getAttribute("aria-checked")).toBe("false");
+        expect(within(dialogue).getAllByText(/required, no exception/i).length).toBeGreaterThan(0);
+        fireEvent.click(obligatoire);
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        fireEvent.click(boutonEnregistrer());
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        const [nom, commune] = onSave.mock.calls[0][0].fiche_champs;
+        expect(nom.obligatoire_sans_exception).toBe(true);
+        expect(commune.obligatoire_sans_exception ?? false).toBe(false);
+        const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
+        expect(schema).toContain("obligatoire_sans_exception: bool = Field(");
+    });
+
+    it("keeps the required-without-exception box of a saved field through a round trip", async () => {
+        const [premier, ...reste] = CHAMPS;
+        const onSave = ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: [{ ...premier, obligatoire_sans_exception: true }, ...reste] });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        expect(document.getElementById("fiche_obligatoire_0")?.getAttribute("aria-checked")).toBe("true");
+        fireEvent.change(document.getElementById("fiche_description_0") as HTMLInputElement, { target: { value: "Autre description" } });
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        fireEvent.click(boutonEnregistrer());
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        expect(onSave.mock.calls[0][0].fiche_champs[0]).toMatchObject({ description: "Autre description", obligatoire_sans_exception: true });
+    });
+
     it("names the tool that fills a field (fiabilite-orchestration, G2) and carries it out on save", async () => {
         const onSave = ouvrir({ fiche_au_fil_de_leau: true, fiche_champs: CHAMPS });
         ouvrirLesChamps();

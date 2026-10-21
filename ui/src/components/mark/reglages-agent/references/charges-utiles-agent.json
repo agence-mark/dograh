@@ -1815,7 +1815,20 @@
                   "Un instant."
                 ],
                 "delai_s": 3,
-                "active": true
+                "active": true,
+                "ensuite": {
+                  "phrases": [],
+                  "noter": null,
+                  "action": null,
+                  "destination": null
+                },
+                "etape_id": null,
+                "outils": [],
+                "ordre": "tournees",
+                "redite_s": null,
+                "max_par_attente": null,
+                "max_par_appel": null,
+                "texte_de_l_agent": false
               }
             ]
           },
@@ -1840,7 +1853,20 @@
                   "Êtes-vous toujours là ?"
                 ],
                 "delai_s": 10,
-                "active": false
+                "active": false,
+                "ensuite": {
+                  "phrases": [],
+                  "noter": null,
+                  "action": null,
+                  "destination": null
+                },
+                "etape_id": null,
+                "outils": [],
+                "ordre": "tournees",
+                "redite_s": null,
+                "max_par_attente": null,
+                "max_par_appel": null,
+                "texte_de_l_agent": false
               }
             ]
           },
@@ -1968,6 +1994,20 @@
               "provider": "mistral",
               "model": "mistral-small-2603"
             }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "phrases-pause": {
+      "carte": "ajout-mark",
+      "theme": "phrases",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "phrases_repos_s": 5
           },
           "retirees": []
         }

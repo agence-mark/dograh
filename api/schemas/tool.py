@@ -140,6 +140,29 @@ class HttpApiConfig(BaseModel):
         ge=1,
         description="Request timeout in milliseconds.",
     )
+    # [.mark] correctifs-apres-banc-v4, lot 3 : les essais. Défaut 0 = une seule requête, comme avant.
+    essais: int = Field(
+        default=0,
+        ge=0,
+        le=2,
+        description=(
+            "Extra attempts (0 to 2) when the service does not answer or is down. 0: a single request."
+        ),
+    )
+    attente_entre_essais_s: float = Field(
+        default=1.0,
+        ge=0,
+        le=30,
+        description="Seconds to wait between two attempts.",
+    )
+    sans_risque_de_doublon: bool = Field(
+        default=False,
+        description=(
+            "The tool can be called again without risk of a duplicate (a lookup, a search). Off: "
+            "it is called again only when the request never left (connection refused, unknown host); "
+            "a timeout or a 5xx answer is then not retried. A 4xx answer is never retried."
+        ),
+    )
     customMessage: str | None = Field(
         default=None,
         description=(

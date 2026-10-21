@@ -261,6 +261,10 @@ export const TravailEnArrierePlan = ({
                                 en: "Past this duration, the work is dropped and the agent is told it did not finish.",
                                 fr: "Au-delà de cette durée, le travail est abandonné et l'agent est prévenu qu'il n'a pas abouti.",
                             },
+                            {
+                                en: "The sentences said while the work runs are set in the Phrases theme (« The background work is working »); the failure, in « The background work fails ».",
+                                fr: "Les phrases dites pendant le travail se règlent dans le thème Phrases (« Le travail de fond travaille ») ; l'échec, dans « Le travail de fond échoue ».",
+                            },
                         ]}
                     >
                         <div className="flex items-center gap-2">

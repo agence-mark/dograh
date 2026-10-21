@@ -79,6 +79,19 @@ def _liste(noms: Iterable[Any]) -> str:
     return ", ".join(n for n in (nom_lisible(x) for x in noms) if n)
 
 
+def _traite(champ: Any, valeur: Any) -> bool:
+    """Le champ est-il traité pour une étape ? Rempli, ou refusé par la personne (lot 2 de
+    correctifs-apres-banc-v4, 6.3 : un refus n'est pas redemandé), sauf un champ déclaré
+    « obligatoire sans exception », qui refusé reste manquant."""
+    if _vide(valeur):
+        return False
+    if getattr(champ, "obligatoire_sans_exception", False):
+        from api.services.workflow.fiche_au_fil_de_leau import VALEUR_DE_REFUS
+
+        return not (isinstance(valeur, str) and valeur.strip().casefold() == VALEUR_DE_REFUS)
+    return True
+
+
 def noms_des_champs_remplis(reglages: Any, gathered: Mapping[str, Any] | None) -> list[str]:
     """Les noms des champs de la fiche que la vue à plat montre remplis, dans l'ordre de la fiche.
     Jamais la valeur. Sans fiche : rien."""
@@ -108,7 +121,8 @@ def ligne_deja_connu(
         de_l_etape = [n for n in champs_etape if n in connus]
         lus = set(deja_lus or ())
         base = de_l_etape or [c.nom for c in champs]
-        noms = [n for n in base if not _vide((gathered or {}).get(n)) or n in lus]
+        par_nom = {c.nom: c for c in champs}
+        noms = [n for n in base if _traite(par_nom.get(n), (gathered or {}).get(n)) or n in lus]
         return f"{LIBELLE_CONNU}{_liste(noms)}." if noms else None
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[notes] ligne « déjà connu » illisible : {erreur!r}")
@@ -123,7 +137,8 @@ def champs_attendus(
 ) -> list[str]:
     """fiabilite-orchestration, lot 2 (F9) : les champs de la liste de l'étape encore vides, dans
     son ordre. Un champ rempli par un outil n'est jamais « attendu » de l'appelant. Ce qu'un module a
-    lu au tour même compte comme obtenu. Sans liste : rien. ⛔ Ne lève jamais."""
+    lu au tour même compte comme obtenu. Un champ refusé par la personne est traité (6.3), sauf s'il est
+    « obligatoire sans exception ». Sans liste : rien. ⛔ Ne lève jamais."""
     try:
         champs = {c.nom: c for c in tuple(getattr(reglages, "champs", None) or ())}
         lus = set(deja_lus or ())
@@ -132,7 +147,7 @@ def champs_attendus(
             for n in champs_etape
             if n in champs
             and not getattr(champs[n], "rempli_par_outil", None)
-            and _vide((gathered or {}).get(n))
+            and not _traite(champs[n], (gathered or {}).get(n))
             and n not in lus
         ]
     except Exception as erreur:  # noqa: BLE001

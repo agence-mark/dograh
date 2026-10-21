@@ -172,7 +172,8 @@ def test_le_schema_est_genere_depuis_les_champs_de_la_fiche():
     assert schema["required"] == ["champ_a", "champ_b", "champ_c", "champ_d", "champ_e", "champ_f"]
     p = schema["properties"]
     assert p["champ_a"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
-    assert p["champ_b"] == {"anyOf": [{"type": "string", "enum": ["x", "y"]}, {"type": "null"}]}
+    # K4 révisé (21/10) : le refus de la personne fait partie de la liste fermée.
+    assert p["champ_b"] == {"anyOf": [{"type": "string", "enum": ["x", "y", "refusé"]}, {"type": "null"}]}
     assert p["champ_c"]["anyOf"][0] == {"type": "number"}
     assert p["champ_d"]["anyOf"][0] == {"type": "boolean"}
     # Un champ cumulatif s'écrit « p ; q » : jamais une énumération.

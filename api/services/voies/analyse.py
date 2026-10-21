@@ -34,6 +34,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 import numpy as np
 from api.services.communes.analyse import MOTS_FACTURATION
@@ -62,6 +63,11 @@ SEUIL_PROPOSITION = 72.0
 BONUS_TYPE = 3.0
 # What each word left out by a window costs.
 PENALITE_MOT = 15.0
+# Chantier correctifs-apres-banc-v4, 6.2: a sure street must ALSO resemble the
+# words through something other than the ``phonetic_fr`` key (spelling, home
+# sound key, pronounced sounds). Measured 2026-10-21: the false sure had 60, the
+# weakest right sure of both corpora 80. Same value as ``SEUIL_PROPOSITION``.
+SEUIL_HORS_PHONETIQUE = 72.0
 # At most this many proposals in a note, like the town check.
 PROPOSITIONS_MAXIMUM = 3
 
@@ -200,6 +206,7 @@ def _fenetres(
     commune: str | None,
     autres_communes: tuple[str, ...] = (),
     est_une_commune: Callable[[str], bool] | None = None,
+    noms_des_voies: tuple[str, ...] = (),
 ) -> tuple[list[tuple[str, int]], str | None, bool]:
     """The passages to compare — each with the length of the reading it comes
     from — the street type said, and whether the sentence is ANCHORED.
@@ -241,6 +248,38 @@ def _fenetres(
         )
         place = paire + 2 if paire is not None else None
     type_dit = masques[place - 1] if place else None
+    # Chantier correctifs-apres-banc-v4, R3 (question n° 385) : un mot de type À
+    # L'INTÉRIEUR d'un nom officiel n'ancre pas la fenêtre sur la suite du nom.
+    # « du Vieux Chemin de Meaux », dit sans son « rue », s'ancrait sur
+    # « chemin » : il ne restait que « de Meaux », annoncé SÛR comme « Rue de
+    # Meaux » (Senlis, rejeu du 21/10). Quand les mots collés devant le type
+    # forment avec lui un morceau du nom d'une voie de la commune (« vieux
+    # chemin »), la fenêtre commence à ces mots, et ce type ne compte plus comme
+    # type dit. ⛔ Seulement si la commune a une telle voie : ailleurs, rien ne
+    # change (« au bout de la rue Victor Hugo » garde sa fenêtre).
+    # ⛔ Pas sur la paire « lieu dit », qui n'est pas un type pris dans un nom.
+    if place is not None and noms_des_voies and ancre_sur(masques[place - 1]):
+        devant: list[str] = []
+        for mot in reversed(masques[: place - 1]):
+            if (
+                not mot
+                or mot.isdigit()
+                or mot in MOTS_OUTILS
+                or mot in ARTICLES
+                or mot in MARQUEURS_DE_LIEU
+                or est_type(mot)
+                or len(devant) == 3
+            ):
+                break
+            devant.insert(0, mot)
+        for combien in range(len(devant), 0, -1):
+            # ⛔ Mots entiers du nom écrit, jamais un bout de clé sonore : « l'y
+            # en cours » trouvait « ankour » dans « Guyencourt ».
+            morceau = f" {' '.join([*devant[-combien:], masques[place - 1]])} "
+            if any(morceau in nom for nom in noms_des_voies):
+                place -= combien + 1
+                type_dit = None
+                break
     # ⛔ Un montant n'est pas une adresse : « 3500 **euros** » s'ancrait sur son
     # nombre et proposait « Avenue de l'Europe » (contre-relecture n° 5). La
     # liste des mots de facturation est celle que la vérification des communes
@@ -343,6 +382,79 @@ def _fenetres(
     return list(fenetres.items()), type_dit, ancre
 
 
+@lru_cache(maxsize=64)
+def _noms_normalises(noms: tuple[str, ...]) -> tuple[str, ...]:
+    """Les noms des voies d'une commune, normalisés et bordés d'espaces, pour y
+    chercher des mots entiers (R3). Calculés une fois par commune."""
+    return tuple(f" {normaliser(nom)} " for nom in noms)
+
+
+def _racine_du_type(type_dit: str) -> str:
+    """« rues » -> « rue » : la racine comparée aux types des voies."""
+    return type_dit[:-1] if type_dit.endswith("s") and type_dit[:-1] in TYPES else type_dit
+
+
+def _du_type(type_voie: str, type_dit: str) -> bool:
+    """Le type d'une voie est-il celui que l'appelant a dit ? Même règle que le
+    bonus de type (trois premières lettres : « av » et « avenue »)."""
+    return type_voie.startswith(_racine_du_type(type_dit)[:3])
+
+
+def _homonyme_tranche_par_le_type(
+    voies: VoiesCommune, scores: np.ndarray, nom: str, type_dit: str
+) -> bool:
+    """Chantier correctifs-apres-banc-v4, R1 (question n° 384) : deux voies du
+    même nom, de types différents (« Rue de la Préfecture » et « Place de la
+    Préfecture »), se tiennent à moins de ``ECART_SURE`` : le bonus de type ne
+    suffit pas à les séparer, et « 12 rue de la Préfecture », dit exact, restait
+    « à confirmer » (12 rues sur 84 au rejeu du 21/10).
+
+    Sûre seulement si TOUTES les voies au contact de la première portent le même
+    nom qu'elle (son type mis à part) et si le type dit désigne une seule
+    d'entre elles, la première. ⛔ Type absent, faux, ou désignant deux voies :
+    « à confirmer » comme avant. ⛔ Une voie d'un autre nom au contact : idem."""
+    cle = sans_type(normaliser(nom))
+    premiere = scores.max()
+    proches = [int(rang) for rang in np.nonzero(scores > premiere - ECART_SURE)[0]]
+    if len(proches) < 2 or any(sans_type(normaliser(voies.noms[r])) != cle for r in proches):
+        return False
+    du_type = [r for r in proches if _du_type(voies.types[r], type_dit)]
+    return len(du_type) == 1 and voies.noms[du_type[0]] == nom
+
+
+def _ressemble_hors_cle_phonetique(
+    voies: VoiesCommune,
+    fenetres: list[str],
+    matrice: np.ndarray,
+    sans_phonetique: np.ndarray,
+    nom: str,
+) -> bool:
+    """Chantier correctifs-apres-banc-v4, 6.2 (question n° 381) : la clé
+    ``phonetic_fr`` seule ne fait pas une voie sûre.
+
+    Elle est trop grossière sur les noms courts : « chênes » et « champs »
+    rendent tous deux « CHAN ». « allée des Chênes », qui n'existe pas à Creil,
+    sortait SÛRE comme « Rue des Champs » : écrit 50, clé sonore 60, sons 40,
+    clé phonétique 100 (rejeu du 21/10). Une sûre doit AUSSI ressembler par
+    une autre voie : l'écriture, la clé sonore maison ou les sons prononcés,
+    au moins ``SEUIL_HORS_PHONETIQUE``. Sinon elle reste « à confirmer » :
+    l'agent relit la rue au lieu de l'écrire.
+
+    ⚠️ Pas l'écriture seule : sur les 153 sûres justes des deux corpus, 8 sont
+    sous 72 à l'écrit (« mont roy » pour Maurois : écrit 40, clé sonore 91) et
+    toutes passent par la clé sonore ou les sons (plus faible des sûres justes :
+    80). La fausse sûre en avait 60. Aucune sûre juste perdue (rejeu du 21/10).
+
+    ``sans_phonetique`` : la matrice fenêtres x voies de la clé sonore et des
+    sons, pénalité comprise, sans la clé phonétique. Sur la meilleure fenêtre
+    de CES clés, pas sur celle qui a gagné au total : « 6 rue Danton, d a n t
+    o n » gagne par sa fenêtre longue, que l'écriture seule ne reconnaît plus."""
+    rang = voies.noms.index(nom)
+    fenetre = fenetres[int(matrice[:, rang].argmax())]
+    ecrit = fuzz.ratio(fenetre, sans_type(normaliser(nom)))
+    return max(ecrit, float(sans_phonetique[:, rang].max())) >= SEUIL_HORS_PHONETIQUE
+
+
 def analyser(
     texte: str,
     voies: VoiesCommune,
@@ -359,7 +471,7 @@ def analyser(
     caller passes the national list it already holds.
     """
     lues, type_dit, ancre = _fenetres(
-        normaliser(texte), commune, autres_communes, est_une_commune
+        normaliser(texte), commune, autres_communes, est_une_commune, _noms_normalises(voies.noms)
     )
     if not len(voies) or not lues:
         return Detection(INTROUVABLE, "")
@@ -379,6 +491,8 @@ def analyser(
         return brute - penalites
 
     matrice = matrice_de([cle_sonore(f) for f in fenetres], voies.cles_sonores)
+    # 6.2 : ce que disent les clés autres que ``phonetic_fr`` (voir plus bas).
+    sans_phonetique = matrice
     matrice = np.maximum(matrice, matrice_de([cle_phonetique(f) for f in fenetres], voies.cles_phonetiques))
 
     par_son = False
@@ -388,6 +502,7 @@ def analyser(
             par_les_sons = matrice_de([simplifier(p) for p in prononces], voies.sons)
             par_son = bool(par_les_sons.max() > matrice.max())
             matrice = np.maximum(matrice, par_les_sons)
+            sans_phonetique = np.maximum(sans_phonetique, par_les_sons)
 
     scores = matrice.max(axis=0)
 
@@ -441,6 +556,12 @@ def analyser(
         and premiere.score >= SEUIL_SURE
         and premiere.score - suivante >= ECART_SURE
     )
+    if premiere is not None and not sure and type_dit and premiere.score >= SEUIL_SURE:
+        sure = _homonyme_tranche_par_le_type(voies, scores, premiere.nom, type_dit)
+    if sure and premiere is not None:
+        sure = _ressemble_hors_cle_phonetique(
+            voies, fenetres, matrice, sans_phonetique, premiere.nom
+        )
 
     # 🔴 Nothing is said about a sentence that is not anchored on an address.
     # NO exception — not even for a sure verdict. A first version spared the

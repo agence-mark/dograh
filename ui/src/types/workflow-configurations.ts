@@ -256,6 +256,9 @@ export interface ChampFiche {
     // [.mark] fiabilite-orchestration, lot 1 (G2): the tool whose result writes this field; never
     // the model, the clerk or the end-of-call pass. Empty (null or absent): off.
     rempli_par_outil?: string | null;
+    // [.mark] correctifs-apres-banc-v4, lot 2 (6.3): a refusal by the caller does not count as an
+    // answer, the field stays missing for the step's guard. Absent: false. The screen box comes at lot 5.
+    obligatoire_sans_exception?: boolean;
 }
 
 /**
@@ -305,12 +308,35 @@ export type ApresAppelAgent = {
  * ``son``: absent = the default ringer, ``"aucun"`` = no sound, an object = a file dropped on the agent.
  */
 /** [.mark] One rule of a sentence said by the code (theme Phrases), as ``api/schemas/phrases_du_code.py``. */
+export interface NoteDeSortie {
+    champ: string;
+    valeur: string;
+}
+
+/** [.mark] « Ensuite » (correctifs-apres-banc-v4, lot 4): say, note in the record, then a final action. */
+export interface SortiePhrase {
+    phrases?: string[];
+    noter?: NoteDeSortie | null;
+    action?: "continuer" | "modele" | "transferer" | "raccrocher" | null;
+    destination?: string | null;
+}
+
 export interface ReglePhrase {
     motif: string;
     portee?: "groupe" | "agent" | "etape";
     etape?: string | null;
+    /** The step's node identifier: renaming the step keeps its rules (lot 4). */
+    etape_id?: string | null;
+    /** The tools a tool cause aims at; empty: all. */
+    outils?: string[];
     variantes?: string[];
+    ordre?: "tournees" | "dans_l_ordre";
     delai_s?: number | null;
+    redite_s?: number | null;
+    max_par_attente?: number | null;
+    max_par_appel?: number | null;
+    ensuite?: SortiePhrase;
+    texte_de_l_agent?: boolean;
     active?: boolean;
 }
 
@@ -437,6 +463,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     travail_llm_repli?: GreffierLlm | null;
     // [.mark] fiabilite-orchestration, lot 4 bis (F15, F17, F18, F23): the rules of the sentences said by the code.
     phrases_regles?: ReglePhrase[] | null;
+    // [.mark] correctifs-apres-banc-v4, lot 4 (4.6): the one common setting of the theme Phrases.
+    phrases_repos_s?: number | null;
     fiche_champs?: ChampFiche[];
     // [.mark] Chantier correctifs-modules, lot 4 bis: write the flow map into the
     // prompts at every save. Off by default: the save is unchanged.

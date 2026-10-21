@@ -56,9 +56,17 @@ def textes_a_fabriquer(reglages_des_agents: Iterable[dict | None], reglages_prin
             )
             if phrase is not None and phrase.dite:
                 garder(phrase.variantes)
+        # Toutes les règles allumées de l'agent (d'une étape, d'un outil, « dans l'ordre » : chaque
+        # variante) et leurs phrases de sortie (« Ensuite »), toutes sans variable fabriquées au décroché.
         for regle in regles_de(reglages):
-            if regle.active and regle.portee == "etape":
+            if regle.active:
                 garder(regle.variantes)
+                garder(regle.ensuite.phrases)
+        # Les règles « groupe » du principal valent pour les spécialisés : leurs phrases aussi.
+        for regle in regles_de(reglages_principal):
+            if regle.active and regle.portee == "groupe":
+                garder(regle.variantes)
+                garder(regle.ensuite.phrases)
     return textes[:MAX_PHRASES]
 
 

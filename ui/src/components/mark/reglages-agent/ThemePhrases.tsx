@@ -1,209 +1,167 @@
 "use client";
 
 /**
- * [.mark] Theme « Phrases » (chantier fiabilite-orchestration, lot 4 bis: F15, F17, F18, F23 to F25).
+ * [.mark] Theme « Phrases » (chantier fiabilite-orchestration, lot 4 bis ; REFAIT au lot 5 de correctifs-apres-banc-v4,
+ * maquette retenue par Evan sur la branche `maquette/phrases-du-code`).
  *
- * Every sentence the CODE says by itself, without the model, comes from a cause the code can detect
- * (`phrases/catalogue-des-phrases.json`, the copy of `api/services/phrases/catalogue.py`, kept equal by
- * `test_phrases_ecran.py`). A rule = a cause + a place (the whole group, set on the main agent; this
- * agent; one step of this agent) + one to three sentences + a delay when the cause has one + on/off.
- * The call takes the step's rule, else the agent's, else the main agent's group rule, else the default.
+ * Tout ce que le CODE dit de lui-même, sans le modèle, vient d'une règle (`phrases_regles`, `ReglePhrase`) : un motif
+ * que le code sait détecter (`phrases/catalogue-des-phrases.json`, copie de `api/services/phrases/catalogue.py`,
+ * gardée égale par un test), un endroit (tout le groupe, cet agent, une étape), une à trois phrases, un délai, des
+ * redites, un plafond, une sortie. L'appel prend la règle de l'étape, sinon de l'agent, sinon du groupe, sinon le défaut.
  *
- * Taken over (F17): the bridge phrase (`attente.phrase_pont`, its delay) and the sentence before a call
- * transfer (`transfert_humain.phrase_mise_en_relation`), set before this theme existed, show here as group
- * rules; the first save of the theme writes them as rules and removes the old keys (values kept).
+ * L'écran : une notice, des filtres par moment avec compteurs, la pause minimale (`phrases_repos_s`), UNE CARTE PAR
+ * RÈGLE (interrupteur, origine, dernière fois dite) qui ouvre sa modale, « Ajouter une phrase » en deux étapes, et,
+ * sur le principal d'un groupe, la vue du groupe (motif × agent). Un spécialisé voit en lecture les règles du groupe
+ * héritées et choisit : « Remplacer dans cet agent » ou « Modifier sur le principal ».
+ *
+ * Reprise (F17) : la phrase pont (`attente.phrase_pont`, son délai) et la phrase avant un transfert
+ * (`transfert_humain.phrase_mise_en_relation`), réglées avant ce thème, s'y montrent comme règles du groupe ; le
+ * premier enregistrement les écrit comme règles et retire les anciennes clés (valeurs gardées).
  */
-import { MessageSquareText, Plus, Trash2 } from "lucide-react";
+import { MessageSquareText, Plus } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ReglePhrase, WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { ChampReglage } from "../ecran/ChampReglage";
-import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { useGroupe } from "../groupe/contexte-groupe";
 import { DELAI_PHRASE_PONT_DEFAUT_S } from "../groupe/reglages-groupe";
 import { type Texte, useLangue } from "../langue/langue";
-import { CarteDesPhrases } from "./CarteDesPhrases";
 import { useEnregistrementTheme } from "./enregistrement";
-import CATALOGUE from "./phrases/catalogue-des-phrases.json";
+import { CartePhrase } from "./phrases/CartePhrase";
+import { type Dernier, useCarte } from "./phrases/donnees";
+import { useEnvironnementPhrases } from "./phrases/environnement";
+import { type LigneDeListe,lignesDeLaListe } from "./phrases/liste";
+import { ModaleAjout } from "./phrases/ModaleAjout";
+import { ModaleRegle } from "./phrases/ModaleRegle";
+import {
+    ALIAS_DE_MOTIFS,
+    BORNES_PHRASES,
+    chargeRegle,
+    cleDeRegle,
+    type Endroit,
+    erreursDesPhrases as erreursDesRegles,
+    type EtapeGraphe,
+    type Moment,
+    MOMENTS,
+    MOTIF_MISE_EN_RELATION,
+    MOTIF_PASSATION,
+    MOTIFS_DE_PHRASES,
+    nomDeLEtape,
+    normaliserRegle,
+    REPOS_DEFAUT_S,
+} from "./phrases/modele";
+import { NoticePhrases } from "./phrases/NoticePhrases";
+import { PhrasesEnLecture } from "./phrases/PhrasesEnLecture";
+import { VueDuGroupe } from "./phrases/VueDuGroupe";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEtatTheme, useRevelation } from "./theme-commun";
+
+export { BORNES_PHRASES, MOTIFS_DE_PHRASES };
+export type { MotifDePhrase } from "./phrases/modele";
 
 export const ID_THEME_PHRASES = "phrases";
 export const TITRE_PHRASES = { en: "Phrases", fr: "Phrases" };
 
-export interface MotifDePhrase {
-    id: string;
-    famille: "attente" | "annonce";
-    libelle: Texte;
-    quand: Texte;
-    a_un_delai: boolean;
-    variantes_defaut: string[];
-    delai_defaut_s: number | null;
-    actif_par_defaut: boolean;
-    eteinte: Texte;
-    silence_de_l_appelant: boolean;
+/** Ce que le thème tient en brouillon : les règles et la pause minimale (saisie, vide = 3 s). */
+export interface BrouillonPhrases {
+    regles: ReglePhrase[];
+    repos: string;
 }
 
-export const MOTIFS_DE_PHRASES = CATALOGUE.motifs as MotifDePhrase[];
-export const BORNES_PHRASES = CATALOGUE.bornes;
-
-const MOTIF_PASSATION = "passation_tarde";
-const MOTIF_MISE_EN_RELATION = "mise_en_relation";
-
-/** One rule as the screen edits it: the place is one value (« groupe », « agent », « etape:<name> »). */
-interface RegleEcran {
-    motif: string;
-    endroit: string;
-    variantes: string[];
-    delai: string;
-    active: boolean;
-}
-
-const endroitDe = (r: ReglePhrase) => (r.portee === "etape" ? `etape:${r.etape ?? ""}` : (r.portee ?? "agent"));
-
-const versEcran = (r: ReglePhrase): RegleEcran => ({
-    motif: r.motif,
-    endroit: endroitDe(r),
-    variantes: [...(r.variantes ?? [])],
-    delai: r.delai_s === null || r.delai_s === undefined ? "" : String(r.delai_s),
-    active: r.active ?? true,
-});
-
-/** The rules of the configuration, plus the old sentences taken over as group rules (F17). */
-export const extrairePhrases = (c: Partial<WorkflowConfigurations>) => {
-    const regles = (c.phrases_regles ?? []).map(versEcran);
-    const aUneRegleDeGroupe = (motif: string) => regles.some((r) => r.motif === motif && r.endroit === "groupe");
+/** Les règles de la configuration, plus les anciennes phrases reprises comme règles de groupe (F17). */
+export const extrairePhrases = (c: Partial<WorkflowConfigurations>): BrouillonPhrases => {
+    const regles = (c.phrases_regles ?? []).map(normaliserRegle);
+    const aUneRegleDeGroupe = (motif: string) => regles.some((r) => r.motif === motif && r.portee === "groupe");
     const pont = c.attente?.phrase_pont?.trim() ?? "";
     if (pont !== "" && !aUneRegleDeGroupe(MOTIF_PASSATION)) {
-        regles.push({
-            motif: MOTIF_PASSATION,
-            endroit: "groupe",
-            variantes: [pont],
-            delai: String(c.attente?.delai_phrase_pont_s ?? DELAI_PHRASE_PONT_DEFAUT_S),
-            active: true,
-        });
+        regles.push(
+            normaliserRegle({
+                motif: MOTIF_PASSATION,
+                portee: "groupe",
+                variantes: [pont],
+                delai_s: c.attente?.delai_phrase_pont_s ?? DELAI_PHRASE_PONT_DEFAUT_S,
+                active: true,
+            }),
+        );
     }
     const relation = c.transfert_humain?.phrase_mise_en_relation?.trim() ?? "";
     if (relation !== "" && !aUneRegleDeGroupe(MOTIF_MISE_EN_RELATION)) {
-        regles.push({ motif: MOTIF_MISE_EN_RELATION, endroit: "groupe", variantes: [relation], delai: "", active: true });
+        regles.push(normaliserRegle({ motif: MOTIF_MISE_EN_RELATION, portee: "groupe", variantes: [relation], active: true }));
     }
-    return { regles };
+    return { regles, repos: c.phrases_repos_s === null || c.phrases_repos_s === undefined ? "" : String(c.phrases_repos_s) };
 };
 
-const motifDe = (id: string) => MOTIFS_DE_PHRASES.find((m) => m.id === id);
+/** Ce qui est enregistré : les règles, nettoyées, dans la forme du serveur (aucune clé perdue). */
+export const chargePhrases = (regles: ReglePhrase[], etapes: EtapeGraphe[] = []): ReglePhrase[] => regles.map((r) => chargeRegle(r, etapes));
 
-const nombre = (texte: string): number | null => {
-    if (texte.trim() === "") return null;
-    const n = Number(texte.replace(",", "."));
-    return Number.isFinite(n) ? n : NaN;
-};
-
-/** What is saved: the rules, cleaned, in the server's shape. */
-export const chargePhrases = (regles: RegleEcran[]): Array<ReglePhrase & { variantes: string[] }> =>
-    regles.map((r) => {
-        const motif = motifDe(r.motif);
-        const variantes = r.variantes.map((v) => v.trim().replace(/\s+/g, " ")).filter((v) => v !== "");
-        const etape = r.endroit.startsWith("etape:") ? r.endroit.slice("etape:".length) : null;
-        const delai = motif?.a_un_delai ? nombre(r.delai) : null;
-        return {
-            motif: r.motif,
-            portee: etape !== null ? "etape" : (r.endroit as "groupe" | "agent"),
-            etape,
-            variantes: [...new Set(variantes)],
-            delai_s: delai,
-            active: r.active,
-        };
-    });
-
-/** The named errors of the rules (F23: two rules of the same cause at the same place are refused). */
-export const erreursDesPhrases = (regles: RegleEcran[]): Array<{ cle: string; libelle: Texte; message: Texte }> => {
-    const erreurs: Array<{ cle: string; libelle: Texte; message: Texte }> = [];
-    const vues = new Set<string>();
-    if (regles.length > BORNES_PHRASES.regles_max) {
+/** Les erreurs nommées des règles ; la pause minimale en plus (1 à 10 s). */
+export const erreursDesPhrases = (regles: ReglePhrase[], etapes: EtapeGraphe[] = [], repos = "") => {
+    const erreurs = erreursDesRegles(regles, etapes);
+    const n = repos.trim() === "" ? null : Number(repos.replace(",", "."));
+    if (n !== null && (!Number.isFinite(n) || n < 1 || n > 10)) {
         erreurs.push({
-            cle: "phrases_regles",
-            libelle: TITRE_PHRASES,
-            message: { en: `At most ${BORNES_PHRASES.regles_max} rules.`, fr: `Au plus ${BORNES_PHRASES.regles_max} règles.` },
+            cle: "phrases_repos_s",
+            libelle: { en: "Minimum pause between two waiting sentences", fr: "Pause minimale entre deux phrases d'attente" },
+            message: { en: "Between 1 and 10 s.", fr: "Entre 1 et 10 s." },
         });
     }
-    chargePhrases(regles).forEach((regle, i) => {
-        const motif = motifDe(regle.motif);
-        const libelle = motif?.libelle ?? { en: regle.motif, fr: regle.motif };
-        const cle = `phrases_regles.${i}`;
-        const endroit = `${regle.motif}|${regle.portee}|${regle.etape ?? ""}`;
-        if (vues.has(endroit)) {
-            erreurs.push({ cle, libelle, message: { en: "Two rules of this cause at the same place.", fr: "Deux règles de ce motif au même endroit." } });
-        }
-        vues.add(endroit);
-        if (regle.portee === "etape" && !regle.etape) {
-            erreurs.push({ cle, libelle, message: { en: "Choose the step.", fr: "Choisissez l'étape." } });
-        }
-        if (regle.active && regle.variantes.length === 0) {
-            erreurs.push({ cle, libelle, message: { en: "An active rule needs a sentence.", fr: "Une règle activée demande une phrase." } });
-        }
-        if (regle.variantes.some((v) => v.length > BORNES_PHRASES.longueur_max)) {
-            erreurs.push({
-                cle,
-                libelle,
-                message: { en: `At most ${BORNES_PHRASES.longueur_max} characters.`, fr: `Au plus ${BORNES_PHRASES.longueur_max} caractères.` },
-            });
-        }
-        const d = regle.delai_s;
-        if (d !== null && d !== undefined && (Number.isNaN(d) || d < BORNES_PHRASES.delai_min_s || d > BORNES_PHRASES.delai_max_s)) {
-            erreurs.push({
-                cle,
-                libelle,
-                message: {
-                    en: `Delay between ${BORNES_PHRASES.delai_min_s} and ${BORNES_PHRASES.delai_max_s} s.`,
-                    fr: `Délai entre ${BORNES_PHRASES.delai_min_s} et ${BORNES_PHRASES.delai_max_s} s.`,
-                },
-            });
-        }
-    });
     return erreurs;
 };
 
 const TEXTES = {
     description: {
-        en: "The sentences the code says by itself, without the model, when it detects a wait or a problem.",
-        fr: "Les phrases que le code dit lui-même, sans le modèle, quand il détecte une attente ou un problème.",
+        en: "What the voice says by itself, without the model, when something waits or fails.",
+        fr: "Ce que la voix dit d'elle-même, sans le modèle, quand on attend ou quand quelque chose échoue.",
     },
+    toutes: { en: "All", fr: "Toutes" },
     attentes: { en: "Waits", fr: "Attentes" },
-    attentesAide: {
-        en: "One at a time, then 3 s of rest; never while the caller speaks. Their delay only runs while the system works, never while the caller thinks.",
-        fr: "Une seule à la fois, puis 3 s de repos ; jamais pendant que l'appelant parle. Leur délai ne court que pendant que le système travaille, jamais pendant que l'appelant réfléchit.",
+    problemes: { en: "Problems", fr: "Problèmes" },
+    actions: { en: "Actions", fr: "Actions" },
+    pause: { en: "Minimum pause between two waiting sentences", fr: "Pause minimale entre deux phrases d'attente" },
+    pauseAide: {
+        en: "One waiting sentence at a time; after it, the code stays quiet at least this long (1 to 10 s). Empty: 3 s. Set on the main agent.",
+        fr: "Une seule phrase d'attente à la fois ; après elle, le code se tait au moins ce temps (1 à 10 s). Vide : 3 s. Réglée sur l'agent principal.",
     },
-    annonces: { en: "Announcements", fr: "Annonces" },
-    annoncesAide: {
-        en: "Always said, after the sentence in progress. The caller can cut any sentence of the code: it stops there.",
-        fr: "Toujours dites, à la suite de la phrase en cours. L'appelant peut couper toute phrase du code : elle s'arrête net.",
-    },
-    defaut: { en: "Default", fr: "Par défaut" },
-    allumee: { en: "on", fr: "allumée" },
-    eteinteParDefaut: { en: "off", fr: "éteinte" },
-    quandEteinte: { en: "When off", fr: "Éteinte" },
-    ajouter: { en: "Add a rule", fr: "Ajouter une règle" },
-    retirer: { en: "Remove the rule", fr: "Retirer la règle" },
-    endroit: { en: "Where", fr: "Où" },
-    groupe: { en: "The whole group", fr: "Tout le groupe" },
-    agent: { en: "This agent", fr: "Cet agent" },
-    etape: { en: "Step", fr: "Étape" },
-    phrase: { en: "Sentence", fr: "Phrase" },
-    delai: { en: "Delay (s)", fr: "Délai (s)" },
-    delaiGarde: {
-        en: "Its delay is the model guard's (theme Services, « Model guard »).",
-        fr: "Son délai est celui de la garde du modèle (thème Briques, « Garde du modèle »).",
-    },
-    active: { en: "On", fr: "Activée" },
+    ajouter: { en: "Add a sentence", fr: "Ajouter une phrase" },
     reprise: {
         en: "Taken over from the former setting: saved as a rule at the next save of this theme.",
         fr: "Repris de l'ancien réglage : enregistré comme règle au prochain enregistrement de ce thème.",
     },
+    regleDuGroupe: { en: "Group rule, set on the main agent: read only here.", fr: "Règle du groupe, réglée sur le principal : en lecture ici." },
+    remplacee: { en: "Replaced in this agent by its own rule.", fr: "Remplacée dans cet agent par sa propre règle." },
+    remplacer: { en: "Replace in this agent", fr: "Remplacer dans cet agent" },
+    modifierSurLePrincipal: { en: "Edit on the main agent", fr: "Modifier sur le principal" },
+    jamais: { en: "never said in the recent calls", fr: "jamais dite dans les derniers appels" },
+    aucune: { en: "No rule matches this filter.", fr: "Aucune règle pour ce filtre." },
 } satisfies Record<string, Texte>;
+
+const MOMENT_TITRE: Record<Moment, { titre: Texte; aide: Texte }> = {
+    attente: {
+        titre: { en: "During a wait", fr: "Pendant une attente" },
+        aide: { en: "Triggered by time passing: a delay, repeats.", fr: "Déclenchées par le temps qui passe : un délai, des redites." },
+    },
+    probleme: {
+        titre: { en: "After a problem", fr: "Après un problème" },
+        aide: { en: "Triggered by a fact: no delay, a cap of incidents in the call, then the exit.", fr: "Déclenchées par un fait : pas de délai, un plafond d'incidents dans l'appel, puis la sortie." },
+    },
+    action: {
+        titre: { en: "Before an action", fr: "Avant une action" },
+        aide: { en: "Said right before the code acts.", fr: "Dites juste avant que le code agisse." },
+    },
+};
+
+type Ouverte = { index: number } | { nouvelle: ReglePhrase };
+
+const lireN = (texte: string): number | null => {
+    if (texte.trim() === "") return null;
+    const n = Number(texte.replace(",", "."));
+    return Number.isFinite(n) ? n : null;
+};
 
 export const ThemePhrases = ({
     resolue,
@@ -213,24 +171,44 @@ export const ThemePhrases = ({
     onBasculer,
     ouvrir,
     etapes,
+    outilsUuids = [],
     workflowId,
-}: ProprietesThemeAgent & { etapes: string[]; workflowId?: number }) => {
-    const { t } = useLangue();
+}: ProprietesThemeAgent & { etapes: EtapeGraphe[]; outilsUuids?: string[]; workflowId?: number }) => {
+    const { t, langue } = useLangue();
     const groupe = useGroupe();
     const { enregistre, brouillon, setBrouillon, resynchroniser } = useBrouillon(resolue, extrairePhrases);
     const { afficher } = useRevelation(ouvrir);
     const regles = brouillon.regles;
-    const setRegles = (maj: (avant: RegleEcran[]) => RegleEcran[]) => setBrouillon((avant) => ({ regles: maj(avant.regles) }));
+    const setRegles = (maj: (avant: ReglePhrase[]) => ReglePhrase[]) => setBrouillon((avant) => ({ ...avant, regles: maj(avant.regles) }));
+
+    const [version, setVersion] = useState(0);
+    const [filtre, setFiltre] = useState<"tout" | Moment>("tout");
+    const [ouverte, setOuverte] = useState<Ouverte | null>(null);
+    const [ajout, setAjout] = useState<{ motif: string | null; endroit: Endroit } | null>(null);
+
+    // « Ajouter » depuis les réglages d'un autre agent (vue du groupe) : `?phrases_ajout=<motif>`.
+    useEffect(() => {
+        const motif = new URLSearchParams(window.location.search).get("phrases_ajout");
+        if (!motif) return;
+        const connu = MOTIFS_DE_PHRASES.some((m) => m.id === (ALIAS_DE_MOTIFS[motif] ?? motif));
+        if (!connu) return;
+        ouvrir();
+        setAjout({ motif, endroit: { portee: "agent" } });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const modifie = differe(brouillon, enregistre);
-    const erreurs = erreursDesPhrases(regles);
+    const erreurs = erreursDesPhrases(regles, etapes, brouillon.repos);
     useEtatTheme(ID_THEME_PHRASES, modifie, erreurs.length > 0);
 
-    // The group's rules live on the main agent only (a lone agent has « this agent »).
-    const peutRegleDeGroupe = groupe.specialiseDe === null && Array.isArray(resolue.agents_specialises);
+    const specialise = groupe.specialiseDe !== null;
+    // Les règles du groupe vivent sur le principal seulement (un agent seul a « cet agent »).
+    const peutRegleDeGroupe = !specialise && Array.isArray(resolue.agents_specialises);
+    const estPrincipal = peutRegleDeGroupe;
     const ancienPont = (resolue.attente?.phrase_pont ?? "").trim() !== "" || resolue.attente?.delai_phrase_pont_s != null;
     const ancienneRelation = (resolue.transfert_humain?.phrase_mise_en_relation ?? "").trim() !== "";
 
+    const { carte, erreur: carteIllisible } = useCarte(workflowId, ouvert, version);
     const { enCours, enregistrer } = useEnregistrementTheme({
         titre: TITRE_PHRASES,
         resolue,
@@ -241,166 +219,96 @@ export const ThemePhrases = ({
                 nom: { en: "Phrases", fr: "Phrases" },
                 modifie,
                 config: () => {
-                    const charge: Partial<WorkflowConfigurations> = { phrases_regles: chargePhrases(regles) };
-                    // F17: the old keys are removed once their value is a rule (kept by the theme).
+                    const charge: Partial<WorkflowConfigurations> = {};
+                    // Les règles : écrites si elles ont changé, ou si la clé existe déjà (une pause seule ne touche pas aux règles).
+                    if (differe(regles, enregistre.regles) || resolue.phrases_regles != null || ancienPont || ancienneRelation) {
+                        charge.phrases_regles = chargePhrases(regles, etapes);
+                    }
+                    // La pause : n'écrit la clé que si elle est posée ou déjà là (une config qui n'y touche pas reste inchangée).
+                    const repos = lireN(brouillon.repos);
+                    if (repos !== null || resolue.phrases_repos_s !== undefined) charge.phrases_repos_s = repos;
+                    // F17 : les anciennes clés sont retirées une fois leur valeur devenue règle (gardée par le thème).
                     if (ancienPont) {
-                        const { phrase_pont: _p, delai_phrase_pont_s: _d, ...reste } = resolue.attente ?? {};
+                        const reste = { ...(resolue.attente ?? {}) };
+                        delete reste.phrase_pont;
+                        delete reste.delai_phrase_pont_s;
                         charge.attente = reste;
                     }
                     if (ancienneRelation) {
-                        const { phrase_mise_en_relation: _r, ...reste } = resolue.transfert_humain ?? {};
+                        const reste = { ...(resolue.transfert_humain ?? {}) };
+                        delete reste.phrase_mise_en_relation;
                         charge.transfert_humain = reste;
                     }
                     return charge;
                 },
-                apres: resynchroniser,
+                apres: () => {
+                    resynchroniser();
+                    setVersion((v) => v + 1);
+                },
             },
         ],
     });
 
-    const ajouter = (motif: MotifDePhrase) =>
-        setRegles((avant) => [
-            ...avant,
-            {
-                motif: motif.id,
-                endroit: peutRegleDeGroupe && !avant.some((r) => r.motif === motif.id && r.endroit === "groupe") ? "groupe" : "agent",
-                variantes: [...motif.variantes_defaut],
-                delai: motif.a_un_delai && motif.delai_defaut_s !== null ? String(motif.delai_defaut_s) : "",
-                active: true,
-            },
-        ]);
-    const changer = (index: number, patch: Partial<RegleEcran>) =>
-        setRegles((avant) => avant.map((r, i) => (i === index ? { ...r, ...patch } : r)));
-    const retirer = (index: number) => setRegles((avant) => avant.filter((_, i) => i !== index));
+    // Ce que la modale lit autour d'elle (étapes, outils de l'agent, fiche, équipe, délais lus ailleurs).
+    const { env, contexte } = useEnvironnementPhrases({
+        configuration: resolue,
+        etapes,
+        outilsUuids,
+        actif: ouvert,
+        peutGroupe: peutRegleDeGroupe,
+        workflowId,
+        repos: brouillon.repos,
+    });
 
-    const reprise = (r: RegleEcran) =>
-        r.endroit === "groupe" &&
+    const agentDeLaCarte = carte?.agents.find((a) => a.id === workflowId);
+    const heritees = useMemo(() => (specialise ? (agentDeLaCarte?.regles_du_groupe ?? []) : []), [specialise, agentDeLaCarte]);
+    const lignes = useMemo(() => lignesDeLaListe(regles, heritees, etapes), [regles, heritees, etapes]);
+    const compte = (m: Moment) => lignes.filter((l) => l.motif.moment === m).length;
+    const visibles = lignes.filter((l) => filtre === "tout" || l.motif.moment === filtre);
+    const allumees = lignes.filter((l) => l.active && !l.remplacee).length;
+
+    const reprise = (r: ReglePhrase) =>
+        r.portee === "groupe" &&
         !(resolue.phrases_regles ?? []).some((x) => x.motif === r.motif && (x.portee ?? "agent") === "groupe") &&
         ((r.motif === MOTIF_PASSATION && ancienPont) || (r.motif === MOTIF_MISE_EN_RELATION && ancienneRelation));
 
-    const famille = (id: "attente" | "annonce", titre: Texte, aide: Texte) => (
-        <Intertitre id={`phrases-${id}`} titre={titre} description={aide}>
-            {MOTIFS_DE_PHRASES.filter((m) => m.famille === id).map((motif) => (
-                <div key={motif.id} data-motif={motif.id} className="space-y-3 rounded border p-3">
-                    <div className="space-y-1 text-sm">
-                        <div className="font-medium">{t(motif.libelle)}</div>
-                        <div className="text-muted-foreground">{t(motif.quand)}</div>
-                        <div className="text-xs text-muted-foreground">
-                            {t(TEXTES.defaut)} : {motif.actif_par_defaut ? t(TEXTES.allumee) : t(TEXTES.eteinteParDefaut)}
-                            {" · « "}
-                            {motif.variantes_defaut.join(" » / « ")}
-                            {" »"}
-                            {motif.a_un_delai && motif.delai_defaut_s !== null ? ` · ${motif.delai_defaut_s} s` : ""}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                            {t(TEXTES.quandEteinte)} : {t(motif.eteinte)}
-                        </div>
-                        {!motif.a_un_delai && motif.id === "modele_tarde" && (
-                            <div className="text-xs text-muted-foreground">{t(TEXTES.delaiGarde)}</div>
-                        )}
-                    </div>
-                    {regles.map((regle, index) =>
-                        regle.motif !== motif.id ? null : (
-                            <div key={index} data-regle={`${motif.id}-${index}`} className="space-y-2 rounded bg-muted/40 p-2">
-                                {reprise(regle) && (
-                                    <p className="text-xs text-muted-foreground" data-note="phrase-reprise">
-                                        {t(TEXTES.reprise)}
-                                    </p>
-                                )}
-                                <div className="flex flex-wrap items-end gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-xs" htmlFor={`phrase_${index}_endroit`}>
-                                            {t(TEXTES.endroit)}
-                                        </label>
-                                        <Select value={regle.endroit} onValueChange={(v: string) => changer(index, { endroit: v })}>
-                                            <SelectTrigger id={`phrase_${index}_endroit`} className="w-56">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {(peutRegleDeGroupe || regle.endroit === "groupe") && (
-                                                    <SelectItem value="groupe">{t(TEXTES.groupe)}</SelectItem>
-                                                )}
-                                                <SelectItem value="agent">{t(TEXTES.agent)}</SelectItem>
-                                                {etapes.map((nom) => (
-                                                    <SelectItem key={nom} value={`etape:${nom}`}>
-                                                        {`${t(TEXTES.etape)} : ${nom}`}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    {motif.a_un_delai && (
-                                        <div className="space-y-1">
-                                            <label className="text-xs" htmlFor={`phrase_${index}_delai`}>
-                                                {t(TEXTES.delai)}
-                                            </label>
-                                            <Input
-                                                id={`phrase_${index}_delai`}
-                                                type="number"
-                                                inputMode="decimal"
-                                                className="w-28"
-                                                min={BORNES_PHRASES.delai_min_s}
-                                                max={BORNES_PHRASES.delai_max_s}
-                                                step="0.5"
-                                                placeholder={motif.delai_defaut_s !== null ? String(motif.delai_defaut_s) : ""}
-                                                value={regle.delai}
-                                                onChange={(e) => changer(index, { delai: e.target.value })}
-                                            />
-                                        </div>
-                                    )}
-                                    <div className="flex items-center gap-2 pb-2">
-                                        <Switch
-                                            id={`phrase_${index}_active`}
-                                            aria-label={t(TEXTES.active)}
-                                            checked={regle.active}
-                                            onCheckedChange={(coche) => changer(index, { active: coche })}
-                                        />
-                                        <label className="text-xs" htmlFor={`phrase_${index}_active`}>
-                                            {t(TEXTES.active)}
-                                        </label>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        aria-label={`${t(TEXTES.retirer)} : ${t(motif.libelle)}`}
-                                        onClick={() => retirer(index)}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                {Array.from({ length: BORNES_PHRASES.variantes_max }, (_, v) => (
-                                    <Input
-                                        key={v}
-                                        id={`phrase_${index}_variante_${v}`}
-                                        aria-label={`${t(TEXTES.phrase)} ${v + 1}`}
-                                        maxLength={BORNES_PHRASES.longueur_max}
-                                        placeholder={v === 0 ? (motif.variantes_defaut[0] ?? "") : ""}
-                                        value={regle.variantes[v] ?? ""}
-                                        onChange={(e) => {
-                                            const variantes = [...regle.variantes];
-                                            while (variantes.length <= v) variantes.push("");
-                                            variantes[v] = e.target.value;
-                                            changer(index, { variantes });
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                        ),
-                    )}
-                    <Button variant="outline" size="sm" aria-label={`${t(TEXTES.ajouter)} : ${t(motif.libelle)}`} onClick={() => ajouter(motif)}>
-                        <Plus className="mr-1 h-4 w-4" />
-                        {t(TEXTES.ajouter)}
-                    </Button>
-                </div>
-            ))}
-        </Intertitre>
-    );
+    const dernierDe = (ligne: LigneDeListe): string => {
+        const trouve: Dernier | null | undefined = ligne.defaut || ligne.heritee
+            ? agentDeLaCarte?.motifs.find((m) => m.motif === ligne.motif.id)?.dernier
+            : agentDeLaCarte?.regles?.find((r) => cleDeRegle(r) === cleDeRegle(ligne.regle))?.dernier;
+        if (!trouve || trouve.run == null) return t(TEXTES.jamais);
+        const date = trouve.moment ? new Date(trouve.moment.replace(" ", "T")) : null;
+        const quand = date && !Number.isNaN(date.getTime()) ? date.toLocaleString(langue === "fr" ? "fr-FR" : "en-GB", { dateStyle: "short", timeStyle: "short" }) : (trouve.moment ?? "").slice(0, 16);
+        return `${t({ en: "last said", fr: "dite le" })} ${quand}`;
+    };
 
-    const allumees = MOTIFS_DE_PHRASES.filter((m) => {
-        const propre = regles.find((r) => r.motif === m.id && r.endroit !== "groupe" && !r.endroit.startsWith("etape:"))
-            ?? regles.find((r) => r.motif === m.id && r.endroit === "groupe");
-        return propre ? propre.active : m.actif_par_defaut;
-    }).length;
+    const basculer = (ligne: LigneDeListe, active: boolean) => {
+        if (ligne.index !== null) {
+            setRegles((avant) => avant.map((r, i) => (i === ligne.index ? { ...r, active } : r)));
+        } else if (ligne.defaut) {
+            // Allumer ou éteindre un défaut pose une règle de cet agent qui porte les valeurs du catalogue.
+            setRegles((avant) => [...avant, { ...ligne.regle, active }]);
+        }
+    };
+
+    const ouvrirLaLigne = (ligne: LigneDeListe) => {
+        if (ligne.index !== null) setOuverte({ index: ligne.index });
+        else setOuverte({ nouvelle: { ...ligne.regle, active: ligne.defaut ? true : ligne.regle.active } });
+    };
+
+    /** La case du principal dans la vue du groupe : sa règle (de cet agent, sinon du groupe), sinon l'ajout du motif. */
+    const ouvrirLeMotif = (motif: string) => {
+        const index = regles.findIndex((r) => r.motif === motif && r.portee === "agent" && (r.outils ?? []).length === 0);
+        const indexGroupe = regles.findIndex((r) => r.motif === motif && r.portee === "groupe");
+        const trouve = index >= 0 ? index : indexGroupe;
+        if (trouve >= 0) setOuverte({ index: trouve });
+        else setAjout({ motif, endroit: { portee: peutRegleDeGroupe ? "groupe" : "agent" } });
+    };
+
+    const remplacerDansCetAgent = (ligne: LigneDeListe) =>
+        setOuverte({ nouvelle: { ...ligne.regle, portee: "agent", etape: null, etape_id: null } });
+
+    const existeUneRegleDuGroupe = (r: ReglePhrase) => r.portee !== "groupe" && (specialise ? heritees.some((h) => h.motif === r.motif) : regles.some((x) => x.motif === r.motif && x.portee === "groupe"));
 
     return (
         <Theme
@@ -409,8 +317,9 @@ export const ThemePhrases = ({
             titre={TITRE_PHRASES}
             description={TEXTES.description}
             resume={[
-                `${allumees}/${MOTIFS_DE_PHRASES.length} ${t({ en: "on", fr: "allumées" })}`,
-                `${regles.length} ${t({ en: "rule(s)", fr: "règle(s)" })}`,
+                `${lignes.filter((l) => !l.defaut).length} ${t({ en: "rule(s)", fr: "règle(s)" })}`,
+                `${allumees}/${lignes.length} ${t({ en: "on", fr: "allumées" })}`,
+                `${t({ en: "pause", fr: "pause" })} ${lireN(brouillon.repos) ?? REPOS_DEFAUT_S} s`,
             ]}
             ouvert={ouvert}
             onBasculer={onBasculer}
@@ -418,6 +327,48 @@ export const ThemePhrases = ({
             erreurs={nommerErreurs(erreurs, t, afficher)}
             enregistrement={{ onEnregistrer: enregistrer, enCours }}
         >
+            <NoticePhrases />
+
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <Tabs value={filtre} onValueChange={(v) => setFiltre(v as typeof filtre)}>
+                    <TabsList>
+                        <TabsTrigger value="tout">{`${t(TEXTES.toutes)} (${lignes.length})`}</TabsTrigger>
+                        <TabsTrigger value="attente">{`${t(TEXTES.attentes)} (${compte("attente")})`}</TabsTrigger>
+                        <TabsTrigger value="probleme">{`${t(TEXTES.problemes)} (${compte("probleme")})`}</TabsTrigger>
+                        <TabsTrigger value="action">{`${t(TEXTES.actions)} (${compte("action")})`}</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+                <Button onClick={() => setAjout({ motif: null, endroit: { portee: "agent" } })}>
+                    <Plus className="h-4 w-4" /> {t(TEXTES.ajouter)}
+                </Button>
+            </div>
+
+            <ChampReglage
+                cle="phrases_repos_s"
+                idControle="phrases_repos_s"
+                libelle={TEXTES.pause}
+                aides={[TEXTES.pauseAide]}
+                bornes={{ en: `≥ ${1} · ≤ ${10} · optional`, fr: `≥ ${1} · ≤ ${10} · facultatif` }}
+                disposition="ligne"
+            >
+                <div className="flex items-center gap-2">
+                    <Input
+                        id="phrases_repos_s"
+                        type="number"
+                        inputMode="decimal"
+                        className="w-20"
+                        min={1}
+                        max={10}
+                        step="0.5"
+                        disabled={specialise}
+                        placeholder={String(REPOS_DEFAUT_S)}
+                        value={brouillon.repos}
+                        onChange={(e) => setBrouillon((avant) => ({ ...avant, repos: e.target.value }))}
+                    />
+                    <span className="text-sm text-muted-foreground">s</span>
+                </div>
+            </ChampReglage>
+
             <ChampReglage
                 cle="phrases_regles"
                 libelle={{ en: "Rules of the sentences said by the code", fr: "Règles des phrases dites par le code" }}
@@ -428,12 +379,110 @@ export const ThemePhrases = ({
                     },
                 ]}
             >
-                <div className="space-y-6">
-                    {workflowId !== undefined && ouvert && <CarteDesPhrases workflowId={workflowId} />}
-                    {famille("attente", TEXTES.attentes, TEXTES.attentesAide)}
-                    {famille("annonce", TEXTES.annonces, TEXTES.annoncesAide)}
+                <div className="space-y-5">
+                    {MOMENTS.filter((m) => visibles.some((l) => l.motif.moment === m)).map((moment) => (
+                        <div key={moment} className="space-y-2" data-moment={moment}>
+                            <div>
+                                <h3 className="text-sm font-semibold">{t(MOMENT_TITRE[moment].titre)}</h3>
+                                <p className="text-xs text-muted-foreground">{t(MOMENT_TITRE[moment].aide)}</p>
+                            </div>
+                            {visibles
+                                .filter((l) => l.motif.moment === moment)
+                                .map((ligne) => (
+                                    <CartePhrase
+                                        key={ligne.id + (ligne.index ?? "")}
+                                        id={ligne.id}
+                                        regle={ligne.regle}
+                                        motif={ligne.motif}
+                                        origine={ligne.origine}
+                                        contexte={contexte}
+                                        etape={ligne.regle.portee === "etape" ? nomDeLEtape(ligne.regle, etapes) : undefined}
+                                        supprimee={ligne.supprimee}
+                                        active={ligne.active}
+                                        derniere={dernierDe(ligne)}
+                                        lecture={ligne.heritee}
+                                        onOuvrir={() => ouvrirLaLigne(ligne)}
+                                        onBasculer={ligne.heritee ? undefined : (active) => basculer(ligne, active)}
+                                        pied={
+                                            ligne.index !== null && reprise(ligne.regle) ? (
+                                                <p className="text-xs text-muted-foreground" data-note="phrase-reprise">
+                                                    {t(TEXTES.reprise)}
+                                                </p>
+                                            ) : ligne.heritee ? (
+                                                <div
+                                                    className="flex flex-wrap items-center gap-2 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
+                                                    data-note="regle-heritee"
+                                                >
+                                                    <span>{t(ligne.remplacee ? TEXTES.remplacee : TEXTES.regleDuGroupe)}</span>
+                                                    {!ligne.remplacee && (
+                                                        <Button variant="outline" size="sm" className="ml-auto h-7" onClick={() => remplacerDansCetAgent(ligne)}>
+                                                            {t(TEXTES.remplacer)}
+                                                        </Button>
+                                                    )}
+                                                    <Link href={`/workflow/${groupe.specialiseDe}/settings`} className="inline-flex h-7 items-center rounded-md px-2 underline">
+                                                        {t(TEXTES.modifierSurLePrincipal)}
+                                                    </Link>
+                                                </div>
+                                            ) : undefined
+                                        }
+                                    />
+                                ))}
+                        </div>
+                    ))}
+                    {visibles.length === 0 && <p className="text-xs text-muted-foreground">{t(TEXTES.aucune)}</p>}
                 </div>
             </ChampReglage>
+
+            {estPrincipal && workflowId !== undefined && (
+                <VueDuGroupe carte={carte} workflowId={workflowId} onOuvrir={ouvrirLeMotif} onAjouterPropre={(motif) => setAjout({ motif, endroit: { portee: "agent" } })} />
+            )}
+
+            {workflowId !== undefined && ouvert && <PhrasesEnLecture carte={carte} erreur={carteIllisible} workflowId={workflowId} />}
+
+            {ouverte && "index" in ouverte && regles[ouverte.index] && (
+                <ModaleRegle
+                    key={`regle-${ouverte.index}`}
+                    regle={regles[ouverte.index]}
+                    env={env}
+                    peutSupprimer
+                    existeUneRegleDuGroupe={existeUneRegleDuGroupe(regles[ouverte.index])}
+                    onEnregistrer={(r) => {
+                        setRegles((avant) => avant.map((x, i) => (i === ouverte.index ? r : x)));
+                        setOuverte(null);
+                    }}
+                    onSupprimer={() => {
+                        setRegles((avant) => avant.filter((_, i) => i !== ouverte.index));
+                        setOuverte(null);
+                    }}
+                    onFermer={() => setOuverte(null)}
+                />
+            )}
+            {ouverte && "nouvelle" in ouverte && (
+                <ModaleRegle
+                    key={`nouvelle-${ouverte.nouvelle.motif}-${ouverte.nouvelle.portee}`}
+                    regle={ouverte.nouvelle}
+                    env={env}
+                    existeUneRegleDuGroupe={existeUneRegleDuGroupe(ouverte.nouvelle)}
+                    onEnregistrer={(r) => {
+                        setRegles((avant) => [...avant, r]);
+                        setOuverte(null);
+                    }}
+                    onFermer={() => setOuverte(null)}
+                />
+            )}
+            {ajout && (
+                <ModaleAjout
+                    env={env}
+                    endroitInitial={ajout.endroit}
+                    motifInitial={ajout.motif}
+                    reglesExistantes={regles}
+                    onAjouter={(r) => {
+                        setRegles((avant) => [...avant, r]);
+                        setAjout(null);
+                    }}
+                    onFermer={() => setAjout(null)}
+                />
+            )}
         </Theme>
     );
 };

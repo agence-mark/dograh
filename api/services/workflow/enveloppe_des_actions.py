@@ -10,10 +10,17 @@ résultat pour :
   n'écrit rien. La réponse d'un outil HTTP est lue dans son emballage (``data``), jamais l'emballage
   lui-même (chantier ``fiche-lit-la-reponse-de-l-outil``, run 1475). Les contrôles restent ceux du point d'écriture unique (liste fermée comprise).
 
-- **lot 4 bis (F21)** : une action du tour qui dépasse le délai de la règle « un outil tarde »
-  fait dire sa phrase, une fois par appel de l'outil ; le délai court depuis le lancement de
-  l'action (une attente du système) et jamais pendant que l'appelant parle. Une action du cerveau
-  de fond ne la déclenche jamais (le motif « le travail de fond dure » s'en charge).
+- **lot 4 bis (F21)** puis **correctifs-apres-banc-v4 (lot 4)** : une action du tour qui dépasse le délai
+  de la règle « un outil travaille » fait dire sa phrase par la veille générique du diseur (redites,
+  plafonds, sortie de la règle) ; le délai court depuis le lancement de l'action (une attente du
+  système) et jamais pendant que l'appelant parle. La règle peut viser cet outil par son nom. Une action
+  du cerveau de fond ne la déclenche jamais (le motif « le travail de fond travaille » s'en charge).
+
+- **correctifs-apres-banc-v4 (lot 4)** : un résultat qui dit une panne (erreur de l'outil après ses
+  essais, service qui répond « échec ») passe par la règle « un outil échoue » : la phrase, le compteur
+  dans l'appel, la sortie de la règle (noter, transférer, raccrocher), puis un compte rendu en français
+  dans le résultat que lit le modèle. Un outil sans règle posée ne dit rien de plus qu'avant (le défaut
+  du catalogue ne parle que pour un connecteur, qui disait déjà sa phrase).
 
 Les portes, passations, transferts et la fin d'appel n'y passent jamais : ce ne sont pas des actions.
 ⛔ Ne lève jamais : l'action rend toujours son résultat, l'enveloppe ne fait que regarder.
@@ -33,6 +40,9 @@ from loguru import logger
 _ERREURS = frozenset(
     {"error", "erreur", "echec", "échec", "failed", "failure", "ko", "missing", "incomplet"}
 )
+# Les vraies pannes (la règle « un outil échoue ») : « missing » et « incomplet » ne sont pas des pannes,
+# rien n'a été tenté (un paramètre manque, la garde de l'étape retient l'outil).
+_PANNES = _ERREURS - {"missing", "incomplet"}
 
 
 def _normaliser(nom: Any) -> str:
@@ -76,6 +86,24 @@ def est_un_echec(resultat: Any) -> bool:
     """L'emballage en échec (HTTP en erreur), ou la réponse du service en échec (rendue en 200)."""
     lu = _lire(resultat)
     return _dit_un_echec(lu) or _dit_un_echec(_reponse(lu))
+
+
+def _dit_une_panne(lu: Any) -> bool:
+    if isinstance(lu, dict):
+        if lu.get("error") not in (None, "", False):
+            return True
+        for cle in ("statut", "status"):
+            valeur = lu.get(cle)
+            if isinstance(valeur, str) and valeur.strip().casefold() in _PANNES:
+                return True
+    return False
+
+
+def est_une_panne(resultat: Any) -> bool:
+    """Le résultat dit une vraie panne (outil en erreur après ses essais, service qui répond un échec),
+    non un paramètre manquant ni une étape incomplète. Sert la règle « un outil échoue »."""
+    lu = _lire(resultat)
+    return _dit_une_panne(lu) or _dit_une_panne(_reponse(lu))
 
 
 def valeur_pour_le_champ(champ: Any, resultat: Any) -> Any:
@@ -194,7 +222,7 @@ def envelopper_l_action(
                 return
         rendre = params.result_callback
         fini = asyncio.Event()
-        veille = _veiller_l_outil(moteur, agent, params, fini)
+        veille = _veiller_l_outil(moteur, nom_outil, agent, params, fini)
 
         async def result_callback(resultat: Any, *args: Any, **kwargs: Any) -> None:
             proprietes = kwargs.get("properties")
@@ -202,6 +230,16 @@ def envelopper_l_action(
             if getattr(proprietes, "is_final", True) is not False:
                 fini.set()
                 remplir_par_l_action(moteur, nom_outil, resultat)
+                resultat, kwargs, issue = await _signaler_la_panne(
+                    moteur, nom_outil, agent, params, resultat, kwargs
+                )
+                await rendre(resultat, *args, **kwargs)
+                if issue is not None:
+                    # L'action finale (transférer, raccrocher) part APRÈS la remise du résultat.
+                    from api.services.phrases.sorties import lancer_apres
+
+                    lancer_apres(moteur, issue)
+                return
             await rendre(resultat, *args, **kwargs)
 
         try:
@@ -212,21 +250,31 @@ def envelopper_l_action(
             await gestionnaire(params)
         finally:
             fini.set()
-            if veille is not None and not veille.done() and not _phrase_partie(veille):
-                veille.cancel()
+            # Une veille qui n'a encore rien dit est coupée ; une phrase commencée finit (ses redites
+            # s'arrêtent d'elles-mêmes : l'outil n'est plus en cours).
+            if veille is not None:
+                from api.services.phrases.diseur import DiseurDePhrases
+
+                DiseurDePhrases.arreter_la_veille(veille)
 
     return enveloppe
 
 
-def _phrase_partie(veille: asyncio.Task) -> bool:
-    return bool(getattr(veille, "mark_phrase_partie", False))
+def _action_du_agent(agent: Any, moteur: Any, params: Any) -> Any | None:
+    """L'agent qui porte cette action, ``None`` si elle vient du cerveau de fond (qui a son propre motif)."""
+    cible = agent if agent is not None else getattr(moteur, "active_agent", None)
+    appelant = getattr(params, "llm", None)
+    if appelant is not None and appelant is not getattr(cible, "llm", None):
+        return None
+    return cible
 
 
 def _veiller_l_outil(
-    moteur: Any, agent: Any, params: Any, fini: asyncio.Event
+    moteur: Any, nom_outil: str, agent: Any, params: Any, fini: asyncio.Event
 ) -> asyncio.Task | None:
-    """F21 : la veille de « un outil tarde » pour cet appel d'outil. ``None`` : règle éteinte, pas
-    de diseur, ou action du cerveau de fond. ⛔ Ne lève jamais."""
+    """F21 : la veille de « un outil travaille » pour cet appel d'outil (veille générique du diseur :
+    délai, redites, plafonds, sortie). ``None`` : règle éteinte, pas de diseur, ou action du cerveau de
+    fond. ⛔ Ne lève jamais."""
     try:
         from api.services.phrases.catalogue import OUTIL_TARDE
         from api.services.phrases.diseur import DiseurDePhrases
@@ -234,22 +282,73 @@ def _veiller_l_outil(
         diseur = getattr(moteur, "phrases", None)
         if not isinstance(diseur, DiseurDePhrases):
             return None
-        cible = agent if agent is not None else getattr(moteur, "active_agent", None)
-        appelant = getattr(params, "llm", None)
-        if appelant is not None and appelant is not getattr(cible, "llm", None):
+        cible = _action_du_agent(agent, moteur, params)
+        if cible is None:
             return None
-        phrase = diseur.phrase(OUTIL_TARDE, cible)
+        phrase = diseur.phrase(OUTIL_TARDE, cible, outil=nom_outil)
         if phrase is None or not phrase.dite:
             return None
-
-        async def veiller() -> None:
-            if await diseur.attendre_le_systeme(phrase.delai_s or 0.0, lambda: not fini.is_set()):
-                tache = asyncio.current_task()
-                if tache is not None:
-                    tache.mark_phrase_partie = True  # type: ignore[attr-defined]
-                await diseur.dire(OUTIL_TARDE, cible, phrase=phrase)
-
-        return asyncio.get_running_loop().create_task(veiller(), name="phrase:outil_tarde")
+        return diseur.lancer_la_veille(
+            OUTIL_TARDE,
+            lambda: not fini.is_set(),
+            nom="phrase:outil_tarde",
+            agent=cible,
+            outil=nom_outil,
+            phrase=phrase,
+        )
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[phrases] veille de l'outil illisible : {erreur!r}")
         return None
+
+
+def _avec_le_compte_rendu(resultat: Any, compte: str) -> Any:
+    """Le compte rendu standard dans le résultat que lit le modèle (jamais un message à part)."""
+    if not compte:
+        return resultat
+    if isinstance(resultat, dict):
+        return {**resultat, "compte_rendu": compte}
+    if isinstance(resultat, str):
+        return f"{resultat}\n{compte}"
+    return resultat
+
+
+async def _signaler_la_panne(
+    moteur: Any, nom_outil: str, agent: Any, params: Any, resultat: Any, kwargs: dict
+) -> tuple[Any, dict, Any]:
+    """Le résultat dit une panne : la règle « un outil échoue » (phrase, compteur, sortie), puis le
+    compte rendu dans le résultat. La phrase entre dans l'historique APRÈS le résultat de l'outil (la
+    case de l'appel en cours est complétée par ce résultat, la phrase vient derrière) : mesuré au lot 0,
+    0/10 répétition. Une sortie qui a pris l'appel en main (transfert lancé, appel raccroché) : le modèle
+    n'est pas relancé. ⛔ Ne lève jamais : sans règle posée, le résultat part tel quel."""
+    try:
+        from api.services.phrases.catalogue import MOTIFS, OUTIL_ECHOUE
+        from api.services.phrases.compte_rendu import compte_rendu
+        from api.services.phrases.diseur import DiseurDePhrases
+
+        diseur = getattr(moteur, "phrases", None)
+        if not isinstance(diseur, DiseurDePhrases) or not est_une_panne(resultat):
+            return resultat, kwargs, None
+        cible = _action_du_agent(agent, moteur, params)
+        if cible is None:
+            return resultat, kwargs, None
+        probleme = await diseur.signaler_un_probleme(
+            OUTIL_ECHOUE, cible, outil=nom_outil, seulement_si_posee=True
+        )
+        if probleme.dit is None and probleme.issue is None:
+            return resultat, kwargs, None
+        issue = probleme.issue
+        compte = compte_rendu(
+            MOTIFS[OUTIL_ECHOUE].fait_fr,
+            dit=probleme.dit,
+            notes=probleme.notes,
+            interdits=issue.interdit if issue is not None else (),
+        )
+        resultat = _avec_le_compte_rendu(resultat, compte)
+        if issue is not None and issue.prise_en_main:
+            from pipecat.frames.frames import FunctionCallResultProperties
+
+            kwargs = {**kwargs, "properties": FunctionCallResultProperties(run_llm=False)}
+        return resultat, kwargs, issue
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[phrases] panne de {nom_outil} non signalée : {erreur!r}")
+    return resultat, kwargs, None

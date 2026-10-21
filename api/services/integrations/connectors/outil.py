@@ -36,18 +36,33 @@ from api.services.integrations.connectors.execution import (
 TYPES = {"string": "string", "number": "number", "boolean": "boolean"}
 
 
-async def _dire_le_repli(engine: Any, propre: Any) -> str | None:
-    """Dit la phrase « un connecteur échoue » et rend son texte (``None`` : rien de dit)."""
-    from api.services.phrases.catalogue import CONNECTEUR_ECHOUE
-    from api.services.phrases.diseur import DiseurDePhrases
+async def _signaler_le_repli(engine: Any, propre: Any, nom_de_fonction: str | None = None):
+    """La règle « un outil échoue » pour ce connecteur : sa phrase (celle du connecteur, s'il en a une, à
+    la place des variantes), le compteur d'incidents dans l'appel, la sortie réglée. Rend le
+    ``Probleme`` du diseur, ``None`` s'il n'y a pas de diseur. ⛔ Ne lève jamais."""
+    try:
+        from api.services.phrases.catalogue import OUTIL_ECHOUE
+        from api.services.phrases.diseur import DiseurDePhrases
 
-    diseur = getattr(engine, "phrases", None)
-    if not isinstance(diseur, DiseurDePhrases):
+        diseur = getattr(engine, "phrases", None)
+        if not isinstance(diseur, DiseurDePhrases):
+            return None
+        return await diseur.signaler_un_probleme(
+            OUTIL_ECHOUE,
+            outil=nom_de_fonction,
+            texte=propre if isinstance(propre, str) else None,
+        )
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[phrases] échec du connecteur non signalé : {erreur!r}")
         return None
-    parole = await diseur.dire_la_parole(
-        CONNECTEUR_ECHOUE, texte=propre if isinstance(propre, str) else None
-    )
-    return getattr(parole, "text", None) if parole is not None else None
+
+
+async def _dire_le_repli(engine: Any, propre: Any) -> str | None:
+    """Dit la phrase « un outil échoue » et rend son texte (``None`` : rien de dit)."""
+    probleme = await _signaler_le_repli(engine, propre)
+    return probleme.dit if probleme is not None else None
+
+
 # The key of an internal action's result that holds a sentence the code says itself.
 CLE_A_DIRE = "_dire"
 # ... and what it notes in the record for the after-call (record key -> one entry).
@@ -224,20 +239,46 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
         # Fiabilite-orchestration, lot 4 bis : la règle « un connecteur échoue » (thème Phrases) ;
         # la phrase propre au connecteur, s'il en a une, est dite à la place des variantes.
         # Règle éteinte : rien n'est dit, le modèle lit l'échec et répond.
-        phrase = await _dire_le_repli(engine, config.get("phrase_repli"))
+        probleme = await _signaler_le_repli(engine, config.get("phrase_repli"), nom_de_fonction)
+        phrase = probleme.dit if probleme is not None else None
         trouve = trouver(config.get("connecteur", ""), config.get("action", ""))
         # An internal action is never retried after the call: its own fallback (a call-back
         # request) is decided during the call (l-agent-collegue, P8).
         if trouve is not None and trouve[1].ecrit and interne is None:
             mettre_de_cote(fiche, config, arguments_permis(trouve[1], params.arguments))
+        # correctifs-apres-banc-v4 (lot 4, 4.10) : après une phrase du code, le modèle reçoit le compte
+        # rendu en français (le fait, la phrase entendue, ce qui est noté, ce qui n'est plus possible) à la
+        # place de la consigne anglaise d'avant ; la phrase est déjà dans l'historique.
+        if probleme is not None and (phrase or probleme.issue is not None):
+            from api.services.phrases.catalogue import MOTIFS, OUTIL_ECHOUE
+            from api.services.phrases.compte_rendu import compte_rendu
+
+            issue = probleme.issue
+            retour: dict[str, Any] = {
+                "status": "passed_on",
+                "compte_rendu": compte_rendu(
+                    MOTIFS[OUTIL_ECHOUE].fait_fr,
+                    dit=phrase,
+                    notes=probleme.notes,
+                    interdits=issue.interdit if issue is not None else (),
+                ),
+            }
+            if phrase:
+                retour["said_to_caller"] = phrase
+            if issue is not None and issue.prise_en_main:
+                from pipecat.frames.frames import FunctionCallResultProperties
+
+                await params.result_callback(
+                    retour, properties=FunctionCallResultProperties(run_llm=False)
+                )
+                from api.services.phrases.sorties import lancer_apres
+
+                lancer_apres(engine, issue)
+            else:
+                await params.result_callback(retour)
+            return
         await params.result_callback(
             {
-                "status": "passed_on",
-                "said_to_caller": phrase,
-                "instruction": "The request was passed on; do not repeat this sentence, go on with the call.",
-            }
-            if phrase
-            else {
                 "status": "passed_on",
                 "instruction": "The request could not be done now and was passed on: tell the caller someone will call back to confirm, then go on with the call.",
             }

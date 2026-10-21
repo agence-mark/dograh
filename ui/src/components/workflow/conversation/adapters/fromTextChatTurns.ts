@@ -143,7 +143,38 @@ function conversationItemsFromTextChatEvents(
     return items;
 }
 
-export function conversationItemsFromTextChatTurns(turns: TextChatTurnLike[]) {
+/**
+ * [.mark] correctifs-apres-banc-v4, lot 5 (décision 3): the blocks of the agent's message (joined by a blank line
+ * by the server) that are a sentence said by the CODE, found in the session's `phrases_du_code` trace, are shown
+ * in grey. Consecutive blocks of the same nature stay in one bubble.
+ */
+/** Les sorties d'un tour sont jointes par une ligne vide (`text_chat_runner.py`, `assistant_text`). */
+const SEPARATEUR_DE_BLOCS = String.fromCharCode(10, 10);
+
+function messagesDeLAgent(turn: TextChatTurnLike, phrasesDuCode: Set<string>): ConversationItem[] {
+    const texte = turn.assistant_message?.text ?? "";
+    const timestamp = turn.assistant_message?.created_at ?? turn.created_at;
+    const blocs = texte.split(SEPARATEUR_DE_BLOCS);
+    const groupes: Array<{ duCode: boolean; blocs: string[] }> = [];
+    for (const bloc of blocs) {
+        const duCode = phrasesDuCode.size > 0 && phrasesDuCode.has(bloc.trim());
+        const dernier = groupes.at(-1);
+        if (dernier && dernier.duCode === duCode) dernier.blocs.push(bloc);
+        else groupes.push({ duCode, blocs: [bloc] });
+    }
+    return groupes.map((groupe, i) => ({
+        kind: "message" as const,
+        id: groupes.length === 1 ? `${turn.id}-assistant` : `${turn.id}-assistant-${i}`,
+        turnId: turn.id,
+        timestamp,
+        role: "assistant" as const,
+        text: groupe.blocs.join(SEPARATEUR_DE_BLOCS),
+        ...(groupe.duCode ? { tone: "muted" as const, duCode: true } : {}),
+    }));
+}
+
+export function conversationItemsFromTextChatTurns(turns: TextChatTurnLike[], phrasesDuCode: string[] = []) {
+    const dites = new Set(phrasesDuCode.map((p) => p.trim()).filter((p) => p !== ""));
     const items: ConversationItem[] = [];
 
     turns.forEach((turn) => {
@@ -167,14 +198,7 @@ export function conversationItemsFromTextChatTurns(turns: TextChatTurnLike[]) {
         );
 
         if (turn.assistant_message?.text) {
-            items.push({
-                kind: "message",
-                id: `${turn.id}-assistant`,
-                turnId: turn.id,
-                timestamp: turn.assistant_message.created_at ?? turn.created_at,
-                role: "assistant",
-                text: turn.assistant_message.text,
-            });
+            items.push(...messagesDeLAgent(turn, dites));
             return;
         }
 

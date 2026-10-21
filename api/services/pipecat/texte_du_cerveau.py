@@ -239,11 +239,146 @@ def _didascalie_en_attente(texte: str) -> bool:
     return texte.endswith("*") or _DIDASCALIE_OUVERTE.search(texte) is not None
 
 
+# --- correctifs-apres-banc-v4, lot 2 (6.5) : les lignes internes lues à voix haute -------------
+#
+# Run 1479 : le modèle imite le format du bloc de fiche (« Noté : … », « Encore attendu : … ») et la
+# voix le lit. Une ligne de réplique qui COMMENCE par une étiquette du bloc est retirée avant la voix,
+# la trace et l'historique. Les étiquettes sont lues dans le code qui écrit le bloc
+# (``fiche_au_fil_de_leau.etiquettes_du_bloc``). Une phrase normale qui contient « noté » reste : seule
+# l'étiquette en début de ligne, suivie de son deux-points, est coupée.
+
+_INTERNE, _PEUT_ETRE, _NORMAL = "interne", "peut_etre", "normal"
+
+
+def _classer_le_debut_de_ligne(ligne: str, etiquettes: tuple[str, ...]) -> str:
+    """Le début de ligne ``ligne`` est-il une étiquette interne (suivie de « : »), peut-il encore le
+    devenir (un début d'étiquette), ou est-il une parole ?"""
+    debut = ligne.lstrip(" \t")
+    if not debut:
+        return _PEUT_ETRE
+    for nom in etiquettes:
+        if debut.startswith(nom):
+            reste = debut[len(nom):].lstrip(" \t")
+            if reste.startswith(":"):
+                return _INTERNE
+            if not reste:
+                return _PEUT_ETRE
+        elif nom.startswith(debut):
+            return _PEUT_ETRE
+    return _NORMAL
+
+
+def sans_lignes_internes(texte: str, etiquettes: tuple[str, ...] | None = None) -> str:
+    """``texte`` sans ses lignes qui commencent par une étiquette du bloc de fiche (6.5)."""
+    if etiquettes is None:
+        from api.services.workflow.fiche_au_fil_de_leau import etiquettes_du_bloc
+
+        etiquettes = etiquettes_du_bloc()
+    return "".join(
+        ligne
+        for ligne in texte.splitlines(keepends=True)
+        if _classer_le_debut_de_ligne(ligne.split("\n", 1)[0], etiquettes) != _INTERNE
+    )
+
+
+def _porte_une_fin(morceau: Any) -> bool:
+    """Le morceau de texte porte-t-il aussi une fin de réponse ou un compte de jetons à ne pas perdre ?"""
+    choix = getattr(morceau, "choices", None) or []
+    return bool(
+        (choix and getattr(choix[0], "finish_reason", None)) or getattr(morceau, "usage", None)
+    )
+
+
+class FluxSansLignesInternes:
+    """Le flux du cerveau sans les lignes qui commencent par une étiquette du bloc de fiche (6.5).
+
+    Un début de ligne qui pourrait encore devenir une étiquette (« No », « Encore att ») est retenu le
+    temps de savoir ; une parole normale passe aussitôt, morceau par morceau. Une ligne interne est
+    retirée jusqu'à son saut de ligne compris. Au bout du flux, un début de ligne resté ambigu est
+    rendu tel quel. Sans étiquettes lisibles : flux d'origine."""
+
+    def __init__(self, flux: Any):
+        self._flux = flux
+
+    def __aiter__(self):
+        return self._parcourir()
+
+    async def _parcourir(self):
+        try:
+            from api.services.workflow.fiche_au_fil_de_leau import etiquettes_du_bloc
+
+            etiquettes = etiquettes_du_bloc()
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[cerveau] étiquettes du bloc illisibles, lignes internes non filtrées : {erreur!r}")
+            etiquettes = ()
+        if not etiquettes:
+            async for morceau in self._flux:
+                yield morceau
+            return
+        debut_de_ligne, supprime, tenu = True, False, ""
+        en_attente: list[Any] = []  # morceaux sans texte (fin, jetons) arrivés pendant une retenue
+        dernier: Any = None
+        async for morceau in self._flux:
+            texte = _texte(morceau)
+            if texte is None:
+                if tenu or supprime:
+                    en_attente.append(morceau)
+                else:
+                    yield morceau
+                continue
+            dernier = morceau
+            sortie, reste = "", texte
+            while reste:
+                if supprime:
+                    i = reste.find("\n")
+                    if i < 0:
+                        reste = ""
+                        break
+                    reste, supprime, debut_de_ligne = reste[i + 1:], False, True
+                    continue
+                i = reste.find("\n")
+                ligne, fin = (reste, len(reste)) if i < 0 else (reste[:i], i + 1)
+                if not debut_de_ligne:
+                    sortie += reste[:fin]
+                    reste = reste[fin:]
+                    debut_de_ligne = i >= 0
+                    continue
+                classe = _classer_le_debut_de_ligne(tenu + ligne, etiquettes)
+                if classe == _INTERNE:
+                    logger.warning(f"[cerveau] ligne interne jamais dite : {(tenu + ligne)[:80]!r}")
+                    supprime, tenu = True, ""
+                    continue  # le reste de la ligne est retiré par la branche ci-dessus
+                if classe == _PEUT_ETRE and i < 0:
+                    tenu += ligne
+                    reste = ""
+                    break
+                sortie += tenu + reste[:fin]
+                tenu, reste = "", reste[fin:]
+                debut_de_ligne = i >= 0
+            if sortie:
+                yield _avec_texte(morceau, sortie)
+            elif _porte_une_fin(morceau):
+                en_attente.append(_avec_texte(morceau, ""))
+            if not tenu and not supprime:
+                for m in en_attente:
+                    yield m
+                en_attente = []
+        if tenu and dernier is not None:
+            yield _avec_texte(dernier, tenu)  # un début de ligne resté ambigu : une parole
+        for m in en_attente:
+            yield m
+
+    async def close(self):
+        fermer = getattr(self._flux, "close", None) or getattr(self._flux, "aclose", None)
+        if fermer is not None:
+            await fermer()
+
+
 class FluxNettoye:
     """Le flux du cerveau, sans appel écrit en texte ni passage entre crochets."""
 
     def __init__(self, flux: Any, outils: Iterable[str], portes_dans_la_reponse: bool):
-        self._flux = flux
+        self._flux = FluxSansLignesInternes(flux)
         self._outils = set(outils)
         self._portes = portes_dans_la_reponse
 

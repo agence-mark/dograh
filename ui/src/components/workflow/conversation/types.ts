@@ -81,6 +81,8 @@ export interface ConversationMessageItem extends ConversationItemBase {
     text: string;
     final?: boolean;
     tone?: "default" | "muted";
+    /** [.mark] correctifs-apres-banc-v4, lot 5 (décision 3): said by the CODE (a fixed sentence), not by the model. */
+    duCode?: boolean;
 }
 
 export interface ConversationToolCallItem extends ConversationItemBase {

@@ -20,7 +20,7 @@ from api.services.phrases.carte import (
     derniers_declenchements,
     lecture_du_graphe,
 )
-from api.services.phrases.catalogue import CONNECTEUR_ECHOUE, MOTIFS, OUTIL_TARDE, PASSATION_TARDE
+from api.services.phrases.catalogue import OUTIL_ECHOUE, MOTIFS, OUTIL_TARDE, PASSATION_TARDE
 
 SERVICES = Path(__file__).resolve().parents[2] / "services"
 PAROLE = re.compile(r"TTSSpeakFrame\(|queue_speech\(|\.speak\(|queue_text_message\(|_speak\(")
@@ -74,25 +74,25 @@ def test_vue_du_principal_tout_le_groupe_et_le_specialise_herite():
     principal = {
         "agents_specialises": [2],
         "phrases_regles": [
-            {"motif": CONNECTEUR_ECHOUE, "portee": "groupe", "variantes": ["Pour le groupe."]}
+            {"motif": OUTIL_ECHOUE, "portee": "groupe", "variantes": ["Pour le groupe."]}
         ],
     }
     carte = construire_la_carte(
         [_agent(1, principal, est_principal=True), _agent(2, {})], principal
     )
     assert [a["id"] for a in carte["agents"]] == [1, 2]
-    specialise = next(m for m in carte["agents"][1]["motifs"] if m["motif"] == CONNECTEUR_ECHOUE)
+    specialise = next(m for m in carte["agents"][1]["motifs"] if m["motif"] == OUTIL_ECHOUE)
     assert specialise["variantes"] == ["Pour le groupe."] and specialise["niveau"] == "principal"
 
 
 def test_le_dernier_declenchement_vient_de_la_trace_des_appels():
     traces = [
-        (12, "2026-10-19 10:00", [{"motif": CONNECTEUR_ECHOUE, "agent": 1, "etape": "A", "texte": "Récent."}]),
-        (11, "2026-10-18 10:00", [{"motif": CONNECTEUR_ECHOUE, "agent": 1, "etape": "A", "texte": "Ancien."}]),
+        (12, "2026-10-19 10:00", [{"motif": OUTIL_ECHOUE, "agent": 1, "etape": "A", "texte": "Récent."}]),
+        (11, "2026-10-18 10:00", [{"motif": OUTIL_ECHOUE, "agent": 1, "etape": "A", "texte": "Ancien."}]),
     ]
     derniers = derniers_declenchements(traces)
     carte = construire_la_carte([_agent(1, {})], {}, derniers)
-    motif = next(m for m in carte["agents"][0]["motifs"] if m["motif"] == CONNECTEUR_ECHOUE)
+    motif = next(m for m in carte["agents"][0]["motifs"] if m["motif"] == OUTIL_ECHOUE)
     assert motif["dernier"]["run"] == 12 and motif["dernier"]["texte"] == "Récent."
     jamais = next(m for m in carte["agents"][0]["motifs"] if m["motif"] == OUTIL_TARDE)
     assert jamais["dernier"] is None
@@ -111,3 +111,45 @@ def test_les_phrases_du_graphe_en_lecture():
     assert {"nature": "fin_figee", "endroit": "Fin", "texte": "Au revoir."} in lignes
     assert {"nature": "porte", "endroit": "Accueil → Fin", "texte": "Je note."} in lignes
     assert lecture_du_graphe(None) == []
+
+
+def test_la_carte_rend_au_specialise_les_regles_du_groupe_heritees():
+    """Lot 5 : l'écran d'un spécialisé montre en lecture les règles « groupe » du principal."""
+    principal = {
+        "agents_specialises": [2],
+        "phrases_regles": [
+            {"motif": OUTIL_ECHOUE, "portee": "groupe", "variantes": ["Pour le groupe."]},
+            {"motif": OUTIL_ECHOUE, "portee": "agent", "variantes": ["Pour le principal seul."]},
+        ],
+    }
+    carte = construire_la_carte(
+        [_agent(1, principal, est_principal=True), _agent(2, {})], principal
+    )
+    assert carte["agents"][0]["regles_du_groupe"] == []
+    heritees = carte["agents"][1]["regles_du_groupe"]
+    assert [r["variantes"] for r in heritees] == [["Pour le groupe."]]
+    assert heritees[0]["portee"] == "groupe" and heritees[0]["etape_supprimee"] is False
+
+
+async def test_la_carte_lit_le_brouillon_comme_l_editeur(monkeypatch):
+    """Constat du lot 5 (correctifs-apres-banc-v4) : une règle d'un brouillon jamais publié est sur la carte ;
+    sans brouillon, la définition en vigueur, comme avant."""
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from api.db import db_client
+    from api.services.phrases import carte
+
+    regle = {"motif": OUTIL_ECHOUE, "portee": "agent", "variantes": ["Écrite dans le brouillon."]}
+    agent = SimpleNamespace(
+        id=3, name="Agent", current_definition=SimpleNamespace(workflow_configurations={}, workflow_json={})
+    )
+    brouillon = SimpleNamespace(workflow_configurations={"phrases_regles": [regle]}, workflow_json={})
+    monkeypatch.setattr(db_client, "get_workflow", AsyncMock(return_value=agent))
+    monkeypatch.setattr(db_client, "get_workflow_runs_by_workflow_id", AsyncMock(return_value=([], 0)))
+    monkeypatch.setattr(db_client, "get_draft_version", AsyncMock(return_value=brouillon))
+    avec = await carte.carte_de_l_agent(3, 1)
+    assert any(r.get("variantes") == ["Écrite dans le brouillon."] for r in avec["agents"][0]["regles"])
+    monkeypatch.setattr(db_client, "get_draft_version", AsyncMock(return_value=None))
+    sans = await carte.carte_de_l_agent(3, 1)
+    assert not any(r.get("variantes") == ["Écrite dans le brouillon."] for r in sans["agents"][0]["regles"])

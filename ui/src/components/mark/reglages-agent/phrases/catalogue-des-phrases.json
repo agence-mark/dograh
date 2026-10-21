@@ -3,68 +3,41 @@
     "variantes_max": 3,
     "longueur_max": 300,
     "regles_max": 60,
-    "delai_min_s": 0.5,
-    "delai_max_s": 120.0
+    "delai_min_s": 0.0,
+    "delai_max_s": 120.0,
+    "redite_min_s": 2.0,
+    "redite_max_s": 60.0,
+    "max_par_attente": 5,
+    "max_par_appel": 20,
+    "repos_defaut_s": 3.0
   },
   "motifs": [
     {
-      "id": "passation_tarde",
-      "famille": "attente",
-      "libelle": {
-        "en": "The handover takes time",
-        "fr": "La passation tarde"
-      },
-      "quand": {
-        "en": "A colleague takes over and has not spoken yet after the delay.",
-        "fr": "Un collègue prend la main et n'a pas encore parlé après le délai."
-      },
-      "a_un_delai": true,
-      "variantes_defaut": [
-        "Un instant, s'il vous plaît."
-      ],
-      "delai_defaut_s": 2.0,
-      "actif_par_defaut": false,
-      "eteinte": {
-        "en": "Nothing is said: the caller waits for the colleague's first sentence.",
-        "fr": "Rien n'est dit : l'appelant attend la première phrase du collègue."
-      },
-      "silence_de_l_appelant": false
-    },
-    {
-      "id": "modele_tarde",
-      "famille": "attente",
-      "libelle": {
-        "en": "The model is slow to answer",
-        "fr": "Le modèle tarde à répondre"
-      },
-      "quand": {
-        "en": "The model has not started answering within its guard delay (set in Models, under the brain): the sentence, then a second try.",
-        "fr": "Le modèle n'a pas commencé à répondre dans son délai de garde (réglé dans Models, sous le cerveau) : la phrase, puis une seconde tentative."
-      },
-      "a_un_delai": false,
-      "variantes_defaut": [
-        "Un instant, s'il vous plaît."
-      ],
-      "delai_defaut_s": null,
-      "actif_par_defaut": true,
-      "eteinte": {
-        "en": "Nothing is said during the second attempt.",
-        "fr": "Rien n'est dit pendant la seconde tentative."
-      },
-      "silence_de_l_appelant": false
-    },
-    {
       "id": "outil_tarde",
       "famille": "attente",
+      "moment": "attente",
       "libelle": {
-        "en": "A tool takes time",
-        "fr": "Un outil tarde"
+        "en": "A tool is working",
+        "fr": "Un outil travaille"
       },
       "quand": {
-        "en": "A tool of the turn (not a step change, handover or end) runs past the delay.",
-        "fr": "Un outil du tour (hors portes, passations et fin) tourne au-delà du délai."
+        "en": "The agent started a tool (not a step change, handover or end) and has no result yet.",
+        "fr": "L'agent a lancé un outil (hors portes, passations et fin) et n'a pas encore son résultat."
       },
       "a_un_delai": true,
+      "delai_min_s": 0.0,
+      "peut_redire": true,
+      "filtre_outil": true,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "The tool gives up at its deadline (set on the tool, retries included), then the rule \"a tool fails\".",
+        "fr": "L'outil abandonne à son délai (réglé sur l'outil, essais compris), puis la règle « un outil échoue »."
+      },
+      "fin_d_attente_reglage": "outil",
       "variantes_defaut": [
         "Je vérifie, un instant."
       ],
@@ -79,15 +52,29 @@
     {
       "id": "travail_dure",
       "famille": "attente",
+      "moment": "attente",
       "libelle": {
-        "en": "The background work takes time",
-        "fr": "Le travail de fond dure"
+        "en": "The background work is working",
+        "fr": "Le travail de fond travaille"
       },
       "quand": {
-        "en": "A request given to the background brain has no result yet after the delay.",
-        "fr": "Un travail confié au cerveau de fond n'a pas rendu son résultat après le délai."
+        "en": "The agent handed a job to the background brain and has no result yet.",
+        "fr": "L'agent a confié un travail au cerveau de fond et n'a pas encore son résultat."
       },
       "a_un_delai": true,
+      "delai_min_s": 0.0,
+      "peut_redire": true,
+      "filtre_outil": false,
+      "texte_de_l_agent": true,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "The job gives up at its maximum delay (set in Background work), then the rule \"the background work fails\".",
+        "fr": "Le travail abandonne à son délai maximal (réglé dans Travail en arrière-plan), puis la règle « le travail de fond échoue »."
+      },
+      "fin_d_attente_reglage": "travail",
       "variantes_defaut": [
         "C'est presque bon, merci de patienter."
       ],
@@ -100,8 +87,83 @@
       "silence_de_l_appelant": false
     },
     {
+      "id": "passation_tarde",
+      "famille": "attente",
+      "moment": "attente",
+      "libelle": {
+        "en": "A colleague takes over",
+        "fr": "Un collègue prend la main"
+      },
+      "quand": {
+        "en": "A handover is under way and the colleague has not spoken yet.",
+        "fr": "Une passation est lancée et le collègue n'a pas encore parlé."
+      },
+      "a_un_delai": true,
+      "delai_min_s": 0.5,
+      "peut_redire": true,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "The colleague speaks.",
+        "fr": "Le collègue parle."
+      },
+      "fin_d_attente_reglage": null,
+      "variantes_defaut": [
+        "Un instant, s'il vous plaît."
+      ],
+      "delai_defaut_s": 2.0,
+      "actif_par_defaut": false,
+      "eteinte": {
+        "en": "Nothing is said: the caller waits for the colleague's first sentence.",
+        "fr": "Rien n'est dit : l'appelant attend la première phrase du collègue."
+      },
+      "silence_de_l_appelant": false
+    },
+    {
+      "id": "modele_tarde",
+      "famille": "attente",
+      "moment": "attente",
+      "libelle": {
+        "en": "The model is slow to answer",
+        "fr": "Le modèle tarde à répondre"
+      },
+      "quand": {
+        "en": "The model has not started answering within its guard delay (set in Models, under the brain): the sentence, then a second try.",
+        "fr": "Le modèle n'a pas commencé à répondre dans son délai de garde (réglé dans Models, sous le cerveau) : la phrase, puis une seconde tentative."
+      },
+      "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "The delay is the model guard's (Models, Guard); once, then the second attempt and the outage mode.",
+        "fr": "Le délai est celui de la garde du modèle (Modèles, Garde) ; une seule fois, puis la seconde tentative et le mode panne."
+      },
+      "fin_d_attente_reglage": "garde",
+      "variantes_defaut": [
+        "Un instant, s'il vous plaît."
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "Nothing is said during the second attempt.",
+        "fr": "Rien n'est dit pendant la seconde tentative."
+      },
+      "silence_de_l_appelant": false
+    },
+    {
       "id": "appelant_se_tait",
       "famille": "attente",
+      "moment": "attente",
       "libelle": {
         "en": "The caller is silent",
         "fr": "L'appelant se tait"
@@ -111,6 +173,21 @@
         "fr": "L'agent a fini de parler et l'appelant ne dit rien pendant le délai."
       },
       "a_un_delai": true,
+      "delai_min_s": 2.0,
+      "peut_redire": true,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer",
+        "transferer",
+        "raccrocher"
+      ],
+      "sortie_defaut": "raccrocher",
+      "fin_d_attente": {
+        "en": "The number of prompts is \"at most, per wait\" when the rule sets it, else Pace's; the exit goes at the silence that follows the last prompt.",
+        "fr": "Le nombre de relances est celui de « au plus, par attente » quand la règle le pose, sinon celui de Rythme ; la sortie part au silence qui suit la dernière relance."
+      },
+      "fin_d_attente_reglage": "rythme",
       "variantes_defaut": [
         "Êtes-vous toujours là ?",
         "Allô ?"
@@ -126,6 +203,7 @@
     {
       "id": "reponse_perdue",
       "famille": "annonce",
+      "moment": "probleme",
       "libelle": {
         "en": "The model's answer is lost",
         "fr": "La réponse du modèle est perdue"
@@ -135,6 +213,22 @@
         "fr": "La réponse du modèle n'a rien donné de dicible, même après la relance du filet."
       },
       "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer",
+        "modele",
+        "transferer",
+        "raccrocher"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
       "variantes_defaut": [
         "Pardon, je n'ai pas bien saisi. Vous pouvez répéter ?"
       ],
@@ -147,31 +241,89 @@
       "silence_de_l_appelant": false
     },
     {
-      "id": "mise_en_relation",
+      "id": "outil_echoue",
       "famille": "annonce",
+      "moment": "probleme",
       "libelle": {
-        "en": "Before an outbound call transfer",
-        "fr": "Mise en relation avant un transfert d'appel"
+        "en": "A tool fails",
+        "fr": "Un outil échoue"
       },
       "quand": {
-        "en": "An agent reaches a step with a call transfer, business open, right before starting the transfer.",
-        "fr": "Un agent arrive sur une étape qui porte un transfert d'appel, entreprise ouverte, juste avant de lancer le transfert."
+        "en": "A tool or a connector fails, after its retries, or runs past its deadline.",
+        "fr": "Un outil ou un connecteur échoue, après ses essais, ou dépasse son délai."
       },
       "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": true,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer",
+        "modele",
+        "transferer",
+        "raccrocher"
+      ],
+      "sortie_defaut": "modele",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
       "variantes_defaut": [
-        "Je vous mets en relation, un instant."
+        "Je transmets votre demande, on vous rappelle pour la confirmer."
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "The code says nothing: the model reads the failure and answers.",
+        "fr": "Rien n'est dit par le code : le modèle lit l'échec et répond."
+      },
+      "silence_de_l_appelant": false
+    },
+    {
+      "id": "travail_echoue",
+      "famille": "annonce",
+      "moment": "probleme",
+      "libelle": {
+        "en": "The background work fails",
+        "fr": "Le travail de fond échoue"
+      },
+      "quand": {
+        "en": "The background work returns a failure, runs past its deadline, or returns a result without having called any tool.",
+        "fr": "Le travail de fond rend un échec, dépasse son délai, ou rend un résultat sans avoir appelé aucun outil."
+      },
+      "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer",
+        "modele",
+        "transferer",
+        "raccrocher"
+      ],
+      "sortie_defaut": "modele",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
+      "variantes_defaut": [
+        "Je n'arrive pas à finaliser pour le moment."
       ],
       "delai_defaut_s": null,
       "actif_par_defaut": false,
       "eteinte": {
-        "en": "The model announces the transfer itself.",
-        "fr": "Le modèle annonce lui-même la mise en relation."
+        "en": "The model reads the failure and answers.",
+        "fr": "Le modèle lit « Échec : rien n'a été fait » et répond."
       },
       "silence_de_l_appelant": false
     },
     {
       "id": "transfert_echoue",
       "famille": "annonce",
+      "moment": "probleme",
       "libelle": {
         "en": "The call transfer fails",
         "fr": "Le transfert d'appel échoue"
@@ -181,6 +333,21 @@
         "fr": "Un transfert vers une personne n'aboutit pas (pas de réponse, répondeur)."
       },
       "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer",
+        "modele",
+        "raccrocher"
+      ],
+      "sortie_defaut": "modele",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
       "variantes_defaut": [
         "Je n'ai pas pu vous mettre en relation."
       ],
@@ -193,25 +360,39 @@
       "silence_de_l_appelant": false
     },
     {
-      "id": "connecteur_echoue",
+      "id": "mise_en_relation",
       "famille": "annonce",
+      "moment": "action",
       "libelle": {
-        "en": "A connector fails",
-        "fr": "Un connecteur échoue"
+        "en": "Before an outbound call transfer",
+        "fr": "Mise en relation avant un transfert d'appel"
       },
       "quand": {
-        "en": "A connector action fails or runs past its deadline.",
-        "fr": "Une action d'un connecteur échoue ou dépasse son délai."
+        "en": "An agent reaches a step with a call transfer, business open, right before starting the transfer.",
+        "fr": "Un agent arrive sur une étape qui porte un transfert d'appel, entreprise ouverte, juste avant de lancer le transfert."
       },
       "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
       "variantes_defaut": [
-        "Je transmets votre demande, on vous rappelle pour la confirmer."
+        "Je vous mets en relation, un instant."
       ],
       "delai_defaut_s": null,
-      "actif_par_defaut": true,
+      "actif_par_defaut": false,
       "eteinte": {
-        "en": "The code says nothing: the model reads the failure and answers.",
-        "fr": "Rien n'est dit par le code : le modèle lit l'échec et répond."
+        "en": "The model announces the transfer itself.",
+        "fr": "Le modèle annonce lui-même la mise en relation."
       },
       "silence_de_l_appelant": false
     }

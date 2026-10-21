@@ -157,6 +157,18 @@ class ChampFiche(BaseModel):
         ),
     )
 
+    # [.mark] correctifs-apres-banc-v4, lot 2 (6.3, question n° 382) : un refus de la personne est noté
+    # « refusé » et la garde de l'étape le compte comme traité (sinon l'agent redemande à chaque
+    # tour). Ce champ-ci fait exception : refusé, il reste manquant. Faux par défaut : un champ qui ne
+    # le déclare pas se comporte comme un refus ordinaire. La case d'écran vient au lot 5.
+    obligatoire_sans_exception: bool = Field(
+        default=False,
+        description=(
+            "Required without exception: a refusal by the caller does not count as an answer, "
+            "the field stays missing for the step's guard. Off: a refused field counts as handled."
+        ),
+    )
+
     @field_validator("rempli_par_outil")
     @classmethod
     def _outil_lisible(cls, nom: str | None) -> str | None:

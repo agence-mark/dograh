@@ -18,7 +18,7 @@ from pipecat.pipeline.worker import PipelineWorker
 from pipecat.processors.frame_processor import FrameProcessor
 from pipecat.tests import MockTTSService
 
-from api.services.phrases.catalogue import CONNECTEUR_ECHOUE, MOTIFS, REPONSE_PERDUE
+from api.services.phrases.catalogue import OUTIL_ECHOUE, MOTIFS, REPONSE_PERDUE
 from api.services.phrases.diseur import DiseurDePhrases
 from api.services.phrases.sons import FabriqueDesSons, Son, textes_a_fabriquer
 from api.services.pipecat.worker_runner import create_worker_runner, run_worker_runner
@@ -32,7 +32,7 @@ def _defaut(motif):
 def test_les_textes_a_fabriquer():
     agent = {
         "phrases_regles": [
-            {"motif": CONNECTEUR_ECHOUE, "variantes": ["Bonjour {{nom}}."]},
+            {"motif": OUTIL_ECHOUE, "variantes": ["Bonjour {{nom}}."]},
             {"motif": "outil_tarde", "portee": "etape", "etape": "X", "variantes": ["Je regarde."]},
             {"motif": REPONSE_PERDUE, "variantes": [], "active": False},
         ]
@@ -96,17 +96,17 @@ async def test_le_diseur_joue_le_son_fabrique_sans_la_voix_sinon_la_voix():
 
     moteur.queue_speech = queue_speech
     fabrique = FabriqueDesSons(creer_la_voix=lambda: None, ajouter_le_circuit=None, taux_attendu=16000)
-    fabrique.sons[_defaut(CONNECTEUR_ECHOUE)] = Son(audio=b"\x00\x01" * 10, taux=16000)
+    fabrique.sons[_defaut(OUTIL_ECHOUE)] = Son(audio=b"\x00\x01" * 10, taux=16000)
     moteur.fabrique_des_sons = fabrique
     diseur = DiseurDePhrases(moteur)
-    parole = await diseur.dire_la_parole(CONNECTEUR_ECHOUE)
+    parole = await diseur.dire_la_parole(OUTIL_ECHOUE)
     await diseur.attendre_la_fin()
     texte, options = appels[0]
     assert texte is None and options["audio"] == b"\x00\x01" * 10
-    assert options["transcript"] == _defaut(CONNECTEUR_ECHOUE) and options["append_to_context"] is True
-    assert parole.text == _defaut(CONNECTEUR_ECHOUE)
+    assert options["transcript"] == _defaut(OUTIL_ECHOUE) and options["append_to_context"] is True
+    assert parole.text == _defaut(OUTIL_ECHOUE)
     # Une phrase sans son fabriqué (phrase propre d'un connecteur) : la voix, comme avant.
-    await diseur.dire_la_parole(CONNECTEUR_ECHOUE, texte="Autre phrase.")
+    await diseur.dire_la_parole(OUTIL_ECHOUE, texte="Autre phrase.")
     assert appels[1][0] == "Autre phrase." and "audio" not in appels[1][1]
 
 

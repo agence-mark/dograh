@@ -108,6 +108,11 @@ async def handle_user_idle(engine: "PipecatEngine", aggregator, attempt: int) ->
     # silence) and `or` would silently turn it back into 1.
     max_prompts = reglages.get("user_idle_max_prompts")
     max_prompts = DEFAULT_USER_IDLE_MAX_PROMPTS if max_prompts is None else int(max_prompts)
+    # [.mark] correctifs-apres-banc-v4 (lot 4, décision 1 d'Evan) : le nombre de relances est lu dans la
+    # règle « l'appelant se tait » quand elle le pose ; sinon les réglages de Rythme, comme avant.
+    regle = _phrase_de_silence(engine)
+    if regle is not None and regle.active and regle.max_pose:
+        max_prompts = regle.max_par_attente
 
     logger.debug(f"Handling user_idle, attempt: {attempt}")
     # [.mark] The run keeps each reminder (langwatch-et-fenetre-du-run, lot 2).
@@ -123,6 +128,20 @@ async def handle_user_idle(engine: "PipecatEngine", aggregator, attempt: int) ->
             )
         )
         return
+    # [.mark] La sortie réglée dans la règle (« Ensuite » : dire, noter dans la fiche, puis raccrocher,
+    # transférer ou continuer) remplace le au revoir donné au modèle. Un transfert qui ne part pas laisse
+    # le au revoir d'avant : l'appelant n'est jamais abandonné.
+    if regle is not None and regle.active and regle.sortie_posee:
+        from api.services.phrases.sorties import executer
+
+        issue = await executer(
+            engine,
+            engine.phrases,
+            regle,
+            raison_de_fin=EndTaskReason.USER_IDLE_MAX_DURATION_EXCEEDED.value,
+        )
+        if issue.prise_en_main or issue.action == "continuer":
+            return
     await aggregator.push_frame(
         LLMMessagesAppendFrame([{"role": "user", "content": goodbye_prompt}], run_llm=True)
     )
