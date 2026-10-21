@@ -32,6 +32,7 @@ from api.services.configuration.registry import (
 )
 from api.services.configuration.plafond_lexique import plafond_du_lexique
 from api.services.pipecat.ordre_outil_puis_parole import ordre_outil_puis_parole
+from api.services.pipecat.soniox_cle_en_entete import MarkSonioxSTTService
 from api.services.pipecat.appels_de_fonction_voix import (
     PhraseQuiNEstQuUnAppel,
     retirer_appels_de_fonction,
@@ -141,7 +142,6 @@ from pipecat.services.speaches.tts import SpeachesTTSService, SpeachesTTSSetting
 from pipecat.services.soniox.stt import (
     SonioxContextGeneralItem,
     SonioxContextObject,
-    SonioxSTTService,
     SonioxSTTSettings,
 )
 from pipecat.services.speechmatics.stt import (
@@ -951,7 +951,8 @@ def create_stt_service(
             user_config.stt.provider, user_config.stt.model
         ):
             settings_kwargs["context"] = contexte_soniox(keyterms, description_domaine)
-        return SonioxSTTService(
+        # [.mark] D19 : la cle part aussi dans l'en-tete de connexion (voir la classe).
+        return MarkSonioxSTTService(
             api_key=user_config.stt.api_key,
             url=adresse,
             settings=SonioxSTTSettings(**settings_kwargs),

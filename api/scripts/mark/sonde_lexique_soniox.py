@@ -43,6 +43,7 @@ from api.services.configuration.plafond_lexique import (
 )
 from api.services.configuration.registry import DESCRIPTION_DU_DOMAINE_MAX
 from api.services.pipecat.service_factory import contexte_soniox
+from api.services.pipecat.soniox_cle_en_entete import en_tete_de_cle_soniox
 
 RACINE = Path(__file__).resolve().parents[3]
 CORPUS = RACINE / "api/tests/mark/donnees/rejeu_runs_963_967.json"
@@ -117,7 +118,10 @@ async def _essai(
         "taille_du_contexte_json": len(json.dumps(contexte))
     }
     try:
-        async with websockets.connect(adresse, open_timeout=10) as socket:
+        # [.mark] D19 : la cle part aussi dans l'en-tete (Soniox l'exige des le 15/01/2027).
+        async with websockets.connect(
+            adresse, open_timeout=10, additional_headers=en_tete_de_cle_soniox(cle)
+        ) as socket:
             await socket.send(json.dumps(configuration))
             await socket.send(SILENCE)
             await socket.send("")  # end of audio
