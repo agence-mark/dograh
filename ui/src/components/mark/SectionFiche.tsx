@@ -266,6 +266,7 @@ export const pourComparerLaFiche = (champs: ChampFiche[]) =>
         copie_de_la_parole: c.copie_de_la_parole ?? false,
         chiffres: c.chiffres ?? null,
         rempli_en_fin_d_appel: c.rempli_en_fin_d_appel ?? true,
+        obligatoire_sans_exception: c.obligatoire_sans_exception ?? false,
         // Lot 17: empty (absent or null) is « from the settings », never written.
         portee: c.portee ?? null,
         rempli_par_outil: c.rempli_par_outil?.trim() ? c.rempli_par_outil.trim() : null,
@@ -659,6 +660,25 @@ export const EditeurChampsFiche = ({
                                             {t({
                                                 en: "If the agent did not note this field during the call, the end-of-call pass may fill it from the conversation. Off: only the agent writes it, while the caller is speaking.",
                                                 fr: "Si l'agent n'a pas noté ce champ pendant l'appel, la passe de fin d'appel peut le remplir en relisant la conversation. Décoché : seul l'agent l'écrit, pendant que la personne parle.",
+                                            })}
+                                        </p>
+                                    </div>
+                                </div>
+                                {/* [.mark] correctifs-apres-banc-v4, lot 5 (6.3) : un refus ne vaut pas réponse. */}
+                                <div className="flex items-start gap-2">
+                                    <Switch
+                                        id={`fiche_obligatoire_${i}`}
+                                        checked={champ.obligatoire_sans_exception ?? false}
+                                        onCheckedChange={(coche) => modifier(i, { obligatoire_sans_exception: coche })}
+                                    />
+                                    <div className="space-y-1">
+                                        <Label htmlFor={`fiche_obligatoire_${i}`} className="text-xs">
+                                            {t({ en: "Required, no exception", fr: "Obligatoire sans exception" })}
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            {t({
+                                                en: "Off (default): if the caller refuses to give this field, the refusal counts as handled and the step moves on. On: a refusal does not count, the field stays missing for the step's guard.",
+                                                fr: "Décoché (défaut) : si la personne refuse de donner ce champ, le refus compte comme traité et l'étape avance. Coché : un refus ne compte pas, le champ reste manquant pour la garde de l'étape.",
                                             })}
                                         </p>
                                     </div>

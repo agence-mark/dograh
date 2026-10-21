@@ -29,6 +29,8 @@ import {
     validateUrl,
 } from "@/components/http";
 import { ConfigOutilIntegration, EnteteOutilIntegration } from "@/components/mark/connecteurs/ConfigOutilIntegration";
+import { chargeEssais, ESSAIS_PAR_DEFAUT, type EssaisOutil, lireEssais } from "@/components/mark/outils/essais-outil";
+import { EssaisOutilHttp } from "@/components/mark/outils/EssaisOutilHttp";
 import { type ConfigIntegration, useConnecteurs } from "@/components/mark/connecteurs/useConnecteurs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,6 +126,8 @@ export default function ToolDetailPage() {
     const [parameters, setParameters] = useState<ToolParameter[]>([]);
     const [presetParameters, setPresetParameters] = useState<PresetToolParameter[]>([]);
     const [timeoutMs, setTimeoutMs] = useState(5000);
+    // [.mark] correctifs-apres-banc-v4, lot 5 (5.1): the tool's retries.
+    const [essaisOutil, setEssaisOutil] = useState<EssaisOutil>(ESSAIS_PAR_DEFAUT);
     const [bodyTemplateEnabled, setBodyTemplateEnabled] = useState(false);
     const [bodyTemplate, setBodyTemplate] = useState<Record<string, unknown> | null>(null);
     const [isBodyTemplateValid, setIsBodyTemplateValid] = useState(true);
@@ -351,6 +355,7 @@ export default function ToolDetailPage() {
                 setUrl(loadedUrl);
                 setCredentialUuid(loadedCredentialUuid);
                 setTimeoutMs(loadedTimeoutMs);
+                setEssaisOutil(lireEssais(config as unknown as Record<string, unknown>));
                 setCustomMessage(loadedCustomMessage);
                 setCustomMessageType(loadedCustomMessageType);
                 setCustomMessageRecordingId(loadedCustomMessageRecordingId);
@@ -773,6 +778,7 @@ export default function ToolDetailPage() {
                                 : undefined,
                             body_format: bodyFormat,
                             timeout_ms: timeoutMs,
+                            ...chargeEssais(essaisOutil),
                             customMessage: customMessageType === 'text' ? (customMessage || undefined) : undefined,
                             customMessageType,
                             customMessageRecordingId: customMessageType === 'audio' ? (customMessageRecordingId || undefined) : undefined,
@@ -1219,6 +1225,10 @@ const data = await response.json();`;
                             onCustomMessageRecordingIdChange={setCustomMessageRecordingId}
                             recordings={recordings}
                         />
+                    )}
+
+                    {isHttpApiTool && (
+                        <EssaisOutilHttp valeur={essaisOutil} onChange={setEssaisOutil} timeoutMs={timeoutMs} />
                     )}
 
                     {isHttpApiTool && (
