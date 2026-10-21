@@ -77,7 +77,11 @@ class AgentGenerationCallbacks:
 
 
 def _estampiller_agent(
-    runtime_configuration: dict, user_config, workflow_id: int, voix_de_l_appel=None
+    runtime_configuration: dict,
+    user_config,
+    workflow_id: int,
+    voix_de_l_appel=None,
+    run_configs: dict | None = None,
 ):
     """[.mark] The same stamps as the call's first agent (run_pipeline): what
     this agent's sampling and cache key were, readable after the call.
@@ -90,7 +94,7 @@ def _estampiller_agent(
     runtime_configuration["tts_provider"] = voix.provider
     runtime_configuration["tts_model"] = voix.model
     stamp_sampling_settings(runtime_configuration, user_config.llm)
-    stamp_voice_settings(runtime_configuration, voix)
+    stamp_voice_settings(runtime_configuration, voix, run_configs)
     stamp_prompt_cache_key(
         runtime_configuration, user_config.llm, cle_de_cache(workflow_id)
     )
@@ -363,12 +367,19 @@ class AgentRuntimeFactory:
                 user_config,
                 workflow_id,
                 self._voix_de_l_appel,
+                run_configs,
             ),
             is_child=True,
             entered_at=None,
             # [.mark] This agent's own switches, the call's live variables.
             filtre_nom_civilite=creer_filtre_nom_civilite(
-                run_configs, self._variables_appel, self._contexte_appel
+                run_configs,
+                self._variables_appel,
+                self._contexte_appel,
+                # [.mark] Voix-soniox (D-10) : le mode d'envoi est celui de la VOIX DE L'APPEL.
+                voix=self._voix_de_l_appel
+                if self._voix_de_l_appel is not None
+                else user_config.tts,
             ),
             # [.mark] Chantier agents-specialises : ses réglages (groupe, plafond).
             reglages=dict(run_configs),

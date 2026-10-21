@@ -152,6 +152,7 @@ CLES_COMMUNES: tuple[str, ...] = (
     "interdire_civilite_appelant",
     "relecture_des_numeros",
     "tts_replacements",
+    "tts_balises_permises",
     "ambient_noise_configuration",
     "tts_cache_enabled",
     # 6 Rythme de l'appel

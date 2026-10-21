@@ -65,6 +65,10 @@ from api.services.pipecat.mistral_tts import (
     point_entree_mistral,
     resolve_mistral_endpoint,
 )
+from api.services.pipecat.balises_expression import (
+    BALISES_PAR_DEFAUT,
+    retirer_balises_pour_la_voix,
+)
 from api.services.pipecat.courriels_pour_la_voix import courriels_en_mots
 from api.services.pipecat.nombres_pour_la_voix import nombres_en_mots
 from api.services.pipecat.tts_cache.runtime import get_speech_cache
@@ -350,7 +354,7 @@ def _reglages_soniox_voix(tts_config) -> dict:
     return reglages
 
 
-def _run_configs_avec_le_mode_de_la_voix(tts_config, run_configs: dict | None) -> dict | None:
+def run_configs_avec_le_mode_de_la_voix(tts_config, run_configs: dict | None) -> dict | None:
     """[.mark] Lot 3 (D3) : the voice's own « how the text is sent » setting.
 
     The agent already has one (``tts_text_aggregation_mode``, every provider,
@@ -375,6 +379,46 @@ def _run_configs_avec_le_mode_de_la_voix(tts_config, run_configs: dict | None) -
     if (mode_agent or DEFAULT_TTS_TEXT_AGGREGATION_MODE) == mode_voix:
         return run_configs
     return {**configs, "tts_text_aggregation_mode": mode_voix}
+
+
+def mode_d_envoi_du_texte(tts_config, run_configs: dict | None) -> str:
+    """[.mark] Lot 4/5 bis (D-10) : THE mode the text is sent to the voice in, resolved.
+
+    🔑 The one function every reader of the mode goes through -- the text filters
+    and transforms (``create_tts_service``), the name and title filter, the
+    balises guard, the stamp of the call. A reader that looked only at the agent's
+    setting would believe in sentence by sentence under a Soniox voice set to
+    word by word on the voice screen (the defect found by the review of B).
+    No voice, or another provider: the agent's own setting, as before.
+    """
+    configs = run_configs_avec_le_mode_de_la_voix(tts_config, run_configs) or {}
+    return str(
+        configs.get("tts_text_aggregation_mode") or DEFAULT_TTS_TEXT_AGGREGATION_MODE
+    )
+
+
+# Le nom d'origine (lot 3), gardé : les tests du lot 3 et le commentaire de la fabrique le citent.
+_run_configs_avec_le_mode_de_la_voix = run_configs_avec_le_mode_de_la_voix
+
+# [.mark] Lot 5 bis (D11) : la cle du reglage « balises d'expression permises » (liste, agent).
+CLE_BALISES_PERMISES = "tts_balises_permises"
+
+
+def run_configs_pour_la_voix(tts_config, run_configs: dict | None) -> dict | None:
+    """[.mark] The agent's settings as the VOICE reads them, resolved ONCE for the factory.
+
+    · the mode the text is sent in (``run_configs_avec_le_mode_de_la_voix``, D-10) ;
+    · lot 5 bis (D11) : a Soniox voice reads brackets aloud when it does not know them, so it
+      carries the guard by itself -- the agent that set nothing gets the default list
+      (``BALISES_PAR_DEFAUT``). An agent that SET a list (empty = off, every bracket removed)
+      keeps it. Another provider: untouched, the guard exists only if the agent turned it on.
+    """
+    configs = run_configs_avec_le_mode_de_la_voix(tts_config, run_configs)
+    if getattr(tts_config, "provider", None) != ServiceProviders.SONIOX.value:
+        return configs
+    if (configs or {}).get(CLE_BALISES_PERMISES) is not None:
+        return configs
+    return {**(configs or {}), CLE_BALISES_PERMISES: list(BALISES_PAR_DEFAUT)}
 
 
 def _reglages_classiques(stt_config) -> dict:
@@ -1218,6 +1262,13 @@ def construire_remplacements_de_voix(
         # chiffres sont ensuite dits par eux).
         transformations.append(("*", courriels_en_mots))
         transformations.append(("*", nombres_en_mots))
+    # [.mark] Voix-soniox, lot 5 bis (D11) : APRES les nombres en mots, juste avant la voix, tout
+    # crochet hors de la liste permise est retire du texte envoye. Pose seulement quand le reglage
+    # existe (la voix Soniox le porte d'office, voir `run_configs_pour_la_voix`) : un agent qui n'a
+    # rien allume garde son texte tel quel. Phrase par phrase : mot a mot, un crochet arrive en morceaux.
+    balises = run_configs.get(CLE_BALISES_PERMISES)
+    if balises is not None and str(mode) == "sentence":
+        transformations.append(("*", retirer_balises_pour_la_voix(balises)))
     return transformations
 
 
@@ -1309,8 +1360,8 @@ def create_tts_service(
     # Everything the agent configured about its voice, in one dict splatted
     # into every provider branch below.
     voix = reglages_de_voix_communs(
-        # [.mark] Lot 3 : le mode d'envoi du texte de la voix Soniox (autre voix : inchange).
-        _run_configs_avec_le_mode_de_la_voix(user_config.tts, run_configs),
+        # [.mark] Lot 3 : le mode d'envoi du texte de la voix Soniox, lot 5 bis : ses balises (autre voix : inchange).
+        run_configs_pour_la_voix(user_config.tts, run_configs),
         langue_francaise=langue_agent_francaise(getattr(user_config, "stt", None)),
         lexique=lexique,
     )
@@ -1941,7 +1992,34 @@ def _point_entree_voix(tts_config) -> str | None:
     return adresse or None
 
 
-def stamp_voice_settings(runtime_configuration: dict, tts_config) -> dict:
+def _estampille_voix_soniox(tts_config, run_configs: dict | None) -> dict:
+    """[.mark] Lot 4 : what a call played with the Soniox voice says about it.
+
+    🔑 ``_reglages_soniox_voix`` is the function the factory calls to build the request, and the
+    mode of sending the text and the balises list come out of ``run_configs_pour_la_voix``, the one
+    the factory reads too (D-10). The address goes under ``endpoint`` like every other voice.
+    ⛔ ``speed`` and ``reduce_silence`` are stamped only when the request carries them.
+    """
+    demandes = _reglages_soniox_voix(tts_config)
+    estampille = {
+        "voice": demandes["voice"],
+        "endpoint": demandes["base_url"],
+        "language": demandes["language"],
+    }
+    for champ in ("speed", "reduce_silence"):
+        if champ in demandes:
+            estampille[champ] = demandes[champ]
+    configs = run_configs_pour_la_voix(tts_config, run_configs) or {}
+    estampille["text_aggregation_mode"] = mode_d_envoi_du_texte(tts_config, run_configs)
+    balises = configs.get(CLE_BALISES_PERMISES)
+    if balises is not None:
+        estampille["balises_permises"] = list(balises)
+    return estampille
+
+
+def stamp_voice_settings(
+    runtime_configuration: dict, tts_config, run_configs: dict | None = None
+) -> dict:
     """[.mark] Record the voice this run was actually played with.
 
     A run already stamps ``tts_provider`` and ``tts_model``, but neither the
@@ -1967,12 +2045,18 @@ def stamp_voice_settings(runtime_configuration: dict, tts_config) -> dict:
     if tts_config is None:
         return runtime_configuration
     reglages = {}
-    voix = _voix_jouee(tts_config)
-    if voix:
-        reglages["voice"] = voix
-    point_entree = _point_entree_voix(tts_config)
-    if point_entree:
-        reglages["endpoint"] = point_entree
+    if getattr(tts_config, "provider", None) == ServiceProviders.SONIOX.value:
+        # [.mark] Voix-soniox, lot 4 : fournisseur (deja estampille par l'appelant), adresse appelee et
+        # reglages, lus par la MEME fonction que celle qui construit la requete (jamais recalcules a
+        # part : une voix videe est estampillee « Mathieu », celle qui est jouee).
+        reglages.update(_estampille_voix_soniox(tts_config, run_configs))
+    else:
+        voix = _voix_jouee(tts_config)
+        if voix:
+            reglages["voice"] = voix
+        point_entree = _point_entree_voix(tts_config)
+        if point_entree:
+            reglages["endpoint"] = point_entree
     if reglages:
         runtime_configuration["tts_settings"] = reglages
     return runtime_configuration

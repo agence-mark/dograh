@@ -496,9 +496,15 @@ def creer_filtre_nom_civilite(
     run_configs: dict | None,
     variables: Callable[[], dict],
     contexte: Callable[[], dict] | None = None,
+    voix=None,
 ) -> FiltreNomCiviliteProcessor | None:
     """Le filtre pour cet agent, ou ``None`` quand les deux interrupteurs sont
-    éteints -- ce qui est le défaut, et ce qui vaut pour tout agent existant."""
+    éteints -- ce qui est le défaut, et ce qui vaut pour tout agent existant.
+
+    ``voix`` : la configuration de la voix de l'appel. Le mode d'envoi du texte est le mode
+    RÉSOLU (voix-soniox, D-10) : sous une voix Soniox réglée « mot à mot » depuis l'écran de la
+    voix, le filtre sait qu'il n'est pas en phrase par phrase. Sans voix : le seul réglage d'agent,
+    comme avant."""
     run_configs = run_configs or {}
     retirer_nom = bool(run_configs.get("interdire_nom_appelant"))
     retirer_civilite = bool(run_configs.get("interdire_civilite_appelant"))
@@ -506,7 +512,11 @@ def creer_filtre_nom_civilite(
     corriger_numeros = run_configs.get(CLE_RELECTURE_DES_NUMEROS) is True
     if not retirer_nom and not retirer_civilite and not corriger_numeros:
         return None
-    from api.schemas.workflow_configurations import DEFAULT_TTS_TEXT_AGGREGATION_MODE
+    # Import tardif : ``service_factory`` importe ce module (pas de cycle au chargement).
+    from api.services.pipecat.service_factory import mode_d_envoi_du_texte
+
+    # La seule fonction qui lit le mode d'envoi (sans voix : le réglage d'agent, comme avant).
+    mode_envoi = mode_d_envoi_du_texte(voix, run_configs)
 
     return FiltreNomCiviliteProcessor(
         retirer_nom=retirer_nom,
@@ -514,6 +524,5 @@ def creer_filtre_nom_civilite(
         variables=variables,
         corriger_numeros=corriger_numeros,
         contexte=contexte,
-        mode_envoi=run_configs.get("tts_text_aggregation_mode")
-        or DEFAULT_TTS_TEXT_AGGREGATION_MODE,
+        mode_envoi=mode_envoi,
     )

@@ -56,6 +56,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.groupe.passations import est_un_resultat_de_travail
+from api.services.pipecat.balises_expression import sans_balises
 from api.services.pipecat.post_scriptum import lire_la_note
 from api.services.workflow.dates_relatives import FUSEAU
 from api.services.workflow.porte_parlee import FLECHE
@@ -273,6 +274,9 @@ def message_du_greffier(
             continue
         texte = _texte(message.get("content")).strip()
         if role == "assistant":
+            # [.mark] Voix-soniox, lot 5 bis (D11) : la fiche ne lit aucune balise d'expression
+            # (l'historique du modele, lui, la garde telle qu'ecrite).
+            texte = sans_balises(texte)
             # Lot A de greffier-conversation : une ligne de porte (« → ») n'est jamais
             # relue, même si elle avait échappé au lecteur de portes.
             texte = "\n".join(

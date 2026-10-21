@@ -136,6 +136,7 @@ from api.services.pipecat.service_factory import (
     create_realtime_llm_service,
     create_stt_service,
     create_tts_service,
+    run_configs_avec_le_mode_de_la_voix,
     stamp_pipeline_settings,
     stamp_prompt_cache_key,
     stamp_sampling_settings,
@@ -1265,7 +1266,7 @@ async def _run_pipeline_impl(
         # says nothing about how it was played. Without this stamp two voices
         # of one provider are indistinguishable after the fact and no voice
         # bench is verifiable (§5.4 of `18-ajout-fournisseur.md`).
-        stamp_voice_settings(runtime_configuration, user_config.tts)
+        stamp_voice_settings(runtime_configuration, user_config.tts, run_configs)
         # [.mark] Same guard, other reason: the cache key is only handed to the
         # conversation LLM built in the non-realtime branch above.
         stamp_prompt_cache_key(
@@ -1280,12 +1281,15 @@ async def _run_pipeline_impl(
     # par le MCP ou à la main ferait mourir l'appel AU MONTAGE du pipeline.
     # Relevé par la relecture indépendante du 14/09.
     try:
+        # [.mark] Voix-soniox (D-10) : la fiche dit le mode d'envoi du texte EFFECTIVEMENT retenu
+        # (celui de la voix Soniox quand l'agent n'a rien demandé), jamais le seul réglage d'agent.
         # ⛔ Le plafond d'attente est RÉSOLU avant d'être estampillé : c'est le
         # seul réglage dont le défaut dépend du mode, donc le seul que lire
         # dans le schéma enregistrerait à `null` sur presque tous les appels.
         stamp_pipeline_settings(
             runtime_configuration,
-            run_configs,
+            run_configs_avec_le_mode_de_la_voix(getattr(user_config, "tts", None), run_configs)
+            or run_configs,
             user_turn_stop_timeout=_resolve_user_turn_stop_timeout(
                 run_configs,
                 uses_external_turns=(
@@ -1905,7 +1909,7 @@ async def _run_pipeline_impl(
         # voix de l'appel (réglages PAR agent : le filtre reste dans son sous-circuit). L'état est vivant : le nom n'est pas connu au
         # montage, il arrive avec l'extraction, pendant l'appel.
         agent.filtre_nom_civilite = creer_filtre_nom_civilite(
-            run_configs, variables_appel, contexte_appel
+            run_configs, variables_appel, contexte_appel, voix=user_config.tts
         )
         # [.mark] Plan mode-prise-de-notes : le post-scriptum ou le déclencheur
         # du greffier, sur l'agent qui porte la fiche (le premier), seulement

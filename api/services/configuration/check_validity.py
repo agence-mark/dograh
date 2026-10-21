@@ -15,10 +15,12 @@ from api.schemas.ai_model_configuration import (
 from api.services.cles_reference import resoudre_les_cles
 from api.services.configuration.registry import (
     MISTRAL_EU_BASE_URL,
+    BaseTTSConfiguration,
     ServiceConfig,
     ServiceProviders,
     est_champ_adresse,
     region_soniox,
+    region_soniox_voix,
 )
 from api.services.mps_service_key_client import mps_service_key_client
 from api.utils.url_security import validate_user_configured_service_url
@@ -285,9 +287,15 @@ class UserConfigurationValidator:
         the key leaves, never audio.
         """
         base_url = getattr(service_config, "base_url", None) if service_config else None
-        hote = (
-            "api.eu.soniox.com" if region_soniox(base_url) == "eu" else "api.soniox.com"
+        # [.mark] Voix-soniox, lot 5 (D8) : la cle de la VOIX se verifie selon la region de l'adresse
+        # de la voix (``region_soniox_voix``, la fonction propre a la voix, la meme que le miroir
+        # de l'ecran), pas par celle de la transcription. La transcription ne change pas.
+        region = (
+            region_soniox_voix(base_url)
+            if isinstance(service_config, BaseTTSConfiguration)
+            else region_soniox(base_url)
         )
+        hote = "api.eu.soniox.com" if region == "eu" else "api.soniox.com"
         try:
             response = httpx.get(
                 f"https://{hote}/v1/models",

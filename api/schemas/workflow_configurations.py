@@ -1167,6 +1167,20 @@ class WorkflowConfigurationDefaults(BaseModel):
             "history keeps the original."
         ),
     )
+    # [.mark] Chantier voix-soniox, lot 5 bis (D11) : les balises d'expression permises.
+    tts_balises_permises: list[str] | None = Field(
+        default=None,
+        max_length=30,
+        description=(
+            "Expression tags allowed in the text sent to the voice, written without brackets "
+            "(warm, calm, slowly, pause). Any other passage between square brackets is removed "
+            "before the voice: an unknown tag can be read out loud. Empty list: every bracket is "
+            "removed. Not filled in (default): the Soniox voice uses warm, calm, slowly and pause, "
+            "any other voice sends its text as written. Sentence by sentence only. Applies to the "
+            "text sent to the voice: the conversation history keeps the original, and brackets are "
+            "never shown in the transcript or read by the call record."
+        ),
+    )
     tts_markdown_filter_enabled: bool = Field(
         default=DEFAULT_TTS_MARKDOWN_FILTER_ENABLED,
         description=(

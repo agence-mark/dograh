@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from api.services.pipecat.balises_expression import sans_balises
+
 from pipecat.utils.enums import RealtimeFeedbackType
 
 
@@ -62,7 +64,9 @@ def build_bot_text_event(
     timestamp: str | None = None,
     end_timestamp: str | None = None,
 ) -> dict[str, Any]:
-    payload: dict[str, Any] = {"text": text}
+    # [.mark] Voix-soniox, lot 5 bis (D11) : un crochet (balise d'expression) n'est jamais montré
+    # dans la transcription affichée ni conservé dans le verbatim. Un texte sans crochet : identique.
+    payload: dict[str, Any] = {"text": sans_balises(text)}
     if timestamp is not None:
         payload["timestamp"] = timestamp
     if end_timestamp is not None:

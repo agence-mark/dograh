@@ -99,6 +99,11 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     interdire_civilite_appelant: { theme: "voix", cas: ["civilite"] },
     relecture_des_numeros: { theme: "voix", cas: ["relecture-des-numeros"] },
     tts_replacements: { theme: "voix", cas: ["prononciation"] },
+    // Chantier voix-soniox, lot 5 bis (D11): the screen is the lot 7 (sub-agent D), which moves this entry to the theme Voice.
+    tts_balises_permises: {
+        horsEcran:
+            "Expression tags allowed before the voice (voix-soniox, lot 5 bis, D11): the list card of the theme Voice is the lot 7 of the same chantier; until then written through the API only, not filled in (null) meaning « the voice's own default », an empty list meaning « every bracket removed ».",
+    },
     ambient_noise_configuration: { theme: "voix", cas: ["ambiance", "ambiance-volume"] },
     tts_cache_enabled: { theme: "voix", cas: ["cache-voix"] },
     // Rythme de l'appel
