@@ -4924,6 +4924,24 @@ export type HttpApiConfig = {
      */
     timeout_ms?: number | null;
     /**
+     * Essais
+     *
+     * Extra attempts (0 to 2) when the service does not answer or is down. 0: a single request.
+     */
+    essais?: number;
+    /**
+     * Attente Entre Essais S
+     *
+     * Seconds to wait between two attempts.
+     */
+    attente_entre_essais_s?: number;
+    /**
+     * Sans Risque De Doublon
+     *
+     * The tool can be called again without risk of a duplicate (a lookup, a search). Off: it is called again only when the request never left (connection refused, unknown host); a timeout or a 5xx answer is then not retried. A 4xx answer is never retried.
+     */
+    sans_risque_de_doublon?: boolean;
+    /**
      * Custommessage
      *
      * Custom message to play before the tool executes, while the request is in flight.

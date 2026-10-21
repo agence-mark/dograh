@@ -60,6 +60,7 @@ from api.services.workflow.renvoi_en_test import (
 )
 from api.services.workflow.tools.calculator import get_calculator_tools, safe_calculator
 from api.services.workflow.tools.custom_tool import (
+    delai_total_s,
     execute_http_tool,
     tool_to_function_schema,
 )
@@ -422,10 +423,8 @@ class CustomToolManager:
             timeout_secs = self._transfer_handler_timeout_secs(tool)
             handler = self._create_transfer_call_handler(tool, function_name)
         else:
-            timeout_ms = ((tool.definition or {}).get("config", {}) or {}).get(
-                "timeout_ms", 5000
-            )
-            timeout_secs = float(timeout_ms) / 1000
+            # [.mark] correctifs-apres-banc-v4, lot 3 : le délai de l'appel de fonction couvre les essais.
+            timeout_secs = delai_total_s(((tool.definition or {}).get("config", {}) or {}))
             # [.mark] fiabilite-orchestration : une action, son résultat est lu (fiche).
             handler = envelopper_l_action(
                 self._engine,

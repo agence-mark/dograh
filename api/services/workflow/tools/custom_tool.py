@@ -1,5 +1,6 @@
 """Custom tool execution for user-defined HTTP API tools."""
 
+import asyncio
 import json
 import re
 from typing import Any
@@ -493,6 +494,101 @@ async def execute_http_tool(
         logger.debug(
             f"Resolved preset parameters for '{tool.name}': {list(preset_arguments.keys())}"
         )
+    # [.mark] correctifs-apres-banc-v4, lot 3 (plan 5) : les essais. Défaut 0 = une seule requête, comme avant.
+    essais, attente_s, sans_risque = reglages_des_essais(config)
+    tentative = 0
+    while True:
+        resultat, echec, nature = await _envoyer_la_requete(
+            tool, method, url, headers, body, params, form_encoded, timeout_seconds
+        )
+        if (
+            nature is None
+            or tentative >= essais
+            or (nature != NATURE_PAS_PARTIE and not sans_risque)
+        ):
+            break
+        tentative += 1
+        logger.info(
+            f"Custom tool '{tool.name}' : essai {tentative}/{essais} dans {attente_s} s "
+            f"(cause : {nature})"
+        )
+        await asyncio.sleep(attente_s)
+
+    if echec is not None:
+        log_failure(echec, organization_id=organization_id, tool_name=tool.name)
+    return build_result(resultat)
+
+
+# --- [.mark] correctifs-apres-banc-v4, lot 3 : les essais d'un outil HTTP ------------------------
+#
+# Tableau 5.1 du plan : la requête n'est pas partie (connexion refusée, nom introuvable) : relancée ;
+# pas de réponse dans le délai, ou erreur du service (5xx) : relancée seulement si l'outil est déclaré
+# « sans risque de doublon » (lecture, recherche) ; refus du service (4xx), réponse qui dit un échec,
+# toute autre erreur : jamais, ce n'est pas une panne. Réglages = clés de la configuration de l'outil.
+
+ESSAIS_MAX = 2
+ATTENTE_PAR_DEFAUT_S = 1.0
+ATTENTE_MAX_S = 30.0
+
+NATURE_PAS_PARTIE = "pas_partie"
+NATURE_INCERTAINE = "incertaine"  # la requête a pu partir : un délai, une coupure en route
+NATURE_SERVICE = "service"  # le service a répondu 5xx
+
+_PAS_PARTIE = (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)
+_INCERTAINE = (
+    httpx.TimeoutException,
+    httpx.ReadError,
+    httpx.WriteError,
+    httpx.CloseError,
+    httpx.RemoteProtocolError,
+)
+
+
+def reglages_des_essais(config: dict[str, Any]) -> tuple[int, float, bool]:
+    """(nombre d'essais de plus, attente entre deux essais en secondes, relançable sans risque de
+    doublon) lus dans la configuration de l'outil. Une valeur illisible vaut le défaut (0 essai, 1 s,
+    non) : jamais d'exception."""
+    try:
+        essais = max(0, min(ESSAIS_MAX, int(config.get("essais") or 0)))
+    except (TypeError, ValueError):
+        essais = 0
+    try:
+        attente = config.get("attente_entre_essais_s")
+        attente = ATTENTE_PAR_DEFAUT_S if attente is None else max(0.0, min(ATTENTE_MAX_S, float(attente)))
+    except (TypeError, ValueError):
+        attente = ATTENTE_PAR_DEFAUT_S
+    return essais, attente, config.get("sans_risque_de_doublon") is True
+
+
+def delai_total_s(config: dict[str, Any]) -> float:
+    """Le temps que l'outil peut durer, essais compris : (1 + essais) délais et les attentes entre eux.
+    Ce que la veille « un outil travaille » et le délai de l'appel de fonction doivent attendre, et ce
+    que l'aperçu de l'écran montre (délai × essais)."""
+    delai_s = float(config.get("timeout_ms", 5000)) / 1000
+    essais, attente, _ = reglages_des_essais(config)
+    return delai_s * (1 + essais) + attente * essais
+
+
+def _nature_de_l_erreur(erreur: Exception) -> str | None:
+    if isinstance(erreur, _PAS_PARTIE):
+        return NATURE_PAS_PARTIE
+    if isinstance(erreur, _INCERTAINE):
+        return NATURE_INCERTAINE
+    return None
+
+
+async def _envoyer_la_requete(
+    tool: Any,
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    body: Any,
+    params: Any,
+    form_encoded: bool,
+    timeout_seconds: float,
+) -> tuple[dict[str, Any], DograhFailure | None, str | None]:
+    """Une requête. Rend (résultat, échec à journaliser, nature de la panne). La nature est ``None``
+    quand l'échec n'est pas une panne (4xx, erreur d'exécution) ou quand la requête a réussi."""
     try:
         async with httpx.AsyncClient(timeout=timeout_seconds) as client:
             response = await client.request(
@@ -519,69 +615,52 @@ async def execute_http_tool(
             logger.debug(
                 f"Custom tool '{tool.name}' completed with status {response.status_code}"
             )
+            echec = None
             if response.status_code >= 400:
-                log_failure(
-                    classify_http_response(
-                        response.status_code,
-                        f"Custom tool '{tool.name}' returned HTTP "
-                        f"{response.status_code}: {response.text[:200]}",
-                        source=ErrorSource.TOOL,
-                        provider="custom-http",
-                        error_owner="user",
-                    ),
-                    organization_id=organization_id,
-                    tool_name=tool.name,
+                echec = classify_http_response(
+                    response.status_code,
+                    f"Custom tool '{tool.name}' returned HTTP "
+                    f"{response.status_code}: {response.text[:200]}",
+                    source=ErrorSource.TOOL,
+                    provider="custom-http",
+                    error_owner="user",
                 )
-            return build_result(result)
+            nature = NATURE_SERVICE if response.status_code >= 500 else None
+            return result, echec, nature
 
     except httpx.TimeoutException as e:
-        log_failure(
-            classify_exception(
-                e,
-                source=ErrorSource.TOOL,
-                provider="custom-http",
-                error_owner="user",
-            ),
-            organization_id=organization_id,
-            tool_name=tool.name,
-        )
-        return build_result(
+        return (
             {
                 "status": "error",
                 "error": f"Request timed out after {timeout_seconds} seconds",
-            }
+            },
+            _echec_de(e),
+            _nature_de_l_erreur(e),
         )
     except httpx.RequestError as e:
-        log_failure(
-            classify_exception(
-                e,
-                source=ErrorSource.TOOL,
-                provider="custom-http",
-                error_owner="user",
-            ),
-            organization_id=organization_id,
-            tool_name=tool.name,
-        )
-        return build_result(
+        return (
             {
                 "status": "error",
                 "error": f"Request failed: {e!s}",
-            }
+            },
+            _echec_de(e),
+            _nature_de_l_erreur(e),
         )
     except Exception as e:
-        log_failure(
-            classify_exception(
-                e,
-                source=ErrorSource.TOOL,
-                provider="custom-http",
-                error_owner="user",
-            ),
-            organization_id=organization_id,
-            tool_name=tool.name,
-        )
-        return build_result(
+        return (
             {
                 "status": "error",
                 "error": f"Tool execution failed: {e!s}",
-            }
+            },
+            _echec_de(e),
+            None,
         )
+
+
+def _echec_de(erreur: Exception) -> DograhFailure:
+    return classify_exception(
+        erreur,
+        source=ErrorSource.TOOL,
+        provider="custom-http",
+        error_owner="user",
+    )
