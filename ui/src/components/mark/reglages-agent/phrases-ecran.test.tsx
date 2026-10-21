@@ -196,6 +196,10 @@ describe("[.mark] theme Phrases : le modèle", () => {
         );
         expect(silence.lignes.map((l) => l.quand)).toEqual(["10 s", "20 s", "30 s"]);
         expect(silence.lignes[2].texte).toContain("Au revoir.");
+        // Sortie « continuer » : la ligne reste ouverte, avertissement orange (revue m7) ; raccrocher n'en a pas.
+        const continuer = apercuDeLaRegle(normaliserRegle({ motif: "appelant_se_tait", variantes: ["Allô ?"], delai_s: 10, max_par_attente: 1, ensuite: { action: "continuer" } }), CONTEXTE);
+        expect(continuer.alertes.join(" ")).toContain("La ligne reste ouverte tant que l'appelant ne parle pas, jusqu'à la durée maximale de l'appel.");
+        expect(silence.alertes.join(" ")).not.toContain("La ligne reste ouverte");
         // Un échec : la phrase puis le modèle reprend, la sortie au plafond.
         const echec = apercuDeLaRegle(
             normaliserRegle({ motif: "outil_echoue", variantes: ["Raté."], max_par_appel: 2, ensuite: { phrases: ["On vous rappelle."], noter: { champ: "rdv", valeur: "a_rappeler" }, action: "transferer", destination: "accueil" } }),
@@ -275,6 +279,15 @@ describe("[.mark] theme Phrases : l'écran", () => {
         expect(echec.querySelector("#phrase_par_appel")).not.toBeNull();
         expect(echec.querySelector('[data-ligne-phrase="outil"] [data-gris]')).toBeNull();
         expect(within(echec).getByLabelText("For the tool : chercher_dates")).toBeTruthy();
+    });
+
+    it("does not offer « transfer » as an exit of « the transfer fails »", async () => {
+        await monter();
+        fireEvent.click(carte("transfert_echoue"));
+        const dialogue = await screen.findByRole("dialog");
+        const options = [...(dialogue.querySelector("#phrase_sortie_action") as HTMLSelectElement).options].map((o) => o.value);
+        expect(options).not.toContain("transferer");
+        expect(options).toContain("raccrocher");
     });
 
     it("offers the text written by the agent only at After = 0 s, and drops it when the delay moves", async () => {

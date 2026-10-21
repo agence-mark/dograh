@@ -377,6 +377,15 @@ export const apercuDeLaRegle = (brute: ReglePhrase, c: ContextePhrases, hors: { 
             t += redite;
         }
         const fin = texteDeSortie(r, motif, c);
+        // La sortie « continuer » ne coupe jamais la ligne (revue m7) : avertissement, sans bloquer.
+        if (actionEffective(r, motif) === "continuer") {
+            alertes.push(
+                c.t({
+                    en: "The line stays open as long as the caller does not speak, up to the maximum call duration.",
+                    fr: "La ligne reste ouverte tant que l'appelant ne parle pas, jusqu'à la durée maximale de l'appel.",
+                }),
+            );
+        }
         lignes.push({ quand: sec(t), texte: fin || c.t({ en: "the call hangs up", fr: "l'appel raccroche" }), sortie: true });
     } else if (motif.moment === "attente") {
         const abandon = motif.id === MOTIF_TRAVAIL_DURE ? c.abandonS.travail : motif.fin_d_attente_reglage === "outil" ? c.abandonS.outil : null;
