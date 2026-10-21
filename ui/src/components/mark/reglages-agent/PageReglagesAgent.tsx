@@ -116,11 +116,24 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
         [workflow],
     );
     // [.mark] fiabilite-orchestration, lot 4 bis: the step names a sentence rule can target.
-    const nomsDesEtapes = useMemo(
+    // [.mark] correctifs-apres-banc-v4, lot 5: a rule targets a step by its node identifier (the name is only shown).
+    const etapesDuGraphe = useMemo(
         () =>
-            (workflow.workflow_definition.nodes as Array<{ data?: { name?: unknown } }>)
-                .map((noeud) => noeud.data?.name)
-                .filter((nom): nom is string => typeof nom === "string" && nom.trim() !== ""),
+            (workflow.workflow_definition.nodes as Array<{ id?: unknown; data?: { name?: unknown } }>)
+                .map((noeud) => ({ id: noeud.id, nom: noeud.data?.name }))
+                .filter((e): e is { id: string; nom: string } => typeof e.id === "string" && typeof e.nom === "string" && e.nom.trim() !== ""),
+        [workflow],
+    );
+    // The tools the agent's steps carry (the « For the tool » box of a sentence rule).
+    const outilsUuids = useMemo(
+        () =>
+            [
+                ...new Set(
+                    (workflow.workflow_definition.nodes as Array<{ data?: { tool_uuids?: unknown } }>).flatMap((noeud) =>
+                        Array.isArray(noeud.data?.tool_uuids) ? (noeud.data.tool_uuids as unknown[]).filter((u): u is string => typeof u === "string") : [],
+                    ),
+                ),
+            ],
         [workflow],
     );
     const initialTemplateContextVariables = useMemo(
@@ -273,7 +286,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                                 <ThemeTourDeParole {...commun(ID_THEME_TOUR)!} />
                                 <ThemeVoix {...commun(ID_THEME_VOIX)!} workflowId={workflowId} />
                                 <ThemeRythme {...commun(ID_THEME_RYTHME)!} />
-                                <ThemePhrases {...commun(ID_THEME_PHRASES)!} etapes={nomsDesEtapes} workflowId={workflowId} />
+                                <ThemePhrases {...commun(ID_THEME_PHRASES)!} etapes={etapesDuGraphe} outilsUuids={outilsUuids} workflowId={workflowId} />
                                 <ThemeDonnees
                                     {...commun(ID_THEME_DONNEES)!}
                                     issuesParDefaut={defaultCallDispositions}

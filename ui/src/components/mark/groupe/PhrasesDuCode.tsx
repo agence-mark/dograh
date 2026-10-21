@@ -8,7 +8,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { useLangue } from "../langue/langue";
-import { MOTIFS_DE_PHRASES } from "../reglages-agent/ThemePhrases";
+import { MOTIFS_DE_PHRASES } from "../reglages-agent/phrases/modele";
 
 export interface PhraseDite {
     motif: string;

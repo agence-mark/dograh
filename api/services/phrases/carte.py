@@ -230,6 +230,21 @@ def construire_la_carte(
                 }
                 for r in regles
             ]
+            # Un spécialisé hérite des règles « groupe » du principal : l'écran les montre en lecture
+            # (« Remplacer dans cet agent », « Modifier sur le principal »).
+            heritees = (
+                []
+                if agent.est_principal
+                else [
+                    {
+                        **r.model_dump(mode="json"),
+                        "dernier": derniers.get((r.motif, agent.id)),
+                        "etape_supprimee": False,
+                    }
+                    for r in regles_de(principal)
+                    if r.portee == "groupe"
+                ]
+            )
             carte["agents"].append(
                 {
                     "id": agent.id,
@@ -237,6 +252,7 @@ def construire_la_carte(
                     "est_principal": agent.est_principal,
                     "motifs": motifs,
                     "regles": lignes_de_regles,
+                    "regles_du_groupe": heritees,
                     "lecture": lecture_du_graphe(agent.graphe),
                 }
             )

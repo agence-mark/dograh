@@ -152,11 +152,8 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     },
     // fiabilite-orchestration, lot 4 bis (F15, F17, F23): the theme Phrases.
     phrases_regles: { theme: "phrases", cas: ["phrases-groupe", "phrases-agent"] },
-    // Correctifs-apres-banc-v4, lot 4: the one common setting of the theme (the screen box is lot 5).
-    phrases_repos_s: {
-        horsEcran:
-            "Written through the API until the theme Phrases is redone (lot 5): the minimum pause between two waiting sentences.",
-    },
+    // Correctifs-apres-banc-v4, lot 4 then 5: the one common setting of the theme, on screen since the lot 5.
+    phrases_repos_s: { theme: "phrases", cas: ["phrases-pause"] },
     prechauffage_agents: { theme: "agent", cas: ["agents-prechauffage"] },
     passation_sans_resume_jusqua: { theme: "agent", cas: ["agents-sans-resume"] },
     un_seul_renvoi_par_appel: { theme: "agent", cas: ["agents-renvoi-unique"] },

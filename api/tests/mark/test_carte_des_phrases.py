@@ -111,3 +111,21 @@ def test_les_phrases_du_graphe_en_lecture():
     assert {"nature": "fin_figee", "endroit": "Fin", "texte": "Au revoir."} in lignes
     assert {"nature": "porte", "endroit": "Accueil → Fin", "texte": "Je note."} in lignes
     assert lecture_du_graphe(None) == []
+
+
+def test_la_carte_rend_au_specialise_les_regles_du_groupe_heritees():
+    """Lot 5 : l'écran d'un spécialisé montre en lecture les règles « groupe » du principal."""
+    principal = {
+        "agents_specialises": [2],
+        "phrases_regles": [
+            {"motif": OUTIL_ECHOUE, "portee": "groupe", "variantes": ["Pour le groupe."]},
+            {"motif": OUTIL_ECHOUE, "portee": "agent", "variantes": ["Pour le principal seul."]},
+        ],
+    }
+    carte = construire_la_carte(
+        [_agent(1, principal, est_principal=True), _agent(2, {})], principal
+    )
+    assert carte["agents"][0]["regles_du_groupe"] == []
+    heritees = carte["agents"][1]["regles_du_groupe"]
+    assert [r["variantes"] for r in heritees] == [["Pour le groupe."]]
+    assert heritees[0]["portee"] == "groupe" and heritees[0]["etape_supprimee"] is False
