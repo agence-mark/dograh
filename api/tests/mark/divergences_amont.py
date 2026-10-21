@@ -82,7 +82,21 @@ _RELANCE_PAR_LA_VOIX = (
     "d'une regle eteinte et du clavier."
 )
 
+# [.mark] correctifs-apres-banc-v4 (21/10/2026) : l'echeance d'un outil HTTP couvre ses essais, avec une marge.
+_ECHEANCE_DES_ESSAIS = (
+    "[.mark] Plan correctifs-apres-banc-v4 du 21/10/2026 (GO d'Evan, § 4.4 et 5 : la regle « un outil echoue » "
+    "part apres le delai et les essais de l'outil ; relecture M2) : l'echeance de l'appel de fonction vaut le "
+    "delai total des essais plus MARGE_ECHEANCE_S (5 s), pour que l'echec arrive a l'enveloppe (phrase, note, "
+    "sortie) avant que Pipecat coupe l'appel. Le delai de la requete HTTP elle-meme reste celui de l'outil "
+    "(asyncio.wait_for par essai). L'amont fige l'echeance au delai de l'outil (5 s). Prouve le 21/10 : sans la "
+    "marge, ce test passe."
+)
+
+
 DIVERGENCES_ASSUMEES = {
+    "tests/test_custom_tools.py": {
+        "test_register_handlers_creates_working_handler": _ECHEANCE_DES_ESSAIS,
+    },
     "tests/test_call_monitor.py": {
         "test_failed_idle_reminder_also_has_a_deadline": _RELANCE_PAR_LA_VOIX,
         "test_two_idle_windows_remind_then_disconnect": _RELANCE_PAR_LA_VOIX,
