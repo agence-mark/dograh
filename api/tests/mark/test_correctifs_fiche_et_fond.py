@@ -2,8 +2,9 @@
 
 | Test | La garantie |
 |---|---|
-| refus par le greffier | le greffier écrit « refusé » sur un prénom, un mail ; la garde de l'étape le compte traité (6.3, run 1484) ; K4 gardé : jamais sur une liste fermée ni un numéro |
+| refus par le greffier | le greffier écrit « refusé » sur un prénom, un mail ; la garde de l'étape le compte traité (6.3, run 1484) ; K4 révisé (21/10) : aussi sur une liste fermée et un numéro, sauf « obligatoire sans exception » |
 | obligatoire sans exception | un champ qui porte la clé reste manquant refusé ; sans la clé, traité ; « Déjà connu » et « Encore attendu » suivent |
+| outil du fond en échec | l'outil rend une erreur, le fond rend quand même un résultat : « Échec : rien n'a été fait. », trace `outil_en_echec`, règle de l'échec ; un fond qui dit « Échec » garde son texte (décision d'Evan 21/10) |
 | fond sans outil | un fond qui a des outils et rend du texte sans en appeler un : résultat « Échec : rien n'a été fait. », trace `sans_outil`, texte gardé en trace, point d'appel du lot 4 appelé (6.4) |
 | fond sans outils, fond qui appelle | rien ne change : « fait » (zéro perte) |
 | lignes internes | une ligne qui commence par une étiquette du bloc n'est jamais dite, coupée en morceaux ou non ; une phrase normale avec « noté » reste (6.5) |
@@ -18,7 +19,12 @@ from unittest.mock import patch
 import pytest
 
 from api.services.pipecat.texte_du_cerveau import FluxNettoye, sans_lignes_internes
-from api.services.travail.agent import STATUT_SANS_OUTIL, TravailDeLAgent
+from api.services.travail.agent import (
+    STATUT_OUTIL_EN_ECHEC,
+    STATUT_SANS_OUTIL,
+    TravailDeLAgent,
+    resultat_en_echec,
+)
 from api.services.travail.reglages import NOM_OUTIL
 from api.services.travail.retour import TEXTE_SANS_OUTIL
 from api.services.workflow.enveloppe_des_actions import garde_de_l_etape
@@ -104,16 +110,26 @@ async def test_un_champ_sans_reponse_reste_manquant():
 
 
 @pytest.mark.asyncio
-async def test_k4_reste_vrai_un_refus_ne_s_ecrit_pas_sur_une_liste_fermee_ni_un_numero():
-    """Décision K4 gardée : « refusé » ne s'écrit que sur un champ texte libre. Une liste fermée et un
-    numéro à chiffres fixes refusés restent manquants pour la garde (D-8, décision d'Evan à reprendre)."""
+async def test_k4_revise_un_numero_et_une_liste_fermee_refuses_sont_traites():
+    """K4 révisé (décision d'Evan, 21/10) : « refusé » s'écrit aussi sur une liste fermée et sur un numéro à
+    chiffres fixes ; la garde de l'étape les compte traités (l'agent avance, il ne boucle plus)."""
     montage = _Montage(_Modele({"numero_dicte": "refusé"}, {"urgence": "refusé"}), _config())
     montage.messages = [{"role": "user", "content": "Je ne donne pas mon numéro."}]
     await montage.passe()
-    montage.messages.append({"role": "user", "content": "Et l'urgence, je ne sais pas."})
+    montage.messages.append({"role": "user", "content": "Et l'urgence, je ne veux pas le dire."})
     await montage.passe()
-    assert "numero_dicte" not in montage.fiche and "urgence" not in montage.fiche
-    assert {"numero dicte", "urgence"} <= set(_garde(montage)["manque"])
+    assert montage.fiche["numero_dicte"] == "refusé" and montage.fiche["urgence"] == "refusé"
+    assert not {"numero dicte", "urgence"} & set(_garde(montage)["manque"])
+
+
+@pytest.mark.asyncio
+async def test_k4_revise_un_numero_obligatoire_sans_exception_refuse_reste_manquant():
+    champs = [{**c, "obligatoire_sans_exception": True} if c["nom"] == "numero_dicte" else c for c in CHAMPS]
+    montage = _Montage(_Modele({"numero_dicte": "refusé"}), _config(champs))
+    montage.messages = [{"role": "user", "content": "Je ne donne pas mon numéro."}]
+    await montage.passe()
+    assert montage.fiche["numero_dicte"] == "refusé"
+    assert "numero dicte" in _garde(montage)["manque"]
 
 
 @pytest.mark.asyncio
@@ -185,6 +201,66 @@ async def test_un_fond_qui_appelle_son_outil_reste_un_travail_fait(appel):  # no
     assert appel.travaux()[0]["statut"] == "fait"
     resultat = next(m for m in appel.messages() if est_un_resultat_de_travail(m))
     assert resultat["content"] == f"{PREFIXE_RESULTAT_DU_TRAVAIL} {RESULTAT}]"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("texte_du_fond", ["Résultat : rendez-vous réservé le jeudi.", "C'est fait."])
+async def test_un_outil_en_echec_suivi_d_un_resultat_rend_l_echec(appel, texte_du_fond):  # noqa: F811
+    """Décision d'Evan (21/10) : l'outil a rendu une erreur, le fond rend quand même un résultat. Le code ne le
+    croit pas : l'agent lit l'échec, et la règle « le travail de fond échoue » part."""
+    signales = []
+    original = TravailDeLAgent.signaler_l_echec_du_fond
+
+    async def espion(self, entree, statut):
+        signales.append(statut)
+        await original(self, entree, statut)
+
+    with patch.object(TravailDeLAgent, "signaler_l_echec_du_fond", espion):
+        await appel.monter(
+            source_etapes=[CONFIER, _texte("Je regarde."), _texte("Voilà.")],
+            fond_etapes=[_appel_d_outil("chercher_creneau", {"jour": "demain"}, "call_fond"), _texte(texte_du_fond)],
+            resultat_outil={"status": "error", "status_code": 503, "data": "Service Unavailable"},
+        )
+        await appel.ouvrir()
+        await appel.attendre(lambda: appel.travaux() and appel.travaux()[0]["remis"])
+        await appel.attendre(lambda: any(est_un_resultat_de_travail(m) for m in appel.messages()))
+    assert appel.travaux()[0]["statut"] == STATUT_OUTIL_EN_ECHEC
+    resultat = next(m for m in appel.messages() if est_un_resultat_de_travail(m))
+    assert resultat["content"] == f"{PREFIXE_RESULTAT_DU_TRAVAIL} {TEXTE_SANS_OUTIL}]"
+    assert signales == [STATUT_OUTIL_EN_ECHEC]
+
+
+@pytest.mark.asyncio
+async def test_un_outil_en_echec_que_le_fond_dit_lui_meme_reste_son_texte(appel):  # noqa: F811
+    """Le fond honnête (« Échec : … », mesuré 24/24 au lot 0) garde son texte : le code n'intervient pas."""
+    await appel.monter(
+        source_etapes=[CONFIER, _texte("Je regarde."), _texte("Voilà.")],
+        fond_etapes=[_appel_d_outil("chercher_creneau", {"jour": "demain"}, "call_fond"), _texte("Échec : l'agenda ne répond pas.")],
+        resultat_outil={"status": "error", "error": "Request timed out after 5 seconds"},
+    )
+    await appel.ouvrir()
+    await appel.attendre(lambda: appel.travaux() and appel.travaux()[0]["remis"])
+    await appel.attendre(lambda: any(est_un_resultat_de_travail(m) for m in appel.messages()))
+    assert appel.travaux()[0]["statut"] == "fait"
+    resultat = next(m for m in appel.messages() if est_un_resultat_de_travail(m))
+    assert "l'agenda ne répond pas" in resultat["content"]
+
+
+@pytest.mark.parametrize(
+    "contenu, attendu",
+    [
+        ('{"status": "error", "error": "Request timed out after 5 seconds"}', True),
+        ('{"status": "success", "data": {"creneau": "14h"}}', False),
+        ('{"statut": "échec"}', True),
+        ('{"status": "transfer_failed", "reason": "no_answer"}', True),
+        ('{"creneau": "14h"}', False),
+        ("texte libre", False),
+        ("", False),
+        ('["error"]', False),
+    ],
+)
+def test_ce_qui_est_un_resultat_d_outil_en_echec(contenu, attendu):
+    assert resultat_en_echec(contenu) is attendu
 
 
 @pytest.mark.asyncio

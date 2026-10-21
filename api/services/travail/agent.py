@@ -32,10 +32,11 @@ Chantier fiabilite-orchestration, lot 1 (F1, F2, C1, C2, R15) :
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import time
 from contextvars import ContextVar
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Iterable
 
 from loguru import logger
 from pipecat.adapters.schemas.function_schema import FunctionSchema
@@ -80,8 +81,39 @@ STATUT_DELAI = "delai"
 STATUT_ANNULE = "annule"
 # correctifs-apres-banc-v4, lot 2 (6.4) : le fond avait des outils et a rendu un texte sans en appeler aucun.
 STATUT_SANS_OUTIL = "sans_outil"
+# correctifs-apres-banc-v4 (décision d'Evan, 21/10) : le dernier outil appelé par le fond a rendu un échec,
+# et le fond a quand même rendu un résultat (ni « Échec », ni « Manque »).
+STATUT_OUTIL_EN_ECHEC = "outil_en_echec"
 # Les statuts qui sont un échec du travail de fond (point d'appel du motif « le travail de fond échoue »).
-STATUTS_D_ECHEC = (STATUT_ECHEC, STATUT_DELAI, STATUT_SANS_OUTIL)
+STATUTS_D_ECHEC = (STATUT_ECHEC, STATUT_DELAI, STATUT_SANS_OUTIL, STATUT_OUTIL_EN_ECHEC)
+# Ce qu'un outil rend quand il a échoué (outil HTTP : ``status: error`` ; connecteur : ``statut``).
+_ETATS_D_ECHEC = frozenset({"error", "erreur", "echec", "échec", "failed", "failure", "transfer_failed"})
+# Les débuts de réponse par lesquels le fond dit lui-même qu'il n'a pas abouti (sa consigne, lot 0).
+_DEBUTS_HONNETES = ("échec", "echec", "manque")
+
+
+def resultat_en_echec(contenu: Any) -> bool:
+    """Le résultat d'un outil dit-il un échec ? JSON avec un état d'échec, ou une clé ``error`` non vide.
+    Tout le reste (texte libre, JSON sans état, illisible) n'est pas un échec : le doute laisse passer."""
+    try:
+        donnees = json.loads(contenu) if isinstance(contenu, str) else contenu
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(donnees, dict):
+        return False
+    etat = donnees.get("status", donnees.get("statut"))
+    if isinstance(etat, str) and etat.strip().casefold() in _ETATS_D_ECHEC:
+        return True
+    return bool(donnees.get("error"))
+
+
+def dernier_outil_en_echec(messages: Iterable[Any]) -> bool:
+    """Le dernier résultat d'outil de ces messages dit-il un échec ?"""
+    dernier = None
+    for message in messages:
+        if isinstance(message, dict) and message.get("role") == "tool":
+            dernier = message.get("content")
+    return dernier is not None and resultat_en_echec(dernier)
 
 # Ce que l'outil rend au cerveau de conversation.
 RETOUR_LANCE = {"statut": "lancé"}
@@ -479,6 +511,16 @@ class TravailDeLAgent:
         self._jetons[1] += int(sortie or 0)
         self._verser(entree, sortie)
 
+    def _messages_du_fond(self) -> list[Any]:
+        """Les messages du contexte du fond (jamais une erreur : vide si illisible)."""
+        try:
+            return list(self.worker.context.get_messages() or [])
+        except Exception:  # noqa: BLE001
+            return []
+
+    def _nombre_de_messages_du_fond(self) -> int:
+        return len(self._messages_du_fond())
+
     def _noter_l_outil(self, nom: str) -> None:
         self._outils_appeles.append(nom)
 
@@ -577,6 +619,7 @@ class TravailDeLAgent:
         statut, texte = STATUT_FAIT, ""
         try:
             await self._preparer_les_outils()
+            depuis = self._nombre_de_messages_du_fond()
             texte = (await self._executeur(self, demande)).strip()
             if not texte:
                 statut = STATUT_VIDE
@@ -585,6 +628,14 @@ class TravailDeLAgent:
                 # de ses outils : rien n'a été fait, le résultat dit l'échec. Le texte rendu reste dans
                 # la trace (``resultat``) ; le cerveau de conversation ne lit que l'échec.
                 statut = STATUT_SANS_OUTIL
+            elif (
+                self._outils_appeles
+                and not texte.casefold().startswith(_DEBUTS_HONNETES)
+                and dernier_outil_en_echec(self._messages_du_fond()[depuis:])
+            ):
+                # Décision d'Evan (21/10) : l'outil a échoué mais le fond rend un résultat. Le code ne le
+                # croit pas : l'échec est rendu, et la règle « le travail de fond échoue » part.
+                statut = STATUT_OUTIL_EN_ECHEC
         except asyncio.CancelledError:
             self._a_remplacer = True
             self._fermer_la_trace(entree, STATUT_ANNULE, debut)
@@ -604,6 +655,7 @@ class TravailDeLAgent:
                 STATUT_VIDE: TEXTE_VIDE,
                 STATUT_DELAI: TEXTE_DELAI,
                 STATUT_SANS_OUTIL: TEXTE_SANS_OUTIL,
+                STATUT_OUTIL_EN_ECHEC: TEXTE_SANS_OUTIL,
             }.get(statut, TEXTE_ECHEC)
         )
         self._fermer_la_trace(entree, statut, debut, texte)

@@ -129,3 +129,27 @@ def test_la_carte_rend_au_specialise_les_regles_du_groupe_heritees():
     heritees = carte["agents"][1]["regles_du_groupe"]
     assert [r["variantes"] for r in heritees] == [["Pour le groupe."]]
     assert heritees[0]["portee"] == "groupe" and heritees[0]["etape_supprimee"] is False
+
+
+async def test_la_carte_lit_le_brouillon_comme_l_editeur(monkeypatch):
+    """Constat du lot 5 (correctifs-apres-banc-v4) : une règle d'un brouillon jamais publié est sur la carte ;
+    sans brouillon, la définition en vigueur, comme avant."""
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from api.db import db_client
+    from api.services.phrases import carte
+
+    regle = {"motif": OUTIL_ECHOUE, "portee": "agent", "variantes": ["Écrite dans le brouillon."]}
+    agent = SimpleNamespace(
+        id=3, name="Agent", current_definition=SimpleNamespace(workflow_configurations={}, workflow_json={})
+    )
+    brouillon = SimpleNamespace(workflow_configurations={"phrases_regles": [regle]}, workflow_json={})
+    monkeypatch.setattr(db_client, "get_workflow", AsyncMock(return_value=agent))
+    monkeypatch.setattr(db_client, "get_workflow_runs_by_workflow_id", AsyncMock(return_value=([], 0)))
+    monkeypatch.setattr(db_client, "get_draft_version", AsyncMock(return_value=brouillon))
+    avec = await carte.carte_de_l_agent(3, 1)
+    assert any(r.get("variantes") == ["Écrite dans le brouillon."] for r in avec["agents"][0]["regles"])
+    monkeypatch.setattr(db_client, "get_draft_version", AsyncMock(return_value=None))
+    sans = await carte.carte_de_l_agent(3, 1)
+    assert not any(r.get("variantes") == ["Écrite dans le brouillon."] for r in sans["agents"][0]["regles"])

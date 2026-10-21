@@ -1894,12 +1894,12 @@ def cumuler_la_liste(ancienne: Any, nouvelle: Any, valeurs: Iterable[str]) -> st
 
 
 def _est_un_refus(valeur: Any, definition: "ChampFiche") -> bool:
-    """K4 : « refusé » écrit par le greffier pour un refus de la personne, sur un champ texte
-    libre (ni liste fermée, ni nombre de chiffres, ni cumulatif). Jamais une valeur inventée."""
+    """K4, révisé le 21/10 (décision d'Evan, correctifs-apres-banc-v4) : « refusé » écrit par le
+    greffier pour un refus de la personne, sur tout champ texte non cumulatif, liste fermée et nombre
+    de chiffres compris ; un champ qui ne se passe jamais d'une valeur se déclare « obligatoire sans
+    exception » (la garde de l'étape le garde alors manquant). Jamais une valeur inventée."""
     return (
         definition.type == "string"
-        and not definition.valeurs
-        and not definition.chiffres
         and not definition.cumulatif
         and isinstance(valeur, str)
         and valeur.strip().casefold() == VALEUR_DE_REFUS
@@ -2115,6 +2115,11 @@ def ecrire_dans_la_fiche(
         verdict = Verdict(champ, "refuse", "rempli_par_l_outil", valeur)
     elif _est_vide(valeur):
         verdict = Verdict(champ, "ignore", "valeur_vide")
+    elif _est_un_refus(valeur, definition):
+        # K4 (révisé 21/10) : un refus de la personne s'écrit « refusé », tel quel (jamais une
+        # valeur), avant le contrôle de la liste fermée et du nombre de chiffres.
+        valeur = VALEUR_DE_REFUS
+        verdict = _ecrire(fiche, champ, valeur, True, source, seulement_si_vide, None)
     elif (
         definition.valeurs
         and not liste_lue
@@ -2125,10 +2130,6 @@ def ecrire_dans_la_fiche(
     elif definition.chiffres and _nombre_de_chiffres(valeur) != definition.chiffres:
         # C1 : d'où que vienne la valeur (outil, passe de fin d'appel).
         verdict = Verdict(champ, "refuse", "nombre_de_chiffres", valeur)
-    elif _est_un_refus(valeur, definition):
-        # K4 : un refus de la personne s'écrit « refusé », tel quel (jamais une valeur).
-        valeur = VALEUR_DE_REFUS
-        verdict = _ecrire(fiche, champ, valeur, True, source, seulement_si_vide, None)
     elif (pas_lisible := illisible_pour_son_champ(reglages, definition, valeur)) is not None:
         # Lot 6 (R8, G1) : jamais écrite (ni sûre), d'où qu'elle vienne.
         verdict = Verdict(champ, "refuse", pas_lisible, valeur)

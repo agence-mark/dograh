@@ -5,7 +5,7 @@ parcours (A8, K9, K1, K4, n° 361, D91).
 |---|---|
 | motif cumulable | le greffier écrit un champ cumulatif à liste fermée comme une liste de valeurs de la liste (« ; »), chacune contrôlée, un doublon ignoré ; la fiche le montre comme une liste ; un champ cumulatif sans liste garde le texte concaténé d'avant |
 | K1 | une porte écrite au nom d'une autre étape est réécrite vers l'étape de retour au principal (tracée) ; chez le principal, ou sans sortie vers le retour, elle est ignorée comme avant |
-| K4 | les règles d'écriture du greffier (refus, adresse entière, non-dit, date relative) sont toujours dans sa consigne ; « refusé » s'écrit sur un champ libre, jamais sur une liste fermée ni un nombre de chiffres |
+| K4 | les règles d'écriture du greffier (refus, adresse entière, non-dit, date relative) sont toujours dans sa consigne ; « refusé » s'écrit sur tout champ non cumulatif (K4 révisé le 21/10) |
 | n° 361 | un état OUVERT forcé par le contexte d'essai n'hérite pas de la réouverture des horaires réels |
 | parcours | une entrée par (agent, étape) dans l'ordre, rendue « Agent › étape › étape » ; seulement dans un groupe |
 """
@@ -162,15 +162,17 @@ def test_k4_les_regles_d_ecriture_sont_toujours_dans_la_consigne():
 
 
 @pytest.mark.asyncio
-async def test_k4_un_refus_s_ecrit_refuse_sur_un_champ_libre_seulement():
-    modele = _Modele({"adresse_courriel": "refusé", "categorie": "refusé", "code": "refusé", "motif": "refusé"})
+async def test_k4_un_refus_s_ecrit_refuse_sur_tout_champ_non_cumulatif():
+    """K4 révisé (21/10, décision d'Evan) : un refus par réplique (D2 écarte un lot de refus), sur un champ
+    libre, une liste fermée, un nombre de chiffres ; jamais sur un champ-liste cumulatif (un motif ne se refuse pas)."""
+    modele = _Modele({"adresse_courriel": "refusé"}, {"categorie": "refusé"}, {"code": "refusé"}, {"motif": "refusé"})
     montage = _Montage(modele, config=CONFIG_MOTIF)
-    montage.messages = [{"role": "user", "content": "Je préfère ne pas donner mon courriel."}]
-    await montage.passe()
+    for phrase in ("Je préfère ne pas donner mon courriel.", "Ça, je ne le dirai pas.", "Pas de code.", "Je ne dis pas pourquoi."):
+        montage.messages.append({"role": "user", "content": phrase})
+        await montage.passe()
     assert montage.fiche["adresse_courriel"] == "refusé"
-    # Jamais sur une liste fermée, un nombre de chiffres ni un champ-liste.
-    for champ in ("categorie", "code", "motif"):
-        assert champ not in montage.fiche, champ
+    assert montage.fiche["categorie"] == "refusé" and montage.fiche["code"] == "refusé"
+    assert "motif" not in montage.fiche
 
 
 def test_k4_une_date_relative_passe_par_le_module_de_date_avec_l_annee_de_l_appel():

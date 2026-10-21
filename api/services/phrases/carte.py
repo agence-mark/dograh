@@ -277,8 +277,17 @@ async def carte_de_l_agent(workflow_id: int, organization_id: int, *, runs: int 
     if workflow is None:
         return None
 
-    def agent_de(w: Any, *, est_principal: bool) -> AgentDeLaCarte:
-        definition = getattr(w, "current_definition", None)
+    async def definition_de(w: Any) -> Any:
+        """Comme l'éditeur : le brouillon s'il existe, sinon la définition en vigueur (constat du lot 5
+        de correctifs-apres-banc-v4 : un brouillon jamais publié n'apparaissait pas sur la carte)."""
+        try:
+            brouillon = await db_client.get_draft_version(w.id)
+        except Exception:  # noqa: BLE001 -- un brouillon illisible : la définition en vigueur
+            brouillon = None
+        return brouillon or getattr(w, "current_definition", None)
+
+    async def agent_de(w: Any, *, est_principal: bool) -> AgentDeLaCarte:
+        definition = await definition_de(w)
         return AgentDeLaCarte(
             id=w.id,
             nom=w.name,
@@ -287,7 +296,7 @@ async def carte_de_l_agent(workflow_id: int, organization_id: int, *, runs: int 
             est_principal=est_principal,
         )
 
-    premier = agent_de(workflow, est_principal=False)
+    premier = await agent_de(workflow, est_principal=False)
     reglages = premier.reglages or {}
     agents = [premier]
     principal = reglages
@@ -302,7 +311,7 @@ async def carte_de_l_agent(workflow_id: int, organization_id: int, *, runs: int 
             except Exception:  # noqa: BLE001
                 membre = None
             if membre is not None:
-                agents.append(agent_de(membre, est_principal=False))
+                agents.append(await agent_de(membre, est_principal=False))
     elif reglages.get("agent_principal_id"):
         try:
             chef = await db_client.get_workflow(
@@ -311,7 +320,7 @@ async def carte_de_l_agent(workflow_id: int, organization_id: int, *, runs: int 
         except Exception:  # noqa: BLE001 -- un identifiant illisible : la carte de l'agent seul
             chef = None
         if chef is not None:
-            principal = getattr(chef.current_definition, "workflow_configurations", None) or {}
+            principal = getattr(await definition_de(chef), "workflow_configurations", None) or {}
             runs_de = chef.id
 
     traces = []

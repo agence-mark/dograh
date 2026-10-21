@@ -103,6 +103,7 @@ class Appel:
         tool_uuids=None,
         delai_max_s=60,
         etape_cochee=True,
+        resultat_outil=None,
     ):
         self._source_llm = MockLLMService(mock_steps=source_etapes, chunk_delay=0.001)
         self.fond_llm = MockLLMService(mock_steps=fond_etapes, chunk_delay=0.001)
@@ -144,7 +145,7 @@ class Appel:
                 self.outil_du_fond_appele.append(dict(params.arguments))
                 if self.portail is not None:
                     await self.portail.wait()
-                await params.result_callback({"creneau": "14h"})
+                await params.result_callback(resultat_outil or {"creneau": "14h"})
 
             llm.register_function("chercher_creneau", chercher)
             return [
