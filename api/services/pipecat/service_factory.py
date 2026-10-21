@@ -354,6 +354,43 @@ def _reglages_soniox_voix(tts_config) -> dict:
     return reglages
 
 
+# [.mark] Voix-soniox, lot 7 bis (D6 du plan conversation) : les valeurs d'AUJOURD'HUI des deux reglages
+# ElevenLabs qui etaient ecrits en dur dans la requete. Un champ vide a l'ecran = ces valeurs, donc un agent qui
+# n'a rien regle envoie exactement ce qu'il envoyait.
+ELEVENLABS_STABILITE_PAR_DEFAUT = 0.8
+ELEVENLABS_SIMILARITE_PAR_DEFAUT = 0.75
+
+
+def _reglages_elevenlabs_voix(tts_config) -> dict:
+    """[.mark] The ElevenLabs voice CHARACTER sent with every stream, read ONCE for the factory and the stamp.
+
+    ``stability`` and ``similarity_boost`` always go (empty = today's 0.8 / 0.75, written here and nowhere
+    else); ``style`` and ``use_speaker_boost`` only when set: left out, Pipecat leaves them out of the request,
+    exactly as before this lot.
+    """
+    stabilite = getattr(tts_config, "stability", None)
+    similarite = getattr(tts_config, "similarity_boost", None)
+    reglages = {
+        "stability": ELEVENLABS_STABILITE_PAR_DEFAUT if stabilite is None else stabilite,
+        "similarity_boost": ELEVENLABS_SIMILARITE_PAR_DEFAUT if similarite is None else similarite,
+    }
+    for champ in ("style", "use_speaker_boost"):
+        valeur = getattr(tts_config, champ, None)
+        if valeur is not None:
+            reglages[champ] = valeur
+    return reglages
+
+
+def _estampille_voix_elevenlabs(tts_config) -> dict:
+    """[.mark] Lot 7 bis : the voice character on the call record, ONLY when the agent set one.
+
+    An agent that set none is stamped exactly as before (same keys), so no existing record changes shape.
+    """
+    if all(getattr(tts_config, champ, None) is None for champ in ("stability", "similarity_boost", "style", "use_speaker_boost")):
+        return {}
+    return _reglages_elevenlabs_voix(tts_config)
+
+
 def run_configs_avec_le_mode_de_la_voix(tts_config, run_configs: dict | None) -> dict | None:
     """[.mark] Lot 3 (D3) : the voice's own « how the text is sent » setting.
 
@@ -1461,9 +1498,10 @@ def create_tts_service(
             settings=ElevenLabsTTSSettings(
                 voice=voice_id,
                 model=user_config.tts.model,
-                stability=0.8,
                 speed=user_config.tts.speed,
-                similarity_boost=0.75,
+                # [.mark] Lot 7 bis : stability / similarity_boost (0.8 / 0.75 when empty), style and
+                # use_speaker_boost (only when set) come from the screen; same read as the stamp.
+                **_reglages_elevenlabs_voix(user_config.tts),
             ),
             skip_aggregator_types=["recording_router", "recording"],
             **voix,
@@ -2057,6 +2095,8 @@ def stamp_voice_settings(
         point_entree = _point_entree_voix(tts_config)
         if point_entree:
             reglages["endpoint"] = point_entree
+        if getattr(tts_config, "provider", None) == ServiceProviders.ELEVENLABS.value:
+            reglages.update(_estampille_voix_elevenlabs(tts_config))
     if reglages:
         runtime_configuration["tts_settings"] = reglages
     return runtime_configuration

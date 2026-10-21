@@ -485,6 +485,10 @@ ECRAN_OPENAI_LLM: EcranMark = {
 ECRAN_ELEVENLABS_TTS: EcranMark = {
     "voice": ("voix", "Voice", "Voix"),
     "speed": ("voix", "Speed", "Vitesse"),
+    "stability": ("caractere_de_la_voix", "Stability", "Stabilité"),
+    "similarity_boost": ("caractere_de_la_voix", "Similarity boost", "Fidélité à la voix"),
+    "style": ("caractere_de_la_voix", "Style", "Expressivité du style"),
+    "use_speaker_boost": ("caractere_de_la_voix", "Speaker boost", "Renforcer la ressemblance"),
     "base_url": ("technique", "Base URL", "Adresse du service"),
 }
 ECRAN_DEEPGRAM_STT: EcranMark = {
@@ -1659,6 +1663,48 @@ class ElevenlabsTTSConfiguration(BaseServiceConfiguration):
             "examples": ELEVENLABS_TTS_MODELS,
             "allow_custom_input": True,
         },
+    )
+    # [.mark] Voix-soniox, lot 7 bis (D6 du plan conversation) : le caractere de la voix. Vide (None) = la valeur
+    # d'aujourd'hui pour stability (0.8) et similarity_boost (0.75), ecrites en dur dans la fabrique ; style et
+    # speaker boost vides = non envoyes. 🔑 `exclude_if` : cle ECRITE seulement quand elle est reglee, donc une
+    # configuration enregistree avant ce lot se relit et se reecrit a l'identique (sans migration).
+    stability: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        exclude_if=lambda valeur: valeur is None,
+        description=(
+            "Voice stability, 0 to 1. Lower is more expressive and varies more from one sentence "
+            "to the next; higher is steadier and flatter. Left empty: 0.8, the value used until now."
+        ),
+    )
+    similarity_boost: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        exclude_if=lambda valeur: valeur is None,
+        description=(
+            "How close the voice stays to the original recording, 0 to 1. Left empty: 0.75, the value "
+            "used until now."
+        ),
+    )
+    style: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        exclude_if=lambda valeur: valeur is None,
+        description=(
+            "Style exaggeration, 0 to 1. Left empty, not sent (ElevenLabs applies its own default, 0). "
+            "Above 0 it adds latency and can make the voice less stable."
+        ),
+    )
+    use_speaker_boost: bool | None = Field(
+        default=None,
+        exclude_if=lambda valeur: valeur is None,
+        description=(
+            "Boost the likeness to the original speaker. Left empty, not sent (ElevenLabs applies its "
+            "own default). Adds a little latency."
+        ),
     )
     base_url: str = Field(
         default="https://api.elevenlabs.io",
