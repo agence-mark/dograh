@@ -29,6 +29,7 @@ import {
     TITRE_ATTENTE,
 } from "../groupe/reglages-groupe";
 import { useLangue } from "../langue/langue";
+import { CarteBalises } from "./BalisesPermises";
 import { type CleCatalogue, erreursDuCatalogue, extraire, Reglage } from "./catalogue";
 import { useEnregistrementTheme } from "./enregistrement";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEtatTheme, useRevelation } from "./theme-commun";
@@ -53,6 +54,9 @@ const extraireTout = (resolue: ProprietesThemeAgent["resolue"]) => ({
     ...extraire(resolue, CLES_VOIX_MARK),
     ambient_noise_configuration: resolue.ambient_noise_configuration as AmbientNoiseConfiguration,
     tts_cache_enabled: resolue.tts_cache_enabled,
+    // [.mark] Voix-soniox, lot 7 (D21): kept AS STORED. A key that was never written stays absent (`undefined`,
+    // dropped by JSON), so saving the theme sends exactly what it sent before for an agent that set nothing.
+    tts_balises_permises: resolue.tts_balises_permises,
 });
 
 export const ThemeVoix = ({
@@ -232,6 +236,22 @@ export const ThemeVoix = ({
 
             <Intertitre id="voix-prononciation" titre={{ en: "Pronunciation", fr: "Prononciation" }}>
                 {r("tts_replacements")}
+            </Intertitre>
+
+            <Intertitre
+                id="voix-balises"
+                titre={{ en: "Expression tags", fr: "Balises d'expression" }}
+                description={{
+                    en: "Which words between square brackets may reach the voice (Soniox).",
+                    fr: "Quels mots entre crochets peuvent arriver à la voix (Soniox).",
+                }}
+            >
+                <CarteBalises
+                    valeur={brouillon.tts_balises_permises}
+                    onChange={maj("tts_balises_permises")}
+                    retourAuDefaut={enregistre.tts_balises_permises === undefined ? undefined : null}
+                    sansEffet={motParMot}
+                />
             </Intertitre>
 
             <Intertitre

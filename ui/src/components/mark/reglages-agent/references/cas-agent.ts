@@ -182,6 +182,13 @@ export const CAS_AGENT: CasAgent[] = [
     // Plan postscriptum-note-d-abord (C10): added after the reorganisation, frozen once.
     c("relecture-des-numeros", "ajout-mark", "voix", ["relecture_des_numeros"], [inter("relecture_des_numeros")]),
     c("prononciation", "speech-tuning", "voix", ["tts_replacements"], [{ type: "etiquette", id: "tts_replacements", valeur: "RGE:R. G. E." }]),
+    // Chantier voix-soniox, lot 7 (D11, D21): a card that opens a centred modal ; the tag typed in the modal's list,
+    // « Apply », then the theme's save. Added after the reorganisation, frozen once.
+    c("balises-permises", "ajout-mark", "voix", ["tts_balises_permises"], [
+        { type: "cliquer", nom: "Allowed expression tags : The voice's default" },
+        { type: "etiquette", id: "tts_balises_permises", valeur: "warm" },
+        { type: "cliquer", nom: "Apply" },
+    ]),
 
     // ---- Call Record (.mark) -----------------------------------------------
     c("fiche", "call-record", "donnees", ["fiche_au_fil_de_leau"], [inter("fiche_au_fil_de_leau")]),

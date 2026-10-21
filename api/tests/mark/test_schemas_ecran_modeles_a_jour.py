@@ -2,7 +2,7 @@
 
 Chantier reorganisation-ecran-reglages (steps 1 and 6). The screen tests of the
 Models screen render `ui/src/components/mark/modeles/references/schemas-fournisseurs.json`,
-an export of the registry for Mistral, ElevenLabs and Deepgram. An export
+an export of the registry for Mistral, ElevenLabs, Deepgram and Soniox (transcription, then voice). An export
 nobody compares drifts: a field added or regrouped in Python would leave the
 screen tests green on a screen that no longer exists. So the comparison is made
 here, from the side that owns the truth.
@@ -26,6 +26,7 @@ FOURNISSEURS = [
     ("llm", ServiceType.LLM, "mistral"),
     ("llm", ServiceType.LLM, "openai"),
     ("tts", ServiceType.TTS, "elevenlabs"),
+    ("tts", ServiceType.TTS, "soniox"),
     ("stt", ServiceType.STT, "deepgram"),
     ("stt", ServiceType.STT, "soniox"),
 ]

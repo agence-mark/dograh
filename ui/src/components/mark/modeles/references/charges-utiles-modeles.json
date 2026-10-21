@@ -113,7 +113,11 @@
         "voice",
         "speed",
         "model",
-        "base_url"
+        "base_url",
+        "stability",
+        "similarity_boost",
+        "style",
+        "use_speaker_boost"
       ],
       "sansModification": {
         "llm": {
@@ -174,6 +178,38 @@
           "geste": "texte",
           "modifiees": {
             "base_url": "https://essai.example"
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "stability": {
+          "geste": "nombre",
+          "modifiees": {
+            "stability": 0.5
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "similarity_boost": {
+          "geste": "nombre",
+          "modifiees": {
+            "similarity_boost": 0.5
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "style": {
+          "geste": "nombre",
+          "modifiees": {
+            "style": 0.5
+          },
+          "retirees": [],
+          "autresServicesInchanges": true
+        },
+        "use_speaker_boost": {
+          "geste": "interrupteur",
+          "modifiees": {
+            "use_speaker_boost": true
           },
           "retirees": [],
           "autresServicesInchanges": true

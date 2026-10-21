@@ -469,6 +469,84 @@
           "title": "Model",
           "type": "string"
         },
+        "stability": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Voice stability, 0 to 1. Lower is more expressive and varies more from one sentence to the next; higher is steadier and flatter. Left empty: 0.8, the value used until now.",
+          "mark_groupe": "caractere_de_la_voix",
+          "mark_libelle": {
+            "en": "Stability",
+            "fr": "Stabilité"
+          },
+          "title": "Stability"
+        },
+        "similarity_boost": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How close the voice stays to the original recording, 0 to 1. Left empty: 0.75, the value used until now.",
+          "mark_groupe": "caractere_de_la_voix",
+          "mark_libelle": {
+            "en": "Similarity boost",
+            "fr": "Fidélité à la voix"
+          },
+          "title": "Similarity Boost"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Style exaggeration, 0 to 1. Left empty, not sent (ElevenLabs applies its own default, 0). Above 0 it adds latency and can make the voice less stable.",
+          "mark_groupe": "caractere_de_la_voix",
+          "mark_libelle": {
+            "en": "Style",
+            "fr": "Expressivité du style"
+          },
+          "title": "Style"
+        },
+        "use_speaker_boost": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Boost the likeness to the original speaker. Left empty, not sent (ElevenLabs applies its own default). Adds a little latency.",
+          "mark_groupe": "caractere_de_la_voix",
+          "mark_libelle": {
+            "en": "Speaker boost",
+            "fr": "Renforcer la ressemblance"
+          },
+          "title": "Use Speaker Boost"
+        },
         "base_url": {
           "default": "https://api.elevenlabs.io",
           "description": "ElevenLabs API base URL. Override to use a Data Residency endpoint (e.g. https://api.eu.residency.elevenlabs.io) for GDPR / HIPAA / regional compliance.",
@@ -498,6 +576,323 @@
         "api_key"
       ],
       "title": "ElevenLabs",
+      "type": "object"
+    },
+    "soniox": {
+      "properties": {
+        "provider": {
+          "const": "soniox",
+          "default": "soniox",
+          "title": "Provider",
+          "type": "string"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Api Key"
+        },
+        "model": {
+          "allow_custom_input": true,
+          "default": "tts-rt-v2",
+          "description": "Soniox real-time text-to-speech model.",
+          "examples": [
+            "tts-rt-v2"
+          ],
+          "title": "Model",
+          "type": "string"
+        },
+        "voice": {
+          "allow_custom_input": true,
+          "default": "Mathieu",
+          "description": "Soniox voice name, or the identifier of a cloned voice of the project that owns the key. The menu lists the voices known to the product; any other voice is typed.",
+          "docs_url": "https://soniox.com/docs/tts/concepts/voices",
+          "examples": [
+            "Mathieu",
+            "Celine",
+            "Julien",
+            "Olivier",
+            "Elodie",
+            "Camille",
+            "Manon",
+            "Baptiste",
+            "Noemie",
+            "Genevieve",
+            "Antoine"
+          ],
+          "mark_groupe": "voix",
+          "mark_libelle": {
+            "en": "Voice",
+            "fr": "Voix"
+          },
+          "mark_voix": [
+            {
+              "accent": "France",
+              "description": "amical, posé",
+              "francais": true,
+              "genre": null,
+              "id": "Mathieu"
+            },
+            {
+              "accent": "France",
+              "description": "articulation précise",
+              "francais": true,
+              "genre": null,
+              "id": "Celine"
+            },
+            {
+              "accent": "France",
+              "description": "chaleureux, vif en conversation",
+              "francais": true,
+              "genre": null,
+              "id": "Julien"
+            },
+            {
+              "accent": "France",
+              "description": null,
+              "francais": true,
+              "genre": null,
+              "id": "Olivier"
+            },
+            {
+              "accent": "France",
+              "description": null,
+              "francais": true,
+              "genre": null,
+              "id": "Elodie"
+            },
+            {
+              "accent": "France",
+              "description": null,
+              "francais": true,
+              "genre": null,
+              "id": "Camille"
+            },
+            {
+              "accent": "France",
+              "description": "parisienne",
+              "francais": true,
+              "genre": null,
+              "id": "Manon"
+            },
+            {
+              "accent": "France",
+              "description": null,
+              "francais": true,
+              "genre": null,
+              "id": "Baptiste"
+            },
+            {
+              "accent": "France",
+              "description": null,
+              "francais": true,
+              "genre": null,
+              "id": "Noemie"
+            },
+            {
+              "accent": "Québec",
+              "description": null,
+              "francais": true,
+              "genre": null,
+              "id": "Genevieve"
+            },
+            {
+              "accent": "Québec",
+              "description": null,
+              "francais": true,
+              "genre": null,
+              "id": "Antoine"
+            }
+          ],
+          "mark_voix_releve": "2026-10-21",
+          "title": "Voice",
+          "type": "string"
+        },
+        "language": {
+          "default": "fr",
+          "description": "ISO 639-1 language the voice speaks (sent with every stream).",
+          "docs_url": "https://soniox.com/docs/tts/concepts/languages",
+          "examples": [
+            "af",
+            "ar",
+            "az",
+            "be",
+            "bg",
+            "bn",
+            "bs",
+            "ca",
+            "cs",
+            "cy",
+            "da",
+            "de",
+            "el",
+            "en",
+            "es",
+            "et",
+            "eu",
+            "fa",
+            "fi",
+            "fr",
+            "gl",
+            "gu",
+            "he",
+            "hi",
+            "hr",
+            "hu",
+            "id",
+            "it",
+            "ja",
+            "kk",
+            "kn",
+            "ko",
+            "lt",
+            "lv",
+            "mk",
+            "ml",
+            "mr",
+            "ms",
+            "nl",
+            "no",
+            "pa",
+            "pl",
+            "pt",
+            "ro",
+            "ru",
+            "sk",
+            "sl",
+            "sq",
+            "sr",
+            "sv",
+            "sw",
+            "ta",
+            "te",
+            "th",
+            "tl",
+            "tr",
+            "uk",
+            "ur",
+            "vi",
+            "zh",
+            "is",
+            "su",
+            "uz"
+          ],
+          "mark_groupe": "voix",
+          "mark_libelle": {
+            "en": "Language",
+            "fr": "Langue"
+          },
+          "title": "Language",
+          "type": "string"
+        },
+        "speed": {
+          "anyOf": [
+            {
+              "maximum": 1.3,
+              "minimum": 0.7,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Speech rate multiplier, from 0.7 to 1.3. Left unset, Soniox's own default applies (1.0). Careful: it flattens the rhythm.",
+          "mark_groupe": "debit",
+          "mark_libelle": {
+            "en": "Speed",
+            "fr": "Vitesse"
+          },
+          "title": "Speed"
+        },
+        "reduce_silence": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shorten the pauses between words without changing how fast the words are spoken. Left unset, Soniox's own default applies (off). Only some models accept it.",
+          "mark_groupe": "debit",
+          "mark_libelle": {
+            "en": "Reduce silence",
+            "fr": "Réduire les silences"
+          },
+          "title": "Reduce Silence"
+        },
+        "text_aggregation_mode": {
+          "default": "sentence",
+          "description": "Send the text to the voice sentence by sentence (default, more natural speech), or word by word as the model writes it (answers sooner, may degrade the voice: judge it by ear).",
+          "enum": [
+            "sentence",
+            "token"
+          ],
+          "mark_groupe": "envoi_du_texte",
+          "mark_libelle": {
+            "en": "Text sending",
+            "fr": "Envoi du texte"
+          },
+          "title": "Text Aggregation Mode",
+          "type": "string"
+        },
+        "base_url": {
+          "allow_custom_input": true,
+          "default": "wss://tts-rt.eu.soniox.com/tts-websocket",
+          "description": "The Soniox endpoint the spoken text is sent to, and therefore the jurisdiction that processes it. Defaults to Europe (the region is fixed by the project the key belongs to); leaving it empty also sends the text to Europe.",
+          "examples": [
+            "wss://tts-rt.eu.soniox.com/tts-websocket",
+            "wss://tts-rt.soniox.com/tts-websocket"
+          ],
+          "mark_adresse": true,
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Base URL",
+            "fr": "Adresse du service"
+          },
+          "title": "Base Url",
+          "type": "string"
+        },
+        "region": {
+          "default": "eu",
+          "description": "Where the spoken text is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.",
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Region",
+            "fr": "Région"
+          },
+          "readonly": true,
+          "title": "Region",
+          "type": "string"
+        },
+        "adresse_libre": {
+          "default": false,
+          "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
+          "mark_adresse_libre": true,
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Free entry",
+            "fr": "Saisie libre"
+          },
+          "title": "Adresse Libre",
+          "type": "boolean"
+        }
+      },
+      "provider_docs_url": "https://soniox.com/docs/tts/rt/real-time-generation",
+      "required": [
+        "api_key"
+      ],
+      "title": "Soniox",
       "type": "object"
     }
   },

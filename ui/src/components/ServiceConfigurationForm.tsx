@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet } from '@/client/sdk.gen';
 import { ChampEtiquettes } from "@/components/mark/ChampEtiquettes";
 import { ChampCleModele } from "@/components/mark/cles/ChampCleModele";
+import { CarteDesVoix, type VoixConnue } from "@/components/mark/modeles/CarteDesVoix";
 import { grouperChamps, LibelleChamp, SousMenuFournisseur } from "@/components/mark/modeles/GroupesFournisseur";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -78,6 +79,10 @@ interface SchemaProperty {
     // reglage de la liste : voir `getConfigFields`).
     mark_adresse?: boolean;
     mark_adresse_libre?: boolean;
+    // [.mark] Chantier voix-soniox, lot 7 (D2) : les voix que le produit connait
+    // (une voix Soniox), dessinees en carte + modale, et la date du releve.
+    mark_voix?: VoixConnue[];
+    mark_voix_releve?: string;
 }
 
 export interface ProviderSchema {
@@ -979,7 +984,7 @@ export function ServiceConfigurationForm({
             return valeur === undefined || valeur === null ? schemaDe(autre)?.default : valeur;
         };
         const champ = (field: string) => !estVisibleSelonLesAutresChamps(schemaDe(field), lire) ? null : (
-            <div key={field} data-champ={field} className={`space-y-2 ${schemaDe(field)?.multiline ? "col-span-2" : ""}`}>
+            <div key={field} data-champ={field} className={`space-y-2 ${schemaDe(field)?.multiline || schemaDe(field)?.mark_voix ? "col-span-2" : ""}`}>
                 <LibelleChamp
                     champ={field}
                     libelle={schemaDe(field)?.mark_libelle ?? (field === "model" ? { en: "Model", fr: "Modèle" } : undefined)}
@@ -1227,6 +1232,21 @@ export function ServiceConfigurationForm({
                         }}
                     />
                 </div>
+            );
+        }
+
+        // [.mark] Voix-soniox, lot 7 (D2): the voices the product knows, as a card that opens a
+        // centred modal (filter « French », search, free entry for an absent or cloned voice).
+        if (actualSchema?.mark_voix && actualSchema.mark_voix.length > 0) {
+            const fieldKey = `${service}_${field}`;
+            return (
+                <CarteDesVoix
+                    idChamp={fieldKey}
+                    valeur={(watch(fieldKey) as string) || ""}
+                    voix={actualSchema.mark_voix}
+                    releve={actualSchema.mark_voix_releve}
+                    onChoisir={(id) => setValue(fieldKey, id, { shouldDirty: true })}
+                />
             );
         }
 

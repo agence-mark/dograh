@@ -70,6 +70,7 @@ from api.services.configuration.options import (
     SONIOX_TTS_VOIX,
     SONIOX_TTS_VOIX_IDS,
     SONIOX_TTS_VOIX_PAR_DEFAUT,
+    SONIOX_TTS_VOIX_RELEVE,
     SPEECHMATICS_STT_LANGUAGES,
 )
 from api.services.configuration.options.google import (
@@ -2309,6 +2310,9 @@ class SonioxTTSConfiguration(BaseTTSConfiguration):
             # What the voice list on screen shows (lot 7): description, accent,
             # gender, and whether the voice is French. `None` = not recorded.
             "mark_voix": [dict(voix) for voix in SONIOX_TTS_VOIX],
+            # The date the list was taken from Soniox: the screen says so, and says it is
+            # NOT the whole catalogue (lot 7, D-13: no false "200 voices").
+            "mark_voix_releve": SONIOX_TTS_VOIX_RELEVE,
             "docs_url": "https://soniox.com/docs/tts/concepts/voices",
         },
     )
