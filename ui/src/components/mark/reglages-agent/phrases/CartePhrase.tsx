@@ -31,9 +31,9 @@ import { useLangue } from "../../langue/langue";
 import { type ContextePhrases, type Moment, type MotifDePhrase, normaliserRegle, type Origine, ORIGINES, type Puce,puces } from "./modele";
 
 export const TONS: Record<Moment, string> = {
-    attente: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
-    probleme: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    action: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+    attente: "bg-(--acc-soft) text-(--acc-text)",
+    probleme: "bg-(--signal-warn)/10 text-(--signal-warn)",
+    action: "bg-(--signal-ok)/10 text-(--signal-ok)",
 };
 
 /** L'icône d'un motif, rangée par identifiant (un motif inconnu garde l'icône de son moment). */
