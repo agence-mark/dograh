@@ -2,6 +2,7 @@
 
 import { Brain } from "lucide-react";
 
+import { useLangue } from "@/components/mark/langue/langue";
 import { cn } from "@/lib/utils";
 
 interface MessageBubbleProps {
@@ -9,6 +10,8 @@ interface MessageBubbleProps {
     text: string;
     final?: boolean;
     tone?: "default" | "muted";
+    /** [.mark] A fixed sentence said by the code: shown in grey with a small label. */
+    duCode?: boolean;
     reasoningDurationMs?: number;
     containerClassName?: string;
 }
@@ -18,9 +21,11 @@ export function MessageBubble({
     text,
     final = true,
     tone = "default",
+    duCode = false,
     reasoningDurationMs,
     containerClassName,
 }: MessageBubbleProps) {
+    const { t } = useLangue();
     const isUser = role === "user";
     const isMuted = tone === "muted";
 
@@ -45,6 +50,11 @@ export function MessageBubble({
                         !final && "opacity-70",
                     )}
                 >
+                    {duCode ? (
+                        <div className="mb-0.5 text-[10px] font-medium not-italic" data-phrase-du-code>
+                            {t({ en: "Sentence said by the code", fr: "Phrase du code" })}
+                        </div>
+                    ) : null}
                     <div>{text}</div>
                     {!final ? (
                         <div

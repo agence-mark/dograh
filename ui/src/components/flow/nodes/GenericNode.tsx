@@ -14,6 +14,7 @@ import { FlowNodeData } from "@/components/flow/types";
 import { BriqueAgent } from "@/components/mark/graphe/BriqueAgent";
 import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFin";
 import { EtapeDeRetour } from "@/components/mark/graphe/EtapeDeRetour";
+import { PhrasesDeLEtape } from "@/components/mark/graphe/PhrasesDeLEtape";
 import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
 import { TravailDeFond } from "@/components/mark/graphe/TravailDeFond";
 import { Button } from "@/components/ui/button";
@@ -766,6 +767,9 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                                     setValues((prev) => ({ ...prev, travail_de_fond: coche ? true : undefined }))
                                 }
                             />
+                        )}
+                        {(type === "agentNode" || type === "startCall") && (
+                            <PhrasesDeLEtape etapeId={id} etapeNom={typeof values.name === "string" ? values.name : data.name ?? ""} />
                         )}
                         {type === "endCall" && (
                             <PhrasesDeFin

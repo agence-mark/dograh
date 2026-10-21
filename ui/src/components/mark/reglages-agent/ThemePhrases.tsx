@@ -34,16 +34,16 @@ import { DELAI_PHRASE_PONT_DEFAUT_S } from "../groupe/reglages-groupe";
 import { type Texte, useLangue } from "../langue/langue";
 import { useEnregistrementTheme } from "./enregistrement";
 import { CartePhrase } from "./phrases/CartePhrase";
-import { type Dernier, useCarte, useDestinations, useEquipe, useOutilsDeLAgent } from "./phrases/donnees";
+import { type Dernier, useCarte } from "./phrases/donnees";
+import { useEnvironnementPhrases } from "./phrases/environnement";
 import { type LigneDeListe,lignesDeLaListe } from "./phrases/liste";
 import { ModaleAjout } from "./phrases/ModaleAjout";
-import { type EnvironnementPhrases, ModaleRegle } from "./phrases/ModaleRegle";
+import { ModaleRegle } from "./phrases/ModaleRegle";
 import {
     ALIAS_DE_MOTIFS,
     BORNES_PHRASES,
     chargeRegle,
     cleDeRegle,
-    type ContextePhrases,
     type Endroit,
     erreursDesPhrases as erreursDesRegles,
     type EtapeGraphe,
@@ -209,10 +209,6 @@ export const ThemePhrases = ({
     const ancienneRelation = (resolue.transfert_humain?.phrase_mise_en_relation ?? "").trim() !== "";
 
     const { carte, erreur: carteIllisible } = useCarte(workflowId, ouvert, version);
-    const outils = useOutilsDeLAgent(outilsUuids, ouvert);
-    const equipe = useEquipe(ouvert);
-    const destinations = useDestinations(equipe);
-
     const { enCours, enregistrer } = useEnregistrementTheme({
         titre: TITRE_PHRASES,
         resolue,
@@ -250,33 +246,15 @@ export const ThemePhrases = ({
         ],
     });
 
-    const reposS = lireN(brouillon.repos) ?? REPOS_DEFAUT_S;
-    const maxOutil = (() => {
-        const delais = outils.map((o) => o.delaiTotalS).filter((d): d is number => d !== null);
-        return delais.length > 0 ? Math.max(...delais) : null;
-    })();
-    const contexte: ContextePhrases = useMemo(
-        () => ({
-            langue,
-            t,
-            reposS,
-            abandonS: { outil: maxOutil, travail: resolue.travail_delai_max_s ?? 60, garde: resolue.delai_garde_modele_s ?? null },
-            rythme: { delaiS: resolue.max_user_idle_timeout, relances: resolue.user_idle_max_prompts ?? 0 },
-            destinations,
-        }),
-        [langue, t, reposS, maxOutil, resolue.travail_delai_max_s, resolue.delai_garde_modele_s, resolue.max_user_idle_timeout, resolue.user_idle_max_prompts, destinations],
-    );
-    const env: EnvironnementPhrases = useMemo(
-        () => ({
-            etapes,
-            outils,
-            champsFiche: (resolue.fiche_champs ?? []).map((c) => ({ nom: c.nom, valeurs: c.valeurs ?? null })),
-            equipe,
-            peutGroupe: peutRegleDeGroupe,
-            contexte,
-        }),
-        [etapes, outils, resolue.fiche_champs, equipe, peutRegleDeGroupe, contexte],
-    );
+    // Ce que la modale lit autour d'elle (étapes, outils de l'agent, fiche, équipe, délais lus ailleurs).
+    const { env, contexte } = useEnvironnementPhrases({
+        configuration: resolue,
+        etapes,
+        outilsUuids,
+        actif: ouvert,
+        peutGroupe: peutRegleDeGroupe,
+        repos: brouillon.repos,
+    });
 
     const agentDeLaCarte = carte?.agents.find((a) => a.id === workflowId);
     const heritees = useMemo(() => (specialise ? (agentDeLaCarte?.regles_du_groupe ?? []) : []), [specialise, agentDeLaCarte]);

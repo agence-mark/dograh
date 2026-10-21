@@ -22,6 +22,7 @@ export function ConversationItemView({ item, actions }: ConversationItemViewProp
                 text={item.text}
                 final={item.final}
                 tone={item.tone}
+                duCode={item.duCode}
                 reasoningDurationMs={item.reasoningDurationMs}
                 containerClassName={isUser && actions ? "min-w-0 flex-1 justify-end" : undefined}
             />

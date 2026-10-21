@@ -2,6 +2,8 @@ import { createContext, useContext } from 'react';
 
 import type { DocumentResponseSchema, ToolResponse } from '@/client/types.gen';
 import type { RecordingResponseSchema } from '@/client/types.gen';
+import type { EtapeGraphe } from '@/components/mark/reglages-agent/phrases/modele';
+import type { ReglePhrase, WorkflowConfigurations } from '@/types/workflow-configurations';
 
 interface WorkflowContextType {
     saveWorkflow: (updateWorkflowDefinition?: boolean) => Promise<void>;
@@ -25,6 +27,17 @@ interface WorkflowContextType {
     travailActif?: boolean;
     /** [.mark] Lot 12: a tool just created from the node window (the « Agent » brick) joins the list. */
     ajouterOutil?: (tool: ToolResponse) => void;
+    /**
+     * [.mark] correctifs-apres-banc-v4, lot 5: what the section « Fixed sentences at this step » of a node window reads
+     * and writes (the same `phrases_regles` as the settings page's Phrases theme).
+     */
+    phrasesDeLEtape?: {
+        configuration: Partial<WorkflowConfigurations> | null;
+        etapes: EtapeGraphe[];
+        outilsUuids: string[];
+        peutGroupe: boolean;
+        enregistrer: (regles: ReglePhrase[]) => Promise<void>;
+    };
 }
 
 const WorkflowContext = createContext<WorkflowContextType | undefined>(undefined);

@@ -237,6 +237,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                   ouvert: themes.estOuvert(id),
                   onBasculer: () => themes.basculer(id),
                   ouvrir: () => themes.ouvrir(id),
+                  versTheme: themes.choisir,
               }
             : null;
 

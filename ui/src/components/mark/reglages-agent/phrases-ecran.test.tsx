@@ -24,6 +24,7 @@ import { ContexteGroupe } from "../groupe/contexte-groupe";
 import { lirePhrasesDites,PhrasesDuCode } from "../groupe/PhrasesDuCode";
 import { apercuDeLaRegle, type ContextePhrases, normaliserRegle } from "./phrases/modele";
 import { chargePhrases, erreursDesPhrases, extrairePhrases, MOTIFS_DE_PHRASES, ThemePhrases } from "./ThemePhrases";
+import { ThemeRythme } from "./ThemeRythme";
 
 vi.mock("@/components/ui/select", () => import("./references/select-natif"));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: 1 }, loading: false }) }));
@@ -422,6 +423,38 @@ describe("[.mark] theme Phrases : l'écran", () => {
         // Une case du principal ouvre la règle (ici un défaut : l'ajout du motif).
         fireEvent.click(vue.querySelector('[data-case-groupe="appelant_se_tait-7"] button') as HTMLButtonElement);
         expect(await screen.findByRole("dialog")).toBeTruthy();
+    });
+});
+
+describe("[.mark] Rythme renvoie vers la règle « l'appelant se tait » (décision 1 : un seul endroit)", () => {
+    const monterRythme = (reste: Record<string, unknown>, versTheme = vi.fn()) => {
+        render(
+            <UnsavedChangesProvider>
+                <ThemeRythme resolue={configuration(reste)} workflowName="Agent" onSave={vi.fn()} ouvert onBasculer={() => undefined} ouvrir={() => undefined} versTheme={versTheme} />
+            </UnsavedChangesProvider>,
+        );
+        return versTheme;
+    };
+
+    it("keeps both settings and says the rule sets them when it does, with a link to the Phrases theme", () => {
+        const versTheme = monterRythme({
+            phrases_regles: [{ motif: "appelant_se_tait", portee: "agent", variantes: ["Toujours là ?"], max_par_attente: 3, ensuite: { phrases: ["Au revoir."], action: "raccrocher" } }],
+        });
+        expect(document.getElementById("reglage-user_idle_max_prompts")).not.toBeNull();
+        expect(document.getElementById("reglage-user_idle_goodbye_prompt")).not.toBeNull();
+        const notes = document.querySelectorAll('[data-note="rythme-lien-silence"]');
+        expect(notes).toHaveLength(2);
+        expect([...notes].map((n) => n.getAttribute("data-pose"))).toEqual(["oui", "oui"]);
+        expect(notes[0].textContent).toContain("No effect here");
+        fireEvent.click(within(notes[0] as HTMLElement).getByRole("button", { name: "Open the Phrases theme" }));
+        expect(versTheme).toHaveBeenCalledWith("phrases");
+    });
+
+    it("says the settings still apply while the rule does not set its own", () => {
+        monterRythme({});
+        const notes = document.querySelectorAll('[data-note="rythme-lien-silence"]');
+        expect([...notes].map((n) => n.getAttribute("data-pose"))).toEqual(["non", "non"]);
+        expect(notes[0].textContent).toContain("Used while the rule");
     });
 });
 

@@ -21,6 +21,15 @@ import {
 } from "./types";
 import { extractSdkErrorMessage, getErrorMessage, getReplayCursorTurnId } from "./utils";
 
+/** The texts of the entries of `phrases_du_code` flagged `du_code` (written by `api/services/phrases/diseur.py`). */
+export const lirePhrasesDuCode = (contexte: Record<string, unknown> | null | undefined): string[] => {
+    const trace = contexte?.phrases_du_code;
+    if (!Array.isArray(trace)) return [];
+    return trace
+        .filter((e): e is { texte: string; du_code?: unknown } => typeof e === "object" && e !== null && typeof (e as { texte?: unknown }).texte === "string" && (e as { du_code?: unknown }).du_code === true)
+        .map((e) => e.texte);
+};
+
 interface UseTextChatSessionProps {
     workflowId: number;
     ready: boolean;
@@ -53,7 +62,9 @@ export function useTextChatSession({
         ? turns.find((turn) => turn.id === editingTurnId) ?? null
         : null;
     const composerId = `workflow-tester-compose-${workflowId}`;
-    const conversationItems = conversationItemsFromTextChatTurns(turns);
+    // [.mark] correctifs-apres-banc-v4, lot 5 (décision 3): the sentences the CODE said, from the session's trace.
+    const phrasesDuCode = lirePhrasesDuCode(session?.checkpoint?.gathered_context);
+    const conversationItems = conversationItemsFromTextChatTurns(turns, phrasesDuCode);
 
     const createSession = useCallback(async () => {
         if (disabled) return;
