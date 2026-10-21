@@ -37,6 +37,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.phrases.catalogue import FAMILLE_ANNONCE, FAMILLE_ATTENTE
+from api.services.phrases.coupures import RegistreDesCoupures
 from api.services.phrases.regles import PhraseResolue, resoudre
 
 CLE_TRACE = "phrases_du_code"
@@ -115,6 +116,9 @@ class DiseurDePhrases:
         # Le texte de la phrase du code en train d'être dite (``None`` sinon) : le filet des
         # répliques coupées ne la reprend jamais (F25).
         self.texte_en_cours: str | None = None
+        # D20 (voix-soniox) : chaque phrase dite et son minutage, pour dire au modèle, à la requête
+        # suivante, ce que l'appelant a réellement entendu d'une phrase coupée (``coupures.py``).
+        self.coupures = RegistreDesCoupures()
 
     # -- ce qui est en vigueur ---------------------------------------------------
 
@@ -310,14 +314,19 @@ class DiseurDePhrases:
                 mute_user=False,
             )
             if getattr(getattr(parole, "outcome", None), "name", None) != "FAILED":
+                self.coupures.noter(texte, son.mots, parole)
                 return parole
             logger.warning(f"[phrases] son fabriqué non joué, dit par la voix : {texte!r}")
-        return await self._moteur.queue_speech(
+        parole = await self._moteur.queue_speech(
             texte,
             append_to_context=historique,
             persist_to_logs=True,
             mute_user=False,
         )
+        # Dite par la voix de l'appel : Pipecat raccourcit lui-même l'historique, mais le compte rendu
+        # ne sait pas jusqu'où (aucun minutage gardé ici).
+        self.coupures.noter(texte, (), parole)
+        return parole
 
     def prendre(
         self,

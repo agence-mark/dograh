@@ -33,6 +33,7 @@ from api.services.pipecat.pipeline_builder import (
 )
 from api.services.pipecat.recording_router_processor import RecordingRouterProcessor
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
+from api.services.phrases.coupures import brancher_les_coupures
 from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.pipecat.service_factory import (
     cle_de_cache,
@@ -306,6 +307,8 @@ class AgentRuntimeFactory:
         # [.mark] Lot 8 (R12) : la trace du modèle suit l'agent appelé (case de CET agent), avant la
         # prise de notes ci-dessous qui lit la trace du moteur. Ne lève jamais.
         if self._moteur_de_l_appel is not None:
+            # D20 (voix-soniox) : les phrases du code coupées, avant la trace (qui voit la requête telle qu'elle part).
+            brancher_les_coupures(self._moteur_de_l_appel(), llm)
             brancher_la_trace(self._moteur_de_l_appel(), llm, run_configs, workflow.name)
         # Same client policy as the run setup: the conversation LLM also
         # serves out-of-band inference, and extraction gets a separately
