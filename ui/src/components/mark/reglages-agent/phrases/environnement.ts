@@ -26,6 +26,7 @@ export const useEnvironnementPhrases = ({
     outilsUuids,
     actif,
     peutGroupe,
+    workflowId,
     repos,
 }: {
     configuration: Partial<WorkflowConfigurations> | null | undefined;
@@ -33,6 +34,8 @@ export const useEnvironnementPhrases = ({
     outilsUuids: string[];
     actif: boolean;
     peutGroupe: boolean;
+    /** L'agent dont on règle les phrases : cible des liens vers les réglages lus ailleurs. */
+    workflowId?: number;
     /** La pause minimale en cours de saisie (secondes, texte) ; absente : celle de la configuration. */
     repos?: string;
 }): { env: EnvironnementPhrases; contexte: ContextePhrases } => {
@@ -68,9 +71,10 @@ export const useEnvironnementPhrases = ({
             champsFiche: (champs ?? []).map((c) => ({ nom: c.nom, valeurs: c.valeurs ?? null })),
             equipe,
             peutGroupe,
+            workflowId,
             contexte,
         }),
-        [etapes, outils, champs, equipe, peutGroupe, contexte],
+        [etapes, outils, champs, equipe, peutGroupe, workflowId, contexte],
     );
     return { env, contexte };
 };

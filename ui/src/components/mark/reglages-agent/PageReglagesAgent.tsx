@@ -80,6 +80,12 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
     const { t } = useLangue();
     const { dirtySections, confirmNavigate } = useUnsavedChangesContext();
     const themes = useThemesOuverts();
+    // [.mark] lot 5: a link from a sentence rule opens the theme that sets what it reads (`?theme=briques`).
+    useEffect(() => {
+        const theme = new URLSearchParams(window.location.search).get("theme");
+        if (theme && THEMES_AGENT.some((x) => x.id === theme)) themes.choisir(theme);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const [themesEnErreur, setThemesEnErreur] = useState<Set<string>>(() => new Set());
     const signalerErreur = useCallback((id: string, enErreur: boolean) => {
         setThemesEnErreur((avant) => {

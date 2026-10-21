@@ -677,8 +677,8 @@ export const EditeurChampsFiche = ({
                                         </Label>
                                         <p className="text-xs text-muted-foreground">
                                             {t({
-                                                en: "Off (default): if the caller refuses to give this field, the refusal counts as handled and the step moves on. On: a refusal does not count, the field stays missing for the step's guard.",
-                                                fr: "Décoché (défaut) : si la personne refuse de donner ce champ, le refus compte comme traité et l'étape avance. Coché : un refus ne compte pas, le champ reste manquant pour la garde de l'étape.",
+                                                en: "Off (default): if the caller refuses to give this field, the refusal counts as handled and the step moves on. This holds for any field that is not cumulative (free text, closed list or number alike). On: a refusal does not count, the field stays missing for the step's guard.",
+                                                fr: "Décoché (défaut) : si la personne refuse de donner ce champ, le refus compte comme traité et l'étape avance. Vaut pour tout champ non cumulatif (texte libre, liste fermée ou numéro). Coché : un refus ne compte pas, le champ reste manquant pour la garde de l'étape.",
                                             })}
                                         </p>
                                     </div>

@@ -229,11 +229,14 @@ export const ThemePhrases = ({
                     if (repos !== null || resolue.phrases_repos_s !== undefined) charge.phrases_repos_s = repos;
                     // F17 : les anciennes clés sont retirées une fois leur valeur devenue règle (gardée par le thème).
                     if (ancienPont) {
-                        const { phrase_pont: _p, delai_phrase_pont_s: _d, ...reste } = resolue.attente ?? {};
+                        const reste = { ...(resolue.attente ?? {}) };
+                        delete reste.phrase_pont;
+                        delete reste.delai_phrase_pont_s;
                         charge.attente = reste;
                     }
                     if (ancienneRelation) {
-                        const { phrase_mise_en_relation: _r, ...reste } = resolue.transfert_humain ?? {};
+                        const reste = { ...(resolue.transfert_humain ?? {}) };
+                        delete reste.phrase_mise_en_relation;
                         charge.transfert_humain = reste;
                     }
                     return charge;
@@ -253,6 +256,7 @@ export const ThemePhrases = ({
         outilsUuids,
         actif: ouvert,
         peutGroupe: peutRegleDeGroupe,
+        workflowId,
         repos: brouillon.repos,
     });
 

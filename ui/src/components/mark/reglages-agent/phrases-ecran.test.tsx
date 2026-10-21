@@ -477,3 +477,28 @@ describe("[.mark] la fenêtre de l'appel liste les phrases dites par le code", (
         expect(screen.queryByText("Sentences said by the code")).toBeNull();
     });
 });
+
+describe("[.mark] les fins d'attente lues ailleurs sont des liens vers leur réglage (plan 4.7)", () => {
+    it("links the end of the wait to the setting that fixes it, in another tab", async () => {
+        await monter();
+        const lien = async (motif: string, cible: string) => {
+            fireEvent.click(carte(motif));
+            const dialogue = await screen.findByRole("dialog");
+            const a = dialogue.querySelector(`[data-lien-fin="${cible}"]`) as HTMLAnchorElement;
+            expect(a, `${motif}: no link`).not.toBeNull();
+            expect(a.target).toBe("_blank");
+            expect(dialogue.querySelector("[data-apercu-phrase] [data-apercu-fin] a")).not.toBeNull();
+            const href = a.getAttribute("href");
+            fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+            return href;
+        };
+        expect(await lien("travail_dure", "travail")).toBe("/workflow/7/settings?theme=briques");
+        expect(await lien("modele_tarde", "garde")).toBe("/workflow/7/settings?theme=briques");
+        expect(await lien("outil_tarde", "outil")).toBe("/tools");
+        expect(await lien("appelant_se_tait", "rythme")).toBe("/workflow/7/settings?theme=rythme");
+        // Un motif sans fin lue ailleurs n'a pas de lien.
+        fireEvent.click(carte("outil_echoue"));
+        const d = await screen.findByRole("dialog");
+        expect(d.querySelector("[data-lien-fin]")).toBeNull();
+    });
+});

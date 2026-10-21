@@ -9,7 +9,7 @@
  * Elle travaille sur une COPIE de la règle : « Enregistrer » la rend à l'appelant (le thème l'inscrit dans son
  * brouillon, la fenêtre d'une étape l'enregistre tout de suite), « Annuler » la jette.
  */
-import { Plus, Timer, Trash2 } from "lucide-react";
+import { ArrowUpRight, Plus, Timer, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,8 @@ import {
     type ContextePhrases,
     erreursDeLaRegle,
     type EtapeGraphe,
+    hrefDeFin,
+    LIENS_DE_FIN,
     MOTIF_SILENCE,
     MOTIF_TRAVAIL_DURE,
     motifDe,
@@ -50,6 +52,7 @@ export interface EnvironnementPhrases {
     equipe: MembreDeLEquipe[];
     /** Le principal d'un groupe peut poser une règle pour tout le groupe ; un agent seul, non. */
     peutGroupe: boolean;
+    workflowId?: number;
     contexte: ContextePhrases;
 }
 
@@ -191,6 +194,19 @@ const Nombre = ({ id, valeur, onChange, unite, largeur = "w-20", etiquette }: { 
         {unite && <span className="text-sm text-muted-foreground">{unite}</span>}
     </span>
 );
+
+/** Le lien vers le réglage qui fixe la fin de l'attente (ouvert dans un autre onglet). */
+const LienDeFin = ({ motif, workflowId }: { motif: NonNullable<ReturnType<typeof motifDe>>; workflowId?: number }) => {
+    const { t } = useLangue();
+    const cible = motif.fin_d_attente_reglage;
+    const href = cible ? hrefDeFin(cible, workflowId) : null;
+    if (!cible || !href) return null;
+    return (
+        <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 underline" data-lien-fin={cible}>
+            {t(LIENS_DE_FIN[cible])} <ArrowUpRight className="h-3 w-3" />
+        </a>
+    );
+};
 
 export const FormulaireRegle = ({
     regle,
@@ -552,7 +568,7 @@ export const FormulaireRegle = ({
             {fin && (
                 <L label="" nom="fin-d-attente">
                     <Gris>
-                        {t({ en: "End of the wait:", fr: "Fin de l'attente :" })} {t(motif.fin_d_attente)}
+                        {t({ en: "End of the wait:", fr: "Fin de l'attente :" })} {t(motif.fin_d_attente)} <LienDeFin motif={motif} workflowId={env.workflowId} />
                     </Gris>
                 </L>
             )}
@@ -575,6 +591,11 @@ export const FormulaireRegle = ({
                         ⚠ {a}
                     </p>
                 ))}
+                {fin && motif.fin_d_attente_reglage && (
+                    <p className="mt-2 text-xs text-muted-foreground" data-apercu-fin>
+                        {t({ en: "Read elsewhere:", fr: "Lu ailleurs :" })} <LienDeFin motif={motif} workflowId={env.workflowId} />
+                    </p>
+                )}
                 <p className="mt-2 text-xs text-muted-foreground">
                     {t(TEXTES.siEteinte)} {apercu.eteinte}.
                 </p>

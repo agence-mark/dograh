@@ -51,6 +51,7 @@ export const PhrasesDeLEtape = ({ etapeId, etapeNom }: { etapeId: string; etapeN
         outilsUuids: phrases?.outilsUuids ?? [],
         actif: phrases !== undefined,
         peutGroupe: phrases?.peutGroupe ?? false,
+        workflowId: contexte?.workflowId,
     });
     const [ouverte, setOuverte] = useState<number | null>(null);
     const [ajout, setAjout] = useState(false);

@@ -504,6 +504,20 @@ export const puces = (brute: ReglePhrase, c: ContextePhrases): Puce[] => {
     return liste;
 };
 
+/** Où se règle une fin d'attente lue ailleurs : le libellé du lien et sa cible (ouverte dans un autre onglet : la modale garde sa saisie). */
+export const LIENS_DE_FIN: Record<"outil" | "travail" | "garde" | "rythme", Texte> = {
+    outil: { en: "The tool's screen", fr: "Écran de l'outil" },
+    travail: { en: "Background work", fr: "Travail en arrière-plan" },
+    garde: { en: "Models → Guard", fr: "Modèles → Garde" },
+    rythme: { en: "Call pacing", fr: "Rythme de l'appel" },
+};
+
+export const hrefDeFin = (cible: keyof typeof LIENS_DE_FIN, workflowId?: number): string | null => {
+    if (cible === "outil") return "/tools";
+    if (workflowId === undefined) return null;
+    return `/workflow/${workflowId}/settings?theme=${cible === "rythme" ? "rythme" : "briques"}`;
+};
+
 /** Le texte de l'origine d'une carte. */
 export const ORIGINES: Record<Origine, Texte> = {
     etape: { en: "for this step", fr: "propre à l'étape" },
