@@ -11,13 +11,11 @@ accepte une valeur (aucun appel à Soniox dans ce chantier). Il prouve que rien
 ne se perd entre l'écran et le message de configuration du flux, que la clé
 part dans l'en-tête, et que les requêtes des agents existants ne bougent pas.
 
-🔴 État au lot 1 : la voix Soniox n'existe pas encore (registre : lot 2, fabrique :
-lot 3). Les tests qui en dépendent sont marqués ``A_FAIRE`` (``xfail(strict=True)``)
-pour que la branche reste verte SANS les masquer : un test qui se met à passer
-sans que sa marque soit retirée fait échouer la suite. **Le sous-agent B retire la
-marque de chaque test à mesure qu'il passe.** Ils ont été vus rouges pour la
-bonne raison (la voix Soniox est absente, pas une erreur d'import) : voir le
-journal du chantier.
+🟢 État au lot 3 : la voix Soniox est déclarée (lot 2) et branchée (lot 3). Les 17 fonctions (27 cas)
+qui portaient la marque ``A_FAIRE`` (``xfail(strict=True)`` du lot 1) l'ont perdue, sans les
+avoir lancés ici (consigne d'Evan du 22/10 : aucun test local ; la CI de GitHub les joue une
+seule fois, à la fin). Ils ont été vus rouges pour la bonne raison au lot 1 (la voix Soniox
+était absente, pas une erreur d'import).
 
 | Test | Preuve |
 |---|---|
@@ -39,12 +37,6 @@ import pytest
 
 from api.services.pipecat.audio_config import AudioConfig
 from api.tests.mark.test_soniox_cle_en_entete import connexions  # noqa: F401 (fixture)
-
-A_FAIRE = pytest.mark.xfail(
-    strict=True,
-    reason="voix-soniox lots 2/3 : la voix Soniox n'est pas encore déclarée ni branchée "
-    "(le sous-agent B retire cette marque quand le test passe)",
-)
 
 ADRESSE_EUROPE = "wss://tts-rt.eu.soniox.com/tts-websocket"
 ADRESSE_MONDIALE = "wss://tts-rt.soniox.com/tts-websocket"
@@ -111,7 +103,6 @@ def _flux(service):
 # --------------------------------------------------------------------------- #
 
 
-@A_FAIRE
 def test_la_voix_soniox_est_declaree_sous_le_nom_de_la_transcription():
     from api.services.configuration.registry import REGISTRY, ServiceProviders, ServiceType
 
@@ -119,20 +110,17 @@ def test_la_voix_soniox_est_declaree_sous_le_nom_de_la_transcription():
     assert REGISTRY[ServiceType.TTS]["soniox"] is _classe()
 
 
-@A_FAIRE
 def test_la_route_des_defauts_sert_la_voix_soniox():
-    import asyncio
-
     from api.routes.user import get_default_configurations
+    from api.tests.mark.boucle_isolee import executer_sans_toucher_la_boucle_courante
 
-    reponse = asyncio.run(get_default_configurations())
+    reponse = executer_sans_toucher_la_boucle_courante(get_default_configurations())
     assert "soniox" in reponse.tts, "la voix Soniox n'est pas dans /user/configurations/defaults"
     proprietes = reponse.tts["soniox"]["properties"]
     for champ in REGLAGES_EXPOSES:
         assert champ in proprietes, f"{champ} n'est pas servi à l'écran"
 
 
-@A_FAIRE
 def test_la_voix_soniox_est_dans_le_menu_des_voix_de_l_ecran_modeles():
     from api.routes.organization import _byok_provider_schemas
     from api.services.configuration.registry import ServiceType
@@ -140,7 +128,6 @@ def test_la_voix_soniox_est_dans_le_menu_des_voix_de_l_ecran_modeles():
     assert "soniox" in _byok_provider_schemas(ServiceType.TTS)
 
 
-@A_FAIRE
 @pytest.mark.parametrize("champ", [c for c in REGLAGES_EXPOSES if c != "model"])
 def test_le_reglage_est_range_en_sous_menu_et_libelle_dans_les_deux_langues(champ):
     proprietes = _classe().model_json_schema()["properties"]
@@ -150,7 +137,6 @@ def test_le_reglage_est_range_en_sous_menu_et_libelle_dans_les_deux_langues(cham
     assert libelle.get("en") and libelle.get("fr"), f"{champ} n'a pas ses deux langues (T2)"
 
 
-@A_FAIRE
 def test_le_discriminateur_accepte_ce_que_l_ecran_enverra():
     from pydantic import TypeAdapter
 
@@ -162,7 +148,6 @@ def test_le_discriminateur_accepte_ce_que_l_ecran_enverra():
     assert isinstance(config, _classe())
 
 
-@A_FAIRE
 def test_les_valeurs_par_defaut_sont_celles_decidees():
     config = _config()
     assert config.model == "tts-rt-v2"
@@ -178,7 +163,6 @@ def test_les_valeurs_par_defaut_sont_celles_decidees():
     assert config.region == "eu"
 
 
-@A_FAIRE
 @pytest.mark.parametrize("valeur, ok", [(0.69, False), (0.7, True), (1.0, True), (1.3, True), (1.31, False)])
 def test_la_vitesse_tient_les_bornes_de_la_documentation(valeur, ok):
     from pydantic import ValidationError
@@ -195,7 +179,6 @@ def test_la_vitesse_tient_les_bornes_de_la_documentation(valeur, ok):
 # --------------------------------------------------------------------------- #
 
 
-@A_FAIRE
 def test_sans_reglage_la_voix_parle_en_europe_en_francais_phrase_par_phrase():
     from pipecat.services.tts_service import TextAggregationMode
 
@@ -208,7 +191,6 @@ def test_sans_reglage_la_voix_parle_en_europe_en_francais_phrase_par_phrase():
     assert service._text_aggregation_mode == TextAggregationMode.SENTENCE
 
 
-@A_FAIRE
 def test_chaque_reglage_rempli_arrive_dans_le_message_du_flux():
     from pipecat.services.tts_service import TextAggregationMode
 
@@ -231,14 +213,12 @@ def test_chaque_reglage_rempli_arrive_dans_le_message_du_flux():
     assert service._url == ADRESSE_MONDIALE
 
 
-@A_FAIRE
 def test_un_champ_vide_n_est_pas_transmis_soniox_applique_son_defaut():
     message = _flux(_voix())
     assert "speed" not in message
     assert "reduce_silence" not in message
 
 
-@A_FAIRE
 def test_la_voix_choisie_est_celle_qui_part():
     """Le menu propose les voix ; la saisie libre (voix clonée, nouvelle voix) part telle quelle."""
     assert _flux(_voix(voice="Celine"))["voice"] == "Celine"
@@ -246,7 +226,6 @@ def test_la_voix_choisie_est_celle_qui_part():
     assert _flux(_voix(voice=cloner))["voice"] == cloner
 
 
-@A_FAIRE
 def test_une_langue_inconnue_est_refusee_a_l_enregistrement():
     from pydantic import ValidationError
 
@@ -259,13 +238,11 @@ def test_une_langue_inconnue_est_refusee_a_l_enregistrement():
 # --------------------------------------------------------------------------- #
 
 
-@A_FAIRE
 def test_l_adresse_europeenne_est_le_defaut_et_une_adresse_vide_part_en_europe():
     assert _voix()._url == ADRESSE_EUROPE
     assert _voix(base_url="  ")._url == ADRESSE_EUROPE
 
 
-@A_FAIRE
 def test_la_region_suit_l_adresse_saisie_quel_que_soit_le_schema():
     assert _config(base_url=ADRESSE_MONDIALE).region == "global"
     assert _config(base_url=ADRESSE_EUROPE).region == "eu"
@@ -274,7 +251,6 @@ def test_la_region_suit_l_adresse_saisie_quel_que_soit_le_schema():
     assert _config(base_url=ADRESSE_MONDIALE, region="eu").region == "global"
 
 
-@A_FAIRE
 def test_l_adresse_de_la_voix_porte_la_case_saisie_libre():
     proprietes = _classe().model_json_schema()["properties"]
     assert proprietes["base_url"].get("mark_adresse") is True
@@ -317,7 +293,6 @@ def test_le_balayage_voit_les_reglages_du_connecteur_de_notre_epinglage():
     assert {"url", "text_aggregation_mode", "audio_format", "sample_rate"} <= constructeur
 
 
-@A_FAIRE
 def test_chaque_reglage_du_connecteur_est_expose_ou_ecarte_par_ecrit():
     """Un réglage que Pipecat gagne à la prochaine montée fait échouer ce test au lieu de
     quitter l'écran en silence."""
@@ -347,7 +322,6 @@ def test_chaque_reglage_du_connecteur_est_expose_ou_ecarte_par_ecrit():
 # --------------------------------------------------------------------------- #
 
 
-@A_FAIRE
 @pytest.mark.asyncio
 async def test_la_cle_de_la_voix_part_dans_l_en_tete(connexions):  # noqa: F811
     from api.services.pipecat.soniox_cle_en_entete import MarkSonioxTTSService

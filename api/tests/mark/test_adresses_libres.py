@@ -107,11 +107,10 @@ def test_balayage_independant_tout_defaut_qui_ressemble_a_une_adresse_est_reconn
 
 
 def test_la_route_des_defauts_sert_la_case_a_tous_les_fournisseurs_a_adresse():
-    import asyncio
-
     from api.routes.user import get_default_configurations
+    from api.tests.mark.boucle_isolee import executer_sans_toucher_la_boucle_courante
 
-    reponse = asyncio.run(get_default_configurations())
+    reponse = executer_sans_toucher_la_boucle_courante(get_default_configurations())
     vus = 0
     for service in ("llm", "tts", "stt", "embeddings", "realtime"):
         for nom, schema in getattr(reponse, service).items():

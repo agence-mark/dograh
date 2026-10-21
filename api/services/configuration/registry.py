@@ -65,6 +65,11 @@ from api.services.configuration.options import (
     SMALLEST_TTS_VOICES,
     SONIOX_STT_LANGUAGES,
     SONIOX_STT_MODELS,
+    SONIOX_TTS_LANGUAGES,
+    SONIOX_TTS_MODELS,
+    SONIOX_TTS_VOIX,
+    SONIOX_TTS_VOIX_IDS,
+    SONIOX_TTS_VOIX_PAR_DEFAUT,
     SPEECHMATICS_STT_LANGUAGES,
 )
 from api.services.configuration.options.google import (
@@ -520,9 +525,26 @@ ECRAN_SONIOX_STT: EcranMark = {
     "base_url": ("hebergement", "Base URL", "Adresse du service"),
     "region": ("hebergement", "Region", "Région"),
 }
+# [.mark] Chantier voix-soniox, lot 2 : the Soniox VOICE screen (same groups
+# convention as the other providers). `model` is the head of the block (exempt),
+# `provider` and `api_key` are the screen's own, `adresse_libre` follows the
+# address (generic, lot 0 bis).
+ECRAN_SONIOX_TTS: EcranMark = {
+    "voice": ("voix", "Voice", "Voix"),
+    "language": ("voix", "Language", "Langue"),
+    "speed": ("debit", "Speed", "Vitesse"),
+    "reduce_silence": ("debit", "Reduce silence", "Réduire les silences"),
+    "text_aggregation_mode": ("envoi_du_texte", "Text sending", "Envoi du texte"),
+    "base_url": ("hebergement", "Base URL", "Adresse du service"),
+    "region": ("hebergement", "Region", "Région"),
+}
 CARTESIA_PROVIDER_MODEL_CONFIG = provider_model_config("Cartesia")
 SONIOX_PROVIDER_MODEL_CONFIG = provider_model_config(
     "Soniox", provider_docs_url="https://soniox.com/docs/stt/rt/real-time-transcription"
+)
+# [.mark] Chantier voix-soniox, lot 2: the voice side of the same provider.
+SONIOX_TTS_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "Soniox", provider_docs_url="https://soniox.com/docs/tts/rt/real-time-generation"
 )
 XAI_PROVIDER_MODEL_CONFIG = provider_model_config("xAI")
 LMNT_PROVIDER_MODEL_CONFIG = provider_model_config("LMNT")
@@ -2182,6 +2204,161 @@ class SpeechifyTTSConfiguration(BaseTTSConfiguration):
     )
 
 
+# [.mark] Chantier voix-soniox (lots 2 et 2 bis). Soniox as a VOICE, under the
+# same provider value as its transcription (D7). Everything is off by default:
+# no agent switches, ElevenLabs stays the organisation's voice (D1).
+#
+# - no value chosen here for what Soniox decides: `speed` and `reduce_silence`
+#   stay empty and are then NOT sent (Soniox applies its own default);
+# - the European address by default (D6); an empty one also goes to Europe;
+# - the text goes to the voice sentence by sentence (D3), word by word on demand;
+# - `audio_format` and `sample_rate` are not settings: the factory sets them,
+#   as for ElevenLabs (the transport's rate, `pcm_s16le`).
+SONIOX_TTS_ADRESSE_EUROPE = "wss://tts-rt.eu.soniox.com/tts-websocket"
+SONIOX_TTS_ADRESSE_MONDIALE = "wss://tts-rt.soniox.com/tts-websocket"
+
+
+def adresse_soniox_voix(base_url: str | None) -> str:
+    """[.mark] The address the voice dials: the configured one, or Europe.
+
+    Same role as ``adresse_soniox`` for the transcription: shared by the
+    factory, the stamp, the region mirror and the key check, so the four can
+    never disagree about where the text goes.
+    """
+    adresse = (base_url or "").strip()
+    return adresse or SONIOX_TTS_ADRESSE_EUROPE
+
+
+def region_soniox_voix(base_url: str | None) -> str:
+    """[.mark] ``eu``, ``global``, or the host of a custom address."""
+    hote = adresse_soniox_voix(base_url).split("://", 1)[-1].split("/", 1)[0].strip()
+    if ".eu." in f".{hote}":
+        return "eu"
+    if hote == "tts-rt.soniox.com":
+        return "global"
+    return hote or "eu"
+
+
+@register_tts
+class SonioxTTSConfiguration(BaseTTSConfiguration):
+    model_config = ecran_mark(SONIOX_TTS_PROVIDER_MODEL_CONFIG, ECRAN_SONIOX_TTS)  # [.mark] écran Modèles
+    provider: Literal[ServiceProviders.SONIOX] = ServiceProviders.SONIOX
+    model: str = Field(
+        default=SONIOX_TTS_MODELS[0],
+        description="Soniox real-time text-to-speech model.",
+        json_schema_extra={"examples": list(SONIOX_TTS_MODELS), "allow_custom_input": True},
+    )
+    voice: str = Field(
+        default=SONIOX_TTS_VOIX_PAR_DEFAUT,
+        description=(
+            "Soniox voice name, or the identifier of a cloned voice of the project "
+            "that owns the key. The menu lists the voices known to the product; "
+            "any other voice is typed."
+        ),
+        json_schema_extra={
+            # The menu (D2): the identifiers, French voices first. Free entry stays
+            # open for a voice the list does not know, or a cloned one.
+            "examples": list(SONIOX_TTS_VOIX_IDS),
+            "allow_custom_input": True,
+            # What the voice list on screen shows (lot 7): description, accent,
+            # gender, and whether the voice is French. `None` = not recorded.
+            "mark_voix": [dict(voix) for voix in SONIOX_TTS_VOIX],
+            "docs_url": "https://soniox.com/docs/tts/concepts/voices",
+        },
+    )
+    language: str = Field(
+        default="fr",
+        description="ISO 639-1 language the voice speaks (sent with every stream).",
+        json_schema_extra={
+            "examples": list(SONIOX_TTS_LANGUAGES),
+            "docs_url": "https://soniox.com/docs/tts/concepts/languages",
+        },
+    )
+    speed: float | None = Field(
+        default=None,
+        ge=0.7,
+        le=1.3,
+        description=(
+            "Speech rate multiplier, from 0.7 to 1.3. Left unset, Soniox's own "
+            "default applies (1.0). Careful: it flattens the rhythm."
+        ),
+    )
+    reduce_silence: bool | None = Field(
+        default=None,
+        description=(
+            "Shorten the pauses between words without changing how fast the words "
+            "are spoken. Left unset, Soniox's own default applies (off). Only some "
+            "models accept it."
+        ),
+    )
+    text_aggregation_mode: Literal["sentence", "token"] = Field(
+        default="sentence",
+        description=(
+            "Send the text to the voice sentence by sentence (default, more natural "
+            "speech), or word by word as the model writes it (answers sooner, may "
+            "degrade the voice: judge it by ear)."
+        ),
+    )
+    base_url: str = Field(
+        default=SONIOX_TTS_ADRESSE_EUROPE,
+        json_schema_extra={
+            "examples": [SONIOX_TTS_ADRESSE_EUROPE, SONIOX_TTS_ADRESSE_MONDIALE],
+            "allow_custom_input": True,
+        },
+        description=(
+            "The Soniox endpoint the spoken text is sent to, and therefore the "
+            "jurisdiction that processes it. Defaults to Europe (the region is "
+            "fixed by the project the key belongs to); leaving it empty also "
+            "sends the text to Europe."
+        ),
+    )
+    region: str = Field(
+        default="eu",
+        json_schema_extra={"readonly": True},
+        description=(
+            "Where the spoken text is processed. Derived from the endpoint above "
+            "rather than chosen: change the endpoint and this follows."
+        ),
+    )
+
+    @field_validator("language")
+    @classmethod
+    def _une_langue_que_soniox_connait(cls, valeur: str) -> str:
+        """[.mark] Refused on save: the factory turns the code into a Pipecat
+        ``Language``, and an unknown one would fail when the call starts."""
+        if valeur not in SONIOX_TTS_LANGUAGES:
+            raise ValueError(f"Unsupported Soniox voice language: {valeur}")
+        return valeur
+
+    @field_validator("base_url")
+    @classmethod
+    def _une_adresse_de_websocket(cls, valeur: str, info: ValidationInfo) -> str:
+        """[.mark] Refused at the door rather than mid-call (same rule as the
+        transcription): the connector dials whatever it is given. Empty stays
+        allowed (Europe). Free entry ticked: the scheme is not checked, the
+        generic rule of the base class still refuses an address with no host."""
+        if info.data.get("adresse_libre"):
+            return valeur
+        adresse = (valeur or "").strip()
+        if not adresse:
+            return valeur
+        schema, _, reste = adresse.partition("://")
+        if schema not in ("ws", "wss") or not reste.split("/", 1)[0].strip():
+            raise ValueError(
+                "The Soniox address must be a ws:// or wss:// URL, for example "
+                f"{SONIOX_TTS_ADRESSE_EUROPE}"
+            )
+        return valeur
+
+    @model_validator(mode="after")
+    def _la_region_suit_ladresse(self):
+        """A mirror, realigned rather than refused (same as the transcription)."""
+        region_attendue = region_soniox_voix(self.base_url)
+        if self.region != region_attendue:
+            object.__setattr__(self, "region", region_attendue)
+        return self
+
+
 TTSConfig = Annotated[
     Union[
         DeepgramTTSConfiguration,
@@ -2202,6 +2379,7 @@ TTSConfig = Annotated[
         XAITTSConfiguration,
         LmntTTSConfiguration,
         SpeechifyTTSConfiguration,
+        SonioxTTSConfiguration,
     ],
     Field(discriminator="provider"),
 ]

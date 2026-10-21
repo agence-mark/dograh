@@ -31,10 +31,14 @@ from api.services.configuration.registry import (
     ServiceProviders,
     SonioxSTTConfiguration,
     adresse_soniox,
+    adresse_soniox_voix,
 )
 from api.services.configuration.plafond_lexique import plafond_du_lexique
 from api.services.pipecat.ordre_outil_puis_parole import ordre_outil_puis_parole
-from api.services.pipecat.soniox_cle_en_entete import MarkSonioxSTTService
+from api.services.pipecat.soniox_cle_en_entete import (
+    MarkSonioxSTTService,
+    MarkSonioxTTSService,
+)
 from api.services.pipecat.appels_de_fonction_voix import (
     PhraseQuiNEstQuUnAppel,
     retirer_appels_de_fonction,
@@ -146,6 +150,7 @@ from pipecat.services.soniox.stt import (
     SonioxContextObject,
     SonioxSTTSettings,
 )
+from pipecat.services.soniox.tts import SonioxTTSSettings
 from pipecat.services.speechmatics.stt import (
     SpeechmaticsSTTService,
     SpeechmaticsSTTSettings,
@@ -309,6 +314,67 @@ def _reglages_soniox(stt_config) -> dict:
         if valeur is not None:
             reglages[champ] = valeur
     return reglages
+
+
+# [.mark] Chantier voix-soniox, lot 3 : le format audio que la voix Soniox demande.
+# Pose par la fabrique, jamais un reglage de l'ecran (comme pour ElevenLabs).
+SONIOX_TTS_FORMAT_AUDIO = "pcm_s16le"
+
+
+def _reglages_soniox_voix(tts_config) -> dict:
+    """[.mark] What the Soniox VOICE is sent, read ONCE for the factory and (lot 4)
+    the stamp -- the same rule as ``_reglages_soniox`` for the transcription.
+
+    ⛔ Unset fields are left out: Pipecat then leaves them out of the stream's
+    configuration message and Soniox applies its own default, which is what an
+    untouched screen means (``speed``, ``reduce_silence``).
+    ⛔ An emptied voice falls back to the product's default voice, never to the
+    connector's own (Bryce, an English voice): a French agent must not start
+    speaking with it. Same for the model and the language.
+    """
+    from api.services.configuration.options import (
+        SONIOX_TTS_MODELS,
+        SONIOX_TTS_VOIX_PAR_DEFAUT,
+    )
+
+    reglages = {
+        "base_url": adresse_soniox_voix(getattr(tts_config, "base_url", None)),
+        "model": (getattr(tts_config, "model", None) or "").strip() or SONIOX_TTS_MODELS[0],
+        "voice": (getattr(tts_config, "voice", None) or "").strip() or SONIOX_TTS_VOIX_PAR_DEFAUT,
+        "language": (getattr(tts_config, "language", None) or "").strip() or "fr",
+    }
+    for champ in ("speed", "reduce_silence"):
+        valeur = getattr(tts_config, champ, None)
+        if valeur is not None:
+            reglages[champ] = valeur
+    return reglages
+
+
+def _run_configs_avec_le_mode_de_la_voix(tts_config, run_configs: dict | None) -> dict | None:
+    """[.mark] Lot 3 (D3) : the voice's own « how the text is sent » setting.
+
+    The agent already has one (``tts_text_aggregation_mode``, every provider,
+    default sentence by sentence). The Soniox voice screen has the same choice,
+    so the two meet here, ONCE, before the text filters are built: they depend on
+    the mode (a function call written in a sentence, the numbers in words, only
+    make sense sentence by sentence).
+
+    🔑 The agent's setting wins when it asked for something other than the
+    default (the most specific, and what existed before); otherwise the voice's.
+    Any other provider: the dict is returned UNCHANGED (same object).
+    """
+    if getattr(tts_config, "provider", None) != ServiceProviders.SONIOX.value:
+        return run_configs
+    mode_voix = getattr(tts_config, "text_aggregation_mode", None)
+    if not mode_voix:
+        return run_configs
+    configs = run_configs or {}
+    mode_agent = configs.get("tts_text_aggregation_mode")
+    if mode_agent and str(mode_agent) != DEFAULT_TTS_TEXT_AGGREGATION_MODE:
+        return run_configs
+    if (mode_agent or DEFAULT_TTS_TEXT_AGGREGATION_MODE) == mode_voix:
+        return run_configs
+    return {**configs, "tts_text_aggregation_mode": mode_voix}
 
 
 def _reglages_classiques(stt_config) -> dict:
@@ -1243,7 +1309,8 @@ def create_tts_service(
     # Everything the agent configured about its voice, in one dict splatted
     # into every provider branch below.
     voix = reglages_de_voix_communs(
-        run_configs,
+        # [.mark] Lot 3 : le mode d'envoi du texte de la voix Soniox (autre voix : inchange).
+        _run_configs_avec_le_mode_de_la_voix(user_config.tts, run_configs),
         langue_francaise=langue_agent_francaise(getattr(user_config, "stt", None)),
         lexique=lexique,
     )
@@ -1596,6 +1663,27 @@ def create_tts_service(
                 voice=voice,
                 language=pipecat_language,
             ),
+            skip_aggregator_types=["recording_router", "recording"],
+            **voix,
+        )
+    elif user_config.tts.provider == ServiceProviders.SONIOX.value:
+        # [.mark] Chantier voix-soniox, lot 3. Pipecat's connector takes `url` (not
+        # `base_url`) and a settings object ; ours follows the configuration, Europe
+        # by default (D6). The key also leaves in the connection header (D19, see
+        # the class). Format and rate are set HERE, never on screen: PCM 16 bits at
+        # the transport's rate, so nothing is resampled on a telephone line.
+        # The mode of sending the text came in through `voix` (see
+        # `_run_configs_avec_le_mode_de_la_voix`).
+        reglages = _reglages_soniox_voix(user_config.tts)
+        adresse = reglages.pop("base_url")
+        _validate_runtime_service_url(adresse, "base_url")
+        reglages["language"] = Language(reglages["language"])
+        return MarkSonioxTTSService(
+            api_key=user_config.tts.api_key,
+            url=adresse,
+            audio_format=SONIOX_TTS_FORMAT_AUDIO,
+            sample_rate=audio_config.transport_out_sample_rate,
+            settings=SonioxTTSSettings(**reglages),
             skip_aggregator_types=["recording_router", "recording"],
             **voix,
         )
