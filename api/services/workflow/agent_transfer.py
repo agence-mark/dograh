@@ -508,28 +508,38 @@ class AgentTransferCoordinator:
         engine = self._engine
         diseur = engine.phrases
         son_coupe = False
-        try:
-            if not await diseur.attendre_le_systeme(
-                pont.delai_s or 0.0, lambda: self._passation_en_cours(request)
-            ):
-                return
+
+        async def avant() -> None:
+            nonlocal son_coupe
             self._phrase_en_cours = True
-            try:
-                if avec_son:
-                    son_coupe = True
-                    await self._stop_hold_audio()
-                # Pas dans le contexte : le résumé de passation se bâtit en même temps, rien ne
-                # doit bouger derrière lui ; la phrase reste dans le journal de l'appel.
-                parole = await diseur.dire_la_parole(
-                    PASSATION_TARDE, source, phrase=pont, historique=False
-                )
-                if parole is not None:
-                    await parole.wait()
-                    # Comme ``_announce`` : tout ce qui est en vol arrive à l'appelant avant que
-                    # l'attente se referme.
-                    await engine.drain_call_pipeline()
-            finally:
-                self._phrase_en_cours = False
+            if avec_son:
+                son_coupe = True
+                await self._stop_hold_audio()
+
+        async def apres(_parole) -> None:
+            # Comme ``_announce`` : tout ce qui est en vol arrive à l'appelant avant que l'attente
+            # se referme ; puis, entre deux redites, le son d'attente reprend.
+            nonlocal son_coupe
+            await engine.drain_call_pipeline()
+            self._phrase_en_cours = False
+            if son_coupe and self._passation_en_cours(request) and self._hold_stop is None:
+                self._start_hold_audio(request, reglage)
+                son_coupe = False
+
+        try:
+            # correctifs-apres-banc-v4 (lot 4) : la veille générique du diseur (délai, redites toutes les
+            # ``redite_s``, plafonds, sortie). Pas dans le contexte (``historique=False``) : le résumé de
+            # passation se bâtit en même temps, rien ne doit bouger derrière lui ; la phrase reste dans
+            # le journal de l'appel.
+            await diseur.veiller(
+                PASSATION_TARDE,
+                lambda: self._passation_en_cours(request),
+                agent=source,
+                phrase=pont,
+                historique=False,
+                avant_chaque=avant,
+                apres_chaque=apres,
+            )
         except asyncio.CancelledError:
             raise
         except Exception as e:  # noqa: BLE001 -- un filet ne fait jamais rater la passation
@@ -537,6 +547,7 @@ class AgentTransferCoordinator:
         finally:
             # Quoi qu'il arrive (échec, annulation, voix absente), le son d'attente reprend si la
             # passation dure encore : l'appelant n'attend jamais en silence à cause d'un filet.
+            self._phrase_en_cours = False
             if son_coupe and self._passation_en_cours(request) and self._hold_stop is None:
                 self._start_hold_audio(request, reglage)
 

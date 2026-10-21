@@ -1303,23 +1303,24 @@ class CustomToolManager:
             properties,
         )
 
-    def _demander_le_rappel_apres_echec(self, result: dict) -> None:
+    def _demander_le_rappel_apres_echec(self, result: dict) -> bool:
         """[.mark] Lot 6 (K8, n° 359) : un renvoi vers le numéro de l'établissement qui n'a pas
         abouti laisse une demande À RAPPELER (même forme que ``diriger.py`` : une entrée de
         ``CLE_RAPPEL``), au lieu d'une « nouvelle demande » sans suite. Rien pour un transfert vers
         une personne de l'équipe (sa cible commence par ``personne:``, ``diriger.py`` crée la sienne)
-        ni pour un essai simulé (texte, web : aucun appel n'est parti). ⛔ Ne lève jamais."""
+        ni pour un essai simulé (texte, web : aucun appel n'est parti). Rend ``True`` si une demande
+        a été écrite (le compte rendu au modèle le dit). ⛔ Ne lève jamais."""
         try:
             if result.get("action") != "transfer_failed":
-                return
+                return False
             if result.get("reason") in ("textchat_not_supported", "webrtc_not_supported"):
-                return
+                return False
             cible = getattr(self, "_cible_transfert_humain", None) or "numero:***"
             if str(cible).startswith("personne:"):
-                return
+                return False
             fiche = getattr(self._engine, "_gathered_context", None)
             if not isinstance(fiche, dict):
-                return
+                return False
             variables = getattr(self._engine, "_call_context_vars", None) or {}
             fiche.setdefault(CLE_RAPPEL, []).append(
                 {
@@ -1330,8 +1331,10 @@ class CustomToolManager:
                     "le": datetime.now(UTC).isoformat(),
                 }
             )
+            return True
         except Exception as e:  # noqa: BLE001
             logger.warning(f"[transfert] demande de rappel non écrite : {e!r}")
+            return False
 
     def _renvoi_deja_echoue(self) -> bool:
         """[.mark] Lot 6 (A7) : réglage « un seul renvoi par appel » allumé (vrai par défaut dans un
@@ -1355,9 +1358,11 @@ class CustomToolManager:
         except Exception:  # noqa: BLE001
             return True
 
-    async def _dire_l_echec_du_transfert(self) -> str | None:
-        """[.mark] Dit la phrase « le transfert d'appel échoue » si sa règle est allumée ; rend son
-        texte. ⛔ Ne lève jamais."""
+    async def _dire_l_echec_du_transfert(self):
+        """[.mark] La règle « le transfert d'appel échoue » (éteinte par défaut) : sa phrase, le compteur
+        d'échecs de l'appel et la sortie réglée (noter, transférer, raccrocher). Rend le ``Probleme`` du
+        diseur (``dit`` : la phrase dite, ``issue`` : la sortie), ``None`` s'il n'y a pas de diseur.
+        ⛔ Ne lève jamais."""
         try:
             from api.services.phrases.catalogue import TRANSFERT_ECHOUE
             from api.services.phrases.diseur import DiseurDePhrases
@@ -1365,8 +1370,7 @@ class CustomToolManager:
             diseur = getattr(self._engine, "phrases", None)
             if not isinstance(diseur, DiseurDePhrases):
                 return None
-            parole = await diseur.dire_la_parole(TRANSFERT_ECHOUE)
-            return getattr(parole, "text", None) if parole is not None else None
+            return await diseur.signaler_un_probleme(TRANSFERT_ECHOUE)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"[transfert] phrase d'échec non dite : {e!r}")
             return None
@@ -1401,7 +1405,9 @@ class CustomToolManager:
                 getattr(self, "_cible_transfert_humain", None) or "numero:***",
                 issue_du_resultat(result),
             )
-            self._demander_le_rappel_apres_echec(result)
+            rappel_ecrit = self._demander_le_rappel_apres_echec(result)
+        else:
+            rappel_ecrit = False
 
         if action == "destination_answered":
             # Transfer destination answered - proceeding with bridge swap/conference join
@@ -1447,13 +1453,36 @@ class CustomToolManager:
             }
             # [.mark] Fiabilite-orchestration, lot 4 bis : la règle « le transfert d'appel
             # échoue » (éteinte par défaut : le modèle le dit lui-même, comme avant).
-            dit = await self._dire_l_echec_du_transfert()
-            if dit:
-                echec["said_to_caller"] = dit
-                echec["instruction"] = (
-                    "The caller was told the transfer failed; do not repeat it, go on with the call."
+            # correctifs-apres-banc-v4 (lot 4, 4.10) : le modèle reçoit un compte rendu en français
+            # (le fait, la phrase entendue, ce qui est noté, ce qui n'est plus possible) à la place de
+            # la consigne anglaise d'avant ; la phrase est déjà dans l'historique, après ce résultat.
+            probleme = await self._dire_l_echec_du_transfert()
+            propriete = None
+            if probleme is not None and (probleme.dit or probleme.issue is not None):
+                from api.services.phrases.catalogue import MOTIFS, TRANSFERT_ECHOUE
+                from api.services.phrases.compte_rendu import compte_rendu
+
+                issue = probleme.issue
+                notes = list(probleme.notes)
+                if rappel_ecrit:
+                    notes.append("demande de rappel enregistrée")
+                interdits = list(issue.interdit) if issue is not None else []
+                if self._renvoi_deja_echoue():
+                    interdits.append("transférer")
+                if probleme.dit:
+                    echec["said_to_caller"] = probleme.dit
+                echec["compte_rendu"] = compte_rendu(
+                    MOTIFS[TRANSFERT_ECHOUE].fait_fr,
+                    dit=probleme.dit,
+                    notes=notes,
+                    interdits=interdits,
                 )
-            await function_call_params.result_callback(echec)
+                if issue is not None and issue.prise_en_main:
+                    propriete = FunctionCallResultProperties(run_llm=False)
+            if propriete is not None:
+                await function_call_params.result_callback(echec, properties=propriete)
+            else:
+                await function_call_params.result_callback(echec)
         else:
             # Unknown action, treat as generic success
             logger.warning(f"Unknown transfer action: {action}, treating as success")

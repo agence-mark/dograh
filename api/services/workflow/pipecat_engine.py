@@ -1759,7 +1759,10 @@ class PipecatEngine:
                 return None
             noeud = agent.workflow.nodes.get(cible)
             regle = self.phrases.phrase(
-                MISE_EN_RELATION, agent, getattr(noeud, "name", None)
+                MISE_EN_RELATION,
+                agent,
+                getattr(noeud, "name", None),
+                etape_id=getattr(noeud, "id", None),
             )
             if regle is None or not regle.dite:
                 return None
@@ -1795,7 +1798,10 @@ class PipecatEngine:
                 # coupée, le transfert ne part pas et le modèle répond).
                 noeud = agent.workflow.nodes.get(cible)
                 phrase = await self.phrases.dire_la_parole(
-                    MISE_EN_RELATION, agent, etape=getattr(noeud, "name", None)
+                    MISE_EN_RELATION,
+                    agent,
+                    etape=getattr(noeud, "name", None),
+                    etape_id=getattr(noeud, "id", None),
                 )
                 if phrase is None:
                     raise RuntimeError("mise en relation non dite")
@@ -1970,7 +1976,7 @@ class PipecatEngine:
         if etape_du_fond:
             from api.services.travail.agent import brancher_confier_le_travail
 
-            functions.append(brancher_confier_le_travail(self, travail, agent))
+            functions.append(brancher_confier_le_travail(self, travail, agent, node))
         # [.mark] fiabilite-orchestration, lot 1 (F2) : « annuler » avec « confier », et à toute
         # étape où un travail est en cours (l'appelant peut toujours annuler).
         if etape_du_fond or (travail is not None and not node.is_end and travail.occupe):

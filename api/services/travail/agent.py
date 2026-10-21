@@ -20,14 +20,19 @@ Chantier fiabilite-orchestration, lot 1 (F1, F2, C1, C2, R15) :
   fiche : hors historique, le cache reste servi) ; elle dit de ne poser aucune question ;
 - l'appelant peut toujours **annuler** (``annuler_le_travail``) ou **modifier** : ``confier`` pendant
   un travail annule la demande précédente et lance la nouvelle ;
-- la **seconde phrase d'attente** (motif ``travail_dure`` des phrases du code) est dite par la voix,
-  sans le modèle, quand le travail dure au-delà de son délai d'attente du système ;
+- la **phrase d'attente** (motif ``travail_dure`` des phrases du code, veille générique du diseur) est
+  dite par la voix, sans le modèle, quand le travail dure au-delà de son délai d'attente du système
+  (dès le lancement avec un délai de 0), avec ses redites et sa sortie ; l'annonce que l'agent écrit en
+  confiant le travail (``annonce``, case de la règle) passe en première phrase ;
+- l'échec du travail (motif ``travail_echoue``) : phrase, note dans la fiche, sortie, puis compte rendu
+  en français dans le résultat remis au cerveau de conversation (correctifs-apres-banc-v4, lot 4) ;
 - ``confier`` qui rend « lancé » ne relance pas le modèle quand la même réponse a déjà parlé (R15).
 """
 
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from contextvars import ContextVar
 from typing import Any, Awaitable, Callable
@@ -39,7 +44,8 @@ from pipecat.frames.frames import FunctionCallResultProperties
 from pipecat.pipeline.job_context import JobParams
 from pipecat.workers.llm.backend_llm_worker import BACKEND_JOB_NAME
 
-from api.services.phrases.catalogue import TRAVAIL_DURE
+from api.services.phrases.catalogue import MOTIFS, TRAVAIL_DURE, TRAVAIL_ECHOUE
+from api.services.phrases.compte_rendu import compte_rendu
 from api.services.pipecat.greffier import versement_du_cout
 from api.services.pipecat.parole_avant_outil import suivre_la_parole
 from api.services.travail.fabrique import preparer_le_service_du_travail
@@ -103,6 +109,11 @@ DESCRIPTION_ANNULER = (
     "Annule le travail en cours confié au second cerveau, quand la personne ne veut plus de sa "
     "demande. Sans travail en cours, ne fait rien."
 )
+# D-3 (Evan, 21/10) : la description exacte, mesurée au lot 0.
+DESCRIPTION_ANNONCE = (
+    "Une phrase courte dite à l'appelant pendant le travail, qui ne donne aucun résultat."
+)
+LONGUEUR_MAX_ANNONCE = 120
 DESCRIPTION_DEMANDE = (
     "La demande complète et autonome : ce qui est à faire, et les informations utiles de la fiche "
     "et de la conversation."
@@ -121,14 +132,44 @@ def schema_de_l_annulation() -> FunctionSchema:
     )
 
 
-def schema_de_l_outil() -> FunctionSchema:
-    """Le schéma de l'outil « confier » : un seul paramètre, la demande."""
+def schema_de_l_outil(avec_annonce: bool = False) -> FunctionSchema:
+    """Le schéma de l'outil « confier » : la demande ; et, quand la case « laisser l'agent écrire
+    l'annonce » de la règle est cochée, l'annonce, OBLIGATOIRE (mesuré au lot 0 : facultative, jamais
+    remplie ; obligatoire, 56/56 justes). Case éteinte : l'outil est inchangé."""
+    proprietes: dict[str, Any] = {"demande": {"type": "string", "description": DESCRIPTION_DEMANDE}}
+    requis = ["demande"]
+    if avec_annonce:
+        proprietes["annonce"] = {"type": "string", "description": DESCRIPTION_ANNONCE}
+        requis.append("annonce")
     return FunctionSchema(
         name=NOM_OUTIL,
         description=DESCRIPTION_OUTIL,
-        properties={"demande": {"type": "string", "description": DESCRIPTION_DEMANDE}},
-        required=["demande"],
+        properties=proprietes,
+        required=requis,
     )
+
+
+def _mots_de(texte: Any) -> list[str]:
+    return re.findall(r"\w+", str(texte or "").casefold())
+
+
+def annonce_valide(annonce: Any, demande: Any) -> str | None:
+    """L'annonce écrite par l'agent si elle est dicible : non vide, au plus ``LONGUEUR_MAX_ANNONCE``
+    caractères, et qui ne recopie pas la demande (sinon : la phrase fixe de la règle). ``None``
+    sinon. ⛔ Ne lève jamais."""
+    try:
+        texte = " ".join(str(annonce or "").split())
+        if not texte or len(texte) > LONGUEUR_MAX_ANNONCE:
+            return None
+        a, d = " ".join(_mots_de(texte)), " ".join(_mots_de(demande))
+        if not a:
+            return None
+        # Une recopie : la même suite de mots, ou l'une contenue dans l'autre (au moins trois mots).
+        if a == d or (len(d.split()) >= 3 and (d in a or (len(a.split()) >= 3 and a in d))):
+            return None
+        return texte
+    except Exception:  # noqa: BLE001
+        return None
 
 
 async def executer_par_l_appel(travail: "TravailDeLAgent", demande: str) -> str:
@@ -210,9 +251,10 @@ class TravailDeLAgent:
         """Un travail est en cours."""
         return self._tache is not None and not self._tache.done()
 
-    async def confier(self, demande: Any) -> dict:
+    async def confier(self, demande: Any, annonce: Any = None) -> dict:
         """Lance le travail et rend tout de suite (l'outil ne bloque jamais la conversation).
-        ⛔ Ne lève jamais."""
+        ``annonce`` : la phrase que l'agent a écrite pour l'attente (utilisée si la règle le veut et
+        si elle est valide). ⛔ Ne lève jamais."""
         try:
             texte = str(demande or "").strip()
             if not texte:
@@ -240,7 +282,7 @@ class TravailDeLAgent:
                 name=f"travail:{self.worker.name}",
             )
             self._tache.add_done_callback(self._journaliser_la_fin)
-            self._lancer_la_seconde_phrase(self._tache)
+            self._lancer_la_seconde_phrase(self._tache, annonce, texte)
             return dict(RETOUR_REMPLACE if remplace else RETOUR_LANCE)
         except Exception as erreur:  # noqa: BLE001 -- l'outil ne casse jamais l'appel
             logger.error(f"[travail] travail non lancé : {type(erreur).__name__}")
@@ -274,31 +316,45 @@ class TravailDeLAgent:
 
     # -- C1 : la seconde phrase d'attente -------------------------------------------
 
-    def _lancer_la_seconde_phrase(self, tache: asyncio.Task) -> None:
-        """Au téléphone seulement (au clavier, le travail se fait dans le tour)."""
+    def _lancer_la_seconde_phrase(
+        self, tache: asyncio.Task, annonce: Any = None, demande: Any = None
+    ) -> None:
+        """Au téléphone seulement (au clavier, le travail se fait dans le tour). La veille de la règle
+        « le travail de fond travaille » démarre ICI, au moment où l'agent confie le travail : jamais
+        avant l'appel de l'outil, jamais sans lui."""
         self._arreter_la_seconde_phrase()
         diseur = getattr(self.moteur, "phrases", None)
         if diseur is None or not self._enfant_de_l_appel:
             return
         self._seconde_phrase = asyncio.get_running_loop().create_task(
-            self._dire_la_seconde_phrase(diseur, tache), name=f"attente:{self.worker.name}"
+            self._dire_la_seconde_phrase(diseur, tache, annonce, demande),
+            name=f"attente:{self.worker.name}",
         )
 
-    async def _dire_la_seconde_phrase(self, diseur: Any, tache: asyncio.Task) -> None:
+    async def _dire_la_seconde_phrase(
+        self, diseur: Any, tache: asyncio.Task, annonce: Any = None, demande: Any = None
+    ) -> None:
         try:
-            phrase = diseur.phrase(TRAVAIL_DURE, self.moteur.active_agent)
-            if phrase is None or not phrase.dite or phrase.delai_s is None:
+            agent = self.moteur.active_agent
+            phrase = diseur.phrase(TRAVAIL_DURE, agent)
+            if phrase is None or not phrase.active or phrase.delai_s is None:
+                return
+            # L'annonce de l'agent passe en première phrase seulement si la case de la règle est
+            # cochée ; vide, trop longue ou recopiée de la demande, elle laisse la phrase fixe.
+            premiere = annonce_valide(annonce, demande) if phrase.texte_de_l_agent else None
+            if not (phrase.dite or premiere):
                 return
 
             def en_cours() -> bool:
                 return self._tache is tache and not tache.done()
 
-            if await diseur.attendre_le_systeme(phrase.delai_s, en_cours) and en_cours():
-                await diseur.dire(TRAVAIL_DURE, self.moteur.active_agent, phrase=phrase)
+            await diseur.veiller(
+                TRAVAIL_DURE, en_cours, agent=agent, phrase=phrase, premiere=premiere
+            )
         except asyncio.CancelledError:
             raise
         except Exception as erreur:  # noqa: BLE001
-            logger.warning(f"[travail] seconde phrase d'attente : {erreur!r}")
+            logger.warning(f"[travail] phrase d'attente : {erreur!r}")
 
     def _arreter_la_seconde_phrase(self) -> None:
         tache = self._seconde_phrase
@@ -482,13 +538,40 @@ class TravailDeLAgent:
             self._muet.non_dites.clear()
 
     async def signaler_l_echec_du_fond(self, entree: dict, statut: str) -> None:
-        """POINT D'APPEL UNIQUE du motif « le travail de fond échoue » (lot 4 du chantier, sous-agent C).
+        """POINT D'APPEL UNIQUE du motif « le travail de fond échoue ».
 
         Appelé UNE fois par travail non abouti (échec, délai, ou 6.4 : texte rendu sans outil appelé),
         après la fermeture de la trace et avant la remise du résultat. ``entree`` est la trace du
-        travail (``statut``, ``outils``, ``resultat``), ``statut`` l'un de ``STATUTS_D_ECHEC``. Le lot 2
-        ne dit rien ici : le lot 4 y branche la phrase, la note et la sortie de la règle. ⛔ Ne lève jamais."""
-        logger.info(f"[travail] échec du fond ({statut}) : motif « le travail de fond échoue » à brancher")
+        travail (``statut``, ``outils``, ``resultat``, ``message``), ``statut`` l'un de ``STATUTS_D_ECHEC``.
+        La règle dit sa phrase (dans l'historique avant le message du résultat, qui entre ensuite), note
+        dans la fiche et exécute sa sortie ; le compte rendu en français s'ajoute au message remis
+        (``entree["message"]``). ⛔ Ne lève jamais."""
+        try:
+            diseur = getattr(self.moteur, "phrases", None)
+            if diseur is None:
+                return
+            probleme = await diseur.signaler_un_probleme(TRAVAIL_ECHOUE, self.moteur.active_agent)
+            if probleme.dit is None and probleme.issue is None:
+                logger.info(f"[travail] échec du fond ({statut}) : aucune règle ne parle")
+                return
+            issue = probleme.issue
+            lignes = compte_rendu(
+                MOTIFS[TRAVAIL_ECHOUE].fait_fr,
+                dit=probleme.dit,
+                notes=probleme.notes,
+                interdits=issue.interdit if issue is not None else (),
+                crochets=False,
+            )
+            message = entree.get("message")
+            if lignes and isinstance(message, str) and message.endswith("]"):
+                entree["message"] = f"{message[:-1]}\n{lignes}]"
+            if issue is not None and issue.prise_en_main:
+                # La sortie a pris l'appel en main (transfert lancé, appel raccroché) : rien à remettre.
+                entree["prise_en_main"] = True
+        except asyncio.CancelledError:
+            raise
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[travail] échec du fond non signalé : {type(erreur).__name__}")
 
     async def _travailler(self, demande: str, entree: dict, debut: float) -> None:
         statut, texte = STATUT_FAIT, ""
@@ -531,15 +614,40 @@ class TravailDeLAgent:
                 await self.signaler_l_echec_du_fond(entree, statut)
             except Exception as erreur:  # noqa: BLE001 -- un signalement raté ne coûte pas la remise
                 logger.warning(f"[travail] échec du fond non signalé : {type(erreur).__name__}")
-        entree["remis"] = bool(await self._remise(self.moteur, message))
+        # Une sortie qui a pris l'appel en main (transfert lancé, appel raccroché) : le résultat n'est
+        # pas remis, personne ne l'attend. Sinon le message porte le compte rendu de la règle.
+        if entree.get("prise_en_main"):
+            entree["remis"] = False
+        else:
+            entree["remis"] = bool(await self._remise(self.moteur, entree.get("message") or message))
         logger.info(
             f"[travail] {statut} en {entree['duree_ms']} ms, outils {entree['outils'] or 'aucun'}, "
             f"remis={entree['remis']}"
         )
 
 
+def annonce_demandee(moteur: Any, agent: Any, noeud: Any = None) -> bool:
+    """La case « laisser l'agent écrire l'annonce » est-elle cochée sur la règle qui vaut pour cet agent à
+    cette étape ? Sinon l'outil est inchangé. ⛔ Ne lève jamais."""
+    try:
+        diseur = getattr(moteur, "phrases", None)
+        if diseur is None:
+            return False
+        identifiant = getattr(noeud, "id", None)
+        phrase = diseur.phrase(
+            TRAVAIL_DURE,
+            agent,
+            etape=getattr(noeud, "name", None),
+            etape_id=identifiant if isinstance(identifiant, str) else None,
+        )
+        return bool(phrase is not None and phrase.active and phrase.texte_de_l_agent)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[travail] case de l'annonce illisible : {erreur!r}")
+        return False
+
+
 def brancher_confier_le_travail(
-    moteur: Any, travail: TravailDeLAgent, agent: Any
+    moteur: Any, travail: TravailDeLAgent, agent: Any, noeud: Any = None
 ) -> FunctionSchema:
     """Enregistre l'outil « confier » auprès du modèle de l'agent et rend son schéma. Le
     gestionnaire rend tout de suite (``run_llm`` par défaut : le modèle reparle) ; la garde
@@ -557,12 +665,12 @@ def brancher_confier_le_travail(
             await params.result_callback(refus)
             return
         arguments = getattr(params, "arguments", None) or {}
-        resultat = await travail.confier(arguments.get("demande"))
+        resultat = await travail.confier(arguments.get("demande"), arguments.get("annonce"))
         await params.result_callback(resultat, properties=proprietes(params))
 
     agent.llm.register_function(NOM_OUTIL, agent.bind_tool(moteur, gestionnaire))
     montrer_le_travail_en_cours(moteur, agent.llm)
-    return schema_de_l_outil()
+    return schema_de_l_outil(annonce_demandee(moteur, agent, noeud))
 
 
 def brancher_annuler_le_travail(

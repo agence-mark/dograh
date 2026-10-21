@@ -121,6 +121,20 @@ def lecture_du_graphe(graphe: Mapping[str, Any] | None) -> list[dict[str, Any]]:
     return lignes
 
 
+def _noeuds_du_graphe(graphe: Mapping[str, Any] | None) -> dict[str, str] | None:
+    """Les étapes du graphe : identifiant de nœud -> nom. ``None`` : graphe illisible ou vide (on ne
+    déclare alors aucune étape supprimée)."""
+    try:
+        noeuds = {
+            n.get("id"): (n.get("data") or {}).get("name")
+            for n in (graphe or {}).get("nodes") or []
+            if isinstance(n, dict) and n.get("id")
+        }
+        return noeuds or None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def derniers_declenchements(traces: Iterable[tuple[Any, Any, list[dict]]]) -> dict[tuple, dict]:
     """``traces`` : (run, moment du run, entrées ``phrases_du_code``), du plus récent au plus ancien.
     Rend la dernière entrée par (motif, agent, étape) et par (motif, agent)."""
@@ -164,6 +178,7 @@ def construire_la_carte(
                 etapes = [
                     {
                         "etape": r.etape,
+                        "etape_id": r.etape_id,
                         "variantes": list(r.variantes),
                         "delai_s": r.delai_s if motif.a_un_delai else None,
                         "active": r.active,
@@ -180,20 +195,48 @@ def construire_la_carte(
                         "quand": _texte(motif.quand_fr, motif.quand_en),
                         "eteinte": _texte(motif.eteinte_fr, motif.eteinte_en),
                         "a_un_delai": motif.a_un_delai,
+                        "moment": motif.moment,
                         "variantes": list(phrase.variantes) if phrase else [],
                         "delai_s": phrase.delai_s if phrase else None,
+                        "ordre": phrase.ordre if phrase else None,
+                        "redite_s": phrase.redite_s if phrase else None,
+                        "max_par_attente": phrase.max_par_attente if phrase else None,
+                        "max_par_appel": phrase.max_par_appel if phrase else None,
+                        "ensuite": phrase.ensuite.model_dump(mode="json") if phrase else None,
                         "active": bool(phrase and phrase.dite),
                         "niveau": phrase.niveau if phrase else None,
                         "etapes": etapes,
                         "dernier": derniers.get((motif.id, agent.id)),
                     }
                 )
+            # Chaque règle de l'agent, une carte à l'écran : l'endroit, l'outil visé, les cases réglées, la
+            # dernière fois dite. Une règle d'étape dont l'étape n'existe plus dans le graphe est
+            # signalée (« étape supprimée : règle sans effet »).
+            noeuds = _noeuds_du_graphe(agent.graphe)
+            lignes_de_regles = [
+                {
+                    **r.model_dump(mode="json"),
+                    "dernier": derniers.get((r.motif, agent.id, r.etape))
+                    if r.portee == "etape"
+                    else derniers.get((r.motif, agent.id)),
+                    "etape_supprimee": bool(
+                        r.portee == "etape"
+                        and noeuds is not None
+                        and not (
+                            (r.etape_id and r.etape_id in noeuds)
+                            or (not r.etape_id and r.etape in noeuds.values())
+                        )
+                    ),
+                }
+                for r in regles
+            ]
             carte["agents"].append(
                 {
                     "id": agent.id,
                     "nom": agent.nom,
                     "est_principal": agent.est_principal,
                     "motifs": motifs,
+                    "regles": lignes_de_regles,
                     "lecture": lecture_du_graphe(agent.graphe),
                 }
             )
