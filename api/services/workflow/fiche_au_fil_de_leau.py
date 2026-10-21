@@ -66,8 +66,10 @@ from api.services.nombres.lecture import lire_nombres, reecrire
 from api.services.nombres.mention import MARQUE as MARQUE_NOMBRES
 from api.services.nombres.voix import en_mots
 from api.services.voies import base as base_voies
+from api.services.voies.analyse import ARTICLES as ARTICLES_DE_VOIE
 from api.services.voies.analyse import SURE as VOIE_SURE
 from api.services.voies.analyse import analyser as analyser_voie
+from api.services.voies.analyse import est_type as est_type_de_voie
 from api.services.voies.mention import MARQUE as MARQUE_VOIES
 from api.services.workflow.dates_relatives import est_une_date, lire_date
 from api.services.workflow.dto import ExtractionVariableDTO
@@ -1168,14 +1170,47 @@ def _avec_le_type_de_voie(
 ) -> tuple[int, int]:
     """Le module note la rue entendue SANS son type (« danton ») : la portée
     s'étend aux mots qui la précèdent quand ils ouvrent le nom officiel
-    (« rue » de « Rue Danton »), sinon on écrirait « 6 rue Rue Danton »."""
-    tete = [_forme(m) for m in _mots(nom_officiel)]
+    (« rue » de « Rue Danton »), sinon on écrirait « 6 rue Rue Danton ».
+
+    Chantier correctifs-apres-banc-v4, 6.1 (question n° 380) : la portée
+    s'étend aussi sur le type de voie DIT et les petits mots de liaison qui
+    précèdent le nom reconnu, même quand ils diffèrent du nom officiel. Avant,
+    seul le début exact du nom officiel était cherché : « 12 rue Foch » contre
+    « Avenue Foch » laissait la portée sur « Foch » et la fiche écrivait
+    « 12 rue Avenue Foch ». Le lexique est celui du module des rues
+    (``est_type``, ``ARTICLES``), jamais une liste de plus.
+
+    On remonte mot à mot depuis la portée : un mot qui est celui du nom
+    officiel attendu à cette place est pris ; un type de voie ou un mot de
+    liaison est pris (il est remplacé par l'écriture officielle) ; tout autre
+    mot arrête (numéro, « bis », « au », un mot d'une autre phrase). ⛔ Un
+    numéro n'est pris que s'il est le mot attendu du nom officiel (« Rue du
+    8 Mai 1945 ») : « 8 rue du 8 Mai » garde son numéro de maison."""
+    officiel = [_forme(m) for m in _mots(nom_officiel)]
     avant = list(_MOT.finditer(valeur[: portee[0]]))
-    for n in range(min(len(avant), len(tete)), 0, -1):
-        mots = avant[-n:]
-        if [_forme(m.group()) for m in mots] == tete[:n]:
-            return mots[0].start(), portee[1]
-    return portee
+    portes = [_forme(m) for m in _mots(valeur[portee[0] : portee[1]])]
+    # Les mots du nom officiel qui précèdent la partie reconnue : ceux devant
+    # son alignement s'il est trouvé, sinon ceux devant ses derniers mots
+    # (une partie déformée par la transcription, « joress » pour « Jaurès »).
+    attendus = officiel[: max(0, len(officiel) - len(portes))]
+    for rang in range(len(officiel) - len(portes), -1, -1):
+        if portes and officiel[rang : rang + len(portes)] == portes:
+            attendus = officiel[:rang]
+            break
+    debut = portee[0]
+    for mot in reversed(avant):
+        forme = _forme(mot.group())
+        if attendus and forme == attendus[-1]:
+            attendus.pop()
+        elif not forme.isdigit() and (est_type_de_voie(forme) or forme in ARTICLES_DE_VOIE):
+            if attendus and (
+                est_type_de_voie(attendus[-1]) or attendus[-1] in ARTICLES_DE_VOIE
+            ):
+                attendus.pop()
+        else:
+            break
+        debut = mot.start()
+    return debut, portee[1]
 
 
 def _remplacer(valeur: str, portee: tuple[int, int], par: str) -> str:
