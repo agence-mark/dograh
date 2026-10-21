@@ -245,7 +245,9 @@ class ReglePhrase(BaseModel):
         if not motif.a_un_delai:
             self.delai_s = None
         elif self.delai_s is not None and self.delai_s < motif.delai_min_s:
-            raise ValueError(f"the delay of '{motif.id}' is at least {motif.delai_min_s} s")
+            # m5 (revue) : une règle écrite avant le minimum du motif est bornée à la lecture, jamais
+            # une erreur (ni à l'appel, ni à l'enregistrement de la configuration).
+            self.delai_s = motif.delai_min_s
         if not motif.peut_redire:
             self.redite_s = None
             self.max_par_attente = None
@@ -253,6 +255,16 @@ class ReglePhrase(BaseModel):
             self.outils = []
         if self.texte_de_l_agent and not motif.texte_de_l_agent:
             self.texte_de_l_agent = False
+        if (
+            motif.id == "transfert_echoue"
+            and self.ensuite.action == ACTION_TRANSFERER
+        ):
+            # M4 (décision d'Evan) : « transférer » n'est plus une sortie du transfert qui échoue (il
+            # rappellerait en boucle un renvoi qui vient d'échouer) ; une ancienne règle qui le portait se
+            # relit en « le modèle reprend ».
+            self.ensuite = self.ensuite.model_copy(
+                update={"action": ACTION_MODELE, "destination": None}
+            )
         if self.ensuite.action is not None and self.ensuite.action not in motif.sorties_permises:
             raise ValueError(f"the exit '{self.ensuite.action}' is not allowed for '{motif.id}'")
         return self

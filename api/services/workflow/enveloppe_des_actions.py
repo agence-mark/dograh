@@ -230,9 +230,16 @@ def envelopper_l_action(
             if getattr(proprietes, "is_final", True) is not False:
                 fini.set()
                 remplir_par_l_action(moteur, nom_outil, resultat)
-                resultat, kwargs = await _signaler_la_panne(
+                resultat, kwargs, issue = await _signaler_la_panne(
                     moteur, nom_outil, agent, params, resultat, kwargs
                 )
+                await rendre(resultat, *args, **kwargs)
+                if issue is not None:
+                    # L'action finale (transférer, raccrocher) part APRÈS la remise du résultat.
+                    from api.services.phrases.sorties import lancer_apres
+
+                    lancer_apres(moteur, issue)
+                return
             await rendre(resultat, *args, **kwargs)
 
         try:
@@ -307,7 +314,7 @@ def _avec_le_compte_rendu(resultat: Any, compte: str) -> Any:
 
 async def _signaler_la_panne(
     moteur: Any, nom_outil: str, agent: Any, params: Any, resultat: Any, kwargs: dict
-) -> tuple[Any, dict]:
+) -> tuple[Any, dict, Any]:
     """Le résultat dit une panne : la règle « un outil échoue » (phrase, compteur, sortie), puis le
     compte rendu dans le résultat. La phrase entre dans l'historique APRÈS le résultat de l'outil (la
     case de l'appel en cours est complétée par ce résultat, la phrase vient derrière) : mesuré au lot 0,
@@ -320,15 +327,15 @@ async def _signaler_la_panne(
 
         diseur = getattr(moteur, "phrases", None)
         if not isinstance(diseur, DiseurDePhrases) or not est_une_panne(resultat):
-            return resultat, kwargs
+            return resultat, kwargs, None
         cible = _action_du_agent(agent, moteur, params)
         if cible is None:
-            return resultat, kwargs
+            return resultat, kwargs, None
         probleme = await diseur.signaler_un_probleme(
             OUTIL_ECHOUE, cible, outil=nom_outil, seulement_si_posee=True
         )
         if probleme.dit is None and probleme.issue is None:
-            return resultat, kwargs
+            return resultat, kwargs, None
         issue = probleme.issue
         compte = compte_rendu(
             MOTIFS[OUTIL_ECHOUE].fait_fr,
@@ -341,6 +348,7 @@ async def _signaler_la_panne(
             from pipecat.frames.frames import FunctionCallResultProperties
 
             kwargs = {**kwargs, "properties": FunctionCallResultProperties(run_llm=False)}
+        return resultat, kwargs, issue
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[phrases] panne de {nom_outil} non signalée : {erreur!r}")
-    return resultat, kwargs
+    return resultat, kwargs, None

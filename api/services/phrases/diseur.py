@@ -629,8 +629,10 @@ class DiseurDePhrases:
             if phrase.sortie_posee and n >= (plafond or 1):
                 from api.services.phrases.sorties import executer
 
+                # Appelé pendant un appel de fonction : l'action finale (transférer, raccrocher) part
+                # après la remise du résultat, jamais attendue dans l'échéance de l'appel.
                 probleme.issue = await executer(
-                    self._moteur, self, phrase, agent=agent, etape=etape, rang=n - 1
+                    self._moteur, self, phrase, agent=agent, etape=etape, rang=n - 1, differer=True
                 )
                 probleme.notes = list(probleme.issue.notes)
         except asyncio.CancelledError:

@@ -123,6 +123,10 @@ def get_function_schema(
     )
 
 
+# Marge (s) au-dessus de la durée maximale des essais d'un outil, pour l'échéance de l'appel de fonction.
+MARGE_ECHEANCE_S = 5.0
+
+
 class CustomToolManager:
     """Manager for custom tool registration and execution.
 
@@ -424,7 +428,9 @@ class CustomToolManager:
             handler = self._create_transfer_call_handler(tool, function_name)
         else:
             # [.mark] correctifs-apres-banc-v4, lot 3 : le délai de l'appel de fonction couvre les essais.
-            timeout_secs = delai_total_s(((tool.definition or {}).get("config", {}) or {}))
+            # M2 (revue) : une marge au-dessus des essais, pour que la panne arrive jusqu'à la règle « un outil
+            # échoue » (phrase, note, sortie) au lieu d'être coupée par l'échéance de l'appel de fonction.
+            timeout_secs = delai_total_s(((tool.definition or {}).get("config", {}) or {})) + MARGE_ECHEANCE_S
             # [.mark] fiabilite-orchestration : une action, son résultat est lu (fiche).
             handler = envelopper_l_action(
                 self._engine,
@@ -1481,6 +1487,9 @@ class CustomToolManager:
                     propriete = FunctionCallResultProperties(run_llm=False)
             if propriete is not None:
                 await function_call_params.result_callback(echec, properties=propriete)
+                from api.services.phrases.sorties import lancer_apres
+
+                lancer_apres(self._engine, probleme.issue)
             else:
                 await function_call_params.result_callback(echec)
         else:

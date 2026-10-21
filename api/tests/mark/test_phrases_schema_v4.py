@@ -92,11 +92,10 @@ def test_les_bornes_de_chaque_motif():
     # « Dès le lancement » : 0 s pour l'outil et le fond.
     assert _regle(motif=OUTIL_TARDE, delai_s=0).delai_s == 0
     assert _regle(motif=TRAVAIL_DURE, delai_s=0).delai_s == 0
-    with pytest.raises(ValidationError):
-        _regle(motif=PASSATION_TARDE, delai_s=0.2)
+    # Sous le minimum du motif : borné à la lecture, jamais une erreur (revue m5).
+    assert _regle(motif=PASSATION_TARDE, delai_s=0.2).delai_s == 0.5
     assert _regle(motif=PASSATION_TARDE, delai_s=0.5).delai_s == 0.5
-    with pytest.raises(ValidationError):
-        _regle(motif=APPELANT_SE_TAIT, delai_s=1)
+    assert _regle(motif=APPELANT_SE_TAIT, delai_s=1).delai_s == 2
     assert _regle(motif=APPELANT_SE_TAIT, delai_s=2).delai_s == 2
     with pytest.raises(ValidationError):
         _regle(delai_s=121)

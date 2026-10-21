@@ -241,6 +241,9 @@ async def test_un_incident_la_phrase_puis_la_sortie_au_plafond():
     second = await diseur.signaler_un_probleme(OUTIL_ECHOUE, outil="poser_rendez_vous")
     assert second.incident == 2 and second.dit == "Je n'arrive pas à finaliser."
     assert second.issue is not None and second.issue.prise_en_main is True
+    # L'action finale (raccrocher) part après la remise du résultat, jamais dans l'échéance de l'appel.
+    moteur.end_call_with_reason.assert_not_awaited()
+    await second.issue.apres()
     assert second.le_modele_reprend is False
     assert second.notes == ["rendez_vous = a_rappeler"]
     assert moteur.dites == [
@@ -319,9 +322,9 @@ async def test_un_transfert_vers_une_destination_hors_de_l_equipe_ne_part_pas():
     moteur._call_context_vars = {}
     moteur._custom_tool_manager = SimpleNamespace(get_organization_id=AsyncMock(return_value=1))
     probleme = await diseur.signaler_un_probleme(OUTIL_ECHOUE)
-    assert probleme.issue.prise_en_main is False
-    assert probleme.le_modele_reprend is True
-    assert "transférer" in probleme.issue.interdit and probleme.issue.erreurs
+    # Le transfert part en tâche détachée après la remise ; hors de la liste de l'équipe, rien ne part.
+    assert probleme.issue.apres is not None
+    await probleme.issue.apres()
     moteur.end_call_with_reason.assert_not_awaited()
 
 

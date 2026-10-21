@@ -306,7 +306,8 @@ MOTIFS: dict[str, Motif] = {
             eteinte_en="The model says itself that the transfer failed.",
             fait_fr="le transfert n'a pas abouti",
             moment=MOMENT_PROBLEME,
-            sorties_permises=_SORTIES_DES_ECHECS,
+            # M4 : jamais « transférer » ici (un renvoi vient d'échouer ; décision d'Evan).
+            sorties_permises=(SORTIE_CONTINUER, SORTIE_MODELE, SORTIE_RACCROCHER),
             sortie_defaut=SORTIE_MODELE,
         ),
         Motif(

@@ -271,6 +271,9 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 await params.result_callback(
                     retour, properties=FunctionCallResultProperties(run_llm=False)
                 )
+                from api.services.phrases.sorties import lancer_apres
+
+                lancer_apres(engine, issue)
             else:
                 await params.result_callback(retour)
             return

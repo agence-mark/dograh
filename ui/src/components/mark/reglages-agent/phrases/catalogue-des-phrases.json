@@ -340,7 +340,6 @@
       "sorties_permises": [
         "continuer",
         "modele",
-        "transferer",
         "raccrocher"
       ],
       "sortie_defaut": "modele",

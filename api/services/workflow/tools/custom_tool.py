@@ -577,7 +577,7 @@ def _nature_de_l_erreur(erreur: Exception) -> str | None:
     return None
 
 
-async def _envoyer_la_requete(
+async def _envoyer_la_requete_brute(
     tool: Any,
     method: str,
     url: str,
@@ -654,6 +654,38 @@ async def _envoyer_la_requete(
             },
             _echec_de(e),
             None,
+        )
+
+
+async def _envoyer_la_requete(
+    tool: Any,
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    body: Any,
+    params: Any,
+    form_encoded: bool,
+    timeout_seconds: float,
+) -> tuple[dict[str, Any], DograhFailure | None, str | None]:
+    """Une requête, avec un délai TOTAL. httpx compte son délai par phase (connexion, écriture, lecture,
+    pool) : un service qui répond au compte-gouttes pouvait durer plusieurs fois le délai et dépasser
+    l'échéance de l'appel de fonction (correctifs-apres-banc-v4, lot 4, M2). Le délai est maintenant un
+    total par essai ; un dépassement est la même panne « pas de réponse » qu'avant."""
+    try:
+        return await asyncio.wait_for(
+            _envoyer_la_requete_brute(
+                tool, method, url, headers, body, params, form_encoded, timeout_seconds
+            ),
+            timeout=timeout_seconds,
+        )
+    except asyncio.TimeoutError as e:
+        return (
+            {
+                "status": "error",
+                "error": f"Request timed out after {timeout_seconds} seconds",
+            },
+            _echec_de(httpx.ReadTimeout(str(e) or "total timeout")),
+            _nature_de_l_erreur(httpx.ReadTimeout("total timeout")),
         )
 
 

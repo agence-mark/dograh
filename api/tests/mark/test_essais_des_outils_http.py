@@ -22,7 +22,10 @@ from unittest.mock import AsyncMock, Mock, patch
 import httpx
 import pytest
 
-from api.services.workflow.pipecat_engine_custom_tools import CustomToolManager
+from api.services.workflow.pipecat_engine_custom_tools import (
+    MARGE_ECHEANCE_S,
+    CustomToolManager,
+)
 from api.services.workflow.tools.custom_tool import (
     delai_total_s,
     execute_http_tool,
@@ -161,4 +164,5 @@ def test_l_appel_de_fonction_du_moteur_attend_les_essais():
     for essais, attendu in ((0, 5.0), (2, 17.0)):
         outil = _outil(essais=essais, attente_entre_essais_s=1)
         _, delai = gestionnaire._create_handler(outil, "chercher")
-        assert delai == attendu
+        # + la marge de l'échéance (revue M2) : la panne atteint la règle « un outil échoue ».
+        assert delai == attendu + MARGE_ECHEANCE_S

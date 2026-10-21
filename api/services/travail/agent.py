@@ -610,6 +610,9 @@ class TravailDeLAgent:
             if issue is not None and issue.prise_en_main:
                 # La sortie a pris l'appel en main (transfert lancé, appel raccroché) : rien à remettre.
                 entree["prise_en_main"] = True
+                from api.services.phrases.sorties import lancer_apres
+
+                lancer_apres(self.moteur, issue)
         except asyncio.CancelledError:
             raise
         except Exception as erreur:  # noqa: BLE001
