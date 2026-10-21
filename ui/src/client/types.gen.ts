@@ -1932,6 +1932,12 @@ export type ChampFiche = {
      * Filled by a tool: the name of the tool whose result writes this field (the value of the same key in its answer, else its status, else the first allowed value). The model, the clerk and the end-of-call pass never write it. Empty: off.
      */
     rempli_par_outil?: string | null;
+    /**
+     * Obligatoire Sans Exception
+     *
+     * Required without exception: a refusal by the caller does not count as an answer, the field stays missing for the step's guard. Off: a refused field counts as handled.
+     */
+    obligatoire_sans_exception?: boolean;
 };
 
 /**

@@ -3851,6 +3851,32 @@ def numeros_en_conflit(reglages: ReglagesFiche, fiche: dict) -> list[tuple[str, 
     return []
 
 
+# Les étiquettes des lignes du bloc de fiche que le code écrit au modèle. Une seule écriture, lue aussi
+# par le filtre de la voix (``etiquettes_du_bloc``) : un modèle qui imite le bloc ne le fait pas lire.
+LIBELLE_NOTE = "Noté : "
+LIBELLE_A_CONFIRMER = "À confirmer : "
+LIBELLE_ATTENTION = "Attention : "
+
+
+def etiquettes_du_bloc() -> tuple[str, ...]:
+    """correctifs-apres-banc-v4, lot 2 (6.5) : les étiquettes des lignes internes que le code montre au
+    modèle (bloc de fiche, lignes « Déjà connu » et « Encore attendu », note de passation), sans
+    leur « : ». Lues dans les constantes qui servent à ÉCRIRE ces lignes, jamais recopiées."""
+    from api.services.groupe import notes
+
+    ecrites = (
+        LIBELLE_NOTE,
+        LIBELLE_A_CONFIRMER,
+        LIBELLE_ATTENTION,
+        notes.LIBELLE_CONNU,
+        notes.LIBELLE_ATTENDU,
+        notes.LIBELLE_MOTIF,
+        notes.LIBELLE_FAIT,
+        notes.LIBELLE_ATTENTE,
+    )
+    return tuple(dict.fromkeys(e.strip().rstrip(":").strip() for e in ecrites))
+
+
 def etat_de_la_fiche(
     reglages: ReglagesFiche,
     fiche: dict,
@@ -3905,13 +3931,13 @@ def etat_de_la_fiche(
         return None
     lignes = [entete_etat(reglages)]
     if notes:
-        lignes.append("Noté : " + " ; ".join(notes))
+        lignes.append(LIBELLE_NOTE + " ; ".join(notes))
     if a_confirmer:
-        lignes.append("À confirmer : " + " ; ".join(a_confirmer))
+        lignes.append(LIBELLE_A_CONFIRMER + " ; ".join(a_confirmer))
     lignes.extend(closes)
     for champ, dernier in numeros_en_conflit(reglages, fiche):
         lignes.append(
-            f"Attention : le dernier numéro dicté par la personne est "
+            f"{LIBELLE_ATTENTION}le dernier numéro dicté par la personne est "
             f"{_par_paires(dernier)}, la fiche a un autre numéro dans {champ}. "
             "Si c'est une correction, note le nouveau numéro."
         )

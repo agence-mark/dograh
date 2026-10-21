@@ -54,6 +54,7 @@ from api.services.travail.reglages import (
 from api.services.travail.retour import (
     TEXTE_DELAI,
     TEXTE_ECHEC,
+    TEXTE_SANS_OUTIL,
     TEXTE_VIDE,
     message_du_resultat,
     remettre_le_resultat,
@@ -71,6 +72,10 @@ STATUT_VIDE = "vide"
 STATUT_ECHEC = "echec"
 STATUT_DELAI = "delai"
 STATUT_ANNULE = "annule"
+# correctifs-apres-banc-v4, lot 2 (6.4) : le fond avait des outils et a rendu un texte sans en appeler aucun.
+STATUT_SANS_OUTIL = "sans_outil"
+# Les statuts qui sont un échec du travail de fond (point d'appel du motif « le travail de fond échoue »).
+STATUTS_D_ECHEC = (STATUT_ECHEC, STATUT_DELAI, STATUT_SANS_OUTIL)
 
 # Ce que l'outil rend au cerveau de conversation.
 RETOUR_LANCE = {"statut": "lancé"}
@@ -172,6 +177,8 @@ class TravailDeLAgent:
         # temps d'un mini-bus du tour (``executer_en_local``).
         self._enfant_de_l_appel = executeur is executer_par_l_appel
         self._outils_prets = False
+        # Les outils que le fond a reçus (6.4) : sans eux, un texte sans appel d'outil est normal.
+        self._outils_du_fond: list[str] = []
         self._muet = MoteurDeFond(moteur)
         self._jetons = [0, 0]
         self._outils_appeles: list[str] = []
@@ -432,6 +439,7 @@ class TravailDeLAgent:
         schemas, noms = await preparer_les_outils(
             self.moteur, self.agent, self.service, self.reglages.outils, self._muet
         )
+        self._outils_du_fond = list(noms or [])
         if schemas:
             self.worker.context.set_tools(ToolsSchema(standard_tools=schemas))
         logger.info(f"[travail] outils du fond : {noms or 'aucun'}")
@@ -473,6 +481,15 @@ class TravailDeLAgent:
             entree["phrases_non_dites"] = list(self._muet.non_dites)
             self._muet.non_dites.clear()
 
+    async def signaler_l_echec_du_fond(self, entree: dict, statut: str) -> None:
+        """POINT D'APPEL UNIQUE du motif « le travail de fond échoue » (lot 4 du chantier, sous-agent C).
+
+        Appelé UNE fois par travail non abouti (échec, délai, ou 6.4 : texte rendu sans outil appelé),
+        après la fermeture de la trace et avant la remise du résultat. ``entree`` est la trace du
+        travail (``statut``, ``outils``, ``resultat``), ``statut`` l'un de ``STATUTS_D_ECHEC``. Le lot 2
+        ne dit rien ici : le lot 4 y branche la phrase, la note et la sortie de la règle. ⛔ Ne lève jamais."""
+        logger.info(f"[travail] échec du fond ({statut}) : motif « le travail de fond échoue » à brancher")
+
     async def _travailler(self, demande: str, entree: dict, debut: float) -> None:
         statut, texte = STATUT_FAIT, ""
         try:
@@ -480,6 +497,11 @@ class TravailDeLAgent:
             texte = (await self._executeur(self, demande)).strip()
             if not texte:
                 statut = STATUT_VIDE
+            elif self._outils_du_fond and not self._outils_appeles:
+                # 6.4 (run 1480) : le fond rend du texte (« réservation faite ») sans avoir appelé aucun
+                # de ses outils : rien n'a été fait, le résultat dit l'échec. Le texte rendu reste dans
+                # la trace (``resultat``) ; le cerveau de conversation ne lit que l'échec.
+                statut = STATUT_SANS_OUTIL
         except asyncio.CancelledError:
             self._a_remplacer = True
             self._fermer_la_trace(entree, STATUT_ANNULE, debut)
@@ -495,11 +517,20 @@ class TravailDeLAgent:
         message = message_du_resultat(
             texte
             if statut == STATUT_FAIT
-            else {STATUT_VIDE: TEXTE_VIDE, STATUT_DELAI: TEXTE_DELAI}.get(statut, TEXTE_ECHEC)
+            else {
+                STATUT_VIDE: TEXTE_VIDE,
+                STATUT_DELAI: TEXTE_DELAI,
+                STATUT_SANS_OUTIL: TEXTE_SANS_OUTIL,
+            }.get(statut, TEXTE_ECHEC)
         )
         self._fermer_la_trace(entree, statut, debut, texte)
         self._arreter_la_seconde_phrase()
         entree["message"] = message
+        if statut in STATUTS_D_ECHEC:
+            try:
+                await self.signaler_l_echec_du_fond(entree, statut)
+            except Exception as erreur:  # noqa: BLE001 -- un signalement raté ne coûte pas la remise
+                logger.warning(f"[travail] échec du fond non signalé : {type(erreur).__name__}")
         entree["remis"] = bool(await self._remise(self.moteur, message))
         logger.info(
             f"[travail] {statut} en {entree['duree_ms']} ms, outils {entree['outils'] or 'aucun'}, "

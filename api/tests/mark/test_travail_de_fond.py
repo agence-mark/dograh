@@ -658,7 +658,15 @@ async def test_apres_un_delai_le_travail_suivant_part_sur_un_worker_neuf(appel):
     assert appel.travaux()[0]["statut"] == "delai"
 
     # Le second travail : un service neuf (la préparation est rejouée), un worker neuf.
-    appel.fond_llm = MockLLMService(mock_steps=[_texte("Créneau libre jeudi.")], chunk_delay=0.001)
+    # Lot 2 de correctifs-apres-banc-v4 (6.4) : un fond qui a des outils doit en appeler un, sinon son
+    # texte est remplacé par l'échec ; le second travail appelle donc l'outil avant de répondre.
+    appel.fond_llm = MockLLMService(
+        mock_steps=[
+            _appel_d_outil("chercher_creneau", {"jour": "jeudi"}, "call_fond_2"),
+            _texte("Créneau libre jeudi."),
+        ],
+        chunk_delay=0.001,
+    )
     assert await travail.confier("Cherche jeudi.") == {"statut": "lancé"}
     # L'ancien travail finit tard : il ne doit rien changer au suivant.
     appel.portail.set()
