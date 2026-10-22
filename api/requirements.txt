@@ -12,10 +12,10 @@ arq==0.26.3
 twilio==9.8.0
 minio==7.2.16
 alembic-postgresql-enum==1.8.0
-python-multipart==0.0.27
+python-multipart==0.0.32
 sentry-sdk[fastapi]==2.38.0
 sqlalchemy[asyncio]==2.0.43
-msgpack==1.1.2
+msgpack==1.2.3
 pgvector==0.4.2
 bcrypt==5.0.0
 email-validator==2.3.0
