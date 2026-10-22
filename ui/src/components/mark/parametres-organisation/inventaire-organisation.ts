@@ -57,3 +57,16 @@ export const INVENTAIRE_CONSERVATION_APPELS: Record<string, { theme: ThemeOrgani
     format: { horsEcran: "Technical marker of the stored document, never edited by a person" },
     version: { horsEcran: "Technical version of the stored document, never edited by a person" },
 };
+
+/**
+ * [.mark] Cloture-code, lot F3 : les cases d'une valeur de liste (`CasesDUneValeur`), section « Cases des listes de
+ * valeurs » du theme « Donnees du client ». Preuve : le rendu de la section (`listes-valeurs-ecran.test.tsx`), qui
+ * trouve chaque case a l'ecran (`data-reglage`) et verifie qu'elle part au serveur.
+ */
+export const INVENTAIRE_LISTES_VALEURS: Record<string, { theme: ThemeOrganisation; champ: string } | { horsEcran: string }> = {
+    regle_seul: { theme: "donnees", champ: "regle_seul" },
+    opportunite: { theme: "donnees", champ: "opportunite" },
+    urgent: { theme: "donnees", champ: "urgent" },
+    liste: { horsEcran: "Names the list of the value on the row (shown in grey above its values), not a setting" },
+    code: { horsEcran: "Names the value on the row (shown in grey next to its label), not a setting" },
+};

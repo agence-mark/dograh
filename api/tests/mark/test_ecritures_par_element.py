@@ -276,3 +276,89 @@ async def test_les_ecritures_par_element_refusent_sans_cle_et_avec_la_cle_d_une_
                 reponse = await getattr(client, methode)(chemin, json=corps, headers={"X-API-Key": cle_b})
                 assert reponse.status_code in (404, 409), (chemin, reponse.status_code, reponse.text)
             assert (await client.get(f"{RACINE}/etablissements", headers=entetes)).json()["etablissements"][0]["nom"] == "Nord"
+
+
+# --------------------------------------------------------------------------- #
+# Lot F3 : les cases des listes de valeurs (réglé seul, opportunité, urgent)
+# --------------------------------------------------------------------------- #
+
+
+async def test_les_cases_des_listes_se_cochent_avec_l_auteur_reel_et_refusent_l_inconnu(
+    base_v4, smtp, db_session, async_session
+):
+    _user, _org, entetes = await _installer(db_session, async_session, base_v4)
+    c = await schema.connecter(base_v4)
+    try:
+        await c.execute(
+            "INSERT INTO mark.liste_valeur (liste, code, libelle, ordre) VALUES "
+            "('motif_appel', 'devis', 'Devis', 1), ('degre_urgence', 'haute', 'Haute', 1), "
+            "('degre_urgence', 'basse', 'Basse', 2) ON CONFLICT DO NOTHING"
+        )
+    finally:
+        await c.close()
+    chemin = f"{RACINE}/listes-valeurs"
+    with _rediriger():
+        async with _client() as client:
+            vue = (await client.get(chemin, headers=entetes)).json()
+            par_liste = {l["liste"]: l for l in vue["listes"]}
+            assert {k: v["cases"] for k, v in par_liste.items()} == {
+                "issue_appel": ["regle_seul"], "motif_appel": ["opportunite"], "degre_urgence": ["urgent"],
+            }
+            assert {v["code"] for v in par_liste["degre_urgence"]["valeurs"]} == {"haute", "basse"}
+            assert not any(v["urgent"] or v["opportunite"] or v["regle_seul"] for l in vue["listes"] for v in l["valeurs"])
+            r = await client.put(
+                chemin,
+                json={"valeurs": [
+                    {"liste": "degre_urgence", "code": "haute", "urgent": True},
+                    {"liste": "motif_appel", "code": "devis", "opportunite": True},
+                    {"liste": "issue_appel", "code": "autre", "regle_seul": True},
+                ]},
+                headers=entetes,
+            )
+            assert r.status_code == 200, r.text
+            etat = {(l["liste"], v["code"]): v for l in r.json()["listes"] for v in l["valeurs"]}
+            assert etat[("degre_urgence", "haute")]["urgent"] is True
+            assert etat[("degre_urgence", "basse")]["urgent"] is False  # non nommée : intacte
+            assert etat[("motif_appel", "devis")]["opportunite"] is True
+            assert etat[("issue_appel", "autre")]["regle_seul"] is True
+            # Une case décochée n'efface pas les autres ; une valeur inconnue refuse TOUT, rien d'écrit.
+            r = await client.put(
+                chemin,
+                json={"valeurs": [
+                    {"liste": "degre_urgence", "code": "haute", "urgent": False},
+                    {"liste": "degre_urgence", "code": "inconnue", "urgent": True},
+                ]},
+                headers=entetes,
+            )
+            assert r.status_code == 422
+            vue = (await client.get(chemin, headers=entetes)).json()
+            assert {v["code"]: v["urgent"] for l in vue["listes"] if l["liste"] == "degre_urgence" for v in l["valeurs"]}["haute"] is True
+            assert (await client.put(chemin, json={"valeurs": [{"liste": "issue_appel", "code": "autre", "inconnue": 1}]}, headers=entetes)).status_code == 422
+            assert (await client.put(chemin, json={"valeurs": []}, headers={})).status_code == 401
+    # L'auteur réel (constat 27) et non le compte technique de la connexion.
+    c = await schema.connecter(base_v4)
+    try:
+        auteurs = [r["auteur"] for r in await c.fetch("SELECT auteur FROM mark.journal_modif WHERE table_nom = 'liste_valeur' AND champ = 'update'")]
+    finally:
+        await c.close()
+    assert len(auteurs) == 3 and all(a.startswith("portail : Camille Dupont (dograh:") for a in auteurs)
+
+
+async def test_les_cases_d_une_autre_organisation_sont_hors_d_atteinte(
+    base_v4, smtp, db_session, async_session
+):
+    _user, _org, entetes = await _installer(db_session, async_session, base_v4)
+    autre = await _organisation(async_session, db_session)
+    cle_b = await _cle(db_session, autre.organisation.id, autre.utilisateur.id)
+    async with _client() as client:
+        # L'autre organisation n'a pas (ou pas cette) base : elle ne lit ni n'écrit celle de A.
+        for reponse in (
+            await client.get(f"{RACINE}/listes-valeurs", headers={"X-API-Key": cle_b}),
+            await client.put(f"{RACINE}/listes-valeurs", json={"valeurs": [{"liste": "issue_appel", "code": "autre", "regle_seul": True}]}, headers={"X-API-Key": cle_b}),
+        ):
+            assert reponse.status_code == 409, reponse.text
+    c = await schema.connecter(base_v4)
+    try:
+        assert not await c.fetchval("SELECT bool_or(regle_seul) FROM mark.liste_valeur")
+    finally:
+        await c.close()

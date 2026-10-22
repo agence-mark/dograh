@@ -13,10 +13,12 @@ import {
     type EntreeInventaireOrganisation,
     INVENTAIRE_ANNONCE,
     INVENTAIRE_CONSERVATION_APPELS,
+    INVENTAIRE_LISTES_VALEURS,
     INVENTAIRE_PREFERENCES,
 } from "./inventaire-organisation";
 import { CAS_ORGANISATION } from "./references/cas-organisation";
 import { CHAMPS_CONSERVATION_APPELS } from "./SectionConservationAppels";
+import { CASES_LISTES_VALEURS } from "./SectionListesValeurs";
 
 const genere = readFileSync(join(process.cwd(), "src/client/types.gen.ts"), "utf8");
 
@@ -101,5 +103,29 @@ describe("inventory of ReglagesConservationAppels", () => {
             .map(([cle]) => cle)
             .sort();
         expect([...CHAMPS_CONSERVATION_APPELS].sort()).toEqual(affichees);
+    });
+});
+
+// [.mark] Cloture-code, lot F3: the boxes of the value lists (`CasesDUneValeur`).
+describe("inventory of CasesDUneValeur", () => {
+    it.each(clesDuType("CasesDUneValeur"))("key %s is on screen or listed off screen", (cle) => {
+        expect(INVENTAIRE_LISTES_VALEURS[cle], `${cle}: no entry in inventaire-organisation.ts`).toBeDefined();
+    });
+
+    it.each(Object.entries(INVENTAIRE_LISTES_VALEURS))("entry %s names its control or its reason", (cle, entree) => {
+        if ("horsEcran" in entree) {
+            expect(entree.horsEcran.trim().length).toBeGreaterThan(10);
+            return;
+        }
+        expect(entree.champ).toBe(cle);
+        expect(CASES_LISTES_VALEURS as readonly string[]).toContain(cle);
+    });
+
+    it("the section draws exactly the displayed keys", () => {
+        const affichees = Object.entries(INVENTAIRE_LISTES_VALEURS)
+            .filter(([, e]) => "champ" in e)
+            .map(([cle]) => cle)
+            .sort();
+        expect([...CASES_LISTES_VALEURS].sort()).toEqual(affichees);
     });
 });

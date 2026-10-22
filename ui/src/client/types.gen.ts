@@ -1903,6 +1903,34 @@ export type CartesiaTtsConfiguration = {
 };
 
 /**
+ * CasesDUneValeur
+ *
+ * The boxes to set on ONE value. A box left out keeps its state.
+ */
+export type CasesDUneValeur = {
+    /**
+     * Liste
+     */
+    liste: string;
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Regle Seul
+     */
+    regle_seul?: boolean | null;
+    /**
+     * Opportunite
+     */
+    opportunite?: boolean | null;
+    /**
+     * Urgent
+     */
+    urgent?: boolean | null;
+};
+
+/**
  * CatalogueEtablissements
  *
  * All the establishments of one organization, in the order of the screen.
@@ -5899,6 +5927,28 @@ export type LignePrix = {
 };
 
 /**
+ * ListeDeValeurs
+ */
+export type ListeDeValeurs = {
+    /**
+     * Liste
+     *
+     * Technical name of the list, as the database holds it.
+     */
+    liste: string;
+    /**
+     * Cases
+     *
+     * The boxes this list carries (the ones the screen shows).
+     */
+    cases: Array<'regle_seul' | 'opportunite' | 'urgent'>;
+    /**
+     * Valeurs
+     */
+    valeurs?: Array<ValeurDeListe>;
+};
+
+/**
  * ListeDesModeles
  */
 export type ListeDesModeles = {
@@ -5912,6 +5962,16 @@ export type ListeDesModeles = {
      * Every section a template can be applied by, in screen order.
      */
     sections: Array<string>;
+};
+
+/**
+ * ListesValeurs
+ */
+export type ListesValeurs = {
+    /**
+     * Listes
+     */
+    listes?: Array<ListeDeValeurs>;
 };
 
 /**
@@ -6648,6 +6708,18 @@ export type ModificationEtablissement = {
      * Terms this establishment adds to the organization's trade vocabulary (E6).
      */
     termes_lexique?: Array<TermeLexique> | null;
+};
+
+/**
+ * ModificationListesValeurs
+ *
+ * Only the values named change, and only the boxes sent on each. An unknown value refuses the whole request.
+ */
+export type ModificationListesValeurs = {
+    /**
+     * Valeurs
+     */
+    valeurs?: Array<CasesDUneValeur>;
 };
 
 /**
@@ -12170,6 +12242,40 @@ export type UserResponse = {
      * Provider Id
      */
     provider_id?: string | null;
+};
+
+/**
+ * ValeurDeListe
+ */
+export type ValeurDeListe = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Ordre
+     */
+    ordre?: number;
+    /**
+     * Actif
+     */
+    actif?: boolean;
+    /**
+     * Regle Seul
+     */
+    regle_seul?: boolean;
+    /**
+     * Opportunite
+     */
+    opportunite?: boolean;
+    /**
+     * Urgent
+     */
+    urgent?: boolean;
 };
 
 /**
@@ -19603,6 +19709,92 @@ export type PutPlanificateurApiV1OrganizationsPlanificateurPutResponses = {
 };
 
 export type PutPlanificateurApiV1OrganizationsPlanificateurPutResponse = PutPlanificateurApiV1OrganizationsPlanificateurPutResponses[keyof PutPlanificateurApiV1OrganizationsPlanificateurPutResponses];
+
+export type GetListesValeursApiV1OrganizationsListesValeursGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/listes-valeurs';
+};
+
+export type GetListesValeursApiV1OrganizationsListesValeursGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetListesValeursApiV1OrganizationsListesValeursGetError = GetListesValeursApiV1OrganizationsListesValeursGetErrors[keyof GetListesValeursApiV1OrganizationsListesValeursGetErrors];
+
+export type GetListesValeursApiV1OrganizationsListesValeursGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ListesValeurs;
+};
+
+export type GetListesValeursApiV1OrganizationsListesValeursGetResponse = GetListesValeursApiV1OrganizationsListesValeursGetResponses[keyof GetListesValeursApiV1OrganizationsListesValeursGetResponses];
+
+export type PutListesValeursApiV1OrganizationsListesValeursPutData = {
+    body: ModificationListesValeurs;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/listes-valeurs';
+};
+
+export type PutListesValeursApiV1OrganizationsListesValeursPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutListesValeursApiV1OrganizationsListesValeursPutError = PutListesValeursApiV1OrganizationsListesValeursPutErrors[keyof PutListesValeursApiV1OrganizationsListesValeursPutErrors];
+
+export type PutListesValeursApiV1OrganizationsListesValeursPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ListesValeurs;
+};
+
+export type PutListesValeursApiV1OrganizationsListesValeursPutResponse = PutListesValeursApiV1OrganizationsListesValeursPutResponses[keyof PutListesValeursApiV1OrganizationsListesValeursPutResponses];
 
 export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetData = {
     body?: never;
