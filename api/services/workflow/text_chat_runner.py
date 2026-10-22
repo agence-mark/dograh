@@ -31,6 +31,7 @@ from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import (
     LLMAssistantAggregatorParams,
     LLMContextAggregatorPair,
+    LLMUserAggregatorParams,
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.utils.run_context import set_current_org_id
@@ -61,6 +62,7 @@ from api.services.etablissements.phrases import (
     lexique_avec_etablissement,
     lexique_de_lappel_avec_etablissement,
 )
+from api.services.objets_agent.appel import injecter_objets
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -75,6 +77,9 @@ from api.services.pipecat.greffier import (
     resoudre_le_bloc_du_greffier,
 )
 from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
+from api.services.pipecat.reglages_tour_de_parole import (
+    collecter_reglages_tour_de_parole,
+)
 from api.services.pipecat.replique_inachevee import brancher_la_relance
 from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.travail.clavier import remettre_les_travaux_termines
@@ -733,22 +738,25 @@ async def execute_text_chat_pending_turn(
         fiche_choisie=run_configs.get(CLE_FICHE_DE_LAGENT),
     )
     etablissement_servi = lecture_de_lappel.servi
-    # [.mark] Lot 1 d'agents-specialises (F3, C3) : une fiche n'hérite de rien.
-    sans_heritage = bool(etablissement_servi and etablissement_servi.sans_heritage)
+    # [.mark] Lot 1 d'agents-specialises (F3, C3), étendu par F-8 (Evan, 22/10) : un
+    # établissement servi n'hérite de rien, quelle que soit la façon dont il a été trouvé.
     configs_heritees, origines_heritees = configuration_heritee(
         run_configs,
         etablissement_servi.etablissement if etablissement_servi else None,
-        sans_heritage=sans_heritage,
     )
     reglages_annonce = annonce_heritee(
         reglages_annonce,
         etablissement_servi.etablissement if etablissement_servi else None,
-        sans_heritage=sans_heritage,
     )
     if etablissement_servi is not None:
         etablissement_servi.origines.update(origines_heritees)
         initial_context["runtime_configuration"]["etablissement"] = etablissement_servi.estampille()
     initial_context = injecter_etablissement(initial_context, etablissement_servi)
+    # [.mark] cloture-code, F7: the agent's objects, as for a call (read with the fiche, before the
+    # sentences). Nothing changes without any, not even the stamp.
+    initial_context, estampille_objets = injecter_objets(initial_context, lecture_de_lappel)
+    if estampille_objets is not None:
+        initial_context["runtime_configuration"]["objets"] = estampille_objets
     # [.mark] The catalogue of sentences (E5), the establishment's content first.
     initial_context = injecter_phrases(
         initial_context,
@@ -1023,6 +1031,10 @@ async def execute_text_chat_pending_turn(
         # fabrique construit un agent appelé sans voix ni sous-circuit.
         engine.sans_sortie_audio = True
         engine.reglages_appel = dict(run_configs)
+        # [.mark] cloture-code, F8 (M4): the keyboard leaves out a switched-off module's tools, like the call.
+        from api.services.modules.appel import brancher_les_modules
+
+        brancher_les_modules(engine, run_configs)
         actif = engine.active_agent
         actif.workflow_id = agent.workflow_id
         actif.definition_id = agent.definition_id
@@ -1058,8 +1070,16 @@ async def execute_text_chat_pending_turn(
         capture_processor = _TextChatCaptureProcessor(response_window, context, engine)
 
         assistant_params = LLMAssistantAggregatorParams()
+        # [.mark] Lot 3 de cloture-code : le tour vide de Pipecat 1.12, réglé comme au téléphone
+        # (éteint par défaut ; sinon la paire construisait sa relance active).
         context_aggregator = LLMContextAggregatorPair(
-            context, assistant_params=assistant_params
+            context,
+            assistant_params=assistant_params,
+            user_params=LLMUserAggregatorParams(
+                empty_user_turn=collecter_reglages_tour_de_parole(
+                    agent.reglages or run_configs
+                ).configuration_du_tour_vide()
+            ),
         )
         assistant_context_aggregator = context_aggregator.assistant()
 

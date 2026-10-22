@@ -48,7 +48,7 @@ export const MODELES_QUI_PILOTENT_LES_TOURS: Record<string, readonly string[]> =
     cartesia: ["ink-2"],
 };
 
-interface ConfigurationTranscription {
+export interface ConfigurationTranscription {
     provider?: string;
     model?: string;
     // [.mark] Soniox only (exposition-soniox): on, or absent, Soniox decides the
@@ -109,8 +109,11 @@ export const transcriptionEffective = ({
 };
 
 /** True when the turn-taking settings play no part in this agent's calls. */
-export const transcriptionPiloteLesTours = (entrees: EntreesDeResolution): boolean => {
-    const stt = transcriptionEffective(entrees);
+export const transcriptionPiloteLesTours = (entrees: EntreesDeResolution): boolean =>
+    sttPiloteLesTours(transcriptionEffective(entrees));
+
+/** True when this transcription (provider, model, switch) decides the turn boundaries itself. */
+export const sttPiloteLesTours = (stt: ConfigurationTranscription | null | undefined): boolean => {
     // [.mark] Soniox decides by its switch, not by its model (exposition-soniox).
     // ⛔ The server applies the same rule in `stt_uses_external_turns`.
     if (stt?.provider === "soniox") return stt.endpoint_detection !== false;

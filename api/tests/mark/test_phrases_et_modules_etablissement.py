@@ -81,7 +81,7 @@ def test_deux_phrases_ne_partagent_pas_une_variable():
         CataloguePhrases(phrases=[Phrase(variable="ab"), Phrase(variable="ab")])
 
 
-def test_le_contenu_dune_phrase_detablissement_vide_est_herite():
+def test_le_contenu_dune_phrase_detablissement_vide_est_retire():
     assert Etablissement(id="a", nom="A", phrases={"phrase_acces": "  "}).phrases == {}
 
 
@@ -96,6 +96,10 @@ def test_chaque_phrase_au_bon_niveau():
         "phrase_acces": "Le magasin de Creil est derrière la gare.",
     }
     assert valeurs_des_phrases(PHRASES, None)["phrase_acces"] == "Le magasin est en centre-ville."
+    # F-8 (Evan, 22/10): an establishment served WITHOUT its own content says nothing (never the
+    # organization's, which only prefills a new establishment); the organization-level one stays.
+    sans = Etablissement(id="senlis", nom="Senlis")
+    assert valeurs_des_phrases(PHRASES, sans) == {"phrase_rgpd": "Vos données restent chez nous."}
     # A sentence at the organization's level ignores an establishment's content.
     organisation = CataloguePhrases(phrases=[Phrase(variable="phrase_acces", contenu="Org.", niveau="organisation")])
     assert valeurs_des_phrases(organisation, CREIL_AVEC) == {"phrase_acces": "Org."}
@@ -130,6 +134,8 @@ def test_une_phrase_detablissement_doit_etre_placee_a_ce_niveau():
         patch.object(route_etablissements, "db_client") as base,
         patch.object(route_etablissements, "lire_phrases_strict", AsyncMock(return_value=PHRASES)),
         patch.object(route_etablissements, "enregistrer_etablissements", AsyncMock(side_effect=lambda _o, c, _auteur="dograh": c)) as ecrit,
+        # F-8: the prefill of a new establishment reads the organization; proven in test_etablissements_complets.py.
+        patch("api.services.etablissements.complets.preremplir_les_nouveaux", AsyncMock(side_effect=lambda _o, c: c)),
     ):
         base.lister_numeros_de_lorganisation = AsyncMock(return_value=lignes)
         reponse = TestClient(app).put("/organizations/etablissements", json=corps.model_dump(mode="json"))

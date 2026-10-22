@@ -13,6 +13,9 @@
  *     the theme, and « show » brings it on screen to be fixed (E7);
  *   - the page speaks French until the user chooses (D12).
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -22,11 +25,13 @@ import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 import { FournisseurLangue } from "../langue/langue";
 import { CONSIGNE_GENERIQUE_GREFFIER } from "./consigne-greffier";
 import { INVENTAIRE_AGENT } from "./inventaire-agent";
+import { CLES_MODULES, MODULES_AGENT } from "./modules-agent";
 import { CONFIG_DE_REFERENCE } from "./references/config-de-reference";
 
 const m = vi.hoisted(() => ({
     config: null as unknown,
     userConfig: null as unknown,
+    modules: undefined as unknown,
     // What the page saves: read by the clerk's tests below.
     save: vi.fn(() => Promise.resolve(undefined)),
     // Plan porte-parlee: the graph the page is opened with.
@@ -90,6 +95,8 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-fact
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: () => Promise.resolve({ data: [{ code_insee: "60057", nom: "Beauvais" }], error: null }),
     // Lot 4 d'orchestrateur-trois-cerveaux: the catalogue the background brain's tool list reads.
     listToolsApiV1ToolsGet: () => Promise.resolve({ data: m.outils, error: null }),
+    // cloture-code, F8: what the server says of the agent's modules (absent: the page works without it).
+    getModulesDeLAgentApiV1AgentsAgentIdModulesGet: () => Promise.resolve({ data: m.modules, error: null }),
 }));
 // Lot 3 d'orchestrateur-trois-cerveaux (D7): the stand-ins draw the note they are given for a locked voice.
 vi.mock("@/components/AIModelConfigurationV2Editor", () => ({
@@ -132,14 +139,85 @@ const ouvrir = async (config: Record<string, unknown>, userConfig: unknown, enve
     m.config = resolveWorkflowConfigurations(config as never);
     m.userConfig = userConfig;
     render(<>{enveloppe ? enveloppe(<WorkflowSettingsPage />) : <WorkflowSettingsPage />}</>);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(9));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10));
 };
 
 const ouvrirLeTheme = (id: string) => {
     const entete = document.querySelector(`[data-theme="${id}"] > button[aria-expanded]`) as HTMLButtonElement;
     if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
+    // cloture-code, F8 (M4): the theme « Modules » holds one drop-down sub-menu per module, opened too.
+    document
+        .querySelectorAll<HTMLButtonElement>(`[data-theme="${id}"] [data-sous-menu-module] > button[aria-expanded="false"]`)
+        .forEach((bouton) => fireEvent.click(bouton));
     return document.getElementById(id) as HTMLElement;
 };
+
+// cloture-code, F8 (M4): the theme « Modules », one drop-down sub-menu per module; the cards moved, never doubled.
+describe("[.mark] the theme « Modules »", () => {
+    const registre = readFileSync(join(process.cwd(), "..", "api/services/modules/registre.py"), "utf8");
+    const reglages = readFileSync(join(process.cwd(), "..", "api/services/groupe/reglages.py"), "utf8");
+
+    it("holds the registry's modules and exactly the keys of CLES_THEME_MODULES, in order", () => {
+        const codes = [...registre.matchAll(/^ {4}Module\(\s*"([a-z_]+)"/gm)].map((m) => m[1]);
+        expect(codes.length).toBeGreaterThan(5);
+        expect(MODULES_AGENT.map((m) => m.code)).toEqual(codes);
+        const debut = reglages.indexOf("CLES_THEME_MODULES: tuple[str, ...] = (");
+        const corps = reglages.slice(debut, reglages.indexOf(")", debut)).replace(/#.*$/gm, "");
+        expect(CLES_MODULES).toEqual([...corps.matchAll(/"([a-z_0-9]+)"/g)].map((m) => m[1]));
+    });
+
+    it("draws one closed sub-menu per module; a moved card is no longer where it was", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const entete = document.querySelector('[data-theme="modules"] > button[aria-expanded]') as HTMLButtonElement;
+        fireEvent.click(entete);
+        const sousMenus = document.querySelectorAll('[data-theme="modules"] [data-sous-menu-module]');
+        expect([...sousMenus].map((s) => s.getAttribute("data-sous-menu-module"))).toEqual(MODULES_AGENT.map((m) => m.code));
+        expect(document.querySelector('[data-theme="modules"] [data-reglage="verification_communes"]')).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Town and street" }));
+        await waitFor(() => expect(document.querySelector('[data-theme="modules"] [data-reglage="verification_communes"]')).not.toBeNull());
+        // Moved: nothing of a module left in « Listening » nor « Call data » (convention: replace, never add).
+        for (const theme of ["ecoute", "donnees"]) {
+            const ouvert = ouvrirLeTheme(theme);
+            await waitFor(() => expect(ouvert.querySelector("[data-reglage]")).not.toBeNull());
+            for (const cle of CLES_MODULES) expect(ouvert.querySelector(`[data-reglage="${cle}"]`), `${cle} in ${theme}`).toBeNull();
+        }
+    });
+
+    it("shows what the server says: the translator plugged in, a module switched on by its tools", async () => {
+        m.modules = {
+            agent_id: 1,
+            modules: [
+                {
+                    code: "planificateur",
+                    libelle: { en: "Appointment planner", fr: "Planificateur de rendez-vous" },
+                    actif: true,
+                    besoins: [
+                        { code: "lire_les_creneaux", libelle: { en: "Read free slots", fr: "Lire les créneaux libres" }, domaine: "agenda", traducteur: { systeme: "google_agenda", libelle: "Google Agenda" } },
+                    ],
+                },
+            ],
+        };
+        try {
+            await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+            const theme = ouvrirLeTheme("modules");
+            await waitFor(() => expect(theme.querySelector('[data-besoin="lire_les_creneaux"]')?.textContent).toContain("Google Agenda"));
+            const sousMenu = theme.querySelector('[data-sous-menu-module="planificateur"]') as HTMLElement;
+            expect(sousMenu.querySelector("button")?.textContent).toContain("On");
+            expect(sousMenu.querySelector('[data-allume-par-ses-outils="planificateur"]')).not.toBeNull();
+        } finally {
+            m.modules = undefined;
+        }
+    });
+
+    it("« show » opens the sub-menu of a value to fix (E7)", async () => {
+        await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), verification_communes: true, variables_commune: "ville; *" }, NOVA);
+        const entete = document.querySelector('[data-theme="modules"] > button[aria-expanded]') as HTMLButtonElement;
+        fireEvent.click(entete);
+        expect(document.querySelector('[data-reglage="variables_commune"]')).toBeNull();
+        fireEvent.click(await screen.findByRole("button", { name: "show" }));
+        await waitFor(() => expect(document.querySelector('[data-theme="modules"] [data-reglage="variables_commune"]')).not.toBeNull());
+    });
+});
 
 describe("[.mark] the agent page in themes", () => {
     it("draws every setting the inventory puts on screen, in its theme", async () => {
@@ -158,6 +236,17 @@ describe("[.mark] the agent page in themes", () => {
         }
         // Every key of the inventory, one after the other: slow under a full run.
     }, 30000);
+
+    // Cloture-code, lot 5 (M11): the settings templates button sits in the FIXED header, next to the agent's name,
+    // outside the themes, and opens the centred modal.
+    it("has the settings templates button in the fixed header, outside the themes", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const bouton = document.querySelector("header [data-bouton-modeles]") as HTMLElement;
+        expect(bouton, "the button is in the header").not.toBeNull();
+        expect(document.querySelector("[data-theme] [data-bouton-modeles]")).toBeNull();
+        fireEvent.click(bouton);
+        await waitFor(() => expect(document.querySelector('[data-modale-phrase="modeles-de-reglages"]')).not.toBeNull());
+    });
 
     // Plan mode-prise-de-notes, part 2: the clerk's settings are drawn only in
     // its mode, like in the code (no clerk, nothing to set).
@@ -192,12 +281,13 @@ describe("[.mark] the agent page in themes", () => {
     ];
     it("draws the fields recognised by their name only with « Check the data » on", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
-        let theme = ouvrirLeTheme("ecoute");
+        // cloture-code, F8: « Field recognition » moved to the theme « Modules », same rule (E8).
+        let theme = ouvrirLeTheme("modules");
         await waitFor(() => expect(theme.querySelector('[data-reglage="controle_donnees"]')).not.toBeNull());
         for (const cle of SEULEMENT_AVEC_CONTROLE) expect(theme.querySelector(`[data-reglage="${cle}"]`), cle).toBeNull();
         cleanup();
         await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), controle_donnees: true }, NOVA);
-        theme = ouvrirLeTheme("ecoute");
+        theme = ouvrirLeTheme("modules");
         for (const cle of SEULEMENT_AVEC_CONTROLE) {
             await waitFor(() => expect(theme.querySelector(`[data-reglage="${cle}"]`), cle).not.toBeNull());
         }
@@ -227,21 +317,22 @@ describe("[.mark] the agent page in themes", () => {
         "user_turn_stop_timeout",
         "filter_incomplete_user_turns",
     ];
-    const NE_JOUENT_PAS = ["user_speech_timeout", "stt_ttfs_p99_latency", "turn_wait_for_transcript", "turn_start_use_interim"];
+    const NE_JOUENT_PAS = ["user_speech_timeout", "stt_ttfs_p99_latency", "turn_wait_for_transcript"];
     const SONIOX_DECIDE = { stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: true } };
 
     for (const [nom, transcription] of [["Flux", FLUX], ["Soniox deciding", SONIOX_DECIDE]] as const) {
         it(`${nom}: shows the settings that play, hides the ones that do not, and says which is which`, async () => {
-            await ouvrir({ turn_stop_strategy: "turn_analyzer", turn_start_strategy: "min_words" }, transcription);
+            // Lot 8: « The provider decides » for the start, so the interim transcripts (they feed the word count) stay hidden.
+            await ouvrir({ turn_stop_strategy: "turn_analyzer", turn_start_strategy: "default" }, transcription);
             const tour = ouvrirLeTheme("tour");
             for (const id of JOUENT) expect(document.getElementById(id), id).not.toBeNull();
-            for (const id of [...NE_JOUENT_PAS, "smart_turn_pre_speech_ms", "smart_turn_max_duration_secs"]) {
+            for (const id of [...NE_JOUENT_PAS, "turn_start_use_interim", "smart_turn_pre_speech_ms", "smart_turn_max_duration_secs"]) {
                 expect(document.getElementById(id), id).toBeNull();
             }
             const note = tour.querySelector('[data-note="tour-pilote"]');
             expect(note).not.toBeNull();
             expect(note?.textContent).not.toMatch(/builds none|ne construit aucun/i);
-            // D-C9-2 and D-C9-4: the two strategies stay, each saying it has no effect here.
+            // D-C9-2 and D-C9-4: the two strategies stay; the end of the turn says it has no effect here.
             expect(document.getElementById("turn_stop_strategy")).not.toBeNull();
             expect(document.getElementById("turn_start_strategy")).not.toBeNull();
             expect(tour.querySelector('[data-note="sans-effet-fin-de-tour"]')).not.toBeNull();
@@ -262,6 +353,147 @@ describe("[.mark] the agent page in themes", () => {
         expect(tour.querySelector('[data-note="sans-effet-interruption"]')).toBeNull();
         expect(document.getElementById("user_speech_timeout")).not.toBeNull();
         expect(document.getElementById("vad_confidence")).not.toBeNull();
+    });
+
+    // Lot 8 of cloture-code-avant-migration (Evan, 22/10): the START and the END of the turn are two
+    // independent choices of this theme, so an A/B test is a few clicks.
+    describe("two independent choices: start and end of the turn", () => {
+        const INK2 = { stt: { provider: "cartesia", model: "ink-2" } };
+        const SONIOX_LOCAL = { stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: false } };
+        const lesOptions = (id: string) => [...(document.getElementById(id) as HTMLSelectElement).options].map((o) => [o.value, o.textContent]);
+        const choisir = (id: string, valeur: string) => fireEvent.change(document.getElementById(id) as HTMLSelectElement, { target: { value: valeur } });
+        const enregistrerTour = async () => {
+            m.save.mockClear();
+            fireEvent.click(await screen.findByRole("button", { name: "Save Turn taking" }));
+            await waitFor(() => expect(m.save).toHaveBeenCalled());
+            const appels = m.save.mock.calls as unknown as Array<[Record<string, unknown>]>;
+            return appels[appels.length - 1][0];
+        };
+
+        it("words the start of the turn « The provider decides » / « Minimum number of words », values unchanged", async () => {
+            await ouvrir({}, NOVA);
+            ouvrirLeTheme("tour");
+            expect(lesOptions("turn_start_strategy")).toEqual([
+                ["default", "The provider decides"],
+                ["min_words", "Minimum number of words"],
+            ]);
+            cleanup();
+            await ouvrir({}, NOVA, (page) => <FournisseurLangue>{page}</FournisseurLangue>);
+            ouvrirLeTheme("tour");
+            expect(lesOptions("turn_start_strategy")).toEqual([
+                ["default", "Le fournisseur décide"],
+                ["min_words", "Nombre minimum de mots"],
+            ]);
+        });
+
+        for (const [nom, transcription] of [["Flux", FLUX], ["Soniox deciding", SONIOX_DECIDE], ["ink-2", INK2]] as const) {
+            it(`${nom}: « Minimum number of words » plays, so the « no effect » note of the interruption is gone`, async () => {
+                await ouvrir({ turn_start_strategy: "min_words" }, transcription);
+                const tour = ouvrirLeTheme("tour");
+                expect(tour.querySelector('[data-note="sans-effet-interruption"]')).toBeNull();
+                expect(document.getElementById("turn_start_min_words")).not.toBeNull();
+                expect(document.getElementById("turn_start_use_interim")).not.toBeNull();
+                // The end of the turn stays the provider's: its note and its hidden settings are still right.
+                expect(tour.querySelector('[data-note="sans-effet-fin-de-tour"]')).not.toBeNull();
+                expect(document.getElementById("user_speech_timeout")).toBeNull();
+            });
+        }
+
+        it("Flux: the end of the turn is frozen on the provider, with the model of the same brand that lets Dograh decide", async () => {
+            await ouvrir({}, FLUX);
+            const tour = ouvrirLeTheme("tour");
+            const menu = document.getElementById("fin_de_tour_decideur") as HTMLSelectElement;
+            expect(menu.disabled).toBe(true);
+            expect(menu.value).toBe("fournisseur");
+            expect(lesOptions("fin_de_tour_decideur")).toEqual([["fournisseur", "The provider decides"]]);
+            expect(tour.querySelector('[data-note="fin-de-tour-figee"]')?.textContent).toContain("Nova-3");
+        });
+
+        it("ink-2: frozen too, with Ink-Whisper as the model that lets Dograh decide", async () => {
+            await ouvrir({}, INK2);
+            const tour = ouvrirLeTheme("tour");
+            expect((document.getElementById("fin_de_tour_decideur") as HTMLSelectElement).disabled).toBe(true);
+            expect(tour.querySelector('[data-note="fin-de-tour-figee"]')?.textContent).toContain("Ink-Whisper");
+        });
+
+        it("a provider that announces no turns: « Dograh decides », with no other choice", async () => {
+            await ouvrir({}, NOVA);
+            const tour = ouvrirLeTheme("tour");
+            const menu = document.getElementById("fin_de_tour_decideur") as HTMLSelectElement;
+            expect(menu.disabled).toBe(true);
+            expect(lesOptions("fin_de_tour_decideur")).toEqual([["dograh", "Dograh decides"]]);
+            expect(tour.querySelector('[data-note="fin-de-tour-figee"]')).toBeNull();
+        });
+
+        it("claims nothing when the screen cannot read the transcription", async () => {
+            await ouvrir({}, null);
+            ouvrirLeTheme("tour");
+            expect(document.getElementById("fin_de_tour_decideur")).toBeNull();
+        });
+
+        it("Soniox: a real choice; « Dograh decides » brings the settings and drops the notes at once", async () => {
+            await ouvrir({}, SONIOX_DECIDE);
+            const tour = ouvrirLeTheme("tour");
+            expect((document.getElementById("fin_de_tour_decideur") as HTMLSelectElement).disabled).toBe(false);
+            expect(lesOptions("fin_de_tour_decideur")).toEqual([
+                ["fournisseur", "The provider decides"],
+                ["dograh", "Dograh decides"],
+            ]);
+            expect(tour.querySelector('[data-note="sans-effet-fin-de-tour"]')).not.toBeNull();
+            expect(document.getElementById("user_speech_timeout")).toBeNull();
+
+            choisir("fin_de_tour_decideur", "dograh");
+            await waitFor(() => expect(tour.querySelector('[data-note="sans-effet-fin-de-tour"]')).toBeNull());
+            expect(tour.querySelector('[data-note="tour-pilote"]')).toBeNull();
+            expect(document.getElementById("user_speech_timeout")).not.toBeNull();
+        });
+
+        it("Soniox: « Dograh decides » writes endpoint_detection = false in a per-service overlay, nothing else of the transcription", async () => {
+            await ouvrir({}, SONIOX_DECIDE);
+            ouvrirLeTheme("tour");
+            choisir("fin_de_tour_decideur", "dograh");
+            const charge = await enregistrerTour();
+            expect(charge.model_overrides).toEqual({ stt: { endpoint_detection: false } });
+            expect(charge.mark_per_service_override).toBe(true);
+            expect(charge.model_configuration_v2_override).toBeUndefined();
+        });
+
+        it("Soniox in local detection: « The provider decides » writes endpoint_detection = true next to the overlay the agent already has", async () => {
+            await ouvrir({ model_overrides: { stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: false, language: "fr" }, tts: { voice: "v1" } } }, SONIOX_LOCAL);
+            ouvrirLeTheme("tour");
+            expect((document.getElementById("fin_de_tour_decideur") as HTMLSelectElement).value).toBe("dograh");
+            choisir("fin_de_tour_decideur", "fournisseur");
+            const charge = await enregistrerTour();
+            expect(charge.model_overrides).toEqual({
+                stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: true, language: "fr" },
+                tts: { voice: "v1" },
+            });
+        });
+
+        it("Soniox: an agent with a full configuration of its own gets the value in THAT configuration", async () => {
+            const complete = {
+                mode: "byok",
+                byok: { mode: "pipeline", pipeline: { stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: true }, tts: { provider: "x" } } },
+            };
+            await ouvrir({ model_configuration_v2_override: complete }, null);
+            ouvrirLeTheme("tour");
+            choisir("fin_de_tour_decideur", "dograh");
+            const charge = await enregistrerTour();
+            expect(charge.model_overrides).toBeUndefined();
+            expect(charge.model_configuration_v2_override).toEqual({
+                mode: "byok",
+                byok: { mode: "pipeline", pipeline: { stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: false }, tts: { provider: "x" } } },
+            });
+        });
+
+        it("saving nothing about the end of the turn when the choice is left alone", async () => {
+            await ouvrir({}, SONIOX_DECIDE);
+            ouvrirLeTheme("tour");
+            choisir("turn_start_strategy", "min_words");
+            const charge = await enregistrerTour();
+            expect(charge.model_overrides).toBeUndefined();
+            expect(charge.mark_per_service_override).toBeUndefined();
+        });
     });
 
     it("names a value out of range that another choice hides, blocks the theme, and « show » reveals it", async () => {

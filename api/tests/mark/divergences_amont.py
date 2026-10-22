@@ -150,6 +150,13 @@ DIVERGENCES_ASSUMEES = {
             "False-True": _ACCUEIL_NON_INTERRUPTIBLE,
         },
         "test_two_word_final_also_interrupts_and_answers_once": _ACCUEIL_NON_INTERRUPTIBLE,
+        # [.mark] 22/10/2026, montee Pipecat 1.12 (3296d375) : trois tests neufs
+        # du filtrage d'appel. Prouve le 22/10 : coupure de l'amont remise, les 8
+        # cas passent, sauf `..._threshold[True]` (tours externes), qui attend
+        # en plus l'inversion de a6aee063 (lot 3 bis) ; il echoue des deux facons.
+        "test_screening_speech_waits_for_classification_without_interrupting": _ACCUEIL_NON_INTERRUPTIBLE,
+        "test_screening_pickup_restores_configured_interruption_threshold": _ACCUEIL_NON_INTERRUPTIBLE,
+        "test_greeting_after_screening_still_requires_two_words": _ACCUEIL_NON_INTERRUPTIBLE,
     },
     "tests/test_answer_supervisor_playback.py": {
         "test_hello_produces_exactly_one_opening": {

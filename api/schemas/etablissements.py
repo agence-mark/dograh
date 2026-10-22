@@ -5,7 +5,10 @@ Chantier ``l-agent-travaille`` (L1, 06/10/2026), decisions E1 to E4:
 - E1: one Dograh organization = one client (one company). Its establishments
   (shops, sites, agencies) live inside it.
 - E2: inheritance on three levels, organization -> establishment -> agent; the
-  most precise value wins. Here, ``None`` on a field means « inherited ».
+  most precise value wins. [.mark] REPLACED by F-8 (Evan, 22/10): an establishment
+  has its own complete values and inherits nothing; ``None`` on a field means
+  « nothing ». The organization's values prefill a NEW establishment and serve the
+  calls that serve no establishment.
 - E3: the establishment of a call is found from the CALLED number: each number
   of the organization's Telephony belongs to at most one establishment. An
   establishment may have no number yet (« to attach »).
@@ -30,7 +33,7 @@ from datetime import datetime
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator, model_validator
 
 from api.schemas.lexique_metier import TermeLexique
 from api.schemas.organization_preferences import AdresseEtablissement
@@ -60,7 +63,7 @@ def _numero(valeur: str | None) -> str | None:
 
 
 class Etablissement(BaseModel):
-    """One establishment. Every optional field left empty is inherited."""
+    """One establishment. Every optional field left empty is empty: nothing is inherited (F-8)."""
 
     id: str = Field(
         description="Stable identifier, lower case, digits and hyphens (« site-nord »).",
@@ -85,25 +88,25 @@ class Etablissement(BaseModel):
         description="Given to the agents as {{numero_transfert}}, for the transfer tool's destination.",
     )
     adresse: AdresseEtablissement | None = Field(
-        default=None, description="None: the organization's address."
+        default=None, description="None: no address (the organization's prefills a new establishment)."
     )
     horaires_ouverture: str | None = Field(
         default=None,
         max_length=MAX_LONGUEUR_HORAIRES,
         description=(
             "Opening hours, readable format, closures as dated lines « 24/12/2026 : fermé ». "
-            "None: the agent's own hours, if any."
+            "None: no hours (never the agent's own)."
         ),
     )
     annonce_fermeture: str | None = Field(
         default=None,
         max_length=MAX_LONGUEUR_ANNONCE,
-        description="None: the organization's closing announcement.",
+        description="None: nothing is announced (the organization's prefills a new establishment).",
     )
     annonce_pause: str | None = Field(
         default=None,
         max_length=MAX_LONGUEUR_ANNONCE,
-        description="None: the organization's break announcement.",
+        description="None: nothing is announced (the organization's prefills a new establishment).",
     )
     # [.mark] Chantier agents-specialises, lot 1 (F4, C5) : la fermeture immédiate de la
     # fiche, même forme que celle de l'organisation. Elle l'emporte pour les agents de
@@ -124,7 +127,8 @@ class Etablissement(BaseModel):
         default_factory=dict,
         description=(
             "This establishment's content for the sentences placed at the establishment's level "
-            "(variable -> content). Absent: the organization's content."
+            "(variable -> content). Absent: nothing is said (the organization's content prefills a "
+            "new establishment)."
         ),
     )
     termes_lexique: list[TermeLexique] = Field(
@@ -136,7 +140,7 @@ class Etablissement(BaseModel):
     @field_validator("phrases", mode="before")
     @classmethod
     def _phrases(cls, value):
-        """Empty content = inherited: the key goes away."""
+        """Empty content = nothing: the key goes away."""
         if not isinstance(value, dict):
             return value
         propres = {}
@@ -196,8 +200,8 @@ class Etablissement(BaseModel):
     @field_validator("horaires_ouverture", "annonce_fermeture", "annonce_pause", mode="before")
     @classmethod
     def _vide_a_none(cls, value):
-        """An empty text is « inherited », never « nothing »: the screen clears a
-        field to go back to the organization's value."""
+        """An empty text is stored as None. [.mark] F-8: None is « nothing » for an
+        establishment served (it inherits nothing)."""
         if isinstance(value, str):
             value = value.strip()
             return value or None
@@ -353,3 +357,45 @@ class ResultatReprise(BaseModel):
         "fiches (or to none besides one), hours or address that disagree. Nothing was written for these.",
     )
     deja_a_jour: int = Field(default=0, description="Values already as the takeover would write them.")
+
+
+# --------------------------------------------------------------------------- #
+# [.mark] Lot F4 : l'écriture par élément (mise à jour partielle d'une fiche)
+# --------------------------------------------------------------------------- #
+
+_CHAMPS_MODIFIABLES = {
+    nom: (
+        champ.annotation | None,
+        Field(default=None, description=champ.description),
+    )
+    for nom, champ in Etablissement.model_fields.items()
+    if nom != "id"
+}
+
+ModificationEtablissement = create_model(
+    "ModificationEtablissement",
+    __config__=ConfigDict(extra="forbid"),
+    __doc__=(
+        "A partial update of ONE fiche: only the fields SENT change, the others stay as they are "
+        "(an absent field is never read as « empty »). Every field of the fiche but its identifier. "
+        "A field sent empty (``null``, ``\"\"``) is emptied (nothing is inherited). ``phrases`` is merged "
+        "sentence by sentence (a sentence sent empty is removed); ``numeros`` and "
+        "``termes_lexique`` are replaced as a whole when sent. The same bounds as a save apply to "
+        "what is sent."
+    ),
+    **_CHAMPS_MODIFIABLES,
+)
+
+
+class DemandeEtatFiche(BaseModel):
+    """Close or reopen ONE fiche (the forced state), nothing else touched."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    etat_force: Literal["OUVERT", "PAUSE", "FERME", "SUR_RENDEZ_VOUS"] | None = Field(
+        description="The state to force (FERME to close). ``null``: reopen, back to the hours.",
+    )
+    etat_force_jusqu_a: datetime | None = Field(
+        default=None,
+        description="When the forced state lifts itself, Paris time. ``null``: until changed.",
+    )

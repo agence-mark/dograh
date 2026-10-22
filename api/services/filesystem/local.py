@@ -93,3 +93,16 @@ class LocalFileSystem(BaseFileSystem):
             return f"/files/{temp_filename}"
         except Exception:
             return None
+
+    # [.mark] Purge de conservation (lot 6) : une copie absente n'est pas une erreur.
+    async def adelete_file(self, file_path: str) -> bool:
+        # [.mark] Review of the chantier: never a path that climbs out of the storage folder.
+        if ".." in file_path.replace("\\", "/").split("/"):
+            return False
+        try:
+            os.remove(self._get_full_path(file_path))
+            return True
+        except FileNotFoundError:
+            return True
+        except Exception:
+            return False

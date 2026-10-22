@@ -103,6 +103,7 @@ def test_text_chat_checkpoint_messages_round_trip_google_thought_signature():
     assert encoded[-1] == {
         "__specific__": True,
         "llm": "google",
+        "is_metadata": False,  # [.mark] Pipecat 1.12 (lot 3), as upstream a9b1d831
         "message": {
             "type": "thought_signature",
             "signature": {

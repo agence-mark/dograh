@@ -14,7 +14,7 @@ import re
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator, model_validator
 
 _CLE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 _CODE = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
@@ -229,3 +229,31 @@ class Equipe(BaseModel):
                         f"The subject « {sujet.libelle} » routes to an unknown person ({cle})."
                     )
         return self
+
+
+# [.mark] Lot F4 : l'écriture par élément (mise à jour partielle d'une personne)
+ModificationPersonne = create_model(
+    "ModificationPersonne",
+    __config__=ConfigDict(extra="forbid"),
+    __doc__=(
+        "A partial update of ONE person: only the fields SENT change, the others stay as they are "
+        "(an absent field is never read as « empty »). Every field of the person but its identifier. "
+        "``etablissements`` (or the legacy ``etablissement``) replaces her places when sent; "
+        "``agendas`` replaces her agendas when sent. Her subjects and the rest of the team are never touched."
+    ),
+    **{
+        nom: (champ.annotation | None, Field(default=None, description=champ.description))
+        for nom, champ in Personne.model_fields.items()
+        if nom != "cle"
+    },
+)
+
+
+class ConnexionPortail(BaseModel):
+    """[.mark] Lot F6 : le compte de connexion que le portail utilise sur la base du client. Le mot de
+    passe n'existe que dans CETTE réponse (il vient d'être créé) : il n'est ni journalisé, ni
+    relisible, ni gardé par Dograh. Le renouveler = rappeler la route (l'ancien cesse de marcher)."""
+
+    base: str
+    role: str
+    mot_de_passe: str

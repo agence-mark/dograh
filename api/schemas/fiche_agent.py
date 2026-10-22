@@ -264,6 +264,8 @@ NOMS_RESERVES = frozenset(
         "call_status",
         "call_tags",
         "answer_supervisor",
+        # [.mark] lot 3 de cloture-code (amont b10e829f) : les résultats des outils
+        "tool_results",
         "extracted_variables",
         "nodes_visited",
         "agent_visits",

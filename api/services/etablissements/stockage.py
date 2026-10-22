@@ -20,6 +20,9 @@ answer and no copy is in memory.
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 from loguru import logger
 
 from api.db import db_client
@@ -30,6 +33,9 @@ from api.schemas.phrases import CataloguePhrases
 CLE = OrganizationConfigurationKey.ETABLISSEMENTS.value
 CLE_PHRASES = OrganizationConfigurationKey.PHRASES.value
 CLE_BASE_CLIENT = OrganizationConfigurationKey.BASE_CLIENT.value
+# Premier entier du verrou pris dans la base du client (le même espace que celui de Dograh, sans conflit :
+# deux bases différentes).
+ESPACE_DU_VERROU = 7_301
 
 
 async def lire_etablissements(organization_id: int | None) -> CatalogueEtablissements:
@@ -92,6 +98,32 @@ async def lire_etablissements_strict(organization_id: int) -> CatalogueEtablisse
     return await _miroir_etablissements_strict(organization_id)
 
 
+@asynccontextmanager
+async def verrou_des_fiches(organization_id: int) -> AsyncIterator[None]:
+    """[.mark] Constat 28 : une écriture par élément (lire la fiche, poser les champs envoyés, réécrire,
+    refaire le miroir) ne se fait jamais à deux en même temps pour une organisation, sinon la seconde
+    relit avant que la première écrive et la défait.
+
+    Avec une base du client : un verrou consultatif de transaction pris dans CETTE base, sur une
+    connexion à part (un verrou de ligne ``FOR UPDATE`` bloquerait l'écriture elle-même, qui passe par
+    une autre connexion). Sans base : le même verrou, pris dans la base de Dograh. Rendu à la sortie,
+    écriture réussie ou non. ⛔ Non réentrant : ne jamais l'ouvrir à l'intérieur de lui-même."""
+    nom = await nom_de_la_base_strict(organization_id)
+    if not nom:
+        async with db_client.verrou_des_ecritures_par_element(organization_id):
+            yield
+        return
+    from api.db.bases_clients.connexion import connecter
+
+    connexion = await connecter(nom)
+    try:
+        async with connexion.transaction():
+            await connexion.execute("SELECT pg_advisory_xact_lock($1, $2)", ESPACE_DU_VERROU, 1)
+            yield
+    finally:
+        await connexion.close()
+
+
 async def enregistrer_miroir(
     organization_id: int, etablissements=None, phrases=None
 ) -> None:
@@ -107,8 +139,15 @@ async def enregistrer_miroir(
 
 
 async def enregistrer_etablissements(
-    organization_id: int, catalogue: CatalogueEtablissements, auteur: str = "dograh"
+    organization_id: int,
+    catalogue: CatalogueEtablissements,
+    auteur: str = "dograh",
+    *,
+    preremplir: bool = True,
 ) -> CatalogueEtablissements:
+    """[.mark] F-8: ``preremplir`` (default): a NEW place gets, in the client's database, the common
+    values the database keeps (planner, types, module settings, sentences). ``False``: a copy of a
+    fiche, which takes its source's."""
     nom = await nom_de_la_base_strict(organization_id)
     if nom:
         from api.db.bases_clients.referentiel import ecrire_etablissements
@@ -116,11 +155,42 @@ async def enregistrer_etablissements(
 
         connexion = await connecter(nom)
         try:
-            await ecrire_etablissements(connexion, catalogue, auteur)
+            await ecrire_etablissements(connexion, catalogue, auteur, preremplir=preremplir)
         finally:
             await connexion.close()
     await enregistrer_miroir(organization_id, etablissements=catalogue)
     # The copy the calls read follows at once (B3): the next pick-up hears it.
+    from api.services.etablissements.copie import publier_copie
+
+    await publier_copie(organization_id)
+    return catalogue
+
+
+async def enregistrer_un_etablissement(
+    organization_id: int, fiche, auteur: str = "dograh"
+) -> CatalogueEtablissements:
+    """[.mark] Lot F4: ONE fiche written, the others left as they are (a partial update).
+
+    With a client database, only that fiche goes there (``ecrire_un_etablissement``) and the mirror
+    is rebuilt from what the database now holds; without one, the mirror is the source and the fiche
+    replaces its namesake. The copy the calls read follows at once. Returns the catalogue as saved."""
+    nom = await nom_de_la_base_strict(organization_id)
+    if nom:
+        from api.db.bases_clients.referentiel import ecrire_un_etablissement
+        from api.db.bases_clients.connexion import connecter
+
+        connexion = await connecter(nom)
+        try:
+            await ecrire_un_etablissement(connexion, fiche, auteur)
+        finally:
+            await connexion.close()
+        catalogue = await lire_etablissements_strict(organization_id)
+    else:
+        courant = await _miroir_etablissements_strict(organization_id)
+        catalogue = CatalogueEtablissements(
+            etablissements=[fiche if e.id == fiche.id else e for e in courant.etablissements]
+        )
+    await enregistrer_miroir(organization_id, etablissements=catalogue)
     from api.services.etablissements.copie import publier_copie
 
     await publier_copie(organization_id)

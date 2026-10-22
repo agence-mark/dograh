@@ -24,7 +24,8 @@ const ORIGINES: Record<NonNullable<ValeurHeritee["origine"]>, Texte> = {
     fiche: { en: "the fiche of this agent", fr: "la fiche de cet agent" },
     agent: { en: "this agent", fr: "cet agent" },
     etablissement: { en: "the establishment", fr: "l'établissement" },
-    organisation: { en: "inherited from the organization", fr: "hérité de l'organisation" },
+    // F-8: no longer sent for an establishment (it inherits nothing); kept for the type.
+    organisation: { en: "the organization", fr: "l'organisation" },
     aucune: { en: "none", fr: "aucune" },
 };
 

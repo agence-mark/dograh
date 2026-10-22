@@ -87,6 +87,17 @@ class Connexion:
     provider: str | None
     creee_le: str | None
     erreurs: int = 0
+    # The kinds of the connection's errors (« auth », « sync »): Nango gives no date for them.
+    types_erreurs: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class DetailConnexion:
+    """What Nango says about ONE connection beyond its listing: how it authenticates
+    (``credentials.type``: OAUTH2, API_KEY, BASIC...) and when it was last updated."""
+
+    mode_acces: str | None = None
+    mis_a_jour_le: str | None = None
 
 
 def _organisation(organization_id: int) -> str:
@@ -120,9 +131,58 @@ async def connexions(organization_id: int) -> list[Connexion]:
                 provider=c.get("provider"),
                 creee_le=c.get("created") or c.get("created_at"),
                 erreurs=len(c.get("errors") or []),
+                types_erreurs=tuple(
+                    str(e.get("type"))
+                    for e in (c.get("errors") or [])
+                    if isinstance(e, dict) and e.get("type")
+                ),
             )
         )
     return sortie
+
+
+async def detail_de(connexion: Connexion) -> DetailConnexion:
+    """[.mark] Lot F6 : le mode d'accès et la dernière mise à jour d'une connexion, lus chez Nango
+    (``GET /connection/{id}``). ⛔ La réponse porte les jetons : seuls ``credentials.type`` et
+    ``updated_at`` en sortent, rien d'autre n'est gardé ni journalisé. Nango injoignable ou
+    réponse illisible : un détail vide, jamais une erreur (la liste reste lisible)."""
+    try:
+        reponse = await _requete(
+            "GET",
+            f"/connection/{quote(connexion.connection_id, safe='')}",
+            params={"provider_config_key": connexion.integration},
+        )
+        if reponse.status_code != 200:
+            return DetailConnexion()
+        corps = reponse.json() or {}
+        credentials = corps.get("credentials")
+        mode = credentials.get("type") if isinstance(credentials, dict) else None
+        mis_a_jour = corps.get("updated_at")
+        return DetailConnexion(
+            mode_acces=str(mode) if mode else None,
+            mis_a_jour_le=str(mis_a_jour) if mis_a_jour else None,
+        )
+    except (NangoIndisponible, ValueError, AttributeError):
+        return DetailConnexion()
+
+
+async def supprimer_connexion(organization_id: int, integration: str) -> None:
+    """[.mark] Lot F6 : supprime chez Nango la connexion de CETTE organisation à ce logiciel. La
+    connexion est retrouvée par l'étiquette de l'organisation (``connexion_de``), jamais par un
+    identifiant venu de la demande : l'identifiant d'une autre organisation ne peut pas être visé.
+    Absente : ``ConnexionAbsente``. Refusée ou injoignable : ``NangoIndisponible``."""
+    connexion = await connexion_de(organization_id, integration)
+    reponse = await _requete(
+        "DELETE",
+        f"/connection/{quote(connexion.connection_id, safe='')}",
+        params={"provider_config_key": integration},
+    )
+    if reponse.status_code == 404:
+        raise ConnexionAbsente(f"This organization is not connected to « {integration} ».")
+    if reponse.status_code >= 400:
+        raise NangoIndisponible(
+            f"Nango refused to delete the connection (HTTP {reponse.status_code})."
+        )
 
 
 async def connexion_de(organization_id: int, integration: str) -> Connexion:

@@ -1009,6 +1009,16 @@ async def publier_un_agent(workflow_id: int, user: UserModel):
         workflow.name,
         (published.workflow_configurations or {}).get("etablissement_id"),
     )
+    # [.mark] cloture-code, F7 (D118, D119): which objects the published texts read, for the portal's
+    # view. Never a reason to fail the publication.
+    from api.services.objets_agent.utilisation import synchroniser_utilisation
+
+    await synchroniser_utilisation(user.selected_organization_id)
+    # [.mark] cloture-code, F8 (D118, D121): which modules the published versions switch on, for the
+    # portal's view. Never a reason to fail the publication.
+    from api.services.modules.lecture import synchroniser_modules
+
+    await synchroniser_modules(user.selected_organization_id)
 
     return {
         "id": published.id,

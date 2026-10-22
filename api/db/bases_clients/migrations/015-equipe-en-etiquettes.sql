@@ -643,6 +643,10 @@ END $$;
 --      le portail additionne les jours d'une période. Chaque vue applique la même règle que
 --      les tables (portail_voit_site) : un autre rôle n'y lit rien.
 -- ---------------------------------------------------------------------
+-- [.mark] cloture-code (CI comparée, constat 24) : la 017 ajoute des colonnes à cette vue ; une base
+-- remise en arrière puis remontée rejoue la 015 après la 017, et CREATE OR REPLACE ne retire pas de
+-- colonne. La vue est donc refaite à neuf ici (aucune vue ni règle n'en dépend ; ses droits suivent).
+DROP VIEW IF EXISTS v_portail_kpi;
 CREATE OR REPLACE VIEW v_portail_kpi AS
 SELECT x.site_id, x.jour,
        count(*)                                          AS appels,

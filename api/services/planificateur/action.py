@@ -143,11 +143,10 @@ async def _etablissement_servi(ctx) -> Any:
 
 
 def types_de(types: list[TypeRendezVous], etablissement: str | None) -> list[TypeRendezVous]:
-    """The ACTIVE types for this establishment: its own replace the organization's of the same code."""
-    propres = {t.code: t for t in types if t.etablissement == etablissement and etablissement}
-    sortie = [propres.get(t.code, t) for t in types if t.etablissement is None]
-    sortie += [t for c, t in propres.items() if c not in {x.code for x in types if x.etablissement is None}]
-    return [t for t in sortie if t.actif]
+    """The ACTIVE types for this establishment: its own ONLY ([.mark] F-8, Evan 22/10: nothing is
+    inherited from the organization). No establishment served: the organization's (the common types,
+    which are also the starting types of a new establishment)."""
+    return [t for t in types if t.etablissement == (etablissement or None) and t.actif]
 
 
 async def lire(ctx, type_code: str | None) -> tuple[Lecture, TypeRendezVous | None, list[TypeRendezVous]]:
@@ -172,12 +171,13 @@ async def lire(ctx, type_code: str | None) -> tuple[Lecture, TypeRendezVous | No
     connexion = await connecter(nom)
     try:
         planificateur = await lire_planificateur(connexion)
-        propres = planificateur.par_etablissement.get(site) if site else None
-        # [.mark] Lot 1 : pour une fiche, ses réglages seuls (défauts du code, puis la fiche).
-        if servi is not None and servi.sans_heritage:
-            reglages = effectifs(propres)
+        # [.mark] F-8 (Evan, 22/10) : un établissement servi lit ses réglages SEULS (défauts du code, puis
+        # les siens), quelle que soit la façon dont il a été trouvé ; aucun établissement : ceux de
+        # l'organisation, comme avant. La fenêtre du tour de rôle suit la même règle (même ligne).
+        if site:
+            reglages = effectifs(planificateur.par_etablissement.get(site))
         else:
-            reglages = effectifs(planificateur.reglages, propres)
+            reglages = effectifs(planificateur.reglages)
         types = types_de(planificateur.types, site)
         choisi = next((t for t in types if t.code == type_code), None)
         if choisi is None and not type_code and len(types) == 1:
@@ -187,7 +187,7 @@ async def lire(ctx, type_code: str | None) -> tuple[Lecture, TypeRendezVous | No
             lecture.personnes = await personnes_du_type(connexion, choisi.sujet, site, systeme)
             lecture.attributions = await attributions_par_personne(
                 connexion, choisi.code,
-                # R-7: the window of the turn's fairness (P7), a setting with its inheritance.
+                # R-7: the window of the turn's fairness (P7), a setting of the level served (F-8).
                 datetime.now(UTC) - timedelta(days=int(reglages.fenetre_equite_jours or DEFAUTS.fenetre_equite_jours)),
             )
     finally:

@@ -41,8 +41,8 @@ import {
     AIDE_SCHEMA_TOUJOURS_ACTIF,
     estPrincipal,
     estSpecialise,
-    groupeForceLeSchema,
     extraireGroupe,
+    groupeForceLeSchema,
     IntertitreAgentsSpecialises,
     TITRE_AGENTS_SPECIALISES,
 } from "../groupe/reglages-groupe";

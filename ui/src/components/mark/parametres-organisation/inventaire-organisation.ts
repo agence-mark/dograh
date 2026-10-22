@@ -41,3 +41,54 @@ export const INVENTAIRE_ANNONCE: Record<string, EntreeInventaireOrganisation> = 
     format: { horsEcran: "Technical marker of the stored document, never edited by a person" },
     version: { horsEcran: "Technical version of the stored document, never edited by a person" },
 };
+
+/**
+ * [.mark] Cloture-code, lot 6 : les reglages de conservation des appels (`ReglagesConservationAppels`), section
+ * « Conservation des appels » du theme « Donnees du client ». Ce n'est pas une carte d'origine de Dograh deplacee :
+ * la preuve n'est pas une charge utile figee mais le rendu de la section (`conservation-appels-ecran.test.tsx`),
+ * qui trouve chaque champ ci-dessous a l'ecran (`data-reglage`) et verifie qu'il part au serveur.
+ */
+export const INVENTAIRE_CONSERVATION_APPELS: Record<string, { theme: ThemeOrganisation; champ: string } | { horsEcran: string }> = {
+    purge_activee: { theme: "donnees", champ: "purge_activee" },
+    duree_mois: { theme: "donnees", champ: "duree_mois" },
+    audio_enregistre: { theme: "donnees", champ: "audio_enregistre" },
+    audio_duree_mois: { theme: "donnees", champ: "audio_duree_mois" },
+    essai_a_blanc: { theme: "donnees", champ: "essai_a_blanc" },
+    format: { horsEcran: "Technical marker of the stored document, never edited by a person" },
+    version: { horsEcran: "Technical version of the stored document, never edited by a person" },
+};
+
+/**
+ * [.mark] Cloture-code, lot F3 : les cases d'une valeur de liste (`CasesDUneValeur`), section « Cases des listes de
+ * valeurs » du theme « Donnees du client ». Preuve : le rendu de la section (`listes-valeurs-ecran.test.tsx`), qui
+ * trouve chaque case a l'ecran (`data-reglage`) et verifie qu'elle part au serveur.
+ */
+export const INVENTAIRE_LISTES_VALEURS: Record<string, { theme: ThemeOrganisation; champ: string } | { horsEcran: string }> = {
+    regle_seul: { theme: "donnees", champ: "regle_seul" },
+    opportunite: { theme: "donnees", champ: "opportunite" },
+    urgent: { theme: "donnees", champ: "urgent" },
+    liste: { horsEcran: "Names the list of the value on the row (shown in grey above its values), not a setting" },
+    code: { horsEcran: "Names the value on the row (shown in grey next to its label), not a setting" },
+};
+
+/**
+ * [.mark] Cloture-code, lot F7 : un objet de l'agent (`ObjetEnvoye`), modale de la section « Objets » du theme
+ * « Etablissements », et le plafond (`ReglagesObjets`), champ de la meme section. Preuve : le rendu de la page
+ * (`page-parametres-organisation.test.tsx`) trouve chaque champ (`data-reglage`) et `objets-ecran.test.tsx` verifie
+ * qu'il part au serveur.
+ */
+export const INVENTAIRE_OBJETS: Record<string, { theme: ThemeOrganisation; champ: string } | { horsEcran: string }> = {
+    nom: { theme: "etablissement", champ: "nom" },
+    libelle: { theme: "etablissement", champ: "libelle" },
+    description: { theme: "etablissement", champ: "description" },
+    forme: { theme: "etablissement", champ: "forme" },
+    type: { theme: "etablissement", champ: "type" },
+    valeur: { theme: "etablissement", champ: "valeur" },
+    etablissement: { theme: "etablissement", champ: "etablissement" },
+    colonnes: { theme: "etablissement", champ: "colonnes" },
+    lignes: { theme: "etablissement", champ: "lignes" },
+};
+
+export const INVENTAIRE_REGLAGES_OBJETS: Record<string, { theme: ThemeOrganisation; champ: string } | { horsEcran: string }> = {
+    plafond_caracteres: { theme: "etablissement", champ: "plafond_caracteres" },
+};

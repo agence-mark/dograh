@@ -218,6 +218,10 @@ export function ChampsAnnonceOuverture({ annonce }: { annonce: EtatAnnonceOuvert
         {t({
           en: "is said only when that reopening is known. An empty sentence announces nothing.",
           fr: "n'est dit que si cette réouverture est connue. Une phrase vide n'annonce rien.",
+        })}{" "}
+        {t({
+          en: "A call that serves an establishment says that establishment's sentences: these are the starting values of a new establishment.",
+          fr: "Un appel qui sert un établissement dit les phrases de cet établissement : celles-ci sont les valeurs de départ d'un nouvel établissement.",
         })}
       </p>
 

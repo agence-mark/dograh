@@ -1,4 +1,4 @@
-"""Temporarily use a two-word start strategy while a greeting is playing."""
+"""Temporary turn-start policies for screening and greeting playback."""
 
 import asyncio
 from collections.abc import Awaitable, Callable
@@ -27,15 +27,21 @@ from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 
 class GreetingController:
-    """Install greeting strategies and commit successfully played greeting text."""
+    """Apply startup turn strategies and commit successfully played greeting text."""
 
     def __init__(
-        self, playback: SpeechPlaybackTracker, get_context: Callable[[], LLMContext]
+        self,
+        playback: SpeechPlaybackTracker,
+        get_context: Callable[[], LLMContext],
+        *,
+        is_screening: Callable[[], bool],
     ):
         self._playback = playback
         self._get_context = get_context
+        self._is_screening = is_screening
         self._user: LLMUserAggregator | None = None
         self._normal_strategies: UserTurnStrategies | None = None
+        self._min_words: int | None = None
         self._turn_text: asyncio.Future[str] | None = None
         self._speech_start: Frame | None = None
         self._playback.on_greeting_finished = self._finished
@@ -60,28 +66,39 @@ class GreetingController:
     async def _update_strategies(self, user: LLMUserAggregator, frame: Frame) -> None:
         if isinstance(frame, StartFrame):
             return
-        if not self._interruptible:  # [.mark] E1 off: strategies untouched
+        # [.mark] E1 off: strategies untouched, screening included (montée
+        # Pipecat 1.12 du 22/10 : la règle d'un mot pendant le filtrage d'appel,
+        # ajoutée par l'amont en 3296d375, ne joue donc que si E1 est allumé).
+        if not self._interruptible:
             return
         controller = user.user_turn_controller
-        if self._playback.greeting_pending and self._normal_strategies is None:
-            self._normal_strategies = controller.user_turn_strategies
-            greeting_strategy = MinWordsUserTurnStartStrategy(
-                min_words=self._mots_minimum  # [.mark] E1, N words
+        greeting_pending = self._playback.greeting_pending
+        if greeting_pending:
+            min_words = self._mots_minimum  # [.mark] E1, N words
+        elif self._is_screening():
+            min_words = 1
+        else:
+            min_words = None
+        if min_words is not None and min_words != self._min_words:
+            if self._normal_strategies is None:
+                self._normal_strategies = controller.user_turn_strategies
+            # Screening admits transcripts; its supervisor decides when to interrupt.
+            strategy = MinWordsUserTurnStartStrategy(
+                min_words=min_words, enable_interruptions=greeting_pending
             )
-            self._turn_text = asyncio.get_running_loop().create_future()
+            if greeting_pending:
+                self._turn_text = asyncio.get_running_loop().create_future()
             await controller.update_strategies(
-                UserTurnStrategies(
-                    start=[greeting_strategy], stop=self._normal_strategies.stop
-                )
+                UserTurnStrategies(start=[strategy], stop=self._normal_strategies.stop)
             )
-            # Protect the queued greeting too, and account for a bot-start
-            # notification that may have arrived before strategy installation.
-            await greeting_strategy.process_frame(BotStartedSpeakingFrame())
-        elif (
-            not self._playback.greeting_pending and self._normal_strategies is not None
-        ):
+            self._min_words = min_words
+            if greeting_pending:
+                # Protect queued greetings and account for an earlier bot-start.
+                await strategy.process_frame(BotStartedSpeakingFrame())
+        elif min_words is None and self._normal_strategies is not None:
             normal = self._normal_strategies
             self._normal_strategies = None
+            self._min_words = None
             await controller.update_strategies(normal)
             # A caller may still be speaking when playback finishes, without
             # having crossed the greeting threshold. Let the restored strategy

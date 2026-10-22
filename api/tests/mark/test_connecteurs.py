@@ -24,6 +24,7 @@ Nango is a stand-in (``httpx.MockTransport``) that keeps connections by tag like
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 from datetime import datetime
 from types import SimpleNamespace
@@ -310,6 +311,9 @@ def _moteur(monkeypatch, outils):
     return engine, mgr, enregistres
 
 
+_NUMEROS_D_APPEL = itertools.count(1)
+
+
 async def _appeler(fn, arguments):
     capte = {}
 
@@ -318,6 +322,9 @@ async def _appeler(fn, arguments):
 
         def __init__(self):
             self.arguments = arguments
+            # Lot 3 de cloture-code (b10e829f) : l'exécution des outils est tenue par appel
+            # (``ToolExecutionOwner``), comme un vrai ``FunctionCallParams`` : un identifiant par appel.
+            self.tool_call_id = f"appel-{next(_NUMEROS_D_APPEL)}"
 
         async def result_callback(self, r, *, properties=None):
             capte["r"] = r

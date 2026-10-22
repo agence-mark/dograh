@@ -426,6 +426,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // the model's reply after a tool is kept when the result beats the end of the
     // caller's turn. Absent means off, Pipecat's behaviour.
     relance_apres_outil?: boolean;
+    // [.mark] Lot 3 of cloture-code-avant-migration (Pipecat 1.12): ask the caller to repeat
+    // after an interruption nothing was transcribed from. Absent means off, as before 1.12.
+    relance_tour_vide?: boolean;
     // [.mark] Chantier l-agent-travaille, L4 (A6): what this agent does after the call.
     // Absent or off: nothing is written or sent, the behaviour of before.
     apres_appel?: ApresAppelAgent | null;

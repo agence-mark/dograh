@@ -18,10 +18,15 @@ from api.services.panne.routes import routeur_twilio as panne_twilio_router
 from api.routes.base_client import router as base_client_router
 from api.routes.base_client import routeur_equipe as equipe_router
 from api.routes.base_client import routeur_planificateur as planificateur_router
+from api.routes.listes_valeurs import router as listes_valeurs_router
+from api.routes.objets_agent import router as objets_agent_router
+from api.routes.modules import router as modules_router
 from api.routes.verification import router as verification_router
 from api.routes.agents_servis import router as agents_servis_router
 from api.routes.etablissements import router as etablissements_router
 from api.routes.etablissements import routeur_phrases as phrases_router
+from api.routes.modeles_reglages import router as modeles_reglages_router
+from api.routes.conservation_appels import router as conservation_appels_router
 from api.routes.credentials import router as credentials_router
 from api.routes.fenetre_du_run import router as fenetre_du_run_router
 from api.routes.folder import router as folder_router
@@ -75,6 +80,10 @@ router.include_router(cles_router)
 # mounted BEFORE the organization router so its paths are never read as parameters.
 router.include_router(etablissements_router)
 router.include_router(phrases_router)
+# [.mark] Settings templates (cloture-code, lot 5), mounted BEFORE the organization router.
+router.include_router(modeles_reglages_router)
+# [.mark] Retention of the calls' copies (cloture-code, lot 6), BEFORE the organization router too.
+router.include_router(conservation_appels_router)
 # [.mark] Chantier agents-specialises, lot 9: the agents the organization serves, for the portal.
 router.include_router(agents_servis_router)
 # [.mark] The client's own database and its team (chantier l-agent-travaille, L3).
@@ -87,6 +96,10 @@ router.include_router(panne_router)
 router.include_router(panne_twilio_router)
 router.include_router(equipe_router)
 router.include_router(planificateur_router)
+router.include_router(listes_valeurs_router)
+router.include_router(objets_agent_router)
+# [.mark] cloture-code, F8: the agent's modules (portal and agent page).
+router.include_router(modules_router)
 # [.mark] l-agent-collegue, L6: the caller's verification.
 router.include_router(verification_router)
 router.include_router(user_router)

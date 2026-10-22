@@ -5,8 +5,10 @@
  * decided by Evan in the plan, 07/10; R-7: the fairness window of the « In turn » distribution).
  *
  * The planner's rules, written in the client's database (``reglage_planificateur``,
- * ``type_rendez_vous``): the organization's level, then each establishment's, where an empty
- * field is INHERITED (the value inherited is shown in the field, greyed). The appointment types
+ * ``type_rendez_vous``): the starting values (the organization's level), then each establishment's.
+ * [.mark] cloture-code, F-8 (Evan, 22/10): an establishment has its own complete rules, nothing is
+ * inherited; an empty field is the common default (shown in the field, greyed). The starting values
+ * prefill a NEW establishment and serve the calls that serve no establishment. The appointment types
  * are a list, so a modal (E4) on a copy (« Cancel » / « Apply »); the theme's « Save » sends the
  * whole planner (E6). Without a client database the theme says so: the rules live there.
  */
@@ -47,7 +49,7 @@ import { type ProprietesThemeOrganisation, useSignaler } from "./ThemesOrganisat
 export const TITRE_RENDEZ_VOUS: Texte = { en: "Appointments", fr: "Rendez-vous" };
 const ORGANISATION = "";
 
-/** What the payload sends: empty strings and NaN become null (= inherited). */
+/** What the payload sends: empty strings and NaN become null (= the common default). */
 export const charge_utile_planificateur = (p: Planificateur): Planificateur => {
     const propre = (r: ReglagesPlanificateur | undefined): ReglagesPlanificateur =>
         Object.fromEntries(
@@ -92,8 +94,8 @@ function ModaleTypes({
                     <DialogTitle>{t({ en: "Appointment types", fr: "Types de rendez-vous" })}</DialogTitle>
                     <DialogDescription>
                         {niveau
-                            ? t({ en: "This establishment's own types: a code of the organization written here replaces it for this establishment.", fr: "Les types propres à cet établissement : un code de l'organisation écrit ici le remplace pour cet établissement." })
-                            : t({ en: "The types every establishment offers, unless it replaces one. The subject says who does it (« Team and routing »); empty: the whole team.", fr: "Les types que tout établissement propose, sauf s'il en remplace un. Le sujet dit qui le fait (« Équipe et routage ») ; vide : toute l'équipe." })}
+                            ? t({ en: "This establishment's types: it offers these alone. The subject says who does it (« Team and routing »); empty: the whole team.", fr: "Les types de cet établissement : il propose ceux-là seuls. Le sujet dit qui le fait (« Équipe et routage ») ; vide : toute l'équipe." })
+                            : t({ en: "The starting types: copied into a new establishment, and offered on the calls that serve no establishment. The subject says who does it (« Team and routing »); empty: the whole team.", fr: "Les types de départ : recopiés dans un nouvel établissement, et proposés aux appels qui ne servent aucun établissement. Le sujet dit qui le fait (« Équipe et routage ») ; vide : toute l'équipe." })}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-2">
@@ -213,8 +215,8 @@ export const ThemeRendezVous = ({
     const defauts = brouillon?.defauts ?? {};
     const organisation = brouillon?.reglages ?? {};
     const courant: ReglagesPlanificateur = (niveau ? brouillon?.par_etablissement?.[niveau] : organisation) ?? {};
-    /** What this level inherits: the organization's value (for an establishment), else the default. */
-    const herite = (cle: Cle) => (niveau && organisation[cle] !== null && organisation[cle] !== undefined ? organisation[cle] : defauts[cle]);
+    /** F-8: what an empty field means at any level: the common default (an establishment inherits nothing). */
+    const herite = (cle: Cle) => defauts[cle];
     const poser = (cle: Cle, valeur: unknown) =>
         setBrouillon((a) => {
             if (!a) return a;
@@ -280,7 +282,7 @@ export const ThemeRendezVous = ({
                 min={f.min}
                 max={f.max}
                 step={f.pas ?? 1}
-                placeholder={`${t({ en: "inherited", fr: "hérité" })} : ${texteValeur(herite(f.cle), t)}`}
+                placeholder={`${t({ en: "default", fr: "défaut" })} : ${texteValeur(herite(f.cle), t)}`}
                 value={(courant[f.cle] as number | null | undefined) ?? ""}
                 onChange={(e) => poser(f.cle, e.target.value === "" ? null : Number(e.target.value))}
             />
@@ -294,7 +296,7 @@ export const ThemeRendezVous = ({
                 value={courant[f.cle] === null || courant[f.cle] === undefined ? "" : String(courant[f.cle])}
                 onChange={(e) => poser(f.cle, e.target.value === "" ? null : e.target.value === "true")}
             >
-                <option value="">{`${t({ en: "Inherited", fr: "Hérité" })} (${texteValeur(herite(f.cle), t)})`}</option>
+                <option value="">{`${t({ en: "Default", fr: "Défaut" })} (${texteValeur(herite(f.cle), t)})`}</option>
                 <option value="true">{t({ en: "Yes", fr: "Oui" })}</option>
                 <option value="false">{t({ en: "No", fr: "Non" })}</option>
             </select>
@@ -308,7 +310,7 @@ export const ThemeRendezVous = ({
                 value={(courant[f.cle] as string | null | undefined) ?? ""}
                 onChange={(e) => poser(f.cle, e.target.value || null)}
             >
-                <option value="">{`${t({ en: "Inherited", fr: "Hérité" })} (${t(f.options.find((o) => o.valeur === herite(f.cle))?.texte ?? { en: "—", fr: "—" })})`}</option>
+                <option value="">{`${t({ en: "Default", fr: "Défaut" })} (${t(f.options.find((o) => o.valeur === herite(f.cle))?.texte ?? { en: "—", fr: "—" })})`}</option>
                 {f.options.map((o) => (
                     <option key={o.valeur} value={o.valeur}>
                         {t(o.texte)}
@@ -324,8 +326,8 @@ export const ThemeRendezVous = ({
             icone={CalendarClock}
             titre={TITRE_RENDEZ_VOUS}
             description={{
-                en: "The planner's rules: appointment types, ranges, zone, journeys, distribution and fallback, inherited by each establishment.",
-                fr: "Les règles du planificateur : types de rendez-vous, plages, zone, trajets, répartition et repli, hérités par chaque établissement.",
+                en: "The planner's rules: appointment types, ranges, zone, journeys, distribution and fallback, each establishment's own.",
+                fr: "Les règles du planificateur : types de rendez-vous, plages, zone, trajets, répartition et repli, propres à chaque établissement.",
             }}
             resume={[
                 baseRattachee === false
@@ -358,10 +360,15 @@ export const ThemeRendezVous = ({
                             cle="niveau"
                             idControle="rdv-niveau-choix"
                             libelle={{ en: "Rules of", fr: "Règles de" }}
-                            aides={[{ en: "An establishment inherits every empty field from the organization, and the organization from the common defaults.", fr: "Un établissement hérite de l'organisation chaque champ vide, et l'organisation des défauts communs." }]}
+                            aides={[
+                                {
+                                    en: "Each establishment has its own complete rules: an empty field is the common default, nothing comes from elsewhere. The starting values are copied into a new establishment when it is created, and serve the calls that serve no establishment.",
+                                    fr: "Chaque établissement a ses propres règles complètes : un champ vide est le défaut commun, rien ne vient d'ailleurs. Les valeurs de départ sont recopiées dans un nouvel établissement à sa création, et servent aux appels qui ne servent aucun établissement.",
+                                },
+                            ]}
                         >
                             <select id="rdv-niveau-choix" className="rounded border border-border bg-background px-2 py-1 text-sm" value={niveau} onChange={(e) => setNiveau(e.target.value)}>
-                                <option value={ORGANISATION}>{t({ en: "The organization", fr: "L'organisation" })}</option>
+                                <option value={ORGANISATION}>{t({ en: "Starting values of a new establishment", fr: "Valeurs de départ d'un nouvel établissement" })}</option>
                                 {etablissements.map((e) => (
                                     <option key={e.id} value={e.id}>
                                         {e.nom}
@@ -390,7 +397,7 @@ export const ThemeRendezVous = ({
                             libelle={{ en: "Booking ranges", fr: "Plages de rendez-vous" }}
                             aides={[{ en: "Same format as the opening hours (one line per day). Empty: the establishment's opening hours.", fr: "Même format que les horaires d'ouverture (une ligne par jour). Vide : les horaires d'ouverture de l'établissement." }]}
                         >
-                            <Textarea id="rdv-plages" rows={4} className="font-mono text-xs" placeholder={t({ en: "inherited", fr: "hérité" })} value={courant.plages ?? ""} onChange={(e) => poser("plages", e.target.value || null)} />
+                            <Textarea id="rdv-plages" rows={4} className="font-mono text-xs" placeholder={t({ en: "default: the opening hours", fr: "défaut : les horaires d'ouverture" })} value={courant.plages ?? ""} onChange={(e) => poser("plages", e.target.value || null)} />
                         </ChampReglage>
                         {choix(CHOIX[2])}
                     </Intertitre>
@@ -414,7 +421,7 @@ export const ThemeRendezVous = ({
                         >
                             <Input
                                 id="rdv-zone_communes"
-                                placeholder={`${t({ en: "inherited", fr: "hérité" })} : ${texteValeur(herite("zone_communes"), t)}`}
+                                placeholder={`${t({ en: "default", fr: "défaut" })} : ${texteValeur(herite("zone_communes"), t)}`}
                                 value={(courant.zone_communes ?? []).join(", ")}
                                 onChange={(e) => {
                                     const codes = e.target.value.split(/[,\s]+/).map((c) => c.trim().toUpperCase()).filter(Boolean);

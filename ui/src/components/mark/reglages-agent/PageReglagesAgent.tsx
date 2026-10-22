@@ -12,10 +12,10 @@
  * rebuilt in a theme (option B of D6), and `inventaire-agent.test.ts` fails if
  * one is drawn nowhere.
  *
- * The themes, in the order of a call: Agent, Services, Listening, Turn taking,
- * Voice, Call pacing, Call data, Business.
+ * The themes, in the order of a call: Agent, Services, Listening, Modules,
+ * Turn taking, Voice, Call pacing, Phrases, Call data, Business.
  */
-import { ArrowLeft, Bot, Building2, ClipboardList, Clock, Cpu, Ear, MessageSquareText, Repeat, Volume2 } from "lucide-react";
+import { ArrowLeft, Bot, Building2, ClipboardList, Clock, Cpu, Ear, MessageSquareText, Puzzle, Repeat, Volume2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -45,12 +45,14 @@ import { useThemesOuverts } from "../ecran/useThemesOuverts";
 import { etapesSansPremiereReplique } from "../graphe/premiere-replique";
 import { ContexteGroupe, type ValeurGroupe } from "../groupe/contexte-groupe";
 import { useLangue } from "../langue/langue";
+import { BoutonModeles } from "./modeles-de-reglages/ModaleModeles";
 import { ContexteErreursThemes } from "./theme-commun";
 import { ID_THEME_AGENT, ThemeAgent, TITRE_AGENT } from "./ThemeAgent";
 import { ID_THEME_BRIQUES, ThemeBriques, TITRE_BRIQUES } from "./ThemeBriques";
 import { ID_THEME_DONNEES, ThemeDonnees, TITRE_DONNEES } from "./ThemeDonnees";
 import { ID_THEME_ECOUTE, ThemeEcoute, TITRE_ECOUTE } from "./ThemeEcoute";
 import { ID_THEME_ETABLISSEMENT, ThemeEtablissement, TITRE_ETABLISSEMENT } from "./ThemeEtablissement";
+import { ID_THEME_MODULES, ThemeModules, TITRE_MODULES } from "./ThemeModules";
 import { ID_THEME_PHRASES, ThemePhrases, TITRE_PHRASES } from "./ThemePhrases";
 import { ID_THEME_RYTHME, ThemeRythme, TITRE_RYTHME } from "./ThemeRythme";
 import { ID_THEME_TOUR, ThemeTourDeParole, TITRE_TOUR } from "./ThemeTourDeParole";
@@ -61,6 +63,8 @@ export const THEMES_AGENT = [
     { id: ID_THEME_AGENT, titre: TITRE_AGENT, icone: Bot },
     { id: ID_THEME_BRIQUES, titre: TITRE_BRIQUES, icone: Cpu },
     { id: ID_THEME_ECOUTE, titre: TITRE_ECOUTE, icone: Ear },
+    // cloture-code, F8 (M4): the modules, moved out of « Listening » and « Call data ».
+    { id: ID_THEME_MODULES, titre: TITRE_MODULES, icone: Puzzle },
     { id: ID_THEME_TOUR, titre: TITRE_TOUR, icone: Repeat },
     { id: ID_THEME_VOIX, titre: TITRE_VOIX, icone: Volume2 },
     { id: ID_THEME_RYTHME, titre: TITRE_RYTHME, icone: Clock },
@@ -262,6 +266,10 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                     <p className="text-xs text-muted-foreground">{t({ en: "Workflow Settings", fr: "Réglages de l'agent" })}</p>
                     <h1 className="text-sm font-semibold">{nom}</h1>
                 </div>
+                {/* [.mark] cloture-code, lot 5 (M11) : les modèles de réglages, dans l'en-tête fixe, à côté du nom de l'agent. */}
+                <div className="ml-auto">
+                    <BoutonModeles workflowId={workflowId} modifie={dirtySections.size > 0} />
+                </div>
             </header>
 
             <ContexteGroupe.Provider value={valeurGroupe}>
@@ -290,6 +298,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                                     }}
                                 />
                                 <ThemeEcoute {...commun(ID_THEME_ECOUTE)!} dictionnaire={dictionary} enregistrerDictionnaire={saveDictionary} />
+                                <ThemeModules {...commun(ID_THEME_MODULES)!} workflowId={workflowId} />
                                 <ThemeTourDeParole {...commun(ID_THEME_TOUR)!} />
                                 <ThemeVoix {...commun(ID_THEME_VOIX)!} workflowId={workflowId} />
                                 <ThemeRythme {...commun(ID_THEME_RYTHME)!} />

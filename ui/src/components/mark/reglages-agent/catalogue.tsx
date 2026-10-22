@@ -308,6 +308,21 @@ export const CATALOGUE = {
             { en: "Off until now. No effect in realtime mode.", fr: "Éteint jusqu'ici. Sans effet en mode temps réel." },
         ],
     }),
+    // [.mark] Lot 3 of cloture-code-avant-migration (Pipecat 1.12): the empty user turn.
+    relance_tour_vide: d({
+        type: "interrupteur",
+        libelle: { en: "Ask to repeat after an unheard interruption", fr: "Faire répéter une interruption non comprise" },
+        aides: [
+            {
+                en: "When the caller cut the agent off and nothing was transcribed, the model is told so once and asks the caller to repeat. Off (default), nothing is said, as before Pipecat 1.12.",
+                fr: "Quand l'appelant a coupé l'agent et que rien n'a été transcrit, le modèle en est averti une fois et fait répéter. Éteint (défaut), rien n'est dit, comme avant Pipecat 1.12.",
+            },
+            {
+                en: "⚠️ Pipecat's instruction is in English. No effect in realtime mode.",
+                fr: "⚠️ La consigne de Pipecat est en anglais. Sans effet en mode temps réel.",
+            },
+        ],
+    }),
     mute_until_first_bot_complete: d({
         type: "interrupteur",
         libelle: { en: "During the opening sentence", fr: "Pendant la phrase d'accueil" },

@@ -13,9 +13,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { NoteVoixDeLAppel } from "./reglages-agent/ThemeBriques";
 import { type ServiceConfigurationDefaults, ServiceConfigurationForm } from "../ServiceConfigurationForm";
 import { CLE_LANGUE, FournisseurLangue } from "./langue/langue";
+import { NoteVoixDeLAppel } from "./reglages-agent/ThemeBriques";
 
 vi.mock("@/context/UserConfigContext", () => ({
     useUserConfig: () => ({ userConfig: null, refreshConfig: vi.fn() }),

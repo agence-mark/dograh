@@ -17,6 +17,8 @@ from typing import Any
 
 from api.schemas.apres_appel import ApresAppelAgent
 from api.services.fiche.demandes import APPEL, DEMANDE, demandes_closes, dernier_specialise
+from api.services.groupe.parcours import rendre_le_parcours
+from api.services.objets_agent.appel import incidents_des_objets
 from api.services.apres_appel.rappels import (
     ORIGINE_EQUIPE,
     ORIGINE_PLANIFICATEUR,
@@ -206,28 +208,53 @@ def transferts_de(contexte: dict) -> list[dict]:
 
 
 def travaux_de(contexte: dict) -> list[dict]:
-    """[.mark] Lot 4 d'orchestrateur-trois-cerveaux (D12) : ce que le cerveau de fond a fait pendant
-    l'appel, tel que la fiche le porte (``travaux``) : une entrée par demande confiée,
-    ``{agent, demande, statut, outils, duree_ms, jetons_entree, jetons_sortie, resultat}``. Le
-    portail l'affiche en « ce qui a été fait ». Liste vide : aucun travail (tout agent de
-    jusqu'ici), et la clé n'entre alors pas dans l'envoi."""
+    """[.mark] Lot 4 d'orchestrateur-trois-cerveaux (D12), lot F2 de cloture-code-avant-migration :
+    ce que le cerveau de fond a fait pendant l'appel, tel que la fiche le porte (``travaux``) : une
+    entrée par demande confiée, ``{statut, outils, duree_ms}``. ⛔ Ni le texte de la demande ni
+    celui du résultat ne partent : la base du client garde ce que le fond a FAIT (quel outil,
+    combien de temps, avec quel statut), jamais ce qui s'est dit (IX.3). Liste vide : aucun travail
+    (tout agent de jusqu'ici), et la clé n'entre alors pas dans l'envoi."""
     sortie: list[dict] = []
     for e in (contexte or {}).get("travaux") or []:
         if not isinstance(e, dict) or not e.get("demande"):
             continue
         sortie.append(
             {
-                "agent": e.get("agent"),
-                "demande": str(e.get("demande"))[:2000],
                 "statut": str(e.get("statut") or "")[:20] or None,
                 "outils": [str(o)[:80] for o in (e.get("outils") or []) if o][:40],
                 "duree_ms": e.get("duree_ms"),
-                "jetons_entree": e.get("jetons_entree"),
-                "jetons_sortie": e.get("jetons_sortie"),
-                "resultat": (str(e["resultat"])[:4000] if e.get("resultat") else None),
             }
         )
     return sortie
+
+
+def parcours_de(contexte: dict) -> list[dict]:
+    """[.mark] Lot F2 : les entrées du parcours de l'appel (``parcours_etapes``, écrites dans un
+    groupe seulement : une par entrée dans une étape, avec l'agent qui la porte). Vide : un agent
+    seul, la clé n'entre pas dans l'envoi."""
+    entrees = (contexte or {}).get("parcours_etapes")
+    return [e for e in entrees if isinstance(e, dict)] if isinstance(entrees, list) else []
+
+
+def agent_de_chaque_tour(tours: list[dict], entrees: list[dict]) -> None:
+    """[.mark] Lot F2 : pose ``agent_id`` (identifiant Dograh) sur chaque tour qui porte une étape,
+    à partir du parcours. Le parcours se lit dans l'ordre : pour chaque tour, on cherche son étape
+    à partir de l'entrée où l'on en était ; trouvée, l'agent de cette entrée porte le tour (un
+    retour chez un agent plus tard ne se confond pas avec son premier passage) ; introuvable, le
+    tour garde l'agent de l'entrée courante. Pas de parcours : rien n'est posé. Modifie ``tours``."""
+    if not entrees:
+        return
+    position = 0
+    for tour in tours:
+        etape = tour.get("etape")
+        if etape:
+            for i in range(position, len(entrees)):
+                if entrees[i].get("etape") == etape:
+                    position = i
+                    break
+        agent = entrees[position].get("agent_id")
+        if isinstance(agent, int) and not isinstance(agent, bool):
+            tour["agent_id"] = agent
 
 
 def hors_horaires_de(initial: dict) -> bool | None:
@@ -402,6 +429,12 @@ def construire_envoi(
         for t in latence.get("turns") or []
         if isinstance(t.get("turn"), int)
     ]
+    # [.mark] Lot F2 : l'agent de chaque tour et le parcours rendu (« Agent › étape »), dans un
+    # groupe seulement ; un agent seul garde l'envoi d'avant.
+    entrees_du_parcours = parcours_de(contexte)
+    agent_de_chaque_tour(tours, entrees_du_parcours)
+    parcours = rendre_le_parcours(entrees_du_parcours) if entrees_du_parcours else ""
+    envoi_parcours = {"parcours": parcours} if parcours else {}
     lignes = (analyse.get("conversation") or {}).get("lines") or []
     verbatim = (
         [
@@ -519,6 +552,7 @@ def construire_envoi(
         **envoi_equipe,
         **envoi_hub,
         **envoi_travaux,
+        **envoi_parcours,
         "dograh_run_id": run.id,
         "dograh_workflow_id": run.workflow_id,
         "agent_nom": getattr(getattr(run, "workflow", None), "name", None),
@@ -545,7 +579,8 @@ def construire_envoi(
         "hors_horaires": hors_horaires_de(initial),
         "agents": agents_de_l_appel(run, contexte),
         "transferts": transferts_de(contexte),
-        "incidents": incidents_de(analyse, debut),
+        # [.mark] cloture-code, F7: a call whose objects could not be read at pick-up notes it.
+        "incidents": incidents_de(analyse, debut) + incidents_des_objets(runtime, debut),
         "degre_urgence": valeur("degre_urgence"),
         "contact": {
             "nom": valeur("nom"),

@@ -1,4 +1,25 @@
+import pytest
 from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.frames.frames import (
+    BotStartedSpeakingFrame,
+    EndFrame,
+    InterimTranscriptionFrame,
+    InterruptionFrame,
+    LLMContextFrame,
+    ProposedUserStartedSpeakingFrame,
+    ProposedUserStoppedSpeakingFrame,
+    TranscriptionFrame,
+    UserStartedSpeakingFrame,
+    UserStoppedSpeakingFrame,
+    VADUserStartedSpeakingFrame,
+    VADUserStoppedSpeakingFrame,
+)
+from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMUserAggregator,
+    LLMUserAggregatorParams,
+)
+from pipecat.tests.utils import SleepFrame, run_test
 from pipecat.turns.user_start import (
     ExternalUserTurnStartStrategy,
     MinWordsUserTurnStartStrategy,
@@ -12,6 +33,7 @@ from pipecat.turns.user_stop import (
     SpeechTimeoutUserTurnStopStrategy,
     TurnAnalyzerUserTurnStopStrategy,
 )
+from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 import api.services.pipecat.run_pipeline as run_pipeline_module
 from api.services.configuration.registry import ServiceProviders
@@ -169,24 +191,33 @@ def test_non_realtime_can_use_min_words_start_strategy():
     assert strategies[0]._min_words == 4
 
 
-def test_external_turn_stt_overrides_an_explicit_min_words_request():
-    """An STT that reports its own turn boundaries decides the turn start.
-
-    min_words gates the start on transcript text, which would ignore the
-    provider's turn detection on the start side while still using it to end the
-    turn, and would resolve the start from a queued frame — the shape that lets
-    a turn's own interruption flush the stop proposal queued behind it.
-    """
+def test_external_turn_stt_honors_an_explicit_min_words_request():
+    # [.mark] cloture-code, lot 8 (a6aee063 de l'amont, decision d'Evan du 22/10) :
+    # le debut du tour (interruption) et la fin du tour sont deux choix
+    # independants. Un « nombre minimum de mots » demande a l'ecran gagne meme
+    # quand le fournisseur annonce ses tours ; l'ancien test disait l'inverse.
     strategies = _create_non_realtime_user_turn_start_strategies(
         {"turn_start_strategy": "min_words", "turn_start_min_words": 4},
         uses_external_turns=True,
     )
 
     assert len(strategies) == 1
+    assert isinstance(strategies[0], MinWordsUserTurnStartStrategy)
+    assert strategies[0]._min_words == 4
+
+
+def test_external_turn_stt_with_the_provider_choice_follows_the_provider():
+    strategies = _create_non_realtime_user_turn_start_strategies(
+        {"turn_start_strategy": "default", "turn_start_min_words": 4},
+        uses_external_turns=True,
+    )
+
+    assert len(strategies) == 1
     assert isinstance(strategies[0], ExternalUserTurnStartStrategy)
+    assert strategies[0]._enable_interruptions is True
 
 
-def test_external_turn_stt_overrides_a_retired_strategy_value():
+def test_external_turn_stt_falls_back_to_the_provider_for_a_retired_strategy_value():
     """A definition still carrying "provisional_vad" resolves, it does not raise."""
     strategies = _create_non_realtime_user_turn_start_strategies(
         {"turn_start_strategy": "provisional_vad"},
@@ -195,6 +226,35 @@ def test_external_turn_stt_overrides_a_retired_strategy_value():
 
     assert len(strategies) == 1
     assert isinstance(strategies[0], ExternalUserTurnStartStrategy)
+
+
+@pytest.mark.parametrize("uses_external_turns", [False, True])
+def test_a_null_min_words_takes_the_default_threshold(uses_external_turns):
+    strategies = _create_non_realtime_user_turn_start_strategies(
+        {"turn_start_strategy": "min_words", "turn_start_min_words": None},
+        uses_external_turns=uses_external_turns,
+    )
+
+    assert len(strategies) == 1
+    assert isinstance(strategies[0], MinWordsUserTurnStartStrategy)
+    assert strategies[0]._min_words == DEFAULT_TURN_START_MIN_WORDS
+
+
+@pytest.mark.parametrize("uses_external_turns", [False, True])
+def test_the_end_of_the_turn_does_not_depend_on_the_start_choice(uses_external_turns):
+    """Whatever the start choice, the end is the provider's when it owns the turns."""
+    for choix in ("default", "min_words"):
+        config = {"turn_start_strategy": choix, "turn_start_min_words": 2}
+        arret = _create_non_realtime_user_turn_stop_strategies(
+            config, uses_external_turns=uses_external_turns
+        )
+        assert len(arret) == 1
+        assert isinstance(
+            arret[0],
+            ExternalUserTurnStopStrategy
+            if uses_external_turns
+            else SpeechTimeoutUserTurnStopStrategy,
+        )
 
 
 def test_retired_strategy_value_falls_back_to_default_without_external_turns():
@@ -278,3 +338,132 @@ def test_workflow_config_can_override_user_turn_stop_timeout():
         )
         == 12.5
     )
+
+
+@pytest.mark.parametrize(
+    "bot_speaking,text,send_interim,accepted",
+    [
+        (True, "okay", True, False),
+        (True, "please wait", True, True),
+        (False, "yes", True, True),
+        (True, "please wait", False, True),
+    ],
+    ids=["below-threshold", "interim-interruption", "silent-bot", "final-only"],
+)
+async def test_min_words_with_provider_turn_markers(
+    bot_speaking, text, send_interim, accepted
+):
+    # [.mark] cloture-code, lot 8 : repris de a6aee063 (amont). Le fork garde
+    # « Le fournisseur decide » par defaut, donc le choix est ici explicite.
+    config = {"turn_start_strategy": "min_words", "turn_start_min_words": 2}
+    context = LLMContext()
+    user = LLMUserAggregator(
+        context,
+        params=LLMUserAggregatorParams(
+            user_turn_strategies=UserTurnStrategies(
+                start=_create_non_realtime_user_turn_start_strategies(
+                    config, uses_external_turns=True
+                ),
+                stop=_create_non_realtime_user_turn_stop_strategies(
+                    config, uses_external_turns=True
+                ),
+            ),
+        ),
+    )
+    snapshots = {}
+
+    @user.event_handler("on_before_process_frame")
+    async def capture_turn_state(aggregator, frame):
+        if isinstance(
+            frame,
+            (
+                InterimTranscriptionFrame,
+                TranscriptionFrame,
+                ProposedUserStoppedSpeakingFrame,
+                EndFrame,
+            ),
+        ):
+            snapshots[type(frame)] = (
+                aggregator.user_turn_controller.has_active_user_turn,
+                [message["content"] for message in context.messages],
+            )
+
+    frames = [BotStartedSpeakingFrame(), SleepFrame()] if bot_speaking else []
+    frames.extend([ProposedUserStartedSpeakingFrame(), VADUserStartedSpeakingFrame()])
+    if send_interim:
+        frames.extend([InterimTranscriptionFrame(text, "user", "now"), SleepFrame()])
+    frames.extend(
+        [
+            VADUserStoppedSpeakingFrame(),
+            TranscriptionFrame(text, "user", "now", finalized=True),
+            ProposedUserStoppedSpeakingFrame(),
+            SleepFrame(),
+        ]
+    )
+    down, _ = await run_test(user, frames_to_send=frames)
+
+    # Neither the provider's onset nor local VAD bypasses the word threshold.
+    if send_interim:
+        assert snapshots[InterimTranscriptionFrame] == (False, [])
+    assert snapshots[TranscriptionFrame] == (accepted and send_interim, [])
+    # The complete transcript waits for the provider's stop before running the LLM.
+    assert snapshots[ProposedUserStoppedSpeakingFrame] == (accepted, [])
+    assert snapshots[EndFrame] == (False, [text] if accepted else [])
+    for frame_type in (
+        UserStartedSpeakingFrame,
+        InterruptionFrame,
+        LLMContextFrame,
+        UserStoppedSpeakingFrame,
+    ):
+        assert sum(isinstance(frame, frame_type) for frame in down) == int(accepted)
+
+
+@pytest.mark.parametrize(
+    "stt",
+    [
+        {"provider": "soniox", "model": "stt-rt-v5", "endpoint_detection": True},
+        {"provider": "deepgram", "model": "flux-general-multi"},
+        {"provider": "cartesia", "model": "ink-2"},
+    ],
+    ids=["soniox-decides-the-end", "deepgram-flux", "cartesia-ink-2"],
+)
+def test_the_two_turn_choices_with_the_real_provider_rule(stt):
+    """cloture-code, lot 8 : la regle reelle `stt_uses_external_turns`, pas un booleen pose a la main.
+
+    Le debut suit l'ecran (mots minimum ou fournisseur) ; la fin reste celle du fournisseur."""
+    from types import SimpleNamespace
+
+    from api.services.pipecat.service_factory import stt_uses_external_turns
+
+    externe = stt_uses_external_turns(SimpleNamespace(stt=SimpleNamespace(**stt)))
+    assert externe is True
+
+    mots = _create_non_realtime_user_turn_start_strategies(
+        {"turn_start_strategy": "min_words", "turn_start_min_words": 3},
+        uses_external_turns=externe,
+    )
+    assert [type(s) for s in mots] == [MinWordsUserTurnStartStrategy]
+    assert mots[0]._min_words == 3
+
+    fournisseur = _create_non_realtime_user_turn_start_strategies(
+        {"turn_start_strategy": "default"}, uses_external_turns=externe
+    )
+    assert [type(s) for s in fournisseur] == [ExternalUserTurnStartStrategy]
+
+    for choix in ("default", "min_words"):
+        fin = _create_non_realtime_user_turn_stop_strategies(
+            {"turn_start_strategy": choix}, uses_external_turns=externe
+        )
+        assert [type(s) for s in fin] == [ExternalUserTurnStopStrategy]
+
+
+def test_dograh_decides_the_end_when_soniox_endpoint_detection_is_off():
+    from types import SimpleNamespace
+
+    from api.services.pipecat.service_factory import stt_uses_external_turns
+
+    stt = SimpleNamespace(provider="soniox", model="stt-rt-v5", endpoint_detection=False)
+    externe = stt_uses_external_turns(SimpleNamespace(stt=stt))
+    assert externe is False
+    fin = _create_non_realtime_user_turn_stop_strategies({}, uses_external_turns=externe)
+    assert [type(s) for s in fin] == [SpeechTimeoutUserTurnStopStrategy]

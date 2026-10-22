@@ -80,12 +80,17 @@ CLES_SUIVENT_LE_CERVEAU = (
 # Thème 1 (Agent), partie commune : les réglages du groupe et ceux qui suivent le cerveau.
 # Thème 2 (Briques) : la configuration de modèles (voix et cerveau).
 # Thèmes 3 à 8 : tout, sauf ce qui dépend de l'agent lui-même (voir CLES_PROPRES).
-CLES_COMMUNES: tuple[str, ...] = (
+# Chaque thème de l'écran a SA liste (lot 5 de cloture-code : les modèles de réglages classent chaque
+# clé par thème ; une seule liste de clés communes, ``CLES_COMMUNES``, en est la réunion, dans cet ordre).
+CLES_THEME_AGENT: tuple[str, ...] = (
     # 1 Agent (commun)
     *CLES_DU_GROUPE,
     "filet_de_fin",
     "reflexion_de_relance",
     "trace_requetes_modele",
+)
+
+CLES_THEME_BRIQUES: tuple[str, ...] = (
     # 2 Briques
     "model_overrides",
     "model_configuration_v2_override",
@@ -98,23 +103,37 @@ CLES_COMMUNES: tuple[str, ...] = (
     "delai_garde_modele_s",
     "cerveau_de_repli",
     "travail_llm_repli",
-    # 3 Écoute
+)
+
+CLES_THEME_ECOUTE: tuple[str, ...] = (
+    # 3 Écoute (cloture-code, F8 : les interrupteurs et réglages des modules sont partis dans « Modules »)
+    "dictionary",
+    "audio_in_noise_filter",
+)
+
+# Modules (cloture-code, F8, M4) : les clés que les modules du registre possèdent
+# (``api/services/modules/registre.py``, ``cles_des_modules()``), dans son ordre ; un test compare les deux.
+# Elles viennent d'« Écoute » et de « Données de l'appel » (déménagées, jamais en double).
+CLES_THEME_MODULES: tuple[str, ...] = (
     "conversion_nombres_transcription",
     "variables_reference",
     "verification_communes",
     "variables_commune",
-    "controle_donnees",
-    "variables_telephone",
-    "variables_code_postal",
-    "variables_courriel",
-    "variables_date",
     "sons_communes",
     "verification_voies",
     "lecture_epellation",
     "lexique_metier",
     "sons_lexique",
-    "dictionary",
-    "audio_in_noise_filter",
+    "controle_donnees",
+    "variables_telephone",
+    "variables_code_postal",
+    "variables_courriel",
+    "variables_date",
+    "equipe_connue",
+    "verification_appelant",
+)
+
+CLES_THEME_TOUR: tuple[str, ...] = (
     # 4 Tour de parole
     "turn_stop_strategy",
     "smart_turn_stop_secs",
@@ -128,6 +147,8 @@ CLES_COMMUNES: tuple[str, ...] = (
     "mute_until_first_bot_complete",
     "mute_during_function_call",
     "relance_apres_outil",
+    # Lot 3 de cloture-code (Pipecat 1.12) : la relance d'un tour vide.
+    "relance_tour_vide",
     "mute_engine_callback",
     "mute_first_speech",
     "mute_always",
@@ -143,6 +164,9 @@ CLES_COMMUNES: tuple[str, ...] = (
     "filter_incomplete_user_turns",
     "incomplete_short_timeout",
     "incomplete_long_timeout",
+)
+
+CLES_THEME_VOIX: tuple[str, ...] = (
     # 5 Voix
     "tts_markdown_filter_enabled",
     "tts_text_aggregation_mode",
@@ -155,6 +179,9 @@ CLES_COMMUNES: tuple[str, ...] = (
     "tts_balises_permises",
     "ambient_noise_configuration",
     "tts_cache_enabled",
+)
+
+CLES_THEME_RYTHME: tuple[str, ...] = (
     # 6 Rythme de l'appel
     "max_user_idle_timeout",
     "user_idle_prompt",
@@ -162,6 +189,9 @@ CLES_COMMUNES: tuple[str, ...] = (
     "user_idle_goodbye_prompt",
     "raccrochage_silence_agent_s",
     "max_call_duration",
+)
+
+CLES_THEME_DONNEES: tuple[str, ...] = (
     # 7 Données de l'appel
     "fiche_au_fil_de_leau",
     "fiche_mode_de_note",
@@ -176,16 +206,29 @@ CLES_COMMUNES: tuple[str, ...] = (
     "greffier_consigne",
     "fiche_champs",
     "apres_appel",
-    "equipe_connue",
-    "verification_appelant",
     "call_dispositions",
     "transcript_configuration",
     "context_compaction_enabled",
     "external_pbx_field_mappings",
     "external_pbx_lead_headers",
-    # 8 Établissement (commun : le repli de panne et la messagerie)
+)
+
+CLES_THEME_ETABLISSEMENT: tuple[str, ...] = (
+    # 8 Établissement
     "panne",
     "voicemail_detection",
+)
+
+CLES_COMMUNES: tuple[str, ...] = (
+    *CLES_THEME_AGENT,
+    *CLES_THEME_BRIQUES,
+    *CLES_THEME_ECOUTE,
+    *CLES_THEME_MODULES,
+    *CLES_THEME_TOUR,
+    *CLES_THEME_VOIX,
+    *CLES_THEME_RYTHME,
+    *CLES_THEME_DONNEES,
+    *CLES_THEME_ETABLISSEMENT,
 )
 
 # Ce qui reste à chaque agent : son graphe et ce qui ne vaut que pour lui. La fiche

@@ -1,6 +1,7 @@
 from api.db.agent_trigger_client import AgentTriggerClient
 from api.db.api_key_client import APIKeyClient
 from api.db.campaign_client import CampaignClient
+from api.db.conservation_client import ConservationClient
 from api.db.embed_token_client import EmbedTokenClient
 from api.db.apres_appel_client import ApresAppelClient
 from api.db.etablissements_client import EtablissementsClient
@@ -16,6 +17,7 @@ from api.db.telephony_phone_number_client import TelephonyPhoneNumberClient
 from api.db.telephony_trunk_client import TelephonyTrunkClient
 from api.db.tool_client import ToolClient
 from api.db.user_client import UserClient
+from api.db.verrou_client import VerrouClient
 from api.db.webhook_credential_client import WebhookCredentialClient
 from api.db.webhook_delivery_client import WebhookDeliveryClient
 from api.db.workflow_client import WorkflowClient
@@ -53,6 +55,10 @@ class DBClient(
     EtablissementsClient,
     # [.mark] l-agent-travaille, L4: the after-call steps of a run.
     ApresAppelClient,
+    # [.mark] cloture-code, lot 6: the retention of a call's copies (the nightly purge).
+    ConservationClient,
+    # [.mark] cloture-code, constat 28: le verrou des écritures par élément (organisation sans base du client).
+    VerrouClient,
 ):
     """
     Unified database client that combines all specialized database operations.

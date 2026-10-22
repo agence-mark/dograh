@@ -41,6 +41,14 @@ F1, F3, F4, C2, C3, C5). The order a call's establishment is resolved in:
 A fiche (1 or 2) inherits NOTHING (C3): its hours, address and announcements are
 what the agent reads, an empty field is empty. Its immediate closure wins for its
 agents, else the organization's « close everything » applies (C5).
+
+[.mark] cloture-code, F-8 (Evan, 22/10): the rule of the fiche holds for EVERY
+establishment served, however it was found (fiche, call, called number, test): its
+own values alone, over the agent's hours and address too; an empty field is empty.
+The organization's values (and the agent's) apply only when no establishment is
+served -- the call of before, unchanged. They prefill a NEW establishment
+(``services/etablissements/complets.py``). The organization's « close everything »
+stays an organization-wide switch (C5).
 """
 
 from __future__ import annotations
@@ -57,6 +65,7 @@ from api.schemas.etablissements import (
     EtablissementServi,
     ValeurHeritee,
 )
+from api.schemas.objets_agent import ObjetAgent
 from api.schemas.phrases import CataloguePhrases
 
 CLE_ETABLISSEMENT_CHOISI = "etablissement_id"
@@ -85,9 +94,9 @@ class EtablissementDeLappel:
     origines: dict[str, str] = field(default_factory=dict)
 
     @property
-    def sans_heritage(self) -> bool:
-        """[.mark] Lot 1 (C3) : une fiche (choisie par l'agent, ou portée par l'appel)
-        n'hérite de rien."""
+    def est_une_fiche(self) -> bool:
+        """[.mark] Lot 1 (C2) : une fiche (choisie par l'agent, ou portée par l'appel), que
+        l'appel transmet aux agents suivants et aux outils."""
         return self.source in SOURCES_FICHE
 
     def estampille(self) -> dict:
@@ -173,79 +182,55 @@ def choisir_etablissement(
 def configuration_heritee(
     run_configs: dict | None,
     etablissement: Etablissement | None,
-    *,
-    sans_heritage: bool = False,
 ) -> tuple[dict, dict]:
-    """The agent's configuration with the establishment's values where the agent
-    has none, and the origin of each. A copy: the agent's dict is never changed.
-    Without an establishment, the SAME dict comes back (zero loss).
+    """The agent's configuration as a call serving ``etablissement`` reads it, and the
+    origin of each value. A copy: the agent's dict is never changed. Without an
+    establishment, the SAME dict comes back (zero loss: the agent's values, then the
+    organization's address, as before).
 
-    [.mark] Lot 1 (F3, C3) : ``sans_heritage`` (une fiche) : les horaires et l'adresse de
-    la fiche SEULE, même si l'agent a les siens ; un champ vide de la fiche est vide."""
+    [.mark] Lot 1 (F3, C3), étendu par F-8 (Evan, 22/10) à tout établissement servi : les
+    horaires et l'adresse de l'établissement SEUL, même si l'agent a les siens ; un champ
+    vide de l'établissement est vide (origine « aucune »), jamais rempli par l'agent ni par
+    l'organisation."""
     configs = run_configs or {}
     if etablissement is None:
         return run_configs, {}
     effective = dict(configs)
     origines: dict[str, str] = {}
-    if sans_heritage:
-        if etablissement.horaires_ouverture:
-            effective[CLE_HORAIRES] = etablissement.horaires_ouverture
-            origines["horaires_ouverture"] = "fiche"
-        else:
-            effective.pop(CLE_HORAIRES, None)
-            origines["horaires_ouverture"] = "aucune"
-        if etablissement.adresse is not None:
-            effective[CLE_ADRESSE] = etablissement.adresse.model_dump(mode="json")
-            origines["adresse"] = "fiche"
-        else:
-            effective.pop(CLE_ADRESSE, None)
-            origines["adresse"] = "aucune"
-        effective[CLE_SANS_HERITAGE] = True
-        return effective, origines
-    if not _vide(configs.get(CLE_HORAIRES)):
-        origines["horaires_ouverture"] = "agent"
-    elif etablissement.horaires_ouverture:
+    if etablissement.horaires_ouverture:
         effective[CLE_HORAIRES] = etablissement.horaires_ouverture
         origines["horaires_ouverture"] = "etablissement"
     else:
+        effective.pop(CLE_HORAIRES, None)
         origines["horaires_ouverture"] = "aucune"
-    if configs.get(CLE_ADRESSE):
-        origines["adresse"] = "agent"
-    elif etablissement.adresse is not None:
+    if etablissement.adresse is not None:
         effective[CLE_ADRESSE] = etablissement.adresse.model_dump(mode="json")
         origines["adresse"] = "etablissement"
     else:
-        origines["adresse"] = "organisation"
+        effective.pop(CLE_ADRESSE, None)
+        origines["adresse"] = "aucune"
+    # The address resolution (``resoudre_adresse``) never falls back on the organization's.
+    effective[CLE_SANS_HERITAGE] = True
     return effective, origines
 
 
-def annonce_heritee(reglages, etablissement: Etablissement | None, *, sans_heritage: bool = False):
-    """The organization's announcement with the establishment's sentences.
+def annonce_heritee(reglages, etablissement: Etablissement | None):
+    """The announcement a call serving ``etablissement`` reads. Without an establishment,
+    the organization's, the SAME object (zero loss).
 
-    [.mark] Lot 1 (C3, C5) : ``sans_heritage`` (une fiche) : les annonces de la fiche
-    seule (vide = rien n'est annoncé) ; sa fermeture immédiate l'emporte, sinon celle de
-    l'organisation (« tout fermer ») reste."""
+    [.mark] Lot 1 (C3, C5), étendu par F-8 (Evan, 22/10) à tout établissement servi : les
+    annonces de l'établissement seules (vide = rien n'est annoncé) ; sa fermeture immédiate
+    l'emporte, sinon celle de l'organisation (« tout fermer », un interrupteur de toute
+    l'organisation) reste."""
     if etablissement is None or reglages is None:
         return reglages
-    if sans_heritage:
-        surcharge = {
-            "annonce_fermeture": etablissement.annonce_fermeture or "",
-            "annonce_pause": etablissement.annonce_pause or "",
-        }
-        if getattr(etablissement, "etat_force", None):
-            surcharge["etat_force"] = etablissement.etat_force
-            surcharge["etat_force_jusqu_a"] = etablissement.etat_force_jusqu_a
-        try:
-            return reglages.model_copy(update=surcharge)
-        except Exception:  # noqa: BLE001
-            return reglages
     surcharge = {
-        cle: getattr(etablissement, cle)
-        for cle in ("annonce_fermeture", "annonce_pause")
-        if getattr(etablissement, cle) is not None
+        "annonce_fermeture": etablissement.annonce_fermeture or "",
+        "annonce_pause": etablissement.annonce_pause or "",
     }
-    if not surcharge:
-        return reglages
+    if getattr(etablissement, "etat_force", None):
+        surcharge["etat_force"] = etablissement.etat_force
+        surcharge["etat_force_jusqu_a"] = etablissement.etat_force_jusqu_a
     try:
         return reglages.model_copy(update=surcharge)
     except Exception:  # noqa: BLE001
@@ -261,7 +246,7 @@ def injecter_etablissement(contexte: dict, servi: EtablissementDeLappel | None) 
         enrichi = dict(contexte)
         valeurs = {CLE_NOM: servi.etablissement.nom}
         # [.mark] Lot 1 (C2 ②) : l'appel porte sa fiche, pour l'agent appelé et les outils.
-        if servi.sans_heritage:
+        if servi.est_une_fiche:
             valeurs[CLE_FICHE_DE_LAPPEL] = servi.etablissement.id
         if servi.etablissement.numero_transfert:
             valeurs[CLE_NUMERO_TRANSFERT] = servi.etablissement.numero_transfert
@@ -295,6 +280,11 @@ class LectureDeLappel:
     lu_depuis: str = "aucune"
     # [.mark] Lot 5 (M5): the name of each fiche, for the places on the team's lines.
     noms_des_lieux: dict[str, str] = field(default_factory=dict)
+    # [.mark] cloture-code, F7: the agent's objects, read with the fiche (one read for the whole call);
+    # see ``CopieOrganisation`` for the three states.
+    objets: list[ObjetAgent] = field(default_factory=list)
+    objets_etat: str = "sans_base"
+    objets_noms: list[str] = field(default_factory=list)
 
     @property
     def etablissement_id(self) -> str | None:
@@ -316,7 +306,12 @@ async def lire_lappel(
 
         copie = await lire_copie_complete(organization_id)
         lecture = LectureDeLappel(
-            phrases=copie.phrases, equipe=copie.equipe, lu_depuis=copie.lu_depuis
+            phrases=copie.phrases,
+            equipe=copie.equipe,
+            lu_depuis=copie.lu_depuis,
+            objets=copie.objets,
+            objets_etat=copie.objets_etat,
+            objets_noms=copie.objets_noms,
         )
         catalogue = copie.etablissements
         lecture.noms_des_lieux = {e.id: e.nom for e in catalogue.etablissements}
@@ -360,22 +355,25 @@ async def etablissement_de_lappel(
 # --------------------------------------------------------------------------- #
 
 
-def _valeur(agent, etablissement, organisation) -> ValeurHeritee:
-    for valeur, origine in ((agent, "agent"), (etablissement, "etablissement"), (organisation, "organisation")):
-        if not _vide(valeur):
-            return ValeurHeritee(valeur=valeur, origine=origine)
-    return ValeurHeritee()
+def _de_letablissement(valeur) -> ValeurHeritee:
+    """[.mark] F-8 : la valeur de l'établissement seule, ou rien (jamais celle de l'agent ni de l'organisation)."""
+    return ValeurHeritee(valeur=valeur, origine="etablissement") if not _vide(valeur) else ValeurHeritee()
 
 
 def etablissements_de_lagent(
     catalogue: CatalogueEtablissements,
     numeros_de_lagent: list[str],
     run_configs: dict | None,
-    adresse_organisation: str | None,
-    annonce_organisation,
+    adresse_organisation: str | None = None,
+    annonce_organisation=None,
 ) -> EtablissementsDeLagent:
-    """The same resolution as the call, for the screen: one source of truth."""
-    from api.services.communes.adresse import _adresse_de, texte_adresse
+    """The same resolution as the call, for the screen: one source of truth.
+
+    [.mark] F-8: ``adresse_organisation`` and ``annonce_organisation`` no longer reach an
+    establishment (kept in the signature for the callers; the values of an agent serving no
+    establishment are shown by the agent's own theme)."""
+    del adresse_organisation, annonce_organisation
+    from api.services.communes.adresse import texte_adresse
 
     configs = run_configs or {}
     # [.mark] Lot 1 (F1, C3) : un agent qui a choisi sa fiche lit la fiche seule.
@@ -406,7 +404,6 @@ def etablissements_de_lagent(
                 )
             ],
         )
-    adresse_agent = _adresse_de(configs.get(CLE_ADRESSE), "Agent")
     servis: list[EtablissementServi] = []
     sans: list[str] = []
     for numero in numeros_de_lagent:
@@ -421,19 +418,12 @@ def etablissements_de_lagent(
                 id=etablissement.id,
                 nom=etablissement.nom,
                 numeros=etablissement.numeros,
-                horaires_ouverture=_valeur(configs.get(CLE_HORAIRES), etablissement.horaires_ouverture, None),
-                adresse=_valeur(
-                    texte_adresse(adresse_agent) if adresse_agent else None,
-                    texte_adresse(etablissement.adresse) if etablissement.adresse else None,
-                    adresse_organisation,
-                ),
-                annonce_fermeture=_valeur(
-                    None, etablissement.annonce_fermeture, getattr(annonce_organisation, "annonce_fermeture", None)
-                ),
-                annonce_pause=_valeur(
-                    None, etablissement.annonce_pause, getattr(annonce_organisation, "annonce_pause", None)
-                ),
-                numero_transfert=_valeur(None, etablissement.numero_transfert, None),
+                # [.mark] F-8 : l'établissement servi seul, comme l'appel (configuration_heritee).
+                horaires_ouverture=_de_letablissement(etablissement.horaires_ouverture),
+                adresse=_de_letablissement(texte_adresse(etablissement.adresse) if etablissement.adresse else None),
+                annonce_fermeture=_de_letablissement(etablissement.annonce_fermeture),
+                annonce_pause=_de_letablissement(etablissement.annonce_pause),
+                numero_transfert=_de_letablissement(etablissement.numero_transfert),
             )
         )
     return EtablissementsDeLagent(

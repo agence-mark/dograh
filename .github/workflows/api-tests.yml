@@ -7,25 +7,15 @@ on:
       - "api/**"
       - "pipecat/**"
       - "scripts/**"
+      # [.mark] 2026-10-22 : `test_sdk_sync` en depend, un commit sur le SDK seul doit la relancer.
+      - "sdk/**"
       - ".github/workflows/api-tests.yml"
-  # [.mark] 2026-09-16, decision d'Evan. L'amont ne declenche QUE sur une
-  # pull request vers `main` : chez nous `main` est le miroir de l'amont et on
-  # n'ouvre jamais de pull request, donc cette CI n'avait JAMAIS tourne.
-  # ⛔ Consequence mesuree le 16/09 : `api/tests/integrations/test_run_pipeline.py`
-  # est le seul fichier qui traverse le montage d'un appel, il exige un Postgres
-  # que le poste n'a pas, et personne ne l'avait donc joue depuis la montee de
-  # version. C'est exactement le chemin ou se cachait le bloquant de la nuit du
-  # 16/09 (un import emporte par une resolution de conflit : 523 tests verts, et
-  # aucun appel n'aurait pu demarrer).
-  push:
-    branches:
-      - "chantier/**"
-      - "mark/deploiement"
-    paths:
-      - "api/**"
-      - "pipecat/**"
-      - "scripts/**"
-      - ".github/workflows/api-tests.yml"
+  # [.mark] 2026-10-22 : les declencheurs `push` (chantier/** et mark/deploiement,
+  # ajoutes le 16/09 parce que l'amont ne declenche QUE sur une pull request vers
+  # `main`, jamais ouverte chez nous) sont RETIRES. La suite est desormais jouee par
+  # `.github/workflows/mark-ci-comparee.yml`, qui la compare a la base ; la garder ici
+  # la ferait tourner deux fois (`-x`, sans comparaison). Cette CI ne sert plus que
+  # pour une pull request vers `main`, ou a la main (`workflow_dispatch`).
   # [.mark] 2026-10-10 : relancer a la main (un envoi passe pendant un blocage
   # d'Actions ne se rejoue pas tout seul, et `paths` ignore un commit vide).
   workflow_dispatch:

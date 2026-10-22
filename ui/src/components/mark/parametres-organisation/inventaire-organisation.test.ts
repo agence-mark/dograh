@@ -12,9 +12,17 @@ import { describe, expect, it } from "vitest";
 import {
     type EntreeInventaireOrganisation,
     INVENTAIRE_ANNONCE,
+    INVENTAIRE_CONSERVATION_APPELS,
+    INVENTAIRE_LISTES_VALEURS,
+    INVENTAIRE_OBJETS,
     INVENTAIRE_PREFERENCES,
+    INVENTAIRE_REGLAGES_OBJETS,
 } from "./inventaire-organisation";
+import { CHAMPS_OBJET } from "./ModaleObjet";
 import { CAS_ORGANISATION } from "./references/cas-organisation";
+import { CHAMPS_CONSERVATION_APPELS } from "./SectionConservationAppels";
+import { CASES_LISTES_VALEURS } from "./SectionListesValeurs";
+import { CHAMPS_REGLAGES_OBJETS } from "./SectionObjets";
 
 const genere = readFileSync(join(process.cwd(), "src/client/types.gen.ts"), "utf8");
 
@@ -72,3 +80,74 @@ const verifier = (
 
 verifier("OrganizationPreferences", "preferences", INVENTAIRE_PREFERENCES);
 verifier("ReglagesAnnonceOuverture", "annonce", INVENTAIRE_ANNONCE);
+
+// [.mark] Cloture-code, lot 6: the call retention settings. Keys from the published spec; each displayed key names
+// the control the rendered section must show (`conservation-appels-ecran.test.tsx` finds it and sends it).
+describe("inventory of ReglagesConservationAppels", () => {
+    it("reads keys from the published spec", () => {
+        expect(clesDuType("ReglagesConservationAppels").length).toBeGreaterThan(4);
+    });
+
+    it.each(clesDuType("ReglagesConservationAppels"))("key %s is on screen or listed off screen", (cle) => {
+        expect(INVENTAIRE_CONSERVATION_APPELS[cle], `${cle}: no entry in inventaire-organisation.ts`).toBeDefined();
+    });
+
+    it.each(Object.entries(INVENTAIRE_CONSERVATION_APPELS))("entry %s names its control or its reason", (cle, entree) => {
+        if ("horsEcran" in entree) {
+            expect(entree.horsEcran.trim().length).toBeGreaterThan(10);
+            return;
+        }
+        expect(entree.champ).toBe(cle);
+        expect(CHAMPS_CONSERVATION_APPELS as readonly string[]).toContain(cle);
+    });
+
+    it("the section draws exactly the displayed keys", () => {
+        const affichees = Object.entries(INVENTAIRE_CONSERVATION_APPELS)
+            .filter(([, e]) => "champ" in e)
+            .map(([cle]) => cle)
+            .sort();
+        expect([...CHAMPS_CONSERVATION_APPELS].sort()).toEqual(affichees);
+    });
+});
+
+// [.mark] Cloture-code, lot F3: the boxes of the value lists (`CasesDUneValeur`).
+describe("inventory of CasesDUneValeur", () => {
+    it.each(clesDuType("CasesDUneValeur"))("key %s is on screen or listed off screen", (cle) => {
+        expect(INVENTAIRE_LISTES_VALEURS[cle], `${cle}: no entry in inventaire-organisation.ts`).toBeDefined();
+    });
+
+    it.each(Object.entries(INVENTAIRE_LISTES_VALEURS))("entry %s names its control or its reason", (cle, entree) => {
+        if ("horsEcran" in entree) {
+            expect(entree.horsEcran.trim().length).toBeGreaterThan(10);
+            return;
+        }
+        expect(entree.champ).toBe(cle);
+        expect(CASES_LISTES_VALEURS as readonly string[]).toContain(cle);
+    });
+
+    it("the section draws exactly the displayed keys", () => {
+        const affichees = Object.entries(INVENTAIRE_LISTES_VALEURS)
+            .filter(([, e]) => "champ" in e)
+            .map(([cle]) => cle)
+            .sort();
+        expect([...CASES_LISTES_VALEURS].sort()).toEqual(affichees);
+    });
+});
+
+// [.mark] Cloture-code, lot F7: an object of the agent (`ObjetEnvoye`) and the ceiling (`ReglagesObjets`).
+describe.each([
+    ["ObjetEnvoye", INVENTAIRE_OBJETS, CHAMPS_OBJET as readonly string[]],
+    ["ReglagesObjets", INVENTAIRE_REGLAGES_OBJETS, CHAMPS_REGLAGES_OBJETS as readonly string[]],
+] as const)("inventory of %s", (type, inventaire, champs) => {
+    it.each(clesDuType(type))("key %s is on screen or listed off screen", (cle) => {
+        expect(inventaire[cle], `${cle}: no entry in inventaire-organisation.ts`).toBeDefined();
+    });
+
+    it("the screen draws exactly the displayed keys", () => {
+        const affichees = Object.entries(inventaire)
+            .filter(([, e]) => "champ" in e)
+            .map(([cle]) => cle)
+            .sort();
+        expect([...champs].sort()).toEqual(affichees);
+    });
+});

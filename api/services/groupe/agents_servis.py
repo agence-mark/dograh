@@ -50,6 +50,9 @@ class AgentLu:
     outils: list[str] = field(
         default_factory=list
     )  # les uuid d'outils posés sur les étapes publiées
+    outils_travail: list[str] = field(
+        default_factory=list
+    )  # les uuid du cerveau de fond (travail_outils), vides quand le travail est éteint
 
 
 def _entier(valeur: Any) -> int | None:
@@ -73,13 +76,16 @@ def outils_des_etapes(workflow_json: Mapping | None) -> list[str]:
     return vus
 
 
-def capacites_de(
-    configurations: Mapping | None, outils: Iterable[Any]
-) -> CapacitesAgent:
-    """Ce que sait faire un agent : ses outils (``outils`` : les ``ToolModel`` posés sur ses étapes) et
-    ses réglages. Pure : ni base ni réseau. Un réglage illisible vaut « éteint », jamais une erreur."""
-    c = CapacitesAgent()
+def _capacites_des_outils(
+    c: CapacitesAgent, outils: Iterable[Any], configurations: Mapping | None = None
+) -> None:
+    """Range dans ``c`` ce que disent des outils (les mêmes règles pour ceux de l'étape et ceux du fond).
+    [.mark] cloture-code, F8 (M4) : l'outil d'un module coupé n'est pas dans l'appel, il ne dit rien."""
+    from api.services.modules.etat import outil_d_un_module_coupe
+
     for outil in outils:
+        if outil_d_un_module_coupe(outil, configurations):
+            continue
         categorie = getattr(outil, "category", None)
         config = (
             ((getattr(outil, "definition", None) or {}).get("config") or {})
@@ -96,6 +102,27 @@ def capacites_de(
                 c.demande_transmise = True
             elif cible in OUTILS_PLANIFICATEUR:
                 c.rendez_vous = True
+
+
+def capacites_de(
+    configurations: Mapping | None,
+    outils: Iterable[Any],
+    outils_travail: Iterable[Any] = (),
+) -> CapacitesAgent:
+    """Ce que sait faire un agent : ses outils (``outils`` : les ``ToolModel`` posés sur ses étapes), les
+    outils de son cerveau de fond (``outils_travail`` : ceux de ``travail_outils``, comptés seulement quand le
+    travail est allumé, et sans ce que le fond ne reçoit jamais : transfert, passation, fin d'appel) et ses
+    réglages. Pure : ni base ni réseau. Un réglage illisible vaut « éteint », jamais une erreur."""
+    from api.services.travail.outils import outil_permis_au_fond
+    from api.services.travail.reglages import ReglagesTravail
+
+    c = CapacitesAgent()
+    lues = dict(configurations or {})
+    _capacites_des_outils(c, outils, lues)
+    if ReglagesTravail.depuis(lues).actif:
+        _capacites_des_outils(
+            c, [o for o in outils_travail if outil_permis_au_fond(o)], lues
+        )
     from api.services.apres_appel.reglages import reglages_de_lagent
 
     apres = reglages_de_lagent(dict(configurations or {}))
@@ -134,6 +161,10 @@ def assembler(
     ids = {a.id for a in agents}
     outils_de = {
         a.id: [outils_par_uuid[u] for u in a.outils if u in outils_par_uuid]
+        for a in agents
+    }
+    outils_travail_de = {
+        a.id: [outils_par_uuid[u] for u in a.outils_travail if u in outils_par_uuid]
         for a in agents
     }
     appelle = {
@@ -190,7 +221,7 @@ def assembler(
     capacites: dict[int, CapacitesAgent] = {}
     for a in sorted(agents, key=lambda x: x.id):
         capacites[a.id] = (
-            capacites_de(a.configurations, outils_de[a.id])
+            capacites_de(a.configurations, outils_de[a.id], outils_travail_de[a.id])
             if a.version_publiee is not None
             else CapacitesAgent()
         )
@@ -263,6 +294,7 @@ async def lire_agents_lus(organization_id: int) -> tuple[list[AgentLu], list[str
     d'outils de leurs étapes publiées. Le second rendu : les uuid d'outils de tous."""
     from api.db import db_client
     from api.services.etablissements.appel import _normaliser
+    from api.services.travail.reglages import ReglagesTravail
 
     numeros: dict[int, list[str]] = {}
     for (
@@ -282,6 +314,7 @@ async def lire_agents_lus(organization_id: int) -> tuple[list[AgentLu], list[str
         if _statut(workflow.status) != "active":
             continue
         publiee = _version_publiee(workflow)
+        configurations = dict((publiee.workflow_configurations if publiee else None) or {})
         lus.append(
             AgentLu(
                 id=workflow.id,
@@ -290,13 +323,13 @@ async def lire_agents_lus(organization_id: int) -> tuple[list[AgentLu], list[str
                 if publiee
                 else None,
                 numeros=numeros.get(workflow.id, []),
-                configurations=dict(
-                    (publiee.workflow_configurations if publiee else None) or {}
-                ),
+                configurations=configurations,
                 outils=outils_des_etapes(publiee.workflow_json) if publiee else [],
+                # Les outils du cerveau de fond ; ``depuis`` rend une liste vide quand il est éteint.
+                outils_travail=list(ReglagesTravail.depuis(configurations).outils),
             )
         )
-    toutes = sorted({u for a in lus for u in a.outils})
+    toutes = sorted({u for a in lus for u in [*a.outils, *a.outils_travail]})
     return lus, toutes
 
 

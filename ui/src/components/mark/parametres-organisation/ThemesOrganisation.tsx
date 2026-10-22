@@ -63,6 +63,7 @@ import { ModalePhrases } from "./ModalePhrases";
 import { ModaleReprise } from "./ModaleReprise";
 import type { EtatPreferences } from "./preferences";
 import type { ThemeOrganisation } from "./references/cas-organisation";
+import { SectionObjets } from "./SectionObjets";
 
 export const THEMES_ORGANISATION: Array<{ id: ThemeOrganisation; titre: Texte; icone: LucideIcon }> = [
     { id: "organisation", titre: { en: "Organization", fr: "Organisation" }, icone: Settings },
@@ -487,6 +488,9 @@ export const ThemeEtablissementOrganisation = ({
                     annonceOrganisation={annonce.enregistre}
                 />
             </Intertitre>
+
+            {/* [.mark] cloture-code, F7 (D116): the agent's objects, next to the fiches and the sentences. */}
+            <SectionObjets etablissements={(etablissements.liste ?? []).map((e) => ({ id: e.id, nom: e.nom }))} />
 
             <Intertitre id="etablissement-adresse" titre={{ en: "Address", fr: "Adresse" }}>
                 {preferences.chargement ? (

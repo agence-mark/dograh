@@ -8,6 +8,8 @@ the organization books in (« Integrations »).
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -50,18 +52,37 @@ class ConnecteurVue(BaseModel):
     gestionnaire_propre: bool = False
 
 
+class OutilVu(BaseModel):
+    tool_uuid: str
+    nom: str
+
+
 class ConnexionVue(BaseModel):
     connecteur: str | None = None
     integration: str
     connection_id: str
     creee_le: str | None = None
     erreurs: int = 0
+    # Lot F6. Nango ne date pas ses erreurs : ``derniere_erreur_le`` est la dernière mise à jour de
+    # la connexion, rendue seulement quand elle porte une erreur (au plus tôt la date de l'erreur).
+    types_erreurs: list[str] = Field(default_factory=list)
+    derniere_erreur_le: str | None = None
+    mis_a_jour_le: str | None = None
+    # Comment la connexion s'authentifie chez Nango (OAUTH2, API_KEY, BASIC...). Jamais un jeton.
+    mode_acces: str | None = None
+    # Les outils de l'organisation qui appellent ce logiciel (calculé, jamais stocké).
+    utilise_par: list[OutilVu] = Field(default_factory=list)
 
 
 class EtatConnexions(BaseModel):
     nango_configure: bool
     connexions: list[ConnexionVue] = Field(default_factory=list)
     erreur: str | None = None
+
+
+class Suppression(BaseModel):
+    supprimee: bool = True
+    integration: str
 
 
 class DemandeLien(BaseModel):
@@ -112,6 +133,10 @@ async def get_connexions(
         liste = await nango.connexions(user.selected_organization_id)
     except nango.NangoIndisponible as erreur:
         return EtatConnexions(nango_configure=True, erreur=str(erreur))
+    from api.services.integrations.connectors.utilisation import outils_par_logiciel
+
+    details = await asyncio.gather(*(nango.detail_de(c) for c in liste))
+    outils = await outils_par_logiciel(user.selected_organization_id)
     return EtatConnexions(
         nango_configure=True,
         connexions=[
@@ -121,10 +146,32 @@ async def get_connexions(
                 connection_id=c.connection_id,
                 creee_le=c.creee_le,
                 erreurs=c.erreurs,
+                types_erreurs=list(c.types_erreurs),
+                derniere_erreur_le=d.mis_a_jour_le if c.erreurs else None,
+                mis_a_jour_le=d.mis_a_jour_le,
+                mode_acces=d.mode_acces,
+                utilise_par=[OutilVu(**o) for o in outils.get(c.integration, [])],
             )
-            for c in liste
+            for c, d in zip(liste, details)
         ],
     )
+
+
+@router.delete("/connexions/{integration}", response_model=Suppression)
+async def delete_connexion(
+    integration: str, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    """Supprime chez Nango la connexion de l'organisation à ce logiciel. Retrouvée par l'étiquette
+    de l'organisation : on ne peut viser que la sienne (autre organisation : 404, comme absente)."""
+    try:
+        await nango.supprimer_connexion(user.selected_organization_id, integration)
+    except nango.ConnexionAbsente:
+        raise HTTPException(
+            status_code=404, detail=f"No connection to « {integration} » in this organization."
+        ) from None
+    except nango.NangoIndisponible as erreur:
+        raise HTTPException(status_code=503, detail=str(erreur)) from None
+    return Suppression(integration=integration)
 
 
 @router.post("/lien", response_model=Lien)

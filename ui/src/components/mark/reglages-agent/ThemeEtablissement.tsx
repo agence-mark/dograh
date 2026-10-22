@@ -315,8 +315,8 @@ export const ThemeEtablissement = ({
                         libelle={{ en: "Fiche of this agent", fr: "Fiche de cet agent" }}
                         aides={[
                             {
-                                en: "Created and edited in the platform settings (Establishments). None: an agent without a fiche, which reads its own hours and address below, then the organization's, as before.",
-                                fr: "Créée et modifiée dans les paramètres de la plateforme (Établissements). Aucune : un agent sans fiche, qui lit ses propres horaires et adresse plus bas, puis ceux de l'organisation, comme avant.",
+                                en: "Created and edited in the platform settings (Establishments). None: an agent without a fiche, which reads its own hours and address below, then the organization's, as before; unless the number called leads to an establishment, which is then read alone.",
+                                fr: "Créée et modifiée dans les paramètres de la plateforme (Établissements). Aucune : un agent sans fiche, qui lit ses propres horaires et adresse plus bas, puis ceux de l'organisation, comme avant ; sauf si le numéro appelé mène à un établissement, lu alors seul.",
                             },
                             ...(specialise
                                 ? [

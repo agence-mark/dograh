@@ -268,18 +268,10 @@ def test_les_travaux_entrent_dans_l_envoi_seulement_quand_il_y_en_a():
             ]
         }
     )
-    assert sortie == [
-        {
-            "agent": "Planning",
-            "demande": DEMANDE,
-            "statut": "fait",
-            "outils": ["chercher_creneau"],
-            "duree_ms": 4200,
-            "jetons_entree": 150,
-            "jetons_sortie": 25,
-            "resultat": RESULTAT,
-        }
-    ]
+    # Lot F2 de cloture-code (constat 33, confirmé par Evan le 22/10) : ni la demande ni le
+    # résultat ne partent ; la base du client garde ce que le fond a fait.
+    assert sortie == [{"statut": "fait", "outils": ["chercher_creneau"], "duree_ms": 4200}]
+    assert DEMANDE not in str(sortie) and RESULTAT not in str(sortie)
 
 
 def test_l_envoi_d_un_appel_sans_travail_n_a_pas_la_cle():
@@ -306,7 +298,7 @@ def test_l_envoi_d_un_appel_sans_travail_n_a_pas_la_cle():
         "travaux": [{"demande": DEMANDE, "statut": "fait", "outils": [], "resultat": RESULTAT}]
     }
     avec = construire_envoi(run, {}, ApresAppelAgent())
-    assert avec["travaux"][0]["demande"] == DEMANDE
+    assert avec["travaux"] == [{"statut": "fait", "outils": [], "duree_ms": None}]  # sans le texte (F2)
     # Tout le reste de l'envoi est identique.
     assert {k: v for k, v in avec.items() if k != "travaux"} == sans
 

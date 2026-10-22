@@ -86,7 +86,7 @@ class _Banc:
         self.planificateur_ecrit = []
         self.rattachements = []
 
-    async def _enregistrer(self, _org, catalogue, _auteur="dograh"):
+    async def _enregistrer(self, _org, catalogue, _auteur="dograh", **_options):
         self.enregistre.append(catalogue)
         self.catalogue = catalogue
         return catalogue
@@ -330,15 +330,31 @@ def test_rejouee_la_reprise_ne_trouve_plus_rien_a_faire():
 # --------------------------------------------------------------------------- #
 
 
-def _ce_que_l_agent_lit(configurations, fiche, sans_heritage):
-    effectives, _origines = configuration_heritee(configurations, fiche, sans_heritage=sans_heritage)
-    annonces = annonce_heritee(ReglagesAnnonceOuverture(), fiche, sans_heritage=sans_heritage)
+def _ce_que_l_agent_lit(configurations, fiche):
+    """Ce que l'appel lit aujourd'hui (F-8 : l'établissement servi seul), avec les VRAIES fonctions."""
+    effectives, _origines = configuration_heritee(configurations, fiche)
+    annonces = annonce_heritee(ReglagesAnnonceOuverture(), fiche)
     adresse = resoudre_adresse(effectives, OrganizationPreferences(adresse_etablissement=ADRESSE_ORG))
     return {
         "horaires": (effectives or {}).get("horaires_ouverture"),
         "adresse": adresse.model_dump() if adresse else None,
         "annonce_fermeture": annonces.annonce_fermeture,
         "annonce_pause": annonces.annonce_pause,
+    }
+
+
+def _ce_qu_il_lisait_avant_la_regle(configurations, fiche):
+    """L'oracle d'AVANT (règle E2 d'avant C3 et F-8), écrit ici en clair : l'agent passe devant, puis
+    l'établissement, puis l'organisation ; une annonce vide de l'établissement prend celle de l'organisation."""
+    from api.services.communes.adresse import _adresse_de
+
+    organisation = ReglagesAnnonceOuverture()
+    adresse = _adresse_de(configurations.get("adresse_etablissement"), "Agent") or fiche.adresse or ADRESSE_ORG
+    return {
+        "horaires": configurations.get("horaires_ouverture") or fiche.horaires_ouverture,
+        "adresse": AdresseEtablissement.model_validate(adresse).model_dump() if adresse else None,
+        "annonce_fermeture": fiche.annonce_fermeture or organisation.annonce_fermeture,
+        "annonce_pause": fiche.annonce_pause or organisation.annonce_pause,
     }
 
 
@@ -355,10 +371,10 @@ def test_apres_la_reprise_l_agent_dit_exactement_ce_qu_il_disait_avant(configura
     """⛔ La preuve du zéro perte, avec les VRAIES fonctions de l'appel : avant (fiche qui hérite,
     l'agent passe devant), après (fiche remplie, sans héritage, l'agent rattaché)."""
     catalogue = CatalogueEtablissements(etablissements=[VIDE])
-    avant = _ce_que_l_agent_lit(configurations, VIDE, sans_heritage=False)
+    avant = _ce_qu_il_lisait_avant_la_regle(configurations, VIDE)
     plan = preparer_reprise(catalogue, [_agent(6, "Accueil", [NUMERO_CREIL], **configurations)], ADRESSE_ORG, ORG_ANNONCE, None)
     repris = VIDE.model_copy(update=plan.fiches.get("creil", {}))
-    apres = _ce_que_l_agent_lit({**configurations, "etablissement_id": "creil"}, repris, sans_heritage=True)
+    apres = _ce_que_l_agent_lit({**configurations, "etablissement_id": "creil"}, repris)
     assert apres == avant, (avant, apres)
     assert avant["annonce_fermeture"], "le test doit voir une annonce, sinon il ne prouve rien"
     assert avant["adresse"] is not None

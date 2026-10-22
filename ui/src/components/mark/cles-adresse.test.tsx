@@ -12,8 +12,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { BibliothequeCles } from "./cles/FenetreCles";
 import { ChampCleModele } from "./cles/ChampCleModele";
+import { BibliothequeCles } from "./cles/FenetreCles";
 
 const ADRESSE = "https://api.fournisseur-test.example/v1";
 

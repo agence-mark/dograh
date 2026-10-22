@@ -62,13 +62,124 @@ async def _entreprise(connexion: asyncpg.Connection) -> int:
     )
 
 
+async def _ecrire_une_fiche(
+    connexion: asyncpg.Connection,
+    entreprise: int,
+    avec_fermeture: bool,
+    ordre: int,
+    e,
+    preremplir: bool = True,
+) -> None:
+    """One fiche and what hangs on it (numbers, sentences), inside the caller's transaction.
+
+    [.mark] Lot F4: taken out of ``ecrire_etablissements`` unchanged, so that the write of ONE fiche
+    (``ecrire_un_etablissement``) is the very same SQL as the write of the catalogue.
+
+    [.mark] F-8: ``preremplir`` (default) gives a NEW place the common values the database keeps;
+    ``False`` for a copy of a fiche (it takes its source's) and for the transfer of the mirror into a
+    new database (the fiches as they are)."""
+    if not avec_fermeture and e.etat_force is not None:
+        raise BaseClientIndisponible(
+            "The client database is behind this installation: a fiche cannot be closed in it yet. "
+            "Click « Upgrade » in the theme « Client data », then save again."
+        )
+    a = e.adresse
+    ligne_site = await connexion.fetchrow(
+        """
+        INSERT INTO mark.site (entreprise_id, cle, nom, actif, ordre, second_numero, numero_transfert,
+                               adresse_cp, adresse_insee, adresse_commune, adresse_voie,
+                               horaires_texte, annonce_fermeture, annonce_pause, termes_lexique"""
+        + (", etat_force, etat_force_jusqu_a" if avec_fermeture else "")
+        + """)
+        VALUES ($1, $2, $3, true, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb"""
+        + (", $15, $16" if avec_fermeture else "")
+        + """)
+        ON CONFLICT (cle) DO UPDATE SET
+            nom = EXCLUDED.nom, actif = true, ordre = EXCLUDED.ordre,
+            second_numero = EXCLUDED.second_numero, numero_transfert = EXCLUDED.numero_transfert,
+            adresse_cp = EXCLUDED.adresse_cp, adresse_insee = EXCLUDED.adresse_insee,
+            adresse_commune = EXCLUDED.adresse_commune, adresse_voie = EXCLUDED.adresse_voie,
+            horaires_texte = EXCLUDED.horaires_texte, annonce_fermeture = EXCLUDED.annonce_fermeture,
+            annonce_pause = EXCLUDED.annonce_pause, termes_lexique = EXCLUDED.termes_lexique"""
+        + (
+            ", etat_force = EXCLUDED.etat_force, etat_force_jusqu_a = EXCLUDED.etat_force_jusqu_a"
+            if avec_fermeture
+            else ""
+        )
+        + """
+        RETURNING id, (xmax = 0) AS cree
+        """,
+        entreprise,
+        e.id,
+        e.nom,
+        ordre,
+        e.second_numero,
+        e.numero_transfert,
+        a.code_postal if a else None,
+        a.code_insee if a else None,
+        a.commune if a else None,
+        a.voie if a else None,
+        e.horaires_ouverture,
+        e.annonce_fermeture,
+        e.annonce_pause,
+        json.dumps([t.model_dump(mode="json") for t in e.termes_lexique]),
+        *((e.etat_force, e.etat_force_jusqu_a) if avec_fermeture else ()),
+    )
+    site_id = ligne_site["id"]
+    # Only what changed is written: the journal says what really moved.
+    await connexion.execute(
+        "DELETE FROM mark.site_numero WHERE site_id = $1 AND NOT (numero = ANY($2::text[]))",
+        site_id,
+        list(e.numeros),
+    )
+    for numero in e.numeros:
+        await connexion.execute(
+            "INSERT INTO mark.site_numero (numero, site_id) VALUES ($1, $2) "
+            "ON CONFLICT (numero) DO UPDATE SET site_id = EXCLUDED.site_id",
+            numero,
+            site_id,
+        )
+    await connexion.execute(
+        "DELETE FROM mark.phrase_site WHERE site_id = $1 AND NOT (variable = ANY($2::text[]))",
+        site_id,
+        list(e.phrases),
+    )
+    for variable, contenu in e.phrases.items():
+        await connexion.execute(
+            "INSERT INTO mark.phrase_site (variable, site_id, contenu) "
+            "SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM mark.phrase WHERE variable = $1) "
+            "ON CONFLICT (variable, site_id) DO UPDATE SET contenu = EXCLUDED.contenu",
+            variable,
+            site_id,
+            contenu,
+        )
+    # [.mark] cloture-code, F-8 : un lieu NOUVEAU reçoit les valeurs communes que la base garde (règles du
+    # planificateur, types, réglages des modules, contenus des phrases), après ses propres phrases, dans la
+    # même transaction. Une base d'avant la 021 n'a pas la fonction : rien de plus (« Mettre à niveau »
+    # préremplira ce lieu comme les autres).
+    if preremplir and ligne_site["cree"] and await _a_le_preremplissage(connexion):
+        await connexion.execute("SELECT mark.preremplir_etablissement($1)", site_id)
+
+
+async def _a_le_preremplissage(connexion: asyncpg.Connection) -> bool:
+    return bool(
+        await connexion.fetchval(
+            "SELECT to_regprocedure('mark.preremplir_etablissement(bigint)') IS NOT NULL"
+        )
+    )
+
+
 async def ecrire_etablissements(
-    connexion: asyncpg.Connection, catalogue: CatalogueEtablissements, auteur: str
+    connexion: asyncpg.Connection,
+    catalogue: CatalogueEtablissements,
+    auteur: str,
+    *,
+    preremplir: bool = True,
 ) -> None:
     """Replace the establishments Dograh manages (rows with a ``cle``), in one transaction.
 
     ⛔ An establishment removed on screen is DEACTIVATED (``actif = false``), never
-    deleted: past calls and requests refer to it.
+    deleted: past calls and requests refer to it. ``preremplir``: see ``_ecrire_une_fiche``.
     """
     async with connexion.transaction():
         await _auteur(connexion, auteur)
@@ -76,84 +187,31 @@ async def ecrire_etablissements(
         gardes: list[str] = []
         avec_fermeture = await _a_la_fermeture_par_fiche(connexion)
         for ordre, e in enumerate(catalogue.etablissements):
-            if not avec_fermeture and e.etat_force is not None:
-                raise BaseClientIndisponible(
-                    "The client database is behind this installation: a fiche cannot be closed in it yet. "
-                    "Click « Upgrade » in the theme « Client data », then save again."
-                )
-            a = e.adresse
-            site_id = await connexion.fetchval(
-                """
-                INSERT INTO mark.site (entreprise_id, cle, nom, actif, ordre, second_numero, numero_transfert,
-                                       adresse_cp, adresse_insee, adresse_commune, adresse_voie,
-                                       horaires_texte, annonce_fermeture, annonce_pause, termes_lexique"""
-                + (", etat_force, etat_force_jusqu_a" if avec_fermeture else "")
-                + """)
-                VALUES ($1, $2, $3, true, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb"""
-                + (", $15, $16" if avec_fermeture else "")
-                + """)
-                ON CONFLICT (cle) DO UPDATE SET
-                    nom = EXCLUDED.nom, actif = true, ordre = EXCLUDED.ordre,
-                    second_numero = EXCLUDED.second_numero, numero_transfert = EXCLUDED.numero_transfert,
-                    adresse_cp = EXCLUDED.adresse_cp, adresse_insee = EXCLUDED.adresse_insee,
-                    adresse_commune = EXCLUDED.adresse_commune, adresse_voie = EXCLUDED.adresse_voie,
-                    horaires_texte = EXCLUDED.horaires_texte, annonce_fermeture = EXCLUDED.annonce_fermeture,
-                    annonce_pause = EXCLUDED.annonce_pause, termes_lexique = EXCLUDED.termes_lexique"""
-                + (
-                    ", etat_force = EXCLUDED.etat_force, etat_force_jusqu_a = EXCLUDED.etat_force_jusqu_a"
-                    if avec_fermeture
-                    else ""
-                )
-                + """
-                RETURNING id
-                """,
-                entreprise,
-                e.id,
-                e.nom,
-                ordre,
-                e.second_numero,
-                e.numero_transfert,
-                a.code_postal if a else None,
-                a.code_insee if a else None,
-                a.commune if a else None,
-                a.voie if a else None,
-                e.horaires_ouverture,
-                e.annonce_fermeture,
-                e.annonce_pause,
-                json.dumps([t.model_dump(mode="json") for t in e.termes_lexique]),
-                *((e.etat_force, e.etat_force_jusqu_a) if avec_fermeture else ()),
-            )
+            await _ecrire_une_fiche(connexion, entreprise, avec_fermeture, ordre, e, preremplir)
             gardes.append(e.id)
-            # Only what changed is written: the journal says what really moved.
-            await connexion.execute(
-                "DELETE FROM mark.site_numero WHERE site_id = $1 AND NOT (numero = ANY($2::text[]))",
-                site_id,
-                list(e.numeros),
-            )
-            for numero in e.numeros:
-                await connexion.execute(
-                    "INSERT INTO mark.site_numero (numero, site_id) VALUES ($1, $2) "
-                    "ON CONFLICT (numero) DO UPDATE SET site_id = EXCLUDED.site_id",
-                    numero,
-                    site_id,
-                )
-            await connexion.execute(
-                "DELETE FROM mark.phrase_site WHERE site_id = $1 AND NOT (variable = ANY($2::text[]))",
-                site_id,
-                list(e.phrases),
-            )
-            for variable, contenu in e.phrases.items():
-                await connexion.execute(
-                    "INSERT INTO mark.phrase_site (variable, site_id, contenu) "
-                    "SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM mark.phrase WHERE variable = $1) "
-                    "ON CONFLICT (variable, site_id) DO UPDATE SET contenu = EXCLUDED.contenu",
-                    variable,
-                    site_id,
-                    contenu,
-                )
         await connexion.execute(
             "UPDATE mark.site SET actif = false WHERE actif AND cle IS NOT NULL AND NOT (cle = ANY($1::text[]))",
             gardes,
+        )
+
+
+async def ecrire_un_etablissement(
+    connexion: asyncpg.Connection, fiche, auteur: str
+) -> None:
+    """[.mark] Lot F4: ONE fiche, with its numbers and sentences, in one transaction. The other
+    fiches, the order and the deactivation of the absent are not touched (a partial update never
+    replaces the catalogue). The fiche keeps its place (``ordre``); unknown to the database, it
+    goes last."""
+    async with connexion.transaction():
+        await _auteur(connexion, auteur)
+        entreprise = await _entreprise(connexion)
+        ordre = await connexion.fetchval(
+            "SELECT coalesce((SELECT ordre FROM mark.site WHERE cle = $1), "
+            "(SELECT coalesce(max(ordre), -1) + 1 FROM mark.site WHERE cle IS NOT NULL))",
+            fiche.id,
+        )
+        await _ecrire_une_fiche(
+            connexion, entreprise, await _a_la_fermeture_par_fiche(connexion), ordre, fiche
         )
 
 

@@ -235,7 +235,11 @@ class CustomToolManager:
                 # [.mark] l-agent-travaille, L5: a connector's action (its declared parameters).
                 if tool.category == ToolCategory.INTEGRATION.value:
                     from api.services.integrations.connectors import outil as integration
+                    from api.services.modules.appel import outil_coupe_dans_l_appel
 
+                    # [.mark] cloture-code, F8 (M4): a switched-off module leaves no tool in the call.
+                    if outil_coupe_dans_l_appel(self._engine, tool):
+                        continue
                     nom = tool_to_function_schema(tool)["function"]["name"]
                     # l-agent-collegue (C7): a closed list built at pick-up is read here.
                     fs = integration.schema(
@@ -326,6 +330,7 @@ class CustomToolManager:
                                     self._create_mcp_handler(session, fs.name),
                                     self._agent,
                                 ),
+                                timeout_secs=session.call_timeout_secs,
                             ),
                             timeout_secs=session.call_timeout_secs,
                         )
@@ -339,7 +344,11 @@ class CustomToolManager:
                 # (the fallback phrase is said past it); Pipecat's is a margin above.
                 if tool.category == ToolCategory.INTEGRATION.value:
                     from api.services.integrations.connectors import outil as integration
+                    from api.services.modules.appel import outil_coupe_dans_l_appel
 
+                    # [.mark] cloture-code, F8 (M4): the same rule as the schemas above.
+                    if outil_coupe_dans_l_appel(self._engine, tool):
+                        continue
                     nom = tool_to_function_schema(tool)["function"]["name"]
                     if integration.schema(tool, nom) is None:
                         continue
@@ -365,6 +374,10 @@ class CustomToolManager:
                                 self._agent,
                                 garde=not interne,
                             ),
+                            # [.mark] b10e829f (lot 3 de cloture-code) : le délai de l'action
+                            # reste le nôtre, jamais les 10 s par défaut de l'amont.
+                            is_node_transition=interne,
+                            timeout_secs=delai + 5.0,
                         ),
                         timeout_secs=delai + 5.0,
                         is_node_transition=interne,
@@ -390,7 +403,12 @@ class CustomToolManager:
                 }
                 self._agent.llm.register_function(
                     function_name,
-                    self._agent.bind_tool(self._engine, handler),
+                    self._agent.bind_tool(
+                        self._engine,
+                        handler,
+                        is_node_transition=is_node_transition,
+                        timeout_secs=timeout_secs,
+                    ),
                     timeout_secs=timeout_secs,
                     is_node_transition=is_node_transition,
                 )

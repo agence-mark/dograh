@@ -35,8 +35,8 @@ import { BandeauReglePrincipal, ZoneCommune } from "../groupe/contexte-groupe";
 import { estSpecialise } from "../groupe/reglages-groupe";
 import { useLangue } from "../langue/langue";
 import { RAPPEL_PUBLICATION_TEXTE } from "./enregistrement";
-import { type ProprietesThemeAgent, useEtatTheme } from "./theme-commun";
 import { GardeDuModele } from "./GardeDuModele";
+import { type ProprietesThemeAgent, useEtatTheme } from "./theme-commun";
 import { TravailEnArrierePlan } from "./TravailEnArrierePlan";
 
 export const ID_THEME_BRIQUES = "briques";

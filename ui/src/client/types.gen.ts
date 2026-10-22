@@ -472,6 +472,20 @@ export type AgentServi = {
 };
 
 /**
+ * AgentUtilisateur
+ */
+export type AgentUtilisateur = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * AgentsServis
  */
 export type AgentsServis = {
@@ -1284,6 +1298,81 @@ export type BatchRecordingUploadResponseSchema = {
 };
 
 /**
+ * BesoinModule
+ *
+ * What a module needs (M2). ``domaine``: a translator domain (``agenda``, ``dossier``) filled by the
+ * organization's choice ; ``None``: a source of the fork itself, named by ``source_interne``.
+ * ``traducteur``: the translator chosen for the organization, ``None`` when none is.
+ */
+export type BesoinModule = {
+    /**
+     * Code
+     */
+    code: string;
+    libelle: TexteModule;
+    /**
+     * Domaine
+     */
+    domaine?: string | null;
+    source_interne?: TexteModule | null;
+    traducteur?: TraducteurBranche | null;
+};
+
+/**
+ * BilanDuPassage
+ *
+ * What the last nightly task found, kept so the screen can show it (and the dry run be read).
+ */
+export type BilanDuPassage = {
+    /**
+     * Passe Le
+     */
+    passe_le: string;
+    /**
+     * A Blanc
+     */
+    a_blanc: boolean;
+    /**
+     * Runs Texte
+     *
+     * Runs whose text copies were (dry run: would be) emptied.
+     */
+    runs_texte: number;
+    /**
+     * Runs Audio
+     *
+     * Runs whose audio files were (dry run: would be) deleted.
+     */
+    runs_audio: number;
+    /**
+     * Objets
+     *
+     * Files in storage deleted (dry run: to delete).
+     */
+    objets: number;
+    /**
+     * Echecs
+     *
+     * Runs left for the next night (a file could not be deleted).
+     */
+    echecs?: number;
+    /**
+     * Incomplet
+     *
+     * The task stopped on its time limit: the rest is for the next night.
+     */
+    incomplet?: boolean;
+    /**
+     * Duree Mois
+     */
+    duree_mois: number;
+    /**
+     * Audio Duree Mois
+     */
+    audio_duree_mois: number;
+};
+
+/**
  * Body_transcribe_audio_api_v1_workflow_recordings_transcribe_post
  */
 export type BodyTranscribeAudioApiV1WorkflowRecordingsTranscribePost = {
@@ -1849,6 +1938,34 @@ export type CartesiaTtsConfiguration = {
 };
 
 /**
+ * CasesDUneValeur
+ *
+ * The boxes to set on ONE value. A box left out keeps its state.
+ */
+export type CasesDUneValeur = {
+    /**
+     * Liste
+     */
+    liste: string;
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Regle Seul
+     */
+    regle_seul?: boolean | null;
+    /**
+     * Opportunite
+     */
+    opportunite?: boolean | null;
+    /**
+     * Urgent
+     */
+    urgent?: boolean | null;
+};
+
+/**
  * CatalogueEtablissements
  *
  * All the establishments of one organization, in the order of the screen.
@@ -2153,6 +2270,22 @@ export type Cle = {
 };
 
 /**
+ * CleTypeRendezVous
+ *
+ * Which appointment type: its code, and the establishment it is proper to (None: the organization's).
+ */
+export type CleTypeRendezVous = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Etablissement
+     */
+    etablissement?: string | null;
+};
+
+/**
  * CloudonixConfigurationRequest
  *
  * Request schema for Cloudonix configuration.
@@ -2180,6 +2313,34 @@ export type CloudonixConfigurationRequest = {
      * Cloudonix Voice Application name. The application's url is updated when inbound workflows are attached to numbers on this domain. If omitted, an application is auto-created on save and its name is stored on the configuration.
      */
     application_name?: string | null;
+};
+
+/**
+ * ColonneObjet
+ *
+ * A column of a list. ``id`` absent: a new column. ``pose_par`` = who set it (D108).
+ */
+export type ColonneObjet = {
+    /**
+     * Id
+     */
+    id?: number | null;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Type
+     */
+    type?: 'texte' | 'nombre' | 'montant' | 'oui_non' | 'date';
+    /**
+     * Ordre
+     */
+    ordre?: number;
+    /**
+     * Pose Par
+     */
+    pose_par?: 'mark' | 'client';
 };
 
 /**
@@ -2259,6 +2420,28 @@ export type ConnecteurVue = {
 };
 
 /**
+ * ConnexionPortail
+ *
+ * [.mark] Lot F6 : le compte de connexion que le portail utilise sur la base du client. Le mot de
+ * passe n'existe que dans CETTE réponse (il vient d'être créé) : il n'est ni journalisé, ni
+ * relisible, ni gardé par Dograh. Le renouveler = rappeler la route (l'ancien cesse de marcher).
+ */
+export type ConnexionPortail = {
+    /**
+     * Base
+     */
+    base: string;
+    /**
+     * Role
+     */
+    role: string;
+    /**
+     * Mot De Passe
+     */
+    mot_de_passe: string;
+};
+
+/**
  * ConnexionVue
  */
 export type ConnexionVue = {
@@ -2282,6 +2465,26 @@ export type ConnexionVue = {
      * Erreurs
      */
     erreurs?: number;
+    /**
+     * Types Erreurs
+     */
+    types_erreurs?: Array<string>;
+    /**
+     * Derniere Erreur Le
+     */
+    derniere_erreur_le?: string | null;
+    /**
+     * Mis A Jour Le
+     */
+    mis_a_jour_le?: string | null;
+    /**
+     * Mode Acces
+     */
+    mode_acces?: string | null;
+    /**
+     * Utilise Par
+     */
+    utilise_par?: Array<OutilVu>;
 };
 
 /**
@@ -3191,6 +3394,28 @@ export type DemandeApercuSms = {
 };
 
 /**
+ * DemandeApplication
+ */
+export type DemandeApplication = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Sections
+     *
+     * The sections to take. Every section is ticked by default on screen.
+     */
+    sections: Array<string>;
+    /**
+     * A Blanc
+     *
+     * True: say what would happen (including the providers with no key) and write nothing.
+     */
+    a_blanc?: boolean;
+};
+
+/**
  * DemandeControleHoraires
  */
 export type DemandeControleHoraires = {
@@ -3229,6 +3454,22 @@ export type DemandeCopieEtablissement = {
 };
 
 /**
+ * DemandeCreation
+ */
+export type DemandeCreation = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Workflow Id
+     *
+     * The agent whose active settings are frozen.
+     */
+    workflow_id: number;
+};
+
+/**
  * DemandeEtablissementsDeLagent
  */
 export type DemandeEtablissementsDeLagent = {
@@ -3259,6 +3500,26 @@ export type DemandeEtablissementsDeLagent = {
 };
 
 /**
+ * DemandeEtatFiche
+ *
+ * Close or reopen ONE fiche (the forced state), nothing else touched.
+ */
+export type DemandeEtatFiche = {
+    /**
+     * Etat Force
+     *
+     * The state to force (FERME to close). ``null``: reopen, back to the hours.
+     */
+    etat_force: 'OUVERT' | 'PAUSE' | 'FERME' | 'SUR_RENDEZ_VOUS' | null;
+    /**
+     * Etat Force Jusqu A
+     *
+     * When the forced state lifts itself, Paris time. ``null``: until changed.
+     */
+    etat_force_jusqu_a?: string | null;
+};
+
+/**
  * DemandeLien
  */
 export type DemandeLien = {
@@ -3266,6 +3527,16 @@ export type DemandeLien = {
      * Connecteurs
      */
     connecteurs: Array<string>;
+};
+
+/**
+ * DemandeRenommer
+ */
+export type DemandeRenommer = {
+    /**
+     * Nom
+     */
+    nom: string;
 };
 
 /**
@@ -4128,7 +4399,7 @@ export type EssaiMail = {
 /**
  * Etablissement
  *
- * One establishment. Every optional field left empty is inherited.
+ * One establishment. Every optional field left empty is empty: nothing is inherited (F-8).
  */
 export type Etablissement = {
     /**
@@ -4162,25 +4433,25 @@ export type Etablissement = {
      */
     numero_transfert?: string | null;
     /**
-     * None: the organization's address.
+     * None: no address (the organization's prefills a new establishment).
      */
     adresse?: AdresseEtablissement | null;
     /**
      * Horaires Ouverture
      *
-     * Opening hours, readable format, closures as dated lines « 24/12/2026 : fermé ». None: the agent's own hours, if any.
+     * Opening hours, readable format, closures as dated lines « 24/12/2026 : fermé ». None: no hours (never the agent's own).
      */
     horaires_ouverture?: string | null;
     /**
      * Annonce Fermeture
      *
-     * None: the organization's closing announcement.
+     * None: nothing is announced (the organization's prefills a new establishment).
      */
     annonce_fermeture?: string | null;
     /**
      * Annonce Pause
      *
-     * None: the organization's break announcement.
+     * None: nothing is announced (the organization's prefills a new establishment).
      */
     annonce_pause?: string | null;
     /**
@@ -4198,7 +4469,7 @@ export type Etablissement = {
     /**
      * Phrases
      *
-     * This establishment's content for the sentences placed at the establishment's level (variable -> content). Absent: the organization's content.
+     * This establishment's content for the sentences placed at the establishment's level (variable -> content). Absent: nothing is said (the organization's content prefills a new establishment).
      */
     phrases?: {
         [key: string]: string;
@@ -4438,6 +4709,41 @@ export type ExternalPbxFieldMapping = {
      * Destination Field
      */
     destination_field: string;
+};
+
+/**
+ * FichierDeModele
+ *
+ * The exported file. No key, no reference to a key, ever (M3).
+ */
+export type FichierDeModele = {
+    /**
+     * Format
+     */
+    format?: string;
+    /**
+     * Version Du Format
+     */
+    version_du_format?: number;
+    /**
+     * Commit
+     */
+    commit?: string | null;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Cree Le
+     */
+    cree_le?: string | null;
+    origine?: OrigineDuModele | null;
+    /**
+     * Valeurs
+     */
+    valeurs: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -5672,6 +5978,28 @@ export type LiensDesGroupesResponse = {
 };
 
 /**
+ * LigneObjet
+ *
+ * A line of a list: its cells, by column label. ``id`` absent: a new line.
+ */
+export type LigneObjet = {
+    /**
+     * Id
+     */
+    id?: number | null;
+    /**
+     * Ordre
+     */
+    ordre?: number;
+    /**
+     * Valeurs
+     */
+    valeurs?: {
+        [key: string]: string;
+    };
+};
+
+/**
  * LignePrix
  */
 export type LignePrix = {
@@ -5723,6 +6051,54 @@ export type LignePrix = {
      * The date of the provider's rate this price was read from.
      */
     date_du_tarif: string;
+};
+
+/**
+ * ListeDeValeurs
+ */
+export type ListeDeValeurs = {
+    /**
+     * Liste
+     *
+     * Technical name of the list, as the database holds it.
+     */
+    liste: string;
+    /**
+     * Cases
+     *
+     * The boxes this list carries (the ones the screen shows).
+     */
+    cases: Array<'regle_seul' | 'opportunite' | 'urgent'>;
+    /**
+     * Valeurs
+     */
+    valeurs?: Array<ValeurDeListe>;
+};
+
+/**
+ * ListeDesModeles
+ */
+export type ListeDesModeles = {
+    /**
+     * Modeles
+     */
+    modeles: Array<ResumeDuModele>;
+    /**
+     * Sections
+     *
+     * Every section a template can be applied by, in screen order.
+     */
+    sections: Array<string>;
+};
+
+/**
+ * ListesValeurs
+ */
+export type ListesValeurs = {
+    /**
+     * Listes
+     */
+    listes?: Array<ListeDeValeurs>;
 };
 
 /**
@@ -6065,6 +6441,43 @@ export type MembreDuGroupe = {
 };
 
 /**
+ * MentionApplication
+ *
+ * What an agent keeps of the last template applied to it (M4): a copy of the name, never a link.
+ */
+export type MentionApplication = {
+    /**
+     * Modele Id
+     */
+    modele_id?: string | null;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Applique Le
+     */
+    applique_le: string;
+    /**
+     * Sections
+     */
+    sections?: Array<string>;
+};
+
+/**
+ * MentionDeLagent
+ */
+export type MentionDeLagent = {
+    mention?: MentionApplication | null;
+    /**
+     * Sections Reglees Par Le Principal
+     *
+     * Sections whose every setting is set by the main agent (a specialised agent): a template never writes them.
+     */
+    sections_reglees_par_le_principal?: Array<string>;
+};
+
+/**
  * MentionDuRun
  *
  * l-agent-collegue, L8: a person of the team concerned by this call (``mark.mention``).
@@ -6351,6 +6764,307 @@ export type ModeleImporte = {
 };
 
 /**
+ * ModificationEtablissement
+ *
+ * A partial update of ONE fiche: only the fields SENT change, the others stay as they are (an absent field is never read as « empty »). Every field of the fiche but its identifier. A field sent empty (``null``, ``""``) is emptied (nothing is inherited). ``phrases`` is merged sentence by sentence (a sentence sent empty is removed); ``numeros`` and ``termes_lexique`` are replaced as a whole when sent. The same bounds as a save apply to what is sent.
+ */
+export type ModificationEtablissement = {
+    /**
+     * Nom
+     *
+     * Name, as the team says it.
+     */
+    nom?: string | null;
+    /**
+     * Numeros
+     *
+     * The numbers callers dial to reach this establishment, chosen among the organization's Telephony numbers. Empty: the establishment is not attached yet.
+     */
+    numeros?: Array<string> | null;
+    /**
+     * Second Numero
+     *
+     * The number reached when the agent cannot answer (outage, chantier panne).
+     */
+    second_numero?: string | null;
+    /**
+     * Numero Transfert
+     *
+     * Given to the agents as {{numero_transfert}}, for the transfer tool's destination.
+     */
+    numero_transfert?: string | null;
+    /**
+     * None: no address (the organization's prefills a new establishment).
+     */
+    adresse?: AdresseEtablissement | null;
+    /**
+     * Horaires Ouverture
+     *
+     * Opening hours, readable format, closures as dated lines « 24/12/2026 : fermé ». None: no hours (never the agent's own).
+     */
+    horaires_ouverture?: string | null;
+    /**
+     * Annonce Fermeture
+     *
+     * None: nothing is announced (the organization's prefills a new establishment).
+     */
+    annonce_fermeture?: string | null;
+    /**
+     * Annonce Pause
+     *
+     * None: nothing is announced (the organization's prefills a new establishment).
+     */
+    annonce_pause?: string | null;
+    /**
+     * Etat Force
+     *
+     * The state every agent of this fiche is in, whatever the hours say (OUVERT, PAUSE, FERME, SUR_RENDEZ_VOUS). None: the organization's, else the hours.
+     */
+    etat_force?: 'OUVERT' | 'PAUSE' | 'FERME' | 'SUR_RENDEZ_VOUS' | null;
+    /**
+     * Etat Force Jusqu A
+     *
+     * When this fiche's forced state lifts itself, Paris time. None: until changed.
+     */
+    etat_force_jusqu_a?: string | null;
+    /**
+     * Phrases
+     *
+     * This establishment's content for the sentences placed at the establishment's level (variable -> content). Absent: nothing is said (the organization's content prefills a new establishment).
+     */
+    phrases?: {
+        [key: string]: string;
+    } | null;
+    /**
+     * Termes Lexique
+     *
+     * Terms this establishment adds to the organization's trade vocabulary (E6).
+     */
+    termes_lexique?: Array<TermeLexique> | null;
+};
+
+/**
+ * ModificationListesValeurs
+ *
+ * Only the values named change, and only the boxes sent on each. An unknown value refuses the whole request.
+ */
+export type ModificationListesValeurs = {
+    /**
+     * Valeurs
+     */
+    valeurs?: Array<CasesDUneValeur>;
+};
+
+/**
+ * ModificationPersonne
+ *
+ * A partial update of ONE person: only the fields SENT change, the others stay as they are (an absent field is never read as « empty »). Every field of the person but its identifier. ``etablissements`` (or the legacy ``etablissement``) replaces her places when sent; ``agendas`` replaces her agendas when sent. Her subjects and the rest of the team are never touched.
+ */
+export type ModificationPersonne = {
+    /**
+     * Prenom
+     */
+    prenom?: string | null;
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Role
+     */
+    role?: string | null;
+    /**
+     * Mail
+     */
+    mail?: string | null;
+    /**
+     * Telephone
+     */
+    telephone?: string | null;
+    /**
+     * Etablissement
+     *
+     * Identifier of its establishment; None: the whole company. [.mark] Since the team is one (M5), this is a LABEL, read as the first of ``etablissements``.
+     */
+    etablissement?: string | null;
+    /**
+     * Etablissements
+     *
+     * Identifiers of its establishments (zero, one or several); empty: the whole company.
+     */
+    etablissements?: Array<string> | null;
+    /**
+     * Destinataire Defaut
+     */
+    destinataire_defaut?: boolean | null;
+    /**
+     * Actif
+     */
+    actif?: boolean | null;
+    /**
+     * Description
+     *
+     * What this person takes care of, in plain words (the agent reads it).
+     */
+    description?: string | null;
+    /**
+     * Divulguer Telephone
+     *
+     * The agent may give this person's phone number to a caller.
+     */
+    divulguer_telephone?: boolean | null;
+    /**
+     * Divulguer Mail
+     *
+     * The agent may give this person's e-mail address to a caller.
+     */
+    divulguer_mail?: boolean | null;
+    /**
+     * Joignable Par Transfert
+     *
+     * The agent may transfer a call to this person (a phone number is needed).
+     */
+    joignable_par_transfert?: boolean | null;
+    /**
+     * Agendas
+     *
+     * Her agenda in each calendar software: translator -> agenda identifier.
+     */
+    agendas?: {
+        [key: string]: string;
+    } | null;
+};
+
+/**
+ * ModificationPlanificateur
+ *
+ * A partial update of the planner, ONE level at a time.
+ *
+ * ``etablissement`` None: the organization's settings (starting values); an establishment id: that
+ * establishment's own. Inside ``reglages`` only the settings SENT change (an absent one keeps its value;
+ * one sent ``null`` goes back to the common default). ``types`` creates or replaces the types listed, ``types_retires``
+ * removes the ones named; every other type, and every other level, stays as it is.
+ */
+export type ModificationPlanificateur = {
+    /**
+     * Etablissement
+     *
+     * The establishment whose rules change; None: the organization's (starting values).
+     */
+    etablissement?: string | null;
+    /**
+     * Only the settings sent are written.
+     */
+    reglages?: ReglagesEnvoyes;
+    /**
+     * Types
+     */
+    types?: Array<TypeRendezVous>;
+    /**
+     * Types Retires
+     */
+    types_retires?: Array<CleTypeRendezVous>;
+};
+
+/**
+ * ModuleDeLAgent
+ */
+export type ModuleDeLAgent = {
+    /**
+     * Code
+     */
+    code: string;
+    libelle: TexteModule;
+    /**
+     * Interrupteur
+     */
+    interrupteur?: string | null;
+    /**
+     * Connecteurs
+     */
+    connecteurs?: Array<string>;
+    /**
+     * Besoins
+     */
+    besoins?: Array<BesoinModule>;
+    /**
+     * Reglages Construction
+     */
+    reglages_construction?: Array<ReglageModule>;
+    /**
+     * Reglages Terrain
+     */
+    reglages_terrain?: Array<ReglageModule>;
+    /**
+     * Utilise Par
+     */
+    utilise_par?: Array<AgentUtilisateur>;
+    /**
+     * Actif
+     */
+    actif?: boolean;
+};
+
+/**
+ * ModuleVue
+ */
+export type ModuleVue = {
+    /**
+     * Code
+     */
+    code: string;
+    libelle: TexteModule;
+    /**
+     * Interrupteur
+     */
+    interrupteur?: string | null;
+    /**
+     * Connecteurs
+     */
+    connecteurs?: Array<string>;
+    /**
+     * Besoins
+     */
+    besoins?: Array<BesoinModule>;
+    /**
+     * Reglages Construction
+     */
+    reglages_construction?: Array<ReglageModule>;
+    /**
+     * Reglages Terrain
+     */
+    reglages_terrain?: Array<ReglageModule>;
+    /**
+     * Utilise Par
+     */
+    utilise_par?: Array<AgentUtilisateur>;
+};
+
+/**
+ * ModulesAgent
+ */
+export type ModulesAgent = {
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Modules
+     */
+    modules: Array<ModuleDeLAgent>;
+};
+
+/**
+ * ModulesOrganisation
+ */
+export type ModulesOrganisation = {
+    /**
+     * Modules
+     */
+    modules: Array<ModuleVue>;
+};
+
+/**
  * MoveFolderRequest
  *
  * [.mark] Lot 10 : déplacer un dossier sous un autre (``None`` = premier niveau).
@@ -6571,6 +7285,129 @@ export type NumeroDeLorganisation = {
      * Agent
      */
     agent?: string | null;
+};
+
+/**
+ * ObjetAgent
+ *
+ * An object as the client's database holds it, with its rendering's size and its readers.
+ */
+export type ObjetAgent = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Forme
+     */
+    forme: 'valeur' | 'liste';
+    /**
+     * Type
+     */
+    type?: 'texte' | 'nombre' | 'montant' | 'oui_non' | 'date' | null;
+    /**
+     * Valeur
+     */
+    valeur?: string | null;
+    /**
+     * Etablissement
+     */
+    etablissement?: string | null;
+    /**
+     * Colonnes
+     */
+    colonnes?: Array<ColonneObjet>;
+    /**
+     * Lignes
+     */
+    lignes?: Array<LigneObjet>;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Modifie Le
+     */
+    modifie_le?: string | null;
+    /**
+     * Taille
+     *
+     * Characters of the text the agent receives (D112).
+     */
+    taille?: number;
+    /**
+     * Utilise Par
+     *
+     * Agents whose published texts hold {{nom}} (D118), computed.
+     */
+    utilise_par?: Array<AgentUtilisateur>;
+};
+
+/**
+ * ObjetEnvoye
+ *
+ * An object as .mark creates or rewrites it (the whole object; the others are untouched).
+ * ``etablissement``: the fiche's identifier (D110), absent = all establishments.
+ */
+export type ObjetEnvoye = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Forme
+     */
+    forme: 'valeur' | 'liste';
+    /**
+     * Type
+     */
+    type?: 'texte' | 'nombre' | 'montant' | 'oui_non' | 'date' | null;
+    /**
+     * Valeur
+     */
+    valeur?: string | null;
+    /**
+     * Etablissement
+     */
+    etablissement?: string | null;
+    /**
+     * Colonnes
+     */
+    colonnes?: Array<ColonneObjet>;
+    /**
+     * Lignes
+     */
+    lignes?: Array<LigneObjet>;
+};
+
+/**
+ * ObjetsAgent
+ */
+export type ObjetsAgent = {
+    /**
+     * Objets
+     */
+    objets?: Array<ObjetAgent>;
+    /**
+     * Plafond Caracteres
+     */
+    plafond_caracteres?: number;
 };
 
 /**
@@ -7156,6 +7993,46 @@ export type OrganizationSummary = {
 export type OrigineChamp = 'dicte' | 'deduit';
 
 /**
+ * OrigineDuModele
+ *
+ * Where a template was frozen from (M7): the agent and the version it was read on.
+ */
+export type OrigineDuModele = {
+    /**
+     * Workflow Id
+     */
+    workflow_id?: number | null;
+    /**
+     * Agent Nom
+     */
+    agent_nom?: string | null;
+    /**
+     * Version Number
+     */
+    version_number?: number | null;
+    /**
+     * Version Status
+     *
+     * draft or published.
+     */
+    version_status?: string | null;
+};
+
+/**
+ * OutilVu
+ */
+export type OutilVu = {
+    /**
+     * Tool Uuid
+     */
+    tool_uuid: string;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * ParametreVue
  */
 export type ParametreVue = {
@@ -7477,7 +8354,7 @@ export type Planificateur = {
     /**
      * Par Etablissement
      *
-     * Establishment id -> what it overrides.
+     * Establishment id -> its own complete rules (empty: the default).
      */
     par_etablissement?: {
         [key: string]: ReglagesPlanificateur;
@@ -8163,6 +9040,51 @@ export type Refus = {
 };
 
 /**
+ * ReglageModule
+ *
+ * One declared setting of a module: its key and where it lives (``workflow_configurations`` for an
+ * agent's key, a table of the client's database otherwise). ``bloc``: the terrain block (D124).
+ */
+export type ReglageModule = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Lieu
+     */
+    lieu: string;
+    /**
+     * Bloc
+     */
+    bloc?: 'quand' | 'quoi' | 'ou' | 'qui' | null;
+    /**
+     * Modifiable
+     */
+    modifiable?: boolean;
+};
+
+/**
+ * ReglageNonApplique
+ */
+export type ReglageNonApplique = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Raison
+     *
+     * cle-manquante | invalide | reglee-par-le-principal.
+     */
+    raison: string;
+    /**
+     * Detail
+     */
+    detail?: string | null;
+};
+
+/**
  * ReglagesAnnonceOuverture
  *
  * The organization's announcement sentences and its forced state.
@@ -8254,6 +9176,122 @@ export type ReglagesApresAppel = {
 };
 
 /**
+ * ReglagesConservationAppels
+ */
+export type ReglagesConservationAppels = {
+    /**
+     * Format
+     */
+    format?: string;
+    /**
+     * Version
+     */
+    version?: number;
+    /**
+     * Purge Activee
+     *
+     * Empty the copies of the calls older than the durations below, every night.
+     */
+    purge_activee?: boolean;
+    /**
+     * Duree Mois
+     *
+     * Months the verbatim and the copies of a call are kept (transcript, logs, context, annotations).
+     */
+    duree_mois?: number;
+    /**
+     * Audio Enregistre
+     *
+     * Record the audio of the calls. Off by default; the installation's ceiling can forbid it.
+     */
+    audio_enregistre?: boolean;
+    /**
+     * Audio Duree Mois
+     *
+     * Months an audio file is kept, if the audio is recorded (or was before).
+     */
+    audio_duree_mois?: number;
+    /**
+     * Essai A Blanc
+     *
+     * Dry run: the nightly task counts what it would empty and empties nothing. Untick to empty.
+     */
+    essai_a_blanc?: boolean;
+};
+
+/**
+ * ReglagesEnvoyes
+ *
+ * The settings of a partial update: the same fields and bounds, a misspelt setting is refused.
+ */
+export type ReglagesEnvoyes = {
+    /**
+     * Nombre Creneaux
+     */
+    nombre_creneaux?: number | null;
+    /**
+     * Delai Minimal H
+     */
+    delai_minimal_h?: number | null;
+    /**
+     * Horizon Jours
+     */
+    horizon_jours?: number | null;
+    /**
+     * Pas Min
+     */
+    pas_min?: number | null;
+    /**
+     * Plages
+     *
+     * Booking ranges in the readable hours format; None: the establishment's hours.
+     */
+    plages?: string | null;
+    /**
+     * Zone Rayon Km
+     */
+    zone_rayon_km?: number | null;
+    /**
+     * Zone Communes
+     */
+    zone_communes?: Array<string> | null;
+    /**
+     * Trajets Comptes
+     */
+    trajets_comptes?: boolean | null;
+    /**
+     * Coefficient Trajet
+     */
+    coefficient_trajet?: number | null;
+    /**
+     * Vitesse Kmh
+     */
+    vitesse_kmh?: number | null;
+    /**
+     * Repartition
+     */
+    repartition?: 'premier_libre' | 'tour_de_role' | 'charge' | 'zone' | null;
+    /**
+     * Repli
+     */
+    repli?: 'humain_puis_rappel' | 'toujours_rappel' | null;
+    /**
+     * Personne Visible
+     */
+    personne_visible?: boolean | null;
+    /**
+     * Jours Feries
+     */
+    jours_feries?: 'metropole' | 'alsace_moselle' | null;
+    /**
+     * Fenetre Equite Jours
+     *
+     * Days over which « tour_de_role » counts the appointments given (R-7, migration 013).
+     */
+    fenetre_equite_jours?: number | null;
+};
+
+/**
  * ReglagesFenetreDuRun
  */
 export type ReglagesFenetreDuRun = {
@@ -8290,6 +9328,18 @@ export type ReglagesInstallation = {
      */
     adresses_notification?: Array<string>;
     smtp?: ReglagesSmtp;
+};
+
+/**
+ * ReglagesObjets
+ *
+ * The organization's ceiling on one object's rendering (D112), adjusted at the bench.
+ */
+export type ReglagesObjets = {
+    /**
+     * Plafond Caracteres
+     */
+    plafond_caracteres?: number;
 };
 
 /**
@@ -8642,6 +9692,42 @@ export type ResultatAction = {
 };
 
 /**
+ * ResultatApplication
+ */
+export type ResultatApplication = {
+    /**
+     * Ecrit
+     */
+    ecrit: boolean;
+    /**
+     * Sections
+     */
+    sections: Array<string>;
+    /**
+     * Posees
+     *
+     * Settings that now hold the template's value.
+     */
+    posees: Array<string>;
+    /**
+     * Retirees
+     *
+     * Settings the template does not set: back to their default.
+     */
+    retirees: Array<string>;
+    /**
+     * Non Appliquees
+     */
+    non_appliquees: Array<ReglageNonApplique>;
+    /**
+     * Fournisseurs Sans Cle
+     *
+     * Providers the template brings for which the agent and its organization have no key.
+     */
+    fournisseurs_sans_cle: Array<string>;
+};
+
+/**
  * ResultatControleHoraires
  */
 export type ResultatControleHoraires = {
@@ -8788,6 +9874,33 @@ export type ResultatSecours = {
      * Ecrit
      */
     ecrit: boolean;
+};
+
+/**
+ * ResumeDuModele
+ */
+export type ResumeDuModele = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Cree Le
+     */
+    cree_le: string;
+    origine?: OrigineDuModele | null;
+    /**
+     * Sections
+     */
+    sections: Array<string>;
+    /**
+     * Nombre De Reglages
+     */
+    nombre_de_reglages: number;
 };
 
 /**
@@ -9950,24 +11063,6 @@ export type SuperuserWorkflowRunsListResponse = {
 };
 
 /**
- * Suppression
- */
-export type Suppression = {
-    /**
-     * Status
-     */
-    status?: 'deleted';
-    /**
-     * Uuid
-     */
-    uuid: string;
-    /**
-     * Usages
-     */
-    usages: Array<Usage>;
-};
-
-/**
  * TTSCacheEntry
  */
 export type TtsCacheEntry = {
@@ -10474,6 +11569,20 @@ export type TextChatInactivityTimeoutConstraints = {
 };
 
 /**
+ * TexteModule
+ */
+export type TexteModule = {
+    /**
+     * En
+     */
+    en: string;
+    /**
+     * Fr
+     */
+    fr: string;
+};
+
+/**
  * TimeSlotRequest
  */
 export type TimeSlotRequest = {
@@ -10676,6 +11785,22 @@ export type ToolTestResponse = {
      * Duration Ms
      */
     duration_ms: number;
+};
+
+/**
+ * TraducteurBranche
+ *
+ * The translator that fills a need for this organization (« se branche sur », M4).
+ */
+export type TraducteurBranche = {
+    /**
+     * Systeme
+     */
+    systeme: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
 };
 
 /**
@@ -11213,7 +12338,7 @@ export type TypeRendezVous = {
     /**
      * Etablissement
      *
-     * Establishment it applies to; None: the whole organization.
+     * Establishment it belongs to; None: the organization's (starting types of a new establishment, and the types of a call that serves no establishment).
      */
     etablissement?: string | null;
     /**
@@ -11537,6 +12662,54 @@ export type UserResponse = {
 };
 
 /**
+ * UtilisationObjets
+ *
+ * ``{{nom}}`` looked for in every agent's published texts, at the time of asking (D118).
+ */
+export type UtilisationObjets = {
+    /**
+     * Utilisation
+     */
+    utilisation?: {
+        [key: string]: Array<AgentUtilisateur>;
+    };
+};
+
+/**
+ * ValeurDeListe
+ */
+export type ValeurDeListe = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Ordre
+     */
+    ordre?: number;
+    /**
+     * Actif
+     */
+    actif?: boolean;
+    /**
+     * Regle Seul
+     */
+    regle_seul?: boolean;
+    /**
+     * Opportunite
+     */
+    opportunite?: boolean;
+    /**
+     * Urgent
+     */
+    urgent?: boolean;
+};
+
+/**
  * ValeurHeritee
  *
  * A value as the call will read it, and the level it comes from.
@@ -11836,6 +13009,22 @@ export type VonageConfigurationRequest = {
 };
 
 /**
+ * VueConservationAppels
+ *
+ * What the screen reads: the settings, the installation's ceiling and the last passage.
+ */
+export type VueConservationAppels = {
+    reglages: ReglagesConservationAppels;
+    /**
+     * Audio Autorise Par L Installation
+     *
+     * False when ENABLE_CALL_RECORDING_UPLOAD forbids the audio whatever the setting says.
+     */
+    audio_autorise_par_l_installation: boolean;
+    dernier_passage?: BilanDuPassage | null;
+};
+
+/**
  * WebhookCredentialType
  *
  * Webhook credential authentication types
@@ -12069,6 +13258,12 @@ export type WorkflowConfigurationDefaults = {
      * Seconds before prompting when the model judged the caller asked for time to think. Only used when the setting above is on.
      */
     incomplete_long_timeout?: number;
+    /**
+     * Relance Tour Vide
+     *
+     * When the caller cut the agent off and nothing was transcribed (a cough, noise, speech the transcription missed), the model is told so once and asks the caller to repeat. Pipecat 1.12 turns this on by default; off (default here): nothing is said, the behaviour of before. ⚠️ Pipecat's instruction is in English and sent with the developer role (converted to user for Mistral).
+     */
+    relance_tour_vide?: boolean;
     /**
      * User Idle Prompt
      *
@@ -13166,6 +14361,24 @@ export type XaittsConfiguration = {
 };
 
 /**
+ * Suppression
+ */
+export type ApiRoutesClesSuppression = {
+    /**
+     * Status
+     */
+    status?: 'deleted';
+    /**
+     * Uuid
+     */
+    uuid: string;
+    /**
+     * Usages
+     */
+    usages: Array<Usage>;
+};
+
+/**
  * DemandeRattachement
  */
 export type ApiSchemasAgentsServisDemandeRattachement = {
@@ -13189,6 +14402,20 @@ export type ApiSchemasBaseClientDemandeRattachement = {
      * Nom Base
      */
     nom_base?: string | null;
+};
+
+/**
+ * Suppression
+ */
+export type ApiServicesIntegrationsConnectorsRoutesSuppression = {
+    /**
+     * Supprimee
+     */
+    supprimee?: boolean;
+    /**
+     * Integration
+     */
+    integration: string;
 };
 
 export type InitiateCallApiV1TelephonyInitiateCallPostData = {
@@ -16523,7 +17750,7 @@ export type SupprimerUneCleApiV1ClesUuidDeleteResponses = {
     /**
      * Successful Response
      */
-    200: Suppression;
+    200: ApiRoutesClesSuppression;
 };
 
 export type SupprimerUneCleApiV1ClesUuidDeleteResponse = SupprimerUneCleApiV1ClesUuidDeleteResponses[keyof SupprimerUneCleApiV1ClesUuidDeleteResponses];
@@ -16979,6 +18206,102 @@ export type RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponses
 
 export type RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponse = RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponses[keyof RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponses];
 
+export type ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchData = {
+    body: ModificationEtablissement;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Identifiant
+         */
+        identifiant: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/etablissements/{identifiant}';
+};
+
+export type ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchError = ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchErrors[keyof ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchErrors];
+
+export type ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: Etablissement;
+};
+
+export type ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchResponse = ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchResponses[keyof ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchResponses];
+
+export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostData = {
+    body: DemandeEtatFiche;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Identifiant
+         */
+        identifiant: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/etablissements/{identifiant}/etat';
+};
+
+export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostError = FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostErrors[keyof FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostErrors];
+
+export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Etablissement;
+};
+
+export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponse = FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponses[keyof FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponses];
+
 export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostData = {
     body: DemandeEtablissementsDeLagent;
     headers?: {
@@ -17107,6 +18430,461 @@ export type SavePhrasesApiV1OrganizationsPhrasesPutResponses = {
 };
 
 export type SavePhrasesApiV1OrganizationsPhrasesPutResponse = SavePhrasesApiV1OrganizationsPhrasesPutResponses[keyof SavePhrasesApiV1OrganizationsPhrasesPutResponses];
+
+export type ListerLesModelesApiV1OrganizationsModelesDeReglagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages';
+};
+
+export type ListerLesModelesApiV1OrganizationsModelesDeReglagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesModelesApiV1OrganizationsModelesDeReglagesGetError = ListerLesModelesApiV1OrganizationsModelesDeReglagesGetErrors[keyof ListerLesModelesApiV1OrganizationsModelesDeReglagesGetErrors];
+
+export type ListerLesModelesApiV1OrganizationsModelesDeReglagesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ListeDesModeles;
+};
+
+export type ListerLesModelesApiV1OrganizationsModelesDeReglagesGetResponse = ListerLesModelesApiV1OrganizationsModelesDeReglagesGetResponses[keyof ListerLesModelesApiV1OrganizationsModelesDeReglagesGetResponses];
+
+export type CreerUnModeleApiV1OrganizationsModelesDeReglagesPostData = {
+    body: DemandeCreation;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages';
+};
+
+export type CreerUnModeleApiV1OrganizationsModelesDeReglagesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnModeleApiV1OrganizationsModelesDeReglagesPostError = CreerUnModeleApiV1OrganizationsModelesDeReglagesPostErrors[keyof CreerUnModeleApiV1OrganizationsModelesDeReglagesPostErrors];
+
+export type CreerUnModeleApiV1OrganizationsModelesDeReglagesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResumeDuModele;
+};
+
+export type CreerUnModeleApiV1OrganizationsModelesDeReglagesPostResponse = CreerUnModeleApiV1OrganizationsModelesDeReglagesPostResponses[keyof CreerUnModeleApiV1OrganizationsModelesDeReglagesPostResponses];
+
+export type ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostData = {
+    body: FichierDeModele;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/import';
+};
+
+export type ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostError = ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostErrors[keyof ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostErrors];
+
+export type ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResumeDuModele;
+};
+
+export type ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostResponse = ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostResponses[keyof ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostResponses];
+
+export type MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/agent/{workflow_id}';
+};
+
+export type MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetError = MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetErrors[keyof MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetErrors];
+
+export type MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: MentionDeLagent;
+};
+
+export type MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetResponse = MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetResponses[keyof MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetResponses];
+
+export type SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Modele Id
+         */
+        modele_id: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/{modele_id}';
+};
+
+export type SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteError = SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteErrors[keyof SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteErrors];
+
+export type SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteResponse = SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteResponses[keyof SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteResponses];
+
+export type RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchData = {
+    body: DemandeRenommer;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Modele Id
+         */
+        modele_id: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/{modele_id}';
+};
+
+export type RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchError = RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchErrors[keyof RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchErrors];
+
+export type RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResumeDuModele;
+};
+
+export type RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchResponse = RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchResponses[keyof RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchResponses];
+
+export type ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Modele Id
+         */
+        modele_id: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/{modele_id}/export';
+};
+
+export type ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetError = ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetErrors[keyof ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetErrors];
+
+export type ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: FichierDeModele;
+};
+
+export type ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetResponse = ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetResponses[keyof ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetResponses];
+
+export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostData = {
+    body: DemandeApplication;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Modele Id
+         */
+        modele_id: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/{modele_id}/appliquer';
+};
+
+export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostError = AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostErrors[keyof AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostErrors];
+
+export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatApplication;
+};
+
+export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostResponse = AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostResponses[keyof AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostResponses];
+
+export type GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/conservation-appels';
+};
+
+export type GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetError = GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetErrors[keyof GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetErrors];
+
+export type GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueConservationAppels;
+};
+
+export type GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetResponse = GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetResponses[keyof GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetResponses];
+
+export type PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutData = {
+    body: ReglagesConservationAppels;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/conservation-appels';
+};
+
+export type PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutError = PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutErrors[keyof PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutErrors];
+
+export type PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueConservationAppels;
+};
+
+export type PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutResponse = PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutResponses[keyof PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutResponses];
 
 export type GetAgentsServisApiV1OrganizationsAgentsServisGetData = {
     body?: never;
@@ -17408,6 +19186,49 @@ export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResp
 };
 
 export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponse = PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponses[keyof PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponses];
+
+export type PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client/connexion-portail';
+};
+
+export type PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostError = PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostErrors[keyof PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostErrors];
+
+export type PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ConnexionPortail;
+};
+
+export type PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostResponse = PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostResponses[keyof PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostResponses];
 
 export type PutConservationApiV1OrganizationsBaseClientConservationPutData = {
     /**
@@ -18218,6 +20039,54 @@ export type PutEquipeApiV1OrganizationsEquipePutResponses = {
 
 export type PutEquipeApiV1OrganizationsEquipePutResponse = PutEquipeApiV1OrganizationsEquipePutResponses[keyof PutEquipeApiV1OrganizationsEquipePutResponses];
 
+export type PatchPersonneApiV1OrganizationsEquipePersonnesClePatchData = {
+    body: ModificationPersonne;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Cle
+         */
+        cle: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/equipe/personnes/{cle}';
+};
+
+export type PatchPersonneApiV1OrganizationsEquipePersonnesClePatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PatchPersonneApiV1OrganizationsEquipePersonnesClePatchError = PatchPersonneApiV1OrganizationsEquipePersonnesClePatchErrors[keyof PatchPersonneApiV1OrganizationsEquipePersonnesClePatchErrors];
+
+export type PatchPersonneApiV1OrganizationsEquipePersonnesClePatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: Personne;
+};
+
+export type PatchPersonneApiV1OrganizationsEquipePersonnesClePatchResponse = PatchPersonneApiV1OrganizationsEquipePersonnesClePatchResponses[keyof PatchPersonneApiV1OrganizationsEquipePersonnesClePatchResponses];
+
 export type GetPlanificateurApiV1OrganizationsPlanificateurGetData = {
     body?: never;
     headers?: {
@@ -18261,6 +20130,49 @@ export type GetPlanificateurApiV1OrganizationsPlanificateurGetResponses = {
 
 export type GetPlanificateurApiV1OrganizationsPlanificateurGetResponse = GetPlanificateurApiV1OrganizationsPlanificateurGetResponses[keyof GetPlanificateurApiV1OrganizationsPlanificateurGetResponses];
 
+export type PatchPlanificateurApiV1OrganizationsPlanificateurPatchData = {
+    body: ModificationPlanificateur;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/planificateur';
+};
+
+export type PatchPlanificateurApiV1OrganizationsPlanificateurPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PatchPlanificateurApiV1OrganizationsPlanificateurPatchError = PatchPlanificateurApiV1OrganizationsPlanificateurPatchErrors[keyof PatchPlanificateurApiV1OrganizationsPlanificateurPatchErrors];
+
+export type PatchPlanificateurApiV1OrganizationsPlanificateurPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: Planificateur;
+};
+
+export type PatchPlanificateurApiV1OrganizationsPlanificateurPatchResponse = PatchPlanificateurApiV1OrganizationsPlanificateurPatchResponses[keyof PatchPlanificateurApiV1OrganizationsPlanificateurPatchResponses];
+
 export type PutPlanificateurApiV1OrganizationsPlanificateurPutData = {
     body: Planificateur;
     headers?: {
@@ -18303,6 +20215,492 @@ export type PutPlanificateurApiV1OrganizationsPlanificateurPutResponses = {
 };
 
 export type PutPlanificateurApiV1OrganizationsPlanificateurPutResponse = PutPlanificateurApiV1OrganizationsPlanificateurPutResponses[keyof PutPlanificateurApiV1OrganizationsPlanificateurPutResponses];
+
+export type GetListesValeursApiV1OrganizationsListesValeursGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/listes-valeurs';
+};
+
+export type GetListesValeursApiV1OrganizationsListesValeursGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetListesValeursApiV1OrganizationsListesValeursGetError = GetListesValeursApiV1OrganizationsListesValeursGetErrors[keyof GetListesValeursApiV1OrganizationsListesValeursGetErrors];
+
+export type GetListesValeursApiV1OrganizationsListesValeursGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ListesValeurs;
+};
+
+export type GetListesValeursApiV1OrganizationsListesValeursGetResponse = GetListesValeursApiV1OrganizationsListesValeursGetResponses[keyof GetListesValeursApiV1OrganizationsListesValeursGetResponses];
+
+export type PutListesValeursApiV1OrganizationsListesValeursPutData = {
+    body: ModificationListesValeurs;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/listes-valeurs';
+};
+
+export type PutListesValeursApiV1OrganizationsListesValeursPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutListesValeursApiV1OrganizationsListesValeursPutError = PutListesValeursApiV1OrganizationsListesValeursPutErrors[keyof PutListesValeursApiV1OrganizationsListesValeursPutErrors];
+
+export type PutListesValeursApiV1OrganizationsListesValeursPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ListesValeurs;
+};
+
+export type PutListesValeursApiV1OrganizationsListesValeursPutResponse = PutListesValeursApiV1OrganizationsListesValeursPutResponses[keyof PutListesValeursApiV1OrganizationsListesValeursPutResponses];
+
+export type GetObjetsApiV1OrganizationsObjetsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/objets';
+};
+
+export type GetObjetsApiV1OrganizationsObjetsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetObjetsApiV1OrganizationsObjetsGetError = GetObjetsApiV1OrganizationsObjetsGetErrors[keyof GetObjetsApiV1OrganizationsObjetsGetErrors];
+
+export type GetObjetsApiV1OrganizationsObjetsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ObjetsAgent;
+};
+
+export type GetObjetsApiV1OrganizationsObjetsGetResponse = GetObjetsApiV1OrganizationsObjetsGetResponses[keyof GetObjetsApiV1OrganizationsObjetsGetResponses];
+
+export type PostObjetApiV1OrganizationsObjetsPostData = {
+    body: ObjetEnvoye;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/objets';
+};
+
+export type PostObjetApiV1OrganizationsObjetsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostObjetApiV1OrganizationsObjetsPostError = PostObjetApiV1OrganizationsObjetsPostErrors[keyof PostObjetApiV1OrganizationsObjetsPostErrors];
+
+export type PostObjetApiV1OrganizationsObjetsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ObjetAgent;
+};
+
+export type PostObjetApiV1OrganizationsObjetsPostResponse = PostObjetApiV1OrganizationsObjetsPostResponses[keyof PostObjetApiV1OrganizationsObjetsPostResponses];
+
+export type GetUtilisationApiV1OrganizationsObjetsUtilisationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/objets/utilisation';
+};
+
+export type GetUtilisationApiV1OrganizationsObjetsUtilisationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetUtilisationApiV1OrganizationsObjetsUtilisationGetError = GetUtilisationApiV1OrganizationsObjetsUtilisationGetErrors[keyof GetUtilisationApiV1OrganizationsObjetsUtilisationGetErrors];
+
+export type GetUtilisationApiV1OrganizationsObjetsUtilisationGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: UtilisationObjets;
+};
+
+export type GetUtilisationApiV1OrganizationsObjetsUtilisationGetResponse = GetUtilisationApiV1OrganizationsObjetsUtilisationGetResponses[keyof GetUtilisationApiV1OrganizationsObjetsUtilisationGetResponses];
+
+export type GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/objets/reglages';
+};
+
+export type GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetError = GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetErrors[keyof GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetErrors];
+
+export type GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesObjets;
+};
+
+export type GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetResponse = GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetResponses[keyof GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetResponses];
+
+export type PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutData = {
+    body: ReglagesObjets;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/objets/reglages';
+};
+
+export type PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutError = PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutErrors[keyof PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutErrors];
+
+export type PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesObjets;
+};
+
+export type PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutResponse = PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutResponses[keyof PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutResponses];
+
+export type DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Objet Id
+         */
+        objet_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/objets/{objet_id}';
+};
+
+export type DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteError = DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteErrors[keyof DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteErrors];
+
+export type DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type PutObjetApiV1OrganizationsObjetsObjetIdPutData = {
+    body: ObjetEnvoye;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Objet Id
+         */
+        objet_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/objets/{objet_id}';
+};
+
+export type PutObjetApiV1OrganizationsObjetsObjetIdPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutObjetApiV1OrganizationsObjetsObjetIdPutError = PutObjetApiV1OrganizationsObjetsObjetIdPutErrors[keyof PutObjetApiV1OrganizationsObjetsObjetIdPutErrors];
+
+export type PutObjetApiV1OrganizationsObjetsObjetIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ObjetAgent;
+};
+
+export type PutObjetApiV1OrganizationsObjetsObjetIdPutResponse = PutObjetApiV1OrganizationsObjetsObjetIdPutResponses[keyof PutObjetApiV1OrganizationsObjetsObjetIdPutResponses];
+
+export type GetModulesApiV1OrganizationsModulesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/modules';
+};
+
+export type GetModulesApiV1OrganizationsModulesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetModulesApiV1OrganizationsModulesGetError = GetModulesApiV1OrganizationsModulesGetErrors[keyof GetModulesApiV1OrganizationsModulesGetErrors];
+
+export type GetModulesApiV1OrganizationsModulesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ModulesOrganisation;
+};
+
+export type GetModulesApiV1OrganizationsModulesGetResponse = GetModulesApiV1OrganizationsModulesGetResponses[keyof GetModulesApiV1OrganizationsModulesGetResponses];
+
+export type GetModulesDeLAgentApiV1AgentsAgentIdModulesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Agent Id
+         */
+        agent_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agents/{agent_id}/modules';
+};
+
+export type GetModulesDeLAgentApiV1AgentsAgentIdModulesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetModulesDeLAgentApiV1AgentsAgentIdModulesGetError = GetModulesDeLAgentApiV1AgentsAgentIdModulesGetErrors[keyof GetModulesDeLAgentApiV1AgentsAgentIdModulesGetErrors];
+
+export type GetModulesDeLAgentApiV1AgentsAgentIdModulesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ModulesAgent;
+};
+
+export type GetModulesDeLAgentApiV1AgentsAgentIdModulesGetResponse = GetModulesDeLAgentApiV1AgentsAgentIdModulesGetResponses[keyof GetModulesDeLAgentApiV1AgentsAgentIdModulesGetResponses];
 
 export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetData = {
     body?: never;
@@ -25365,6 +27763,54 @@ export type GetConnexionsApiV1ConnecteursConnexionsGetResponses = {
 };
 
 export type GetConnexionsApiV1ConnecteursConnexionsGetResponse = GetConnexionsApiV1ConnecteursConnexionsGetResponses[keyof GetConnexionsApiV1ConnecteursConnexionsGetResponses];
+
+export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Integration
+         */
+        integration: string;
+    };
+    query?: never;
+    url: '/api/v1/connecteurs/connexions/{integration}';
+};
+
+export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteError = DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteErrors[keyof DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteErrors];
+
+export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiServicesIntegrationsConnectorsRoutesSuppression;
+};
+
+export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteResponse = DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteResponses[keyof DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteResponses];
 
 export type PostLienApiV1ConnecteursLienPostData = {
     body: DemandeLien;

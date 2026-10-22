@@ -691,7 +691,7 @@ class TwilioProvider(TelephonyProvider):
         data.update(kwargs)
 
         try:
-            logger.debug(f"Transfer call data: {data}")
+            logger.debug("Dialing Twilio transfer {}", transfer_id)
 
             async with aiohttp.ClientSession() as session:
                 auth = aiohttp.BasicAuth(self.account_sid, self.auth_token)
