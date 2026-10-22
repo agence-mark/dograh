@@ -572,14 +572,18 @@ async def test_une_base_en_version_17_monte_en_18_et_la_018_se_rejoue(base_essai
         # Un appel écrit par la fonction de la 016 (avant la 018) : ses tours n'ont pas d'agent.
         ancien = await sql.recevoir_appel(proprietaire, _appel(1, None, "+33600000001"))
         assert await schema.version_de(proprietaire) == 17
-        assert await schema.appliquer_migrations(proprietaire) == [18]
-        assert await schema.version_de(proprietaire) == 18 == schema.version_attendue()
+        # (F7 : la 019 existe depuis ; la base s'arrête d'abord à la 18, puis monte au reste.)
+        assert await _appliquer_jusqua(proprietaire, 18) == [18]
+        assert await schema.version_de(proprietaire) == 18
         # Rejouée (sans sa ligne de version) : rien ne casse, rien ne se duplique.
         migration = next(m for m in schema.migrations() if m.version == 18)
         corps = migration.sql[: migration.sql.index("INSERT INTO schema_version")]
         async with proprietaire.transaction():
             await proprietaire.execute(corps)
-        assert await schema.appliquer_migrations(proprietaire) == []
+        assert await schema.appliquer_migrations(proprietaire) == list(
+            range(19, schema.version_attendue() + 1)
+        )
+        assert await schema.version_de(proprietaire) == schema.version_attendue()
         # L'appel d'avant est intact ; un appel d'après écrit son travail.
         assert (
             await proprietaire.fetchval(
