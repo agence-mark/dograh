@@ -128,6 +128,8 @@ CLES_COMMUNES: tuple[str, ...] = (
     "mute_until_first_bot_complete",
     "mute_during_function_call",
     "relance_apres_outil",
+    # Lot 3 de cloture-code (Pipecat 1.12) : la relance d'un tour vide.
+    "relance_tour_vide",
     "mute_engine_callback",
     "mute_first_speech",
     "mute_always",

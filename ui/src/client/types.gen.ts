@@ -12070,6 +12070,12 @@ export type WorkflowConfigurationDefaults = {
      */
     incomplete_long_timeout?: number;
     /**
+     * Relance Tour Vide
+     *
+     * When the caller cut the agent off and nothing was transcribed (a cough, noise, speech the transcription missed), the model is told so once and asks the caller to repeat. Pipecat 1.12 turns this on by default; off (default here): nothing is said, the behaviour of before. ⚠️ Pipecat's instruction is in English and sent with the developer role (converted to user for Mistral).
+     */
+    relance_tour_vide?: boolean;
+    /**
      * User Idle Prompt
      *
      * What the agent is told to do when the caller goes quiet. ⚠️ An instruction given to the model, not a sentence spoken word for word: the model answers in the caller's language.

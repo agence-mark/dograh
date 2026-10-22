@@ -31,6 +31,7 @@ from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import (
     LLMAssistantAggregatorParams,
     LLMContextAggregatorPair,
+    LLMUserAggregatorParams,
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.utils.run_context import set_current_org_id
@@ -75,6 +76,9 @@ from api.services.pipecat.greffier import (
     resoudre_le_bloc_du_greffier,
 )
 from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
+from api.services.pipecat.reglages_tour_de_parole import (
+    collecter_reglages_tour_de_parole,
+)
 from api.services.pipecat.replique_inachevee import brancher_la_relance
 from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.travail.clavier import remettre_les_travaux_termines
@@ -1058,8 +1062,16 @@ async def execute_text_chat_pending_turn(
         capture_processor = _TextChatCaptureProcessor(response_window, context, engine)
 
         assistant_params = LLMAssistantAggregatorParams()
+        # [.mark] Lot 3 de cloture-code : le tour vide de Pipecat 1.12, réglé comme au téléphone
+        # (éteint par défaut ; sinon la paire construisait sa relance active).
         context_aggregator = LLMContextAggregatorPair(
-            context, assistant_params=assistant_params
+            context,
+            assistant_params=assistant_params,
+            user_params=LLMUserAggregatorParams(
+                empty_user_turn=collecter_reglages_tour_de_parole(
+                    agent.reglages or run_configs
+                ).configuration_du_tour_vide()
+            ),
         )
         assistant_context_aggregator = context_aggregator.assistant()
 

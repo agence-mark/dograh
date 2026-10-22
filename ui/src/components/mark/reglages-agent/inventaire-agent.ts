@@ -75,6 +75,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     mute_until_first_bot_complete: { theme: "tour", cas: ["muet-accueil"] },
     mute_during_function_call: { theme: "tour", cas: ["muet-outil"] },
     relance_apres_outil: { theme: "tour", cas: ["relance-outil"] },
+    relance_tour_vide: { theme: "tour", cas: ["tour-vide"] },
     mute_engine_callback: { theme: "tour", cas: ["muet-workflow"] },
     mute_first_speech: { theme: "tour", cas: ["muet-premiere"] },
     mute_always: { theme: "tour", cas: ["muet-toujours"] },

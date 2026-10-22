@@ -449,6 +449,9 @@ def _construire_parametres_agregateur_utilisateur(
         audio_idle_timeout=reglages.audio_idle_timeout,
         filter_incomplete_user_turns=reglages.filter_incomplete_user_turns,
         user_turn_completion_config=reglages.configuration_de_fin_de_tour(),
+        # [.mark] Lot 3 de cloture-code : Pipecat 1.12 relance un tour vide par défaut ;
+        # None (réglage éteint, le défaut) garde le comportement d'avant la montée.
+        empty_user_turn=reglages.configuration_du_tour_vide(),
     )
 
 

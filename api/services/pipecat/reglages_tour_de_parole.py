@@ -39,6 +39,7 @@ from api.schemas.workflow_configurations import (
     DEFAULT_MUTE_ENGINE_CALLBACK,
     DEFAULT_MUTE_FIRST_SPEECH,
     DEFAULT_MUTE_UNTIL_FIRST_BOT_COMPLETE,
+    DEFAULT_RELANCE_TOUR_VIDE,
     DEFAULT_SMART_TURN_MAX_DURATION_SECS,
     DEFAULT_SMART_TURN_PRE_SPEECH_MS,
     DEFAULT_TURN_START_USE_INTERIM,
@@ -52,6 +53,7 @@ from api.schemas.workflow_configurations import (
 from loguru import logger
 
 from pipecat.audio.vad.vad_analyzer import VADParams
+from pipecat.turns.empty_user_turn import EmptyUserTurnConfig
 from pipecat.turns.user_turn_completion_mixin import UserTurnCompletionConfig
 
 
@@ -73,6 +75,21 @@ class ReglagesTourDeParole:
     filter_incomplete_user_turns: bool
     incomplete_short_timeout: float
     incomplete_long_timeout: float
+    # [.mark] Lot 3 de cloture-code : défaut à la fin, comme un champ qu'un appelant ancien ignore.
+    relance_tour_vide: bool = DEFAULT_RELANCE_TOUR_VIDE
+
+    def configuration_du_tour_vide(self) -> EmptyUserTurnConfig | None:
+        """[.mark] Pipecat 1.12 : the empty user turn recovery, or None when it is off.
+
+        ⛔ None is what keeps it off: ``LLMUserAggregatorParams`` builds an
+        ``EmptyUserTurnConfig()`` by default, which answers an interrupted empty
+        turn. Off (the default here) reproduces the behaviour before the upgrade.
+        On, Pipecat's own config is used as it is (one recovery in a row, the
+        interrupted case only).
+        """
+        if not self.relance_tour_vide:
+            return None
+        return EmptyUserTurnConfig()
 
     def parametres_detecteur(self) -> VADParams:
         """The voice detector parameters, for BOTH places it is built."""
@@ -163,6 +180,9 @@ def collecter_reglages_tour_de_parole(
         ),
         incomplete_long_timeout=_nombre(
             run_configs, "incomplete_long_timeout", DEFAULT_INCOMPLETE_LONG_TIMEOUT
+        ),
+        relance_tour_vide=_booleen(
+            run_configs, "relance_tour_vide", DEFAULT_RELANCE_TOUR_VIDE
         ),
     )
 

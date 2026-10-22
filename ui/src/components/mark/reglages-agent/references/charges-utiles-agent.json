@@ -838,6 +838,20 @@
         }
       ]
     },
+    "tour-vide": {
+      "carte": "ajout-mark",
+      "theme": "tour",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "relance_tour_vide": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "muet-workflow": {
       "carte": "speech-tuning",
       "theme": "tour",

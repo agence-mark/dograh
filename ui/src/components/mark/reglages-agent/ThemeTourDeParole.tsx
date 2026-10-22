@@ -73,6 +73,7 @@ export const CLES_TOUR_MARK = [
     "incomplete_short_timeout",
     "incomplete_long_timeout",
     "relance_apres_outil",
+    "relance_tour_vide",
 ] as const satisfies readonly CleCatalogue[];
 
 const CLES_MUETTES = [
@@ -374,6 +375,11 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
             {/* [.mark] Lot 4 of chantier langwatch-et-fenetre-du-run (Pipecat ticket 5960). */}
             <Intertitre id="tour-apres-outil" titre={{ en: "After a tool", fr: "Après un outil" }}>
                 {r("relance_apres_outil")}
+            </Intertitre>
+
+            {/* [.mark] Lot 3 of cloture-code-avant-migration (Pipecat 1.12): the empty user turn. */}
+            <Intertitre id="tour-vide" titre={{ en: "Unheard interruption", fr: "Interruption non comprise" }}>
+                {r("relance_tour_vide")}
             </Intertitre>
         </Theme>
     );

@@ -2151,6 +2151,8 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "filter_incomplete_user_turns",
     "incomplete_short_timeout",
     "incomplete_long_timeout",
+    # [.mark] Lot 3 de cloture-code (Pipecat 1.12) : la relance d'un tour vide.
+    "relance_tour_vide",
     "audio_in_noise_filter",
     "tts_markdown_filter_enabled",
     "tts_push_silence_after_stop",

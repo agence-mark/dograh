@@ -164,6 +164,9 @@ DEFAULT_AUDIO_IDLE_TIMEOUT = 1.0
 DEFAULT_FILTER_INCOMPLETE_USER_TURNS = False
 DEFAULT_INCOMPLETE_SHORT_TIMEOUT = 5.0
 DEFAULT_INCOMPLETE_LONG_TIMEOUT = 10.0
+# [.mark] Lot 3 de cloture-code (22/10) : la relance d'un tour vide de Pipecat 1.12
+# (`EmptyUserTurnConfig`), active par défaut chez Pipecat, éteinte chez nous.
+DEFAULT_RELANCE_TOUR_VIDE = False
 # 🔒 No filter, which is today's behaviour. RNNoise is installed but off:
 # a noise filter can get in the transcription's way as easily as it helps,
 # and that is judged on a real phone line.
@@ -582,6 +585,18 @@ class WorkflowConfigurationDefaults(BaseModel):
         description=(
             "Seconds before prompting when the model judged the caller asked "
             "for time to think. Only used when the setting above is on."
+        ),
+    )
+    # [.mark] Lot 3 de cloture-code-avant-migration (Pipecat 1.12, 22/10) : le tour vide.
+    relance_tour_vide: bool = Field(
+        default=DEFAULT_RELANCE_TOUR_VIDE,
+        description=(
+            "When the caller cut the agent off and nothing was transcribed (a "
+            "cough, noise, speech the transcription missed), the model is told so "
+            "once and asks the caller to repeat. Pipecat 1.12 turns this on by "
+            "default; off (default here): nothing is said, the behaviour of "
+            "before. ⚠️ Pipecat's instruction is in English and sent with the "
+            "developer role (converted to user for Mistral)."
         ),
     )
     user_idle_prompt: str = Field(
