@@ -20,6 +20,7 @@ rien.
 | incidents | un incident, plusieurs appels ; rejouable ; muet sur une base en version 14 |
 | fermeture par fiche | écrite dans `site`, relue, `etat_force` présent ; base en 14 : refusée, jamais perdue en silence |
 | équipe sur plusieurs lieux | le courriel et le planificateur voient la personne de chacun de ses lieux ; le salarié aussi |
+| lectures du portail (017) | incident, appel perdu, société, adresse, type de rendez-vous : par lieu ; indicateurs (appels perdus, urgence de la demande) ; journal sans coordonnées et selon le lieu ; variable absente = rien ; `set_config(..., true)` disparaît à la validation |
 """
 
 from __future__ import annotations
@@ -300,6 +301,19 @@ async def _base_en_version_14(nom):
         await connexion.close()
 
 
+async def _appliquer_jusqua(connexion, version: int) -> list[int]:
+    """Comme ``appliquer_migrations``, mais s'arrête à ``version`` (une installation de cette époque-là)."""
+    actuelle = await schema.version_de(connexion) or 0
+    appliquees = []
+    for migration in schema.migrations():
+        if actuelle < migration.version <= version:
+            sql = migration.sql.replace("\nBEGIN;\n", "\n").replace("\nCOMMIT;\n", "\n")
+            async with connexion.transaction():
+                await connexion.execute(sql)
+            appliquees.append(migration.version)
+    return appliquees
+
+
 async def test_une_base_en_version_14_monte_en_15_et_la_015_se_rejoue(base_essai):
     await _base_en_version_14(base_essai)
     connexion = await schema.connecter(base_essai)
@@ -315,12 +329,10 @@ async def test_une_base_en_version_14_monte_en_15_et_la_015_se_rejoue(base_essai
         await connexion.close()
     proprietaire = await schema.connecter_proprietaire(base_essai)
     try:
-        # La 015, puis les suivantes (la 016 : la fiche à plusieurs demandes).
-        assert await schema.appliquer_migrations(proprietaire) == list(
-            range(15, schema.version_attendue() + 1)
-        )
-        assert await schema.version_de(proprietaire) == schema.version_attendue()
-        assert await schema.appliquer_migrations(proprietaire) == []
+        # La 015, puis la 016 (la fiche à plusieurs demandes). Rejouées AVANT la 017 : la 015 recrée
+        # v_portail_kpi sans appels_perdus, elle ne se rejoue donc plus une fois la 017 montée.
+        assert await _appliquer_jusqua(proprietaire, 16) == [15, 16]
+        assert await schema.version_de(proprietaire) == 16
         # Rejouée (sans sa ligne de version), la 015 ne casse rien et ne duplique rien.
         migration = next(m for m in schema.migrations() if m.version == 15)
         corps = migration.sql[: migration.sql.index("INSERT INTO schema_version")]
@@ -331,6 +343,16 @@ async def test_une_base_en_version_14_monte_en_15_et_la_015_se_rejoue(base_essai
         corps_016 = suivante.sql[: suivante.sql.index("INSERT INTO schema_version")]
         async with proprietaire.transaction():
             await proprietaire.execute(corps_016)
+        # La 017 (les lectures du portail) monte depuis la 16, puis se rejoue sans rien casser.
+        assert await schema.appliquer_migrations(proprietaire) == list(
+            range(17, schema.version_attendue() + 1)
+        )
+        assert await schema.version_de(proprietaire) == schema.version_attendue()
+        assert await schema.appliquer_migrations(proprietaire) == []
+        corps_017 = next(m for m in schema.migrations() if m.version == 17).sql
+        corps_017 = corps_017[: corps_017.index("INSERT INTO schema_version")]
+        async with proprietaire.transaction():
+            await proprietaire.execute(corps_017)
         assert await proprietaire.fetchval("SELECT count(*) FROM mark.appel_motif") == 1
         assert await proprietaire.fetchval("SELECT count(*) FROM mark.appel_agent") == 1
         assert (
@@ -481,7 +503,6 @@ async def test_le_portail_ne_lit_ni_le_courriel_ni_les_tables_internes(portail):
             "SELECT * FROM mark.role_site",
             "SELECT * FROM mark.journal_modif",
             "SELECT * FROM mark.reglage_metier",
-            "SELECT * FROM mark.appel_perdu",
             "SELECT * FROM mark.v_cahier_appels",
             "SELECT * FROM mark.kpi_jour",
         ):
@@ -1364,3 +1385,245 @@ async def test_le_planificateur_propose_les_creneaux_de_la_personne_du_second_li
     assert estampille["ordre"] == ["camille"] and {
         c["personne"] for c in estampille["creneaux"]
     } == {"camille"}
+
+
+# --------------------------------------------------------------------------- #
+# 5. Les lectures du portail (migration 017, lot F1)
+# --------------------------------------------------------------------------- #
+
+
+def _jsonb(valeur):
+    """asyncpg rend le jsonb en texte : on le relit."""
+    return json.loads(valeur) if isinstance(valeur, str) else valeur
+
+
+async def _ajouter_lectures(base, ids):
+    """Ce que le portail lit de plus, par lieu : un incident et un appel perdu (lieu A et lieu B), une
+    société et une adresse par contact, un type de rendez-vous par lieu et un pour toute l'entreprise,
+    une valeur « urgente » sur la demande de l'appel A."""
+    connexion = await schema.connecter(base)
+    try:
+        a = ids["site"]["site-a"]
+        b = ids["site"]["site-b"]
+        appel_a, appel_b = ids["appel"][901], ids["appel"][903]
+        contact_a = await connexion.fetchval(
+            "SELECT contact_id FROM mark.appel WHERE id = $1", appel_a
+        )
+        contact_b = await connexion.fetchval(
+            "SELECT contact_id FROM mark.appel WHERE id = $1", appel_b
+        )
+        demande_a = await connexion.fetchval(
+            "SELECT demande_id FROM mark.appel WHERE id = $1", appel_a
+        )
+        await connexion.execute(
+            "INSERT INTO mark.site_numero (numero, site_id) VALUES ('+33600000011', $1), ('+33600000012', $2)",
+            a,
+            b,
+        )
+        await connexion.execute(
+            "INSERT INTO mark.appel_perdu (call_sid, numero, numero_appele, debut) VALUES "
+            "('CA-A', '+33611111110', '+33600000011', now()), "
+            "('CA-B', '+33622222220', '+33600000012', now())"
+        )
+        for cause, appel in (("pont-A", appel_a), ("pont-B", appel_b)):
+            incident = await connexion.fetchval(
+                "INSERT INTO mark.incident (debut, cause) VALUES (now(), $1) RETURNING id",
+                cause,
+            )
+            await connexion.execute(
+                "INSERT INTO mark.incident_appel (incident_id, appel_id) VALUES ($1, $2)",
+                incident,
+                appel,
+            )
+        # Un incident sans appel : personne ne le voit, même pas l'entreprise.
+        await connexion.execute(
+            "INSERT INTO mark.incident (debut, cause) VALUES (now(), 'sans-appel')"
+        )
+        for nom, contact in (("Société A", contact_a), ("Société B", contact_b)):
+            societe = await connexion.fetchval(
+                "INSERT INTO mark.societe (nom) VALUES ($1) RETURNING id", nom
+            )
+            await connexion.execute(
+                "UPDATE mark.contact SET societe_id = $1 WHERE id = $2", societe, contact
+            )
+        await connexion.execute(
+            "INSERT INTO mark.adresse (contact_id, voie) VALUES ($1, 'Rue A'), ($2, 'Rue B')",
+            contact_a,
+            contact_b,
+        )
+        await connexion.execute(
+            "INSERT INTO mark.type_rendez_vous (code, site_id, libelle, duree_min) VALUES "
+            "('pose_a', $1, 'Pose A', 30), ('pose_b', $2, 'Pose B', 30), "
+            "('pose_tous', NULL, 'Pose partout', 30)",
+            a,
+            b,
+        )
+        await connexion.execute(
+            "INSERT INTO mark.liste_valeur (liste, code, libelle, urgent) "
+            "VALUES ('degre_urgence', 'tres_urgent', 'Très urgent', true)"
+        )
+        await connexion.execute(
+            "UPDATE mark.demande SET degre_urgence = 'tres_urgent' WHERE id = $1", demande_a
+        )
+    finally:
+        await connexion.close()
+
+
+LECTURES_NOUVELLES = {
+    "incident": "SELECT cause AS v FROM mark.incident",
+    "appel_perdu": "SELECT call_sid AS v FROM mark.appel_perdu",
+    "societe": "SELECT nom AS v FROM mark.societe",
+    "adresse": "SELECT voie AS v FROM mark.adresse",
+    "type_rendez_vous": "SELECT code AS v FROM mark.type_rendez_vous",
+}
+
+
+async def test_le_portail_lit_ses_incidents_appels_perdus_societes_adresses_et_types_de_rdv(
+    portail,
+):
+    await _ajouter_lectures(portail.base, portail.ids)
+    a = str(portail.ids["site"]["site-a"])
+    b = str(portail.ids["site"]["site-b"])
+    attendus = {
+        a: {
+            "incident": ["pont-A"],
+            "appel_perdu": ["CA-A"],
+            "societe": ["Société A"],
+            "adresse": ["Rue A"],
+            "type_rendez_vous": ["pose_a", "pose_tous"],
+        },
+        b: {
+            "incident": ["pont-B"],
+            "appel_perdu": ["CA-B"],
+            "societe": ["Société B"],
+            "adresse": ["Rue B"],
+            "type_rendez_vous": ["pose_b", "pose_tous"],
+        },
+    }
+    for sites, attendu in attendus.items():
+        c = await _connexion_du_portail(portail.base, sites)
+        try:
+            for table, requete in LECTURES_NOUVELLES.items():
+                lus = sorted(r["v"] for r in await c.fetch(requete))
+                assert lus == attendu[table], (sites, table)
+        finally:
+            await c.close()
+    # Toute l'entreprise voit les deux incidents liés à un appel ; l'incident sans appel reste invisible.
+    c = await _connexion_du_portail(portail.base, "*")
+    try:
+        incidents = sorted(r["v"] for r in await c.fetch(LECTURES_NOUVELLES["incident"]))
+        assert incidents == ["pont-A", "pont-B"]
+        perdus = sorted(r["v"] for r in await c.fetch(LECTURES_NOUVELLES["appel_perdu"]))
+        assert perdus == ["CA-A", "CA-B"]
+    finally:
+        await c.close()
+
+
+async def test_les_indicateurs_comptent_les_appels_perdus_et_l_urgence_de_la_demande(
+    portail,
+):
+    await _ajouter_lectures(portail.base, portail.ids)
+    a = str(portail.ids["site"]["site-a"])
+    b = str(portail.ids["site"]["site-b"])
+    requete = (
+        "SELECT coalesce(sum(appels_perdus), 0) AS perdus, coalesce(sum(urgents), 0) AS urgents "
+        "FROM mark.v_portail_kpi"
+    )
+    for sites, perdus, urgents in ((a, 1, 1), (b, 1, 0), ("*", 2, 1)):
+        c = await _connexion_du_portail(portail.base, sites)
+        try:
+            ligne = await c.fetchrow(requete)
+            assert (ligne["perdus"], ligne["urgents"]) == (perdus, urgents), sites
+        finally:
+            await c.close()
+
+
+async def test_le_journal_du_portail_sans_coordonnees_et_selon_le_lieu(portail):
+    base = portail.base
+    a = str(portail.ids["site"]["site-a"])
+    b = str(portail.ids["site"]["site-b"])
+    await _ajouter_lectures(base, portail.ids)
+    connexion = await schema.connecter(base)
+    try:
+        await connexion.execute(
+            "UPDATE mark.site SET nom = 'Site B renommé' WHERE cle = 'site-b'"
+        )
+        await connexion.execute(
+            "UPDATE mark.personne SET mail = 'nouveau@example.org', telephone = '+33699999999' "
+            "WHERE prenom = 'Alice'"
+        )
+        await connexion.execute(
+            "UPDATE mark.entreprise SET nom_commercial = 'Nom commercial'"
+        )
+    finally:
+        await connexion.close()
+    c = await _connexion_du_portail(base, a)
+    try:
+        bruno = await c.fetchval("SELECT id FROM mark.personne WHERE prenom = 'Bruno'")
+        alice = await c.fetchval("SELECT id FROM mark.personne WHERE prenom = 'Alice'")
+        lignes = await c.fetch(
+            "SELECT table_nom, ligne_id, avant, apres FROM mark.v_portail_historique"
+        )
+        vus = {(r["table_nom"], r["ligne_id"]) for r in lignes}
+        # Le lieu A : son lieu, ses personnes, la liste ; jamais le lieu B, ni l'entreprise.
+        assert ("site", a) in vus and ("site", b) not in vus
+        assert ("liste_valeur", "degre_urgence:tres_urgent") in vus
+        assert not any(t == "entreprise" for t, _ in vus)
+        assert ("personne", str(alice)) in vus and ("personne", str(bruno)) not in vus
+        # Sans coordonnées : aucune trace du courriel ni du téléphone d'une personne.
+        for r in lignes:
+            if r["table_nom"] == "personne":
+                for valeur in (r["avant"], r["apres"]):
+                    if valeur is not None:
+                        assert "mail" not in _jsonb(valeur)
+                        assert "telephone" not in _jsonb(valeur)
+    finally:
+        await c.close()
+    # Toute l'entreprise voit le changement d'entreprise ; un compte sans variable ne voit rien.
+    c = await _connexion_du_portail(base, "*")
+    try:
+        tables = {
+            r["table_nom"]
+            for r in await c.fetch("SELECT table_nom FROM mark.v_portail_historique")
+        }
+        assert "entreprise" in tables
+    finally:
+        await c.close()
+    c = await _connexion_du_portail(base, None)
+    try:
+        assert await _compter(c, "v_portail_historique") == 0
+    finally:
+        await c.close()
+
+
+async def test_variable_absente_ou_illisible_rien_des_lectures_nouvelles(portail):
+    await _ajouter_lectures(portail.base, portail.ids)
+    for sites in (None, "", "abc", "0"):
+        c = await _connexion_du_portail(portail.base, sites)
+        try:
+            for table in (
+                "incident",
+                "incident_appel",
+                "appel_perdu",
+                "societe",
+                "adresse",
+                "type_rendez_vous",
+                "v_portail_historique",
+                "v_portail_kpi",
+            ):
+                assert await _compter(c, table) == 0, (sites, table)
+        finally:
+            await c.close()
+
+
+async def test_une_variable_posee_dans_une_transaction_disparait_apres_validation(portail):
+    a = str(portail.ids["site"]["site-a"])
+    c = await _connexion_du_portail(portail.base, None)
+    try:
+        async with c.transaction():
+            await c.execute("SELECT set_config('mark.sites_portail', $1, true)", a)
+            assert await _compter(c, "appel") == 2
+        assert await _compter(c, "appel") == 0
+        assert await _compter(c, "site") == 0
+    finally:
+        await c.close()
