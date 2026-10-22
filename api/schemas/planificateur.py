@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 _CODE = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
 _INSEE = re.compile(r"^[0-9][0-9AB][0-9]{3}$")
@@ -147,3 +147,44 @@ class Planificateur(BaseModel):
                 raise ValueError(f"The appointment type « {t.code} » is declared twice at the same level.")
             vus.add(cle)
         return self
+
+
+# --------------------------------------------------------------------------- #
+# [.mark] Lot F4 : l'écriture par élément (mise à jour partielle)
+# --------------------------------------------------------------------------- #
+
+
+class CleTypeRendezVous(BaseModel):
+    """Which appointment type: its code, and the establishment it is proper to (None: the organization's)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    etablissement: str | None = None
+
+
+class ReglagesEnvoyes(ReglagesPlanificateur):
+    """The settings of a partial update: the same fields and bounds, a misspelt setting is refused."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ModificationPlanificateur(BaseModel):
+    """A partial update of the planner, ONE level at a time.
+
+    ``etablissement`` None: the organization's settings; an establishment id: that establishment's
+    overrides. Inside ``reglages`` only the settings SENT change (an absent one keeps its value; one
+    sent ``null`` goes back to inherited). ``types`` creates or replaces the types listed, ``types_retires``
+    removes the ones named; every other type, and every other level, stays as it is."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    etablissement: str | None = Field(
+        default=None, description="The establishment whose overrides change; None: the organization's."
+    )
+    reglages: ReglagesEnvoyes = Field(
+        default_factory=ReglagesEnvoyes,
+        description="Only the settings sent are written.",
+    )
+    types: list[TypeRendezVous] = Field(default_factory=list, max_length=100)
+    types_retires: list[CleTypeRendezVous] = Field(default_factory=list, max_length=100)

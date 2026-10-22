@@ -127,6 +127,37 @@ async def enregistrer_etablissements(
     return catalogue
 
 
+async def enregistrer_un_etablissement(
+    organization_id: int, fiche, auteur: str = "dograh"
+) -> CatalogueEtablissements:
+    """[.mark] Lot F4: ONE fiche written, the others left as they are (a partial update).
+
+    With a client database, only that fiche goes there (``ecrire_un_etablissement``) and the mirror
+    is rebuilt from what the database now holds; without one, the mirror is the source and the fiche
+    replaces its namesake. The copy the calls read follows at once. Returns the catalogue as saved."""
+    nom = await nom_de_la_base_strict(organization_id)
+    if nom:
+        from api.db.bases_clients.referentiel import ecrire_un_etablissement
+        from api.db.bases_clients.connexion import connecter
+
+        connexion = await connecter(nom)
+        try:
+            await ecrire_un_etablissement(connexion, fiche, auteur)
+        finally:
+            await connexion.close()
+        catalogue = await lire_etablissements_strict(organization_id)
+    else:
+        courant = await _miroir_etablissements_strict(organization_id)
+        catalogue = CatalogueEtablissements(
+            etablissements=[fiche if e.id == fiche.id else e for e in courant.etablissements]
+        )
+    await enregistrer_miroir(organization_id, etablissements=catalogue)
+    from api.services.etablissements.copie import publier_copie
+
+    await publier_copie(organization_id)
+    return catalogue
+
+
 # The catalogue of sentences (E5): same two readings, same row table.
 
 

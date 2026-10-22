@@ -2207,6 +2207,22 @@ export type Cle = {
 };
 
 /**
+ * CleTypeRendezVous
+ *
+ * Which appointment type: its code, and the establishment it is proper to (None: the organization's).
+ */
+export type CleTypeRendezVous = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Etablissement
+     */
+    etablissement?: string | null;
+};
+
+/**
  * CloudonixConfigurationRequest
  *
  * Request schema for Cloudonix configuration.
@@ -3348,6 +3364,26 @@ export type DemandeEtablissementsDeLagent = {
      * The fiche the agent chose, as on its screen.
      */
     etablissement_id?: string | null;
+};
+
+/**
+ * DemandeEtatFiche
+ *
+ * Close or reopen ONE fiche (the forced state), nothing else touched.
+ */
+export type DemandeEtatFiche = {
+    /**
+     * Etat Force
+     *
+     * The state to force (FERME to close). ``null``: reopen, back to the hours.
+     */
+    etat_force: 'OUVERT' | 'PAUSE' | 'FERME' | 'SUR_RENDEZ_VOUS' | null;
+    /**
+     * Etat Force Jusqu A
+     *
+     * When the forced state lifts itself, Paris time. ``null``: until changed.
+     */
+    etat_force_jusqu_a?: string | null;
 };
 
 /**
@@ -6535,6 +6571,197 @@ export type ModeleImporte = {
 };
 
 /**
+ * ModificationEtablissement
+ *
+ * A partial update of ONE fiche: only the fields SENT change, the others stay as they are (an absent field is never read as « empty »). Every field of the fiche but its identifier. A field sent empty (``null``, ``""``) goes back to inherited. ``phrases`` is merged sentence by sentence (a sentence sent empty is removed); ``numeros`` and ``termes_lexique`` are replaced as a whole when sent. The same bounds as a save apply to what is sent.
+ */
+export type ModificationEtablissement = {
+    /**
+     * Nom
+     *
+     * Name, as the team says it.
+     */
+    nom?: string | null;
+    /**
+     * Numeros
+     *
+     * The numbers callers dial to reach this establishment, chosen among the organization's Telephony numbers. Empty: the establishment is not attached yet.
+     */
+    numeros?: Array<string> | null;
+    /**
+     * Second Numero
+     *
+     * The number reached when the agent cannot answer (outage, chantier panne).
+     */
+    second_numero?: string | null;
+    /**
+     * Numero Transfert
+     *
+     * Given to the agents as {{numero_transfert}}, for the transfer tool's destination.
+     */
+    numero_transfert?: string | null;
+    /**
+     * None: the organization's address.
+     */
+    adresse?: AdresseEtablissement | null;
+    /**
+     * Horaires Ouverture
+     *
+     * Opening hours, readable format, closures as dated lines « 24/12/2026 : fermé ». None: the agent's own hours, if any.
+     */
+    horaires_ouverture?: string | null;
+    /**
+     * Annonce Fermeture
+     *
+     * None: the organization's closing announcement.
+     */
+    annonce_fermeture?: string | null;
+    /**
+     * Annonce Pause
+     *
+     * None: the organization's break announcement.
+     */
+    annonce_pause?: string | null;
+    /**
+     * Etat Force
+     *
+     * The state every agent of this fiche is in, whatever the hours say (OUVERT, PAUSE, FERME, SUR_RENDEZ_VOUS). None: the organization's, else the hours.
+     */
+    etat_force?: 'OUVERT' | 'PAUSE' | 'FERME' | 'SUR_RENDEZ_VOUS' | null;
+    /**
+     * Etat Force Jusqu A
+     *
+     * When this fiche's forced state lifts itself, Paris time. None: until changed.
+     */
+    etat_force_jusqu_a?: string | null;
+    /**
+     * Phrases
+     *
+     * This establishment's content for the sentences placed at the establishment's level (variable -> content). Absent: the organization's content.
+     */
+    phrases?: {
+        [key: string]: string;
+    } | null;
+    /**
+     * Termes Lexique
+     *
+     * Terms this establishment adds to the organization's trade vocabulary (E6).
+     */
+    termes_lexique?: Array<TermeLexique> | null;
+};
+
+/**
+ * ModificationPersonne
+ *
+ * A partial update of ONE person: only the fields SENT change, the others stay as they are (an absent field is never read as « empty »). Every field of the person but its identifier. ``etablissements`` (or the legacy ``etablissement``) replaces her places when sent; ``agendas`` replaces her agendas when sent. Her subjects and the rest of the team are never touched.
+ */
+export type ModificationPersonne = {
+    /**
+     * Prenom
+     */
+    prenom?: string | null;
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Role
+     */
+    role?: string | null;
+    /**
+     * Mail
+     */
+    mail?: string | null;
+    /**
+     * Telephone
+     */
+    telephone?: string | null;
+    /**
+     * Etablissement
+     *
+     * Identifier of its establishment; None: the whole company. [.mark] Since the team is one (M5), this is a LABEL, read as the first of ``etablissements``.
+     */
+    etablissement?: string | null;
+    /**
+     * Etablissements
+     *
+     * Identifiers of its establishments (zero, one or several); empty: the whole company.
+     */
+    etablissements?: Array<string> | null;
+    /**
+     * Destinataire Defaut
+     */
+    destinataire_defaut?: boolean | null;
+    /**
+     * Actif
+     */
+    actif?: boolean | null;
+    /**
+     * Description
+     *
+     * What this person takes care of, in plain words (the agent reads it).
+     */
+    description?: string | null;
+    /**
+     * Divulguer Telephone
+     *
+     * The agent may give this person's phone number to a caller.
+     */
+    divulguer_telephone?: boolean | null;
+    /**
+     * Divulguer Mail
+     *
+     * The agent may give this person's e-mail address to a caller.
+     */
+    divulguer_mail?: boolean | null;
+    /**
+     * Joignable Par Transfert
+     *
+     * The agent may transfer a call to this person (a phone number is needed).
+     */
+    joignable_par_transfert?: boolean | null;
+    /**
+     * Agendas
+     *
+     * Her agenda in each calendar software: translator -> agenda identifier.
+     */
+    agendas?: {
+        [key: string]: string;
+    } | null;
+};
+
+/**
+ * ModificationPlanificateur
+ *
+ * A partial update of the planner, ONE level at a time.
+ *
+ * ``etablissement`` None: the organization's settings; an establishment id: that establishment's
+ * overrides. Inside ``reglages`` only the settings SENT change (an absent one keeps its value; one
+ * sent ``null`` goes back to inherited). ``types`` creates or replaces the types listed, ``types_retires``
+ * removes the ones named; every other type, and every other level, stays as it is.
+ */
+export type ModificationPlanificateur = {
+    /**
+     * Etablissement
+     *
+     * The establishment whose overrides change; None: the organization's.
+     */
+    etablissement?: string | null;
+    /**
+     * Only the settings sent are written.
+     */
+    reglages?: ReglagesEnvoyes;
+    /**
+     * Types
+     */
+    types?: Array<TypeRendezVous>;
+    /**
+     * Types Retires
+     */
+    types_retires?: Array<CleTypeRendezVous>;
+};
+
+/**
  * MoveFolderRequest
  *
  * [.mark] Lot 10 : déplacer un dossier sous un autre (``None`` = premier niveau).
@@ -8525,6 +8752,78 @@ export type ReglagesConservationAppels = {
      * Dry run: the nightly task counts what it would empty and empties nothing. Untick to empty.
      */
     essai_a_blanc?: boolean;
+};
+
+/**
+ * ReglagesEnvoyes
+ *
+ * The settings of a partial update: the same fields and bounds, a misspelt setting is refused.
+ */
+export type ReglagesEnvoyes = {
+    /**
+     * Nombre Creneaux
+     */
+    nombre_creneaux?: number | null;
+    /**
+     * Delai Minimal H
+     */
+    delai_minimal_h?: number | null;
+    /**
+     * Horizon Jours
+     */
+    horizon_jours?: number | null;
+    /**
+     * Pas Min
+     */
+    pas_min?: number | null;
+    /**
+     * Plages
+     *
+     * Booking ranges in the readable hours format; None: the establishment's hours.
+     */
+    plages?: string | null;
+    /**
+     * Zone Rayon Km
+     */
+    zone_rayon_km?: number | null;
+    /**
+     * Zone Communes
+     */
+    zone_communes?: Array<string> | null;
+    /**
+     * Trajets Comptes
+     */
+    trajets_comptes?: boolean | null;
+    /**
+     * Coefficient Trajet
+     */
+    coefficient_trajet?: number | null;
+    /**
+     * Vitesse Kmh
+     */
+    vitesse_kmh?: number | null;
+    /**
+     * Repartition
+     */
+    repartition?: 'premier_libre' | 'tour_de_role' | 'charge' | 'zone' | null;
+    /**
+     * Repli
+     */
+    repli?: 'humain_puis_rappel' | 'toujours_rappel' | null;
+    /**
+     * Personne Visible
+     */
+    personne_visible?: boolean | null;
+    /**
+     * Jours Feries
+     */
+    jours_feries?: 'metropole' | 'alsace_moselle' | null;
+    /**
+     * Fenetre Equite Jours
+     *
+     * Days over which « tour_de_role » counts the appointments given (R-7, migration 013).
+     */
+    fenetre_equite_jours?: number | null;
 };
 
 /**
@@ -17338,6 +17637,102 @@ export type RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponses
 
 export type RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponse = RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponses[keyof RepriseDesFichesApiV1OrganizationsEtablissementsReprisePostResponses];
 
+export type ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchData = {
+    body: ModificationEtablissement;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Identifiant
+         */
+        identifiant: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/etablissements/{identifiant}';
+};
+
+export type ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchError = ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchErrors[keyof ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchErrors];
+
+export type ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: Etablissement;
+};
+
+export type ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchResponse = ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchResponses[keyof ModifierEtablissementApiV1OrganizationsEtablissementsIdentifiantPatchResponses];
+
+export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostData = {
+    body: DemandeEtatFiche;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Identifiant
+         */
+        identifiant: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/etablissements/{identifiant}/etat';
+};
+
+export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostError = FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostErrors[keyof FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostErrors];
+
+export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Etablissement;
+};
+
+export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponse = FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponses[keyof FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponses];
+
 export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostData = {
     body: DemandeEtablissementsDeLagent;
     headers?: {
@@ -19032,6 +19427,54 @@ export type PutEquipeApiV1OrganizationsEquipePutResponses = {
 
 export type PutEquipeApiV1OrganizationsEquipePutResponse = PutEquipeApiV1OrganizationsEquipePutResponses[keyof PutEquipeApiV1OrganizationsEquipePutResponses];
 
+export type PatchPersonneApiV1OrganizationsEquipePersonnesClePatchData = {
+    body: ModificationPersonne;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Cle
+         */
+        cle: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/equipe/personnes/{cle}';
+};
+
+export type PatchPersonneApiV1OrganizationsEquipePersonnesClePatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PatchPersonneApiV1OrganizationsEquipePersonnesClePatchError = PatchPersonneApiV1OrganizationsEquipePersonnesClePatchErrors[keyof PatchPersonneApiV1OrganizationsEquipePersonnesClePatchErrors];
+
+export type PatchPersonneApiV1OrganizationsEquipePersonnesClePatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: Personne;
+};
+
+export type PatchPersonneApiV1OrganizationsEquipePersonnesClePatchResponse = PatchPersonneApiV1OrganizationsEquipePersonnesClePatchResponses[keyof PatchPersonneApiV1OrganizationsEquipePersonnesClePatchResponses];
+
 export type GetPlanificateurApiV1OrganizationsPlanificateurGetData = {
     body?: never;
     headers?: {
@@ -19074,6 +19517,49 @@ export type GetPlanificateurApiV1OrganizationsPlanificateurGetResponses = {
 };
 
 export type GetPlanificateurApiV1OrganizationsPlanificateurGetResponse = GetPlanificateurApiV1OrganizationsPlanificateurGetResponses[keyof GetPlanificateurApiV1OrganizationsPlanificateurGetResponses];
+
+export type PatchPlanificateurApiV1OrganizationsPlanificateurPatchData = {
+    body: ModificationPlanificateur;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/planificateur';
+};
+
+export type PatchPlanificateurApiV1OrganizationsPlanificateurPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PatchPlanificateurApiV1OrganizationsPlanificateurPatchError = PatchPlanificateurApiV1OrganizationsPlanificateurPatchErrors[keyof PatchPlanificateurApiV1OrganizationsPlanificateurPatchErrors];
+
+export type PatchPlanificateurApiV1OrganizationsPlanificateurPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: Planificateur;
+};
+
+export type PatchPlanificateurApiV1OrganizationsPlanificateurPatchResponse = PatchPlanificateurApiV1OrganizationsPlanificateurPatchResponses[keyof PatchPlanificateurApiV1OrganizationsPlanificateurPatchResponses];
 
 export type PutPlanificateurApiV1OrganizationsPlanificateurPutData = {
     body: Planificateur;

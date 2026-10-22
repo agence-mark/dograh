@@ -30,7 +30,7 @@ from datetime import datetime
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator, model_validator
 
 from api.schemas.lexique_metier import TermeLexique
 from api.schemas.organization_preferences import AdresseEtablissement
@@ -353,3 +353,45 @@ class ResultatReprise(BaseModel):
         "fiches (or to none besides one), hours or address that disagree. Nothing was written for these.",
     )
     deja_a_jour: int = Field(default=0, description="Values already as the takeover would write them.")
+
+
+# --------------------------------------------------------------------------- #
+# [.mark] Lot F4 : l'écriture par élément (mise à jour partielle d'une fiche)
+# --------------------------------------------------------------------------- #
+
+_CHAMPS_MODIFIABLES = {
+    nom: (
+        champ.annotation | None,
+        Field(default=None, description=champ.description),
+    )
+    for nom, champ in Etablissement.model_fields.items()
+    if nom != "id"
+}
+
+ModificationEtablissement = create_model(
+    "ModificationEtablissement",
+    __config__=ConfigDict(extra="forbid"),
+    __doc__=(
+        "A partial update of ONE fiche: only the fields SENT change, the others stay as they are "
+        "(an absent field is never read as « empty »). Every field of the fiche but its identifier. "
+        "A field sent empty (``null``, ``\"\"``) goes back to inherited. ``phrases`` is merged "
+        "sentence by sentence (a sentence sent empty is removed); ``numeros`` and "
+        "``termes_lexique`` are replaced as a whole when sent. The same bounds as a save apply to "
+        "what is sent."
+    ),
+    **_CHAMPS_MODIFIABLES,
+)
+
+
+class DemandeEtatFiche(BaseModel):
+    """Close or reopen ONE fiche (the forced state), nothing else touched."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    etat_force: Literal["OUVERT", "PAUSE", "FERME", "SUR_RENDEZ_VOUS"] | None = Field(
+        description="The state to force (FERME to close). ``null``: reopen, back to the hours.",
+    )
+    etat_force_jusqu_a: datetime | None = Field(
+        default=None,
+        description="When the forced state lifts itself, Paris time. ``null``: until changed.",
+    )

@@ -129,66 +129,98 @@ class EtablissementInconnu(ValueError):
     pass
 
 
+async def _ecrire_personne(
+    connexion: asyncpg.Connection, sites: dict[str, int], table_des_lieux: bool, p: Personne
+) -> int:
+    """One person and her places, inside the caller's transaction.
+
+    [.mark] Lot F4: taken out of ``ecrire_equipe`` unchanged, so that the write of ONE person
+    (``ecrire_une_personne``) is the very same SQL as the write of the team."""
+    for lieu in p.etablissements:
+        if lieu not in sites:
+            raise EtablissementInconnu(f"{p.prenom}: unknown establishment « {lieu} ».")
+    personne_id = await connexion.fetchval(
+        """
+        INSERT INTO mark.personne (cle, site_id, prenom, nom, role, mail, telephone, destinataire_defaut, actif,
+            description, divulguer_telephone, divulguer_mail, joignable_par_transfert)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        ON CONFLICT (cle) DO UPDATE SET site_id = EXCLUDED.site_id, prenom = EXCLUDED.prenom,
+            nom = EXCLUDED.nom, role = EXCLUDED.role, mail = EXCLUDED.mail,
+            telephone = EXCLUDED.telephone, destinataire_defaut = EXCLUDED.destinataire_defaut,
+            actif = EXCLUDED.actif, description = EXCLUDED.description,
+            divulguer_telephone = EXCLUDED.divulguer_telephone, divulguer_mail = EXCLUDED.divulguer_mail,
+            joignable_par_transfert = EXCLUDED.joignable_par_transfert
+        RETURNING id
+        """,
+        p.cle,
+        sites.get(p.etablissements[0]) if p.etablissements else None,  # the first place (legacy column)
+        p.prenom,
+        p.nom,
+        p.role,
+        p.mail,
+        p.telephone,
+        p.destinataire_defaut,
+        p.actif,
+        p.description,
+        p.divulguer_telephone,
+        p.divulguer_mail,
+        p.joignable_par_transfert,
+    )
+    # [.mark] Lot 5 (M5): every place of the person, in ``personne_site``. Several places on a
+    # database that does not have the table yet fail here (the route answers « Upgrade »);
+    # one place or none loses nothing, the legacy column above holds it.
+    if table_des_lieux or len(p.etablissements) > 1:
+        voulus = [sites[lieu] for lieu in p.etablissements]
+        await connexion.execute(
+            "DELETE FROM mark.personne_site WHERE personne_id = $1 AND NOT (site_id = ANY($2::bigint[]))",
+            personne_id,
+            voulus,
+        )
+        for site_id in voulus:
+            await connexion.execute(
+                "INSERT INTO mark.personne_site (personne_id, site_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+                personne_id,
+                site_id,
+            )
+    return personne_id
+
+
+async def _sites_actifs(connexion: asyncpg.Connection) -> dict[str, int]:
+    return {
+        r["cle"]: r["id"]
+        for r in await connexion.fetch(
+            "SELECT id, cle FROM mark.site WHERE cle IS NOT NULL AND actif"
+        )
+    }
+
+
+async def ecrire_une_personne(
+    connexion: asyncpg.Connection, personne: Personne, auteur: str, avec_agendas: bool = False
+) -> None:
+    """[.mark] Lot F4: ONE person written (and, when asked, her agendas). The other people, the
+    subjects and who receives what are not touched, and nobody is deactivated: a partial update
+    never replaces the team."""
+    async with connexion.transaction():
+        await _auteur(connexion, auteur)
+        personne_id = await _ecrire_personne(
+            connexion, await _sites_actifs(connexion), await _table_des_lieux_existe(connexion), personne
+        )
+        if avec_agendas and personne.agendas is not None:
+            from api.db.bases_clients.hub import ecrire_agendas
+
+            await ecrire_agendas(connexion, {personne_id: personne.agendas})
+
+
 async def ecrire_equipe(
     connexion: asyncpg.Connection, equipe: Equipe, auteur: str
 ) -> None:
     async with connexion.transaction():
         await _auteur(connexion, auteur)
-        sites = {
-            r["cle"]: r["id"]
-            for r in await connexion.fetch(
-                "SELECT id, cle FROM mark.site WHERE cle IS NOT NULL AND actif"
-            )
-        }
+        sites = await _sites_actifs(connexion)
         ids: dict[str, int] = {}
         table_des_lieux = await _table_des_lieux_existe(connexion)
         for p in equipe.personnes:
-            for lieu in p.etablissements:
-                if lieu not in sites:
-                    raise EtablissementInconnu(f"{p.prenom}: unknown establishment « {lieu} ».")
-            ids[p.cle] = await connexion.fetchval(
-                """
-                INSERT INTO mark.personne (cle, site_id, prenom, nom, role, mail, telephone, destinataire_defaut, actif,
-                    description, divulguer_telephone, divulguer_mail, joignable_par_transfert)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-                ON CONFLICT (cle) DO UPDATE SET site_id = EXCLUDED.site_id, prenom = EXCLUDED.prenom,
-                    nom = EXCLUDED.nom, role = EXCLUDED.role, mail = EXCLUDED.mail,
-                    telephone = EXCLUDED.telephone, destinataire_defaut = EXCLUDED.destinataire_defaut,
-                    actif = EXCLUDED.actif, description = EXCLUDED.description,
-                    divulguer_telephone = EXCLUDED.divulguer_telephone, divulguer_mail = EXCLUDED.divulguer_mail,
-                    joignable_par_transfert = EXCLUDED.joignable_par_transfert
-                RETURNING id
-                """,
-                p.cle,
-                sites.get(p.etablissements[0]) if p.etablissements else None,  # the first place (legacy column)
-                p.prenom,
-                p.nom,
-                p.role,
-                p.mail,
-                p.telephone,
-                p.destinataire_defaut,
-                p.actif,
-                p.description,
-                p.divulguer_telephone,
-                p.divulguer_mail,
-                p.joignable_par_transfert,
-            )
-            # [.mark] Lot 5 (M5): every place of the person, in ``personne_site``. Several places on a
-            # database that does not have the table yet fail here (the route answers « Upgrade »);
-            # one place or none loses nothing, the legacy column above holds it.
-            if table_des_lieux or len(p.etablissements) > 1:
-                voulus = [sites[lieu] for lieu in p.etablissements]
-                await connexion.execute(
-                    "DELETE FROM mark.personne_site WHERE personne_id = $1 AND NOT (site_id = ANY($2::bigint[]))",
-                    ids[p.cle],
-                    voulus,
-                )
-                for site_id in voulus:
-                    await connexion.execute(
-                        "INSERT INTO mark.personne_site (personne_id, site_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-                        ids[p.cle],
-                        site_id,
-                    )
+            ids[p.cle] = await _ecrire_personne(connexion, sites, table_des_lieux, p)
         await connexion.execute(
             "UPDATE mark.personne SET actif = false WHERE actif AND cle IS NOT NULL AND NOT (cle = ANY($1::text[]))",
             list(ids),

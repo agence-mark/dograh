@@ -90,6 +90,41 @@ async def _ecrire_reglages(connexion, site_id: int | None, reglages: ReglagesPla
     )
 
 
+async def _ecrire_type(
+    connexion: asyncpg.Connection,
+    t: TypeRendezVous,
+    ordre: int,
+    sites: dict[str, int],
+    sujets: dict[str, int],
+) -> int:
+    """One appointment type (organization-wide, or one establishment's), inside the caller's transaction.
+
+    [.mark] Lot F4: taken out of ``ecrire_planificateur`` unchanged, so that the write of ONE type
+    is the very same SQL as the write of the whole planner."""
+    site_id = sites.get(t.etablissement) if t.etablissement else None
+    return await connexion.fetchval(
+        """
+        INSERT INTO mark.type_rendez_vous (code, site_id, libelle, duree_min, sujet_id,
+            marge_avant_min, marge_apres_min, actif, ordre)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (code, (coalesce(site_id, 0))) DO UPDATE SET libelle = EXCLUDED.libelle,
+            duree_min = EXCLUDED.duree_min, sujet_id = EXCLUDED.sujet_id,
+            marge_avant_min = EXCLUDED.marge_avant_min, marge_apres_min = EXCLUDED.marge_apres_min,
+            actif = EXCLUDED.actif, ordre = EXCLUDED.ordre
+        RETURNING id
+        """,
+        t.code,
+        site_id,
+        t.libelle,
+        t.duree_min,
+        sujets.get(t.sujet) if t.sujet else None,
+        t.marge_avant_min,
+        t.marge_apres_min,
+        t.actif,
+        ordre,
+    )
+
+
 async def ecrire_planificateur(
     connexion: asyncpg.Connection, planificateur: Planificateur, auteur: str
 ) -> None:
@@ -118,34 +153,73 @@ async def ecrire_planificateur(
             )
         gardes = []
         for ordre, t in enumerate(planificateur.types):
-            site_id = sites.get(t.etablissement) if t.etablissement else None
-            gardes.append(
-                await connexion.fetchval(
-                    """
-                    INSERT INTO mark.type_rendez_vous (code, site_id, libelle, duree_min, sujet_id,
-                        marge_avant_min, marge_apres_min, actif, ordre)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                    ON CONFLICT (code, (coalesce(site_id, 0))) DO UPDATE SET libelle = EXCLUDED.libelle,
-                        duree_min = EXCLUDED.duree_min, sujet_id = EXCLUDED.sujet_id,
-                        marge_avant_min = EXCLUDED.marge_avant_min, marge_apres_min = EXCLUDED.marge_apres_min,
-                        actif = EXCLUDED.actif, ordre = EXCLUDED.ordre
-                    RETURNING id
-                    """,
-                    t.code,
-                    site_id,
-                    t.libelle,
-                    t.duree_min,
-                    sujets.get(t.sujet) if t.sujet else None,
-                    t.marge_avant_min,
-                    t.marge_apres_min,
-                    t.actif,
-                    ordre,
-                )
-            )
+            gardes.append(await _ecrire_type(connexion, t, ordre, sites, sujets))
         # A type removed on screen is removed (a booked appointment keeps its code as text).
         await connexion.execute(
             "DELETE FROM mark.type_rendez_vous WHERE NOT (id = ANY($1::bigint[]))", gardes
         )
+
+
+async def modifier_planificateur(
+    connexion: asyncpg.Connection,
+    etablissement: str | None,
+    envoye: dict,
+    types: list[TypeRendezVous],
+    types_retires: list[tuple[str, str | None]],
+    auteur: str,
+) -> None:
+    """[.mark] Lot F4: a PARTIAL update of the planner, in one transaction.
+
+    - ``envoye``: only the settings the request carried (``exclude_unset``), laid over the row of
+      the level (``etablissement`` None: the organization's; else that establishment's). A setting
+      absent keeps its value; one sent ``None`` goes back to inherited. Nothing else is written:
+      the other levels and the other types are untouched.
+    - ``types``: each type is created or replaced (code + establishment); ``types_retires``:
+      (code, establishment) removed, none left behind otherwise."""
+    async with connexion.transaction():
+        await connexion.execute("SELECT set_config('mark.auteur', $1, true)", auteur[:200])
+        sites = {
+            r["cle"]: r["id"]
+            for r in await connexion.fetch("SELECT id, cle FROM mark.site WHERE cle IS NOT NULL")
+        }
+        sujets = {
+            r["code"]: r["id"]
+            for r in await connexion.fetch("SELECT id, code FROM mark.sujet WHERE actif")
+        }
+        site_id = None
+        if etablissement is not None:
+            if etablissement not in sites:
+                raise ReferenceInconnue(f"Unknown establishment « {etablissement} ».")
+            site_id = sites[etablissement]
+        if envoye:
+            ligne = await connexion.fetchrow(
+                "SELECT * FROM mark.reglage_planificateur WHERE coalesce(site_id, 0) = coalesce($1::bigint, 0)",
+                site_id,
+            )
+            valeurs = _reglages(ligne).model_dump() if ligne is not None else ReglagesPlanificateur().model_dump()
+            valeurs.update(envoye)
+            await _ecrire_reglages(connexion, site_id, ReglagesPlanificateur.model_validate(valeurs))
+        for t in types:
+            if t.etablissement is not None and t.etablissement not in sites:
+                raise ReferenceInconnue(f"{t.libelle}: unknown establishment « {t.etablissement} ».")
+            if t.sujet is not None and t.sujet not in sujets:
+                raise ReferenceInconnue(f"{t.libelle}: unknown subject « {t.sujet} ».")
+            ordre = await connexion.fetchval(
+                "SELECT coalesce((SELECT ordre FROM mark.type_rendez_vous "
+                "WHERE code = $1 AND coalesce(site_id, 0) = coalesce($2::bigint, 0)), "
+                "(SELECT coalesce(max(ordre), -1) + 1 FROM mark.type_rendez_vous))",
+                t.code,
+                sites.get(t.etablissement) if t.etablissement else None,
+            )
+            await _ecrire_type(connexion, t, ordre, sites, sujets)
+        for code, lieu in types_retires:
+            if lieu is not None and lieu not in sites:
+                raise ReferenceInconnue(f"Unknown establishment « {lieu} ».")
+            await connexion.execute(
+                "DELETE FROM mark.type_rendez_vous WHERE code = $1 AND coalesce(site_id, 0) = coalesce($2::bigint, 0)",
+                code,
+                sites.get(lieu) if lieu else None,
+            )
 
 
 async def personnes_du_type(

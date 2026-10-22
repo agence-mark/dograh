@@ -11,6 +11,11 @@ Four routes, all scoped to the user's selected organization:
 - ``POST /organizations/etablissements/agent``    what an agent's calls will read,
   establishment by establishment, with the level each value comes from -- the
   same functions as the call (E8: one rule on screen and in the code).
+
+[.mark] Lot F4, writes by element (nothing replaces the catalogue):
+
+- ``PATCH /organizations/etablissements/{id}``      only the fields sent change;
+- ``POST  /organizations/etablissements/{id}/etat`` close or reopen one fiche.
 """
 
 from __future__ import annotations
@@ -24,8 +29,11 @@ from api.db.models import UserModel
 from api.schemas.etablissements import (
     CatalogueEtablissements,
     DemandeCopieEtablissement,
+    DemandeEtatFiche,
     DemandeReprise,
+    Etablissement,
     EtablissementsDeLagent,
+    ModificationEtablissement,
     NumeroDeLorganisation,
     ResultatCopieEtablissement,
     ResultatReprise,
@@ -44,6 +52,7 @@ from api.services.etablissements.appel import etablissements_de_lagent
 from api.services.etablissements.stockage import (
     enregistrer_etablissements,
     enregistrer_phrases,
+    enregistrer_un_etablissement,
     lire_etablissements_strict,
     lire_phrases_strict,
 )
@@ -91,12 +100,21 @@ async def get_numeros(user: UserModel = Depends(get_user_with_selected_organizat
     return await _numeros_de_lorganisation(user.selected_organization_id)
 
 
-async def _controler_etablissements(organization_id: int, etablissements: list) -> list:
+async def _controler_etablissements(
+    organization_id: int,
+    etablissements: list,
+    seulement: set[str] | None = None,
+    phrases_seules: set[str] | None = None,
+) -> list:
     """Every bound of a save, fiche by fiche, BEFORE anything is written (422 otherwise).
     Returns the fiches with their address checked and named officially.
 
     [.mark] Lot 4: taken out of ``save_etablissements`` unchanged, so the copy of a fiche
-    (``/copier``) passes through the very same controls."""
+    (``/copier``) passes through the very same controls.
+
+    [.mark] Lot F4: for a PARTIAL update, ``seulement`` names the fields the request sent (among
+    ``horaires_ouverture``, ``numeros``, ``adresse``) and ``phrases_seules`` the sentences it sent: what was not sent is not re-judged, so a change of name is never refused for
+    a number that has left the Telephony since. ``None`` (every other route): everything is checked."""
     from api.services.pipecat.etat_ouverture import (
         HorairesInvalides,
         vers_expression_osm,
@@ -112,17 +130,19 @@ async def _controler_etablissements(organization_id: int, etablissements: list) 
     for rang, etablissement in enumerate(etablissements):
         loc = ["body", "etablissements", rang]
         for variable in etablissement.phrases:
+            if phrases_seules is not None and variable not in phrases_seules:
+                continue
             if variable not in au_niveau_etablissement:
                 raise _refus(
                     f"{etablissement.nom}: « {variable} » is not a sentence placed at the establishment's level.",
                     loc + ["phrases", variable],
                 )
-        if etablissement.horaires_ouverture:
+        if etablissement.horaires_ouverture and (seulement is None or "horaires_ouverture" in seulement):
             try:
                 vers_expression_osm(etablissement.horaires_ouverture)
             except HorairesInvalides as erreur:
                 raise _refus(f"{etablissement.nom}: {erreur}", loc + ["horaires_ouverture"]) from None
-        for numero in etablissement.numeros:
+        for numero in etablissement.numeros if seulement is None or "numeros" in seulement else ():
             if numero not in siens:
                 # Tenant isolation: a called number must be one of THIS organization's.
                 raise _refus(
@@ -130,7 +150,7 @@ async def _controler_etablissements(organization_id: int, etablissements: list) 
                     loc + ["numeros"],
                 )
         adresse = etablissement.adresse
-        if adresse is not None:
+        if adresse is not None and (seulement is None or "adresse" in seulement):
             try:
                 adresse = await valider_adresse_saisie(adresse)
             except AdresseInvalide as erreur:
@@ -333,6 +353,81 @@ async def reprise_des_fiches(
     except BaseClientIndisponible as erreur:
         raise _base_injoignable(erreur) from None
     return ResultatReprise(ecrit=True, actions=plan.actions, a_decider=plan.a_decider, deja_a_jour=plan.deja_a_jour)
+
+
+# --------------------------------------------------------------------------- #
+# [.mark] Lot F4 : écritures par élément (jamais le catalogue entier)
+# --------------------------------------------------------------------------- #
+
+
+async def _modifier_une_fiche(user: UserModel, identifiant: str, envoye: dict) -> Etablissement:
+    """The partial update of ONE fiche: what was sent is laid over the fiche as saved, the whole goes
+    through the bounds of a save (422, nothing written), and only that fiche is written. An absent
+    field is not touched; nothing here decides WHO may change what (the portal does).
+
+    ``envoye`` holds only the fields the request carried (``exclude_unset``)."""
+    organization_id = user.selected_organization_id
+    catalogue = await _catalogue_pour_ecrire(organization_id)
+    actuelle = next((e for e in catalogue.etablissements if e.id == identifiant), None)
+    if actuelle is None:
+        raise HTTPException(status_code=404, detail=f"Establishment « {identifiant} » not found.")
+    valeurs = actuelle.model_dump()
+    for champ, valeur in envoye.items():
+        if champ == "phrases":
+            # Sentence by sentence: the others are kept; one sent empty is removed (back to inherited).
+            valeurs["phrases"] = {**valeurs["phrases"], **(valeur or {})}
+        else:
+            valeurs[champ] = valeur
+    try:
+        nouvelle = Etablissement.model_validate(valeurs)
+    except ValidationError as erreur:
+        raise HTTPException(status_code=422, detail=erreur.errors(include_url=False, include_context=False, include_input=False)) from None
+    # A sentence sent empty is removed: only those that remain are judged (the check of the level).
+    (verifiee,) = await _controler_etablissements(
+        organization_id,
+        [nouvelle],
+        seulement=set(envoye),
+        phrases_seules=set((envoye.get("phrases") or {}).keys()),
+    )
+    try:
+        # Whole-catalogue rules (one called number leads to one fiche only), as at a save.
+        CatalogueEtablissements(
+            etablissements=[verifiee if e.id == identifiant else e for e in catalogue.etablissements]
+        )
+    except ValidationError as erreur:
+        raise HTTPException(status_code=422, detail=erreur.errors(include_url=False, include_context=False, include_input=False)) from None
+    try:
+        await enregistrer_un_etablissement(organization_id, verifiee, auteur_de(user))
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None
+    return verifiee
+
+
+@router.patch("/{identifiant}", response_model=Etablissement)
+async def modifier_etablissement(
+    identifiant: str,
+    request: ModificationEtablissement,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """F4: change some fields of ONE fiche; the fields not sent keep their value (sentences,
+    vocabulary, numbers, closure…). Answers with the fiche as saved. 404: unknown fiche of this
+    organization."""
+    return await _modifier_une_fiche(user, identifiant, request.model_dump(exclude_unset=True))
+
+
+@router.post("/{identifiant}/etat", response_model=Etablissement)
+async def fermer_ou_rouvrir_etablissement(
+    identifiant: str,
+    request: DemandeEtatFiche,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """F4: close (``etat_force: "FERME"``, with or without an end) or reopen (``etat_force: null``)
+    ONE fiche. Nothing else of the fiche is touched."""
+    return await _modifier_une_fiche(
+        user,
+        identifiant,
+        {"etat_force": request.etat_force, "etat_force_jusqu_a": request.etat_force_jusqu_a},
+    )
 
 
 class DemandeEtablissementsDeLagent(BaseModel):

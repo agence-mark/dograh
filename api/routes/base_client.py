@@ -11,6 +11,10 @@ attached to THAT organization, never a name taken from the request but to attach
 - ``PUT  /organizations/base-client/conservation`` change retention durations (bounded, logged)
 - ``GET/PUT /organizations/equipe``                the team and the routing
 - ``GET/PUT /organizations/planificateur``         the planner's rules (l-agent-collegue, L5)
+
+[.mark] Lot F4, writes by element (nothing replaces the whole):
+- ``PATCH /organizations/equipe/personnes/{cle}``  only the fields sent change, for one person;
+- ``PATCH /organizations/planificateur``           only the settings sent change, for one level.
 """
 
 from __future__ import annotations
@@ -34,13 +38,17 @@ from api.db.bases_clients.connexion import (
     version_de,
 )
 from api.db.models import UserModel
+from pydantic import ValidationError
+
 from api.schemas.base_client import (
     Conservation,
     DemandeRattachement,
     Equipe,
     EtatBaseClient,
+    ModificationPersonne,
+    Personne,
 )
-from api.schemas.planificateur import Planificateur
+from api.schemas.planificateur import ModificationPlanificateur, Planificateur
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
 
@@ -279,6 +287,61 @@ async def put_equipe(
     return relue
 
 
+@routeur_equipe.patch("/personnes/{cle}", response_model=Personne)
+async def patch_personne(
+    cle: str,
+    request: ModificationPersonne,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] Lot F4: change some fields of ONE person; the fields not sent keep their value. Her
+    subjects, the other people and who receives what are not touched (a partial update never
+    replaces the team). 404: unknown person. Nothing here decides WHO may change what (the portal does)."""
+    from api.db.bases_clients.equipe import (
+        EtablissementInconnu,
+        ecrire_une_personne,
+        lire_equipe,
+    )
+
+    envoye = request.model_dump(exclude_unset=True)
+    connexion = await _connexion_de(user.selected_organization_id)
+    try:
+        equipe = await lire_equipe(connexion)
+        actuelle = next((p for p in equipe.personnes if p.cle == cle), None)
+        if actuelle is None:
+            raise HTTPException(status_code=404, detail=f"Person « {cle} » not found.")
+        valeurs = actuelle.model_dump()
+        valeurs.update(envoye)
+        # Her places: the list sent wins; the legacy single label alone becomes a list of one.
+        if "etablissements" not in envoye and "etablissement" in envoye:
+            valeurs["etablissements"] = [envoye["etablissement"]] if envoye["etablissement"] else []
+        try:
+            nouvelle = Personne.model_validate(valeurs)
+            # The rules of the whole team (one agenda, one person), as at a save.
+            Equipe(
+                personnes=[nouvelle if p.cle == cle else p for p in equipe.personnes],
+                sujets=equipe.sujets,
+            )
+        except ValidationError as erreur:
+            raise HTTPException(
+                status_code=422, detail=erreur.errors(include_url=False, include_context=False, include_input=False)
+            ) from None
+        try:
+            async with _schema_a_jour(connexion):
+                await ecrire_une_personne(
+                    connexion,
+                    nouvelle,
+                    rattachement.auteur_de(user),
+                    avec_agendas=envoye.get("agendas") is not None,
+                )
+        except EtablissementInconnu as erreur:
+            raise _refus(str(erreur)) from None
+        relue = next(p for p in (await lire_equipe(connexion)).personnes if p.cle == cle)
+    finally:
+        await connexion.close()
+    await _apres_changement_de_source(user.selected_organization_id)
+    return relue
+
+
 # --------------------------------------------------------------------------- #
 # l-agent-collegue, L5 (P2, P3): the planner's rules, in the client's database
 # --------------------------------------------------------------------------- #
@@ -323,6 +386,55 @@ async def put_planificateur(
         try:
             async with _schema_a_jour(connexion):
                 await ecrire_planificateur(connexion, request, rattachement.auteur_de(user))
+        except ReferenceInconnue as erreur:
+            raise _refus(str(erreur)) from None
+        return await lire_planificateur(connexion)
+    finally:
+        await connexion.close()
+
+
+@routeur_planificateur.patch("", response_model=Planificateur)
+async def patch_planificateur(
+    request: ModificationPlanificateur,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] Lot F4: change some settings of ONE level (the organization's, or one establishment's
+    overrides), and create, replace or remove appointment types by name. What is not named keeps its
+    value; the other levels are not touched. Answers with the planner as saved."""
+    from api.db.bases_clients.planificateur import (
+        ReferenceInconnue,
+        lire_planificateur,
+        modifier_planificateur,
+    )
+    from api.services.pipecat.etat_ouverture import (
+        HorairesInvalides,
+        vers_expression_osm,
+    )
+
+    envoye = request.reglages.model_dump(exclude_unset=True)
+    # The booking ranges are read like the opening hours: refused when SAVED, never at a call.
+    if envoye.get("plages"):
+        try:
+            vers_expression_osm(envoye["plages"])
+        except HorairesInvalides as erreur:
+            raise _refus(f"Booking ranges: {erreur}") from None
+    vus = set()
+    for t in request.types:
+        if (t.code, t.etablissement) in vus:
+            raise _refus(f"The appointment type « {t.code} » is sent twice at the same level.")
+        vus.add((t.code, t.etablissement))
+    connexion = await _connexion_de(user.selected_organization_id)
+    try:
+        try:
+            async with _schema_a_jour(connexion):
+                await modifier_planificateur(
+                    connexion,
+                    request.etablissement,
+                    envoye,
+                    request.types,
+                    [(c.code, c.etablissement) for c in request.types_retires],
+                    rattachement.auteur_de(user),
+                )
         except ReferenceInconnue as erreur:
             raise _refus(str(erreur)) from None
         return await lire_planificateur(connexion)
