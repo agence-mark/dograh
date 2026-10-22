@@ -136,6 +136,7 @@ class Sonde:
                 derniere_ecriture = maintenant
 
     def demarrer(self) -> None:
+        self.echantillonner()  # une première lecture tout de suite : une session courte a un pic
         self.ecrire()
         self._fil = threading.Thread(
             target=self._boucle, name="sonde-memoire", daemon=True
@@ -143,6 +144,7 @@ class Sonde:
         self._fil.start()
 
     def arreter(self) -> None:
+        self.echantillonner()  # dernière lecture : le pic compte jusqu'à la fin de la session
         self._arret.set()
         if self._fil is not None:
             self._fil.join(timeout=2)

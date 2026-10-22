@@ -173,7 +173,8 @@ def test_vraie_sonde_dans_un_pytest_fils_tue_le_processus_et_nomme_le_test(tmp_p
     assert etat["plafond_depasse"] is True and etat["termine"] is False
     assert etat["test_en_cours"].endswith("test_fuite.py::test_gros_et_long")
     assert etat["collecte"] == 2
-    assert "test_gros_et_long" in fin.stderr
+    # Le message sur stderr n'est pas vérifié : sans ``-s`` pytest capture le descripteur 2 et
+    # ``os._exit`` ne le vide pas. Le fichier d'état est la trace qui compte.
 
 
 @pytest.mark.skipif(
