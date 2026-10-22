@@ -1,0 +1,136 @@
+# [.mark] CI de sécurité : dépendances vulnérables et secrets (V1, lot 1 de cloture-code-avant-migration,
+# 22/10/2026). Fichier à nous (décision D4 du 25/09) : l'amont ne bouge pas. Deux outils, tous deux
+# en BINAIRE à version et somme de contrôle figées (ni action tierce à licence, ni script téléchargé
+# sans vérification) :
+#
+#   • osv-scanner : failles connues des dépendances de PRODUCTION, `api/requirements.txt`,
+#     `api/constraints.txt` (désigné comme fichier requirements : `-L requirements.txt:<chemin>`,
+#     le nom `constraints.txt` n'étant pas reconnu seul) et `ui/package-lock.json`. Bloquant à
+#     partir de « élevée » (note CVSS ≥ 7), seuil appliqué par `api/scripts/mark/verifier_osv.py`
+#     (osv-scanner n'en a pas). Les paquets de développement seuls du lockfile npm (`dev`) sont
+#     ignorés : c'est ce que ferait `npm ci --omit=dev`, sans installer.
+#   • gitleaks : secrets dans les commits POUSSÉS (le diff de l'envoi), jamais tout l'historique.
+#     ⛔ Le jeton Chatwoot de `ui/Dockerfile` (amont) est dans l'historique : un scan complet le
+#     signalerait. Constat au formulaire, pas à corriger ici.
+#
+# Les valeurs trouvées ne sont jamais affichées (`--redact`).
+
+name: "[.mark] Sécurité"
+
+on:
+  push:
+    branches:
+      - "chantier/**"
+      - "mark/deploiement"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OSV_SCANNER_VERSION: v2.7.0
+  OSV_SCANNER_SHA256: 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b
+  GITLEAKS_VERSION: 8.30.1
+  GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+
+jobs:
+  dependances:
+    name: Dépendances de production (osv-scanner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Installer osv-scanner (version et somme figées)
+        run: |
+          curl -fsSL -o osv-scanner \
+            "https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SCANNER_SHA256}  osv-scanner" | sha256sum -c -
+          chmod +x osv-scanner
+
+      # osv-scanner rend 1 quand il trouve une faille (c'est normal, le seuil est jugé après) et plus
+      # de 1 quand il n'a pas pu scanner (127 erreur, 128 aucun paquet) : cela, jamais un vert.
+      - name: Scanner les trois fichiers
+        run: |
+          mkdir -p rapports-osv
+          scanner() {
+            sortie="$1"; shift
+            code=0
+            ./osv-scanner scan source --no-resolve "$@" --format json --output-file "rapports-osv/${sortie}.json" || code=$?
+            if [ "$code" -gt 1 ]; then
+              echo "::error::osv-scanner n'a pas pu scanner ${sortie} (code ${code})"
+              exit 1
+            fi
+          }
+          scanner requirements -L requirements.txt:api/requirements.txt
+          scanner constraints -L requirements.txt:api/constraints.txt
+          scanner ui -L ui/package-lock.json
+
+      - name: Seuil « élevée » ou plus (bloquant)
+        run: python api/scripts/mark/verifier_osv.py --seuil 7.0 --resume "$GITHUB_STEP_SUMMARY" rapports-osv/*.json
+
+      - name: Rapports du scan
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapports-osv
+          path: rapports-osv/
+          if-no-files-found: warn
+          retention-days: 30
+
+  secrets:
+    name: Secrets dans les commits poussés (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Historique complet : la plage de commits se calcule avec `git log`.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Installer gitleaks (version et somme figées)
+        run: |
+          curl -fsSL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          chmod +x gitleaks
+
+      # Plage scannée = ce que l'envoi apporte :
+      #   • envoi ordinaire : `avant..après` ;
+      #   • branche neuve (`avant` = 000…) ou `avant` introuvable (réécriture d'historique) : les
+      #     commits que la branche ajoute à `mark/deploiement` ;
+      #   • `mark/deploiement` sans `avant` exploitable : le dernier commit seul.
+      - name: Scanner le diff poussé (valeurs masquées)
+        env:
+          AVANT: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          valide=0
+          case "$AVANT" in
+            ""|0000000000000000000000000000000000000000) ;;
+            *) git cat-file -e "${AVANT}^{commit}" 2>/dev/null && valide=1 ;;
+          esac
+          if [ "$valide" -eq 1 ]; then
+            plage="${AVANT}..${GITHUB_SHA}"
+          elif [ "$GITHUB_REF_NAME" = "mark/deploiement" ]; then
+            plage="${GITHUB_SHA}^..${GITHUB_SHA}"
+          else
+            plage="origin/mark/deploiement..${GITHUB_SHA}"
+          fi
+          echo "Plage scannée : ${plage}"
+          nb="$(git rev-list --count "$plage")"
+          echo "Commits dans la plage : ${nb}"
+          if [ "$nb" -eq 0 ]; then
+            echo "Plage vide : rien à scanner."
+            exit 0
+          fi
+          ./gitleaks git --log-opts="$plage" --redact --no-banner --verbose --exit-code 1 .

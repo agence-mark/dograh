@@ -33,9 +33,9 @@ concurrency:
 
 jobs:
   ecran:
-    name: Écran (typage, tests, lint)
+    name: Écran (typage, tests, build, lint)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: ui
@@ -64,6 +64,19 @@ jobs:
         # Tourne même si un contrôle précédent a échoué : tous les défauts d'un coup.
         if: ${{ !cancelled() }}
         run: npx vitest run -t '^(?!.*switches to Live under the same provider and saves its relevant settings)'
+
+      # [22/10/2026, lot 1 de cloture-code-avant-migration] Aucune CI ne jouait `npm run build`,
+      # alors que l'image de l'écran (`ui/Dockerfile`) le lance : `next build` ajoute au typage
+      # la règle d'ordre des imports d'ESLint, BLOQUANTE pour lui. Un défaut qui n'apparaissait
+      # qu'à la construction de l'image apparaît maintenant ici. Mêmes variables que le Dockerfile.
+      - name: Build de production, comme l'image (bloquant)
+        # Tourne même si un contrôle précédent a échoué : tous les défauts d'un coup.
+        if: ${{ !cancelled() }}
+        env:
+          NEXT_PUBLIC_NODE_ENV: oss
+          NEXT_TELEMETRY_DISABLED: "1"
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run build
 
       - name: Lint (informatif)
         # Tourne même si un contrôle précédent a échoué : tous les défauts d'un coup.
@@ -117,3 +130,85 @@ jobs:
           ruff check api --select I --select F401 --statistics || statut=1
           ruff format --check api || statut=1
           exit $statut
+
+  # [22/10/2026, lot 1] `pre-pr-drift-check.yml` (amont) ne tourne que sur une pull request vers
+  # `main`, jamais ouverte chez nous : le client de l'écran (`ui/src/client`) et la spec
+  # `docs/api-reference/openapi.json` pouvaient dériver de l'API sans que rien ne le dise. Les
+  # lots qui ajoutent des routes (modèles de réglages, conservation, lots F) régénèrent le client ;
+  # ici on vérifie qu'ils l'ont fait. ⛔ Le client n'est jamais édité à la main.
+  derive-client:
+    name: Client de l'écran et spec OpenAPI à jour
+    if: ${{ startsWith(github.ref, 'refs/heads/chantier/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: postgresql+asyncpg://dummy:dummy@localhost/dummy
+      REDIS_URL: redis://localhost:6379/0
+      ENABLE_AWS_S3: "false"
+      MINIO_PUBLIC_ENDPOINT: http://localhost:9000
+      DEPLOYMENT_MODE: oss
+      VIRTUAL_ENV: ${{ github.workspace }}/.venv
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Create Python virtual environment
+        run: |
+          python -m venv .venv
+          echo "${{ github.workspace }}/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Install api and pipecat dependencies
+        run: ./scripts/setup_requirements.sh
+
+      - name: Install ui dependencies
+        working-directory: ui
+        run: npm ci --no-audit --no-fund
+
+      - name: Dump OpenAPI spec
+        run: python -u -m scripts.dump_docs_openapi
+
+      - name: Spec OpenAPI de la documentation à jour (bloquant)
+        run: |
+          if ! git diff --exit-code docs/api-reference/openapi.json; then
+            echo "::error::docs/api-reference/openapi.json n'est pas à jour avec l'API. Lancer 'python -m scripts.dump_docs_openapi' (api/.env chargé) et committer le résultat."
+            exit 1
+          fi
+          echo "La spec OpenAPI est à jour."
+
+      # Le client est généré depuis l'API qui tourne (`ui/openapi-ts.config.ts` lit
+      # `<BACKEND_URL>/api/v1/openapi.json`). Ici la spec fraîchement écrite est servie à cette
+      # adresse par un serveur de fichiers : mêmes octets que ceux de l'API, sans base ni Redis.
+      - name: Régénérer le client de l'écran depuis cette spec
+        # Tourne même si le contrôle précédent a échoué : tous les défauts d'un coup.
+        if: ${{ !cancelled() }}
+        working-directory: ui
+        run: |
+          mkdir -p "$RUNNER_TEMP/spec/api/v1"
+          cp ../docs/api-reference/openapi.json "$RUNNER_TEMP/spec/api/v1/openapi.json"
+          (cd "$RUNNER_TEMP/spec" && python -m http.server 8123 --bind 127.0.0.1 >/dev/null 2>&1 &)
+          for i in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8123/api/v1/openapi.json -o /dev/null && break
+            sleep 1
+          done
+          BACKEND_URL=http://127.0.0.1:8123 npm run generate-client
+
+      - name: Client de l'écran à jour (bloquant)
+        if: ${{ !cancelled() }}
+        run: |
+          if ! git diff --exit-code -- ui/src/client; then
+            echo "::error::ui/src/client n'est pas à jour avec l'API. Lancer 'npm run generate-client' dans ui/ (API en marche) et committer le résultat. Jamais d'édition à la main."
+            exit 1
+          fi
+          echo "Le client de l'écran est à jour."

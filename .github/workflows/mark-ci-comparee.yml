@@ -1,0 +1,307 @@
+# [.mark] CI comparée à la base : « qu'est-ce que MON code a cassé ? », sans toucher au poste.
+# Plan : Labo-agent-vocal/plans/ci-comparee-a-la-base/ (décisions D1 à D6), lot 1 du chantier
+# cloture-code-avant-migration (22/10/2026). Fichier à nous, comme `mark-garde-fous.yml` : les
+# fichiers de CI de l'amont ne bougent pas (décision D4 du 25/09). `api-tests.yml` ne garde que
+# la pull request vers `main`, sinon la suite tournerait deux fois.
+#
+# Ce que fait ce fichier :
+#   • `cadrage` choisit la base : le merge-base avec `mark/deploiement` (R8 : un commit NOMMÉ,
+#     joué dans son propre checkout, jamais en basculant l'arbre), ou, sur `mark/deploiement`
+#     lui-même, le rapport du dernier passage vert (D3).
+#   • `passage` joue la suite entière deux fois en parallèle (D1), sans `-x`, avec la sonde mémoire
+#     (D4) et un rapport JUnit. Ce job ne rend jamais rouge à cause d'un test : il laisse trois
+#     fichiers (JUnit, code de sortie de pytest, état de la sonde).
+#   • `comparer` relit les trois fichiers des deux passages (api/scripts/mark/comparer_echecs.py,
+#     réflexe R7) : rouge s'il y a un échec NOUVEAU, rouge « passage incomplet » si un passage n'a
+#     pas fini (jamais un vert par défaut). Le résumé est écrit dans la page de la CI.
+#
+# ⛔ La sonde et le comparateur sont chargés depuis le checkout de la BRANCHE (`PYTHONPATH`, `-p`) :
+# ils n'existent pas dans l'arbre de la base. Chaque passage installe ses dépendances depuis ses
+# propres fichiers (au lot 3 la base est en Pipecat 1.10, la branche en 1.12). Seul `pytest` est
+# figé ici, identique des deux côtés : il vient du groupe dev de Pipecat (`pytest>=9,<10`), hors
+# des contraintes de l'image.
+
+name: "[.mark] CI comparée"
+
+on:
+  push:
+    branches:
+      - "chantier/**"
+      - "mark/deploiement"
+    paths:
+      - "api/**"
+      - "pipecat/**"
+      - "scripts/**"
+      - "sdk/**"
+      - ".github/workflows/mark-ci-comparee.yml"
+  # Relancer à la main (un envoi passé pendant un blocage d'Actions ne se rejoue pas tout seul,
+  # et `paths` ignore un commit vide).
+  workflow_dispatch:
+
+# Lecture seule, plus `actions: read` pour lire le dernier passage vert (D3) par `gh api`.
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Figés pour les deux passages. À relever ensemble, jamais l'un sans l'autre.
+  PYTEST_VERSION: "9.1.1"
+  PYTEST_ASYNCIO_VERSION: "1.4.0"
+  # D4 : le runner a 16 Go, la suite tient en 1,3 Go.
+  MARK_SONDE_PLAFOND_MO: "6144"
+
+jobs:
+  cadrage:
+    name: Choix de la base
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrice: ${{ steps.base.outputs.matrice }}
+      base_sha: ${{ steps.base.outputs.base_sha }}
+      run_base: ${{ steps.base.outputs.run_base }}
+      mode_texte: ${{ steps.base.outputs.mode_texte }}
+    steps:
+      # Historique complet : sans lui `git merge-base` échoue.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Base de la comparaison
+        id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AVANT: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          mode="parallele"
+          run_base=""
+          matrice='["branche","base"]'
+
+          if [ "$GITHUB_REF_NAME" = "mark/deploiement" ]; then
+            # D3 : le rapport du dernier passage vert de cette branche fait foi de base.
+            for id in $(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/mark-ci-comparee.yml/runs" \
+                -f branch=mark/deploiement -f status=success -f per_page=10 --jq '.workflow_runs[].id'); do
+              present=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" \
+                --jq '[.artifacts[] | select(.name == "rapport-branche" and (.expired | not))] | length')
+              if [ "$present" -gt 0 ]; then run_base="$id"; break; fi
+            done
+          fi
+
+          if [ -n "$run_base" ]; then
+            mode="artefact"
+            matrice='["branche"]'
+            base_sha="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_base" --jq .head_sha)"
+            texte="dernier passage vert de mark/deploiement (run $run_base, commit ${base_sha:0:8})"
+          elif [ "$GITHUB_REF_NAME" = "mark/deploiement" ]; then
+            # Premier passage : aucun rapport vert à relire, la base est jouée en parallèle (D1)
+            # sur l'état d'avant l'envoi.
+            case "$AVANT" in
+              ""|0000000000000000000000000000000000000000) AVANT="$(git rev-parse HEAD^1 2>/dev/null || git rev-parse HEAD)" ;;
+            esac
+            base_sha="$AVANT"
+            texte="premier passage sur mark/deploiement, aucun rapport de passage vert à relire : base jouée en parallèle au commit ${base_sha:0:8}"
+          else
+            base_sha="$(git merge-base origin/mark/deploiement HEAD)"
+            texte="base jouée en parallèle au commit ${base_sha:0:8} (merge-base avec mark/deploiement)"
+          fi
+
+          {
+            echo "matrice=$matrice"
+            echo "base_sha=$base_sha"
+            echo "run_base=$run_base"
+            echo "mode_texte=$texte"
+          } >> "$GITHUB_OUTPUT"
+          echo "Mode : $mode. $texte"
+
+  passage:
+    name: Suite (${{ matrix.passage }})
+    needs: cadrage
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        passage: ${{ fromJSON(needs.cadrage.outputs.matrice) }}
+
+    services:
+      postgres:
+        # pgvector image: api/alembic/versions/dc33eef8dabe_add_document_tables.py
+        # runs CREATE EXTENSION vector, which plain postgres doesn't ship.
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # api/conftest.py creates test_db via the postgres admin DB.
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
+      REDIS_URL: redis://localhost:6379/0
+      ENABLE_AWS_S3: "false"
+      # MINIO is not actually contacted by tests, but storage.py constructs
+      # the MinioFileSystem at import time and requires MINIO_PUBLIC_ENDPOINT.
+      MINIO_PUBLIC_ENDPOINT: http://localhost:9000
+      DEPLOYMENT_MODE: oss
+      ENVIRONMENT: test
+      LOG_LEVEL: DEBUG
+      # `.` = la branche ; `base` = le second checkout (commit du merge-base).
+      RACINE: ${{ matrix.passage == 'base' && 'base' || '.' }}
+      VIRTUAL_ENV: ${{ github.workspace }}/.venv
+
+    steps:
+      # La branche est toujours là : c'est d'elle que viennent la sonde et le comparateur.
+      - name: Checkout de la branche
+        uses: actions/checkout@v4
+        with:
+          submodules: ${{ matrix.passage == 'branche' && 'recursive' || 'false' }}
+
+      - name: Checkout de la base (commit nommé, sous-modules compris)
+        if: ${{ matrix.passage == 'base' }}
+        uses: actions/checkout@v4
+        with:
+          path: base
+          ref: ${{ needs.cadrage.outputs.base_sha }}
+          submodules: recursive
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up Node 22 (test_ts_bridge.py shells out to node)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Create Python virtual environment
+        run: |
+          python -m venv .venv
+          echo "${{ github.workspace }}/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Install api and pipecat dependencies
+        working-directory: ${{ matrix.passage == 'base' && 'base' || '.' }}
+        run: ./scripts/setup_requirements.sh --dev
+
+      - name: Install ts_validator npm deps
+        working-directory: ${{ matrix.passage == 'base' && 'base' || '.' }}/api/mcp_server/ts_validator
+        run: npm install
+
+      - name: Figer pytest (identique pour les deux passages)
+        run: |
+          python -m pip install --quiet "pytest==${PYTEST_VERSION}" "pytest-asyncio==${PYTEST_ASYNCIO_VERSION}"
+          python -m pip list 2>/dev/null | grep -i -E '^(pytest|pytest-asyncio) '
+
+      # Le code de sortie de pytest est écrit dans un fichier et l'étape rend toujours 0 : la
+      # décision appartient au job `comparer`, qui relit les trois fichiers (R7). Sans `-x`,
+      # `--continue-on-collection-errors` : un fichier qui n'importe plus ressort comme un test
+      # rouge nommé, au lieu d'interrompre toute la suite.
+      - name: Run pytest
+        working-directory: ${{ matrix.passage == 'base' && 'base' || '.' }}/api
+        run: |
+          rapports="$GITHUB_WORKSPACE/rapports/${{ matrix.passage }}"
+          mkdir -p "$rapports"
+          racine="$(cd .. && pwd)"
+          # La sonde vient de la BRANCHE, seule dans son dossier (pas de `tests/mark` entier sur le chemin).
+          mkdir -p "$RUNNER_TEMP/outils-mark"
+          cp "$GITHUB_WORKSPACE/api/tests/mark/sonde_memoire.py" "$RUNNER_TEMP/outils-mark/"
+          export PYTHONPATH="$racine:$RUNNER_TEMP/outils-mark"
+          export MARK_SONDE_FICHIER="$rapports/sonde-memoire.json"
+          set +e
+          pytest tests/ -p sonde_memoire -p no:cacheprovider --continue-on-collection-errors \
+            --junitxml="$rapports/junit.xml"
+          code=$?
+          set -e
+          echo "$code" > "$rapports/code-sortie.txt"
+          echo "pytest a rendu le code $code"
+
+      - name: Rapports du passage
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-${{ matrix.passage }}
+          path: rapports/${{ matrix.passage }}/
+          if-no-files-found: warn
+          retention-days: 90
+
+  comparer:
+    name: Comparaison des deux passages
+    needs: [cadrage, passage]
+    # Tourne même si un passage a échoué avant son rapport : le rapport absent est alors nommé
+    # « passage incomplet », jamais un vert.
+    if: ${{ always() && needs.cadrage.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Rapport du passage de la branche
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: rapport-branche
+          path: rapports/branche
+
+      - name: Rapport du passage de la base (jouée en parallèle)
+        if: ${{ needs.cadrage.outputs.run_base == '' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: rapport-base
+          path: rapports/base
+
+      - name: Rapport de la base (dernier passage vert de mark/deploiement)
+        if: ${{ needs.cadrage.outputs.run_base != '' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_BASE: ${{ needs.cadrage.outputs.run_base }}
+        run: gh run download "$RUN_BASE" --repo "$GITHUB_REPOSITORY" --name rapport-branche --dir rapports/base
+
+      - name: Comparer (rouge si échec nouveau ou passage incomplet)
+        env:
+          MODE_BASE: ${{ needs.cadrage.outputs.mode_texte }}
+        run: |
+          python api/scripts/mark/comparer_echecs.py \
+            --branche rapports/branche --base rapports/base \
+            --mode-base "$MODE_BASE" --resume "$GITHUB_STEP_SUMMARY"
+
+  notify-slack-failure:
+    needs: comparer
+    if: ${{ always() && needs.comparer.result == 'failure' }}
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Send Slack notification - Failure
+        if: env.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "❌ Dograh CI comparée : échec nouveau ou passage incomplet sur ${{ github.ref_name }} par ${{ github.actor }} - <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Voir le résumé>"
+            }
