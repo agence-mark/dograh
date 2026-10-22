@@ -145,7 +145,7 @@ const { default: WorkflowSettingsPage } = await import(
 const rendreLaPage = async () => {
     const rendu = render(<WorkflowSettingsPage />);
     // The page shows a spinner until the workflow fetch resolves.
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(9), { timeout: 3000 });
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10), { timeout: 3000 });
     return rendu;
 };
 
@@ -158,6 +158,10 @@ const rendreLaPage = async () => {
 const ouvrirLeTheme = (id: string) => {
     const entete = document.querySelector(`[data-theme="${id}"] > button[aria-expanded]`) as HTMLButtonElement;
     if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
+    // cloture-code, F8 (M4): the theme « Modules » holds one drop-down sub-menu per module, opened too.
+    document
+        .querySelectorAll<HTMLButtonElement>(`[data-theme="${id}"] [data-sous-menu-module] > button[aria-expanded="false"]`)
+        .forEach((bouton) => fireEvent.click(bouton));
     return document.getElementById(id) as HTMLElement;
 };
 
@@ -167,7 +171,7 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         // commented out, put behind `{false && …}`, or moved into a
         // sub-component nobody renders fails here.
         const { container } = await rendreLaPage();
-        for (const id of ["agent", "briques", "ecoute", "tour", "voix", "rythme", "donnees", "etablissement"]) {
+        for (const id of ["agent", "briques", "ecoute", "modules", "tour", "voix", "rythme", "donnees", "etablissement"]) {
             expect(container.querySelector(`#${id}[data-theme]`), id).not.toBeNull();
         }
     });
@@ -179,7 +183,7 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         ouvrirLeTheme("tour");
         ouvrirLeTheme("rythme");
         ouvrirLeTheme("voix");
-        ouvrirLeTheme("ecoute");
+        ouvrirLeTheme("modules");
         expect(document.getElementById("user_speech_timeout")).not.toBeNull();
         expect(document.getElementById("vad_stop_secs")).not.toBeNull();
         expect(document.getElementById("mute_always")).not.toBeNull();
@@ -205,7 +209,7 @@ describe("[.mark] our settings are reachable on the settings page", () => {
 
     it("[trade vocabulary] shows the three switches on the page", async () => {
         await rendreLaPage();
-        ouvrirLeTheme("ecoute");
+        ouvrirLeTheme("modules");
         expect(document.getElementById("lexique_metier")).not.toBeNull();
         expect(document.getElementById("sons_communes")).not.toBeNull();
         expect(document.getElementById("sons_lexique")).not.toBeNull();
@@ -241,7 +245,7 @@ describe("[.mark] our settings are reachable on the settings page", () => {
     it("has an entry per theme in the navigation, pointing at a theme that exists", async () => {
         // An entry whose id no element carries is an entry that does nothing, silently.
         const { container } = await rendreLaPage();
-        for (const id of ["agent", "briques", "ecoute", "tour", "voix", "rythme", "donnees", "etablissement"]) {
+        for (const id of ["agent", "briques", "ecoute", "modules", "tour", "voix", "rythme", "donnees", "etablissement"]) {
             expect(container.querySelector(`a[href="#${id}"]`), id).not.toBeNull();
             expect(container.querySelector(`#${id}`), id).not.toBeNull();
         }
@@ -302,7 +306,7 @@ describe("[.mark] our settings are reachable on the settings page", () => {
 
     it("[reference reader] its trigger names are on the page when the number conversion is on", async () => {
         await rendreLaPage();
-        ouvrirLeTheme("ecoute");
+        ouvrirLeTheme("modules");
         // Off by default: the field appears with the switch.
         expect(document.getElementById("variables_reference")).toBeNull();
         (document.getElementById("conversion_nombres_transcription") as HTMLElement).click();
@@ -332,7 +336,7 @@ describe("[.mark] our settings are reachable on the settings page", () => {
 
     it("[verification-communes] the town check switch is on the page, ON by default", async () => {
         await rendreLaPage();
-        ouvrirLeTheme("ecoute");
+        ouvrirLeTheme("modules");
         const interrupteur = screen.getByRole("switch", { name: /recognise the caller's town/i });
         expect(interrupteur.getAttribute("aria-checked")).toBe("true");
     });
@@ -341,7 +345,7 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         // Rendered on the PAGE, not the section alone: the 29 settings of
         // 2026-09-14 rendered perfectly in a file no screen mounted.
         await rendreLaPage();
-        const theme = ouvrirLeTheme("ecoute");
+        const theme = ouvrirLeTheme("modules");
         const interrupteur = screen.getByRole("switch", { name: /recognise the caller's town/i });
         const champ = screen.getByLabelText("Variables that trigger the town check") as HTMLInputElement;
         expect(champ.value).toBe("commune, commune_*, adresse*");
@@ -367,7 +371,7 @@ describe("[.mark] our settings are reachable on the settings page", () => {
 
     it("[nombres-dictes] the number switch tells what it now does, on the page", async () => {
         await rendreLaPage();
-        ouvrirLeTheme("ecoute");
+        ouvrirLeTheme("modules");
         const interrupteur = screen.getByRole("switch", { name: /write dictated numbers as digits/i });
         expect(interrupteur.getAttribute("aria-checked")).toBe("false");
         expect(screen.getByText(/reads postal codes said both ways/i)).toBeTruthy();

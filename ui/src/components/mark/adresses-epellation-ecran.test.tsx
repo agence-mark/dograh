@@ -115,18 +115,22 @@ const { default: WorkflowSettingsPage } = await import(
 );
 
 // Depuis le chantier reorganisation-ecran-reglages (26/09), la page est faite de
-// thèmes repliés : la rue et l'épellation se trouvent en ouvrant « Écoute ».
+// thèmes repliés ; depuis cloture-code F8 (M4), la rue et l'épellation sont dans
+// le thème « Modules », chacune dans le sous-menu de son module : on ouvre les deux.
 const rendreLaPage = async () => {
     const rendu = render(<WorkflowSettingsPage />);
     const entete = await waitFor(
         () => {
-            const trouve = document.querySelector('[data-theme="ecoute"] > button[aria-expanded]');
+            const trouve = document.querySelector('[data-theme="modules"] > button[aria-expanded]');
             if (!trouve) throw new Error("La page n'est pas encore chargée.");
             return trouve as HTMLButtonElement;
         },
         { timeout: 3000 },
     );
     fireEvent.click(entete);
+    document
+        .querySelectorAll<HTMLButtonElement>('[data-theme="modules"] [data-sous-menu-module] > button[aria-expanded="false"]')
+        .forEach((bouton) => fireEvent.click(bouton));
     return rendu;
 };
 

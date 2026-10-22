@@ -1,3 +1,5 @@
+import { moduleDeLaCle } from "../modules-agent";
+
 /**
  * [.mark] One modification per setting of the agent settings page.
  *
@@ -31,6 +33,7 @@ export type ThemeAgent =
     | "agent"
     | "briques"
     | "ecoute"
+    | "modules"
     | "tour"
     | "voix"
     | "rythme"
@@ -130,21 +133,23 @@ export const CAS_AGENT: CasAgent[] = [
     ]),
 
     // ---- Speech Tuning (.mark) --------------------------------------------
-    c("nombres", "speech-tuning", "ecoute", ["conversion_nombres_transcription"], [inter("conversion_nombres_transcription")]),
-    c("variables-reference", "speech-tuning", "ecoute", ["variables_reference"], [saisir("variables_reference", "reference*, facture")]),
+    // cloture-code, F8 (M4): these cards moved to the theme « Modules » (one sub-menu each, opened first:
+    // `AUTOUR_DU_CAS`); the payloads frozen on the page as it was stay the contract.
+    c("nombres", "speech-tuning", "modules", ["conversion_nombres_transcription"], [inter("conversion_nombres_transcription")]),
+    c("variables-reference", "speech-tuning", "modules", ["variables_reference"], [saisir("variables_reference", "reference*, facture")]),
     // Chantier l-agent-collegue, L7 (QD1): « Field recognition », frozen once.
-    c("controle-donnees", "ajout-mark", "ecoute", ["controle_donnees"], [inter("controle_donnees")]),
-    c("variables-telephone", "ajout-mark", "ecoute", ["controle_donnees", "variables_telephone"], [inter("controle_donnees"), saisir("variables_telephone", "portable, telephone*")]),
-    c("variables-code-postal", "ajout-mark", "ecoute", ["controle_donnees", "variables_code_postal"], [inter("controle_donnees"), saisir("variables_code_postal", "cp")]),
-    c("variables-courriel", "ajout-mark", "ecoute", ["controle_donnees", "variables_courriel"], [inter("controle_donnees"), saisir("variables_courriel", "mail_contact")]),
-    c("variables-date", "ajout-mark", "ecoute", ["controle_donnees", "variables_date"], [inter("controle_donnees"), saisir("variables_date", "date*, jour_*")]),
-    c("communes", "speech-tuning", "ecoute", ["verification_communes"], [inter("verification_communes")]),
-    c("variables-commune", "speech-tuning", "ecoute", ["variables_commune"], [saisir("variables_commune", "ville, adresse*")]),
-    c("sons-communes", "speech-tuning", "ecoute", ["sons_communes"], [inter("sons_communes")]),
-    c("voies", "speech-tuning", "ecoute", ["verification_voies"], [inter("verification_voies")]),
-    c("epellation", "speech-tuning", "ecoute", ["lecture_epellation"], [inter("lecture_epellation")]),
-    c("lexique", "speech-tuning", "ecoute", ["lexique_metier"], [inter("lexique_metier")]),
-    c("sons-lexique", "speech-tuning", "ecoute", ["sons_lexique"], [inter("sons_lexique")]),
+    c("controle-donnees", "ajout-mark", "modules", ["controle_donnees"], [inter("controle_donnees")]),
+    c("variables-telephone", "ajout-mark", "modules", ["controle_donnees", "variables_telephone"], [inter("controle_donnees"), saisir("variables_telephone", "portable, telephone*")]),
+    c("variables-code-postal", "ajout-mark", "modules", ["controle_donnees", "variables_code_postal"], [inter("controle_donnees"), saisir("variables_code_postal", "cp")]),
+    c("variables-courriel", "ajout-mark", "modules", ["controle_donnees", "variables_courriel"], [inter("controle_donnees"), saisir("variables_courriel", "mail_contact")]),
+    c("variables-date", "ajout-mark", "modules", ["controle_donnees", "variables_date"], [inter("controle_donnees"), saisir("variables_date", "date*, jour_*")]),
+    c("communes", "speech-tuning", "modules", ["verification_communes"], [inter("verification_communes")]),
+    c("variables-commune", "speech-tuning", "modules", ["variables_commune"], [saisir("variables_commune", "ville, adresse*")]),
+    c("sons-communes", "speech-tuning", "modules", ["sons_communes"], [inter("sons_communes")]),
+    c("voies", "speech-tuning", "modules", ["verification_voies"], [inter("verification_voies")]),
+    c("epellation", "speech-tuning", "modules", ["lecture_epellation"], [inter("lecture_epellation")]),
+    c("lexique", "speech-tuning", "modules", ["lexique_metier"], [inter("lexique_metier")]),
+    c("sons-lexique", "speech-tuning", "modules", ["sons_lexique"], [inter("sons_lexique")]),
     c("bruit-entree", "speech-tuning", "ecoute", ["audio_in_noise_filter"], [choisir("audio_in_noise_filter", "rnnoise")]),
     c("pause", "speech-tuning", "tour", ["user_speech_timeout"], [saisir("user_speech_timeout", "0.8")]),
     c("latence-transcription", "speech-tuning", "tour", ["stt_ttfs_p99_latency"], [saisir("stt_ttfs_p99_latency", "0.4")]),
@@ -263,9 +268,10 @@ export const CAS_AGENT: CasAgent[] = [
     // Chantier l-agent-travaille, L4 (A6): the after-call of the agent, frozen once.
     c("apres-appel", "ajout-mark", "donnees", ["apres_appel"], [inter("apres_appel_actif")]),
     // Chantier l-agent-collegue, L1 (C5): the team known to the agent, frozen once.
-    c("equipe-connue", "ajout-mark", "donnees", ["equipe_connue"], [inter("equipe_connue")]),
+    // cloture-code, F8 (M4): both moved to the theme « Modules ».
+    c("equipe-connue", "ajout-mark", "modules", ["equipe_connue"], [inter("equipe_connue")]),
     // Chantier l-agent-collegue, L6 (V7): the caller's verification, frozen once.
-    c("verification-appelant", "ajout-mark", "donnees", ["verification_appelant"], [inter("verification_appelant")]),
+    c("verification-appelant", "ajout-mark", "modules", ["verification_appelant"], [inter("verification_appelant")]),
     // Chantier l-agent-travaille, L7: the outage fallback of the agent, frozen once.
     c("panne", "ajout-mark", "etablissement", ["panne"], [inter("panne_actif")]),
     // Plan mode-prise-de-notes, part 2: the clerk's dialog, frozen once.
@@ -400,6 +406,7 @@ export const TITRE_ANGLAIS_DU_THEME: Record<ThemeAgent, string> = {
     agent: "Agent",
     briques: "Services",
     ecoute: "Listening",
+    modules: "Modules",
     tour: "Turn taking",
     voix: "Voice",
     rythme: "Call pacing",
@@ -418,4 +425,11 @@ export const AUTOUR_DU_CAS: Record<string, { avant: Geste[]; apres: Geste[] }> =
     "pbx-prospect": { avant: [{ type: "cliquer", nom: "Edit lead fields" }], apres: [{ type: "cliquer", nom: "Done" }] },
     "variable-ajoutee": { avant: [{ type: "cliquer", nom: "Manage variables" }], apres: [{ type: "cliquer", nom: "Done" }] },
     "variable-en-cours": { avant: [{ type: "cliquer", nom: "Manage variables" }], apres: [{ type: "cliquer", nom: "Done" }] },
+    // cloture-code, F8 (M4): a card moved to « Modules » sits in its module's sub-menu, opened first.
+    ...Object.fromEntries(
+        CAS_AGENT.filter((cas) => cas.theme === "modules").map((cas) => [
+            cas.id,
+            { avant: [{ type: "cliquer", nom: moduleDeLaCle(cas.cles[0])?.titre.en ?? "" } as Geste], apres: [] },
+        ]),
+    ),
 };

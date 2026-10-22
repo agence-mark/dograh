@@ -47,6 +47,7 @@ import { TITRE_BRIQUES } from "../ThemeBriques";
 import { TITRE_DONNEES } from "../ThemeDonnees";
 import { TITRE_ECOUTE } from "../ThemeEcoute";
 import { TITRE_ETABLISSEMENT } from "../ThemeEtablissement";
+import { TITRE_MODULES } from "../ThemeModules";
 import { TITRE_RYTHME } from "../ThemeRythme";
 import { TITRE_TOUR } from "../ThemeTourDeParole";
 import { TITRE_VOIX } from "../ThemeVoix";
@@ -56,6 +57,8 @@ export const TITRES_DES_SECTIONS: Record<string, Texte> = {
     agent: TITRE_AGENT,
     briques: TITRE_BRIQUES,
     ecoute: TITRE_ECOUTE,
+    // cloture-code, F8 (M4): the modules' keys, a section of their own like their theme.
+    modules: TITRE_MODULES,
     tour: TITRE_TOUR,
     voix: TITRE_VOIX,
     rythme: TITRE_RYTHME,

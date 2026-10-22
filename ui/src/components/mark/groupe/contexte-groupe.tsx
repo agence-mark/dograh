@@ -44,6 +44,8 @@ export const useGroupe = () => useContext(ContexteGroupe);
  */
 export const THEMES_COMMUNS_EN_LECTURE: readonly string[] = [
     "ecoute",
+    // cloture-code, F8: every key of the modules is common (copied from the main agent).
+    "modules",
     "tour",
     "voix",
     "rythme",

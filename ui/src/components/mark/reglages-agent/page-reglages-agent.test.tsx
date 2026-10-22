@@ -13,6 +13,9 @@
  *     the theme, and « show » brings it on screen to be fixed (E7);
  *   - the page speaks French until the user chooses (D12).
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -22,11 +25,13 @@ import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 import { FournisseurLangue } from "../langue/langue";
 import { CONSIGNE_GENERIQUE_GREFFIER } from "./consigne-greffier";
 import { INVENTAIRE_AGENT } from "./inventaire-agent";
+import { CLES_MODULES, MODULES_AGENT } from "./modules-agent";
 import { CONFIG_DE_REFERENCE } from "./references/config-de-reference";
 
 const m = vi.hoisted(() => ({
     config: null as unknown,
     userConfig: null as unknown,
+    modules: undefined as unknown,
     // What the page saves: read by the clerk's tests below.
     save: vi.fn(() => Promise.resolve(undefined)),
     // Plan porte-parlee: the graph the page is opened with.
@@ -90,6 +95,8 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-fact
     getCommunesDuCodePostalApiV1OrganizationsCommunesGet: () => Promise.resolve({ data: [{ code_insee: "60057", nom: "Beauvais" }], error: null }),
     // Lot 4 d'orchestrateur-trois-cerveaux: the catalogue the background brain's tool list reads.
     listToolsApiV1ToolsGet: () => Promise.resolve({ data: m.outils, error: null }),
+    // cloture-code, F8: what the server says of the agent's modules (absent: the page works without it).
+    getModulesDeLAgentApiV1AgentsAgentIdModulesGet: () => Promise.resolve({ data: m.modules, error: null }),
 }));
 // Lot 3 d'orchestrateur-trois-cerveaux (D7): the stand-ins draw the note they are given for a locked voice.
 vi.mock("@/components/AIModelConfigurationV2Editor", () => ({
@@ -132,14 +139,85 @@ const ouvrir = async (config: Record<string, unknown>, userConfig: unknown, enve
     m.config = resolveWorkflowConfigurations(config as never);
     m.userConfig = userConfig;
     render(<>{enveloppe ? enveloppe(<WorkflowSettingsPage />) : <WorkflowSettingsPage />}</>);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(9));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10));
 };
 
 const ouvrirLeTheme = (id: string) => {
     const entete = document.querySelector(`[data-theme="${id}"] > button[aria-expanded]`) as HTMLButtonElement;
     if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
+    // cloture-code, F8 (M4): the theme « Modules » holds one drop-down sub-menu per module, opened too.
+    document
+        .querySelectorAll<HTMLButtonElement>(`[data-theme="${id}"] [data-sous-menu-module] > button[aria-expanded="false"]`)
+        .forEach((bouton) => fireEvent.click(bouton));
     return document.getElementById(id) as HTMLElement;
 };
+
+// cloture-code, F8 (M4): the theme « Modules », one drop-down sub-menu per module; the cards moved, never doubled.
+describe("[.mark] the theme « Modules »", () => {
+    const registre = readFileSync(join(process.cwd(), "..", "api/services/modules/registre.py"), "utf8");
+    const reglages = readFileSync(join(process.cwd(), "..", "api/services/groupe/reglages.py"), "utf8");
+
+    it("holds the registry's modules and exactly the keys of CLES_THEME_MODULES, in order", () => {
+        const codes = [...registre.matchAll(/^ {4}Module\(\s*"([a-z_]+)"/gm)].map((m) => m[1]);
+        expect(codes.length).toBeGreaterThan(5);
+        expect(MODULES_AGENT.map((m) => m.code)).toEqual(codes);
+        const debut = reglages.indexOf("CLES_THEME_MODULES: tuple[str, ...] = (");
+        const corps = reglages.slice(debut, reglages.indexOf(")", debut)).replace(/#.*$/gm, "");
+        expect(CLES_MODULES).toEqual([...corps.matchAll(/"([a-z_0-9]+)"/g)].map((m) => m[1]));
+    });
+
+    it("draws one closed sub-menu per module; a moved card is no longer where it was", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const entete = document.querySelector('[data-theme="modules"] > button[aria-expanded]') as HTMLButtonElement;
+        fireEvent.click(entete);
+        const sousMenus = document.querySelectorAll('[data-theme="modules"] [data-sous-menu-module]');
+        expect([...sousMenus].map((s) => s.getAttribute("data-sous-menu-module"))).toEqual(MODULES_AGENT.map((m) => m.code));
+        expect(document.querySelector('[data-theme="modules"] [data-reglage="verification_communes"]')).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Town and street" }));
+        await waitFor(() => expect(document.querySelector('[data-theme="modules"] [data-reglage="verification_communes"]')).not.toBeNull());
+        // Moved: nothing of a module left in « Listening » nor « Call data » (convention: replace, never add).
+        for (const theme of ["ecoute", "donnees"]) {
+            const ouvert = ouvrirLeTheme(theme);
+            await waitFor(() => expect(ouvert.querySelector("[data-reglage]")).not.toBeNull());
+            for (const cle of CLES_MODULES) expect(ouvert.querySelector(`[data-reglage="${cle}"]`), `${cle} in ${theme}`).toBeNull();
+        }
+    });
+
+    it("shows what the server says: the translator plugged in, a module switched on by its tools", async () => {
+        m.modules = {
+            agent_id: 1,
+            modules: [
+                {
+                    code: "planificateur",
+                    libelle: { en: "Appointment planner", fr: "Planificateur de rendez-vous" },
+                    actif: true,
+                    besoins: [
+                        { code: "lire_les_creneaux", libelle: { en: "Read free slots", fr: "Lire les créneaux libres" }, domaine: "agenda", traducteur: { systeme: "google_agenda", libelle: "Google Agenda" } },
+                    ],
+                },
+            ],
+        };
+        try {
+            await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+            const theme = ouvrirLeTheme("modules");
+            await waitFor(() => expect(theme.querySelector('[data-besoin="lire_les_creneaux"]')?.textContent).toContain("Google Agenda"));
+            const sousMenu = theme.querySelector('[data-sous-menu-module="planificateur"]') as HTMLElement;
+            expect(sousMenu.querySelector("button")?.textContent).toContain("On");
+            expect(sousMenu.querySelector('[data-allume-par-ses-outils="planificateur"]')).not.toBeNull();
+        } finally {
+            m.modules = undefined;
+        }
+    });
+
+    it("« show » opens the sub-menu of a value to fix (E7)", async () => {
+        await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), verification_communes: true, variables_commune: "ville; *" }, NOVA);
+        const entete = document.querySelector('[data-theme="modules"] > button[aria-expanded]') as HTMLButtonElement;
+        fireEvent.click(entete);
+        expect(document.querySelector('[data-reglage="variables_commune"]')).toBeNull();
+        fireEvent.click(await screen.findByRole("button", { name: "show" }));
+        await waitFor(() => expect(document.querySelector('[data-theme="modules"] [data-reglage="variables_commune"]')).not.toBeNull());
+    });
+});
 
 describe("[.mark] the agent page in themes", () => {
     it("draws every setting the inventory puts on screen, in its theme", async () => {
@@ -203,12 +281,13 @@ describe("[.mark] the agent page in themes", () => {
     ];
     it("draws the fields recognised by their name only with « Check the data » on", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
-        let theme = ouvrirLeTheme("ecoute");
+        // cloture-code, F8: « Field recognition » moved to the theme « Modules », same rule (E8).
+        let theme = ouvrirLeTheme("modules");
         await waitFor(() => expect(theme.querySelector('[data-reglage="controle_donnees"]')).not.toBeNull());
         for (const cle of SEULEMENT_AVEC_CONTROLE) expect(theme.querySelector(`[data-reglage="${cle}"]`), cle).toBeNull();
         cleanup();
         await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), controle_donnees: true }, NOVA);
-        theme = ouvrirLeTheme("ecoute");
+        theme = ouvrirLeTheme("modules");
         for (const cle of SEULEMENT_AVEC_CONTROLE) {
             await waitFor(() => expect(theme.querySelector(`[data-reglage="${cle}"]`), cle).not.toBeNull());
         }

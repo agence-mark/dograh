@@ -2,10 +2,13 @@
 
 /**
  * [.mark] Theme « Écoute »: what happens to the caller's words before the
- * model reads them (convention § 2). From the Speech Tuning card: numbers,
- * towns and streets, spelling, the trade vocabulary switch, the input noise
- * filter. From Dograh's Dictionary card: the words this agent listens for,
- * saved by the dictionary's own function.
+ * model reads them (convention § 2). From Dograh's Dictionary card: the words
+ * this agent listens for, saved by the dictionary's own function; from the
+ * Speech Tuning card: the input noise filter.
+ *
+ * cloture-code, F8 (M4): numbers, town and street, spelling, the trade
+ * vocabulary switch and field recognition MOVED to the theme « Modules »
+ * (`ThemeModules.tsx`), one sub-menu each; they are no longer drawn here.
  */
 import { Ear } from "lucide-react";
 import { useState } from "react";
@@ -16,29 +19,13 @@ import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { useLangue } from "../langue/langue";
-import { erreursDuCatalogue, extraire, Reglage } from "./catalogue";
+import { extraire, Reglage } from "./catalogue";
 import { useEnregistrementTheme } from "./enregistrement";
-import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEtatTheme, useRevelation } from "./theme-commun";
+import { differe, type ProprietesThemeAgent, useBrouillon, useEtatTheme } from "./theme-commun";
 
 export const ID_THEME_ECOUTE = "ecoute";
 
-export const CLES_ECOUTE = [
-    "conversion_nombres_transcription",
-    "variables_reference",
-    "controle_donnees",
-    "variables_telephone",
-    "variables_code_postal",
-    "variables_courriel",
-    "variables_date",
-    "verification_communes",
-    "variables_commune",
-    "sons_communes",
-    "verification_voies",
-    "lecture_epellation",
-    "lexique_metier",
-    "sons_lexique",
-    "audio_in_noise_filter",
-] as const;
+export const CLES_ECOUTE = ["audio_in_noise_filter"] as const;
 
 const extraireEcoute = (resolue: ProprietesThemeAgent["resolue"]) => extraire(resolue, CLES_ECOUTE);
 
@@ -50,14 +37,12 @@ export const ThemeEcoute = ({
     onSave,
     ouvert,
     onBasculer,
-    ouvrir,
     dictionnaire,
     enregistrerDictionnaire,
 }: ProprietesThemeAgent & { dictionnaire: string; enregistrerDictionnaire: (dictionnaire: string) => Promise<void> }) => {
     const { t } = useLangue();
     const { enregistre, brouillon, setBrouillon, resynchroniser } = useBrouillon(resolue, extraireEcoute);
     const [dico, setDico] = useState(dictionnaire);
-    const { afficher, visible } = useRevelation(ouvrir);
 
     const maj = (cle: (typeof CLES_ECOUTE)[number]) => (valeur: unknown) =>
         setBrouillon((avant) => ({ ...avant, [cle]: valeur }));
@@ -66,12 +51,7 @@ export const ThemeEcoute = ({
     const dicoModifie = dico !== dictionnaire;
     const modifie = reglagesModifies || dicoModifie;
 
-    const erreurs = erreursDuCatalogue(
-        ["variables_commune", "variables_reference", "variables_telephone", "variables_code_postal", "variables_courriel", "variables_date"],
-        brouillon,
-    );
-
-    useEtatTheme(ID_THEME_ECOUTE, modifie, erreurs.length > 0);
+    useEtatTheme(ID_THEME_ECOUTE, modifie, false);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
         titre: TITRE_ECOUTE,
@@ -93,11 +73,6 @@ export const ThemeEcoute = ({
         ],
     });
 
-    const r = (cle: (typeof CLES_ECOUTE)[number], condition = true) => {
-        const { affiche, note } = visible(cle, condition);
-        return affiche ? <Reglage key={cle} cle={cle} valeur={brouillon[cle]} onChange={maj(cle)} note={note} /> : null;
-    };
-
     return (
         <Theme
             id={ID_THEME_ECOUTE}
@@ -108,42 +83,15 @@ export const ThemeEcoute = ({
                 fr: "Ce qui arrive aux mots de l'appelant avant que le modèle ne les lise.",
             }}
             resume={[
-                brouillon.verification_communes ? t({ en: "Towns recognised", fr: "Communes reconnues" }) : t({ en: "Towns off", fr: "Communes éteintes" }),
-                Boolean(brouillon.lecture_epellation) && t({ en: "Spelling read", fr: "Épellation lue" }),
-                brouillon.lexique_metier ? t({ en: "Vocabulary on", fr: "Lexique actif" }) : t({ en: "Vocabulary off", fr: "Lexique éteint" }),
-                Boolean(brouillon.conversion_nombres_transcription) && t({ en: "Numbers as digits", fr: "Nombres en chiffres" }),
+                dictionnaire.trim() ? t({ en: "Dictionary set", fr: "Dictionnaire rempli" }) : t({ en: "No dictionary", fr: "Aucun dictionnaire" }),
+                brouillon.audio_in_noise_filter === "rnnoise" && t({ en: "Noise filter", fr: "Filtre de bruit" }),
             ]}
             ouvert={ouvert}
             onBasculer={onBasculer}
             modifie={modifie}
-            erreurs={nommerErreurs(erreurs, t, afficher)}
+            erreurs={[]}
             enregistrement={{ onEnregistrer: enregistrer, enCours }}
         >
-            <Intertitre id="ecoute-nombres" titre={{ en: "Numbers and references", fr: "Nombres et références" }}>
-                {r("conversion_nombres_transcription")}
-                {r("variables_reference", Boolean(brouillon.conversion_nombres_transcription))}
-            </Intertitre>
-            {/* [.mark] Chantier l-agent-collegue, L7 (QD1): the names are read only when the check is on (E8). */}
-            <Intertitre id="ecoute-reconnaissance" titre={{ en: "Field recognition", fr: "Reconnaissance des champs" }}>
-                {r("controle_donnees")}
-                {r("variables_telephone", Boolean(brouillon.controle_donnees))}
-                {r("variables_code_postal", Boolean(brouillon.controle_donnees))}
-                {r("variables_courriel", Boolean(brouillon.controle_donnees))}
-                {r("variables_date", Boolean(brouillon.controle_donnees))}
-            </Intertitre>
-            <Intertitre id="ecoute-communes" titre={{ en: "Town and street", fr: "Commune et rue" }}>
-                {r("verification_communes")}
-                {r("variables_commune", Boolean(brouillon.verification_communes))}
-                {r("sons_communes", Boolean(brouillon.verification_communes))}
-                {r("verification_voies", Boolean(brouillon.verification_communes))}
-            </Intertitre>
-            <Intertitre id="ecoute-epellation" titre={{ en: "Spelling", fr: "Épellation" }}>
-                {r("lecture_epellation")}
-            </Intertitre>
-            <Intertitre id="ecoute-lexique" titre={{ en: "Trade vocabulary", fr: "Lexique métier" }}>
-                {r("lexique_metier")}
-                {r("sons_lexique", Boolean(brouillon.lexique_metier))}
-            </Intertitre>
             <Intertitre id="ecoute-dictionnaire" titre={{ en: "Agent dictionary", fr: "Dictionnaire de l'agent" }}>
                 <ChampReglage
                     cle="dictionary"
@@ -170,7 +118,7 @@ export const ThemeEcoute = ({
                 </ChampReglage>
             </Intertitre>
             <Intertitre id="ecoute-bruit" titre={{ en: "Input noise", fr: "Bruit à l'entrée" }}>
-                {r("audio_in_noise_filter")}
+                <Reglage cle="audio_in_noise_filter" valeur={brouillon.audio_in_noise_filter} onChange={maj("audio_in_noise_filter")} />
             </Intertitre>
         </Theme>
     );

@@ -88,7 +88,7 @@ afterEach(() => {
 
 describe("[.mark] settings templates on screen", () => {
     it("every section of the screen has a title in both languages, and the server's sections are all named", () => {
-        expect(SECTIONS).toEqual(["agent", "briques", "ecoute", "tour", "voix", "rythme", "donnees", "etablissement"]);
+        expect(SECTIONS).toEqual(["agent", "briques", "ecoute", "modules", "tour", "voix", "rythme", "donnees", "etablissement"]);
         for (const titre of Object.values(TITRES_DES_SECTIONS)) {
             expect(titre.en.trim()).not.toBe("");
             expect(titre.fr.trim()).not.toBe("");

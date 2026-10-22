@@ -37,6 +37,7 @@ import {
     messagesHorsBornes,
     NOMBRE_MAX_ELEMENTS,
 } from "./bornes-reglages";
+import { CLES_MODULES } from "./reglages-agent/modules-agent";
 import { CLES_ECOUTE } from "./reglages-agent/ThemeEcoute";
 import {
     CLES_ACCUEIL,
@@ -141,7 +142,8 @@ describe("Les bornes affichees a l'ecran", () => {
         // consignes de relance sont plafonnees a 2000 caracteres cote serveur
         // et rien ne le disait a l'ecran.
         // l-agent-collegue, L7: the theme Listening carries more text settings than the old card.
-        const cles = [...new Set([...CLES_TRANSCRIPTION, ...CLES_ECOUTE, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL, ...CLES_GARDE])] as string[];
+        // cloture-code, F8: the field names moved from Listening to the theme Modules (CLES_MODULES).
+        const cles = [...new Set([...CLES_TRANSCRIPTION, ...CLES_ECOUTE, ...CLES_MODULES, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL, ...CLES_GARDE])] as string[];
         const textesPlafonnes = cles.filter((cle) => {
             const s = bornesDuSchema(cle);
             return s !== null && s.maxLength !== null && !s.estUneListe;

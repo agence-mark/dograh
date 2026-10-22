@@ -374,7 +374,7 @@
     },
     "nombres": {
       "carte": "speech-tuning",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -388,7 +388,7 @@
     },
     "variables-reference": {
       "carte": "speech-tuning",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -402,7 +402,7 @@
     },
     "controle-donnees": {
       "carte": "ajout-mark",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -416,7 +416,7 @@
     },
     "variables-telephone": {
       "carte": "ajout-mark",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -431,7 +431,7 @@
     },
     "variables-code-postal": {
       "carte": "ajout-mark",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -446,7 +446,7 @@
     },
     "variables-courriel": {
       "carte": "ajout-mark",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -461,7 +461,7 @@
     },
     "variables-date": {
       "carte": "ajout-mark",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -476,7 +476,7 @@
     },
     "communes": {
       "carte": "speech-tuning",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -490,7 +490,7 @@
     },
     "variables-commune": {
       "carte": "speech-tuning",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -504,7 +504,7 @@
     },
     "sons-communes": {
       "carte": "speech-tuning",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -518,7 +518,7 @@
     },
     "voies": {
       "carte": "speech-tuning",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -532,7 +532,7 @@
     },
     "epellation": {
       "carte": "speech-tuning",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -546,7 +546,7 @@
     },
     "lexique": {
       "carte": "speech-tuning",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -560,7 +560,7 @@
     },
     "sons-lexique": {
       "carte": "speech-tuning",
-      "theme": "ecoute",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -1265,7 +1265,7 @@
     },
     "equipe-connue": {
       "carte": "ajout-mark",
-      "theme": "donnees",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -1279,7 +1279,7 @@
     },
     "verification-appelant": {
       "carte": "ajout-mark",
-      "theme": "donnees",
+      "theme": "modules",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
