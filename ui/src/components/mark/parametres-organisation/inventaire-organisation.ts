@@ -70,3 +70,25 @@ export const INVENTAIRE_LISTES_VALEURS: Record<string, { theme: ThemeOrganisatio
     liste: { horsEcran: "Names the list of the value on the row (shown in grey above its values), not a setting" },
     code: { horsEcran: "Names the value on the row (shown in grey next to its label), not a setting" },
 };
+
+/**
+ * [.mark] Cloture-code, lot F7 : un objet de l'agent (`ObjetEnvoye`), modale de la section « Objets » du theme
+ * « Etablissements », et le plafond (`ReglagesObjets`), champ de la meme section. Preuve : le rendu de la page
+ * (`page-parametres-organisation.test.tsx`) trouve chaque champ (`data-reglage`) et `objets-ecran.test.tsx` verifie
+ * qu'il part au serveur.
+ */
+export const INVENTAIRE_OBJETS: Record<string, { theme: ThemeOrganisation; champ: string } | { horsEcran: string }> = {
+    nom: { theme: "etablissement", champ: "nom" },
+    libelle: { theme: "etablissement", champ: "libelle" },
+    description: { theme: "etablissement", champ: "description" },
+    forme: { theme: "etablissement", champ: "forme" },
+    type: { theme: "etablissement", champ: "type" },
+    valeur: { theme: "etablissement", champ: "valeur" },
+    etablissement: { theme: "etablissement", champ: "etablissement" },
+    colonnes: { theme: "etablissement", champ: "colonnes" },
+    lignes: { theme: "etablissement", champ: "lignes" },
+};
+
+export const INVENTAIRE_REGLAGES_OBJETS: Record<string, { theme: ThemeOrganisation; champ: string } | { horsEcran: string }> = {
+    plafond_caracteres: { theme: "etablissement", champ: "plafond_caracteres" },
+};

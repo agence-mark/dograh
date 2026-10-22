@@ -14,11 +14,15 @@ import {
     INVENTAIRE_ANNONCE,
     INVENTAIRE_CONSERVATION_APPELS,
     INVENTAIRE_LISTES_VALEURS,
+    INVENTAIRE_OBJETS,
     INVENTAIRE_PREFERENCES,
+    INVENTAIRE_REGLAGES_OBJETS,
 } from "./inventaire-organisation";
+import { CHAMPS_OBJET } from "./ModaleObjet";
 import { CAS_ORGANISATION } from "./references/cas-organisation";
 import { CHAMPS_CONSERVATION_APPELS } from "./SectionConservationAppels";
 import { CASES_LISTES_VALEURS } from "./SectionListesValeurs";
+import { CHAMPS_REGLAGES_OBJETS } from "./SectionObjets";
 
 const genere = readFileSync(join(process.cwd(), "src/client/types.gen.ts"), "utf8");
 
@@ -127,5 +131,23 @@ describe("inventory of CasesDUneValeur", () => {
             .map(([cle]) => cle)
             .sort();
         expect([...CASES_LISTES_VALEURS].sort()).toEqual(affichees);
+    });
+});
+
+// [.mark] Cloture-code, lot F7: an object of the agent (`ObjetEnvoye`) and the ceiling (`ReglagesObjets`).
+describe.each([
+    ["ObjetEnvoye", INVENTAIRE_OBJETS, CHAMPS_OBJET as readonly string[]],
+    ["ReglagesObjets", INVENTAIRE_REGLAGES_OBJETS, CHAMPS_REGLAGES_OBJETS as readonly string[]],
+] as const)("inventory of %s", (type, inventaire, champs) => {
+    it.each(clesDuType(type))("key %s is on screen or listed off screen", (cle) => {
+        expect(inventaire[cle], `${cle}: no entry in inventaire-organisation.ts`).toBeDefined();
+    });
+
+    it("the screen draws exactly the displayed keys", () => {
+        const affichees = Object.entries(inventaire)
+            .filter(([, e]) => "champ" in e)
+            .map(([cle]) => cle)
+            .sort();
+        expect([...champs].sort()).toEqual(affichees);
     });
 });

@@ -45,6 +45,7 @@ const m = vi.hoisted(() => ({
     saveChoixTraducteurs: vi.fn(),
     lien: vi.fn(),
     reprise: vi.fn(),
+    objets: vi.fn(),
 }));
 
 // l-agent-collegue, L4: the calendar software of the hub (theme « Integrations »).
@@ -91,6 +92,8 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-fact
         Promise.resolve({ data: { nango_configure: true, connexions: [{ integration: "google-calendar", connection_id: "cx" }] } }),
     getCatalogueApiV1ConnecteursCatalogueGet: () => Promise.resolve({ data: [] }),
     postLienApiV1ConnecteursLienPost: m.lien,
+    // [.mark] cloture-code, F7: the objects of the « Establishments » theme.
+    getObjetsApiV1OrganizationsObjetsGet: m.objets,
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/context/UserConfigContext", () => ({ useUserConfig: () => ({ refreshConfig: () => Promise.resolve() }) }));
@@ -118,7 +121,17 @@ vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect()
 
 const { default: SettingsPage } = await import("@/app/settings/page");
 
+const OBJETS = {
+    plafond_caracteres: 3000,
+    objets: [
+        { id: 1, nom: "marques", libelle: "Marques", forme: "liste", etablissement: null, taille: 30, utilise_par: [{ id: 7, nom: "Accueil" }],
+          colonnes: [{ id: 1, libelle: "Marque", type: "texte", ordre: 1, pose_par: "mark" }], lignes: [{ id: 1, ordre: 1, valeurs: { Marque: "Edilkamin" } }] },
+        { id: 2, nom: "frais", libelle: "Frais", forme: "valeur", type: "montant", valeur: "35", etablissement: null, taille: 2, utilise_par: [] },
+    ],
+};
+
 const reinitialiser = () => {
+    m.objets.mockReset().mockImplementation(() => Promise.resolve({ data: structuredClone(OBJETS) }));
     m.getPreferences.mockReset().mockImplementation(() => Promise.resolve({ data: structuredClone(PREFERENCES) }));
     m.getAnnonce.mockReset().mockImplementation(() => Promise.resolve({ data: structuredClone(ANNONCE) }));
     m.savePreferences.mockReset().mockImplementation(async ({ body }) => ({ data: body }));
@@ -400,5 +413,36 @@ describe("[.mark] l-agent-collegue L4: the calendar software in « Integrations 
         await waitFor(() => expect(m.saveChoixTraducteurs).toHaveBeenCalledWith({ body: { agenda: "google_agenda" } }));
         // Nothing of the theme's own row is sent by this block (it acts at once, E6).
         expect(m.savePreferences).not.toHaveBeenCalled();
+    });
+});
+
+describe("[.mark] cloture-code F7: the « Objects » section of « Establishments »", () => {
+    it("draws one card per object with its readers, and each card opens its modal on the object's own fields", async () => {
+        const { CHAMPS_OBJET } = await import("./ModaleObjet");
+        const { CHAMPS_REGLAGES_OBJETS } = await import("./SectionObjets");
+        await ouvrirLaPage();
+        const theme = await ouvrirLeTheme("etablissement");
+        await waitFor(() => expect(theme.querySelectorAll("[data-objet]").length).toBe(2));
+        expect(theme.querySelector("#etablissement-objets")).not.toBeNull();
+        const marques = theme.querySelector('[data-objet="marques"]') as HTMLElement;
+        expect(marques.textContent).toContain("{{marques}}");
+        expect(marques.querySelector("[data-utilise-par]")!.textContent).toContain("Accueil");
+        expect(theme.querySelector('[data-objet="frais"] [data-utilise-par]')!.textContent).toMatch(/no agent|aucun agent/);
+        for (const champ of CHAMPS_REGLAGES_OBJETS) expect(theme.querySelector(`[data-reglage="${champ}"]`)).not.toBeNull();
+        // Une liste : ses colonnes et ses lignes ; une valeur : son type et sa valeur. Ensemble, tous les champs.
+        const vus = new Set<string>();
+        for (const nom of ["marques", "frais"]) {
+            fireEvent.click(theme.querySelector(`[data-objet="${nom}"]`) as HTMLElement);
+            const modale = await waitFor(() => {
+                const el = document.querySelector('[data-reglage="nom"]');
+                if (!el) throw new Error("modal not open");
+                return el;
+            });
+            expect(modale).not.toBeNull();
+            document.querySelectorAll("[data-reglage]").forEach((e) => vus.add(e.getAttribute("data-reglage") ?? ""));
+            fireEvent.click(screen.getByRole("button", { name: /Cancel|Annuler/ }));
+            await waitFor(() => expect(document.querySelector('[data-reglage="nom"]')).toBeNull());
+        }
+        for (const champ of CHAMPS_OBJET) expect(vus.has(champ), champ).toBe(true);
     });
 });
