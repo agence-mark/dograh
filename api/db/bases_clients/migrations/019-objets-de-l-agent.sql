@@ -118,8 +118,23 @@ CREATE TABLE IF NOT EXISTS objet_agent_reglage (
 );
 INSERT INTO objet_agent_reglage (id) VALUES (1) ON CONFLICT DO NOTHING;
 
+-- Ce que le compte du portail voit (motif de la 015) : l'établissement de l'objet, ou toute l'entreprise
+-- s'il voit au moins un lieu. Définies ici : objet_agent_texte s'en sert.
+CREATE OR REPLACE FUNCTION portail_voit_lieu_ou_entreprise(cible bigint, qui name) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = mark AS $$
+    SELECT CASE WHEN cible IS NULL THEN portail_voit_un_lieu(qui) ELSE portail_voit_site(cible, qui) END;
+$$;
+
+CREATE OR REPLACE FUNCTION portail_voit_objet(cible bigint, qui name) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = mark AS $$
+    SELECT est_du_portail(qui) AND EXISTS (
+        SELECT 1 FROM objet_agent o WHERE o.id = cible AND portail_voit_lieu_ou_entreprise(o.site_id, qui));
+$$;
+
 -- Le texte que l'objet donne à l'agent, le MÊME que le fork rend (api/services/objets_agent/rendu.py,
 -- un test compare les deux) : la valeur ; ou l'en-tête des colonnes puis une ligne par ligne, « | ».
+-- Revue du chantier : SECURITY DEFINER, donc la sécurité par ligne ne joue pas ici ; un compte du
+-- portail n'a le texte (et la taille) que des objets qu'il voit, rien (NULL) pour les autres.
 CREATE OR REPLACE FUNCTION objet_agent_texte(cible bigint) RETURNS text
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = mark AS $$
     SELECT CASE
@@ -132,7 +147,8 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = mark AS $$
                     '' ORDER BY l.ordre, l.id)
                   FROM objet_agent_ligne l WHERE l.objet_id = o.id), '')
     END
-    FROM objet_agent o WHERE o.id = cible;
+    FROM objet_agent o
+    WHERE o.id = cible AND (NOT est_du_portail(session_user) OR portail_voit_objet(cible, session_user));
 $$;
 
 CREATE OR REPLACE FUNCTION objet_agent_taille(cible bigint) RETURNS integer
@@ -361,17 +377,8 @@ CREATE TRIGGER objet_agent_historique_garde_vidage BEFORE TRUNCATE ON objet_agen
 
 -- ---------------------------------------------------------------------
 --  4. Droits et sécurité par ligne. Dograh (mark_ecriture) : tout. Le portail : son établissement.
+--     (portail_voit_lieu_ou_entreprise et portail_voit_objet : section 2, avant objet_agent_texte.)
 -- ---------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION portail_voit_lieu_ou_entreprise(cible bigint, qui name) RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = mark AS $$
-    SELECT CASE WHEN cible IS NULL THEN portail_voit_un_lieu(qui) ELSE portail_voit_site(cible, qui) END;
-$$;
-
-CREATE OR REPLACE FUNCTION portail_voit_objet(cible bigint, qui name) RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = mark AS $$
-    SELECT est_du_portail(qui) AND EXISTS (
-        SELECT 1 FROM objet_agent o WHERE o.id = cible AND portail_voit_lieu_ou_entreprise(o.site_id, qui));
-$$;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON objet_agent, objet_agent_colonne, objet_agent_ligne,
     objet_agent_utilisation TO mark_ecriture;

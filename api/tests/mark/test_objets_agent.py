@@ -218,6 +218,10 @@ async def test_le_portail_ne_voit_que_les_objets_de_ses_etablissements(portail):
         assert objets_colonnes == objets_lignes == {ids["a"]}
         historique = {r["objet_id"] for r in await c.fetch("SELECT objet_id FROM mark.objet_agent_historique")}
         assert historique == {ids["a"], ids["tous"]}
+        # Revue du chantier : les fonctions SECURITY DEFINER ne rendent pas le texte d'un objet qu'il ne voit pas.
+        assert await c.fetchval("SELECT mark.objet_agent_texte($1)", ids["b"]) is None
+        assert await c.fetchval("SELECT mark.objet_agent_taille($1)", ids["b"]) == 0
+        assert await c.fetchval("SELECT mark.objet_agent_texte($1)", ids["a"])
         # Il change une valeur ; jamais celle d'un objet qu'il ne voit pas ; jamais un nom.
         assert await c.execute("UPDATE mark.objet_agent SET valeur = '40' WHERE nom = 'frais'") == "UPDATE 1"
         assert await c.execute("UPDATE mark.objet_agent_ligne SET ordre = 9 WHERE objet_id = $1", ids["b"]) == "UPDATE 0"
