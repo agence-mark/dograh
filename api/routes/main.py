@@ -20,6 +20,7 @@ from api.routes.base_client import routeur_equipe as equipe_router
 from api.routes.base_client import routeur_planificateur as planificateur_router
 from api.routes.listes_valeurs import router as listes_valeurs_router
 from api.routes.objets_agent import router as objets_agent_router
+from api.routes.modules import router as modules_router
 from api.routes.verification import router as verification_router
 from api.routes.agents_servis import router as agents_servis_router
 from api.routes.etablissements import router as etablissements_router
@@ -97,6 +98,8 @@ router.include_router(equipe_router)
 router.include_router(planificateur_router)
 router.include_router(listes_valeurs_router)
 router.include_router(objets_agent_router)
+# [.mark] cloture-code, F8: the agent's modules (portal and agent page).
+router.include_router(modules_router)
 # [.mark] l-agent-collegue, L6: the caller's verification.
 router.include_router(verification_router)
 router.include_router(user_router)

@@ -105,14 +105,16 @@ async def test_une_base_en_version_18_monte_en_19_et_la_019_se_rejoue(base_essai
     proprietaire = await schema.connecter_proprietaire(base_essai)
     try:
         assert await _appliquer_jusqua(proprietaire, 18) == [15, 16, 17, 18]
-        assert await schema.appliquer_migrations(proprietaire) == [19]
-        assert await schema.version_de(proprietaire) == 19 == schema.version_attendue()
+        # F8 : la 020 existe depuis ; la base s'arrête à la 19 (comme une installation de ce jour-là).
+        assert await _appliquer_jusqua(proprietaire, 19) == [19]
+        assert await schema.version_de(proprietaire) == 19
         await ecrire_objet(proprietaire, _liste(), AUTEUR)
         migration = next(m for m in schema.migrations() if m.version == 19)
         corps = migration.sql[: migration.sql.index("INSERT INTO schema_version")]
         async with proprietaire.transaction():
             await proprietaire.execute(corps)
-        assert await schema.appliquer_migrations(proprietaire) == []
+        # La suite (020 et après) monte par-dessus la 019 rejouée.
+        assert await schema.appliquer_migrations(proprietaire) == list(range(20, schema.version_attendue() + 1))
         # Rejouée : l'objet, ses lignes et le plafond sont intacts, rien n'est dupliqué.
         assert [len(o.lignes) for o in await lire_objets(proprietaire)] == [2]
         assert await proprietaire.fetchval("SELECT count(*) FROM mark.objet_agent_reglage") == 1

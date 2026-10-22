@@ -106,23 +106,31 @@ CLES_THEME_BRIQUES: tuple[str, ...] = (
 )
 
 CLES_THEME_ECOUTE: tuple[str, ...] = (
-    # 3 Écoute
+    # 3 Écoute (cloture-code, F8 : les interrupteurs et réglages des modules sont partis dans « Modules »)
+    "dictionary",
+    "audio_in_noise_filter",
+)
+
+# Modules (cloture-code, F8, M4) : les clés que les modules du registre possèdent
+# (``api/services/modules/registre.py``, ``cles_des_modules()``), dans son ordre ; un test compare les deux.
+# Elles viennent d'« Écoute » et de « Données de l'appel » (déménagées, jamais en double).
+CLES_THEME_MODULES: tuple[str, ...] = (
     "conversion_nombres_transcription",
     "variables_reference",
     "verification_communes",
     "variables_commune",
-    "controle_donnees",
-    "variables_telephone",
-    "variables_code_postal",
-    "variables_courriel",
-    "variables_date",
     "sons_communes",
     "verification_voies",
     "lecture_epellation",
     "lexique_metier",
     "sons_lexique",
-    "dictionary",
-    "audio_in_noise_filter",
+    "controle_donnees",
+    "variables_telephone",
+    "variables_code_postal",
+    "variables_courriel",
+    "variables_date",
+    "equipe_connue",
+    "verification_appelant",
 )
 
 CLES_THEME_TOUR: tuple[str, ...] = (
@@ -198,8 +206,6 @@ CLES_THEME_DONNEES: tuple[str, ...] = (
     "greffier_consigne",
     "fiche_champs",
     "apres_appel",
-    "equipe_connue",
-    "verification_appelant",
     "call_dispositions",
     "transcript_configuration",
     "context_compaction_enabled",
@@ -217,6 +223,7 @@ CLES_COMMUNES: tuple[str, ...] = (
     *CLES_THEME_AGENT,
     *CLES_THEME_BRIQUES,
     *CLES_THEME_ECOUTE,
+    *CLES_THEME_MODULES,
     *CLES_THEME_TOUR,
     *CLES_THEME_VOIX,
     *CLES_THEME_RYTHME,

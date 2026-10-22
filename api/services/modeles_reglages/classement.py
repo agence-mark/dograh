@@ -31,6 +31,7 @@ from api.services.groupe.reglages import (
     CLES_THEME_DONNEES,
     CLES_THEME_ECOUTE,
     CLES_THEME_ETABLISSEMENT,
+    CLES_THEME_MODULES,
     CLES_THEME_RYTHME,
     CLES_THEME_TOUR,
     CLES_THEME_VOIX,
@@ -42,6 +43,8 @@ SECTIONS: dict[str, tuple[str, ...]] = {
     "agent": CLES_THEME_AGENT,
     "briques": CLES_THEME_BRIQUES,
     "ecoute": CLES_THEME_ECOUTE,
+    # cloture-code, F8 (M4): the modules' keys, moved out of « Écoute » and « Données de l'appel ».
+    "modules": CLES_THEME_MODULES,
     "tour": CLES_THEME_TOUR,
     "voix": CLES_THEME_VOIX,
     "rythme": CLES_THEME_RYTHME,

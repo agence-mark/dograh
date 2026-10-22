@@ -1298,6 +1298,27 @@ export type BatchRecordingUploadResponseSchema = {
 };
 
 /**
+ * BesoinModule
+ *
+ * What a module needs (M2). ``domaine``: a translator domain (``agenda``, ``dossier``) filled by the
+ * organization's choice ; ``None``: a source of the fork itself, named by ``source_interne``.
+ * ``traducteur``: the translator chosen for the organization, ``None`` when none is.
+ */
+export type BesoinModule = {
+    /**
+     * Code
+     */
+    code: string;
+    libelle: TexteModule;
+    /**
+     * Domaine
+     */
+    domaine?: string | null;
+    source_interne?: TexteModule | null;
+    traducteur?: TraducteurBranche | null;
+};
+
+/**
  * BilanDuPassage
  *
  * What the last nightly task found, kept so the screen can show it (and the dry run be read).
@@ -6940,6 +6961,104 @@ export type ModificationPlanificateur = {
 };
 
 /**
+ * ModuleDeLAgent
+ */
+export type ModuleDeLAgent = {
+    /**
+     * Code
+     */
+    code: string;
+    libelle: TexteModule;
+    /**
+     * Interrupteur
+     */
+    interrupteur?: string | null;
+    /**
+     * Connecteurs
+     */
+    connecteurs?: Array<string>;
+    /**
+     * Besoins
+     */
+    besoins?: Array<BesoinModule>;
+    /**
+     * Reglages Construction
+     */
+    reglages_construction?: Array<ReglageModule>;
+    /**
+     * Reglages Terrain
+     */
+    reglages_terrain?: Array<ReglageModule>;
+    /**
+     * Utilise Par
+     */
+    utilise_par?: Array<AgentUtilisateur>;
+    /**
+     * Actif
+     */
+    actif?: boolean;
+};
+
+/**
+ * ModuleVue
+ */
+export type ModuleVue = {
+    /**
+     * Code
+     */
+    code: string;
+    libelle: TexteModule;
+    /**
+     * Interrupteur
+     */
+    interrupteur?: string | null;
+    /**
+     * Connecteurs
+     */
+    connecteurs?: Array<string>;
+    /**
+     * Besoins
+     */
+    besoins?: Array<BesoinModule>;
+    /**
+     * Reglages Construction
+     */
+    reglages_construction?: Array<ReglageModule>;
+    /**
+     * Reglages Terrain
+     */
+    reglages_terrain?: Array<ReglageModule>;
+    /**
+     * Utilise Par
+     */
+    utilise_par?: Array<AgentUtilisateur>;
+};
+
+/**
+ * ModulesAgent
+ */
+export type ModulesAgent = {
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Modules
+     */
+    modules: Array<ModuleDeLAgent>;
+};
+
+/**
+ * ModulesOrganisation
+ */
+export type ModulesOrganisation = {
+    /**
+     * Modules
+     */
+    modules: Array<ModuleVue>;
+};
+
+/**
  * MoveFolderRequest
  *
  * [.mark] Lot 10 : déplacer un dossier sous un autre (``None`` = premier niveau).
@@ -8912,6 +9031,31 @@ export type Refus = {
      * Detail
      */
     detail: string;
+};
+
+/**
+ * ReglageModule
+ *
+ * One declared setting of a module: its key and where it lives (``workflow_configurations`` for an
+ * agent's key, a table of the client's database otherwise). ``bloc``: the terrain block (D124).
+ */
+export type ReglageModule = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Lieu
+     */
+    lieu: string;
+    /**
+     * Bloc
+     */
+    bloc?: 'quand' | 'quoi' | 'ou' | 'qui' | null;
+    /**
+     * Modifiable
+     */
+    modifiable?: boolean;
 };
 
 /**
@@ -11419,6 +11563,20 @@ export type TextChatInactivityTimeoutConstraints = {
 };
 
 /**
+ * TexteModule
+ */
+export type TexteModule = {
+    /**
+     * En
+     */
+    en: string;
+    /**
+     * Fr
+     */
+    fr: string;
+};
+
+/**
  * TimeSlotRequest
  */
 export type TimeSlotRequest = {
@@ -11621,6 +11779,22 @@ export type ToolTestResponse = {
      * Duration Ms
      */
     duration_ms: number;
+};
+
+/**
+ * TraducteurBranche
+ *
+ * The translator that fills a need for this organization (« se branche sur », M4).
+ */
+export type TraducteurBranche = {
+    /**
+     * Systeme
+     */
+    systeme: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
 };
 
 /**
@@ -20430,6 +20604,97 @@ export type PutObjetApiV1OrganizationsObjetsObjetIdPutResponses = {
 };
 
 export type PutObjetApiV1OrganizationsObjetsObjetIdPutResponse = PutObjetApiV1OrganizationsObjetsObjetIdPutResponses[keyof PutObjetApiV1OrganizationsObjetsObjetIdPutResponses];
+
+export type GetModulesApiV1OrganizationsModulesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/modules';
+};
+
+export type GetModulesApiV1OrganizationsModulesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetModulesApiV1OrganizationsModulesGetError = GetModulesApiV1OrganizationsModulesGetErrors[keyof GetModulesApiV1OrganizationsModulesGetErrors];
+
+export type GetModulesApiV1OrganizationsModulesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ModulesOrganisation;
+};
+
+export type GetModulesApiV1OrganizationsModulesGetResponse = GetModulesApiV1OrganizationsModulesGetResponses[keyof GetModulesApiV1OrganizationsModulesGetResponses];
+
+export type GetModulesDeLAgentApiV1AgentsAgentIdModulesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Agent Id
+         */
+        agent_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agents/{agent_id}/modules';
+};
+
+export type GetModulesDeLAgentApiV1AgentsAgentIdModulesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetModulesDeLAgentApiV1AgentsAgentIdModulesGetError = GetModulesDeLAgentApiV1AgentsAgentIdModulesGetErrors[keyof GetModulesDeLAgentApiV1AgentsAgentIdModulesGetErrors];
+
+export type GetModulesDeLAgentApiV1AgentsAgentIdModulesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ModulesAgent;
+};
+
+export type GetModulesDeLAgentApiV1AgentsAgentIdModulesGetResponse = GetModulesDeLAgentApiV1AgentsAgentIdModulesGetResponses[keyof GetModulesDeLAgentApiV1AgentsAgentIdModulesGetResponses];
 
 export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetData = {
     body?: never;
