@@ -45,6 +45,7 @@ import { useThemesOuverts } from "../ecran/useThemesOuverts";
 import { etapesSansPremiereReplique } from "../graphe/premiere-replique";
 import { ContexteGroupe, type ValeurGroupe } from "../groupe/contexte-groupe";
 import { useLangue } from "../langue/langue";
+import { BoutonModeles } from "./modeles-de-reglages/ModaleModeles";
 import { ContexteErreursThemes } from "./theme-commun";
 import { ID_THEME_AGENT, ThemeAgent, TITRE_AGENT } from "./ThemeAgent";
 import { ID_THEME_BRIQUES, ThemeBriques, TITRE_BRIQUES } from "./ThemeBriques";
@@ -261,6 +262,10 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                 <div>
                     <p className="text-xs text-muted-foreground">{t({ en: "Workflow Settings", fr: "Réglages de l'agent" })}</p>
                     <h1 className="text-sm font-semibold">{nom}</h1>
+                </div>
+                {/* [.mark] cloture-code, lot 5 (M11) : les modèles de réglages, dans l'en-tête fixe, à côté du nom de l'agent. */}
+                <div className="ml-auto">
+                    <BoutonModeles workflowId={workflowId} modifie={dirtySections.size > 0} />
                 </div>
             </header>
 

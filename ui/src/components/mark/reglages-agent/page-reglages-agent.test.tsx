@@ -159,6 +159,17 @@ describe("[.mark] the agent page in themes", () => {
         // Every key of the inventory, one after the other: slow under a full run.
     }, 30000);
 
+    // Cloture-code, lot 5 (M11): the settings templates button sits in the FIXED header, next to the agent's name,
+    // outside the themes, and opens the centred modal.
+    it("has the settings templates button in the fixed header, outside the themes", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const bouton = document.querySelector("header [data-bouton-modeles]") as HTMLElement;
+        expect(bouton, "the button is in the header").not.toBeNull();
+        expect(document.querySelector("[data-theme] [data-bouton-modeles]")).toBeNull();
+        fireEvent.click(bouton);
+        await waitFor(() => expect(document.querySelector('[data-modale-phrase="modeles-de-reglages"]')).not.toBeNull());
+    });
+
     // Plan mode-prise-de-notes, part 2: the clerk's settings are drawn only in
     // its mode, like in the code (no clerk, nothing to set).
     // Plan porte-parlee: « Transitions in the reply » only in Postscript (tested below).
