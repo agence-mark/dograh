@@ -67,6 +67,7 @@ export function FicheRendezVous({
                 value={(reglages[f.cle] as number | null | undefined) ?? ""}
                 onChange={(e) => onPoser(f.cle, e.target.value === "" ? null : Number(e.target.value))}
             />
+            {boutonPour?.(f.cle)}
         </ChampReglage>
     );
     const ouiNon = (f: (typeof OUI_NON)[number]) => (
@@ -81,6 +82,7 @@ export function FicheRendezVous({
                 <option value="true">{t({ en: "Yes", fr: "Oui" })}</option>
                 <option value="false">{t({ en: "No", fr: "Non" })}</option>
             </select>
+            {boutonPour?.(f.cle)}
         </ChampReglage>
     );
     const choix = (f: (typeof CHOIX)[number]) => (

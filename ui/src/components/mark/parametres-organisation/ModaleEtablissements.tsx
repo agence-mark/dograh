@@ -65,8 +65,10 @@ import { Intertitre } from "../ecran/Intertitre";
 import { type Texte, useLangue } from "../langue/langue";
 import { ETATS } from "../SectionAnnonceOuverture";
 import { EXEMPLE_HORAIRES } from "../SectionHorairesOuverture";
+import { BoutonAppliquerATous, type ReglageAppliquable } from "./BoutonAppliquerATous";
 import { FicheRendezVous } from "./FicheRendezVous";
 import { ModaleCopieFiche } from "./ModaleCopieFiche";
+import { libelleReglage } from "./reglages-rendez-vous";
 import { charge_utile_planificateur } from "./ThemeRendezVous";
 
 export const ETABLISSEMENTS_ENREGISTRES: Texte = { en: "Establishments saved", fr: "Établissements enregistrés" };
@@ -199,6 +201,7 @@ const ChampPropre = ({
     aide,
     vide,
     onVider,
+    action,
     children,
 }: {
     id: string;
@@ -206,6 +209,8 @@ const ChampPropre = ({
     aide: Texte;
     vide: Texte;
     onVider?: () => void;
+    /** D152: « Apply to all establishments », next to the field. */
+    action?: React.ReactNode;
     children: React.ReactNode;
 }) => {
     const { t } = useLangue();
@@ -216,10 +221,15 @@ const ChampPropre = ({
                 <code className="text-xs text-muted-foreground">{id}</code>
             </div>
             {children}
-            {onVider && (
-                <Button variant="ghost" size="sm" onClick={onVider} data-testid={`vider-${id}`}>
-                    {t({ en: "Empty this field", fr: "Vider ce champ" })}
-                </Button>
+            {(onVider || action) && (
+                <div className="flex flex-wrap items-center gap-2">
+                    {onVider && (
+                        <Button variant="ghost" size="sm" onClick={onVider} data-testid={`vider-${id}`}>
+                            {t({ en: "Empty this field", fr: "Vider ce champ" })}
+                        </Button>
+                    )}
+                    {action}
+                </div>
             )}
             <p className="text-xs text-muted-foreground">{t(aide)}</p>
             <p className="text-xs text-muted-foreground" data-testid={`vide-${id}`}>
@@ -376,6 +386,28 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
     })();
     const listeModifiee = liste !== null && JSON.stringify(charge_utile_etablissements(liste)) !== lue;
     const rienNAttend = !listeModifiee && !planificateurModifie;
+
+    // D152: « Apply to all establishments ». The server copies the SAVED value of this fiche into the others,
+    // so the button is off while something waits to be saved, and drawn only for a fiche that exists.
+    const lieux = (liste ?? []).filter((e) => idsEnregistres.includes(e.id)).map((e) => ({ id: e.id, nom: e.nom }));
+    const apresApplication = async () => {
+        // The others were written: the caller must read the list again, and so do we.
+        aCopie.current = true;
+        await charger(courant?.id);
+    };
+    const appliquer = (reglage: ReglageAppliquable, cle: string, libelle: Texte, valeur?: string | null) =>
+        courant && idsEnregistres.includes(courant.id) ? (
+            <BoutonAppliquerATous
+                source={{ id: courant.id, nom: courant.nom }}
+                etablissements={lieux}
+                reglage={reglage}
+                cle={cle}
+                libelle={libelle}
+                valeur={valeur}
+                enAttente={!rienNAttend}
+                onApplique={apresApplication}
+            />
+        ) : null;
 
     const enregistrer = async () => {
         if (!liste) return;
@@ -586,6 +618,12 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                         fr: "Vide : aucune adresse pour cet établissement (jamais celle de l'organisation).",
                                     }}
                                     onVider={courant.adresse ? viderAdresse : undefined}
+                                    action={appliquer(
+                                        "fiche",
+                                        "adresse",
+                                        { en: "Address", fr: "Adresse" },
+                                        courant.adresse ? [courant.adresse.voie, courant.adresse.code_postal, courant.adresse.commune].filter(Boolean).join(" ") : "",
+                                    )}
                                 >
                                     <ChampAdresseEtablissement
                                         key={`${courant.id}-${adresseVidee}`}
@@ -609,6 +647,12 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                         en: "Empty: no hours for this establishment (never an agent's own).",
                                         fr: "Vide : aucun horaire pour cet établissement (jamais ceux d'un agent).",
                                     }}
+                                    action={appliquer(
+                                        "fiche",
+                                        "horaires_ouverture",
+                                        { en: "Opening hours and closures", fr: "Horaires d'ouverture et fermetures" },
+                                        courant.horaires_ouverture,
+                                    )}
                                 >
                                     <Textarea
                                         id="etablissement-horaires"
@@ -633,6 +677,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                                 fr: `Une phrase du catalogue placée au niveau de l'établissement, donnée aux agents comme {{${p.variable}}}.`,
                                             }}
                                             vide={VIDE_RIEN}
+                                            action={appliquer("phrase", p.variable, { en: p.description || p.variable, fr: p.description || p.variable }, propre)}
                                         >
                                             <Textarea
                                                 id={`etablissement-phrase-${p.variable}`}
@@ -688,6 +733,12 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                             en: "Empty: nothing is announced for this establishment (never the organization's sentence).",
                                             fr: "Vide : rien n'est annoncé pour cet établissement (jamais la phrase de l'organisation).",
                                         }}
+                                        action={appliquer(
+                                            "fiche",
+                                            cle,
+                                            cle === "annonce_fermeture" ? { en: "Closing sentence", fr: "Phrase de fermeture" } : { en: "Break sentence", fr: "Phrase de pause" },
+                                            courant[cle],
+                                        )}
                                     >
                                         <Textarea
                                             id={`etablissement-${cle}`}
@@ -762,6 +813,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                         reglages={planificateur.par_etablissement?.[courant.id] ?? {}}
                                         defauts={planificateur.defauts ?? {}}
                                         onPoser={(cle, valeur) => poserRendezVous(courant.id, cle, valeur)}
+                                        boutonPour={(cle) => appliquer("planificateur", cle, libelleReglage(cle))}
                                     />
                                 ) : (
                                     <Intertitre id="fiche-rendez-vous" titre={{ en: "Appointments and zone", fr: "Rendez-vous et zone" }}>

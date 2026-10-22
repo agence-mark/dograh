@@ -3416,6 +3416,26 @@ export type DemandeApplication = {
 };
 
 /**
+ * DemandeAppliquerATous
+ *
+ * Quel réglage de l'établissement source est recopié dans tous les autres.
+ */
+export type DemandeAppliquerATous = {
+    /**
+     * Reglage
+     *
+     * The family of the setting (see the table of the module).
+     */
+    reglage: 'planificateur' | 'type' | 'module' | 'fiche' | 'phrase';
+    /**
+     * Cle
+     *
+     * Which setting of the family: a planner field, a type's code, « module.key », a field of the fiche (hours, address, announcements) or a sentence's variable.
+     */
+    cle: string;
+};
+
+/**
  * DemandeControleHoraires
  */
 export type DemandeControleHoraires = {
@@ -4505,6 +4525,20 @@ export type EtablissementServi = {
     annonce_fermeture: ValeurHeritee;
     annonce_pause: ValeurHeritee;
     numero_transfert: ValeurHeritee;
+};
+
+/**
+ * EtablissementTouche
+ */
+export type EtablissementTouche = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Nom
+     */
+    nom: string;
 };
 
 /**
@@ -9725,6 +9759,34 @@ export type ResultatApplication = {
      * Providers the template brings for which the agent and its organization have no key.
      */
     fournisseurs_sans_cle: Array<string>;
+};
+
+/**
+ * ResultatAppliquerATous
+ *
+ * What the gesture did: the source, and every other establishment that now carries its value.
+ */
+export type ResultatAppliquerATous = {
+    /**
+     * Source
+     *
+     * Identifier of the establishment whose value was copied.
+     */
+    source: string;
+    /**
+     * Reglage
+     */
+    reglage: 'planificateur' | 'type' | 'module' | 'fiche' | 'phrase';
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Etablissements
+     *
+     * The other establishments of the organization, all written.
+     */
+    etablissements?: Array<EtablissementTouche>;
 };
 
 /**
@@ -18301,6 +18363,54 @@ export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifi
 };
 
 export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponse = FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponses[keyof FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponses];
+
+export type AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostData = {
+    body: DemandeAppliquerATous;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Identifiant
+         */
+        identifiant: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/etablissements/{identifiant}/appliquer-a-tous';
+};
+
+export type AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostError = AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostErrors[keyof AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostErrors];
+
+export type AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatAppliquerATous;
+};
+
+export type AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostResponse = AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostResponses[keyof AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostResponses];
 
 export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostData = {
     body: DemandeEtablissementsDeLagent;

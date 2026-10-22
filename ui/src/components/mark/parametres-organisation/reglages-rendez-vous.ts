@@ -70,5 +70,14 @@ export const OUI_NON: Array<{ cle: Cle; libelle: Texte; aide: Texte }> = [
     { cle: "personne_visible", libelle: { en: "The agent may name the person", fr: "L'agent peut nommer la personne" }, aide: { en: "Each slot carries the first name of the person it is with.", fr: "Chaque créneau porte le prénom de la personne." } },
 ];
 
+/** The name a setting is shown under (D152: said in the window « Apply to all establishments »). */
+export const libelleReglage = (cle: string): Texte =>
+    [...NOMBRES, FENETRE, ...NOMBRES_TRAJETS, ...CHOIX, ...OUI_NON].find((f) => f.cle === cle)?.libelle ??
+    (cle === "plages"
+        ? { en: "Booking ranges", fr: "Plages de rendez-vous" }
+        : cle === "zone_communes"
+          ? { en: "Zone served: communes (INSEE codes)", fr: "Zone desservie : communes (codes INSEE)" }
+          : { en: cle, fr: cle });
+
 export const texteValeur = (v: unknown, t: (x: Texte) => string): string =>
     v === null || v === undefined ? "—" : typeof v === "boolean" ? t(v ? { en: "yes", fr: "oui" } : { en: "no", fr: "non" }) : Array.isArray(v) ? v.join(", ") : String(v);
