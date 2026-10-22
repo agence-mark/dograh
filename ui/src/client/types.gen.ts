@@ -472,6 +472,20 @@ export type AgentServi = {
 };
 
 /**
+ * AgentUtilisateur
+ */
+export type AgentUtilisateur = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * AgentsServis
  */
 export type AgentsServis = {
@@ -2278,6 +2292,34 @@ export type CloudonixConfigurationRequest = {
      * Cloudonix Voice Application name. The application's url is updated when inbound workflows are attached to numbers on this domain. If omitted, an application is auto-created on save and its name is stored on the configuration.
      */
     application_name?: string | null;
+};
+
+/**
+ * ColonneObjet
+ *
+ * A column of a list. ``id`` absent: a new column. ``pose_par`` = who set it (D108).
+ */
+export type ColonneObjet = {
+    /**
+     * Id
+     */
+    id?: number | null;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Type
+     */
+    type?: 'texte' | 'nombre' | 'montant' | 'oui_non' | 'date';
+    /**
+     * Ordre
+     */
+    ordre?: number;
+    /**
+     * Pose Par
+     */
+    pose_par?: 'mark' | 'client';
 };
 
 /**
@@ -5915,6 +5957,28 @@ export type LiensDesGroupesResponse = {
 };
 
 /**
+ * LigneObjet
+ *
+ * A line of a list: its cells, by column label. ``id`` absent: a new line.
+ */
+export type LigneObjet = {
+    /**
+     * Id
+     */
+    id?: number | null;
+    /**
+     * Ordre
+     */
+    ordre?: number;
+    /**
+     * Valeurs
+     */
+    valeurs?: {
+        [key: string]: string;
+    };
+};
+
+/**
  * LignePrix
  */
 export type LignePrix = {
@@ -7096,6 +7160,129 @@ export type NumeroDeLorganisation = {
      * Agent
      */
     agent?: string | null;
+};
+
+/**
+ * ObjetAgent
+ *
+ * An object as the client's database holds it, with its rendering's size and its readers.
+ */
+export type ObjetAgent = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Forme
+     */
+    forme: 'valeur' | 'liste';
+    /**
+     * Type
+     */
+    type?: 'texte' | 'nombre' | 'montant' | 'oui_non' | 'date' | null;
+    /**
+     * Valeur
+     */
+    valeur?: string | null;
+    /**
+     * Etablissement
+     */
+    etablissement?: string | null;
+    /**
+     * Colonnes
+     */
+    colonnes?: Array<ColonneObjet>;
+    /**
+     * Lignes
+     */
+    lignes?: Array<LigneObjet>;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Modifie Le
+     */
+    modifie_le?: string | null;
+    /**
+     * Taille
+     *
+     * Characters of the text the agent receives (D112).
+     */
+    taille?: number;
+    /**
+     * Utilise Par
+     *
+     * Agents whose published texts hold {{nom}} (D118), computed.
+     */
+    utilise_par?: Array<AgentUtilisateur>;
+};
+
+/**
+ * ObjetEnvoye
+ *
+ * An object as .mark creates or rewrites it (the whole object; the others are untouched).
+ * ``etablissement``: the fiche's identifier (D110), absent = all establishments.
+ */
+export type ObjetEnvoye = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Forme
+     */
+    forme: 'valeur' | 'liste';
+    /**
+     * Type
+     */
+    type?: 'texte' | 'nombre' | 'montant' | 'oui_non' | 'date' | null;
+    /**
+     * Valeur
+     */
+    valeur?: string | null;
+    /**
+     * Etablissement
+     */
+    etablissement?: string | null;
+    /**
+     * Colonnes
+     */
+    colonnes?: Array<ColonneObjet>;
+    /**
+     * Lignes
+     */
+    lignes?: Array<LigneObjet>;
+};
+
+/**
+ * ObjetsAgent
+ */
+export type ObjetsAgent = {
+    /**
+     * Objets
+     */
+    objets?: Array<ObjetAgent>;
+    /**
+     * Plafond Caracteres
+     */
+    plafond_caracteres?: number;
 };
 
 /**
@@ -8991,6 +9178,18 @@ export type ReglagesInstallation = {
      */
     adresses_notification?: Array<string>;
     smtp?: ReglagesSmtp;
+};
+
+/**
+ * ReglagesObjets
+ *
+ * The organization's ceiling on one object's rendering (D112), adjusted at the bench.
+ */
+export type ReglagesObjets = {
+    /**
+     * Plafond Caracteres
+     */
+    plafond_caracteres?: number;
 };
 
 /**
@@ -12280,6 +12479,20 @@ export type UserResponse = {
      * Provider Id
      */
     provider_id?: string | null;
+};
+
+/**
+ * UtilisationObjets
+ *
+ * ``{{nom}}`` looked for in every agent's published texts, at the time of asking (D118).
+ */
+export type UtilisationObjets = {
+    /**
+     * Utilisation
+     */
+    utilisation?: {
+        [key: string]: Array<AgentUtilisateur>;
+    };
 };
 
 /**
@@ -19908,6 +20121,315 @@ export type PutListesValeursApiV1OrganizationsListesValeursPutResponses = {
 };
 
 export type PutListesValeursApiV1OrganizationsListesValeursPutResponse = PutListesValeursApiV1OrganizationsListesValeursPutResponses[keyof PutListesValeursApiV1OrganizationsListesValeursPutResponses];
+
+export type GetObjetsApiV1OrganizationsObjetsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/objets';
+};
+
+export type GetObjetsApiV1OrganizationsObjetsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetObjetsApiV1OrganizationsObjetsGetError = GetObjetsApiV1OrganizationsObjetsGetErrors[keyof GetObjetsApiV1OrganizationsObjetsGetErrors];
+
+export type GetObjetsApiV1OrganizationsObjetsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ObjetsAgent;
+};
+
+export type GetObjetsApiV1OrganizationsObjetsGetResponse = GetObjetsApiV1OrganizationsObjetsGetResponses[keyof GetObjetsApiV1OrganizationsObjetsGetResponses];
+
+export type PostObjetApiV1OrganizationsObjetsPostData = {
+    body: ObjetEnvoye;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/objets';
+};
+
+export type PostObjetApiV1OrganizationsObjetsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostObjetApiV1OrganizationsObjetsPostError = PostObjetApiV1OrganizationsObjetsPostErrors[keyof PostObjetApiV1OrganizationsObjetsPostErrors];
+
+export type PostObjetApiV1OrganizationsObjetsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ObjetAgent;
+};
+
+export type PostObjetApiV1OrganizationsObjetsPostResponse = PostObjetApiV1OrganizationsObjetsPostResponses[keyof PostObjetApiV1OrganizationsObjetsPostResponses];
+
+export type GetUtilisationApiV1OrganizationsObjetsUtilisationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/objets/utilisation';
+};
+
+export type GetUtilisationApiV1OrganizationsObjetsUtilisationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetUtilisationApiV1OrganizationsObjetsUtilisationGetError = GetUtilisationApiV1OrganizationsObjetsUtilisationGetErrors[keyof GetUtilisationApiV1OrganizationsObjetsUtilisationGetErrors];
+
+export type GetUtilisationApiV1OrganizationsObjetsUtilisationGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: UtilisationObjets;
+};
+
+export type GetUtilisationApiV1OrganizationsObjetsUtilisationGetResponse = GetUtilisationApiV1OrganizationsObjetsUtilisationGetResponses[keyof GetUtilisationApiV1OrganizationsObjetsUtilisationGetResponses];
+
+export type GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/objets/reglages';
+};
+
+export type GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetError = GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetErrors[keyof GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetErrors];
+
+export type GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesObjets;
+};
+
+export type GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetResponse = GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetResponses[keyof GetReglagesObjetsApiV1OrganizationsObjetsReglagesGetResponses];
+
+export type PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutData = {
+    body: ReglagesObjets;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/objets/reglages';
+};
+
+export type PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutError = PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutErrors[keyof PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutErrors];
+
+export type PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesObjets;
+};
+
+export type PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutResponse = PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutResponses[keyof PutReglagesObjetsApiV1OrganizationsObjetsReglagesPutResponses];
+
+export type DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Objet Id
+         */
+        objet_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/objets/{objet_id}';
+};
+
+export type DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteError = DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteErrors[keyof DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteErrors];
+
+export type DeleteObjetApiV1OrganizationsObjetsObjetIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type PutObjetApiV1OrganizationsObjetsObjetIdPutData = {
+    body: ObjetEnvoye;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Objet Id
+         */
+        objet_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/objets/{objet_id}';
+};
+
+export type PutObjetApiV1OrganizationsObjetsObjetIdPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutObjetApiV1OrganizationsObjetsObjetIdPutError = PutObjetApiV1OrganizationsObjetsObjetIdPutErrors[keyof PutObjetApiV1OrganizationsObjetsObjetIdPutErrors];
+
+export type PutObjetApiV1OrganizationsObjetsObjetIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ObjetAgent;
+};
+
+export type PutObjetApiV1OrganizationsObjetsObjetIdPutResponse = PutObjetApiV1OrganizationsObjetsObjetIdPutResponses[keyof PutObjetApiV1OrganizationsObjetsObjetIdPutResponses];
 
 export type GetVerificationAppelantApiV1OrganizationsVerificationAppelantGetData = {
     body?: never;
