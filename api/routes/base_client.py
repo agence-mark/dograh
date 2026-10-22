@@ -352,42 +352,50 @@ async def patch_personne(
         EtablissementInconnu,
         ecrire_une_personne,
         lire_equipe,
+        verrouiller_une_personne,
     )
 
     envoye = request.model_dump(exclude_unset=True)
     connexion = await _connexion_de(user.selected_organization_id)
     try:
-        equipe = await lire_equipe(connexion)
-        actuelle = next((p for p in equipe.personnes if p.cle == cle), None)
-        if actuelle is None:
-            raise HTTPException(status_code=404, detail=f"Person « {cle} » not found.")
-        valeurs = actuelle.model_dump()
-        valeurs.update(envoye)
-        # Her places: the list sent wins; the legacy single label alone becomes a list of one.
-        if "etablissements" not in envoye and "etablissement" in envoye:
-            valeurs["etablissements"] = [envoye["etablissement"]] if envoye["etablissement"] else []
         try:
-            nouvelle = Personne.model_validate(valeurs)
-            # The rules of the whole team (one agenda, one person), as at a save.
-            Equipe(
-                personnes=[nouvelle if p.cle == cle else p for p in equipe.personnes],
-                sujets=equipe.sujets,
-            )
-        except ValidationError as erreur:
-            raise HTTPException(
-                status_code=422, detail=erreur.errors(include_url=False, include_context=False, include_input=False)
-            ) from None
-        try:
+            # Constat 28 : la lecture, la pose des champs et l'écriture se font dans UNE transaction, la
+            # ligne de la personne verrouillée. Deux modifications simultanées de la même personne se
+            # suivent au lieu de se défaire. (La transaction est annulée avant que ``_schema_a_jour`` ne relise
+            # la version de la base.)
             async with _schema_a_jour(connexion):
-                await ecrire_une_personne(
-                    connexion,
-                    nouvelle,
-                    rattachement.auteur_de(user),
-                    avec_agendas=envoye.get("agendas") is not None,
-                )
+                async with connexion.transaction():
+                    await verrouiller_une_personne(connexion, cle)
+                    equipe = await lire_equipe(connexion)
+                    actuelle = next((p for p in equipe.personnes if p.cle == cle), None)
+                    if actuelle is None:
+                        raise HTTPException(status_code=404, detail=f"Person « {cle} » not found.")
+                    valeurs = actuelle.model_dump()
+                    valeurs.update(envoye)
+                    # Her places: the list sent wins; the legacy single label alone becomes a list of one.
+                    if "etablissements" not in envoye and "etablissement" in envoye:
+                        valeurs["etablissements"] = [envoye["etablissement"]] if envoye["etablissement"] else []
+                    try:
+                        nouvelle = Personne.model_validate(valeurs)
+                        # The rules of the whole team (one agenda, one person), as at a save.
+                        Equipe(
+                            personnes=[nouvelle if p.cle == cle else p for p in equipe.personnes],
+                            sujets=equipe.sujets,
+                        )
+                    except ValidationError as erreur:
+                        raise HTTPException(
+                            status_code=422,
+                            detail=erreur.errors(include_url=False, include_context=False, include_input=False),
+                        ) from None
+                    await ecrire_une_personne(
+                        connexion,
+                        nouvelle,
+                        rattachement.auteur_de(user),
+                        avec_agendas=envoye.get("agendas") is not None,
+                    )
+                    relue = next(p for p in (await lire_equipe(connexion)).personnes if p.cle == cle)
         except EtablissementInconnu as erreur:
             raise _refus(str(erreur)) from None
-        relue = next(p for p in (await lire_equipe(connexion)).personnes if p.cle == cle)
     finally:
         await connexion.close()
     await _apres_changement_de_source(user.selected_organization_id)

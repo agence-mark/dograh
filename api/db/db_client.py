@@ -17,6 +17,7 @@ from api.db.telephony_phone_number_client import TelephonyPhoneNumberClient
 from api.db.telephony_trunk_client import TelephonyTrunkClient
 from api.db.tool_client import ToolClient
 from api.db.user_client import UserClient
+from api.db.verrou_client import VerrouClient
 from api.db.webhook_credential_client import WebhookCredentialClient
 from api.db.webhook_delivery_client import WebhookDeliveryClient
 from api.db.workflow_client import WorkflowClient
@@ -56,6 +57,8 @@ class DBClient(
     ApresAppelClient,
     # [.mark] cloture-code, lot 6: the retention of a call's copies (the nightly purge).
     ConservationClient,
+    # [.mark] cloture-code, constat 28: le verrou des écritures par élément (organisation sans base du client).
+    VerrouClient,
 ):
     """
     Unified database client that combines all specialized database operations.

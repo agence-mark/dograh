@@ -20,6 +20,9 @@ answer and no copy is in memory.
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 from loguru import logger
 
 from api.db import db_client
@@ -30,6 +33,9 @@ from api.schemas.phrases import CataloguePhrases
 CLE = OrganizationConfigurationKey.ETABLISSEMENTS.value
 CLE_PHRASES = OrganizationConfigurationKey.PHRASES.value
 CLE_BASE_CLIENT = OrganizationConfigurationKey.BASE_CLIENT.value
+# Premier entier du verrou pris dans la base du client (le même espace que celui de Dograh, sans conflit :
+# deux bases différentes).
+ESPACE_DU_VERROU = 7_301
 
 
 async def lire_etablissements(organization_id: int | None) -> CatalogueEtablissements:
@@ -90,6 +96,32 @@ async def lire_etablissements_strict(organization_id: int) -> CatalogueEtablisse
     if nom:
         return (await _referentiel_de_la_base(organization_id, nom)).etablissements
     return await _miroir_etablissements_strict(organization_id)
+
+
+@asynccontextmanager
+async def verrou_des_fiches(organization_id: int) -> AsyncIterator[None]:
+    """[.mark] Constat 28 : une écriture par élément (lire la fiche, poser les champs envoyés, réécrire,
+    refaire le miroir) ne se fait jamais à deux en même temps pour une organisation, sinon la seconde
+    relit avant que la première écrive et la défait.
+
+    Avec une base du client : un verrou consultatif de transaction pris dans CETTE base, sur une
+    connexion à part (un verrou de ligne ``FOR UPDATE`` bloquerait l'écriture elle-même, qui passe par
+    une autre connexion). Sans base : le même verrou, pris dans la base de Dograh. Rendu à la sortie,
+    écriture réussie ou non. ⛔ Non réentrant : ne jamais l'ouvrir à l'intérieur de lui-même."""
+    nom = await nom_de_la_base_strict(organization_id)
+    if not nom:
+        async with db_client.verrou_des_ecritures_par_element(organization_id):
+            yield
+        return
+    from api.db.bases_clients.connexion import connecter
+
+    connexion = await connecter(nom)
+    try:
+        async with connexion.transaction():
+            await connexion.execute("SELECT pg_advisory_xact_lock($1, $2)", ESPACE_DU_VERROU, 1)
+            yield
+    finally:
+        await connexion.close()
 
 
 async def enregistrer_miroir(

@@ -55,6 +55,7 @@ from api.services.etablissements.stockage import (
     enregistrer_un_etablissement,
     lire_etablissements_strict,
     lire_phrases_strict,
+    verrou_des_fiches,
 )
 
 router = APIRouter(prefix="/organizations/etablissements", tags=["organizations"])
@@ -365,7 +366,18 @@ async def _modifier_une_fiche(user: UserModel, identifiant: str, envoye: dict) -
     through the bounds of a save (422, nothing written), and only that fiche is written. An absent
     field is not touched; nothing here decides WHO may change what (the portal does).
 
+    Constat 28: the read, the overlay and the write happen under ONE lock of the organization, so two
+    simultaneous updates of two fields of the same fiche keep both values.
+
     ``envoye`` holds only the fields the request carried (``exclude_unset``)."""
+    try:
+        async with verrou_des_fiches(user.selected_organization_id):
+            return await _modifier_une_fiche_verrouillee(user, identifiant, envoye)
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None
+
+
+async def _modifier_une_fiche_verrouillee(user: UserModel, identifiant: str, envoye: dict) -> Etablissement:
     organization_id = user.selected_organization_id
     catalogue = await _catalogue_pour_ecrire(organization_id)
     actuelle = next((e for e in catalogue.etablissements if e.id == identifiant), None)

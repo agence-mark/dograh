@@ -194,6 +194,13 @@ async def _sites_actifs(connexion: asyncpg.Connection) -> dict[str, int]:
     }
 
 
+async def verrouiller_une_personne(connexion: asyncpg.Connection, cle: str) -> None:
+    """[.mark] Constat 28 : verrou de ligne (``FOR UPDATE``) sur la personne, à prendre DANS la transaction de
+    l'appelant avant de la lire : une seconde modification de la même personne attend la fin de la première,
+    puis relit ce qu'elle a écrit. Personne inconnue : rien à verrouiller (l'appelant répondra 404)."""
+    await connexion.execute("SELECT id FROM mark.personne WHERE cle = $1 FOR UPDATE", cle)
+
+
 async def ecrire_une_personne(
     connexion: asyncpg.Connection, personne: Personne, auteur: str, avec_agendas: bool = False
 ) -> None:
