@@ -446,7 +446,7 @@ def test_les_resultats_des_outils_ne_partent_jamais_aux_integrations():
     des outils dans ``tool_results`` ; comme la trace, ils ne quittent jamais Dograh."""
     from types import SimpleNamespace
 
-    from api.services.pipecat.trace_modele import RESULTATS_DES_OUTILS, sans_la_trace
+    from api.services.pipecat.trace_modele import RESULTATS_DES_OUTILS
     from api.services.workflow.pipecat_engine import ENGINE_OWNED_CONTEXT_KEYS
     from api.tasks.run_integrations import _build_render_context
 
