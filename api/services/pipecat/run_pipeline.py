@@ -137,7 +137,6 @@ from api.services.pipecat.service_factory import (
     create_realtime_llm_service,
     create_stt_service,
     create_tts_service,
-    run_configs_avec_le_mode_de_la_voix,
     stamp_pipeline_settings,
     stamp_prompt_cache_key,
     stamp_sampling_settings,
@@ -1289,8 +1288,8 @@ async def _run_pipeline_impl(
         # dans le schéma enregistrerait à `null` sur presque tous les appels.
         stamp_pipeline_settings(
             runtime_configuration,
-            run_configs_avec_le_mode_de_la_voix(getattr(user_config, "tts", None), run_configs)
-            or run_configs,
+            run_configs,
+            tts_config=getattr(user_config, "tts", None),
             user_turn_stop_timeout=_resolve_user_turn_stop_timeout(
                 run_configs,
                 uses_external_turns=(

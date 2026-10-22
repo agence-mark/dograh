@@ -67,15 +67,26 @@ SONIOX_STT_LANGUAGES = (
 # [.mark] Chantier voix-soniox, lot 2 (voix). Le modele de voix de Soniox.
 SONIOX_TTS_MODELS = ("tts-rt-v2",)
 
-# [.mark] Les langues du connecteur Pipecat de NOTRE epinglage
-# (`language_to_soniox_tts_language`, 63 codes) : celles de la transcription
-# moins « multi » (qui ne designe aucune langue, donc rien a dire a une voix),
-# plus trois que seule la voix connait. Source : `pipecat/src/pipecat/services/
-# soniox/tts.py`, lue le 22/10/2026 ; a relire a chaque montee de Pipecat.
-SONIOX_TTS_LANGUAGES = tuple(code for code in SONIOX_STT_LANGUAGES if code != "multi") + (
-    "is",
-    "su",
-    "uz",
+# [.mark] Les langues du connecteur Pipecat de NOTRE epinglage : les codes que
+# `language_to_soniox_tts_language` rend pour toute `Language` de Pipecat (131 codes,
+# releves le 22/10/2026 dans `pipecat/src/pipecat/services/soniox/tts.py`). Ce n'est PAS
+# la liste de la transcription : la voix en sait bien plus. Un test garde les deux sens
+# (rien en trop, rien en moins) ; a relire a chaque montee de Pipecat.
+SONIOX_TTS_LANGUAGES = (
+    "af", "am", "ar", "as", "ast", "az", "ba", "be", "bg", "bn",
+    "bo", "br", "bs", "ca", "ceb", "ckb", "cmn", "cs", "cy", "da",
+    "de", "el", "en", "eo", "es", "et", "eu", "fa", "ff", "fi",
+    "fil", "fo", "fr", "ga", "gd", "gl", "gu", "ha", "haw", "he",
+    "hi", "hr", "ht", "hu", "hy", "id", "ig", "is", "it", "iu",
+    "ja", "jv", "jw", "ka", "kab", "kea", "kk", "km", "kn", "ko",
+    "kok", "ku", "ky", "la", "lb", "lg", "ln", "lo", "lt", "luo",
+    "lv", "mai", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt",
+    "my", "mymr", "nb", "ne", "nl", "nn", "no", "nso", "ny", "oc",
+    "or", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si",
+    "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta",
+    "te", "tg", "th", "tk", "tl", "tr", "tt", "ug", "uk", "umb",
+    "ur", "uz", "vi", "wo", "wuu", "xh", "yi", "yo", "yue", "zh",
+    "zu",
 )
 
 # [.mark] Lot 2 bis (D2) : la liste des voix, figee dans le code.

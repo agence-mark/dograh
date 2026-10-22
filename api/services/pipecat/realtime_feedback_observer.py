@@ -224,7 +224,8 @@ class RealtimeFeedbackObserver(BaseObserver):
 
             # [.mark] Voix-soniox, lot 5 bis : un mot qui n'etait qu'une balise ("[warm]") ne
             # laisse rien a montrer.
-            if frame.text and not message["payload"]["text"].strip():
+            # Seulement quand le texte portait un crochet : sinon le comportement d'avant, a l'octet.
+            if frame.text and "[" in frame.text and not message["payload"]["text"].strip():
                 pass
             elif getattr(frame, "persist_to_logs", False):
                 await self._send_message(message)

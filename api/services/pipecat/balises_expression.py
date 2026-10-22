@@ -11,8 +11,10 @@ Ce module pose les garde-fous, AVANT tout essai de balises (D10) :
   de la voix, après les nombres en mots, avant la voix.
 
 🔑 Une TRANSFORMATION et non un filtre de texte, pour la raison de ``nombres_pour_la_voix.py`` :
-elle ne change que le texte envoyé à la voix. L'historique du modèle garde le texte tel qu'il a été
-écrit.
+elle ne change que le texte envoyé à la voix. ⚠️ Mais une voix qui horodate les mots (Soniox,
+ElevenLabs) fait reconstruire l'historique du modèle depuis ce qui a été DIT : il garde donc les
+balises permises (jamais les retirées). Seules la transcription, le verbatim et la fiche n'en
+montrent aucune (D-24).
 
 ⛔ Ce que ce module ne fait jamais
 - **Écrire une balise.** Aucune balise n'est ajoutée par le code ; elles viennent d'une phrase fixe
@@ -98,7 +100,12 @@ def retirer_balises_pour_la_voix(
             logger.warning(f"[.mark] Balises d'expression non retirées pour la voix : {erreur!r}")
             return texte
         if retire != texte:
-            logger.info(f"[.mark] Balises hors liste retirées pour la voix : {texte!r} -> {retire!r}")
+            # ⛔ Jamais le texte (données personnelles) : seulement les balises retirées et leur nombre.
+            permises = balises_permises(gardees)
+            retirees = [
+                m.group(2) for m in _CROCHETS.finditer(texte) if nom_de_balise(m.group(2)) not in permises
+            ]
+            logger.info(f"[.mark] Balises hors liste retirées pour la voix : {len(retirees)} {retirees!r}")
         return retire
 
     return _transformer

@@ -153,17 +153,32 @@ def test_le_mode_d_envoi_du_texte_retenu_est_sur_la_fiche():
 
 def test_les_reglages_de_pipeline_de_la_fiche_disent_le_mode_retenu():
     """``pipeline_settings.tts_text_aggregation_mode`` : le mode EFFECTIF, pas le seul réglage d'agent."""
-    from api.services.pipecat.service_factory import (
-        run_configs_avec_le_mode_de_la_voix,
-        stamp_pipeline_settings,
-    )
+    from api.services.pipecat.service_factory import stamp_pipeline_settings
 
     config = _config(text_aggregation_mode="token")
     brut = stamp_pipeline_settings({}, {})["pipeline_settings"]["tts_text_aggregation_mode"]
-    retenu = stamp_pipeline_settings({}, run_configs_avec_le_mode_de_la_voix(config, {}))[
-        "pipeline_settings"
-    ]["tts_text_aggregation_mode"]
+    retenu = stamp_pipeline_settings({}, {}, tts_config=config)["pipeline_settings"][
+        "tts_text_aggregation_mode"
+    ]
     assert (brut, retenu) == ("sentence", "token")
+
+
+def test_les_reglages_de_pipeline_de_la_fiche_disent_les_balises_resolues():
+    """Relecture M1 : la liste RÉSOLUE, pour Soniox (défaut d'office) et pour un agent ElevenLabs qui l'a réglée ;
+    un agent qui n'a rien réglé : ``None``, rien de plus."""
+    from api.services.pipecat.service_factory import stamp_pipeline_settings
+
+    def balises(run_configs, voix):
+        return stamp_pipeline_settings({}, run_configs, tts_config=voix)["pipeline_settings"][
+            "tts_balises_permises"
+        ]
+
+    assert balises({}, _config()) == list(BALISES_PAR_DEFAUT)
+    assert balises({"tts_balises_permises": ["calm"]}, _config()) == ["calm"]
+    assert balises({"tts_balises_permises": []}, _config()) == []
+    assert balises({"tts_balises_permises": ["warm"]}, _eleven()) == ["warm"]
+    assert balises({}, _eleven()) is None
+    assert balises({}, None) is None
 
 
 def test_le_chemin_telephonique_estampille_le_mode_retenu():
@@ -174,7 +189,7 @@ def test_le_chemin_telephonique_estampille_le_mode_retenu():
 
     source = inspect.getsource(run_pipeline)
     assert "stamp_voice_settings(runtime_configuration, user_config.tts, run_configs)" in source
-    assert 'run_configs_avec_le_mode_de_la_voix(getattr(user_config, "tts", None), run_configs)' in source
+    assert 'tts_config=getattr(user_config, "tts", None)' in source
 
 
 def test_l_estampille_des_autres_voix_ne_bouge_pas():
@@ -534,3 +549,62 @@ async def test_corpus_la_file_de_la_voix_soniox_ne_change_que_les_phrases_a_croc
         elif sortie != await _dit(reference, phrase):
             modifiees += 1
     assert modifiees > 0, "aucune des phrases à crochet n'a été touchée : le retrait ne joue pas"
+
+
+# --------------------------------------------------------------------------- #
+# Relecture : m4 (journal sans texte) et m6 (l'écran, pour toutes les voix, comme avant)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_le_journal_ne_garde_jamais_le_texte_envoye_a_la_voix():
+    from loguru import logger
+
+    lignes = []
+    identifiant = logger.add(lambda m: lignes.append(str(m)), level="INFO")
+    try:
+        await retirer_balises_pour_la_voix(["warm"])("[warm] Bonjour monsieur Dupont [fou].", "*")
+    finally:
+        logger.remove(identifiant)
+    journal = "".join(lignes)
+    assert "fou" in journal and "1" in journal
+    assert "Dupont" not in journal and "Bonjour" not in journal
+
+
+async def _mots_montres(textes):
+    from pipecat.frames.frames import TTSTextFrame
+    from pipecat.observers.base_observer import FramePushed
+    from pipecat.processors.frame_processor import FrameDirection
+    from pipecat.transports.base_output import BaseOutputTransport
+
+    from api.services.pipecat.realtime_feedback_observer import RealtimeFeedbackObserver
+
+    envoyes = []
+
+    async def envoyer(message):
+        envoyes.append(message["payload"]["text"])
+
+    observateur = RealtimeFeedbackObserver(envoyer)
+    from unittest.mock import create_autospec
+
+    source = create_autospec(BaseOutputTransport, instance=True)
+    for texte in textes:
+        trame = TTSTextFrame(texte, aggregated_by="word")
+        await observateur.on_push_frame(
+            FramePushed(
+                source=source,
+                destination=source,
+                frame=trame,
+                direction=FrameDirection.DOWNSTREAM,
+                timestamp=0,
+            )
+        )
+    return envoyes
+
+
+@pytest.mark.asyncio
+async def test_l_ecran_recoit_toujours_un_mot_d_espaces_et_saute_une_balise_seule():
+    # Sans crochet : le comportement d'avant, à l'octet (un mot d'espaces part aussi).
+    assert await _mots_montres([" ", "Bonjour"]) == [" ", "Bonjour"]
+    # Une balise seule ne laisse rien à montrer ; un mot normal passe, balise retirée.
+    assert await _mots_montres(["[warm]", "Bonjour", "[pause] ok"]) == ["Bonjour", "ok"]

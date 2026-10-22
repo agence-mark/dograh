@@ -163,11 +163,14 @@ def test_aucune_branche_ne_construit_sa_propre_liste():
         "Every branch must receive the list from construire_filtres_de_texte_voix, "
         "or a setting turned on will apply to some providers and not others."
     )
-    assert source.count("**voix,") == 17, (
+    # Voix-soniox (lot 3) : 17 -> 18, la branche Soniox ; elle recoit bien les reglages collectes.
+    assert source.count("**voix,") == 18, (
         "Every provider branch must receive the collected voice settings. The "
         "count changed: a provider was added or removed, and this test is "
         "where that gets noticed."
     )
+    branche_soniox = source.split("ServiceProviders.SONIOX.value:", 1)[1].split("ServiceProviders.LMNT", 1)[0]
+    assert "**voix," in branche_soniox, "la branche Soniox ne recoit pas les reglages collectes"
     # ⚠️ Any literal, not just 1.0, and tolerant to spacing: an assertion on
     # one exact string is a net that `silence_time_s=0.5` walks straight past.
     # Raised by the review of 14/09.

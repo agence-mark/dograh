@@ -2153,6 +2153,9 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "sons_lexique",
     # [.mark] Lot 4 du chantier langwatch-et-fenetre-du-run (ticket Pipecat 5960).
     "relance_apres_outil",
+    # [.mark] Voix-soniox, lot 5 bis (D11) : la liste des balises d'expression permises. Estampillee
+    # RESOLUE (voir `stamp_pipeline_settings`) ; `None` = l'agent n'a rien regle et la voix n'en porte pas.
+    "tts_balises_permises",
 )
 
 
@@ -2161,6 +2164,7 @@ def stamp_pipeline_settings(
     run_configs: dict,
     *,
     user_turn_stop_timeout: float | None = None,
+    tts_config=None,
 ) -> dict:
     """[.mark] Record the Pipecat settings this run was actually played with.
 
@@ -2195,9 +2199,12 @@ def stamp_pipeline_settings(
     """
     from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 
+    # [.mark] Voix-soniox : les reglages de l'agent tels que la VOIX les lit (mode d'envoi du texte
+    # retenu, D-18, et liste des balises, D-21) : la fiche dit ce qui a ete joue, pas le seul reglage d'agent.
+    resolus = run_configs_pour_la_voix(tts_config, run_configs) or run_configs
     # 🔑 Resolved through the schema, so a run stamps the same value the
     # pipeline read -- including for a key the client never touched.
-    effectifs = WorkflowConfigurationDefaults.model_validate(run_configs or {})
+    effectifs = WorkflowConfigurationDefaults.model_validate(resolus or {})
     reglages = {cle: getattr(effectifs, cle) for cle in REGLAGES_PIPECAT_ESTAMPILLES}
     # [.mark] La fiche est une liste d'objets : écrite en JSON, comme en base.
     reglages["fiche_champs"] = [
