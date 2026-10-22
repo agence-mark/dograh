@@ -276,7 +276,8 @@ async def _verser_dans_la_base(organization_id: int, nom: str, auteur: str) -> N
     connexion = await connecter(nom)
     try:
         await ecrire_phrases(connexion, phrases, auteur)
-        await ecrire_etablissements(connexion, etablissements, auteur)
+        # [.mark] F-8: the fiches go in as they are (a transfer, not a creation): no prefill.
+        await ecrire_etablissements(connexion, etablissements, auteur, preremplir=False)
     finally:
         await connexion.close()
 

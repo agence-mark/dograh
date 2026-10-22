@@ -161,8 +161,8 @@ async def test_une_base_en_version_19_monte_en_20_et_la_020_se_rejoue(base_essai
     proprietaire = await schema.connecter_proprietaire(base_essai)
     try:
         assert await _appliquer_jusqua(proprietaire, 19) == [15, 16, 17, 18, 19]
-        assert await schema.appliquer_migrations(proprietaire) == [20]
-        assert await schema.version_de(proprietaire) == 20 == schema.version_attendue()
+        assert await _appliquer_jusqua(proprietaire, 20) == [20]
+        assert await schema.version_de(proprietaire) == 20
         await ecrire_catalogue(proprietaire, [*catalogue_pour_la_base(), ESSAI])
         await proprietaire.execute(
             "INSERT INTO mark.module_reglage (module_code, cle, valeur) VALUES ('module_essai', 'seuil', '3')"
@@ -171,7 +171,9 @@ async def test_une_base_en_version_19_monte_en_20_et_la_020_se_rejoue(base_essai
         corps = migration.sql[: migration.sql.index("INSERT INTO schema_version")]
         async with proprietaire.transaction():
             await proprietaire.execute(corps)
-        assert await schema.appliquer_migrations(proprietaire) == []
+        assert await _appliquer_jusqua(proprietaire, 20) == []
+        # The later ones (021: the common values copied into the establishments) still apply after it.
+        assert await schema.appliquer_migrations(proprietaire) == list(range(21, schema.version_attendue() + 1))
         assert await proprietaire.fetchval("SELECT count(*) FROM mark.module") == len(registre.MODULES) + 1
         assert await proprietaire.fetchval("SELECT count(*) FROM mark.module_reglage") == 1
     finally:

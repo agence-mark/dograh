@@ -390,6 +390,21 @@ class Agendas(FauxNango):
         return await super().__call__(requete)
 
 
+# The establishment the world's calls serve (« Site A », the first and only one of the after-call world).
+LIEU_SERVI = "site-a"
+
+
+def _au_lieu_servi(p: Planificateur) -> Planificateur:
+    """[.mark] F-8 (Evan, 22/10): the calls of this world serve « Site A », which inherits NOTHING:
+    the rules and types the tests set are written at the organization's level AND as Site A's own
+    (what the 021 and the creation write for a client), so each test keeps meaning what it meant."""
+    return p.model_copy(update={
+        "par_etablissement": {**p.par_etablissement, LIEU_SERVI: p.reglages.model_copy()},
+        "types": [t for t in p.types if t.etablissement is None]
+        + [t.model_copy(update={"etablissement": LIEU_SERVI}) for t in p.types if t.etablissement is None],
+    })
+
+
 @pytest.fixture
 async def installe(base_v4, smtp, modele, db_session, async_session, monkeypatch):
     """An organization with its client database, Google Agenda chosen, two people who do
@@ -414,8 +429,8 @@ async def installe(base_v4, smtp, modele, db_session, async_session, monkeypatch
             ],
             sujets=[Sujet(code="visite", libelle="Visite", destinataires=["camille", "sacha", "noa"])],
         ), "test")
-        await ecrire_planificateur(connexion, Planificateur(
-            types=[TypeRendezVous(code="visite", libelle="Visite", duree_min=60, sujet="visite")]), "test")
+        await ecrire_planificateur(connexion, _au_lieu_servi(Planificateur(
+            types=[TypeRendezVous(code="visite", libelle="Visite", duree_min=60, sujet="visite")])), "test")
     finally:
         await connexion.close()
     agendas = Agendas(org.organisation.id)
@@ -436,7 +451,7 @@ async def _regles(installe, **reglages) -> None:
     try:
         actuel = await lire_planificateur(connexion)
         actuel.reglages = ReglagesPlanificateur(**reglages)
-        await ecrire_planificateur(connexion, actuel, "test")
+        await ecrire_planificateur(connexion, _au_lieu_servi(actuel), "test")
     finally:
         await connexion.close()
 
@@ -740,7 +755,7 @@ async def test_plusieurs_types_le_modele_demande_lequel(installe, monkeypatch):
     try:
         p = await lire_planificateur(connexion)
         p.types.append(TypeRendezVous(code="devis", libelle="Devis", duree_min=30))
-        await ecrire_planificateur(connexion, p, "test")
+        await ecrire_planificateur(connexion, _au_lieu_servi(p), "test")
     finally:
         await connexion.close()
     engine, mgr, enregistres = _moteur(installe, monkeypatch, [_outil("proposer_creneaux", "Creneaux")])
@@ -778,7 +793,9 @@ async def test_la_lecture_anticipee_est_utilisee(installe, monkeypatch):
     assert len(engine._gathered_context["planificateur"]) == 1
 
 
-async def test_les_regles_a_l_etablissement_heritent_de_l_organisation(base_prete):
+async def test_les_regles_d_un_etablissement_sont_les_siennes_seules(base_prete):
+    """[.mark] F-8 (Evan, 22/10): an establishment's rules and types are its own; nothing is inherited
+    from the organization (before: « Nord » took the organization's distribution and its « visite »)."""
     from api.db.bases_clients import connexion as schema
     from api.db.bases_clients.planificateur import ReferenceInconnue, ecrire_planificateur, lire_planificateur
     from api.schemas.planificateur import effectifs
@@ -791,15 +808,16 @@ async def test_les_regles_a_l_etablissement_heritent_de_l_organisation(base_pret
             reglages=ReglagesPlanificateur(nombre_creneaux=2, repartition="tour_de_role"),
             par_etablissement={"nord": ReglagesPlanificateur(nombre_creneaux=4, jours_feries="alsace_moselle")},
             types=[TypeRendezVous(code="visite", libelle="Visite", duree_min=60),
+                   TypeRendezVous(code="examen", libelle="Examen", duree_min=30),
                    TypeRendezVous(code="visite", etablissement="nord", libelle="Visite longue", duree_min=90)],
         ), "test")
         lu = await lire_planificateur(connexion)
-        nord = effectifs(lu.reglages, lu.par_etablissement["nord"])
+        nord = effectifs(lu.par_etablissement["nord"])
         assert (nord.nombre_creneaux, nord.repartition, nord.jours_feries, nord.horizon_jours) == (
-            4, "tour_de_role", "alsace_moselle", 14)  # its own, the organization's, the default
+            4, "premier_libre", "alsace_moselle", 14)  # its own, then the code's defaults (never the organization's)
         assert effectifs(lu.reglages).nombre_creneaux == 2
-        assert [t.duree_min for t in module_action.types_de(lu.types, "nord")] == [90]
-        assert [t.duree_min for t in module_action.types_de(lu.types, None)] == [60]
+        assert [t.duree_min for t in module_action.types_de(lu.types, "nord")] == [90]  # « examen » is not its own
+        assert [t.duree_min for t in module_action.types_de(lu.types, None)] == [60, 30]
         journal = await connexion.fetchval(
             "SELECT count(*) FROM mark.journal_modif WHERE table_nom IN ('reglage_planificateur', 'type_rendez_vous')")
         assert journal >= 4  # written like the rest of the referential

@@ -1337,6 +1337,8 @@ async def test_le_planificateur_propose_les_creneaux_de_la_personne_du_second_li
         await connexion.execute(
             "INSERT INTO mark.site (entreprise_id, cle, nom) SELECT id, 'site-b', 'Site B' FROM mark.entreprise LIMIT 1"
         )
+        # F-8: a new place starts from the common values (its own appointment types), as a creation does.
+        await connexion.execute("SELECT mark.preremplir_etablissement(id) FROM mark.site WHERE cle = 'site-b'")
         await ecrire_equipe(
             connexion,
             Equipe(

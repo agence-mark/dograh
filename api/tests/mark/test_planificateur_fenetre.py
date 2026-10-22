@@ -3,8 +3,9 @@ l-agent-collegue, R-7, retouche du planificateur; migration 013).
 
 The questions this file answers (R-7, G1, R1, R7):
 
-    Is the window a setting of the planner's table with its inheritance (organization, then
-    establishment, 30 days by default) and its bounds (1 to 365), in the schema AND in the database?
+    Is the window a setting of the planner's table, per level (the establishment served, else the
+    organization; 30 days by default; F-8: never the organization's under an establishment) and with
+    its bounds (1 to 365), in the schema AND in the database?
     Is migration 013 additive (an organization's rows survive, a version-12 database is read without
     failing)? Can it be set by hand (the documented route, a row of the table), journalled like the
     rest of the referential? And, through the engine's REAL dispatcher and a real client database:
@@ -68,13 +69,15 @@ def test_la_fenetre_vaut_trente_jours_par_defaut_et_ses_bornes_sont_un_a_trois_c
                                               if k in ("minimum", "maximum")}
 
 
-def test_l_etablissement_herite_de_l_organisation_qui_herite_du_defaut():
+def test_l_etablissement_a_sa_fenetre_sinon_le_defaut_jamais_celle_de_l_organisation():
+    """[.mark] F-8 (Evan, 22/10): a call reads ONE level (the establishment served, else the
+    organization); the organization's 45 days only prefill a new establishment."""
     organisation = ReglagesPlanificateur(fenetre_equite_jours=45)
     nord = ReglagesPlanificateur(fenetre_equite_jours=7)
     sud = ReglagesPlanificateur()  # nothing of its own
-    assert effectifs(organisation, nord).fenetre_equite_jours == 7
-    assert effectifs(organisation, sud).fenetre_equite_jours == 45
-    assert effectifs(ReglagesPlanificateur(), sud).fenetre_equite_jours == 30
+    assert effectifs(nord).fenetre_equite_jours == 7
+    assert effectifs(sud).fenetre_equite_jours == 30  # the default, not the organization's 45
+    assert effectifs(organisation).fenetre_equite_jours == 45  # a call that serves no establishment
 
 
 # --------------------------------------------------------------------------- #

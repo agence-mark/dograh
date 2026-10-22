@@ -506,7 +506,9 @@ async def test_le_referentiel_ecrit_revient_identique_et_journalise(base_prete):
     connexion = await schema.connecter(base_prete)
     try:
         await ecrire_phrases(connexion, PHRASES, "dograh:essai")
-        await ecrire_etablissements(connexion, CATALOGUE, "dograh:essai")
+        # F-8: a creation prefills the sentences a fiche lacks (proven in test_etablissements_complets.py);
+        # here the fiches are written as they are, to prove the round trip.
+        await ecrire_etablissements(connexion, CATALOGUE, "dograh:essai", preremplir=False)
         lu = await lire_referentiel(connexion)
         assert lu.refus == []
         assert lu.etablissements.model_dump(mode="json") == CATALOGUE.model_dump(

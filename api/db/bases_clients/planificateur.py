@@ -1,7 +1,9 @@
 """[.mark] SQL of the planner in the client's database (chantier l-agent-collegue, L5, migration 010).
 
-- The rules: ``reglage_planificateur`` (the organization's row, one row per establishment that
-  overrides something) and ``type_rendez_vous`` (organization-wide, or one establishment's).
+- The rules: ``reglage_planificateur`` (the organization's row, one row per establishment) and
+  ``type_rendez_vous`` (the organization's, or one establishment's). [.mark] F-8 (règle d'Evan
+  du 22/10, migration 021): an establishment's rules are complete, nothing is inherited; the
+  organization's are copied into a new establishment by ``mark.preremplir_etablissement``.
 - What the planner reads during a call: the people who do a type of appointment, with their
   agenda in the calendar software chosen; how many appointments each was given lately (the
   turn and its fairness, P7).
@@ -28,7 +30,7 @@ class ReferenceInconnue(ValueError):
 
 
 def _reglages(ligne) -> ReglagesPlanificateur:
-    # A client database still at version 12 has no ``fenetre_equite_jours``: read as inherited (the
+    # A client database still at version 12 has no ``fenetre_equite_jours``: read as empty (the
     # default), so a call never fails in the gap between the deployment and « Upgrade » (013).
     colonnes_lues = set(ligne.keys())
     valeurs = {c: (ligne[c] if c in colonnes_lues else None) for c in COLONNES}
@@ -172,7 +174,7 @@ async def modifier_planificateur(
 
     - ``envoye``: only the settings the request carried (``exclude_unset``), laid over the row of
       the level (``etablissement`` None: the organization's; else that establishment's). A setting
-      absent keeps its value; one sent ``None`` goes back to inherited. Nothing else is written:
+      absent keeps its value; one sent ``None`` goes back to the common default. Nothing else is written:
       the other levels and the other types are untouched.
     - ``types``: each type is created or replaced (code + establishment); ``types_retires``:
       (code, establishment) removed, none left behind otherwise."""

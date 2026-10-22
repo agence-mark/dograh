@@ -4,10 +4,16 @@ Data of the CLIENT's database (migration 010; 013 adds ``fenetre_equite_jours``)
 (``PUT /organizations/planificateur`` or a row of ``reglage_planificateur``) and later by the
 client in Metabase.
 
-- ``TypeRendezVous``: one kind of appointment. ``etablissement`` None = the whole organization;
-  the same code with an establishment replaces it for that establishment.
-- ``ReglagesPlanificateur``: every field optional. The organization's row, then each
-  establishment's row: None = inherited. The common defaults (``DEFAUTS``) are the code's.
+- ``TypeRendezVous``: one kind of appointment. ``etablissement`` None = the organization's (the
+  starting types of a new establishment, and the types of a call that serves no establishment);
+  with an establishment = one of ITS types.
+- ``ReglagesPlanificateur``: every field optional; None = the common default (``DEFAUTS``, the code's).
+  The organization's row: the starting values of a new establishment, and the rules of a call that
+  serves no establishment. Each establishment's row: its own complete rules.
+
+[.mark] cloture-code, F-8 (Evan, 22/10): an establishment inherits NOTHING from the organization;
+the organization's values are copied into a new establishment when it is created (migration 021,
+``mark.preremplir_etablissement``), then each one lives its own life.
 """
 
 from __future__ import annotations
@@ -28,7 +34,11 @@ JoursFeries = Literal["metropole", "alsace_moselle"]
 class TypeRendezVous(BaseModel):
     code: str
     etablissement: str | None = Field(
-        default=None, description="Establishment it applies to; None: the whole organization."
+        default=None,
+        description=(
+            "Establishment it belongs to; None: the organization's (starting types of a new "
+            "establishment, and the types of a call that serves no establishment)."
+        ),
     )
     libelle: str = Field(min_length=1, max_length=100)
     duree_min: int = Field(ge=5, le=1440, description="Length of the appointment, in minutes.")
@@ -113,8 +123,10 @@ DEFAUTS = ReglagesPlanificateur(
 
 
 def effectifs(*niveaux: ReglagesPlanificateur | None) -> ReglagesPlanificateur:
-    """The defaults, then each level in order (organization, establishment): the most
-    precise value set wins."""
+    """The defaults, then each level in order: the last value set wins.
+
+    [.mark] F-8: a call passes ONE level (the establishment served, or the organization when it
+    serves none); never the organization under an establishment."""
     valeurs = DEFAUTS.model_dump()
     for niveau in niveaux:
         if niveau is None:
@@ -130,7 +142,7 @@ class Planificateur(BaseModel):
 
     reglages: ReglagesPlanificateur = Field(default_factory=ReglagesPlanificateur)
     par_etablissement: dict[str, ReglagesPlanificateur] = Field(
-        default_factory=dict, description="Establishment id -> what it overrides."
+        default_factory=dict, description="Establishment id -> its own complete rules (empty: the default)."
     )
     types: list[TypeRendezVous] = Field(default_factory=list, max_length=100)
     defauts: ReglagesPlanificateur = Field(
@@ -172,15 +184,15 @@ class ReglagesEnvoyes(ReglagesPlanificateur):
 class ModificationPlanificateur(BaseModel):
     """A partial update of the planner, ONE level at a time.
 
-    ``etablissement`` None: the organization's settings; an establishment id: that establishment's
-    overrides. Inside ``reglages`` only the settings SENT change (an absent one keeps its value; one
-    sent ``null`` goes back to inherited). ``types`` creates or replaces the types listed, ``types_retires``
+    ``etablissement`` None: the organization's settings (starting values); an establishment id: that
+    establishment's own. Inside ``reglages`` only the settings SENT change (an absent one keeps its value;
+    one sent ``null`` goes back to the common default). ``types`` creates or replaces the types listed, ``types_retires``
     removes the ones named; every other type, and every other level, stays as it is."""
 
     model_config = ConfigDict(extra="forbid")
 
     etablissement: str | None = Field(
-        default=None, description="The establishment whose overrides change; None: the organization's."
+        default=None, description="The establishment whose rules change; None: the organization's (starting values)."
     )
     reglages: ReglagesEnvoyes = Field(
         default_factory=ReglagesEnvoyes,

@@ -139,8 +139,15 @@ async def enregistrer_miroir(
 
 
 async def enregistrer_etablissements(
-    organization_id: int, catalogue: CatalogueEtablissements, auteur: str = "dograh"
+    organization_id: int,
+    catalogue: CatalogueEtablissements,
+    auteur: str = "dograh",
+    *,
+    preremplir: bool = True,
 ) -> CatalogueEtablissements:
+    """[.mark] F-8: ``preremplir`` (default): a NEW place gets, in the client's database, the common
+    values the database keeps (planner, types, module settings, sentences). ``False``: a copy of a
+    fiche, which takes its source's."""
     nom = await nom_de_la_base_strict(organization_id)
     if nom:
         from api.db.bases_clients.referentiel import ecrire_etablissements
@@ -148,7 +155,7 @@ async def enregistrer_etablissements(
 
         connexion = await connecter(nom)
         try:
-            await ecrire_etablissements(connexion, catalogue, auteur)
+            await ecrire_etablissements(connexion, catalogue, auteur, preremplir=preremplir)
         finally:
             await connexion.close()
     await enregistrer_miroir(organization_id, etablissements=catalogue)
