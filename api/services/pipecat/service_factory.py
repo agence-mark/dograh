@@ -44,6 +44,7 @@ from api.services.pipecat.appels_de_fonction_voix import (
     retirer_appels_de_fonction,
 )
 from api.services.pipecat.conversion_nombres import langue_agent_francaise
+from api.services.pipecat.decoupage_francais import decoupage_francais_si_agent_francais
 from api.services.pipecat.deepgram_endpoints import DEEPGRAM_EU_STT_BASE_URL
 from api.services.pipecat.gemini_json_schema_adapter import (
     DograhGeminiJSONSchemaAdapter,
@@ -1364,6 +1365,9 @@ def reglages_de_voix_communs(
 # porte plus la métadonnée qui attribue la faute au client ou à .mark.
 # ⚠️ Aucun test ne pouvait le voir : `inspect.getsource` suit `__wrapped__`.
 @_report_service_factory_failures(ErrorSource.TTS, config_section="tts")
+# [.mark] Lot 8 de cloture-code-avant-migration : un agent français découpe ses phrases en français (jamais
+# après « M. » ou « Dr. »). Décorateur INTÉRIEUR : `getsource` suit `__wrapped__` jusqu'au corps.
+@decoupage_francais_si_agent_francais
 def create_tts_service(
     user_config,
     audio_config: "AudioConfig",
@@ -1404,6 +1408,13 @@ def create_tts_service(
         lexique=lexique,
     )
 
+    # [.mark] Lot 8 : la langue posée sur la voix d'un agent français (ElevenLabs, Mistral). Vide sinon.
+    langue_de_la_voix = (
+        {"language": "fr"}
+        if langue_agent_francaise(getattr(user_config, "stt", None))
+        else {}
+    )
+
     # ⛔ [.mark] L'affectation `xml_function_tag_filter = XMLFunctionTagFilter()`
     # de l'amont est RETIREE ici, et rien n'est perdu : le filtre de balises
     # d'appel d'outil est construit par `construire_filtres_de_texte_voix`, en
@@ -1441,6 +1452,7 @@ def create_tts_service(
                 model=getattr(user_config.tts, "model", None)
                 or "voxtral-mini-tts-latest",
                 voice=getattr(user_config.tts, "voice", None) or "fr_marie_neutral",
+                **langue_de_la_voix,
             ),
             skip_aggregator_types=["recording_router", "recording"],
             **voix,
@@ -1503,6 +1515,8 @@ def create_tts_service(
                 # [.mark] Lot 7 bis : stability / similarity_boost (0.8 / 0.75 when empty), style and
                 # use_speaker_boost (only when set) come from the screen; same read as the stamp.
                 **_reglages_elevenlabs_voix(user_config.tts),
+                # [.mark] Lot 8 : `language_code=fr` part au fournisseur pour un agent français.
+                **langue_de_la_voix,
             ),
             skip_aggregator_types=["recording_router", "recording"],
             **voix,
