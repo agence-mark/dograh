@@ -30,6 +30,7 @@ import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
+import { SectionConservationAppels, useConservationAppels } from "./SectionConservationAppels";
 import { type ProprietesThemeOrganisation, useSignaler } from "./ThemesOrganisation";
 
 export const TITRE_DONNEES: Texte = { en: "Client data", fr: "Données du client" };
@@ -105,7 +106,9 @@ export const ThemeDonneesClient = ({
     // n° 317: a database whose connection account has no rights yet is upgraded too.
     const enRetard = rattachee && ((etat?.version != null && etat.version < etat.version_attendue) || !!etat?.a_mettre_a_niveau);
     const conservationModifiee = JSON.stringify(conservation) !== JSON.stringify(etat?.conservation ?? []);
-    useSignaler("donnees", conservationModifiee, Boolean(etat?.refus?.length), signaler);
+    // [.mark] cloture-code, lot 6: what is kept of each call (its own button, its own state).
+    const conservationAppels = useConservationAppels();
+    useSignaler("donnees", conservationModifiee || conservationAppels.modifie, Boolean(etat?.refus?.length) || conservationAppels.invalide, signaler);
 
     const resume = !etat
         ? [t({ en: "Loading...", fr: "Chargement..." })]
@@ -128,7 +131,7 @@ export const ThemeDonneesClient = ({
             resume={resume}
             ouvert={ouvert}
             onBasculer={onBasculer}
-            modifie={conservationModifiee}
+            modifie={conservationModifiee || conservationAppels.modifie}
             erreurs={[]}
         >
             {erreur && (
@@ -320,6 +323,7 @@ export const ThemeDonneesClient = ({
                     )}
                 </>
             )}
+            <SectionConservationAppels etat={conservationAppels} />
         </Theme>
     );
 };

@@ -41,3 +41,19 @@ export const INVENTAIRE_ANNONCE: Record<string, EntreeInventaireOrganisation> = 
     format: { horsEcran: "Technical marker of the stored document, never edited by a person" },
     version: { horsEcran: "Technical version of the stored document, never edited by a person" },
 };
+
+/**
+ * [.mark] Cloture-code, lot 6 : les reglages de conservation des appels (`ReglagesConservationAppels`), section
+ * « Conservation des appels » du theme « Donnees du client ». Ce n'est pas une carte d'origine de Dograh deplacee :
+ * la preuve n'est pas une charge utile figee mais le rendu de la section (`conservation-appels-ecran.test.tsx`),
+ * qui trouve chaque champ ci-dessous a l'ecran (`data-reglage`) et verifie qu'il part au serveur.
+ */
+export const INVENTAIRE_CONSERVATION_APPELS: Record<string, { theme: ThemeOrganisation; champ: string } | { horsEcran: string }> = {
+    purge_activee: { theme: "donnees", champ: "purge_activee" },
+    duree_mois: { theme: "donnees", champ: "duree_mois" },
+    audio_enregistre: { theme: "donnees", champ: "audio_enregistre" },
+    audio_duree_mois: { theme: "donnees", champ: "audio_duree_mois" },
+    essai_a_blanc: { theme: "donnees", champ: "essai_a_blanc" },
+    format: { horsEcran: "Technical marker of the stored document, never edited by a person" },
+    version: { horsEcran: "Technical version of the stored document, never edited by a person" },
+};
