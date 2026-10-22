@@ -406,6 +406,24 @@ async def test_lecture_eteinte_les_paroles_arrivent_telles_quelles(db_session, a
     assert _derniere_parole_recue(llm) == "trois mille cinq euros"
 
 
+async def _chauffer_le_lexique(lexique: dict) -> None:
+    """Constat 1 : ce que la reconnaissance du lexique prépare au démarrage de l'appel (la liste des communes,
+    le moteur de sons, l'index de ce lexique : ~650 ms à froid, dans un fil à part), prêt AVANT l'appel.
+
+    Sans cela le test dépendait de l'ordre : lancé seul, la première parole de l'appelant arrivait avant la fin de
+    la préparation, le mot n'était pas recommandé et le test rougissait ; lancé après un autre test du fichier, les
+    caches du processus étaient déjà chauds et il passait. Le code de production n'est pas en cause (au pire, la
+    toute première parole d'un tout premier appel du processus part sans recommandation, jamais fausse)."""
+    from api.schemas.lexique_metier import LexiqueMetier
+    from api.services.communes.base import obtenir_base
+    from api.services.communes.sons import precharger
+    from api.services.pipecat.reconnaissance_lexique import index_du_lexique
+
+    await obtenir_base()
+    await asyncio.to_thread(precharger)
+    await asyncio.to_thread(index_du_lexique, LexiqueMetier.model_validate(lexique))
+
+
 @pytest.mark.asyncio
 @_borne
 async def test_le_lexique_de_l_organisation_recommande_avant_le_modele(db_session, async_session):
@@ -416,6 +434,7 @@ async def test_le_lexique_de_l_organisation_recommande_avant_le_modele(db_sessio
             {"terme": "Edilkamin", "variantes": ["Edil Kamin"], "categorie": "marque", "a_ecouter": True}
         ]
     }
+    await _chauffer_le_lexique(lexique)
     montage = await _monter(db_session, async_session, {}, lexique=lexique)
     llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
     await _appeler(montage, llm, ["c'est un Edilcamin"])
