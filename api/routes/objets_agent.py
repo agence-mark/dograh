@@ -30,6 +30,7 @@ from api.schemas.objets_agent import (
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
 from api.services.objets_agent import stockage
+from api.services.objets_agent.noms_poses_par_le_code import VARIABLES_POSEES_PAR_LE_CODE
 from api.services.objets_agent.rendu import taille
 
 router = APIRouter(prefix="/organizations/objets", tags=["organizations"])
@@ -72,6 +73,37 @@ async def _vue(organization_id: int, connexion) -> ObjetsAgent:
     )
 
 
+async def _verifier_le_nom(organization_id: int, connexion, nom: str, objet_id: int | None) -> None:
+    """Revue 4 : un objet qui prend le nom d'une variable posée par le code, ou d'une phrase du catalogue de
+    l'organisation, la masquerait en silence (409, rien d'écrit). Un objet déjà enregistré garde son nom, même
+    ancien : seul un nom NOUVEAU est jugé, pour que le contenu d'un objet reste modifiable."""
+    from api.db.bases_clients.objets import lire_objets
+    from api.services.etablissements.stockage import lire_phrases_strict
+
+    if objet_id is not None:
+        actuel = next((o for o in await lire_objets(connexion) if o.id == objet_id), None)
+        if actuel is not None and actuel.nom == nom:
+            return
+    if nom in VARIABLES_POSEES_PAR_LE_CODE:
+        raise _refus(
+            f"« {nom} » is a variable the call sets itself (establishment, hours, date, address, team...): "
+            "an object of that name would hide it. Choose another name.",
+            409,
+        )
+    try:
+        catalogue = await lire_phrases_strict(organization_id)
+    except BaseClientIndisponible as erreur:
+        raise _refus(str(erreur), 503) from None
+    except Exception:  # noqa: BLE001 -- unreadable: not checked, so not written
+        raise _refus("The sentences of this organization cannot be read, so the name cannot be checked. Nothing was saved.", 503) from None
+    if any(phrase.variable == nom for phrase in catalogue.phrases):
+        raise _refus(
+            f"« {nom} » is already the name of a sentence of the catalogue: an object of that name would hide it. "
+            "Choose another name.",
+            409,
+        )
+
+
 async def _ecrire(user: UserModel, objet: ObjetEnvoye, objet_id: int | None) -> ObjetAgent:
     from api.db.bases_clients.objets import (
         NomPris,
@@ -88,6 +120,7 @@ async def _ecrire(user: UserModel, objet: ObjetEnvoye, objet_id: int | None) -> 
     try:
         try:
             async with _schema_a_jour(connexion):
+                await _verifier_le_nom(organization_id, connexion, objet.nom, objet_id)
                 ecrit = await ecrire_objet(connexion, objet, rattachement.auteur_de(user), objet_id)
         except ObjetInconnu:
             raise _refus("Object not found", 404) from None
