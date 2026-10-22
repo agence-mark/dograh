@@ -23,6 +23,7 @@ from __future__ import annotations
 import copy
 import json
 from contextlib import contextmanager
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import asyncpg
@@ -31,9 +32,13 @@ import pytest
 from loguru import logger
 
 from api.db.bases_clients import connexion as schema
-from api.enums import OrganizationConfigurationKey
+from api.enums import OrganizationConfigurationKey, ToolCategory
 from api.services.auth.depends import auteur_du_portail
-from api.services.groupe.agents_servis import lire_agents_servis, membres_a_rattacher
+from api.services.groupe.agents_servis import (
+    capacites_de,
+    lire_agents_servis,
+    membres_a_rattacher,
+)
 from api.tests.mark.test_apres_appel import _organisation, base_v4, smtp  # noqa: F401  (fixtures)
 from api.tests.mark.test_base_client import (
     _RedisFactice,
@@ -894,3 +899,112 @@ async def test_la_cle_d_une_organisation_ne_lit_ni_n_ecrit_chez_une_autre(
                 headers={"X-API-Key": cle_b},
             )
             assert lecture.status_code == 404
+
+
+# --------------------------------------------------------------------------- #
+# 1 bis. Le cerveau de fond compte ses outils, quand il est allumé (F5)
+# --------------------------------------------------------------------------- #
+
+
+def _transfert_du_fond():
+    return SimpleNamespace(
+        category=ToolCategory.TRANSFER_CALL.value,
+        definition={"config": {"destination": "+33600000000"}},
+    )
+
+
+def _fin_du_fond():
+    return SimpleNamespace(
+        category=ToolCategory.END_CALL.value, definition={"config": {}}
+    )
+
+
+def _creneaux_du_fond():
+    return SimpleNamespace(
+        category=ToolCategory.INTEGRATION.value,
+        definition=_integration("planificateur", "proposer_creneaux"),
+    )
+
+
+def test_le_fond_ne_compte_que_ce_qu_il_peut_recevoir_et_seulement_allume():
+    """Pur : ``capacites_de`` ne compte les outils du fond que travail allumé, sans transfert ni fin d'appel."""
+    allume = {"travail_actif": True}
+    eteint = {"travail_actif": False}
+    # Éteint : le fond ne compte pas, même avec un outil de rendez-vous.
+    assert (
+        capacites_de(eteint, [], [_creneaux_du_fond()]).model_dump()
+        == TOUTES_ETEINTES
+    )
+    # Allumé : les créneaux comptent.
+    assert capacites_de(allume, [], [_creneaux_du_fond()]).model_dump() == {
+        **TOUTES_ETEINTES,
+        "rendez_vous": True,
+    }
+    # Allumé, mais le transfert et la fin d'appel ne sont jamais donnés au fond.
+    assert (
+        capacites_de(allume, [], [_transfert_du_fond(), _fin_du_fond()]).model_dump()
+        == TOUTES_ETEINTES
+    )
+    # Le transfert de l'étape compte toujours, fond éteint ou non.
+    assert capacites_de(eteint, [_transfert_du_fond()], []).model_dump() == {
+        **TOUTES_ETEINTES,
+        "transfert": True,
+    }
+
+
+async def test_le_travail_de_fond_compte_ses_outils_seulement_quand_il_est_allume(
+    db_session, async_session
+):
+    org = await _organisation(async_session, db_session, actif=False)
+    creneaux = await _outil(
+        db_session,
+        org,
+        "Creneaux du fond",
+        "integration",
+        _integration("planificateur", "proposer_creneaux"),
+    )
+    transfert = await _outil(
+        db_session,
+        org,
+        "Transfert du fond",
+        "transfer_call",
+        {
+            "schema_version": 1,
+            "type": "transfer_call",
+            "config": {"destination": "+33600000000"},
+        },
+    )
+    # Éteint : l'outil donné au fond ne dit rien.
+    await _republier(
+        db_session,
+        org.agent,
+        _definition(),
+        {"travail_actif": False, "travail_outils": [creneaux.tool_uuid]},
+    )
+    assert await _capacites(db_session, org, async_session) == TOUTES_ETEINTES
+    # Allumé : les créneaux comptent ; le transfert, que le fond ne reçoit jamais, ne compte pas.
+    await _republier(
+        db_session,
+        org.agent,
+        _definition(),
+        {
+            "travail_actif": True,
+            "travail_outils": [creneaux.tool_uuid, transfert.tool_uuid],
+        },
+    )
+    assert await _capacites(db_session, org, async_session) == {
+        **TOUTES_ETEINTES,
+        "rendez_vous": True,
+    }
+    # Allumé, et le transfert est sur une étape : il compte, il vient de l'étape et non du fond.
+    await _republier(
+        db_session,
+        org.agent,
+        _definition([transfert.tool_uuid]),
+        {"travail_actif": True, "travail_outils": [creneaux.tool_uuid]},
+    )
+    assert await _capacites(db_session, org, async_session) == {
+        **TOUTES_ETEINTES,
+        "transfert": True,
+        "rendez_vous": True,
+    }
