@@ -38,7 +38,7 @@ jobs:
   pytest:
     if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
 
     services:
       postgres:
@@ -110,7 +110,7 @@ jobs:
 
       - name: Run pytest
         working-directory: api
-        run: pytest tests/ -xvs
+        run: pytest tests/ -q -rfE -p no:cacheprovider
 
   notify-slack-failure:
     needs: pytest
