@@ -67,6 +67,7 @@ from api.services.pipecat.mistral_tts import (
 )
 from api.services.pipecat.balises_expression import (
     BALISES_PAR_DEFAUT,
+    balises_permises,
     retirer_balises_pour_la_voix,
 )
 from api.services.pipecat.courriels_pour_la_voix import courriels_en_mots
@@ -2053,6 +2054,32 @@ def _estampille_voix_soniox(tts_config, run_configs: dict | None) -> dict:
     if balises is not None:
         estampille["balises_permises"] = list(balises)
     return estampille
+
+
+def balises_du_cerveau(tts_config, run_configs: dict | None) -> tuple[str, ...]:
+    """[.mark] Lot 5 ter (D29) : les balises d'expression que le CERVEAU peut écrire jusqu'à la voix.
+
+    🔑 Lues par les MÊMES fonctions que l'estampille et le garde-fou de la voix
+    (``run_configs_pour_la_voix``, ``mode_d_envoi_du_texte``), jamais une copie : ce que le cerveau
+    laisse passer est exactement ce que le garde-fou de la voix laissera passer.
+    Voix Soniox et phrase par phrase seulement ; sinon (autre voix, mot à mot, pas de voix) : ``()``
+    et ``texte_du_cerveau.py`` retire tout crochet, comme avant."""
+    if getattr(tts_config, "provider", None) != ServiceProviders.SONIOX.value:
+        return ()
+    if mode_d_envoi_du_texte(tts_config, run_configs) != "sentence":
+        return ()
+    configs = run_configs_pour_la_voix(tts_config, run_configs) or {}
+    return tuple(sorted(balises_permises(configs.get(CLE_BALISES_PERMISES))))
+
+
+def poser_les_balises_du_cerveau(llm, tts_config, run_configs: dict | None):
+    """[.mark] Lot 5 ter : donne au modèle de CONVERSATION la liste de ``balises_du_cerveau`` (attribut lu
+    par ``TexteDuCerveauMixin``). Ne lève jamais ; rend le modèle."""
+    try:
+        llm.balises_du_cerveau = balises_du_cerveau(tts_config, run_configs)
+    except Exception as erreur:  # noqa: BLE001 -- l'appel doit continuer, balises retirées comme avant
+        logger.warning(f"[.mark] Balises du cerveau non posées : {erreur!r}")
+    return llm
 
 
 def stamp_voice_settings(

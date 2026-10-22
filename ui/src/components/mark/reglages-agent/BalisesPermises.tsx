@@ -130,8 +130,8 @@ const ModaleBalises = ({
                         </p>
                         <p>
                             {t({
-                                en: "The model cannot write one: its brackets are removed before the voice. Only the fixed sentences of the code can carry a tag. Sentence by sentence only. The conversation history and the call record never show the brackets.",
-                                fr: "Le modèle ne peut pas en écrire : ses crochets sont retirés avant la voix. Seules les phrases fixes du code peuvent en porter. Phrase par phrase seulement. L'historique et la fiche d'appel ne montrent jamais les crochets.",
+                                en: "Under the Soniox voice the model itself may write a tag of this list; any other bracket it writes is removed before the voice, as before. The fixed sentences of the code can carry one too. Sentence by sentence only. The conversation history keeps the tags (the voice reports what it said); the transcript, the kept verbatim and the call record never show the brackets.",
+                                fr: "Sous la voix Soniox, le modèle peut lui-même écrire une balise de cette liste ; tout autre crochet qu'il écrit est retiré avant la voix, comme avant. Les phrases fixes du code peuvent aussi en porter. Phrase par phrase seulement. L'historique garde les balises (la voix rapporte ce qu'elle a dit) ; la transcription, le verbatim conservé et la fiche d'appel ne montrent jamais les crochets.",
                             })}
                         </p>
                     </div>

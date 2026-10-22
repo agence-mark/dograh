@@ -19,7 +19,9 @@ l'historique (téléphone et clavier) :
   la flèche ``→``), il devient la ligne de porte ``→ nom`` suivie du reste : le lecteur de
   portes la lit comme toute porte écrite (porte inconnue comprise : relancée une fois) ;
 - sinon le jeton et le nom sont retirés ;
-- un texte entre crochets n'est jamais dit ni gardé (journalisé) ; un crochet jamais fermé
+- un texte entre crochets n'est jamais dit ni gardé (journalisé), SAUF une balise d'expression de la liste
+  permise de la voix Soniox (lot 5 ter de voix-soniox, D29 : ``FluxNettoye(..., balises_permises)``, liste posée
+  par ``poser_les_balises_du_cerveau``) ; sans liste, comme avant ; un crochet jamais fermé
   dans les 160 caractères qui suivent est rendu tel quel ;
 - C2 (tri du 17/10, Large 3) : une didascalie en italique entre parenthèses, ``*(…)*``, suit la
   même règle que les crochets (« *(Je le relis une fois noté.)* » était dite à voix haute). Sauf
@@ -46,6 +48,7 @@ from typing import Any, Iterable
 
 from loguru import logger
 
+from api.services.pipecat.balises_expression import nom_de_balise
 from api.services.workflow.porte_parlee import FLECHE
 
 JETONS_D_APPEL = ("[TOOL_CALLS]", "<tool_call>")
@@ -211,16 +214,34 @@ def sans_didascalies(texte: str) -> str:
     return _DIDASCALIE.sub("", texte)
 
 
-def sans_crochets(texte: str) -> str:
+_CROCHETS_FERMES = re.compile(r"\[([^\[\]\n]{0,%d})\]\s*" % _LONGUEUR_MAX_CROCHETS)
+
+
+def sans_crochets(texte: str, permises: Iterable[str] = ()) -> str:
     """``texte`` sans ses passages entre crochets fermés (et l'espace qui les suit), puis
-    sans ses didascalies en italique (C2)."""
-    return sans_didascalies(
-        re.sub(
-            r"\[[^\[\]\n]{0,%d}\]\s*" % _LONGUEUR_MAX_CROCHETS,
-            "",
-            _ENTETE_FICHE.sub("", texte),
-        )
-    )
+    sans ses didascalies en italique (C2).
+
+    Lot 5 ter (voix-soniox, D29) : une balise d'expression de ``permises`` (noms comparés sans
+    crochets, casse ignorée) est GARDÉE telle qu'écrite, espace compris ; tout autre crochet est
+    retiré comme avant. ``permises`` vide : exactement le comportement d'avant."""
+    gardees = frozenset(permises)
+
+    def _retirer(m: re.Match) -> str:
+        return m.group(0) if gardees and nom_de_balise(m.group(1)) in gardees else ""
+
+    return sans_didascalies(_CROCHETS_FERMES.sub(_retirer, _ENTETE_FICHE.sub("", texte)))
+
+
+def _crochet_ouvert(texte: str, permises: frozenset) -> int:
+    """Position du dernier « [ » qui n'est pas une balise permise complète (-1 sinon). Sans balise
+    permise : ``texte.rfind("[")``, comme avant."""
+    position = texte.rfind("[")
+    while position >= 0 and permises:
+        m = _CROCHETS_FERMES.match(texte, position)
+        if m is None or nom_de_balise(m.group(1)) not in permises:
+            break
+        position = texte.rfind("[", 0, position)
+    return position
 
 
 def sans_entete_ouvert(texte: str) -> str:
@@ -377,10 +398,18 @@ class FluxSansLignesInternes:
 class FluxNettoye:
     """Le flux du cerveau, sans appel écrit en texte ni passage entre crochets."""
 
-    def __init__(self, flux: Any, outils: Iterable[str], portes_dans_la_reponse: bool):
+    def __init__(
+        self,
+        flux: Any,
+        outils: Iterable[str],
+        portes_dans_la_reponse: bool,
+        balises_permises: Iterable[str] = (),
+    ):
         self._flux = FluxSansLignesInternes(flux)
         self._outils = set(outils)
         self._portes = portes_dans_la_reponse
+        # Lot 5 ter (D29) : les balises d'expression que la voix de l'appel accepte (vide = aucune).
+        self._balises = frozenset(nom_de_balise(b) for b in balises_permises if nom_de_balise(b))
 
     def __aiter__(self):
         return self._parcourir()
@@ -424,11 +453,11 @@ class FluxNettoye:
             if tenus or "[" in texte or "*" in texte or _debut_de_jeton(texte):
                 texte_tenu += texte
                 tenus.append(morceau)
-                nettoye = sans_crochets(texte_tenu)
+                nettoye = sans_crochets(texte_tenu, self._balises)
                 if nettoye != texte_tenu:
                     logger.warning(f"[cerveau] texte entre crochets jamais dit : {texte_tenu!r}")
                     texte_tenu = nettoye
-                ouvert = texte_tenu.rfind("[")
+                ouvert = _crochet_ouvert(texte_tenu, self._balises)
                 if ouvert >= 0 and len(texte_tenu) - ouvert <= _LONGUEUR_MAX_CROCHETS:
                     continue  # un crochet encore ouvert : on attend sa fermeture
                 if DEBUT_ENTETE_FICHE in texte_tenu:
@@ -449,7 +478,7 @@ class FluxNettoye:
                 yield sortie
         elif tenus:
             for sortie in self._rendre_texte(
-                tenus, sans_entete_ouvert(sans_crochets(texte_tenu))
+                tenus, sans_entete_ouvert(sans_crochets(texte_tenu, self._balises))
             ):
                 yield sortie
 
@@ -480,7 +509,7 @@ class FluxNettoye:
                     f"[cerveau] appels écrits en texte : {len(appels) - len(declares)} hors des outils, ignorés"
                 )
             logger.warning(f"[cerveau] appels écrits en texte rendus : {[n for n, _ in declares]}")
-            avant = sans_crochets(avant)
+            avant = sans_crochets(avant, self._balises)
             sorties = [_avec_texte(tenus[0], avant)] if avant.strip() else []
             sorties += [
                 _morceau_d_appel(tenus[0], n, a, index=i) for i, (n, a) in enumerate(declares)
@@ -496,7 +525,7 @@ class FluxNettoye:
             arguments, reste = _arguments_et_reste(reste)
         else:
             nom, arguments, reste = lire_l_appel(apres, jeton)
-        avant = sans_crochets(avant)
+        avant = sans_crochets(avant, self._balises)
         sans_texte = [m for m in tenus if _texte(m) is None]
         modele = tenus[0] if tenus else None
         if nom and nom in self._outils:
@@ -506,7 +535,7 @@ class FluxNettoye:
                 sorties.append(_avec_texte(tenus[0], avant))
             sorties.append(_morceau_d_appel(modele, nom, arguments))
             return sorties + self._fin_d_appel(sans_texte)
-        reste = sans_crochets(reste.lstrip())
+        reste = sans_crochets(reste.lstrip(), self._balises)
         if nom and self._portes:
             logger.warning(f"[cerveau] appel écrit en texte ({jeton}) : lu comme la porte « {nom} »")
             nouveau = f"{avant.rstrip()}\n{FLECHE} {nom}\n{reste}" if avant.strip() else f"{FLECHE} {nom}\n{reste}"
@@ -556,7 +585,12 @@ class TexteDuCerveauMixin:
                 isinstance(m, dict) and m.get("role") == "system" and FLECHE in str(m.get("content") or "")
                 for m in (getattr(context, "messages", None) or [])
             )
-            return FluxNettoye(flux, _noms_des_outils(context), portes)
+            return FluxNettoye(
+                flux,
+                _noms_des_outils(context),
+                portes,
+                getattr(self, "balises_du_cerveau", ()) or (),
+            )
         except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
             logger.warning(f"[cerveau] nettoyage du texte non posé : {erreur!r}")
             return flux

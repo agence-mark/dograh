@@ -137,6 +137,7 @@ from api.services.pipecat.service_factory import (
     create_realtime_llm_service,
     create_stt_service,
     create_tts_service,
+    poser_les_balises_du_cerveau,
     stamp_pipeline_settings,
     stamp_prompt_cache_key,
     stamp_sampling_settings,
@@ -1192,6 +1193,8 @@ async def _run_pipeline_impl(
             correlation_id=mps_correlation_id,
             prompt_cache_key=cle_de_cache(workflow_id),
         )
+        # [.mark] Voix-soniox, lot 5 ter (D29) : les balises que le cerveau peut écrire sous la voix Soniox.
+        poser_les_balises_du_cerveau(llm, user_config.tts, run_configs)
         inference_llm = None
 
     # Variable and disposition extraction may share this out-of-band LLM. A

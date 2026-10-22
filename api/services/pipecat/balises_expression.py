@@ -26,8 +26,8 @@ montrent aucune (D-24).
 
 ⚠️ Phrase par phrase seulement. Mot à mot, un crochet arrive en morceaux (« [wa », « rm] ») et ne
 peut pas être lu : la transformation n'est pas posée (``construire_remplacements_de_voix``). Le
-texte que le cerveau écrit n'en porte de toute façon aucun : ``texte_du_cerveau.py`` retire déjà
-tout passage entre crochets avant la voix, la trace et l'historique.
+texte que le cerveau écrit : depuis le lot 5 ter (D29), ``texte_du_cerveau.py`` laisse passer les balises
+de la liste permise sous la voix Soniox (phrase par phrase) et retire tout autre crochet.
 """
 
 from __future__ import annotations

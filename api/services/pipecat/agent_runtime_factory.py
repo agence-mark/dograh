@@ -38,6 +38,7 @@ from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.pipecat.service_factory import (
     cle_de_cache,
     create_llm_service,
+    poser_les_balises_du_cerveau,
     stamp_prompt_cache_key,
     stamp_sampling_settings,
     stamp_voice_settings,
@@ -303,6 +304,12 @@ class AgentRuntimeFactory:
             user_config,
             correlation_id=self._mps_correlation_id,
             prompt_cache_key=cle_de_cache(workflow_id),
+        )
+        # [.mark] Voix-soniox, lot 5 ter (D29) : les balises du cerveau, sous la voix DE L'APPEL.
+        poser_les_balises_du_cerveau(
+            llm,
+            self._voix_de_l_appel if self._voix_de_l_appel is not None else user_config.tts,
+            run_configs,
         )
         # [.mark] Lot 8 (R12) : la trace du modèle suit l'agent appelé (case de CET agent), avant la
         # prise de notes ci-dessous qui lit la trace du moteur. Ne lève jamais.

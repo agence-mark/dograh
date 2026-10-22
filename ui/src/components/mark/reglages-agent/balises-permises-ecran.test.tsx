@@ -145,7 +145,7 @@ describe("[.mark] la modale", () => {
         ouvrir();
         const modale = screen.getByRole("dialog");
         expect(modale.getAttribute("data-modale-phrase")).toBe("balises");
-        expect(document.querySelector("[data-notice-balises]")?.textContent).toMatch(/cannot write one/i);
+        expect(document.querySelector("[data-notice-balises]")?.textContent).toMatch(/model itself may write a tag/i);
         expect(screen.getByRole("radio", { name: "The voice's default" }).getAttribute("aria-checked")).toBe("true");
     });
 
