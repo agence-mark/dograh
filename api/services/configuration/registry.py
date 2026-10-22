@@ -198,7 +198,21 @@ class BaseServiceConfiguration(BaseModel):
         ),
         json_schema_extra={
             "mark_adresse_libre": True,
-            "mark_libelle": {"en": "Free entry", "fr": "Saisie libre"},
+            # D-53: the box sits right under « Enter Custom Value » (an address outside the list): the
+            # label and the help say what THIS one is, in both languages, without a box more.
+            "mark_libelle": {"en": "Free entry (any address scheme)", "fr": "Saisie libre (tout schéma d'adresse)"},
+            "mark_aide": {
+                "en": (
+                    "Accepts any address scheme (wss://, https://, grpc://...) instead of the provider's own check. "
+                    "Only an address with no host is still refused. It is not « Enter Custom Value » above, which "
+                    "only lets you type an address that is not in the list."
+                ),
+                "fr": (
+                    "Accepte tout schéma d'adresse (wss://, https://, grpc://...) au lieu du contrôle propre au "
+                    "fournisseur. Seule une adresse sans hôte reste refusée. Ce n'est pas « Saisir une valeur "
+                    "personnalisée », au-dessus, qui permet seulement de taper une adresse absente de la liste."
+                ),
+            },
         },
     )
 
@@ -446,7 +460,16 @@ ELEVENLABS_PROVIDER_MODEL_CONFIG = provider_model_config("ElevenLabs")
 EcranMark = dict[str, tuple[str, str, str]]
 
 
-def ecran_mark(config: ConfigDict, champs: EcranMark) -> ConfigDict:
+def ecran_mark(
+    config: ConfigDict,
+    champs: EcranMark,
+    aides_fr: dict[str, str] | None = None,
+    valeurs: dict[str, dict[str, tuple[str, str]]] | None = None,
+) -> ConfigDict:
+    """`aides_fr` : the French of a field's help (voix-soniox, D-52). The English is the field's own
+    `description`, so the two cannot drift apart. `valeurs` : the name of each value of a menu field, in both
+    languages. Both are read by the screen (`mark_aide`, `mark_valeurs`); without them a field shows its
+    English description and the raw value, as before."""
     extra_fournisseur = dict(config.get("json_schema_extra") or {})
 
     def completer(schema: dict, _cls: type) -> None:
@@ -454,6 +477,13 @@ def ecran_mark(config: ConfigDict, champs: EcranMark) -> ConfigDict:
         for champ, (groupe, en, fr) in champs.items():
             schema["properties"][champ]["mark_groupe"] = groupe
             schema["properties"][champ]["mark_libelle"] = {"en": en, "fr": fr}
+        for champ, fr in (aides_fr or {}).items():
+            propriete = schema["properties"][champ]
+            propriete["mark_aide"] = {"en": propriete["description"], "fr": fr}
+        for champ, noms in (valeurs or {}).items():
+            schema["properties"][champ]["mark_valeurs"] = {
+                valeur: {"en": en, "fr": fr} for valeur, (en, fr) in noms.items()
+            }
 
     return ConfigDict(**{**config, "json_schema_extra": completer})
 
@@ -491,6 +521,30 @@ ECRAN_ELEVENLABS_TTS: EcranMark = {
     "style": ("caractere_de_la_voix", "Style", "Expressivité du style"),
     "use_speaker_boost": ("caractere_de_la_voix", "Speaker boost", "Renforcer la ressemblance"),
     "base_url": ("technique", "Base URL", "Adresse du service"),
+}
+# [.mark] Voix-soniox, lot 7 (D-52): the French of the help of the ElevenLabs voice fields (the English is the
+# field's `description`).
+AIDES_FR_ELEVENLABS_TTS: dict[str, str] = {
+    "voice": "Identifiant de la voix, dans votre bibliothèque de voix ElevenLabs.",
+    "speed": "Vitesse de la voix.",
+    "model": "Modèle de synthèse vocale ElevenLabs.",
+    "stability": (
+        "Stabilité de la voix, de 0 à 1. Plus bas : plus expressive, elle varie davantage d'une phrase à "
+        "l'autre ; plus haut : plus régulière et plus plate. Vide : 0,8, la valeur utilisée jusqu'ici."
+    ),
+    "similarity_boost": "Fidélité à l'enregistrement d'origine, de 0 à 1. Vide : 0,75, la valeur utilisée jusqu'ici.",
+    "style": (
+        "Exagération du style, de 0 à 1. Vide : non envoyé (ElevenLabs applique son défaut, 0). Au-dessus de 0, "
+        "la latence augmente et la voix peut devenir moins stable."
+    ),
+    "use_speaker_boost": (
+        "Renforce la ressemblance avec le locuteur d'origine. Vide : non envoyé (ElevenLabs applique son défaut). "
+        "Ajoute un peu de latence."
+    ),
+    "base_url": (
+        "Adresse de l'API ElevenLabs. À remplacer pour utiliser un point de résidence des données (par exemple "
+        "https://api.eu.residency.elevenlabs.io) pour le RGPD, HIPAA ou la conformité régionale."
+    ),
 }
 ECRAN_DEEPGRAM_STT: EcranMark = {
     "language": ("langue", "Language", "Langue"),
@@ -534,6 +588,39 @@ ECRAN_SONIOX_STT: EcranMark = {
 # convention as the other providers). `model` is the head of the block (exempt),
 # `provider` and `api_key` are the screen's own, `adresse_libre` follows the
 # address (generic, lot 0 bis).
+# [.mark] Voix-soniox, lot 7 (D-52): the French of the help of the Soniox voice fields, and the name of the values
+# of its menu.
+AIDES_FR_SONIOX_TTS: dict[str, str] = {
+    "model": "Modèle de synthèse vocale en temps réel de Soniox.",
+    "voice": (
+        "Nom d'une voix Soniox, ou identifiant d'une voix clonée du projet qui détient la clé. Le menu liste les "
+        "voix connues du produit ; toute autre voix se saisit."
+    ),
+    "language": "Langue ISO 639-1 que parle la voix (envoyée avec chaque flux).",
+    "speed": "Multiplicateur de débit, de 0,7 à 1,3. Vide : le défaut de Soniox (1,0). Attention : il aplatit le rythme.",
+    "reduce_silence": (
+        "Raccourcit les pauses entre les mots sans changer la vitesse des mots. Vide : le défaut de Soniox "
+        "(éteint). Seuls certains modèles l'acceptent."
+    ),
+    "text_aggregation_mode": (
+        "Envoie le texte à la voix phrase par phrase (défaut, parole plus naturelle) ou mot par mot, au fil de "
+        "l'écriture du modèle (répond plus tôt, peut dégrader la voix : à juger à l'oreille)."
+    ),
+    "base_url": (
+        "Adresse Soniox à laquelle le texte dit est envoyé, donc la juridiction qui le traite. Europe par défaut "
+        "(la région est fixée par le projet auquel appartient la clé) ; vide, le texte part aussi vers l'Europe."
+    ),
+    "region": (
+        "Où le texte dit est traité. Déduite de l'adresse ci-dessus plutôt que choisie : changez l'adresse et "
+        "elle suit."
+    ),
+}
+VALEURS_SONIOX_TTS: dict[str, dict[str, tuple[str, str]]] = {
+    "text_aggregation_mode": {
+        "sentence": ("Sentence by sentence", "Phrase par phrase"),
+        "token": ("Word by word", "Mot par mot"),
+    },
+}
 ECRAN_SONIOX_TTS: EcranMark = {
     "voice": ("voix", "Voice", "Voix"),
     "language": ("voix", "Language", "Langue"),
@@ -1650,7 +1737,7 @@ ELEVENLABS_TTS_MODELS = ["eleven_flash_v2_5"]
 
 @register_tts
 class ElevenlabsTTSConfiguration(BaseServiceConfiguration):
-    model_config = ecran_mark(ELEVENLABS_PROVIDER_MODEL_CONFIG, ECRAN_ELEVENLABS_TTS)  # [.mark] écran Modèles
+    model_config = ecran_mark(ELEVENLABS_PROVIDER_MODEL_CONFIG, ECRAN_ELEVENLABS_TTS, AIDES_FR_ELEVENLABS_TTS)  # [.mark] écran Modèles
     provider: Literal[ServiceProviders.ELEVENLABS] = ServiceProviders.ELEVENLABS
     voice: str = Field(
         default="21m00Tcm4TlvDq8ikWAM",
@@ -2288,7 +2375,7 @@ def region_soniox_voix(base_url: str | None) -> str:
 
 @register_tts
 class SonioxTTSConfiguration(BaseTTSConfiguration):
-    model_config = ecran_mark(SONIOX_TTS_PROVIDER_MODEL_CONFIG, ECRAN_SONIOX_TTS)  # [.mark] écran Modèles
+    model_config = ecran_mark(SONIOX_TTS_PROVIDER_MODEL_CONFIG, ECRAN_SONIOX_TTS, AIDES_FR_SONIOX_TTS, VALEURS_SONIOX_TTS)  # [.mark] écran Modèles
     provider: Literal[ServiceProviders.SONIOX] = ServiceProviders.SONIOX
     model: str = Field(
         default=SONIOX_TTS_MODELS[0],

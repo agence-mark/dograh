@@ -163,10 +163,14 @@
           "default": false,
           "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
           "mark_adresse_libre": true,
+          "mark_aide": {
+            "en": "Accepts any address scheme (wss://, https://, grpc://...) instead of the provider's own check. Only an address with no host is still refused. It is not « Enter Custom Value » above, which only lets you type an address that is not in the list.",
+            "fr": "Accepte tout schéma d'adresse (wss://, https://, grpc://...) au lieu du contrôle propre au fournisseur. Seule une adresse sans hôte reste refusée. Ce n'est pas « Saisir une valeur personnalisée », au-dessus, qui permet seulement de taper une adresse absente de la liste."
+          },
           "mark_groupe": "technique",
           "mark_libelle": {
-            "en": "Free entry",
-            "fr": "Saisie libre"
+            "en": "Free entry (any address scheme)",
+            "fr": "Saisie libre (tout schéma d'adresse)"
           },
           "title": "Adresse Libre",
           "type": "boolean"
@@ -396,10 +400,14 @@
           "default": false,
           "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
           "mark_adresse_libre": true,
+          "mark_aide": {
+            "en": "Accepts any address scheme (wss://, https://, grpc://...) instead of the provider's own check. Only an address with no host is still refused. It is not « Enter Custom Value » above, which only lets you type an address that is not in the list.",
+            "fr": "Accepte tout schéma d'adresse (wss://, https://, grpc://...) au lieu du contrôle propre au fournisseur. Seule une adresse sans hôte reste refusée. Ce n'est pas « Saisir une valeur personnalisée », au-dessus, qui permet seulement de taper une adresse absente de la liste."
+          },
           "mark_groupe": "technique",
           "mark_libelle": {
-            "en": "Free entry",
-            "fr": "Saisie libre"
+            "en": "Free entry (any address scheme)",
+            "fr": "Saisie libre (tout schéma d'adresse)"
           },
           "title": "Adresse Libre",
           "type": "boolean"
@@ -438,6 +446,10 @@
         "voice": {
           "default": "21m00Tcm4TlvDq8ikWAM",
           "description": "ElevenLabs voice ID from your Voice Library.",
+          "mark_aide": {
+            "en": "ElevenLabs voice ID from your Voice Library.",
+            "fr": "Identifiant de la voix, dans votre bibliothèque de voix ElevenLabs."
+          },
           "mark_groupe": "voix",
           "mark_libelle": {
             "en": "Voice",
@@ -449,6 +461,10 @@
         "speed": {
           "default": 1.0,
           "description": "Speed of the voice.",
+          "mark_aide": {
+            "en": "Speed of the voice.",
+            "fr": "Vitesse de la voix."
+          },
           "mark_groupe": "voix",
           "mark_libelle": {
             "en": "Speed",
@@ -466,6 +482,10 @@
           "examples": [
             "eleven_flash_v2_5"
           ],
+          "mark_aide": {
+            "en": "ElevenLabs TTS model.",
+            "fr": "Modèle de synthèse vocale ElevenLabs."
+          },
           "title": "Model",
           "type": "string"
         },
@@ -482,6 +502,10 @@
           ],
           "default": null,
           "description": "Voice stability, 0 to 1. Lower is more expressive and varies more from one sentence to the next; higher is steadier and flatter. Left empty: 0.8, the value used until now.",
+          "mark_aide": {
+            "en": "Voice stability, 0 to 1. Lower is more expressive and varies more from one sentence to the next; higher is steadier and flatter. Left empty: 0.8, the value used until now.",
+            "fr": "Stabilité de la voix, de 0 à 1. Plus bas : plus expressive, elle varie davantage d'une phrase à l'autre ; plus haut : plus régulière et plus plate. Vide : 0,8, la valeur utilisée jusqu'ici."
+          },
           "mark_groupe": "caractere_de_la_voix",
           "mark_libelle": {
             "en": "Stability",
@@ -502,6 +526,10 @@
           ],
           "default": null,
           "description": "How close the voice stays to the original recording, 0 to 1. Left empty: 0.75, the value used until now.",
+          "mark_aide": {
+            "en": "How close the voice stays to the original recording, 0 to 1. Left empty: 0.75, the value used until now.",
+            "fr": "Fidélité à l'enregistrement d'origine, de 0 à 1. Vide : 0,75, la valeur utilisée jusqu'ici."
+          },
           "mark_groupe": "caractere_de_la_voix",
           "mark_libelle": {
             "en": "Similarity boost",
@@ -522,6 +550,10 @@
           ],
           "default": null,
           "description": "Style exaggeration, 0 to 1. Left empty, not sent (ElevenLabs applies its own default, 0). Above 0 it adds latency and can make the voice less stable.",
+          "mark_aide": {
+            "en": "Style exaggeration, 0 to 1. Left empty, not sent (ElevenLabs applies its own default, 0). Above 0 it adds latency and can make the voice less stable.",
+            "fr": "Exagération du style, de 0 à 1. Vide : non envoyé (ElevenLabs applique son défaut, 0). Au-dessus de 0, la latence augmente et la voix peut devenir moins stable."
+          },
           "mark_groupe": "caractere_de_la_voix",
           "mark_libelle": {
             "en": "Style",
@@ -540,6 +572,10 @@
           ],
           "default": null,
           "description": "Boost the likeness to the original speaker. Left empty, not sent (ElevenLabs applies its own default). Adds a little latency.",
+          "mark_aide": {
+            "en": "Boost the likeness to the original speaker. Left empty, not sent (ElevenLabs applies its own default). Adds a little latency.",
+            "fr": "Renforce la ressemblance avec le locuteur d'origine. Vide : non envoyé (ElevenLabs applique son défaut). Ajoute un peu de latence."
+          },
           "mark_groupe": "caractere_de_la_voix",
           "mark_libelle": {
             "en": "Speaker boost",
@@ -551,6 +587,10 @@
           "default": "https://api.elevenlabs.io",
           "description": "ElevenLabs API base URL. Override to use a Data Residency endpoint (e.g. https://api.eu.residency.elevenlabs.io) for GDPR / HIPAA / regional compliance.",
           "mark_adresse": true,
+          "mark_aide": {
+            "en": "ElevenLabs API base URL. Override to use a Data Residency endpoint (e.g. https://api.eu.residency.elevenlabs.io) for GDPR / HIPAA / regional compliance.",
+            "fr": "Adresse de l'API ElevenLabs. À remplacer pour utiliser un point de résidence des données (par exemple https://api.eu.residency.elevenlabs.io) pour le RGPD, HIPAA ou la conformité régionale."
+          },
           "mark_groupe": "technique",
           "mark_libelle": {
             "en": "Base URL",
@@ -563,10 +603,14 @@
           "default": false,
           "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
           "mark_adresse_libre": true,
+          "mark_aide": {
+            "en": "Accepts any address scheme (wss://, https://, grpc://...) instead of the provider's own check. Only an address with no host is still refused. It is not « Enter Custom Value » above, which only lets you type an address that is not in the list.",
+            "fr": "Accepte tout schéma d'adresse (wss://, https://, grpc://...) au lieu du contrôle propre au fournisseur. Seule une adresse sans hôte reste refusée. Ce n'est pas « Saisir une valeur personnalisée », au-dessus, qui permet seulement de taper une adresse absente de la liste."
+          },
           "mark_groupe": "technique",
           "mark_libelle": {
-            "en": "Free entry",
-            "fr": "Saisie libre"
+            "en": "Free entry (any address scheme)",
+            "fr": "Saisie libre (tout schéma d'adresse)"
           },
           "title": "Adresse Libre",
           "type": "boolean"
@@ -607,6 +651,10 @@
           "examples": [
             "tts-rt-v2"
           ],
+          "mark_aide": {
+            "en": "Soniox real-time text-to-speech model.",
+            "fr": "Modèle de synthèse vocale en temps réel de Soniox."
+          },
           "title": "Model",
           "type": "string"
         },
@@ -628,6 +676,10 @@
             "Genevieve",
             "Antoine"
           ],
+          "mark_aide": {
+            "en": "Soniox voice name, or the identifier of a cloned voice of the project that owns the key. The menu lists the voices known to the product; any other voice is typed.",
+            "fr": "Nom d'une voix Soniox, ou identifiant d'une voix clonée du projet qui détient la clé. Le menu liste les voix connues du produit ; toute autre voix se saisit."
+          },
           "mark_groupe": "voix",
           "mark_libelle": {
             "en": "Voice",
@@ -722,69 +774,141 @@
           "docs_url": "https://soniox.com/docs/tts/concepts/languages",
           "examples": [
             "af",
+            "am",
             "ar",
+            "as",
+            "ast",
             "az",
+            "ba",
             "be",
             "bg",
             "bn",
+            "bo",
+            "br",
             "bs",
             "ca",
+            "ceb",
+            "ckb",
+            "cmn",
             "cs",
             "cy",
             "da",
             "de",
             "el",
             "en",
+            "eo",
             "es",
             "et",
             "eu",
             "fa",
+            "ff",
             "fi",
+            "fil",
+            "fo",
             "fr",
+            "ga",
+            "gd",
             "gl",
             "gu",
+            "ha",
+            "haw",
             "he",
             "hi",
             "hr",
+            "ht",
             "hu",
+            "hy",
             "id",
+            "ig",
+            "is",
             "it",
+            "iu",
             "ja",
+            "jv",
+            "jw",
+            "ka",
+            "kab",
+            "kea",
             "kk",
+            "km",
             "kn",
             "ko",
+            "kok",
+            "ku",
+            "ky",
+            "la",
+            "lb",
+            "lg",
+            "ln",
+            "lo",
             "lt",
+            "luo",
             "lv",
+            "mai",
+            "mg",
+            "mi",
             "mk",
             "ml",
+            "mn",
             "mr",
             "ms",
+            "mt",
+            "my",
+            "mymr",
+            "nb",
+            "ne",
             "nl",
+            "nn",
             "no",
+            "nso",
+            "ny",
+            "oc",
+            "or",
             "pa",
             "pl",
+            "ps",
             "pt",
             "ro",
             "ru",
+            "sa",
+            "sd",
+            "si",
             "sk",
             "sl",
+            "sn",
+            "so",
             "sq",
             "sr",
+            "su",
             "sv",
             "sw",
             "ta",
             "te",
+            "tg",
             "th",
+            "tk",
             "tl",
             "tr",
+            "tt",
+            "ug",
             "uk",
+            "umb",
             "ur",
+            "uz",
             "vi",
+            "wo",
+            "wuu",
+            "xh",
+            "yi",
+            "yo",
+            "yue",
             "zh",
-            "is",
-            "su",
-            "uz"
+            "zu"
           ],
+          "mark_aide": {
+            "en": "ISO 639-1 language the voice speaks (sent with every stream).",
+            "fr": "Langue ISO 639-1 que parle la voix (envoyée avec chaque flux)."
+          },
           "mark_groupe": "voix",
           "mark_libelle": {
             "en": "Language",
@@ -806,6 +930,10 @@
           ],
           "default": null,
           "description": "Speech rate multiplier, from 0.7 to 1.3. Left unset, Soniox's own default applies (1.0). Careful: it flattens the rhythm.",
+          "mark_aide": {
+            "en": "Speech rate multiplier, from 0.7 to 1.3. Left unset, Soniox's own default applies (1.0). Careful: it flattens the rhythm.",
+            "fr": "Multiplicateur de débit, de 0,7 à 1,3. Vide : le défaut de Soniox (1,0). Attention : il aplatit le rythme."
+          },
           "mark_groupe": "debit",
           "mark_libelle": {
             "en": "Speed",
@@ -824,6 +952,10 @@
           ],
           "default": null,
           "description": "Shorten the pauses between words without changing how fast the words are spoken. Left unset, Soniox's own default applies (off). Only some models accept it.",
+          "mark_aide": {
+            "en": "Shorten the pauses between words without changing how fast the words are spoken. Left unset, Soniox's own default applies (off). Only some models accept it.",
+            "fr": "Raccourcit les pauses entre les mots sans changer la vitesse des mots. Vide : le défaut de Soniox (éteint). Seuls certains modèles l'acceptent."
+          },
           "mark_groupe": "debit",
           "mark_libelle": {
             "en": "Reduce silence",
@@ -838,10 +970,24 @@
             "sentence",
             "token"
           ],
+          "mark_aide": {
+            "en": "Send the text to the voice sentence by sentence (default, more natural speech), or word by word as the model writes it (answers sooner, may degrade the voice: judge it by ear).",
+            "fr": "Envoie le texte à la voix phrase par phrase (défaut, parole plus naturelle) ou mot par mot, au fil de l'écriture du modèle (répond plus tôt, peut dégrader la voix : à juger à l'oreille)."
+          },
           "mark_groupe": "envoi_du_texte",
           "mark_libelle": {
             "en": "Text sending",
             "fr": "Envoi du texte"
+          },
+          "mark_valeurs": {
+            "sentence": {
+              "en": "Sentence by sentence",
+              "fr": "Phrase par phrase"
+            },
+            "token": {
+              "en": "Word by word",
+              "fr": "Mot par mot"
+            }
           },
           "title": "Text Aggregation Mode",
           "type": "string"
@@ -855,6 +1001,10 @@
             "wss://tts-rt.soniox.com/tts-websocket"
           ],
           "mark_adresse": true,
+          "mark_aide": {
+            "en": "The Soniox endpoint the spoken text is sent to, and therefore the jurisdiction that processes it. Defaults to Europe (the region is fixed by the project the key belongs to); leaving it empty also sends the text to Europe.",
+            "fr": "Adresse Soniox à laquelle le texte dit est envoyé, donc la juridiction qui le traite. Europe par défaut (la région est fixée par le projet auquel appartient la clé) ; vide, le texte part aussi vers l'Europe."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
             "en": "Base URL",
@@ -866,6 +1016,10 @@
         "region": {
           "default": "eu",
           "description": "Where the spoken text is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.",
+          "mark_aide": {
+            "en": "Where the spoken text is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.",
+            "fr": "Où le texte dit est traité. Déduite de l'adresse ci-dessus plutôt que choisie : changez l'adresse et elle suit."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
             "en": "Region",
@@ -879,10 +1033,14 @@
           "default": false,
           "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
           "mark_adresse_libre": true,
+          "mark_aide": {
+            "en": "Accepts any address scheme (wss://, https://, grpc://...) instead of the provider's own check. Only an address with no host is still refused. It is not « Enter Custom Value » above, which only lets you type an address that is not in the list.",
+            "fr": "Accepte tout schéma d'adresse (wss://, https://, grpc://...) au lieu du contrôle propre au fournisseur. Seule une adresse sans hôte reste refusée. Ce n'est pas « Saisir une valeur personnalisée », au-dessus, qui permet seulement de taper une adresse absente de la liste."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
-            "en": "Free entry",
-            "fr": "Saisie libre"
+            "en": "Free entry (any address scheme)",
+            "fr": "Saisie libre (tout schéma d'adresse)"
           },
           "title": "Adresse Libre",
           "type": "boolean"
@@ -1714,10 +1872,14 @@
           "default": false,
           "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
           "mark_adresse_libre": true,
+          "mark_aide": {
+            "en": "Accepts any address scheme (wss://, https://, grpc://...) instead of the provider's own check. Only an address with no host is still refused. It is not « Enter Custom Value » above, which only lets you type an address that is not in the list.",
+            "fr": "Accepte tout schéma d'adresse (wss://, https://, grpc://...) au lieu du contrôle propre au fournisseur. Seule une adresse sans hôte reste refusée. Ce n'est pas « Saisir une valeur personnalisée », au-dessus, qui permet seulement de taper une adresse absente de la liste."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
-            "en": "Free entry",
-            "fr": "Saisie libre"
+            "en": "Free entry (any address scheme)",
+            "fr": "Saisie libre (tout schéma d'adresse)"
           },
           "title": "Adresse Libre",
           "type": "boolean"
@@ -2010,10 +2172,14 @@
           "default": false,
           "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
           "mark_adresse_libre": true,
+          "mark_aide": {
+            "en": "Accepts any address scheme (wss://, https://, grpc://...) instead of the provider's own check. Only an address with no host is still refused. It is not « Enter Custom Value » above, which only lets you type an address that is not in the list.",
+            "fr": "Accepte tout schéma d'adresse (wss://, https://, grpc://...) au lieu du contrôle propre au fournisseur. Seule une adresse sans hôte reste refusée. Ce n'est pas « Saisir une valeur personnalisée », au-dessus, qui permet seulement de taper une adresse absente de la liste."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
-            "en": "Free entry",
-            "fr": "Saisie libre"
+            "en": "Free entry (any address scheme)",
+            "fr": "Saisie libre (tout schéma d'adresse)"
           },
           "title": "Adresse Libre",
           "type": "boolean"

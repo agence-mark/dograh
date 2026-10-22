@@ -95,7 +95,7 @@ const ouvrir = async (
         />
     );
     render(<>{options.enveloppe ? options.enveloppe(formulaire) : formulaire}</>);
-    const onglet = await waitFor(() => screen.getByRole("tab", { name: /^voice$/i }));
+    const onglet = await waitFor(() => screen.getByRole("tab", { name: /^(voice|voix)$/i }));
     fireEvent.mouseDown(onglet);
     fireEvent.click(onglet);
     await waitFor(() => expect(document.querySelectorAll("[data-champ]").length).toBeGreaterThan(0));
@@ -337,7 +337,11 @@ describe("[.mark] la voix Soniox dans la surcharge d'un agent", () => {
         enregistrer();
         await waitFor(() => expect(onSave).toHaveBeenCalled());
         const tts = chargeSurcharge(onSave) ?? {};
+        // La clé de l'API : une surcharge d'agent écrit UNE clé en chaîne (la première), pour tous les fournisseurs
+        // (`buildServiceConfig`, mode « override ») ; ce n'est pas une perte propre à la voix.
+        expect(tts.api_key).toBe("cle-voix");
         for (const [cle, valeur] of Object.entries(complete)) {
+            if (cle === "api_key") continue;
             expect(tts[cle], cle).toEqual(valeur);
         }
     });
@@ -430,5 +434,95 @@ describe("[.mark] les réglages de la voix ElevenLabs (lot 7 bis)", () => {
         enregistrer();
         await waitFor(() => expect(onSave).toHaveBeenCalled());
         expect(chargeSurcharge(onSave)?.stability).toBe(0.35);
+    });
+});
+
+describe("[.mark] les textes des champs de la voix, en français comme en anglais (D-52)", () => {
+    const aide = (champ: string) => (document.querySelector(`[data-champ="${champ}"]`) as HTMLElement).textContent ?? "";
+
+    it("en français, la voix Soniox n'a plus d'aide, d'indication ni de valeur de menu en anglais", async () => {
+        await ouvrir(CONFIG_SONIOX, { enveloppe: (n) => <FournisseurLangue>{n}</FournisseurLangue> });
+        await waitFor(() => expect(sousMenus().length).toBeGreaterThan(0));
+        ouvrirLesSousMenus();
+        expect(aide("speed")).toMatch(/Multiplicateur de débit/);
+        expect(aide("speed")).not.toMatch(/Speech rate multiplier/);
+        expect(aide("reduce_silence")).toMatch(/Raccourcit les pauses/);
+        expect(aide("text_aggregation_mode")).toMatch(/phrase par phrase/);
+        expect(aide("base_url")).toMatch(/juridiction/);
+        expect(aide("region")).toMatch(/Déduite de l'adresse/);
+        expect(screen.getByPlaceholderText("Saisissez : vitesse")).toBeTruthy();
+        const options = Array.from(document.querySelectorAll('[data-champ="text_aggregation_mode"] option')).map((o) => o.textContent);
+        expect(options).toEqual(["Phrase par phrase", "Mot par mot"]);
+    });
+
+    it("en anglais, l'aide est la description de l'api et les valeurs du menu sont nommées", async () => {
+        await ouvrir(CONFIG_SONIOX);
+        await waitFor(() => expect(sousMenus().length).toBeGreaterThan(0));
+        ouvrirLesSousMenus();
+        expect(aide("speed")).toContain(SCHEMAS.tts.soniox.properties.speed.description as string);
+        const options = Array.from(document.querySelectorAll('[data-champ="text_aggregation_mode"] option')).map((o) => o.textContent);
+        expect(options).toEqual(["Sentence by sentence", "Word by word"]);
+        expect(screen.getByPlaceholderText("Enter speed")).toBeTruthy();
+    });
+
+    it("en français, les aides d'ElevenLabs aussi, anciennes et nouvelles", async () => {
+        await ouvrir(CONFIG_ELEVENLABS, { enveloppe: (n) => <FournisseurLangue>{n}</FournisseurLangue> });
+        await waitFor(() => expect(sousMenus().length).toBeGreaterThan(0));
+        ouvrirLesSousMenus();
+        expect(aide("speed")).toMatch(/Vitesse de la voix/);
+        expect(aide("stability")).toMatch(/Stabilité de la voix/);
+        expect(aide("use_speaker_boost")).toMatch(/Renforce la ressemblance/);
+        expect(aide("stability")).not.toMatch(/Voice stability/);
+    });
+});
+
+describe("[.mark] la case « saisie libre » se distingue de « valeur personnalisée » (D-53)", () => {
+    it("dit en deux langues qu'elle accepte tout schéma d'adresse, sous la case, sans case de plus", async () => {
+        await ouvrir(CONFIG_SONIOX, { enveloppe: (n) => <FournisseurLangue>{n}</FournisseurLangue> });
+        ouvrirSousMenu("tts.hebergement");
+        const bloc = document.querySelector('[data-adresse-libre="tts"]') as HTMLElement;
+        expect(bloc.textContent).toMatch(/Saisie libre \(tout schéma d'adresse\)/);
+        const aideCase = document.querySelector('[data-aide-adresse-libre="tts"]') as HTMLElement;
+        expect(aideCase.textContent).toMatch(/wss:\/\//);
+        expect(aideCase.textContent).toMatch(/Saisir une valeur personnalisée/);
+        // Toujours une seule case « saisie libre » par service, et la case de l'amont n'est pas touchée.
+        expect(document.querySelectorAll('[data-adresse-libre="tts"]').length).toBe(1);
+    });
+});
+
+describe("[.mark] revenir à « vide » sur un interrupteur facultatif (D-54)", () => {
+    it("dit « vide » tant qu'il n'est pas réglé, puis propose de revenir à la valeur par défaut", async () => {
+        const onSave = await ouvrir(CONFIG_ELEVENLABS);
+        ouvrirLesSousMenus();
+        expect(document.querySelector('[data-valeur-vide="tts_use_speaker_boost"]')).not.toBeNull();
+        expect(document.querySelector('[data-valeur-par-defaut="tts_use_speaker_boost"]')).toBeNull();
+
+        fireEvent.click(document.getElementById("tts_use_speaker_boost") as HTMLElement);
+        await waitFor(() => expect(document.querySelector('[data-valeur-par-defaut="tts_use_speaker_boost"]')).not.toBeNull());
+        expect(document.querySelector('[data-valeur-vide="tts_use_speaker_boost"]')).toBeNull();
+
+        fireEvent.click(document.querySelector('[data-valeur-par-defaut="tts_use_speaker_boost"]') as HTMLElement);
+        await waitFor(() => expect(document.querySelector('[data-valeur-vide="tts_use_speaker_boost"]')).not.toBeNull());
+        expect(document.getElementById("tts_use_speaker_boost")?.getAttribute("aria-checked")).toBe("false");
+        enregistrer();
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+        // Revenu à vide : la clé n'est pas écrite, exactement comme avant d'y toucher.
+        expect("use_speaker_boost" in chargeTts(onSave)).toBe(false);
+    });
+
+    it("éteint à la main reste une valeur : `false` part", async () => {
+        const onSave = await ouvrir({ ...CONFIG_ELEVENLABS, use_speaker_boost: false });
+        ouvrirLesSousMenus();
+        expect(document.querySelector('[data-valeur-par-defaut="tts_use_speaker_boost"]')).not.toBeNull();
+        enregistrer();
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+        expect(chargeTts(onSave).use_speaker_boost).toBe(false);
+    });
+
+    it("`reduce_silence` de la voix Soniox a le même moyen de revenir à vide", async () => {
+        await ouvrir(CONFIG_SONIOX);
+        ouvrirLesSousMenus();
+        // `reduce_silence` est facultatif (bool | None) : il a le même moyen de revenir.
+        expect(document.querySelector('[data-valeur-vide="tts_reduce_silence"]')).not.toBeNull();
     });
 });

@@ -136,3 +136,40 @@ def test_l_estampille_dit_ce_qui_est_joue_quand_un_reglage_existe():
     for champ in ("stability", "similarity_boost", "style"):
         assert fiche[champ] == requete[champ], champ
     assert "use_speaker_boost" not in fiche
+
+
+# --------------------------------------------------------------------------- #
+# Les aides en deux langues (voix-soniox, D-52 et D-53) : l'écran ne montre plus d'anglais en mode français
+# --------------------------------------------------------------------------- #
+
+
+def _schema(classe):
+    return classe.model_json_schema()["properties"]
+
+
+def test_chaque_aide_de_la_voix_elevenlabs_a_ses_deux_langues_et_l_anglais_est_la_description():
+    proprietes = _schema(ElevenlabsTTSConfiguration)
+    for champ in ("voice", "speed", "model", *CHAMPS, "base_url"):
+        aide = proprietes[champ]["mark_aide"]
+        assert aide["en"] == proprietes[champ]["description"], f"{champ}: l'anglais n'est pas la description"
+        assert aide["fr"].strip() and aide["fr"] != aide["en"], f"{champ}: pas de français"
+
+
+def test_chaque_aide_de_la_voix_soniox_a_ses_deux_langues_et_le_menu_ses_valeurs_nommees():
+    from api.services.configuration.registry import SonioxTTSConfiguration
+
+    proprietes = _schema(SonioxTTSConfiguration)
+    for champ in ("model", "voice", "language", "speed", "reduce_silence", "text_aggregation_mode", "base_url", "region"):
+        aide = proprietes[champ]["mark_aide"]
+        assert aide["en"] == proprietes[champ]["description"], champ
+        assert aide["fr"].strip() and aide["fr"] != aide["en"], champ
+    valeurs = proprietes["text_aggregation_mode"]["mark_valeurs"]
+    assert set(valeurs) == set(proprietes["text_aggregation_mode"]["enum"])
+    assert all(v["en"] and v["fr"] for v in valeurs.values())
+
+
+def test_la_case_saisie_libre_dit_ce_qu_elle_est_dans_les_deux_langues():
+    case = _schema(ElevenlabsTTSConfiguration)["adresse_libre"]
+    assert "Saisie libre" in case["mark_libelle"]["fr"] and "Free entry" in case["mark_libelle"]["en"]
+    assert "schéma" in case["mark_libelle"]["fr"]
+    assert "wss://" in case["mark_aide"]["en"] and "wss://" in case["mark_aide"]["fr"]

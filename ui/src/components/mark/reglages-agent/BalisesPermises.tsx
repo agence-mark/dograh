@@ -226,6 +226,8 @@ export const CarteBalises = ({
                 aria-label={`${t(TITRE)} : ${t(LIBELLES_MODE[mode])}`}
                 onClick={ouvrir}
                 onKeyDown={(e) => e.key === "Enter" && ouvrir()}
+                id="reglage-tts_balises_permises"
+                data-reglage="tts_balises_permises"
                 data-carte-balises={mode}
                 className="group flex cursor-pointer items-stretch gap-4 rounded-lg border bg-card p-4 transition hover:border-foreground/30 hover:shadow-sm"
             >

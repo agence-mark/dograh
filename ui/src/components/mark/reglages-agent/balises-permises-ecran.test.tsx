@@ -32,7 +32,9 @@ afterEach(() => {
 /** La carte avec un état, comme le thème la tient : la valeur courante est relue à chaque rendu. */
 const Banc = ({
     depart,
-    retourAuDefaut = null,
+    // ⛔ Pas de valeur par défaut ici : `undefined` est une valeur qui compte (clé jamais enregistrée), et un
+    // paramètre par défaut la changerait en `null` sans prévenir.
+    retourAuDefaut,
     sansEffet,
     onChange,
 }: {

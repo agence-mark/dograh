@@ -13,6 +13,7 @@ import { getAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPost } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { useOrgConfig } from "@/context/OrgConfigContext";
 import { useAudioPlayback } from "@/hooks/useAudioPlayback";
 import type { AmbientNoiseConfiguration } from "@/types/workflow-configurations";
 
@@ -32,6 +33,7 @@ import { useLangue } from "../langue/langue";
 import { CarteBalises } from "./BalisesPermises";
 import { type CleCatalogue, erreursDuCatalogue, extraire, Reglage } from "./catalogue";
 import { useEnregistrementTheme } from "./enregistrement";
+import { modeRetenu } from "./mode-envoi-du-texte";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEtatTheme, useRevelation } from "./theme-commun";
 
 export const ID_THEME_VOIX = "voix";
@@ -173,7 +175,13 @@ export const ThemeVoix = ({
         return affiche ? <Reglage key={cle} cle={cle} valeur={brouillon[cle]} onChange={maj(cle)} note={note} /> : null;
     };
 
-    const motParMot = brouillon.tts_text_aggregation_mode !== "sentence";
+    // [.mark] Relecture m3 : the mode the call really uses (the agent's, else the Soniox voice's own), not just the agent's.
+    // The voice is the agent's own override when it has one, else the organisation's.
+    const { userConfig } = useOrgConfig();
+    const voixDeLAgent = (resolue.model_overrides as { tts?: Record<string, unknown> } | undefined)?.tts;
+    const voixDeLAppel = (voixDeLAgent?.provider ? voixDeLAgent : (userConfig as { tts?: Record<string, unknown> } | null)?.tts) ?? null;
+    const retenu = modeRetenu(brouillon.tts_text_aggregation_mode, voixDeLAppel);
+    const motParMot = retenu.mode === "token";
 
     return (
         <Theme
@@ -182,7 +190,7 @@ export const ThemeVoix = ({
             titre={TITRE_VOIX}
             description={{ en: "How the agent's text is turned into speech.", fr: "Comment le texte de l'agent devient de la parole." }}
             resume={[
-                brouillon.tts_text_aggregation_mode === "sentence"
+                !motParMot
                     ? t({ en: "Sentence by sentence", fr: "Phrase par phrase" })
                     : t({ en: "Word by word", fr: "Mot par mot" }),
                 `${((brouillon.tts_replacements as string[]) ?? []).length} ${t({ en: "pronunciation fixes", fr: "corrections de prononciation" })}`,
@@ -198,6 +206,23 @@ export const ThemeVoix = ({
             <Intertitre id="voix-envoi" titre={{ en: "Sending text to the voice", fr: "Envoi du texte à la voix" }}>
                 {r("tts_markdown_filter_enabled")}
                 {r("tts_text_aggregation_mode")}
+                <p className="text-xs text-muted-foreground" data-mode-retenu={`${retenu.mode}:${retenu.origine}`}>
+                    <span className="font-medium text-foreground">{t({ en: "Mode used on the call:", fr: "Mode retenu pour l'appel :" })}</span>{" "}
+                    {motParMot ? t({ en: "word by word", fr: "mot par mot" }) : t({ en: "sentence by sentence", fr: "phrase par phrase" })}
+                    {" "}
+                    {retenu.origine === "agent" &&
+                        t({ en: "(this agent's setting).", fr: "(réglage de cet agent)." })}
+                    {retenu.origine === "voix" &&
+                        t({
+                            en: "(the Soniox voice's own setting, on the Models screen). The agent's choice wins only when it asks for « Word by word »: « Sentence by sentence » here cannot override the voice.",
+                            fr: "(réglage propre à la voix Soniox, écran Modèles). Le choix de l'agent l'emporte seulement quand il demande « Mot par mot » : « Phrase par phrase » ici ne peut pas contredire la voix.",
+                        })}
+                    {retenu.origine === "defaut" && t({ en: "(default).", fr: "(par défaut)." })}{" "}
+                    {t({
+                        en: "Expression tags have no effect word by word.",
+                        fr: "Les balises d'expression n'ont aucun effet en mot par mot.",
+                    })}
+                </p>
                 {r("tts_push_silence_after_stop")}
                 {r("tts_silence_time_s", Boolean(brouillon.tts_push_silence_after_stop))}
             </Intertitre>
