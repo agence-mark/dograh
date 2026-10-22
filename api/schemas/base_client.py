@@ -247,3 +247,13 @@ ModificationPersonne = create_model(
         if nom != "cle"
     },
 )
+
+
+class ConnexionPortail(BaseModel):
+    """[.mark] Lot F6 : le compte de connexion que le portail utilise sur la base du client. Le mot de
+    passe n'existe que dans CETTE réponse (il vient d'être créé) : il n'est ni journalisé, ni
+    relisible, ni gardé par Dograh. Le renouveler = rappeler la route (l'ancien cesse de marcher)."""
+
+    base: str
+    role: str
+    mot_de_passe: str

@@ -19,6 +19,7 @@ attached to THAT organization, never a name taken from the request but to attach
 
 from __future__ import annotations
 
+import secrets
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -42,6 +43,7 @@ from pydantic import ValidationError
 
 from api.schemas.base_client import (
     Conservation,
+    ConnexionPortail,
     DemandeRattachement,
     Equipe,
     EtatBaseClient,
@@ -190,6 +192,50 @@ async def post_resynchroniser(
 
     await resynchroniser(user.selected_organization_id)
     return await _etat(user.selected_organization_id)
+
+
+@router.post("/connexion-portail", response_model=ConnexionPortail)
+async def post_connexion_portail(
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] Lot F6 : crée (ou renouvelle) le compte de connexion du portail sur la base du client.
+
+    Réservée au PROPRIÉTAIRE de la base : seule sa connexion peut appeler ``mark.donner_connexion_portail``
+    (``REVOKE ... FROM PUBLIC`` de la 015). Le mot de passe est tiré ici, rendu une seule fois dans la
+    réponse et n'est écrit nulle part : ni dans ``journal_modif`` (la fonction ne le journalise pas),
+    ni dans les journaux de l'api (seul le nom du rôle y paraît), ni dans une erreur (une panne ne
+    rend que le type de l'exception : le texte d'une erreur de la base peut citer la requête)."""
+    organization_id = user.selected_organization_id
+    nom = await rattachement.nom_de_la_base(organization_id)
+    if not nom:
+        raise _refus("No client database is attached to this organization.", 409)
+    try:
+        connexion = await connecter_proprietaire(nom)
+    except BaseClientIndisponible as erreur:
+        raise _refus(str(erreur), 503) from None
+    mot_de_passe = secrets.token_urlsafe(32)
+    try:
+        if (await version_de(connexion) or 0) < 15:
+            raise _refus(
+                "The client database is behind this installation: click « Upgrade » first "
+                "(the portal's account exists from version 15).",
+                409,
+            )
+        role = await connexion.fetchval(
+            "SELECT mark.donner_connexion_portail($1)", mot_de_passe
+        )
+    except HTTPException:
+        raise
+    except Exception as erreur:  # noqa: BLE001 -- jamais le texte : il peut citer le mot de passe
+        logger.warning(
+            f"[.mark] Portal connection of organization {organization_id} not created "
+            f"({type(erreur).__name__})."
+        )
+        raise _refus("The portal's connection could not be created.", 503) from None
+    finally:
+        await connexion.close()
+    logger.info(f"[.mark] Portal connection {role} (re)created for organization {organization_id}.")
+    return ConnexionPortail(base=nom, role=role, mot_de_passe=mot_de_passe)
 
 
 @router.put("/conservation", response_model=EtatBaseClient)

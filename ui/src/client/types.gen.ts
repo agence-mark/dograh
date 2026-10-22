@@ -2357,6 +2357,28 @@ export type ConnecteurVue = {
 };
 
 /**
+ * ConnexionPortail
+ *
+ * [.mark] Lot F6 : le compte de connexion que le portail utilise sur la base du client. Le mot de
+ * passe n'existe que dans CETTE réponse (il vient d'être créé) : il n'est ni journalisé, ni
+ * relisible, ni gardé par Dograh. Le renouveler = rappeler la route (l'ancien cesse de marcher).
+ */
+export type ConnexionPortail = {
+    /**
+     * Base
+     */
+    base: string;
+    /**
+     * Role
+     */
+    role: string;
+    /**
+     * Mot De Passe
+     */
+    mot_de_passe: string;
+};
+
+/**
  * ConnexionVue
  */
 export type ConnexionVue = {
@@ -2380,6 +2402,26 @@ export type ConnexionVue = {
      * Erreurs
      */
     erreurs?: number;
+    /**
+     * Types Erreurs
+     */
+    types_erreurs?: Array<string>;
+    /**
+     * Derniere Erreur Le
+     */
+    derniere_erreur_le?: string | null;
+    /**
+     * Mis A Jour Le
+     */
+    mis_a_jour_le?: string | null;
+    /**
+     * Mode Acces
+     */
+    mode_acces?: string | null;
+    /**
+     * Utilise Par
+     */
+    utilise_par?: Array<OutilVu>;
 };
 
 /**
@@ -7665,6 +7707,20 @@ export type OrigineDuModele = {
 };
 
 /**
+ * OutilVu
+ */
+export type OutilVu = {
+    /**
+     * Tool Uuid
+     */
+    tool_uuid: string;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * ParametreVue
  */
 export type ParametreVue = {
@@ -10655,24 +10711,6 @@ export type SuperuserWorkflowRunsListResponse = {
      * Total Pages
      */
     total_pages: number;
-};
-
-/**
- * Suppression
- */
-export type Suppression = {
-    /**
-     * Status
-     */
-    status?: 'deleted';
-    /**
-     * Uuid
-     */
-    uuid: string;
-    /**
-     * Usages
-     */
-    usages: Array<Usage>;
 };
 
 /**
@@ -13930,6 +13968,24 @@ export type XaittsConfiguration = {
 };
 
 /**
+ * Suppression
+ */
+export type ApiRoutesClesSuppression = {
+    /**
+     * Status
+     */
+    status?: 'deleted';
+    /**
+     * Uuid
+     */
+    uuid: string;
+    /**
+     * Usages
+     */
+    usages: Array<Usage>;
+};
+
+/**
  * DemandeRattachement
  */
 export type ApiSchemasAgentsServisDemandeRattachement = {
@@ -13953,6 +14009,20 @@ export type ApiSchemasBaseClientDemandeRattachement = {
      * Nom Base
      */
     nom_base?: string | null;
+};
+
+/**
+ * Suppression
+ */
+export type ApiServicesIntegrationsConnectorsRoutesSuppression = {
+    /**
+     * Supprimee
+     */
+    supprimee?: boolean;
+    /**
+     * Integration
+     */
+    integration: string;
 };
 
 export type InitiateCallApiV1TelephonyInitiateCallPostData = {
@@ -17287,7 +17357,7 @@ export type SupprimerUneCleApiV1ClesUuidDeleteResponses = {
     /**
      * Successful Response
      */
-    200: Suppression;
+    200: ApiRoutesClesSuppression;
 };
 
 export type SupprimerUneCleApiV1ClesUuidDeleteResponse = SupprimerUneCleApiV1ClesUuidDeleteResponses[keyof SupprimerUneCleApiV1ClesUuidDeleteResponses];
@@ -18723,6 +18793,49 @@ export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResp
 };
 
 export type PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponse = PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponses[keyof PostResynchroniserApiV1OrganizationsBaseClientResynchroniserPostResponses];
+
+export type PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/base-client/connexion-portail';
+};
+
+export type PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostError = PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostErrors[keyof PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostErrors];
+
+export type PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ConnexionPortail;
+};
+
+export type PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostResponse = PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostResponses[keyof PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostResponses];
 
 export type PutConservationApiV1OrganizationsBaseClientConservationPutData = {
     /**
@@ -26857,6 +26970,54 @@ export type GetConnexionsApiV1ConnecteursConnexionsGetResponses = {
 };
 
 export type GetConnexionsApiV1ConnecteursConnexionsGetResponse = GetConnexionsApiV1ConnecteursConnexionsGetResponses[keyof GetConnexionsApiV1ConnecteursConnexionsGetResponses];
+
+export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Integration
+         */
+        integration: string;
+    };
+    query?: never;
+    url: '/api/v1/connecteurs/connexions/{integration}';
+};
+
+export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteError = DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteErrors[keyof DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteErrors];
+
+export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiServicesIntegrationsConnectorsRoutesSuppression;
+};
+
+export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteResponse = DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteResponses[keyof DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteResponses];
 
 export type PostLienApiV1ConnecteursLienPostData = {
     body: DemandeLien;
