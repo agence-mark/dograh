@@ -3191,6 +3191,28 @@ export type DemandeApercuSms = {
 };
 
 /**
+ * DemandeApplication
+ */
+export type DemandeApplication = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Sections
+     *
+     * The sections to take. Every section is ticked by default on screen.
+     */
+    sections: Array<string>;
+    /**
+     * A Blanc
+     *
+     * True: say what would happen (including the providers with no key) and write nothing.
+     */
+    a_blanc?: boolean;
+};
+
+/**
  * DemandeControleHoraires
  */
 export type DemandeControleHoraires = {
@@ -3226,6 +3248,22 @@ export type DemandeCopieEtablissement = {
      * Name of the new fiche.
      */
     nom: string;
+};
+
+/**
+ * DemandeCreation
+ */
+export type DemandeCreation = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Workflow Id
+     *
+     * The agent whose active settings are frozen.
+     */
+    workflow_id: number;
 };
 
 /**
@@ -3266,6 +3304,16 @@ export type DemandeLien = {
      * Connecteurs
      */
     connecteurs: Array<string>;
+};
+
+/**
+ * DemandeRenommer
+ */
+export type DemandeRenommer = {
+    /**
+     * Nom
+     */
+    nom: string;
 };
 
 /**
@@ -4438,6 +4486,41 @@ export type ExternalPbxFieldMapping = {
      * Destination Field
      */
     destination_field: string;
+};
+
+/**
+ * FichierDeModele
+ *
+ * The exported file. No key, no reference to a key, ever (M3).
+ */
+export type FichierDeModele = {
+    /**
+     * Format
+     */
+    format?: string;
+    /**
+     * Version Du Format
+     */
+    version_du_format?: number;
+    /**
+     * Commit
+     */
+    commit?: string | null;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Cree Le
+     */
+    cree_le?: string | null;
+    origine?: OrigineDuModele | null;
+    /**
+     * Valeurs
+     */
+    valeurs: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -5726,6 +5809,22 @@ export type LignePrix = {
 };
 
 /**
+ * ListeDesModeles
+ */
+export type ListeDesModeles = {
+    /**
+     * Modeles
+     */
+    modeles: Array<ResumeDuModele>;
+    /**
+     * Sections
+     *
+     * Every section a template can be applied by, in screen order.
+     */
+    sections: Array<string>;
+};
+
+/**
  * LMNT
  *
  * Stored LMNT configurations remain readable after the provider's retirement.
@@ -6062,6 +6161,37 @@ export type MembreDuGroupe = {
      * Status
      */
     status?: string | null;
+};
+
+/**
+ * MentionApplication
+ *
+ * What an agent keeps of the last template applied to it (M4): a copy of the name, never a link.
+ */
+export type MentionApplication = {
+    /**
+     * Modele Id
+     */
+    modele_id?: string | null;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Applique Le
+     */
+    applique_le: string;
+    /**
+     * Sections
+     */
+    sections?: Array<string>;
+};
+
+/**
+ * MentionDeLagent
+ */
+export type MentionDeLagent = {
+    mention?: MentionApplication | null;
 };
 
 /**
@@ -7156,6 +7286,32 @@ export type OrganizationSummary = {
 export type OrigineChamp = 'dicte' | 'deduit';
 
 /**
+ * OrigineDuModele
+ *
+ * Where a template was frozen from (M7): the agent and the version it was read on.
+ */
+export type OrigineDuModele = {
+    /**
+     * Workflow Id
+     */
+    workflow_id?: number | null;
+    /**
+     * Agent Nom
+     */
+    agent_nom?: string | null;
+    /**
+     * Version Number
+     */
+    version_number?: number | null;
+    /**
+     * Version Status
+     *
+     * draft or published.
+     */
+    version_status?: string | null;
+};
+
+/**
  * ParametreVue
  */
 export type ParametreVue = {
@@ -8163,6 +8319,26 @@ export type Refus = {
 };
 
 /**
+ * ReglageNonApplique
+ */
+export type ReglageNonApplique = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Raison
+     *
+     * cle-manquante | invalide.
+     */
+    raison: string;
+    /**
+     * Detail
+     */
+    detail?: string | null;
+};
+
+/**
  * ReglagesAnnonceOuverture
  *
  * The organization's announcement sentences and its forced state.
@@ -8642,6 +8818,42 @@ export type ResultatAction = {
 };
 
 /**
+ * ResultatApplication
+ */
+export type ResultatApplication = {
+    /**
+     * Ecrit
+     */
+    ecrit: boolean;
+    /**
+     * Sections
+     */
+    sections: Array<string>;
+    /**
+     * Posees
+     *
+     * Settings that now hold the template's value.
+     */
+    posees: Array<string>;
+    /**
+     * Retirees
+     *
+     * Settings the template does not set: back to their default.
+     */
+    retirees: Array<string>;
+    /**
+     * Non Appliquees
+     */
+    non_appliquees: Array<ReglageNonApplique>;
+    /**
+     * Fournisseurs Sans Cle
+     *
+     * Providers the template brings for which the agent and its organization have no key.
+     */
+    fournisseurs_sans_cle: Array<string>;
+};
+
+/**
  * ResultatControleHoraires
  */
 export type ResultatControleHoraires = {
@@ -8788,6 +9000,33 @@ export type ResultatSecours = {
      * Ecrit
      */
     ecrit: boolean;
+};
+
+/**
+ * ResumeDuModele
+ */
+export type ResumeDuModele = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Cree Le
+     */
+    cree_le: string;
+    origine?: OrigineDuModele | null;
+    /**
+     * Sections
+     */
+    sections: Array<string>;
+    /**
+     * Nombre De Reglages
+     */
+    nombre_de_reglages: number;
 };
 
 /**
@@ -17113,6 +17352,375 @@ export type SavePhrasesApiV1OrganizationsPhrasesPutResponses = {
 };
 
 export type SavePhrasesApiV1OrganizationsPhrasesPutResponse = SavePhrasesApiV1OrganizationsPhrasesPutResponses[keyof SavePhrasesApiV1OrganizationsPhrasesPutResponses];
+
+export type ListerLesModelesApiV1OrganizationsModelesDeReglagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages';
+};
+
+export type ListerLesModelesApiV1OrganizationsModelesDeReglagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesModelesApiV1OrganizationsModelesDeReglagesGetError = ListerLesModelesApiV1OrganizationsModelesDeReglagesGetErrors[keyof ListerLesModelesApiV1OrganizationsModelesDeReglagesGetErrors];
+
+export type ListerLesModelesApiV1OrganizationsModelesDeReglagesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ListeDesModeles;
+};
+
+export type ListerLesModelesApiV1OrganizationsModelesDeReglagesGetResponse = ListerLesModelesApiV1OrganizationsModelesDeReglagesGetResponses[keyof ListerLesModelesApiV1OrganizationsModelesDeReglagesGetResponses];
+
+export type CreerUnModeleApiV1OrganizationsModelesDeReglagesPostData = {
+    body: DemandeCreation;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages';
+};
+
+export type CreerUnModeleApiV1OrganizationsModelesDeReglagesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnModeleApiV1OrganizationsModelesDeReglagesPostError = CreerUnModeleApiV1OrganizationsModelesDeReglagesPostErrors[keyof CreerUnModeleApiV1OrganizationsModelesDeReglagesPostErrors];
+
+export type CreerUnModeleApiV1OrganizationsModelesDeReglagesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResumeDuModele;
+};
+
+export type CreerUnModeleApiV1OrganizationsModelesDeReglagesPostResponse = CreerUnModeleApiV1OrganizationsModelesDeReglagesPostResponses[keyof CreerUnModeleApiV1OrganizationsModelesDeReglagesPostResponses];
+
+export type ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostData = {
+    body: FichierDeModele;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/import';
+};
+
+export type ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostError = ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostErrors[keyof ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostErrors];
+
+export type ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResumeDuModele;
+};
+
+export type ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostResponse = ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostResponses[keyof ImporterUnModeleApiV1OrganizationsModelesDeReglagesImportPostResponses];
+
+export type MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/agent/{workflow_id}';
+};
+
+export type MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetError = MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetErrors[keyof MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetErrors];
+
+export type MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: MentionDeLagent;
+};
+
+export type MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetResponse = MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetResponses[keyof MentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGetResponses];
+
+export type SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Modele Id
+         */
+        modele_id: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/{modele_id}';
+};
+
+export type SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteError = SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteErrors[keyof SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteErrors];
+
+export type SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteResponse = SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteResponses[keyof SupprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDeleteResponses];
+
+export type RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchData = {
+    body: DemandeRenommer;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Modele Id
+         */
+        modele_id: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/{modele_id}';
+};
+
+export type RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchError = RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchErrors[keyof RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchErrors];
+
+export type RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResumeDuModele;
+};
+
+export type RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchResponse = RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchResponses[keyof RenommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatchResponses];
+
+export type ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Modele Id
+         */
+        modele_id: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/{modele_id}/export';
+};
+
+export type ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetError = ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetErrors[keyof ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetErrors];
+
+export type ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: FichierDeModele;
+};
+
+export type ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetResponse = ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetResponses[keyof ExporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGetResponses];
+
+export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostData = {
+    body: DemandeApplication;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Modele Id
+         */
+        modele_id: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/modeles-de-reglages/{modele_id}/appliquer';
+};
+
+export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostError = AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostErrors[keyof AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostErrors];
+
+export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatApplication;
+};
+
+export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostResponse = AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostResponses[keyof AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostResponses];
 
 export type GetAgentsServisApiV1OrganizationsAgentsServisGetData = {
     body?: never;
