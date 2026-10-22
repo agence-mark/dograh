@@ -283,7 +283,7 @@ export const ModaleModeles = ({
                 )}
 
                 {modifie && (
-                    <p role="alert" className="rounded-lg border border-orange-500/50 bg-orange-500/10 p-3 text-sm" data-non-enregistre>
+                    <p role="alert" className="rounded-lg border border-(--signal-warn)/50 bg-(--signal-warn)/10 p-3 text-sm" data-non-enregistre>
                         {t({
                             en: "This page has unsaved changes. Save them first: a template is frozen from, and applied to, what is saved.",
                             fr: "Cette page a des changements non enregistrés. Enregistrez-les d'abord : un modèle est figé depuis, et appliqué sur, ce qui est enregistré.",
@@ -526,7 +526,7 @@ const VueApplication = ({
                     {date(modele.cree_le)} · {origine(modele, t)}
                 </p>
                 {modifie && (
-                    <p role="alert" className="rounded-lg border border-orange-500/50 bg-orange-500/10 p-3 text-sm" data-non-enregistre>
+                    <p role="alert" className="rounded-lg border border-(--signal-warn)/50 bg-(--signal-warn)/10 p-3 text-sm" data-non-enregistre>
                         {t({
                             en: "This page has unsaved changes. Save them first, then apply.",
                             fr: "Cette page a des changements non enregistrés. Enregistrez-les d'abord, puis appliquez.",
@@ -573,13 +573,13 @@ const VueApplication = ({
                             )}
                         </p>
                         {apercu.fournisseurs_sans_cle.map((fournisseur) => (
-                            <p key={fournisseur} className="text-orange-600" data-sans-cle={fournisseur}>
+                            <p key={fournisseur} className="text-(--signal-warn)" data-sans-cle={fournisseur}>
                                 {t({ en: "No key for", fr: "Aucune clé pour" })} {fournisseur}{" "}
                                 {t({ en: "in this agent or its organization.", fr: "dans cet agent ni dans son organisation." })}
                             </p>
                         ))}
                         {apercu.non_appliquees.map((r) => (
-                            <p key={r.cle} className="text-orange-600" data-non-appliquee={r.cle}>
+                            <p key={r.cle} className="text-(--signal-warn)" data-non-appliquee={r.cle}>
                                 <code className="text-xs">{r.cle}</code>{" "}
                                 {t({
                                     en: "will not be applied: the agent keeps its own (a brick without its key would stop the calls).",

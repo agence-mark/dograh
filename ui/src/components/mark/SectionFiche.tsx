@@ -66,6 +66,8 @@ export const NOMS_RESERVES = [
     "call_status",
     "call_tags",
     "answer_supervisor",
+    // [.mark] cloture-code, lot 3 (upstream b10e829f): the tools' results, mirrored from the server.
+    "tool_results",
     "extracted_variables",
     "nodes_visited",
     "agent_visits",
