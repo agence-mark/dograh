@@ -317,21 +317,22 @@ describe("[.mark] the agent page in themes", () => {
         "user_turn_stop_timeout",
         "filter_incomplete_user_turns",
     ];
-    const NE_JOUENT_PAS = ["user_speech_timeout", "stt_ttfs_p99_latency", "turn_wait_for_transcript", "turn_start_use_interim"];
+    const NE_JOUENT_PAS = ["user_speech_timeout", "stt_ttfs_p99_latency", "turn_wait_for_transcript"];
     const SONIOX_DECIDE = { stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: true } };
 
     for (const [nom, transcription] of [["Flux", FLUX], ["Soniox deciding", SONIOX_DECIDE]] as const) {
         it(`${nom}: shows the settings that play, hides the ones that do not, and says which is which`, async () => {
-            await ouvrir({ turn_stop_strategy: "turn_analyzer", turn_start_strategy: "min_words" }, transcription);
+            // Lot 8: « The provider decides » for the start, so the interim transcripts (they feed the word count) stay hidden.
+            await ouvrir({ turn_stop_strategy: "turn_analyzer", turn_start_strategy: "default" }, transcription);
             const tour = ouvrirLeTheme("tour");
             for (const id of JOUENT) expect(document.getElementById(id), id).not.toBeNull();
-            for (const id of [...NE_JOUENT_PAS, "smart_turn_pre_speech_ms", "smart_turn_max_duration_secs"]) {
+            for (const id of [...NE_JOUENT_PAS, "turn_start_use_interim", "smart_turn_pre_speech_ms", "smart_turn_max_duration_secs"]) {
                 expect(document.getElementById(id), id).toBeNull();
             }
             const note = tour.querySelector('[data-note="tour-pilote"]');
             expect(note).not.toBeNull();
             expect(note?.textContent).not.toMatch(/builds none|ne construit aucun/i);
-            // D-C9-2 and D-C9-4: the two strategies stay, each saying it has no effect here.
+            // D-C9-2 and D-C9-4: the two strategies stay; the end of the turn says it has no effect here.
             expect(document.getElementById("turn_stop_strategy")).not.toBeNull();
             expect(document.getElementById("turn_start_strategy")).not.toBeNull();
             expect(tour.querySelector('[data-note="sans-effet-fin-de-tour"]')).not.toBeNull();
@@ -352,6 +353,147 @@ describe("[.mark] the agent page in themes", () => {
         expect(tour.querySelector('[data-note="sans-effet-interruption"]')).toBeNull();
         expect(document.getElementById("user_speech_timeout")).not.toBeNull();
         expect(document.getElementById("vad_confidence")).not.toBeNull();
+    });
+
+    // Lot 8 of cloture-code-avant-migration (Evan, 22/10): the START and the END of the turn are two
+    // independent choices of this theme, so an A/B test is a few clicks.
+    describe("two independent choices: start and end of the turn", () => {
+        const INK2 = { stt: { provider: "cartesia", model: "ink-2" } };
+        const SONIOX_LOCAL = { stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: false } };
+        const lesOptions = (id: string) => [...(document.getElementById(id) as HTMLSelectElement).options].map((o) => [o.value, o.textContent]);
+        const choisir = (id: string, valeur: string) => fireEvent.change(document.getElementById(id) as HTMLSelectElement, { target: { value: valeur } });
+        const enregistrerTour = async () => {
+            m.save.mockClear();
+            fireEvent.click(await screen.findByRole("button", { name: "Save Turn taking" }));
+            await waitFor(() => expect(m.save).toHaveBeenCalled());
+            const appels = m.save.mock.calls as unknown as Array<[Record<string, unknown>]>;
+            return appels[appels.length - 1][0];
+        };
+
+        it("words the start of the turn « The provider decides » / « Minimum number of words », values unchanged", async () => {
+            await ouvrir({}, NOVA);
+            ouvrirLeTheme("tour");
+            expect(lesOptions("turn_start_strategy")).toEqual([
+                ["default", "The provider decides"],
+                ["min_words", "Minimum number of words"],
+            ]);
+            cleanup();
+            await ouvrir({}, NOVA, (page) => <FournisseurLangue>{page}</FournisseurLangue>);
+            ouvrirLeTheme("tour");
+            expect(lesOptions("turn_start_strategy")).toEqual([
+                ["default", "Le fournisseur décide"],
+                ["min_words", "Nombre minimum de mots"],
+            ]);
+        });
+
+        for (const [nom, transcription] of [["Flux", FLUX], ["Soniox deciding", SONIOX_DECIDE], ["ink-2", INK2]] as const) {
+            it(`${nom}: « Minimum number of words » plays, so the « no effect » note of the interruption is gone`, async () => {
+                await ouvrir({ turn_start_strategy: "min_words" }, transcription);
+                const tour = ouvrirLeTheme("tour");
+                expect(tour.querySelector('[data-note="sans-effet-interruption"]')).toBeNull();
+                expect(document.getElementById("turn_start_min_words")).not.toBeNull();
+                expect(document.getElementById("turn_start_use_interim")).not.toBeNull();
+                // The end of the turn stays the provider's: its note and its hidden settings are still right.
+                expect(tour.querySelector('[data-note="sans-effet-fin-de-tour"]')).not.toBeNull();
+                expect(document.getElementById("user_speech_timeout")).toBeNull();
+            });
+        }
+
+        it("Flux: the end of the turn is frozen on the provider, with the model of the same brand that lets Dograh decide", async () => {
+            await ouvrir({}, FLUX);
+            const tour = ouvrirLeTheme("tour");
+            const menu = document.getElementById("fin_de_tour_decideur") as HTMLSelectElement;
+            expect(menu.disabled).toBe(true);
+            expect(menu.value).toBe("fournisseur");
+            expect(lesOptions("fin_de_tour_decideur")).toEqual([["fournisseur", "The provider decides"]]);
+            expect(tour.querySelector('[data-note="fin-de-tour-figee"]')?.textContent).toContain("Nova-3");
+        });
+
+        it("ink-2: frozen too, with Ink-Whisper as the model that lets Dograh decide", async () => {
+            await ouvrir({}, INK2);
+            const tour = ouvrirLeTheme("tour");
+            expect((document.getElementById("fin_de_tour_decideur") as HTMLSelectElement).disabled).toBe(true);
+            expect(tour.querySelector('[data-note="fin-de-tour-figee"]')?.textContent).toContain("Ink-Whisper");
+        });
+
+        it("a provider that announces no turns: « Dograh decides », with no other choice", async () => {
+            await ouvrir({}, NOVA);
+            const tour = ouvrirLeTheme("tour");
+            const menu = document.getElementById("fin_de_tour_decideur") as HTMLSelectElement;
+            expect(menu.disabled).toBe(true);
+            expect(lesOptions("fin_de_tour_decideur")).toEqual([["dograh", "Dograh decides"]]);
+            expect(tour.querySelector('[data-note="fin-de-tour-figee"]')).toBeNull();
+        });
+
+        it("claims nothing when the screen cannot read the transcription", async () => {
+            await ouvrir({}, null);
+            ouvrirLeTheme("tour");
+            expect(document.getElementById("fin_de_tour_decideur")).toBeNull();
+        });
+
+        it("Soniox: a real choice; « Dograh decides » brings the settings and drops the notes at once", async () => {
+            await ouvrir({}, SONIOX_DECIDE);
+            const tour = ouvrirLeTheme("tour");
+            expect((document.getElementById("fin_de_tour_decideur") as HTMLSelectElement).disabled).toBe(false);
+            expect(lesOptions("fin_de_tour_decideur")).toEqual([
+                ["fournisseur", "The provider decides"],
+                ["dograh", "Dograh decides"],
+            ]);
+            expect(tour.querySelector('[data-note="sans-effet-fin-de-tour"]')).not.toBeNull();
+            expect(document.getElementById("user_speech_timeout")).toBeNull();
+
+            choisir("fin_de_tour_decideur", "dograh");
+            await waitFor(() => expect(tour.querySelector('[data-note="sans-effet-fin-de-tour"]')).toBeNull());
+            expect(tour.querySelector('[data-note="tour-pilote"]')).toBeNull();
+            expect(document.getElementById("user_speech_timeout")).not.toBeNull();
+        });
+
+        it("Soniox: « Dograh decides » writes endpoint_detection = false in a per-service overlay, nothing else of the transcription", async () => {
+            await ouvrir({}, SONIOX_DECIDE);
+            ouvrirLeTheme("tour");
+            choisir("fin_de_tour_decideur", "dograh");
+            const charge = await enregistrerTour();
+            expect(charge.model_overrides).toEqual({ stt: { endpoint_detection: false } });
+            expect(charge.mark_per_service_override).toBe(true);
+            expect(charge.model_configuration_v2_override).toBeUndefined();
+        });
+
+        it("Soniox in local detection: « The provider decides » writes endpoint_detection = true next to the overlay the agent already has", async () => {
+            await ouvrir({ model_overrides: { stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: false, language: "fr" }, tts: { voice: "v1" } } }, SONIOX_LOCAL);
+            ouvrirLeTheme("tour");
+            expect((document.getElementById("fin_de_tour_decideur") as HTMLSelectElement).value).toBe("dograh");
+            choisir("fin_de_tour_decideur", "fournisseur");
+            const charge = await enregistrerTour();
+            expect(charge.model_overrides).toEqual({
+                stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: true, language: "fr" },
+                tts: { voice: "v1" },
+            });
+        });
+
+        it("Soniox: an agent with a full configuration of its own gets the value in THAT configuration", async () => {
+            const complete = {
+                mode: "byok",
+                byok: { mode: "pipeline", pipeline: { stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: true }, tts: { provider: "x" } } },
+            };
+            await ouvrir({ model_configuration_v2_override: complete }, null);
+            ouvrirLeTheme("tour");
+            choisir("fin_de_tour_decideur", "dograh");
+            const charge = await enregistrerTour();
+            expect(charge.model_overrides).toBeUndefined();
+            expect(charge.model_configuration_v2_override).toEqual({
+                mode: "byok",
+                byok: { mode: "pipeline", pipeline: { stt: { provider: "soniox", model: "stt-rt-v3", endpoint_detection: false }, tts: { provider: "x" } } },
+            });
+        });
+
+        it("saving nothing about the end of the turn when the choice is left alone", async () => {
+            await ouvrir({}, SONIOX_DECIDE);
+            ouvrirLeTheme("tour");
+            choisir("turn_start_strategy", "min_words");
+            const charge = await enregistrerTour();
+            expect(charge.model_overrides).toBeUndefined();
+            expect(charge.mark_per_service_override).toBeUndefined();
+        });
     });
 
     it("names a value out of range that another choice hides, blocks the theme, and « show » reveals it", async () => {

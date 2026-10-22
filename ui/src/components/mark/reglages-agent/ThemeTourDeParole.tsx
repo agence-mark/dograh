@@ -24,8 +24,15 @@
  * play on every call and stay shown, each saying what it commands then; the two
  * strategies stay shown with "no effect for this agent" (D-C9-2, D-C9-4). The
  * table is frozen on the real call in `api/tests/mark/test_traversants_appel.py`.
+ *
+ * 🔑 Lot 8 of cloture-code-avant-migration (Evan, 22/10): the START and the END of the turn are two
+ * independent choices. Start: « The provider decides » / « Minimum number of words » (which plays
+ * under ANY transcription now, `run_pipeline.py`). End: « The provider decides » / « Dograh decides »,
+ * which writes Soniox's `endpoint_detection` (`fin-du-tour.ts`); frozen for Flux and ink-2, whose end
+ * of turn is part of the model. Meant for A/B tests in a few clicks, then frozen in a settings template.
  */
 import { Repeat } from "lucide-react";
+import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,10 +47,11 @@ import {
 import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
-import { useLangue } from "../langue/langue";
-import { transcriptionPiloteLesTours } from "../transcriptionPiloteLesTours";
+import { type Texte, useLangue } from "../langue/langue";
+import { sttPiloteLesTours, transcriptionEffective } from "../transcriptionPiloteLesTours";
 import { type CleCatalogue, erreursDuCatalogue, extraire, Reglage } from "./catalogue";
 import { useEnregistrementTheme } from "./enregistrement";
+import { casFinDuTour, chargeFinDuTour } from "./fin-du-tour";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEtatTheme, useRevelation } from "./theme-commun";
 
 export const ID_THEME_TOUR = "tour";
@@ -84,15 +92,25 @@ const CLES_MUETTES = [
     "mute_always",
 ] as const;
 
-/** French for Dograh's two interruption strategies; an unknown one keeps its English. */
-const STRATEGIES_INTERRUPTION: Record<string, { libelle: string; description: string }> = {
+/**
+ * The two choices of the START of the turn (the interruption), in both languages. Cloture-code, lot 8
+ * (Evan, 22/10): the stored values stay `default` and `min_words`; only the words change. The END of the
+ * turn is the other, independent choice, just above.
+ */
+const STRATEGIES_INTERRUPTION: Record<string, { libelle: Texte; description: Texte }> = {
     default: {
-        libelle: "Par défaut",
-        description: "Défaut de la plateforme : signaux de tour de la transcription quand ils existent, sinon détection de voix locale.",
+        libelle: { en: "The provider decides", fr: "Le fournisseur décide" },
+        description: {
+            en: "The transcription provider decides when the caller starts speaking, when it announces its own turns; otherwise the local voice detector does.",
+            fr: "Le fournisseur de transcription décide du moment où l'appelant prend la parole, quand il annonce ses propres tours ; sinon c'est la détection de voix locale.",
+        },
     },
     min_words: {
-        libelle: "Nombre minimum de mots",
-        description: "Attend un nombre minimum de mots transcrits avant de couper l'agent.",
+        libelle: { en: "Minimum number of words", fr: "Nombre minimum de mots" },
+        description: {
+            en: "Dograh waits for a minimum number of transcribed words before cutting the agent off, whoever decides the end of the turn.",
+            fr: "Dograh attend un nombre minimum de mots transcrits avant de couper l'agent, quel que soit le décideur de la fin du tour.",
+        },
     },
 };
 
@@ -115,9 +133,20 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
     // Read from the SAME resolution the server uses: a section hidden for an
     // agent that does use these settings is as wrong as one shown for an agent
     // that does not.
-    const tourPiloteAilleurs = transcriptionPiloteLesTours({ organisation: userConfig, agent: resolue });
+    // Lot 8 (Evan, 22/10): who decides the END of the turn. Soniox's `endpoint_detection` is the one
+    // lever that exists; the choice is a DRAFT like the rest of the theme, and the page below (notes,
+    // hidden settings) follows it at once, so an A/B test is a few clicks. Null = not touched.
+    const sttEnregistree = transcriptionEffective({ organisation: userConfig, agent: resolue });
+    const finDuTour = casFinDuTour(sttEnregistree);
+    const fournisseurDecideEnregistre = sttEnregistree?.endpoint_detection !== false;
+    const [choixFin, setChoixFin] = useState<boolean | null>(null);
+    const finModifiee = finDuTour.cas === "choix" && choixFin !== null && choixFin !== fournisseurDecideEnregistre;
+    const fournisseurDecide = finDuTour.cas === "choix" ? (choixFin ?? fournisseurDecideEnregistre) : fournisseurDecideEnregistre;
+    const sttChoisie = finDuTour.cas === "choix" ? { ...sttEnregistree, endpoint_detection: fournisseurDecide } : sttEnregistree;
+    const tourPiloteAilleurs = sttPiloteLesTours(sttChoisie);
     const smartTurn = brouillon.turn_stop_strategy === "turn_analyzer";
-    const modifie = differe(brouillon, enregistre);
+    const minMots = brouillon.turn_start_strategy === "min_words";
+    const modifie = differe(brouillon, enregistre) || finModifiee;
 
     const erreurs = erreursDuCatalogue(CLES_TOUR_MARK, brouillon);
 
@@ -128,7 +157,20 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
         resolue,
         workflowName,
         onSave,
-        parties: [{ nom: { en: "Turn taking settings", fr: "Réglages du tour de parole" }, modifie, config: () => brouillon, apres: resynchroniser }],
+        parties: [
+            {
+                nom: { en: "Turn taking settings", fr: "Réglages du tour de parole" },
+                modifie: differe(brouillon, enregistre),
+                config: () => brouillon,
+                apres: resynchroniser,
+            },
+            {
+                nom: { en: "Who decides the end of the turn", fr: "Décideur de la fin du tour" },
+                modifie: finModifiee,
+                config: () => chargeFinDuTour(resolue, fournisseurDecide),
+                apres: () => setChoixFin(null),
+            },
+        ],
     });
 
     const r = (cle: (typeof CLES_TOUR_MARK)[number], condition = true, desactive = false) => {
@@ -139,8 +181,10 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
         cles.some((cle) => visible(cle, condition).affiche);
 
     const strategieInterruption = TURN_START_STRATEGY_OPTIONS.find((o) => o.value === brouillon.turn_start_strategy);
-    const libelleStrategie = (valeur: string, anglais: string) =>
-        langue === "fr" ? (STRATEGIES_INTERRUPTION[valeur]?.libelle ?? anglais) : anglais;
+    const libelleStrategie = (valeur: string, anglais: string) => {
+        const connu = STRATEGIES_INTERRUPTION[valeur]?.libelle;
+        return connu ? connu[langue] : anglais;
+    };
 
     const detecteur = ["vad_confidence", "vad_start_secs", "vad_stop_secs", "vad_min_volume", "audio_idle_timeout"] as const;
     const smart = ["smart_turn_pre_speech_ms", "smart_turn_max_duration_secs"] as const;
@@ -173,6 +217,43 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
             enregistrement={{ onEnregistrer: enregistrer, enCours }}
         >
             <Intertitre id="tour-fin" titre={{ en: "End of turn", fr: "Fin de tour" }}>
+                {/* Lot 8: the END of the turn is decided by the provider or by Dograh, independently of the start. */}
+                {finDuTour.cas !== "inconnu" && (
+                    <ChampReglage
+                        cle="endpoint_detection"
+                        idControle="fin_de_tour_decideur"
+                        libelle={{ en: "Who decides the end of the turn", fr: "Qui décide de la fin du tour" }}
+                        aides={[
+                            {
+                                en: "« The provider decides »: the transcription announces the end of the turn itself. « Dograh decides »: Dograh's own strategy below (silence, or the Smart Turn model).",
+                                fr: "« Le fournisseur décide » : la transcription annonce elle-même la fin du tour. « Dograh décide » : la stratégie de Dograh ci-dessous (silence, ou modèle Smart Turn).",
+                            },
+                        ]}
+                    >
+                        <Select
+                            value={tourPiloteAilleurs ? "fournisseur" : "dograh"}
+                            onValueChange={(v: string) => setChoixFin(v === "fournisseur")}
+                            disabled={finDuTour.cas !== "choix"}
+                        >
+                            <SelectTrigger id="fin_de_tour_decideur">
+                                <SelectValue placeholder={t({ en: "Select", fr: "Choisir" })} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {finDuTour.cas !== "dograh" && (
+                                    <SelectItem value="fournisseur">{t({ en: "The provider decides", fr: "Le fournisseur décide" })}</SelectItem>
+                                )}
+                                {finDuTour.cas !== "fige" && (
+                                    <SelectItem value="dograh">{t({ en: "Dograh decides", fr: "Dograh décide" })}</SelectItem>
+                                )}
+                            </SelectContent>
+                        </Select>
+                        {finDuTour.cas === "fige" && (
+                            <p className="text-xs font-medium text-foreground" data-note="fin-de-tour-figee">
+                                {t(finDuTour.autreModele)}
+                            </p>
+                        )}
+                    </ChampReglage>
+                )}
                 <ChampReglage
                     cle="turn_stop_strategy"
                     idControle="turn_stop_strategy"
@@ -229,8 +310,8 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                 {tourPiloteAilleurs && (
                     <p className="text-xs font-medium text-foreground" data-note="sans-effet-fin-de-tour">
                         {t({
-                            en: "No effect for this agent: its transcription decides the end of the turn itself. This choice plays with a transcription that does not (Deepgram nova-3, Soniox in local detection).",
-                            fr: "Sans effet pour cet agent : sa transcription décide elle-même de la fin du tour. Ce choix joue avec une transcription qui ne la décide pas (Deepgram nova-3, Soniox en détection locale).",
+                            en: "No effect for this agent: its transcription decides the end of the turn itself. This choice plays when Dograh decides (Deepgram nova-3, Soniox in local detection).",
+                            fr: "Sans effet pour cet agent : sa transcription décide elle-même de la fin du tour. Ce choix joue quand Dograh décide (Deepgram nova-3, Soniox en détection locale).",
                         })}
                     </p>
                 )}
@@ -242,8 +323,8 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                     // play on every call (`api/tests/mark/test_traversants_appel.py`).
                     <p className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground" data-note="tour-pilote">
                         {t({
-                            en: "This agent's transcription decides the turns itself (Deepgram Flux, Cartesia ink-2, Soniox deciding the end of the turn). Hidden because they play no part then: the pause, the transcription latency, the wait for the transcript, interim transcripts and the Smart Turn settings. Everything else in this theme still plays.",
-                            fr: "La transcription de cet agent décide elle-même des tours (Deepgram Flux, Cartesia ink-2, Soniox qui décide de la fin du tour). Masqués parce qu'ils ne jouent alors aucun rôle : la pause, la latence de la transcription, l'attente de la transcription, les transcriptions partielles et les réglages Smart Turn. Tout le reste de ce thème joue.",
+                            en: "This agent's transcription decides the turns itself (Deepgram Flux, Cartesia ink-2, Soniox deciding the end of the turn). Hidden because they play no part then: the pause, the transcription latency, the wait for the transcript, the Smart Turn settings, and the interim transcripts unless the interruption waits for a minimum number of words. Everything else in this theme still plays.",
+                            fr: "La transcription de cet agent décide elle-même des tours (Deepgram Flux, Cartesia ink-2, Soniox qui décide de la fin du tour). Masqués parce qu'ils ne jouent alors aucun rôle : la pause, la latence de la transcription, l'attente de la transcription, les réglages Smart Turn, et les transcriptions partielles sauf si l'interruption attend un nombre minimum de mots. Tout le reste de ce thème joue.",
                         })}
                     </p>
                 )}
@@ -262,9 +343,9 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                     aides={
                         strategieInterruption
                             ? [
-                                  {
+                                  STRATEGIES_INTERRUPTION[strategieInterruption.value]?.description ?? {
                                       en: strategieInterruption.description,
-                                      fr: STRATEGIES_INTERRUPTION[strategieInterruption.value]?.description ?? strategieInterruption.description,
+                                      fr: strategieInterruption.description,
                                   },
                               ]
                             : []
@@ -310,15 +391,17 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                         />
                     </ChampReglage>
                 )}
-                {tourPiloteAilleurs && (
+                {/* Lot 8: « Minimum number of words » plays under any transcription, so its note is gone. */}
+                {tourPiloteAilleurs && !minMots && (
                     <p className="text-xs font-medium text-foreground" data-note="sans-effet-interruption">
                         {t({
-                            en: "No effect for this agent: when the transcription decides the turns, the caller's turn always starts on its signal. This choice plays with a transcription that does not (Deepgram nova-3, Soniox in local detection).",
-                            fr: "Sans effet pour cet agent : quand la transcription décide des tours, le tour de l'appelant commence toujours à son signal. Ce choix joue avec une transcription qui ne les décide pas (Deepgram nova-3, Soniox en détection locale).",
+                            en: "Nothing to set here: the transcription decides the turns and the caller's turn starts on its signal. Choose « Minimum number of words » for Dograh to wait for that many words before cutting the agent off.",
+                            fr: "Rien à régler ici : la transcription décide des tours et le tour de l'appelant commence à son signal. Choisissez « Nombre minimum de mots » pour que Dograh attende ce nombre de mots avant de couper l'agent.",
                         })}
                     </p>
                 )}
-                {r("turn_start_use_interim", !tourPiloteAilleurs)}
+                {/* Interim transcripts feed the word count: they play with the minimum-words choice, whoever ends the turn. */}
+                {r("turn_start_use_interim", !tourPiloteAilleurs || minMots)}
             </Intertitre>
 
             <Intertitre
