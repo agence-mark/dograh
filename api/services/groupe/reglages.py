@@ -80,12 +80,17 @@ CLES_SUIVENT_LE_CERVEAU = (
 # Thème 1 (Agent), partie commune : les réglages du groupe et ceux qui suivent le cerveau.
 # Thème 2 (Briques) : la configuration de modèles (voix et cerveau).
 # Thèmes 3 à 8 : tout, sauf ce qui dépend de l'agent lui-même (voir CLES_PROPRES).
-CLES_COMMUNES: tuple[str, ...] = (
+# Chaque thème de l'écran a SA liste (lot 5 de cloture-code : les modèles de réglages classent chaque
+# clé par thème ; une seule liste de clés communes, ``CLES_COMMUNES``, en est la réunion, dans cet ordre).
+CLES_THEME_AGENT: tuple[str, ...] = (
     # 1 Agent (commun)
     *CLES_DU_GROUPE,
     "filet_de_fin",
     "reflexion_de_relance",
     "trace_requetes_modele",
+)
+
+CLES_THEME_BRIQUES: tuple[str, ...] = (
     # 2 Briques
     "model_overrides",
     "model_configuration_v2_override",
@@ -98,6 +103,9 @@ CLES_COMMUNES: tuple[str, ...] = (
     "delai_garde_modele_s",
     "cerveau_de_repli",
     "travail_llm_repli",
+)
+
+CLES_THEME_ECOUTE: tuple[str, ...] = (
     # 3 Écoute
     "conversion_nombres_transcription",
     "variables_reference",
@@ -115,6 +123,9 @@ CLES_COMMUNES: tuple[str, ...] = (
     "sons_lexique",
     "dictionary",
     "audio_in_noise_filter",
+)
+
+CLES_THEME_TOUR: tuple[str, ...] = (
     # 4 Tour de parole
     "turn_stop_strategy",
     "smart_turn_stop_secs",
@@ -145,6 +156,9 @@ CLES_COMMUNES: tuple[str, ...] = (
     "filter_incomplete_user_turns",
     "incomplete_short_timeout",
     "incomplete_long_timeout",
+)
+
+CLES_THEME_VOIX: tuple[str, ...] = (
     # 5 Voix
     "tts_markdown_filter_enabled",
     "tts_text_aggregation_mode",
@@ -157,6 +171,9 @@ CLES_COMMUNES: tuple[str, ...] = (
     "tts_balises_permises",
     "ambient_noise_configuration",
     "tts_cache_enabled",
+)
+
+CLES_THEME_RYTHME: tuple[str, ...] = (
     # 6 Rythme de l'appel
     "max_user_idle_timeout",
     "user_idle_prompt",
@@ -164,6 +181,9 @@ CLES_COMMUNES: tuple[str, ...] = (
     "user_idle_goodbye_prompt",
     "raccrochage_silence_agent_s",
     "max_call_duration",
+)
+
+CLES_THEME_DONNEES: tuple[str, ...] = (
     # 7 Données de l'appel
     "fiche_au_fil_de_leau",
     "fiche_mode_de_note",
@@ -185,9 +205,23 @@ CLES_COMMUNES: tuple[str, ...] = (
     "context_compaction_enabled",
     "external_pbx_field_mappings",
     "external_pbx_lead_headers",
-    # 8 Établissement (commun : le repli de panne et la messagerie)
+)
+
+CLES_THEME_ETABLISSEMENT: tuple[str, ...] = (
+    # 8 Établissement
     "panne",
     "voicemail_detection",
+)
+
+CLES_COMMUNES: tuple[str, ...] = (
+    *CLES_THEME_AGENT,
+    *CLES_THEME_BRIQUES,
+    *CLES_THEME_ECOUTE,
+    *CLES_THEME_TOUR,
+    *CLES_THEME_VOIX,
+    *CLES_THEME_RYTHME,
+    *CLES_THEME_DONNEES,
+    *CLES_THEME_ETABLISSEMENT,
 )
 
 # Ce qui reste à chaque agent : son graphe et ce qui ne vaut que pour lui. La fiche
