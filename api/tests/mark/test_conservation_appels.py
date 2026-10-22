@@ -393,8 +393,29 @@ async def test_une_adresse_hors_des_prefixes_de_l_envoi_n_est_jamais_supprimee(m
     run.recording_url = "ailleurs/important.wav"
     run.extra = {"recordings": {"user": {"storage_key": "ailleurs/autre.wav"}}}
     await async_session.flush()
-    await purge.purger_une_organisation(monde.org_a.id, maintenant=MAINTENANT, reglages=_reglages())
+    bilan = await purge.purger_une_organisation(monde.org_a.id, maintenant=MAINTENANT, reglages=_reglages())
     assert stockage.supprimes == []
+    # Revue du chantier : jamais marqué non plus (l'adresse d'un fichier resté au stockage ne s'oublie
+    # pas) ; compté en échec, pour qu'une personne le regarde.
+    garde = await _relire(db_session, run.id)
+    assert garde.transcript_url == "ailleurs/important.txt"
+    assert garde.recording_url == "ailleurs/important.wav"
+    assert garde.extra["recordings"]["user"]["storage_key"] == "ailleurs/autre.wav"
+    assert bilan.echecs == 2 and bilan.runs_texte == 0 and bilan.runs_audio == 0
+
+
+async def test_une_piste_a_l_ancien_format_texte_est_supprimee_avant_que_son_adresse_parte(
+    monde, async_session, db_session, stockage
+):
+    # Revue du chantier : ``extra["recordings"]`` peut porter une piste en simple texte (ancien format,
+    # lu par get_recording_storage_key) ; elle est supprimée, pas oubliée.
+    run = await _run(async_session, monde.agent_a, jours=400, avec_objets=False)
+    run.extra = {**run.extra, "recordings": {"user": f"recordings/{run.id}/user.wav"}}
+    await async_session.flush()
+    bilan = await purge.purger_une_organisation(monde.org_a.id, maintenant=MAINTENANT, reglages=_reglages())
+    assert f"recordings/{run.id}/user.wav" in stockage.supprimes
+    apres = await _relire(db_session, run.id)
+    assert "recordings" not in apres.extra and bilan.runs_audio == 1 and bilan.echecs == 0
 
 
 async def test_la_session_texte_et_les_envois_deja_faits_sont_vides_pas_ceux_en_attente(

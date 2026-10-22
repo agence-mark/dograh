@@ -523,3 +523,21 @@ async def test_sans_organisation_choisie_les_routes_refusent(test_client_factory
         ):
             reponse = await getattr(client, methode)(chemin, **({"json": corps} if corps is not None else {}))
             assert reponse.status_code == 400, (methode, chemin, reponse.status_code)
+
+
+def test_un_secret_sous_un_autre_nom_ne_part_jamais_dans_un_modele():
+    # Revue du chantier : reconnu à un mot de son nom, pas à une liste exacte.
+    bloc = {
+        "provider": "x",
+        "model": "m",
+        "auth_token": "s1",
+        "access_token": "s2",
+        "api_secret": "s3",
+        "private_key": "s4",
+        "max_tokens": 200,
+        "keyterms": ["mot"],
+    }
+    propre = cl.retirer_les_cles({"llm": bloc})
+    assert propre == {"llm": {"provider": "x", "model": "m", "max_tokens": 200, "keyterms": ["mot"]}}
+    assert cl.premiere_cle_trouvee({"llm": {"provider": "x", "private_key": "s"}}) == "llm.private_key"
+    assert cl.fournisseurs_sans_cle({"llm": {"provider": "x", "auth_token": "s"}}) == []

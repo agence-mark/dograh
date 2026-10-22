@@ -105,6 +105,15 @@ CHAMPS_SECRETS: tuple[str, ...] = (
     "password",
     "token",
 )
+# Review of the chantier: a secret under another name (``auth_token``, ``access_token``, ``api_secret``,
+# ``private_key``…) is recognised by a word of its name, never let through by an exact list.
+MOTS_SECRETS: frozenset[str] = frozenset({"key", "token", "secret", "password", "credentials", "credential"})
+
+
+def est_un_champ_secret(nom: Any) -> bool:
+    if not isinstance(nom, str):
+        return False
+    return nom in CHAMPS_SECRETS or any(mot in MOTS_SECRETS for mot in nom.lower().split("_"))
 
 
 def section_de(cle: str) -> str | None:
@@ -153,7 +162,7 @@ def retirer_les_cles(valeur: Any) -> Any:
     """A deep copy of ``valeur`` without any secret field, at any depth. A reference to a key of the
     organization's library lives in ``api_key``: it goes with it (a reference means nothing elsewhere)."""
     if isinstance(valeur, Mapping):
-        return {k: retirer_les_cles(v) for k, v in valeur.items() if k not in CHAMPS_SECRETS}
+        return {k: retirer_les_cles(v) for k, v in valeur.items() if not est_un_champ_secret(k)}
     if isinstance(valeur, list):
         return [retirer_les_cles(v) for v in valeur]
     return copy.deepcopy(valeur)
@@ -164,7 +173,7 @@ def premiere_cle_trouvee(valeur: Any, chemin: str = "") -> str | None:
     if isinstance(valeur, Mapping):
         for k, v in valeur.items():
             ici = f"{chemin}.{k}" if chemin else str(k)
-            if k in CHAMPS_SECRETS:
+            if est_un_champ_secret(k):
                 return ici
             trouve = premiere_cle_trouvee(v, ici)
             if trouve:
@@ -184,7 +193,7 @@ def reporter_les_cles(entrant: Any, existant: Any) -> None:
     if not isinstance(entrant, dict) or not isinstance(existant, Mapping):
         return
     if entrant.get("provider") == existant.get("provider"):
-        for champ in CHAMPS_SECRETS:
+        for champ in [c for c in existant if est_un_champ_secret(c)]:
             if existant.get(champ) is not None and champ not in entrant:
                 entrant[champ] = copy.deepcopy(existant[champ])
     for cle, valeur in entrant.items():
@@ -199,7 +208,7 @@ def fournisseurs_sans_cle(valeur: Any) -> list[str]:
     def _parcourir(noeud: Any) -> None:
         if isinstance(noeud, Mapping):
             fournisseur = noeud.get("provider")
-            if isinstance(fournisseur, str) and not any(c in noeud for c in CHAMPS_SECRETS):
+            if isinstance(fournisseur, str) and not any(est_un_champ_secret(c) for c in noeud):
                 if fournisseur not in trouves:
                     trouves.append(fournisseur)
             for v in noeud.values():

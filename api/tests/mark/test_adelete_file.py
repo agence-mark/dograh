@@ -92,3 +92,16 @@ async def test_minio_appelle_remove_object_et_erreur_renvoie_faux():
 async def test_null_echoue_bruyamment():
     with pytest.raises(RuntimeError, match="NullFileSystem.adelete_file"):
         await NullFileSystem().adelete_file("appels/run-1.txt")
+
+
+@pytest.mark.asyncio
+async def test_local_refuse_un_chemin_qui_remonte(tmp_path):
+    # Revue du chantier : jamais un chemin qui sort du dossier du stockage.
+    dehors = tmp_path / "dehors.txt"
+    dehors.write_text("à garder", encoding="utf-8")
+    (tmp_path / "stockage").mkdir()
+    fs = _LocalSansLeReste(str(tmp_path / "stockage"))
+
+    assert await fs.adelete_file("recordings/../../dehors.txt") is False
+    assert await fs.adelete_file("recordings\..\..\dehors.txt") is False
+    assert dehors.exists()

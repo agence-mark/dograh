@@ -43,22 +43,40 @@ PREFIXE_TEXTE = "transcripts/"
 PREFIXE_AUDIO = "recordings/"
 
 
+def _adresses_nommees(run: dict[str, Any], partie: str) -> list[str]:
+    """Every address the run names for this part, recognised or not. The tracks of ``extra["recordings"]``
+    are read in both formats (``{"storage_key": ...}`` and the older plain string), as
+    ``get_recording_storage_key`` does."""
+    if partie == "texte":
+        candidates = [run.get("transcript_url")]
+    else:
+        candidates = [run.get("recording_url")]
+        pistes = (run.get("extra") or {}).get("recordings")
+        if isinstance(pistes, dict):
+            for piste in pistes.values():
+                candidates.append(piste.get("storage_key") if isinstance(piste, dict) else piste)
+    trouvees: list[str] = []
+    for adresse in candidates:
+        if isinstance(adresse, str) and adresse and adresse not in trouvees:
+            trouvees.append(adresse)
+    return trouvees
+
+
 def adresses_du_texte(run: dict[str, Any]) -> list[str]:
-    url = run.get("transcript_url")
-    return [url] if isinstance(url, str) and url.startswith(PREFIXE_TEXTE) else []
+    return [a for a in _adresses_nommees(run, "texte") if a.startswith(PREFIXE_TEXTE)]
 
 
 def adresses_de_l_audio(run: dict[str, Any]) -> list[str]:
     """The audio files of a run: its mixed track and the tracks listed in ``extra["recordings"]``."""
-    trouvees: list[str] = []
-    candidates = [run.get("recording_url")]
-    pistes = (run.get("extra") or {}).get("recordings")
-    if isinstance(pistes, dict):
-        candidates += [p.get("storage_key") for p in pistes.values() if isinstance(p, dict)]
-    for adresse in candidates:
-        if isinstance(adresse, str) and adresse.startswith(PREFIXE_AUDIO) and adresse not in trouvees:
-            trouvees.append(adresse)
-    return trouvees
+    return [a for a in _adresses_nommees(run, "audio") if a.startswith(PREFIXE_AUDIO)]
+
+
+def adresses_non_reconnues(run: dict[str, Any], partie: str) -> list[str]:
+    """[.mark] Revue du chantier : an address outside the upload prefixes is never deleted, so the run is
+    never marked either (marking would forget the address of a file left in the storage). It counts as a
+    failure, and stays for a person to look at."""
+    prefixe = PREFIXE_TEXTE if partie == "texte" else PREFIXE_AUDIO
+    return [a for a in _adresses_nommees(run, partie) if not a.startswith(prefixe)]
 
 
 class _Stockages:
@@ -138,6 +156,9 @@ async def purger_une_organisation(
             apres_id = lot[-1]["id"]
             for run in lot:
                 adresses = adresses_du_texte(run) if partie == "texte" else adresses_de_l_audio(run)
+                if adresses_non_reconnues(run, partie):
+                    echecs += 1
+                    continue
                 if a_blanc:
                     runs[partie] += 1
                     objets += len(adresses)
