@@ -1471,7 +1471,7 @@ class GoogleRealtimeLLMConfiguration(BaseLLMConfiguration):
         ServiceProviders.GOOGLE_REALTIME
     )
     model: str = Field(
-        default="gemini-3.1-flash-live-preview",
+        default="gemini-3.8-live",
         description="Gemini Live model on Google AI Studio (not Vertex).",
         json_schema_extra={
             "examples": GOOGLE_REALTIME_MODELS,
