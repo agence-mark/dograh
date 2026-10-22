@@ -24,18 +24,12 @@
 name: "[.mark] CI comparée"
 
 on:
-  push:
-    branches:
-      - "chantier/**"
-      - "mark/deploiement"
-    paths:
-      - "api/**"
-      - "pipecat/**"
-      - "scripts/**"
-      - "sdk/**"
-      - ".github/workflows/mark-ci-comparee.yml"
-  # Relancer à la main (un envoi passé pendant un blocage d'Actions ne se rejoue pas tout seul,
-  # et `paths` ignore un commit vide). `base` : comparer à un commit nommé plutôt qu'au merge-base
+  # [22/10/2026, décision d'Evan] AUCUNE CI jouée par lot : le chantier se code d'abord, cette CI
+  # se lance UNE fois à la main (Actions > « [.mark] CI comparée » > Run workflow) au lot 8, après
+  # la relecture `revue-archi-secu`. Pas de déclencheur `push` (une suite de 25 min par envoi).
+  # Pour la remettre sur `push`, rajouter `push: branches: ["chantier/**", "mark/deploiement"]` avec
+  # `paths: api/**, pipecat/**, scripts/**, sdk/**, .github/workflows/mark-ci-comparee.yml`.
+  # `base` : comparer à un commit nommé plutôt qu'au merge-base
   # (preuve des cas rouges de R7 sur une branche jetable, ou comparaison avec un état précis).
   workflow_dispatch:
     inputs:
