@@ -47,13 +47,22 @@ ATTRIBUT_TRACE = "trace_du_modele"
 
 
 
+# Les résultats des outils (arguments et réponses), que le moteur garde depuis la montée Pipecat
+# 1.12 (amont ``b10e829f``, ``PipecatEngine.record_tool_result``) : la clé est celle de l'amont.
+RESULTATS_DES_OUTILS = "tool_results"
+# Ce qui ne quitte jamais Dograh, quelle que soit l'intégration (lot 3 de cloture-code, 22/10).
+CLES_JAMAIS_ENVOYEES = frozenset({TRACE_REQUETES, RESULTATS_DES_OUTILS})
+
+
 def sans_la_trace(fiche: dict | None) -> dict:
-    """La fiche de l'appel sans la trace, pour ce qui sort vers un client (webhooks des
-    intégrations). Revue du 14/10, retenue par Evan : la trace porte le prompt et toute la
-    conversation, elle ne quitte jamais Dograh. Sans trace, la fiche telle quelle."""
-    if not fiche or TRACE_REQUETES not in fiche:
+    """La fiche de l'appel sans la trace ni les résultats des outils, pour ce qui sort vers un
+    client (webhooks des intégrations, sessions d'intégration en fin d'appel). Revue du 14/10,
+    retenue par Evan : la trace porte le prompt et toute la conversation, elle ne quitte jamais
+    Dograh ; les résultats des outils portent les arguments et les réponses des actions, même
+    règle (plan cloture-code, lot 3). Sans l'une ni l'autre, la fiche telle quelle."""
+    if not fiche or not CLES_JAMAIS_ENVOYEES.intersection(fiche):
         return fiche or {}
-    return {cle: valeur for cle, valeur in fiche.items() if cle != TRACE_REQUETES}
+    return {cle: valeur for cle, valeur in fiche.items() if cle not in CLES_JAMAIS_ENVOYEES}
 
 
 FIN_COMPLETE = "complet"

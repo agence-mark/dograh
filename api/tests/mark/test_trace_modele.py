@@ -439,3 +439,36 @@ def test_la_trace_n_est_jamais_envoyee_aux_integrations():
     assert TRACE_REQUETES in fiche
     assert sans_la_trace(None) == {}
     assert sans_la_trace({"nom": "x"}) == {"nom": "x"}
+
+
+def test_les_resultats_des_outils_ne_partent_jamais_aux_integrations():
+    """[.mark] Lot 3 de cloture-code (b10e829f) : le moteur garde les arguments et les réponses
+    des outils dans ``tool_results`` ; comme la trace, ils ne quittent jamais Dograh."""
+    from types import SimpleNamespace
+
+    from api.services.pipecat.trace_modele import RESULTATS_DES_OUTILS, sans_la_trace
+    from api.services.workflow.pipecat_engine import ENGINE_OWNED_CONTEXT_KEYS
+    from api.tasks.run_integrations import _build_render_context
+
+    assert RESULTATS_DES_OUTILS in ENGINE_OWNED_CONTEXT_KEYS
+    fiche = {
+        "nom": "Durand",
+        RESULTATS_DES_OUTILS: [{"function_name": "noter", "arguments": {"tel": "0612"}}],
+    }
+    run = SimpleNamespace(
+        id=1,
+        name="run",
+        workflow_id=2,
+        workflow=None,
+        campaign_id=None,
+        created_at=None,
+        initial_context={},
+        gathered_context=fiche,
+        usage_info={},
+        annotations={},
+        extra={},
+        recording_url=None,
+        transcript_url=None,
+    )
+    assert _build_render_context(run)["gathered_context"] == {"nom": "Durand"}
+    assert RESULTATS_DES_OUTILS in fiche

@@ -711,6 +711,86 @@ async def test_un_appel_de_passage_attend_la_fin_de_la_voix_quand_la_reponse_a_p
     assert ordre == attendu
 
 
+# [.mark] 22/10/2026, montée Pipecat 1.12 (lot 3 de cloture-code-avant-migration) : la règle du
+# report vit dans ``LLMService`` (``8d5fc1ee``). Une transition isolée attend la voix, elle est
+# abandonnée si la voix est interrompue ; un lot mêlé part aussitôt. Joué dans les deux API, avec
+# les enveloppes .mark de la parole avant l'outil et de la fiche branchées (signature ``**kwargs``).
+
+
+def _brancher_les_enveloppes(service) -> None:
+    from api.services.pipecat.parole_avant_outil import suivre_la_parole
+    from api.services.workflow.fiche_au_fil_de_leau import suivre_les_tours
+
+    assert suivre_la_parole(service) is not None
+    suivre_les_tours(service)
+
+
+async def _jouer_le_report(
+    api: str, appels, cadres_de_voix, enveloppes: bool
+) -> tuple[list[str], list[str]]:
+    service, _ = _service(api, [Rep(texte="Je vous passe quelqu'un.", appels=appels)])
+    if enveloppes:
+        _brancher_les_enveloppes(service)
+    ordre: list[str] = []
+    lances: list[str] = []
+
+    async def outil(params: FunctionCallParams):
+        lances.append(params.function_name)
+        await params.result_callback({"statut": "ok"})
+
+    service.register_function("passer", outil, is_node_transition=True)
+    service.register_function("noter", outil)
+    await run_test(
+        Pipeline([service, _Spy(ordre)]),
+        frames_to_send=[
+            LLMContextFrame(_contexte(outil=False)),
+            # La voix finit APRÈS la réponse (une voix finie avant que la réponse commence ne
+            # relâche rien : la réponse remet le compteur à zéro). 0,4 s a manqué une fois à froid.
+            SleepFrame(sleep=1.0),
+            *cadres_de_voix,
+            SleepFrame(sleep=0.2),
+        ],
+        start_timeout=DEMARRAGE_S,
+    )
+    return ordre, lances
+
+
+@pytest.mark.parametrize("enveloppes", [False, True])
+@pytest.mark.parametrize("api", DEUX_API)
+async def test_report_une_transition_isolee_attend_la_fin_de_la_voix(api, enveloppes):
+    ordre, lances = await _jouer_le_report(
+        api, [("passer", "{}", "call_p")], [BotStoppedSpeakingFrame()], enveloppes
+    )
+    assert lances == ["passer"]
+    assert ordre == ["réponse finie", "appels lancés", "voix finie"]
+
+
+@pytest.mark.parametrize("enveloppes", [False, True])
+@pytest.mark.parametrize("api", DEUX_API)
+async def test_report_une_voix_interrompue_abandonne_la_transition_differee(api, enveloppes):
+    ordre, lances = await _jouer_le_report(
+        api,
+        [("passer", "{}", "call_p")],
+        [BotStoppedSpeakingFrame(interrupted=True)],
+        enveloppes,
+    )
+    assert lances == []
+    assert "appels lancés" not in ordre
+
+
+@pytest.mark.parametrize("enveloppes", [False, True])
+@pytest.mark.parametrize("api", DEUX_API)
+async def test_report_un_lot_mele_part_sans_attendre_la_voix(api, enveloppes):
+    ordre, lances = await _jouer_le_report(
+        api,
+        [("noter", "{}", "call_n"), ("passer", "{}", "call_p")],
+        [BotStoppedSpeakingFrame()],
+        enveloppes,
+    )
+    assert sorted(lances) == ["noter", "passer"]
+    assert ordre.index("appels lancés") < ordre.index("voix finie")
+
+
 # --- 5. La fiche et le greffier -----------------------------------------------------------------
 
 

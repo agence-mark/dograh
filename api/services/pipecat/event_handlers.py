@@ -22,6 +22,7 @@ from api.services.pipecat.termination_funnel_processor import (
     TerminationFunnelProcessor,
     is_terminal_error,
 )
+from api.services.pipecat.trace_modele import sans_la_trace
 from api.services.pipecat.tracing_config import get_trace_url
 from api.services.pipecat.transcript_log_coordinator import TranscriptLogCoordinator
 from api.services.posthog_client import capture_event
@@ -389,6 +390,7 @@ def register_event_handlers(
         # campaign retry tags -- are not merged in here: `update_workflow_run` reconciles
         # them under a row lock at write time, so re-merging a staler unlocked
         # copy would only be a second, worse answer.
+        await engine.finish_tool_calls()
         gathered_context = await engine.get_gathered_context()
 
         # Store disposition code in workflow for dynamic filtering
@@ -408,8 +410,10 @@ def register_event_handlers(
         integration_logs: dict[str, object] = {}
         for runtime_session in integration_runtime_sessions or []:
             try:
+                # [.mark] Lot 3 de cloture-code : ni la trace du modèle ni les résultats des
+                # outils ne partent vers une intégration (même règle que ses webhooks).
                 session_logs = await runtime_session.on_call_finished(
-                    gathered_context=gathered_context
+                    gathered_context=sans_la_trace(gathered_context)
                 )
                 if session_logs:
                     integration_logs.update(session_logs)

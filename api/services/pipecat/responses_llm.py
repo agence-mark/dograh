@@ -39,7 +39,10 @@ Et les détails que le service chat completions de Pipecat porte et que la varia
 
 - les appels de fonction d'une réponse passent par ``_run_or_defer_function_calls`` : un appel de
   passage de nœud attend la fin de la voix (``BotStoppedSpeakingFrame``) quand la réponse a dit du
-  texte ; sans cela le graphe changerait d'étape en pleine phrase ;
+  texte ; sans cela le graphe changerait d'étape en pleine phrase. Depuis Pipecat 1.12 de Dograh
+  (``8d5fc1ee``), la règle vit dans ``LLMService`` : seule une transition **isolée** attend, elle est
+  abandonnée sur interruption ou nouvelle réponse ; ce service n'en garde plus de copie, il ouvre la
+  réponse (``_begin_tool_response``) et passe son numéro, comme le service chat completions ;
 - ``include: ["reasoning.encrypted_content"]``, que Pipecat ajoute dès qu'un raisonnement est réglé,
   est **refusé par Scaleway** (400, constaté le 17/10) : retiré hors d'OpenAI même.
 
@@ -82,7 +85,6 @@ from api.services.pipecat.trace_modele import TraceModeleMixin
 from api.services.workflow.porte_parlee import FLECHE
 from pipecat.frames.frames import BotStoppedSpeakingFrame, FunctionCallsFromLLMInfoFrame
 from pipecat.processors.frame_processor import FrameDirection
-from pipecat.services.llm_service import FunctionCallFromLLM
 from pipecat.services.openai.responses.llm import OpenAIResponsesHttpLLMService
 from pipecat.utils.text.alnum_utils import has_alnum
 from pipecat.utils.types import assert_given
@@ -517,8 +519,8 @@ class _MarkResponsesBase(OpenAIResponsesHttpLLMService):
         hote = urlparse(base_url or "https://api.openai.com/v1").hostname or ""
         self._mark_garde_include = hote == "openai.com" or hote.endswith(".openai.com")
         super().__init__(base_url=base_url, **kwargs)
-        self._pending_node_transition_function_calls: list[FunctionCallFromLLM] = []
         self._mark_texte_genere = ""
+        self._mark_generation_de_reponse: int | None = None
         if hasattr(self, "_mark_enregistrer_evenements"):
             self._mark_enregistrer_evenements()  # type: ignore[attr-defined]
 
@@ -555,12 +557,9 @@ class _MarkResponsesBase(OpenAIResponsesHttpLLMService):
         return await super()._create_stream(params)
 
     async def _process_context(self, context):  # type: ignore[override]
-        if self._pending_node_transition_function_calls:
-            logger.warning(
-                f"{self}: discarding {len(self._pending_node_transition_function_calls)} deferred "
-                "node-transition calls never released by TTS"
-            )
-        self._pending_node_transition_function_calls = []
+        # Comme ``BaseOpenAILLMService._process_context`` (Pipecat 1.12) : une transition encore
+        # différée d'une réponse précédente est abandonnée, la réponse reçoit son numéro.
+        self._mark_generation_de_reponse = self._begin_tool_response()
         self._mark_texte_genere = ""
         jeton = _CONTEXTE_DE_CONVERSATION.set(context)
         try:
@@ -589,48 +588,22 @@ class _MarkResponsesBase(OpenAIResponsesHttpLLMService):
                 FunctionCallsFromLLMInfoFrame(function_calls=appels),
                 direction=FrameDirection.DOWNSTREAM,
             )
+            # La règle (une transition isolée attend la voix, abandonnée sur interruption) est
+            # celle de ``LLMService._run_or_defer_function_calls`` (Pipecat 1.12).
             await self._run_or_defer_function_calls(
-                appels, text_generated=has_alnum(self._mark_texte_genere)
+                appels,
+                text_generated=has_alnum(self._mark_texte_genere),
+                response_generation=self._mark_generation_de_reponse,
             )
             return
         await super().run_function_calls(function_calls)
 
-    async def _run_or_defer_function_calls(
-        self, function_calls: list[FunctionCallFromLLM], *, text_generated: bool
-    ) -> None:
-        """Un appel de passage de nœud attend la fin de la voix quand la réponse a dit du texte
-        (copie du service chat completions de Pipecat, absente de la variante Responses)."""
-        if self._speculation_gate.is_speculating:
-            await self.run_function_calls(function_calls)
-            return
-        contient_un_passage = any(
-            self._function_is_node_transition(fc.function_name) for fc in function_calls
-        )
-        if text_generated and contient_un_passage:
-            self._pending_node_transition_function_calls = function_calls
-            logger.debug(
-                f"{self}: Deferring {len(function_calls)} node-transition function calls until after TTS"
-            )
-            return
-        logger.debug(f"{self}: Executing {len(function_calls)} function calls")
-        await self.run_function_calls(function_calls)
-
-    async def _run_pending_node_transition_function_calls(self) -> None:
-        if not self._pending_node_transition_function_calls:
-            return
-        function_calls = self._pending_node_transition_function_calls
-        self._pending_node_transition_function_calls = []
-        logger.debug(
-            f"{self}: Executing {len(function_calls)} deferred node-transition function calls after TTS"
-        )
-        await self.run_function_calls(function_calls)
-
     async def process_frame(self, frame, direction):  # type: ignore[override]
         if isinstance(frame, BotStoppedSpeakingFrame):
-            # Comme le service chat completions : le traitement du service, les appels différés,
-            # puis le cadre suit son chemin.
+            # Comme le service chat completions : le traitement du service, la transition
+            # différée (le cadre dit si la voix a été interrompue), puis le cadre suit son chemin.
             await super(OpenAIResponsesHttpLLMService, self).process_frame(frame, direction)
-            await self._run_pending_node_transition_function_calls()
+            await self._run_pending_node_transition_function_calls(frame)
             await self.push_frame(frame, direction)
             return
         await super().process_frame(frame, direction)

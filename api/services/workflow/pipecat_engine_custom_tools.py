@@ -326,6 +326,7 @@ class CustomToolManager:
                                     self._create_mcp_handler(session, fs.name),
                                     self._agent,
                                 ),
+                                timeout_secs=session.call_timeout_secs,
                             ),
                             timeout_secs=session.call_timeout_secs,
                         )
@@ -365,6 +366,10 @@ class CustomToolManager:
                                 self._agent,
                                 garde=not interne,
                             ),
+                            # [.mark] b10e829f (lot 3 de cloture-code) : le délai de l'action
+                            # reste le nôtre, jamais les 10 s par défaut de l'amont.
+                            is_node_transition=interne,
+                            timeout_secs=delai + 5.0,
                         ),
                         timeout_secs=delai + 5.0,
                         is_node_transition=interne,
@@ -390,7 +395,12 @@ class CustomToolManager:
                 }
                 self._agent.llm.register_function(
                     function_name,
-                    self._agent.bind_tool(self._engine, handler),
+                    self._agent.bind_tool(
+                        self._engine,
+                        handler,
+                        is_node_transition=is_node_transition,
+                        timeout_secs=timeout_secs,
+                    ),
                     timeout_secs=timeout_secs,
                     is_node_transition=is_node_transition,
                 )

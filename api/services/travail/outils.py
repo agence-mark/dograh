@@ -99,7 +99,10 @@ class AgentDeFond:
         self.current_node = None
         self.runtime_configuration = SimpleNamespace()
 
-    def bind_tool(self, _moteur: Any, gestionnaire: Any):
+    def bind_tool(self, _moteur: Any, gestionnaire: Any, **_options: Any):
+        # Lot 3 de cloture-code (b10e829f) : ``CustomToolManager`` passe désormais
+        # ``is_node_transition`` et ``timeout_secs``. Sans ``**_options``, l'enregistrement des
+        # outils du fond levait et le fond perdait ses outils en silence (R1).
         return gestionnaire
 
 
