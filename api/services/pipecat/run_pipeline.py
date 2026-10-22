@@ -55,6 +55,7 @@ from api.services.pipecat.agent_runtime_factory import (
 )
 from api.services.pipecat.audio_config import AudioConfig, create_audio_config
 from api.services.annonce.stockage import lire_annonce_ouverture
+from api.services.conservation_appels.reglages import lire_reglages as lire_conservation
 from api.services.equipe.appel import injecter_equipe
 from api.services.etablissements.appel import (
     annonce_heritee,
@@ -982,6 +983,9 @@ async def _run_pipeline_impl(
     # reglages-annonce-ouverture, 18/09). Read once here, like the address and
     # the trade vocabulary; the defaults on any problem, and never raises.
     reglages_annonce = await lire_annonce_ouverture(workflow.organization_id)
+    # [.mark] cloture-code, lot 6: what is kept of the call (audio recorded or not). Read once, like the
+    # announcement; never raises (the defaults record no audio).
+    reglages_conservation = await lire_conservation(workflow.organization_id)
     # [.mark] The establishment this call serves (chantier l-agent-travaille,
     # E2 to E4): found from the called number, read from the in-memory copy.
     # Its hours, address and sentences are handed to the three injections
@@ -2041,6 +2045,7 @@ async def _run_pipeline_impl(
         include_transcript_end_timestamps=include_transcript_end_timestamps,
         reglages_annonce=reglages_annonce,
         direction_appel=call_direction,
+        reglages_conservation=reglages_conservation,
     )
 
     register_audio_data_handler(audio_buffer, workflow_run_id, in_memory_audio_buffer)

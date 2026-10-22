@@ -1284,6 +1284,60 @@ export type BatchRecordingUploadResponseSchema = {
 };
 
 /**
+ * BilanDuPassage
+ *
+ * What the last nightly task found, kept so the screen can show it (and the dry run be read).
+ */
+export type BilanDuPassage = {
+    /**
+     * Passe Le
+     */
+    passe_le: string;
+    /**
+     * A Blanc
+     */
+    a_blanc: boolean;
+    /**
+     * Runs Texte
+     *
+     * Runs whose text copies were (dry run: would be) emptied.
+     */
+    runs_texte: number;
+    /**
+     * Runs Audio
+     *
+     * Runs whose audio files were (dry run: would be) deleted.
+     */
+    runs_audio: number;
+    /**
+     * Objets
+     *
+     * Files in storage deleted (dry run: to delete).
+     */
+    objets: number;
+    /**
+     * Echecs
+     *
+     * Runs left for the next night (a file could not be deleted).
+     */
+    echecs?: number;
+    /**
+     * Incomplet
+     *
+     * The task stopped on its time limit: the rest is for the next night.
+     */
+    incomplet?: boolean;
+    /**
+     * Duree Mois
+     */
+    duree_mois: number;
+    /**
+     * Audio Duree Mois
+     */
+    audio_duree_mois: number;
+};
+
+/**
  * Body_transcribe_audio_api_v1_workflow_recordings_transcribe_post
  */
 export type BodyTranscribeAudioApiV1WorkflowRecordingsTranscribePost = {
@@ -8430,6 +8484,50 @@ export type ReglagesApresAppel = {
 };
 
 /**
+ * ReglagesConservationAppels
+ */
+export type ReglagesConservationAppels = {
+    /**
+     * Format
+     */
+    format?: string;
+    /**
+     * Version
+     */
+    version?: number;
+    /**
+     * Purge Activee
+     *
+     * Empty the copies of the calls older than the durations below, every night.
+     */
+    purge_activee?: boolean;
+    /**
+     * Duree Mois
+     *
+     * Months the verbatim and the copies of a call are kept (transcript, logs, context, annotations).
+     */
+    duree_mois?: number;
+    /**
+     * Audio Enregistre
+     *
+     * Record the audio of the calls. Off by default; the installation's ceiling can forbid it.
+     */
+    audio_enregistre?: boolean;
+    /**
+     * Audio Duree Mois
+     *
+     * Months an audio file is kept, if the audio is recorded (or was before).
+     */
+    audio_duree_mois?: number;
+    /**
+     * Essai A Blanc
+     *
+     * Dry run: the nightly task counts what it would empty and empties nothing. Untick to empty.
+     */
+    essai_a_blanc?: boolean;
+};
+
+/**
  * ReglagesFenetreDuRun
  */
 export type ReglagesFenetreDuRun = {
@@ -12072,6 +12170,22 @@ export type VonageConfigurationRequest = {
      * Vonage signature secret used to verify signed webhooks
      */
     signature_secret?: string | null;
+};
+
+/**
+ * VueConservationAppels
+ *
+ * What the screen reads: the settings, the installation's ceiling and the last passage.
+ */
+export type VueConservationAppels = {
+    reglages: ReglagesConservationAppels;
+    /**
+     * Audio Autorise Par L Installation
+     *
+     * False when ENABLE_CALL_RECORDING_UPLOAD forbids the audio whatever the setting says.
+     */
+    audio_autorise_par_l_installation: boolean;
+    dernier_passage?: BilanDuPassage | null;
 };
 
 /**
@@ -17721,6 +17835,92 @@ export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdApplique
 };
 
 export type AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostResponse = AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostResponses[keyof AppliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPostResponses];
+
+export type GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/conservation-appels';
+};
+
+export type GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetError = GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetErrors[keyof GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetErrors];
+
+export type GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueConservationAppels;
+};
+
+export type GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetResponse = GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetResponses[keyof GetConservationDesAppelsApiV1OrganizationsConservationAppelsGetResponses];
+
+export type PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutData = {
+    body: ReglagesConservationAppels;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/conservation-appels';
+};
+
+export type PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutError = PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutErrors[keyof PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutErrors];
+
+export type PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueConservationAppels;
+};
+
+export type PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutResponse = PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutResponses[keyof PutConservationDesAppelsApiV1OrganizationsConservationAppelsPutResponses];
 
 export type GetAgentsServisApiV1OrganizationsAgentsServisGetData = {
     body?: never;

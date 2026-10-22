@@ -232,6 +232,11 @@ class OrganizationConfigurationKey(Enum):
     # (cloture-code-avant-migration, lot 5; plan modeles-de-reglages). Same free-text key, no
     # migration. Format: api/schemas/modeles_reglages.py
     MODELES_REGLAGES = "MODELES_REGLAGES"
+    # [.mark] How long the copies of a call are kept, and the audio switch (cloture-code-avant-migration,
+    # lot 6), then the last night's result of the purge. Same free-text keys, no migration.
+    # Format: api/schemas/conservation_appels.py
+    CONSERVATION_APPELS = "CONSERVATION_APPELS"
+    CONSERVATION_APPELS_BILAN = "CONSERVATION_APPELS_BILAN"
     # [.mark] The translators of the hub an organization uses, by domain (chantier
     # l-agent-collegue, L4, H2): the calendar software of the planner. Same free-text key,
     # no migration. Format: api/schemas/traducteurs.py

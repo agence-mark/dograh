@@ -10,6 +10,7 @@ from api.services.campaign.campaign_event_publisher import (
     notify_campaign_call_completed,
 )
 from api.services.campaign.circuit_breaker import circuit_breaker
+from api.services.conservation_appels.reglages import audio_voulu
 from api.services.integrations import IntegrationRuntimeSession
 from api.services.pipecat.audio_config import AudioConfig
 from api.services.pipecat.audio_playback import play_audio_loop
@@ -92,6 +93,7 @@ def register_event_handlers(
     answer_supervisor=None,
     reglages_annonce=None,
     direction_appel=None,
+    reglages_conservation=None,
 ):
     """Register all event handlers for transport and task events.
 
@@ -101,6 +103,11 @@ def register_event_handlers(
             organization typed. ``None`` falls back to the default sentences.
             ⛔ Passed as a parameter, never through the call context: the
             context is rendered into prompts and persisted on the run.
+        reglages_conservation: [.mark] cloture-code, lot 6: the organization's retention
+            settings. They decide whether the audio is SENT to storage (with the
+            installation's ceiling, ``ENABLE_CALL_RECORDING_UPLOAD``); the audio is
+            converted either way, because the silences are computed from it.
+            ``None`` (a caller that knows none): the ceiling alone decides, as before.
         direction_appel: [.mark] "inbound" or "outbound". An outbound call
             announces nothing (decision of Evan, 18/09), and the refresh below
             must know it too -- otherwise a pre-call fetch would put the
@@ -522,26 +529,33 @@ def register_event_handlers(
             user_audio_wav = None
             bot_audio_wav = None
 
-            if not ENABLE_CALL_RECORDING_UPLOAD:
+            # [.mark] cloture-code, lot 6: SENDING the audio and CONVERTING it are two gestures.
+            # The two tracks are converted whatever the setting says -- the silences are
+            # computed from them (``lancer_le_calcul_des_silences`` below) -- and only what is
+            # SENT to storage follows the setting and the installation's ceiling.
+            envoyer_l_audio = ENABLE_CALL_RECORDING_UPLOAD and audio_voulu(
+                reglages_conservation
+            )
+            if not envoyer_l_audio:
                 logger.info(
-                    "Call recording upload is disabled "
-                    "(ENABLE_CALL_RECORDING_UPLOAD=false), skipping audio upload"
+                    "Call audio is not recorded (retention setting, or the "
+                    "installation's ceiling ENABLE_CALL_RECORDING_UPLOAD=false): "
+                    "no audio sent to storage"
                 )
+            elif not in_memory_audio_buffers.mixed.is_empty:
+                mixed_audio_wav = await in_memory_audio_buffers.mixed.to_wav_bytes()
             else:
-                if not in_memory_audio_buffers.mixed.is_empty:
-                    mixed_audio_wav = await in_memory_audio_buffers.mixed.to_wav_bytes()
-                else:
-                    logger.debug("Audio buffer is empty, skipping upload")
+                logger.debug("Audio buffer is empty, skipping upload")
 
-                if not in_memory_audio_buffers.user.is_empty:
-                    user_audio_wav = await in_memory_audio_buffers.user.to_wav_bytes()
-                else:
-                    logger.debug("User audio buffer is empty, skipping upload")
+            if not in_memory_audio_buffers.user.is_empty:
+                user_audio_wav = await in_memory_audio_buffers.user.to_wav_bytes()
+            else:
+                logger.debug("User audio buffer is empty, skipping upload")
 
-                if not in_memory_audio_buffers.bot.is_empty:
-                    bot_audio_wav = await in_memory_audio_buffers.bot.to_wav_bytes()
-                else:
-                    logger.debug("Bot audio buffer is empty, skipping upload")
+            if not in_memory_audio_buffers.bot.is_empty:
+                bot_audio_wav = await in_memory_audio_buffers.bot.to_wav_bytes()
+            else:
+                logger.debug("Bot audio buffer is empty, skipping upload")
 
             transcript_text = in_memory_logs_buffer.generate_transcript_text(
                 include_end_timestamps=include_transcript_end_timestamps
@@ -552,8 +566,8 @@ def register_event_handlers(
             await upload_workflow_run_artifacts(
                 workflow_run_id,
                 mixed_audio_wav=mixed_audio_wav,
-                user_audio_wav=user_audio_wav,
-                bot_audio_wav=bot_audio_wav,
+                user_audio_wav=user_audio_wav if envoyer_l_audio else None,
+                bot_audio_wav=bot_audio_wav if envoyer_l_audio else None,
                 transcript_text=transcript_text,
             )
         except Exception as e:
