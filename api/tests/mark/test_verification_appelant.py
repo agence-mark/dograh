@@ -18,6 +18,7 @@ the bench at the browser.
 
 from __future__ import annotations
 
+import itertools
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -138,13 +139,17 @@ async def _pret(installe, monkeypatch, **kw):
     return engine, enregistres["verifier"][0], enregistres["lire"][0]
 
 
+# [.mark] Un identifiant par appel : depuis b10e829f (lot 3), un outil n'est pas rejoué sous le même identifiant.
+_IDS_D_APPEL = itertools.count(1)
+
+
 async def _appeler(fn, arguments):
     capte = []
 
     async def rappel(resultat, *args, properties=None, **kwargs):
         capte.append(resultat)
 
-    await fn(FunctionCallParams(function_name="x", tool_call_id="t1", arguments=arguments, llm=MagicMock(),
+    await fn(FunctionCallParams(function_name="x", tool_call_id=f"t{next(_IDS_D_APPEL)}", arguments=arguments, llm=MagicMock(),
                                 pipeline_worker=MagicMock(), context=MagicMock(), result_callback=rappel))
     assert len(capte) == 1
     return capte[0]

@@ -26,6 +26,7 @@ leaves the machine; no SMS, no call.
 
 from __future__ import annotations
 
+import itertools
 import asyncio
 import json
 import time as horloge
@@ -468,13 +469,17 @@ def _moteur(installe, monkeypatch, outils, contexte=None):
     return engine, mgr, enregistres
 
 
+# [.mark] Un identifiant par appel : depuis b10e829f (lot 3), un outil n'est pas rejoué sous le même identifiant.
+_IDS_D_APPEL = itertools.count(1)
+
+
 async def _appeler(fn, arguments):
     capte = []
 
     async def rappel(resultat, *args, properties=None, **kwargs):
         capte.append(resultat)
 
-    await fn(FunctionCallParams(function_name="x", tool_call_id="t1", arguments=arguments, llm=MagicMock(),
+    await fn(FunctionCallParams(function_name="x", tool_call_id=f"t{next(_IDS_D_APPEL)}", arguments=arguments, llm=MagicMock(),
                                 pipeline_worker=MagicMock(), context=MagicMock(), result_callback=rappel))
     assert len(capte) == 1
     return capte[0]
