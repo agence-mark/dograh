@@ -1178,6 +1178,8 @@ export const postResynchroniserApiV1OrganizationsBaseClientResynchroniserPost = 
  * réponse et n'est écrit nulle part : ni dans ``journal_modif`` (la fonction ne le journalise pas),
  * ni dans les journaux de l'api (seul le nom du rôle y paraît), ni dans une erreur (une panne ne
  * rend que le type de l'exception : le texte d'une erreur de la base peut citer la requête).
+ * Revue du chantier : la base reçoit le condensé SCRAM, jamais le mot de passe en clair (ni ses
+ * journaux ni ``pg_stat_statements`` ne peuvent le garder) ; la réponse n'est mise en cache nulle part.
  */
 export const postConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPost = <ThrowOnError extends boolean = false>(options?: Options<PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostData, ThrowOnError>): RequestResult<PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostResponses, PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostErrors, ThrowOnError> => (options?.client ?? client).post<PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostResponses, PostConnexionPortailApiV1OrganizationsBaseClientConnexionPortailPostErrors, ThrowOnError>({ url: '/api/v1/organizations/base-client/connexion-portail', ...options });
 

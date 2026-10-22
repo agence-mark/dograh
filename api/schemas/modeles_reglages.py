@@ -113,7 +113,7 @@ class DemandeApplication(BaseModel):
 
 class ReglageNonApplique(BaseModel):
     cle: str
-    raison: str = Field(description="cle-manquante | invalide.")
+    raison: str = Field(description="cle-manquante | invalide | reglee-par-le-principal.")
     detail: str | None = None
 
 
@@ -147,3 +147,7 @@ class FichierDeModele(BaseModel):
 
 class MentionDeLagent(BaseModel):
     mention: MentionApplication | None = None
+    sections_reglees_par_le_principal: list[str] = Field(
+        default_factory=list,
+        description="Sections whose every setting is set by the main agent (a specialised agent): a template never writes them.",
+    )

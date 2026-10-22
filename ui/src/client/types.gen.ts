@@ -6469,6 +6469,12 @@ export type MentionApplication = {
  */
 export type MentionDeLagent = {
     mention?: MentionApplication | null;
+    /**
+     * Sections Reglees Par Le Principal
+     *
+     * Sections whose every setting is set by the main agent (a specialised agent): a template never writes them.
+     */
+    sections_reglees_par_le_principal?: Array<string>;
 };
 
 /**
@@ -9069,7 +9075,7 @@ export type ReglageNonApplique = {
     /**
      * Raison
      *
-     * cle-manquante | invalide.
+     * cle-manquante | invalide | reglee-par-le-principal.
      */
     raison: string;
     /**

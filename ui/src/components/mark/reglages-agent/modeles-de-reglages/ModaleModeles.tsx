@@ -128,6 +128,8 @@ export const ModaleModeles = ({
     const { t, langue } = useLangue();
     const [liste, setListe] = useState<ListeDesModeles | null>(null);
     const [mention, setMention] = useState<MentionApplication | null>(null);
+    // Sections que l'agent principal regle pour cet agent (agent specialise) : le serveur ne les ecrit jamais.
+    const [reglees, setReglees] = useState<string[]>([]);
     const [erreur, setErreur] = useState<string | null>(null);
     const [vue, setVue] = useState<Vue>({ type: "liste" });
     const [nouveauNom, setNouveauNom] = useState("");
@@ -148,6 +150,7 @@ export const ModaleModeles = ({
         setErreur(null);
         setListe(modeles.data);
         setMention(derniere.data?.mention ?? null);
+        setReglees(derniere.data?.sections_reglees_par_le_principal ?? []);
     }, [workflowId, t]);
 
     useEffect(() => {
@@ -239,6 +242,7 @@ export const ModaleModeles = ({
             <VueApplication
                 modele={vue.modele}
                 sections={liste?.sections ?? []}
+                reglees={reglees}
                 workflowId={workflowId}
                 modifie={modifie}
                 date={date}
@@ -433,6 +437,7 @@ const origine = (modele: ResumeDuModele, t: (texte: Texte) => string): string =>
 const VueApplication = ({
     modele,
     sections,
+    reglees,
     workflowId,
     modifie,
     date,
@@ -443,6 +448,7 @@ const VueApplication = ({
 }: {
     modele: ResumeDuModele;
     sections: string[];
+    reglees: string[];
     workflowId: number;
     modifie: boolean;
     date: (iso: string) => string;
@@ -453,7 +459,9 @@ const VueApplication = ({
 }) => {
     const { t } = useLangue();
     // M2 : toutes les sections que le modele porte sont cochees d'office.
-    const [cochees, setCochees] = useState<string[]>(() => sections.filter((s) => modele.sections.includes(s)));
+    const [cochees, setCochees] = useState<string[]>(() =>
+        sections.filter((s) => modele.sections.includes(s) && !reglees.includes(s)),
+    );
     const [apercu, setApercu] = useState<ResultatApplication | null>(null);
     const [refus, setRefus] = useState<string | null>(null);
     const [enCours, setEnCours] = useState(false);
@@ -535,7 +543,8 @@ const VueApplication = ({
                 )}
                 <ul className="space-y-2">
                     {sections.map((section) => {
-                        const portee = modele.sections.includes(section);
+                        const reglee = reglees.includes(section);
+                        const portee = modele.sections.includes(section) && !reglee;
                         return (
                             <li key={section} className="flex items-center gap-2">
                                 <Checkbox
@@ -549,7 +558,14 @@ const VueApplication = ({
                                 />
                                 <label htmlFor={`section-${section}`} className={`text-sm ${portee ? "" : "text-muted-foreground"}`}>
                                     {titreSection(section)}
-                                    {!portee && ` · ${t({ en: "not in this template", fr: "absente de ce modèle" })}`}
+                                    {reglee ? (
+                                        <span data-reglee-par-le-principal={section}>
+                                            {" · "}
+                                            {t({ en: "Set by the main agent", fr: "Réglé par l'agent principal" })}
+                                        </span>
+                                    ) : (
+                                        !portee && ` · ${t({ en: "not in this template", fr: "absente de ce modèle" })}`
+                                    )}
                                 </label>
                             </li>
                         );
@@ -581,10 +597,15 @@ const VueApplication = ({
                         {apercu.non_appliquees.map((r) => (
                             <p key={r.cle} className="text-(--signal-warn)" data-non-appliquee={r.cle}>
                                 <code className="text-xs">{r.cle}</code>{" "}
-                                {t({
-                                    en: "will not be applied: the agent keeps its own (a brick without its key would stop the calls).",
-                                    fr: "ne sera pas appliqué : l'agent garde le sien (une brique sans sa clé couperait les appels).",
-                                })}
+                                {r.raison === "reglee-par-le-principal"
+                                    ? t({
+                                          en: "will not be applied: set by the main agent.",
+                                          fr: "ne sera pas appliqué : réglé par l'agent principal.",
+                                      })
+                                    : t({
+                                          en: "will not be applied: the agent keeps its own (a brick without its key would stop the calls).",
+                                          fr: "ne sera pas appliqué : l'agent garde le sien (une brique sans sa clé couperait les appels).",
+                                      })}
                             </p>
                         ))}
                     </div>

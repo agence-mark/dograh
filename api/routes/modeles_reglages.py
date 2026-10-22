@@ -106,7 +106,13 @@ async def mention_de_lagent(
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
     try:
-        return MentionDeLagent(mention=await service.mention_de_l_agent(user.selected_organization_id, workflow_id))
+        organisation = user.selected_organization_id
+        return MentionDeLagent(
+            mention=await service.mention_de_l_agent(organisation, workflow_id),
+            sections_reglees_par_le_principal=await service.sections_reglees_par_le_principal_de_l_agent(
+                organisation, workflow_id
+            ),
+        )
     except service.ModeleRefuse as erreur:
         raise _refus(erreur) from None
     except (ValidationError, ValueError) as erreur:

@@ -31,9 +31,13 @@ from api.db.models import OrganizationModel, UserModel
 from api.enums import OrganizationConfigurationKey
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.configuration.resolve import _SECTION_MAP
-from api.services.groupe.reglages import CLES_COMMUNES, CLES_PROPRES
+from api.services.groupe.reglages import CLES_COMMUNES, CLES_PROPRES, CLES_SUIVENT_LE_CERVEAU
 from api.services.modeles_reglages import classement as cl
-from api.services.modeles_reglages.service import calculer_l_application
+from api.services.modeles_reglages.service import (
+    calculer_l_application,
+    cles_reglees_par_le_principal,
+    sections_reglees_par_le_principal,
+)
 
 ROUTE = "/api/v1/organizations/modeles-de-reglages"
 GRAPHE = {
@@ -541,3 +545,66 @@ def test_un_secret_sous_un_autre_nom_ne_part_jamais_dans_un_modele():
     assert propre == {"llm": {"provider": "x", "model": "m", "max_tokens": 200, "keyterms": ["mot"]}}
     assert cl.premiere_cle_trouvee({"llm": {"provider": "x", "private_key": "s"}}) == "llm.private_key"
     assert cl.fournisseurs_sans_cle({"llm": {"provider": "x", "auth_token": "s"}}) == []
+
+
+# --------------------------------------------------------------------------- #
+# 8. A specialised agent: its common settings are the main agent's (constat 18)
+# --------------------------------------------------------------------------- #
+
+
+# « Établissement » ne porte que des clés gardées par l'agent : aucune section à griser.
+SECTIONS_AVEC_REGLAGES = [s for s in cl.SECTIONS if cl.cles_de_la_section(s)]
+
+
+def test_chez_un_specialise_les_cles_communes_ne_sont_jamais_ecrites():
+    """Pure: the common settings of a specialised agent go to ``non_appliquees`` and keep their value; the
+    own ones are untouched."""
+    base = {"agent_principal_id": 7, "turn_start_min_words": 2, "horaires_ouverture": HORAIRES_A}
+    valeurs = {"turn_start_min_words": 9, "vad_stop_secs": 0.4}
+    bloquees = cles_reglees_par_le_principal(base)
+    nouveau, resultat = calculer_l_application(valeurs, ["tour"], base, reglees_par_le_principal=bloquees)
+    assert nouveau == base
+    assert resultat.posees == [] and resultat.retirees == []
+    refusees = {r.cle: r.raison for r in resultat.non_appliquees}
+    assert refusees == {"turn_start_min_words": "reglee-par-le-principal", "vad_stop_secs": "reglee-par-le-principal"}
+
+
+def test_un_agent_seul_ou_principal_n_est_pas_concerne():
+    assert cles_reglees_par_le_principal({"turn_start_min_words": 2}) == frozenset()
+    assert sections_reglees_par_le_principal({}) == []
+
+
+def test_un_cerveau_propre_garde_les_cles_qui_suivent_le_cerveau():
+    seul = cles_reglees_par_le_principal({"agent_principal_id": 7})
+    propre = cles_reglees_par_le_principal({"agent_principal_id": 7, "cerveau_propre": True})
+    assert set(CLES_SUIVENT_LE_CERVEAU).isdisjoint(propre) and set(CLES_SUIVENT_LE_CERVEAU) <= seul
+    # Every section is made of common settings: all greyed with the brain attached, the ones holding only
+    # brain-following settings are not once it is detached.
+    assert sections_reglees_par_le_principal({"agent_principal_id": 7}) == SECTIONS_AVEC_REGLAGES
+    assert "tour" not in sections_reglees_par_le_principal({"agent_principal_id": 7, "cerveau_propre": True})
+
+
+async def test_appliquer_a_un_specialise_n_ecrit_aucune_cle_commune(monde, test_client_factory, db_session):
+    """Through the REAL route: the mention says which sections the main agent sets, the application writes none
+    of the common settings and names each with its reason."""
+    await db_session.save_workflow_draft(
+        monde.agent_a2.id, workflow_configurations={**CONFIG_B, "agent_principal_id": monde.agent_a.id}
+    )
+    avant = await _active(db_session, monde.agent_a2.id)
+    async with test_client_factory(monde.user_a) as client:
+        modele = await _creer(client, "Pour le principal", monde.agent_a.id)
+        mention = (await client.get(f"{ROUTE}/agent/{monde.agent_a2.id}")).json()
+        assert mention["sections_reglees_par_le_principal"] == SECTIONS_AVEC_REGLAGES
+        principal = (await client.get(f"{ROUTE}/agent/{monde.agent_a.id}")).json()
+        assert principal["sections_reglees_par_le_principal"] == []
+
+        reponse = await client.post(
+            f"{ROUTE}/{modele['id']}/appliquer",
+            json={"workflow_id": monde.agent_a2.id, "sections": ["tour", "voix"]},
+        )
+        assert reponse.status_code == 200, reponse.text
+        resultat = reponse.json()
+    assert resultat["posees"] == [] and resultat["retirees"] == []
+    assert resultat["non_appliquees"] and {r["raison"] for r in resultat["non_appliquees"]} == {"reglee-par-le-principal"}
+    apres = await _active(db_session, monde.agent_a2.id)
+    assert apres == avant, "nothing common was written on the specialised agent"

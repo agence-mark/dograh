@@ -20,6 +20,7 @@ const m = vi.hoisted(() => {
     const etat = {
         liste: { modeles: [] as unknown[], sections: [] as string[] },
         mention: null as unknown,
+        reglees: [] as string[],
         apercu: { ecrit: false, sections: [], posees: [], retirees: [], non_appliquees: [], fournisseurs_sans_cle: [] } as Record<string, unknown>,
         refusImport: null as unknown,
         appels: [] as Array<{ nom: string; options: unknown }>,
@@ -35,7 +36,9 @@ const m = vi.hoisted(() => {
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../../sdk-factice")).sdkFactice(await importOriginal(), {
     listerLesModelesApiV1OrganizationsModelesDeReglagesGet: m.enregistrer("lister", () => ({ data: m.liste })),
-    mentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGet: m.enregistrer("mention", () => ({ data: { mention: m.mention } })),
+    mentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGet: m.enregistrer("mention", () => ({
+        data: { mention: m.mention, sections_reglees_par_le_principal: m.reglees },
+    })),
     creerUnModeleApiV1OrganizationsModelesDeReglagesPost: m.enregistrer("creer", () => ({ data: {} })),
     importerUnModeleApiV1OrganizationsModelesDeReglagesImportPost: m.enregistrer("importer", () =>
         m.refusImport ? { error: m.refusImport } : { data: {} },
@@ -76,6 +79,7 @@ const ouvrirLaModale = async (props: { modifie?: boolean; apres?: () => void } =
 beforeEach(() => {
     m.liste = { modeles: [MODELE], sections: SECTIONS };
     m.mention = null;
+    m.reglees = [];
     m.apercu = { ecrit: false, sections: [], posees: ["turn_start_min_words", "vad_stop_secs"], retirees: ["relance_apres_outil"], non_appliquees: [], fournisseurs_sans_cle: [] };
     m.refusImport = null;
     m.appels = [];
@@ -183,6 +187,30 @@ describe("[.mark] settings templates on screen", () => {
         const dernier = appelsDe("appliquer").at(-1)!;
         expect(dernier.body).toEqual({ workflow_id: 7, sections: ["briques", "tour"], a_blanc: false });
         expect((dernier.path as { modele_id: string }).modele_id).toBe("abc123");
+    });
+
+    it("greys the sections the main agent sets on a specialised agent, unticked and shut, and says why", async () => {
+        m.reglees = ["briques", "tour"];
+        m.apercu = {
+            ...m.apercu,
+            non_appliquees: [{ cle: "turn_start_min_words", raison: "reglee-par-le-principal" }],
+        };
+        await ouvrirLaModale();
+        fireEvent.click(await screen.findByText("Apply", { selector: "[data-appliquer-modele]" }));
+        await waitFor(() => expect(document.querySelector('[data-reglee-par-le-principal="tour"]')).not.toBeNull());
+
+        for (const section of ["briques", "tour"]) {
+            const case_ = document.querySelector(`[data-section="${section}"]`) as HTMLElement;
+            expect(case_.getAttribute("data-state"), section).toBe("unchecked");
+            expect(case_.hasAttribute("disabled"), section).toBe(true);
+            expect(document.querySelector(`[data-reglee-par-le-principal="${section}"]`)?.textContent).toContain("Set by the main agent");
+        }
+        // The section the template holds and the main agent does not set stays ticked, and only it is played.
+        expect(document.querySelector('[data-section="voix"]')?.getAttribute("data-state")).toBe("checked");
+        await waitFor(() => expect(appelsDe("appliquer")).toHaveLength(1));
+        expect((appelsDe("appliquer")[0].body as { sections: string[] }).sections).toEqual(["voix"]);
+        // The key the server refuses is named with its reason.
+        await waitFor(() => expect(document.querySelector('[data-non-appliquee="turn_start_min_words"]')?.textContent).toContain("set by the main agent"));
     });
 
     it("names, before applying, the providers the agent and its organization have no key for (M3)", async () => {

@@ -41,6 +41,8 @@ from api.schemas.modeles_reglages import (
     ResultatApplication,
     StockModeles,
 )
+from api.services.groupe.passations import agent_principal_de
+from api.services.groupe.reglages import CLES_COMMUNES, CLES_SUIVENT_LE_CERVEAU, a_son_cerveau
 from api.services.modeles_reglages import classement as cl
 
 CLE = OrganizationConfigurationKey.MODELES_REGLAGES.value
@@ -280,6 +282,30 @@ def _valider_les_briques(
         resolve_effective_config(de_base, copy.deepcopy(candidat[_CLE_PAR_SERVICE]))
 
 
+RAISON_REGLEE_PAR_LE_PRINCIPAL = "reglee-par-le-principal"
+
+
+def cles_reglees_par_le_principal(configurations: Mapping[str, Any] | None) -> frozenset[str]:
+    """[.mark] The settings a template must NOT write on this agent: on a specialised agent the common
+    settings are copied from the main agent at every save of the main one, so a value written here would
+    be overwritten (and lost) at the next copy. With its own brain detached, the settings that follow the
+    brain stay the specialised agent's: those are writable. Empty for an agent alone or a main agent."""
+    if agent_principal_de(configurations) is None:
+        return frozenset()
+    communes = set(CLES_COMMUNES)
+    if a_son_cerveau(configurations):
+        communes -= set(CLES_SUIVENT_LE_CERVEAU)
+    return frozenset(communes)
+
+
+def sections_reglees_par_le_principal(configurations: Mapping[str, Any] | None) -> list[str]:
+    """The sections whose every setting is set by the main agent (the screen greys them)."""
+    bloquees = cles_reglees_par_le_principal(configurations)
+    if not bloquees:
+        return []
+    return [s for s in cl.SECTIONS if (cles := cl.cles_de_la_section(s)) and all(c in bloquees for c in cles)]
+
+
 def calculer_l_application(
     valeurs: Mapping[str, Any],
     sections: list[str],
@@ -287,6 +313,7 @@ def calculer_l_application(
     *,
     cles_de_l_organisation: Mapping[str, Any] | None = None,
     org_effectif: Any | None = None,
+    reglees_par_le_principal: frozenset[str] = frozenset(),
 ) -> tuple[dict[str, Any], ResultatApplication]:
     """The settings the agent would hold after the template, and what happened to each.
 
@@ -304,6 +331,12 @@ def calculer_l_application(
     for section in choisies:
         for cle in cl.cles_de_la_section(section):
             if cle in vues:
+                continue
+            if cle in reglees_par_le_principal:
+                # A specialised agent's common setting is the main agent's: never written here.
+                vues.add(cle)
+                if cle in valeurs or cle in base:
+                    non_appliquees.append(ReglageNonApplique(cle=cle, raison=RAISON_REGLEE_PAR_LE_PRINCIPAL))
                 continue
             groupe = cl.groupe_atomique_de(cle)
             if groupe is not None:
@@ -430,6 +463,7 @@ async def appliquer_un_modele(
         active["configurations"],
         cles_de_l_organisation=cles_org,
         org_effectif=effectif,
+        reglees_par_le_principal=cles_reglees_par_le_principal(active["configurations"]),
     )
     verifier(nouveau)
     if a_blanc:
@@ -465,3 +499,9 @@ async def mention_de_l_agent(organization_id: int, workflow_id: int) -> MentionA
         raise ModeleRefuse("Agent not found.", statut=404)
     stock = await lire_le_stock(organization_id)
     return stock.applications.get(str(workflow_id))
+
+
+async def sections_reglees_par_le_principal_de_l_agent(organization_id: int, workflow_id: int) -> list[str]:
+    """The sections the main agent sets for this agent (empty unless it is a specialised one)."""
+    active = await configuration_active(workflow_id, organization_id)
+    return sections_reglees_par_le_principal(active["configurations"])
