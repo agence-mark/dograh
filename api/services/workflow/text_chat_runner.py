@@ -1033,6 +1033,10 @@ async def execute_text_chat_pending_turn(
         # fabrique construit un agent appelé sans voix ni sous-circuit.
         engine.sans_sortie_audio = True
         engine.reglages_appel = dict(run_configs)
+        # [.mark] cloture-code, F8 (M4): the keyboard leaves out a switched-off module's tools, like the call.
+        from api.services.modules.appel import brancher_les_modules
+
+        brancher_les_modules(engine, run_configs)
         actif = engine.active_agent
         actif.workflow_id = agent.workflow_id
         actif.definition_id = agent.definition_id

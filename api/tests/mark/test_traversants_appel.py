@@ -32,6 +32,7 @@ la fabrique de voix, elle, est la vraie, avec ses filtres et ses transformations
 | noms proposés | l'agent reçoit `lexique_propose` et `lexique_a_ecouter` (même contenu), tirés de la seule case « l'entreprise le propose » |
 | filet du lexique | une liste refusée par la transcription (HTTP 400) : reconnexion sans la liste, l'appel continue, le refus est estampillé |
 | objet de l'agent (F7) | un objet lu avec la fiche arrive rendu (tableau texte) dans le prompt reçu par le modèle ; l'appel l'estampille |
+| modules (F8, M4) | pour CHAQUE module du registre, joué coupé puis allumé : coupé, ni note sur la parole, ni outil montré au modèle, ni variable de l'appel ; allumé, la trace est là (sinon la sonde ne prouverait rien) |
 
 ⛔ Chacun a été éprouvé en débranchant sa fonctionnalité : il rougit (journal du
 chantier). Un test traversant qui reste vert fonctionnalité débranchée ne
@@ -134,9 +135,11 @@ PLAFOND_S = 40.0
 
 
 async def _monter(
-    db_session, async_session, configurations: dict, *, lexique=None, modele_stt=None, definition=None
+    db_session, async_session, configurations: dict, *, lexique=None, modele_stt=None, definition=None, outils=()
 ):
-    """Organisation, agent français, workflow publié AVEC sa configuration, run."""
+    """Organisation, agent français, workflow publié AVEC sa configuration, run.
+    ``outils`` (F8) : des actions du catalogue, (nom, connecteur, action), créées dans l'organisation et
+    posées sur l'étape d'accueil."""
     suffixe = uuid.uuid4().hex[:10]
     org = OrganizationModel(provider_id=f"test-org-traversant-{suffixe}")
     async_session.add(org)
@@ -161,6 +164,18 @@ async def _monter(
     )
     if lexique is not None:
         await db_session.upsert_configuration(org.id, CLE_LEXIQUE, lexique)
+    if outils:
+        definition = copy.deepcopy(definition or DEFINITION)
+        for nom, connecteur, action in outils:
+            outil = await db_session.create_tool(
+                organization_id=org.id,
+                user_id=user.id,
+                name=nom,
+                description=nom,
+                category="integration",
+                definition={"type": "integration", "config": {"connecteur": connecteur, "action": action, "delai_ms": 5000}},
+            )
+            definition["nodes"][0]["data"].setdefault("tool_uuids", []).append(outil.tool_uuid)
 
     workflow = await db_session.create_workflow(
         name="Traversant",
@@ -985,3 +1000,123 @@ async def test_F7_un_objet_de_l_agent_arrive_dans_le_prompt_par_le_vrai_montage(
     assert "{{marques}}" not in recu
     run = await db_session.get_workflow_run_by_id(montage[0].id)
     assert run.initial_context["runtime_configuration"]["objets"] == {"etat": "lu", "poses": ["marques"]}
+
+
+# --------------------------------------------------------------------------- #
+# cloture-code, F8 (M4) : un module coupé ne laisse ni consigne, ni outil, ni variable dans l'appel.
+# Un traversant par module du registre, joué coupé ET allumé : la sonde qui ne voit rien coupé doit voir
+# la trace allumé, sinon elle ne prouverait rien.
+# --------------------------------------------------------------------------- #
+
+
+class _LLMQuiVoitLesOutils(ContextCapturingMockLLM):
+    """Le modèle factice qui garde aussi les noms des outils qu'on lui montre à chaque tour."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.outils_vus: list[list[str]] = []
+
+    async def get_chat_completions(self, context):  # type: ignore[override]
+        outils = getattr(context, "tools", None)
+        self.outils_vus.append([getattr(f, "name", "") for f in getattr(outils, "standard_tools", None) or []])
+        return await super().get_chat_completions(context)
+
+
+def _etape_qui_recueille(variable: str) -> dict:
+    """L'accueil recueille ``variable`` (variable d'extraction) : c'est ce qui déclenche les modules d'un champ."""
+    definition = copy.deepcopy(DEFINITION)
+    definition["nodes"][0]["data"].update(
+        {
+            "extraction_enabled": True,
+            "extraction_prompt": "Relève ce que dit l'appelant.",
+            "extraction_variables": [{"name": variable, "type": "string", "prompt": variable}],
+        }
+    )
+    return definition
+
+
+
+_LEXIQUE = {"termes": [{"terme": "Edilkamin", "variantes": ["Edil Kamin"], "categorie": "marque", "a_ecouter": True}]}
+
+
+def _outil_vu(nom: str):
+    """Le nom de fonction d'un outil est son nom en minuscules, mots liés (« verifier_l_appelant »)."""
+    return lambda llm, run, recu: any(nom.lower() in n.lower() for vus in llm.outils_vus for n in vus)
+
+
+# code du module -> (réglages communs, réglages allumé, réglages coupé, montage, paroles, trace(llm, run, reçu))
+SONDES = {
+    "nombres": (
+        {}, {"conversion_nombres_transcription": True}, {"conversion_nombres_transcription": False}, {},
+        ["trois mille cinq euros"],
+        lambda llm, run, recu: recu != "trois mille cinq euros",
+    ),
+    "communes_et_voies": (
+        {}, {"verification_communes": True}, {"verification_communes": False},
+        {"definition": _etape_qui_recueille("commune")},
+        ["j'habite à Beauvet"],
+        lambda llm, run, recu: recu != "j'habite à Beauvet",
+    ),
+    "epellation": (
+        {}, {"lecture_epellation": True}, {"lecture_epellation": False}, {},
+        ["mon nom c'est Flamant, f l a m a n t"],
+        lambda llm, run, recu: recu != "mon nom c'est Flamant, f l a m a n t",
+    ),
+    "lexique": (
+        {}, {"lexique_metier": True}, {"lexique_metier": False}, {"lexique": _LEXIQUE},
+        ["c'est un Edilcamin"],
+        lambda llm, run, recu: recu != "c'est un Edilcamin"
+        or any(k in (run.initial_context or {}) for k in ("lexique_propose", "lexique_a_ecouter")),
+    ),
+    "controle_des_donnees": (
+        {"conversion_nombres_transcription": True},
+        {"controle_donnees": True}, {"controle_donnees": False},
+        {"definition": _etape_qui_recueille("telephone")},
+        ["zéro six douze trente quatre cinquante six sept"],
+        lambda llm, run, recu: "au lieu de 10" in recu,
+    ),
+    "equipe": (
+        {}, {"equipe_connue": True}, {"equipe_connue": False},
+        {"outils": [("Diriger vers l'equipe", "equipe", "diriger_vers_personne")]},
+        ["bonjour"],
+        lambda llm, run, recu: _outil_vu("Diriger")(llm, run, recu)
+        or any(k in (run.initial_context or {}) for k in ("equipe", "equipe_cles")),
+    ),
+    "verification_appelant": (
+        {}, {"verification_appelant": True}, {"verification_appelant": False},
+        {"outils": [("Verifier l'appelant", "dossier", "verifier_appelant")]},
+        ["bonjour"],
+        _outil_vu("Verifier"),
+    ),
+    # Sans interrupteur : allumé = un outil sur une étape ; coupé = aucun.
+    "planificateur": (
+        {}, {}, {}, {"outils": [("Proposer des creneaux", "planificateur", "proposer_creneaux")]},
+        ["bonjour"],
+        _outil_vu("Proposer"),
+    ),
+}
+
+
+def test_F8_chaque_module_du_registre_a_son_traversant():
+    from api.services.modules.registre import MODULES
+
+    assert sorted(SONDES) == sorted(m.code for m in MODULES)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("allume", [False, True], ids=["coupe", "allume"])
+@pytest.mark.parametrize("code", list(SONDES))
+@_borne
+async def test_F8_un_module_coupe_ne_laisse_rien_dans_l_appel(db_session, async_session, code, allume):
+    communs, avec, sans, montage_en_plus, paroles, trace = SONDES[code]
+    montage_en_plus = dict(montage_en_plus)
+    if code == "planificateur" and not allume:
+        montage_en_plus.pop("outils")
+    montage = await _monter(
+        db_session, async_session, {**communs, **(avec if allume else sans)}, **montage_en_plus
+    )
+    llm = _LLMQuiVoitLesOutils(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    await _appeler(montage, llm, paroles)
+    run = await db_session.get_workflow_run_by_id(montage[0].id)
+    vu = trace(llm, run, _derniere_parole_recue(llm))
+    assert vu is allume, (code, "allumé" if allume else "coupé", _derniere_parole_recue(llm), llm.outils_vus)

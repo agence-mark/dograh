@@ -134,8 +134,16 @@ async def test_chaque_capacite_allumee_puis_eteinte_se_lit_juste(
             "direction vers une personne",
             "integration",
             _integration("equipe", "diriger_vers_personne"),
-            None,
+            # cloture-code, F8 (M4) : l'outil de l'équipe ne compte qu'équipe connue allumée (son module).
+            {"equipe_connue": True},
             {"transfert": True, "demande_transmise": True},
+        ),
+        (
+            "direction vers une personne, module de l'équipe coupé",
+            "integration",
+            _integration("equipe", "diriger_vers_personne"),
+            {"equipe_connue": False},
+            {},
         ),
         (
             "rendez-vous : les créneaux",
@@ -152,9 +160,9 @@ async def test_chaque_capacite_allumee_puis_eteinte_se_lit_juste(
             {"rendez_vous": True},
         ),
     ]
-    for nom, categorie, definition, _, attendu in cas:
+    for nom, categorie, definition, reglages, attendu in cas:
         outil = await _outil(db_session, org, nom, categorie, definition)
-        await _republier(db_session, org.agent, _definition([outil.tool_uuid]), base)
+        await _republier(db_session, org.agent, _definition([outil.tool_uuid]), {**base, **(reglages or {})})
         assert await _capacites(db_session, org, async_session) == {
             **TOUTES_ETEINTES,
             **attendu,

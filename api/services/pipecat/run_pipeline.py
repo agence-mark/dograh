@@ -1944,6 +1944,10 @@ async def _run_pipeline_impl(
         # (groupe, plafond de passations), et ceux qui règlent l'appel.
         agent.reglages = dict(run_configs)
         engine.reglages_appel = dict(run_configs)
+        # [.mark] cloture-code, F8 (M4): the call's settings, read to leave out a switched-off module's tools.
+        from api.services.modules.appel import brancher_les_modules
+
+        brancher_les_modules(engine, run_configs)
         # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8, D13) : le cerveau de fond du premier
         # agent, SI son travail en arrière-plan est allumé (éteint par défaut : rien ne change).
         # Il rejoint l'appel avec l'agent (``start_initial_agent``).

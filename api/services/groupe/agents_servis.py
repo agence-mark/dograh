@@ -76,9 +76,16 @@ def outils_des_etapes(workflow_json: Mapping | None) -> list[str]:
     return vus
 
 
-def _capacites_des_outils(c: CapacitesAgent, outils: Iterable[Any]) -> None:
-    """Range dans ``c`` ce que disent des outils (les mêmes règles pour ceux de l'étape et ceux du fond)."""
+def _capacites_des_outils(
+    c: CapacitesAgent, outils: Iterable[Any], configurations: Mapping | None = None
+) -> None:
+    """Range dans ``c`` ce que disent des outils (les mêmes règles pour ceux de l'étape et ceux du fond).
+    [.mark] cloture-code, F8 (M4) : l'outil d'un module coupé n'est pas dans l'appel, il ne dit rien."""
+    from api.services.modules.etat import outil_d_un_module_coupe
+
     for outil in outils:
+        if outil_d_un_module_coupe(outil, configurations):
+            continue
         categorie = getattr(outil, "category", None)
         config = (
             ((getattr(outil, "definition", None) or {}).get("config") or {})
@@ -110,10 +117,11 @@ def capacites_de(
     from api.services.travail.reglages import ReglagesTravail
 
     c = CapacitesAgent()
-    _capacites_des_outils(c, outils)
-    if ReglagesTravail.depuis(dict(configurations or {})).actif:
+    lues = dict(configurations or {})
+    _capacites_des_outils(c, outils, lues)
+    if ReglagesTravail.depuis(lues).actif:
         _capacites_des_outils(
-            c, [o for o in outils_travail if outil_permis_au_fond(o)]
+            c, [o for o in outils_travail if outil_permis_au_fond(o)], lues
         )
     from api.services.apres_appel.reglages import reglages_de_lagent
 

@@ -235,7 +235,11 @@ class CustomToolManager:
                 # [.mark] l-agent-travaille, L5: a connector's action (its declared parameters).
                 if tool.category == ToolCategory.INTEGRATION.value:
                     from api.services.integrations.connectors import outil as integration
+                    from api.services.modules.appel import outil_coupe_dans_l_appel
 
+                    # [.mark] cloture-code, F8 (M4): a switched-off module leaves no tool in the call.
+                    if outil_coupe_dans_l_appel(self._engine, tool):
+                        continue
                     nom = tool_to_function_schema(tool)["function"]["name"]
                     # l-agent-collegue (C7): a closed list built at pick-up is read here.
                     fs = integration.schema(
@@ -340,7 +344,11 @@ class CustomToolManager:
                 # (the fallback phrase is said past it); Pipecat's is a margin above.
                 if tool.category == ToolCategory.INTEGRATION.value:
                     from api.services.integrations.connectors import outil as integration
+                    from api.services.modules.appel import outil_coupe_dans_l_appel
 
+                    # [.mark] cloture-code, F8 (M4): the same rule as the schemas above.
+                    if outil_coupe_dans_l_appel(self._engine, tool):
+                        continue
                     nom = tool_to_function_schema(tool)["function"]["name"]
                     if integration.schema(tool, nom) is None:
                         continue
