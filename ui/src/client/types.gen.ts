@@ -4399,7 +4399,7 @@ export type EssaiMail = {
 /**
  * Etablissement
  *
- * One establishment. Every optional field left empty is inherited.
+ * One establishment. Every optional field left empty is empty: nothing is inherited (F-8).
  */
 export type Etablissement = {
     /**
@@ -4433,25 +4433,25 @@ export type Etablissement = {
      */
     numero_transfert?: string | null;
     /**
-     * None: the organization's address.
+     * None: no address (the organization's prefills a new establishment).
      */
     adresse?: AdresseEtablissement | null;
     /**
      * Horaires Ouverture
      *
-     * Opening hours, readable format, closures as dated lines « 24/12/2026 : fermé ». None: the agent's own hours, if any.
+     * Opening hours, readable format, closures as dated lines « 24/12/2026 : fermé ». None: no hours (never the agent's own).
      */
     horaires_ouverture?: string | null;
     /**
      * Annonce Fermeture
      *
-     * None: the organization's closing announcement.
+     * None: nothing is announced (the organization's prefills a new establishment).
      */
     annonce_fermeture?: string | null;
     /**
      * Annonce Pause
      *
-     * None: the organization's break announcement.
+     * None: nothing is announced (the organization's prefills a new establishment).
      */
     annonce_pause?: string | null;
     /**
@@ -4469,7 +4469,7 @@ export type Etablissement = {
     /**
      * Phrases
      *
-     * This establishment's content for the sentences placed at the establishment's level (variable -> content). Absent: the organization's content.
+     * This establishment's content for the sentences placed at the establishment's level (variable -> content). Absent: nothing is said (the organization's content prefills a new establishment).
      */
     phrases?: {
         [key: string]: string;
@@ -6766,7 +6766,7 @@ export type ModeleImporte = {
 /**
  * ModificationEtablissement
  *
- * A partial update of ONE fiche: only the fields SENT change, the others stay as they are (an absent field is never read as « empty »). Every field of the fiche but its identifier. A field sent empty (``null``, ``""``) goes back to inherited. ``phrases`` is merged sentence by sentence (a sentence sent empty is removed); ``numeros`` and ``termes_lexique`` are replaced as a whole when sent. The same bounds as a save apply to what is sent.
+ * A partial update of ONE fiche: only the fields SENT change, the others stay as they are (an absent field is never read as « empty »). Every field of the fiche but its identifier. A field sent empty (``null``, ``""``) is emptied (nothing is inherited). ``phrases`` is merged sentence by sentence (a sentence sent empty is removed); ``numeros`` and ``termes_lexique`` are replaced as a whole when sent. The same bounds as a save apply to what is sent.
  */
 export type ModificationEtablissement = {
     /**
@@ -6794,25 +6794,25 @@ export type ModificationEtablissement = {
      */
     numero_transfert?: string | null;
     /**
-     * None: the organization's address.
+     * None: no address (the organization's prefills a new establishment).
      */
     adresse?: AdresseEtablissement | null;
     /**
      * Horaires Ouverture
      *
-     * Opening hours, readable format, closures as dated lines « 24/12/2026 : fermé ». None: the agent's own hours, if any.
+     * Opening hours, readable format, closures as dated lines « 24/12/2026 : fermé ». None: no hours (never the agent's own).
      */
     horaires_ouverture?: string | null;
     /**
      * Annonce Fermeture
      *
-     * None: the organization's closing announcement.
+     * None: nothing is announced (the organization's prefills a new establishment).
      */
     annonce_fermeture?: string | null;
     /**
      * Annonce Pause
      *
-     * None: the organization's break announcement.
+     * None: nothing is announced (the organization's prefills a new establishment).
      */
     annonce_pause?: string | null;
     /**
@@ -6830,7 +6830,7 @@ export type ModificationEtablissement = {
     /**
      * Phrases
      *
-     * This establishment's content for the sentences placed at the establishment's level (variable -> content). Absent: the organization's content.
+     * This establishment's content for the sentences placed at the establishment's level (variable -> content). Absent: nothing is said (the organization's content prefills a new establishment).
      */
     phrases?: {
         [key: string]: string;
@@ -6940,16 +6940,16 @@ export type ModificationPersonne = {
  *
  * A partial update of the planner, ONE level at a time.
  *
- * ``etablissement`` None: the organization's settings; an establishment id: that establishment's
- * overrides. Inside ``reglages`` only the settings SENT change (an absent one keeps its value; one
- * sent ``null`` goes back to inherited). ``types`` creates or replaces the types listed, ``types_retires``
+ * ``etablissement`` None: the organization's settings (starting values); an establishment id: that
+ * establishment's own. Inside ``reglages`` only the settings SENT change (an absent one keeps its value;
+ * one sent ``null`` goes back to the common default). ``types`` creates or replaces the types listed, ``types_retires``
  * removes the ones named; every other type, and every other level, stays as it is.
  */
 export type ModificationPlanificateur = {
     /**
      * Etablissement
      *
-     * The establishment whose overrides change; None: the organization's.
+     * The establishment whose rules change; None: the organization's (starting values).
      */
     etablissement?: string | null;
     /**
@@ -8354,7 +8354,7 @@ export type Planificateur = {
     /**
      * Par Etablissement
      *
-     * Establishment id -> what it overrides.
+     * Establishment id -> its own complete rules (empty: the default).
      */
     par_etablissement?: {
         [key: string]: ReglagesPlanificateur;
@@ -12338,7 +12338,7 @@ export type TypeRendezVous = {
     /**
      * Etablissement
      *
-     * Establishment it applies to; None: the whole organization.
+     * Establishment it belongs to; None: the organization's (starting types of a new establishment, and the types of a call that serves no establishment).
      */
     etablissement?: string | null;
     /**
