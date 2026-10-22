@@ -245,6 +245,11 @@ class OrganizationConfigurationKey(Enum):
     # factors, control fields, levels by kind of data, where records are read. Same free-text
     # key, no migration. Format: api/schemas/verification.py
     VERIFICATION_APPELANT = "VERIFICATION_APPELANT"
+    # [.mark] The agent's objects (cloture-code-avant-migration, lot F7): the names Dograh last saw in
+    # the client's database, so a call that cannot read it leaves {{nom}} as written (the objects and
+    # their ceiling live in the client's database, 019). Same free-text key, no migration.
+    # Format: api/services/objets_agent/stockage.py
+    OBJETS_AGENT_NOMS = "OBJETS_AGENT_NOMS"
 
 
 class UserConfigurationKey(Enum):

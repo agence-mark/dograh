@@ -62,6 +62,7 @@ from api.services.etablissements.phrases import (
     lexique_avec_etablissement,
     lexique_de_lappel_avec_etablissement,
 )
+from api.services.objets_agent.appel import injecter_objets
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -753,6 +754,11 @@ async def execute_text_chat_pending_turn(
         etablissement_servi.origines.update(origines_heritees)
         initial_context["runtime_configuration"]["etablissement"] = etablissement_servi.estampille()
     initial_context = injecter_etablissement(initial_context, etablissement_servi)
+    # [.mark] cloture-code, F7: the agent's objects, as for a call (read with the fiche, before the
+    # sentences). Nothing changes without any, not even the stamp.
+    initial_context, estampille_objets = injecter_objets(initial_context, lecture_de_lappel)
+    if estampille_objets is not None:
+        initial_context["runtime_configuration"]["objets"] = estampille_objets
     # [.mark] The catalogue of sentences (E5), the establishment's content first.
     initial_context = injecter_phrases(
         initial_context,

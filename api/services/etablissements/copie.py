@@ -25,13 +25,16 @@ from loguru import logger
 from api.constants import REDIS_URL
 from api.schemas.base_client import Equipe
 from api.schemas.etablissements import CatalogueEtablissements
+from api.schemas.objets_agent import ObjetAgent
 from api.schemas.phrases import CataloguePhrases
 
 # v2 (L2): the copy carries the establishments AND the catalogue of sentences. A v1
 # copy left in Redis is simply never read again (rebuilt from the source).
 # v3 (l-agent-collegue, L1, C3): it carries the TEAM and its subjects too (read from the
 # client's database; none without one). A v2 copy is never read again either.
-PREFIXE = "mark:etablissements:v3:"
+# v4 (cloture-code, F7): it carries the agent's OBJECTS too, and whether they could be read. A v3
+# copy (no objects) is never read again: it would give a call « no object » for a database that has.
+PREFIXE = "mark:etablissements:v4:"
 # Short on purpose: Redis is local to the call. A copy that takes longer than
 # this is treated as absent and the stored catalogue is read instead.
 DELAI_REDIS_S = 0.25
@@ -79,6 +82,24 @@ class CopieOrganisation:
     journal_id: int | None = None
     # Revue 10: the client's database is attached but slower than the pick-up delay.
     repli: bool = False
+    # cloture-code, F7: the agent's objects, read with the rest (D113: once, at pick-up, for the whole
+    # call). ``objets_etat``: ``lu`` (read from the database, maybe none), ``sans_base`` (no database:
+    # nothing to read), ``injoignable`` (attached, did not answer or could not be read: each {{nom}} of
+    # ``objets_noms`` stays as written and the call notes an incident).
+    objets: list[ObjetAgent] = field(default_factory=list)
+    objets_etat: str = "sans_base"
+    objets_noms: list[str] = field(default_factory=list)
+
+
+async def _objets_injoignables(copie: CopieOrganisation, organization_id: int) -> CopieOrganisation:
+    """F7: the database is attached but its objects were not read: their names (last seen by Dograh)
+    are kept so the call leaves them as written."""
+    from api.services.objets_agent.stockage import lire_noms
+
+    copie.objets = []
+    copie.objets_etat = "injoignable"
+    copie.objets_noms = await lire_noms(organization_id)
+    return copie
 
 
 async def lire_source(
@@ -100,6 +121,7 @@ async def lire_source(
         phrases=await lire_phrases(organization_id),
         lu_depuis="stockage",
     )
+    nom = None
     try:
         from api.services.base_client.synchro import lire_depuis_la_base
 
@@ -119,11 +141,13 @@ async def lire_source(
                     f"[.mark] Client database of organization {organization_id} slower than "
                     f"{delai_s} s at pick-up: mirror used, copy rebuilt in the background"
                 )
-                return miroir
+                return await _objets_injoignables(miroir, organization_id)
     except Exception as erreur:  # noqa: BLE001 -- the mirror takes over, the call goes on
         logger.warning(
             f"[.mark] Client database of organization {organization_id} not read, mirror used: {erreur!r}"
         )
+        if nom:
+            return await _objets_injoignables(miroir, organization_id)
     return miroir
 
 
@@ -143,6 +167,9 @@ async def publier_copie(
             "equipe": copie.equipe.model_dump(mode="json"),
             "refus": copie.refus,
             "journal_id": copie.journal_id,
+            "objets": [o.model_dump(mode="json") for o in copie.objets],
+            "objets_etat": copie.objets_etat,
+            "objets_noms": copie.objets_noms,
         }
         redis = await _redis()
         if copie.journal_id is not None:
@@ -178,6 +205,7 @@ async def lire_copie_complete(organization_id: int | None) -> CopieOrganisation:
                 lu_depuis="copie",
                 source=document.get("source", "dograh"),
                 refus=list(document.get("refus") or []),
+                **_objets_du_document(document),
             )
     except Exception as erreur:  # noqa: BLE001 -- the source takes over
         logger.warning(
@@ -209,6 +237,21 @@ async def _refaire_depuis_la_base(organization_id: int) -> None:
         logger.warning(
             f"[.mark] Background rebuild of the copy of organization {organization_id} failed: {erreur!r}"
         )
+
+
+def _objets_du_document(document: dict) -> dict:
+    """F7: the objects kept in the copy. Unreadable: « injoignable » with the names the copy carried, so
+    the call leaves them as written and notes the incident (never a call stopped for an object)."""
+    noms = [n for n in document.get("objets_noms") or [] if isinstance(n, str)]
+    try:
+        return {
+            "objets": [ObjetAgent.model_validate(o) for o in document.get("objets") or []],
+            "objets_etat": str(document.get("objets_etat") or "sans_base"),
+            "objets_noms": noms,
+        }
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Objects of the copy unreadable, left as written: {erreur!r}")
+        return {"objets": [], "objets_etat": "injoignable", "objets_noms": noms}
 
 
 def _equipe(brut) -> Equipe:

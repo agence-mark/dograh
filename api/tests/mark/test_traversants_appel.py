@@ -31,6 +31,7 @@ la fabrique de voix, elle, est la vraie, avec ses filtres et ses transformations
 | plafond du lexique | la liste remise à la transcription tient sous le plafond déclaré avec le fournisseur, dictionnaire de l'agent en tête |
 | noms proposés | l'agent reçoit `lexique_propose` et `lexique_a_ecouter` (même contenu), tirés de la seule case « l'entreprise le propose » |
 | filet du lexique | une liste refusée par la transcription (HTTP 400) : reconnexion sans la liste, l'appel continue, le refus est estampillé |
+| objet de l'agent (F7) | un objet lu avec la fiche arrive rendu (tableau texte) dans le prompt reçu par le modèle ; l'appel l'estampille |
 
 ⛔ Chacun a été éprouvé en débranchant sa fonctionnalité : il rougit (journal du
 chantier). Un test traversant qui reste vert fonctionnalité débranchée ne
@@ -45,7 +46,7 @@ import contextlib
 import copy
 import functools
 import uuid
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from pipecat.frames.frames import TranscriptionFrame
@@ -132,7 +133,9 @@ PLAFOND_S = 40.0
 # --------------------------------------------------------------------------- #
 
 
-async def _monter(db_session, async_session, configurations: dict, *, lexique=None, modele_stt=None):
+async def _monter(
+    db_session, async_session, configurations: dict, *, lexique=None, modele_stt=None, definition=None
+):
     """Organisation, agent français, workflow publié AVEC sa configuration, run."""
     suffixe = uuid.uuid4().hex[:10]
     org = OrganizationModel(provider_id=f"test-org-traversant-{suffixe}")
@@ -161,14 +164,14 @@ async def _monter(db_session, async_session, configurations: dict, *, lexique=No
 
     workflow = await db_session.create_workflow(
         name="Traversant",
-        workflow_definition=DEFINITION,
+        workflow_definition=definition or DEFINITION,
         user_id=user.id,
         organization_id=org.id,
     )
     # Comme l'écran : un brouillon porte la configuration, la publication la
     # rend lue par l'appel (`workflow_run.definition.workflow_configurations`).
     await db_session.save_workflow_draft(
-        workflow.id, workflow_definition=DEFINITION, workflow_configurations=configurations
+        workflow.id, workflow_definition=definition or DEFINITION, workflow_configurations=configurations
     )
     publiee = await db_session.publish_workflow_draft(workflow.id)
     run = await db_session.create_workflow_run(
@@ -952,3 +955,33 @@ async def test_C9_sous_flux_les_reglages_qui_jouent_arrivent_a_l_agregateur(
     assert any(
         isinstance(getattr(s, "inner", s), ExternalUserTurnStopStrategy) for s in strategies.stop
     ), arret
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_F7_un_objet_de_l_agent_arrive_dans_le_prompt_par_le_vrai_montage(db_session, async_session):
+    """cloture-code, F7 (D107, D113) : un objet lu au décroché avec la fiche (la copie de l'organisation)
+    arrive RENDU dans le prompt de l'étape que reçoit le modèle ; l'appel l'estampille."""
+    from api.schemas.objets_agent import ColonneObjet, LigneObjet, ObjetAgent
+    from api.services.etablissements.copie import CopieOrganisation
+
+    definition = copy.deepcopy(DEFINITION)
+    definition["nodes"][0]["data"]["prompt"] += "\nMarques suivies :\n{{marques}}"
+    montage = await _monter(db_session, async_session, {}, definition=definition)
+    objet = ObjetAgent(
+        id=1,
+        nom="marques",
+        libelle="Marques",
+        forme="liste",
+        colonnes=[ColonneObjet(id=1, libelle="Marque", ordre=1), ColonneObjet(id=2, libelle="Suivie", type="oui_non", ordre=2)],
+        lignes=[LigneObjet(id=1, valeurs={"Marque": "Edilkamin", "Suivie": "oui"})],
+    )
+    copie = CopieOrganisation(objets=[objet], objets_etat="lu", objets_noms=["marques"], lu_depuis="copie")
+    llm = ContextCapturingMockLLM(mock_steps=[_texte("Très bien.")], chunk_delay=0.001)
+    with patch("api.services.etablissements.copie.lire_copie_complete", AsyncMock(return_value=copie)):
+        await _appeler(montage, llm, ["bonjour"])
+    recu = str(llm.captured_contexts[0]["system_prompt"]) + str(llm.captured_contexts[0]["messages"])
+    assert "Marque | Suivie" in recu and "Edilkamin | oui" in recu, recu
+    assert "{{marques}}" not in recu
+    run = await db_session.get_workflow_run_by_id(montage[0].id)
+    assert run.initial_context["runtime_configuration"]["objets"] == {"etat": "lu", "poses": ["marques"]}

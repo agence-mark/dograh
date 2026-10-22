@@ -18,6 +18,7 @@ from typing import Any
 from api.schemas.apres_appel import ApresAppelAgent
 from api.services.fiche.demandes import APPEL, DEMANDE, demandes_closes, dernier_specialise
 from api.services.groupe.parcours import rendre_le_parcours
+from api.services.objets_agent.appel import incidents_des_objets
 from api.services.apres_appel.rappels import (
     ORIGINE_EQUIPE,
     ORIGINE_PLANIFICATEUR,
@@ -578,7 +579,8 @@ def construire_envoi(
         "hors_horaires": hors_horaires_de(initial),
         "agents": agents_de_l_appel(run, contexte),
         "transferts": transferts_de(contexte),
-        "incidents": incidents_de(analyse, debut),
+        # [.mark] cloture-code, F7: a call whose objects could not be read at pick-up notes it.
+        "incidents": incidents_de(analyse, debut) + incidents_des_objets(runtime, debut),
         "degre_urgence": valeur("degre_urgence"),
         "contact": {
             "nom": valeur("nom"),

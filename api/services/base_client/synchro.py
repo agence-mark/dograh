@@ -40,14 +40,17 @@ async def lire_depuis_la_base(
         referentiel = await lire_referentiel(connexion, avant, phrases_avant)
         # l-agent-collegue, C3: the team and its subjects, in the same connection.
         equipe, refus_equipe = await _equipe_de(connexion)
+        # cloture-code, F7: the agent's objects, in the same connection (D113: one read).
+        objets, refus_objets = await _objets_de(connexion)
     finally:
         await connexion.close()
     referentiel.refus.extend(refus_equipe)
+    referentiel.refus.extend(refus_objets)
     for refus in referentiel.refus:
         logger.error(
             f"[.mark] Client database of organization {organization_id}: {refus}"
         )
-    return CopieOrganisation(
+    copie = CopieOrganisation(
         etablissements=referentiel.etablissements,
         phrases=referentiel.phrases,
         equipe=equipe,
@@ -56,6 +59,25 @@ async def lire_depuis_la_base(
         refus=referentiel.refus,
         journal_id=journal_id,
     )
+    if objets is None:
+        from api.services.etablissements.copie import _objets_injoignables
+
+        return await _objets_injoignables(copie, organization_id)
+    copie.objets = objets
+    copie.objets_etat = "lu"
+    copie.objets_noms = [o.nom for o in objets]
+    return copie
+
+
+async def _objets_de(connexion):
+    """The objects as the calls read them, and the refusal to report. ``None``: unreadable (a bad row):
+    the establishments and the team are still read, and each {{nom}} stays as written."""
+    from api.db.bases_clients.objets import lire_objets
+
+    try:
+        return await lire_objets(connexion), []
+    except Exception as erreur:  # noqa: BLE001
+        return None, [f"objects refused ({type(erreur).__name__}); the agent's {{{{names}}}} stay as written until corrected"]
 
 
 async def _equipe_de(connexion):
@@ -122,9 +144,15 @@ async def _resynchroniser(organization_id: int) -> str:
             "catalogue": copie.etablissements.model_dump(mode="json"),
             "phrases": copie.phrases.model_dump(mode="json"),
             "equipe": copie.equipe.model_dump(mode="json"),
+            # cloture-code, F7: the objects too (a missed notification on an object is corrected).
+            "objets": [o.model_dump(mode="json") for o in copie.objets],
         }
         ancien = {k: (avant_doc or {}).get(k) for k in nouveau}
         await publier_copie(organization_id, copie)
+        if copie.objets_etat == "lu":
+            from api.services.objets_agent.stockage import retenir_noms
+
+            await retenir_noms(organization_id, [o.nom for o in copie.objets])
         if ancien == nouveau:
             return "identique"
         # The mirror follows (the call's fallback when the database does not answer).

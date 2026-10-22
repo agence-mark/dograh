@@ -68,6 +68,7 @@ from api.services.etablissements.phrases import (
     injecter_phrases,
     lexique_avec_etablissement,
 )
+from api.services.objets_agent.appel import injecter_objets
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -1016,6 +1017,11 @@ async def _run_pipeline_impl(
     merged_call_context_vars = injecter_etablissement(
         merged_call_context_vars, etablissement_servi
     )
+    # [.mark] cloture-code, F7: the agent's objects, read with the fiche, as {{nom}} for the whole
+    # call; BEFORE the sentences so a sentence may name one. Nothing changes without any.
+    merged_call_context_vars, estampille_objets = injecter_objets(
+        merged_call_context_vars, lecture_de_lappel
+    )
     # [.mark] The catalogue of sentences (E5), the establishment's content first.
     merged_call_context_vars = injecter_phrases(
         merged_call_context_vars,
@@ -1318,6 +1324,8 @@ async def _run_pipeline_impl(
         runtime_configuration["etablissement"] = etablissement_servi.estampille()
     if estampille_equipe is not None:
         runtime_configuration["equipe"] = estampille_equipe
+    if estampille_objets is not None:
+        runtime_configuration["objets"] = estampille_objets
     merged_call_context_vars = {
         **merged_call_context_vars,
         "runtime_configuration": runtime_configuration,

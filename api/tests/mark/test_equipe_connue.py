@@ -340,7 +340,7 @@ async def test_une_copie_v2_nest_plus_lue():
     redis = _RedisFactice()
     redis.valeurs[f"mark:etablissements:v2:{ORGANISATION}"] = "{}"
     with patch.object(module_copie, "_redis", AsyncMock(return_value=redis)):
-        assert module_copie.cle_copie(ORGANISATION).startswith("mark:etablissements:v3:")
+        assert module_copie.cle_copie(ORGANISATION).startswith("mark:etablissements:v4:")  # F7 : v4 (objets)
 
 
 # --------------------------------------------------------------------------- #

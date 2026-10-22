@@ -57,6 +57,7 @@ from api.schemas.etablissements import (
     EtablissementServi,
     ValeurHeritee,
 )
+from api.schemas.objets_agent import ObjetAgent
 from api.schemas.phrases import CataloguePhrases
 
 CLE_ETABLISSEMENT_CHOISI = "etablissement_id"
@@ -295,6 +296,11 @@ class LectureDeLappel:
     lu_depuis: str = "aucune"
     # [.mark] Lot 5 (M5): the name of each fiche, for the places on the team's lines.
     noms_des_lieux: dict[str, str] = field(default_factory=dict)
+    # [.mark] cloture-code, F7: the agent's objects, read with the fiche (one read for the whole call);
+    # see ``CopieOrganisation`` for the three states.
+    objets: list[ObjetAgent] = field(default_factory=list)
+    objets_etat: str = "sans_base"
+    objets_noms: list[str] = field(default_factory=list)
 
     @property
     def etablissement_id(self) -> str | None:
@@ -316,7 +322,12 @@ async def lire_lappel(
 
         copie = await lire_copie_complete(organization_id)
         lecture = LectureDeLappel(
-            phrases=copie.phrases, equipe=copie.equipe, lu_depuis=copie.lu_depuis
+            phrases=copie.phrases,
+            equipe=copie.equipe,
+            lu_depuis=copie.lu_depuis,
+            objets=copie.objets,
+            objets_etat=copie.objets_etat,
+            objets_noms=copie.objets_noms,
         )
         catalogue = copie.etablissements
         lecture.noms_des_lieux = {e.id: e.nom for e in catalogue.etablissements}
