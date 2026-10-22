@@ -139,3 +139,16 @@ class BaseFileSystem(ABC):
             bool: True if file was copied successfully, False otherwise
         """
         pass
+
+    # [.mark] Purge de conservation (lot 6) : une copie déjà absente n'est pas une erreur.
+    @abstractmethod
+    async def adelete_file(self, file_path: str) -> bool:
+        """Delete a file from storage.
+
+        Args:
+            file_path: Path to the file in storage
+
+        Returns:
+            bool: True if the file is gone (deleted now or already absent), False otherwise
+        """
+        pass

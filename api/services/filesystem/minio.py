@@ -208,3 +208,15 @@ class MinioFileSystem(BaseFileSystem):
             return True
         except S3Error:
             return False
+
+    # [.mark] Purge de conservation (lot 6) : une copie absente n'est pas une erreur.
+    async def adelete_file(self, file_path: str) -> bool:
+        try:
+
+            def _remove():
+                self.client.remove_object(self.bucket_name, file_path)
+
+            await asyncio.to_thread(_remove)
+            return True
+        except S3Error:
+            return False
