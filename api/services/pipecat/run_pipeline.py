@@ -1704,7 +1704,7 @@ async def _run_pipeline_impl(
             bus=worker_runner.bus,
             worker_name=call_worker_name,
             selected_visit=lambda: engine.selected_visit_id,
-            allow_inference=lambda: not engine.transfer_in_progress,
+            allow_inference=lambda: engine._response_watch_enabled(engine.active_agent),
             name=f"{call_worker_name}::AgentBridge",
         )
         # [.mark] Lot 3 (D7) : pendant l'attente d'une passation aucun agent n'a la main ;
