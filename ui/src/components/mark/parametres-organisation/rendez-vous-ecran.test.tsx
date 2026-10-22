@@ -3,7 +3,7 @@
  *
  *   - without a client database, it says where the rules live and offers nothing;
  *   - every rule of the planner is ON SCREEN (one entry per key of the published spec), with the
- *     value inherited shown in the empty field;
+ *     common default shown in the empty field (F-8: an establishment inherits nothing);
  *   - the organization's level and an establishment's are edited apart; the types are a list in a
  *     modal on a copy (« Cancel » / « Apply »); « Save » sends exactly what is on screen;
  *   - a value out of bounds is NAMED and blocks the save (E7).
@@ -95,7 +95,7 @@ describe("[.mark] l-agent-collegue L5: the theme « Appointments »", () => {
         expect(screen.queryByTestId("ouvrir-types-rdv")).toBeNull();
     });
 
-    it("draws every rule of the published spec, the inherited value in the empty field", async () => {
+    it("draws every rule of the published spec, the common default in the empty field", async () => {
         m.lire.mockResolvedValue({ data: structuredClone(LU) });
         const { container } = rendre(true);
         await screen.findByTestId("ouvrir-types-rdv");
@@ -105,11 +105,12 @@ describe("[.mark] l-agent-collegue L5: the theme « Appointments »", () => {
         expect(container.querySelector('[data-reglage="types"]')).not.toBeNull();
         expect((document.getElementById("rdv-nombre_creneaux") as HTMLInputElement).value).toBe("2");
         expect((document.getElementById("rdv-horizon_jours") as HTMLInputElement).placeholder).toMatch(/14/);
-        // An establishment inherits the ORGANIZATION's value, not the default.
+        // F-8: an establishment inherits NOTHING from the starting values: its empty field is the common default.
         fireEvent.change(document.getElementById("rdv-niveau-choix")!, { target: { value: "nord" } });
         const nombre = document.getElementById("rdv-nombre_creneaux") as HTMLInputElement;
         expect(nombre.value).toBe("");
-        expect(nombre.placeholder).toMatch(/2/);
+        expect(nombre.placeholder).toMatch(/3/);
+        expect(nombre.placeholder).not.toMatch(/2/);
     });
 
     it("saves exactly the two levels and the types as set on screen", async () => {
@@ -142,7 +143,7 @@ describe("[.mark] l-agent-collegue L5: the theme « Appointments »", () => {
         });
     });
 
-    it("R-7: the fairness window is on screen with its bounds, inherited from the organization, and saved as set", async () => {
+    it("R-7: the fairness window is on screen with its bounds, the default at an establishment (F-8), and saved as set", async () => {
         m.lire.mockResolvedValue({ data: { ...structuredClone(LU), reglages: { repartition: "tour_de_role", fenetre_equite_jours: 45 } } });
         m.enregistrer.mockImplementation(async ({ body }) => ({ data: { ...body, defauts: DEFAUTS } }));
         const { container } = rendre(true);
@@ -153,11 +154,12 @@ describe("[.mark] l-agent-collegue L5: the theme « Appointments »", () => {
         const entree = document.getElementById("rdv-fenetre_equite_jours") as HTMLInputElement;
         expect(entree.value).toBe("45");
         expect(champ.textContent).not.toMatch(/No effect here|Sans effet/); // the mode is « In turn »
-        // An establishment inherits the ORGANIZATION's 45 days, and sets its own.
+        // F-8: an establishment does not inherit the starting 45 days: empty is the default (30); it sets its own.
         fireEvent.change(document.getElementById("rdv-niveau-choix")!, { target: { value: "nord" } });
         const nord = document.getElementById("rdv-fenetre_equite_jours") as HTMLInputElement;
         expect(nord.value).toBe("");
-        expect(nord.placeholder).toMatch(/45/);
+        expect(nord.placeholder).toMatch(/30/);
+        expect(nord.placeholder).not.toMatch(/45/);
         fireEvent.change(nord, { target: { value: "7" } });
         fireEvent.click(screen.getByRole("button", { name: /Save Appointments|Enregistrer Rendez-vous/ }));
         await waitFor(() => expect(m.enregistrer).toHaveBeenCalledTimes(1));

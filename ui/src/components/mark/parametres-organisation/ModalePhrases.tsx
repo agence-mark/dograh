@@ -208,8 +208,8 @@ export function ModalePhrases({
                     <DialogTitle>{t({ en: "Sentences", fr: "Phrases" })}</DialogTitle>
                     <DialogDescription>
                         {t({
-                            en: "Sentences said word for word, given to the agents as {{variable}}. At the establishment's level, each establishment may have its own content; otherwise this one is used. The client sees them, only .mark changes them.",
-                            fr: "Des phrases dites mot pour mot, données aux agents comme {{variable}}. Au niveau de l'établissement, chaque établissement peut avoir son propre contenu ; sinon celui-ci est utilisé. Le client les voit, seul .mark les modifie.",
+                            en: "Sentences said word for word, given to the agents as {{variable}}. At the establishment's level, each establishment has its own content (empty: nothing is said); this one is the starting value of a new establishment and serves the calls that serve none. The client sees them, only .mark changes them.",
+                            fr: "Des phrases dites mot pour mot, données aux agents comme {{variable}}. Au niveau de l'établissement, chaque établissement a son propre contenu (vide : rien n'est dit) ; celui-ci est la valeur de départ d'un nouvel établissement et sert aux appels qui n'en servent aucun. Le client les voit, seul .mark les modifie.",
                         })}
                     </DialogDescription>
                 </DialogHeader>

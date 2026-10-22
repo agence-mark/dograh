@@ -2,9 +2,9 @@
  * [.mark] The establishments on screen (chantier l-agent-travaille, L1), rendered.
  *
  *   - the Establishments theme shows the saved ones and opens the modal (E4);
- *   - in the modal: add one, an inherited value is greyed with « Customize », clearing goes back to
- *     inherited (E2); no numbers on the fiche any more (lot 11, C4), the ones stored are kept;
- *   - « Save » sends exactly the catalogue, empty fields as null (inherited);
+ *   - in the modal: add one, prefilled with the starting values (F-8: nothing inherited, an empty
+ *     field is empty); no numbers on the fiche any more (lot 11, C4), the ones stored are kept;
+ *   - « Save » sends exactly the catalogue, empty fields as null (nothing);
  *   - a refusal of the server (422) is shown and the modal stays open;
  *   - an unreadable catalogue leaves nothing to save;
  *   - the agent's theme shows the establishments it serves and where each value comes from.
@@ -19,7 +19,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChoixEtablissementEssai } from "../etablissements/ChoixEtablissementEssai";
 import { FournisseurLangue } from "../langue/langue";
 import { EtablissementsServis, useEtablissementsDeLagent } from "../reglages-agent/EtablissementsServis";
-import { charge_utile_etablissements, identifiantPour, ModaleEtablissements } from "./ModaleEtablissements";
+import { charge_utile_etablissements, identifiantPour, ModaleEtablissements, planificateurAvecNouveau } from "./ModaleEtablissements";
 import { ModalePhrases } from "./ModalePhrases";
 
 const m = vi.hoisted(() => ({
@@ -99,6 +99,21 @@ const ouvrir = async (onFermer = vi.fn()) => {
 };
 
 describe("[.mark] the establishments modal", () => {
+    it("F-8: a new establishment's planner is a copy of the starting rules and types, under its identifier", () => {
+        const depart = {
+            reglages: { nombre_creneaux: 2 },
+            par_etablissement: { creil: { nombre_creneaux: 4 } },
+            types: [
+                { code: "visite", etablissement: null, libelle: "Visite", duree_min: 60 },
+                { code: "visite", etablissement: "creil", libelle: "Visite longue", duree_min: 90 },
+            ],
+        };
+        const avec = planificateurAvecNouveau(depart, "senlis");
+        expect(avec.par_etablissement).toEqual({ creil: { nombre_creneaux: 4 }, senlis: { nombre_creneaux: 2 } });
+        expect(avec.types).toEqual([...depart.types, { code: "visite", etablissement: "senlis", libelle: "Visite", duree_min: 60 }]);
+        expect(depart.par_etablissement).toEqual({ creil: { nombre_creneaux: 4 } }); // never changed in place
+    });
+
     it("derives a unique identifier from the name", () => {
         expect(identifiantPour("Magasin de Créteil", [])).toBe("magasin-de-creteil");
         expect(identifiantPour("Magasin", ["magasin"])).toBe("magasin-2");
@@ -112,7 +127,7 @@ describe("[.mark] the establishments modal", () => {
         expect(m.save.mock.calls[0][0].body.etablissements[0]).toMatchObject({ id: "creil", nom: "Creil centre" });
     });
 
-    it("saves untouched exactly what it read, empty fields as inherited", async () => {
+    it("saves untouched exactly what it read, empty fields as null", async () => {
         const onFermer = await ouvrir();
         fireEvent.click(screen.getByTestId("enregistrer-etablissements"));
         await waitFor(() => expect(m.save).toHaveBeenCalledTimes(1));
@@ -135,17 +150,19 @@ describe("[.mark] the establishments modal", () => {
         expect(m.save.mock.calls[0][0].body.etablissements[0].numeros).toEqual(["+33344000001"]);
     });
 
-    it("adds an establishment, customizes then inherits", async () => {
+    it("F-8: adds an establishment prefilled with the starting values, which it then changes as its own", async () => {
         await ouvrir();
         fireEvent.click(screen.getByTestId("ajouter-etablissement"));
         fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Magasin de Senlis" } });
-        // Inherited, greyed, with the organization's sentence
-        expect(screen.getByTestId("herite-annonce_fermeture").textContent).toContain("Nous sommes fermés.");
-        fireEvent.click(screen.getByTestId("personnaliser-annonce_fermeture"));
+        // Prefilled IN its fields (its own values now), never shown as « inherited ».
+        expect(screen.queryByTestId("herite-annonce_fermeture")).toBeNull();
+        expect(screen.queryByTestId("personnaliser-annonce_fermeture")).toBeNull();
+        expect((document.getElementById("etablissement-annonce_fermeture") as HTMLTextAreaElement).value).toBe("Nous sommes fermés.");
+        expect((document.getElementById("etablissement-phrase-phrase_acces") as HTMLTextAreaElement).value).toBe("En centre-ville.");
         fireEvent.change(document.getElementById("etablissement-annonce_fermeture")!, { target: { value: "Senlis est fermé." } });
-        fireEvent.click(screen.getByTestId("personnaliser-horaires_ouverture"));
+        fireEvent.change(document.getElementById("etablissement-annonce_pause")!, { target: { value: "" } });
         fireEvent.change(document.getElementById("etablissement-horaires")!, { target: { value: "lundi : fermé" } });
-        fireEvent.click(screen.getByTestId("heriter-horaires_ouverture"));
+        fireEvent.change(document.getElementById("etablissement-horaires")!, { target: { value: "" } });
         fireEvent.click(screen.getByTestId("enregistrer-etablissements"));
         await waitFor(() => expect(m.save).toHaveBeenCalledTimes(1));
         const [, nouveau] = m.save.mock.calls[0][0].body.etablissements;
@@ -159,17 +176,26 @@ describe("[.mark] the establishments modal", () => {
             horaires_ouverture: null,
             annonce_fermeture: "Senlis est fermé.",
             annonce_pause: null,
-            phrases: {},
+            phrases: { phrase_acces: "En centre-ville." },
             termes_lexique: [],
         });
     });
 
+    it("F-8: an existing establishment's empty field stays empty and says so", async () => {
+        await ouvrir();
+        expect((document.getElementById("etablissement-annonce_fermeture") as HTMLTextAreaElement).value).toBe("");
+        expect(screen.getByTestId("vide-annonce_fermeture").textContent).toMatch(/never the organization's sentence/);
+        expect(document.body.textContent).not.toMatch(/Inherited from the organization|Back to the inherited value/);
+        fireEvent.click(screen.getByTestId("enregistrer-etablissements"));
+        await waitFor(() => expect(m.save).toHaveBeenCalledTimes(1));
+        expect(m.save.mock.calls[0][0].body.etablissements[0].annonce_fermeture).toBeNull();
+    });
+
     it("gives an establishment its own content for a sentence of its level, and its terms", async () => {
         await ouvrir();
-        // Only the sentence placed at the establishment's level is offered, inherited first.
+        // Only the sentence placed at the establishment's level is offered, as the fiche's own field (empty here).
         expect(screen.queryByTestId("champ-phrase_rgpd")).toBeNull();
-        expect(screen.getByTestId("herite-phrase_acces").textContent).toContain("En centre-ville.");
-        fireEvent.click(screen.getByTestId("personnaliser-phrase_acces"));
+        expect((document.getElementById("etablissement-phrase-phrase_acces") as HTMLTextAreaElement).value).toBe("");
         fireEvent.change(document.getElementById("etablissement-phrase-phrase_acces")!, { target: { value: "Derrière la gare." } });
         fireEvent.change(document.getElementById("etablissement-termes")!, { target: { value: "Jøtul\nJøtul\n  Invicta " } });
         fireEvent.click(screen.getByTestId("enregistrer-etablissements"));
@@ -216,8 +242,9 @@ describe("[.mark] the establishments an agent serves", () => {
                         nom: "Magasin de Creil",
                         numeros: ["+33344000001"],
                         horaires_ouverture: { valeur: "lundi : fermé", origine: "etablissement" },
-                        adresse: { valeur: "60740 Saint-Maximin", origine: "organisation" },
-                        annonce_fermeture: { valeur: "Fermé.", origine: "organisation" },
+                        // F-8: the server never sends « organisation » for an establishment any more.
+                        adresse: { valeur: null, origine: "aucune" },
+                        annonce_fermeture: { valeur: "Fermé.", origine: "etablissement" },
                         annonce_pause: { valeur: null, origine: "aucune" },
                         numero_transfert: { valeur: null, origine: "aucune" },
                     },
@@ -236,7 +263,8 @@ describe("[.mark] the establishments an agent serves", () => {
         const texte = screen.getByTestId("etablissements-servis").textContent ?? "";
         expect(texte).toContain("Magasin de Creil");
         expect(texte).toContain("(the establishment)");
-        expect(texte).toContain("(inherited from the organization)");
+        expect(texte).toContain("(none)");
+        expect(texte).not.toMatch(/inherited/);
     });
 
     it("says so when the agent serves none", async () => {

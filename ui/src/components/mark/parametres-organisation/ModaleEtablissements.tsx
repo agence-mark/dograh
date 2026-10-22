@@ -6,8 +6,8 @@
  * A list to edit, so a modal (E4) working on a copy: « Cancel » / « Save ». It saves itself
  * (its own PUT), so it is not part of the theme's draft. Each establishment: its name, the
  * Telephony numbers that lead to it (E3, none = « to attach »), its second number and its
- * transfer number, then the three values it may override. An inherited value is shown greyed,
- * with « Customize for this establishment »; clearing it goes back to the inherited value (E2).
+ * transfer number, then its values (E2's inheritance, with its greyed value and « Customize », is
+ * gone since F-8, below).
  *
  * What the call reads is resolved by the server, never here: this screen only shows where a
  * value comes from.
@@ -18,6 +18,13 @@
  * appointments and its zone (written with it, in the client's database), and « Create by copy »
  * (F2). The copy is written at once by the server, so it is offered only when nothing is waiting
  * to be saved here.
+ *
+ * cloture-code, F-8 (Evan, 22/10): an establishment has its own complete values and inherits
+ * NOTHING, whichever way a call finds it. No more « inherited » value nor « Customize »: each field
+ * is the fiche's own, an empty one is empty. A NEW establishment starts from the starting values
+ * (the organization's address, announcements and sentences, its appointment rules and types), shown
+ * filled in its fields; then it lives its own life. The server prefills the same way (route and
+ * client's database), so a fiche created elsewhere starts alike.
  */
 import { Copy, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -56,7 +63,6 @@ import { ChampAdresseEtablissement } from "../ChampAdresseEtablissement";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { type Texte, useLangue } from "../langue/langue";
-import { texteAdresse } from "../SectionAdresseEtablissement";
 import { ETATS } from "../SectionAnnonceOuverture";
 import { EXEMPLE_HORAIRES } from "../SectionHorairesOuverture";
 import { FicheRendezVous } from "./FicheRendezVous";
@@ -80,12 +86,40 @@ export function identifiantPour(nom: string, pris: string[]): string {
     return id;
 }
 
-const nouveau = (pris: string[], t: (x: Texte) => string): Etablissement => {
+/** F-8: what a NEW establishment starts from (the common values), then it lives its own life. */
+export interface ValeursDeDepart {
+    adresse: AdresseEtablissement | null;
+    annonce: ReglagesAnnonceOuverture;
+    phrases: Phrase[];
+}
+
+const nouveau = (pris: string[], t: (x: Texte) => string, depart: ValeursDeDepart): Etablissement => {
     const nom = t({ en: "New establishment", fr: "Nouvel établissement" });
-    return { id: identifiantPour(nom, pris), nom, numeros: [] };
+    const plein = (v: string | null | undefined) => (v && v.trim() ? v.trim() : null);
+    return {
+        id: identifiantPour(nom, pris),
+        nom,
+        numeros: [],
+        adresse: depart.adresse ?? null,
+        annonce_fermeture: plein(depart.annonce.annonce_fermeture),
+        annonce_pause: plein(depart.annonce.annonce_pause),
+        phrases: Object.fromEntries(
+            depart.phrases.filter((p) => p.niveau === "etablissement" && plein(p.contenu)).map((p) => [p.variable, (p.contenu ?? "").trim()]),
+        ),
+    };
 };
 
-/** The PUT body: empty strings are « inherited » (null), as the server reads them. */
+/** F-8: the planner of a NEW establishment: a copy of the starting rules and types, under its identifier. */
+export const planificateurAvecNouveau = (p: Planificateur, id: string): Planificateur => ({
+    ...p,
+    par_etablissement: { ...(p.par_etablissement ?? {}), [id]: { ...(p.reglages ?? {}) } },
+    types: [
+        ...(p.types ?? []).filter((x) => (x.etablissement ?? null) !== id),
+        ...(p.types ?? []).filter((x) => !x.etablissement).map((x) => ({ ...x, etablissement: id })),
+    ],
+});
+
+/** The PUT body: empty strings are null (« nothing », F-8), as the server reads them. */
 const nettoyer = (e: Etablissement): Etablissement => {
     const vide = (v: string | null | undefined) => (v && v.trim() ? v.trim() : null);
     return {
@@ -158,26 +192,20 @@ interface ProprietesModale {
     annonceOrganisation: ReglagesAnnonceOuverture;
 }
 
-/** A field that may be inherited: greyed value + « Customize », or the field + « Back to inherited ». */
-const ChampHerite = ({
+/** F-8: the fiche's OWN field (nothing inherited): the field, its help, and what empty means. */
+const ChampPropre = ({
     id,
     libelle,
     aide,
-    herite,
-    origine,
-    personnalise,
-    onPersonnaliser,
-    onHeriter,
+    vide,
+    onVider,
     children,
 }: {
     id: string;
     libelle: Texte;
     aide: Texte;
-    herite: string | null;
-    origine: Texte;
-    personnalise: boolean;
-    onPersonnaliser: () => void;
-    onHeriter: () => void;
+    vide: Texte;
+    onVider?: () => void;
     children: React.ReactNode;
 }) => {
     const { t } = useLangue();
@@ -187,27 +215,23 @@ const ChampHerite = ({
                 <span className="text-sm font-medium">{t(libelle)}</span>
                 <code className="text-xs text-muted-foreground">{id}</code>
             </div>
-            {personnalise ? (
-                <>
-                    {children}
-                    <Button variant="ghost" size="sm" onClick={onHeriter} data-testid={`heriter-${id}`}>
-                        {t({ en: "Back to the inherited value", fr: "Revenir à la valeur héritée" })}
-                    </Button>
-                </>
-            ) : (
-                <div className="rounded border border-dashed border-border p-2 text-sm text-muted-foreground" data-testid={`herite-${id}`}>
-                    <p className="whitespace-pre-line">
-                        {herite || t({ en: "Nothing (no value)", fr: "Rien (aucune valeur)" })}
-                    </p>
-                    <p className="mt-1 text-xs">{t(origine)}</p>
-                    <Button variant="outline" size="sm" className="mt-2" onClick={onPersonnaliser} data-testid={`personnaliser-${id}`}>
-                        {t({ en: "Customize for this establishment", fr: "Personnaliser pour cet établissement" })}
-                    </Button>
-                </div>
+            {children}
+            {onVider && (
+                <Button variant="ghost" size="sm" onClick={onVider} data-testid={`vider-${id}`}>
+                    {t({ en: "Empty this field", fr: "Vider ce champ" })}
+                </Button>
             )}
             <p className="text-xs text-muted-foreground">{t(aide)}</p>
+            <p className="text-xs text-muted-foreground" data-testid={`vide-${id}`}>
+                {t(vide)}
+            </p>
         </div>
     );
+};
+
+const VIDE_RIEN: Texte = {
+    en: "Empty: nothing for this establishment (nothing is taken from the organization).",
+    fr: "Vide : rien pour cet établissement (rien n'est pris à l'organisation).",
 };
 
 export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, annonceOrganisation }: ProprietesModale) {
@@ -220,8 +244,10 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
     const [erreur, setErreur] = useState<string | null>(null);
     const [enCours, setEnCours] = useState(false);
     const [adresseIncomplete, setAdresseIncomplete] = useState(false);
-    // Fields opened with « Customize » while still empty: shown as fields, not as inherited.
-    const [ouverts, setOuverts] = useState<Record<string, boolean>>({});
+    // F-8: « Empty this field » on the address remounts its inputs (they keep what was typed otherwise).
+    const [adresseVidee, setAdresseVidee] = useState(0);
+    // All the sentences (the starting contents of those placed at the establishment's level prefill a new fiche).
+    const [phrasesCatalogue, setPhrasesCatalogue] = useState<Phrase[]>([]);
     // The identifiers already saved never change (a call, a stamp, a future base row refer to
     // them); a NEW establishment's identifier follows its name until it is saved.
     const [idsEnregistres, setIdsEnregistres] = useState<string[]>([]);
@@ -243,6 +269,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
             getPlanificateurApiV1OrganizationsPlanificateurGet(),
         ]);
         setPhrasesEtablissement((phrases.data?.phrases ?? []).filter((p) => p.niveau === "etablissement"));
+        setPhrasesCatalogue(phrases.data?.phrases ?? []);
         if (lecturePlanif.error || !lecturePlanif.data) {
             // No client database (or unreachable): the fiche is edited and saved all the same, its
             // appointments and zone are said to live elsewhere. Never a reason to lose the fiche.
@@ -271,7 +298,6 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
         setListe(null);
         setErreur(null);
         setChoisi(0);
-        setOuverts({});
         setResultatCopie(null);
         aCopie.current = false;
         void charger();
@@ -282,12 +308,18 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
         setListe((avant) => (avant ? avant.map((e, i) => (i === Math.min(choisi, avant.length - 1) ? { ...e, ...champ } : e)) : avant));
 
     const ajouter = () => {
+        const fiche = nouveau(
+            (liste ?? []).map((e) => e.id),
+            t,
+            { adresse: adresseOrganisation, annonce: annonceOrganisation, phrases: phrasesCatalogue },
+        );
         setListe((avant) => {
-            const suite = [...(avant ?? []), nouveau((avant ?? []).map((e) => e.id), t)];
+            const suite = [...(avant ?? []), fiche];
             setChoisi(suite.length - 1);
             return suite;
         });
-        setOuverts({});
+        // F-8: its appointment rules and types start from the starting ones (written with the fiche).
+        setPlanificateur((p) => (p ? planificateurAvecNouveau(p, fiche.id) : p));
     };
     const retirer = (rang: number) => {
         setListe((avant) => (avant ? avant.filter((_e, i) => i !== rang) : avant));
@@ -297,11 +329,14 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
     const suivreIdentifiant = (ancien: string, nouveau: string) => {
         if (ancien === nouveau) return;
         setPlanificateur((p) => {
-            const propre = p?.par_etablissement?.[ancien];
-            if (!p || propre === undefined) return p;
+            if (!p) return p;
+            // F-8: its own types follow it too (copied from the starting ones when it was added).
+            const types = (p.types ?? []).map((x) => (x.etablissement === ancien ? { ...x, etablissement: nouveau } : x));
+            const propre = p.par_etablissement?.[ancien];
+            if (propre === undefined) return { ...p, types };
             const reste = { ...(p.par_etablissement ?? {}) };
             delete reste[ancien];
-            return { ...p, par_etablissement: { ...reste, [nouveau]: propre } };
+            return { ...p, types, par_etablissement: { ...reste, [nouveau]: propre } };
         });
     };
     const poserRendezVous = (id: string, cle: string, valeur: unknown) =>
@@ -309,13 +344,10 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
             p ? { ...p, par_etablissement: { ...(p.par_etablissement ?? {}), [id]: { ...(p.par_etablissement?.[id] ?? {}), [cle]: valeur } } } : p,
         );
 
-    const ouvert = (cle: keyof Etablissement) => Boolean(courant && (courant[cle] || ouverts[`${courant.id}:${String(cle)}`]));
-    const personnaliser = (cle: keyof Etablissement) => courant && setOuverts((a) => ({ ...a, [`${courant.id}:${String(cle)}`]: true }));
-    const heriter = (cle: keyof Etablissement) => {
-        if (!courant) return;
-        setOuverts((a) => ({ ...a, [`${courant.id}:${String(cle)}`]: false }));
-        modifier({ [cle]: null } as Partial<Etablissement>);
-        if (cle === "adresse") setAdresseIncomplete(false);
+    const viderAdresse = () => {
+        modifier({ adresse: null });
+        setAdresseIncomplete(false);
+        setAdresseVidee((n) => n + 1);
     };
 
     const fautes: string[] = [];
@@ -332,6 +364,10 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
         return {
             ...planificateur,
             par_etablissement: Object.fromEntries(Object.entries(planificateur.par_etablissement ?? {}).filter(([id]) => ids.has(id))),
+            // F-8: the types of a new fiche removed before saving go with it (those read are left as they are).
+            types: (planificateur.types ?? []).filter(
+                (x) => !x.etablissement || ids.has(x.etablissement) || (planificateurLu?.types ?? []).some((y) => y.etablissement === x.etablissement),
+            ),
         };
     };
     const planificateurModifie = (() => {
@@ -378,7 +414,6 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
         if (!resultat) return;
         aCopie.current = true;
         setResultatCopie({ nom: resultat.etablissement.nom, resultat });
-        setOuverts({});
         await charger(resultat.etablissement.id);
     };
 
@@ -389,8 +424,8 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                     <DialogTitle>{t({ en: "Establishments", fr: "Établissements" })}</DialogTitle>
                     <DialogDescription>
                         {t({
-                            en: "One fiche per place: the agent that chooses it (theme « Business » of the agent) reads its hours, address, announcements, closing and transfer number alone, nothing is inherited. An empty announcement or sentence says nothing.",
-                            fr: "Une fiche par lieu : l'agent qui la choisit (thème « Établissement » de l'agent) en lit seuls les horaires, l'adresse, les annonces, la fermeture et le numéro de transfert, rien n'est hérité. Une annonce ou une phrase vide ne dit rien.",
+                            en: "One fiche per place: every call that serves it (the agent that chooses it in its theme « Business », or the number called) reads its hours, address, announcements, sentences, appointments, closing and transfer number alone, nothing is inherited. A new establishment starts from the starting values, then lives its own life. An empty announcement or sentence says nothing.",
+                            fr: "Une fiche par lieu : tout appel qui la sert (l'agent qui la choisit dans son thème « Établissement », ou le numéro appelé) en lit seuls les horaires, l'adresse, les annonces, les phrases, les rendez-vous, la fermeture et le numéro de transfert, rien n'est hérité. Un nouvel établissement part des valeurs de départ, puis vit sa vie. Une annonce ou une phrase vide ne dit rien.",
                         })}
                     </DialogDescription>
                 </DialogHeader>
@@ -539,21 +574,21 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                     </div>
                                 </div>
 
-                                <ChampHerite
+                                <ChampPropre
                                     id="adresse"
                                     libelle={{ en: "Address", fr: "Adresse" }}
                                     aide={{
                                         en: "Given to the agents as {{adresse_etablissement}}; helps recognise the towns callers name.",
                                         fr: "Donnée aux agents comme {{adresse_etablissement}} ; aide à reconnaître les communes citées.",
                                     }}
-                                    herite={adresseOrganisation ? texteAdresse(adresseOrganisation) : null}
-                                    origine={{ en: "Inherited from the organization", fr: "Hérité de l'organisation" }}
-                                    personnalise={ouvert("adresse")}
-                                    onPersonnaliser={() => personnaliser("adresse")}
-                                    onHeriter={() => heriter("adresse")}
+                                    vide={{
+                                        en: "Empty: no address for this establishment (never the organization's).",
+                                        fr: "Vide : aucune adresse pour cet établissement (jamais celle de l'organisation).",
+                                    }}
+                                    onVider={courant.adresse ? viderAdresse : undefined}
                                 >
                                     <ChampAdresseEtablissement
-                                        key={courant.id}
+                                        key={`${courant.id}-${adresseVidee}`}
                                         id={`etablissement-adresse-${courant.id}`}
                                         enregistree={courant.adresse ?? null}
                                         onChange={(valeur, incomplete) => {
@@ -561,20 +596,19 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                             if (!incomplete) modifier({ adresse: valeur });
                                         }}
                                     />
-                                </ChampHerite>
+                                </ChampPropre>
 
-                                <ChampHerite
+                                <ChampPropre
                                     id="horaires_ouverture"
                                     libelle={{ en: "Opening hours and closures", fr: "Horaires d'ouverture et fermetures" }}
                                     aide={{
-                                        en: "Same format as an agent's hours; a closure is a dated line (« 24/12/2026 : fermé »). An agent that has its own hours keeps them.",
-                                        fr: "Même format que les horaires d'un agent ; une fermeture est une ligne datée (« 24/12/2026 : fermé »). Un agent qui a ses propres horaires les garde.",
+                                        en: "Same format as an agent's hours; a closure is a dated line (« 24/12/2026 : fermé »). They win over the hours of the agents that serve this establishment.",
+                                        fr: "Même format que les horaires d'un agent ; une fermeture est une ligne datée (« 24/12/2026 : fermé »). Ils l'emportent sur les horaires des agents qui servent cet établissement.",
                                     }}
-                                    herite={null}
-                                    origine={{ en: "Inherited: each agent's own hours", fr: "Hérité : les horaires de chaque agent" }}
-                                    personnalise={ouvert("horaires_ouverture")}
-                                    onPersonnaliser={() => personnaliser("horaires_ouverture")}
-                                    onHeriter={() => heriter("horaires_ouverture")}
+                                    vide={{
+                                        en: "Empty: no hours for this establishment (never an agent's own).",
+                                        fr: "Vide : aucun horaire pour cet établissement (jamais ceux d'un agent).",
+                                    }}
                                 >
                                     <Textarea
                                         id="etablissement-horaires"
@@ -584,13 +618,13 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                         value={courant.horaires_ouverture ?? ""}
                                         onChange={(e) => modifier({ horaires_ouverture: e.target.value })}
                                     />
-                                </ChampHerite>
+                                </ChampPropre>
 
                                 {phrasesEtablissement.map((p) => {
                                     const cle = `phrase:${p.variable}`;
                                     const propre = (courant.phrases ?? {})[p.variable];
                                     return (
-                                        <ChampHerite
+                                        <ChampPropre
                                             key={cle}
                                             id={p.variable}
                                             libelle={{ en: p.description || p.variable, fr: p.description || p.variable }}
@@ -598,16 +632,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                                 en: `A sentence of the catalogue placed at the establishment's level, given to the agents as {{${p.variable}}}.`,
                                                 fr: `Une phrase du catalogue placée au niveau de l'établissement, donnée aux agents comme {{${p.variable}}}.`,
                                             }}
-                                            herite={p.contenu ?? null}
-                                            origine={{ en: "Inherited from the organization", fr: "Hérité de l'organisation" }}
-                                            personnalise={Boolean(propre) || Boolean(ouverts[`${courant.id}:${cle}`])}
-                                            onPersonnaliser={() => setOuverts((a) => ({ ...a, [`${courant.id}:${cle}`]: true }))}
-                                            onHeriter={() => {
-                                                setOuverts((a) => ({ ...a, [`${courant.id}:${cle}`]: false }));
-                                                const reste = { ...(courant.phrases ?? {}) };
-                                                delete reste[p.variable];
-                                                modifier({ phrases: reste });
-                                            }}
+                                            vide={VIDE_RIEN}
                                         >
                                             <Textarea
                                                 id={`etablissement-phrase-${p.variable}`}
@@ -616,7 +641,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                                 value={propre ?? ""}
                                                 onChange={(e) => modifier({ phrases: { ...(courant.phrases ?? {}), [p.variable]: e.target.value } })}
                                             />
-                                        </ChampHerite>
+                                        </ChampPropre>
                                     );
                                 })}
 
@@ -647,7 +672,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                 </div>
 
                                 {(["annonce_fermeture", "annonce_pause"] as const).map((cle) => (
-                                    <ChampHerite
+                                    <ChampPropre
                                         key={cle}
                                         id={cle}
                                         libelle={
@@ -659,11 +684,10 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                             en: "Said at pick-up. « {reouverture} » is the spoken reopening; what is in brackets disappears when it is unknown.",
                                             fr: "Dite au décroché. « {reouverture} » est la réouverture dite ; ce qui est entre crochets disparaît quand elle est inconnue.",
                                         }}
-                                        herite={annonceOrganisation[cle] ?? null}
-                                        origine={{ en: "Inherited from the organization", fr: "Hérité de l'organisation" }}
-                                        personnalise={ouvert(cle)}
-                                        onPersonnaliser={() => personnaliser(cle)}
-                                        onHeriter={() => heriter(cle)}
+                                        vide={{
+                                            en: "Empty: nothing is announced for this establishment (never the organization's sentence).",
+                                            fr: "Vide : rien n'est annoncé pour cet établissement (jamais la phrase de l'organisation).",
+                                        }}
                                     >
                                         <Textarea
                                             id={`etablissement-${cle}`}
@@ -672,7 +696,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                             value={courant[cle] ?? ""}
                                             onChange={(e) => modifier({ [cle]: e.target.value })}
                                         />
-                                    </ChampHerite>
+                                    </ChampPropre>
                                 ))}
 
                                 <Intertitre
