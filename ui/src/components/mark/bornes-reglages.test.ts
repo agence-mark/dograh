@@ -37,6 +37,7 @@ import {
     messagesHorsBornes,
     NOMBRE_MAX_ELEMENTS,
 } from "./bornes-reglages";
+import { CLES_ECOUTE } from "./reglages-agent/ThemeEcoute";
 import {
     CLES_ACCUEIL,
     CLES_RELANCE,
@@ -44,7 +45,6 @@ import {
     CLES_TRANSCRIPTION,
     CLES_VOIX,
 } from "./SectionReglagesPipecat";
-import { CLES_ECOUTE } from "./reglages-agent/ThemeEcoute";
 
 // vitest runs with the ui/ package as its working directory; the schema is one
 // level up, in the API.

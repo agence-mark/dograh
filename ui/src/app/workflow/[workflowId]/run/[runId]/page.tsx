@@ -27,8 +27,8 @@ import {
 } from '@/client/sdk.gen';
 import { BilanGreffier } from '@/components/mark/BilanGreffier';
 import { FenetreDuRun } from '@/components/mark/fenetre-du-run/FenetreDuRun';
-import { TraceDesAgents } from '@/components/mark/groupe/TraceDesAgents';
 import { PhrasesDuCode } from '@/components/mark/groupe/PhrasesDuCode';
+import { TraceDesAgents } from '@/components/mark/groupe/TraceDesAgents';
 import { MediaPreviewButton, MediaPreviewDialog } from '@/components/MediaPreviewDialog';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { Button } from '@/components/ui/button';

@@ -29,9 +29,9 @@ import {
     validateUrl,
 } from "@/components/http";
 import { ConfigOutilIntegration, EnteteOutilIntegration } from "@/components/mark/connecteurs/ConfigOutilIntegration";
+import { type ConfigIntegration, useConnecteurs } from "@/components/mark/connecteurs/useConnecteurs";
 import { chargeEssais, ESSAIS_PAR_DEFAUT, type EssaisOutil, lireEssais } from "@/components/mark/outils/essais-outil";
 import { EssaisOutilHttp } from "@/components/mark/outils/EssaisOutilHttp";
-import { type ConfigIntegration, useConnecteurs } from "@/components/mark/connecteurs/useConnecteurs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {

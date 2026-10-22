@@ -21,7 +21,6 @@ import { ThemeApresAppel, useApresAppel } from "./ThemeApresAppel";
 import { ThemeDonneesClient, useBaseClient } from "./ThemeDonneesClient";
 import { ThemeEquipe } from "./ThemeEquipe";
 import { ThemeRendezVous } from "./ThemeRendezVous";
-import { ThemeVerification } from "./ThemeVerification";
 import {
     ThemeDeveloppeurs,
     ThemeEcouteOrganisation,
@@ -30,6 +29,7 @@ import {
     ThemeOrganisationGenerale,
     THEMES_ORGANISATION,
 } from "./ThemesOrganisation";
+import { ThemeVerification } from "./ThemeVerification";
 
 type Etat = { modifie: boolean; enErreur: boolean };
 
