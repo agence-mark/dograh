@@ -216,6 +216,10 @@ async def executer(
             parole = await diseur.dire_la_sortie(phrase, agent, etape=etape, rang=rang)
             if parole is not None:
                 issue.dit = getattr(parole, "text", None)
+                try:
+                    diseur.coupures.marquer_compte_rendu(parole)
+                except Exception:  # noqa: BLE001
+                    pass
         _noter_dans_la_fiche(moteur, phrase, issue)
         action = issue.action
         if action == ACTION_TRANSFERER:

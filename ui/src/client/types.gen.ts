@@ -782,6 +782,12 @@ export type AtlasCloudLlmService = {
      * Atlas Cloud OpenAI-compatible API endpoint.
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -843,6 +849,12 @@ export type AzureLlmService = {
      * Azure OpenAI resource endpoint (e.g. https://<resource>.openai.azure.com).
      */
     endpoint: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -875,6 +887,12 @@ export type AzureOpenAiEmbeddingsConfiguration = {
      * Azure OpenAI API version for embeddings.
      */
     api_version?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -915,6 +933,12 @@ export type AzureRealtimeLlmConfiguration = {
      * Azure OpenAI Realtime protocol version. Use 'v1' for the GA API; date-based versions select the deprecated preview endpoint.
      */
     api_version?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -1084,7 +1108,9 @@ export type ByokPipelineAiModelConfiguration = {
         provider: 'lmnt';
     } & LmntTtsConfiguration) | ({
         provider: 'speechify';
-    } & SpeechifyTtsConfiguration);
+    } & SpeechifyTtsConfiguration) | ({
+        provider: 'soniox';
+    } & SonioxTtsConfiguration);
     /**
      * Stt
      */
@@ -3047,6 +3073,12 @@ export type DeepgramSttConfiguration = {
      * Refusal to take part in Deepgram's Model Improvement Program, so no call is used to train their models. Locked on: it is a condition of the offer, not an option. Refusing forfeits a discount, and that is accepted.
      */
     mip_opt_out?: boolean;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -3073,6 +3105,12 @@ export type DeepgramTtsConfiguration = {
      * The Deepgram endpoint the spoken text is sent to. Defaults to Europe and can be changed: upstream defaults it to the global endpoint, .mark defaults it to the EU one. Leaving it empty also sends the audio to Europe.
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -3792,6 +3830,12 @@ export type ElevenlabsSttConfiguration = {
      * ElevenLabs API base URL. Override to use a Data Residency endpoint (e.g. https://api.eu.residency.elevenlabs.io) for GDPR / HIPAA / regional compliance.
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -3825,11 +3869,41 @@ export type ElevenlabsTtsConfiguration = {
      */
     model?: string;
     /**
+     * Stability
+     *
+     * Voice stability, 0 to 1. Lower is more expressive and varies more from one sentence to the next; higher is steadier and flatter. Left empty: 0.8, the value used until now.
+     */
+    stability?: number | null;
+    /**
+     * Similarity Boost
+     *
+     * How close the voice stays to the original recording, 0 to 1. Left empty: 0.75, the value used until now.
+     */
+    similarity_boost?: number | null;
+    /**
+     * Style
+     *
+     * Style exaggeration, 0 to 1. Left empty, not sent (ElevenLabs applies its own default, 0). Above 0 it adds latency and can make the voice less stable.
+     */
+    style?: number | null;
+    /**
+     * Use Speaker Boost
+     *
+     * Boost the likeness to the original speaker. Left empty, not sent (ElevenLabs applies its own default). Adds a little latency.
+     */
+    use_speaker_boost?: boolean | null;
+    /**
      * Base Url
      *
      * ElevenLabs API base URL. Override to use a Data Residency endpoint (e.g. https://api.eu.residency.elevenlabs.io) for GDPR / HIPAA / regional compliance.
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -5089,6 +5163,12 @@ export type HuggingFaceLlmConfiguration = {
      * Optional Hugging Face organization or user to bill using X-HF-Bill-To.
      */
     bill_to?: string | null;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -5129,6 +5209,12 @@ export type HuggingFaceSttConfiguration = {
      * Request timestamp chunks when supported by the selected provider/model.
      */
     return_timestamps?: boolean;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -6038,6 +6124,12 @@ export type MiniMaxLlmConfiguration = {
      * Sampling temperature. MiniMax requires > 0.
      */
     temperature?: number;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -6082,6 +6174,12 @@ export type MiniMaxTtsConfiguration = {
      * MiniMax Group ID (found in your MiniMax dashboard under Account → Group).
      */
     group_id: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -6146,6 +6244,12 @@ export type MistralLlmConfiguration = {
      * Pushes the model towards subjects it has not brought up yet. From -2 to 2; positive values widen the range of topics.
      */
     presence_penalty?: number | null;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -6180,6 +6284,12 @@ export type MistralTtsConfiguration = {
      * Mistral API endpoint. Defaults to the EU endpoint.
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -6388,6 +6498,22 @@ export type NomRequest = {
 };
 
 /**
+ * NoteDeSortie
+ *
+ * Noter dans la fiche : [un champ de la fiche] = [une valeur de sa liste].
+ */
+export type NoteDeSortie = {
+    /**
+     * Champ
+     */
+    champ: string;
+    /**
+     * Valeur
+     */
+    valeur: string;
+};
+
+/**
  * NouvelleCle
  */
 export type NouvelleCle = {
@@ -6526,6 +6652,12 @@ export type OpenAiEmbeddingsConfiguration = {
      * Override only for an OpenAI-compatible API (e.g. https://api.scaleway.ai/v1). The model must be able to return 1536 numbers per text: qwen3-embedding-8b can, bge-multilingual-gemma2 cannot.
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -6606,6 +6738,12 @@ export type OpenAillmService = {
      * Sends the agent's cache key (mark-wf-<agent>) so the provider can reuse the start of the prompt from one turn to the next. It names the agent only, never the caller. Off: no key is sent.
      */
     prompt_cache?: boolean;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -6670,6 +6808,12 @@ export type OpenAisttConfiguration = {
      * Override only if using an OpenAI-compatible API (e.g. local STT, proxy).
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -6702,6 +6846,12 @@ export type OpenAittsService = {
      * Override only if using an OpenAI-compatible API (e.g. local TTS, proxy).
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -6728,6 +6878,12 @@ export type OpenRouterEmbeddingsConfiguration = {
      * Override only if proxying OpenRouter through your own gateway.
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -6754,6 +6910,12 @@ export type OpenRouterLlmConfiguration = {
      * Override only if proxying OpenRouter through your own gateway.
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -8464,40 +8626,6 @@ export type ReglePhrase = {
 };
 
 /**
- * NoteDeSortie
- *
- * Noter dans la fiche : [un champ de la fiche] = [une valeur de sa liste].
- */
-export type NoteDeSortie = {
-    champ: string;
-    valeur: string;
-};
-
-/**
- * Sortie
- *
- * « Ensuite » : dire, noter dans la fiche, puis une action finale, toujours dans cet ordre. Chaque élément est facultatif ; `action` vide : l'action par défaut du motif (le comportement d'avant).
- */
-export type Sortie = {
-    /**
-     * What the voice says on the way out (one to three variants, rotated).
-     */
-    phrases?: Array<string>;
-    /**
-     * A field of the call record and one of its values to write.
-     */
-    noter?: NoteDeSortie | null;
-    /**
-     * The final action. Empty: the default of the cause (the behavior before).
-     */
-    action?: 'continuer' | 'modele' | 'transferer' | 'raccrocher' | null;
-    /**
-     * For a transfer: the key of a member of the team (set in Team).
-     */
-    destination?: string | null;
-};
-
-/**
  * ResultatAction
  */
 export type ResultatAction = {
@@ -9393,6 +9521,112 @@ export type SonioxSttConfiguration = {
      * Where the caller's audio is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.
      */
     region?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
+};
+
+/**
+ * Soniox
+ */
+export type SonioxTtsConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'soniox';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Soniox real-time text-to-speech model.
+     */
+    model?: string;
+    /**
+     * Voice
+     *
+     * Soniox voice name, or the identifier of a cloned voice of the project that owns the key. The menu lists the voices known to the product; any other voice is typed.
+     */
+    voice?: string;
+    /**
+     * Language
+     *
+     * ISO 639-1 language the voice speaks (sent with every stream).
+     */
+    language?: string;
+    /**
+     * Speed
+     *
+     * Speech rate multiplier, from 0.7 to 1.3. Left unset, Soniox's own default applies (1.0). Careful: it flattens the rhythm.
+     */
+    speed?: number | null;
+    /**
+     * Reduce Silence
+     *
+     * Shorten the pauses between words without changing how fast the words are spoken. Left unset, Soniox's own default applies (off). Only some models accept it.
+     */
+    reduce_silence?: boolean | null;
+    /**
+     * Text Aggregation Mode
+     *
+     * Send the text to the voice sentence by sentence (default, more natural speech), or word by word as the model writes it (answers sooner, may degrade the voice: judge it by ear).
+     */
+    text_aggregation_mode?: 'sentence' | 'token';
+    /**
+     * Base Url
+     *
+     * The Soniox endpoint the spoken text is sent to, and therefore the jurisdiction that processes it. Defaults to Europe (the region is fixed by the project the key belongs to); leaving it empty also sends the text to Europe.
+     */
+    base_url?: string;
+    /**
+     * Region
+     *
+     * Where the spoken text is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.
+     */
+    region?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
+};
+
+/**
+ * Sortie
+ *
+ * « Ensuite » : dire, noter dans la fiche, puis une action finale, toujours dans cet ordre.
+ * Chaque élément est facultatif ; ``action`` vide : l'action par défaut du motif (le comportement
+ * d'avant).
+ */
+export type Sortie = {
+    /**
+     * Phrases
+     *
+     * What the voice says on the way out (one to three variants, rotated).
+     */
+    phrases?: Array<string>;
+    /**
+     * A field of the call record and one of its values to write.
+     */
+    noter?: NoteDeSortie | null;
+    /**
+     * Action
+     *
+     * The final action. Empty: the default of the cause (the behavior before).
+     */
+    action?: 'continuer' | 'modele' | 'transferer' | 'raccrocher' | null;
+    /**
+     * Destination
+     *
+     * For a transfer: the key of a member of the team (set in Team).
+     */
+    destination?: string | null;
 };
 
 /**
@@ -9423,6 +9657,12 @@ export type SpeachesLlmConfiguration = {
      * OpenAI-compatible endpoint (Ollama, vLLM, etc.).
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -9459,6 +9699,12 @@ export type SpeachesSttConfiguration = {
      * OpenAI-compatible STT endpoint (Speaches, etc.).
      */
     base_url?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -9501,6 +9747,12 @@ export type SpeachesTtsConfiguration = {
      * Speech speed (0.25 to 4.0).
      */
     speed?: number;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
 };
 
 /**
@@ -12195,6 +12447,12 @@ export type WorkflowConfigurationDefaults = {
      * Words the voice mispronounces, written as heard:spoken -- for instance SAV:S. A. V. Matched literally, not as a pattern, and applied to the text sent to the voice only: the conversation history keeps the original.
      */
     tts_replacements?: Array<string>;
+    /**
+     * Tts Balises Permises
+     *
+     * Expression tags allowed in the text sent to the voice, written without brackets (warm, calm, slowly, pause). Any other passage between square brackets is removed before the voice: an unknown tag can be read out loud. Empty list: every bracket is removed. Not filled in (default): the Soniox voice uses warm, calm, slowly and pause, any other voice sends its text as written. Under the Soniox voice the model itself may write a tag of this list (any other bracket it writes is removed, as before). Sentence by sentence only. Applies to the text sent to the voice. Under a voice that times each word (Soniox, ElevenLabs) the conversation history is rebuilt from what was said, so it keeps the allowed tags; brackets are never shown in the transcript or read by the call record.
+     */
+    tts_balises_permises?: Array<string> | null;
     /**
      * Tts Markdown Filter Enabled
      *

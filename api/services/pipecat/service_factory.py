@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+from contextvars import ContextVar
 from functools import wraps
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
@@ -29,9 +31,14 @@ from api.services.configuration.registry import (
     ServiceProviders,
     SonioxSTTConfiguration,
     adresse_soniox,
+    adresse_soniox_voix,
 )
 from api.services.configuration.plafond_lexique import plafond_du_lexique
 from api.services.pipecat.ordre_outil_puis_parole import ordre_outil_puis_parole
+from api.services.pipecat.soniox_cle_en_entete import (
+    MarkSonioxSTTService,
+    MarkSonioxTTSService,
+)
 from api.services.pipecat.appels_de_fonction_voix import (
     PhraseQuiNEstQuUnAppel,
     retirer_appels_de_fonction,
@@ -57,6 +64,11 @@ from api.services.pipecat.mistral_tts import (
     MistralRegionalTTSService,
     point_entree_mistral,
     resolve_mistral_endpoint,
+)
+from api.services.pipecat.balises_expression import (
+    BALISES_PAR_DEFAUT,
+    balises_permises,
+    retirer_balises_pour_la_voix,
 )
 from api.services.pipecat.courriels_pour_la_voix import courriels_en_mots
 from api.services.pipecat.nombres_pour_la_voix import nombres_en_mots
@@ -141,9 +153,9 @@ from pipecat.services.speaches.tts import SpeachesTTSService, SpeachesTTSSetting
 from pipecat.services.soniox.stt import (
     SonioxContextGeneralItem,
     SonioxContextObject,
-    SonioxSTTService,
     SonioxSTTSettings,
 )
+from pipecat.services.soniox.tts import SonioxTTSSettings
 from pipecat.services.speechmatics.stt import (
     SpeechmaticsSTTService,
     SpeechmaticsSTTSettings,
@@ -158,6 +170,25 @@ from pipecat.utils.text.xml_function_tag_filter import XMLFunctionTagFilter
 if TYPE_CHECKING:
     from api.schemas.ai_model_configuration import EffectiveAIModelConfiguration
     from api.services.pipecat.audio_config import AudioConfig
+
+
+# [.mark] Lot 0 bis (D17) : la case « saisie libre » de la configuration du
+# service qu'on construit, lue par `_validate_runtime_service_url` (une
+# vingtaine d'appels, dont la plupart n'ont que l'adresse sous la main).
+# 🔑 Posee UNE fois par la porte du produit (`_report_service_factory_failures`
+# pour la transcription, la voix et le temps reel ; `create_llm_service` pour le
+# cerveau), jamais recopiee a chaque appel. Remise a sa valeur a la sortie : un
+# service construit « libre » ne laisse pas la porte ouverte au suivant.
+_ADRESSE_LIBRE: ContextVar[bool] = ContextVar("mark_adresse_libre", default=False)
+
+
+@contextmanager
+def _adresse_libre_de(config):
+    jeton = _ADRESSE_LIBRE.set(bool(getattr(config, "adresse_libre", False)))
+    try:
+        yield
+    finally:
+        _ADRESSE_LIBRE.reset(jeton)
 
 
 def _report_service_factory_failures(
@@ -187,7 +218,11 @@ def _report_service_factory_failures(
                 "operator" if str(provider_value).lower() == "dograh" else "user"
             )
             try:
-                service = factory(*args, **kwargs)
+                if config_section:
+                    with _adresse_libre_de(config):
+                        service = factory(*args, **kwargs)
+                else:
+                    service = factory(*args, **kwargs)
             except Exception as exc:
                 log_failure(
                     classify_exception(
@@ -284,6 +319,144 @@ def _reglages_soniox(stt_config) -> dict:
         if valeur is not None:
             reglages[champ] = valeur
     return reglages
+
+
+# [.mark] Chantier voix-soniox, lot 3 : le format audio que la voix Soniox demande.
+# Pose par la fabrique, jamais un reglage de l'ecran (comme pour ElevenLabs).
+SONIOX_TTS_FORMAT_AUDIO = "pcm_s16le"
+
+
+def _reglages_soniox_voix(tts_config) -> dict:
+    """[.mark] What the Soniox VOICE is sent, read ONCE for the factory and (lot 4)
+    the stamp -- the same rule as ``_reglages_soniox`` for the transcription.
+
+    ⛔ Unset fields are left out: Pipecat then leaves them out of the stream's
+    configuration message and Soniox applies its own default, which is what an
+    untouched screen means (``speed``, ``reduce_silence``).
+    ⛔ An emptied voice falls back to the product's default voice, never to the
+    connector's own (Bryce, an English voice): a French agent must not start
+    speaking with it. Same for the model and the language.
+    """
+    from api.services.configuration.options import (
+        SONIOX_TTS_MODELS,
+        SONIOX_TTS_VOIX_PAR_DEFAUT,
+    )
+
+    reglages = {
+        "base_url": adresse_soniox_voix(getattr(tts_config, "base_url", None)),
+        "model": (getattr(tts_config, "model", None) or "").strip() or SONIOX_TTS_MODELS[0],
+        "voice": (getattr(tts_config, "voice", None) or "").strip() or SONIOX_TTS_VOIX_PAR_DEFAUT,
+        "language": (getattr(tts_config, "language", None) or "").strip() or "fr",
+    }
+    for champ in ("speed", "reduce_silence"):
+        valeur = getattr(tts_config, champ, None)
+        if valeur is not None:
+            reglages[champ] = valeur
+    return reglages
+
+
+# [.mark] Voix-soniox, lot 7 bis (D6 du plan conversation) : les valeurs d'AUJOURD'HUI des deux reglages
+# ElevenLabs qui etaient ecrits en dur dans la requete. Un champ vide a l'ecran = ces valeurs, donc un agent qui
+# n'a rien regle envoie exactement ce qu'il envoyait.
+ELEVENLABS_STABILITE_PAR_DEFAUT = 0.8
+ELEVENLABS_SIMILARITE_PAR_DEFAUT = 0.75
+
+
+def _reglages_elevenlabs_voix(tts_config) -> dict:
+    """[.mark] The ElevenLabs voice CHARACTER sent with every stream, read ONCE for the factory and the stamp.
+
+    ``stability`` and ``similarity_boost`` always go (empty = today's 0.8 / 0.75, written here and nowhere
+    else); ``style`` and ``use_speaker_boost`` only when set: left out, Pipecat leaves them out of the request,
+    exactly as before this lot.
+    """
+    stabilite = getattr(tts_config, "stability", None)
+    similarite = getattr(tts_config, "similarity_boost", None)
+    reglages = {
+        "stability": ELEVENLABS_STABILITE_PAR_DEFAUT if stabilite is None else stabilite,
+        "similarity_boost": ELEVENLABS_SIMILARITE_PAR_DEFAUT if similarite is None else similarite,
+    }
+    for champ in ("style", "use_speaker_boost"):
+        valeur = getattr(tts_config, champ, None)
+        if valeur is not None:
+            reglages[champ] = valeur
+    return reglages
+
+
+def _estampille_voix_elevenlabs(tts_config) -> dict:
+    """[.mark] Lot 7 bis : the voice character on the call record, ONLY when the agent set one.
+
+    An agent that set none is stamped exactly as before (same keys), so no existing record changes shape.
+    """
+    if all(getattr(tts_config, champ, None) is None for champ in ("stability", "similarity_boost", "style", "use_speaker_boost")):
+        return {}
+    return _reglages_elevenlabs_voix(tts_config)
+
+
+def run_configs_avec_le_mode_de_la_voix(tts_config, run_configs: dict | None) -> dict | None:
+    """[.mark] Lot 3 (D3) : the voice's own « how the text is sent » setting.
+
+    The agent already has one (``tts_text_aggregation_mode``, every provider,
+    default sentence by sentence). The Soniox voice screen has the same choice,
+    so the two meet here, ONCE, before the text filters are built: they depend on
+    the mode (a function call written in a sentence, the numbers in words, only
+    make sense sentence by sentence).
+
+    🔑 The agent's setting wins when it asked for something other than the
+    default (the most specific, and what existed before); otherwise the voice's.
+    Any other provider: the dict is returned UNCHANGED (same object).
+    """
+    if getattr(tts_config, "provider", None) != ServiceProviders.SONIOX.value:
+        return run_configs
+    mode_voix = getattr(tts_config, "text_aggregation_mode", None)
+    if not mode_voix:
+        return run_configs
+    configs = run_configs or {}
+    mode_agent = configs.get("tts_text_aggregation_mode")
+    if mode_agent and str(mode_agent) != DEFAULT_TTS_TEXT_AGGREGATION_MODE:
+        return run_configs
+    if (mode_agent or DEFAULT_TTS_TEXT_AGGREGATION_MODE) == mode_voix:
+        return run_configs
+    return {**configs, "tts_text_aggregation_mode": mode_voix}
+
+
+def mode_d_envoi_du_texte(tts_config, run_configs: dict | None) -> str:
+    """[.mark] Lot 4/5 bis (D-10) : THE mode the text is sent to the voice in, resolved.
+
+    🔑 The one function every reader of the mode goes through -- the text filters
+    and transforms (``create_tts_service``), the name and title filter, the
+    balises guard, the stamp of the call. A reader that looked only at the agent's
+    setting would believe in sentence by sentence under a Soniox voice set to
+    word by word on the voice screen (the defect found by the review of B).
+    No voice, or another provider: the agent's own setting, as before.
+    """
+    configs = run_configs_avec_le_mode_de_la_voix(tts_config, run_configs) or {}
+    return str(
+        configs.get("tts_text_aggregation_mode") or DEFAULT_TTS_TEXT_AGGREGATION_MODE
+    )
+
+
+# Le nom d'origine (lot 3), gardé : les tests du lot 3 et le commentaire de la fabrique le citent.
+_run_configs_avec_le_mode_de_la_voix = run_configs_avec_le_mode_de_la_voix
+
+# [.mark] Lot 5 bis (D11) : la cle du reglage « balises d'expression permises » (liste, agent).
+CLE_BALISES_PERMISES = "tts_balises_permises"
+
+
+def run_configs_pour_la_voix(tts_config, run_configs: dict | None) -> dict | None:
+    """[.mark] The agent's settings as the VOICE reads them, resolved ONCE for the factory.
+
+    · the mode the text is sent in (``run_configs_avec_le_mode_de_la_voix``, D-10) ;
+    · lot 5 bis (D11) : a Soniox voice reads brackets aloud when it does not know them, so it
+      carries the guard by itself -- the agent that set nothing gets the default list
+      (``BALISES_PAR_DEFAUT``). An agent that SET a list (empty = off, every bracket removed)
+      keeps it. Another provider: untouched, the guard exists only if the agent turned it on.
+    """
+    configs = run_configs_avec_le_mode_de_la_voix(tts_config, run_configs)
+    if getattr(tts_config, "provider", None) != ServiceProviders.SONIOX.value:
+        return configs
+    if (configs or {}).get(CLE_BALISES_PERMISES) is not None:
+        return configs
+    return {**(configs or {}), CLE_BALISES_PERMISES: list(BALISES_PAR_DEFAUT)}
 
 
 def _reglages_classiques(stt_config) -> dict:
@@ -567,6 +740,7 @@ def _validate_runtime_service_url(url: str, field_name: str) -> None:
         validate_user_configured_service_url(
             url,
             field_name=field_name,
+            schema_libre=_ADRESSE_LIBRE.get(),
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -951,7 +1125,8 @@ def create_stt_service(
             user_config.stt.provider, user_config.stt.model
         ):
             settings_kwargs["context"] = contexte_soniox(keyterms, description_domaine)
-        return SonioxSTTService(
+        # [.mark] D19 : la cle part aussi dans l'en-tete de connexion (voir la classe).
+        return MarkSonioxSTTService(
             api_key=user_config.stt.api_key,
             url=adresse,
             settings=SonioxSTTSettings(**settings_kwargs),
@@ -1125,6 +1300,13 @@ def construire_remplacements_de_voix(
         # chiffres sont ensuite dits par eux).
         transformations.append(("*", courriels_en_mots))
         transformations.append(("*", nombres_en_mots))
+    # [.mark] Voix-soniox, lot 5 bis (D11) : APRES les nombres en mots, juste avant la voix, tout
+    # crochet hors de la liste permise est retire du texte envoye. Pose seulement quand le reglage
+    # existe (la voix Soniox le porte d'office, voir `run_configs_pour_la_voix`) : un agent qui n'a
+    # rien allume garde son texte tel quel. Phrase par phrase : mot a mot, un crochet arrive en morceaux.
+    balises = run_configs.get(CLE_BALISES_PERMISES)
+    if balises is not None and str(mode) == "sentence":
+        transformations.append(("*", retirer_balises_pour_la_voix(balises)))
     return transformations
 
 
@@ -1216,7 +1398,8 @@ def create_tts_service(
     # Everything the agent configured about its voice, in one dict splatted
     # into every provider branch below.
     voix = reglages_de_voix_communs(
-        run_configs,
+        # [.mark] Lot 3 : le mode d'envoi du texte de la voix Soniox, lot 5 bis : ses balises (autre voix : inchange).
+        run_configs_pour_la_voix(user_config.tts, run_configs),
         langue_francaise=langue_agent_francaise(getattr(user_config, "stt", None)),
         lexique=lexique,
     )
@@ -1316,9 +1499,10 @@ def create_tts_service(
             settings=ElevenLabsTTSSettings(
                 voice=voice_id,
                 model=user_config.tts.model,
-                stability=0.8,
                 speed=user_config.tts.speed,
-                similarity_boost=0.75,
+                # [.mark] Lot 7 bis : stability / similarity_boost (0.8 / 0.75 when empty), style and
+                # use_speaker_boost (only when set) come from the screen; same read as the stamp.
+                **_reglages_elevenlabs_voix(user_config.tts),
             ),
             skip_aggregator_types=["recording_router", "recording"],
             **voix,
@@ -1569,6 +1753,27 @@ def create_tts_service(
                 voice=voice,
                 language=pipecat_language,
             ),
+            skip_aggregator_types=["recording_router", "recording"],
+            **voix,
+        )
+    elif user_config.tts.provider == ServiceProviders.SONIOX.value:
+        # [.mark] Chantier voix-soniox, lot 3. Pipecat's connector takes `url` (not
+        # `base_url`) and a settings object ; ours follows the configuration, Europe
+        # by default (D6). The key also leaves in the connection header (D19, see
+        # the class). Format and rate are set HERE, never on screen: PCM 16 bits at
+        # the transport's rate, so nothing is resampled on a telephone line.
+        # The mode of sending the text came in through `voix` (see
+        # `_run_configs_avec_le_mode_de_la_voix`).
+        reglages = _reglages_soniox_voix(user_config.tts)
+        adresse = reglages.pop("base_url")
+        _validate_runtime_service_url(adresse, "base_url")
+        reglages["language"] = Language(reglages["language"])
+        return MarkSonioxTTSService(
+            api_key=user_config.tts.api_key,
+            url=adresse,
+            audio_format=SONIOX_TTS_FORMAT_AUDIO,
+            sample_rate=audio_config.transport_out_sample_rate,
+            settings=SonioxTTSSettings(**reglages),
             skip_aggregator_types=["recording_router", "recording"],
             **voix,
         )
@@ -1826,7 +2031,60 @@ def _point_entree_voix(tts_config) -> str | None:
     return adresse or None
 
 
-def stamp_voice_settings(runtime_configuration: dict, tts_config) -> dict:
+def _estampille_voix_soniox(tts_config, run_configs: dict | None) -> dict:
+    """[.mark] Lot 4 : what a call played with the Soniox voice says about it.
+
+    🔑 ``_reglages_soniox_voix`` is the function the factory calls to build the request, and the
+    mode of sending the text and the balises list come out of ``run_configs_pour_la_voix``, the one
+    the factory reads too (D-10). The address goes under ``endpoint`` like every other voice.
+    ⛔ ``speed`` and ``reduce_silence`` are stamped only when the request carries them.
+    """
+    demandes = _reglages_soniox_voix(tts_config)
+    estampille = {
+        "voice": demandes["voice"],
+        "endpoint": demandes["base_url"],
+        "language": demandes["language"],
+    }
+    for champ in ("speed", "reduce_silence"):
+        if champ in demandes:
+            estampille[champ] = demandes[champ]
+    configs = run_configs_pour_la_voix(tts_config, run_configs) or {}
+    estampille["text_aggregation_mode"] = mode_d_envoi_du_texte(tts_config, run_configs)
+    balises = configs.get(CLE_BALISES_PERMISES)
+    if balises is not None:
+        estampille["balises_permises"] = list(balises)
+    return estampille
+
+
+def balises_du_cerveau(tts_config, run_configs: dict | None) -> tuple[str, ...]:
+    """[.mark] Lot 5 ter (D29) : les balises d'expression que le CERVEAU peut écrire jusqu'à la voix.
+
+    🔑 Lues par les MÊMES fonctions que l'estampille et le garde-fou de la voix
+    (``run_configs_pour_la_voix``, ``mode_d_envoi_du_texte``), jamais une copie : ce que le cerveau
+    laisse passer est exactement ce que le garde-fou de la voix laissera passer.
+    Voix Soniox et phrase par phrase seulement ; sinon (autre voix, mot à mot, pas de voix) : ``()``
+    et ``texte_du_cerveau.py`` retire tout crochet, comme avant."""
+    if getattr(tts_config, "provider", None) != ServiceProviders.SONIOX.value:
+        return ()
+    if mode_d_envoi_du_texte(tts_config, run_configs) != "sentence":
+        return ()
+    configs = run_configs_pour_la_voix(tts_config, run_configs) or {}
+    return tuple(sorted(balises_permises(configs.get(CLE_BALISES_PERMISES))))
+
+
+def poser_les_balises_du_cerveau(llm, tts_config, run_configs: dict | None):
+    """[.mark] Lot 5 ter : donne au modèle de CONVERSATION la liste de ``balises_du_cerveau`` (attribut lu
+    par ``TexteDuCerveauMixin``). Ne lève jamais ; rend le modèle."""
+    try:
+        llm.balises_du_cerveau = balises_du_cerveau(tts_config, run_configs)
+    except Exception as erreur:  # noqa: BLE001 -- l'appel doit continuer, balises retirées comme avant
+        logger.warning(f"[.mark] Balises du cerveau non posées : {erreur!r}")
+    return llm
+
+
+def stamp_voice_settings(
+    runtime_configuration: dict, tts_config, run_configs: dict | None = None
+) -> dict:
     """[.mark] Record the voice this run was actually played with.
 
     A run already stamps ``tts_provider`` and ``tts_model``, but neither the
@@ -1852,12 +2110,20 @@ def stamp_voice_settings(runtime_configuration: dict, tts_config) -> dict:
     if tts_config is None:
         return runtime_configuration
     reglages = {}
-    voix = _voix_jouee(tts_config)
-    if voix:
-        reglages["voice"] = voix
-    point_entree = _point_entree_voix(tts_config)
-    if point_entree:
-        reglages["endpoint"] = point_entree
+    if getattr(tts_config, "provider", None) == ServiceProviders.SONIOX.value:
+        # [.mark] Voix-soniox, lot 4 : fournisseur (deja estampille par l'appelant), adresse appelee et
+        # reglages, lus par la MEME fonction que celle qui construit la requete (jamais recalcules a
+        # part : une voix videe est estampillee « Mathieu », celle qui est jouee).
+        reglages.update(_estampille_voix_soniox(tts_config, run_configs))
+    else:
+        voix = _voix_jouee(tts_config)
+        if voix:
+            reglages["voice"] = voix
+        point_entree = _point_entree_voix(tts_config)
+        if point_entree:
+            reglages["endpoint"] = point_entree
+        if getattr(tts_config, "provider", None) == ServiceProviders.ELEVENLABS.value:
+            reglages.update(_estampille_voix_elevenlabs(tts_config))
     if reglages:
         runtime_configuration["tts_settings"] = reglages
     return runtime_configuration
@@ -1914,6 +2180,9 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "sons_lexique",
     # [.mark] Lot 4 du chantier langwatch-et-fenetre-du-run (ticket Pipecat 5960).
     "relance_apres_outil",
+    # [.mark] Voix-soniox, lot 5 bis (D11) : la liste des balises d'expression permises. Estampillee
+    # RESOLUE (voir `stamp_pipeline_settings`) ; `None` = l'agent n'a rien regle et la voix n'en porte pas.
+    "tts_balises_permises",
 )
 
 
@@ -1922,6 +2191,7 @@ def stamp_pipeline_settings(
     run_configs: dict,
     *,
     user_turn_stop_timeout: float | None = None,
+    tts_config=None,
 ) -> dict:
     """[.mark] Record the Pipecat settings this run was actually played with.
 
@@ -1956,9 +2226,12 @@ def stamp_pipeline_settings(
     """
     from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 
+    # [.mark] Voix-soniox : les reglages de l'agent tels que la VOIX les lit (mode d'envoi du texte
+    # retenu, D-18, et liste des balises, D-21) : la fiche dit ce qui a ete joue, pas le seul reglage d'agent.
+    resolus = run_configs_pour_la_voix(tts_config, run_configs) or run_configs
     # 🔑 Resolved through the schema, so a run stamps the same value the
     # pipeline read -- including for a key the client never touched.
-    effectifs = WorkflowConfigurationDefaults.model_validate(run_configs or {})
+    effectifs = WorkflowConfigurationDefaults.model_validate(resolus or {})
     reglages = {cle: getattr(effectifs, cle) for cle in REGLAGES_PIPECAT_ESTAMPILLES}
     # [.mark] La fiche est une liste d'objets : écrite en JSON, comme en base.
     reglages["fiche_champs"] = [
@@ -2540,14 +2813,16 @@ def create_llm_service(
     elif provider == ServiceProviders.SARVAM.value:
         kwargs["temperature"] = user_config.llm.temperature
 
-    return create_llm_service_from_provider(
-        provider,
-        model,
-        api_key,
-        correlation_id=correlation_id,
-        usage_context=usage_context,
-        **kwargs,
-    )
+    # [.mark] Lot 0 bis (D17) : la case « saisie libre » du cerveau.
+    with _adresse_libre_de(user_config.llm):
+        return create_llm_service_from_provider(
+            provider,
+            model,
+            api_key,
+            correlation_id=correlation_id,
+            usage_context=usage_context,
+            **kwargs,
+        )
 
 
 def create_llm_service_with_model_override(

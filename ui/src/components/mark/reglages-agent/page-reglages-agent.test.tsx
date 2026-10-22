@@ -1010,3 +1010,41 @@ describe("[.mark] the background work settings (lot 4)", () => {
         expect(charge.agent_principal_id).toBe(5);
     });
 });
+
+// Voix-soniox, relecture m3: the theme « Voice » says which sending mode the call uses, and where it comes from.
+describe("[.mark] the sending mode of the text, as the call will use it", () => {
+    const mode = () => document.querySelector("[data-mode-retenu]")?.getAttribute("data-mode-retenu");
+    const SONIOX = (text_aggregation_mode: string) => ({ tts: { provider: "soniox", text_aggregation_mode } });
+
+    it("says sentence by sentence by default, for any voice", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        ouvrirLeTheme("voix");
+        expect(mode()).toBe("sentence:defaut");
+    });
+
+    it("says word by word from the agent's own setting", async () => {
+        await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), tts_text_aggregation_mode: "token" }, SONIOX("sentence"));
+        ouvrirLeTheme("voix");
+        expect(mode()).toBe("token:agent");
+        expect(document.querySelector('[data-note="balises-sans-effet"]')).not.toBeNull();
+    });
+
+    it("says word by word from the Soniox voice when the agent leaves the default", async () => {
+        // The reference agent carries an ElevenLabs voice override of its own: this one has none.
+        await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), model_overrides: {} }, SONIOX("token"));
+        ouvrirLeTheme("voix");
+        expect(mode()).toBe("token:voix");
+        expect(document.querySelector("[data-mode-retenu]")?.textContent).toMatch(/Soniox voice/);
+        // The tags card says it too: nothing is sent as tags word by word.
+        expect(document.querySelector('[data-note="balises-sans-effet"]')).not.toBeNull();
+    });
+
+    it("reads the agent's own voice override before the organisation's", async () => {
+        await ouvrir(
+            { ...(CONFIG_DE_REFERENCE as Record<string, unknown>), model_overrides: { tts: { provider: "elevenlabs" } } },
+            SONIOX("token"),
+        );
+        ouvrirLeTheme("voix");
+        expect(mode()).toBe("sentence:defaut");
+    });
+});

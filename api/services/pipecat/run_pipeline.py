@@ -107,6 +107,7 @@ from api.services.pipecat.greffier import (
 )
 from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.replique_inachevee import brancher_la_relance
+from api.services.phrases.coupures import brancher_les_coupures
 from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.pipecat.reconnaissance_lexique import (
     CLE_TRACE_LEXIQUE,
@@ -136,6 +137,7 @@ from api.services.pipecat.service_factory import (
     create_realtime_llm_service,
     create_stt_service,
     create_tts_service,
+    poser_les_balises_du_cerveau,
     stamp_pipeline_settings,
     stamp_prompt_cache_key,
     stamp_sampling_settings,
@@ -1191,6 +1193,8 @@ async def _run_pipeline_impl(
             correlation_id=mps_correlation_id,
             prompt_cache_key=cle_de_cache(workflow_id),
         )
+        # [.mark] Voix-soniox, lot 5 ter (D29) : les balises que le cerveau peut écrire sous la voix Soniox.
+        poser_les_balises_du_cerveau(llm, user_config.tts, run_configs)
         inference_llm = None
 
     # Variable and disposition extraction may share this out-of-band LLM. A
@@ -1265,7 +1269,7 @@ async def _run_pipeline_impl(
         # says nothing about how it was played. Without this stamp two voices
         # of one provider are indistinguishable after the fact and no voice
         # bench is verifiable (§5.4 of `18-ajout-fournisseur.md`).
-        stamp_voice_settings(runtime_configuration, user_config.tts)
+        stamp_voice_settings(runtime_configuration, user_config.tts, run_configs)
         # [.mark] Same guard, other reason: the cache key is only handed to the
         # conversation LLM built in the non-realtime branch above.
         stamp_prompt_cache_key(
@@ -1280,12 +1284,15 @@ async def _run_pipeline_impl(
     # par le MCP ou à la main ferait mourir l'appel AU MONTAGE du pipeline.
     # Relevé par la relecture indépendante du 14/09.
     try:
+        # [.mark] Voix-soniox (D-10) : la fiche dit le mode d'envoi du texte EFFECTIVEMENT retenu
+        # (celui de la voix Soniox quand l'agent n'a rien demandé), jamais le seul réglage d'agent.
         # ⛔ Le plafond d'attente est RÉSOLU avant d'être estampillé : c'est le
         # seul réglage dont le défaut dépend du mode, donc le seul que lire
         # dans le schéma enregistrerait à `null` sur presque tous les appels.
         stamp_pipeline_settings(
             runtime_configuration,
             run_configs,
+            tts_config=getattr(user_config, "tts", None),
             user_turn_stop_timeout=_resolve_user_turn_stop_timeout(
                 run_configs,
                 uses_external_turns=(
@@ -1441,6 +1448,8 @@ async def _run_pipeline_impl(
     )
     # [.mark] D1 et D10 de repliques-coupees : la trace du cerveau (case allumée
     # seulement) et la réflexion de secours de la relance d'une réplique inachevée.
+    # D20 (voix-soniox) : avant la trace, qui photographie la requête telle qu'elle part.
+    brancher_les_coupures(engine, llm)
     brancher_la_trace(engine, llm, run_configs, getattr(workflow, "name", None))
     brancher_la_relance(engine, llm, run_configs)
 
@@ -1905,7 +1914,7 @@ async def _run_pipeline_impl(
         # voix de l'appel (réglages PAR agent : le filtre reste dans son sous-circuit). L'état est vivant : le nom n'est pas connu au
         # montage, il arrive avec l'extraction, pendant l'appel.
         agent.filtre_nom_civilite = creer_filtre_nom_civilite(
-            run_configs, variables_appel, contexte_appel
+            run_configs, variables_appel, contexte_appel, voix=user_config.tts
         )
         # [.mark] Plan mode-prise-de-notes : le post-scriptum ou le déclencheur
         # du greffier, sur l'agent qui porte la fiche (le premier), seulement

@@ -479,6 +479,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     tts_replacements: string[];  // heard:spoken, matched literally
     interdire_nom_appelant: boolean;  // [.mark] ne jamais PRONONCER le nom de l'appelant
     interdire_civilite_appelant: boolean;  // [.mark] ni sa civilite
+    // [.mark] voix-soniox, lot 7 (D21): the expression tags allowed before the voice, without brackets.
+    // `null` or absent = the voice's own default; `[]` = every bracket removed.
+    tts_balises_permises?: string[] | null;
     relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
     mute_until_first_bot_complete: boolean;
     mute_during_function_call: boolean;

@@ -1062,6 +1062,22 @@
         }
       ]
     },
+    "balises-permises": {
+      "carte": "ajout-mark",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "tts_balises_permises": [
+              "warm"
+            ]
+          },
+          "retirees": []
+        }
+      ]
+    },
     "prononciation": {
       "carte": "speech-tuning",
       "theme": "voix",

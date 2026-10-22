@@ -37,6 +37,11 @@ SILENCE_DE_FIN_S = 0.6
 class Son:
     audio: bytes
     taux: int
+    # D20 (phrases du code coupées comptées au mot près) : le minutage des mots, ``(mot, secondes depuis le
+    # début du son)``, tel que la voix de la fabrique l'a donné (ElevenLabs et Soniox : un début par mot, les
+    # deux voix alignent par caractère et le connecteur en tire les mots). Vide : voix sans minutage, la
+    # part jouée d'une phrase coupée est alors inconnue (jamais estimée au temps écoulé).
+    mots: tuple[tuple[str, float], ...] = ()
 
 
 def textes_a_fabriquer(reglages_des_agents: Iterable[dict | None], reglages_principal: dict | None) -> list[str]:
@@ -82,6 +87,7 @@ def nouveau_collecteur() -> Any:
         StopFrame,
         TTSAudioRawFrame,
         TTSStoppedFrame,
+        TTSTextFrame,
     )
     from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
@@ -95,6 +101,15 @@ def nouveau_collecteur() -> Any:
             self.taux: int | None = None
             self.fini = asyncio.Event()
             self.dernier: float | None = None
+            # D20 : les mots minutés de la voix (texte, heure absolue de l'horloge du circuit) et l'heure
+            # de l'horloge au premier son : leur différence est le décalage du mot dans le son.
+            self.mots_bruts: list[tuple[str, int]] = []
+            self.horloge_du_premier_son: int | None = None
+
+        def mots(self) -> tuple[tuple[str, float], ...]:
+            """Les mots de la phrase, ``(mot, secondes depuis le début du son)``. Vide si la voix n'a
+            rien minuté (aucune heure, ou aucun son)."""
+            return mots_depuis_le_son(self.mots_bruts, self.horloge_du_premier_son)
 
         async def liberer(self) -> None:
             """Une voix se met en pause pendant sa lecture et attend la fin de la parole du robot
@@ -104,7 +119,14 @@ def nouveau_collecteur() -> Any:
 
         async def process_frame(self, frame, direction):
             await super().process_frame(frame, direction)
-            if isinstance(frame, TTSAudioRawFrame):
+            if isinstance(frame, TTSTextFrame):
+                # Pipecat date chaque mot (``pts``) par rapport à l'horloge du circuit, pas au son :
+                # on garde l'heure absolue, la fabrique en tire le décalage (``mots``).
+                if frame.pts is not None and (frame.text or "").strip():
+                    self.mots_bruts.append((frame.text, int(frame.pts)))
+            elif isinstance(frame, TTSAudioRawFrame):
+                if self.horloge_du_premier_son is None:
+                    self.horloge_du_premier_son = int(self.get_clock().get_time())
                 self.morceaux.append(frame.audio)
                 self.taux = frame.sample_rate
                 self.dernier = asyncio.get_running_loop().time()
@@ -194,7 +216,7 @@ class FabriqueDesSons:
                 await collecteur.liberer()
                 audio = b"".join(collecteur.morceaux)
                 if audio and collecteur.taux == self._taux:
-                    self.sons[texte] = Son(audio=audio, taux=self._taux)
+                    self.sons[texte] = Son(audio=audio, taux=self._taux, mots=collecteur.mots())
                 else:
                     self.echecs.append(texte)
             logger.info(
@@ -210,6 +232,21 @@ class FabriqueDesSons:
                     await worker.cancel(reason="fabrique des sons terminée")
                 except Exception:  # noqa: BLE001
                     pass
+
+
+def mots_depuis_le_son(
+    mots_bruts: Iterable[tuple[str, int]], horloge_du_premier_son: int | None
+) -> tuple[tuple[str, float], ...]:
+    """Le décalage de chaque mot dans le son, en secondes. ``mots_bruts`` : ``(mot, heure en nanosecondes)``
+    de l'horloge du circuit ; ``horloge_du_premier_son`` : l'heure de la même horloge au premier son (la
+    voix l'a prise comme origine de ses mots). Jamais négatif ; vide sans origine."""
+    if horloge_du_premier_son is None:
+        return ()
+    return tuple(
+        (mot.strip(), max(0.0, (heure - horloge_du_premier_son) / 1_000_000_000))
+        for mot, heure in mots_bruts
+        if mot.strip()
+    )
 
 
 def _deja_dans_un_circuit(processeur: Any) -> bool:

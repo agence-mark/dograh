@@ -1,4 +1,5 @@
 import random
+import re
 from collections.abc import Iterable
 from enum import Enum, auto
 from typing import Annotated, Dict, Literal, Type, TypeVar, Union
@@ -7,6 +8,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    ValidationInfo,
     computed_field,
     field_validator,
     model_validator,
@@ -63,6 +65,12 @@ from api.services.configuration.options import (
     SMALLEST_TTS_VOICES,
     SONIOX_STT_LANGUAGES,
     SONIOX_STT_MODELS,
+    SONIOX_TTS_LANGUAGES,
+    SONIOX_TTS_MODELS,
+    SONIOX_TTS_VOIX,
+    SONIOX_TTS_VOIX_IDS,
+    SONIOX_TTS_VOIX_PAR_DEFAUT,
+    SONIOX_TTS_VOIX_RELEVE,
     SPEECHMATICS_STT_LANGUAGES,
 )
 from api.services.configuration.options.google import (
@@ -70,6 +78,7 @@ from api.services.configuration.options.google import (
     GOOGLE_VERTEX_LOCATIONS,
     GOOGLE_VERTEX_MODELS,
 )
+from api.utils.url_security import hote_de_ladresse
 
 
 class ServiceType(Enum):
@@ -120,6 +129,18 @@ class ServiceProviders(str, Enum):
     SONIOX = "soniox"
 
 
+# [.mark] Lot 0 bis (D17) : ce qui est une ADRESSE de service, par son nom
+# (`base_url`, `url`, `endpoint`, `api_base`, `api_url`...). Un seul endroit : la
+# case « saisie libre », sa validation, le controle de l'enregistrement et celui
+# de la fabrique le lisent tous. Un champ d'adresse ajoute plus tard sous l'un de
+# ces noms en herite ; `test_adresses_libres.py` balaie le registre pour le prouver.
+_NOM_D_ADRESSE = re.compile(r"(.*_)?(url|uri|endpoint|api_base)")
+
+
+def est_champ_adresse(nom: str) -> bool:
+    return bool(_NOM_D_ADRESSE.fullmatch(nom))
+
+
 class BaseServiceConfiguration(BaseModel):
     provider: Literal[
         ServiceProviders.OPENAI,
@@ -157,6 +178,43 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.SONIOX,
     ]
     api_key: str | list[str]
+    # [.mark] Chantier voix-soniox, lot 0 bis (D17) : la case « saisie libre »
+    # des adresses, DECLAREE UNE FOIS ICI pour tous les fournisseurs (cerveau,
+    # transcription, voix, plongements, temps reel). Decochee (defaut) : le
+    # controle propre au fournisseur, comme avant. Cochee : tout schema
+    # (`https://`, `wss://`, `grpc://`...), seul reste le refus d'une adresse
+    # sans hote (`_une_adresse_libre_garde_un_hote`).
+    # 🔑 Sans migration : une cle de la configuration du service, ecrite SEULEMENT
+    # cochee (`exclude_if`). Une configuration enregistree avant ce chantier se
+    # relit et se reecrit a l'identique, cle absente.
+    # ⛔ Le schema n'expose la case que chez un fournisseur qui a une adresse
+    # (`__get_pydantic_json_schema__`) : l'ecran ne la dessine pas ailleurs.
+    adresse_libre: bool = Field(
+        default=False,
+        exclude_if=lambda valeur: not valeur,
+        description=(
+            "Free entry: accept any address scheme (https://, wss://, grpc://...) "
+            "instead of the provider's own check. An address with no host is still refused."
+        ),
+        json_schema_extra={
+            "mark_adresse_libre": True,
+            # D-53: the box sits right under « Enter Custom Value » (an address outside the list): the
+            # label and the help say what THIS one is, in both languages, without a box more.
+            "mark_libelle": {"en": "Free entry (any address scheme)", "fr": "Saisie libre (tout schéma d'adresse)"},
+            "mark_aide": {
+                "en": (
+                    "Accepts any address scheme (wss://, https://, grpc://...) instead of the provider's own check. "
+                    "Only an address with no host is still refused. It is not « Enter Custom Value » above, which "
+                    "only lets you type an address that is not in the list."
+                ),
+                "fr": (
+                    "Accepte tout schéma d'adresse (wss://, https://, grpc://...) au lieu du contrôle propre au "
+                    "fournisseur. Seule une adresse sans hôte reste refusée. Ce n'est pas « Saisir une valeur "
+                    "personnalisée », au-dessus, qui permet seulement de taper une adresse absente de la liste."
+                ),
+            },
+        },
+    )
 
     @field_validator("api_key")
     @classmethod
@@ -166,6 +224,52 @@ class BaseServiceConfiguration(BaseModel):
         if isinstance(v, list) and len(v) == 0:
             raise ValueError("api_key list must not be empty")
         return v
+
+    @model_validator(mode="after")
+    def _une_adresse_libre_garde_un_hote(self):
+        """[.mark] Cochee, tout schema passe, une adresse SANS HOTE jamais.
+
+        Refusee a l'ecriture, jamais a la lecture (18-ajout-fournisseur, 7 (1)) :
+        un validateur qui refuse s'applique aussi a une configuration deja
+        enregistree. Une adresse VIDE reste permise : elle a son propre sens
+        (l'Europe chez Soniox et Deepgram, le defaut ailleurs).
+        """
+        if not self.adresse_libre:
+            return self
+        for champ in type(self).model_fields:
+            if not est_champ_adresse(champ):
+                continue
+            valeur = getattr(self, champ, None)
+            if isinstance(valeur, str) and valeur.strip() and not hote_de_ladresse(valeur):
+                raise ValueError(f"The address in {champ} must have a host, for example https://host")
+        return self
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema, handler):
+        """[.mark] Marque les champs d'adresse, et ne garde la case que s'il y en a un.
+
+        L'ecran lit `mark_adresse` sur le champ et dessine la case a cote ; un
+        fournisseur sans adresse n'a pas de case (rien a cote de quoi la poser).
+        Un champ d'adresse ajoute plus tard est marque ici, sans code propre.
+        """
+        schema = handler(core_schema)
+        proprietes = handler.resolve_ref_schema(schema).get("properties", {})
+        adresses = [nom for nom in proprietes if est_champ_adresse(nom)]
+        if not adresses:
+            proprietes.pop("adresse_libre", None)
+            return schema
+        for nom in adresses:
+            proprietes[nom]["mark_adresse"] = True
+        # DERNIERE des proprietes : le formulaire promeut la premiere propriete
+        # qui n'est pas un secret a cote du choix du fournisseur (le modele, la
+        # voix) ; une case declaree sur la classe de base, donc avant les champs
+        # du fournisseur, la deplacerait.
+        proprietes["adresse_libre"] = proprietes.pop("adresse_libre")
+        # Meme sous-menu que l'adresse, sur les ecrans qui rangent en groupes (E2).
+        groupe = proprietes[adresses[0]].get("mark_groupe")
+        if groupe and "adresse_libre" in proprietes:
+            proprietes["adresse_libre"]["mark_groupe"] = groupe
+        return schema
 
     def __getattribute__(self, name: str):
         if name == "api_key":
@@ -356,7 +460,16 @@ ELEVENLABS_PROVIDER_MODEL_CONFIG = provider_model_config("ElevenLabs")
 EcranMark = dict[str, tuple[str, str, str]]
 
 
-def ecran_mark(config: ConfigDict, champs: EcranMark) -> ConfigDict:
+def ecran_mark(
+    config: ConfigDict,
+    champs: EcranMark,
+    aides_fr: dict[str, str] | None = None,
+    valeurs: dict[str, dict[str, tuple[str, str]]] | None = None,
+) -> ConfigDict:
+    """`aides_fr` : the French of a field's help (voix-soniox, D-52). The English is the field's own
+    `description`, so the two cannot drift apart. `valeurs` : the name of each value of a menu field, in both
+    languages. Both are read by the screen (`mark_aide`, `mark_valeurs`); without them a field shows its
+    English description and the raw value, as before."""
     extra_fournisseur = dict(config.get("json_schema_extra") or {})
 
     def completer(schema: dict, _cls: type) -> None:
@@ -364,6 +477,13 @@ def ecran_mark(config: ConfigDict, champs: EcranMark) -> ConfigDict:
         for champ, (groupe, en, fr) in champs.items():
             schema["properties"][champ]["mark_groupe"] = groupe
             schema["properties"][champ]["mark_libelle"] = {"en": en, "fr": fr}
+        for champ, fr in (aides_fr or {}).items():
+            propriete = schema["properties"][champ]
+            propriete["mark_aide"] = {"en": propriete["description"], "fr": fr}
+        for champ, noms in (valeurs or {}).items():
+            schema["properties"][champ]["mark_valeurs"] = {
+                valeur: {"en": en, "fr": fr} for valeur, (en, fr) in noms.items()
+            }
 
     return ConfigDict(**{**config, "json_schema_extra": completer})
 
@@ -396,7 +516,35 @@ ECRAN_OPENAI_LLM: EcranMark = {
 ECRAN_ELEVENLABS_TTS: EcranMark = {
     "voice": ("voix", "Voice", "Voix"),
     "speed": ("voix", "Speed", "Vitesse"),
+    "stability": ("caractere_de_la_voix", "Stability", "Stabilité"),
+    "similarity_boost": ("caractere_de_la_voix", "Similarity boost", "Fidélité à la voix"),
+    "style": ("caractere_de_la_voix", "Style", "Expressivité du style"),
+    "use_speaker_boost": ("caractere_de_la_voix", "Speaker boost", "Renforcer la ressemblance"),
     "base_url": ("technique", "Base URL", "Adresse du service"),
+}
+# [.mark] Voix-soniox, lot 7 (D-52): the French of the help of the ElevenLabs voice fields (the English is the
+# field's `description`).
+AIDES_FR_ELEVENLABS_TTS: dict[str, str] = {
+    "voice": "Identifiant de la voix, dans votre bibliothèque de voix ElevenLabs.",
+    "speed": "Vitesse de la voix.",
+    "model": "Modèle de synthèse vocale ElevenLabs.",
+    "stability": (
+        "Stabilité de la voix, de 0 à 1. Plus bas : plus expressive, elle varie davantage d'une phrase à "
+        "l'autre ; plus haut : plus régulière et plus plate. Vide : 0,8, la valeur utilisée jusqu'ici."
+    ),
+    "similarity_boost": "Fidélité à l'enregistrement d'origine, de 0 à 1. Vide : 0,75, la valeur utilisée jusqu'ici.",
+    "style": (
+        "Exagération du style, de 0 à 1. Vide : non envoyé (ElevenLabs applique son défaut, 0). Au-dessus de 0, "
+        "la latence augmente et la voix peut devenir moins stable."
+    ),
+    "use_speaker_boost": (
+        "Renforce la ressemblance avec le locuteur d'origine. Vide : non envoyé (ElevenLabs applique son défaut). "
+        "Ajoute un peu de latence."
+    ),
+    "base_url": (
+        "Adresse de l'API ElevenLabs. À remplacer pour utiliser un point de résidence des données (par exemple "
+        "https://api.eu.residency.elevenlabs.io) pour le RGPD, HIPAA ou la conformité régionale."
+    ),
 }
 ECRAN_DEEPGRAM_STT: EcranMark = {
     "language": ("langue", "Language", "Langue"),
@@ -436,9 +584,59 @@ ECRAN_SONIOX_STT: EcranMark = {
     "base_url": ("hebergement", "Base URL", "Adresse du service"),
     "region": ("hebergement", "Region", "Région"),
 }
+# [.mark] Chantier voix-soniox, lot 2 : the Soniox VOICE screen (same groups
+# convention as the other providers). `model` is the head of the block (exempt),
+# `provider` and `api_key` are the screen's own, `adresse_libre` follows the
+# address (generic, lot 0 bis).
+# [.mark] Voix-soniox, lot 7 (D-52): the French of the help of the Soniox voice fields, and the name of the values
+# of its menu.
+AIDES_FR_SONIOX_TTS: dict[str, str] = {
+    "model": "Modèle de synthèse vocale en temps réel de Soniox.",
+    "voice": (
+        "Nom d'une voix Soniox, ou identifiant d'une voix clonée du projet qui détient la clé. Le menu liste les "
+        "voix connues du produit ; toute autre voix se saisit."
+    ),
+    "language": "Langue ISO 639-1 que parle la voix (envoyée avec chaque flux).",
+    "speed": "Multiplicateur de débit, de 0,7 à 1,3. Vide : le défaut de Soniox (1,0). Attention : il aplatit le rythme.",
+    "reduce_silence": (
+        "Raccourcit les pauses entre les mots sans changer la vitesse des mots. Vide : le défaut de Soniox "
+        "(éteint). Seuls certains modèles l'acceptent."
+    ),
+    "text_aggregation_mode": (
+        "Envoie le texte à la voix phrase par phrase (défaut, parole plus naturelle) ou mot par mot, au fil de "
+        "l'écriture du modèle (répond plus tôt, peut dégrader la voix : à juger à l'oreille)."
+    ),
+    "base_url": (
+        "Adresse Soniox à laquelle le texte dit est envoyé, donc la juridiction qui le traite. Europe par défaut "
+        "(la région est fixée par le projet auquel appartient la clé) ; vide, le texte part aussi vers l'Europe."
+    ),
+    "region": (
+        "Où le texte dit est traité. Déduite de l'adresse ci-dessus plutôt que choisie : changez l'adresse et "
+        "elle suit."
+    ),
+}
+VALEURS_SONIOX_TTS: dict[str, dict[str, tuple[str, str]]] = {
+    "text_aggregation_mode": {
+        "sentence": ("Sentence by sentence", "Phrase par phrase"),
+        "token": ("Word by word", "Mot par mot"),
+    },
+}
+ECRAN_SONIOX_TTS: EcranMark = {
+    "voice": ("voix", "Voice", "Voix"),
+    "language": ("voix", "Language", "Langue"),
+    "speed": ("debit", "Speed", "Vitesse"),
+    "reduce_silence": ("debit", "Reduce silence", "Réduire les silences"),
+    "text_aggregation_mode": ("envoi_du_texte", "Text sending", "Envoi du texte"),
+    "base_url": ("hebergement", "Base URL", "Adresse du service"),
+    "region": ("hebergement", "Region", "Région"),
+}
 CARTESIA_PROVIDER_MODEL_CONFIG = provider_model_config("Cartesia")
 SONIOX_PROVIDER_MODEL_CONFIG = provider_model_config(
     "Soniox", provider_docs_url="https://soniox.com/docs/stt/rt/real-time-transcription"
+)
+# [.mark] Chantier voix-soniox, lot 2: the voice side of the same provider.
+SONIOX_TTS_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "Soniox", provider_docs_url="https://soniox.com/docs/tts/rt/real-time-generation"
 )
 XAI_PROVIDER_MODEL_CONFIG = provider_model_config("xAI")
 LMNT_PROVIDER_MODEL_CONFIG = provider_model_config("LMNT")
@@ -1539,7 +1737,7 @@ ELEVENLABS_TTS_MODELS = ["eleven_flash_v2_5"]
 
 @register_tts
 class ElevenlabsTTSConfiguration(BaseServiceConfiguration):
-    model_config = ecran_mark(ELEVENLABS_PROVIDER_MODEL_CONFIG, ECRAN_ELEVENLABS_TTS)  # [.mark] écran Modèles
+    model_config = ecran_mark(ELEVENLABS_PROVIDER_MODEL_CONFIG, ECRAN_ELEVENLABS_TTS, AIDES_FR_ELEVENLABS_TTS)  # [.mark] écran Modèles
     provider: Literal[ServiceProviders.ELEVENLABS] = ServiceProviders.ELEVENLABS
     voice: str = Field(
         default="21m00Tcm4TlvDq8ikWAM",
@@ -1553,6 +1751,48 @@ class ElevenlabsTTSConfiguration(BaseServiceConfiguration):
             "examples": ELEVENLABS_TTS_MODELS,
             "allow_custom_input": True,
         },
+    )
+    # [.mark] Voix-soniox, lot 7 bis (D6 du plan conversation) : le caractere de la voix. Vide (None) = la valeur
+    # d'aujourd'hui pour stability (0.8) et similarity_boost (0.75), ecrites en dur dans la fabrique ; style et
+    # speaker boost vides = non envoyes. 🔑 `exclude_if` : cle ECRITE seulement quand elle est reglee, donc une
+    # configuration enregistree avant ce lot se relit et se reecrit a l'identique (sans migration).
+    stability: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        exclude_if=lambda valeur: valeur is None,
+        description=(
+            "Voice stability, 0 to 1. Lower is more expressive and varies more from one sentence "
+            "to the next; higher is steadier and flatter. Left empty: 0.8, the value used until now."
+        ),
+    )
+    similarity_boost: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        exclude_if=lambda valeur: valeur is None,
+        description=(
+            "How close the voice stays to the original recording, 0 to 1. Left empty: 0.75, the value "
+            "used until now."
+        ),
+    )
+    style: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        exclude_if=lambda valeur: valeur is None,
+        description=(
+            "Style exaggeration, 0 to 1. Left empty, not sent (ElevenLabs applies its own default, 0). "
+            "Above 0 it adds latency and can make the voice less stable."
+        ),
+    )
+    use_speaker_boost: bool | None = Field(
+        default=None,
+        exclude_if=lambda valeur: valeur is None,
+        description=(
+            "Boost the likeness to the original speaker. Left empty, not sent (ElevenLabs applies its "
+            "own default). Adds a little latency."
+        ),
     )
     base_url: str = Field(
         default="https://api.elevenlabs.io",
@@ -2098,6 +2338,164 @@ class SpeechifyTTSConfiguration(BaseTTSConfiguration):
     )
 
 
+# [.mark] Chantier voix-soniox (lots 2 et 2 bis). Soniox as a VOICE, under the
+# same provider value as its transcription (D7). Everything is off by default:
+# no agent switches, ElevenLabs stays the organisation's voice (D1).
+#
+# - no value chosen here for what Soniox decides: `speed` and `reduce_silence`
+#   stay empty and are then NOT sent (Soniox applies its own default);
+# - the European address by default (D6); an empty one also goes to Europe;
+# - the text goes to the voice sentence by sentence (D3), word by word on demand;
+# - `audio_format` and `sample_rate` are not settings: the factory sets them,
+#   as for ElevenLabs (the transport's rate, `pcm_s16le`).
+SONIOX_TTS_ADRESSE_EUROPE = "wss://tts-rt.eu.soniox.com/tts-websocket"
+SONIOX_TTS_ADRESSE_MONDIALE = "wss://tts-rt.soniox.com/tts-websocket"
+
+
+def adresse_soniox_voix(base_url: str | None) -> str:
+    """[.mark] The address the voice dials: the configured one, or Europe.
+
+    Same role as ``adresse_soniox`` for the transcription: shared by the
+    factory, the stamp, the region mirror and the key check, so the four can
+    never disagree about where the text goes.
+    """
+    adresse = (base_url or "").strip()
+    return adresse or SONIOX_TTS_ADRESSE_EUROPE
+
+
+def region_soniox_voix(base_url: str | None) -> str:
+    """[.mark] ``eu``, ``global``, or the host of a custom address."""
+    hote = adresse_soniox_voix(base_url).split("://", 1)[-1].split("/", 1)[0].strip()
+    if ".eu." in f".{hote}":
+        return "eu"
+    if hote == "tts-rt.soniox.com":
+        return "global"
+    return hote or "eu"
+
+
+@register_tts
+class SonioxTTSConfiguration(BaseTTSConfiguration):
+    model_config = ecran_mark(SONIOX_TTS_PROVIDER_MODEL_CONFIG, ECRAN_SONIOX_TTS, AIDES_FR_SONIOX_TTS, VALEURS_SONIOX_TTS)  # [.mark] écran Modèles
+    provider: Literal[ServiceProviders.SONIOX] = ServiceProviders.SONIOX
+    model: str = Field(
+        default=SONIOX_TTS_MODELS[0],
+        description="Soniox real-time text-to-speech model.",
+        json_schema_extra={"examples": list(SONIOX_TTS_MODELS), "allow_custom_input": True},
+    )
+    voice: str = Field(
+        default=SONIOX_TTS_VOIX_PAR_DEFAUT,
+        description=(
+            "Soniox voice name, or the identifier of a cloned voice of the project "
+            "that owns the key. The menu lists the voices known to the product; "
+            "any other voice is typed."
+        ),
+        json_schema_extra={
+            # The menu (D2): the identifiers, French voices first. Free entry stays
+            # open for a voice the list does not know, or a cloned one.
+            "examples": list(SONIOX_TTS_VOIX_IDS),
+            "allow_custom_input": True,
+            # What the voice list on screen shows (lot 7): description, accent,
+            # gender, and whether the voice is French. `None` = not recorded.
+            "mark_voix": [dict(voix) for voix in SONIOX_TTS_VOIX],
+            # The date the list was taken from Soniox: the screen says so, and says it is
+            # NOT the whole catalogue (lot 7, D-13: no false "200 voices").
+            "mark_voix_releve": SONIOX_TTS_VOIX_RELEVE,
+            "docs_url": "https://soniox.com/docs/tts/concepts/voices",
+        },
+    )
+    language: str = Field(
+        default="fr",
+        description="ISO 639-1 language the voice speaks (sent with every stream).",
+        json_schema_extra={
+            "examples": list(SONIOX_TTS_LANGUAGES),
+            "docs_url": "https://soniox.com/docs/tts/concepts/languages",
+        },
+    )
+    speed: float | None = Field(
+        default=None,
+        ge=0.7,
+        le=1.3,
+        description=(
+            "Speech rate multiplier, from 0.7 to 1.3. Left unset, Soniox's own "
+            "default applies (1.0). Careful: it flattens the rhythm."
+        ),
+    )
+    reduce_silence: bool | None = Field(
+        default=None,
+        description=(
+            "Shorten the pauses between words without changing how fast the words "
+            "are spoken. Left unset, Soniox's own default applies (off). Only some "
+            "models accept it."
+        ),
+    )
+    text_aggregation_mode: Literal["sentence", "token"] = Field(
+        default="sentence",
+        description=(
+            "Send the text to the voice sentence by sentence (default, more natural "
+            "speech), or word by word as the model writes it (answers sooner, may "
+            "degrade the voice: judge it by ear)."
+        ),
+    )
+    base_url: str = Field(
+        default=SONIOX_TTS_ADRESSE_EUROPE,
+        json_schema_extra={
+            "examples": [SONIOX_TTS_ADRESSE_EUROPE, SONIOX_TTS_ADRESSE_MONDIALE],
+            "allow_custom_input": True,
+        },
+        description=(
+            "The Soniox endpoint the spoken text is sent to, and therefore the "
+            "jurisdiction that processes it. Defaults to Europe (the region is "
+            "fixed by the project the key belongs to); leaving it empty also "
+            "sends the text to Europe."
+        ),
+    )
+    region: str = Field(
+        default="eu",
+        json_schema_extra={"readonly": True},
+        description=(
+            "Where the spoken text is processed. Derived from the endpoint above "
+            "rather than chosen: change the endpoint and this follows."
+        ),
+    )
+
+    @field_validator("language")
+    @classmethod
+    def _une_langue_que_soniox_connait(cls, valeur: str) -> str:
+        """[.mark] Refused on save: the factory turns the code into a Pipecat
+        ``Language``, and an unknown one would fail when the call starts."""
+        if valeur not in SONIOX_TTS_LANGUAGES:
+            raise ValueError(f"Unsupported Soniox voice language: {valeur}")
+        return valeur
+
+    @field_validator("base_url")
+    @classmethod
+    def _une_adresse_de_websocket(cls, valeur: str, info: ValidationInfo) -> str:
+        """[.mark] Refused at the door rather than mid-call (same rule as the
+        transcription): the connector dials whatever it is given. Empty stays
+        allowed (Europe). Free entry ticked: the scheme is not checked, the
+        generic rule of the base class still refuses an address with no host."""
+        if info.data.get("adresse_libre"):
+            return valeur
+        adresse = (valeur or "").strip()
+        if not adresse:
+            return valeur
+        schema, _, reste = adresse.partition("://")
+        if schema not in ("ws", "wss") or not reste.split("/", 1)[0].strip():
+            raise ValueError(
+                "The Soniox address must be a ws:// or wss:// URL, for example "
+                f"{SONIOX_TTS_ADRESSE_EUROPE}"
+            )
+        return valeur
+
+    @model_validator(mode="after")
+    def _la_region_suit_ladresse(self):
+        """A mirror, realigned rather than refused (same as the transcription)."""
+        region_attendue = region_soniox_voix(self.base_url)
+        if self.region != region_attendue:
+            object.__setattr__(self, "region", region_attendue)
+        return self
+
+
 TTSConfig = Annotated[
     Union[
         DeepgramTTSConfiguration,
@@ -2118,6 +2516,7 @@ TTSConfig = Annotated[
         XAITTSConfiguration,
         LmntTTSConfiguration,
         SpeechifyTTSConfiguration,
+        SonioxTTSConfiguration,
     ],
     Field(discriminator="provider"),
 ]
@@ -3003,13 +3402,18 @@ class SonioxSTTConfiguration(BaseSTTConfiguration):
 
     @field_validator("base_url")
     @classmethod
-    def _une_adresse_de_websocket(cls, valeur: str) -> str:
+    def _une_adresse_de_websocket(cls, valeur: str, info: ValidationInfo) -> str:
         """[.mark] Refused at the door rather than mid-call.
 
         ⛔ The factory's URL check does nothing in an ``oss`` deployment (ours),
         and the connector dials whatever it is given, so a wrong address would
         cost the call its transcription. Empty stays allowed: it means Europe.
+
+        Free entry ticked (lot 0 bis, D17): the scheme is not checked here, the
+        generic rule of the base class still refuses an address with no host.
         """
+        if info.data.get("adresse_libre"):
+            return valeur
         adresse = (valeur or "").strip()
         if not adresse:
             return valeur

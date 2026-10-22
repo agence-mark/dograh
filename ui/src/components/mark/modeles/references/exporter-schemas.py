@@ -22,7 +22,7 @@ from api.services.configuration.registry import REGISTRY, ServiceType  # noqa: E
 
 FOURNISSEURS = {
     "llm": (ServiceType.LLM, ["mistral", "openai"]),
-    "tts": (ServiceType.TTS, ["elevenlabs"]),
+    "tts": (ServiceType.TTS, ["elevenlabs", "soniox"]),
     "stt": (ServiceType.STT, ["deepgram", "soniox"]),
 }
 

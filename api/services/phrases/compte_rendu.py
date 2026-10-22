@@ -21,6 +21,13 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 
+def ligne_entendue(dit: str) -> str:
+    """La ligne « L'appelant a entendu » d'une phrase jouée en entier. UNE seule écriture : le compte rendu
+    la pose, et la réécriture d'une phrase coupée (``coupures.py``, D20) la retrouve pour la remplacer dans
+    la copie envoyée au modèle. Jamais retirée (mesure 13 du 21/10 : sans elle 30/30 répétitions, avec 0/30)."""
+    return f"L'appelant a entendu : « {dit.strip()} ». Ne la répète pas."
+
+
 def _liste(elements: Iterable[str] | None) -> str:
     return " ; ".join(e.strip() for e in (elements or []) if e and e.strip())
 
@@ -42,7 +49,7 @@ def compte_rendu(
         suite = f", {detail.strip().rstrip('.')}" if detail and detail.strip() else ""
         lignes.append(f"Ce qui vient de se passer : {fait}{suite}.")
     if dit and dit.strip():
-        lignes.append(f"L'appelant a entendu : « {dit.strip()} ». Ne la répète pas.")
+        lignes.append(ligne_entendue(dit))
     notees = _liste(notes)
     if notees:
         lignes.append(f"Noté dans la fiche : {notees}.")

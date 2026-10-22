@@ -7,6 +7,8 @@ import { useForm } from "react-hook-form";
 import { getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet } from '@/client/sdk.gen';
 import { ChampEtiquettes } from "@/components/mark/ChampEtiquettes";
 import { ChampCleModele } from "@/components/mark/cles/ChampCleModele";
+import { useLangue } from "@/components/mark/langue/langue";
+import { CarteDesVoix, type VoixConnue } from "@/components/mark/modeles/CarteDesVoix";
 import { grouperChamps, LibelleChamp, SousMenuFournisseur } from "@/components/mark/modeles/GroupesFournisseur";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -71,6 +73,21 @@ interface SchemaProperty {
     // ⛔ The factory drops the value on the same rule (E8). Hiding is not
     // erasing: the value stays in the form and is saved, like the model rule.
     visible_when?: Record<string, unknown>;
+    // [.mark] Chantier voix-soniox, lot 0 bis (D17): la case « saisie libre » des
+    // adresses, declaree UNE fois cote serveur pour tous les fournisseurs.
+    // `mark_adresse` marque un champ d'adresse (la case est dessinee a cote) ;
+    // `mark_adresse_libre` marque la case elle-meme (jamais dessinee comme un
+    // reglage de la liste : voir `getConfigFields`).
+    mark_adresse?: boolean;
+    mark_adresse_libre?: boolean;
+    // [.mark] Chantier voix-soniox, lot 7 (D2) : les voix que le produit connait
+    // (une voix Soniox), dessinees en carte + modale, et la date du releve.
+    mark_voix?: VoixConnue[];
+    mark_voix_releve?: string;
+    // [.mark] Voix-soniox, lot 7 (D-52): l'aide du champ et le nom des valeurs d'un menu, dans les deux
+    // langues, declares cote serveur. Sans eux, l'aide est la `description` de l'api, en anglais.
+    mark_aide?: { en: string; fr: string };
+    mark_valeurs?: Record<string, { en: string; fr: string }>;
 }
 
 export interface ProviderSchema {
@@ -300,6 +317,7 @@ export function ServiceConfigurationForm({
     forceRealtime,
     voixVerrouillee,
 }: ServiceConfigurationFormProps) {
+    const { t } = useLangue();
     const [apiError, setApiError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isRealtime, setIsRealtime] = useState(forceRealtime ?? false);
@@ -737,6 +755,17 @@ export function ServiceConfigurationForm({
             // retire un reglage que le modele refuse (`_reglages_classiques`
             // supprime `keywords` sur les modeles a keyterm), donc la requete
             // reste correcte sans que l'ecran ait a effacer la valeur.
+            // [.mark] Lot 0 bis (D17): la case « saisie libre » n'est ecrite que
+            // COCHEE, comme le serveur ne la conserve que cochee : une
+            // sauvegarde sans rien toucher envoie exactement ce qu'elle
+            // envoyait avant ce chantier. Seule exception, une surcharge
+            // d'agent qui decoche ce que le client a coche (sinon l'agent
+            // heriterait de la case sans pouvoir la retirer).
+            if (
+                schemaResolu(field)?.mark_adresse_libre
+                && value !== true
+                && !(heriteChampParChamp && valeurHeritee(field) === true)
+            ) return;
             config[field] = value as string | number | boolean | string[];
         });
         return config;
@@ -804,6 +833,9 @@ export function ServiceConfigurationForm({
             const actualSchema = schema?.$ref && providerSchema.$defs
                 ? providerSchema.$defs[schema.$ref.split('/').pop() || '']
                 : schema;
+            // [.mark] Lot 0 bis (D17): la case « saisie libre » n'est pas un reglage
+            // de la liste, elle est dessinee a cote de l'adresse (`renderField`).
+            if (actualSchema?.mark_adresse_libre) return false;
             // [.mark] A field can name the models that accept it. Absent means
             // every model, so no existing field changes behaviour.
             // ⛔ A setting shown, filled in, sent and ignored by the model is
@@ -958,7 +990,7 @@ export function ServiceConfigurationForm({
             return valeur === undefined || valeur === null ? schemaDe(autre)?.default : valeur;
         };
         const champ = (field: string) => !estVisibleSelonLesAutresChamps(schemaDe(field), lire) ? null : (
-            <div key={field} data-champ={field} className={`space-y-2 ${schemaDe(field)?.multiline ? "col-span-2" : ""}`}>
+            <div key={field} data-champ={field} className={`space-y-2 ${schemaDe(field)?.multiline || schemaDe(field)?.mark_voix ? "col-span-2" : ""}`}>
                 <LibelleChamp
                     champ={field}
                     libelle={schemaDe(field)?.mark_libelle ?? (field === "model" ? { en: "Model", fr: "Modèle" } : undefined)}
@@ -1051,10 +1083,10 @@ export function ServiceConfigurationForm({
         const actualSchema = schema.$ref && providerSchema.$defs
             ? providerSchema.$defs[schema.$ref.split('/').pop() || '']
             : schema;
-        if (!actualSchema?.description && !actualSchema?.docs_url) return null;
+        if (!actualSchema?.description && !actualSchema?.docs_url && !actualSchema?.mark_aide) return null;
         return (
             <p className="text-xs text-muted-foreground">
-                {actualSchema?.description}{" "}
+                {actualSchema?.mark_aide ? t(actualSchema.mark_aide) : actualSchema?.description}{" "}
                 {actualSchema?.docs_url && (
                     <a
                         href={actualSchema.docs_url}
@@ -1069,14 +1101,59 @@ export function ServiceConfigurationForm({
         );
     };
 
+    // [.mark] Lot 0 bis (D17): la case « saisie libre » d'une adresse. Decochee
+    // (defaut) : le controle du fournisseur, comme avant. Cochee : tout schema
+    // d'adresse est accepte, seule une adresse sans hote reste refusee (le
+    // serveur tranche, l'ecran ne controle rien). Libelle en deux langues et
+    // nom technique en gris (E5), comme tout reglage d'un fournisseur.
+    const renderCaseAdresseLibre = (service: ServiceSegment, providerSchema: ProviderSchema) => {
+        const fieldKey = `${service}_adresse_libre`;
+        const idCase = `adresse-libre-${service}`;
+        return (
+            <>
+            <div className="flex items-center gap-2 pt-1" data-adresse-libre={service}>
+                <Checkbox
+                    id={idCase}
+                    checked={watch(fieldKey) === true}
+                    onCheckedChange={(coche) => setValue(fieldKey, coche === true, { shouldDirty: true })}
+                />
+                <LibelleChamp
+                    champ="adresse_libre"
+                    libelle={providerSchema.properties.adresse_libre?.mark_libelle}
+                    htmlFor={idCase}
+                />
+            </div>
+            {/* D-53: what this box is, and how it differs from « Enter Custom Value » just above. */}
+            {providerSchema.properties.adresse_libre?.mark_aide && (
+                <p className="text-xs text-muted-foreground" data-aide-adresse-libre={service}>
+                    {t(providerSchema.properties.adresse_libre.mark_aide)}
+                </p>
+            )}
+            </>
+        );
+    };
+
     const renderField = (service: ServiceSegment, field: string, providerSchema: ProviderSchema) => {
+        const schemaDuChamp = providerSchema.properties[field];
+        const reel = schemaDuChamp?.$ref && providerSchema.$defs
+            ? providerSchema.$defs[schemaDuChamp.$ref.split('/').pop() || '']
+            : schemaDuChamp;
         return (
             <>
                 {renderFieldInput(service, field, providerSchema)}
+                {reel?.mark_adresse && providerSchema.properties.adresse_libre
+                    && renderCaseAdresseLibre(service, providerSchema)}
                 {renderFieldDescription(field, providerSchema)}
             </>
         );
     };
+
+    // [.mark] D-52: the typing hint of a field that declares its label in both languages is written in both
+    // (« Enter speed » / « Saisissez : vitesse »). Any other field keeps Dograh's English hint.
+    const indication = (field: string, schema: SchemaProperty | undefined) =>
+        schema?.mark_libelle
+            ? t({ en: `Enter ${field}`, fr: `Saisissez : ${schema.mark_libelle.fr.toLowerCase()}` })
+            : `Enter ${field}`;
 
     const renderFieldInput = (service: ServiceSegment, field: string, providerSchema: ProviderSchema) => {
         const schema = providerSchema.properties[field];
@@ -1160,8 +1237,12 @@ export function ServiceConfigurationForm({
             // reads as off. ⛔ Only a real `true` turns the switch on, so a
             // stray "false" string from an older save cannot show as on.
             const coche = watch(fieldKey) === true;
+            // [.mark] D-54: an OPTIONAL boolean (`bool | None`) has a third state, « empty » = the value used until
+            // now. Once set, the switch alone cannot go back to it: this link does (what the other empty fields do).
+            const facultatif = Boolean(actualSchema?.anyOf?.some((option) => option.type === "null"));
+            const regle = typeof watch(fieldKey) === "boolean";
             return (
-                <div className="flex h-9 items-center">
+                <div className="flex h-9 items-center gap-3">
                     <Switch
                         id={fieldKey}
                         checked={coche}
@@ -1175,7 +1256,38 @@ export function ServiceConfigurationForm({
                             setValue(fieldKey, checked, { shouldDirty: true });
                         }}
                     />
+                    {facultatif && (
+                        regle ? (
+                            <button
+                                type="button"
+                                data-valeur-par-defaut={fieldKey}
+                                className="text-xs text-muted-foreground underline"
+                                onClick={() => setValue(fieldKey, "", { shouldDirty: true })}
+                            >
+                                {t({ en: "Back to the default", fr: "Revenir à la valeur par défaut" })}
+                            </button>
+                        ) : (
+                            <span className="text-xs text-muted-foreground" data-valeur-vide={fieldKey}>
+                                {t({ en: "Empty: the default value.", fr: "Vide : la valeur par défaut." })}
+                            </span>
+                        )
+                    )}
                 </div>
+            );
+        }
+
+        // [.mark] Voix-soniox, lot 7 (D2): the voices the product knows, as a card that opens a
+        // centred modal (filter « French », search, free entry for an absent or cloned voice).
+        if (actualSchema?.mark_voix && actualSchema.mark_voix.length > 0) {
+            const fieldKey = `${service}_${field}`;
+            return (
+                <CarteDesVoix
+                    idChamp={fieldKey}
+                    valeur={(watch(fieldKey) as string) || ""}
+                    voix={actualSchema.mark_voix}
+                    releve={actualSchema.mark_voix_releve}
+                    onChoisir={(id) => setValue(fieldKey, id, { shouldDirty: true })}
+                />
             );
         }
 
@@ -1189,7 +1301,7 @@ export function ServiceConfigurationForm({
                     <div className="space-y-2">
                         <Input
                             type="text"
-                            placeholder={`Enter ${field}`}
+                            placeholder={indication(field, actualSchema)}
                             value={currentValue}
                             onChange={(e) => {
                                 setValue(fieldKey, e.target.value, { shouldDirty: true });
@@ -1252,6 +1364,9 @@ export function ServiceConfigurationForm({
 
         if (dropdownOptions && dropdownOptions.length > 0) {
             const getDisplayName = (value: string) => {
+                // [.mark] D-52: the name of a menu value in both languages, when the schema declares it.
+                const nomMark = actualSchema?.mark_valeurs?.[value];
+                if (nomMark) return t(nomMark);
                 if (field === "language") {
                     return LANGUAGE_DISPLAY_NAMES[value] || value;
                 }
@@ -1290,7 +1405,7 @@ export function ServiceConfigurationForm({
                     className="font-mono text-xs"
                     // [.mark] The schema's bound, typed no further (Soniox domain description, 300).
                     maxLength={actualSchema?.maxLength}
-                    placeholder={`Enter ${field}`}
+                    placeholder={indication(field, actualSchema)}
                     {...register(`${service}_${field}`, {
                         required: service !== "embeddings" && providerSchema.required?.includes(field),
                     })}
@@ -1306,7 +1421,7 @@ export function ServiceConfigurationForm({
                     min: numberSchema.minimum,
                     max: numberSchema.maximum,
                 })}
-                placeholder={`Enter ${field}`}
+                placeholder={indication(field, actualSchema)}
                 {...register(`${service}_${field}`, {
                     required: service !== "embeddings" && providerSchema.required?.includes(field),
                     ...(numberSchema && {

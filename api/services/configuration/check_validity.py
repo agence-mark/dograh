@@ -15,9 +15,12 @@ from api.schemas.ai_model_configuration import (
 from api.services.cles_reference import resoudre_les_cles
 from api.services.configuration.registry import (
     MISTRAL_EU_BASE_URL,
+    BaseTTSConfiguration,
     ServiceConfig,
     ServiceProviders,
+    est_champ_adresse,
     region_soniox,
+    region_soniox_voix,
 )
 from api.services.mps_service_key_client import mps_service_key_client
 from api.utils.url_security import validate_user_configured_service_url
@@ -136,13 +139,22 @@ class UserConfigurationValidator:
 
         provider = service_config.provider
 
-        for url_field in ("base_url", "endpoint"):
+        # [.mark] Lot 0 bis (D17) : tous les champs d'adresse du registre (plus
+        # seulement deux noms), et la case « saisie libre » leve le controle de
+        # schema (jamais celui de l'hote).
+        libre = bool(getattr(service_config, "adresse_libre", False))
+        # (`vars` : les tests de l'amont passent une simple enveloppe, pas un modele.)
+        champs = getattr(type(service_config), "model_fields", None) or vars(service_config)
+        for url_field in champs:
+            if not est_champ_adresse(url_field):
+                continue
             url = getattr(service_config, url_field, None)
             if url:
                 try:
                     validate_user_configured_service_url(
                         url,
                         field_name=url_field,
+                        schema_libre=libre,
                     )
                 except ValueError as e:
                     return [{"model": service_name, "message": str(e)}]
@@ -275,9 +287,15 @@ class UserConfigurationValidator:
         the key leaves, never audio.
         """
         base_url = getattr(service_config, "base_url", None) if service_config else None
-        hote = (
-            "api.eu.soniox.com" if region_soniox(base_url) == "eu" else "api.soniox.com"
+        # [.mark] Voix-soniox, lot 5 (D8) : la cle de la VOIX se verifie selon la region de l'adresse
+        # de la voix (``region_soniox_voix``, la fonction propre a la voix, la meme que le miroir
+        # de l'ecran), pas par celle de la transcription. La transcription ne change pas.
+        region = (
+            region_soniox_voix(base_url)
+            if isinstance(service_config, BaseTTSConfiguration)
+            else region_soniox(base_url)
         )
+        hote = "api.eu.soniox.com" if region == "eu" else "api.soniox.com"
         try:
             response = httpx.get(
                 f"https://{hote}/v1/models",

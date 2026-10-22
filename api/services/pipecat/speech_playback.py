@@ -1,6 +1,7 @@
 """Call-owned speech completion and muting, independent of bot activity events."""
 
 import asyncio
+import time
 import uuid
 from collections.abc import Callable
 from enum import Enum
@@ -77,6 +78,10 @@ class SpeechPlayback:
         self.has_output = False
         self.started = False
         self.text: str | None = None
+        # [.mark] D20 (phrases du code coupées) : l'instant où la sortie a laissé passer le début de la
+        # lecture et celui où elle s'est résolue (coupure comprise), pour dire la part réellement jouée.
+        self.started_at: float | None = None
+        self.ended_at: float | None = None
         self.text_parts: list[TextPartForConcatenation] = []
         self._owner = owner
         self._result: asyncio.Future[PlaybackOutcome] = (
@@ -102,6 +107,7 @@ class SpeechPlayback:
         if self.done:
             return
         self._deadline.cancel()
+        self.ended_at = time.monotonic()
         self._owner.pending.pop(self.id, None)
         if outcome is PlaybackOutcome.TIMED_OUT:
             logger.warning(f"Speech {self.id} timed out; releasing its wait and mute")
@@ -343,6 +349,7 @@ class SpeechPlaybackTracker:
                 self._output_scopes.append(frame.speech_id)
                 if speech := self.pending.get(frame.speech_id):
                     speech.started = True
+                    speech.started_at = time.monotonic()
             else:
                 for observer in self._observers:
                     observer.on_playback_finished(frame.speech_id)

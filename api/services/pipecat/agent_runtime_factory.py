@@ -33,10 +33,12 @@ from api.services.pipecat.pipeline_builder import (
 )
 from api.services.pipecat.recording_router_processor import RecordingRouterProcessor
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
+from api.services.phrases.coupures import brancher_les_coupures
 from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.pipecat.service_factory import (
     cle_de_cache,
     create_llm_service,
+    poser_les_balises_du_cerveau,
     stamp_prompt_cache_key,
     stamp_sampling_settings,
     stamp_voice_settings,
@@ -77,7 +79,11 @@ class AgentGenerationCallbacks:
 
 
 def _estampiller_agent(
-    runtime_configuration: dict, user_config, workflow_id: int, voix_de_l_appel=None
+    runtime_configuration: dict,
+    user_config,
+    workflow_id: int,
+    voix_de_l_appel=None,
+    run_configs: dict | None = None,
 ):
     """[.mark] The same stamps as the call's first agent (run_pipeline): what
     this agent's sampling and cache key were, readable after the call.
@@ -90,7 +96,7 @@ def _estampiller_agent(
     runtime_configuration["tts_provider"] = voix.provider
     runtime_configuration["tts_model"] = voix.model
     stamp_sampling_settings(runtime_configuration, user_config.llm)
-    stamp_voice_settings(runtime_configuration, voix)
+    stamp_voice_settings(runtime_configuration, voix, run_configs)
     stamp_prompt_cache_key(
         runtime_configuration, user_config.llm, cle_de_cache(workflow_id)
     )
@@ -299,9 +305,17 @@ class AgentRuntimeFactory:
             correlation_id=self._mps_correlation_id,
             prompt_cache_key=cle_de_cache(workflow_id),
         )
+        # [.mark] Voix-soniox, lot 5 ter (D29) : les balises du cerveau, sous la voix DE L'APPEL.
+        poser_les_balises_du_cerveau(
+            llm,
+            self._voix_de_l_appel if self._voix_de_l_appel is not None else user_config.tts,
+            run_configs,
+        )
         # [.mark] Lot 8 (R12) : la trace du modèle suit l'agent appelé (case de CET agent), avant la
         # prise de notes ci-dessous qui lit la trace du moteur. Ne lève jamais.
         if self._moteur_de_l_appel is not None:
+            # D20 (voix-soniox) : les phrases du code coupées, avant la trace (qui voit la requête telle qu'elle part).
+            brancher_les_coupures(self._moteur_de_l_appel(), llm)
             brancher_la_trace(self._moteur_de_l_appel(), llm, run_configs, workflow.name)
         # Same client policy as the run setup: the conversation LLM also
         # serves out-of-band inference, and extraction gets a separately
@@ -363,12 +377,19 @@ class AgentRuntimeFactory:
                 user_config,
                 workflow_id,
                 self._voix_de_l_appel,
+                run_configs,
             ),
             is_child=True,
             entered_at=None,
             # [.mark] This agent's own switches, the call's live variables.
             filtre_nom_civilite=creer_filtre_nom_civilite(
-                run_configs, self._variables_appel, self._contexte_appel
+                run_configs,
+                self._variables_appel,
+                self._contexte_appel,
+                # [.mark] Voix-soniox (D-10) : le mode d'envoi est celui de la VOIX DE L'APPEL.
+                voix=self._voix_de_l_appel
+                if self._voix_de_l_appel is not None
+                else user_config.tts,
             ),
             # [.mark] Chantier agents-specialises : ses réglages (groupe, plafond).
             reglages=dict(run_configs),

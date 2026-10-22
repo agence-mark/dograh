@@ -307,9 +307,17 @@ def _en_evenements(morceau: Any) -> list[Any]:
 class FluxNettoyeResponses:
     """Le flux du cerveau, sans appel écrit en texte ni passage entre crochets."""
 
-    def __init__(self, flux: Any, outils: list[str], portes_dans_la_reponse: bool):
+    def __init__(
+        self,
+        flux: Any,
+        outils: list[str],
+        portes_dans_la_reponse: bool,
+        balises_permises: Any = (),
+    ):
         self._flux = flux
-        self._nettoye = FluxNettoye(_VersMorceaux(flux), outils, portes_dans_la_reponse)
+        self._nettoye = FluxNettoye(
+            _VersMorceaux(flux), outils, portes_dans_la_reponse, balises_permises
+        )
 
     def __aiter__(self):
         return self._parcourir()
@@ -338,7 +346,12 @@ class TexteDuCerveauResponsesMixin:
                 and FLECHE in str(m.get("content") or "")
                 for m in (getattr(context, "messages", None) or [])
             )
-            return FluxNettoyeResponses(flux, _noms_des_outils(context), portes)
+            return FluxNettoyeResponses(
+                flux,
+                _noms_des_outils(context),
+                portes,
+                getattr(self, "balises_du_cerveau", ()) or (),
+            )
         except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
             logger.warning(f"[cerveau] nettoyage du texte non posé : {erreur!r}")
             return flux

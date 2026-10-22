@@ -33,6 +33,7 @@ from api.errors.failure import (
 )
 from api.services.observability.call_events.metrics import ttfb_kind
 from api.services.pipecat.agent_bridge import AgentWorker
+from api.services.pipecat.balises_expression import sans_balises
 from api.services.pipecat.realtime_feedback_events import (
     build_bot_text_event,
     build_function_call_end_event,
@@ -221,7 +222,12 @@ class RealtimeFeedbackObserver(BaseObserver):
         elif isinstance(frame, TTSTextFrame):
             message = build_bot_text_event(text=frame.text)
 
-            if getattr(frame, "persist_to_logs", False):
+            # [.mark] Voix-soniox, lot 5 bis : un mot qui n'etait qu'une balise ("[warm]") ne
+            # laisse rien a montrer.
+            # Seulement quand le texte portait un crochet : sinon le comportement d'avant, a l'octet.
+            if frame.text and "[" in frame.text and not message["payload"]["text"].strip():
+                pass
+            elif getattr(frame, "persist_to_logs", False):
                 await self._send_message(message)
             else:
                 await self._send_ws(message)
@@ -381,7 +387,8 @@ def register_turn_log_handlers(
         # transcript slot too, so the next message cannot claim its playback turn.
         try:
             await transcript_coordinator.record_assistant_transcript(
-                text=message.content or "",
+                # [.mark] Voix-soniox, lot 5 bis (D11) : le verbatim conserve ne garde aucune balise.
+                text=sans_balises(message.content or ""),
                 timestamp=message.timestamp,
                 end_timestamp=getattr(message, "end_timestamp", None),
             )

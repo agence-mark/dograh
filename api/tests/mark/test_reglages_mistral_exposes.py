@@ -321,7 +321,9 @@ def test_le_point_de_collecte_dit_la_meme_chose_que_la_declaration():
     # seventh field declared on the configuration but forgotten in the tuple
     # would be shown on screen, saved, and never sent. Anything declared that
     # is not plumbing (provider, model, endpoint, credentials) has to be here.
-    PLOMBERIE = {"provider", "api_key", "model", "base_url"}
+    # `adresse_libre` : la case « saisie libre » de l'adresse, declaree une fois pour
+    # tous les fournisseurs (lot 0 bis de voix-soniox), pas un reglage d'echantillonnage.
+    PLOMBERIE = {"provider", "api_key", "model", "base_url", "adresse_libre"}
     declares_hors_plomberie = set(declares) - PLOMBERIE
     oublies = declares_hors_plomberie - set(MISTRAL_SAMPLING_FIELDS)
     assert not oublies, (

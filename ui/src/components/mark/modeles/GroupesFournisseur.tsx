@@ -27,11 +27,17 @@ import { type Texte, useLangue } from "../langue/langue";
 export const GROUPES_FOURNISSEUR: Record<string, Texte> = {
     langue: { en: "Language", fr: "Langue" },
     voix: { en: "Voice", fr: "Voix" },
+    // [.mark] voix-soniox, lot 7 bis: the character of an ElevenLabs voice (stability, likeness, style).
+    caractere_de_la_voix: { en: "Voice character", fr: "Caractère de la voix" },
+    // [.mark] voix-soniox, lot 7: the pace of a Soniox voice (speed, shorter pauses).
+    debit: { en: "Pace", fr: "Débit" },
     generation: { en: "Generation", fr: "Génération" },
     repetition: { en: "Repetition", fr: "Répétitions" },
     fin_de_tour: { en: "End of turn", fr: "Fin de tour" },
     mise_en_forme: { en: "Text formatting", fr: "Mise en forme du texte" },
     vocabulaire: { en: "Vocabulary", fr: "Vocabulaire" },
+    // [.mark] voix-soniox, lot 7: how the text reaches the voice (sentence by sentence or word by word).
+    envoi_du_texte: { en: "Sending the text", fr: "Envoi du texte" },
     hebergement: { en: "Hosting and privacy", fr: "Hébergement et confidentialité" },
     analyse: { en: "Analysis", fr: "Analyse" },
     technique: { en: "Technical", fr: "Technique" },
