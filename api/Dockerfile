@@ -41,13 +41,10 @@ RUN \
     uv pip install -r /tmp/req.txt -c /tmp/constraints.txt
 
 # Layer 2: pipecat deps. Cache invalidates when pipecat source changes.
-# After installing pipecat, two hardening tweaks:
-#   1. Swap opencv-python (pulled by pipecat[webrtc]) for opencv-python-headless.
-#      The non-headless build links against X11/Qt (libxcb*); without those
-#      shared libs in the image, `import cv2` fails at runtime.
-#   2. Pre-download NLTK's punkt_tab tokenizer so pipecat's text processing
-#      doesn't hit the network on first agent run. NLTK auto-finds it under
-#      sys.prefix/nltk_data, so it travels with the venv on COPY.
+# After installing pipecat, swap opencv-python (pulled by pipecat[webrtc]) for
+# opencv-python-headless. The non-headless build links against X11/Qt
+# (libxcb*); without those shared libs in the image, `import cv2` fails at
+# runtime.
 # [.mark] `--mount=type=bind` est refuse par le constructeur de Railway
 # ("other mount types are not supported"). Un COPY fait le meme travail,
 # en Docker standard. Voir agence-mark/socle-agent-vocal, forks/REGISTRE.md.
@@ -78,8 +75,7 @@ RUN \
 RUN \
     uv pip install 'pipecat-ai[cartesia,deepgram,openai,elevenlabs,groq,google,azure,sarvam,soundfile,silero,webrtc,speechmatics,openrouter,camb,mcp,inworld,smallest,mistral,rnnoise,aws-nova-sonic,soniox] @ git+https://github.com/dograh-hq/pipecat.git@20f53b93c18493a2018c2a863b7d0e7e62523bb7' -c /tmp/constraints.txt \
  && uv pip uninstall opencv-python \
- && uv pip install opencv-python-headless -c /tmp/constraints.txt \
- && python -c "import nltk; nltk.download('punkt_tab', download_dir='/opt/venv/nltk_data', quiet=True)"
+ && uv pip install opencv-python-headless -c /tmp/constraints.txt
 
 # [.mark] Second environnement Python : l'appelant simule (LangWatch Scenario,
 # chantier langwatch-et-fenetre-du-run, decision L19 du 05/10/2026). Scenario exige
@@ -178,8 +174,7 @@ COPY --from=ffmpeg-static /usr/local/bin/ffprobe /usr/local/bin/ffprobe
 # already provides libstdc++6, libgcc-s1, and ca-certificates that node needs.
 COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node
 
-# Copy the populated venv from the builder stage. NLTK data lives at
-# /opt/venv/nltk_data and is auto-discovered via sys.prefix.
+# Copy the populated venv from the builder stage.
 COPY --from=builder /opt/venv /opt/venv
 # [.mark] L'environnement de l'appelant simule (L19), jamais sur le PATH de l'API.
 COPY --from=builder /opt/venv-simulateur /opt/venv-simulateur
