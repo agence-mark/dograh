@@ -90,7 +90,8 @@ async def test_la_fiche_de_l_agent_seule_meme_s_il_a_ses_horaires():
     assert persiste["etablissement_de_lappel"] == "creil"
     estampille = persiste["runtime_configuration"]["etablissement"]
     assert estampille["source"] == "fiche_de_lagent", estampille
-    assert estampille["origines"] == {"horaires_ouverture": "fiche", "adresse": "fiche"}
+    # F-8: the stamp says « etablissement » (or « aucune ») for every establishment served, fiche or not.
+    assert estampille["origines"] == {"horaires_ouverture": "etablissement", "adresse": "etablissement"}
 
 
 @pytest.mark.asyncio

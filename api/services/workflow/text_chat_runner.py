@@ -738,17 +738,15 @@ async def execute_text_chat_pending_turn(
         fiche_choisie=run_configs.get(CLE_FICHE_DE_LAGENT),
     )
     etablissement_servi = lecture_de_lappel.servi
-    # [.mark] Lot 1 d'agents-specialises (F3, C3) : une fiche n'hérite de rien.
-    sans_heritage = bool(etablissement_servi and etablissement_servi.sans_heritage)
+    # [.mark] Lot 1 d'agents-specialises (F3, C3), étendu par F-8 (Evan, 22/10) : un
+    # établissement servi n'hérite de rien, quelle que soit la façon dont il a été trouvé.
     configs_heritees, origines_heritees = configuration_heritee(
         run_configs,
         etablissement_servi.etablissement if etablissement_servi else None,
-        sans_heritage=sans_heritage,
     )
     reglages_annonce = annonce_heritee(
         reglages_annonce,
         etablissement_servi.etablissement if etablissement_servi else None,
-        sans_heritage=sans_heritage,
     )
     if etablissement_servi is not None:
         etablissement_servi.origines.update(origines_heritees)

@@ -4,7 +4,8 @@ Read with the establishments, from the same in-memory copy (B3), at pick-up.
 
 - ``injecter_phrases``: each sentence of the catalogue becomes ``{{variable}}`` in the
   call context; a sentence placed at the establishment's level takes the
-  establishment's content when it has one, the organization's otherwise. A value
+  establishment's content alone when one is served ([.mark] F-8: nothing is
+  inherited), the organization's when none is. A value
   already in the context is kept (a replay, a pre-call fetch). Empty content: nothing.
   [.mark] Lot 4 (F6, M6): the content is filled ONCE with the call's variables, so
   ``{{etablissement}}`` written in a sentence says the fiche's name; a variable the
@@ -36,12 +37,16 @@ def _vide(valeur) -> bool:
 
 
 def valeurs_des_phrases(catalogue: CataloguePhrases, etablissement) -> dict[str, str]:
-    surcharges = getattr(etablissement, "phrases", None) or {}
+    """[.mark] F-8 (Evan, 22/10): a sentence placed at the establishment's level takes, when an
+    establishment is served, ITS content alone (none: nothing is said, never the organization's);
+    with no establishment, the organization's content. A sentence at the organization's level is
+    the same for everyone."""
+    propres = getattr(etablissement, "phrases", None) or {}
     valeurs: dict[str, str] = {}
     for phrase in catalogue.phrases:
         contenu = phrase.contenu
-        if phrase.niveau == "etablissement" and not _vide(surcharges.get(phrase.variable)):
-            contenu = surcharges[phrase.variable]
+        if phrase.niveau == "etablissement" and etablissement is not None:
+            contenu = propres.get(phrase.variable)
         if not _vide(contenu):
             valeurs[phrase.variable] = contenu
     return valeurs

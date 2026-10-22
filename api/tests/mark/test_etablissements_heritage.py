@@ -3,8 +3,9 @@
 The questions this file answers (chantier l-agent-travaille, L1, E1 to E4, B3):
 
     Does a call find ITS establishment from the called number, and read the
-    hours, address and sentences of that establishment, the agent's own values
-    first? Does an organization without establishments -- every client today --
+    hours, address and sentences of that establishment ALONE ([.mark] F-8, Evan
+    22/10: nothing inherited, not even the agent's own values; before, the agent's
+    came first)? Does an organization without establishments -- every client today --
     get back EXACTLY the call of before? Is the establishment stamped on the
     run? Does the save route refuse what a call would hear wrong, and keep a
     number of another organization out?
@@ -97,7 +98,7 @@ def test_identifiants_uniques_et_numeros_au_format_international():
         Etablissement(id="A B", nom="A")
 
 
-def test_un_champ_vide_est_herite_jamais_rien():
+def test_un_champ_vide_est_stocke_vide():
     etablissement = Etablissement(id="a", nom="A", horaires_ouverture="  ", annonce_fermeture="", numero_transfert="")
     assert etablissement.horaires_ouverture is None
     assert etablissement.annonce_fermeture is None
@@ -146,14 +147,18 @@ def test_sans_etablissement_la_meme_configuration_revient():
     assert retour is configs and origines == {}
 
 
-def test_lagent_lemporte_puis_letablissement():
-    retour, origines = configuration_heritee({"horaires_ouverture": HORAIRES_AGENT}, CREIL)
-    assert retour["horaires_ouverture"] == HORAIRES_AGENT and origines["horaires_ouverture"] == "agent"
-    retour, origines = configuration_heritee({}, CREIL)
+def test_letablissement_servi_seul_meme_devant_lagent():
+    """[.mark] F-8 (Evan, 22/10): an establishment served (here by the called number, not a fiche)
+    inherits nothing: its hours and address win over the agent's, an empty field stays empty."""
+    agent = {"horaires_ouverture": HORAIRES_AGENT, "adresse_etablissement": {"code_postal": "60100", "code_insee": "60175", "commune": "Creil"}}
+    retour, origines = configuration_heritee(agent, CREIL)
     assert retour["horaires_ouverture"] == HORAIRES_CREIL and origines["horaires_ouverture"] == "etablissement"
     assert retour["adresse_etablissement"]["code_insee"] == "60612" and origines["adresse"] == "etablissement"
-    retour, origines = configuration_heritee({}, SENLIS_SITE)
-    assert "horaires_ouverture" not in retour and origines == {"horaires_ouverture": "aucune", "adresse": "organisation"}
+    # An establishment without hours nor address: none, never the agent's, never the organization's.
+    retour, origines = configuration_heritee(agent, SENLIS_SITE)
+    assert "horaires_ouverture" not in retour and "adresse_etablissement" not in retour
+    assert origines == {"horaires_ouverture": "aucune", "adresse": "aucune"}
+    assert retour["_mark_fiche_sans_heritage"] is True  # the address resolution never falls back
 
 
 def test_la_configuration_de_lagent_nest_jamais_modifiee():
@@ -162,13 +167,18 @@ def test_la_configuration_de_lagent_nest_jamais_modifiee():
     assert configs == {"max_call_duration": 300}
 
 
-def test_les_phrases_de_letablissement_remplacent_celles_de_lorganisation():
+def test_les_annonces_de_letablissement_seules_et_rien_quand_il_n_en_a_pas():
+    """[.mark] F-8: the establishment's announcements alone; an empty one announces nothing (never
+    the organization's). The organization's « close everything » stays (C5)."""
     organisation = ReglagesAnnonceOuverture(etat_force="FERME")
     retour = annonce_heritee(organisation, CREIL)
     assert retour.annonce_fermeture == CREIL.annonce_fermeture
-    assert retour.annonce_pause == organisation.annonce_pause
+    assert retour.annonce_pause == ""  # CREIL has none: nothing, not the organization's default
+    assert organisation.annonce_pause  # (the organization does have one: the test proves something)
     assert retour.etat_force == "FERME"
-    assert annonce_heritee(organisation, SENLIS_SITE) is organisation
+    vide = annonce_heritee(organisation, SENLIS_SITE)
+    assert (vide.annonce_fermeture, vide.annonce_pause) == ("", "")
+    # No establishment: the organization's, the SAME object (the call of before).
     assert annonce_heritee(organisation, None) is organisation
 
 
@@ -265,6 +275,8 @@ def _put(corps, numeros=("+33344000001", "+33344000002")):
         patch.object(route_etablissements, "enregistrer_etablissements", AsyncMock(side_effect=lambda _o, c, _auteur="dograh": c)) as ecrit,
         # No real database behind the route test (a TestClient runs on its own loop).
         patch.object(route_etablissements, "lire_phrases_strict", AsyncMock(return_value=CataloguePhrases())),
+        # F-8: the prefill of a new establishment reads the organization; proven in test_etablissements_complets.py.
+        patch("api.services.etablissements.complets.preremplir_les_nouveaux", AsyncMock(side_effect=lambda _o, c: c)),
     ):
         base.lister_numeros_de_lorganisation = AsyncMock(return_value=lignes)
         reponse = TestClient(app).put("/organizations/etablissements", json=corps)
@@ -328,10 +340,13 @@ def test_lecran_de_lagent_dit_dou_vient_chaque_valeur():
     assert [e.id for e in vue.etablissements] == ["creil"]
     creil = vue.etablissements[0]
     assert (creil.horaires_ouverture.origine, creil.adresse.origine) == ("etablissement", "etablissement")
-    assert creil.annonce_pause.origine == "organisation"
+    # F-8: no announcement of its own = none (the organization's never reaches an establishment).
+    assert (creil.annonce_pause.origine, creil.annonce_pause.valeur) == ("aucune", None)
     assert vue.numeros_sans_etablissement == ["+33100000000"]
+    # F-8: the establishment's hours (none here) win over the agent's, as the call reads them.
     vue = etablissements_de_lagent(CATALOGUE, ["+33344000002"], {"horaires_ouverture": HORAIRES_AGENT}, None, None)
-    assert vue.etablissements[0].horaires_ouverture.origine == "agent"
+    assert (vue.etablissements[0].horaires_ouverture.origine, vue.etablissements[0].horaires_ouverture.valeur) == ("aucune", None)
+    assert vue.etablissements[0].adresse.origine == "aucune"
 
 
 # --------------------------------------------------------------------------- #
@@ -376,6 +391,41 @@ async def test_clavier_lit_les_horaires_ladresse_et_les_phrases_de_letablissemen
     estampille = persiste["runtime_configuration"]["etablissement"]
     assert estampille["id"] == "creil" and estampille["source"] == "essai" and estampille["lu_depuis"] == "copie"
     assert estampille["origines"]["horaires_ouverture"] == "etablissement"
+
+
+@pytest.mark.asyncio
+async def test_clavier_un_etablissement_servi_sans_valeur_propre_ne_prend_ni_l_agent_ni_l_organisation():
+    """[.mark] F-8 (R1, the real keyboard path): an establishment served by the test window (not a
+    fiche), with no hours, no address, no announcement and no sentence of its own: the agent's hours,
+    the organization's address and sentence are NOT read."""
+    from api.schemas.organization_preferences import AdresseEtablissement
+    from api.schemas.phrases import Phrase
+
+    phrases = CataloguePhrases(phrases=[Phrase(variable="phrase_acces", contenu="En centre-ville.", niveau="etablissement")])
+    preferences = OrganizationPreferences(adresse_etablissement=AdresseEtablissement(**SENLIS))
+    persiste = await _clavier(
+        CATALOGUE,
+        {"horaires_ouverture": HORAIRES_AGENT},
+        contexte={"direction": "inbound", "etablissement_id": "senlis"},
+        maintenant=MARDI_11H,
+        phrases=phrases,
+        preferences=preferences,
+    )
+    assert persiste["etablissement"] == "Magasin de Senlis"
+    assert "horaires_ouverture" not in persiste, persiste.get("horaires_ouverture")
+    assert "adresse_etablissement" not in persiste, persiste.get("adresse_etablissement")
+    assert "phrase_acces" not in persiste
+    estampille = persiste["runtime_configuration"]["etablissement"]
+    assert estampille["source"] == "essai"
+    assert estampille["origines"] == {"horaires_ouverture": "aucune", "adresse": "aucune"}
+    # The same agent, no establishment served: its hours, the organization's address and sentence.
+    sans = await _clavier(
+        CatalogueEtablissements(), {"horaires_ouverture": HORAIRES_AGENT}, maintenant=MARDI_11H,
+        phrases=phrases, preferences=preferences,
+    )
+    assert sans["horaires_ouverture"] == HORAIRES_AGENT
+    assert sans["adresse_etablissement"] == "60300 Senlis"
+    assert sans["phrase_acces"] == "En centre-ville."
 
 
 @pytest.mark.asyncio

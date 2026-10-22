@@ -166,6 +166,14 @@ async def save_etablissements(
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
     organization_id = user.selected_organization_id
+    # [.mark] F-8 (Evan, 22/10): a NEW establishment starts from the common values (address, announcements,
+    # sentences), then lives its own life; BEFORE the controls, which judge what is really written.
+    from api.services.etablissements.complets import preremplir_les_nouveaux
+
+    try:
+        request = await preremplir_les_nouveaux(organization_id, request)
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None
     verifies = await _controler_etablissements(organization_id, request.etablissements)
     try:
         return await enregistrer_etablissements(
@@ -243,7 +251,8 @@ async def copier_etablissement(
     except ValidationError as erreur:
         raise HTTPException(status_code=422, detail=erreur.errors(include_url=False, include_context=False)) from None
     try:
-        await enregistrer_etablissements(organization_id, complet, auteur_de(user))
+        # F-8: a copy takes its source's values, never the common ones (no prefill in the client's database).
+        await enregistrer_etablissements(organization_id, complet, auteur_de(user), preremplir=False)
     except BaseClientIndisponible as erreur:
         raise _base_injoignable(erreur) from None
     resultat = ResultatCopieEtablissement(etablissement=verifiee, non_copie=list(NON_COPIE))
