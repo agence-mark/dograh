@@ -84,7 +84,11 @@ async def test_la_connexion_du_portail_s_ouvre_une_fois_se_renouvelle_et_ne_lais
             compte = premiere.json()
             assert compte["base"] == base_v4 and compte["role"] == f"{base_v4}_portail_c"
             assert len(compte["mot_de_passe"]) >= 32
-            # Le mot de passe ouvre vraiment la base, et lit via le groupe du portail.
+            # Revue du chantier : la réponse qui porte le mot de passe n'est mise en cache nulle part.
+            assert premiere.headers["cache-control"] == "no-store"
+            assert premiere.headers["pragma"] == "no-cache"
+            # Le mot de passe ouvre vraiment la base, et lit via le groupe du portail
+            # (la base n'a reçu que son condensé SCRAM : la connexion prouve qu'il est juste).
             assert await _ouvre(base_v4, compte["role"], compte["mot_de_passe"])
             # Renouvelé : l'ancien cesse de marcher, le nouveau marche.
             seconde = await client.post(CHEMIN_PORTAIL, headers=entetes)
@@ -199,7 +203,7 @@ class FauxNangoF6:
                     "credentials": {"type": "OAUTH2", "access_token": JETON_SECRET},
                 },
             )
-        if requete.method == "DELETE" and chemin.startswith("/connections/"):
+        if requete.method == "DELETE" and chemin.startswith("/connection/"):
             identifiant = chemin.rsplit("/", 1)[-1]
             self.suppressions.append(
                 (identifiant, requete.url.params.get("provider_config_key"))

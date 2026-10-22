@@ -174,7 +174,7 @@ async def supprimer_connexion(organization_id: int, integration: str) -> None:
     connexion = await connexion_de(organization_id, integration)
     reponse = await _requete(
         "DELETE",
-        f"/connections/{quote(connexion.connection_id, safe='')}",
+        f"/connection/{quote(connexion.connection_id, safe='')}",
         params={"provider_config_key": integration},
     )
     if reponse.status_code == 404:

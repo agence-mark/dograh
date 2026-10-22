@@ -22,7 +22,7 @@ from __future__ import annotations
 import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from loguru import logger
 
 from api.db.bases_clients.connexion import (
@@ -53,6 +53,7 @@ from api.schemas.base_client import (
 from api.schemas.planificateur import ModificationPlanificateur, Planificateur
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
+from api.services.base_client.condense_scram import condense_scram
 
 router = APIRouter(prefix="/organizations/base-client", tags=["organizations"])
 routeur_equipe = APIRouter(prefix="/organizations/equipe", tags=["organizations"])
@@ -196,6 +197,7 @@ async def post_resynchroniser(
 
 @router.post("/connexion-portail", response_model=ConnexionPortail)
 async def post_connexion_portail(
+    response: Response,
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
     """[.mark] Lot F6 : crée (ou renouvelle) le compte de connexion du portail sur la base du client.
@@ -204,7 +206,11 @@ async def post_connexion_portail(
     (``REVOKE ... FROM PUBLIC`` de la 015). Le mot de passe est tiré ici, rendu une seule fois dans la
     réponse et n'est écrit nulle part : ni dans ``journal_modif`` (la fonction ne le journalise pas),
     ni dans les journaux de l'api (seul le nom du rôle y paraît), ni dans une erreur (une panne ne
-    rend que le type de l'exception : le texte d'une erreur de la base peut citer la requête)."""
+    rend que le type de l'exception : le texte d'une erreur de la base peut citer la requête).
+    Revue du chantier : la base reçoit le condensé SCRAM, jamais le mot de passe en clair (ni ses
+    journaux ni ``pg_stat_statements`` ne peuvent le garder) ; la réponse n'est mise en cache nulle part."""
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
     organization_id = user.selected_organization_id
     nom = await rattachement.nom_de_la_base(organization_id)
     if not nom:
@@ -222,7 +228,7 @@ async def post_connexion_portail(
                 409,
             )
         role = await connexion.fetchval(
-            "SELECT mark.donner_connexion_portail($1)", mot_de_passe
+            "SELECT mark.donner_connexion_portail($1)", condense_scram(mot_de_passe)
         )
     except HTTPException:
         raise
