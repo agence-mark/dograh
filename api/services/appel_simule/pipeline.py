@@ -9,7 +9,6 @@ raccrochage par l'API de Twilio, puisqu'aucun appel téléphonique n'existe.
 from __future__ import annotations
 
 from fastapi import WebSocket
-from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketParams,
     FastAPIWebsocketTransport,
@@ -28,6 +27,8 @@ from api.services.pipecat.transport_params import (
     filtre_de_bruit_overrides,
     realtime_param_overrides,
 )
+# [.mark] Lot 3 bis : le sérialiseur Twilio du fork rattrape un message malformé (ne coupe pas l'appel).
+from api.services.telephony.providers.twilio.serializers import TwilioFrameSerializer
 
 # Le débit du protocole Twilio : 8 kHz, comme un vrai appel téléphonique.
 FOURNISSEUR_AUDIO = WorkflowRunMode.TWILIO.value
