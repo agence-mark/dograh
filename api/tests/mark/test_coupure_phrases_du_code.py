@@ -266,7 +266,9 @@ async def _dire(voix: str, ecoule: float | None, *, avec_minutage: bool = True):
     moteur.queue_speech = queue_speech
     moteur.fabrique_des_sons = fabrique
     moteur.phrases = DiseurDePhrases(moteur)
-    assert await moteur.phrases.dire_la_parole(OUTIL_ECHOUE) is not None
+    parole = await moteur.phrases.dire_la_parole(OUTIL_ECHOUE)
+    assert parole is not None
+    moteur.phrases.coupures.marquer_compte_rendu(parole)  # comme `signaler_un_probleme`
     await moteur.phrases.attendre_la_fin()
     origine = _messages()
     recus = []
@@ -343,7 +345,9 @@ async def test_coupee_sans_minutage_la_copie_dit_qu_on_ne_sait_pas_jusqu_ou():
 @pytest.mark.asyncio
 async def test_l_original_n_est_jamais_modifie_et_la_ligne_n_est_jamais_retiree():
     registre = RegistreDesCoupures()
-    registre.noter(TEXTE, tuple(_mots_elevenlabs(TEXTE)), _Parole(TEXTE, 0.02))
+    parole = _Parole(TEXTE, 0.02)
+    registre.noter(TEXTE, tuple(_mots_elevenlabs(TEXTE)), parole)
+    registre.marquer_compte_rendu(parole)
     origine = _messages()
     figee = copy.deepcopy(origine)
     params = reecrire_les_coupures({"messages": origine}, registre)
@@ -365,7 +369,9 @@ def test_coupee_hors_d_un_resultat_la_replique_disparait_comme_pour_la_voix_norm
 
 def test_le_format_responses_est_couvert():
     registre = RegistreDesCoupures()
-    registre.noter(TEXTE, tuple(_mots_elevenlabs(TEXTE)), _Parole(TEXTE, 0.9))
+    parole = _Parole(TEXTE, 0.9)
+    registre.noter(TEXTE, tuple(_mots_elevenlabs(TEXTE)), parole)
+    registre.marquer_compte_rendu(parole)
     attendu = " ".join(TEXTE.split()[:4])
     sortie = json.dumps({"compte_rendu": compte_rendu("un fait", dit=TEXTE)}, ensure_ascii=False)
     entree = [
@@ -452,3 +458,109 @@ def test_le_branchement_ne_se_pose_qu_une_fois_et_sans_diseur_il_ne_fait_rien():
     assert appels == ["x"]  # une seule couche
     assert brancher_les_coupures(SimpleNamespace(), _Modele()) is False
     assert brancher_les_coupures(moteur, None) is False
+
+
+# --------------------------------------------------------------------------- #
+# Revue M2 : la même phrase dite deux fois, une seule coupure
+# --------------------------------------------------------------------------- #
+
+
+def _messages_deux_fois(texte: str = TEXTE) -> list[dict]:
+    """Deux tours qui portent la même phrase : un résultat d'outil avec son compte rendu, puis la réplique."""
+    tours = []
+    for k in (1, 2):
+        resultat = {"status": "echec", "compte_rendu": compte_rendu(f"fait {k}", dit=texte)}
+        tours += [
+            {"role": "assistant", "content": None, "tool_calls": [{"id": f"c{k}", "type": "function"}]},
+            {"role": "tool", "tool_call_id": f"c{k}", "content": json.dumps(resultat, ensure_ascii=False)},
+            {"role": "assistant", "content": texte},
+            {"role": "user", "content": f"Réponse {k}"},
+        ]
+    return [{"role": "system", "content": "Tu es l'agent."}, *tours]
+
+
+async def _dire_deux_fois(voix: str, ecoules: list):
+    """La même phrase dite deux fois par la vraie route (fabrique, diseur, registre), la n-ième lecture coupée
+    après ``ecoules[n]`` secondes (``None`` : entendue en entier). Rend la requête reçue par le service."""
+    fabrique = await _fabriquer(voix)
+    moteur = _FauxMoteur(lambda: 0.0)
+    lectures = iter(ecoules)
+
+    async def queue_speech(texte=None, **options):
+        return _Parole(texte or options.get("transcript"), next(lectures))
+
+    moteur.queue_speech = queue_speech
+    moteur.fabrique_des_sons = fabrique
+    moteur.phrases = DiseurDePhrases(moteur)
+    for _ in ecoules:
+        parole = await moteur.phrases.dire_la_parole(OUTIL_ECHOUE)
+        assert parole is not None
+        moteur.phrases.coupures.marquer_compte_rendu(parole)
+        await moteur.phrases.attendre_la_fin()
+    origine = _messages_deux_fois()
+
+    class _Modele:
+        def build_chat_completion_params(self, params_from_context):
+            return {"model": "m", "messages": copy.deepcopy(origine)}
+
+    llm = _Modele()
+    assert brancher_les_coupures(moteur, llm) is True
+    return llm.build_chat_completion_params(object())["messages"], origine
+
+
+def _compte(messages, rang):
+    """Le compte rendu du ``rang``-ième résultat d'outil (0 ou 1)."""
+    resultats = [m for m in messages if m.get("role") == "tool"]
+    return json.loads(resultats[rang]["content"])["compte_rendu"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("voix", sorted(VOIX))
+async def test_deux_fois_la_meme_phrase_seule_la_seconde_coupee(voix):
+    messages, origine = await _dire_deux_fois(voix, [None, 0.02])
+    # Le tour 1, entendu en entier, est à l'octet ce qu'il était : ligne, réplique, tout.
+    assert messages[1:5] == origine[1:5]
+    assert ligne_entendue(TEXTE) in _compte(messages, 0)
+    # Le tour 2, coupé avant le premier mot : ligne réécrite, réplique remplacée derrière le résultat.
+    assert LIGNE_RIEN in _compte(messages, 1) and "L'appelant a entendu" not in _compte(messages, 1)
+    assert messages[7]["content"] == REPLIQUE_RIEN
+    assert messages[8] == origine[8]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("voix", sorted(VOIX))
+async def test_deux_fois_la_meme_phrase_seule_la_premiere_coupee(voix):
+    messages, origine = await _dire_deux_fois(voix, [0.9, None])
+    attendu = " ".join(TEXTE.split()[:4])
+    assert f"« {attendu} »" in _compte(messages, 0)
+    assert messages[3]["content"] == attendu
+    # Le tour 2, entendu en entier, reste intact.
+    assert messages[5:9] == origine[5:9]
+    assert ligne_entendue(TEXTE) in _compte(messages, 1)
+
+
+@pytest.mark.asyncio
+async def test_deux_fois_la_meme_phrase_les_deux_coupees_chacune_a_sa_part():
+    messages, _ = await _dire_deux_fois("elevenlabs", [0.9, 0.02])
+    attendu = " ".join(TEXTE.split()[:4])
+    assert f"« {attendu} »" in _compte(messages, 0) and messages[3]["content"] == attendu
+    assert LIGNE_RIEN in _compte(messages, 1) and messages[7]["content"] == REPLIQUE_RIEN
+
+
+@pytest.mark.asyncio
+async def test_une_phrase_sans_ligne_de_compte_rendu_ne_decale_pas_les_autres():
+    """Une lecture qui n'a pas de ligne dans un résultat (phrase d'attente) ne prend pas la place d'une ligne."""
+    registre = RegistreDesCoupures()
+    attente = _Parole(TEXTE, None)  # entendue, sans ligne de compte rendu
+    registre.noter(TEXTE, tuple(_mots_elevenlabs(TEXTE)), attente)
+    coupee = _Parole(TEXTE, 0.02)
+    registre.noter(TEXTE, tuple(_mots_elevenlabs(TEXTE)), coupee)
+    registre.marquer_compte_rendu(coupee)
+    resultat = {"compte_rendu": compte_rendu("un fait", dit=TEXTE)}
+    messages = [
+        {"role": "tool", "tool_call_id": "c", "content": json.dumps(resultat, ensure_ascii=False)},
+        {"role": "assistant", "content": TEXTE},
+        {"role": "user", "content": "Attendez."},
+    ]
+    sortie = reecrire_les_coupures({"messages": messages}, registre)["messages"]
+    assert LIGNE_RIEN in json.loads(sortie[0]["content"])["compte_rendu"]

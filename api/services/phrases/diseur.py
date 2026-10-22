@@ -314,7 +314,7 @@ class DiseurDePhrases:
                 mute_user=False,
             )
             if getattr(getattr(parole, "outcome", None), "name", None) != "FAILED":
-                self.coupures.noter(texte, son.mots, parole)
+                self.coupures.noter(texte, son.mots, parole, historique)
                 return parole
             logger.warning(f"[phrases] son fabriqué non joué, dit par la voix : {texte!r}")
         parole = await self._moteur.queue_speech(
@@ -325,7 +325,7 @@ class DiseurDePhrases:
         )
         # Dite par la voix de l'appel : Pipecat raccourcit lui-même l'historique, mais le compte rendu
         # ne sait pas jusqu'où (aucun minutage gardé ici).
-        self.coupures.noter(texte, (), parole)
+        self.coupures.noter(texte, (), parole, historique)
         return parole
 
     def prendre(
@@ -635,6 +635,7 @@ class DiseurDePhrases:
                     )
                     if parole is not None:
                         probleme.dit = getattr(parole, "text", None)
+                        self.coupures.marquer_compte_rendu(parole)
             if phrase.sortie_posee and n >= (plafond or 1):
                 from api.services.phrases.sorties import executer
 

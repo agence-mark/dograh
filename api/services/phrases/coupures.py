@@ -119,22 +119,44 @@ class Coupure:
     partie: Partie
 
 
+@dataclass
+class Entree:
+    """Une phrase dite : son texte, son minutage, sa lecture, et où elle a laissé une trace dans ce que lit le
+    modèle (la réplique de l'historique, la ligne du compte rendu d'un résultat d'outil)."""
+
+    texte: str
+    mots: tuple[tuple[str, float], ...]
+    parole: Any
+    historique: bool = True
+    compte_rendu: bool = False
+
+
 class RegistreDesCoupures:
     """Les phrases du code dites dans l'appel (texte, minutage, lecture), lues à la requête suivante du modèle
-    pour savoir lesquelles ont été coupées et jusqu'où. Un par appel (``moteur.phrases.coupures``)."""
+    pour savoir lesquelles ont été coupées et jusqu'où. Un par appel (``moteur.phrases.coupures``). Chaque phrase
+    garde SA place : une même phrase dite deux fois n'est réécrite que là où elle a été coupée."""
 
     def __init__(self) -> None:
-        self._dites: list[tuple[str, tuple[tuple[str, float], ...], Any]] = []
+        self._dites: list[Entree] = []
 
-    def noter(self, texte: str, mots: Iterable[tuple[str, float]] | None, parole: Any) -> None:
-        """Une phrase du code part à la voix. ``mots`` : son minutage (vide si inconnu). ⛔ Ne lève jamais."""
+    def noter(
+        self, texte: str, mots: Iterable[tuple[str, float]] | None, parole: Any, historique: bool = True
+    ) -> None:
+        """Une phrase du code part à la voix. ``mots`` : son minutage (vide si inconnu). ``historique`` : son
+        texte entre dans l'historique du modèle. ⛔ Ne lève jamais."""
         try:
             if not isinstance(texte, str) or not texte.strip() or parole is None:
                 return
-            self._dites.append((texte, tuple(mots or ()), parole))
+            self._dites.append(Entree(texte, tuple(mots or ()), parole, bool(historique)))
             del self._dites[:-MAX_PHRASES]
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[coupures] phrase non notée : {erreur!r}")
+
+    def marquer_compte_rendu(self, parole: Any) -> None:
+        """Cette lecture est citée par la ligne « L'appelant a entendu » d'un résultat d'outil."""
+        for entree in self._dites:
+            if entree.parole is parole:
+                entree.compte_rendu = True
 
     @staticmethod
     def _coupee(parole: Any) -> bool:
@@ -148,16 +170,23 @@ class RegistreDesCoupures:
             return None
         return max(0.0, float(fin) - float(debut))
 
+    def _coupure_de(self, entree: Entree) -> Coupure | None:
+        if not self._coupee(entree.parole):
+            return None
+        partie = partie_jouee(entree.texte, entree.mots, self._ecoule(entree.parole))
+        return None if partie.etat == ETAT_TOUT else Coupure(entree.texte, partie)
+
+    def par_texte(self) -> dict[str, list[tuple[Entree, Coupure | None]]]:
+        """Pour chaque texte dont au moins une lecture a été coupée : toutes ses lectures, dans l'ordre où
+        elles ont été dites, chacune avec sa coupure (``None`` : entendue, ou coupée après le dernier mot)."""
+        resultat: dict[str, list[tuple[Entree, Coupure | None]]] = {}
+        for entree in self._dites:
+            resultat.setdefault(entree.texte, []).append((entree, self._coupure_de(entree)))
+        return {t: v for t, v in resultat.items() if any(c is not None for _, c in v)}
+
     def coupees(self) -> list[Coupure]:
-        """Les phrases coupées dont la part jouée n'est pas « tout » : celles que la copie doit corriger."""
-        resultat: list[Coupure] = []
-        for texte, mots, parole in self._dites:
-            if not self._coupee(parole):
-                continue
-            partie = partie_jouee(texte, mots, self._ecoule(parole))
-            if partie.etat != ETAT_TOUT:
-                resultat.append(Coupure(texte, partie))
-        return resultat
+        """Les phrases coupées dont la part jouée n'est pas « tout »."""
+        return [c for v in self.par_texte().values() for _, c in v if c is not None]
 
 
 # -- la réécriture de la copie ---------------------------------------------------------------
@@ -239,24 +268,59 @@ def _reecrire_un_resultat(contenu: str, coupure: Coupure) -> str | None:
     return None if neuf == contenu else neuf
 
 
-def reecrire_les_messages(messages: list, coupures: list[Coupure]) -> list:
-    """Une copie de ``messages`` où chaque phrase coupée dit ce qui a été joué. ``messages`` et ses messages ne
-    sont jamais modifiés ; sans correspondance, le même objet est rendu."""
+def _texte_du_contenu(contenu: Any) -> str:
+    if isinstance(contenu, str):
+        return contenu
+    if isinstance(contenu, list):
+        return "\n".join(m["text"] for m in contenu if isinstance(m, dict) and isinstance(m.get("text"), str))
+    return ""
+
+
+def _assigner(places: list[int], lectures: list[Coupure | None]) -> dict[int, Coupure]:
+    """Rattache chaque place trouvée dans la requête à SA lecture, en comptant depuis la fin : ce qui manque
+    à la requête (historique compacté, phrase sans trace) manque d'abord parmi les plus anciennes."""
+    resultat: dict[int, Coupure] = {}
+    for k in range(1, min(len(places), len(lectures)) + 1):
+        if lectures[-k] is not None:
+            resultat[places[-k]] = lectures[-k]
+    return resultat
+
+
+def reecrire_les_messages(messages: list, par_texte: dict[str, list[tuple[Entree, Coupure | None]]]) -> list:
+    """Une copie de ``messages`` où chaque phrase coupée dit ce qui a été joué, et seulement elle : la même
+    phrase entendue en entier ailleurs dans l'appel reste telle quelle. ``messages`` et ses messages ne sont
+    jamais modifiés ; sans correspondance, le même objet est rendu."""
+    repliques: dict[int, list[Coupure]] = {}
+    resultats: dict[int, list[Coupure]] = {}
+    for texte, lectures in par_texte.items():
+        variantes = (texte, _echappe(texte), ligne_entendue(texte), _echappe(ligne_entendue(texte)))
+        places_repliques, places_resultats = [], []
+        for i, message in enumerate(messages):
+            if _est_une_parole(message) and texte in _texte_du_contenu(message.get("content")):
+                places_repliques.append(i)
+            elif _est_un_resultat(message):
+                cle = "content" if "content" in message else "output"
+                if any(v in _texte_du_contenu(message.get(cle)) for v in variantes):
+                    places_resultats.append(i)
+        for i, c in _assigner(places_repliques, [c for e, c in lectures if e.historique]).items():
+            repliques.setdefault(i, []).append(c)
+        for i, c in _assigner(places_resultats, [c for e, c in lectures if e.compte_rendu]).items():
+            resultats.setdefault(i, []).append(c)
     sortie: list = []
     change = False
-    for message in messages:
+    for i, message in enumerate(messages):
         neuf = message
-        if _est_un_resultat(message):
+        if i in resultats:
             for cle in ("content", "output"):
                 if cle in message:
                     contenu = message[cle]
-                    for coupure in coupures:
+                    for coupure in resultats[i]:
                         contenu = _dans_le_texte(contenu, lambda t, c=coupure: _reecrire_un_resultat(t, c))
                     if contenu is not message[cle]:
                         neuf = {**neuf, cle: contenu}
-        elif _est_une_parole(message):
+        elif i in repliques:
             contenu = message.get("content")
-            for coupure in coupures:
+            for coupure in repliques[i]:
                 if coupure.partie.etat not in (ETAT_DEBUT, ETAT_RIEN):
                     continue  # inconnue : l'historique est celui de Pipecat, on n'y touche pas
                 joue = coupure.partie.joue if coupure.partie.etat == ETAT_DEBUT else ""
@@ -284,12 +348,12 @@ def reecrire_les_coupures(params: Any, registre: RegistreDesCoupures | None) -> 
     try:
         if not isinstance(params, dict) or registre is None:
             return params
-        coupures = registre.coupees()
-        if not coupures:
+        par_texte = registre.par_texte()
+        if not par_texte:
             return params
         for cle in ("messages", "input"):
             if isinstance(params.get(cle), list):
-                params[cle] = reecrire_les_messages(params[cle], coupures)
+                params[cle] = reecrire_les_messages(params[cle], par_texte)
         return params
     except Exception as erreur:  # noqa: BLE001 -- dans le doute, la requête part comme avant
         logger.warning(f"[coupures] phrases coupées non réécrites : {erreur!r}")
