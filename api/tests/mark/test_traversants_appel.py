@@ -936,13 +936,19 @@ async def test_C9_sous_flux_les_reglages_qui_jouent_arrivent_a_l_agregateur(
 
     JOUENT (l'écran doit les montrer) : le détecteur de voix (Silero, construit à
     chaque appel), `audio_idle_timeout`, `user_turn_stop_timeout`, la phrase
-    inachevée. NE JOUENT PAS : la stratégie de fin de tour (fin toujours externe),
-    la stratégie d'interruption et ses mots minimum (début toujours externe).
+    inachevée. NE JOUENT PAS : la stratégie de fin de tour (fin toujours externe).
+
+    cloture-code, lot 8 (Evan, 22/10) : la stratégie d'interruption JOUE désormais
+    sous Flux. « Nombre minimum de mots » donne un début à mots minimum ; la fin
+    reste celle du fournisseur. Seul « Le fournisseur décide » garde le début externe.
 
     D-C9-3, constaté : sous Flux, la phrase inachevée ENVELOPPE la fin externe.
     La fin signalée par Flux ne fait plus que déclencher le modèle ; c'est le
     modèle qui finalise le tour (signe de complétude en tête de réponse)."""
-    from pipecat.turns.user_start import ExternalUserTurnStartStrategy
+    from pipecat.turns.user_start import (
+        ExternalUserTurnStartStrategy,
+        MinWordsUserTurnStartStrategy,
+    )
     from pipecat.turns.user_stop import (
         ExternalUserTurnStopStrategy,
         LLMTurnCompletionUserTurnStopStrategy,
@@ -980,8 +986,11 @@ async def test_C9_sous_flux_les_reglages_qui_jouent_arrivent_a_l_agregateur(
     assert params.user_turn_stop_timeout == pytest.approx(12.0)
     assert params.filter_incomplete_user_turns is True
     strategies = params.user_turn_strategies
-    # Ne jouent pas : début et fin externes, quoi que demandent les stratégies.
-    assert all(isinstance(s, ExternalUserTurnStartStrategy) for s in strategies.start), strategies.start
+    # Lot 8 : le début suit le choix d'interruption (ici des mots minimum), la fin reste externe.
+    assert len(strategies.start) == 1, strategies.start
+    assert isinstance(strategies.start[0], MinWordsUserTurnStartStrategy), strategies.start
+    assert strategies.start[0]._min_words == 4
+    assert not any(isinstance(s, ExternalUserTurnStartStrategy) for s in strategies.start)
     arret = [type(s).__name__ for s in strategies.stop]
     assert "TurnAnalyzerUserTurnStopStrategy" not in arret, arret
     # D-C9-3 : la phrase inachevée enveloppe la fin externe (le modèle finalise).

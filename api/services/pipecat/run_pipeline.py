@@ -328,9 +328,12 @@ def _resolve_user_turn_stop_timeout(
 
 
 def _resolve_turn_start_min_words(run_configs: dict) -> int:
+    # [.mark] Cloture-code, lot 8 (a6aee063 de l'amont) : une valeur nulle vaut
+    # « non renseignée », comme pour le délai de fin de tour ci-dessus.
+    min_words = run_configs.get("turn_start_min_words")
     return max(
         1,
-        int(run_configs.get("turn_start_min_words", DEFAULT_TURN_START_MIN_WORDS)),
+        int(DEFAULT_TURN_START_MIN_WORDS if min_words is None else min_words),
     )
 
 
@@ -351,18 +354,15 @@ def _create_non_realtime_user_turn_start_strategies(
     """
     reglages = reglages or collecter_reglages_tour_de_parole(run_configs)
 
-    # An STT that reports its own turn boundaries decides the turn start,
-    # whatever `turn_start_strategy` asks for.
-    #
-    # Local VAD is deliberately kept out of these start strategies too: it would
-    # win the race on raw voice activity and start the turn before the STT
-    # confirms a real turn.
-    if uses_external_turns:
-        return [ExternalUserTurnStartStrategy(enable_interruptions=True)]
-
-    turn_start_strategy = run_configs.get(
-        "turn_start_strategy", DEFAULT_TURN_START_STRATEGY
-    )
+    # [.mark] Cloture-code, lot 8 (a6aee063 de l'amont, decision d'Evan du
+    # 22/10) : le DEBUT du tour et la FIN du tour sont deux choix independants.
+    # Un « nombre minimum de mots » demande a l'ecran est respecte avec tout
+    # fournisseur, meme celui qui annonce ses propres tours ; la fin du tour,
+    # elle, reste au fournisseur (`_create_non_realtime_user_turn_stop_strategies`).
+    turn_start_strategy = run_configs.get("turn_start_strategy")
+    if turn_start_strategy not in ("default", "min_words"):
+        # Absente, nulle ou retiree (« provisional_vad ») : le defaut.
+        turn_start_strategy = DEFAULT_TURN_START_STRATEGY
 
     if turn_start_strategy == "min_words":
         return [
@@ -371,6 +371,13 @@ def _create_non_realtime_user_turn_start_strategies(
                 use_interim=reglages.use_interim,
             )
         ]
+
+    # « Le fournisseur decide » : un fournisseur qui annonce ses tours decide du
+    # debut. La detection de voix locale reste volontairement hors de ce cas :
+    # elle gagnerait la course sur la simple activite vocale et ouvrirait le
+    # tour avant que le fournisseur ait confirme une vraie prise de parole.
+    if uses_external_turns:
+        return [ExternalUserTurnStartStrategy(enable_interruptions=True)]
 
     # [.mark] Montee de version 2026-09-16 : la branche `provisional_vad` est
     # RETIREE (D9). L'amont la met a la retraite -- elle bloquait le tour sur un
@@ -1554,7 +1561,7 @@ async def _run_pipeline_impl(
             "turn_start_strategy", DEFAULT_TURN_START_STRATEGY
         )
         # `requested` is what the workflow asked for; `resolved` is what the
-        # pipeline built, which differs whenever external turns override it.
+        # pipeline built (« default » follows the provider when it owns the turns).
         logger.info(
             f"[run {workflow_run_id}] Non-realtime interrupt strategy "
             f"requested={turn_start_strategy} "
