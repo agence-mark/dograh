@@ -35,8 +35,14 @@ on:
       - "sdk/**"
       - ".github/workflows/mark-ci-comparee.yml"
   # Relancer à la main (un envoi passé pendant un blocage d'Actions ne se rejoue pas tout seul,
-  # et `paths` ignore un commit vide).
+  # et `paths` ignore un commit vide). `base` : comparer à un commit nommé plutôt qu'au merge-base
+  # (preuve des cas rouges de R7 sur une branche jetable, ou comparaison avec un état précis).
   workflow_dispatch:
+    inputs:
+      base:
+        description: "Commit de base (vide : merge-base avec mark/deploiement, ou dernier passage vert sur mark/deploiement)"
+        required: false
+        default: ""
 
 # Lecture seule, plus `actions: read` pour lire le dernier passage vert (D3) par `gh api`.
 permissions:
@@ -75,13 +81,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           AVANT: ${{ github.event.before }}
+          BASE_DEMANDEE: ${{ inputs.base }}
         run: |
           set -euo pipefail
           mode="parallele"
           run_base=""
           matrice='["branche","base"]'
 
-          if [ "$GITHUB_REF_NAME" = "mark/deploiement" ]; then
+          if [ -z "$BASE_DEMANDEE" ] && [ "$GITHUB_REF_NAME" = "mark/deploiement" ]; then
             # D3 : le rapport du dernier passage vert de cette branche fait foi de base.
             for id in $(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/mark-ci-comparee.yml/runs" \
                 -f branch=mark/deploiement -f status=success -f per_page=10 --jq '.workflow_runs[].id'); do
@@ -96,6 +103,9 @@ jobs:
             matrice='["branche"]'
             base_sha="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_base" --jq .head_sha)"
             texte="dernier passage vert de mark/deploiement (run $run_base, commit ${base_sha:0:8})"
+          elif [ -n "$BASE_DEMANDEE" ]; then
+            base_sha="$(git rev-parse --verify "${BASE_DEMANDEE}^{commit}")"
+            texte="base demandée à la main : commit ${base_sha:0:8}, jouée en parallèle"
           elif [ "$GITHUB_REF_NAME" = "mark/deploiement" ]; then
             # Premier passage : aucun rapport vert à relire, la base est jouée en parallèle (D1)
             # sur l'état d'avant l'envoi.
