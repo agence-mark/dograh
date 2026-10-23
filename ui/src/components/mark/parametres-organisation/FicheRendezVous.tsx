@@ -30,6 +30,7 @@ export function FicheRendezVous({
     reglages,
     defauts,
     onPoser,
+    boutonPour,
 }: {
     /** The fiche's identifier (for the ids of the controls). */
     id: string;
@@ -37,6 +38,8 @@ export function FicheRendezVous({
     /** The common defaults, read from the planner (shown as what an empty field means). */
     defauts: ReglagesPlanificateur;
     onPoser: (cle: Cle, valeur: unknown) => void;
+    /** D152: the button « Apply to all establishments » of a setting (nothing drawn when absent). */
+    boutonPour?: (cle: Cle) => React.ReactNode;
 }) {
     const { t } = useLangue();
     const idControle = (cle: Cle) => `fiche-rdv-${id}-${cle}`;
@@ -67,6 +70,7 @@ export function FicheRendezVous({
                 value={(reglages[f.cle] as number | null | undefined) ?? ""}
                 onChange={(e) => onPoser(f.cle, e.target.value === "" ? null : Number(e.target.value))}
             />
+            {boutonPour?.(f.cle)}
         </ChampReglage>
     );
     const ouiNon = (f: (typeof OUI_NON)[number]) => (
@@ -81,6 +85,7 @@ export function FicheRendezVous({
                 <option value="true">{t({ en: "Yes", fr: "Oui" })}</option>
                 <option value="false">{t({ en: "No", fr: "Non" })}</option>
             </select>
+            {boutonPour?.(f.cle)}
         </ChampReglage>
     );
     const choix = (f: (typeof CHOIX)[number]) => (
@@ -98,6 +103,7 @@ export function FicheRendezVous({
                     </option>
                 ))}
             </select>
+            {boutonPour?.(f.cle)}
         </ChampReglage>
     );
 
@@ -133,6 +139,7 @@ export function FicheRendezVous({
                         value={reglages.plages ?? ""}
                         onChange={(e) => onPoser("plages", e.target.value || null)}
                     />
+                    {boutonPour?.("plages")}
                 </ChampReglage>
                 {choix(CHOIX[2])}
                 {choix(CHOIX[0])}
@@ -167,6 +174,7 @@ export function FicheRendezVous({
                             onPoser("zone_communes", codes.length ? codes : null);
                         }}
                     />
+                    {boutonPour?.("zone_communes")}
                 </ChampReglage>
             </Intertitre>
         </>

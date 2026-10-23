@@ -39,6 +39,7 @@ from api.schemas.etablissements import (
     ResultatReprise,
 )
 from api.schemas.agents_servis import DemandeControleHoraires, ResultatControleHoraires
+from api.schemas.appliquer_a_tous import DemandeAppliquerATous, ResultatAppliquerATous
 from api.schemas.phrases import CataloguePhrases
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client.rattachement import auteur_de
@@ -49,6 +50,7 @@ from api.services.communes.adresse import (
     valider_adresse_saisie,
 )
 from api.services.etablissements.appel import etablissements_de_lagent
+from api.services.etablissements.appliquer_a_tous import RefusAppliquer, appliquer_a_tous
 from api.services.etablissements.stockage import (
     enregistrer_etablissements,
     enregistrer_phrases,
@@ -449,6 +451,31 @@ async def fermer_ou_rouvrir_etablissement(
         identifiant,
         {"etat_force": request.etat_force, "etat_force_jusqu_a": request.etat_force_jusqu_a},
     )
+
+
+@router.post("/{identifiant}/appliquer-a-tous", response_model=ResultatAppliquerATous)
+async def appliquer_a_tous_les_etablissements(
+    identifiant: str,
+    request: DemandeAppliquerATous,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """D152: copy ONE setting of this establishment into ALL the other establishments of the
+    organization, in one transaction (all or none). The value is read on this establishment, never
+    sent. ``reglage`` + ``cle``: a planner field, an appointment type's code, « module.key », a field
+    of the fiche (hours, address, announcements) or a sentence's variable. Dograh restricts nothing
+    (the portal's « those the account sees » filter is not here). 404: unknown establishment;
+    409: no other establishment, or the settings live in a client database that is not attached;
+    422: unknown setting. Answers with the establishments written."""
+    organization_id = user.selected_organization_id
+    try:
+        # Constat 28: read and write under the same lock as the other writes by element.
+        async with verrou_des_fiches(organization_id):
+            catalogue = await _catalogue_pour_ecrire(organization_id)
+            return await appliquer_a_tous(organization_id, catalogue, identifiant, request, auteur_de(user))
+    except RefusAppliquer as refus:
+        raise HTTPException(status_code=refus.code, detail=str(refus)) from None
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None
 
 
 class DemandeEtablissementsDeLagent(BaseModel):
