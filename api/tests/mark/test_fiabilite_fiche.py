@@ -66,13 +66,14 @@ async def test_A_un_terme_seulement_propose_par_le_lexique_n_est_pas_une_parole(
         test_client_factory,
         user,
         workflow,
-        [_noter({"nom": "Deville"}, "note_1"), MockLLMService.create_text_chunks("D'accord.")],
-        "je voudrais un devis",
+        [_noter({"nom": "Edilkamin"}, "note_1"), MockLLMService.create_text_chunks("D'accord.")],
+        # K3 (23/10) : « devis » n'est plus proposé comme Deville ; « édile camembert » l'est (à confirmer).
+        "c'est un poêle édile camembert",
     )
     fiche = charge["checkpoint"]["gathered_context"]
-    # Le lexique a bien proposé Deville pour « devis » (sinon le test ne prouve rien).
+    # Le lexique a bien proposé Edilkamin (sinon le test ne prouve rien).
     assert any(
-        t.get("terme") == "Deville" and t.get("statut") == "a_confirmer"
+        t.get("terme") == "Edilkamin" and t.get("statut") == "a_confirmer"
         for t in fiche.get("lexique_reconnu") or []
     ), fiche.get("lexique_reconnu")
     assert not fiche.get("nom"), fiche

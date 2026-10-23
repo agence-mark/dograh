@@ -86,6 +86,18 @@ MOTS_VIDES_REPONSE = {"oui", "non", "alors", "euh", "ben", "bah", "c", "est", "c
 # (measured on the lab sentences, 2026-09-16).
 MOTS_HORS_COMPTE = MOTS_VIDES_REPONSE | MOTS_FACTURATION | MOTS_NOMBRE
 
+# K12 (run 1511, « Vendredi » lu Vendrest, à confirmer) : a reading that starts or ends with a day, a
+# month or another word of a date is never a town (« vendredi », « plutôt jeudi » read Puteaux). Calendar
+# words of the language, no trade word. A town that bears one (« Mars », « Avril ») is still read when the
+# caller says so (« la commune de Mars », « j'habite Mars »), or as a name written in one piece
+# (« Mars-la-Tour »).
+MOTS_DE_DATE = frozenset(
+    """lundi mardi mercredi jeudi vendredi samedi dimanche
+    janvier fevrier mars avril mai juin juillet aout septembre octobre novembre decembre
+    aujourd hui demain hier matin soir midi prochain prochaine dernier derniere semaine mois annee""".split()
+)
+AMORCES_DE_COMMUNE_DITE = frozenset({"commune", "ville", "habite", "habitons", "habitent", "situe", "sis"})
+
 # Thresholds of the trial (prototype v4 defaults).
 BONUS_MOT = 5
 POIDS_POP = 1.5
@@ -337,6 +349,12 @@ def _segments(texte: str, mots: list[str], spans_cp, mots_cp: set[int], avec_lec
             if bloque_ici or not ancre:
                 continue
             if any(m.isdigit() for m in seg) or any(m in TYPES_VOIE for m in seg):
+                continue
+            if (
+                (seg[0] in MOTS_DE_DATE or seg[-1] in MOTS_DE_DATE)
+                and not (n > 1 and all((i + k) in joints for k in range(n - 1)))
+                and not any(m in AMORCES_DE_COMMUNE_DITE for m in mots[max(0, i - 2):i])
+            ):
                 continue
             if any(k in mots_cp for k in range(i, i + n)):
                 continue

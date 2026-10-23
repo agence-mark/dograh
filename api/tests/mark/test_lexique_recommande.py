@@ -8,7 +8,7 @@ Plan : ``Labo-agent-vocal/plans/correctifs-modules/2026-09-28-plan-correctifs-mo
 | la note recommande, jamais lue, sans « fais confirmer » | D3 | 862, 873, 875 |
 | un mot courant n'est jamais lu comme une marque, quel que soit ce qui le précède | D2 (amorces abandonnées) | 862, 873, 875, 880 |
 | aucune liste de mots de métier dans le module | règle d'Evan | 26/09 |
-| un mot courant plus rare est recommandé, jamais sûr ; le seuil est un réglage | décision d'Evan, 28/09 | 871 |
+| un mot courant n'est proposé que s'il est écrit exactement comme le nom (K3, 23/10) ; le seuil est un réglage | décision d'Evan, 28/09, révisée par K3 | 871, 1498, 1502 |
 | une marque dite lettre par lettre est lue | lot 2 | 869 |
 | la fiche retient la marque recommandée, sans question | D3 | 875, 881 |
 | deux marques possibles : une seule question | D3 | — |
@@ -131,11 +131,12 @@ def test_aucune_liste_de_mots_de_metier_dans_le_module():
 # --- Le seuil des mots courants : un réglage de l'organisation ------------------
 
 
-def test_un_mot_courant_plus_rare_est_recommande_jamais_sur(index):
-    """Run 871 : « Rica » (pour Rika) est dans la liste des mots courants, loin
-    des plus fréquents : recommandé, jamais sûr."""
-    lues = [(d.terme, d.statut) for d in analyser("mon poêle à granulés Rica fait un bruit", index)]
-    assert lues == [("Rika", "a_confirmer")], lues
+def test_un_mot_courant_n_est_propose_que_s_il_est_ecrit_comme_le_nom(index):
+    """Run 871 : « Rica » (pour Rika) est dans la liste des mots courants, loin des plus fréquents.
+    K3 (correctifs-apres-banc-commun, 23/10, runs 1498 et 1502 : « devis » lu Deville) : un mot courant
+    n'est plus proposé que s'il est écrit exactement comme le nom, jamais sûr ; « Rica » n'est plus
+    recommandé (la fiche garde ce que la personne a dit)."""
+    assert analyser("mon poêle à granulés Rica fait un bruit", index) == []
 
 
 def test_le_seuil_est_un_reglage_de_l_organisation():

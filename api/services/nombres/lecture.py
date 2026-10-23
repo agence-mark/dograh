@@ -99,6 +99,9 @@ _FIGEES = (
     ("mille", "excuses"),
     ("mille", "fois"),
     ("a", "neuf"),
+    # K9 (run 1505, « un neuf » pour un appareil neuf lu « 1 9 ») : comme « à neuf ».
+    ("un", "neuf"),
+    ("une", "neuf"),
 )
 # "à neuf heures" IS a number: "a neuf" is fixed unless a unit or a number follows.
 _UNITES_APRES_A_NEUF = frozenset(
@@ -262,6 +265,16 @@ def _positions_figees(mots: list[str]) -> set[int]:
                 suivant in _UNITES_APRES_A_NEUF or suivant in MOTS_NOMBRE or suivant.isdigit()
             ):
                 continue
+            if expression in (("un", "neuf"), ("une", "neuf")):
+                # K9 : « un neuf » reste en lettres, sauf dans une suite de nombres (« zéro six un neuf
+                # quatre… », « douze un neuf »), ou si une unité ou un nombre suit (« un neuf heures »).
+                avant = mots[i - 1] if i > 0 else None
+                if (
+                    suivant is not None and (
+                        suivant in _UNITES_APRES_A_NEUF or suivant in MOTS_NOMBRE or suivant.isdigit()
+                    )
+                ) or (avant is not None and (avant in MOTS_NOMBRE or avant.isdigit())):
+                    continue
             figees.update(range(i, i + k))
             i += k - 1
             break
