@@ -407,6 +407,77 @@ class ArgumentsLisibles:
             await fermer()
 
 
+# --- Lot 5 (K7) : la réplique qui dit une date ou une action sans outil est retenue, relancée UNE fois ----------
+
+# L'attribut du service où le moteur pose le contrôle des répliques de l'étape (``None`` : éteint).
+ATTRIBUT_VERITE = "mark_verite_des_actions"
+
+
+class RepliqueVerifiee:
+    """Le flux du cerveau, tenu jusqu'à sa fin quand l'étape offre un outil d'action (case « vérité des actions »).
+
+    - un flux qui porte un appel d'outil passe tel quel, dans son ordre ;
+    - une réplique de texte seul est contrôlée (``controler(texte)`` rend ``None`` ou une retenue) ; sans retenue,
+      elle passe telle quelle ;
+    - retenue : le modèle est relancé UNE fois, sans flux, avec la consigne de la retenue (``relancer(retenue)``) ;
+      la relance est rendue telle quelle, quoi qu'elle dise. Relance vide ou en erreur : la réplique d'origine passe.
+
+    Coût : la réplique part à la fin de la génération, non au premier morceau (étapes qui offrent une action
+    seulement). ⛔ Ne lève jamais à la place du service."""
+
+    def __init__(self, flux: Any, controler, relancer):
+        self._flux = flux
+        self._controler = controler
+        self._relancer = relancer
+
+    def __aiter__(self):
+        return self._parcourir()
+
+    async def _parcourir(self):
+        tenus: list[Any] = []
+        texte: list[str] = []
+        appel = False
+        usage = None
+        async for morceau in self._flux:
+            tenus.append(morceau)
+            if getattr(morceau, "usage", None) is not None:
+                usage = morceau.usage
+            delta = _delta(morceau)
+            if delta is not None:
+                if getattr(delta, "tool_calls", None):
+                    appel = True
+                if getattr(delta, "content", None):
+                    texte.append(delta.content)
+        retenue = None
+        if not appel and texte:
+            try:
+                retenue = self._controler("".join(texte))
+            except Exception as erreur:  # noqa: BLE001
+                logger.warning(f"[cerveau] réplique non contrôlée : {erreur!r}")
+        if retenue is not None:
+            reprise = None
+            try:
+                reprise = await self._relancer(retenue)
+            except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
+                logger.warning(f"[cerveau] relance de la réplique retenue en échec : {erreur!r}")
+            if reprise is not None:
+                morceaux = en_morceaux(reprise, usage)
+                if any(porte_quelque_chose(m) for m in morceaux):
+                    logger.warning(
+                        f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : réponse rendue par la relance"
+                    )
+                    for morceau in morceaux:
+                        yield morceau
+                    return
+        for tenu in tenus:
+            yield tenu
+
+    async def close(self):
+        fermer = getattr(self._flux, "close", None) or getattr(self._flux, "aclose", None)
+        if fermer is not None:
+            await fermer()
+
+
 class RepriseSansFluxMixin:
     """Mêlé au cerveau compatible OpenAI (``DograhOpenAILLMService``), sous la trace : la
     trace voit le flux tel que l'agent le reçoit, relance comprise."""
@@ -428,7 +499,17 @@ class RepriseSansFluxMixin:
                 return await asyncio.wait_for(requeter(), delai)
             return await requeter()
 
-        async def requeter():
+        async def relancer_la_replique(retenue):
+            # Lot 5 (K7) : la même requête, avec la consigne de ce qui a été retenu, sans flux.
+            if isinstance(entree, dict):
+                entree["replique_retenue"] = getattr(retenue, "raison", True)
+            consigne = getattr(retenue, "consigne", None)
+            delai = getattr(self, "mark_delai_modele_s", None)
+            if delai:
+                return await asyncio.wait_for(requeter(consigne), delai)
+            return await requeter(consigne)
+
+        async def requeter(consigne=None):
             from pipecat.utils.types import assert_given
 
             adapter = self.get_llm_adapter()  # type: ignore[attr-defined]
@@ -447,6 +528,10 @@ class RepriseSansFluxMixin:
                 self._mark_secours_en_cours = avant
             requete["stream"] = False
             requete.pop("stream_options", None)
+            if consigne and isinstance(requete.get("messages"), list):
+                from api.services.workflow.fiche_au_fil_de_leau import inserer_l_etat
+
+                requete["messages"] = inserer_l_etat(list(requete["messages"]), consigne)
             return await self._client.chat.completions.create(**requete)  # type: ignore[attr-defined]
 
         def l_appelant_attend() -> bool:
@@ -455,7 +540,18 @@ class RepriseSansFluxMixin:
             ]
             return bool(messages) and messages[-1].get("role") == "user"
 
+        repris = FluxRepris(flux, relancer, l_appelant_attend, lambda: phrase_de_repli(self))
+        # Lot 5 (K7) : seulement sur une étape qui offre un outil d'action (case allumée) ; sinon le flux est
+        # celui d'avant, octet pour octet.
+        verificateur = getattr(self, ATTRIBUT_VERITE, None)
+        if verificateur is not None and hasattr(verificateur, "controler"):
+            messages = [m for m in (getattr(context, "messages", None) or []) if isinstance(m, dict)]
+            repris = RepliqueVerifiee(
+                repris,
+                lambda texte: verificateur.controler(texte, messages),
+                relancer_la_replique,
+            )
         return ArgumentsLisibles(
-            FluxRepris(flux, relancer, l_appelant_attend, lambda: phrase_de_repli(self)),
+            repris,
             lambda: getattr(self, ATTRIBUT_NOMS_DE_PASSATION, None) or (),
         )

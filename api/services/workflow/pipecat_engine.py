@@ -2063,6 +2063,16 @@ class PipecatEngine:
             from api.services.travail.agent import brancher_annuler_le_travail
 
             functions.append(brancher_annuler_le_travail(self, travail, agent))
+        # [.mark] Lot 5 de correctifs-apres-banc-commun (K7) : le contrôle des répliques de l'étape, seulement si
+        # elle offre un outil d'action (un outil de l'étape, ou « confier ») et que sa case n'est pas éteinte.
+        from api.services.workflow.verite_des_actions import brancher_la_verite_des_actions
+
+        brancher_la_verite_des_actions(
+            self,
+            agent,
+            node,
+            offre_une_action=not node.is_end and (bool(node.tool_uuids) or etape_du_fond),
+        )
         texte = prompt.text
         # [.mark] Plan mode-prise-de-notes (D3) : la consigne du mode, écrite par
         # le code à la fin du prompt, là où l'outil serait proposé (mêmes

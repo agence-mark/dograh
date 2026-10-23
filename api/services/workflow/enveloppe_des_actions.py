@@ -245,6 +245,19 @@ def envelopper_l_action(
                 logger.info(f"[fiche] {nom_outil} retenu : {refus['manque']} manquent")
                 await params.result_callback(refus)
                 return
+        # Lot 5 de correctifs-apres-banc-commun (K7, V4) : la vérité des actions.
+        arguments = getattr(params, "arguments", None)
+        if garde and agent is not None:
+            from api.services.workflow import verite_des_actions as verite
+
+            refus = verite.garde_de_reservation(moteur, agent, nom_outil, arguments)
+            if refus is not None:
+                await params.result_callback(refus)
+                return
+            connu = verite.resultat_deja_confirme(moteur, agent, nom_outil, arguments)
+            if connu is not None:
+                await params.result_callback(connu)
+                return
         rendre = params.result_callback
         fini = asyncio.Event()
         veille = _veiller_l_outil(moteur, nom_outil, agent, params, fini)
@@ -254,7 +267,20 @@ def envelopper_l_action(
             # Un résultat intermédiaire (``is_final=False``) n'est pas encore la réponse de l'outil.
             if getattr(proprietes, "is_final", True) is not False:
                 fini.set()
-                remplir_par_l_action(moteur, nom_outil, resultat)
+                ecrits = remplir_par_l_action(moteur, nom_outil, resultat)
+                try:
+                    from api.services.workflow.verite_des_actions import noter_l_action
+
+                    fiche = getattr(moteur, "_gathered_context", None)
+                    noter_l_action(
+                        moteur,
+                        nom_outil,
+                        arguments,
+                        resultat,
+                        {n: fiche.get(n) for n in ecrits} if isinstance(fiche, dict) else {},
+                    )
+                except Exception as erreur:  # noqa: BLE001 -- le journal ne coûte jamais l'action
+                    logger.debug(f"[verite] journal des actions : {erreur!r}")
                 resultat, kwargs, issue = await _signaler_la_panne(
                     moteur, nom_outil, agent, params, resultat, kwargs
                 )

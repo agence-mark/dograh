@@ -725,7 +725,11 @@ def brancher_confier_le_travail(
             await params.result_callback(refus)
             return
         arguments = getattr(params, "arguments", None) or {}
-        resultat = await travail.confier(arguments.get("demande"), arguments.get("annonce"))
+        # Lot 5 (K11) : les valeurs de la fiche sont jointes par le code, le modèle n'a plus à les recopier.
+        from api.services.travail.demande import demande_avec_la_fiche
+
+        demande = demande_avec_la_fiche(moteur, arguments.get("demande"))
+        resultat = await travail.confier(demande, arguments.get("annonce"))
         await params.result_callback(resultat, properties=proprietes(params))
 
     agent.llm.register_function(NOM_OUTIL, agent.bind_tool(moteur, gestionnaire))

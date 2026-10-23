@@ -17,6 +17,7 @@ import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFi
 import { PhrasesDeLEtape } from "@/components/mark/graphe/PhrasesDeLEtape";
 import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
 import { TravailDeFond } from "@/components/mark/graphe/TravailDeFond";
+import { VeriteDesActions } from "@/components/mark/graphe/VeriteDesActions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NODE_DOCUMENTATION_URLS } from "@/constants/documentation";
@@ -520,6 +521,8 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                       etape_de_retour: data.etape_de_retour,
                       // modules-et-cerveaux (lot 5): the step's background work box.
                       travail_de_fond: data.travail_de_fond,
+                      // correctifs-apres-banc-commun (lot 5): the step's "truth of actions" box (empty = on).
+                      verite_des_actions: data.verite_des_actions,
                       fins: data.fins,
                   }
                 : {},
@@ -600,6 +603,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         if ((values.retour_au_principal ?? false) !== (data.retour_au_principal ?? false)) return true;
         if ((values.etape_de_retour ?? false) !== (data.etape_de_retour ?? false)) return true;
         if ((values.travail_de_fond ?? false) !== (data.travail_de_fond ?? false)) return true;
+        if ((values.verite_des_actions ?? true) !== (data.verite_des_actions ?? true)) return true;
         if (JSON.stringify(values.fins ?? null) !== JSON.stringify(data.fins ?? null)) return true;
         return (
             JSON.stringify(values.mcp_tool_filters ?? {}) !==
@@ -768,6 +772,16 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                                 }
                             />
                         )}
+                        {(type === "agentNode" || type === "startCall") &&
+                            (((values.tool_uuids as string[] | undefined) ?? []).length > 0 ||
+                                (travailActif && values.travail_de_fond === true)) && (
+                                <VeriteDesActions
+                                    coche={values.verite_des_actions !== false}
+                                    onChange={(coche) =>
+                                        setValues((prev) => ({ ...prev, verite_des_actions: coche ? undefined : false }))
+                                    }
+                                />
+                            )}
                         {(type === "agentNode" || type === "startCall") && (
                             <PhrasesDeLEtape etapeId={id} etapeNom={typeof values.name === "string" ? values.name : data.name ?? ""} />
                         )}

@@ -144,6 +144,8 @@ class Node:
         )
         # [.mark] Chantier modules-et-cerveaux (lot 5, M3) : « confier » offert à cette étape.
         self.travail_de_fond = getattr(data, "travail_de_fond", False) is True
+        # [.mark] Lot 5 de correctifs-apres-banc-commun (K7, V4) : la case « vérité des actions » (vide = allumée).
+        self.verite_des_actions = getattr(data, "verite_des_actions", None)
         # [.mark] Plan porte-parlee, D2 : vide ou blanc = absent.
         self.premiere_replique = (
             getattr(data, "premiere_replique", None) or ""

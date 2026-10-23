@@ -97,6 +97,8 @@ class AgentDeFond:
         self.reglages = getattr(agent, "reglages", None)
         self.visit_id = getattr(agent, "visit_id", "")
         self.current_node = None
+        # Lot 5 (K7, V4) : la case « vérité des actions » est celle de l'étape de l'agent qui a confié le travail.
+        self.agent_qui_confie = agent
         self.runtime_configuration = SimpleNamespace()
 
     def bind_tool(self, _moteur: Any, gestionnaire: Any, **_options: Any):

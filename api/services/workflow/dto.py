@@ -195,6 +195,24 @@ class _TravailDeFondNodeDataMixin(BaseModel):
     )
 
 
+class _VeriteDesActionsNodeDataMixin(BaseModel):
+    # [.mark] Lot 5 de correctifs-apres-banc-commun (K7, V4, D-3) : la case « vérité des actions » de l'étape.
+    # Allumée par défaut sur une étape qui offre un outil d'action : une réservation avec une date que la recherche
+    # n'a pas donnée est refusée, une réplique qui dit une date ou une action sans outil est retenue puis relancée
+    # une fois, une réservation identique déjà confirmée rend son résultat sans rappeler l'outil. Seul ``false``
+    # l'éteint ; vide = allumée. Hors du formulaire généré : la case vit dans le panneau de l'étape.
+    verite_des_actions: Optional[bool] = spec_field(
+        default=None,
+        spec_exclude=True,
+        description=(
+            "When not false and this step offers an action tool: a booking with a date the "
+            "search never gave is refused, a reply that states a date or a done action with no "
+            "tool result is held back and retried once, and an identical confirmed booking "
+            "returns its known result."
+        ),
+    )
+
+
 class FinFigeeDTO(BaseModel):
     """[.mark] Une ligne des phrases de fin figées (A17) : si le champ de la fiche est
     rempli (ou vaut ``vaut``), cette phrase ; sans champ, la phrase par défaut."""
@@ -471,6 +489,7 @@ class StartCallNodeData(
     _ExtractionNodeDataMixin,
     _ToolDocumentRefsMixin,
     _TravailDeFondNodeDataMixin,
+    _VeriteDesActionsNodeDataMixin,
 ):
     is_start: bool = spec_field(default=True, spec_exclude=True)
     greeting: Optional[str] = spec_field(default=None, ui_type=PropertyType.string)
@@ -611,6 +630,7 @@ class AgentNodeData(
     _RetourAuPrincipalNodeDataMixin,
     _EtapeDeRetourNodeDataMixin,
     _TravailDeFondNodeDataMixin,
+    _VeriteDesActionsNodeDataMixin,
 ):
     pass
 
@@ -1318,6 +1338,9 @@ def _sanitize_node(node):
     # [.mark] Lot E d'agent-leger-greffier : même règle pour les étiquettes de l'étape.
     if not str(data.get("champs_etape") or "").strip():
         data.pop("champs_etape", None)
+    # [.mark] Lot 5 de correctifs-apres-banc-commun : vide = allumée, le JSON d'un agent qui n'y touche pas ne change pas.
+    if data.get("verite_des_actions") is None:
+        data.pop("verite_des_actions", None)
     return {**node, "data": data}
 
 

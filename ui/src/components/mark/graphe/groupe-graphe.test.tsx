@@ -241,6 +241,55 @@ describe("[.mark] case « Travail en arrière-plan » d'une étape (modules-et-c
     });
 });
 
+describe("[.mark] case « Vérité des actions » d'une étape (correctifs-apres-banc-commun, lot 5)", () => {
+    it("n'existe pas sur une étape qui n'offre aucun outil d'action", async () => {
+        const dialogue = await monter("agentNode", {});
+        expect(dialogue.querySelector('[data-reglage="verite_des_actions"]')).toBeNull();
+    });
+
+    it("existe sur une étape qui porte un outil, allumée par défaut, et ne change pas l'étape tant qu'on n'y touche pas", async () => {
+        const dialogue = await monter("agentNode", { tool_uuids: ["outil-existant"] }, { tools: [OUTIL_EXISTANT] });
+        const champ = dialogue.querySelector('[data-reglage="verite_des_actions"]');
+        expect(champ).not.toBeNull();
+        expect(champ?.textContent).toContain("Truth of actions");
+        expect(document.getElementById("verite_des_actions")?.getAttribute("aria-checked")).toBe("true");
+        expect(donneesDeLEtape().verite_des_actions).toBeUndefined();
+    });
+
+    it("s'éteint en écrivant false dans l'étape, et se rallume en effaçant le marqueur", async () => {
+        const dialogue = await monter("agentNode", { tool_uuids: ["outil-existant"] }, { tools: [OUTIL_EXISTANT] });
+        fireEvent.click(document.getElementById("verite_des_actions") as HTMLElement);
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().verite_des_actions).toBe(false);
+    });
+
+    it("se lit éteinte quand l'étape porte false, et se rallume", async () => {
+        const dialogue = await monter(
+            "agentNode",
+            { tool_uuids: ["outil-existant"], verite_des_actions: false },
+            { tools: [OUTIL_EXISTANT] },
+        );
+        const interrupteur = document.getElementById("verite_des_actions") as HTMLElement;
+        expect(interrupteur.getAttribute("aria-checked")).toBe("false");
+        fireEvent.click(interrupteur);
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().verite_des_actions).toBeUndefined();
+    });
+
+    it("existe aussi sur une étape cochée « Travail en arrière-plan » quand le travail est allumé", async () => {
+        const dialogue = await monter("agentNode", { travail_de_fond: true }, { travailActif: true });
+        expect(dialogue.querySelector('[data-reglage="verite_des_actions"]')).not.toBeNull();
+        cleanup();
+        const sans = await monter("agentNode", { travail_de_fond: true }, { travailActif: false });
+        expect(sans.querySelector('[data-reglage="verite_des_actions"]')).toBeNull();
+    });
+
+    it("n'existe pas sur un nœud de fin", async () => {
+        const dialogue = await monter("endCall", {}, { travailActif: true });
+        expect(dialogue.querySelector('[data-reglage="verite_des_actions"]')).toBeNull();
+    });
+});
+
 describe("[.mark] phrases de fin du nœud de fin", () => {
     it("un nœud de fin d'un agent seul porte la liste (plus de doublon avec le formulaire) et garde sa zone de texte", async () => {
         const dialogue = await monter("endCall", { name: "Étape" });
