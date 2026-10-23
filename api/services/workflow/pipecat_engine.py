@@ -109,6 +109,7 @@ from loguru import logger
 
 from api.services.managed_model_services import MPS_CORRELATION_ID_CONTEXT_KEY
 from api.services.workflow import pipecat_engine_callbacks as engine_callbacks
+from api.services.workflow.champs_conditionnels import champs_actifs  # [.mark] lot 7 de correctifs-apres-banc-commun
 from api.services.workflow.answer_handling import ANSWER_TERMINAL_REASONS, handle_answer
 from api.services.workflow.disposition_extraction import (
     CALL_DISPOSITION_CONTEXT_KEY,
@@ -1701,10 +1702,10 @@ class PipecatEngine:
                 lambda: self._gathered_context,
                 self._notices_fiche,
                 # Lot E d'agent-leger-greffier (P1) : les étiquettes de l'étape en cours.
-                lambda: getattr(
+                # Lot 7 de correctifs-apres-banc-commun : un champ dont la condition n'est pas tenue n'est pas attendu.
+                lambda: champs_actifs(
                     getattr(self.active_agent, "current_node", None),
-                    "champs_etape",
-                    (),
+                    self._gathered_context,
                 ),
                 # Revue du 13/10 (lot C de greffier-conversation) : l'étape a-t-elle des portes ?
                 lambda: bool(
@@ -1995,6 +1996,10 @@ class PipecatEngine:
                     edge.data.transition_speech_recording_id,
                     agent=agent,
                 )
+        # [.mark] Lot 6 de correctifs-apres-banc-commun : les actions que cette étape offre (l'enveloppe les note).
+        from api.services.workflow.declenchement_de_l_action import commencer_la_liste_des_actions
+
+        commencer_la_liste_des_actions(self)
         if node.tool_uuids and manager:
             await manager.register_handlers(
                 node.tool_uuids,
@@ -2072,6 +2077,20 @@ class PipecatEngine:
             agent,
             node,
             offre_une_action=not node.is_end and (bool(node.tool_uuids) or etape_du_fond),
+        )
+        # [.mark] Lot 6 de correctifs-apres-banc-commun (K8) : le déclenchement de l'outil d'action de l'étape
+        # (libre = rien n'est branché).
+        from api.services.workflow.declenchement_de_l_action import (
+            action_de_l_etape,
+            actions_offertes,
+            brancher_le_declenchement,
+        )
+
+        brancher_le_declenchement(
+            self,
+            agent,
+            node,
+            action_de_l_etape(actions_offertes(self), etape_du_fond) if not node.is_end else None,
         )
         texte = prompt.text
         # [.mark] Plan mode-prise-de-notes (D3) : la consigne du mode, écrite par

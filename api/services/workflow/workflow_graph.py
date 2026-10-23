@@ -146,6 +146,14 @@ class Node:
         self.travail_de_fond = getattr(data, "travail_de_fond", False) is True
         # [.mark] Lot 5 de correctifs-apres-banc-commun (K7, V4) : la case « vérité des actions » (vide = allumée).
         self.verite_des_actions = getattr(data, "verite_des_actions", None)
+        # [.mark] Lots 6 et 7 de correctifs-apres-banc-commun : le déclenchement de l'outil d'action (vide = libre),
+        # la demande type du mode automatique, et les conditions des champs de l'étape (vide = aucune).
+        self.declenchement_de_l_action = getattr(data, "declenchement_de_l_action", None) or None
+        self.demande_type = (getattr(data, "demande_type", None) or "").strip() or None
+        self.conditions_de_champs: tuple[dict, ...] = tuple(
+            c.model_dump() if hasattr(c, "model_dump") else dict(c)
+            for c in (getattr(data, "conditions_de_champs", None) or ())
+        )
         # [.mark] Plan porte-parlee, D2 : vide ou blanc = absent.
         self.premiere_replique = (
             getattr(data, "premiere_replique", None) or ""

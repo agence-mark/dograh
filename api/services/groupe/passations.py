@@ -281,6 +281,24 @@ def _egal(valeur: Any, attendu: Any) -> bool:
     return str(valeur).strip().casefold() == str(attendu).strip().casefold()
 
 
+def condition_tenue(champ: Any, vaut: Any, gathered: Mapping[str, Any] | None) -> bool:
+    """La condition d'une ligne sur la fiche : sans champ, vraie ; avec un champ seul, vraie si le champ est
+    rempli ; avec ``vaut``, vraie si le champ vaut cette valeur (casse ignorée ; un champ à plusieurs valeurs la
+    contient). La même forme pour les phrases de fin figées et pour les champs conditionnels d'une étape
+    (lot 7 de correctifs-apres-banc-commun). ⛔ Ne lève jamais (dans le doute : fausse)."""
+    try:
+        nom = (champ or "").strip() if isinstance(champ, str) else ""
+        if not nom:
+            return True
+        valeur = (gathered or {}).get(nom)
+        if vaut is None or (isinstance(vaut, str) and not vaut.strip()):
+            return not _vide(valeur)
+        return not _vide(valeur) and _egal(valeur, vaut)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[groupe] condition illisible : {e!r}")
+        return False
+
+
 def choisir_la_fin(
     fins: Iterable[Mapping[str, Any]], gathered: Mapping[str, Any]
 ) -> str | None:
@@ -296,15 +314,7 @@ def choisir_la_fin(
             phrase = (ligne.get("phrase") or "").strip()
             if not phrase:
                 continue
-            champ = (ligne.get("champ") or "").strip()
-            if not champ:
-                return phrase
-            valeur = (gathered or {}).get(champ)
-            attendu = ligne.get("vaut")
-            if attendu is None or (isinstance(attendu, str) and not attendu.strip()):
-                if not _vide(valeur):
-                    return phrase
-            elif not _vide(valeur) and _egal(valeur, attendu):
+            if condition_tenue(ligne.get("champ"), ligne.get("vaut"), gathered):
                 return phrase
         return None
     except Exception as e:  # noqa: BLE001

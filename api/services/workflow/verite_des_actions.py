@@ -351,6 +351,8 @@ class Retenue:
     raison: str
     detail: str
     consigne: str
+    # Lot 6 (K8) : l'outil à appeler obligatoirement à la relance (position « relance » du déclenchement de l'action).
+    outil: str | None = None
 
 
 def _contenu(message: Any) -> str:

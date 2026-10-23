@@ -177,13 +177,21 @@ def garde_de_l_etape(moteur: Any, agent: Any) -> dict | None:
     champs manquent encore : l'outil ne s'exécute pas, il rend ``{"statut": "incomplet", "manque":
     [...]}`` (le modèle le lit et demande). Sans liste, sans fiche, case éteinte, ou rien ne
     manque : ``None`` (l'outil s'exécute comme avant). ⛔ Ne lève jamais."""
+    return garde_du_noeud(moteur, getattr(agent, "current_node", None))
+
+
+def garde_du_noeud(moteur: Any, noeud: Any) -> dict | None:
+    """La garde de l'étape ``noeud`` (voir ``garde_de_l_etape``). Lot 7 de correctifs-apres-banc-commun : un
+    champ dont la condition sur la fiche n'est pas tenue n'est pas attendu. Lot 6 : le déclenchement de l'outil
+    d'action lit la même garde. ⛔ Ne lève jamais."""
     try:
         reglages = getattr(moteur, "_fiche", None)
         fiche = getattr(moteur, "_gathered_context", None)
-        noeud = getattr(agent, "current_node", None)
-        champs_etape = tuple(getattr(noeud, "champs_etape", None) or ())
-        if reglages is None or not isinstance(fiche, dict) or not champs_etape:
+        if reglages is None or not isinstance(fiche, dict) or not tuple(getattr(noeud, "champs_etape", None) or ()):
             return None
+        from api.services.workflow.champs_conditionnels import champs_actifs
+
+        champs_etape = champs_actifs(noeud, fiche)
         if not getattr(reglages, "etiquettes", False):
             return None
         from api.services.fiche.traces import valeurs_des_traces
@@ -207,7 +215,13 @@ async def garde_de_l_etape_apres_les_notes(moteur: Any, agent: Any) -> dict | No
     """K2 : comme ``garde_de_l_etape``, mais avant de rendre « incomplet » elle laisse finir les passes
     en cours (greffier, post-scriptum : ``moteur.notes_en_cours``, 1,5 s au plus) puis relit la fiche.
     Aucun coût quand rien ne manque, ni quand aucune passe ne tourne. ⛔ Ne lève jamais."""
-    refus = garde_de_l_etape(moteur, agent)
+    return await garde_du_noeud_apres_les_notes(moteur, getattr(agent, "current_node", None))
+
+
+async def garde_du_noeud_apres_les_notes(moteur: Any, noeud: Any) -> dict | None:
+    """``garde_de_l_etape_apres_les_notes`` pour l'étape ``noeud`` (lot 6 : le déclenchement de l'outil d'action
+    lit la même garde, avec la même attente). ⛔ Ne lève jamais."""
+    refus = garde_du_noeud(moteur, noeud)
     if refus is None:
         return None
     try:
@@ -220,7 +234,7 @@ async def garde_de_l_etape_apres_les_notes(moteur: Any, agent: Any) -> dict | No
     except Exception as erreur:  # noqa: BLE001 -- dans le doute, la garde garde son verdict
         logger.warning(f"[fiche] passes en cours non attendues par la garde : {erreur!r}")
         return refus
-    return garde_de_l_etape(moteur, agent)
+    return garde_du_noeud(moteur, noeud)
 
 
 Gestionnaire = Callable[[Any], Awaitable[None]]
@@ -237,6 +251,12 @@ def envelopper_l_action(
     """Le gestionnaire de l'action, enveloppé : la garde de l'étape d'``agent`` (lot 2), puis son
     résultat lu avant de partir au modèle (lot 1). ``garde=False`` : une action qui agit sur
     l'appel (une action interne qui peut transférer), jamais gardée."""
+
+    if garde and agent is not None:
+        # Lot 6 de correctifs-apres-banc-commun : le moteur sait quelles actions l'étape en préparation offre.
+        from api.services.workflow.declenchement_de_l_action import noter_une_action_offerte
+
+        noter_une_action_offerte(moteur, nom_outil)
 
     async def enveloppe(params: Any) -> None:
         if garde and agent is not None:
@@ -258,6 +278,11 @@ def envelopper_l_action(
             if connu is not None:
                 await params.result_callback(connu)
                 return
+        if garde and agent is not None:
+            # Lot 6 : l'outil de l'étape est appelé (par le modèle) pour cette demande : aucune position ne se réarme.
+            from api.services.workflow.declenchement_de_l_action import noter_l_appel
+
+            noter_l_appel(moteur, agent, nom_outil)
         rendre = params.result_callback
         fini = asyncio.Event()
         veille = _veiller_l_outil(moteur, nom_outil, agent, params, fini)

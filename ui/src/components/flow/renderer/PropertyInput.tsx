@@ -11,7 +11,7 @@ import { MentionTextarea } from "@/components/flow/MentionTextarea";
 import { RecordingSelect } from "@/components/flow/TextOrAudioInput";
 import { ToolSelector } from "@/components/flow/ToolSelector";
 import { CredentialSelector, UrlInput } from "@/components/http";
-import { EtiquettesEtape } from "@/components/mark/graphe/EtiquettesEtape";
+import { type ConditionDeChamp, EtiquettesEtape } from "@/components/mark/graphe/EtiquettesEtape";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,9 @@ export interface RendererContext {
     onMcpToolFiltersChange?: (next: Record<string, string[]>) => void;
     /** [.mark] Lot E d'agent-leger-greffier: the agent's record fields, for the step labels. */
     champsFiche?: string[];
+    /** [.mark] Lot 7 de correctifs-apres-banc-commun: the conditions of the step's fields (sibling of champs_etape on the node data). */
+    conditionsDeChamps?: ConditionDeChamp[];
+    onConditionsDeChampsChange?: (next: ConditionDeChamp[] | undefined) => void;
 }
 
 export interface PropertyInputProps {
@@ -60,7 +63,13 @@ export function PropertyInput({ spec, value, onChange, context }: PropertyInputP
         return (
             <div className="grid gap-2">
                 <StackedLabel spec={spec} />
-                <EtiquettesEtape valeur={value} champsFiche={context.champsFiche ?? []} onChange={onChange} />
+                <EtiquettesEtape
+                    valeur={value}
+                    champsFiche={context.champsFiche ?? []}
+                    onChange={onChange}
+                    conditions={context.conditionsDeChamps}
+                    onConditionsChange={context.onConditionsDeChampsChange}
+                />
             </div>
         );
     }

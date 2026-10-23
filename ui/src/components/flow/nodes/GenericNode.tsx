@@ -12,7 +12,13 @@ import { NodeEditForm, useNodeSpecs } from "@/components/flow/renderer";
 import { ToolBadges } from "@/components/flow/ToolBadges";
 import { FlowNodeData } from "@/components/flow/types";
 import { BriqueAgent } from "@/components/mark/graphe/BriqueAgent";
+import {
+    DeclenchementDeLAction,
+    positionEcrite,
+    positionLue,
+} from "@/components/mark/graphe/DeclenchementDeLAction";
 import { EtapeDeRetour } from "@/components/mark/graphe/EtapeDeRetour";
+import { type ConditionDeChamp } from "@/components/mark/graphe/EtiquettesEtape";
 import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFin";
 import { PhrasesDeLEtape } from "@/components/mark/graphe/PhrasesDeLEtape";
 import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
@@ -523,6 +529,11 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                       travail_de_fond: data.travail_de_fond,
                       // correctifs-apres-banc-commun (lot 5): the step's "truth of actions" box (empty = on).
                       verite_des_actions: data.verite_des_actions,
+                      // correctifs-apres-banc-commun (lots 6 and 7): the action trigger menu (empty = free), its request
+                      // template, and the conditions of the step's fields.
+                      declenchement_de_l_action: data.declenchement_de_l_action,
+                      demande_type: data.demande_type,
+                      conditions_de_champs: data.conditions_de_champs,
                       fins: data.fins,
                   }
                 : {},
@@ -604,6 +615,9 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         if ((values.etape_de_retour ?? false) !== (data.etape_de_retour ?? false)) return true;
         if ((values.travail_de_fond ?? false) !== (data.travail_de_fond ?? false)) return true;
         if ((values.verite_des_actions ?? true) !== (data.verite_des_actions ?? true)) return true;
+        if ((values.declenchement_de_l_action ?? "libre") !== (data.declenchement_de_l_action ?? "libre")) return true;
+        if ((values.demande_type ?? "") !== (data.demande_type ?? "")) return true;
+        if (JSON.stringify(values.conditions_de_champs ?? null) !== JSON.stringify(data.conditions_de_champs ?? null)) return true;
         if (JSON.stringify(values.fins ?? null) !== JSON.stringify(data.fins ?? null)) return true;
         return (
             JSON.stringify(values.mcp_tool_filters ?? {}) !==
@@ -725,6 +739,9 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                                 documents: documents ?? [],
                                 recordings: recordings ?? [],
                                 champsFiche: champsFiche ?? [],
+                                conditionsDeChamps: values.conditions_de_champs as ConditionDeChamp[] | undefined,
+                                onConditionsDeChampsChange: (next) =>
+                                    setValues((prev) => ({ ...prev, conditions_de_champs: next })),
                                 mcpToolFilters:
                                     (values.mcp_tool_filters as
                                         | Record<string, string[]>
@@ -779,6 +796,22 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                                     coche={values.verite_des_actions !== false}
                                     onChange={(coche) =>
                                         setValues((prev) => ({ ...prev, verite_des_actions: coche ? undefined : false }))
+                                    }
+                                />
+                            )}
+                        {(type === "agentNode" || type === "startCall") &&
+                            (((values.tool_uuids as string[] | undefined) ?? []).length > 0 ||
+                                (travailActif && values.travail_de_fond === true)) && (
+                                <DeclenchementDeLAction
+                                    position={positionLue(values.declenchement_de_l_action)}
+                                    demandeType={typeof values.demande_type === "string" ? values.demande_type : ""}
+                                    automatiquePossible={travailActif === true && values.travail_de_fond === true}
+                                    champsDeclares={String(values.champs_etape ?? "").trim() !== ""}
+                                    onChange={(position) =>
+                                        setValues((prev) => ({ ...prev, declenchement_de_l_action: positionEcrite(position) }))
+                                    }
+                                    onDemandeTypeChange={(texte) =>
+                                        setValues((prev) => ({ ...prev, demande_type: texte.trim() === "" ? undefined : texte }))
                                     }
                                 />
                             )}

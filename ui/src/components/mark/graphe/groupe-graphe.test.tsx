@@ -290,6 +290,135 @@ describe("[.mark] case « Vérité des actions » d'une étape (correctifs-apres
     });
 });
 
+describe("[.mark] menu « Déclenchement de l'action » d'une étape (correctifs-apres-banc-commun, lot 6)", () => {
+    const AVEC_OUTIL = { tool_uuids: ["outil-existant"], champs_etape: "degre_urgence, numero_rappel" };
+
+    it("n'existe pas sur une étape qui n'offre aucune action, ni sur un nœud de fin", async () => {
+        const dialogue = await monter("agentNode", {});
+        expect(dialogue.querySelector('[data-reglage="declenchement_de_l_action"]')).toBeNull();
+        cleanup();
+        const fin = await monter("endCall", {}, { travailActif: true });
+        expect(fin.querySelector('[data-reglage="declenchement_de_l_action"]')).toBeNull();
+    });
+
+    it("existe sur une étape qui porte un outil, sur Libre, et ne change pas l'étape tant qu'on n'y touche pas", async () => {
+        const dialogue = await monter("agentNode", AVEC_OUTIL, { tools: [OUTIL_EXISTANT] });
+        const champ = dialogue.querySelector('[data-reglage="declenchement_de_l_action"]');
+        expect(champ?.textContent).toContain("Action trigger");
+        expect((document.getElementById("declenchement_de_l_action") as HTMLSelectElement).value).toBe("libre");
+        expect(dialogue.querySelector('[data-reglage="demande_type"]')).toBeNull();
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().declenchement_de_l_action).toBeUndefined();
+        expect(donneesDeLEtape().demande_type).toBeUndefined();
+    });
+
+    it("propose Libre, Relance et Obligatoire, pas Automatique sans travail en arrière-plan sur l'étape", async () => {
+        await monter("agentNode", AVEC_OUTIL, { tools: [OUTIL_EXISTANT] });
+        const options = Array.from((document.getElementById("declenchement_de_l_action") as HTMLSelectElement).options).map((o) => o.value);
+        expect(options).toEqual(["libre", "relance", "obligatoire"]);
+    });
+
+    it("écrit la position choisie dans l'étape, et Libre efface le marqueur", async () => {
+        const dialogue = await monter("agentNode", AVEC_OUTIL, { tools: [OUTIL_EXISTANT] });
+        fireEvent.change(document.getElementById("declenchement_de_l_action") as HTMLElement, { target: { value: "relance" } });
+        expect(dialogue.querySelector('[data-reglage="declenchement_de_l_action"]')?.textContent).toContain("held back");
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().declenchement_de_l_action).toBe("relance");
+        cleanup();
+        const rouvert = await monter("agentNode", { ...AVEC_OUTIL, declenchement_de_l_action: "relance" }, { tools: [OUTIL_EXISTANT] });
+        fireEvent.change(document.getElementById("declenchement_de_l_action") as HTMLElement, { target: { value: "libre" } });
+        await enregistrerEtape(rouvert);
+        expect(donneesDeLEtape().declenchement_de_l_action).toBeUndefined();
+    });
+
+    it("se lit sur la position de l'étape, et rend l'étape modifiée quand on la change", async () => {
+        await monter("agentNode", { ...AVEC_OUTIL, declenchement_de_l_action: "obligatoire" }, { tools: [OUTIL_EXISTANT] });
+        expect((document.getElementById("declenchement_de_l_action") as HTMLSelectElement).value).toBe("obligatoire");
+        const bouton = screen.getByRole("button", { name: /^save$/i }) as HTMLButtonElement;
+        fireEvent.change(document.getElementById("declenchement_de_l_action") as HTMLElement, { target: { value: "relance" } });
+        expect(bouton.disabled).toBe(false);
+    });
+
+    it("dit que Relance et Obligatoire ne font rien sur une étape sans champ listé", async () => {
+        const dialogue = await monter("agentNode", { tool_uuids: ["outil-existant"], declenchement_de_l_action: "relance" }, { tools: [OUTIL_EXISTANT] });
+        expect(dialogue.querySelector('[data-reglage="declenchement_de_l_action"]')?.textContent).toContain("lists no field");
+    });
+
+    it("propose Automatique sur une étape en travail en arrière-plan, avec sa demande type, enregistrée", async () => {
+        const dialogue = await monter("agentNode", { travail_de_fond: true }, { travailActif: true });
+        const options = Array.from((document.getElementById("declenchement_de_l_action") as HTMLSelectElement).options).map((o) => o.value);
+        expect(options).toContain("automatique");
+        fireEvent.change(document.getElementById("declenchement_de_l_action") as HTMLElement, { target: { value: "automatique" } });
+        const demande = document.getElementById("demande_type") as HTMLTextAreaElement;
+        expect(dialogue.querySelector('[data-reglage="demande_type"]')?.textContent).toContain("Request template");
+        fireEvent.change(demande, { target: { value: "Réserve pour {{degre_urgence}}." } });
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().declenchement_de_l_action).toBe("automatique");
+        expect(donneesDeLEtape().demande_type).toBe("Réserve pour {{degre_urgence}}.");
+    });
+});
+
+describe("[.mark] champ conditionnel de la liste des champs d'une étape (correctifs-apres-banc-commun, lot 7)", () => {
+    const ETAPE = { champs_etape: "degre_urgence, numero_rappel" };
+
+    it("une étape sans condition n'écrit rien de plus", async () => {
+        const dialogue = await monter("agentNode", ETAPE);
+        expect(dialogue.querySelector("[data-conditions-de-champs]")).toBeNull();
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().conditions_de_champs).toBeUndefined();
+    });
+
+    it("pose une condition sur un champ de la liste, l'enregistre dans l'étape, et la montre", async () => {
+        const dialogue = await monter("agentNode", ETAPE);
+        fireEvent.click(screen.getByRole("button", { name: /Expect this field only if… \(numero_rappel\)/ }));
+        const ligne = dialogue.querySelector('[data-condition-du-champ="numero_rappel"]');
+        expect(ligne?.textContent).toContain("only if");
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().conditions_de_champs).toEqual([{ champ: "numero_rappel", si: "degre_urgence" }]);
+    });
+
+    it("la condition « vaut » garde sa valeur, « est rempli » l'efface", async () => {
+        const dialogue = await monter("agentNode", {
+            ...ETAPE,
+            conditions_de_champs: [{ champ: "numero_rappel", si: "degre_urgence", vaut: "haut" }],
+        });
+        expect((document.getElementById("condition-mode-numero_rappel") as HTMLSelectElement).value).toBe("vaut");
+        expect((document.getElementById("condition-vaut-numero_rappel") as HTMLInputElement).value).toBe("haut");
+        fireEvent.change(document.getElementById("condition-vaut-numero_rappel") as HTMLElement, { target: { value: "bas" } });
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().conditions_de_champs).toEqual([{ champ: "numero_rappel", si: "degre_urgence", vaut: "bas" }]);
+        cleanup();
+        const rouvert = await monter("agentNode", { ...ETAPE, conditions_de_champs: [{ champ: "numero_rappel", si: "degre_urgence", vaut: "bas" }] });
+        fireEvent.change(document.getElementById("condition-mode-numero_rappel") as HTMLElement, { target: { value: "__rempli__" } });
+        await enregistrerEtape(rouvert);
+        expect((donneesDeLEtape().conditions_de_champs as Record<string, unknown>[])[0].vaut).toBeUndefined();
+    });
+
+    it("retirer la condition, ou retirer le champ, efface la ligne", async () => {
+        const dialogue = await monter("agentNode", {
+            ...ETAPE,
+            conditions_de_champs: [{ champ: "numero_rappel", si: "degre_urgence" }],
+        });
+        fireEvent.click(screen.getByRole("button", { name: /Remove this condition \(numero_rappel\)/ }));
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().conditions_de_champs).toBeUndefined();
+        cleanup();
+        const autre = await monter("agentNode", { ...ETAPE, conditions_de_champs: [{ champ: "numero_rappel", si: "degre_urgence" }] });
+        fireEvent.click(within(autre).getByRole("button", { name: "Remove numero_rappel" }));
+        await enregistrerEtape(autre);
+        expect(donneesDeLEtape().conditions_de_champs).toBeUndefined();
+        expect(donneesDeLEtape().champs_etape).toBe("degre_urgence");
+    });
+
+    it("signale un champ testé qui n'est pas dans la fiche", async () => {
+        const dialogue = await monter("agentNode", {
+            ...ETAPE,
+            conditions_de_champs: [{ champ: "numero_rappel", si: "inexistant" }],
+        });
+        expect(within(dialogue).getByRole("alert").textContent).toContain("not in the agent's record");
+    });
+});
+
 describe("[.mark] phrases de fin du nœud de fin", () => {
     it("un nœud de fin d'un agent seul porte la liste (plus de doublon avec le formulaire) et garde sa zone de texte", async () => {
         const dialogue = await monter("endCall", { name: "Étape" });

@@ -28,6 +28,7 @@ d'avant. Un flux qui a déjà porté du texte n'est jamais relancé (rien n'est 
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 from typing import Any
 
@@ -411,6 +412,8 @@ class ArgumentsLisibles:
 
 # L'attribut du service où le moteur pose le contrôle des répliques de l'étape (``None`` : éteint).
 ATTRIBUT_VERITE = "mark_verite_des_actions"
+# Lot 6 (K8) : l'attribut du service où le moteur pose le déclencheur de l'outil d'action de l'étape (``None`` : libre).
+ATTRIBUT_DECLENCHEUR = "mark_declencheur"
 
 
 class RepliqueVerifiee:
@@ -452,6 +455,8 @@ class RepliqueVerifiee:
         if not appel and texte:
             try:
                 retenue = self._controler("".join(texte))
+                if inspect.isawaitable(retenue):
+                    retenue = await retenue
             except Exception as erreur:  # noqa: BLE001
                 logger.warning(f"[cerveau] réplique non contrôlée : {erreur!r}")
         if retenue is not None:
@@ -504,20 +509,30 @@ class RepriseSansFluxMixin:
             if isinstance(entree, dict):
                 entree["replique_retenue"] = getattr(retenue, "raison", True)
             consigne = getattr(retenue, "consigne", None)
+            outil = getattr(retenue, "outil", None)
             delai = getattr(self, "mark_delai_modele_s", None)
             if delai:
-                return await asyncio.wait_for(requeter(consigne), delai)
-            return await requeter(consigne)
+                return await asyncio.wait_for(requeter(consigne, outil), delai)
+            return await requeter(consigne, outil)
 
-        async def requeter(consigne=None):
+        async def requeter(consigne=None, outil=None):
             from pipecat.utils.types import assert_given
 
             adapter = self.get_llm_adapter()  # type: ignore[attr-defined]
-            params = adapter.get_llm_invocation_params(
-                context,
-                system_instruction=assert_given(self._settings.system_instruction),  # type: ignore[attr-defined]
-                convert_developer_to_user=not self.supports_developer_role,  # type: ignore[attr-defined]
-            )
+            # Lot 6 (K8) : l'appel obligatoire d'un outil, pour CETTE requête seulement (``LLMContext.set_tool_choice``
+            # de Pipecat), remis comme avant dès les paramètres construits.
+            avant_choix = getattr(context, "tool_choice", None)
+            if outil and hasattr(context, "set_tool_choice"):
+                context.set_tool_choice({"type": "function", "function": {"name": outil}})
+            try:
+                params = adapter.get_llm_invocation_params(
+                    context,
+                    system_instruction=assert_given(self._settings.system_instruction),  # type: ignore[attr-defined]
+                    convert_developer_to_user=not self.supports_developer_role,  # type: ignore[attr-defined]
+                )
+            finally:
+                if outil and hasattr(context, "set_tool_choice") and avant_choix is not None:
+                    context.set_tool_choice(avant_choix)
             # Par l'attribut de l'instance : les enveloppes posées par le moteur (l'état de
             # la fiche) s'appliquent à la relance comme à la requête d'origine.
             avant = getattr(self, "_mark_secours_en_cours", False)
@@ -544,13 +559,25 @@ class RepriseSansFluxMixin:
         # Lot 5 (K7) : seulement sur une étape qui offre un outil d'action (case allumée) ; sinon le flux est
         # celui d'avant, octet pour octet.
         verificateur = getattr(self, ATTRIBUT_VERITE, None)
-        if verificateur is not None and hasattr(verificateur, "controler"):
+        if verificateur is not None and not hasattr(verificateur, "controler"):
+            verificateur = None
+        # Lot 6 (K8), position « relance » : une réplique sans question ni appel, alors que tout est prêt, est retenue.
+        relanceur = getattr(self, ATTRIBUT_DECLENCHEUR, None)
+        if relanceur is not None and getattr(relanceur, "position", None) != "relance":
+            relanceur = None
+        if verificateur is not None or relanceur is not None:
             messages = [m for m in (getattr(context, "messages", None) or []) if isinstance(m, dict)]
-            repris = RepliqueVerifiee(
-                repris,
-                lambda texte: verificateur.controler(texte, messages),
-                relancer_la_replique,
-            )
+            if relanceur is None:
+                controle = lambda texte: verificateur.controler(texte, messages)  # noqa: E731
+            else:
+
+                async def controle(texte):
+                    retenue = verificateur.controler(texte, messages) if verificateur is not None else None
+                    if retenue is None:
+                        retenue = await relanceur.controler_la_replique(texte)
+                    return retenue
+
+            repris = RepliqueVerifiee(repris, controle, relancer_la_replique)
         return ArgumentsLisibles(
             repris,
             lambda: getattr(self, ATTRIBUT_NOMS_DE_PASSATION, None) or (),
