@@ -3,7 +3,7 @@
 | Test | La garantie |
 |---|---|
 | K3 chiffres | un passage qui contient un chiffre n'est jamais lu comme une marque (« Moreau, 07 55… » → Morso, run 1498) |
-| K3 mot courant | un mot courant n'est proposé que s'il est écrit exactement comme le nom (« devis » → Deville, runs 1498 et 1502) ; une marque qui est elle-même un mot courant, dite telle quelle, reste proposée |
+| K3 mot courant | un mot courant n'est proposé que s'il est écrit ou prononcé exactement comme le nom (« Rica » pour Rika, run 871, reste à confirmer) (« devis » → Deville, runs 1498 et 1502) ; une marque qui est elle-même un mot courant, dite telle quelle, reste proposée |
 | K3 zéro perte | une marque mal transcrite (« Edilcamin ») est lue comme avant |
 | K12 jours et mois | un jour, un mois ou un mot de date n'est jamais une commune (« Vendredi » → Vendrest, run 1511) ; une commune dite avec « commune » ou « habite » garde sa lecture ; une vraie commune à côté d'un jour est lue |
 | K9 « un neuf » | « un/une neuf » reste en lettres, sauf dans une suite de nombres ou avant une unité ; « à neuf », « tout neuf » inchangés |
@@ -62,7 +62,13 @@ def test_k3_un_passage_avec_un_chiffre_n_est_jamais_une_marque(index, texte):
 def test_k3_un_mot_courant_n_est_pas_propose_s_il_n_est_pas_ecrit_comme_le_nom(index):
     """Runs 1498, 1502 : « devis » lu Deville (88,9)."""
     assert _lues("c'est pour un devis", index) == []
-    assert _lues("mon poêle à granulés Rica fait un bruit", index) == []
+
+
+def test_k3_un_mot_courant_qui_se_prononce_comme_le_nom_reste_propose(index):
+    """Run 871 (CI comparée du 23/10, zéro perte) : « Rica » pour Rika, même son, reste à confirmer."""
+    assert [(t, s) for _, t, s in _lues("mon poêle à granulés Rica fait un bruit", index)] == [
+        ("Rika", A_CONFIRMER)
+    ]
 
 
 def test_k3_une_marque_qui_est_un_mot_courant_dite_telle_quelle_reste_proposee():
