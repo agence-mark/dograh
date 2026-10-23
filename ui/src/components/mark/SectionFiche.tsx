@@ -272,6 +272,7 @@ export const pourComparerLaFiche = (champs: ChampFiche[]) =>
         // Lot 17: empty (absent or null) is « from the settings », never written.
         portee: c.portee ?? null,
         rempli_par_outil: c.rempli_par_outil?.trim() ? c.rempli_par_outil.trim() : null,
+        annule_par_outil: c.annule_par_outil?.trim() ? c.annule_par_outil.trim() : null,
     }));
 
 const nouveauChamp = (): ChampFiche => ({
@@ -577,6 +578,31 @@ export const EditeurChampsFiche = ({
                                         })}
                                     </p>
                                 </div>
+                                {/* [.mark] Lot 8 (K16): the tool that undoes the filling tool (cancel). */}
+                                {champ.rempli_par_outil?.trim() ? (
+                                    <div className="space-y-1">
+                                        <Label htmlFor={`fiche_annule_${i}`} className="text-xs">
+                                            {t({ en: "Undone by a tool", fr: "Défait par l'outil" })}
+                                        </Label>
+                                        <Input
+                                            id={`fiche_annule_${i}`}
+                                            className="w-64"
+                                            placeholder={t({ en: "tool name", fr: "nom de l'outil" })}
+                                            value={champ.annule_par_outil ?? ""}
+                                            onChange={(e) =>
+                                                modifier(i, {
+                                                    annule_par_outil: e.target.value === "" ? null : e.target.value,
+                                                })
+                                            }
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            {t({
+                                                en: "The tool that cancels what the filling tool did (for example a cancellation). Its result writes this field (the key of the same name in its answer, else its status; never a default value); a failure writes nothing and the agent is told the cancellation did not happen. It is never held back by the booking guard. Empty: off.",
+                                                fr: "L'outil qui défait ce que l'outil ci-dessus a fait (par exemple une annulation). Son résultat écrit ce champ (la clé du même nom dans sa réponse, sinon son statut ; jamais une valeur par défaut) ; un échec n'écrit rien et l'agent sait que l'annulation n'a pas eu lieu. La garde de réservation ne le retient jamais. Vide : éteint.",
+                                            })}
+                                        </p>
+                                    </div>
+                                ) : null}
                                 {/* [.mark] Lot 17 (fiche à plusieurs demandes): the scope of the field. */}
                 <div className="space-y-1">
                     <Label htmlFor={`fiche_portee_${i}`} className="text-xs">

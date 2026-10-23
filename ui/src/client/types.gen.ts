@@ -2076,6 +2076,12 @@ export type ChampFiche = {
      */
     rempli_par_outil?: string | null;
     /**
+     * Annule Par Outil
+     *
+     * Undone by a tool: the name of the tool that cancels what the filling tool did. Its successful result writes this field (the value of the same key in its answer, else its status); a failure writes nothing, and the agent is told the real outcome. It is never held back by the booking guard. Empty: off.
+     */
+    annule_par_outil?: string | null;
+    /**
      * Obligatoire Sans Exception
      *
      * Required without exception: a refusal by the caller does not count as an answer, the field stays missing for the step's guard. Off: a refused field counts as handled.

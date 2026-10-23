@@ -208,6 +208,22 @@ def outils_d_ecriture(moteur: Any) -> frozenset:
         return frozenset()
 
 
+def outils_d_annulation(moteur: Any) -> frozenset:
+    """Lot 8 (K16) : les noms (normalisés) des actions qui défont un champ (``annule_par_outil``). Elles passent
+    TOUJOURS : ni la garde de réservation ni la réservation identique ne les retiennent (l'appelant peut annuler)."""
+    try:
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+
+        reglages = getattr(moteur, "_fiche", None)
+        return frozenset(
+            _normaliser(c.annule_par_outil)
+            for c in tuple(getattr(reglages, "champs", None) or ())
+            if getattr(c, "annule_par_outil", None)
+        )
+    except Exception:  # noqa: BLE001
+        return frozenset()
+
+
 def _est_une_ecriture(moteur: Any, nom: str) -> bool:
     try:
         from api.services.workflow.enveloppe_des_actions import _normaliser
@@ -278,6 +294,16 @@ def memes_arguments(a: Any, b: Any) -> bool:
         return False
 
 
+def _est_une_annulation(annulations: frozenset, nom: str) -> bool:
+    """Une annulation réussie défait la réservation connue même si son résultat cite une date (lot 8)."""
+    try:
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+
+        return _normaliser(nom) in annulations
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def resultat_deja_confirme(moteur: Any, agent: Any, nom_outil: str, arguments: Any) -> Any | None:
     """V4 : le résultat de la même action d'écriture, déjà réussie avec les mêmes arguments, si rien depuis ne
     l'a défaite (une autre action réussie qui n'est pas une simple recherche de dates, ou le champ de la fiche
@@ -296,8 +322,9 @@ def resultat_deja_confirme(moteur: Any, agent: Any, nom_outil: str, arguments: A
         vue = journal[dernier]
         if not memes_arguments(vue.arguments, arguments if isinstance(arguments, Mapping) else {}):
             return None
+        annulations = outils_d_annulation(moteur)
         for suite in journal[dernier + 1 :]:
-            if suite.nom != nom_outil and suite.reussie and not suite.dates:
+            if suite.nom != nom_outil and suite.reussie and (not suite.dates or _est_une_annulation(annulations, suite.nom)):
                 return None
         fiche = getattr(moteur, "_gathered_context", None)
         if isinstance(fiche, dict):
@@ -401,6 +428,21 @@ def une_action_a_reussi(moteur: Any) -> bool:
         return True
 
 
+def annulation_reussie(moteur: Any) -> bool:
+    """Lot 8 : une action d'annulation (``annule_par_outil``) a-t-elle réussi dans l'appel ?"""
+    try:
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+
+        annulations = outils_d_annulation(moteur)
+        return any(v.reussie and _normaliser(v.nom) in annulations for v in journal_de(moteur))
+    except Exception:  # noqa: BLE001
+        return True
+
+
+def _dit_annule(formulation: str) -> bool:
+    return "annul" in (formulation or "").casefold()
+
+
 def _phrases(texte: str) -> list[str]:
     return [p for p in re.split(r"(?<=[.!?…])\s+|\n+", texte) if p.strip()]
 
@@ -430,6 +472,12 @@ class VerificateurDeReplique:
                 m = _ACTION_FAITE.search(phrase)
                 if m and not self.moteur_a_agi():
                     return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION)
+                # Lot 8 (K16) : « c'est annulé » n'est dit que si l'outil d'annulation l'a fait (l'agenda peut
+                # avoir réservé, l'annulation avoir échoué ou n'avoir jamais été appelée).
+                if m and _dit_annule(m.group(0)) and outils_d_annulation(self.moteur) and not annulation_reussie(self.moteur):
+                    from api.services.workflow.enveloppe_des_actions import CONSIGNE_ANNULATION, ISSUE_ECHEC
+
+                    return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ANNULATION[ISSUE_ECHEC])
             return None
         except Exception as erreur:  # noqa: BLE001 -- dans le doute, la réplique passe
             logger.warning(f"[verite] réplique non contrôlée : {erreur!r}")

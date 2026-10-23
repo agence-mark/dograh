@@ -227,6 +227,29 @@ describe("[.mark] Call Record card", () => {
         expect(schema).toContain("rempli_par_outil: str | None = Field(");
     });
 
+    it("offers the undoing tool only on a field a tool fills, and carries it out on save (lot 8, K16)", async () => {
+        const [premier, ...reste] = CHAMPS;
+        const onSave = ouvrir({
+            fiche_au_fil_de_leau: true,
+            fiche_champs: [{ ...premier, rempli_par_outil: "reserver" }, ...reste],
+        });
+        ouvrirLesChamps();
+        const dialogue = await screen.findByRole("dialog");
+        // The field filled by a tool offers it ; the next one (no tool) does not.
+        expect(document.getElementById("fiche_annule_0")).not.toBeNull();
+        expect(document.getElementById("fiche_annule_1")).toBeNull();
+        expect(within(dialogue).getAllByText(/undone by a tool/i).length).toBeGreaterThan(0);
+        fireEvent.change(document.getElementById("fiche_annule_0") as HTMLInputElement, { target: { value: "annuler" } });
+        fireEvent.click(within(dialogue).getByRole("button", { name: /done/i }));
+        fireEvent.click(boutonEnregistrer());
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        const [nom, suivant] = onSave.mock.calls[0][0].fiche_champs;
+        expect(nom).toMatchObject({ rempli_par_outil: "reserver", annule_par_outil: "annuler" });
+        expect(suivant.annule_par_outil ?? null).toBeNull();
+        const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
+        expect(schema).toContain("annule_par_outil: str | None = Field(");
+    });
+
     it("the server knows the end-of-call attribute the screen offers", () => {
         const schema = readFileSync(join(__dirname, "../../../../api/schemas/fiche_agent.py"), "utf8");
         expect(schema).toContain("rempli_en_fin_d_appel: bool = Field(");

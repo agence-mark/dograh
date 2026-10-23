@@ -141,7 +141,9 @@ def empreinte(moteur: Any, noeud: Any) -> str:
         if not isinstance(fiche, dict):
             fiche = {}
         ecrits_par_l_action = {
-            c.nom for c in tuple(getattr(reglages, "champs", None) or ()) if getattr(c, "rempli_par_outil", None)
+            c.nom
+            for c in tuple(getattr(reglages, "champs", None) or ())
+            if getattr(c, "rempli_par_outil", None) or getattr(c, "annule_par_outil", None)
         }
         valeurs = [
             [nom, _signature(fiche.get(nom))] for nom in champs_actifs(noeud, fiche) if nom not in ecrits_par_l_action

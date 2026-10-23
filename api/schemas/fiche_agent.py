@@ -157,6 +157,21 @@ class ChampFiche(BaseModel):
         ),
     )
 
+    # [.mark] correctifs-apres-banc-commun, lot 8 (K16, D-1) : l'outil qui DÉFAIT ce que ``rempli_par_outil``
+    # a fait (annuler un rendez-vous). Son résultat réussi écrit le champ (la clé du même nom dans sa réponse,
+    # sinon son statut : jamais une valeur par défaut) ; un échec n'écrit rien. Cet outil passe toujours : ni
+    # la garde de réservation ni la réservation identique (vérité des actions) ne le retiennent. Vide : éteint.
+    annule_par_outil: str | None = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "Undone by a tool: the name of the tool that cancels what the filling tool did. Its "
+            "successful result writes this field (the value of the same key in its answer, else its "
+            "status); a failure writes nothing, and the agent is told the real outcome. It is never "
+            "held back by the booking guard. Empty: off."
+        ),
+    )
+
     # [.mark] correctifs-apres-banc-v4, lot 2 (6.3, question n° 382) : un refus de la personne est noté
     # « refusé » et la garde de l'étape le compte comme traité (sinon l'agent redemande à chaque
     # tour). Ce champ-ci fait exception : refusé, il reste manquant. Faux par défaut : un champ qui ne
@@ -169,7 +184,7 @@ class ChampFiche(BaseModel):
         ),
     )
 
-    @field_validator("rempli_par_outil")
+    @field_validator("rempli_par_outil", "annule_par_outil")
     @classmethod
     def _outil_lisible(cls, nom: str | None) -> str | None:
         nom = (nom or "").strip()
